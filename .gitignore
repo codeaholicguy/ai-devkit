@@ -7,5 +7,12 @@ dist/
 .ai-devkit.json
 .cursor/
 .claude/
+.github/prompts/
 docs/ai/
 AGENTS.md
+CLAUDE.md
+
+# Test directories
+/tmp/
+test-*/
+*.test/

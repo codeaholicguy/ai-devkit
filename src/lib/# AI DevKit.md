@@ -244,20 +244,83 @@ Commands can be referenced in Claude Code chats to guide AI assistance through y
 
 Generated files:
 
-- `.github/prompts/`: Auto-generated prompts as `.prompt.md` files (per [GitHub Copilot documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot))
+- `.github/prompts/`: Auto-generated prompts as Markdown files (per [GitHub Copilot documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot))
 
 Available prompts:
 
-- `new-requirement.prompt` - Complete workflow for adding a new feature from requirements to PR
-- `code-review.prompt` - Structured local code review against design docs before pushing changes
-- `execute-plan.prompt` - Walk a feature plan task-by-task with interactive prompts
-- `writing-test.prompt` - Write unit/integration tests targeting 100% coverage
-- `update-planning.prompt` - Update planning and task breakdown
-- `check-implementation.prompt` - Compare implementation with design
-- `review-design.prompt` - Review system design and architecture
-- `review-requirements.prompt` - Review and summarize requirements
-- `capture-knowledge.prompt` - Analyze and explain code with recursive dependency analysis
-- `debug.prompt` - Structured debugging assistant
+- `new-requirement` - Complete workflow for adding a new feature from requirements to PR
+- `code-review` - Structured local code review against design docs before pushing changes
+- `execute-plan` - Walk a feature plan task-by-task with interactive prompts
+- `writing-test` - Write unit/integration tests targeting 100% coverage
+- `update-planning` - Update planning and task breakdown
+- `check-implementation` - Compare implementation with design
+- `review-design` - Review system design and architecture
+- `review-requirements` - Review and summarize requirements
+- `capture-knowledge` - Analyze and explain code with recursive dependency analysis
+- `debug` - Structured debugging assistant
+
+Prompts are automatically available in VS Code with GitHub Copilot extension. Sử dụng bằng cách gõ `#` trong Copilot Chat để xem danh sách prompts có sẵn.
+
+### GitHub Copilot
+
+Generated files:
+
+- `.github/prompts/`: Auto-generated prompts as Markdown files (per [GitHub Copilot documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot))
+
+Available prompts:
+
+- `new-requirement` - Complete workflow for adding a new feature from requirements to PR
+- `code-review` - Structured local code review against design docs before pushing changes
+- `execute-plan` - Walk a feature plan task-by-task with interactive prompts
+- `writing-test` - Write unit/integration tests targeting 100% coverage
+- `update-planning` - Update planning and task breakdown
+- `check-implementation` - Compare implementation with design
+- `review-design` - Review system design and architecture
+- `review-requirements` - Review and summarize requirements
+- `capture-knowledge` - Analyze and explain code with recursive dependency analysis
+- `debug` - Structured debugging assistant
+
+Prompts are automatically available in VS Code with GitHub Copilot extension. Sử dụng bằng cách gõ `#` trong Copilot Chat để xem danh sách prompts có sẵn.
+
+### GitHub Copilot
+
+Generated files:
+
+- `.github/prompts/`: Auto-generated prompts as Markdown files (per [GitHub Copilot documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot))
+
+Available prompts:
+
+- `new-requirement` - Complete workflow for adding a new feature from requirements to PR
+- `code-review` - Structured local code review against design docs before pushing changes
+- `execute-plan` - Walk a feature plan task-by-task with interactive prompts
+- `writing-test` - Write unit/integration tests targeting 100% coverage
+- `update-planning` - Update planning and task breakdown
+- `check-implementation` - Compare implementation with design
+- `review-design` - Review system design and architecture
+- `review-requirements` - Review and summarize requirements
+- `capture-knowledge` - Analyze and explain code with recursive dependency analysis
+- `debug` - Structured debugging assistant
+
+Prompts are automatically available in VS Code with GitHub Copilot extension. Sử dụng bằng cách gõ `#` trong Copilot Chat để xem danh sách prompts có sẵn.
+
+### GitHub Copilot
+
+Generated files:
+
+- `.github/prompts/`: Auto-generated prompts as Markdown files (per [GitHub Copilot documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot))
+
+Available prompts:
+
+- `new-requirement` - Complete workflow for adding a new feature from requirements to PR
+- `code-review` - Structured local code review against design docs before pushing changes
+- `execute-plan` - Walk a feature plan task-by-task with interactive prompts
+- `writing-test` - Write unit/integration tests targeting 100% coverage
+- `update-planning` - Update planning and task breakdown
+- `check-implementation` - Compare implementation with design
+- `review-design` - Review system design and architecture
+- `review-requirements` - Review and summarize requirements
+- `capture-knowledge` - Analyze and explain code with recursive dependency analysis
+- `debug` - Structured debugging assistant
 
 Prompts are automatically available in VS Code with GitHub Copilot extension. Sử dụng bằng cách gõ `#` trong Copilot Chat để xem danh sách prompts có sẵn.
 

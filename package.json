@@ -9,8 +9,11 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node src/cli.ts",
+    "dev:watch": "nodemon --watch src --ext ts --exec ts-node src/cli.ts",
     "lint": "eslint src --ext .ts",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "local:link": "npm run build && npm link",
+    "local:unlink": "npm unlink -g ai-devkit"
   },
   "keywords": [
     "ai",
