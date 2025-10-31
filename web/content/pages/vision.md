@@ -11,6 +11,8 @@ AI DevKit exists to bridge the gap between AI-assisted development and structure
 
 ## Our Purpose
 
+It inherits the idea from [The New Engineering Workflow](https://ownthecraftbook.com/chapters/9-the-new-engineering-workflow/) in [AI changes the Tools, you still own the Craft](https://ownthecraftbook.com/): empowering engineers to integrate AI effectively into a structured, test-driven, and craftsmanship-focused development process.
+
 We believe that AI coding assistants are most powerful when they work within a well-defined engineering framework where documentation is clear, plans are systematic, and architecture is intentional.
 
 AI DevKit provides the scaffolding for that structure. It helps engineers reduce the back-and-forth of prompting, keep context in sync, and share memory between themselves and their AI tools.
