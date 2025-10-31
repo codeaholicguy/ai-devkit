@@ -71,7 +71,7 @@ export class TemplateManager {
     const copiedFiles: string[] = [];
 
     try {
-      const contextSource = path.join(this.templatesDir, 'env', 'AGENTS.md');
+      const contextSource = path.join(this.templatesDir, 'env', 'base.md');
       const contextTarget = path.join(this.targetDir, env.contextFileName);
 
       if (await fs.pathExists(contextSource)) {
