@@ -118,52 +118,19 @@ your-project/
 └── [Environment-specific files]
 ```
 
-### For Cursor:
-```
-└── .cursor/
-    ├── rules/                # Project-specific rules (Markdown files)
-    │   └── ai-devkit.md
-    └── commands/             # Custom slash commands (Markdown files)
-        ├── new-requirement.md
-        ├── code-review.md
-        ├── execute-plan.md
-        ├── writing-test.md
-        ├── update-planning.md
-        ├── check-implementation.md
-        ├── review-design.md
-        ├── review-requirements.md
-        └── capture-knowledge.md
-```
-
-### For Claude Code:
-```
-└── .claude/
-    ├── CLAUDE.md             # Workspace configuration
-    └── commands/             # Custom commands (Markdown files)
-        ├── new-requirement.md
-        ├── code-review.md
-        ├── execute-plan.md
-        ├── writing-test.md
-        ├── update-planning.md
-        ├── check-implementation.md
-        ├── review-design.md
-        ├── review-requirements.md
-        └── capture-knowledge.md
-```
-
-## Customizing Templates
-
-All templates are plain Markdown files with YAML frontmatter. You can customize them to fit your project's needs:
-
-```markdown
----
-phase: requirements
-title: Requirements & Problem Understanding
-description: Clarify the problem space, gather requirements, and define success criteria
----
-
-# Your custom content here
-```
+Supported Tools & Agents:
+| Agent                                                     | Support | Notes                                             |
+|-----------------------------------------------------------|---------|---------------------------------------------------|
+| [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                   |
+| [GitHub Copilot](https://code.visualstudio.com/)          | ✅ |                                                   |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ |                                                   |
+| [Cursor](https://cursor.sh/)                              | ✅ |                                                   |
+| [opencode](https://opencode.ai/)                          | ✅ |                                                   |
+| [Windsurf](https://windsurf.com/)                         | ✅ |                                                   |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
+| [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
+| [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
+| [Amp](https://ampcode.com/) | ✅ | |
 
 Templates are designed to provide structure while remaining concise and AI-friendly.
 
