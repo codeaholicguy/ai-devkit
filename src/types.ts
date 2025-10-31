@@ -1,4 +1,4 @@
-export type Phase = 
+export type Phase =
   | 'requirements'
   | 'design'
   | 'planning'
@@ -7,11 +7,19 @@ export type Phase =
   | 'deployment'
   | 'monitoring';
 
-export type Environment = 'cursor' | 'claude' | 'both';
+export interface EnvironmentDefinition {
+  code: string;
+  name: string;
+  contextFileName: string;
+  commandPath: string;
+  description?: string;
+}
+
+export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo';
 
 export interface DevKitConfig {
   version: string;
-  environment?: Environment;
+  environments: EnvironmentCode[];
   initializedPhases: Phase[];
   createdAt: string;
   updatedAt: string;
@@ -42,4 +50,3 @@ export const PHASE_DISPLAY_NAMES: Record<Phase, string> = {
   deployment: 'Deployment Strategy',
   monitoring: 'Monitoring & Observability'
 };
-

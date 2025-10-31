@@ -1,6 +1,6 @@
 ---
 title: Public Website & Documentation
-status: in-progress
+status: completed
 priority: high
 order: 1
 ---

@@ -77,7 +77,7 @@ export async function phaseCommand(phaseName?: string) {
   const file = await templateManager.copyPhaseTemplate(phase);
   await configManager.addPhase(phase);
 
-  console.log(chalk.green(`\n✓ ${PHASE_DISPLAY_NAMES[phase]} created successfully!`));
+  console.log(chalk.green(`\n[OK] ${PHASE_DISPLAY_NAMES[phase]} created successfully!`));
   console.log(chalk.blue(`  Location: ${file}\n`));
 }
 

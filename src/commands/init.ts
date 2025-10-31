@@ -3,7 +3,10 @@ import inquirer from 'inquirer';
 import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config';
 import { TemplateManager } from '../lib/TemplateManager';
-import { Environment, Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
+import { EnvironmentSelector } from '../lib/EnvironmentSelector';
+import { PhaseSelector } from '../lib/PhaseSelector';
+import { EnvironmentCode, Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
+import { isValidEnvironmentCode } from '../util/env.js';
 
 function isGitAvailable(): boolean {
   try {
@@ -18,7 +21,7 @@ function ensureGitRepository(): void {
   if (!isGitAvailable()) {
     console.log(
       chalk.yellow(
-        '⚠️  Git is not installed or not available on the PATH. Skipping repository initialization.'
+        'Warning: Git is not installed or not available on the PATH. Skipping repository initialization.'
       )
     );
     return;
@@ -29,10 +32,10 @@ function ensureGitRepository(): void {
   } catch {
     try {
       execSync('git init', { stdio: 'ignore' });
-      console.log(chalk.green('✓ Initialized a new git repository'));
+      console.log(chalk.green('[OK] Initialized a new git repository'));
     } catch (error) {
       console.log(
-        chalk.red('✗ Failed to initialize git repository:'),
+        chalk.red('[ERROR] Failed to initialize git repository:'),
         error instanceof Error ? error.message : error
       );
     }
@@ -40,7 +43,7 @@ function ensureGitRepository(): void {
 }
 
 interface InitOptions {
-  environment?: Environment;
+  environment?: EnvironmentCode[];
   all?: boolean;
   phases?: string;
 }
@@ -48,6 +51,8 @@ interface InitOptions {
 export async function initCommand(options: InitOptions) {
   const configManager = new ConfigManager();
   const templateManager = new TemplateManager();
+  const environmentSelector = new EnvironmentSelector();
+  const phaseSelector = new PhaseSelector();
 
   ensureGitRepository();
 
@@ -67,44 +72,42 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
-  let environment: Environment | undefined = options.environment;
-  if (!environment) {
-    const envAnswer = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'environment',
-        message: 'Which AI development environment are you using?',
-        choices: [
-          { name: 'Cursor', value: 'cursor' },
-          { name: 'Claude Code', value: 'claude' },
-          { name: 'Both', value: 'both' }
-        ]
-      }
-    ]);
-    environment = envAnswer.environment;
+  let selectedEnvironments: EnvironmentCode[] = options.environment || [];
+  if (selectedEnvironments.length === 0) {
+    console.log(chalk.blue('\nAI Environment Setup\n'));
+    selectedEnvironments = await environmentSelector.selectEnvironments();
   }
 
-  let selectedPhases: Phase[] = [];
-  
-  if (options.all) {
-    selectedPhases = [...AVAILABLE_PHASES];
-  } else if (options.phases) {
-    selectedPhases = options.phases.split(',').map(p => p.trim()) as Phase[];
-  } else {
-    const phaseAnswer = await inquirer.prompt([
-      {
-        type: 'checkbox',
-        name: 'phases',
-        message: 'Which phases do you want to initialize? (or use --all flag)',
-        choices: AVAILABLE_PHASES.map(phase => ({
-          name: PHASE_DISPLAY_NAMES[phase],
-          value: phase,
-          checked: true
-        }))
-      }
-    ]);
-    selectedPhases = phaseAnswer.phases;
+  if (selectedEnvironments.length === 0) {
+    console.log(chalk.yellow('No environments selected. Initialization cancelled.'));
+    return;
   }
+
+  for (const envCode of selectedEnvironments) {
+    if (!isValidEnvironmentCode(envCode)) {
+      console.log(chalk.red(`Invalid environment code: ${envCode}`));
+      return;
+    }
+  }
+  const existingEnvironments: EnvironmentCode[] = [];
+  for (const envId of selectedEnvironments) {
+    if (await templateManager.checkEnvironmentExists(envId)) {
+      existingEnvironments.push(envId);
+    }
+  }
+
+  let shouldProceedWithSetup = true;
+  if (existingEnvironments.length > 0) {
+    console.log(chalk.yellow(`\nWarning: The following environments are already set up: ${existingEnvironments.join(', ')}\n`));
+    shouldProceedWithSetup = await environmentSelector.confirmOverride(existingEnvironments);
+  }
+
+  if (!shouldProceedWithSetup) {
+    console.log(chalk.yellow('Environment setup cancelled.'));
+    return;
+  }
+
+  const selectedPhases = await phaseSelector.selectPhases(options.all, options.phases);
 
   if (selectedPhases.length === 0) {
     console.log(chalk.yellow('No phases selected. Nothing to initialize.'));
@@ -113,34 +116,23 @@ export async function initCommand(options: InitOptions) {
 
   console.log(chalk.blue('\nInitializing AI DevKit...\n'));
 
-  await configManager.create(environment);
-  console.log(chalk.green('✓ Created configuration file'));
-
-  if (environment) {
-    const envExists = await templateManager.environmentFilesExist(environment);
-    let shouldCopyEnv = true;
-
-    if (envExists) {
-      const { overwrite } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'overwrite',
-          message: `Environment configuration files already exist. Overwrite?`,
-          default: false
-        }
-      ]);
-      shouldCopyEnv = overwrite;
-    }
-
-    if (shouldCopyEnv) {
-      const envFiles = await templateManager.copyEnvironmentTemplates(environment);
-      envFiles.forEach(file => {
-        console.log(chalk.green(`✓ Created ${file}`));
-      });
-    } else {
-      console.log(chalk.yellow('⊘ Skipped environment configuration'));
-    }
+  let config = await configManager.read();
+  if (!config) {
+    config = await configManager.create();
+    console.log(chalk.green('[OK] Created configuration file'));
   }
+
+  await configManager.setEnvironments(selectedEnvironments);
+  console.log(chalk.green('[OK] Updated configuration with selected environments'));
+
+  environmentSelector.displaySelectionSummary(selectedEnvironments);
+
+  phaseSelector.displaySelectionSummary(selectedPhases);
+  console.log(chalk.blue('\nSetting up environment templates...\n'));
+  const envFiles = await templateManager.setupMultipleEnvironments(selectedEnvironments);
+  envFiles.forEach(file => {
+    console.log(chalk.green(`[OK] Created ${file}`));
+  });
 
   for (const phase of selectedPhases) {
     const exists = await templateManager.fileExists(phase);
@@ -161,16 +153,17 @@ export async function initCommand(options: InitOptions) {
     if (shouldCopy) {
       const file = await templateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
-      console.log(chalk.green(`✓ Created ${phase} phase`));
+      console.log(chalk.green(`[OK] Created ${phase} phase`));
     } else {
-      console.log(chalk.yellow(`⊘ Skipped ${phase} phase`));
+      console.log(chalk.yellow(`[SKIP] Skipped ${phase} phase`));
     }
   }
 
-  console.log(chalk.green('\n✨ AI DevKit initialized successfully!\n'));
+  console.log(chalk.green('\nAI DevKit initialized successfully!\n'));
   console.log(chalk.blue('Next steps:'));
   console.log('  • Review and customize templates in docs/ai/');
-  console.log('  • Use your AI development environment with the generated configuration');
-  console.log('  • Run `ai-devkit phase <name>` to add more phases later\n');
+  console.log('  • Your AI environments are ready to use with the generated configurations');
+  console.log('  • Run `ai-devkit phase <name>` to add more phases later');
+  console.log('  • Run `ai-devkit init` again to add more environments\n');
 }
 

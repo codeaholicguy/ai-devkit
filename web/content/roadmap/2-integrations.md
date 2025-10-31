@@ -1,6 +1,6 @@
 ---
 title: Coding Agent Integration
-status: planned
+status: in-progress
 order: 2
 ---
 

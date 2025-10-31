@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { DevKitConfig, Phase, Environment } from '../types';
+import { DevKitConfig, Phase, EnvironmentCode } from '../types';
+import packageJson from '../../package.json';
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
 
@@ -22,10 +23,10 @@ export class ConfigManager {
     return null;
   }
 
-  async create(environment?: Environment): Promise<DevKitConfig> {
+  async create(): Promise<DevKitConfig> {
     const config: DevKitConfig = {
-      version: '0.1.0',
-      environment,
+      version: packageJson.version,
+      environments: [],
       initializedPhases: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -68,6 +69,20 @@ export class ConfigManager {
   async hasPhase(phase: Phase): Promise<boolean> {
     const config = await this.read();
     return config ? config.initializedPhases.includes(phase) : false;
+  }
+
+  async getEnvironments(): Promise<EnvironmentCode[]> {
+    const config = await this.read();
+    return config?.environments || [];
+  }
+
+  async setEnvironments(environments: EnvironmentCode[]): Promise<DevKitConfig> {
+    return this.update({ environments });
+  }
+
+  async hasEnvironment(envId: EnvironmentCode): Promise<boolean> {
+    const environments = await this.getEnvironments();
+    return environments.includes(envId);
   }
 }
 
