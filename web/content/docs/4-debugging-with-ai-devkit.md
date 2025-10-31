@@ -1,7 +1,7 @@
 ---
 title: Debugging with AI DevKit
 description: Learn how to systematically debug issues using AI DevKit's structured debugging workflows
-order: 4
+order: 5
 ---
 
 ## Use `/debug` for Systematic Problem Solving
