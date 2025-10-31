@@ -9,3 +9,4 @@ dist/
 .claude/
 docs/ai/
 AGENTS.md
+coverage/
