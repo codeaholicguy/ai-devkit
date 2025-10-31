@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2025-10-31
+
+### Added
+- **Multi-Environment Setup** - Support for 10 AI development environments
+  - Interactive environment selection with multi-choice prompts
+  - Support for Cursor, Claude Code, GitHub Copilot, Google Gemini, OpenAI Codex, Windsurf, KiloCode, AMP, OpenCode, and Roo Code
+  - Unified template structure with AGENTS.md files for all environments
+  - Environment-specific command directories and configuration files
+  - Override protection with confirmation prompts for existing environments
+  - Config persistence storing selected environments array
+
+### Changed
+- **Breaking Changes** - Removed legacy single-environment support for cleaner API
+  - Renamed `EnvironmentId` to `EnvironmentCode` throughout codebase
+  - Removed legacy `Environment` type union (cursor | claude | both)
+  - Updated config schema to use `environments: EnvironmentCode[]`
+  - All environments now use standardized AGENTS.md context files
+
+### Technical Improvements
+- **Testing Infrastructure** - Complete test suite implementation
+- **Architecture** - Modular design improvements
+
 ## [0.3.0] - 2025-10-15
 
 ### Added
