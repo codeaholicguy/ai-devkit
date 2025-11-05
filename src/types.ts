@@ -13,6 +13,7 @@ export interface EnvironmentDefinition {
   contextFileName: string;
   commandPath: string;
   description?: string;
+  isCustomCommandPath?: boolean;
 }
 
 export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo';
