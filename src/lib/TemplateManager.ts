@@ -117,6 +117,7 @@ export class TemplateManager {
     copiedFiles: string[]
   ): Promise<void> {
     const commandsSourceDir = path.join(this.templatesDir, "commands");
+    const commandExtension = env.customCommandExtension || ".md";
     const commandsTargetDir = path.join(this.targetDir, env.commandPath);
 
     if (await fs.pathExists(commandsSourceDir)) {
@@ -127,11 +128,12 @@ export class TemplateManager {
         commandFiles
           .filter((file: string) => file.endsWith(".md"))
           .map(async (file: string) => {
+            const targetFile = file.replace('.md', commandExtension);
             await fs.copy(
               path.join(commandsSourceDir, file),
-              path.join(commandsTargetDir, file)
+              path.join(commandsTargetDir, targetFile)
             );
-            copiedFiles.push(path.join(commandsTargetDir, file));
+            copiedFiles.push(path.join(commandsTargetDir, targetFile));
           })
       );
     } else {
