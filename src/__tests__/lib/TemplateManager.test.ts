@@ -81,11 +81,11 @@ describe('TemplateManager', () => {
         isCustomCommandPath: false
       };
 
-      const mockCommandFiles = ['command1.md', 'command2.toml'];
+      const mockCommandFiles = ['command1.md', 'command2.toml', 'command3.md'];
 
       (mockFs.pathExists as any)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
+        .mockResolvedValueOnce(true) // context file exists
+        .mockResolvedValueOnce(true); // commands directory exists
 
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
 
@@ -94,13 +94,19 @@ describe('TemplateManager', () => {
       expect(mockFs.ensureDir).toHaveBeenCalledWith(
         path.join(templateManager['targetDir'], env.commandPath)
       );
+
+      // Should only copy .md files (not .toml files)
       expect(mockFs.copy).toHaveBeenCalledWith(
-        path.join(templateManager['templatesDir'], 'commands'),
-        path.join(templateManager['targetDir'], env.commandPath)
+        path.join(templateManager['templatesDir'], 'commands', 'command1.md'),
+        path.join(templateManager['targetDir'], env.commandPath, 'command1.md')
+      );
+      expect(mockFs.copy).toHaveBeenCalledWith(
+        path.join(templateManager['templatesDir'], 'commands', 'command3.md'),
+        path.join(templateManager['targetDir'], env.commandPath, 'command3.md')
       );
 
       expect(result).toContain(path.join(templateManager['targetDir'], env.commandPath, 'command1.md'));
-      expect(result).toContain(path.join(templateManager['targetDir'], env.commandPath, 'command2.toml'));
+      expect(result).toContain(path.join(templateManager['targetDir'], env.commandPath, 'command3.md'));
     });
 
     it('should skip commands when isCustomCommandPath is true', async () => {
