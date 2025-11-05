@@ -24,6 +24,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'Google Gemini',
     contextFileName: 'AGENTS.md',
     commandPath: '.gemini/commands',
+    isCustomCommandPath: true,
   },
   codex: {
     code: 'codex',
