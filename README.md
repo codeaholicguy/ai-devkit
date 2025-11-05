@@ -121,16 +121,16 @@ your-project/
 Supported Tools & Agents:
 | Agent                                                     | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
-| [Claude Code](https://www.anthropic.com/claude-code)      | Yes |                                                   |
-| [GitHub Copilot](https://code.visualstudio.com/)          | Yes |                                                   |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | Yes |                                                   |
-| [Cursor](https://cursor.sh/)                              | Yes |                                                   |
-| [opencode](https://opencode.ai/)                          | Yes |                                                   |
-| [Windsurf](https://windsurf.com/)                         | Yes |                                                   |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode)         | Yes |                                                   |
-| [Roo Code](https://roocode.com/)                          | Yes |                                                   |
-| [Codex CLI](https://github.com/openai/codex)              | Yes |                                                   |
-| [Amp](https://ampcode.com/) | Yes | |
+| [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                        |
+| [GitHub Copilot](https://code.visualstudio.com/)          | 🚧 | Testing                                                |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | 🚧 | Testing                                                |
+| [Cursor](https://cursor.sh/)                              | ✅ |                                                        |
+| [opencode](https://opencode.ai/)                          | 🚧 | Testing                                                |
+| [Windsurf](https://windsurf.com/)                         | 🚧 | Testing                                                |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode)         | 🚧 | Testing                                                |
+| [Roo Code](https://roocode.com/)                          | 🚧 | Testing                                                |
+| [Codex CLI](https://github.com/openai/codex)              | 🚧 | Testing                                                |
+| [Amp](https://ampcode.com/)                               | 🚧 | Testing                                                |
 
 Templates are designed to provide structure while remaining concise and AI-friendly.
 
