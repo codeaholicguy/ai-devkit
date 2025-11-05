@@ -122,8 +122,8 @@ Supported Tools & Agents:
 | Agent                                                     | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
 | [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                        |
-| [GitHub Copilot](https://code.visualstudio.com/)          | 🚧 | Testing                                                |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | 🚧 | Testing                                                |
+| [GitHub Copilot](https://code.visualstudio.com/)          | ✅ | VSCode only                                                |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ |                                                 |
 | [Cursor](https://cursor.sh/)                              | ✅ |                                                        |
 | [opencode](https://opencode.ai/)                          | 🚧 | Testing                                                |
 | [Windsurf](https://windsurf.com/)                         | 🚧 | Testing                                                |
