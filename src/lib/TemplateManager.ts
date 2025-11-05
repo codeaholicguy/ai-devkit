@@ -91,22 +91,7 @@ export class TemplateManager {
       }
 
       if (!env.isCustomCommandPath) {
-        const commandsSourceDir = path.join(this.templatesDir, "commands");
-        const commandsTargetDir = path.join(this.targetDir, env.commandPath);
-
-        if (await fs.pathExists(commandsSourceDir)) {
-          await fs.ensureDir(commandsTargetDir);
-          await fs.copy(commandsSourceDir, commandsTargetDir);
-
-          const commandFiles = await fs.readdir(commandsTargetDir);
-          commandFiles.forEach((file) => {
-            copiedFiles.push(path.join(commandsTargetDir, file));
-          });
-        } else {
-          console.warn(
-            `Warning: Commands directory not found: ${commandsSourceDir}`
-          );
-        }
+        await this.copyCommands(env, copiedFiles);
       }
 
       switch (env.code) {
@@ -125,6 +110,35 @@ export class TemplateManager {
     }
 
     return copiedFiles;
+  }
+
+  private async copyCommands(
+    env: EnvironmentDefinition,
+    copiedFiles: string[]
+  ): Promise<void> {
+    const commandsSourceDir = path.join(this.templatesDir, "commands");
+    const commandsTargetDir = path.join(this.targetDir, env.commandPath);
+
+    if (await fs.pathExists(commandsSourceDir)) {
+      await fs.ensureDir(commandsTargetDir);
+
+      const commandFiles = await fs.readdir(commandsSourceDir);
+      await Promise.all(
+        commandFiles
+          .filter((file: string) => file.endsWith(".md"))
+          .map(async (file: string) => {
+            await fs.copy(
+              path.join(commandsSourceDir, file),
+              path.join(commandsTargetDir, file)
+            );
+            copiedFiles.push(path.join(commandsTargetDir, file));
+          })
+      );
+    } else {
+      console.warn(
+        `Warning: Commands directory not found: ${commandsSourceDir}`
+      );
+    }
   }
 
   private async copyCursorSpecificFiles(copiedFiles: string[]): Promise<void> {
