@@ -135,8 +135,8 @@ describe('EnvironmentSelector', () => {
       selector.displaySelectionSummary(['cursor', 'claude']);
 
       expect(consoleSpy).toHaveBeenCalledWith('\nSelected environments:');
-      expect(consoleSpy).toHaveBeenCalledWith('  ✅ Cursor');
-      expect(consoleSpy).toHaveBeenCalledWith('  ✅ Claude Code');
+      expect(consoleSpy).toHaveBeenCalledWith('  [OK] Cursor');
+      expect(consoleSpy).toHaveBeenCalledWith('  [OK] Claude Code');
       expect(consoleSpy).toHaveBeenCalledWith('');
     });
 
@@ -144,7 +144,7 @@ describe('EnvironmentSelector', () => {
       selector.displaySelectionSummary(['cursor']);
 
       expect(consoleSpy).toHaveBeenCalledWith('\nSelected environments:');
-      expect(consoleSpy).toHaveBeenCalledWith('  ✅ Cursor');
+      expect(consoleSpy).toHaveBeenCalledWith('  [OK] Cursor');
       expect(consoleSpy).toHaveBeenCalledWith('');
     });
   });

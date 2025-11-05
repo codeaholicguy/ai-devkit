@@ -58,7 +58,7 @@ export class EnvironmentSelector {
 
     console.log('\nSelected environments:');
     selected.forEach(envId => {
-      console.log(`  ✅ ${getEnvironmentDisplayName(envId)}`);
+      console.log(`  ${getEnvironmentDisplayName(envId)}`);
     });
     console.log('');
   }

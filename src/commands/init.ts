@@ -32,7 +32,7 @@ function ensureGitRepository(): void {
   } catch {
     try {
       execSync('git init', { stdio: 'ignore' });
-      console.log(chalk.green('✅ Initialized a new git repository'));
+      console.log(chalk.green('[OK] Initialized a new git repository'));
     } catch (error) {
       console.log(
         chalk.red('[ERROR] Failed to initialize git repository:'),
@@ -119,11 +119,11 @@ export async function initCommand(options: InitOptions) {
   let config = await configManager.read();
   if (!config) {
     config = await configManager.create();
-    console.log(chalk.green('✅ Created configuration file'));
+    console.log(chalk.green('[OK] Created configuration file'));
   }
 
   await configManager.setEnvironments(selectedEnvironments);
-  console.log(chalk.green('✅ Updated configuration with selected environments'));
+  console.log(chalk.green('[OK] Updated configuration with selected environments'));
 
   environmentSelector.displaySelectionSummary(selectedEnvironments);
 
@@ -131,7 +131,7 @@ export async function initCommand(options: InitOptions) {
   console.log(chalk.blue('\nSetting up environment templates...\n'));
   const envFiles = await templateManager.setupMultipleEnvironments(selectedEnvironments);
   envFiles.forEach(file => {
-    console.log(chalk.green(`✅ Created ${file}`));
+    console.log(chalk.green(`[OK] Created ${file}`));
   });
 
   for (const phase of selectedPhases) {
@@ -153,7 +153,7 @@ export async function initCommand(options: InitOptions) {
     if (shouldCopy) {
       const file = await templateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
-      console.log(chalk.green(`✅ Created ${phase} phase`));
+      console.log(chalk.green(`[OK] Created ${phase} phase`));
     } else {
       console.log(chalk.yellow(`[SKIP] Skipped ${phase} phase`));
     }

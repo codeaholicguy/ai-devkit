@@ -49,7 +49,7 @@ export class PhaseSelector {
 
     console.log('\nSelected phases:');
     selected.forEach(phase => {
-      console.log(`  ✅ ${PHASE_DISPLAY_NAMES[phase]}`);
+      console.log(`  ${PHASE_DISPLAY_NAMES[phase]}`);
     });
     console.log('');
   }

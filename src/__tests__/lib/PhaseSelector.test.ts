@@ -82,8 +82,8 @@ describe('PhaseSelector', () => {
       selector.displaySelectionSummary(['requirements', 'design']);
 
       expect(consoleSpy).toHaveBeenCalledWith('\nSelected phases:');
-      expect(consoleSpy).toHaveBeenCalledWith('  ✅ Requirements & Problem Understanding');
-      expect(consoleSpy).toHaveBeenCalledWith('  ✅ System Design & Architecture');
+      expect(consoleSpy).toHaveBeenCalledWith('  [OK] Requirements & Problem Understanding');
+      expect(consoleSpy).toHaveBeenCalledWith('  [OK] System Design & Architecture');
       expect(consoleSpy).toHaveBeenCalledWith('');
     });
 
@@ -91,7 +91,7 @@ describe('PhaseSelector', () => {
       selector.displaySelectionSummary(['requirements']);
 
       expect(consoleSpy).toHaveBeenCalledWith('\nSelected phases:');
-      expect(consoleSpy).toHaveBeenCalledWith('  ✅ Requirements & Problem Understanding');
+      expect(consoleSpy).toHaveBeenCalledWith('  [OK] Requirements & Problem Understanding');
       expect(consoleSpy).toHaveBeenCalledWith('');
     });
   });
