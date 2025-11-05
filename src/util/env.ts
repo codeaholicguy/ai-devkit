@@ -17,7 +17,8 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     code: 'github',
     name: 'GitHub Copilot',
     contextFileName: 'AGENTS.md',
-    commandPath: '.github/commands',
+    commandPath: '.github/prompts',
+    customCommandExtension: '.prompt.md',
   },
   gemini: {
     code: 'gemini',
