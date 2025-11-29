@@ -39,6 +39,7 @@ ai-devkit init --phases requirements,design,planning
 ```
 
 This will:
+
 1. Create a `.ai-devkit.json` configuration file
 2. Set up your AI development environment (Cursor/Claude Code)
 3. Generate phase templates in `docs/ai/`
@@ -62,11 +63,13 @@ Detailed user guide can be found [here](https://ai-devkit.com/docs/).
 Initialize AI DevKit in your project.
 
 **Options:**
+
 - `-e, --environment <env>`: Specify environment (cursor|claude|both)
 - `-a, --all`: Initialize all phases at once
 - `-p, --phases <phases>`: Comma-separated list of specific phases
 
 **Examples:**
+
 ```bash
 # Interactive mode
 ai-devkit init
@@ -83,6 +86,7 @@ ai-devkit init --phases requirements,design,implementation
 Add or update a specific phase template.
 
 **Examples:**
+
 ```bash
 # Interactive selection
 ai-devkit phase
@@ -119,18 +123,18 @@ your-project/
 ```
 
 Supported Tools & Agents:
-| Agent                                                     | Support | Notes                                             |
+| Agent | Support | Notes |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
-| [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                        |
-| [GitHub Copilot](https://code.visualstudio.com/)          | ✅ | VSCode only                                                |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ |                                                 |
-| [Cursor](https://cursor.sh/)                              | ✅ |                                                        |
-| [opencode](https://opencode.ai/)                          | 🚧 | Testing                                                |
-| [Windsurf](https://windsurf.com/)                         | 🚧 | Testing                                                |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode)         | 🚧 | Testing                                                |
-| [Roo Code](https://roocode.com/)                          | 🚧 | Testing                                                |
-| [Codex CLI](https://github.com/openai/codex)              | 🚧 | Testing                                                |
-| [Amp](https://ampcode.com/)                               | 🚧 | Testing                                                |
+| [Claude Code](https://www.anthropic.com/claude-code) | ✅ | |
+| [GitHub Copilot](https://code.visualstudio.com/) | ✅ | VSCode only |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ | |
+| [Cursor](https://cursor.sh/) | ✅ | |
+| [opencode](https://opencode.ai/) | 🚧 | Testing |
+| [Windsurf](https://windsurf.com/) | 🚧 | Testing |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode) | 🚧 | Testing |
+| [Roo Code](https://roocode.com/) | ✅ | |
+| [Codex CLI](https://github.com/openai/codex) | 🚧 | Testing |
+| [Amp](https://ampcode.com/) | 🚧 | Testing |
 
 Templates are designed to provide structure while remaining concise and AI-friendly.
 
@@ -139,10 +143,12 @@ Templates are designed to provide structure while remaining concise and AI-frien
 ### Cursor
 
 Generated files:
+
 - `.cursor/rules/`: Project-specific rules as Markdown files (per [Cursor documentation](https://cursor.com/docs/context/rules))
 - `.cursor/commands/`: Custom slash commands as Markdown files (per [Cursor documentation](https://cursor.com/docs/agent/chat/commands))
 
 Available slash commands:
+
 - `/new-requirement`: Complete workflow for adding a new feature from requirements to PR
 - `/code-review`: Structured local code review against design docs before pushing changes
 - `/execute-plan`: Walk a feature plan task-by-task with interactive prompts
@@ -157,10 +163,12 @@ Each command is stored as a plain Markdown file in `.cursor/commands/` and will 
 ### Claude Code
 
 Generated files:
+
 - `.claude/CLAUDE.md`: Workspace configuration and guidelines
 - `.claude/commands/`: Custom commands as Markdown files
 
 Available commands:
+
 - `new-requirement` - Complete workflow for adding a new feature from requirements to PR
 - `code-review` - Structured local code review against design docs before pushing changes
 - `execute-plan` - Walk a feature plan task-by-task with interactive prompts
@@ -178,32 +186,39 @@ Commands can be referenced in Claude Code chats to guide AI assistance through y
 ### Initial Project Setup
 
 1. **Initialize your project:**
+
    ```bash
    ai-devkit init
    ```
 
 2. **Start with requirements:**
+
    - Fill out `docs/ai/requirements/README.md`
    - Use your AI assistant to help clarify and document requirements
 
 3. **Design your system:**
+
    - Complete `docs/ai/design/README.md` and feature-specific files
    - Include mermaid diagrams for architecture, component interactions, and data flow
    - Reference requirements when making design decisions
 
 4. **Plan your work:**
+
    - Break down tasks in `docs/ai/planning/README.md`
    - Estimate and prioritize
 
 5. **Implement with guidance:**
+
    - Follow patterns in `docs/ai/implementation/README.md`
    - Keep implementation notes updated
 
 6. **Test thoroughly:**
+
    - Use `docs/ai/testing/README.md` as your testing guide
    - Document test cases and results
 
 7. **Deploy confidently:**
+
    - Follow deployment procedures in `docs/ai/deployment/README.md`
 
 8. **Monitor and iterate:**
@@ -278,20 +293,19 @@ MIT
 
 ## Quick Reference
 
-| Task | Command |
-|------|---------|
-| Initialize everything | `npx ai-devkit init --all` |
-| Initialize for Cursor | `npx ai-devkit init --environment cursor` |
-| Add specific phases | `npx ai-devkit init --phases requirements,design` |
-| Add one phase later | `npx ai-devkit phase testing` |
-| Guided feature workflow | `/new-requirement` (Cursor & Claude) |
-| Execute feature plan | `/execute-plan` (Cursor & Claude) |
-| Generate tests | `/writing-test` (Cursor & Claude) |
-| Local code review | `/code-review` (Cursor & Claude) |
-| Help | `npx ai-devkit --help` |
+| Task                    | Command                                           |
+| ----------------------- | ------------------------------------------------- |
+| Initialize everything   | `npx ai-devkit init --all`                        |
+| Initialize for Cursor   | `npx ai-devkit init --environment cursor`         |
+| Add specific phases     | `npx ai-devkit init --phases requirements,design` |
+| Add one phase later     | `npx ai-devkit phase testing`                     |
+| Guided feature workflow | `/new-requirement` (Cursor & Claude)              |
+| Execute feature plan    | `/execute-plan` (Cursor & Claude)                 |
+| Generate tests          | `/writing-test` (Cursor & Claude)                 |
+| Local code review       | `/code-review` (Cursor & Claude)                  |
+| Help                    | `npx ai-devkit --help`                            |
 
-| Quick links | Description |
-|-------------|-------------|
+| Quick links                  | Description                      |
+| ---------------------------- | -------------------------------- |
 | [CHANGELOG.md](CHANGELOG.md) | Recent changes and release notes |
-| [templates/](templates/) | Phase and environment templates |
-
+| [templates/](templates/)     | Phase and environment templates  |

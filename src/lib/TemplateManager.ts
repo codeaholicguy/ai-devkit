@@ -29,13 +29,13 @@ export class TemplateManager {
       "docs",
       "ai",
       phase,
-      "README.md"
+      "README.md",
     );
     return fs.pathExists(targetFile);
   }
 
   async setupMultipleEnvironments(
-    environmentIds: EnvironmentCode[]
+    environmentIds: EnvironmentCode[],
   ): Promise<string[]> {
     const copiedFiles: string[] = [];
 
@@ -75,22 +75,26 @@ export class TemplateManager {
   }
 
   private async setupSingleEnvironment(
-    env: EnvironmentDefinition
+    env: EnvironmentDefinition,
   ): Promise<string[]> {
     const copiedFiles: string[] = [];
 
     try {
-      const contextSource = path.join(this.templatesDir, "env", "base.md");
-      const contextTarget = path.join(this.targetDir, env.contextFileName);
+      // Roo Code has special handling, skip default context copy
+      if (env.code !== "roo") {
+        const contextSource = path.join(this.templatesDir, "env", "base.md");
+        const contextTarget = path.join(this.targetDir, env.contextFileName);
 
-      if (await fs.pathExists(contextSource)) {
-        await fs.copy(contextSource, contextTarget);
-        copiedFiles.push(contextTarget);
-      } else {
-        console.warn(`Warning: Context file not found: ${contextSource}`);
+        if (await fs.pathExists(contextSource)) {
+          await fs.copy(contextSource, contextTarget);
+          copiedFiles.push(contextTarget);
+        } else {
+          console.warn(`Warning: Context file not found: ${contextSource}`);
+        }
       }
 
-      if (!env.isCustomCommandPath) {
+      // Roo Code commands are handled in copyRooSpecificFiles
+      if (!env.isCustomCommandPath && env.code !== "roo") {
         await this.copyCommands(env, copiedFiles);
       }
 
@@ -100,6 +104,9 @@ export class TemplateManager {
           break;
         case "gemini":
           await this.copyGeminiSpecificFiles(copiedFiles);
+          break;
+        case "roo":
+          await this.copyRooSpecificFiles(copiedFiles);
           break;
         default:
           break;
@@ -114,7 +121,7 @@ export class TemplateManager {
 
   private async copyCommands(
     env: EnvironmentDefinition,
-    copiedFiles: string[]
+    copiedFiles: string[],
   ): Promise<void> {
     const commandsSourceDir = path.join(this.templatesDir, "commands");
     const commandExtension = env.customCommandExtension || ".md";
@@ -128,17 +135,17 @@ export class TemplateManager {
         commandFiles
           .filter((file: string) => file.endsWith(".md"))
           .map(async (file: string) => {
-            const targetFile = file.replace('.md', commandExtension);
+            const targetFile = file.replace(".md", commandExtension);
             await fs.copy(
               path.join(commandsSourceDir, file),
-              path.join(commandsTargetDir, targetFile)
+              path.join(commandsTargetDir, targetFile),
             );
             copiedFiles.push(path.join(commandsTargetDir, targetFile));
-          })
+          }),
       );
     } else {
       console.warn(
-        `Warning: Commands directory not found: ${commandsSourceDir}`
+        `Warning: Commands directory not found: ${commandsSourceDir}`,
       );
     }
   }
@@ -148,7 +155,7 @@ export class TemplateManager {
       this.templatesDir,
       "env",
       "cursor",
-      "rules"
+      "rules",
     );
     const rulesTargetDir = path.join(this.targetDir, ".cursor", "rules");
 
@@ -165,7 +172,7 @@ export class TemplateManager {
 
   private async copyGeminiSpecificFiles(copiedFiles: string[]): Promise<void> {
     const commandFiles = await fs.readdir(
-      path.join(this.templatesDir, "commands")
+      path.join(this.templatesDir, "commands"),
     );
     const commandTargetDir = path.join(this.targetDir, ".gemini", "commands");
 
@@ -176,10 +183,46 @@ export class TemplateManager {
         .map(async (file: string) => {
           await fs.copy(
             path.join(this.templatesDir, "commands", file),
-            path.join(commandTargetDir, file)
+            path.join(commandTargetDir, file),
           );
           copiedFiles.push(path.join(commandTargetDir, file));
-        })
+        }),
     );
+  }
+
+  private async copyRooSpecificFiles(copiedFiles: string[]): Promise<void> {
+    // Roo Code uses .roo/rules/ for context files
+    const rulesTargetDir = path.join(this.targetDir, ".roo", "rules");
+    await fs.ensureDir(rulesTargetDir);
+
+    // Copy base context to .roo/rules/AGENTS.md
+    const contextSource = path.join(this.templatesDir, "env", "base.md");
+    const contextTarget = path.join(rulesTargetDir, "AGENTS.md");
+
+    if (await fs.pathExists(contextSource)) {
+      await fs.copy(contextSource, contextTarget);
+      copiedFiles.push(contextTarget);
+    }
+
+    // Copy commands to .roo/commands/
+    const commandsSourceDir = path.join(this.templatesDir, "commands");
+    const commandsTargetDir = path.join(this.targetDir, ".roo", "commands");
+
+    if (await fs.pathExists(commandsSourceDir)) {
+      await fs.ensureDir(commandsTargetDir);
+
+      const commandFiles = await fs.readdir(commandsSourceDir);
+      await Promise.all(
+        commandFiles
+          .filter((file: string) => file.endsWith(".md"))
+          .map(async (file: string) => {
+            await fs.copy(
+              path.join(commandsSourceDir, file),
+              path.join(commandsTargetDir, file),
+            );
+            copiedFiles.push(path.join(commandsTargetDir, file));
+          }),
+      );
+    }
   }
 }

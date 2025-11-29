@@ -1,4 +1,10 @@
+---
+description: Review requirements documentation for completeness and alignment
+argument-hint: <feature-name>
+---
+
 Please review `docs/ai/requirements/feature-{name}.md` and the project-level template `docs/ai/requirements/README.md` to ensure structure and content alignment. Summarize:
+
 - Core problem statement and affected users
 - Goals, non-goals, and success criteria
 - Primary user stories & critical flows
@@ -6,4 +12,3 @@ Please review `docs/ai/requirements/feature-{name}.md` and the project-level tem
 - Any missing sections or deviations from the template
 
 Identify gaps or contradictions and suggest clarifications.
-
