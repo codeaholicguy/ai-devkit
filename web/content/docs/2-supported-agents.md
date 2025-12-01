@@ -74,7 +74,7 @@ order: 2
 
 **What AI DevKit provides:**
 
-- `.roo/rules/AGENTS.md` - Roo Code configuration and context following Roo's rules structure
+- `AGENTS.md` - Roo Code configuration and context at project root
 - `.roo/commands/` - Slash commands with frontmatter support (description, argument-hint)
 
 **Roo Code Features:**
@@ -82,7 +82,7 @@ order: 2
 - Slash commands with fuzzy search and auto-complete
 - Frontmatter metadata for descriptions and argument hints
 - Project-specific commands in `.roo/commands/`
-- Rules-based context in `.roo/rules/`
+- Context file at project root for easy access
 
 ## Environment Setup
 

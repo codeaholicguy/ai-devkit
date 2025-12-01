@@ -63,7 +63,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<
   roo: {
     code: "roo",
     name: "Roo Code",
-    contextFileName: ".roo/rules/AGENTS.md",
+    contextFileName: "AGENTS.md",
     commandPath: ".roo/commands",
   },
 };

@@ -80,17 +80,14 @@ export class TemplateManager {
     const copiedFiles: string[] = [];
 
     try {
-      // Roo Code has special handling, skip default context copy
-      if (env.code !== "roo") {
-        const contextSource = path.join(this.templatesDir, "env", "base.md");
-        const contextTarget = path.join(this.targetDir, env.contextFileName);
+      const contextSource = path.join(this.templatesDir, "env", "base.md");
+      const contextTarget = path.join(this.targetDir, env.contextFileName);
 
-        if (await fs.pathExists(contextSource)) {
-          await fs.copy(contextSource, contextTarget);
-          copiedFiles.push(contextTarget);
-        } else {
-          console.warn(`Warning: Context file not found: ${contextSource}`);
-        }
+      if (await fs.pathExists(contextSource)) {
+        await fs.copy(contextSource, contextTarget);
+        copiedFiles.push(contextTarget);
+      } else {
+        console.warn(`Warning: Context file not found: ${contextSource}`);
       }
 
       // Roo Code commands are handled in copyRooSpecificFiles
@@ -191,19 +188,6 @@ export class TemplateManager {
   }
 
   private async copyRooSpecificFiles(copiedFiles: string[]): Promise<void> {
-    // Roo Code uses .roo/rules/ for context files
-    const rulesTargetDir = path.join(this.targetDir, ".roo", "rules");
-    await fs.ensureDir(rulesTargetDir);
-
-    // Copy base context to .roo/rules/AGENTS.md
-    const contextSource = path.join(this.templatesDir, "env", "base.md");
-    const contextTarget = path.join(rulesTargetDir, "AGENTS.md");
-
-    if (await fs.pathExists(contextSource)) {
-      await fs.copy(contextSource, contextTarget);
-      copiedFiles.push(contextTarget);
-    }
-
     // Copy commands to .roo/commands/
     const commandsSourceDir = path.join(this.templatesDir, "commands");
     const commandsTargetDir = path.join(this.targetDir, ".roo", "commands");
