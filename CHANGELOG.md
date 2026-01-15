@@ -8,24 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - 2025-01-15
 
 ### Added
-- **Antigravity Support** - Added support for Google Antigravity (Gemini CLI) as a new AI development environment
+- **Antigravity Support** - Added support for Google Antigravity
 - **New Slash Command** - `/simplify-implementation` for analyzing and simplifying existing implementations
-  - Reduce complexity and improve maintainability
-  - Structured approach with readability principles
-  - Prioritized action plans with risk assessment
-  - Scalability recommendations
 
 ### Changed
 - **Dynamic TOML Generation** - Refactored TemplateManager to dynamically generate `.toml` files from `.md` files at runtime
-  - Added YAML frontmatter support for storing command descriptions in Markdown files
-  - Uses `gray-matter` library for frontmatter parsing
-  - Eliminated duplication between `.toml` and `.md` template files
-  - Removed all static `.toml` files from the templates directory
-
-### Technical Improvements
-- Updated TypeScript configuration
-- Improved test coverage for TemplateManager
-- Updated documentation for supported agents
 
 ## [0.4.2] - 2025-11-05
 
