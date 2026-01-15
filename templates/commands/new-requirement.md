@@ -1,3 +1,7 @@
+---
+description: Add new feature/requirement documentation and guide me through the development workflow from requirements to testing.
+---
+
 I want to add a new feature/requirement. Please guide me through the complete development workflow:
 
 ## Step 1: Capture Requirement

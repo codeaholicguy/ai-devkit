@@ -1,3 +1,7 @@
+---
+description: Guide me through debugging a code issue by clarifying expectations, identifying gaps, and agreeing on a fix plan before changing code.
+---
+
 # Local Debugging Assistant
 
 Help me debug an issue by clarifying expectations, identifying gaps, and agreeing on a fix plan before changing code.

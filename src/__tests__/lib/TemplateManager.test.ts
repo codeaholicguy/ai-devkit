@@ -143,10 +143,10 @@ describe('TemplateManager', () => {
 
       (mockFs.pathExists as any)
         .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)        .mockResolvedValueOnce(true);
+        .mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any)
-        .mockResolvedValueOnce([])        .mockResolvedValueOnce(mockRuleFiles);
+        .mockResolvedValueOnce([]).mockResolvedValueOnce(mockRuleFiles);
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
       expect(mockFs.ensureDir).toHaveBeenCalledWith(
@@ -170,13 +170,22 @@ describe('TemplateManager', () => {
         isCustomCommandPath: false
       };
 
-      const mockCommandFiles = ['command1.md', 'command2.toml', 'command3.toml'];
+      const mockCommandFiles = ['command1.md', 'command2.md'];
+      const mockMdContent = `---
+description: Test command description
+---
+
+# Test Command
+
+This is the prompt content.`;
 
       (mockFs.pathExists as any)
         .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)        .mockResolvedValueOnce(true); // gemini commands directory exists
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
+      (mockFs.readFile as any).mockResolvedValue(mockMdContent);
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
@@ -184,17 +193,18 @@ describe('TemplateManager', () => {
         path.join(templateManager['targetDir'], '.gemini', 'commands')
       );
 
-      expect(mockFs.copy).toHaveBeenCalledWith(
-        path.join(templateManager['templatesDir'], 'commands', 'command2.toml'),
-        path.join(templateManager['targetDir'], '.gemini', 'commands', 'command2.toml')
+      // Should write generated TOML files, not copy them
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'command1.toml'),
+        expect.stringContaining("description='''Test command description'''")
       );
-      expect(mockFs.copy).toHaveBeenCalledWith(
-        path.join(templateManager['templatesDir'], 'commands', 'command3.toml'),
-        path.join(templateManager['targetDir'], '.gemini', 'commands', 'command3.toml')
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'command2.toml'),
+        expect.stringContaining("prompt='''# Test Command")
       );
 
+      expect(result).toContain(path.join(templateManager['targetDir'], '.gemini', 'commands', 'command1.toml'));
       expect(result).toContain(path.join(templateManager['targetDir'], '.gemini', 'commands', 'command2.toml'));
-      expect(result).toContain(path.join(templateManager['targetDir'], '.gemini', 'commands', 'command3.toml'));
     });
 
     it('should handle errors and rethrow them', async () => {
@@ -454,6 +464,148 @@ describe('TemplateManager', () => {
       const result = await templateManager.checkEnvironmentExists(envId);
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('generateTomlContent', () => {
+    it('should generate valid TOML with description and prompt', () => {
+      const description = 'Test command description';
+      const prompt = '# Test Command\n\nThis is the prompt content.';
+
+      const result = (templateManager as any).generateTomlContent(description, prompt);
+
+      expect(result).toBe(`description='''Test command description'''
+prompt='''# Test Command
+
+This is the prompt content.'''
+`);
+    });
+
+    it('should handle empty description', () => {
+      const description = '';
+      const prompt = '# Command without description';
+
+      const result = (templateManager as any).generateTomlContent(description, prompt);
+
+      expect(result).toContain("description=''''''");
+      expect(result).toContain("prompt='''# Command without description'''");
+    });
+
+    it('should handle multi-line description', () => {
+      const description = 'This is a multi-line\ndescription for testing';
+      const prompt = '# Test';
+
+      const result = (templateManager as any).generateTomlContent(description, prompt);
+
+      expect(result).toContain("description='''This is a multi-line\ndescription for testing'''");
+    });
+
+    it('should handle complex prompt with markdown formatting', () => {
+      const description = 'Complex command';
+      const prompt = `# Title
+
+## Step 1: Do something
+- Item 1
+- Item 2
+
+\`\`\`bash
+echo "hello"
+\`\`\`
+
+Let me know when ready.`;
+
+      const result = (templateManager as any).generateTomlContent(description, prompt);
+
+      expect(result).toContain("prompt='''# Title");
+      expect(result).toContain('## Step 1: Do something');
+      expect(result).toContain('```bash');
+      expect(result).toContain("Let me know when ready.'''");
+    });
+
+    it('should handle special characters in content', () => {
+      const description = "Command with 'quotes' and \"double quotes\"";
+      const prompt = 'Test with special chars: <>&';
+
+      const result = (templateManager as any).generateTomlContent(description, prompt);
+
+      expect(result).toContain("description='''Command with 'quotes' and \"double quotes\"'''");
+      expect(result).toContain("prompt='''Test with special chars: <>&'''");
+    });
+  });
+
+  describe('copyGeminiSpecificFiles integration', () => {
+    it('should generate TOML files from MD files with frontmatter', async () => {
+      const mdContentWithFrontmatter = `---
+description: Capture knowledge about code
+---
+
+# Knowledge Capture
+
+Help me capture knowledge.`;
+
+      (mockFs.readdir as any).mockResolvedValue(['capture-knowledge.md']);
+      (mockFs.readFile as any).mockResolvedValue(mdContentWithFrontmatter);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
+
+      const copiedFiles: string[] = [];
+      await (templateManager as any).copyGeminiSpecificFiles(copiedFiles);
+
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'capture-knowledge.toml'),
+        expect.stringContaining("description='''Capture knowledge about code'''")
+      );
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'capture-knowledge.toml'),
+        expect.stringContaining("prompt='''# Knowledge Capture")
+      );
+      expect(copiedFiles).toContain(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'capture-knowledge.toml')
+      );
+    });
+
+    it('should handle MD files without frontmatter', async () => {
+      const mdContentWithoutFrontmatter = `# Simple Command
+
+This is a command without frontmatter.`;
+
+      (mockFs.readdir as any).mockResolvedValue(['simple.md']);
+      (mockFs.readFile as any).mockResolvedValue(mdContentWithoutFrontmatter);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
+
+      const copiedFiles: string[] = [];
+      await (templateManager as any).copyGeminiSpecificFiles(copiedFiles);
+
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'simple.toml'),
+        expect.stringContaining("description=''''''")
+      );
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'simple.toml'),
+        expect.stringContaining("prompt='''# Simple Command")
+      );
+    });
+
+    it('should only process .md files and ignore other extensions', async () => {
+      const mdContent = `---
+description: Test
+---
+# Test`;
+
+      (mockFs.readdir as any).mockResolvedValue(['command.md', 'readme.txt', 'config.json']);
+      (mockFs.readFile as any).mockResolvedValue(mdContent);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
+
+      const copiedFiles: string[] = [];
+      await (templateManager as any).copyGeminiSpecificFiles(copiedFiles);
+
+      expect(mockFs.writeFile).toHaveBeenCalledTimes(1);
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], '.gemini', 'commands', 'command.toml'),
+        expect.any(String)
+      );
     });
   });
 });

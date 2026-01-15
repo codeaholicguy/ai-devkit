@@ -1,3 +1,7 @@
+---
+description: Perform a local code review before pushing changes, ensuring alignment with design docs and best practices.
+---
+
 # Local Code Review Assistant
 
 You are helping me perform a local code review **before** I push changes. Please follow this structured workflow.

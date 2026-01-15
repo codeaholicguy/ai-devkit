@@ -1,5 +1,6 @@
 import * as fs from "fs-extra";
 import * as path from "path";
+import matter from "gray-matter";
 import { Phase, EnvironmentCode, EnvironmentDefinition } from "../types";
 import { getEnvironment } from "../util/env";
 
@@ -172,14 +173,38 @@ export class TemplateManager {
     await fs.ensureDir(commandTargetDir);
     await Promise.all(
       commandFiles
-        .filter((file: string) => file.endsWith(".toml"))
+        .filter((file: string) => file.endsWith(".md"))
         .map(async (file: string) => {
-          await fs.copy(
+          const mdContent = await fs.readFile(
             path.join(this.templatesDir, "commands", file),
-            path.join(commandTargetDir, file)
+            "utf-8"
           );
-          copiedFiles.push(path.join(commandTargetDir, file));
+          const { data, content } = matter(mdContent);
+          const description = (data.description as string) || "";
+          const tomlContent = this.generateTomlContent(description, content.trim());
+          const tomlFile = file.replace(".md", ".toml");
+
+          await fs.writeFile(
+            path.join(commandTargetDir, tomlFile),
+            tomlContent
+          );
+          copiedFiles.push(path.join(commandTargetDir, tomlFile));
         })
     );
+  }
+
+
+  /**
+   * Generate TOML content for Gemini commands.
+   * Uses triple quotes for multi-line strings.
+   */
+  private generateTomlContent(description: string, prompt: string): string {
+    // Escape any triple quotes in the content
+    const escapedDescription = description.replace(/'''/g, "'''");
+    const escapedPrompt = prompt.replace(/'''/g, "'''");
+
+    return `description='''${escapedDescription}'''
+prompt='''${escapedPrompt}'''
+`;
   }
 }

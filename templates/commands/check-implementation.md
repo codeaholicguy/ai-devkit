@@ -1,3 +1,7 @@
+---
+description: Compare implementation with design and requirements docs to ensure alignment.
+---
+
 Compare the current implementation with the design in docs/ai/design/ and requirements in docs/ai/requirements/. Please follow this structured review:
 
 1. Ask me for:

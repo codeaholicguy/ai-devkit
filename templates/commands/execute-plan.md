@@ -1,3 +1,7 @@
+---
+description: Execute a feature plan interactively, guiding me through each task while referencing relevant docs and updating status.
+---
+
 # Feature Plan Execution Assistant
 
 Help me work through a feature plan one task at a time.

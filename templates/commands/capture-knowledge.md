@@ -1,3 +1,7 @@
+---
+description: Capture structured knowledge about a code entry point and save it to the knowledge docs.
+---
+
 # Knowledge Capture Assistant
 
 Guide me through creating a structured understanding of a code entry point and saving it to the knowledge docs.

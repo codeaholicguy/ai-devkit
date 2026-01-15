@@ -1,3 +1,7 @@
+---
+description: Add tests for a new feature.
+---
+
 Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the base template before writing tests.
 
 ## Step 1: Gather Context

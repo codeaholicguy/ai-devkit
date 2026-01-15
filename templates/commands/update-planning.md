@@ -1,3 +1,7 @@
+---
+description: Assist in updating planning documentation to reflect current implementation progress for a feature.
+---
+
 # Planning Update Assistant
 
 Please help me reconcile the current implementation progress with our planning documentation.
