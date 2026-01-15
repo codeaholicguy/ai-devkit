@@ -1,0 +1,15 @@
+{
+  "version": "0.4.2",
+  "environments": [
+    "antigravity"
+  ],
+  "initializedPhases": [
+    "requirements",
+    "design",
+    "planning",
+    "implementation",
+    "testing"
+  ],
+  "createdAt": "2025-12-28T13:35:45.251Z",
+  "updatedAt": "2026-01-15T18:27:24.093Z"
+}

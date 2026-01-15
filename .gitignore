@@ -4,11 +4,4 @@ dist/
 .DS_Store
 .env
 *.tsbuildinfo
-.ai-devkit.json
-.cursor/
-.claude/
-.gemini/
-.agent/
-docs/ai/
-AGENTS.md
 coverage/
