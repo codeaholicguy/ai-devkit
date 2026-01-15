@@ -125,7 +125,8 @@ Supported Tools & Agents:
 | [GitHub Copilot](https://code.visualstudio.com/)          | ✅ | VSCode only                                                |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ |                                                 |
 | [Cursor](https://cursor.sh/)                              | ✅ |                                                        |
-| [opencode](https://opencode.ai/)                          | 🚧 | Testing                                                |
+| [opencode](https://opencode.ai/)                          | ✅ |                                                |
+| [Antigravity](https://antigravity.google/)                | ✅ |                                                |
 | [Windsurf](https://windsurf.com/)                         | 🚧 | Testing                                                |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)         | 🚧 | Testing                                                |
 | [Roo Code](https://roocode.com/)                          | 🚧 | Testing                                                |
