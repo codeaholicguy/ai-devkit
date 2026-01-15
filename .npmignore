@@ -11,8 +11,10 @@ node_modules/
 *.log
 ai.plan.md
 docs/
-.cursor/
 .ai-devkit.json
-CURSOR_FIX.md
-UPDATES.md
+.cursor/
 .github/
+.agent/
+.claude/
+.gemini/
+AGENTS.md
