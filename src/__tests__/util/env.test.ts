@@ -13,8 +13,8 @@ import { EnvironmentCode } from '../../types';
 
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {
-    it('should contain all 10 environment definitions', () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(10);
+    it('should contain all all environment definitions', () => {
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(11);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cursor');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('claude');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('github');
@@ -25,6 +25,7 @@ describe('Environment Utilities', () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('amp');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('opencode');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('roo');
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('antigravity');
     });
 
     it('should have correct structure for cursor environment', () => {
@@ -52,12 +53,12 @@ describe('Environment Utilities', () => {
   });
 
   describe('ALL_ENVIRONMENT_CODES', () => {
-    it('should contain all 10 environment codes', () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(10);
+    it('should contain all all environment codes', () => {
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(11);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           'cursor', 'claude', 'github', 'gemini', 'codex',
-          'windsurf', 'kilocode', 'amp', 'opencode', 'roo'
+          'windsurf', 'kilocode', 'amp', 'opencode', 'roo', 'antigravity'
         ])
       );
     });
@@ -71,7 +72,7 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironments', () => {
     it('should return all environment definitions', () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(10);
+      expect(environments).toHaveLength(11);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -111,7 +112,6 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironmentCodes', () => {
     it('should return all environment codes', () => {
       const codes = getAllEnvironmentCodes();
-      expect(codes).toHaveLength(10);
       expect(codes).toEqual(ALL_ENVIRONMENT_CODES);
     });
 
@@ -154,6 +154,7 @@ describe('Environment Utilities', () => {
       expect(isValidEnvironmentCode('cursor')).toBe(true);
       expect(isValidEnvironmentCode('claude')).toBe(true);
       expect(isValidEnvironmentCode('roo')).toBe(true);
+      expect(isValidEnvironmentCode('antigravity')).toBe(true);
     });
 
     it('should return false for invalid codes', () => {
@@ -168,6 +169,7 @@ describe('Environment Utilities', () => {
       expect(getEnvironmentDisplayName('cursor')).toBe('Cursor');
       expect(getEnvironmentDisplayName('claude')).toBe('Claude Code');
       expect(getEnvironmentDisplayName('roo')).toBe('Roo Code');
+      expect(getEnvironmentDisplayName('antigravity')).toBe('Antigravity');
     });
 
     it('should return code itself for invalid codes', () => {

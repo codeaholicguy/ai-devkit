@@ -62,6 +62,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'Roo Code',
     contextFileName: 'AGENTS.md',
     commandPath: '.roo/commands',
+  },
+  antigravity: {
+    code: 'antigravity',
+    name: 'Antigravity',
+    contextFileName: 'AGENTS.md',
+    commandPath: '.agent/workflows',
   }
 };
 

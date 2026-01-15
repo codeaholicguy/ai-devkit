@@ -17,7 +17,7 @@ export interface EnvironmentDefinition {
   customCommandExtension?: string;
 }
 
-export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo';
+export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity';
 
 export interface DevKitConfig {
   version: string;
