@@ -1,0 +1,51 @@
+{
+    "name": "@ai-devkit/memory",
+    "version": "0.1.0",
+    "description": "Lightweight MCP-based memory service for AI agents - store and retrieve actionable knowledge",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "bin": {
+        "ai-devkit-memory": "./dist/index.js"
+    },
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "start": "node dist/index.js",
+        "test": "jest",
+        "test:coverage": "jest --coverage",
+        "lint": "eslint src/**/*.ts",
+        "clean": "rm -rf dist"
+    },
+    "keywords": [
+        "mcp",
+        "memory",
+        "ai",
+        "agent",
+        "knowledge",
+        "sqlite",
+        "fts5"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.0.0",
+        "better-sqlite3": "^11.0.0",
+        "uuid": "^10.0.0"
+    },
+    "devDependencies": {
+        "@types/better-sqlite3": "^7.6.11",
+        "@types/jest": "^29.5.12",
+        "@types/node": "^20.14.0",
+        "@types/uuid": "^10.0.0",
+        "jest": "^29.7.0",
+        "ts-jest": "^29.1.4",
+        "typescript": "^5.4.5"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "files": [
+        "dist",
+        "README.md"
+    ]
+}
