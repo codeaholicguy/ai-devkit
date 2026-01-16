@@ -117,7 +117,7 @@ describe('EnvironmentSelector', () => {
     let consoleSpy: jest.SpyInstance;
 
     beforeEach(() => {
-      consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+      consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => { });
     });
 
     afterEach(() => {
@@ -146,6 +146,78 @@ describe('EnvironmentSelector', () => {
       expect(consoleSpy).toHaveBeenCalledWith('\nSelected environments:');
       expect(consoleSpy).toHaveBeenCalledWith('  Cursor');
       expect(consoleSpy).toHaveBeenCalledWith('');
+    });
+  });
+
+  describe('selectGlobalEnvironments', () => {
+    it('should create choices only from global-capable environments', async () => {
+      mockPrompt.mockResolvedValue({ environments: ['antigravity'] });
+
+      await selector.selectGlobalEnvironments();
+
+      expect(mockPrompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'checkbox',
+          name: 'environments',
+          message: 'Select AI environments for global setup (use space to select, enter to confirm):',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: 'antigravity' }),
+            expect.objectContaining({ value: 'codex' })
+          ]),
+          validate: expect.any(Function)
+        })
+      ]);
+    });
+
+    it('should return selected global environments', async () => {
+      const selectedEnvs = ['antigravity', 'codex'];
+      mockPrompt.mockResolvedValue({ environments: selectedEnvs });
+
+      const result = await selector.selectGlobalEnvironments();
+
+      expect(result).toEqual(selectedEnvs);
+    });
+
+    it('should validate that at least one environment is selected', async () => {
+      mockPrompt.mockResolvedValue({ environments: [] });
+
+      const result = await selector.selectGlobalEnvironments();
+
+      expect(result).toEqual([]);
+
+      const callArgs = mockPrompt.mock.calls[0][0];
+      const validateFn = callArgs[0].validate;
+
+      expect(validateFn([])).toBe('Please select at least one environment.');
+      expect(validateFn(['antigravity'])).toBe(true);
+    });
+
+    it('should not include non-global environments in choices', async () => {
+      mockPrompt.mockResolvedValue({ environments: ['antigravity'] });
+
+      await selector.selectGlobalEnvironments();
+
+      const callArgs = mockPrompt.mock.calls[0][0];
+      const choices = callArgs[0].choices;
+      const choiceValues = choices.map((c: any) => c.value);
+
+      // Should only have Antigravity and Codex
+      expect(choiceValues).toContain('antigravity');
+      expect(choiceValues).toContain('codex');
+      expect(choiceValues).not.toContain('cursor');
+      expect(choiceValues).not.toContain('claude');
+      expect(choiceValues).not.toContain('github');
+    });
+
+    it('should show exactly 2 choices (Antigravity and Codex)', async () => {
+      mockPrompt.mockResolvedValue({ environments: [] });
+
+      await selector.selectGlobalEnvironments();
+
+      const callArgs = mockPrompt.mock.calls[0][0];
+      const choices = callArgs[0].choices;
+
+      expect(choices).toHaveLength(2);
     });
   });
 });

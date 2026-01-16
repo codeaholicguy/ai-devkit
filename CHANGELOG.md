@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Global Setup Command** - New `ai-devkit setup --global` command for installing commands globally
+  - Copy AI DevKit commands to global environment folders
+  - Support for Antigravity (`~/.gemini/antigravity/global_workflows/`) and Codex (`~/.codex/prompts/`)
+  - Interactive environment selection with only global-capable environments shown
+  - Overwrite prompts for existing global commands
+  - Cross-platform support using `os.homedir()` and `path.join()`
+
 ## [0.5.0] - 2025-01-15
 
 ### Added

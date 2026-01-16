@@ -608,4 +608,215 @@ description: Test
       );
     });
   });
+
+  describe('copyCommandsToGlobal', () => {
+    const mockOs = {
+      homedir: jest.fn()
+    };
+
+    beforeEach(() => {
+      jest.doMock('os', () => mockOs);
+      mockOs.homedir.mockReturnValue('/home/testuser');
+    });
+
+    it('should throw error for environment without global support', async () => {
+      const envWithoutGlobal = {
+        code: 'cursor',
+        name: 'Cursor',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.cursor/commands',
+        // No globalCommandPath
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithoutGlobal);
+
+      await expect(templateManager.copyCommandsToGlobal('cursor')).rejects.toThrow(
+        "Environment 'cursor' does not support global setup"
+      );
+    });
+
+    it('should throw error for invalid environment code', async () => {
+      mockGetEnvironment.mockReturnValue(undefined);
+
+      await expect(templateManager.copyCommandsToGlobal('invalid' as any)).rejects.toThrow(
+        "Environment 'invalid' does not support global setup"
+      );
+    });
+
+    it('should create global directory and copy command files', async () => {
+      const envWithGlobal = {
+        code: 'antigravity',
+        name: 'Antigravity',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.agent/workflows',
+        globalCommandPath: '.gemini/antigravity/global_workflows',
+      };
+
+      const mockCommandFiles = ['command1.md', 'command2.md', 'readme.txt'];
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
+      (mockFs.copy as any).mockResolvedValue(undefined);
+
+      const result = await templateManager.copyCommandsToGlobal('antigravity');
+
+      expect(mockFs.ensureDir).toHaveBeenCalled();
+      expect(mockFs.copy).toHaveBeenCalledTimes(2); // Only .md files
+      expect(result).toHaveLength(2);
+    });
+
+    it('should only copy .md files and ignore other extensions', async () => {
+      const envWithGlobal = {
+        code: 'codex',
+        name: 'OpenAI Codex',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.codex/commands',
+        globalCommandPath: '.codex/prompts',
+      };
+
+      const mockCommandFiles = ['command.md', 'readme.txt', 'config.json', 'test.toml'];
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
+      (mockFs.copy as any).mockResolvedValue(undefined);
+
+      const result = await templateManager.copyCommandsToGlobal('codex');
+
+      expect(mockFs.copy).toHaveBeenCalledTimes(1);
+      expect(result).toHaveLength(1);
+    });
+
+    it('should handle file system errors gracefully', async () => {
+      const envWithGlobal = {
+        code: 'antigravity',
+        name: 'Antigravity',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.agent/workflows',
+        globalCommandPath: '.gemini/antigravity/global_workflows',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.ensureDir as any).mockRejectedValue(new Error('Permission denied'));
+
+      await expect(templateManager.copyCommandsToGlobal('antigravity')).rejects.toThrow(
+        'Failed to copy commands to global folder: Permission denied'
+      );
+    });
+  });
+
+  describe('checkGlobalCommandsExist', () => {
+    it('should return false for environment without global support', async () => {
+      const envWithoutGlobal = {
+        code: 'cursor',
+        name: 'Cursor',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.cursor/commands',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithoutGlobal);
+
+      const result = await templateManager.checkGlobalCommandsExist('cursor');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false for invalid environment code', async () => {
+      mockGetEnvironment.mockReturnValue(undefined);
+
+      const result = await templateManager.checkGlobalCommandsExist('invalid' as any);
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when global folder does not exist', async () => {
+      const envWithGlobal = {
+        code: 'antigravity',
+        name: 'Antigravity',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.agent/workflows',
+        globalCommandPath: '.gemini/antigravity/global_workflows',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await templateManager.checkGlobalCommandsExist('antigravity');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when global folder is empty', async () => {
+      const envWithGlobal = {
+        code: 'antigravity',
+        name: 'Antigravity',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.agent/workflows',
+        globalCommandPath: '.gemini/antigravity/global_workflows',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readdir as any).mockResolvedValue([]);
+
+      const result = await templateManager.checkGlobalCommandsExist('antigravity');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when folder contains only non-.md files', async () => {
+      const envWithGlobal = {
+        code: 'antigravity',
+        name: 'Antigravity',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.agent/workflows',
+        globalCommandPath: '.gemini/antigravity/global_workflows',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readdir as any).mockResolvedValue(['readme.txt', 'config.json']);
+
+      const result = await templateManager.checkGlobalCommandsExist('antigravity');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return true when global folder contains .md files', async () => {
+      const envWithGlobal = {
+        code: 'antigravity',
+        name: 'Antigravity',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.agent/workflows',
+        globalCommandPath: '.gemini/antigravity/global_workflows',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readdir as any).mockResolvedValue(['command1.md', 'command2.md']);
+
+      const result = await templateManager.checkGlobalCommandsExist('antigravity');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return true when folder has mixed files including .md', async () => {
+      const envWithGlobal = {
+        code: 'codex',
+        name: 'OpenAI Codex',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.codex/commands',
+        globalCommandPath: '.codex/prompts',
+      };
+
+      mockGetEnvironment.mockReturnValue(envWithGlobal);
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readdir as any).mockResolvedValue(['readme.txt', 'command.md', 'config.json']);
+
+      const result = await templateManager.checkGlobalCommandsExist('codex');
+
+      expect(result).toBe(true);
+    });
+  });
 });

@@ -18,27 +18,27 @@ feature: global-setup
 **What individual components need testing?**
 
 ### `src/util/env.ts` - New Functions
-- [ ] `getGlobalCapableEnvironments()` returns only envs with `globalCommandPath`
-- [ ] `getGlobalCapableEnvironments()` returns empty array if no envs have global support
-- [ ] `hasGlobalSupport()` returns true for Antigravity
-- [ ] `hasGlobalSupport()` returns true for Codex
-- [ ] `hasGlobalSupport()` returns false for Cursor (no global support)
+- [x] `getGlobalCapableEnvironments()` returns only envs with `globalCommandPath`
+- [x] `getGlobalCapableEnvironments()` returns empty array if no envs have global support
+- [x] `hasGlobalSupport()` returns true for Antigravity
+- [x] `hasGlobalSupport()` returns true for Codex
+- [x] `hasGlobalSupport()` returns false for Cursor (no global support)
 
 ### `src/lib/EnvironmentSelector.ts` - selectGlobalEnvironments
-- [ ] Returns empty array if user selects nothing
-- [ ] Returns only global-capable environments in choices
-- [ ] Does not show environments without `globalCommandPath`
+- [x] Returns empty array if user selects nothing
+- [x] Returns only global-capable environments in choices
+- [x] Does not show environments without `globalCommandPath`
 
 ### `src/lib/TemplateManager.ts` - copyCommandsToGlobal
-- [ ] Creates global directory if it doesn't exist
-- [ ] Copies all command files to global folder
-- [ ] Uses correct file extension for each environment
-- [ ] Returns list of copied files
+- [x] Creates global directory if it doesn't exist
+- [x] Copies all command files to global folder
+- [x] Uses correct file extension for each environment
+- [x] Returns list of copied files
 
 ### `src/lib/TemplateManager.ts` - checkGlobalCommandsExist
-- [ ] Returns true if any command file exists in global folder
-- [ ] Returns false if global folder is empty
-- [ ] Returns false if global folder doesn't exist
+- [x] Returns true if any command file exists in global folder
+- [x] Returns false if global folder is empty
+- [x] Returns false if global folder doesn't exist
 
 ## Integration Tests
 **How do we test component interactions?**

@@ -15,6 +15,7 @@ export interface EnvironmentDefinition {
   description?: string;
   isCustomCommandPath?: boolean;
   customCommandExtension?: string;
+  globalCommandPath?: string;
 }
 
 export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity';

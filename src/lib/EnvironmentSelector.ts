@@ -1,6 +1,6 @@
 import inquirer from 'inquirer';
 import { EnvironmentCode } from '../types';
-import { getAllEnvironments, getEnvironmentsByCodes, getEnvironmentDisplayName } from '../util/env';
+import { getAllEnvironments, getEnvironmentsByCodes, getEnvironmentDisplayName, getGlobalCapableEnvironments } from '../util/env';
 
 export class EnvironmentSelector {
   async selectEnvironments(): Promise<EnvironmentCode[]> {
@@ -61,5 +61,38 @@ export class EnvironmentSelector {
       console.log(`  ${getEnvironmentDisplayName(envId)}`);
     });
     console.log('');
+  }
+
+  async selectGlobalEnvironments(): Promise<EnvironmentCode[]> {
+    const globalCapableEnvs = getGlobalCapableEnvironments();
+
+    if (globalCapableEnvs.length === 0) {
+      console.log('No environments support global setup.');
+      return [];
+    }
+
+    const choices = globalCapableEnvs.map(env => ({
+      name: env.name,
+      value: env.code as EnvironmentCode,
+      short: env.name
+    }));
+
+    const answers = await inquirer.prompt([
+      {
+        type: 'checkbox',
+        name: 'environments',
+        message: 'Select AI environments for global setup (use space to select, enter to confirm):',
+        choices,
+        pageSize: 10,
+        validate: (input: EnvironmentCode[]) => {
+          if (input.length === 0) {
+            return 'Please select at least one environment.';
+          }
+          return true;
+        }
+      }
+    ]);
+
+    return answers.environments;
   }
 }

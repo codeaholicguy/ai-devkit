@@ -32,6 +32,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'OpenAI Codex',
     contextFileName: 'AGENTS.md',
     commandPath: '.codex/commands',
+    globalCommandPath: '.codex/prompts',
   },
   windsurf: {
     code: 'windsurf',
@@ -68,6 +69,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'Antigravity',
     contextFileName: 'AGENTS.md',
     commandPath: '.agent/workflows',
+    globalCommandPath: '.gemini/antigravity/global_workflows',
   }
 };
 
@@ -115,4 +117,13 @@ export function validateEnvironmentCodes(envCodes: string[]): EnvironmentCode[] 
   }
 
   return validCodes;
+}
+
+export function getGlobalCapableEnvironments(): EnvironmentDefinition[] {
+  return getAllEnvironments().filter(env => env.globalCommandPath !== undefined);
+}
+
+export function hasGlobalSupport(envCode: EnvironmentCode): boolean {
+  const env = getEnvironment(envCode);
+  return env !== undefined && env.globalCommandPath !== undefined;
 }

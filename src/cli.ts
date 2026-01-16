@@ -3,6 +3,7 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init';
 import { phaseCommand } from './commands/phase';
+import { setupCommand } from './commands/setup';
 
 const program = new Command();
 
@@ -24,5 +25,10 @@ program
   .description('Add a specific phase template (requirements|design|planning|implementation|testing|deployment|monitoring)')
   .action(phaseCommand);
 
-program.parse();
+program
+  .command('setup')
+  .description('Set up AI DevKit commands globally')
+  .option('-g, --global', 'Install commands to global environment folders')
+  .action(setupCommand);
 
+program.parse();

@@ -10,31 +10,31 @@ feature: global-setup
 ## Milestones
 **What are the major checkpoints?**
 
-- [ ] Milestone 1: Environment definitions updated with global support
-- [ ] Milestone 2: Core global setup functionality implemented
-- [ ] Milestone 3: CLI command integrated and tested
+- [x] Milestone 1: Environment definitions updated with global support
+- [x] Milestone 2: Core global setup functionality implemented
+- [x] Milestone 3: CLI command integrated and tested
 
 ## Task Breakdown
 **What specific work needs to be done?**
 
 ### Phase 1: Foundation - Update Types and Environment Definitions
-- [ ] Task 1.1: Add `globalCommandPath` property to `EnvironmentDefinition` interface in `src/types.ts`
-- [ ] Task 1.2: Add `globalCommandPath` to Antigravity definition in `src/util/env.ts`
-- [ ] Task 1.3: Add `globalCommandPath` to Codex definition in `src/util/env.ts`
-- [ ] Task 1.4: Add `getGlobalCapableEnvironments()` function in `src/util/env.ts`
-- [ ] Task 1.5: Add `hasGlobalSupport()` function in `src/util/env.ts`
+- [x] Task 1.1: Add `globalCommandPath` property to `EnvironmentDefinition` interface in `src/types.ts`
+- [x] Task 1.2: Add `globalCommandPath` to Antigravity definition in `src/util/env.ts`
+- [x] Task 1.3: Add `globalCommandPath` to Codex definition in `src/util/env.ts`
+- [x] Task 1.4: Add `getGlobalCapableEnvironments()` function in `src/util/env.ts`
+- [x] Task 1.5: Add `hasGlobalSupport()` function in `src/util/env.ts`
 
 ### Phase 2: Core Features - Implement Global Setup Logic
-- [ ] Task 2.1: Add `selectGlobalEnvironments()` method to `EnvironmentSelector` class
-- [ ] Task 2.2: Add `copyCommandsToGlobal()` method to `TemplateManager` class
-- [ ] Task 2.3: Add `checkGlobalCommandsExist()` method to `TemplateManager` class
-- [ ] Task 2.4: Create new `src/commands/setup.ts` file with global setup logic
+- [x] Task 2.1: Add `selectGlobalEnvironments()` method to `EnvironmentSelector` class
+- [x] Task 2.2: Add `copyCommandsToGlobal()` method to `TemplateManager` class
+- [x] Task 2.3: Add `checkGlobalCommandsExist()` method to `TemplateManager` class
+- [x] Task 2.4: Create new `src/commands/setup.ts` file with global setup logic
 
 ### Phase 3: Integration & Polish
-- [ ] Task 3.1: Add `setup` command to CLI in `src/cli.ts`
-- [ ] Task 3.2: Add user-friendly messages and error handling
-- [ ] Task 3.3: Update CHANGELOG.md with new feature
-- [ ] Task 3.4: Test end-to-end with Antigravity and Codex
+- [x] Task 3.1: Add `setup` command to CLI in `src/cli.ts`
+- [x] Task 3.2: Add user-friendly messages and error handling
+- [x] Task 3.3: Update CHANGELOG.md with new feature
+- [x] Task 3.4: Test end-to-end with Antigravity and Codex
 
 ## Dependencies
 **What needs to happen in what order?**

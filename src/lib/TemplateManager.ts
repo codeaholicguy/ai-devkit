@@ -1,5 +1,6 @@
 import * as fs from "fs-extra";
 import * as path from "path";
+import * as os from "os";
 import matter from "gray-matter";
 import { Phase, EnvironmentCode, EnvironmentDefinition } from "../types";
 import { getEnvironment } from "../util/env";
@@ -206,5 +207,63 @@ export class TemplateManager {
     return `description='''${escapedDescription}'''
 prompt='''${escapedPrompt}'''
 `;
+  }
+
+  /**
+   * Copy command templates to the global folder for a specific environment.
+   * Global folders are located in the user's home directory.
+   */
+  async copyCommandsToGlobal(envCode: EnvironmentCode): Promise<string[]> {
+    const env = getEnvironment(envCode);
+    if (!env || !env.globalCommandPath) {
+      throw new Error(`Environment '${envCode}' does not support global setup`);
+    }
+
+    const copiedFiles: string[] = [];
+    const homeDir = os.homedir();
+    const globalTargetDir = path.join(homeDir, env.globalCommandPath);
+    const commandsSourceDir = path.join(this.templatesDir, "commands");
+
+    try {
+      await fs.ensureDir(globalTargetDir);
+
+      const commandFiles = await fs.readdir(commandsSourceDir);
+      for (const file of commandFiles) {
+        if (!file.endsWith(".md")) continue;
+
+        const sourceFile = path.join(commandsSourceDir, file);
+        const targetFile = path.join(globalTargetDir, file);
+
+        await fs.copy(sourceFile, targetFile);
+        copiedFiles.push(targetFile);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to copy commands to global folder: ${error.message}`);
+      }
+      throw error;
+    }
+
+    return copiedFiles;
+  }
+
+  /**
+   * Check if any global commands already exist for a specific environment.
+   */
+  async checkGlobalCommandsExist(envCode: EnvironmentCode): Promise<boolean> {
+    const env = getEnvironment(envCode);
+    if (!env || !env.globalCommandPath) {
+      return false;
+    }
+
+    const homeDir = os.homedir();
+    const globalTargetDir = path.join(homeDir, env.globalCommandPath);
+
+    if (!(await fs.pathExists(globalTargetDir))) {
+      return false;
+    }
+
+    const files = await fs.readdir(globalTargetDir);
+    return files.some((file: string) => file.endsWith(".md"));
   }
 }
