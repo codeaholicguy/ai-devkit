@@ -93,7 +93,7 @@ interface KnowledgeItem {
   
   // Core Content
   title: string;                 // Short, explicit (5-12 words, max 100 chars)
-  content: string;               // Detailed explanation, rationale, examples (max 5000 chars)
+  content: string;               // Markdown format with code samples supported (max 5000 chars)
   
   // Classification
   tags: string[];                // Domain keywords (e.g., ["api", "backend", "dto"])
@@ -225,7 +225,7 @@ flowchart LR
     },
     "content": {
       "type": "string",
-      "description": "Detailed explanation, rationale, and optional examples",
+      "description": "Detailed explanation in markdown format. Supports code blocks, examples, and formatting.",
       "minLength": 50,
       "maxLength": 5000
     },
