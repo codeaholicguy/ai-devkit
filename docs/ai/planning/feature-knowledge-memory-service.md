@@ -96,12 +96,17 @@ description: Break down work into actionable tasks and estimate timeline for the
 
 - [ ] **Task 3.2: Ranker Service**
   - Implement `services/ranker.ts`
-  - `calculateScore()` combining:
-    - BM25 score from FTS5 (primary)
-    - Priority boost: `score * (1 + priority * 0.1)`
-    - Confidence boost: `score * confidence`
-    - Tag match boost: `+0.2` per matching contextTag
-    - Scope boost: `+0.5` if scope matches, `+0.2` for global
+  - `calculateScore()` implementing the ranking formula:
+    ```
+    final_score = bm25_score × priority_boost × confidence × tag_boost + scope_boost
+    
+    Where:
+      bm25_score     = FTS5 bm25() with column weights (title=10, content=5, tags=1)
+      priority_boost = 1 + (priority - 5) × 0.05    // Range: 0.8 to 1.25
+      confidence     = confidence value (0.0 to 1.0)
+      tag_boost      = 1 + (matching_tags × 0.1)   // +10% per matching contextTag
+      scope_boost    = +0.5 if scope matches, +0.2 if global, 0 otherwise
+    ```
   - Return sorted results with combined score
   - Effort: 2 hours
 
