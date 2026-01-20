@@ -1,9 +1,21 @@
-/** @type {import('ts-jest').JestConfigWithTsJest} */
+/** @type {import('jest').Config} */
 module.exports = {
-    preset: 'ts-jest',
     testEnvironment: 'node',
     roots: ['<rootDir>/tests'],
     testMatch: ['**/*.test.ts'],
+    transform: {
+        '^.+\\.(t|j)sx?$': ['@swc/jest', {
+            jsc: {
+                parser: {
+                    syntax: 'typescript',
+                },
+                target: 'es2022',
+            },
+            module: {
+                type: 'commonjs',
+            },
+        }],
+    },
     collectCoverageFrom: [
         'src/**/*.ts',
         '!src/index.ts',

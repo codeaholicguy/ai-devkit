@@ -64,10 +64,10 @@ description: Break down work into actionable tasks and estimate timeline for the
   - Validate title length (10-100 chars)
   - Validate content length (50-5000 chars)
   - Check content specificity (reject generic phrases)
-  - Validate tags (1-10 items, alphanumeric with hyphens)
+  - Validate tags (0-10 items, alphanumeric with hyphens) - tags are optional
   - Validate scope format (`global`, `project:*`, `repo:*`)
   - Return structured validation errors
-  - Effort: 2 hours
+  - Effort: 1.5 hours
 
 - [ ] **Task 2.3: Store Handler**
   - Implement `handlers/store.ts`
@@ -96,27 +96,24 @@ description: Break down work into actionable tasks and estimate timeline for the
 
 - [ ] **Task 3.2: Ranker Service**
   - Implement `services/ranker.ts`
-  - `calculateScore()` implementing the ranking formula:
+  - `calculateScore()` implementing the simplified ranking formula:
     ```
-    final_score = bm25_score × priority_boost × confidence × tag_boost + scope_boost
+    final_score = bm25_score × tag_boost + scope_boost
     
     Where:
-      bm25_score     = FTS5 bm25() with column weights (title=10, content=5, tags=1)
-      priority_boost = 1 + (priority - 5) × 0.05    // Range: 0.8 to 1.25
-      confidence     = confidence value (0.0 to 1.0)
-      tag_boost      = 1 + (matching_tags × 0.1)   // +10% per matching contextTag
-      scope_boost    = +0.5 if scope matches, +0.2 if global, 0 otherwise
+      bm25_score  = FTS5 bm25() with column weights (title=10, content=5, tags=1)
+      tag_boost   = 1 + (matching_tags × 0.1)   // +10% per matching contextTag
+      scope_boost = +0.5 if scope matches, +0.2 if global, 0 otherwise
     ```
   - Return sorted results with combined score
-  - Effort: 2 hours
+  - Effort: 1.5 hours
 
 - [ ] **Task 3.3: Search Handler**
   - Implement `handlers/search.ts`
-  - Parse search parameters
-  - Build FTS query with filters
+  - Parse search parameters (query, contextTags, scope, limit)
+  - Build FTS query
   - Execute query with BM25 ranking
-  - Apply additional ranking factors
-  - Filter by minConfidence if specified
+  - Apply tag and scope boosts
   - Limit results (default 5, max 20)
   - Return formatted response
   - Effort: 2 hours

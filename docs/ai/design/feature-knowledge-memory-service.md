@@ -48,31 +48,27 @@ graph TD
 | **Store Handler** | Process storage requests, validate input, check duplicates |
 | **Search Handler** | Parse search queries, build FTS5 queries, coordinate ranking |
 | **Validator** | Ensure knowledge quality (specific, actionable, not generic) |
-| **Ranker** | Combine BM25 scores with priority, confidence, tags, scope |
+| **Ranker** | Combine BM25 scores with tag matches and scope boosts |
 | **SQLite + FTS5** | Persistent storage with full-text search indexing |
 
 ### Ranking Algorithm
 
-The ranker combines multiple signals into a final relevance score:
+The ranker combines BM25 with context signals for a simple, effective ranking:
 
 ```
-final_score = bm25_score × priority_boost × confidence × tag_boost + scope_boost
+final_score = bm25_score × tag_boost + scope_boost
 
 Where:
-  bm25_score    = FTS5 bm25() with column weights (title=10, content=5, tags=1)
-  priority_boost = 1 + (priority - 5) × 0.05    // Range: 0.8 to 1.25
-  confidence    = confidence value (0.0 to 1.0)
-  tag_boost     = 1 + (matching_tags × 0.1)    // +10% per matching contextTag
-  scope_boost   = +0.5 if scope matches query scope, +0.2 if global, 0 otherwise
+  bm25_score = FTS5 bm25() with column weights (title=10, content=5, tags=1)
+  tag_boost  = 1 + (matching_tags × 0.1)    // +10% per matching contextTag
+  scope_boost = +0.5 if scope matches query scope, +0.2 if global, 0 otherwise
 ```
 
 **Ranking Priority** (highest to lowest):
 1. Project-scoped results matching query scope
 2. High BM25 score (title matches weighted highest)
-3. High priority items (8-10)
-4. High confidence items (> 0.8)
-5. Items with matching contextTags
-6. Global scope items
+3. Items with matching contextTags
+4. Global scope items
 
 ### Technology Stack
 - **Runtime**: Node.js (v18+)
@@ -91,29 +87,21 @@ interface KnowledgeItem {
   // Primary Key
   id: string;                    // UUID v4
   
-  // Core Content
+  // Core Content (user provides these)
   title: string;                 // Short, explicit (5-12 words, max 100 chars)
   content: string;               // Markdown format with code samples supported (max 5000 chars)
-  
-  // Classification
   tags: string[];                // Domain keywords (e.g., ["api", "backend", "dto"])
   scope: string;                 // "global" | "project:<name>" | "repo:<name>"
-  category: string;              // "rule" | "guideline" | "decision" | "pattern"
   
-  // Ranking Helpers
-  priority: number;              // 1-10, higher = more important
-  confidence: number;            // 0.0-1.0, reliability of the knowledge
-  
-  // Deduplication
-  normalized_title: string;      // Lowercase, trimmed, normalized whitespace
-  content_hash: string;          // SHA-256 of normalized content
-  
-  // Metadata
-  created_at: string;            // ISO 8601 timestamp
-  updated_at: string;            // ISO 8601 timestamp
-  source: string;                // Origin of knowledge (manual, agent, import)
+  // Auto-generated
+  normalizedTitle: string;       // Lowercase, trimmed, normalized whitespace
+  contentHash: string;           // SHA-256 of normalized content
+  createdAt: string;             // ISO 8601 timestamp
+  updatedAt: string;             // ISO 8601 timestamp
 }
 ```
+
+**Design Decision**: Simplified to 9 fields (from 13) to make knowledge input seamless. Users only need to provide title, content, and optionally tags/scope.
 
 ### SQLite Schema
 
@@ -125,21 +113,17 @@ CREATE TABLE IF NOT EXISTS meta (
 );
 INSERT OR IGNORE INTO meta (key, value) VALUES ('schema_version', '1');
 
--- Main knowledge table
+-- Main knowledge table (simplified: 9 fields)
 CREATE TABLE knowledge (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL CHECK (length(title) <= 100),
   content TEXT NOT NULL CHECK (length(content) <= 5000),
   tags TEXT NOT NULL,                    -- JSON array stored as string
   scope TEXT NOT NULL DEFAULT 'global',
-  category TEXT NOT NULL DEFAULT 'rule',
-  priority INTEGER NOT NULL DEFAULT 5 CHECK (priority >= 1 AND priority <= 10),
-  confidence REAL NOT NULL DEFAULT 0.8 CHECK (confidence >= 0.0 AND confidence <= 1.0),
   normalized_title TEXT NOT NULL,
   content_hash TEXT NOT NULL,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL,
-  source TEXT NOT NULL DEFAULT 'manual',
   
   -- Deduplication constraints
   UNIQUE (normalized_title, scope),
@@ -148,7 +132,6 @@ CREATE TABLE knowledge (
 
 -- FTS5 virtual table for full-text search
 -- Column weights for bm25(): title=10, content=5, tags=1
--- Higher weight = more important for ranking
 CREATE VIRTUAL TABLE knowledge_fts USING fts5(
   title,
   content,
@@ -176,10 +159,8 @@ CREATE TRIGGER knowledge_au AFTER UPDATE ON knowledge BEGIN
   VALUES (NEW.rowid, NEW.title, NEW.content, NEW.tags);
 END;
 
--- Indexes for fast filtering
+-- Index for fast scope filtering
 CREATE INDEX idx_knowledge_scope ON knowledge(scope);
-CREATE INDEX idx_knowledge_category ON knowledge(category);
-CREATE INDEX idx_knowledge_priority ON knowledge(priority DESC);
 ```
 
 ### Data Flow
@@ -212,7 +193,7 @@ flowchart LR
 
 **Purpose**: Store a new knowledge item
 
-**Input Schema**:
+**Input Schema** (Simplified - only 2 required fields):
 ```json
 {
   "type": "object",
@@ -225,46 +206,24 @@ flowchart LR
     },
     "content": {
       "type": "string",
-      "description": "Detailed explanation in markdown format. Supports code blocks, examples, and formatting.",
+      "description": "Detailed explanation in markdown format. Supports code blocks and examples.",
       "minLength": 50,
       "maxLength": 5000
     },
     "tags": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Domain keywords (e.g., ['api', 'backend', 'dto'])",
-      "minItems": 1,
-      "maxItems": 10
+      "description": "Optional domain keywords (e.g., ['api', 'backend'])",
+      "maxItems": 10,
+      "default": []
     },
     "scope": {
       "type": "string",
-      "description": "Scope: 'global', 'project:<name>', or 'repo:<name>'",
+      "description": "Optional scope: 'global', 'project:<name>', or 'repo:<name>'",
       "default": "global"
-    },
-    "category": {
-      "type": "string",
-      "enum": ["rule", "guideline", "decision", "pattern"],
-      "default": "rule"
-    },
-    "priority": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 10,
-      "default": 5
-    },
-    "confidence": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 1.0,
-      "default": 0.8
-    },
-    "source": {
-      "type": "string",
-      "description": "Origin of knowledge",
-      "default": "manual"
     }
   },
-  "required": ["title", "content", "tags"]
+  "required": ["title", "content"]
 }
 ```
 
@@ -303,7 +262,7 @@ flowchart LR
     "contextTags": {
       "type": "array",
       "items": { "type": "string" },
-      "description": "Tags inferred by the agent (e.g., ['api', 'backend'])",
+      "description": "Optional tags to boost matching results (e.g., ['api', 'backend'])",
       "default": []
     },
     "scope": {
@@ -311,22 +270,11 @@ flowchart LR
       "description": "Optional project/repo scope filter",
       "default": null
     },
-    "category": {
-      "type": "string",
-      "enum": ["rule", "guideline", "decision", "pattern", null],
-      "description": "Filter by category"
-    },
     "limit": {
       "type": "integer",
       "minimum": 1,
       "maximum": 20,
       "default": 5
-    },
-    "minConfidence": {
-      "type": "number",
-      "minimum": 0.0,
-      "maximum": 1.0,
-      "default": 0.0
     }
   },
   "required": ["query"]
@@ -348,9 +296,6 @@ flowchart LR
           "content": { "type": "string" },
           "tags": { "type": "array", "items": { "type": "string" } },
           "scope": { "type": "string" },
-          "category": { "type": "string" },
-          "priority": { "type": "integer" },
-          "confidence": { "type": "number" },
           "score": { "type": "number", "description": "Combined relevance score" }
         }
       }
