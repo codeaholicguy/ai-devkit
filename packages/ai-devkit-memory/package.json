@@ -8,7 +8,7 @@
         "ai-devkit-memory": "./dist/index.js"
     },
     "scripts": {
-        "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly",
+        "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
         "dev": "swc src -d dist --strip-leading-paths --watch",
         "start": "node dist/index.js",
         "typecheck": "tsc --noEmit",

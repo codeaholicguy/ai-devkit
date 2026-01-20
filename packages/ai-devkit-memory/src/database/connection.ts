@@ -75,11 +75,21 @@ export class DatabaseConnection {
 }
 
 let instance: DatabaseConnection | null = null;
+let schemaInitialized = false;
 
 export function getDatabase(options?: DatabaseOptions): DatabaseConnection {
     if (!instance) {
         instance = new DatabaseConnection(options);
     }
+
+    // Auto-run migrations on first access
+    if (!schemaInitialized) {
+        // Lazy import to avoid circular dependency
+        const { initializeSchema } = require('./schema.js');
+        initializeSchema(instance);
+        schemaInitialized = true;
+    }
+
     return instance;
 }
 
@@ -87,5 +97,6 @@ export function closeDatabase(): void {
     if (instance) {
         instance.close();
         instance = null;
+        schemaInitialized = false;
     }
 }
