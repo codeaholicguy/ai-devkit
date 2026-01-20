@@ -1,3 +1,3 @@
-export { DatabaseConnection, getDatabase, closeDatabase, DEFAULT_DB_PATH } from './connection.js';
-export type { DatabaseOptions } from './connection.js';
-export { initializeSchema, getSchemaVersion, resetSchema } from './schema.js';
+export { DatabaseConnection, getDatabase, closeDatabase, DEFAULT_DB_PATH } from './connection';
+export type { DatabaseOptions } from './connection';
+export { initializeSchema, getSchemaVersion, resetSchema } from './schema';
