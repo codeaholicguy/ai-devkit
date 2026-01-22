@@ -120,3 +120,26 @@ article a {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+@keyframes agent-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.agent-marquee {
+  animation: agent-marquee 22s linear infinite;
+  will-change: transform;
+}
+
+.agent-logo {
+  filter: grayscale(100%);
+  transition: filter 200ms ease;
+}
+
+.agent-marquee a:hover .agent-logo {
+  filter: grayscale(0%);
+}

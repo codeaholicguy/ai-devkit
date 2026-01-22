@@ -2,6 +2,16 @@ import Link from "next/link";
 import GitHubButton from "@/components/GitHubButton";
 
 export default function Home() {
+  const agents = [
+    { name: "Cursor", logo: "/logo/cursor.png", href: "https://cursor.com" },
+    { name: "Claude Code", logo: "/logo/claude-code.png", href: "https://www.anthropic.com/claude-code" },
+    { name: "Codex", logo: "/logo/codex.png", href: "https://openai.com/codex" },
+    { name: "Antigravity", logo: "/logo/antigravity.png", href: "https://antigravity.ai" },
+    { name: "OpenCode", logo: "/logo/opencode.png", href: "https://opencode.ai" },
+    { name: "Gemini CLI", logo: "/logo/gemini-cli.png", href: "https://geminicli.com" },
+  ];
+  const scrollingAgents = [...agents, ...agents];
+
   return (
     <div className="bg-white">
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-32">
@@ -55,6 +65,38 @@ export default function Home() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="bg-gray-50 py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+            Supported Coding Agents
+          </h2>
+          <div className="relative overflow-hidden">
+            <div className="agent-marquee flex w-max items-center gap-8">
+              {scrollingAgents.map((agent, index) => (
+                <a
+                  key={`${agent.name}-${index}`}
+                  href={agent.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center rounded-lg border border-gray-200 bg-white px-6 py-4 shadow-sm transition-transform"
+                  aria-hidden={index >= agents.length}
+                >
+                  <img
+                    src={agent.logo}
+                    alt={`${agent.name} logo`}
+                    className="agent-logo h-10 w-auto max-w-[140px] object-contain"
+                    loading="lazy"
+                  />
+                </a>
+              ))}
+            </div>
+          </div>
+          <p className="text-center text-gray-600 mt-6">
+            Use AI DevKit from your favorite agent and keep workflows consistent across teams.
+          </p>
         </div>
       </section>
 
