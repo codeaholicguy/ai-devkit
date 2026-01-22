@@ -11,9 +11,9 @@ description: Break down work into actionable tasks and estimate timeline for the
 
 - [x] **Milestone 1: Foundation** - Project setup, database layer, basic schema ✅
 - [x] **Milestone 2: Core Storage** - Store handler with validation and deduplication ✅
-- [ ] **Milestone 3: Core Search** - Search handler with FTS5 and ranking (In Progress)
-- [ ] **Milestone 4: MCP Integration** - Full MCP server with both tools working
-- [ ] **Milestone 5: Quality & Polish** - Tests, documentation, edge cases
+- [x] **Milestone 3: Core Search** - Search handler with FTS5 and ranking ✅
+- [x] **Milestone 4: MCP Integration** - Full MCP server with both tools working ✅
+- [x] **Milestone 5: Quality & Polish** - Tests, documentation, edge cases ✅
 
 ## Task Breakdown
 **What specific work needs to be done?**
@@ -86,77 +86,43 @@ description: Break down work into actionable tasks and estimate timeline for the
   - Handle empty queries
   - Apply limit (default 5, max 20)
 
-### Phase 4: MCP Integration (Estimated: 3-4 hours)
+### Phase 4: MCP Integration (Estimated: 3-4 hours) ✅ COMPLETE
 
-- [ ] **Task 4.1: MCP Server Setup**
-  - Implement `server.ts`
-  - Initialize MCP server with stdio transport
-  - Configure server metadata and capabilities
-  - Effort: 1 hour
+- [x] **Task 4.1: MCP Server Setup**
+  - Implemented `server.ts` with stdio transport
+  - Configured server metadata and capabilities
 
-- [ ] **Task 4.2: Register Tools**
-  - Register `memory.storeKnowledge` tool
-  - Register `memory.searchKnowledge` tool
-  - Define JSON schemas for inputs
-  - Wire handlers to tool calls
-  - Effort: 1 hour
+- [x] **Task 4.2: Register Tools**
+  - Registered `memory.storeKnowledge` and `memory.searchKnowledge`
+  - JSON schemas defined for inputs
 
-- [ ] **Task 4.3: Entry Point**
-  - Implement `index.ts`
-  - Initialize database on startup
-  - Run schema migrations if needed
-  - Start MCP server
-  - Handle graceful shutdown
-  - Effort: 1 hour
+- [x] **Task 4.3: Entry Point**
+  - Implemented `index.ts`
+  - Auto-runs migrations on startup
 
-- [ ] **Task 4.4: Error Handling**
-  - Implement `utils/errors.ts`
-  - Custom error classes: `ValidationError`, `DuplicateError`, `StorageError`
+- [x] **Task 4.4: Error Handling**
+  - Implemented custom error classes
   - Error to MCP response mapping
-  - Effort: 1 hour
 
-### Phase 5: Quality & Polish (Estimated: 4-6 hours)
+### Phase 5: Quality & Polish (Estimated: 4-6 hours) ✅ COMPLETE
 
-- [ ] **Task 5.1: Unit Tests - Normalizer**
-  - Test `normalizeTitle()` with various inputs
-  - Test `hashContent()` for consistency
-  - Effort: 0.5 hours
+- [x] **Task 5.1: Unit Tests - Normalizer** (21 tests)
+  - All normalizer functions tested
 
-- [ ] **Task 5.2: Unit Tests - Validator**
-  - Test valid inputs pass
-  - Test short/long title rejection
-  - Test generic content rejection
-  - Test invalid scope formats
-  - Effort: 1 hour
+- [x] **Task 5.2: Unit Tests - Validator** (22 tests)
+  - Title, content, tags, scope validation tested
 
-- [ ] **Task 5.3: Unit Tests - Ranker**
-  - Test BM25 score integration
-  - Test priority boost calculation
-  - Test tag match counting
-  - Test scope boost logic
-  - Effort: 1 hour
+- [x] **Task 5.3: Unit Tests - Ranker** (9 tests)
+  - BM25, tag boost, scope boost tested
 
-- [ ] **Task 5.4: Integration Tests - Store**
-  - Test successful storage
-  - Test duplicate rejection (title)
-  - Test duplicate rejection (content hash)
-  - Test validation errors
-  - Effort: 1 hour
+- [x] **Task 5.4: Integration Tests - Store** (9 tests)
+  - Storage, persistence, deduplication tested
 
-- [ ] **Task 5.5: Integration Tests - Search**
-  - Test basic query matching
-  - Test tag filtering
-  - Test scope filtering
-  - Test ranking order
-  - Test API-specific rules in top 3 (DoD)
-  - Effort: 1.5 hours
+- [x] **Task 5.5: Integration Tests - Search** (8 tests)
+  - Query, ranking, validation, empty results tested
 
-- [ ] **Task 5.6: README Documentation**
-  - Installation instructions
-  - Configuration options
-  - Tool usage examples
-  - MCP client setup guide
-  - Effort: 1 hour
+- [x] **Task 5.6: README Documentation**
+  - Full README with API reference, usage examples
 
 ## Dependencies
 **What needs to happen in what order?**
