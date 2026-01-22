@@ -5,3 +5,4 @@ dist/
 .env
 *.tsbuildinfo
 coverage/
+.nx

@@ -1,5 +1,10 @@
 I want to add a new feature/requirement. Please guide me through the complete development workflow:
 
+## Memory (use when helpful)
+- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
+- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
+- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
+
 ## Step 1: Capture Requirement
 First, ask me:
 - What is the feature name? (e.g., "user-authentication", "payment-integration")
