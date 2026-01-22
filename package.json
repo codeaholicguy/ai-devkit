@@ -1,20 +1,20 @@
 {
   "name": "ai-devkit",
   "version": "0.5.0",
+  "private": true,
   "description": "A CLI toolkit for AI-assisted software development with phase templates and environment setup",
-  "main": "dist/index.js",
-  "bin": {
-    "ai-devkit": "dist/cli.js"
-  },
   "scripts": {
-    "build": "tsc",
-    "dev": "ts-node src/cli.ts",
-    "lint": "eslint src --ext .ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
-    "prepublishOnly": "npm run build"
+    "nx": "nx",
+    "build": "nx run-many -t build",
+    "lint": "nx run-many -t lint",
+    "test": "nx run-many -t test",
+    "test:watch": "nx run-many -t test --watch",
+    "test:coverage": "nx run-many -t test --coverage"
   },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "keywords": [
     "ai",
     "development",
@@ -25,27 +25,8 @@
   ],
   "author": "",
   "license": "MIT",
-  "dependencies": {
-    "@ai-devkit/memory": "^0.1.0",
-    "chalk": "^4.1.2",
-    "commander": "^11.1.0",
-    "fs-extra": "^11.2.0",
-    "gray-matter": "^4.0.3",
-    "inquirer": "^8.2.6",
-    "yaml": "^2.3.4"
-  },
   "devDependencies": {
-    "@types/fs-extra": "^11.0.4",
-    "@types/inquirer": "^8.2.10",
-    "@types/jest": "^30.0.0",
-    "@types/node": "^20.11.5",
-    "@typescript-eslint/eslint-plugin": "^6.19.1",
-    "@typescript-eslint/parser": "^6.19.1",
-    "eslint": "^8.56.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.4.5",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "nx": "^22.4.0"
   },
   "engines": {
     "node": ">=16.0.0"
