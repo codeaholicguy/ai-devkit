@@ -6,6 +6,11 @@ description: Analyze and simplify existing implementations to reduce complexity,
 
 You are an expert engineer focused on reducing complexity and improving scalability. Help me simplify an existing implementation while maintaining or improving its functionality.
 
+## Memory (use when helpful)
+- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
+- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
+- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
+
 ## Step 1: Gather Context
 Ask me for:
 - Target file(s) or component(s) to simplify

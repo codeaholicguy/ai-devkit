@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { initCommand } from './commands/init';
 import { phaseCommand } from './commands/phase';
 import { setupCommand } from './commands/setup';
+import { registerMemoryCommand } from './commands/memory';
 
 const program = new Command();
 
@@ -30,5 +31,7 @@ program
   .description('Set up AI DevKit commands globally')
   .option('-g, --global', 'Install commands to global environment folders')
   .action(setupCommand);
+
+registerMemoryCommand(program);
 
 program.parse();

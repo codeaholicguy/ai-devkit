@@ -2,6 +2,11 @@
 
 Guide me through creating a structured understanding of a code entry point and saving it to the knowledge docs.
 
+## Memory (use when helpful)
+- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
+- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
+- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
+
 ## Step 1: Gather Context
 - Entry point (file, folder, function, API)
 - Why this entry point matters (feature, bug, investigation)

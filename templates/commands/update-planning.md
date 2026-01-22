@@ -6,6 +6,11 @@ description: Assist in updating planning documentation to reflect current implem
 
 Please help me reconcile the current implementation progress with our planning documentation.
 
+## Memory (use when helpful)
+- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
+- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
+- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
+
 ## Step 1: Gather Context
 Ask me for:
 - Feature/branch name and brief status
