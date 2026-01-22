@@ -63,27 +63,6 @@ Add to your MCP client configuration:
 }
 ```
 
-### CLI Commands
-
-You can also use the CLI directly:
-
-```bash
-# Store knowledge
-ai-devkit-memory store \
-  -t "Always use Response DTOs for API endpoints" \
-  -c "When building REST APIs, always use Response DTOs..." \
-  --tags "api,backend,dto" \
-  -s global
-
-# Search knowledge
-ai-devkit-memory search -q "API best practices" --tags "api" -l 5
-
-# Start MCP server (default)
-ai-devkit-memory serve
-# or just:
-ai-devkit-memory
-```
-
 ## API Reference
 
 ### `memory.storeKnowledge`
