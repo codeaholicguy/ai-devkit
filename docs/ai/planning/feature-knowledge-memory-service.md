@@ -9,114 +9,82 @@ description: Break down work into actionable tasks and estimate timeline for the
 ## Milestones
 **What are the major checkpoints?**
 
-- [ ] **Milestone 1: Foundation** - Project setup, database layer, basic schema (Day 1-2)
-- [ ] **Milestone 2: Core Storage** - Store handler with validation and deduplication (Day 2-3)
-- [ ] **Milestone 3: Core Search** - Search handler with FTS5 and ranking (Day 3-4)
-- [ ] **Milestone 4: MCP Integration** - Full MCP server with both tools working (Day 4-5)
-- [ ] **Milestone 5: Quality & Polish** - Tests, documentation, edge cases (Day 5-6)
+- [x] **Milestone 1: Foundation** - Project setup, database layer, basic schema ✅
+- [x] **Milestone 2: Core Storage** - Store handler with validation and deduplication ✅
+- [ ] **Milestone 3: Core Search** - Search handler with FTS5 and ranking (In Progress)
+- [ ] **Milestone 4: MCP Integration** - Full MCP server with both tools working
+- [ ] **Milestone 5: Quality & Polish** - Tests, documentation, edge cases
 
 ## Task Breakdown
 **What specific work needs to be done?**
 
-### Phase 1: Foundation (Estimated: 4-6 hours)
+### Phase 1: Foundation (Estimated: 4-6 hours) ✅ COMPLETE
 
-- [ ] **Task 1.1: Project Initialization**
-  - Create `packages/knowledge-memory-service/` directory
-  - Initialize `package.json` with dependencies
+- [x] **Task 1.1: Project Initialization**
+  - Created `packages/ai-devkit-memory/` directory
+  - Initialize `package.json` with dependencies (SWC for fast builds)
   - Configure `tsconfig.json` for TypeScript
-  - Set up ESLint and Prettier configs
-  - Dependencies: `better-sqlite3`, `@modelcontextprotocol/sdk`, `uuid`, `crypto`
-  - Effort: 1 hour
+  - Dependencies: `better-sqlite3`, `@modelcontextprotocol/sdk`, `uuid`
 
-- [ ] **Task 1.2: TypeScript Type Definitions**
-  - Define `KnowledgeItem` interface
-  - Define input/output types for MCP tools
-  - Define error types and result types
-  - Effort: 1 hour
+- [x] **Task 1.2: TypeScript Type Definitions**
+  - Defined `KnowledgeItem` interface (simplified 9-field model)
+  - Defined input/output types for MCP tools
+  - Defined error types in `utils/errors.ts`
 
-- [ ] **Task 1.3: Database Connection Module**
-  - Implement `database/connection.ts`
+- [x] **Task 1.3: Database Connection Module**
+  - Implemented `database/connection.ts`
   - SQLite connection with better-sqlite3
-  - Enable WAL mode for better concurrency
-  - Configurable database path (default: `~/.knowledge-memory/memory.db`)
-  - Effort: 1 hour
+  - WAL mode, configurable path (default: `~/.ai-devkit/memory.db`)
+  - Auto-runs migrations on first access
 
-- [ ] **Task 1.4: Schema Creation**
-  - Implement `database/schema.ts`
-  - Create `knowledge` table with all fields
-  - Create `knowledge_fts` FTS5 virtual table
-  - Create sync triggers (INSERT, UPDATE, DELETE)
-  - Create indexes on scope, category, priority
-  - Add schema version tracking for migrations
-  - Effort: 1-2 hours
+- [x] **Task 1.4: Schema Creation**
+  - Implemented `database/schema.ts` with SQL migrations
+  - Created `migrations/001_initial.sql`
+  - FTS5 virtual table with sync triggers
+  - Uses SQLite `user_version` pragma for versioning
 
-### Phase 2: Core Storage (Estimated: 4-6 hours)
+### Phase 2: Core Storage (Estimated: 4-6 hours) ✅ COMPLETE
 
-- [ ] **Task 2.1: Normalizer Service**
-  - Implement `services/normalizer.ts`
-  - `normalizeTitle()`: lowercase, trim, collapse whitespace
-  - `normalizeContent()`: trim, normalize newlines
-  - `hashContent()`: SHA-256 hash of normalized content
-  - Effort: 1 hour
+- [x] **Task 2.1: Normalizer Service**
+  - Implemented `services/normalizer.ts`
+  - `normalizeTitle()`, `normalizeContent()`, `hashContent()`, `normalizeTags()`, `normalizeScope()`
 
-- [ ] **Task 2.2: Validator Service**
-  - Implement `services/validator.ts`
-  - Validate title length (10-100 chars)
-  - Validate content length (50-5000 chars)
-  - Check content specificity (reject generic phrases)
-  - Validate tags (0-10 items, alphanumeric with hyphens) - tags are optional
-  - Validate scope format (`global`, `project:*`, `repo:*`)
-  - Return structured validation errors
-  - Effort: 1.5 hours
+- [x] **Task 2.2: Validator Service**
+  - Implemented `services/validator.ts`
+  - Title/content length validation
+  - Generic phrase detection
+  - Tag and scope format validation
 
-- [ ] **Task 2.3: Store Handler**
-  - Implement `handlers/store.ts`
-  - Accept input, validate with Validator
-  - Normalize title and content
-  - Generate UUID and content hash
-  - Check for duplicates (title+scope, hash+scope)
-  - Insert into database with transaction
-  - Return success/error response
-  - Effort: 2 hours
+- [x] **Task 2.3: Store Handler**
+  - Implemented `handlers/store.ts`
+  - Full transaction wrapping (race condition fix)
+  - Duplicate detection integrated
+  - Proper error handling with re-throw for DuplicateError
 
-- [ ] **Task 2.4: Duplicate Detection**
-  - Query existing by normalized_title + scope
-  - Query existing by content_hash + scope
-  - Return specific error for each duplicate type
-  - Effort: 1 hour
+- [x] **Task 2.4: Duplicate Detection**
+  - Integrated into store handler
+  - Checks normalized_title + scope
+  - Checks content_hash + scope
 
-### Phase 3: Core Search (Estimated: 4-6 hours)
+### Phase 3: Core Search (Estimated: 4-6 hours) 🔄 IN PROGRESS
 
-- [ ] **Task 3.1: FTS Query Builder**
-  - Implement `services/search.ts` (or in handler)
-  - Convert natural language query to FTS5 query
-  - Handle special characters, quotes
-  - Build column-weighted query (title^3, content^2, tags^1)
-  - Effort: 1-2 hours
+- [x] **Task 3.1: FTS Query Builder**
+  - Implemented `services/search.ts`
+  - FTS5 special character escaping (including hyphens, boolean operators)
+  - Prefix matching for partial matches
+  - BM25 column weights (title=10, content=5, tags=1)
 
-- [ ] **Task 3.2: Ranker Service**
-  - Implement `services/ranker.ts`
-  - `calculateScore()` implementing the simplified ranking formula:
-    ```
-    final_score = bm25_score × tag_boost + scope_boost
-    
-    Where:
-      bm25_score  = FTS5 bm25() with column weights (title=10, content=5, tags=1)
-      tag_boost   = 1 + (matching_tags × 0.1)   // +10% per matching contextTag
-      scope_boost = +0.5 if scope matches, +0.2 if global, 0 otherwise
-    ```
-  - Return sorted results with combined score
-  - Effort: 1.5 hours
+- [x] **Task 3.2: Ranker Service**
+  - Implemented `services/ranker.ts`
+  - Tag boost (+10% per matching tag)
+  - Scope boost (+0.5 project match, +0.2 global)
+  - Safe JSON.parse with try-catch
 
-- [ ] **Task 3.3: Search Handler**
+- [ ] **Task 3.3: Search Handler** ← NEXT
   - Implement `handlers/search.ts`
-  - Parse search parameters (query, contextTags, scope, limit)
-  - Build FTS query
-  - Execute query with BM25 ranking
-  - Apply tag and scope boosts
-  - Limit results (default 5, max 20)
-  - Return formatted response
-  - Effort: 2 hours
+  - Orchestrate FTS query → ranker → response
+  - Handle empty queries
+  - Apply limit (default 5, max 20)
 
 ### Phase 4: MCP Integration (Estimated: 3-4 hours)
 

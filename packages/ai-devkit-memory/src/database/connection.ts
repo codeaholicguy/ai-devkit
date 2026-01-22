@@ -85,7 +85,7 @@ export function getDatabase(options?: DatabaseOptions): DatabaseConnection {
     // Auto-run migrations on first access
     if (!schemaInitialized) {
         // Lazy import to avoid circular dependency
-        const { initializeSchema } = require('./schema.js');
+        const { initializeSchema } = require('./schema');
         initializeSchema(instance);
         schemaInitialized = true;
     }
