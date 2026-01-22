@@ -10,7 +10,7 @@ function escapeFtsSpecialChars(text: string): string {
     // FTS5 special characters: " * ^ - : OR AND NOT ( )
     return text
         .replace(/"/g, '""')  // Escape quotes by doubling
-        .replace(/[*^():\-]/g, ' ')  // Replace operators with space (including hyphen)
+        .replace(/[*^():-]/g, ' ')  // Replace operators with space (including hyphen)
         .replace(/\b(AND|OR|NOT)\b/gi, '')  // Remove boolean operators
         .trim()
         .replace(/\s+/g, ' ');  // Collapse multiple spaces

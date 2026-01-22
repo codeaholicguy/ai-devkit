@@ -85,6 +85,7 @@ export function getDatabase(options?: DatabaseOptions): DatabaseConnection {
     // Auto-run migrations on first access
     if (!schemaInitialized) {
         // Lazy import to avoid circular dependency
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
         const { initializeSchema } = require('./schema');
         initializeSchema(instance);
         schemaInitialized = true;

@@ -1,6 +1,6 @@
 import inquirer from 'inquirer';
 import { EnvironmentCode } from '../types';
-import { getAllEnvironments, getEnvironmentsByCodes, getEnvironmentDisplayName, getGlobalCapableEnvironments } from '../util/env';
+import { getAllEnvironments, getEnvironmentDisplayName, getGlobalCapableEnvironments } from '../util/env';
 
 export class EnvironmentSelector {
   async selectEnvironments(): Promise<EnvironmentCode[]> {

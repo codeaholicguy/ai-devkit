@@ -31,7 +31,7 @@ describe('ConfigManager', () => {
     });
 
     it('should use current directory as default', () => {
-      const defaultConfig = new ConfigManager();
+      new ConfigManager();
       expect(mockPath.join).toHaveBeenCalledWith(process.cwd(), '.ai-devkit.json');
     });
   });

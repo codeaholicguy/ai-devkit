@@ -1,5 +1,5 @@
 import { PhaseSelector } from '../../lib/PhaseSelector';
-import { AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../../types';
+import { AVAILABLE_PHASES } from '../../types';
 
 jest.mock('inquirer');
 

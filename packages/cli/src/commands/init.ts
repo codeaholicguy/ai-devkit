@@ -5,7 +5,7 @@ import { ConfigManager } from '../lib/Config';
 import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
 import { PhaseSelector } from '../lib/PhaseSelector';
-import { EnvironmentCode, Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
+import { EnvironmentCode, PHASE_DISPLAY_NAMES } from '../types';
 import { isValidEnvironmentCode } from '../util/env.js';
 
 function isGitAvailable(): boolean {
@@ -151,7 +151,7 @@ export async function initCommand(options: InitOptions) {
     }
 
     if (shouldCopy) {
-      const file = await templateManager.copyPhaseTemplate(phase);
+      await templateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
       console.log(chalk.green(`[OK] Created ${phase} phase`));
     } else {
