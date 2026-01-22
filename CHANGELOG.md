@@ -5,9 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-01-22
 
 ### Added
+- **Knowledge Memory Service** (`packages/memory`) - A lightweight MCP-based memory service for AI agents
+  - Store and retrieve actionable knowledge using SQLite with FTS5 full-text search
+  - **Core Features**:
+    - 🔍 **Full-Text Search** - FTS5 with BM25 ranking
+    - 🏷️ **Tag-Based Filtering** - Boost results by contextTags
+    - 📁 **Scoped Knowledge** - global, project, or repo-specific rules
+    - 🔄 **Deduplication** - Prevents duplicate content
+  - **CLI Integration**: New `memory` command family
+    - `ai-devkit memory store` - Store new knowledge items
+    - `ai-devkit memory search` - Search for relevant knowledge
 - **Global Setup Command** - New `ai-devkit setup --global` command for installing commands globally
   - Copy AI DevKit commands to global environment folders
   - Support for Antigravity (`~/.gemini/antigravity/global_workflows/`) and Codex (`~/.codex/prompts/`)
