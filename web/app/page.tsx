@@ -10,7 +10,7 @@ export default function Home() {
     { name: "OpenCode", logo: "/logo/opencode.png", href: "https://opencode.ai" },
     { name: "Gemini CLI", logo: "/logo/gemini-cli.png", href: "https://geminicli.com" },
   ];
-  const scrollingAgents = [...agents, ...agents];
+  const scrollingAgents = [...agents, ...agents, ...agents];
 
   return (
     <div className="bg-white">
@@ -81,7 +81,7 @@ export default function Home() {
                   href={agent.href}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center justify-center rounded-lg border border-gray-200 bg-white px-6 py-4 shadow-sm transition-transform"
+                  className="flex flex-shrink-0 items-center justify-center px-6 py-4 transition-transform"
                   aria-hidden={index >= agents.length}
                 >
                   <img
