@@ -1,9 +1,12 @@
-name: Deploy to GitHub Pages
+name: Deploy Documentation
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'web/**'
+      - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,7 +20,9 @@ concurrency:
 
 jobs:
   build:
+    name: Build Documentation
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,14 +35,12 @@ jobs:
           cache-dependency-path: web/package-lock.json
 
       - name: Install dependencies
-        run: |
-          cd web
-          npm ci
+        working-directory: ./web
+        run: npm ci
 
       - name: Build website
-        run: |
-          cd web
-          npm run build
+        working-directory: ./web
+        run: npm run build
         env:
           NODE_ENV: production
           NEXT_PUBLIC_SITE_URL: https://ai-devkit.com
@@ -48,13 +51,14 @@ jobs:
           path: web/out
 
   deploy:
+    name: Deploy to GitHub Pages
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
