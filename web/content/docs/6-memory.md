@@ -16,9 +16,7 @@ You can interact with Memory in two ways:
 1.  **Through your AI Assistant (Recommended):** Connect via MCP so your AI can automatically search for relevant context and save new rules as you work. When you chat with your AI assistant, it will automatically fallback to the CLI to search for relevant context and save new rules if MCP is not available.
 2.  **Through the CLI:** Manually store or retrieve knowledge directly from your terminal—perfect for quick lookups or scripting.
 
----
-
-## 1. Using with AI Agents (MCP)
+## Using with AI Agents (MCP)
 
 This is the most powerful way to use Memory. Your AI (Cursor, Claude, etc.) gains "tools" to save and retrieve information naturally.
 
@@ -49,9 +47,7 @@ Once connected, you can talk to your AI naturally:
 
 The AI will intelligently rank results based on your current task and available tags.
 
----
-
-## 2. Using the CLI
+## Using the CLI
 
 You don't need an AI agent to use Memory. The `ai-devkit` CLI has built-in commands to manage your knowledge base.
 
@@ -84,13 +80,6 @@ ai-devkit memory search --query "docker m1"
   }
 ]
 ```
-
-### CLI Reference
-
-| Command | Description | Key Flags |
-| :--- | :--- | :--- |
-| `memory store` | Save a new item | `--title`, `--content`, `--tags`, `--scope` |
-| `memory search` | Find items | `--query`, `--tags`, `--limit` |
 
 ## Organizing Your Knowledge
 

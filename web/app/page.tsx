@@ -22,12 +22,12 @@ export default function Home() {
             Development
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            A CLI toolkit that brings structure to AI-assisted software development with phase templates, 
+            A CLI toolkit that brings structure to AI-assisted software development with phase templates,
             systematic planning, and comprehensive documentation workflows.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Link 
-              href="/docs" 
+            <Link
+              href="/docs"
               className="px-8 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors no-underline"
             >
               Get Started
@@ -42,26 +42,33 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
             Why AI DevKit?
           </h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white p-8 rounded-lg border border-gray-200">
               <h3 className="text-xl font-bold mb-3">Documentation-First</h3>
               <p className="text-gray-600 leading-relaxed">
-                Start with clear requirements, design decisions, and implementation plans. 
+                Start with clear requirements, design decisions, and implementation plans.
                 Keep your project knowledge organized and accessible.
               </p>
             </div>
             <div className="bg-white p-8 rounded-lg border border-gray-200">
               <h3 className="text-xl font-bold mb-3">Phase-Based Workflow</h3>
               <p className="text-gray-600 leading-relaxed">
-                Move systematically through requirements, design, planning, implementation, 
+                Move systematically through requirements, design, planning, implementation,
                 and testing. No step gets skipped.
               </p>
             </div>
             <div className="bg-white p-8 rounded-lg border border-gray-200">
               <h3 className="text-xl font-bold mb-3">AI-Friendly Context</h3>
               <p className="text-gray-600 leading-relaxed">
-                Organize project knowledge so AI assistants provide better guidance. 
+                Organize project knowledge so AI assistants provide better guidance.
                 Amplify human capabilities with structured context.
+              </p>
+            </div>
+            <div className="bg-white p-8 rounded-lg border border-gray-200">
+              <h3 className="text-xl font-bold mb-3">Memory</h3>
+              <p className="text-gray-600 leading-relaxed">
+                Store actionable insights, coding patterns, and project guidelines.
+                Once stored, this knowledge is available to your AI agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
               </p>
             </div>
           </div>
@@ -120,7 +127,7 @@ export default function Home() {
                 <code>npx ai-devkit init</code>
               </pre>
               <p className="text-gray-600 mt-6">
-                This creates a <code>docs/ai/</code> directory with phase templates for 
+                This creates a <code>docs/ai/</code> directory with phase templates for
                 requirements, design, planning, implementation, testing, deployment, and monitoring.
               </p>
               <p className="text-gray-600 mt-6">
@@ -129,8 +136,8 @@ export default function Home() {
               <iframe src="https://www.youtube.com/embed/8cNFkHEVE3o?autoplay=1&mute=1&loop=1&controls=0" className="w-full h-[440px]" />
             </div>
             <div className="text-center mt-8">
-              <Link 
-                href="/docs" 
+              <Link
+                href="/docs"
                 className="text-lg font-medium hover:opacity-70 transition-opacity"
               >
                 Read the full documentation →
@@ -148,8 +155,8 @@ export default function Home() {
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
             Join developers who are building better software with AI assistance and structured workflows.
           </p>
-          <Link 
-            href="/docs" 
+          <Link
+            href="/docs"
             className="inline-block px-8 py-3 bg-white text-black rounded-lg font-medium hover:bg-gray-100 transition-colors no-underline"
           >
             Get Started Now
