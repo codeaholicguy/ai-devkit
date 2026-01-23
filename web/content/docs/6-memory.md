@@ -42,6 +42,8 @@ Once connected, you can talk to your AI naturally:
 **Storing Knowledge:**
 > "We just decided that all API responses must handle BigInt serialization. Please save this rule to memory with the tag #backend."
 
+You can force your AI agent to store knowledge by using slash commands: `/remember`. This command is available if you init your project with `ai-devkit init`.
+
 **Retrieving Knowledge:**
 > "I'm building a new endpoint. Check memory for any API standards I need to follow."
 
