@@ -4,6 +4,7 @@
 
 AI DevKit is an open-source ecosystem designed to bridge the gap between human intent and AI execution. It provides a suite of tools that standardize how AI agents interact with codebases, manage context, and execute development workflows.
 
+![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ## 🌟 Vision
