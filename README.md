@@ -7,7 +7,7 @@ AI DevKit is an open-source ecosystem designed to bridge the gap between human i
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## 🌟 Vision
+## Vision
 
 The capabilities of AI coding agents are growing exponentially, but they often struggle with:
 1.  **Context**: Losing track of broad project requirements and architectural decisions.
@@ -17,11 +17,11 @@ The capabilities of AI coding agents are growing exponentially, but they often s
 **AI DevKit** solves this by enforcing a **Phase-Based Development** lifecycle—ensuring agents follow the same rigorous engineering 
 standards as senior developers: Requirements → Design → Planning → Implementation → Testing.
 
-## 📦 Packages
+## Packages
 
 AI DevKit is a monorepo containing multiple specialized tools:
 
-### [🖥️ ai-devkit (CLI)](./packages/cli)
+### [ai-devkit (CLI)](./packages/cli)
 The command-line interface that orchestrates the development lifecycle.
 - **Scaffold** structured documentation (Requirements, Design, Plan).
 - **Configure** environments for Cursor, Claude Code, and other agents.
@@ -29,7 +29,7 @@ The command-line interface that orchestrates the development lifecycle.
 
 [**Explore the CLI Docs →**](./packages/cli/README.md)
 
-### [🧠 @ai-devkit/memory](./packages/memory)
+### [@ai-devkit/memory](./packages/memory)
 A lightweight MCP-based memory service that gives agents persistent, searchable long-term memory.
 - **Store** architectural decisions and coding patterns.
 - **Search** documentation and knowledge using full-text search.
@@ -37,7 +37,7 @@ A lightweight MCP-based memory service that gives agents persistent, searchable 
 
 [**Explore the Memory Docs →**](./packages/memory/README.md)
 
-## 🚀 Quick Start
+## Quick Start
 
 To start using the core toolkit in your project instantly:
 
@@ -47,7 +47,7 @@ npx ai-devkit init
 
 This will launch the interactive setup wizard to configure your project for AI-assisted development.
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Whether you're building a new agent integration, adding a memory adapter, or improving our templates.
 
@@ -74,4 +74,3 @@ We use a monorepo structure. Ensure all changes are covered by tests before subm
 ## License
 
 MIT
-
