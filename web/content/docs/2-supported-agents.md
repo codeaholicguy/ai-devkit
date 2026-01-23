@@ -31,7 +31,8 @@ order: 2
 - `.gemini/commands/` - Gemini [custom commands](https://geminicli.com/docs/cli/commands/)
 
 ### [OpenAI Codex](https://chatgpt.com/en-SE/features/codex)
-**Status:** Testing
+In order to use Codex, you need to run `ai-devkit setup --global`.
+**Status:** Ready
 **What AI DevKit provides:**
 - `AGENTS.md` - Codex-specific configuration and context
 - `.codex/commands/` - Commands tailored for Codex's code-focused capabilities
