@@ -1,0 +1,6 @@
+{
+  "registries": {
+    "anthropics/skills": "https://github.com/anthropics/skills.git",
+    "vercel-labs/agent-skills": "https://github.com/vercel-labs/agent-skills.git"
+  }
+}
