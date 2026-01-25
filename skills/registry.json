@@ -1,6 +1,11 @@
 {
   "registries": {
     "anthropics/skills": "https://github.com/anthropics/skills.git",
-    "vercel-labs/agent-skills": "https://github.com/vercel-labs/agent-skills.git"
+    "vercel-labs/agent-skills": "https://github.com/vercel-labs/agent-skills.git",
+    "remotion-dev/skills": "https://github.com/remotion-dev/skills.git",
+    "supabase/agent-skills": "https://github.com/supabase/agent-skills.git",
+    "obra/superpowers": "https://github.com/obra/superpowers.git",
+    "softaworks/agent-toolkit": "https://github.com/softaworks/agent-toolkit.git",
+    "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git"
   }
 }
