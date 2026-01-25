@@ -5,14 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-01-25
 
 ### Added
 - **Skill Management** - Centralized registry for managing Agent Skills across projects
-  - 🎯 **One-Command Installation**: `ai-devkit skill add <registry>/<repo> <skill-name>`
-  - 💾 **Local Cache**: Skills stored in `~/.ai-devkit/skills/` to avoid duplication
-  - 🔗 **Symlink-First Strategy**: Symlinks with automatic copy fallback for Windows
-  - 🎨 **Multi-Environment Support**: Works with Cursor, Claude Code, Codex, OpenCode, and Antigravity
+  - **One-Command Installation**: `ai-devkit skill add <registry>/<repo> <skill-name>`
+  - **Local Cache**: Skills stored in `~/.ai-devkit/skills/` to avoid duplication
+  - **Symlink-First Strategy**: Symlinks with automatic copy fallback for Windows
+  - **Multi-Environment Support**: Works with Cursor, Claude Code, Codex, OpenCode, and Antigravity
   - **CLI Commands**:
     - `ai-devkit skill add <registry>/<repo> <skill-name>` - Install a skill from registry
     - `ai-devkit skill list` - List all installed skills with sources
@@ -23,7 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Environment filtering (only shows/uses environments with skill support)
     - Git repository caching for efficient reuse across projects
     - Validation for registry IDs and skill names (follows Agent Skills spec)
-  - **Test Coverage**: 67 new unit tests (187 total tests passing)
 
 ## [0.6.0] - 2026-01-22
 
