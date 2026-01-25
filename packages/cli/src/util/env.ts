@@ -6,12 +6,14 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'Cursor',
     contextFileName: 'AGENTS.md',
     commandPath: '.cursor/commands',
+    skillPath: '.cursor/skills',
   },
   claude: {
     code: 'claude',
     name: 'Claude Code',
     contextFileName: 'CLAUDE.md',
     commandPath: '.claude/commands',
+    skillPath: '.claude/skills',
   },
   github: {
     code: 'github',
@@ -33,6 +35,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'AGENTS.md',
     commandPath: '.codex/commands',
     globalCommandPath: '.codex/prompts',
+    skillPath: '.codex/skills',
   },
   windsurf: {
     code: 'windsurf',
@@ -57,6 +60,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'OpenCode',
     contextFileName: 'AGENTS.md',
     commandPath: '.opencode/commands',
+    skillPath: '.opencode/skills',
   },
   roo: {
     code: 'roo',
@@ -70,6 +74,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'AGENTS.md',
     commandPath: '.agent/workflows',
     globalCommandPath: '.gemini/antigravity/global_workflows',
+    skillPath: '.agent/skills',
   }
 };
 
@@ -126,4 +131,13 @@ export function getGlobalCapableEnvironments(): EnvironmentDefinition[] {
 export function hasGlobalSupport(envCode: EnvironmentCode): boolean {
   const env = getEnvironment(envCode);
   return env !== undefined && env.globalCommandPath !== undefined;
+}
+
+export function getSkillPath(envCode: EnvironmentCode): string | undefined {
+  const env = getEnvironment(envCode);
+  return env?.skillPath;
+}
+
+export function getSkillCapableEnvironments(): EnvironmentDefinition[] {
+  return getAllEnvironments().filter(env => env.skillPath !== undefined);
 }

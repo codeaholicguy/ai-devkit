@@ -1,31 +1,37 @@
-import inquirer from 'inquirer';
-import { EnvironmentCode } from '../types';
-import { getAllEnvironments, getEnvironmentDisplayName, getGlobalCapableEnvironments } from '../util/env';
+import inquirer from "inquirer";
+import { EnvironmentCode } from "../types";
+import {
+  getAllEnvironments,
+  getEnvironmentDisplayName,
+  getGlobalCapableEnvironments,
+  getSkillCapableEnvironments,
+} from "../util/env";
 
 export class EnvironmentSelector {
   async selectEnvironments(): Promise<EnvironmentCode[]> {
     const environments = getAllEnvironments();
 
-    const choices = environments.map(env => ({
+    const choices = environments.map((env) => ({
       name: env.name,
       value: env.code as EnvironmentCode,
-      short: env.name
+      short: env.name,
     }));
 
     const answers = await inquirer.prompt([
       {
-        type: 'checkbox',
-        name: 'environments',
-        message: 'Select AI environments to set up (use space to select, enter to confirm):',
+        type: "checkbox",
+        name: "environments",
+        message:
+          "Select AI environments to set up (use space to select, enter to confirm):",
         choices,
         pageSize: 10,
         validate: (input: EnvironmentCode[]) => {
           if (input.length === 0) {
-            return 'Please select at least one environment.';
+            return "Please select at least one environment.";
           }
           return true;
-        }
-      }
+        },
+      },
     ]);
 
     return answers.environments;
@@ -36,15 +42,15 @@ export class EnvironmentSelector {
       return true;
     }
 
-    const conflictNames = conflicts.map(id => getEnvironmentDisplayName(id));
+    const conflictNames = conflicts.map((id) => getEnvironmentDisplayName(id));
 
     const answers = await inquirer.prompt([
       {
-        type: 'confirm',
-        name: 'proceed',
-        message: `The following environments are already set up and will be overwritten:\n  ${conflictNames.join(', ')}\n\nDo you want to continue?`,
-        default: false
-      }
+        type: "confirm",
+        name: "proceed",
+        message: `The following environments are already set up and will be overwritten:\n  ${conflictNames.join(", ")}\n\nDo you want to continue?`,
+        default: false,
+      },
     ]);
 
     return answers.proceed;
@@ -52,45 +58,80 @@ export class EnvironmentSelector {
 
   displaySelectionSummary(selected: EnvironmentCode[]): void {
     if (selected.length === 0) {
-      console.log('No environments selected.');
+      console.log("No environments selected.");
       return;
     }
 
-    console.log('\nSelected environments:');
-    selected.forEach(envId => {
+    console.log("\nSelected environments:");
+    selected.forEach((envId) => {
       console.log(`  ${getEnvironmentDisplayName(envId)}`);
     });
-    console.log('');
+    console.log("");
   }
 
   async selectGlobalEnvironments(): Promise<EnvironmentCode[]> {
     const globalCapableEnvs = getGlobalCapableEnvironments();
 
     if (globalCapableEnvs.length === 0) {
-      console.log('No environments support global setup.');
+      console.log("No environments support global setup.");
       return [];
     }
 
-    const choices = globalCapableEnvs.map(env => ({
+    const choices = globalCapableEnvs.map((env) => ({
       name: env.name,
       value: env.code as EnvironmentCode,
-      short: env.name
+      short: env.name,
     }));
 
     const answers = await inquirer.prompt([
       {
-        type: 'checkbox',
-        name: 'environments',
-        message: 'Select AI environments for global setup (use space to select, enter to confirm):',
+        type: "checkbox",
+        name: "environments",
+        message:
+          "Select AI environments for global setup (use space to select, enter to confirm):",
         choices,
         pageSize: 10,
         validate: (input: EnvironmentCode[]) => {
           if (input.length === 0) {
-            return 'Please select at least one environment.';
+            return "Please select at least one environment.";
           }
           return true;
-        }
-      }
+        },
+      },
+    ]);
+
+    return answers.environments;
+  }
+
+  async selectSkillEnvironments(): Promise<EnvironmentCode[]> {
+    const skillCapableEnvs = getSkillCapableEnvironments();
+
+    if (skillCapableEnvs.length === 0) {
+      console.log("No environments support skills.");
+      return [];
+    }
+
+    const choices = skillCapableEnvs.map((env) => ({
+      name: env.name,
+      value: env.code as EnvironmentCode,
+      short: env.name,
+    }));
+
+    const answers = await inquirer.prompt([
+      {
+        type: "checkbox",
+        name: "environments",
+        message:
+          "Select AI environments for skill installation (use space to select, enter to confirm):",
+        choices,
+        pageSize: 10,
+        validate: (input: EnvironmentCode[]) => {
+          if (input.length === 0) {
+            return "Please select at least one environment.";
+          }
+          return true;
+        },
+      },
     ]);
 
     return answers.environments;

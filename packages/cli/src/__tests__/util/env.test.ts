@@ -9,7 +9,9 @@ import {
   getEnvironmentDisplayName,
   validateEnvironmentCodes,
   getGlobalCapableEnvironments,
-  hasGlobalSupport
+  hasGlobalSupport,
+  getSkillPath,
+  getSkillCapableEnvironments
 } from '../../util/env';
 import { EnvironmentCode } from '../../types';
 
@@ -36,7 +38,8 @@ describe('Environment Utilities', () => {
         code: 'cursor',
         name: 'Cursor',
         contextFileName: 'AGENTS.md',
-        commandPath: '.cursor/commands'
+        commandPath: '.cursor/commands',
+        skillPath: '.cursor/skills'
       });
     });
 
@@ -274,6 +277,80 @@ describe('Environment Utilities', () => {
 
     it('should return false for invalid environment code', () => {
       expect(hasGlobalSupport('invalid' as EnvironmentCode)).toBe(false);
+    });
+  });
+
+  describe('getSkillPath', () => {
+    it('should return skill path for cursor', () => {
+      expect(getSkillPath('cursor')).toBe('.cursor/skills');
+    });
+
+    it('should return skill path for claude', () => {
+      expect(getSkillPath('claude')).toBe('.claude/skills');
+    });
+
+    it('should return undefined for environments without skill support', () => {
+      expect(getSkillPath('windsurf')).toBeUndefined();
+      expect(getSkillPath('gemini')).toBeUndefined();
+      expect(getSkillPath('github')).toBeUndefined();
+    });
+
+    it('should return undefined for invalid environment code', () => {
+      expect(getSkillPath('invalid' as EnvironmentCode)).toBeUndefined();
+    });
+  });
+
+  describe('getSkillCapableEnvironments', () => {
+    it('should return only environments with skillPath defined', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+
+      expect(skillEnvs.length).toBeGreaterThan(0);
+      skillEnvs.forEach(env => {
+        expect(env.skillPath).toBeDefined();
+        expect(typeof env.skillPath).toBe('string');
+      });
+    });
+
+    it('should include cursor in skill-capable environments', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const cursor = skillEnvs.find(env => env.code === 'cursor');
+
+      expect(cursor).toBeDefined();
+      expect(cursor?.skillPath).toBe('.cursor/skills');
+    });
+
+    it('should include claude in skill-capable environments', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const claude = skillEnvs.find(env => env.code === 'claude');
+
+      expect(claude).toBeDefined();
+      expect(claude?.skillPath).toBe('.claude/skills');
+    });
+
+    it('should not include environments without skillPath', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const envCodes = skillEnvs.map(env => env.code);
+
+      // These environments don't have skillPath configured
+      expect(envCodes).not.toContain('windsurf');
+      expect(envCodes).not.toContain('gemini');
+      expect(envCodes).not.toContain('github');
+      expect(envCodes).not.toContain('kilocode');
+      expect(envCodes).not.toContain('amp');
+      expect(envCodes).not.toContain('roo');
+    });
+
+    it('should return environments with skillPath configured', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const envCodes = skillEnvs.map(env => env.code);
+
+      // These environments have skillPath configured
+      expect(envCodes).toContain('cursor');
+      expect(envCodes).toContain('claude');
+      expect(envCodes).toContain('codex');
+      expect(envCodes).toContain('opencode');
+      expect(envCodes).toContain('antigravity');
+      expect(skillEnvs).toHaveLength(5);
     });
   });
 });

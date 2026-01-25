@@ -5,6 +5,7 @@ import { initCommand } from './commands/init';
 import { phaseCommand } from './commands/phase';
 import { setupCommand } from './commands/setup';
 import { registerMemoryCommand } from './commands/memory';
+import { registerSkillCommand } from './commands/skill';
 
 const program = new Command();
 
@@ -33,5 +34,6 @@ program
   .action(setupCommand);
 
 registerMemoryCommand(program);
+registerSkillCommand(program);
 
 program.parse();

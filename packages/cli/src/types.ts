@@ -12,6 +12,7 @@ export interface EnvironmentDefinition {
   name: string;
   contextFileName: string;
   commandPath: string;
+  skillPath?: string;
   description?: string;
   isCustomCommandPath?: boolean;
   customCommandExtension?: string;
