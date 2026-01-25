@@ -121,6 +121,50 @@ article a {
   text-underline-offset: 2px;
 }
 
+/* Table Styles */
+article table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  border: 1px solid #e5e5e5;
+}
+
+article thead {
+  background: #f5f5f5;
+}
+
+article th {
+  padding: 0.875rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #171717;
+  border-bottom: 2px solid #e5e5e5;
+}
+
+article td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e5e5e5;
+  color: #404040;
+}
+
+article tbody tr:last-child td {
+  border-bottom: none;
+}
+
+article tbody tr:hover {
+  background: #fafafa;
+}
+
+article td code {
+  background: #f0f0f0;
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  font-size: 0.875em;
+}
+
 @keyframes agent-marquee {
   0% {
     transform: translateX(0);
