@@ -161,6 +161,7 @@ export class SkillManager {
                 registry = `${parts[0]}/${parts[1]}`;
               }
             } catch {
+              // Ignore errors
             }
 
             skills.push({
