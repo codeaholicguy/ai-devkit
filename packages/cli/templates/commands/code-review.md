@@ -6,11 +6,6 @@ description: Perform a local code review before pushing changes, ensuring alignm
 
 You are helping me perform a local code review **before** I push changes. Please follow this structured workflow.
 
-## Memory (use when helpful)
-- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
-- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
-- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
-
 ## Step 1: Gather Context
 Ask me for:
 - Brief feature/branch description

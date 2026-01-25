@@ -21,7 +21,7 @@ If I'm vague, ask follow-ups to make it specific and actionable.
 
 ## Step 3: Store
 Call `memory.storeKnowledge` with title, content, tags, scope.
-If MCP tools are unavailable, use `ai-devkit memory store` instead.
+If MCP tools are unavailable, use `npx ai-devkit memory store` instead.
 
 ## Step 4: Confirm
 Summarize what was saved and offer to store more knowledge if needed.

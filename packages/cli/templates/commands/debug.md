@@ -6,11 +6,6 @@ description: Guide me through debugging a code issue by clarifying expectations,
 
 Help me debug an issue by clarifying expectations, identifying gaps, and agreeing on a fix plan before changing code.
 
-## Memory (use when helpful)
-- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
-- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
-- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
-
 ## Step 1: Gather Context
 Ask me for:
 - Brief issue description (what is happening?)

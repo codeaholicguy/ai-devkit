@@ -1,9 +1,8 @@
-Compare the current implementation with the design in docs/ai/design/ and requirements in docs/ai/requirements/. Please follow this structured review:
+---
+description: Compare implementation with design and requirements docs to ensure alignment.
+---
 
-## Memory (use when helpful)
-- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
-- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
-- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
+Compare the current implementation with the design in docs/ai/design/ and requirements in docs/ai/requirements/. Please follow this structured review:
 
 1. Ask me for:
    - Feature/branch description

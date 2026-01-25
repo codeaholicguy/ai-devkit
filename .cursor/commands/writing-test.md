@@ -1,9 +1,8 @@
-Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the base template before writing tests.
+---
+description: Add tests for a new feature.
+---
 
-## Memory (use when helpful)
-- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
-- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
-- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
+Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the base template before writing tests.
 
 ## Step 1: Gather Context
 Ask me for:

@@ -1,11 +1,10 @@
+---
+description: Execute a feature plan interactively, guiding me through each task while referencing relevant docs and updating status.
+---
+
 # Feature Plan Execution Assistant
 
 Help me work through a feature plan one task at a time.
-
-## Memory (use when helpful)
-- If you need clarification or project conventions, query `memory.searchKnowledge` with a brief task description, tags, and scope.
-- If I ask to save reusable guidance, run `/remember` (or call `memory.storeKnowledge`).
-- If MCP tools are unavailable, use `ai-devkit memory search` or `ai-devkit memory store`.
 
 ## Step 1: Gather Context
 Ask me for:
