@@ -1,6 +1,3 @@
-# @ai-devkit/cli
-> Part of [AI DevKit](https://github.com/Codeaholicguy/ai-devkit)
-
 The official command-line interface for **AI DevKit**.
 
 This tool orchestrates the setup and management of AI-assisted development environments, ensuring your project is ready for agents like Cursor, Claude Code, and more.
