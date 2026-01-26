@@ -4,6 +4,8 @@ import { getDocPage, getAllDocPages } from "@/lib/content/loader";
 import MarkdownContent from "@/components/MarkdownContent";
 import type { Metadata } from "next";
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
+
 interface DocPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -24,12 +26,43 @@ export async function generateMetadata({
   if (!doc) {
     return {
       title: "Page Not Found",
+      description: "The requested documentation page could not be found.",
     };
   }
 
+  const pageUrl = `${siteUrl}/docs/${slug}`;
+  const title = doc.metadata.title;
+  const description =
+    doc.metadata.description ||
+    `Learn about ${doc.metadata.title} in the AI DevKit documentation.`;
+
   return {
-    title: `${doc.metadata.title} | AI DevKit Documentation`,
-    description: doc.metadata.description,
+    title,
+    description,
+    keywords: [
+      doc.metadata.title,
+      "AI DevKit",
+      "documentation",
+      "AI-assisted development",
+      "structured workflows",
+      "coding assistant",
+    ],
+    openGraph: {
+      title,
+      description,
+      url: pageUrl,
+      siteName: "AI DevKit",
+      locale: "en_US",
+      type: "article",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+    alternates: {
+      canonical: pageUrl,
+    },
   };
 }
 

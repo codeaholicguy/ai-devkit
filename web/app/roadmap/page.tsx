@@ -2,9 +2,40 @@ import { getRoadmap } from '@/lib/content/loader';
 import MarkdownContent from '@/components/MarkdownContent';
 import type { Metadata } from 'next';
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
+
 export const metadata: Metadata = {
-  title: 'Roadmap | AI DevKit',
-  description: 'The development roadmap for AI DevKit - see what we\'re building and where we\'re headed.',
+  title: 'Roadmap',
+  description:
+    "The development roadmap for AI DevKit - see what we're building, current progress, and upcoming features for AI-assisted development.",
+  keywords: [
+    'AI DevKit roadmap',
+    'AI DevKit features',
+    'development roadmap',
+    'upcoming features',
+    'AI coding tools',
+    'product roadmap',
+    'AI DevKit plans',
+    'feature requests',
+  ],
+  openGraph: {
+    title: 'Roadmap - AI DevKit',
+    description:
+      "See what we're building and where we're headed with AI DevKit - our development roadmap and upcoming features.",
+    url: `${siteUrl}/roadmap`,
+    siteName: 'AI DevKit',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Roadmap - AI DevKit',
+    description:
+      "See what we're building and where we're headed with AI DevKit - our development roadmap and upcoming features.",
+  },
+  alternates: {
+    canonical: `${siteUrl}/roadmap`,
+  },
 };
 
 const statusColors = {
@@ -35,7 +66,7 @@ export default function RoadmapPage() {
     <div className="bg-white py-16">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Roadmap</h1>
-        
+
         <p className="text-xl text-gray-600 mb-12">
           Our development roadmap shows what we're working on and what's coming next for AI DevKit.
         </p>

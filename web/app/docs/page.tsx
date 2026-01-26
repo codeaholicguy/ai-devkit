@@ -1,5 +1,46 @@
 import Link from 'next/link';
 import { getAllDocPages } from '@/lib/content/loader';
+import type { Metadata } from 'next';
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
+
+export const metadata: Metadata = {
+  title: 'Documentation',
+  description:
+    'Complete documentation for AI DevKit - Learn how to set up structured AI-assisted development workflows, use slash commands, configure memory, and extend capabilities with skills.',
+  keywords: [
+    'AI DevKit documentation',
+    'AI coding assistant setup',
+    'structured development workflows',
+    'slash commands',
+    'skills',
+    'AI development tools',
+    'Claude Code',
+    'Cursor IDE',
+    'Codex',
+    'Antigravity',
+    'Open Code',
+    'AI pair programming',
+  ],
+  openGraph: {
+    title: 'AI DevKit Documentation',
+    description:
+      'Complete documentation for AI DevKit - structured AI-assisted development workflows, commands, and skills.',
+    url: `${siteUrl}/docs`,
+    siteName: 'AI DevKit',
+    locale: 'en_US',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'AI DevKit Documentation',
+    description:
+      'Complete documentation for AI DevKit - structured AI-assisted development workflows, commands, and skills.',
+  },
+  alternates: {
+    canonical: `${siteUrl}/docs`,
+  },
+};
 
 export default function DocsPage() {
   const docs = getAllDocPages();
@@ -8,7 +49,7 @@ export default function DocsPage() {
     <div className="bg-white py-16">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold mb-8">Documentation</h1>
-        
+
         <p className="text-xl text-gray-600 mb-12">
           Everything you need to know about using AI DevKit for AI-assisted structured software development.
         </p>
