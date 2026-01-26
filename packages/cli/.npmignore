@@ -18,3 +18,5 @@ docs/
 .claude/
 .gemini/
 AGENTS.md
+jest.config.js
+project.json
