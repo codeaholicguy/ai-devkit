@@ -9,6 +9,14 @@ Imagine if your AI assistant never made the same mistake twice.
 
 The **Memory** service allows you to store actionable insights, coding patterns, and project guidelines. Once stored, this knowledge is available to your AI agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
 
+## Prerequisites
+
+Before using Memory, ensure you have:
+
+- **Node.js 18+** installed
+- **AI DevKit CLI** installed: `npm install -g ai-devkit` or use `npx ai-devkit`
+- For MCP usage: A compatible AI assistant (Cursor, Claude Code, etc.)
+
 ## How It Works
 
 You can interact with Memory in two ways:
@@ -42,7 +50,12 @@ Once connected, you can talk to your AI naturally:
 **Storing Knowledge:**
 > "We just decided that all API responses must handle BigInt serialization. Please save this rule to memory with the tag #backend."
 
-You can force your AI agent to store knowledge by using slash commands: `/remember`. This command is available if you init your project with `ai-devkit init`.
+You can also force your AI agent to store knowledge by using the `/remember` slash command. This command is available if you initialized your project with `ai-devkit init`.
+
+**Example:**
+> /remember Always use `BigInt.toString()` before sending API responses containing large numbers.
+
+The AI will prompt you for a title and tags, then save the knowledge to memory.
 
 **Retrieving Knowledge:**
 > "I'm building a new endpoint. Check memory for any API standards I need to follow."
@@ -61,8 +74,18 @@ Found a solution to a tricky bug? Save it immediately:
 ai-devkit memory store \
   --title "Fix: Docker connection refused on M1 Mac" \
   --content "Enable 'Use Rosetta for x86/amd64 emulation' in Docker Desktop settings." \
-  --tags "docker,mac,infra"
+  --tags "docker,mac,infra" \
+  --scope "global"
 ```
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `--title` | Yes | A short, descriptive title |
+| `--content` | Yes | The detailed knowledge to store |
+| `--tags` | No | Comma-separated tags for categorization |
+| `--scope` | No | `global` (default), `project:<name>`, or `repo:<org/repo>` |
+
+> 💡 **Tip:** Run `ai-devkit memory store --help` to see all available options.
 
 ### Searching Knowledge
 
@@ -77,11 +100,15 @@ ai-devkit memory search --query "docker m1"
 [
   {
     "title": "Fix: Docker connection refused on M1 Mac",
-    "content": "Enable 'Use Rosetta for x86/amd64 emulation'...",
+    "content": "Enable 'Use Rosetta for x86/amd64 emulation' in Docker Desktop settings.",
+    "tags": ["docker", "mac", "infra"],
+    "scope": "global",
     "score": 5.2
   }
 ]
 ```
+
+> **Note:** If no results are found, an empty array `[]` is returned.
 
 ## Organizing Your Knowledge
 
@@ -93,12 +120,24 @@ Categorize your entries so they trigger in the right context.
 - `["deployment", "ci"]` -> For DevOps procedures.
 
 ### Scopes
-Control where your knowledge applies.
-- **Global** (Default): Applies to all your projects.
-- **Project**: `project:my-app` — Specific to a project.
-- **Repo**: `repo:org/repo` — Specific to a git repository.
 
-*Note: AI agents will prioritize knowledge that matches the scope of the project you are currently working on.*
+Control where your knowledge applies:
+
+| Scope | CLI Flag | Description |
+|-------|----------|-------------|
+| Global | `--scope global` | Applies to all your projects (default) |
+| Project | `--scope project:my-app` | Specific to a project |
+| Repo | `--scope repo:org/repo` | Specific to a git repository |
+
+**Example:**
+```bash
+ai-devkit memory store \
+  --title "Use pnpm for this monorepo" \
+  --content "This project uses pnpm workspaces. Always use 'pnpm' instead of 'npm'." \
+  --scope "repo:myorg/my-monorepo"
+```
+
+> **Note:** AI agents automatically prioritize knowledge matching the scope of your current working directory.
 
 ## Privacy & Storage
 
@@ -107,3 +146,8 @@ Your memory is **100% local**.
 All data is stored in a high-performance SQLite database located at `~/.ai-devkit/memory.db`. No data is sent to the cloud, ensuring your proprietary coding patterns remain private.
 
 This is portable so you can just copy the database file to another machine to use it across different machines.
+
+## Next Steps
+
+- **[Skills](/docs/skills)**: Learn how to create reusable skill templates
+- **[Getting Started](/docs/getting-started)**: New to AI DevKit? [Start here](/docs/getting-started)
