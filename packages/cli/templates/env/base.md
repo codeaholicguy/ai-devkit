@@ -49,7 +49,7 @@ The AI assistant should proactively use knowledge memory throughout all interact
 - When you establish new conventions or standards for the project
 
 **How to store**:
-- Use `memory.storeKnowledge` MCP tool or run `/remember` command
+- Use `memory.storeKnowledge` MCP tool
 - If MCP tools are unavailable, use `npx ai-devkit memory store` CLI command
 - Include clear title, detailed content, relevant tags, and appropriate scope
 - Make knowledge specific and actionable, not generic advice
@@ -79,5 +79,5 @@ When working on this project, you can run commands to:
 - Review architectural decisions (`review-design`)
 - Plan and execute tasks (`execute-plan`)
 - Verify implementation against design (`check-implementation`)
-- Suggest missing tests (`suggest-tests`)
+- Writing tests (`writing-test`)
 - Perform structured code reviews (`code-review`)
