@@ -19,10 +19,11 @@ Before using Memory, ensure you have:
 
 ## How It Works
 
-You can interact with Memory in two ways:
+You can interact with Memory in three ways:
 
-1.  **Through your AI Assistant (Recommended):** Connect via MCP so your AI can automatically search for relevant context and save new rules as you work. When you chat with your AI assistant, it will automatically fallback to the CLI to search for relevant context and save new rules if MCP is not available.
+1.  **Through your AI Assistant (Recommended):** Connect via MCP so your AI can automatically search for relevant context and save new rules as you work.
 2.  **Through the CLI:** Manually store or retrieve knowledge directly from your terminal—perfect for quick lookups or scripting.
+3.  **Through Skills:** Install the memory skill to teach your AI agent how to use CLI commands when MCP is unavailable.
 
 ## Using with AI Agents (MCP)
 
@@ -109,6 +110,37 @@ ai-devkit memory search --query "docker m1"
 ```
 
 > **Note:** If no results are found, an empty array `[]` is returned.
+
+## Using the Memory Skill
+
+If MCP is not available in your environment, you can install the **memory skill** to teach your AI agent how to use memory via CLI commands.
+
+### Installing the Skill
+
+```bash
+ai-devkit skill add codeaholicguy/ai-devkit memory
+```
+
+This installs the memory skill into your project's skill directory (e.g., `.cursor/skills/memory/`).
+
+### What the Skill Provides
+
+Once installed, your AI agent will have access to:
+
+- **Detailed CLI command reference** for `memory store` and `memory search`
+- **Parameter documentation** with examples for all options
+- **Best practices** for crafting titles, content, and tags
+- **Troubleshooting tips** for common issues
+
+### When to Use the Skill
+
+The memory skill is ideal when:
+
+- MCP is not configured or unavailable
+- Your AI agent needs detailed command syntax reference
+- You want consistent memory usage patterns across your team
+
+> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, Codex, OpenCode, and Antigravity.
 
 ## Organizing Your Knowledge
 

@@ -28,8 +28,26 @@ This project uses ai-devkit for structured AI-assisted development. Phase docume
 - For new features, start with requirements clarification
 - Update phase docs when significant changes or decisions are made
 
+## Skills (Extend Your Capabilities)
+Skills are packaged capabilities that teach you new competencies, patterns, and best practices. Check for installed skills in the project's skill directory and use them to enhance your work.
+
+### Using Installed Skills
+1. **Check for skills**: Look for `SKILL.md` files in the project's skill directory
+2. **Read skill instructions**: Each skill contains detailed guidance on when and how to use it
+3. **Apply skill knowledge**: Follow the patterns, commands, and best practices defined in the skill
+
+### Key Installed Skills
+- **memory**: Use AI DevKit's memory service via CLI commands when MCP is unavailable. Read the skill for detailed `memory store` and `memory search` command usage.
+
+### When to Reference Skills
+- Before implementing features that match a skill's domain
+- When MCP tools are unavailable but skill provides CLI alternatives
+- To follow established patterns and conventions defined in skills
+
 ## Knowledge Memory (Always Use When Helpful)
-The AI assistant should proactively use knowledge memory throughout all interactions:
+The AI assistant should proactively use knowledge memory throughout all interactions.
+
+> **Tip**: If MCP is unavailable, use the **memory skill** for detailed CLI command reference.
 
 ### When to Search Memory
 - Before starting any task, search for relevant project conventions, patterns, or decisions
@@ -39,7 +57,7 @@ The AI assistant should proactively use knowledge memory throughout all interact
 
 **How to search**:
 - Use `memory.searchKnowledge` MCP tool with relevant keywords, tags, and scope
-- If MCP tools are unavailable, use `npx ai-devkit memory search` CLI command
+- If MCP tools are unavailable, use `npx ai-devkit memory search` CLI command (see memory skill for details)
 - Example: Search for "authentication patterns" when implementing auth features
 
 ### When to Store Memory
@@ -50,7 +68,7 @@ The AI assistant should proactively use knowledge memory throughout all interact
 
 **How to store**:
 - Use `memory.storeKnowledge` MCP tool
-- If MCP tools are unavailable, use `npx ai-devkit memory store` CLI command
+- If MCP tools are unavailable, use `npx ai-devkit memory store` CLI command (see memory skill for details)
 - Include clear title, detailed content, relevant tags, and appropriate scope
 - Make knowledge specific and actionable, not generic advice
 
