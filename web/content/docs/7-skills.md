@@ -1,9 +1,9 @@
 ---
-title: Skills
+
+## title: Skills
 description: Extend your AI agents with reusable, community-driven skills from skill registries.
 slug: skills
 order: 7
----
 
 **Skills** are packaged capabilities that extend what your AI agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, or security best practices.
 
@@ -37,13 +37,15 @@ Once installed, simply ask your AI agent to use the skill's capabilities—it wi
 
 Skills are currently supported by the following AI coding agents:
 
-| Environment    | Skill Path          |
-|----------------|---------------------|
-| **Cursor**     | `.cursor/skills`    |
-| **Claude Code**| `.claude/skills`    |
-| **Codex**      | `.codex/skills`     |
-| **OpenCode**   | `.opencode/skills`  |
-| **Antigravity**| `.agent/skills`     |
+
+| Environment     | Skill Path         |
+| --------------- | ------------------ |
+| **Cursor**      | `.cursor/skills`   |
+| **Claude Code** | `.claude/skills`   |
+| **Codex**       | `.codex/skills`    |
+| **OpenCode**    | `.opencode/skills` |
+| **Antigravity** | `.agent/skills`    |
+
 
 When you install a skill, it's automatically added to all skill-capable environments configured in your project.
 
@@ -80,26 +82,31 @@ The agent will apply the techniques, conventions, and examples defined in the sk
 Install a skill from a registry.
 
 **Syntax:**
+
 ```bash
 ai-devkit skill add <registry-repo> <skill-name>
 ```
 
 **Parameters:**
+
 - `<registry-repo>`: The registry identifier (e.g., `anthropics/skills`)
 - `<skill-name>`: The name of the skill to install (e.g., `frontend-design`)
 
 **Example:**
+
 ```bash
 ai-devkit skill add anthropics/skills frontend-design
 ```
 
 This command will:
+
 1. Fetch the skill registry from GitHub
 2. Clone the registry repository to a local cache (`~/.ai-devkit/skills/`)
 3. Verify the skill exists and contains a valid `SKILL.md`
 4. Symlink the skill into your project's skill directories
 
 **Output:**
+
 ```
 Validating skill: frontend-design from anthropics/skills
 Fetching registry from GitHub...
@@ -120,11 +127,13 @@ Successfully installed: frontend-design
 List all skills installed in your project.
 
 **Syntax:**
+
 ```bash
 ai-devkit skill list
 ```
 
 **Example Output:**
+
 ```
 Installed Skills:
 
@@ -137,6 +146,7 @@ Installed Skills:
 ```
 
 The list shows:
+
 - **Skill Name**: The installed skill's name
 - **Registry**: The source registry where the skill came from
 - **Environments**: Which AI environments have this skill installed
@@ -146,16 +156,19 @@ The list shows:
 Remove a skill from your project.
 
 **Syntax:**
+
 ```bash
 ai-devkit skill remove <skill-name>
 ```
 
 **Example:**
+
 ```bash
 ai-devkit skill remove frontend-design
 ```
 
 **Output:**
+
 ```
 Removing skill: frontend-design
   → Removed from .cursor/skills
@@ -173,6 +186,29 @@ AI DevKit uses a centralized registry file to map registry identifiers to their 
 
 ```
 https://raw.githubusercontent.com/Codeaholicguy/ai-devkit/main/skills/registry.json
+```
+
+### Custom Registries
+
+You can add your own registries by editing the global AI DevKit config at `~/.ai-devkit/.ai-devkit.json`. Custom registries use the same `registries` map format and are merged with the default registry list. If a registry ID exists in both, your custom entry takes priority.
+
+**Example:**
+
+```json
+{
+  "skills": {
+    "registries": {
+      "my-org/skills": "git@gitlab.com:my-org/skills.git",
+      "me/personal-skills": "https://github.com/me/personal-skills.git"
+    }
+  }
+}
+```
+
+Once saved, you can install from your custom registry like any other:
+
+```bash
+ai-devkit skill add my-org/skills internal-skill
 ```
 
 ### Registry Format
