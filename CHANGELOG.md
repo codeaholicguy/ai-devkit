@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Custom Skill Registries** - Support `skills.registries` in global `~/.ai-devkit/.ai-devkit.json` for adding multiple registries that merge with defaults and override on conflicts.
+- **Global Registry Reader** - New global config reader for resolving custom registries in skill commands.
+
+### Changed
+- **Skill Registry Resolution** - Skill commands now merge default and custom registries, with offline cache fallback when a registry URL is not configured.
+
 ## [0.8.0] - 2026-01-26
 
 ### Added

@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as https from 'https';
 import * as os from 'os';
 import { ConfigManager } from './Config';
+import { GlobalConfigManager } from './GlobalConfig';
 import { EnvironmentSelector } from './EnvironmentSelector';
 import { getSkillPath } from '../util/env';
 import { ensureGitInstalled, cloneRepository } from '../util/git';
@@ -24,7 +25,8 @@ interface InstalledSkill {
 export class SkillManager {
   constructor(
     private configManager: ConfigManager,
-    private environmentSelector: EnvironmentSelector = new EnvironmentSelector()
+    private environmentSelector: EnvironmentSelector = new EnvironmentSelector(),
+    private globalConfigManager: GlobalConfigManager = new GlobalConfigManager()
   ) {}
 
   /**
@@ -38,13 +40,15 @@ export class SkillManager {
     validateSkillName(skillName);
     await ensureGitInstalled();
 
-    console.log('Fetching registry from GitHub...');
-    const registry = await this.fetchRegistry();
+    console.log('Fetching registries...');
+    const registry = await this.fetchMergedRegistry();
 
     const gitUrl = registry.registries[registryId];
-    if (!gitUrl) {
+    const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
+    if (!gitUrl && !await fs.pathExists(cachedPath)) {
+      const available = Object.keys(registry.registries);
       throw new Error(
-        `Registry "${registryId}" not found. Available: ${Object.keys(registry.registries).join(', ')}`
+        `Registry "${registryId}" not found. Available: ${available.length ? available.join(', ') : 'none'}`
       );
     }
 
@@ -218,7 +222,7 @@ export class SkillManager {
     }
   }
 
-  private async fetchRegistry(): Promise<SkillRegistry> {
+  private async fetchDefaultRegistry(): Promise<SkillRegistry> {
     return new Promise((resolve, reject) => {
       https.get(REGISTRY_URL, (res) => {
         if (res.statusCode !== 200) {
@@ -241,6 +245,26 @@ export class SkillManager {
     });
   }
 
+  private async fetchMergedRegistry(): Promise<SkillRegistry> {
+    let defaultRegistries: Record<string, string> = {};
+
+    try {
+      const defaultRegistry = await this.fetchDefaultRegistry();
+      defaultRegistries = defaultRegistry.registries || {};
+    } catch {
+      defaultRegistries = {};
+    }
+
+    const customRegistries = await this.globalConfigManager.getSkillRegistries();
+
+    return {
+      registries: {
+        ...defaultRegistries,
+        ...customRegistries
+      }
+    };
+  }
+
   private getInstallationTargets(environments: string[]): string[] {
     const targets: string[] = [];
     
@@ -258,12 +282,16 @@ export class SkillManager {
     return targets;
   }
 
-  private async cloneRepositoryToCache(registryId: string, gitUrl: string): Promise<string> {
+  private async cloneRepositoryToCache(registryId: string, gitUrl?: string): Promise<string> {
     const repoPath = path.join(SKILL_CACHE_DIR, registryId);
   
     if (await fs.pathExists(repoPath)) {
       console.log('  → Using cached repository');
       return repoPath;
+    }
+
+    if (!gitUrl) {
+      throw new Error(`Registry "${registryId}" is not cached and has no configured URL.`);
     }
   
     console.log(`  → Cloning ${registryId} (this may take a moment)...`);

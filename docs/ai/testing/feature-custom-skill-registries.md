@@ -35,7 +35,7 @@ description: Define testing approach, test cases, and quality assurance
 ## Integration Tests
 **How do we test component interactions?**
 
-- [ ] Install a skill from a custom registry repo
+- [ ] Install a skill from a custom registry repo (via global config registries)
 - [ ] Install a skill when default registry is unreachable but cached
 - [ ] List skills after installing from custom registry
 - [ ] Remove a skill installed from custom registry

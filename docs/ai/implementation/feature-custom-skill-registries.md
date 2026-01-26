@@ -26,7 +26,7 @@ description: Technical implementation notes, patterns, and code guidelines
 
 ### Core Features
 - Load default registry from remote `registry.json` (current behavior).
-- Load custom registries from global config using the same `registries` map format.
+- Load custom registries from global config using the same `skills.registries` map format.
 - Merge registries with custom entries overriding default on registry ID collision.
 - Use the merged registry map for all skill commands.
 - When remote registry fetch fails, fall back to cached registry data if available.
@@ -42,7 +42,7 @@ description: Technical implementation notes, patterns, and code guidelines
 - `SkillManager` calls into registry resolver for merged registry map.
 - Registry resolver reads:
   - Remote default registry JSON
-  - Global config `skillRegistries.registries`
+  - Global config `skills.registries`
 - Repository cloning remains in `cloneRepositoryToCache`.
 
 ## Error Handling

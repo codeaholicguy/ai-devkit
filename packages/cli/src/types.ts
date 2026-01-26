@@ -29,6 +29,14 @@ export interface DevKitConfig {
   updatedAt: string;
 }
 
+export interface SkillRegistriesConfig {
+  registries?: Record<string, string>;
+}
+
+export interface GlobalDevKitConfig {
+  skills?: SkillRegistriesConfig;
+}
+
 export interface PhaseMetadata {
   phase: string;
   title: string;

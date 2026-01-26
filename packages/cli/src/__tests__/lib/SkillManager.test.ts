@@ -1,8 +1,11 @@
 import * as fs from "fs-extra";
 import * as https from "https";
+import * as os from "os";
+import * as path from "path";
 import { SkillManager } from "../../lib/SkillManager";
 import { ConfigManager } from "../../lib/Config";
 import { EnvironmentSelector } from "../../lib/EnvironmentSelector";
+import { GlobalConfigManager } from "../../lib/GlobalConfig";
 import * as gitUtil from "../../util/git";
 import * as skillUtil from "../../util/skill";
 import { EventEmitter } from "events";
@@ -15,10 +18,12 @@ jest.mock("fs-extra", () => ({
   remove: jest.fn(),
   readdir: jest.fn(),
   realpath: jest.fn(),
+  readJson: jest.fn(),
 }));
 jest.mock("https");
 jest.mock("../../lib/Config");
 jest.mock("../../lib/EnvironmentSelector");
+jest.mock("../../lib/GlobalConfig");
 jest.mock("../../util/git");
 jest.mock("../../util/skill");
 
@@ -30,6 +35,9 @@ const MockedConfigManager = ConfigManager as jest.MockedClass<
 const MockedEnvironmentSelector = EnvironmentSelector as jest.MockedClass<
   typeof EnvironmentSelector
 >;
+const MockedGlobalConfigManager = GlobalConfigManager as jest.MockedClass<
+  typeof GlobalConfigManager
+>;
 const mockedGitUtil = gitUtil as jest.Mocked<typeof gitUtil>;
 const mockedSkillUtil = skillUtil as jest.Mocked<typeof skillUtil>;
 
@@ -37,6 +45,7 @@ describe("SkillManager", () => {
   let skillManager: SkillManager;
   let mockConfigManager: jest.Mocked<ConfigManager>;
   let mockEnvironmentSelector: jest.Mocked<EnvironmentSelector>;
+  let mockGlobalConfigManager: jest.Mocked<GlobalConfigManager>;
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -45,8 +54,16 @@ describe("SkillManager", () => {
     mockConfigManager = new MockedConfigManager() as jest.Mocked<ConfigManager>;
     mockEnvironmentSelector =
       new MockedEnvironmentSelector() as jest.Mocked<EnvironmentSelector>;
+    mockGlobalConfigManager =
+      new MockedGlobalConfigManager() as jest.Mocked<GlobalConfigManager>;
 
-    skillManager = new SkillManager(mockConfigManager, mockEnvironmentSelector);
+    mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
+
+    skillManager = new SkillManager(
+      mockConfigManager,
+      mockEnvironmentSelector,
+      mockGlobalConfigManager,
+    );
 
     mockedSkillUtil.validateRegistryId.mockImplementation(() => {});
     mockedSkillUtil.validateSkillName.mockImplementation(() => {});
@@ -61,7 +78,12 @@ describe("SkillManager", () => {
     const mockRegistryId = "anthropics/skills";
     const mockSkillName = "frontend-design";
     const mockGitUrl = "https://github.com/anthropics/skills.git";
-    const mockRepoPath = "/home/user/.ai-devkit/skills/anthropics/skills";
+    const mockRepoPath = path.join(
+      os.homedir(),
+      ".ai-devkit",
+      "skills",
+      mockRegistryId,
+    );
 
     beforeEach(() => {
       mockHttpsGet({
@@ -110,9 +132,130 @@ describe("SkillManager", () => {
         },
       });
 
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath.includes(mockRegistryId)) {
+          return Promise.resolve(false);
+        }
+
+        return Promise.resolve(true);
+      });
+
       await expect(
         skillManager.addSkill(mockRegistryId, mockSkillName),
       ).rejects.toThrow(`Registry "${mockRegistryId}" not found`);
+    });
+
+    it("should prefer custom registry URL over default", async () => {
+      const customGitUrl = "https://github.com/custom/skills.git";
+
+      mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({
+        [mockRegistryId]: customGitUrl,
+      });
+
+      const repoPath = path.join(
+        os.homedir(),
+        ".ai-devkit",
+        "skills",
+        mockRegistryId,
+      );
+
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === repoPath) {
+          return Promise.resolve(false);
+        }
+
+        if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
+          return Promise.resolve(true);
+        }
+
+        if (checkPath.endsWith(`${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+
+        return Promise.resolve(true);
+      });
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockedGitUtil.cloneRepository).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".ai-devkit", "skills"),
+        mockRegistryId,
+        customGitUrl,
+      );
+    });
+
+    it("should read custom registries from global config", async () => {
+      const customGitUrl = "https://github.com/custom/skills.git";
+      const { GlobalConfigManager: RealGlobalConfigManager } = jest.requireActual(
+        "../../lib/GlobalConfig",
+      );
+      const realGlobalConfigManager = new RealGlobalConfigManager();
+
+      mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
+      mockHttpsGet({ registries: {} });
+
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
+          return Promise.resolve(true);
+        }
+
+        if (checkPath.endsWith(`${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+
+        if (checkPath.includes(mockRegistryId)) {
+          return Promise.resolve(false);
+        }
+
+        return Promise.resolve(true);
+      });
+
+      (mockedFs.readJson as any).mockResolvedValue({
+        skills: {
+          registries: {
+            [mockRegistryId]: customGitUrl,
+          },
+        },
+      });
+
+      const skillManagerWithRealGlobal = new SkillManager(
+        mockConfigManager,
+        mockEnvironmentSelector,
+        realGlobalConfigManager,
+      );
+
+      await skillManagerWithRealGlobal.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockedGitUtil.cloneRepository).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".ai-devkit", "skills"),
+        mockRegistryId,
+        customGitUrl,
+      );
+    });
+
+    it("should use cached registry when remote fetch fails", async () => {
+      mockHttpsGetError(new Error("offline"));
+      mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
+
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath.includes(mockRegistryId)) {
+          return Promise.resolve(true);
+        }
+
+        if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
+          return Promise.resolve(true);
+        }
+
+        if (checkPath.endsWith(`${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+
+        return Promise.resolve(true);
+      });
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockedGitUtil.cloneRepository).not.toHaveBeenCalled();
     });
 
     it("should throw error if skill not found in repository", async () => {
@@ -426,4 +569,14 @@ function mockHttpsGet(responseData: any) {
       };
     },
   );
+}
+
+function mockHttpsGetError(error: Error) {
+  (mockedHttps.get as jest.Mock).mockImplementation(() => ({
+    on: (event: string, handler: (err: Error) => void) => {
+      if (event === "error") {
+        process.nextTick(() => handler(error));
+      }
+    },
+  }));
 }

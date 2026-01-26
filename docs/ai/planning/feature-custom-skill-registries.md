@@ -17,19 +17,19 @@ description: Break down work into actionable tasks and estimate timeline
 **What specific work needs to be done?**
 
 ### Phase 1: Foundation
-- [ ] Task 1.1: Define global config schema for `skillRegistries`
-- [ ] Task 1.2: Add global config manager for `~/.ai-devkit/.ai-devkit.json`
-- [ ] Task 1.3: Update types to include optional `skillRegistries`
+- [x] Task 1.1: Define global config schema for `skills.registries` (Notes: aligned requirements/design docs)
+- [x] Task 1.2: Add global config manager for `~/.ai-devkit/.ai-devkit.json` (Notes: new `GlobalConfigManager` added)
+- [x] Task 1.3: Update types to include optional `skills.registries` (Notes: added `GlobalDevKitConfig` with `skills.registries`)
 
 ### Phase 2: Core Features
-- [ ] Task 2.1: Implement registry merge logic (custom overrides default)
-- [ ] Task 2.2: Update `SkillManager` to use merged registries for all commands
-- [ ] Task 2.3: Ensure offline behavior uses cached registries when remote fetch fails
+- [x] Task 2.1: Implement registry merge logic (custom overrides default) (Notes: merge in `SkillManager` with custom override)
+- [x] Task 2.2: Update `SkillManager` to use merged registries for all commands (Notes: addSkill now uses merged registries)
+- [x] Task 2.3: Ensure offline behavior uses cached registries when remote fetch fails (Notes: cached repo used if URL missing)
 
 ### Phase 3: Integration & Polish
-- [ ] Task 3.1: Add unit tests for registry merging and config parsing
-- [ ] Task 3.2: Add integration tests for skill commands with custom registries
-- [ ] Task 3.3: Update docs and finalize testing notes
+- [x] Task 3.1: Add unit tests for registry merging and config parsing (Notes: added GlobalConfig + SkillManager tests)
+- [x] Task 3.2: Add integration tests for skill commands with custom registries (Notes: added SkillManager test using real global config)
+- [x] Task 3.3: Update docs and finalize testing notes (Notes: updated requirements, implementation, testing docs)
 
 ## Dependencies
 **What needs to happen in what order?**

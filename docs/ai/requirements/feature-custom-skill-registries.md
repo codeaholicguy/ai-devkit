@@ -18,7 +18,7 @@ description: Clarify the problem space, gather requirements, and define success 
 
 **What do we want to achieve?**
 
-- Allow multiple custom registries configured in a global `.ai-devkit.json`.
+- Allow multiple custom registries configured in a global `.ai-devkit.json` at `skills.registries`.
 - Use the same registry format as `skills/registry.json` (a `registries` map).
 - Merge default and custom registries for all skill commands.
 - Prioritize local (custom) registry entries over default when registry IDs conflict.
@@ -58,7 +58,7 @@ description: Clarify the problem space, gather requirements, and define success 
 
 **What limitations do we need to work within?**
 
-- Custom registries use the same structure as `skills/registry.json`.
+- Custom registries use the same structure as `skills/registry.json` under `skills.registries`.
 - Registries are Git repositories that contain `skills/<skillName>/SKILL.md`.
 - User manages any authentication externally; CLI only clones locally.
 - Git must be installed for cloning.
