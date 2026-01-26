@@ -1,9 +1,9 @@
 ---
-
-## title: Skills
+title: Skills
 description: Extend your AI agents with reusable, community-driven skills from skill registries.
 slug: skills
-order: 7
+order: 8
+---
 
 **Skills** are packaged capabilities that extend what your AI agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, or security best practices.
 
