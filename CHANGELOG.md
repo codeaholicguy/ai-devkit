@@ -5,18 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.1] - 2026-01-26
 
 ### Added
+
 - **Custom Skill Registries** - Support `skills.registries` in global `~/.ai-devkit/.ai-devkit.json` for adding multiple registries that merge with defaults and override on conflicts.
 - **Global Registry Reader** - New global config reader for resolving custom registries in skill commands.
 
 ### Changed
+
 - **Skill Registry Resolution** - Skill commands now merge default and custom registries, with offline cache fallback when a registry URL is not configured.
 
 ## [0.8.0] - 2026-01-26
 
 ### Added
+
 - **Memory Skill Template** - New skill for integrating memory service capabilities into agent workflows
 - **Comprehensive Documentation** - Added extensive documentation pages for:
   - Getting Started guide
@@ -31,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.7.0] - 2026-01-25
 
 ### Added
+
 - **Skill Management** - Centralized registry for managing Agent Skills across projects
   - **One-Command Installation**: `ai-devkit skill add <registry>/<repo> <skill-name>`
   - **Local Cache**: Skills stored in `~/.ai-devkit/skills/` to avoid duplication
@@ -50,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2026-01-22
 
 ### Added
+
 - **Knowledge Memory Service** (`packages/memory`) - A lightweight MCP-based memory service for AI agents
   - Store and retrieve actionable knowledge using SQLite with FTS5 full-text search
   - **Core Features**:
@@ -70,21 +75,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.5.0] - 2025-01-15
 
 ### Added
+
 - **Antigravity Support** - Added support for Google Antigravity
 - **New Slash Command** - `/simplify-implementation` for analyzing and simplifying existing implementations
 
 ### Changed
+
 - **Dynamic TOML Generation** - Refactored TemplateManager to dynamically generate `.toml` files from `.md` files at runtime
 
 ## [0.4.2] - 2025-11-05
 
-- Fixed Gemini CLI integration https://github.com/codeaholicguy/ai-devkit/issues/3
+- Fixed Gemini CLI integration [https://github.com/codeaholicguy/ai-devkit/issues/3](https://github.com/codeaholicguy/ai-devkit/issues/3)
 - Added test for TemplateManager.ts
-- Fixed Github Copilot integration https://github.com/codeaholicguy/ai-devkit/issues/4
+- Fixed Github Copilot integration [https://github.com/codeaholicguy/ai-devkit/issues/4](https://github.com/codeaholicguy/ai-devkit/issues/4)
 
 ## [0.4.0] - 2025-10-31
 
 ### Added
+
 - **Multi-Environment Setup** - Support for 10 AI development environments
   - Interactive environment selection with multi-choice prompts
   - Support for Cursor, Claude Code, GitHub Copilot, Google Gemini, OpenAI Codex, Windsurf, KiloCode, AMP, OpenCode, and Roo Code
@@ -94,6 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Config persistence storing selected environments array
 
 ### Changed
+
 - **Breaking Changes** - Removed legacy single-environment support for cleaner API
   - Renamed `EnvironmentId` to `EnvironmentCode` throughout codebase
   - Removed legacy `Environment` type union (cursor | claude | both)
@@ -101,12 +110,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All environments now use standardized AGENTS.md context files
 
 ### Technical Improvements
+
 - **Testing Infrastructure** - Complete test suite implementation
 - **Architecture** - Modular design improvements
 
 ## [0.3.0] - 2025-10-15
 
 ### Added
+
 - `/debug` - Structured assistant for clarifying issues, analyzing options, and agreeing on a fix plan before coding
 - `/capture-knowledge` - Analyze and explain how code works from any entry point
   - Supports file, folder, function, and API endpoint analysis
@@ -119,6 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.2.0] - 2025-10-14
 
 ### Added
+
 - Eight slash commands for Cursor and Claude Code:
   - `/new-requirement` - Complete guided workflow from requirements to PR/MR creation
   - `/code-review` - Structured local code reviews
@@ -135,6 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2025-10-14
 
 ### Added
+
 - Initial release of AI DevKit CLI
 - Interactive `init` command for project initialization
 - Support for Cursor and Claude Code environments
@@ -149,6 +162,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Claude Code workspace configuration in `CLAUDE.md`
 
 ### Features
+
 - Interactive prompts with Inquirer
 - Flag-based overrides for automation
 - Markdown templates with YAML frontmatter
