@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
-import { getAllDocPages, getAllPages, getRoadmap } from '@/lib/content/loader';
+import { getAllDocPages } from '@/lib/content/loader';
+import { seoKeywordEntries } from '@/lib/seo/keywords';
 
 export const dynamic = 'force-static';
 
@@ -41,6 +42,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...docRoutes];
+  const seoRoutes = seoKeywordEntries.map((entry) => ({
+    url: `${baseUrl}/s/${entry.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...docRoutes, ...seoRoutes];
 }
 
