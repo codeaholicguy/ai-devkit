@@ -6,6 +6,7 @@ import ora from 'ora';
  * Removes ANSI escape codes from user-provided strings
  */
 const sanitize = (message: string): string => {
+    // eslint-disable-next-line no-control-regex
     return message.replace(/\x1b\[[0-9;]*m/g, '');
 };
 

@@ -223,7 +223,7 @@ describe('TerminalUI', () => {
 
             const calls = consoleLogSpy.mock.calls;
             // Check that rows start with indent
-            expect(calls[2][0]).toMatch(/^  /);
+            expect(calls[2][0]).toMatch(/^ {2}/);
         });
 
         it('should use custom indent when provided', () => {
@@ -235,7 +235,7 @@ describe('TerminalUI', () => {
 
             const calls = consoleLogSpy.mock.calls;
             // Check that rows start with custom indent
-            expect(calls[2][0]).toMatch(/^    /);
+            expect(calls[2][0]).toMatch(/^ {4}/);
         });
 
         it('should handle empty rows', () => {

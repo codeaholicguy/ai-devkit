@@ -64,7 +64,6 @@ export class SkillManager {
     const gitUrl = registry.registries[registryId];
     const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
     if (!gitUrl && !await fs.pathExists(cachedPath)) {
-      const available = Object.keys(registry.registries);
       throw new Error(
         `Registry "${registryId}" not found.`
       );
