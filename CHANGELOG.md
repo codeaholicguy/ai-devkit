@@ -5,9 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
 ## [0.9.0] - 2026-01-28
 
 ### Added
+
+- **Terminal UI Standardization** - Centralized terminal output utility for consistent CLI experience
+  - **New UI Utility** (`packages/cli/src/util/terminal-ui.ts`):
+    - `ui.info()` - Display informational messages with blue ℹ symbol
+    - `ui.success()` - Display success messages with green ✔ symbol
+    - `ui.warning()` - Display warning messages with yellow ⚠ symbol
+    - `ui.error()` - Display error messages with red ✖ symbol
+    - `ui.spinner()` - Create spinners for async operations using ora
+    - `ui.table()` - Display formatted tables with headers and styled columns
+    - `ui.summary()` - Display operation summaries with counts and error details
+    - `ui.text()` - Display plain text with optional breaklines
+  - **Features**:
+    - Consistent message formatting across all CLI commands
+    - Input sanitization to prevent terminal injection
+    - Color-coded output using chalk
+    - Spinners for long-running operations (git clone, file operations)
+    - Comprehensive test coverage (31 tests, 95% code coverage)
+  - **Refactored Commands**: All commands now use the centralized UI utility
+    - `init` - Consistent status messages and progress indicators
+    - `setup` - Standardized output formatting
+    - `skill` - Table display for skill list, spinners for git operations
+    - `phase` - Uniform message formatting
+    - `memory` - Error message standardization
+    - `SkillManager` - Summary display for update operations
 
 - **Skill Update Command** - New `ai-devkit skill update` command for updating skills from registries
   - **Update All Skills**: `ai-devkit skill update` - Updates all cached skill registries via git pull
@@ -23,6 +49,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **New Git Utilities**:
     - `isGitRepository()` - Checks if a directory is a git repository
     - `pullRepository()` - Pulls latest changes with timeout protection
+
+### Changed
+
+- **Module Resolution** - Updated TypeScript configuration from Node16 to CommonJS for better compatibility
+  - Fixed ora import issues by switching to CommonJS module resolution
+  - Updated `tsconfig.base.json` and package-specific configs
+  - Re-exported memory API from main entry point for CommonJS compatibility
+
+### Fixed
+
+- **Graceful Exit** - Commands now properly exit with code 0 on successful completion
+  - `skill list` - Added explicit process.exit(0) when no skills found
+  - `skill remove` - Added explicit process.exit(0) after successful removal
 
 ## [0.8.1] - 2026-01-26
 
