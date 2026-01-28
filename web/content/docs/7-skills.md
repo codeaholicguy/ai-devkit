@@ -180,6 +180,113 @@ Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.
 
 The cached copy remains in `~/.ai-devkit/skills/` so you can quickly reinstall it in other projects without re-downloading.
 
+### `ai-devkit skill update`
+
+Update skills from registries to get the latest changes.
+
+**Syntax:**
+
+```bash
+# Update all cached skill registries
+ai-devkit skill update
+
+# Update a specific registry
+ai-devkit skill update <registry-id>
+```
+
+**Parameters:**
+
+- `<registry-id>` (optional): The registry identifier to update (e.g., `anthropics/skills`)
+
+**Examples:**
+
+```bash
+# Update all registries
+ai-devkit skill update
+
+# Update only the anthropics/skills registry
+ai-devkit skill update anthropics/skills
+```
+
+**How It Works:**
+
+The update command pulls the latest changes from skill registries using `git pull`. It:
+
+1. Scans the cache directory (`~/.ai-devkit/skills/`) for installed registries
+2. Checks if each directory is a git repository
+3. Runs `git pull` to fetch the latest changes
+4. Continues updating even if some registries fail
+5. Reports a summary of results
+
+**Example Output (Update All):**
+
+```
+Updating all skills...
+
+  → anthropics/skills...
+    ✓ Updated
+
+  → vercel-labs/agent-skills...
+    ✓ Updated
+
+  → my-org/custom-skills...
+    ⊘ Skipped (Not a git repository)
+
+
+Summary:
+  ✓ 2 updated
+  ⊘ 1 skipped
+```
+
+**Example Output (Update Specific Registry):**
+
+```
+Updating registry: anthropics/skills...
+
+  → anthropics/skills...
+    ✓ Updated
+
+
+Summary:
+  ✓ 1 updated
+```
+
+**Example Output (With Errors):**
+
+```
+Updating all skills...
+
+  → anthropics/skills...
+    ✗ Failed
+
+  → vercel-labs/agent-skills...
+    ✓ Updated
+
+
+Summary:
+  ✓ 1 updated
+  ✗ 1 failed
+
+
+Errors:
+  • anthropics/skills: Git pull failed: You have unstaged changes
+    Tip: Run 'git status' in ~/.ai-devkit/skills/anthropics/skills to see details.
+```
+
+**When to Update:**
+
+- **After installing skills**: Get the latest improvements and bug fixes
+- **Periodically**: Keep skills up-to-date with community contributions
+- **Before starting new projects**: Ensure you're using the latest patterns
+
+**Notes:**
+
+- Updates only affect the cached registries in `~/.ai-devkit/skills/`
+- Since skills are symlinked, updates are immediately available in all projects using those skills
+- Non-git directories are skipped (e.g., manually created folders)
+- The command continues even if some registries fail to update
+- A 30-second timeout prevents hanging on network issues
+
 ## Skill Registry
 
 AI DevKit uses a centralized registry file to map registry identifiers to their GitHub repositories. The registry is hosted at:
@@ -292,3 +399,60 @@ Your project doesn't have any skill-compatible environments. Run `ai-devkit init
 ### "SKILL.md not found"
 
 The skill folder exists but doesn't contain a `SKILL.md` file, meaning it's not a valid skill. Contact the registry maintainer.
+
+### Update Errors
+
+#### "You have unstaged changes" or "uncommitted changes"
+
+The registry has local modifications that prevent git pull. To fix:
+
+```bash
+# Navigate to the registry
+cd ~/.ai-devkit/skills/<registry-id>
+
+# Check what changed
+git status
+
+# Option 1: Discard local changes
+git reset --hard HEAD
+
+# Option 2: Stash changes and update
+git stash
+git pull
+git stash pop
+
+# Then retry the update
+ai-devkit skill update <registry-id>
+```
+
+#### "Registry not found in cache"
+
+You're trying to update a registry that hasn't been installed yet. Install a skill from that registry first:
+
+```bash
+ai-devkit skill add <registry-id> <skill-name>
+```
+
+#### Network or timeout errors
+
+If updates fail due to network issues:
+
+1. Check your internet connection
+2. Try updating a specific registry instead of all at once
+3. Increase timeout by manually pulling:
+
+```bash
+cd ~/.ai-devkit/skills/<registry-id>
+git pull
+```
+
+#### "Not a git repository" (skipped)
+
+This is normal for manually created directories in the skills cache. The update command will skip these automatically. If you want to convert a manual directory to use git:
+
+```bash
+cd ~/.ai-devkit/skills/<registry-id>
+git init
+git remote add origin <git-url>
+git pull origin main
+```
