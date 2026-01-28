@@ -553,7 +553,6 @@ describe("SkillManager", () => {
 
   describe("updateSkills", () => {
     const mockCacheDir = path.join(os.homedir(), ".ai-devkit", "skills");
-    const mockRegistryPath = path.join(mockCacheDir, "anthropics", "skills");
 
     beforeEach(() => {
       jest.spyOn(console, "log").mockImplementation(() => { });
