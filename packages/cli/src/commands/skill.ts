@@ -15,7 +15,7 @@ export function registerSkillCommand(program: Command): void {
       try {
         const configManager = new ConfigManager();
         const skillManager = new SkillManager(configManager);
-        
+
         await skillManager.addSkill(registryRepo, skillName);
       } catch (error: any) {
         console.error(chalk.red(`\nFailed to add skill: ${error.message}\n`));
@@ -30,9 +30,9 @@ export function registerSkillCommand(program: Command): void {
       try {
         const configManager = new ConfigManager();
         const skillManager = new SkillManager(configManager);
-        
+
         const skills = await skillManager.listSkills();
-        
+
         if (skills.length === 0) {
           console.log(chalk.yellow('\nNo skills installed in this project.'));
           console.log(chalk.dim('Install a skill with: ai-devkit skill add <registry>/<repo> <skill-name>\n'));
@@ -40,10 +40,10 @@ export function registerSkillCommand(program: Command): void {
         }
 
         console.log(chalk.bold('\nInstalled Skills:\n'));
-        
+
         const maxNameLength = Math.max(...skills.map(s => s.name.length), 10);
         const maxRegistryLength = Math.max(...skills.map(s => s.registry.length), 15);
-        
+
         console.log(
           chalk.dim('  ') +
           chalk.bold('Skill Name'.padEnd(maxNameLength + 2)) +
@@ -51,7 +51,7 @@ export function registerSkillCommand(program: Command): void {
           chalk.bold('Environments')
         );
         console.log(chalk.dim('  ' + '─'.repeat(maxNameLength + maxRegistryLength + 30)));
-        
+
         skills.forEach(skill => {
           console.log(
             '  ' +
@@ -60,7 +60,7 @@ export function registerSkillCommand(program: Command): void {
             chalk.green(skill.environments.join(', '))
           );
         });
-        
+
         console.log(chalk.dim(`\n  Total: ${skills.length} skill(s)\n`));
       } catch (error: any) {
         console.error(chalk.red(`\nFailed to list skills: ${error.message}\n`));
@@ -75,10 +75,25 @@ export function registerSkillCommand(program: Command): void {
       try {
         const configManager = new ConfigManager();
         const skillManager = new SkillManager(configManager);
-        
+
         await skillManager.removeSkill(skillName);
       } catch (error: any) {
         console.error(chalk.red(`\nFailed to remove skill: ${error.message}\n`));
+        process.exit(1);
+      }
+    });
+
+  skillCommand
+    .command('update [registry-id]')
+    .description('Update skills from registries (e.g., ai-devkit skill update or ai-devkit skill update anthropic/skills)')
+    .action(async (registryId?: string) => {
+      try {
+        const configManager = new ConfigManager();
+        const skillManager = new SkillManager(configManager);
+
+        await skillManager.updateSkills(registryId);
+      } catch (error: any) {
+        console.error(chalk.red(`\nFailed to update skills: ${error.message}\n`));
         process.exit(1);
       }
     });

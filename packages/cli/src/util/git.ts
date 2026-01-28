@@ -48,3 +48,30 @@ export async function cloneRepository(targetDir: string, repoName: string, gitUr
     throw new Error(`Git clone failed: ${error.message}. Check network and git installation.`);
   }
 }
+
+/**
+ * Checks if a directory is a git repository
+ * @param dirPath - Absolute path to directory
+ * @returns true if .git directory exists
+ */
+export async function isGitRepository(dirPath: string): Promise<boolean> {
+  const gitDir = path.join(dirPath, '.git');
+  return await fs.pathExists(gitDir);
+}
+
+/**
+ * Pulls latest changes for a git repository
+ * @param repoPath - Absolute path to git repository
+ * @throws Error if git pull fails
+ */
+export async function pullRepository(repoPath: string): Promise<void> {
+  try {
+    await execAsync('git pull', {
+      cwd: repoPath,
+      timeout: 60000,
+    });
+  } catch (error: any) {
+    const message = error.message || 'Unknown error';
+    throw new Error(`Git pull failed: ${message}`);
+  }
+}

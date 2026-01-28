@@ -49,7 +49,7 @@ describe("SkillManager", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    jest.spyOn(console, "log").mockImplementation(() => {});
+    jest.spyOn(console, "log").mockImplementation(() => { });
 
     mockConfigManager = new MockedConfigManager() as jest.Mocked<ConfigManager>;
     mockEnvironmentSelector =
@@ -65,8 +65,8 @@ describe("SkillManager", () => {
       mockGlobalConfigManager,
     );
 
-    mockedSkillUtil.validateRegistryId.mockImplementation(() => {});
-    mockedSkillUtil.validateSkillName.mockImplementation(() => {});
+    mockedSkillUtil.validateRegistryId.mockImplementation(() => { });
+    mockedSkillUtil.validateSkillName.mockImplementation(() => { });
     mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
   });
 
@@ -369,7 +369,7 @@ describe("SkillManager", () => {
       const os = require("os");
       const pathModule = require("path");
       const skillCacheDir = pathModule.join(os.homedir(), ".ai-devkit", "skills");
-      
+
       (mockedFs.realpath as any).mockImplementation((skillPath: any) =>
         Promise.resolve(
           pathModule.join(skillCacheDir, "anthropics", "skills", skillPath.split("/").pop()),
@@ -548,6 +548,261 @@ describe("SkillManager", () => {
       await expect(skillManager.removeSkill(mockSkillName)).rejects.toThrow(
         "No skill-capable environments configured",
       );
+    });
+  });
+
+  describe("updateSkills", () => {
+    const mockCacheDir = path.join(os.homedir(), ".ai-devkit", "skills");
+    const mockRegistryPath = path.join(mockCacheDir, "anthropics", "skills");
+
+    beforeEach(() => {
+      jest.spyOn(console, "log").mockImplementation(() => { });
+      mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
+    });
+
+    it("should ensure git is installed before updating", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(false);
+
+      await skillManager.updateSkills();
+
+      expect(mockedGitUtil.ensureGitInstalled).toHaveBeenCalled();
+    });
+
+    it("should return empty summary when cache directory does not exist", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await skillManager.updateSkills();
+
+      expect(result).toEqual({
+        total: 0,
+        successful: 0,
+        skipped: 0,
+        failed: 0,
+        results: [],
+      });
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("No skills cache found"),
+      );
+    });
+
+    it("should update all registries when no registryId provided", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+          { name: "openai", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "tools", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
+      (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
+
+      const result = await skillManager.updateSkills();
+
+      expect(result.total).toBe(2);
+      expect(result.successful).toBe(2);
+      expect(result.skipped).toBe(0);
+      expect(result.failed).toBe(0);
+      expect(mockedGitUtil.pullRepository).toHaveBeenCalledTimes(2);
+    });
+
+    it("should update only specific registry when registryId provided", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+          { name: "openai", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "tools", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
+      (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
+
+      const result = await skillManager.updateSkills("anthropics/skills");
+
+      expect(result.total).toBe(1);
+      expect(result.successful).toBe(1);
+      expect(result.results[0].registryId).toBe("anthropics/skills");
+      expect(mockedGitUtil.pullRepository).toHaveBeenCalledTimes(1);
+    });
+
+    it("should throw error when specific registry not found", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ]);
+
+      await expect(
+        skillManager.updateSkills("nonexistent/registry"),
+      ).rejects.toThrow('Registry "nonexistent/registry" not found in cache');
+    });
+
+    it("should skip non-git directories", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(false);
+
+      const result = await skillManager.updateSkills();
+
+      expect(result.total).toBe(1);
+      expect(result.skipped).toBe(1);
+      expect(result.successful).toBe(0);
+      expect(result.results[0].status).toBe("skipped");
+      expect(result.results[0].message).toBe("Not a git repository");
+      expect(mockedGitUtil.pullRepository).not.toHaveBeenCalled();
+    });
+
+    it("should handle git pull errors and continue", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+          { name: "openai", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "tools", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
+      (mockedGitUtil.pullRepository as any)
+        .mockRejectedValueOnce(new Error("You have unstaged changes"))
+        .mockResolvedValueOnce(undefined);
+
+      const result = await skillManager.updateSkills();
+
+      expect(result.total).toBe(2);
+      expect(result.successful).toBe(1);
+      expect(result.failed).toBe(1);
+      expect(result.results[0].status).toBe("error");
+      expect(result.results[0].message).toContain("unstaged changes");
+      expect(result.results[1].status).toBe("success");
+    });
+
+    it("should collect and report all errors", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
+      (mockedGitUtil.pullRepository as any).mockRejectedValue(
+        new Error("Network error"),
+      );
+
+      const result = await skillManager.updateSkills();
+
+      expect(result.failed).toBe(1);
+      expect(result.results[0].error).toBeDefined();
+      expect(result.results[0].error?.message).toBe("Network error");
+    });
+
+    it("should show progress for each registry", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
+      (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
+
+      await skillManager.updateSkills();
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("anthropics/skills"),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("✓ Updated"),
+      );
+    });
+
+    it("should display summary after updates", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
+      (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
+
+      await skillManager.updateSkills();
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("Summary:"),
+      );
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("1 updated"),
+      );
+    });
+
+    it("should handle mixed results (success, skip, error)", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readdir as any)
+        .mockResolvedValueOnce([
+          { name: "anthropics", isDirectory: () => true },
+          { name: "openai", isDirectory: () => true },
+          { name: "custom", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "skills", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "tools", isDirectory: () => true },
+        ])
+        .mockResolvedValueOnce([
+          { name: "manual", isDirectory: () => true },
+        ]);
+
+      (mockedGitUtil.isGitRepository as any)
+        .mockResolvedValueOnce(true)  // anthropics/skills - git repo
+        .mockResolvedValueOnce(false) // openai/tools - not git
+        .mockResolvedValueOnce(true); // custom/manual - git repo
+
+      (mockedGitUtil.pullRepository as any)
+        .mockResolvedValueOnce(undefined) // anthropics/skills - success
+        .mockRejectedValueOnce(new Error("Merge conflict")); // custom/manual - error
+
+      const result = await skillManager.updateSkills();
+
+      expect(result.total).toBe(3);
+      expect(result.successful).toBe(1);
+      expect(result.skipped).toBe(1);
+      expect(result.failed).toBe(1);
     });
   });
 });
