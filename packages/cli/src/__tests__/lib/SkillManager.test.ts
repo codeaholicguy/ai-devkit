@@ -348,7 +348,9 @@ describe("SkillManager", () => {
       const skills = await skillManager.listSkills();
 
       expect(skills).toEqual([]);
+      // UI utility outputs symbol and message as separate parameters
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("⚠"),
         expect.stringContaining("No .ai-devkit.json found"),
       );
     });
@@ -514,7 +516,9 @@ describe("SkillManager", () => {
       await skillManager.removeSkill(mockSkillName);
 
       expect(mockedFs.remove).toHaveBeenCalled();
+      // UI utility outputs symbol and message as separate parameters
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("✔"),
         expect.stringContaining("Successfully removed"),
       );
     });
@@ -525,7 +529,9 @@ describe("SkillManager", () => {
       await skillManager.removeSkill(mockSkillName);
 
       expect(mockedFs.remove).not.toHaveBeenCalled();
+      // UI utility outputs symbol and message as separate parameters
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("⚠"),
         expect.stringContaining("not found"),
       );
     });
@@ -535,7 +541,9 @@ describe("SkillManager", () => {
 
       await skillManager.removeSkill(mockSkillName);
 
+      // UI utility outputs symbol and message as separate parameters
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("ℹ"),
         expect.stringContaining("ai-devkit skill list"),
       );
     });
@@ -543,10 +551,13 @@ describe("SkillManager", () => {
     it("should note that cache is preserved", async () => {
       await skillManager.removeSkill(mockSkillName);
 
+      // UI utility outputs symbol and message as separate parameters
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("ℹ"),
         expect.stringContaining("Cache"),
       );
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("ℹ"),
         expect.stringContaining("preserved"),
       );
     });
@@ -589,7 +600,9 @@ describe("SkillManager", () => {
         failed: 0,
         results: [],
       });
+      // UI utility outputs symbol and message as separate parameters
       expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("⚠"),
         expect.stringContaining("No skills cache found"),
       );
     });
@@ -748,11 +761,11 @@ describe("SkillManager", () => {
 
       await skillManager.updateSkills();
 
+      // Summary now uses ui.summary() which formats differently
+      // It outputs "✓ 1 updated" as a single colored string
+      expect(console.log).toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("anthropics/skills"),
-      );
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("✓ Updated"),
+        expect.stringContaining("updated"),
       );
     });
 

@@ -237,7 +237,6 @@ export class SkillManager {
       ui.success(`Successfully removed from ${removedCount} location(s).`);
       ui.info(`Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.`);
     }
-    process.exit(0);
   }
 
   /**
