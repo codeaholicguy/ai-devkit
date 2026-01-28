@@ -5,57 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
-
 ## [0.9.0] - 2026-01-28
 
 ### Added
 
 - **Terminal UI Standardization** - Centralized terminal output utility for consistent CLI experience
-  - **New UI Utility** (`packages/cli/src/util/terminal-ui.ts`):
-    - `ui.info()` - Display informational messages with blue ℹ symbol
-    - `ui.success()` - Display success messages with green ✔ symbol
-    - `ui.warning()` - Display warning messages with yellow ⚠ symbol
-    - `ui.error()` - Display error messages with red ✖ symbol
-    - `ui.spinner()` - Create spinners for async operations using ora
-    - `ui.table()` - Display formatted tables with headers and styled columns
-    - `ui.summary()` - Display operation summaries with counts and error details
-    - `ui.text()` - Display plain text with optional breaklines
-  - **Features**:
-    - Consistent message formatting across all CLI commands
-    - Input sanitization to prevent terminal injection
-    - Color-coded output using chalk
-    - Spinners for long-running operations (git clone, file operations)
-    - Comprehensive test coverage (31 tests, 95% code coverage)
-  - **Refactored Commands**: All commands now use the centralized UI utility
-    - `init` - Consistent status messages and progress indicators
-    - `setup` - Standardized output formatting
-    - `skill` - Table display for skill list, spinners for git operations
-    - `phase` - Uniform message formatting
-    - `memory` - Error message standardization
-    - `SkillManager` - Summary display for update operations
-
 - **Skill Update Command** - New `ai-devkit skill update` command for updating skills from registries
   - **Update All Skills**: `ai-devkit skill update` - Updates all cached skill registries via git pull
   - **Update Specific Registry**: `ai-devkit skill update <registry-id>` - Updates only the specified registry (e.g., `ai-devkit skill update anthropic/skills`)
-  - **Features**:
-    - Continues updating on errors and reports summary at the end
-    - Skips non-git directories gracefully with informative logging
-    - Shows real-time progress for each registry being updated
-    - Displays color-coded summary (✓ updated, ⊘ skipped, ✗ failed)
-    - Provides helpful error tips for common issues (uncommitted changes, network errors)
-    - Validates git repository status before attempting updates
-    - 30-second timeout per registry to prevent hanging
-  - **New Git Utilities**:
-    - `isGitRepository()` - Checks if a directory is a git repository
-    - `pullRepository()` - Pulls latest changes with timeout protection
 
 ### Changed
 
 - **Module Resolution** - Updated TypeScript configuration from Node16 to CommonJS for better compatibility
-  - Fixed ora import issues by switching to CommonJS module resolution
-  - Updated `tsconfig.base.json` and package-specific configs
-  - Re-exported memory API from main entry point for CommonJS compatibility
 
 ### Fixed
 
