@@ -27,7 +27,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ai-devkit/memory": "^0.2.0",
+    "@ai-devkit/memory": "*",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "fs-extra": "^11.2.0",

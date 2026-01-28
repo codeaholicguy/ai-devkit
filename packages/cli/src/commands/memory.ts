@@ -1,7 +1,7 @@
-import chalk from 'chalk';
 import type { Command } from 'commander';
-import { memoryStoreCommand, memorySearchCommand } from '@ai-devkit/memory/api';
-import type { MemorySearchOptions, MemoryStoreOptions } from '@ai-devkit/memory/api';
+import { memoryStoreCommand, memorySearchCommand } from '@ai-devkit/memory';
+import type { MemorySearchOptions, MemoryStoreOptions } from '@ai-devkit/memory';
+import { ui } from '../util/terminal-ui';
 
 export function registerMemoryCommand(program: Command): void {
   const memoryCommand = program
@@ -21,7 +21,7 @@ export function registerMemoryCommand(program: Command): void {
         console.log(JSON.stringify(result, null, 2));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(chalk.red(`[ERROR] ${message}`));
+        ui.error(message);
         process.exit(1);
       }
     });
@@ -42,7 +42,7 @@ export function registerMemoryCommand(program: Command): void {
         console.log(JSON.stringify(result, null, 2));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        console.error(chalk.red(`[ERROR] ${message}`));
+        ui.error(message);
         process.exit(1);
       }
     });

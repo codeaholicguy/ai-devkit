@@ -26,6 +26,17 @@ jest.mock("../../lib/EnvironmentSelector");
 jest.mock("../../lib/GlobalConfig");
 jest.mock("../../util/git");
 jest.mock("../../util/skill");
+jest.mock("ora", () => {
+  return jest.fn(() => ({
+    start: jest.fn().mockReturnThis(),
+    succeed: jest.fn().mockReturnThis(),
+    fail: jest.fn().mockReturnThis(),
+    warn: jest.fn().mockReturnThis(),
+    stop: jest.fn().mockReturnThis(),
+    text: '',
+    isSpinning: false,
+  }));
+});
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
 const mockedHttps = https as jest.Mocked<typeof https>;

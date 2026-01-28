@@ -1,6 +1,5 @@
 import { execSync } from 'child_process';
 import inquirer from 'inquirer';
-import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config';
 import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
@@ -72,7 +71,7 @@ export async function initCommand(options: InitOptions) {
 
   let selectedEnvironments: EnvironmentCode[] = options.environment || [];
   if (selectedEnvironments.length === 0) {
-    ui.info('\nAI Environment Setup\n');
+    ui.info('AI Environment Setup');
     selectedEnvironments = await environmentSelector.selectEnvironments();
   }
 
@@ -112,7 +111,7 @@ export async function initCommand(options: InitOptions) {
     return;
   }
 
-  ui.info('\nInitializing AI DevKit...\n');
+  ui.text('Initializing AI DevKit...', { breakline: true });
 
   let config = await configManager.read();
   if (!config) {
@@ -126,7 +125,7 @@ export async function initCommand(options: InitOptions) {
   environmentSelector.displaySelectionSummary(selectedEnvironments);
 
   phaseSelector.displaySelectionSummary(selectedPhases);
-  ui.info('\nSetting up environment templates...\n');
+  ui.text('Setting up environment templates...', { breakline: true });
   const envFiles = await templateManager.setupMultipleEnvironments(selectedEnvironments);
   envFiles.forEach(file => {
     ui.success(`Created ${file}`);
@@ -157,11 +156,11 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
-  ui.success('\nAI DevKit initialized successfully!\n');
+  ui.text('AI DevKit initialized successfully!', { breakline: true });
   ui.info('Next steps:');
-  ui.info('  • Review and customize templates in docs/ai/');
-  ui.info('  • Your AI environments are ready to use with the generated configurations');
-  ui.info('  • Run `ai-devkit phase <name>` to add more phases later');
-  ui.info('  • Run `ai-devkit init` again to add more environments\n');
+  ui.text('  • Review and customize templates in docs/ai/');
+  ui.text('  • Your AI environments are ready to use with the generated configurations');
+  ui.text('  • Run `ai-devkit phase <name>` to add more phases later');
+  ui.text('  • Run `ai-devkit init` again to add more environments\n');
 }
 

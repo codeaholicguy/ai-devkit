@@ -1,10 +1,10 @@
 import inquirer from 'inquirer';
-import chalk from 'chalk';
 import * as path from 'path';
 import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
 import { EnvironmentCode } from '../types';
 import { getEnvironmentDisplayName, getEnvironment } from '../util/env';
+import { ui } from '../util/terminal-ui';
 
 interface SetupOptions {
     global?: boolean;
@@ -12,8 +12,8 @@ interface SetupOptions {
 
 export async function setupCommand(options: SetupOptions) {
     if (!options.global) {
-        console.log(chalk.yellow('Please use --global flag to set up global commands.'));
-        console.log(chalk.blue('Usage: ai-devkit setup --global'));
+        ui.warning('Please use --global flag to set up global commands.');
+        ui.info('Usage: ai-devkit setup --global');
         return;
     }
 
@@ -24,13 +24,13 @@ async function setupGlobalCommands() {
     const templateManager = new TemplateManager();
     const environmentSelector = new EnvironmentSelector();
 
-    console.log(chalk.blue('Global Setup\n'));
-    console.log(chalk.gray('This will copy AI DevKit commands to your global environment folders.\n'));
+    ui.info('Global Setup\n');
+    ui.info('This will copy AI DevKit commands to your global environment folders.\n');
 
     const selectedEnvironments = await environmentSelector.selectGlobalEnvironments();
 
     if (selectedEnvironments.length === 0) {
-        console.log(chalk.yellow('No environments selected. Setup cancelled.'));
+        ui.warning('No environments selected. Setup cancelled.');
         return;
     }
 
@@ -40,8 +40,8 @@ async function setupGlobalCommands() {
         await processGlobalEnvironment(envCode, templateManager);
     }
 
-    console.log(chalk.green('\n✅ Global setup completed successfully!\n'));
-    console.log(chalk.blue('Your commands are now available globally for the selected environments.'));
+    ui.success('\nGlobal setup completed successfully!\n');
+    ui.info('Your commands are now available globally for the selected environments.');
 }
 
 async function processGlobalEnvironment(
@@ -52,12 +52,12 @@ async function processGlobalEnvironment(
     const env = getEnvironment(envCode);
 
     if (!env || !env.globalCommandPath) {
-        console.log(chalk.red(`[ERROR] ${envName} does not support global setup.`));
+        ui.error(`${envName} does not support global setup.`);
         return;
     }
 
-    console.log(chalk.blue(`\nSetting up ${envName}...`));
-    console.log(chalk.gray(`  Global path: ~/${env.globalCommandPath}`));
+    ui.info(`\nSetting up ${envName}...`);
+    ui.info(`  Global path: ~/${env.globalCommandPath}`);
 
     const commandsExist = await templateManager.checkGlobalCommandsExist(envCode);
 
@@ -72,23 +72,23 @@ async function processGlobalEnvironment(
         ]);
 
         if (!shouldOverwrite) {
-            console.log(chalk.yellow(`[SKIP] Skipped ${envName} (files already exist)`));
+            ui.warning(`Skipped ${envName} (files already exist)`);
             return;
         }
     }
 
     try {
         const copiedFiles = await templateManager.copyCommandsToGlobal(envCode);
-        console.log(chalk.green(`[OK] Copied ${copiedFiles.length} commands to ${envName} global folder`)); // Show copied files
+        ui.success(`Copied ${copiedFiles.length} commands to ${envName} global folder`);
         copiedFiles.forEach(file => {
             const fileName = path.basename(file);
-            console.log(chalk.gray(`     • ${fileName}`));
+            ui.info(`     • ${fileName}`);
         });
     } catch (error) {
         if (error instanceof Error) {
-            console.log(chalk.red(`[ERROR] Failed to set up ${envName}: ${error.message}`));
+            ui.error(`Failed to set up ${envName}: ${error.message}`);
         } else {
-            console.log(chalk.red(`[ERROR] Failed to set up ${envName}`));
+            ui.error(`Failed to set up ${envName}`);
         }
     }
 }

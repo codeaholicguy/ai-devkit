@@ -1,31 +1,31 @@
 import inquirer from 'inquirer';
-import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config';
 import { TemplateManager } from '../lib/TemplateManager';
 import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
+import { ui } from '../util/terminal-ui';
 
 export async function phaseCommand(phaseName?: string) {
   const configManager = new ConfigManager();
   const templateManager = new TemplateManager();
 
   if (!(await configManager.exists())) {
-    console.log(chalk.red('Error: AI DevKit not initialized. Run `ai-devkit init` first.'));
+    ui.error('AI DevKit not initialized. Run `ai-devkit init` first.');
     return;
   }
 
   let phase: Phase;
-  
+
   if (phaseName && AVAILABLE_PHASES.includes(phaseName as Phase)) {
     phase = phaseName as Phase;
   } else if (phaseName) {
-    console.log(chalk.red(`Error: Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(', ')}`));
+    ui.error(`Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(', ')}`);
     return;
   } else {
     const config = await configManager.read();
     const availableToAdd = AVAILABLE_PHASES.filter(p => !config?.initializedPhases.includes(p));
 
     if (availableToAdd.length === 0) {
-      console.log(chalk.yellow('All phases are already initialized.'));
+      ui.warning('All phases are already initialized.');
       const { shouldReinitialize } = await inquirer.prompt([
         {
           type: 'confirm',
@@ -70,14 +70,13 @@ export async function phaseCommand(phaseName?: string) {
   }
 
   if (!shouldCopy) {
-    console.log(chalk.yellow(`Cancelled adding ${phase} phase.`));
+    ui.warning(`Cancelled adding ${phase} phase.`);
     return;
   }
 
   const file = await templateManager.copyPhaseTemplate(phase);
   await configManager.addPhase(phase);
 
-  console.log(chalk.green(`\n[OK] ${PHASE_DISPLAY_NAMES[phase]} created successfully!`));
-  console.log(chalk.blue(`  Location: ${file}\n`));
+  ui.success(`${PHASE_DISPLAY_NAMES[phase]} created successfully!`);
+  ui.info(`  Location: ${file}\n`);
 }
-

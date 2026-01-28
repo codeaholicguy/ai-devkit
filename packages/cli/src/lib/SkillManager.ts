@@ -2,13 +2,13 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as https from 'https';
 import * as os from 'os';
-import chalk from 'chalk';
 import { ConfigManager } from './Config';
 import { GlobalConfigManager } from './GlobalConfig';
 import { EnvironmentSelector } from './EnvironmentSelector';
 import { getSkillPath } from '../util/env';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../util/git';
 import { validateRegistryId, validateSkillName } from '../util/skill';
+import { ui } from '../util/terminal-ui';
 
 const REGISTRY_URL = 'https://raw.githubusercontent.com/Codeaholicguy/ai-devkit/main/skills/registry.json';
 const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');
@@ -51,24 +51,26 @@ export class SkillManager {
    * @param skillName - e.g., "frontend-design"
    */
   async addSkill(registryId: string, skillName: string): Promise<void> {
-    console.log(`Validating skill: ${skillName} from ${registryId}`);
+    ui.info(`Validating skill: ${skillName} from ${registryId}`);
     validateRegistryId(registryId);
     validateSkillName(skillName);
     await ensureGitInstalled();
 
-    console.log('Fetching registries...');
+    const spinner = ui.spinner('Fetching registries...');
+    spinner.start();
     const registry = await this.fetchMergedRegistry();
+    spinner.succeed('Registries fetched');
 
     const gitUrl = registry.registries[registryId];
     const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
     if (!gitUrl && !await fs.pathExists(cachedPath)) {
       const available = Object.keys(registry.registries);
       throw new Error(
-        `Registry "${registryId}" not found. Available: ${available.length ? available.join(', ') : 'none'}`
+        `Registry "${registryId}" not found.`
       );
     }
 
-    console.log('Checking local cache...');
+    ui.info('Checking local cache...');
     const repoPath = await this.cloneRepositoryToCache(registryId, gitUrl);
 
     const skillPath = path.join(repoPath, 'skills', skillName);
@@ -85,34 +87,34 @@ export class SkillManager {
       );
     }
 
-    console.log('Loading project configuration...');
+    ui.info('Loading project configuration...');
     let config = await this.configManager.read();
     if (!config) {
-      console.log('No .ai-devkit.json found. Creating configuration...');
+      ui.info('No .ai-devkit.json found. Creating configuration...');
       config = await this.configManager.create();
 
       if (config.environments.length === 0) {
         const selectedEnvs = await this.environmentSelector.selectSkillEnvironments();
         config.environments = selectedEnvs;
         await this.configManager.update({ environments: selectedEnvs });
-        console.log('Configuration saved.\n');
+        ui.success('Configuration saved.');
       }
     }
 
     const skillCapableEnvs = this.filterSkillCapableEnvironments(config.environments);
 
     if (skillCapableEnvs.length === 0) {
-      throw new Error('No skill-capable environments configured. Supported: cursor, claude');
+      throw new Error('No skill-capable environments configured.');
     }
 
-    console.log('Installing skill to project...');
+    ui.info('Installing skill to project...');
     const targets = this.getInstallationTargets(skillCapableEnvs);
 
     for (const targetDir of targets) {
       const targetPath = path.join(process.cwd(), targetDir, skillName);
 
       if (await fs.pathExists(targetPath)) {
-        console.log(`  → ${targetDir}/${skillName} (already exists, skipped)`);
+        ui.text(`  → ${targetDir}/${skillName} (already exists, skipped)`);
         continue;
       }
 
@@ -120,16 +122,16 @@ export class SkillManager {
 
       try {
         await fs.symlink(skillPath, targetPath, 'dir');
-        console.log(`  → ${targetDir}/${skillName} (symlinked)`);
+        ui.text(`  → ${targetDir}/${skillName} (symlinked)`);
       } catch (error) {
         await fs.copy(skillPath, targetPath);
-        console.log(`  → ${targetDir}/${skillName} (copied)`);
+        ui.text(`  → ${targetDir}/${skillName} (copied)`);
       }
     }
 
-    console.log(`\nSuccessfully installed: ${skillName}`);
-    console.log(`  Source: ${registryId}`);
-    console.log(`  Installed to: ${skillCapableEnvs.join(', ')}`);
+    ui.text(`Successfully installed: ${skillName}`);
+    ui.info(`  Source: ${registryId}`);
+    ui.info(`  Installed to: ${skillCapableEnvs.join(', ')}`);
   }
 
   /**
@@ -141,14 +143,14 @@ export class SkillManager {
 
     const config = await this.configManager.read();
     if (!config || config.environments.length === 0) {
-      console.log('No .ai-devkit.json found or no environments configured.');
+      ui.warning('No .ai-devkit.json found or no environments configured.');
       return [];
     }
 
     const skillCapableEnvs = this.filterSkillCapableEnvironments(config.environments);
 
     if (skillCapableEnvs.length === 0) {
-      console.log('No skill-capable environments configured.');
+      ui.warning('No skill-capable environments configured.');
       return [];
     }
 
@@ -202,7 +204,7 @@ export class SkillManager {
    * @param skillName - Name of the skill to remove
    */
   async removeSkill(skillName: string): Promise<void> {
-    console.log(`Removing skill: ${skillName}`);
+    ui.info(`Removing skill: ${skillName}`);
     validateSkillName(skillName);
 
     const config = await this.configManager.read();
@@ -224,18 +226,19 @@ export class SkillManager {
 
       if (await fs.pathExists(skillPath)) {
         await fs.remove(skillPath);
-        console.log(`  → Removed from ${targetDir}`);
+        ui.text(`  → Removed from ${targetDir}`);
         removedCount++;
       }
     }
 
     if (removedCount === 0) {
-      console.log(`\nSkill "${skillName}" not found. Nothing to remove.`);
-      console.log('Tip: Run "ai-devkit skill list" to see installed skills.');
+      ui.warning(`Skill "${skillName}" not found. Nothing to remove.`);
+      ui.info('Tip: Run "ai-devkit skill list" to see installed skills.');
     } else {
-      console.log(`\nSuccessfully removed from ${removedCount} location(s).`);
-      console.log(`Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.`);
+      ui.success(`Successfully removed from ${removedCount} location(s).`);
+      ui.info(`Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.`);
     }
+    process.exit(0);
   }
 
   /**
@@ -244,7 +247,7 @@ export class SkillManager {
    * @returns UpdateSummary with detailed results
    */
   async updateSkills(registryId?: string): Promise<UpdateSummary> {
-    console.log(registryId
+    ui.info(registryId
       ? `Updating registry: ${registryId}...`
       : 'Updating all skills...'
     );
@@ -253,7 +256,7 @@ export class SkillManager {
 
     const cacheDir = SKILL_CACHE_DIR;
     if (!await fs.pathExists(cacheDir)) {
-      console.log(chalk.yellow('\nNo skills cache found. Nothing to update.'));
+      ui.warning('No skills cache found. Nothing to update.');
       return { total: 0, successful: 0, skipped: 0, failed: 0, results: [] };
     }
 
@@ -287,15 +290,16 @@ export class SkillManager {
     const results: UpdateResult[] = [];
 
     for (const registry of registries) {
-      console.log(chalk.dim(`\n  → ${registry.id}...`));
+      const spinner = ui.spinner(`Updating ${registry.id}...`);
+      spinner.start();
       const result = await this.updateRegistry(registry.path, registry.id);
       results.push(result);
       if (result.status === 'success') {
-        console.log(chalk.green(`    ✓ Updated`));
+        spinner.succeed(`${registry.id} updated`);
       } else if (result.status === 'skipped') {
-        console.log(chalk.yellow(`    ⊘ Skipped (${result.message})`));
+        spinner.warn(`${registry.id} skipped (${result.message})`);
       } else {
-        console.log(chalk.red(`    ✗ Failed`));
+        spinner.fail(`${registry.id} failed`);
       }
     }
 
@@ -375,7 +379,7 @@ export class SkillManager {
     const repoPath = path.join(SKILL_CACHE_DIR, registryId);
 
     if (await fs.pathExists(repoPath)) {
-      console.log('  → Using cached repository');
+      ui.text('  → Using cached repository');
       return repoPath;
     }
 
@@ -383,10 +387,13 @@ export class SkillManager {
       throw new Error(`Registry "${registryId}" is not cached and has no configured URL.`);
     }
 
-    console.log(`  → Cloning ${registryId} (this may take a moment)...`);
+    const spinner = ui.spinner(`Cloning ${registryId} (this may take a moment)...`);
+    spinner.start();
     await fs.ensureDir(path.dirname(repoPath));
 
-    return await cloneRepository(SKILL_CACHE_DIR, registryId, gitUrl);
+    const result = await cloneRepository(SKILL_CACHE_DIR, registryId, gitUrl);
+    spinner.succeed(`${registryId} cloned successfully`);
+    return result;
   }
 
   private filterSkillCapableEnvironments(environments: string[]): string[] {
@@ -401,34 +408,33 @@ export class SkillManager {
    * @param summary - UpdateSummary to display
    */
   private displayUpdateSummary(summary: UpdateSummary): void {
-    console.log(chalk.bold('\n\nSummary:'));
-
-    if (summary.successful > 0) {
-      console.log(chalk.green(`  ✓ ${summary.successful} updated`));
-    }
-
-    if (summary.skipped > 0) {
-      console.log(chalk.yellow(`  ⊘ ${summary.skipped} skipped`));
-    }
-
-    if (summary.failed > 0) {
-      console.log(chalk.red(`  ✗ ${summary.failed} failed`));
-    }
-
     const errors = summary.results.filter(r => r.status === 'error');
-    if (errors.length > 0) {
-      console.log(chalk.bold('\n\nErrors:'));
 
-      for (const error of errors) {
-        console.log(chalk.red(`  • ${error.registryId}: ${error.message}`));
+    ui.summary({
+      title: 'Summary',
+      items: [
+        { type: 'success', count: summary.successful, label: 'updated' },
+        { type: 'warning', count: summary.skipped, label: 'skipped' },
+        { type: 'error', count: summary.failed, label: 'failed' },
+      ],
+      details: errors.length > 0 ? {
+        title: 'Errors',
+        items: errors.map(error => {
+          let tip: string | undefined;
 
-        if (error.message.includes('uncommitted') || error.message.includes('unstaged')) {
-          console.log(chalk.dim(`    Tip: Run 'git status' in ~/.ai-devkit/skills/${error.registryId} to see details.`));
-        } else if (error.message.includes('network') || error.message.includes('timeout')) {
-          console.log(chalk.dim(`    Tip: Check your internet connection and try again.`));
-        }
-      }
-    }
+          if (error.message.includes('uncommitted') || error.message.includes('unstaged')) {
+            tip = `Run 'git status' in ~/.ai-devkit/skills/${error.registryId} to see details.`;
+          } else if (error.message.includes('network') || error.message.includes('timeout')) {
+            tip = 'Check your internet connection and try again.';
+          }
+
+          return {
+            message: `${error.registryId}: ${error.message}`,
+            tip,
+          };
+        }),
+      } : undefined,
+    });
   }
 
   /**

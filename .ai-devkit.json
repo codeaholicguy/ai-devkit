@@ -1,8 +1,7 @@
 {
   "version": "0.4.2",
   "environments": [
-    "cursor",
-    "claude"
+    "cursor"
   ],
   "initializedPhases": [
     "requirements",
@@ -12,5 +11,5 @@
     "testing"
   ],
   "createdAt": "2025-12-28T13:35:45.251Z",
-  "updatedAt": "2026-01-26T20:02:55.191Z"
+  "updatedAt": "2026-01-28T20:00:27.088Z"
 }

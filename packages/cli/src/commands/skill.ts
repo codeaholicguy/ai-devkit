@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config';
 import { SkillManager } from '../lib/SkillManager';
+import { ui } from '../util/terminal-ui';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -18,7 +19,7 @@ export function registerSkillCommand(program: Command): void {
 
         await skillManager.addSkill(registryRepo, skillName);
       } catch (error: any) {
-        console.error(chalk.red(`\nFailed to add skill: ${error.message}\n`));
+        ui.error(`Failed to add skill: ${error.message}`);
         process.exit(1);
       }
     });
@@ -34,36 +35,27 @@ export function registerSkillCommand(program: Command): void {
         const skills = await skillManager.listSkills();
 
         if (skills.length === 0) {
-          console.log(chalk.yellow('\nNo skills installed in this project.'));
-          console.log(chalk.dim('Install a skill with: ai-devkit skill add <registry>/<repo> <skill-name>\n'));
-          return;
+          ui.warning('No skills installed in this project.');
+          ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> <skill-name>');
+          process.exit(0);
         }
 
-        console.log(chalk.bold('\nInstalled Skills:\n'));
+        ui.text('Installed Skills:', { breakline: true });
 
-        const maxNameLength = Math.max(...skills.map(s => s.name.length), 10);
-        const maxRegistryLength = Math.max(...skills.map(s => s.registry.length), 15);
-
-        console.log(
-          chalk.dim('  ') +
-          chalk.bold('Skill Name'.padEnd(maxNameLength + 2)) +
-          chalk.bold('Registry'.padEnd(maxRegistryLength + 2)) +
-          chalk.bold('Environments')
-        );
-        console.log(chalk.dim('  ' + '─'.repeat(maxNameLength + maxRegistryLength + 30)));
-
-        skills.forEach(skill => {
-          console.log(
-            '  ' +
-            chalk.cyan(skill.name.padEnd(maxNameLength + 2)) +
-            chalk.dim(skill.registry.padEnd(maxRegistryLength + 2)) +
-            chalk.green(skill.environments.join(', '))
-          );
+        ui.table({
+          headers: ['Skill Name', 'Registry', 'Environments'],
+          rows: skills.map(skill => [
+            skill.name,
+            skill.registry,
+            skill.environments.join(', ')
+          ]),
+          columnStyles: [chalk.cyan, chalk.dim, chalk.green]
         });
 
-        console.log(chalk.dim(`\n  Total: ${skills.length} skill(s)\n`));
+        ui.text(`Total: ${skills.length} skill(s)`, { breakline: true });
+        process.exit(0);
       } catch (error: any) {
-        console.error(chalk.red(`\nFailed to list skills: ${error.message}\n`));
+        ui.error(`Failed to list skills: ${error.message}`);
         process.exit(1);
       }
     });
@@ -78,7 +70,7 @@ export function registerSkillCommand(program: Command): void {
 
         await skillManager.removeSkill(skillName);
       } catch (error: any) {
-        console.error(chalk.red(`\nFailed to remove skill: ${error.message}\n`));
+        ui.error(`Failed to remove skill: ${error.message}`);
         process.exit(1);
       }
     });
@@ -93,7 +85,7 @@ export function registerSkillCommand(program: Command): void {
 
         await skillManager.updateSkills(registryId);
       } catch (error: any) {
-        console.error(chalk.red(`\nFailed to update skills: ${error.message}\n`));
+        ui.error(`Failed to update skills: ${error.message}`);
         process.exit(1);
       }
     });

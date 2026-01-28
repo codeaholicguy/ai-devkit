@@ -6,6 +6,8 @@ jest.mock('chalk', () => ({
     yellow: (text: string) => `[YELLOW]${text}[/YELLOW]`,
     red: (text: string) => `[RED]${text}[/RED]`,
     cyan: (text: string) => `[CYAN]${text}[/CYAN]`,
+    dim: (text: string) => `[DIM]${text}[/DIM]`,
+    bold: (text: string) => `[BOLD]${text}[/BOLD]`,
 }));
 
 const mockOraInstance = {
@@ -170,6 +172,185 @@ describe('TerminalUI', () => {
             expect(spinner).toHaveProperty('fail');
             expect(spinner).toHaveProperty('warn');
             expect(spinner).toHaveProperty('stop');
+        });
+    });
+
+    describe('table()', () => {
+        beforeEach(() => {
+            // Need to mock chalk for table tests
+            jest.mock('chalk', () => ({
+                blue: (text: string) => `[BLUE]${text}[/BLUE]`,
+                green: (text: string) => `[GREEN]${text}[/GREEN]`,
+                yellow: (text: string) => `[YELLOW]${text}[/YELLOW]`,
+                red: (text: string) => `[RED]${text}[/RED]`,
+                cyan: (text: string) => `[CYAN]${text}[/CYAN]`,
+                dim: (text: string) => `[DIM]${text}[/DIM]`,
+                bold: (text: string) => `[BOLD]${text}[/BOLD]`,
+            }));
+        });
+
+        it('should display table with headers and rows', () => {
+            ui.table({
+                headers: ['Name', 'Status'],
+                rows: [
+                    ['skill-1', 'active'],
+                    ['skill-2', 'inactive']
+                ]
+            });
+
+            expect(consoleLogSpy).toHaveBeenCalled();
+            // Should have header, separator, and 2 rows = 4 calls
+            expect(consoleLogSpy).toHaveBeenCalledTimes(4);
+        });
+
+        it('should apply column styles when provided', () => {
+            const chalk = require('chalk');
+
+            ui.table({
+                headers: ['Name', 'Type'],
+                rows: [['test', 'demo']],
+                columnStyles: [chalk.cyan, chalk.green]
+            });
+
+            expect(consoleLogSpy).toHaveBeenCalled();
+        });
+
+        it('should use default indent of 2 spaces', () => {
+            ui.table({
+                headers: ['Col1'],
+                rows: [['data']]
+            });
+
+            const calls = consoleLogSpy.mock.calls;
+            // Check that rows start with indent
+            expect(calls[2][0]).toMatch(/^  /);
+        });
+
+        it('should use custom indent when provided', () => {
+            ui.table({
+                headers: ['Col1'],
+                rows: [['data']],
+                indent: '    '
+            });
+
+            const calls = consoleLogSpy.mock.calls;
+            // Check that rows start with custom indent
+            expect(calls[2][0]).toMatch(/^    /);
+        });
+
+        it('should handle empty rows', () => {
+            ui.table({
+                headers: ['Name', 'Status'],
+                rows: []
+            });
+
+            // Should still display headers and separator
+            expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should pad columns correctly', () => {
+            ui.table({
+                headers: ['Short', 'VeryLongHeader'],
+                rows: [
+                    ['a', 'b'],
+                    ['longer', 'c']
+                ]
+            });
+
+            expect(consoleLogSpy).toHaveBeenCalled();
+            // Verify padding is applied (all calls should have content)
+            consoleLogSpy.mock.calls.forEach((call: any[]) => {
+                expect(call[0]).toBeTruthy();
+            });
+        });
+    });
+
+    describe('summary()', () => {
+        it('should display summary with title and items', () => {
+            ui.summary({
+                items: [
+                    { type: 'success', count: 5, label: 'updated' },
+                    { type: 'warning', count: 2, label: 'skipped' },
+                    { type: 'error', count: 1, label: 'failed' }
+                ]
+            });
+
+            expect(consoleLogSpy).toHaveBeenCalled();
+            // Should have title + 3 items = 4 calls
+            expect(consoleLogSpy).toHaveBeenCalledTimes(4);
+        });
+
+        it('should use custom title when provided', () => {
+            ui.summary({
+                title: 'Custom Summary',
+                items: [
+                    { type: 'success', count: 1, label: 'done' }
+                ]
+            });
+
+            const calls = consoleLogSpy.mock.calls;
+            expect(calls[0][0]).toContain('Custom Summary');
+        });
+
+        it('should skip items with count 0', () => {
+            ui.summary({
+                items: [
+                    { type: 'success', count: 0, label: 'updated' },
+                    { type: 'error', count: 1, label: 'failed' }
+                ]
+            });
+
+            // Should only display title + 1 item (skipping the 0 count)
+            expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should display details section when provided', () => {
+            ui.summary({
+                items: [
+                    { type: 'error', count: 1, label: 'failed' }
+                ],
+                details: {
+                    title: 'Errors',
+                    items: [
+                        { message: 'Error 1', tip: 'Fix this' },
+                        { message: 'Error 2' }
+                    ]
+                }
+            });
+
+            expect(consoleLogSpy).toHaveBeenCalled();
+            // Title + 1 item + details title + 2 errors (with 1 tip) = 6 calls
+            expect(consoleLogSpy).toHaveBeenCalledTimes(6);
+        });
+
+        it('should not display details section when items are empty', () => {
+            ui.summary({
+                items: [
+                    { type: 'success', count: 1, label: 'done' }
+                ],
+                details: {
+                    title: 'Errors',
+                    items: []
+                }
+            });
+
+            // Should only display summary, not details
+            expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+        });
+
+        it('should apply correct colors for different types', () => {
+            ui.summary({
+                items: [
+                    { type: 'success', count: 1, label: 'ok' },
+                    { type: 'warning', count: 1, label: 'warn' },
+                    { type: 'error', count: 1, label: 'err' },
+                    { type: 'info', count: 1, label: 'info' }
+                ]
+            });
+
+            expect(consoleLogSpy).toHaveBeenCalled();
+            // Verify all types were displayed
+            expect(consoleLogSpy).toHaveBeenCalledTimes(5); // title + 4 items
         });
     });
 
