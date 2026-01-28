@@ -33,6 +33,7 @@
     "fs-extra": "^11.2.0",
     "gray-matter": "^4.0.3",
     "inquirer": "^8.2.6",
+    "ora": "^9.1.0",
     "yaml": "^2.3.4"
   },
   "devDependencies": {
