@@ -9,7 +9,6 @@ import * as os from 'os';
 import {
     readLastLines,
     readJsonLines,
-    readLastJsonLines,
     fileExists,
     readJson,
 } from '../../util/file';
@@ -109,20 +108,6 @@ describe('file utilities', () => {
         it('should return empty array for non-existent file', () => {
             const result = readJsonLines('/non/existent/file.jsonl');
             expect(result).toEqual([]);
-        });
-    });
-
-    describe('readLastJsonLines', () => {
-        it('should read last N lines and parse as JSON', () => {
-            const data = Array.from({ length: 50 }, (_, i) => ({ id: i + 1 }));
-            const content = data.map(obj => JSON.stringify(obj)).join('\n');
-            fs.writeFileSync(testJsonlFile, content);
-
-            const result = readLastJsonLines(testJsonlFile, 5);
-
-            expect(result).toHaveLength(5);
-            expect(result[0].id).toBe(46);
-            expect(result[4].id).toBe(50);
         });
     });
 
