@@ -1,6 +1,6 @@
 ---
 title: Local Memory & Knowledge based
-status: in-progress
+status: completed
 order: 4
 ---
 

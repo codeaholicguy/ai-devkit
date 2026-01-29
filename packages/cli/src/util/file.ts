@@ -39,7 +39,7 @@ export function readLastLines(filePath: string, lineCount: number = 100): string
  * Read a JSONL (JSON Lines) file and parse each line
  * 
  * @param filePath Path to the JSONL file
- * @param maxLines Optional maximum number of lines to read (reads from end)
+ * @param maxLines Maximum number of lines to read from end (default: 1000)
  * @returns Array of parsed objects
  * 
  * @example
@@ -48,10 +48,8 @@ export function readLastLines(filePath: string, lineCount: number = 100): string
  * const recent = readJsonLines<MyType>('/path/to/data.jsonl', 100);
  * ```
  */
-export function readJsonLines<T = any>(filePath: string, maxLines?: number): T[] {
-    const lines = maxLines !== undefined
-        ? readLastLines(filePath, maxLines)
-        : readLastLines(filePath, Number.MAX_SAFE_INTEGER);
+export function readJsonLines<T = any>(filePath: string, maxLines: number = 1000): T[] {
+    const lines = readLastLines(filePath, maxLines);
 
     return lines.map(line => {
         try {
@@ -60,22 +58,6 @@ export function readJsonLines<T = any>(filePath: string, maxLines?: number): T[]
             return null;
         }
     }).filter((entry): entry is T => entry !== null);
-}
-
-/**
- * Read last N lines from a JSONL file and parse them
- * 
- * @param filePath Path to the JSONL file
- * @param lineCount Number of lines to read from the end (default: 100)
- * @returns Array of parsed objects
- * 
- * @example
- * ```typescript
- * const recent = readLastJsonLines<HistoryEntry>('~/.claude/history.jsonl', 50);
- * ```
- */
-export function readLastJsonLines<T = any>(filePath: string, lineCount: number = 100): T[] {
-    return readJsonLines<T>(filePath, lineCount);
 }
 
 /**
