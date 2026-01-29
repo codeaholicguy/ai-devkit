@@ -1,6 +1,6 @@
 ---
 title: Skill Management
-status: planned
+status: completed
 order: 5
 ---
 
