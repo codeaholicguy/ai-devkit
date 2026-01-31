@@ -105,6 +105,6 @@ The `/debug` command follows a proven methodology:
 
 ## Next Steps
 
-- **Understand code first** — See [Understanding Existing Code](/docs/understand-existing-code-with-ai-devkit)
-- **Prevent bugs** — Use [/code-review](/docs/development-with-ai-devkit#code-review) before committing
-- **Remember solutions** — Save fixes to [Memory](/docs/memory) so you don't repeat mistakes
+- **Understand code first** — See [Understanding Existing Code](/docs/5-understand-existing-code-with-ai-devkit)
+- **Prevent bugs** — Use [/code-review](/docs/3-development-with-ai-devkit#code-review) before committing
+- **Remember solutions** — Save fixes to [Memory](/docs/6-memory) so you don't repeat mistakes

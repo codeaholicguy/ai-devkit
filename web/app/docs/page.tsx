@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getAllDocPages } from '@/lib/content/loader';
+import GettingStartedGuides from '@/components/GettingStartedGuides';
 import type { Metadata } from 'next';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
@@ -78,6 +79,8 @@ export default function DocsPage() {
             ))}
           </div>
         )}
+
+        <GettingStartedGuides />
 
         <div className="mt-12 pt-12 border-t border-gray-200">
           <h2 className="text-2xl font-bold mb-4">Need Help?</h2>

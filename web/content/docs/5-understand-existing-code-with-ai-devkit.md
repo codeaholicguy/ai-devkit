@@ -155,7 +155,7 @@ These files can be committed to version control, making your knowledge base sear
 
 ## Next Steps
 
-- **Debug an issue** — Use [`/debug`](/docs/debugging-with-ai-devkit) with your captured knowledge for context
+- **Debug an issue** — Use [`/debug`](/docs/4-debugging-with-ai-devkit) with your captured knowledge for context
 - **Plan a refactor** — Use your analysis to inform design decisions with `/review-design`
-- **Build your knowledge base** — Enable [Memory](/docs/memory) to make your captured knowledge searchable
-- **Extend capabilities** — Install [Skills](/docs/skills) to add more AI capabilities
+- **Build your knowledge base** — Enable [Memory](/docs/6-memory) to make your captured knowledge searchable
+- **Extend capabilities** — Install [Skills](/docs/7-skills) to add more AI capabilities

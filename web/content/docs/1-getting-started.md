@@ -93,7 +93,7 @@ AI DevKit installs **slash commands** into your AI editor. These are special pro
 | `/update-planning` | Sync planning docs with implementation progress |
 | `/remember` | Remember your important guidelines, rules, and best practices |
 
-For detailed usage of each command, see [Development with AI DevKit](/docs/development-with-ai-devkit).
+For detailed usage of each command, see [Development with AI DevKit](/docs/3-development-with-ai-devkit).
 
 ## Quick Example
 
@@ -115,13 +115,13 @@ Here's how a typical workflow might look:
 ## Next Steps
 
 1. **Explore your AI editor** — Try `/new-requirement` on a small feature
-2. **Read the workflows guide** — [Development with AI DevKit](/docs/development-with-ai-devkit)
-3. **Set up memory** — [Give your AI long-term memory](/docs/memory)
-4. **Install skills** — [Extend your AI's capabilities](/docs/skills)
+2. **Read the workflows guide** — [Development with AI DevKit](/docs/3-development-with-ai-devkit)
+3. **Set up memory** — [Give your AI long-term memory](/docs/6-memory)
+4. **Install skills** — [Extend your AI's capabilities](/docs/7-skills)
 
 ## Need Help?
 
-- Check the [Supported Agents](/docs/supported-agents) page for environment-specific setup
+- Check the [Supported Agents](/docs/2-supported-agents) page for environment-specific setup
 - Browse the [Roadmap](/roadmap) to see what's coming
 - Open an issue on [GitHub](https://github.com/Codeaholicguy/ai-devkit) for bugs or questions
 

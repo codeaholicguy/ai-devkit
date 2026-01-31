@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDocPage, getAllDocPages } from "@/lib/content/loader";
 import MarkdownContent from "@/components/MarkdownContent";
+import GettingStartedGuides from "@/components/GettingStartedGuides";
 import type { Metadata } from "next";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
@@ -102,6 +103,7 @@ export default async function DocPage({ params }: DocPageProps) {
         )}
 
         <MarkdownContent content={doc.content} />
+        <GettingStartedGuides />
       </article>
       <nav className="mt-16 pt-8 border-t border-gray-200 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

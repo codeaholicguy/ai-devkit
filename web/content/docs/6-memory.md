@@ -181,5 +181,5 @@ This is portable so you can just copy the database file to another machine to us
 
 ## Next Steps
 
-- **[Skills](/docs/skills)**: Learn how to create reusable skill templates
-- **[Getting Started](/docs/getting-started)**: New to AI DevKit? [Start here](/docs/getting-started)
+- **[Skills](/docs/7-skills)**: Learn how to create reusable skill templates
+- **[Getting Started](/docs/1-getting-started)**: New to AI DevKit? [Start here](/docs/1-getting-started)

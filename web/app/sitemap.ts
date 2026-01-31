@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next';
 import { getAllDocPages } from '@/lib/content/loader';
 import { seoKeywordEntries } from '@/lib/seo/keywords';
+import { setupToolEntries } from '@/lib/seo/setup-tools';
 
 export const dynamic = 'force-static';
 
@@ -13,6 +14,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 1.0,
+    },
+    {
+      url: `${baseUrl}/faq`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly' as const,
+      priority: 0.8,
     },
     {
       url: `${baseUrl}/docs`,
@@ -43,12 +50,19 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   const seoRoutes = seoKeywordEntries.map((entry) => ({
-    url: `${baseUrl}/s/${entry.slug}`,
+    url: `${baseUrl}/faq/${entry.slug}`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...docRoutes, ...seoRoutes];
+  const setupRoutes = setupToolEntries.map((entry) => ({
+    url: `${baseUrl}/faq/getting-started/${entry.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.6,
+  }));
+
+  return [...staticRoutes, ...docRoutes, ...seoRoutes, ...setupRoutes];
 }
 

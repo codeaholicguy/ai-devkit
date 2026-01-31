@@ -144,6 +144,6 @@ After the initial pass, use these commands to refine your work:
 
 ## Next Steps
 
-- **Debug effectively** — See [Debugging with AI DevKit](/docs/debugging-with-ai-devkit)
-- **Understand existing code** — See [Understanding Existing Code](/docs/understand-existing-code-with-ai-devkit)
-- **Give your AI memory** — See [Memory](/docs/memory)
+- **Debug effectively** — See [Debugging with AI DevKit](/docs/4-debugging-with-ai-devkit)
+- **Understand existing code** — See [Understanding Existing Code](/docs/5-understand-existing-code-with-ai-devkit)
+- **Give your AI memory** — See [Memory](/docs/6-memory)

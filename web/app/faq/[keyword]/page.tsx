@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import MarkdownContent from "@/components/MarkdownContent";
+import FaqKeywordLinks from "@/components/FaqKeywordLinks";
 import { getDocPage } from "@/lib/content/loader";
 import {
   findSeoKeywordBySlug,
@@ -50,13 +51,13 @@ export async function generateMetadata({
   if (!entry) {
     return {
       title: "Page Not Found",
-      description: "The requested SEO page could not be found.",
+      description: "The requested FAQ page could not be found.",
     };
   }
 
   const title = `${entry.keyword} | AI DevKit`;
   const description = buildDescription(entry.keyword);
-  const pageUrl = `${siteUrl}/s/${entry.slug}`;
+  const pageUrl = `${siteUrl}/faq/${entry.slug}`;
 
   return {
     title,
@@ -102,7 +103,7 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
     "AI DevKit provides structured workflows, reusable commands, and memory to improve AI-assisted development.";
 
   const content = buildSeoContent(entry.keyword, baseContent);
-  const pageUrl = `${siteUrl}/s/${entry.slug}`;
+  const pageUrl = `${siteUrl}/faq/${entry.slug}`;
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -134,6 +135,7 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
           {buildDescription(entry.keyword)}
         </p>
         <MarkdownContent content={content} />
+        <FaqKeywordLinks />
       </article>
     </div>
   );
