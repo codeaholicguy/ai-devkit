@@ -37,7 +37,7 @@ export function registerSkillCommand(program: Command): void {
         if (skills.length === 0) {
           ui.warning('No skills installed in this project.');
           ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> <skill-name>');
-          process.exit(0);
+          return;
         }
 
         ui.text('Installed Skills:', { breakline: true });
@@ -53,7 +53,6 @@ export function registerSkillCommand(program: Command): void {
         });
 
         ui.text(`Total: ${skills.length} skill(s)`, { breakline: true });
-        process.exit(0);
       } catch (error: any) {
         ui.error(`Failed to list skills: ${error.message}`);
         process.exit(1);

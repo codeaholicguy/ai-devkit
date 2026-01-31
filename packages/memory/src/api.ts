@@ -1,5 +1,6 @@
 import { storeKnowledge } from './handlers/store';
 import { searchKnowledge } from './handlers/search';
+import { closeDatabase } from './database';
 import type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult } from './types';
 
 export { storeKnowledge, searchKnowledge };
@@ -21,23 +22,31 @@ export interface MemorySearchOptions {
 }
 
 export function memoryStoreCommand(options: MemoryStoreOptions): StoreKnowledgeResult {
-    const input: StoreKnowledgeInput = {
-        title: options.title,
-        content: options.content,
-        tags: options.tags ? options.tags.split(',').map(t => t.trim()) : undefined,
-        scope: options.scope,
-    };
+    try {
+        const input: StoreKnowledgeInput = {
+            title: options.title,
+            content: options.content,
+            tags: options.tags ? options.tags.split(',').map(t => t.trim()) : undefined,
+            scope: options.scope,
+        };
 
-    return storeKnowledge(input);
+        return storeKnowledge(input);
+    } finally {
+        closeDatabase();
+    }
 }
 
 export function memorySearchCommand(options: MemorySearchOptions): SearchKnowledgeResult {
-    const input: SearchKnowledgeInput = {
-        query: options.query,
-        contextTags: options.tags ? options.tags.split(',').map(t => t.trim()) : undefined,
-        scope: options.scope,
-        limit: options.limit,
-    };
+    try {
+        const input: SearchKnowledgeInput = {
+            query: options.query,
+            contextTags: options.tags ? options.tags.split(',').map(t => t.trim()) : undefined,
+            scope: options.scope,
+            limit: options.limit,
+        };
 
-    return searchKnowledge(input);
+        return searchKnowledge(input);
+    } finally {
+        closeDatabase();
+    }
 }
