@@ -3,9 +3,7 @@ title: Agent Management
 description: Manage and interact with other AI agents running on your system
 ---
 
-# Agent Management
-
-> [!WARNING]
+> ⚠️ **WARNING**
 > This feature is currently **experimental**, works on macOS and Linux with ai-devkit from version 0.10.0. Behaviors and commands may change in future versions.
 
 The `agent` command allows AI DevKit to detect, list, and interact with other AI agents running on your system. It acts as a central hub to find where your AI coding assistants are working and quickly switch context to them.
