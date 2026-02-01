@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDocPage, getAllDocPages } from "@/lib/content/loader";
 import MarkdownContent from "@/components/MarkdownContent";
+import CopyToMarkdownButton from "@/components/CopyToMarkdownButton";
 import GettingStartedGuides from "@/components/GettingStartedGuides";
 import type { Metadata } from "next";
 
@@ -92,9 +93,15 @@ export default async function DocPage({ params }: DocPageProps) {
           <span className="text-black">{doc.metadata.title}</span>
         </nav>
 
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">
-          {doc.metadata.title}
-        </h1>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold">
+            {doc.metadata.title}
+          </h1>
+          <CopyToMarkdownButton
+            content={doc.content}
+            title={doc.metadata.title}
+          />
+        </div>
 
         {doc.metadata.description && (
           <p className="text-xl text-gray-600 mb-12">
