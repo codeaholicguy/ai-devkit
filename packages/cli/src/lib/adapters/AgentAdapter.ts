@@ -13,7 +13,12 @@ export type AgentType = 'Claude Code' | 'Gemini CLI' | 'Codex' | "Other";
 /**
  * Current status of an agent
  */
-export type AgentStatus = 'running' | 'waiting' | 'idle' | 'unknown';
+export enum AgentStatus {
+    RUNNING = 'running',
+    WAITING = 'waiting',
+    IDLE = 'idle',
+    UNKNOWN = 'unknown'
+}
 
 /**
  * Status display configuration
@@ -28,10 +33,10 @@ export interface StatusConfig {
  * Status configuration map
  */
 export const STATUS_CONFIG: Record<AgentStatus, StatusConfig> = {
-    running: { emoji: '🟢', label: 'run', color: 'green' },
-    waiting: { emoji: '🟡', label: 'wait', color: 'yellow' },
-    idle: { emoji: '⚪', label: 'idle', color: 'dim' },
-    unknown: { emoji: '❓', label: 'unknown', color: 'gray' },
+    [AgentStatus.RUNNING]: { emoji: '🟢', label: 'running', color: 'green' },
+    [AgentStatus.WAITING]: { emoji: '🟡', label: 'waiting', color: 'yellow' },
+    [AgentStatus.IDLE]: { emoji: '⚪', label: 'idle', color: 'dim' },
+    [AgentStatus.UNKNOWN]: { emoji: '❓', label: 'unknown', color: 'gray' },
 };
 
 /**

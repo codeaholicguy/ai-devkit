@@ -8,6 +8,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { ClaudeCodeAdapter } from '../../../lib/adapters/ClaudeCodeAdapter';
 import type { AgentInfo } from '../../../lib/adapters/AgentAdapter';
+import { AgentStatus } from '../../../lib/adapters/AgentAdapter';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -168,10 +169,10 @@ describe('ClaudeCodeAdapter', () => {
                 };
 
                 const status = determineStatus(session);
-                expect(status).toBe('unknown');
+                expect(status).toBe(AgentStatus.UNKNOWN);
             });
 
-            it('should return "running" for assistant/progress entries', () => {
+            it('should return "waiting" for assistant entries', () => {
                 const adapter = new ClaudeCodeAdapter();
                 const determineStatus = (adapter as any).determineStatus.bind(adapter);
 
@@ -184,10 +185,31 @@ describe('ClaudeCodeAdapter', () => {
                 };
 
                 const status = determineStatus(session);
-                expect(status).toBe('running');
+                expect(status).toBe(AgentStatus.WAITING);
             });
 
-            it('should return "waiting" for user entries', () => {
+            it('should return "waiting" for user interruption', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+
+                const session = {
+                    sessionId: 'test',
+                    projectPath: '/test',
+                    sessionLogPath: '/test/log',
+                    lastEntry: {
+                        type: 'user',
+                        message: {
+                            content: [{ type: 'text', text: '[Request interrupted by user for tool use]' }]
+                        }
+                    },
+                    lastActive: new Date(),
+                };
+
+                const status = determineStatus(session);
+                expect(status).toBe(AgentStatus.WAITING);
+            });
+
+            it('should return "running" for user/progress entries', () => {
                 const adapter = new ClaudeCodeAdapter();
                 const determineStatus = (adapter as any).determineStatus.bind(adapter);
 
@@ -200,7 +222,7 @@ describe('ClaudeCodeAdapter', () => {
                 };
 
                 const status = determineStatus(session);
-                expect(status).toBe('waiting');
+                expect(status).toBe(AgentStatus.RUNNING);
             });
 
             it('should return "idle" for old sessions', () => {
@@ -219,7 +241,7 @@ describe('ClaudeCodeAdapter', () => {
                 };
 
                 const status = determineStatus(session);
-                expect(status).toBe('idle');
+                expect(status).toBe(AgentStatus.IDLE);
             });
         });
 
@@ -246,7 +268,7 @@ describe('ClaudeCodeAdapter', () => {
                     name: 'my-project',
                     projectPath: '/Users/test/my-project',
                     type: 'Claude Code' as const,
-                    status: 'running' as const,
+                    status: AgentStatus.RUNNING,
                     statusDisplay: '🟢 run',
                     summary: 'Test',
                     pid: 123,

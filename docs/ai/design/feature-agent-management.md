@@ -107,10 +107,10 @@ type AgentStatus = 'running' | 'waiting' | 'idle' | 'unknown';
 
 // Status display configuration
 const STATUS_CONFIG = {
-  running: { emoji: '🟢', label: 'run', color: 'green' },
-  waiting: { emoji: '🟡', label: 'wait', color: 'yellow' },
+  running: { emoji: '🟢', label: 'running', color: 'green' },
+  waiting: { emoji: '🟡', label: 'waiting', color: 'yellow' },
   idle: { emoji: '⚪', label: 'idle', color: 'dim' },
-  unknown: { emoji: '❓', label: '???', color: 'gray' },
+  unknown: { emoji: '❓', label: 'unknown', color: 'gray' },
 };
 ```
 
@@ -123,7 +123,7 @@ interface ClaudeCodeSession {
   sessionLogPath: string;   // Path to the .jsonl session file
   debugLogPath?: string;    // Path to the debug log file
   lastActivity?: Date;      // Timestamp of last log entry
-  lastEntryType?: string;   // 'assistant', 'user', 'progress'
+  lastEntryType?: string;   // 'assistant', 'user', 'progress', 'thinking'
 }
 
 interface SessionEntry {
@@ -147,16 +147,21 @@ interface HistoryEntry {
 1. **Process Detection**: Query running processes (`ps aux | grep claude`) → List of PIDs + TTYs
 2. **Session Discovery**: Read `~/.claude/projects/*/sessions-index.json` → List of sessions with project paths
 3. **Session-Process Correlation**: 
-   - Read `cwd` field from session JSONL entries
-   - Match session's `cwd` to process's working directory (from `ps -o cwd=`)
-   - Alternative: Match by recent debug log activity in `~/.claude/debug/{session-id}.txt`
+   - Group running processes by CWD (project path)
+   - Group available sessions by project path
+   - **Duplicate Filtering**: If multiple sessions match a project path:
+     - Sort sessions by last active time (newest first)
+     - Take the top N sessions, where N is the number of active processes for that path
+     - Strictly map active processes to these N sessions to avoid "ghost" agents
 4. **Terminal Location**: For each matched process, find terminal location:
    - Get TTY from PID: `ps -p {PID} -o tty=`
    - Query tmux: `tmux list-panes -a -F '#{pane_tty} #{session}:#{window}.#{pane}'`
    - Fallback to iTerm2/Terminal.app via AppleScript
 5. **Status Extraction**: Read last entries from session JSONL → Determine status from `type` field
-   - `assistant` or `progress` → running
-   - `user` → waiting  
+   - `assistant` → waiting (Assistant finished response, waiting for user)
+   - `user` → running (User sent message, agent processing) 
+     - *Exception*: If user message contains "interrupted", status is waiting
+   - `progress` or `thinking` → running
    - `system` or old timestamp → idle
 6. **Summary Extraction**: Read `~/.claude/history.jsonl` → Get last user prompt for each session
 7. **Agent Naming**: 
@@ -454,20 +459,22 @@ packages/cli/src/
 **Status Hierarchy** (sorted by attention priority):
 | Priority | Status | Display | Meaning |
 |----------|--------|---------|--------|
-| 1 | waiting | 🟡 wait | **NEEDS ATTENTION** |
-| 2 | running | 🟢 run | Actively processing |
+| 1 | waiting | 🟡 waiting | **NEEDS ATTENTION** |
+| 2 | running | 🟢 running | Actively processing |
 | 3 | idle | ⚪ idle | No recent activity |
 | 4 | unknown | ❓ ??? | Status undetermined |
 
 ### Decision 5: Status Detection Heuristics
 **Choice**: Use session JSONL `type` field to determine status
 **Status Mapping**:
-| Last Entry Type | Status |
-|-----------------|--------|
-| `assistant` or `progress` with recent timestamp | running |
-| `user` or completed assistant response | waiting |
-| Any type but timestamp > 5 minutes ago | idle |
-| Unable to parse | unknown |
+| Last Entry Type | Status | Detailed Logic |
+|-----------------|--------|----------------|
+| `user` | running | User sent input, agent is processing it. |
+| `progress`, `thinking` | running | Agent is actively using tools or thinking. |
+| `assistant` | waiting | Assistant finished response, waiting for user input. |
+| `user` (interrupted) | waiting | User manually interrupted the agent (contains "[Request interrupted..."). |
+| Any type | idle | Time since last activity > 5 minutes. |
+| Other/Error | unknown | Unable to parse or active process not found using files. |
 
 ## Non-Functional Requirements
 **How should the system perform?**

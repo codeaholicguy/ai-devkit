@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { AgentManager } from '../../lib/AgentManager';
 import type { AgentAdapter, AgentInfo, AgentType } from '../../lib/adapters/AgentAdapter';
+import { AgentStatus } from '../../lib/adapters/AgentAdapter';
 
 // Mock adapter for testing
 class MockAdapter implements AgentAdapter {
@@ -39,7 +40,7 @@ function createMockAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
     return {
         name: 'test-agent',
         type: 'Claude Code',
-        status: 'running',
+        status: AgentStatus.RUNNING,
         statusDisplay: '🟢 run',
         summary: 'Test summary',
         pid: 12345,
@@ -179,10 +180,10 @@ describe('AgentManager', () => {
 
         it('should sort agents by status priority (waiting first)', async () => {
             const mockAgents = [
-                createMockAgent({ name: 'idle-agent', status: 'idle' }),
-                createMockAgent({ name: 'waiting-agent', status: 'waiting' }),
-                createMockAgent({ name: 'running-agent', status: 'running' }),
-                createMockAgent({ name: 'unknown-agent', status: 'unknown' }),
+                createMockAgent({ name: 'idle-agent', status: AgentStatus.IDLE }),
+                createMockAgent({ name: 'waiting-agent', status: AgentStatus.WAITING }),
+                createMockAgent({ name: 'running-agent', status: AgentStatus.RUNNING }),
+                createMockAgent({ name: 'unknown-agent', status: AgentStatus.UNKNOWN }),
             ];
             const adapter = new MockAdapter('Claude Code', mockAgents);
 

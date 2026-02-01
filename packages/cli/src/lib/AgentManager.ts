@@ -6,6 +6,7 @@
  */
 
 import type { AgentAdapter, AgentInfo } from './adapters/AgentAdapter';
+import { AgentStatus } from './adapters/AgentAdapter';
 
 /**
  * Agent Manager Class
@@ -140,11 +141,11 @@ export class AgentManager {
      * @returns Sorted array of agents
      */
     private sortAgentsByStatus(agents: AgentInfo[]): AgentInfo[] {
-        const statusPriority: Record<string, number> = {
-            waiting: 0,
-            running: 1,
-            idle: 2,
-            unknown: 3,
+        const statusPriority: Record<AgentStatus, number> = {
+            [AgentStatus.WAITING]: 0,
+            [AgentStatus.RUNNING]: 1,
+            [AgentStatus.IDLE]: 2,
+            [AgentStatus.UNKNOWN]: 3,
         };
 
         return agents.sort((a, b) => {

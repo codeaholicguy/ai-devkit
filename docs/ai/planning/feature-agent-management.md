@@ -10,9 +10,9 @@ feature: agent-management
 ## Milestones
 **What are the major checkpoints?**
 
-- [ ] **Milestone 1**: Foundation - Process detection and state file reading
-- [ ] **Milestone 2**: Claude Code Integration - Full adapter implementation
-- [ ] **Milestone 3**: CLI Integration - Complete `agent list` command
+- [x] **Milestone 1**: Foundation - Process detection and state file reading (Completed)
+- [x] **Milestone 2**: Claude Code Integration - Full adapter implementation (Completed)
+- [x] **Milestone 3**: CLI Integration - Complete `agent list` command (Completed)
 
 ## Task Breakdown
 **What specific work needs to be done?**
@@ -20,105 +20,121 @@ feature: agent-management
 ### Phase 1: Foundation
 
 #### Task 1.1: Create Process Detection Utility
-**Status**: 🔲 Not Started
-- [ ] Create `packages/cli/src/util/process.ts`
-- [ ] Implement `listProcesses()` function to query running processes
-- [ ] Filter by process name pattern (e.g., `claude`)
-- [ ] Extract PID, command line, working directory
-- [ ] Handle cross-platform differences (macOS focus first)
-- [ ] Write unit tests
+**Status**: ✅ Completed (Commit: e35315d)
+- [x] Create `packages/cli/src/util/process.ts`
+- [x] Implement `listProcesses()` function to query running processes
+- [x] Filter by process name pattern (e.g., `claude`)
+- [x] Extract PID, command line, working directory
+- [x] Handle cross-platform differences (macOS focus first)
+- [x] Write unit tests
 
 **Estimated Effort**: 2 hours
+**Actual Effort**: Part of commit e35315d (Jan 29, 2026)
 
 #### Task 1.2: Create Agent Adapter Interface
-**Status**: 🔲 Not Started
-- [ ] Create `packages/cli/src/lib/adapters/AgentAdapter.ts`
-- [ ] Define `AgentAdapter` interface
-- [ ] Define `AgentInfo`, `AgentType`, `AgentStatus` types
-- [ ] Export types for use by implementations
+**Status**: ✅ Completed (Commit: e35315d)
+- [x] Create `packages/cli/src/lib/adapters/AgentAdapter.ts`
+- [x] Define `AgentAdapter` interface
+- [x] Define `AgentInfo`, `AgentType`, `AgentStatus` types
+- [x] Export types for use by implementations
+- [x] Added `STATUS_CONFIG` for display configuration
+- [x] Added `ProcessInfo` interface
 
 **Estimated Effort**: 1 hour
+**Actual Effort**: Part of commit e35315d (Jan 29, 2026)
 
 #### Task 1.3: Create AgentManager Class
-**Status**: 🔲 Not Started
-- [ ] Create `packages/cli/src/lib/AgentManager.ts`
-- [ ] Implement adapter registration
-- [ ] Implement `listAgents()` method
-- [ ] Aggregate results from all registered adapters
-- [ ] Handle adapter errors gracefully
-- [ ] Write unit tests
+**Status**: ✅ Completed (Commit: e35315d)
+- [x] Create `packages/cli/src/lib/AgentManager.ts`
+- [x] Implement adapter registration
+- [x] Implement `listAgents()` method
+- [x] Aggregate results from all registered adapters
+- [x] Handle adapter errors gracefully
+- [x] Write unit tests (252 lines of comprehensive tests)
+- [x] Added utility methods: `unregisterAdapter`, `hasAdapter`, `getAdapterCount`, `clear`
+- [x] Implemented status-based sorting (waiting > running > idle > unknown)
 
 **Estimated Effort**: 2 hours
+**Actual Effort**: Part of commit e35315d (Jan 29, 2026)
 
 ### Phase 2: Claude Code Integration
 
 #### Task 2.1: Implement Claude Code Session Reader
-**Status**: 🔲 Not Started
-- [ ] Create `packages/cli/src/lib/adapters/ClaudeCodeAdapter.ts`
-- [ ] Implement reading `~/.claude/projects/*/` directories
-- [ ] Parse `sessions-index.json` to get project paths
-- [ ] Read session JSONL files for conversation data
-- [ ] Read `~/.claude/history.jsonl` for user prompts
-- [ ] Extract session slug from JSONL entries
-- [ ] Write unit tests with fixture data
+**Status**: ✅ Completed (Commit: df346a6)
+- [x] Create `packages/cli/src/lib/adapters/ClaudeCodeAdapter.ts`
+- [x] Implement reading `~/.claude/projects/*/` directories
+- [x] Parse `sessions-index.json` to get project paths
+- [x] Read session JSONL files for conversation data
+- [x] Read `~/.claude/history.jsonl` for user prompts
+- [x] Extract session slug from JSONL entries
+- [x] Write unit tests with fixture data (272 lines of tests)
+- [x] Created helper utility `util/file.ts` with `readLastLines`, `readJsonLines`, `readJson` functions
 
 **Estimated Effort**: 3 hours
+**Actual Effort**: Part of commit df346a6 (Jan 29, 2026)
 
 #### Task 2.2: Implement Status Detection
-**Status**: 🔲 Not Started
-- [ ] Read last entries from session JSONL files
-- [ ] Implement `determineStatus()` method based on `type` field
-- [ ] Map entry types: `assistant`/`progress` → running, `user` → waiting
-- [ ] Add idle detection for sessions with old timestamps (>5 min)
-- [ ] Implement visual status display (🟡 wait, 🟢 run, ⚪ idle)
-- [ ] Write unit tests with sample session data
+**Status**: ✅ Completed (Commit: df346a6)
+- [x] Read last entries from session JSONL files
+- [x] Implement `determineStatus()` method based on `type` field
+- [x] Map entry types: `assistant`/`progress` → running, `user` → waiting
+- [x] Add idle detection for sessions with old timestamps (>5 min)
+- [x] Implement visual status display (🟡 wait, 🟢 run, ⚪ idle)
+- [x] Write unit tests with sample session data
+- [x] Handles edge cases: no last entry, unknown types
 
 **Estimated Effort**: 2 hours
+**Actual Effort**: Part of commit df346a6 (Jan 29, 2026)
 
 #### Task 2.3: Implement Summary and Time Extraction
-**Status**: 🔲 Not Started
-- [ ] Read `display` field from `~/.claude/history.jsonl`
-- [ ] Match history entries to sessions by `sessionId`
-- [ ] Implement `extractSummary()` with ~40 char truncation
-- [ ] Implement `getRelativeTime()` for "2m ago", "just now" display
-- [ ] Provide fallback summary: "Session started"
-- [ ] Write unit tests
+**Status**: ✅ Completed (Commit: df346a6)
+- [x] Read `display` field from `~/.claude/history.jsonl`
+- [x] Match history entries to sessions by `sessionId`
+- [x] Implement `truncateSummary()` with ~40 char truncation
+- [x] Implement `getRelativeTime()` for "2m ago", "just now" display
+- [x] Provide fallback summary: "Session started"
+- [x] Write unit tests
+- [x] Handles minutes, hours, and days display formats
 
 **Estimated Effort**: 2 hours
+**Actual Effort**: Part of commit df346a6 (Jan 29, 2026)
 
 #### Task 2.4: Complete Claude Code Adapter
-**Status**: 🔲 Not Started
-- [ ] Implement full `detectAgents()` method
-- [ ] Correlate running processes with active sessions
-- [ ] Implement agent naming: project basename + optional slug
-- [ ] Filter out stale sessions (no matching process)
-- [ ] Sort agents: waiting first, then running, then idle
-- [ ] Integration testing with real Claude Code
-- [ ] Write unit tests
+**Status**: ✅ Completed (Commit: df346a6)
+- [x] Implement full `detectAgents()` method
+- [x] Correlate running processes with active sessions
+- [x] Implement agent naming: project basename + optional slug
+- [x] Filter out stale sessions (no matching process)
+- [x] Sort agents: waiting first, then running, then idle (handled by AgentManager)
+- [x] Integration testing with real Claude Code
+- [x] Write unit tests
+- [x] Implemented `canHandle()` method for process detection
+- [x] Added `generateAgentName()` for unique naming with slug support
 
 **Estimated Effort**: 2 hours
+**Actual Effort**: Part of commit df346a6 (Jan 29, 2026)
 
 ### Phase 3: CLI Integration (List Command)
 
 #### Task 3.1: Create Agent CLI Command
-**Status**: 🔲 Not Started
-- [ ] Create `packages/cli/src/commands/agent.ts`
-- [ ] Register `agent` parent command
-- [ ] Register `agent list` subcommand
-- [ ] Use AgentManager to fetch agents
-- [ ] Format table with columns: Agent, Status, Working On, Active
-- [ ] Apply status colors and emoji
-- [ ] Add attention summary footer when agents waiting
-- [ ] Handle empty results with actionable guidance
-- [ ] Implement `--json` flag for JSON output
+**Status**: ✅ Completed
+- [x] Create `packages/cli/src/commands/agent.ts`
+- [x] Register `agent` parent command
+- [x] Register `agent list` subcommand
+- [x] Use AgentManager to fetch agents
+- [x] Format table with columns: Agent, Status, Working On, Active
+- [x] Apply status colors and emoji
+- [x] Add attention summary footer when agents waiting
+- [x] Handle empty results with actionable guidance
+- [x] Implement `--json` flag for JSON output
 
 **Estimated Effort**: 2.5 hours
 
 #### Task 3.2: Register Command in CLI
-**Status**: 🔲 Not Started
-- [ ] Import and register agent command in main CLI file
-- [ ] Update help text
-- [ ] Manual testing
+**Status**: ✅ Completed
+- [x] Import and register agent command in main CLI file
+- [x] Update help text
+- [x] Manual testing
 
 **Estimated Effort**: 0.5 hours
 
@@ -232,14 +248,16 @@ graph LR
 ## Timeline & Estimates
 **When will things be done?**
 
-| Phase | Tasks | Estimated Hours |
-|-------|-------|-----------------|
-| Phase 1: Foundation | 1.1, 1.2, 1.3 | 5 hours |
-| Phase 2: Claude Code Integration | 2.1, 2.2, 2.3, 2.4 | 9 hours |
-| Phase 3: CLI Integration (List) | 3.1, 3.2 | 3 hours |
-| Phase 4: Agent Open Command | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 | 8 hours |
-| Phase 5: Testing & Documentation | 5.1, 5.2 | 3 hours |
-| **Total** | | **28 hours** |
+| Phase | Tasks | Estimated Hours | Status |
+|-------|-------|-----------------|--------|
+| Phase 1: Foundation | 1.1, 1.2, 1.3 | 5 hours | ✅ Completed |
+| Phase 2: Claude Code Integration | 2.1, 2.2, 2.3, 2.4 | 9 hours | ✅ Completed |
+| Phase 3: CLI Integration (List) | 3.1, 3.2 | 3 hours | ✅ Completed |
+| Phase 4: Agent Open Command | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 | 8 hours | 🔲 Not Started |
+| Phase 5: Testing & Documentation | 5.1, 5.2 | 3 hours | 🔲 Not Started |
+| **Total** | | **28 hours** | |
+| **Completed** | | **17 hours** | 60% Complete |
+| **Remaining** | | **11 hours** | |
 
 ### Suggested Implementation Order
 1. Task 1.2 (Interface) - Define contracts first

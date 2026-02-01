@@ -5,7 +5,7 @@ import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
 import { PhaseSelector } from '../lib/PhaseSelector';
 import { EnvironmentCode, PHASE_DISPLAY_NAMES } from '../types';
-import { isValidEnvironmentCode } from '../util/env.js';
+import { isValidEnvironmentCode } from '../util/env';
 import { ui } from '../util/terminal-ui';
 
 function isGitAvailable(): boolean {

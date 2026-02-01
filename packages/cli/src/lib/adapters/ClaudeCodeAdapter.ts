@@ -7,8 +7,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AgentAdapter, AgentInfo, AgentStatus, ProcessInfo } from './AgentAdapter';
-import { STATUS_CONFIG } from './AgentAdapter';
+import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
+import { AgentStatus, STATUS_CONFIG } from './AgentAdapter';
 import { listProcesses } from '../../util/process';
 import { readLastLines, readJsonLines, readJson } from '../../util/file';
 
@@ -104,43 +104,66 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         // 3. Read history for summaries
         const history = this.readHistory();
 
-        // 4. Match sessions to processes and build AgentInfo
+        // 4. Group processes by CWD
+        const processesByCwd = new Map<string, ProcessInfo[]>();
+        for (const p of claudeProcesses) {
+            const list = processesByCwd.get(p.cwd) || [];
+            list.push(p);
+            processesByCwd.set(p.cwd, list);
+        }
+
+        // 5. Match sessions to processes
         const agents: AgentInfo[] = [];
 
-        for (const session of sessions) {
-            // Find matching process by CWD
-            const matchingProcess = claudeProcesses.find(
-                proc => proc.cwd === session.projectPath
-            );
+        for (const [cwd, processes] of processesByCwd) {
+            // Find sessions for this project path
+            const projectSessions = sessions.filter(s => s.projectPath === cwd);
 
-            // Skip sessions without active processes (stale sessions)
-            if (!matchingProcess) {
+            if (projectSessions.length === 0) {
                 continue;
             }
 
-            const historyEntry = [...history].reverse().find(
-                h => h.sessionId === session.sessionId
-            );
-            const summary = historyEntry?.display || 'Session started';
-            const status = this.determineStatus(session);
-            const agentName = this.generateAgentName(session, agents);
-            const statusConfig = STATUS_CONFIG[status];
-            const statusDisplay = `${statusConfig.emoji} ${statusConfig.label}`;
-            const lastActiveDisplay = this.getRelativeTime(session.lastActive || new Date());
-
-            agents.push({
-                name: agentName,
-                type: this.type,
-                status,
-                statusDisplay,
-                summary: this.truncateSummary(summary),
-                pid: matchingProcess.pid,
-                projectPath: session.projectPath,
-                sessionId: session.sessionId,
-                slug: session.slug,
-                lastActive: session.lastActive || new Date(),
-                lastActiveDisplay,
+            // Sort sessions by last active time (newest first)
+            projectSessions.sort((a, b) => {
+                const timeA = a.lastActive?.getTime() || 0;
+                const timeB = b.lastActive?.getTime() || 0;
+                return timeB - timeA;
             });
+
+            // Map processes to the most recent sessions
+            // If there are 2 processes, we take the 2 most recent sessions
+            const activeSessions = projectSessions.slice(0, processes.length);
+
+            for (let i = 0; i < activeSessions.length; i++) {
+                const session = activeSessions[i];
+                const process = processes[i]; // Assign process to session (arbitrary 1-to-1 mapping)
+
+                const historyEntry = [...history].reverse().find(
+                    h => h.sessionId === session.sessionId
+                );
+                const summary = historyEntry?.display || 'Session started';
+                const status = this.determineStatus(session);
+                const agentName = this.generateAgentName(session, agents); // Pass currently built agents for collision checks
+
+                // Get status display config
+                const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG[AgentStatus.UNKNOWN];
+                const statusDisplay = `${statusConfig.emoji} ${statusConfig.label}`;
+                const lastActiveDisplay = this.getRelativeTime(session.lastActive || new Date());
+
+                agents.push({
+                    name: agentName,
+                    type: this.type,
+                    status,
+                    statusDisplay,
+                    summary: this.truncateSummary(summary),
+                    pid: process.pid,
+                    projectPath: session.projectPath,
+                    sessionId: session.sessionId,
+                    slug: session.slug,
+                    lastActive: session.lastActive || new Date(),
+                    lastActiveDisplay,
+                });
+            }
         }
 
         return agents;
@@ -255,7 +278,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      */
     private determineStatus(session: ClaudeSession): AgentStatus {
         if (!session.lastEntry) {
-            return 'unknown';
+            return AgentStatus.UNKNOWN;
         }
 
         const entryType = session.lastEntry.type;
@@ -263,18 +286,31 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         const ageMinutes = (Date.now() - lastActive.getTime()) / 1000 / 60;
 
         if (ageMinutes > ClaudeCodeAdapter.IDLE_THRESHOLD_MINUTES) {
-            return 'idle';
+            return AgentStatus.IDLE;
         }
 
-        if (entryType === 'assistant' || entryType === 'progress' || entryType === 'thinking') {
-            return 'running';
-        } else if (entryType === 'user') {
-            return 'waiting';
+        if (entryType === 'user') {
+            // Check if user interrupted manually - this puts agent back in waiting state
+            const content = (session.lastEntry as any)?.message?.content;
+            if (Array.isArray(content)) {
+                const isInterrupted = content.some((c: any) =>
+                    (c.type === 'text' && c.text?.includes('[Request interrupted')) ||
+                    (c.type === 'tool_result' && c.content?.includes('[Request interrupted'))
+                );
+                if (isInterrupted) return AgentStatus.WAITING;
+            }
+            return AgentStatus.RUNNING;
+        }
+
+        if (entryType === 'progress' || entryType === 'thinking') {
+            return AgentStatus.RUNNING;
+        } else if (entryType === 'assistant') {
+            return AgentStatus.WAITING;
         } else if (entryType === 'system') {
-            return 'idle';
+            return AgentStatus.IDLE;
         }
 
-        return 'unknown';
+        return AgentStatus.UNKNOWN;
     }
 
     /**
