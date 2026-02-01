@@ -1,6 +1,6 @@
 The official command-line interface for **AI DevKit**.
 
-This tool orchestrates the setup and management of AI-assisted development environments, ensuring your project is ready for agents like Cursor, Claude Code, and more.
+This tool orchestrates the setup and management of AI-assisted development environments, ensuring your project is ready for agents like Cursor, Claude Code, Antigravity, and more.
 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
