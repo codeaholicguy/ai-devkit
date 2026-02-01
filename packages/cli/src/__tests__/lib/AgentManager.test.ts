@@ -249,4 +249,62 @@ describe('AgentManager', () => {
             expect(manager.getAdapters()).toEqual([]);
         });
     });
+
+    describe('resolveAgent', () => {
+        it('should return null for empty input or empty agents list', () => {
+            const agent = createMockAgent({ name: 'test-agent' });
+            expect(manager.resolveAgent('', [agent])).toBeNull();
+            expect(manager.resolveAgent('test', [])).toBeNull();
+        });
+
+        it('should resolve exact match (case-insensitive)', () => {
+            const agent = createMockAgent({ name: 'My-Agent' });
+            const agents = [agent, createMockAgent({ name: 'Other' })];
+
+            // Exact match
+            expect(manager.resolveAgent('My-Agent', agents)).toBe(agent);
+            // Case-insensitive
+            expect(manager.resolveAgent('my-agent', agents)).toBe(agent);
+        });
+
+        it('should resolve unique partial match', () => {
+            const agent = createMockAgent({ name: 'ai-devkit' });
+            const agents = [
+                agent,
+                createMockAgent({ name: 'other-project' })
+            ];
+
+            const result = manager.resolveAgent('dev', agents);
+            expect(result).toBe(agent);
+        });
+
+        it('should return array for ambiguous partial match', () => {
+            const agent1 = createMockAgent({ name: 'my-website' });
+            const agent2 = createMockAgent({ name: 'my-app' });
+            const agents = [agent1, agent2, createMockAgent({ name: 'other' })];
+
+            const result = manager.resolveAgent('my', agents);
+
+            expect(Array.isArray(result)).toBe(true);
+            const matches = result as AgentInfo[];
+            expect(matches).toHaveLength(2);
+            expect(matches).toContain(agent1);
+            expect(matches).toContain(agent2);
+        });
+
+        it('should return null for no match', () => {
+            const agents = [createMockAgent({ name: 'ai-devkit' })];
+            expect(manager.resolveAgent('xyz', agents)).toBeNull();
+        });
+
+        it('should prefer exact match over partial matches', () => {
+            // Edge case: "test" matches "test" (exact) and "testing" (partial)
+            // Should return exact "test"
+            const exact = createMockAgent({ name: 'test' });
+            const partial = createMockAgent({ name: 'testing' });
+            const agents = [exact, partial];
+
+            expect(manager.resolveAgent('test', agents)).toBe(exact);
+        });
+    });
 });

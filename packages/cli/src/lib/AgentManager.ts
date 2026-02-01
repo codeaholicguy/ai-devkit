@@ -170,4 +170,29 @@ export class AgentManager {
     clear(): void {
         this.adapters.clear();
     }
+
+    /**
+     * Resolve an agent by name (exact or partial match)
+     * 
+     * @param input Name to search for
+     * @param agents List of agents to search within
+     * @returns Matched agent (unique), array of agents (ambiguous), or null (none)
+     */
+    resolveAgent(input: string, agents: AgentInfo[]): AgentInfo | AgentInfo[] | null {
+        if (!input || agents.length === 0) return null;
+
+        const lowerInput = input.toLowerCase();
+
+        // 1. Exact match (case-insensitive)
+        const exactMatch = agents.find(a => a.name.toLowerCase() === lowerInput);
+        if (exactMatch) return exactMatch;
+
+        // 2. Partial match (prefix or contains)
+        const matches = agents.filter(a => a.name.toLowerCase().includes(lowerInput));
+
+        if (matches.length === 1) return matches[0];
+        if (matches.length > 1) return matches;
+
+        return null;
+    }
 }

@@ -141,60 +141,60 @@ feature: agent-management
 ### Phase 4: Agent Open Command
 
 #### Task 4.1: Create TerminalFocusManager
-**Status**: 🔲 Not Started
-- [ ] Create `packages/cli/src/lib/TerminalFocusManager.ts`
-- [ ] Implement `findTerminal(pid)` to get TTY from process
-- [ ] Implement `focusTerminal(location)` dispatcher
-- [ ] Define `TerminalLocation` interface
-- [ ] Write unit tests
+**Status**: ✅ Completed
+- [x] Create `packages/cli/src/lib/TerminalFocusManager.ts`
+- [x] Implement `findTerminal(pid)` to get TTY from process
+- [x] Implement `focusTerminal(location)` dispatcher
+- [x] Define `TerminalLocation` interface
+- [x] Write unit tests
 
 **Estimated Effort**: 1.5 hours
 
 #### Task 4.2: Implement Tmux Support
-**Status**: 🔲 Not Started
-- [ ] Implement `findTmuxPane(tty)` method
-- [ ] Parse `tmux list-panes` output
-- [ ] Implement focus with `tmux switch-client`
-- [ ] Write unit tests with mock tmux output
+**Status**: ✅ Completed
+- [x] Implement `findTmuxPane(tty)` method
+- [x] Parse `tmux list-panes` output
+- [x] Implement focus with `tmux switch-client`
+- [x] Write unit tests with mock tmux output
 
 **Estimated Effort**: 1.5 hours
 
 #### Task 4.3: Implement iTerm2 Support
-**Status**: 🔲 Not Started
-- [ ] Create AppleScript to enumerate iTerm2 sessions
-- [ ] Match TTY to session
-- [ ] Implement focus with AppleScript window selection
-- [ ] Write unit tests
+**Status**: ✅ Completed
+- [x] Create AppleScript to enumerate iTerm2 sessions
+- [x] Match TTY to session
+- [x] Implement focus with AppleScript window selection
+- [x] Write unit tests
 
 **Estimated Effort**: 1.5 hours
 
 #### Task 4.4: Implement Terminal.app Support
-**Status**: 🔲 Not Started
-- [ ] Create AppleScript to enumerate Terminal.app windows
-- [ ] Match TTY to window/tab
-- [ ] Implement focus with AppleScript activation
-- [ ] Write unit tests
+**Status**: ✅ Completed
+- [x] Create AppleScript to enumerate Terminal.app windows
+- [x] Match TTY to window/tab
+- [x] Implement focus with AppleScript activation
+- [x] Write unit tests
 
 **Estimated Effort**: 1 hour
 
 #### Task 4.5: Implement Agent Name Resolution
-**Status**: 🔲 Not Started
-- [ ] Implement `resolveAgentName(input, agents)` function
-- [ ] Handle exact match (case-insensitive)
-- [ ] Handle unique partial match
-- [ ] Handle ambiguous match with user prompt
-- [ ] Handle no match with available agents list
-- [ ] Write unit tests
+**Status**: ✅ Completed
+- [x] Implement `resolveAgentName(input, agents)` function
+- [x] Handle exact match (case-insensitive)
+- [x] Handle unique partial match
+- [x] Handle ambiguous match with user prompt
+- [x] Handle no match with available agents list
+- [x] Write unit tests
 
 **Estimated Effort**: 1 hour
 
 #### Task 4.6: Create Agent Open Subcommand
-**Status**: 🔲 Not Started
-- [ ] Register `agent open <name>` subcommand
-- [ ] Integrate AgentManager + TerminalFocusManager
-- [ ] Display success/error messages
-- [ ] Handle unfocusable terminals gracefully
-- [ ] Manual testing with different terminal environments
+**Status**: ✅ Completed
+- [x] Register `agent open <name>` subcommand
+- [x] Integrate AgentManager + TerminalFocusManager
+- [x] Display success/error messages
+- [x] Handle unfocusable terminals gracefully
+- [x] Manual testing with different terminal environments
 
 **Estimated Effort**: 1.5 hours
 
@@ -253,11 +253,11 @@ graph LR
 | Phase 1: Foundation | 1.1, 1.2, 1.3 | 5 hours | ✅ Completed |
 | Phase 2: Claude Code Integration | 2.1, 2.2, 2.3, 2.4 | 9 hours | ✅ Completed |
 | Phase 3: CLI Integration (List) | 3.1, 3.2 | 3 hours | ✅ Completed |
-| Phase 4: Agent Open Command | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 | 8 hours | 🔲 Not Started |
+| Phase 4: Agent Open Command | 4.1, 4.2, 4.3, 4.4, 4.5, 4.6 | 8 hours | ✅ Completed |
 | Phase 5: Testing & Documentation | 5.1, 5.2 | 3 hours | 🔲 Not Started |
 | **Total** | | **28 hours** | |
-| **Completed** | | **17 hours** | 60% Complete |
-| **Remaining** | | **11 hours** | |
+| **Completed** | | **25 hours** | 89% Complete |
+| **Remaining** | | **3 hours** | |
 
 ### Suggested Implementation Order
 1. Task 1.2 (Interface) - Define contracts first

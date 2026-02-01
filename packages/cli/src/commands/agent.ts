@@ -1,8 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import inquirer from 'inquirer';
 import { AgentManager } from '../lib/AgentManager';
 import { ClaudeCodeAdapter } from '../lib/adapters/ClaudeCodeAdapter';
-import { AgentStatus, STATUS_CONFIG } from '../lib/adapters/AgentAdapter';
+import { AgentStatus, STATUS_CONFIG, AgentInfo } from '../lib/adapters/AgentAdapter';
+import { TerminalFocusManager } from '../lib/TerminalFocusManager';
 import { ui } from '../util/terminal-ui';
 
 export function registerAgentCommand(program: Command): void {
@@ -74,6 +76,80 @@ export function registerAgentCommand(program: Command): void {
 
             } catch (error: any) {
                 ui.error(`Failed to list agents: ${error.message}`);
+                process.exit(1);
+            }
+        });
+
+    agentCommand
+        .command('open <name>')
+        .description('Focus a running agent terminal')
+        .action(async (name) => {
+            try {
+                const manager = new AgentManager();
+                const focusManager = new TerminalFocusManager();
+
+                manager.registerAdapter(new ClaudeCodeAdapter());
+
+                const agents = await manager.listAgents();
+                if (agents.length === 0) {
+                    ui.error('No running agents found.');
+                    return;
+                }
+
+                const resolved = manager.resolveAgent(name, agents);
+
+                if (!resolved) {
+                    ui.error(`No agent found matching "${name}".`);
+                    ui.info('Available agents:');
+                    agents.forEach(a => console.log(`  - ${a.name}`));
+                    return;
+                }
+
+                let targetAgent = resolved;
+
+                if (Array.isArray(resolved)) {
+                    ui.warning(`Multiple agents match "${name}":`);
+
+                    const { selectedAgent } = await inquirer.prompt([
+                        {
+                            type: 'list',
+                            name: 'selectedAgent',
+                            message: 'Select an agent to open:',
+                            choices: resolved.map(a => ({
+                                name: `${a.name} (${a.statusDisplay}) - ${a.summary}`,
+                                value: a
+                            }))
+                        }
+                    ]);
+                    targetAgent = selectedAgent;
+                }
+
+                // Focus terminal
+                const agent = targetAgent as AgentInfo;
+                if (!agent.pid) {
+                    ui.error(`Cannot focus agent "${agent.name}" (No PID found).`);
+                    return;
+                }
+
+                const spinner = ui.spinner(`Switching focus to ${agent.name}...`);
+                spinner.start();
+
+                const location = await focusManager.findTerminal(agent.pid);
+                if (!location) {
+                    spinner.fail(`Could not find terminal window for agent "${agent.name}" (PID: ${agent.pid}).`);
+                    return;
+                }
+
+                const success = await focusManager.focusTerminal(location);
+
+                if (success) {
+                    spinner.succeed(`Focused ${agent.name}!`);
+                } else {
+                    spinner.fail(`Failed to switch focus to ${agent.name}.`);
+                }
+
+            } catch (error: any) {
+                ui.error(`Failed to open agent: ${error.message}`);
                 process.exit(1);
             }
         });
