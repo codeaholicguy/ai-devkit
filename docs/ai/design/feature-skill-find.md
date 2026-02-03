@@ -9,22 +9,24 @@ description: Define the technical architecture, components, and data models
 ## Architecture Overview
 **What is the high-level system structure?**
 
-- Include a mermaid diagram that captures the main components and their relationships. Example:
+- Include a mermaid diagram that captures the main components and their relationships.
   ```mermaid
   graph TD
     User -->|CLI| SkillFind
     SkillFind --> RegistryList
     SkillFind --> IndexStore
     SkillFind --> IndexBuilder
-    IndexBuilder -->|Fetch metadata| RegistrySources
-    RegistrySources -->|skills/| IndexBuilder
+    IndexBuilder -->|GitHub tree API| RegistryApi
+    IndexBuilder -->|raw SKILL.md| RawFiles
+    RegistryApi -->|skills paths| IndexBuilder
+    RawFiles -->|descriptions| IndexBuilder
   ```
 - Key components and their responsibilities
   - SkillFind: CLI command `skill find` orchestrates index checks and search.
   - RegistryList: reads `skills/registry.json` to discover registries.
   - IndexBuilder: builds or updates a local index without full clones.
   - IndexStore: local cache file (json) with searchable entries and metadata.
-  - RegistrySources: Git/HTTP access to registry metadata or skill folder list.
+  - RegistrySources: GitHub API access to registry metadata and raw files.
 - Technology stack choices and rationale
   - Node/TypeScript to align with existing CLI.
   - Git commands or HTTP fetch for low-cost metadata access.
@@ -35,7 +37,7 @@ description: Define the technical architecture, components, and data models
 
 - Core entities and their relationships
   - Registry: `{ name, url, branch?, skillsPath }`
-  - SkillEntry: `{ name, registry, path, description, lastIndexed }`
+  - SkillEntry: `{ name, registry, path, description, lastIndexed }` (description from `SKILL.md`)
   - IndexMeta: `{ version, createdAt, updatedAt, ttlSeconds, registriesHash, registryHeads? }`
 - Data schemas/structures
   - `index.json` with `{ meta, skills: SkillEntry[] }`
@@ -49,6 +51,7 @@ description: Define the technical architecture, components, and data models
 
 - External APIs (if applicable)
   - GitHub REST tree API to list `skills/` paths without cloning.
+  - GitHub raw file fetch to read each `SKILL.md` description.
   - Git `ls-remote` to detect head changes for refresh decisions.
 - Internal interfaces
   - `getRegistries(): Registry[]`
@@ -58,7 +61,8 @@ description: Define the technical architecture, components, and data models
   - CLI: `npx ai-devkit skill find <keyword>`
   - Output: table or list with `skillName` and `description`
 - Authentication/authorization approach
-  - Use standard Git auth (SSH/HTTPS tokens) if private registries appear.
+  - GitHub unauthenticated rate limits apply (60 requests/hour).
+  - Support tokens if users configure them to increase limits.
 
 ## Component Breakdown
 **What are the major building blocks?**
@@ -97,7 +101,7 @@ description: Define the technical architecture, components, and data models
 **How should the system perform?**
 
 - Performance targets
-  - Search completes in < 2s with a warm index.
+  - Search completes in < 500ms with a warm index.
   - Index refresh completes in < 30s for typical registry sizes.
 - Scalability considerations
   - Index size grows linearly with skills; support thousands of entries.

@@ -18,14 +18,15 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 1: Foundation
 - [ ] Task 1.1: Locate registry config and current skill commands
-- [ ] Task 1.2: Define index storage location and schema
+- [ ] Task 1.2: Define index storage location and schema (`~/.ai-devkit/skills.json`)
 - [ ] Task 1.3: Add CLI command entry and help text
 
 ### Phase 2: Core Features
-- [ ] Task 2.1: Implement registry metadata fetch (Git/HTTP)
-- [ ] Task 2.2: Build index from registry skill folders
-- [ ] Task 2.3: Implement keyword search and output formatting
-- [ ] Task 2.4: Add refresh triggers (TTL, `--refresh`)
+- [ ] Task 2.1: Implement GitHub tree API fetch for `skills/` paths
+- [ ] Task 2.2: Fetch `SKILL.md` (raw) for descriptions
+- [ ] Task 2.3: Build index from registry skill folders
+- [ ] Task 2.4: Implement keyword search and output formatting
+- [ ] Task 2.5: Add refresh triggers (TTL, `--refresh`)
 
 ### Phase 3: Integration & Polish
 - [ ] Task 3.1: Error handling and offline behavior
@@ -38,7 +39,7 @@ description: Break down work into actionable tasks and estimate timeline
 - Index schema defined before index builder and search.
 - Registry access strategy finalized before implementation.
 - Tests depend on stable CLI outputs and fixtures.
-- External dependency: access to registry repos or hosted manifests.
+- External dependency: access to registry repos via GitHub API.
 
 ## Timeline & Estimates
 **When will things be done?**
@@ -57,11 +58,11 @@ description: Break down work into actionable tasks and estimate timeline
 - Resource risks
   - Limited time for testing edge cases
 - Dependency risks
-  - Registry does not expose metadata
+  - GitHub API rate limits for unauthenticated requests
 - Mitigation strategies
   - Cache and use stale index on failure
   - Add `--refresh` and `--ttl` options
-  - Support optional registry-provided index file
+  - Support optional token to increase GitHub rate limits
 
 ## Resources Needed
 **What do we need to succeed?**
@@ -69,7 +70,7 @@ description: Break down work into actionable tasks and estimate timeline
 - Team members and roles
   - CLI maintainer, reviewer
 - Tools and services
-  - Git CLI, HTTP client
+  - HTTP client, optional Git CLI for head hash checks
 - Infrastructure
   - Local cache directory
 - Documentation/knowledge
