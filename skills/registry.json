@@ -8,6 +8,7 @@
     "softaworks/agent-toolkit": "https://github.com/softaworks/agent-toolkit.git",
     "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
     "antfu/skills": "https://github.com/antfu/skills.git",
-    "browser-use/browser-use": "https://github.com/browser-use/browser-use.git"
+    "browser-use/browser-use": "https://github.com/browser-use/browser-use.git",
+    "microsoft/agent-skills": "https://github.com/microsoft/agent-skills.git"
   }
 }
