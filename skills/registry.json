@@ -62,6 +62,6 @@
     "itsmostafa/aws-agent-skills": "https://github.com/itsmostafa/aws-agent-skills.git",
     "apify/agent-skills": "https://github.com/apify/agent-skills.git",
     "WordPress/agent-skills": "https://github.com/WordPress/agent-skills.git",
-    "lackeyjb/playwright-skill": "https://github.com/lackeyjb/playwright-skill.git", 
+    "lackeyjb/playwright-skill": "https://github.com/lackeyjb/playwright-skill.git"
   }
 }
