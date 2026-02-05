@@ -75,3 +75,24 @@ export async function pullRepository(repoPath: string): Promise<void> {
     throw new Error(`Git pull failed: ${message}`);
   }
 }
+
+/**
+ * Fetch the current HEAD SHA for a git repository using git ls-remote
+ * @param gitUrl - Git repository URL
+ * @returns HEAD SHA hash
+ * @throws Error if fetch fails or cannot parse output
+ */
+export async function fetchGitHead(gitUrl: string): Promise<string> {
+  try {
+    const { stdout } = await execAsync(`git ls-remote ${gitUrl} HEAD`);
+    const match = stdout.trim().match(/^([a-f0-9]+)\s+HEAD$/m);
+
+    if (!match) {
+      throw new Error('Could not parse HEAD from ls-remote output');
+    }
+
+    return match[1];
+  } catch (error: any) {
+    throw new Error(`Failed to fetch git HEAD: ${error.message}`);
+  }
+}

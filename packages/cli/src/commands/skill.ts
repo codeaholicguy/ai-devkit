@@ -88,4 +88,40 @@ export function registerSkillCommand(program: Command): void {
         process.exit(1);
       }
     });
+
+  skillCommand
+    .command('find <keyword>')
+    .description('Search for skills across all registries')
+    .option('--refresh', 'Force rebuild the skill index')
+    .action(async (keyword: string, options: { refresh?: boolean }) => {
+      try {
+        const configManager = new ConfigManager();
+        const skillManager = new SkillManager(configManager);
+
+        const results = await skillManager.findSkills(keyword, { refresh: options.refresh });
+
+        if (results.length === 0) {
+          ui.warning(`No skills found matching "${keyword}"`);
+          ui.info('Try a different keyword or use --refresh to update the skill index');
+          return;
+        }
+
+        ui.text(`Found ${results.length} skill(s) matching "${keyword}":`, { breakline: true });
+
+        ui.table({
+          headers: ['Skill Name', 'Registry', 'Description'],
+          rows: results.map(skill => [
+            skill.name,
+            skill.registry,
+            skill.description.length > 60 ? skill.description.substring(0, 57) + '...' : skill.description
+          ]),
+          columnStyles: [chalk.cyan, chalk.dim, chalk.white]
+        });
+
+        ui.text(`\nInstall with: ai-devkit skill add <registry> <skill-name>`, { breakline: true });
+      } catch (error: any) {
+        ui.error(`Failed to search skills: ${error.message}`);
+        process.exit(1);
+      }
+    });
 }

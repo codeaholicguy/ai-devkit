@@ -1,5 +1,4 @@
 import * as fs from "fs-extra";
-import * as https from "https";
 import * as os from "os";
 import * as path from "path";
 import { SkillManager } from "../../lib/SkillManager";
@@ -8,7 +7,6 @@ import { EnvironmentSelector } from "../../lib/EnvironmentSelector";
 import { GlobalConfigManager } from "../../lib/GlobalConfig";
 import * as gitUtil from "../../util/git";
 import * as skillUtil from "../../util/skill";
-import { EventEmitter } from "events";
 
 jest.mock("fs-extra", () => ({
   pathExists: jest.fn(),
@@ -19,8 +17,8 @@ jest.mock("fs-extra", () => ({
   readdir: jest.fn(),
   realpath: jest.fn(),
   readJson: jest.fn(),
+  writeJson: jest.fn(),
 }));
-jest.mock("https");
 jest.mock("../../lib/Config");
 jest.mock("../../lib/EnvironmentSelector");
 jest.mock("../../lib/GlobalConfig");
@@ -39,7 +37,6 @@ jest.mock("ora", () => {
 });
 
 const mockedFs = fs as jest.Mocked<typeof fs>;
-const mockedHttps = https as jest.Mocked<typeof https>;
 const MockedConfigManager = ConfigManager as jest.MockedClass<
   typeof ConfigManager
 >;
@@ -51,6 +48,17 @@ const MockedGlobalConfigManager = GlobalConfigManager as jest.MockedClass<
 >;
 const mockedGitUtil = gitUtil as jest.Mocked<typeof gitUtil>;
 const mockedSkillUtil = skillUtil as jest.Mocked<typeof skillUtil>;
+
+function mockFetch(response: any) {
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: () => Promise.resolve(response)
+  });
+}
+
+function mockFetchError(error: Error) {
+  global.fetch = jest.fn().mockRejectedValue(error);
+}
 
 describe("SkillManager", () => {
   let skillManager: SkillManager;
@@ -97,7 +105,7 @@ describe("SkillManager", () => {
     );
 
     beforeEach(() => {
-      mockHttpsGet({
+      mockFetch({
         registries: {
           [mockRegistryId]: mockGitUrl,
         },
@@ -127,33 +135,43 @@ describe("SkillManager", () => {
       expect(mockedGitUtil.ensureGitInstalled).toHaveBeenCalled();
     });
 
-    it("should fetch registry from GitHub", async () => {
+    it("should fetch registry using fetch API", async () => {
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ registries: { [mockRegistryId]: mockGitUrl } })
+      });
+
       await skillManager.addSkill(mockRegistryId, mockSkillName);
 
-      expect(mockedHttps.get).toHaveBeenCalled();
-      const getCall = (mockedHttps.get as jest.Mock).mock.calls[0][0];
-      expect(getCall).toContain("raw.githubusercontent.com");
-      expect(getCall).toContain("registry.json");
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining("registry.json")
+      );
+
+      global.fetch = originalFetch;
     });
 
     it("should throw error if registry ID not found", async () => {
-      mockHttpsGet({
-        registries: {
-          "other/repo": "https://github.com/other/repo.git",
-        },
+      const originalFetch = global.fetch;
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({
+          registries: {
+            "other/repo": "https://github.com/other/repo.git",
+          },
+        })
       });
 
       (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
-        if (checkPath.includes(mockRegistryId)) {
-          return Promise.resolve(false);
-        }
-
+        if (checkPath.includes(mockRegistryId)) return Promise.resolve(false);
         return Promise.resolve(true);
       });
 
       await expect(
         skillManager.addSkill(mockRegistryId, mockSkillName),
       ).rejects.toThrow(`Registry "${mockRegistryId}" not found`);
+
+      global.fetch = originalFetch;
     });
 
     it("should prefer custom registry URL over default", async () => {
@@ -203,7 +221,7 @@ describe("SkillManager", () => {
       const realGlobalConfigManager = new RealGlobalConfigManager();
 
       mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
-      mockHttpsGet({ registries: {} });
+      mockFetch({ registries: {} });
 
       (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
         if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
@@ -245,7 +263,6 @@ describe("SkillManager", () => {
     });
 
     it("should use cached registry when remote fetch fails", async () => {
-      mockHttpsGetError(new Error("offline"));
       mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
 
       (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
@@ -827,33 +844,120 @@ describe("SkillManager", () => {
       expect(result.failed).toBe(1);
     });
   });
-});
 
-function mockHttpsGet(responseData: any) {
-  (mockedHttps.get as jest.Mock).mockImplementation(
-    (url: string, callback: any) => {
-      const response = new EventEmitter() as any;
-      response.statusCode = 200;
+  describe("findSkills", () => {
+    const mockSkillIndex = {
+      meta: {
+        version: 1,
+        createdAt: Date.now() - 1000,
+        updatedAt: Date.now() - 1000,
+        registriesHash: "repo1|repo2",
+        registryHeads: {
+          "anthropics/skills": "abc123",
+          "vercel-labs/agent-skills": "def456",
+        },
+      },
+      skills: [
+        {
+          name: "typescript-helper",
+          registry: "anthropics/skills",
+          path: "skills/typescript-helper",
+          description: "TypeScript development utilities",
+          lastIndexed: Date.now(),
+        },
+        {
+          name: "react-components",
+          registry: "vercel-labs/agent-skills",
+          path: "skills/react-components",
+          description: "Build React components with best practices",
+          lastIndexed: Date.now(),
+        },
+        {
+          name: "frontend-design",
+          registry: "anthropics/skills",
+          path: "skills/frontend-design",
+          description: "Frontend design patterns and components",
+          lastIndexed: Date.now(),
+        },
+      ],
+    };
 
-      process.nextTick(() => {
-        callback(response);
-        response.emit("data", JSON.stringify(responseData));
-        response.emit("end");
+    beforeEach(() => {
+      mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
+
+      mockedGitUtil.fetchGitHead.mockImplementation(async (url: string) => {
+        if (url.includes('anthropics')) return 'abc123';
+        if (url.includes('vercel')) return 'def456';
+        return '000000';
       });
+    });
 
-      return {
-        on: jest.fn(),
-      };
-    },
-  );
-}
+    it("should throw error if keyword is empty", async () => {
+      await expect(skillManager.findSkills("")).rejects.toThrow("Keyword is required");
+      await expect(skillManager.findSkills("   ")).rejects.toThrow("Keyword is required");
+    });
 
-function mockHttpsGetError(error: Error) {
-  (mockedHttps.get as jest.Mock).mockImplementation(() => ({
-    on: (event: string, handler: (err: Error) => void) => {
-      if (event === "error") {
-        process.nextTick(() => handler(error));
-      }
-    },
-  }));
-}
+    it("should load and use fresh index when available", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      const results = await skillManager.findSkills("typescript");
+
+      expect(mockedFs.readJson).toHaveBeenCalledWith(
+        expect.stringContaining("skills.json")
+      );
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe("typescript-helper");
+    });
+
+    it("should search by skill name", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      const results = await skillManager.findSkills("react");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe("react-components");
+    });
+
+    it("should search by description", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      const results = await skillManager.findSkills("design");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe("frontend-design");
+    });
+
+    it("should be case-insensitive", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      const results = await skillManager.findSkills("TYPESCRIPT");
+
+      expect(results).toHaveLength(1);
+      expect(results[0].name).toBe("typescript-helper");
+    });
+
+    it("should return multiple matches", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      const results = await skillManager.findSkills("component");
+
+      expect(results).toHaveLength(2);
+      expect(results.map(r => r.name)).toContain("react-components");
+      expect(results.map(r => r.name)).toContain("frontend-design");
+    });
+
+    it("should return empty array when no matches found", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      const results = await skillManager.findSkills("nonexistent");
+
+      expect(results).toEqual([]);
+    });
+  });
+});
