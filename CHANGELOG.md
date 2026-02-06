@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Skill Search** - New `skill find` command to discover skills across all registries
+  - **Keyword Search**: Find skills by name or description (e.g., `ai-devkit skill find typescript`)
+
+### Changed
+
+- **Native Fetch** - Migrated all network calls from `https` to native `fetch` API for better performance and cleaner code
+
 ## [0.10.0] - 2026-02-01
 
 ### Added

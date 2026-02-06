@@ -56,9 +56,7 @@ function mockFetch(response: any) {
   });
 }
 
-function mockFetchError(error: Error) {
-  global.fetch = jest.fn().mockRejectedValue(error);
-}
+
 
 describe("SkillManager", () => {
   let skillManager: SkillManager;
