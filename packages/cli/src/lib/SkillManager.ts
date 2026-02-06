@@ -557,6 +557,28 @@ export class SkillManager {
   }
 
   /**
+   * Rebuild skill index and write to specified output path
+   * @param outputPath - Optional custom output path (defaults to SKILL_INDEX_PATH)
+   */
+  async rebuildIndex(outputPath?: string): Promise<void> {
+    const targetPath = outputPath || SKILL_INDEX_PATH;
+
+    const spinner = ui.spinner('Rebuilding skill index from all registries...');
+    spinner.start();
+
+    try {
+      const newIndex = await this.buildSkillIndex();
+      await fs.ensureDir(path.dirname(targetPath));
+      await fs.writeJson(targetPath, newIndex, { spaces: 2 });
+      spinner.succeed(`Skill index rebuilt: ${newIndex.skills.length} skills`);
+      ui.info(`Written to: ${targetPath}`);
+    } catch (error: any) {
+      spinner.fail('Failed to rebuild index');
+      throw new Error(`Failed to rebuild skill index: ${error.message}`);
+    }
+  }
+
+  /**
    * Build skill index from all registries
    * @returns Complete skill index
    */

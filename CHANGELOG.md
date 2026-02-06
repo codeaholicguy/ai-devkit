@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Skill Search** - New `skill find` command to discover skills across all registries
   - **Keyword Search**: Find skills by name or description (e.g., `ai-devkit skill find typescript`)
+- **Skill Index Rebuild** - New `skill rebuild-index` command for search feature
 
 ### Changed
 
-- **Native Fetch** - Migrated all network calls from `https` to native `fetch` API for better performance and cleaner code
+- **Native Fetch** - Migrated network calls from `https` to native `fetch` API for cleaner code
+- **GITHUB_TOKEN Support** - GitHub API calls now use `GITHUB_TOKEN` environment variable when available
 
 ## [0.10.0] - 2026-02-01
 

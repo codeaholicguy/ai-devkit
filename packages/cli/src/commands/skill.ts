@@ -124,4 +124,20 @@ export function registerSkillCommand(program: Command): void {
         process.exit(1);
       }
     });
+
+  skillCommand
+    .command('rebuild-index')
+    .description('Rebuild the skill index from all registries (for CI use)')
+    .option('--output <path>', 'Output path for the index file')
+    .action(async (options: { output?: string }) => {
+      try {
+        const configManager = new ConfigManager();
+        const skillManager = new SkillManager(configManager);
+
+        await skillManager.rebuildIndex(options.output);
+      } catch (error: any) {
+        ui.error(`Failed to rebuild index: ${error.message}`);
+        process.exit(1);
+      }
+    });
 }

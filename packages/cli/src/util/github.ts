@@ -23,12 +23,16 @@ export async function fetchGitHubSkillPaths(
 ): Promise<string[]> {
     const url = `https://api.github.com/repos/${owner}/${repo}/git/trees/${branch}?recursive=1`;
 
-    const response = await fetch(url, {
-        headers: {
-            'User-Agent': 'ai-devkit-cli',
-            'Accept': 'application/vnd.github.v3+json',
-        },
-    });
+    const headers: Record<string, string> = {
+        'User-Agent': 'ai-devkit-cli',
+        'Accept': 'application/vnd.github.v3+json',
+    };
+
+    if (process.env.GITHUB_TOKEN) {
+        headers['Authorization'] = `Bearer ${process.env.GITHUB_TOKEN}`;
+    }
+
+    const response = await fetch(url, { headers });
 
     if (!response.ok) {
         throw new Error(`GitHub API returned ${response.status}: ${response.statusText}`);
@@ -36,7 +40,6 @@ export async function fetchGitHubSkillPaths(
 
     const data = (await response.json()) as GitHubTreeResponse;
 
-    // Find all SKILL.md files under skills/ directory
     const skillPaths = data.tree
         .filter(item =>
             item.path.startsWith('skills/') &&
