@@ -39,6 +39,11 @@ description: Break down work into actionable tasks and estimate timeline
 - [x] Resilience: Seed Index (`skills/index.json`) fallback for rate limits
 - [x] Refactoring: Use native `fetch` API
 
+### Phase 5: CI Automation (Added)
+- [x] CLI Command: `skill rebuild-index --output <path>` for consistent index building
+- [x] GitHub Action: Weekly cron job (Sundays) to auto-rebuild seed index
+- [x] GITHUB_TOKEN: Support for authenticated API calls (5000 req/hr vs 60)
+
 ## Dependencies
 **What needs to happen in what order?**
 
@@ -54,6 +59,7 @@ description: Break down work into actionable tasks and estimate timeline
 - Phase 2: Completed
 - Phase 3: Completed
 - Phase 4: Completed
+- Phase 5: Completed
 
 ## Risks & Mitigation
 **What could go wrong?**
@@ -64,20 +70,22 @@ description: Break down work into actionable tasks and estimate timeline
 - Resource risks
   - Limited time for testing edge cases
 - Dependency risks
-  - GitHub API rate limits for unauthenticated requests -> **Mitigated via Seed Index & Batching**
+  - GitHub API rate limits for unauthenticated requests -> **Mitigated via GITHUB_TOKEN & Seed Index**
 - Mitigation strategies
   - Cache and use stale index on failure -> **Implemented**
   - Add `--refresh` and `--ttl` options -> **Implemented (24h TTL)**
-  - Support optional token to increase GitHub rate limits -> **Planned for future**
+  - Support optional token to increase GitHub rate limits -> **Implemented**
   - **Seed Index Fallback**: Use pre-built index for cold starts.
+  - **Automated Updates**: GitHub Action rebuilds index weekly.
 
 ## Completion Summary
-The `skill find` feature is fully implemented, tested, and optimized.
+The `skill find` feature is fully implemented, tested, optimized, and automated.
 Key achievements include:
 - **Sub-500ms search time** via cache-first architecture.
-- **Robustness against rate limits** using a Seed Index fallback and batched requests.
-- **Smart updates** with a 24h TTL and "skip unchecked" logic using git HEAD comparisons.
-- **Clean implementation** using native `fetch` and simplified code structure.
+- **Robustness against rate limits** using Seed Index, batching, and GITHUB_TOKEN support.
+- **Smart updates** with 24h TTL and smart cache skipping.
+- **CI Automation** with weekly GitHub Action to keep seed index fresh.
+- **Clean implementation** using native `fetch` and unified CLI logic.
 
 ## Resources Needed
 **What do we need to succeed?**
