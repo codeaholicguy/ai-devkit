@@ -23,11 +23,13 @@ jobs:
         with:
           node-version: '20'
       
+      - name: Install CLI
+        run: npm install -g ai-devkit
+      
       - name: Rebuild skill index
-        working-directory: .
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npx ai-devkit skill rebuild-index --output skills/index.json
+        run: ai-devkit skill rebuild-index --output skills/index.json
       
       - name: Check for changes
         id: git-check
