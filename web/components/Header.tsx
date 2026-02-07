@@ -12,6 +12,7 @@ export default function Header() {
     { name: 'Documentation', href: '/docs' },
     { name: 'Vision', href: '/vision' },
     { name: 'Roadmap', href: '/roadmap' },
+    { name: 'Skills', href: '/skills' },
   ];
 
   return (
