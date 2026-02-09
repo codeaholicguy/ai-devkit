@@ -203,6 +203,67 @@ The update command pulls the latest changes from skill registries using `git pul
 - Non-git directories are skipped (e.g., manually created folders)
 - The command continues even if some registries fail to update
 
+### `ai-devkit skill find`
+
+Search for skills across all configured registries using keyword matching.
+
+**Syntax:**
+
+```bash
+ai-devkit skill find <keyword>
+```
+
+**Parameters:**
+
+- `<keyword>`: The search term to match against skill names and descriptions
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--refresh` | Force rebuild the skill index before searching |
+
+**Example:**
+
+```bash
+ai-devkit skill find frontend
+```
+
+**Output:**
+
+```
+Found 3 skill(s) matching "frontend":
+
+  Skill Name        Registry              Description
+  ─────────────────────────────────────────────────────────────────
+  frontend-design   anthropics/skills     Modern frontend design patterns
+  react-components  vercel-labs/skills    Reusable React component patterns
+  css-utilities     my-org/skills         CSS utility class best practices
+
+Install with: ai-devkit skill add <registry> <skill-name>
+```
+
+**How It Works:**
+
+The find command searches a pre-built skill index that aggregates skills from all known registries:
+
+1. Checks for a cached skill index (updated weekly or on demand)
+2. Matches your keyword against skill names and descriptions
+3. Returns sorted results showing skill name, registry, and description
+4. Provides the install command for easy copy-paste
+
+**When to Use `--refresh`:**
+
+- After adding custom registries to your configuration
+- When you expect new skills to be available
+- If the skill index seems outdated
+
+**Notes:**
+
+- The skill index is automatically rebuilt weekly via GitHub Actions
+- First-time searches may take longer while the index builds
+- Search is case-insensitive and matches partial words
+
 ## Skill Registry
 
 AI DevKit uses a centralized registry file to map registry identifiers to their GitHub repositories. The registry is hosted at:
