@@ -229,20 +229,6 @@ ai-devkit skill find <keyword>
 ai-devkit skill find frontend
 ```
 
-**Output:**
-
-```
-Found 3 skill(s) matching "frontend":
-
-  Skill Name        Registry              Description
-  ─────────────────────────────────────────────────────────────────
-  frontend-design   anthropics/skills     Modern frontend design patterns
-  react-components  vercel-labs/skills    Reusable React component patterns
-  css-utilities     my-org/skills         CSS utility class best practices
-
-Install with: ai-devkit skill add <registry> <skill-name>
-```
-
 **How It Works:**
 
 The find command searches a pre-built skill index that aggregates skills from all known registries:
