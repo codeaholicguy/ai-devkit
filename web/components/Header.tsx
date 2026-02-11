@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import GitHubStars from './GitHubStars';
+import Image from 'next/image';
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -20,6 +21,7 @@ export default function Header() {
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
+            <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-sm mr-2" />
             <Link href="/" className="text-xl font-bold no-underline hover:opacity-100">
               AI DevKit
             </Link>
