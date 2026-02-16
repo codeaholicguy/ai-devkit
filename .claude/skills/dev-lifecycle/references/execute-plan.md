@@ -61,9 +61,10 @@ After each section, ask if new tasks were discovered. Capture in "New Work" list
 
 ## Step 8: Next Actions
 
-Remind the user to:
-- Update `docs/ai/planning/feature-{name}.md` with new statuses
+After completing any task, immediately run **Update Planning** (Phase 5) to reconcile the planning doc.
+
+Then remind the user to:
 - Sync related docs if decisions changed
-- Run **Check Implementation** (Phase 5) to validate against design
-- Run **Write Tests** (Phase 7) for coverage
-- Run **Code Review** (Phase 6) when ready for final review
+- Run **Check Implementation** (Phase 6) to validate against design
+- Run **Write Tests** (Phase 8) for coverage
+- Run **Code Review** (Phase 7) when ready for final review

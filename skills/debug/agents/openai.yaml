@@ -1,0 +1,4 @@
+interface:
+  display_name: "Debug Assistant"
+  short_description: "Guide structured debugging before code changes"
+  default_prompt: "Use $debug to investigate this issue step by step, produce fix options with risks and validation steps, and wait for confirmation before changing code."

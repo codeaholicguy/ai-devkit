@@ -1,6 +1,6 @@
 ---
 name: dev-lifecycle
-description: Full software development lifecycle workflow covering requirements, design, planning, implementation, testing, and code review. Use this skill when a user wants to build a new feature end-to-end, clarify or document requirements, review requirements or design docs, execute a feature plan, check implementation against design, perform code review, or write tests. Triggers on requests like "new feature", "add requirement", "review requirements", "review design", "execute plan", "check implementation", "code review", "write tests", or any structured SDLC workflow.
+description: Full software development lifecycle workflow covering requirements, design, planning, implementation, planning updates, testing, and code review. Use this skill when a user wants to build a new feature end-to-end, clarify or document requirements, review requirements or design docs, execute a feature plan, update planning after task completion, check implementation against design, perform code review, or write tests. Triggers on requests like "new feature", "add requirement", "review requirements", "review design", "execute plan", "update planning", "check implementation", "code review", "write tests", or any structured SDLC workflow.
 ---
 
 # Dev Lifecycle
@@ -15,9 +15,10 @@ Structured development lifecycle from requirements through testing. Each phase p
 | 2 | **Review Requirements** | [references/review-requirements.md](references/review-requirements.md) | Requirements doc exists and needs validation |
 | 3 | **Review Design** | [references/review-design.md](references/review-design.md) | Design doc exists and needs validation |
 | 4 | **Execute Plan** | [references/execute-plan.md](references/execute-plan.md) | Planning doc exists and user is ready to implement |
-| 5 | **Check Implementation** | [references/check-implementation.md](references/check-implementation.md) | Code changes exist and need validation against design |
-| 6 | **Code Review** | [references/code-review.md](references/code-review.md) | Changes are ready for pre-push review |
-| 7 | **Write Tests** | [references/writing-test.md](references/writing-test.md) | Feature needs unit/integration/E2E tests |
+| 5 | **Update Planning** | [references/update-planning.md](references/update-planning.md) | A task was just completed; reconcile planning doc with progress |
+| 6 | **Check Implementation** | [references/check-implementation.md](references/check-implementation.md) | Code changes exist and need validation against design |
+| 7 | **Code Review** | [references/code-review.md](references/code-review.md) | Changes are ready for pre-push review |
+| 8 | **Write Tests** | [references/writing-test.md](references/writing-test.md) | Feature needs unit/integration/E2E tests |
 
 ## Phase Selection
 
@@ -25,11 +26,12 @@ Structured development lifecycle from requirements through testing. Each phase p
 2. If requirements doc exists but hasn't been reviewed → **Phase 2**.
 3. If design doc exists but hasn't been reviewed → **Phase 3**.
 4. If planning doc exists and user says "implement" or "execute" → **Phase 4**.
-5. If code is written and user wants to verify against design → **Phase 5**.
-6. If code is ready to push → **Phase 6**.
-7. If user asks for tests at any point → **Phase 7**.
+5. After finishing any task in Phase 4, automatically run **Phase 5** to reconcile planning docs.
+6. If code is written and user wants to verify against design → **Phase 6**.
+7. If code is ready to push → **Phase 7**.
+8. If user asks for tests at any point → **Phase 8**.
 
-When starting a new feature end-to-end, walk through phases 1→2→3→4→5→7→6 sequentially. Load only the reference file for the current phase.
+When starting a new feature end-to-end, walk through phases 1→2→3→4→(5 after each task)→6→8→7 sequentially. Load only the reference file for the current phase.
 
 ## Documentation Structure
 
@@ -60,7 +62,6 @@ Each feature doc is created by copying the corresponding `README.md` template in
 These can be invoked at any point during the lifecycle:
 
 - **Debug**: Structured debugging with root cause analysis before code changes.
-- **Update Planning**: Reconcile planning docs with current implementation progress.
 - **Simplify Implementation**: Analyze and reduce complexity in existing code.
 - **Capture Knowledge**: Document understanding of a code entry point.
 - **Remember**: Store reusable guidance in the knowledge memory service.
