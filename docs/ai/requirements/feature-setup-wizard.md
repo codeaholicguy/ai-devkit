@@ -1,8 +1,8 @@
 ---
-
-## phase: requirements
+phase: requirements
 title: Requirements & Problem Understanding
 description: Clarify the problem space, gather requirements, and define success criteria
+---
 
 # Requirements & Problem Understanding
 
@@ -14,6 +14,11 @@ description: Clarify the problem space, gather requirements, and define success 
 - Users must understand tool-specific layouts (Codex, Claude Code, Antigravity, etc.) before they can become productive.
 - Setup of global assets is fragmented across commands, docs, and manual copy steps (`commands`, `skills`, instruction files like `AGENTS.md` or `CLAUDE.md`).
 - The current flow does not proactively recommend a practical baseline for engineers who use multiple AI coding agents.
+- Who is affected:
+  - New users onboarding AI DevKit for the first time.
+  - Engineers using multiple coding agents across different tools.
+  - Teams that need repeatable onboarding and shared setup conventions.
+  - Power users who need idempotent and scriptable setup flows.
 
 ## Goals & Objectives
 
@@ -60,7 +65,7 @@ description: Clarify the problem space, gather requirements, and define success 
 
 - Measurable outcomes
   - First-time wizard completion under 5 minutes for a common 2-tool setup.
-  - 90%+ of users can complete setup without reading external docs.
+  - 90%+ of sampled users can complete setup without external docs, measured via onboarding study or opt-in post-setup prompt feedback.
   - Re-run setup changes only drifted files (idempotent behavior).
 - Acceptance criteria
   - `npx ai-devkit setup` launches wizard by default.
