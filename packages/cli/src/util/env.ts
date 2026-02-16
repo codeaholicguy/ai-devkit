@@ -35,7 +35,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'AGENTS.md',
     commandPath: '.codex/commands',
     globalCommandPath: '.codex/prompts',
-    skillPath: '.codex/skills',
+    skillPath: '.agents/skills',
   },
   windsurf: {
     code: 'windsurf',

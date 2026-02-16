@@ -1,7 +1,10 @@
 {
   "version": "0.4.2",
   "environments": [
-    "cursor"
+    "cursor",
+    "claude",
+    "antigravity",
+    "codex"
   ],
   "initializedPhases": [
     "requirements",
