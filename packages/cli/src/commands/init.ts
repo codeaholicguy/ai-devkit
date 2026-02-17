@@ -40,9 +40,26 @@ function ensureGitRepository(): void {
 }
 
 interface InitOptions {
-  environment?: EnvironmentCode[];
+  environment?: EnvironmentCode[] | string;
   all?: boolean;
   phases?: string;
+}
+
+function normalizeEnvironmentOption(
+  environment: EnvironmentCode[] | string | undefined
+): EnvironmentCode[] {
+  if (!environment) {
+    return [];
+  }
+
+  if (Array.isArray(environment)) {
+    return environment;
+  }
+
+  return environment
+    .split(',')
+    .map(value => value.trim())
+    .filter((value): value is EnvironmentCode => value.length > 0);
 }
 
 export async function initCommand(options: InitOptions) {
@@ -69,7 +86,7 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
-  let selectedEnvironments: EnvironmentCode[] = options.environment || [];
+  let selectedEnvironments: EnvironmentCode[] = normalizeEnvironmentOption(options.environment);
   if (selectedEnvironments.length === 0) {
     ui.info('AI Environment Setup');
     selectedEnvironments = await environmentSelector.selectEnvironments();
@@ -163,4 +180,3 @@ export async function initCommand(options: InitOptions) {
   ui.text('  • Run `ai-devkit phase <name>` to add more phases later');
   ui.text('  • Run `ai-devkit init` again to add more environments\n');
 }
-
