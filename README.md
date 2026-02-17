@@ -1,75 +1,63 @@
 # AI DevKit
 
-**The standard for AI-assisted software development.**
+**The toolkit for AI-assisted software development.**
 
-AI DevKit is an open-source ecosystem designed to bridge the gap between human intent and AI execution. It provides a suite of tools that standardize how AI agents interact with codebases, manage context, and execute development workflows.
+AI DevKit helps AI coding agents work more effectively with your codebase. It provides structured workflows, persistent memory, and reusable skills — so agents follow the same engineering standards as senior developers.
 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Vision
-
-The capabilities of AI coding agents are growing exponentially, but they often struggle with:
-1.  **Context**: Losing track of broad project requirements and architectural decisions.
-2.  **Consistency**: Generating code that doesn't follow project-specific patterns.
-3.  **Process**: coding without a structured plan, leading to "spaghetti code".
-
-**AI DevKit** solves this by enforcing a **Phase-Based Development** lifecycle—ensuring agents follow the same rigorous engineering 
-standards as senior developers: Requirements → Design → Planning → Implementation → Testing.
-
-## Packages
-
-AI DevKit is a monorepo containing multiple specialized tools:
-
-### [ai-devkit (CLI)](./packages/cli)
-The command-line interface that orchestrates the development lifecycle.
-- **Scaffold** structured documentation (Requirements, Design, Plan).
-- **Configure** environments for Cursor, Claude Code, and other agents.
-- **Manage** project state and development phases.
-
-[**Explore the CLI Docs →**](./packages/cli/README.md)
-
-### [@ai-devkit/memory](./packages/memory)
-A lightweight MCP-based memory service that gives agents persistent, searchable long-term memory.
-- **Store** architectural decisions and coding patterns.
-- **Search** documentation and knowledge using full-text search.
-- **Share** context across different agents and sessions.
-
-[**Explore the Memory Docs →**](./packages/memory/README.md)
-
 ## Quick Start
-
-To start using the core toolkit in your project instantly:
 
 ```bash
 npx ai-devkit init
 ```
 
-This will launch the interactive setup wizard to configure your project for AI-assisted development.
+This launches an interactive setup wizard that configures your project for AI-assisted development in under a minute.
+
+## What's Included
+
+| Package | Description |
+|---------|-------------|
+| [**ai-devkit** (CLI)](./packages/cli) | Scaffold structured docs, configure AI environments, and manage development phases |
+| [**@ai-devkit/memory**](./packages/memory) | Give agents persistent, searchable long-term memory via MCP |
+
+## Supported Agents
+
+| Agent | Status |
+|-------|--------|
+| [Claude Code](https://www.anthropic.com/claude-code) | ✅ Supported |
+| [GitHub Copilot](https://code.visualstudio.com/) | ✅ Supported |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ Supported |
+| [Cursor](https://cursor.sh/) | ✅ Supported |
+| [opencode](https://opencode.ai/) | ✅ Supported |
+| [Antigravity](https://antigravity.google/) | ✅ Supported |
+| [Codex CLI](https://github.com/openai/codex) | ✅ Supported |
+| [Windsurf](https://windsurf.com/) | 🚧 Testing |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode) | 🚧 Testing |
+| [Roo Code](https://roocode.com/) | 🚧 Testing |
+| [Amp](https://ampcode.com/) | 🚧 Testing |
+
+## Documentation
+
+📖 **Visit [ai-devkit.com](https://ai-devkit.com/docs/) for the full documentation**, including:
+
+- Getting started guide
+- Phase-based development workflow
+- Memory system setup
+- Skill management
+- Agent configuration
 
 ## Contributing
 
-We welcome contributions! Whether you're building a new agent integration, adding a memory adapter, or improving our templates.
+We welcome contributions! See the [Contributing Guide](./CONTRIBUTING.md) for details.
 
-### Development Setup
-
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/Codeaholicguy/ai-devkit.git
-    cd ai-devkit
-    ```
-
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
-
-3.  **Build packages**:
-    ```bash
-    npm run build
-    ```
-
-We use a monorepo structure. Ensure all changes are covered by tests before submitting a PR.
+```bash
+git clone https://github.com/Codeaholicguy/ai-devkit.git
+cd ai-devkit
+npm install
+npm run build
+```
 
 ## License
 
