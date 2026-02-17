@@ -44,7 +44,7 @@ ai-devkit init
 ai-devkit phase requirements
 
 # Install a skill
-ai-devkit skill install <skill-name>
+ai-devkit skill add <skill-registry> <skill-name>
 
 # Store a memory
 ai-devkit memory store
