@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "A CLI toolkit for AI-assisted software development with phase templates and environment setup",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
