@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Dev Lifecycle Skill** - Added structured SDLC skill with phase references and helper scripts
+- **Debug Skill** - Added reusable debug skill definitions for agent workflows
+- **Web Skill Search Experience** - Added `/skills` web page and related docs/navigation updates
+- **Memory Search Table Output** - Added `ai-devkit memory search --table` for terminal-friendly results
+
+### Changed
+
+- **Skill Registry Data** - Updated skill registry/index content and automated rebuild outputs
+- **Documentation** - Added/updated AI phase docs for setup wizard, web skill search, and memory search table output
+
+### Fixed
+- **Init Environment Parsing** - Improved `init -e` handling for full environment values
+
 ## [0.11.0] - 2026-02-06
 
 ### Added
@@ -211,4 +228,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cursor rules and slash commands generation
 - Claude Code workspace configuration
 - State tracking for initialized phases
-
