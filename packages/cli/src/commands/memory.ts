@@ -2,6 +2,9 @@ import type { Command } from 'commander';
 import { memoryStoreCommand, memorySearchCommand } from '@ai-devkit/memory';
 import type { MemorySearchOptions, MemoryStoreOptions } from '@ai-devkit/memory';
 import { ui } from '../util/terminal-ui';
+import { truncate } from '../util/text';
+
+const TITLE_MAX_LENGTH = 60;
 
 export function registerMemoryCommand(program: Command): void {
   const memoryCommand = program
@@ -33,12 +36,32 @@ export function registerMemoryCommand(program: Command): void {
     .option('--tags <tags>', 'Comma-separated context tags to boost results')
     .option('-s, --scope <scope>', 'Scope filter')
     .option('-l, --limit <limit>', 'Maximum results (1-20)', '5')
-    .action((options: MemorySearchOptions & { limit?: string }) => {
+    .option('--table', 'Display results as a table with id, title, and scope')
+    .action((options: MemorySearchOptions & { limit?: string; table?: boolean }) => {
       try {
+        const { table, limit, ...searchOptions } = options;
         const result = memorySearchCommand({
-          ...options,
-          limit: options.limit ? parseInt(options.limit, 10) : 5
+          ...searchOptions,
+          limit: limit ? parseInt(limit, 10) : 5
         });
+
+        if (table) {
+          if (result.results.length === 0) {
+            ui.warning(`No memory items found matching "${result.query}"`);
+            return;
+          }
+
+          ui.table({
+            headers: ['id', 'title', 'scope'],
+            rows: result.results.map(item => [
+              item.id,
+              truncate(item.title, TITLE_MAX_LENGTH, '...'),
+              item.scope
+            ])
+          });
+          return;
+        }
+
         console.log(JSON.stringify(result, null, 2));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

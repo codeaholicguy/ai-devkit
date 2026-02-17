@@ -3,6 +3,7 @@ import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config';
 import { SkillManager } from '../lib/SkillManager';
 import { ui } from '../util/terminal-ui';
+import { truncate } from '../util/text';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -113,7 +114,7 @@ export function registerSkillCommand(program: Command): void {
           rows: results.map(skill => [
             skill.name,
             skill.registry,
-            skill.description.length > 60 ? skill.description.substring(0, 57) + '...' : skill.description
+            truncate(skill.description, 60, '...')
           ]),
           columnStyles: [chalk.cyan, chalk.dim, chalk.white]
         });
