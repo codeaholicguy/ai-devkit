@@ -1,6 +1,6 @@
 import type { Command } from 'commander';
-import { memoryStoreCommand, memorySearchCommand } from '@ai-devkit/memory';
-import type { MemorySearchOptions, MemoryStoreOptions } from '@ai-devkit/memory';
+import { memoryStoreCommand, memorySearchCommand, memoryUpdateCommand } from '@ai-devkit/memory';
+import type { MemorySearchOptions, MemoryStoreOptions, MemoryUpdateOptions } from '@ai-devkit/memory';
 import { ui } from '../util/terminal-ui';
 import { truncate } from '../util/text';
 
@@ -21,6 +21,25 @@ export function registerMemoryCommand(program: Command): void {
     .action((options: MemoryStoreOptions) => {
       try {
         const result = memoryStoreCommand(options);
+        console.log(JSON.stringify(result, null, 2));
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        ui.error(message);
+        process.exit(1);
+      }
+    });
+
+  memoryCommand
+    .command('update')
+    .description('Update an existing knowledge item by ID')
+    .requiredOption('--id <id>', 'ID of the knowledge item to update')
+    .option('-t, --title <title>', 'New title (10-100 chars)')
+    .option('-c, --content <content>', 'New content (50-5000 chars)')
+    .option('--tags <tags>', 'Comma-separated new tags (replaces existing)')
+    .option('-s, --scope <scope>', 'New scope: global, project:<name>, or repo:<name>')
+    .action((options: MemoryUpdateOptions) => {
+      try {
+        const result = memoryUpdateCommand(options);
         console.log(JSON.stringify(result, null, 2));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);

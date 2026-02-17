@@ -6,8 +6,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { storeKnowledge } from './handlers/store';
 import { searchKnowledge } from './handlers/search';
+import { updateKnowledge } from './handlers/update';
 import { KnowledgeMemoryError } from './utils/errors';
-import type { StoreKnowledgeInput, SearchKnowledgeInput } from './types';
+import type { StoreKnowledgeInput, SearchKnowledgeInput, UpdateKnowledgeInput } from './types';
 
 const SERVER_NAME = 'ai-devkit-memory';
 const SERVER_VERSION = '0.1.0';
@@ -37,6 +38,38 @@ const STORE_TOOL = {
             },
         },
         required: ['title', 'content'],
+    },
+};
+
+const UPDATE_TOOL = {
+    name: 'memory.updateKnowledge',
+    description: 'Update an existing knowledge item by ID. Use this to correct outdated or inaccurate knowledge.',
+    inputSchema: {
+        type: 'object' as const,
+        properties: {
+            id: {
+                type: 'string',
+                description: 'UUID of the knowledge item to update',
+            },
+            title: {
+                type: 'string',
+                description: 'New title (10-100 chars). Only provide if changing.',
+            },
+            content: {
+                type: 'string',
+                description: 'New content in markdown format (50-5000 chars). Only provide if changing.',
+            },
+            tags: {
+                type: 'array',
+                items: { type: 'string' },
+                description: 'New tags (replaces existing). Only provide if changing. Max 10 tags.',
+            },
+            scope: {
+                type: 'string',
+                description: 'New scope: "global", "project:<name>", or "repo:<name>". Only provide if changing.',
+            },
+        },
+        required: ['id'],
     },
 };
 
@@ -84,7 +117,7 @@ export function createServer(): Server {
     // List available tools
     server.setRequestHandler(ListToolsRequestSchema, async () => {
         return {
-            tools: [STORE_TOOL, SEARCH_TOOL],
+            tools: [STORE_TOOL, UPDATE_TOOL, SEARCH_TOOL],
         };
     });
 
@@ -96,6 +129,19 @@ export function createServer(): Server {
             if (name === 'memory.storeKnowledge') {
                 const input = args as unknown as StoreKnowledgeInput;
                 const result = storeKnowledge(input);
+                return {
+                    content: [
+                        {
+                            type: 'text' as const,
+                            text: JSON.stringify(result, null, 2),
+                        },
+                    ],
+                };
+            }
+
+            if (name === 'memory.updateKnowledge') {
+                const input = args as unknown as UpdateKnowledgeInput;
+                const result = updateKnowledge(input);
                 return {
                     content: [
                         {

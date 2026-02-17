@@ -4,6 +4,7 @@ import {
     validateTags,
     validateScope,
     validateStoreInput,
+    validateUpdateInput,
 } from '../../src/services/validator';
 import { ValidationError } from '../../src/utils/errors';
 
@@ -124,6 +125,88 @@ describe('validator', () => {
             const result = validateScope('invalid-scope');
             expect(result.valid).toBe(false);
             expect(result.errors[0]).toContain('Invalid scope');
+        });
+    });
+
+    describe('validateUpdateInput', () => {
+        it('should not throw for valid input with title', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                title: 'A valid updated title here',
+            })).not.toThrow();
+        });
+
+        it('should not throw for valid input with content', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                content: 'Valid content that is long enough to pass the minimum content length validation requirement.',
+            })).not.toThrow();
+        });
+
+        it('should not throw for valid input with tags', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                tags: ['api', 'backend'],
+            })).not.toThrow();
+        });
+
+        it('should not throw for valid input with scope', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                scope: 'project:my-app',
+            })).not.toThrow();
+        });
+
+        it('should throw ValidationError when id is missing', () => {
+            expect(() => validateUpdateInput({
+                id: '',
+                title: 'A valid updated title here',
+            })).toThrow(ValidationError);
+        });
+
+        it('should throw ValidationError when no update fields provided', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+            })).toThrow(ValidationError);
+        });
+
+        it('should validate only provided fields and skip absent ones', () => {
+            // title too short but content not provided — should only report title error
+            try {
+                validateUpdateInput({ id: 'some-uuid', title: 'Short' });
+            } catch (error) {
+                expect(error).toBeInstanceOf(ValidationError);
+                expect((error as ValidationError).message).toContain('Title');
+                expect((error as ValidationError).message).not.toContain('Content');
+            }
+        });
+
+        it('should throw ValidationError for invalid title', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                title: 'Short',
+            })).toThrow(ValidationError);
+        });
+
+        it('should throw ValidationError for invalid content', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                content: 'Too short',
+            })).toThrow(ValidationError);
+        });
+
+        it('should throw ValidationError for invalid tags', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                tags: ['invalid tag with spaces'],
+            })).toThrow(ValidationError);
+        });
+
+        it('should throw ValidationError for invalid scope', () => {
+            expect(() => validateUpdateInput({
+                id: 'some-valid-uuid',
+                scope: 'bad-scope',
+            })).toThrow(ValidationError);
         });
     });
 

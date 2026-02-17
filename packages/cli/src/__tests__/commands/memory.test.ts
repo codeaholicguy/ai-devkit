@@ -1,12 +1,13 @@
 import { Command } from 'commander';
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { registerMemoryCommand } from '../../commands/memory';
-import { memorySearchCommand, memoryStoreCommand } from '@ai-devkit/memory';
+import { memorySearchCommand, memoryStoreCommand, memoryUpdateCommand } from '@ai-devkit/memory';
 import { ui } from '../../util/terminal-ui';
 
 jest.mock('@ai-devkit/memory', () => ({
   memoryStoreCommand: jest.fn(),
-  memorySearchCommand: jest.fn()
+  memorySearchCommand: jest.fn(),
+  memoryUpdateCommand: jest.fn()
 }));
 
 jest.mock('../../util/terminal-ui', () => ({
@@ -20,6 +21,7 @@ jest.mock('../../util/terminal-ui', () => ({
 describe('memory command', () => {
   const mockedMemorySearchCommand = memorySearchCommand as jest.MockedFunction<typeof memorySearchCommand>;
   const mockedMemoryStoreCommand = memoryStoreCommand as jest.MockedFunction<typeof memoryStoreCommand>;
+  const mockedMemoryUpdateCommand = memoryUpdateCommand as jest.MockedFunction<typeof memoryUpdateCommand>;
   const mockedUi = jest.mocked(ui);
   let consoleLogSpy: ReturnType<typeof jest.spyOn>;
 
@@ -78,6 +80,59 @@ describe('memory command', () => {
     ).rejects.toThrow('process.exit');
 
     expect(mockedUi.error).toHaveBeenCalledWith('store failed');
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('prints JSON for memory update', async () => {
+    const result = {
+      success: true,
+      id: 'mem-1',
+      message: 'Knowledge updated successfully'
+    };
+    mockedMemoryUpdateCommand.mockReturnValue(result);
+
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync([
+      'node',
+      'test',
+      'memory',
+      'update',
+      '--id',
+      'mem-1',
+      '--title',
+      'Updated title for testing',
+    ]);
+
+    expect(mockedMemoryUpdateCommand).toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
+  });
+
+  it('handles update errors by showing error and exiting', async () => {
+    mockedMemoryUpdateCommand.mockImplementation(() => {
+      throw new Error('update failed');
+    });
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit');
+    }) as never);
+
+    const program = new Command();
+    registerMemoryCommand(program);
+
+    await expect(
+      program.parseAsync([
+        'node',
+        'test',
+        'memory',
+        'update',
+        '--id',
+        'mem-1',
+        '--title',
+        'Updated title for testing',
+      ])
+    ).rejects.toThrow('process.exit');
+
+    expect(mockedUi.error).toHaveBeenCalledWith('update failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 

@@ -1,5 +1,5 @@
 import { ValidationError } from '../utils/errors';
-import type { StoreKnowledgeInput } from '../types';
+import type { StoreKnowledgeInput, UpdateKnowledgeInput } from '../types';
 
 const TITLE_MIN_LENGTH = 10;
 const TITLE_MAX_LENGTH = 100;
@@ -103,6 +103,45 @@ export function validateScope(scope?: string): ValidationResult {
     }
 
     return { valid: errors.length === 0, errors };
+}
+
+export function validateUpdateInput(input: UpdateKnowledgeInput): void {
+    const allErrors: string[] = [];
+
+    if (!input.id || input.id.trim().length === 0) {
+        allErrors.push('ID is required');
+    }
+
+    const hasUpdateField = input.title !== undefined || input.content !== undefined ||
+        input.tags !== undefined || input.scope !== undefined;
+
+    if (!hasUpdateField) {
+        allErrors.push('At least one field to update is required (title, content, tags, or scope)');
+    }
+
+    if (input.title !== undefined) {
+        const titleResult = validateTitle(input.title);
+        allErrors.push(...titleResult.errors);
+    }
+
+    if (input.content !== undefined) {
+        const contentResult = validateContent(input.content);
+        allErrors.push(...contentResult.errors);
+    }
+
+    if (input.tags !== undefined) {
+        const tagsResult = validateTags(input.tags);
+        allErrors.push(...tagsResult.errors);
+    }
+
+    if (input.scope !== undefined) {
+        const scopeResult = validateScope(input.scope);
+        allErrors.push(...scopeResult.errors);
+    }
+
+    if (allErrors.length > 0) {
+        throw new ValidationError(allErrors.join('; '), { errors: allErrors });
+    }
 }
 
 export function validateStoreInput(input: StoreKnowledgeInput): void {

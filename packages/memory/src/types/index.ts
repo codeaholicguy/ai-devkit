@@ -25,6 +25,20 @@ export interface StoreKnowledgeResult {
     message: string;
 }
 
+export interface UpdateKnowledgeInput {
+    id: string;
+    title?: string;
+    content?: string;
+    tags?: string[];
+    scope?: string;
+}
+
+export interface UpdateKnowledgeResult {
+    success: boolean;
+    id: string;
+    message: string;
+}
+
 export interface SearchKnowledgeInput {
     query: string;
     contextTags?: string[];
