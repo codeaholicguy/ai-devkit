@@ -20,6 +20,6 @@
     "code-review",
     "debugging"
   ],
-  "commands": "./packages/cli/templates/commands/",
+  "commands": "./commands/",
   "skills": "./skills/"
 }
