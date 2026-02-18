@@ -21,6 +21,7 @@ program
   .option('-e, --environment <env>', 'Development environment (cursor|claude|both)')
   .option('-a, --all', 'Initialize all phases')
   .option('-p, --phases <phases>', 'Comma-separated list of phases to initialize')
+  .option('-t, --template <path>', 'Initialize from template file (.yaml, .yml, .json)')
   .action(initCommand);
 
 program

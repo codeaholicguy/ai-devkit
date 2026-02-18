@@ -27,6 +27,9 @@ npm install -g ai-devkit
 ```bash
 # Set up your project interactively
 ai-devkit init
+
+# Set up from template (no step-by-step prompts when template is complete)
+ai-devkit init --template ./ai-devkit.init.yaml
 ```
 
 This will:
@@ -40,6 +43,9 @@ This will:
 # Initialize project
 ai-devkit init
 
+# Initialize project from YAML/JSON template
+ai-devkit init --template ./ai-devkit.init.yaml
+
 # Add a development phase
 ai-devkit phase requirements
 
@@ -48,6 +54,26 @@ ai-devkit skill add <skill-registry> <skill-name>
 
 # Store a memory
 ai-devkit memory store
+```
+
+Template example:
+
+```yaml
+version: 1
+environments:
+  - codex
+  - claude
+phases:
+  - requirements
+  - design
+  - planning
+  - implementation
+  - testing
+skills:
+  - registry: codeaholicguy/ai-devkit
+    skill: debug
+  - registry: codeaholicguy/ai-devkit
+    skill: memory
 ```
 
 ## Documentation
