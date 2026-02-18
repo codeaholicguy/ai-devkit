@@ -64,6 +64,7 @@
     "WordPress/agent-skills": "https://github.com/WordPress/agent-skills.git",
     "lackeyjb/playwright-skill": "https://github.com/lackeyjb/playwright-skill.git",
     "dbt-labs/dbt-agent-skills": "https://github.com/dbt-labs/dbt-agent-skills.git",
-    "google-gemini/gemini-skills": "https://github.com/google-gemini/gemini-skills"
+    "google-gemini/gemini-skills": "https://github.com/google-gemini/gemini-skills",
+    "HeyVincent-ai/agent-skills": "https://github.com/HeyVincent-ai/agent-skills.git"
   }
 }
