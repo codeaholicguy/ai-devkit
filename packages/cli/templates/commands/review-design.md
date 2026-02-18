@@ -1,5 +1,5 @@
 ---
-description: Review the design documentation for a feature to ensure completeness and accuracy.
+description: Review feature design for completeness.
 ---
 
 Review the design documentation in docs/ai/design/feature-{name}.md (and the project-level README if relevant). Summarize:
@@ -13,4 +13,3 @@ Review the design documentation in docs/ai/design/feature-{name}.md (and the pro
 - Non-functional requirements that must be preserved
 
 Highlight any inconsistencies, missing sections, or diagrams that need updates.
-

@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.5.0",
+  "version": "0.12.0",
   "private": true,
   "description": "A CLI toolkit for AI-assisted software development with phase templates and environment setup",
   "scripts": {
