@@ -405,6 +405,14 @@ export class SkillManager {
     const repoPath = path.join(SKILL_CACHE_DIR, registryId);
 
     if (await fs.pathExists(repoPath)) {
+      if (await isGitRepository(repoPath)) {
+        const spinner = ui.spinner(`Updating cached repository ${registryId}...`);
+        spinner.start();
+        await pullRepository(repoPath);
+        spinner.succeed(`Cached repository ${registryId} updated`);
+      } else {
+        ui.warning(`Cached registry ${registryId} is not a git repository, using as-is.`);
+      }
       ui.text('  → Using cached repository');
       return repoPath;
     }

@@ -284,6 +284,55 @@ describe("SkillManager", () => {
       expect(mockedGitUtil.cloneRepository).not.toHaveBeenCalled();
     });
 
+    it("should pull cached registry before installing skill", async () => {
+      const repoPath = path.join(os.homedir(), ".ai-devkit", "skills", mockRegistryId);
+
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === repoPath) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(true);
+      });
+
+      mockedGitUtil.isGitRepository.mockResolvedValue(true);
+      mockedGitUtil.pullRepository.mockResolvedValue(undefined);
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockedGitUtil.cloneRepository).not.toHaveBeenCalled();
+      expect(mockedGitUtil.pullRepository).toHaveBeenCalledWith(repoPath);
+    });
+
+    it("should skip pull when cached registry is not a git repository", async () => {
+      const repoPath = path.join(os.homedir(), ".ai-devkit", "skills", mockRegistryId);
+
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === repoPath) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(true);
+      });
+
+      mockedGitUtil.isGitRepository.mockResolvedValue(false);
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockedGitUtil.pullRepository).not.toHaveBeenCalled();
+      expect(mockedGitUtil.cloneRepository).not.toHaveBeenCalled();
+    });
+
     it("should throw error if skill not found in repository", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(false);
 
