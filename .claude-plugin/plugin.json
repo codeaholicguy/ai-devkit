@@ -1,0 +1,33 @@
+{
+  "name": "ai-devkit",
+  "version": "0.12.0",
+  "description": "Structured AI-assisted development with phase workflows, persistent memory, and reusable skills",
+  "author": {
+    "name": "Codeaholicguy",
+    "url": "https://github.com/Codeaholicguy"
+  },
+  "homepage": "https://ai-devkit.com/docs/",
+  "repository": "https://github.com/Codeaholicguy/ai-devkit",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "development",
+    "cli",
+    "memory",
+    "skills",
+    "sdlc",
+    "templates",
+    "mcp"
+  ],
+  "commands": "./commands/",
+  "skills": "./skills/",
+  "mcpServers": {
+    "ai-devkit-memory": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/packages/memory/dist/index.js"],
+      "env": {
+        "MEMORY_DB_PATH": "${CLAUDE_PLUGIN_ROOT}/data/memory.db"
+      }
+    }
+  }
+}
