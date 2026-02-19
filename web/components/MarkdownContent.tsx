@@ -2,9 +2,40 @@ import { MDXRemote } from 'next-mdx-remote/rsc';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
+import type { ComponentPropsWithoutRef, ReactNode } from 'react';
 
 interface MarkdownContentProps {
   content: string;
+}
+
+type HeadingLevel = 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+function createLinkableHeading(level: HeadingLevel) {
+  return function LinkableHeading({
+    children,
+    id,
+    ...props
+  }: ComponentPropsWithoutRef<HeadingLevel> & { children?: ReactNode }) {
+    return (
+      <div className="group relative">
+        {id && (
+          <a
+            href={`#${id}`}
+            aria-label={`Copy link to this section: ${id}`}
+            title="Copy section link"
+            className="absolute -left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 focus:opacity-100 no-underline transition-opacity text-gray-500 hover:text-black"
+          >
+            #
+          </a>
+        )}
+        {level === 'h2' && <h2 id={id} {...props}>{children}</h2>}
+        {level === 'h3' && <h3 id={id} {...props}>{children}</h3>}
+        {level === 'h4' && <h4 id={id} {...props}>{children}</h4>}
+        {level === 'h5' && <h5 id={id} {...props}>{children}</h5>}
+        {level === 'h6' && <h6 id={id} {...props}>{children}</h6>}
+      </div>
+    );
+  };
 }
 
 export default async function MarkdownContent({ content }: MarkdownContentProps) {
@@ -22,6 +53,13 @@ export default async function MarkdownContent({ content }: MarkdownContentProps)
       prose-strong:font-bold prose-strong:text-black">
       <MDXRemote
         source={content}
+        components={{
+          h2: createLinkableHeading('h2'),
+          h3: createLinkableHeading('h3'),
+          h4: createLinkableHeading('h4'),
+          h5: createLinkableHeading('h5'),
+          h6: createLinkableHeading('h6'),
+        }}
         options={{
           mdxOptions: {
             remarkPlugins: [remarkGfm],
@@ -32,4 +70,3 @@ export default async function MarkdownContent({ content }: MarkdownContentProps)
     </div>
   );
 }
-
