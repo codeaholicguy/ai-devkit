@@ -49,9 +49,62 @@ docs/ai/
 
 > **Tip:** You don't have to complete all phases in one session. AI DevKit saves your documentation, so you can pick up where you left off.
 
+## Using the Dev Lifecycle Skill
+
+Instead of manually typing each command, you can use the `dev-lifecycle` skill to guide you through the entire workflow automatically. The skill triggers the next phase for you whenever the current phase is complete — no need to remember which command comes next.
+
+### Installing the skill
+
+Install the `dev-lifecycle` skill from the AI DevKit registry:
+
+```bash
+ai-devkit skill add codeaholicguy/ai-devkit dev-lifecycle
+```
+
+or
+
+```bash
+npx ai-devkit skill add codeaholicguy/ai-devkit dev-lifecycle
+```
+
+Once installed, the skill is immediately available to your AI agent. For more details on managing skills, see [Skills](/docs/skills).
+
+### How to use it
+
+Tell your AI assistant to use the skill and describe what you want to build. For example:
+
+> "Use dev-lifecycle skill to build a feature to update the agent memory"
+
+The skill takes over from there:
+
+1. It walks you through **requirements gathering** — asking clarifying questions about your feature
+2. Once requirements are clear, it automatically moves to **requirements review**
+3. Then proceeds to **design review**, **planning**, **implementation**, **testing**, and **code review**
+
+You don't need to type `/review-requirements`, `/review-design`, or any other command manually — the skill handles phase transitions for you.
+
+### Automatic phase progression
+
+The key difference from running individual commands: the skill **suggests and triggers the next phase** after each one completes. If a review phase finds issues, it loops back to the right phase automatically.
+
+| Scenario | What Happens |
+|----------|--------------|
+| Requirements review finds gaps | Loops back to requirements to fill them |
+| Design review finds requirement issues | Loops back to requirements review |
+| Implementation doesn't match design | Loops back to design or implementation |
+| Tests reveal design flaws | Loops back to design review |
+
+### Resuming work
+
+If you started a feature in a previous session, the skill can pick up where you left off. It checks your existing documentation to determine which phase you're in and continues from there.
+
+> **When to use the skill vs. individual commands:**
+> - Use the `dev-lifecycle` skill when starting a new feature or continuing end-to-end work — it handles the flow for you
+> - Use individual commands (like `/code-review` or `/writing-test`) when you only need one specific phase
+
 ## Refinement Commands
 
-After the initial pass, use these commands to refine your work:
+If you're using the `dev-lifecycle` skill, these commands run automatically as part of the workflow. You can also run them individually when you need a specific phase:
 
 ### `/review-requirements`
 
@@ -137,7 +190,7 @@ After the initial pass, use these commands to refine your work:
 
 ## Tips for Success
 
-1. **Don't skip phases** — Each phase builds context for the next
+1. **Don't skip phases** — Each phase builds context for the next. The `dev-lifecycle` skill handles this automatically
 2. **Keep docs updated** — Use `/update-planning` when things change
 3. **Review before committing** — `/code-review` catches issues early
 4. **Be specific** — The more detail you give, the better your AI assistant can help
