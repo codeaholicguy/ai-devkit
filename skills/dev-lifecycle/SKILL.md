@@ -11,14 +11,7 @@ Sequential phases producing docs in `docs/ai/`. Flow: 1→2→3→4→(5 after e
 
 Before starting any phase, run `scripts/check-docs.sh` to verify the base `docs/ai/` structure exists. If it fails, run `npx ai-devkit init` first. Do not proceed until all checks pass.
 
-For a **new feature start** (Phase 1 or `/new-requirement`), create and switch to a dedicated git worktree first:
-
-1. Normalize feature name to kebab-case `<name>` (without prefix).
-2. Use branch/worktree name `feature-<name>`.
-3. Create worktree directory as sibling path `../feature-<name>`.
-4. If branch does not exist: `git worktree add -b feature-<name> ../feature-<name>`.
-5. If branch exists: `git worktree add ../feature-<name> feature-<name>`.
-6. Continue all phase work inside that worktree.
+For a **new feature start** (Phase 1 or `/new-requirement`), apply the shared worktree setup in [references/worktree-setup.md](references/worktree-setup.md) before phase work. This setup is worktree-first by default and includes explicit no-worktree fallback, context verification, and dependency bootstrap.
 
 ## Phases
 
@@ -33,7 +26,7 @@ For a **new feature start** (Phase 1 or `/new-requirement`), create and switch t
 | 7 | Write Tests | [references/writing-test.md](references/writing-test.md) | Add test coverage (100% target) |
 | 8 | Code Review | [references/code-review.md](references/code-review.md) | Final pre-push review |
 
-Load only the reference file for the current phase.
+Load only the reference file for the current phase. For Phase 1, also load [references/worktree-setup.md](references/worktree-setup.md).
 
 ## Resuming Work
 
