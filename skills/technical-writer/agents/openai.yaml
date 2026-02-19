@@ -1,0 +1,4 @@
+interface:
+  display_name: "Technical Writer"
+  short_description: "Review and improve documentation for novice users"
+  default_prompt: "Use $technical-writer to review this documentation, rate it on clarity, completeness, actionability, and structure, then suggest concrete fixes prioritized by impact."
