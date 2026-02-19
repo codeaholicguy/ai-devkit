@@ -15,9 +15,16 @@ Use this setup for **new feature starts** unless the user explicitly requests no
    - `cd ../feature-<name>`
    - `pwd` must end with `/feature-<name>`
    - `git branch --show-current` must equal `feature-<name>`
-8. Bootstrap dependencies before any phase work:
-   - If `package-lock.json` exists: `npm ci`
-   - Else if `pnpm-lock.yaml` exists: `pnpm install --frozen-lockfile`
-   - Else if `yarn.lock` exists: `yarn install --frozen-lockfile`
-   - Else: continue and note that no lockfile-based install step was detected
+8. Bootstrap dependencies before any phase work (be proactive and project-specific):
+   - Detect language/ecosystem first by checking lockfiles, manifest files, and common tooling configs.
+   - Prefer deterministic, lockfile-based installs when available.
+   - Use the project's native dependency manager, for example:
+     - JavaScript/TypeScript: `npm ci`, `pnpm install --frozen-lockfile`, `yarn install --frozen-lockfile`, or `bun install --frozen-lockfile` (based on lockfile/tooling)
+     - Python: `uv sync`, `poetry install --no-interaction`, `pipenv sync`, or `pip install -r requirements.txt` (based on project files)
+     - Ruby: `bundle install`
+     - Rust: `cargo fetch` (or `cargo build` when fetch-only is not sufficient in context)
+     - Go: `go mod download`
+     - Java/Kotlin: `./gradlew dependencies` / `./gradlew build` or Maven equivalent as appropriate
+   - If multiple managers are possible, choose the one clearly indicated by repository files/scripts and note your reasoning.
+   - If no dependency manager is clearly detectable, continue and explicitly note what was checked and why bootstrap was skipped.
 9. Do not run phase commands until setup/verification/bootstrap succeed.
