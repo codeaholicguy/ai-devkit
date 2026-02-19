@@ -11,6 +11,15 @@ Sequential phases producing docs in `docs/ai/`. Flow: 1→2→3→4→(5 after e
 
 Before starting any phase, run `scripts/check-docs.sh` to verify the base `docs/ai/` structure exists. If it fails, run `npx ai-devkit init` first. Do not proceed until all checks pass.
 
+For a **new feature start** (Phase 1 or `/new-requirement`), create and switch to a dedicated git worktree first:
+
+1. Normalize feature name to kebab-case `<name>` (without prefix).
+2. Use branch/worktree name `feature-<name>`.
+3. Create worktree directory as sibling path `../feature-<name>`.
+4. If branch does not exist: `git worktree add -b feature-<name> ../feature-<name>`.
+5. If branch exists: `git worktree add ../feature-<name> feature-<name>`.
+6. Continue all phase work inside that worktree.
+
 ## Phases
 
 | # | Phase | Reference | When |
@@ -42,7 +51,7 @@ Not every phase moves forward. When a phase reveals problems, loop back:
 
 ## Doc Convention
 
-Feature docs: `docs/ai/{phase}/feature-{name}.md` (copy from `README.md` template in each directory, preserve frontmatter).
+Feature docs: `docs/ai/{phase}/feature-{name}.md` (copy from `README.md` template in each directory, preserve frontmatter). Keep `<name>` aligned with the worktree/branch name `feature-<name>`.
 
 Phases: `requirements/`, `design/`, `planning/`, `implementation/`, `testing/`.
 
