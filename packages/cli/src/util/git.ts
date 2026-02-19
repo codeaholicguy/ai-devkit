@@ -1,9 +1,20 @@
-import { exec } from 'child_process';
+import { exec, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 
 const execAsync = promisify(exec);
+export type GitExecFileSync = (
+  file: string,
+  args: readonly string[],
+  options?: { cwd?: string; stdio?: 'ignore' | 'pipe'; encoding?: BufferEncoding }
+) => string | Buffer;
+
+const defaultExecFileSync: GitExecFileSync = (
+  file: string,
+  args: readonly string[],
+  options?: { cwd?: string; stdio?: 'ignore' | 'pipe'; encoding?: BufferEncoding }
+) => execFileSync(file, args, options);
 
 /**
  * Checks if git is installed and available in PATH
@@ -94,5 +105,87 @@ export async function fetchGitHead(gitUrl: string): Promise<string> {
     return match[1];
   } catch (error: any) {
     throw new Error(`Failed to fetch git HEAD: ${error.message}`);
+  }
+}
+
+function normalizeExecResult(result: string | Buffer): string {
+  return Buffer.isBuffer(result) ? result.toString('utf8').trim() : result.trim();
+}
+
+export function isInsideGitWorkTreeSync(cwd: string, execFileSyncFn: GitExecFileSync = defaultExecFileSync): boolean {
+  try {
+    const result = execFileSyncFn('git', ['rev-parse', '--is-inside-work-tree'], {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf8'
+    });
+
+    return normalizeExecResult(result) === 'true';
+  } catch {
+    return false;
+  }
+}
+
+export function localBranchExistsSync(
+  cwd: string,
+  branchName: string,
+  execFileSyncFn: GitExecFileSync = defaultExecFileSync
+): boolean {
+  try {
+    execFileSyncFn('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branchName}`], {
+      cwd,
+      stdio: 'ignore'
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getWorktreePathsForBranchSync(
+  cwd: string,
+  branchName: string,
+  execFileSyncFn: GitExecFileSync = defaultExecFileSync
+): string[] {
+  try {
+    const raw = execFileSyncFn('git', ['worktree', 'list', '--porcelain'], {
+      cwd,
+      stdio: 'pipe',
+      encoding: 'utf8'
+    });
+
+    const output = normalizeExecResult(raw);
+    const lines = output.split('\n');
+    const matches: string[] = [];
+
+    let currentPath = '';
+    let currentBranch = '';
+
+    for (const line of lines) {
+      if (!line.trim()) {
+        if (currentBranch === `refs/heads/${branchName}` && currentPath) {
+          matches.push(currentPath);
+        }
+        currentPath = '';
+        currentBranch = '';
+        continue;
+      }
+
+      if (line.startsWith('worktree ')) {
+        currentPath = line.slice('worktree '.length).trim();
+      }
+
+      if (line.startsWith('branch ')) {
+        currentBranch = line.slice('branch '.length).trim();
+      }
+    }
+
+    if (currentBranch === `refs/heads/${branchName}` && currentPath) {
+      matches.push(currentPath);
+    }
+
+    return matches;
+  } catch {
+    return [];
   }
 }

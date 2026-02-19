@@ -64,11 +64,12 @@ graph TD
     - `ai-devkit lint --feature <name>`
     - `ai-devkit lint --feature <name> --json`
 - Internal interfaces
-  - `runLint(options): Promise<number>`
-  - `checkBaseDocs(cwd): Promise<LintCheckResult[]>`
-  - `checkFeatureDocs(cwd, target): Promise<LintCheckResult[]>`
-  - `checkFeatureWorktree(cwd, target): Promise<LintCheckResult[]>`
-  - `renderLintOutput(summary, options): void`
+  - `runLintChecks(options, dependencies?): LintReport`
+  - `renderLintReport(report, options): void` (in `commands/lint`)
+  - `normalizeFeatureName(input): string`
+  - `isInsideGitWorkTreeSync(cwd): boolean`
+  - `localBranchExistsSync(cwd, branchName): boolean`
+  - `getWorktreePathsForBranchSync(cwd, branchName): string[]`
 - Request/response formats
   - Input: CLI flags and current working directory.
   - Output:
@@ -89,9 +90,10 @@ graph TD
   - JSON formatter for machine-readable mode.
 - Backend services/modules
   - `commands/lint` command entry.
-  - `services/lint` for composable checks.
-  - `utils/feature-name` normalization utility.
-  - `utils/git` helpers for worktree checks.
+  - `services/lint/lint.service.ts` for orchestration and business rules only.
+  - `services/lint/rules/*` for modular validation rules (base docs, feature docs, feature-name, git worktree).
+  - `util/git` sync helpers for git/worktree checks.
+  - `util/terminal-ui` for consistent terminal output formatting.
 - Database/storage layer
   - None.
 - Third-party integrations
@@ -122,6 +124,7 @@ graph TD
   - Single-responsibility check modules.
   - Deterministic output for CI and humans.
   - Collect-all-results reporting to surface all issues in one run.
+  - Avoid shell interpolation for git operations by using argument-based command execution.
 
 ## Non-Functional Requirements
 **How should the system perform?**

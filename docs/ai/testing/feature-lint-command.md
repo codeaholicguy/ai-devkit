@@ -9,73 +9,67 @@ description: Define testing approach, test cases, and quality assurance
 ## Test Coverage Goals
 **What level of testing do we aim for?**
 
-- Unit test coverage target (default: 100% of new/changed code)
-- Integration test scope (critical paths + error handling)
-- End-to-end test scenarios (key user journeys)
-- Alignment with requirements/design acceptance criteria
+- Unit target: 100% of new/changed lint utilities and feature normalization logic.
+- Integration target: CLI command invocation, rendered output categories, and exit code behavior.
+- Manual target: run lint flows on real workspace states (healthy and missing prerequisites).
 
 ## Unit Tests
 **What individual components need testing?**
 
-### Component/Module 1
-- [ ] Test case 1: [Description] (covers scenario / branch)
-- [ ] Test case 2: [Description] (covers edge case / error handling)
-- [ ] Additional coverage: [Description]
-
-### Component/Module 2
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Additional coverage: [Description]
+### `packages/cli/src/services/lint/lint.service.ts` + `packages/cli/src/services/lint/rules/*`
+- [x] Feature name normalization accepts both `lint-command` and `feature-lint-command`.
+- [x] Invalid feature names fail fast as required failures before git checks run.
+- [x] Base docs missing case returns required failures and non-zero exit code.
+- [x] Branch exists + no dedicated worktree returns pass with warning.
+- [x] Missing feature branch returns required failure.
+- [x] Non-git directory in feature mode returns required failure.
 
 ## Integration Tests
 **How do we test component interactions?**
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
-- [ ] API endpoint tests
-- [ ] Integration scenario 3 (failure mode / rollback)
+- [x] Command-level test verifies `lintCommand` calls `runLintChecks` and `renderLintReport` with parsed options.
+- [x] Command-level test verifies `process.exitCode` is set from report exit code (`0` and `1` paths).
+- [x] Output rendering tests verify human-readable sections and `--json` serialization behavior.
 
 ## End-to-End Tests
 **What user flows need validation?**
 
-- [ ] User flow 1: [Description]
-- [ ] User flow 2: [Description]
-- [ ] Critical path testing
-- [ ] Regression of adjacent features
+- [x] Real workspace state (current repo) via utility execution: feature check passes with required checks satisfied.
+- [x] Missing docs scenario (temporary directory): required failures and non-zero exit code.
+- [x] Branch exists/no dedicated worktree scenario (temporary git repo): warning-only worktree result with zero exit code.
 
 ## Test Data
 **What data do we use for testing?**
 
-- Test fixtures and mocks
-- Seed data requirements
-- Test database setup
+- Dependency-injected stubs for `existsSync` and `execFileSync`.
+- Synthetic git command outputs for branch/worktree combinations.
 
 ## Test Reporting & Coverage
 **How do we verify and communicate test results?**
 
-- Coverage commands and thresholds (`npm run test -- --coverage`)
-- Coverage gaps (files/functions below 100% and rationale)
-- Links to test reports or dashboards
-- Manual testing outcomes and sign-off
+- Executed:
+  - `nx run cli:test -- --runInBand lint.test.ts` (pass, 2 suites / 9 tests)
+  - `npm run lint` in `packages/cli` (pass with pre-existing repo warnings unrelated to lint command)
+- Manual verification runs:
+  - Current repo + `feature=lint-command`: pass `true`, exit code `0`, zero required failures.
+  - Temporary directory with no docs: pass `false`, exit code `1`, required failures `5`.
+  - Temporary git repo with `feature-sample` branch but no dedicated worktree: pass `true`, exit code `0`, git warning present.
+- Current gap:
+  - Full CLI binary invocation (`npm run dev -- lint ...`) remains blocked by unrelated pre-existing TypeScript issues in `src/commands/memory.ts`.
 
 ## Manual Testing
 **What requires human validation?**
 
-- UI/UX testing checklist (include accessibility)
-- Browser/device compatibility
-- Smoke tests after deployment
+- Validate output readability and remediation commands in terminal.
+- Validate warning-only behavior when worktree is missing but branch exists.
+- Validate JSON consumers in CI pipelines that parse `--json` output.
 
 ## Performance Testing
 **How do we validate performance?**
 
-- Load testing scenarios
-- Stress testing approach
-- Performance benchmarks
+- Confirm command remains sub-second for standard repository size during manual verification.
 
 ## Bug Tracking
 **How do we manage issues?**
 
-- Issue tracking process
-- Bug severity levels
-- Regression testing strategy
-
+- Track unrelated pre-existing TypeScript issues in `src/commands/memory.ts` separately from this feature.

@@ -9,36 +9,36 @@ description: Break down work into actionable tasks and estimate timeline
 ## Milestones
 **What are the major checkpoints?**
 
-- [ ] Milestone 1: Lint requirements/design approved
-- [ ] Milestone 2: `ai-devkit lint` base + feature checks implemented
-- [ ] Milestone 3: Tests, docs, and rollout complete
+- [x] Milestone 1: Lint requirements/design approved
+- [x] Milestone 2: `ai-devkit lint` base + feature checks implemented
+- [x] Milestone 3: Tests, docs, and rollout complete
 
 ## Task Breakdown
 **What specific work needs to be done?**
 
 ### Phase 1: Foundation
-- [ ] Task 1.1: Audit current CLI command registration and identify insertion point for `lint`
-- [ ] Task 1.2: Extract/reimplement `check-docs.sh` base and feature doc checks in TypeScript utilities
-- [ ] Task 1.3: Implement feature-name normalization utility (`foo` and `feature-foo` -> `foo`)
-- [ ] Task 1.4: Define shared lint result model and formatter (`ok/miss/warn`, remediation hints)
+- [x] Task 1.1: Audit current CLI command registration and identify insertion point for `lint`
+- [x] Task 1.2: Extract/reimplement `check-docs.sh` base and feature doc checks in TypeScript utilities
+- [x] Task 1.3: Implement feature-name normalization utility (`foo` and `feature-foo` -> `foo`)
+- [x] Task 1.4: Define shared lint result model and formatter (`ok/miss/warn`, remediation hints)
 
 ### Phase 2: Core Features
-- [ ] Task 2.1: Add `ai-devkit lint` command handler with base workspace checks
-- [ ] Task 2.2: Add `--feature <name>` mode with feature doc checks across all lifecycle phases
-- [ ] Task 2.3: Add git checks for `feature-<name>` branch/worktree presence and mapping
-- [ ] Task 2.4: Ensure proper exit codes and summary output for CI compatibility
+- [x] Task 2.1: Add `ai-devkit lint` command handler with base workspace checks
+- [x] Task 2.2: Add `--feature <name>` mode with feature doc checks across all lifecycle phases
+- [x] Task 2.3: Add git checks for `feature-<name>` branch/worktree presence and mapping
+- [x] Task 2.4: Ensure proper exit codes and summary output for CI compatibility
 
 ### Phase 3: Integration & Polish
-- [ ] Task 3.1: Update help text and README command documentation
-- [ ] Task 3.2: Decide whether to keep `skills/dev-lifecycle/scripts/check-docs.sh` as wrapper or migrate references to `ai-devkit lint`
-- [ ] Task 3.3: Add actionable remediation guidance in failures (`npx ai-devkit init`, worktree creation command)
-- [ ] Task 3.4: Validate behavior against existing lifecycle docs and feature naming conventions
+- [x] Task 3.1: Update help text and README command documentation
+- [x] Task 3.2: Decide whether to keep `skills/dev-lifecycle/scripts/check-docs.sh` as wrapper or migrate references to `ai-devkit lint`
+- [x] Task 3.3: Add actionable remediation guidance in failures (`npx ai-devkit init`, worktree creation command)
+- [x] Task 3.4: Validate behavior against existing lifecycle docs and feature naming conventions
 
 ### Phase 4: Validation
-- [ ] Task 4.1: Unit tests for base docs checks and feature docs checks
-- [ ] Task 4.2: Unit tests for feature normalization and git/worktree validation logic
-- [ ] Task 4.3: Integration tests for CLI exit codes and terminal output
-- [ ] Task 4.4: Manual verification on repositories with and without required docs/worktrees
+- [x] Task 4.1: Unit tests for base docs checks and feature docs checks
+- [x] Task 4.2: Unit tests for feature normalization and git/worktree validation logic
+- [x] Task 4.3: Integration tests for CLI exit codes and terminal output
+- [x] Task 4.4: Manual verification on repositories with and without required docs/worktrees
 
 ## Dependencies
 **What needs to happen in what order?**
