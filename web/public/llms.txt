@@ -1,0 +1,64 @@
+# AI DevKit
+
+> AI DevKit is an open-source CLI toolkit that brings structure and consistency to AI-assisted software development. It works alongside AI coding assistants like Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, and others.
+
+AI DevKit solves common problems with AI-assisted development: context loss between sessions, ad hoc workflows, repeated instructions, and siloed knowledge. It provides structured workflows, long-term memory, a community-driven skills system, and multi-agent support.
+
+## Core Features
+
+- **Structured Development Workflows**: Phase-based guidance through requirements, design, planning, implementation, testing, and code review
+- **Long-Term Memory**: 100% local SQLite-based knowledge storage for coding standards, patterns, and decisions across sessions
+- **Skills System**: Community-driven plugins that teach AI new capabilities and domain-specific patterns
+- **Multi-Agent Support**: Works with 11+ AI coding environments including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, Windsurf, and more
+
+## Quick Start
+
+Install via npm:
+
+```
+npm install -g ai-devkit
+```
+
+Initialize in your project:
+
+```
+ai-devkit init
+```
+
+## Key Commands
+
+- `/new-requirement` - Start a new feature with structured documentation
+- `/review-requirements` - Validate requirements completeness
+- `/review-design` - Check architecture and generate mermaid diagrams
+- `/execute-plan` - Work through implementation step-by-step
+- `/code-review` - Pre-commit structured code reviews
+- `/writing-test` - Generate comprehensive tests targeting 100% coverage
+- `/debug` - Systematic 7-step debugging process
+- `/remember` - Store important guidelines and patterns in memory
+- `/capture-knowledge` - Analyze and document existing code
+
+## Documentation
+
+- [What is AI DevKit?](https://ai-devkit.com/docs/0-what-is-ai-devkit): Overview, problem statement, and how AI DevKit works
+- [Getting Started](https://ai-devkit.com/docs/1-getting-started): Installation, project initialization, and first steps
+- [Supported AI Agents](https://ai-devkit.com/docs/2-supported-agents): Complete reference for all 11+ supported AI coding environments
+- [Development with AI DevKit](https://ai-devkit.com/docs/3-development-with-ai-devkit): Full development lifecycle workflow
+- [Debugging with AI DevKit](https://ai-devkit.com/docs/4-debugging-with-ai-devkit): Structured debugging methodology
+- [Understanding Existing Code](https://ai-devkit.com/docs/5-understand-existing-code-with-ai-devkit): Code analysis and knowledge capture
+- [Memory](https://ai-devkit.com/docs/6-memory): Local memory system for persistent knowledge
+- [Skills](https://ai-devkit.com/docs/7-skills): Community-driven skill management system
+- [Agent Management](https://ai-devkit.com/docs/8-agent-management): Experimental agent detection and switching
+
+## Other Pages
+
+- [Home](https://ai-devkit.com): Landing page with features overview and quick start
+- [Vision](https://ai-devkit.com/vision): Project philosophy and alignment with "The New Engineering Workflow"
+- [Roadmap](https://ai-devkit.com/roadmap): Development roadmap and feature status
+- [Skills Registry](https://ai-devkit.com/skills): Browse and search available skills
+- [FAQ](https://ai-devkit.com/faq): Frequently asked questions and getting started guides
+
+## Project Links
+
+- GitHub: https://github.com/Codeaholicguy/ai-devkit
+- npm: https://www.npmjs.com/package/ai-devkit
+- Website: https://ai-devkit.com
