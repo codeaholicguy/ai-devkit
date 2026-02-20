@@ -49,6 +49,15 @@ ai-devkit init --template ./ai-devkit.init.yaml
 # Add a development phase
 ai-devkit phase requirements
 
+# Validate workspace docs readiness
+ai-devkit lint
+
+# Validate a feature's docs and git branch/worktree conventions
+ai-devkit lint --feature lint-command
+
+# Emit machine-readable output for CI
+ai-devkit lint --feature lint-command --json
+
 # Install a skill
 ai-devkit skill add <skill-registry> <skill-name>
 
