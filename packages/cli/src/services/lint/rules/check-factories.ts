@@ -1,4 +1,5 @@
 import { LintCheckResult } from '../types';
+import { LINT_LEVEL } from '../constants';
 
 export function createOkCheck(
   id: string,
@@ -7,7 +8,7 @@ export function createOkCheck(
 ): LintCheckResult {
   return {
     id,
-    level: 'ok',
+    level: LINT_LEVEL.OK,
     category,
     required: false,
     message
@@ -22,7 +23,7 @@ export function createMissingCheck(
 ): LintCheckResult {
   return {
     id,
-    level: 'miss',
+    level: LINT_LEVEL.MISS,
     category,
     required: true,
     message,
@@ -38,7 +39,7 @@ export function createWarnCheck(
 ): LintCheckResult {
   return {
     id,
-    level: 'warn',
+    level: LINT_LEVEL.WARN,
     category,
     required: false,
     message,

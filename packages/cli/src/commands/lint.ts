@@ -1,4 +1,5 @@
 import { ui } from '../util/terminal-ui';
+import { LINT_STATUS_LABEL } from '../services/lint/constants';
 import { LintCheckResult, LintOptions, LintReport, runLintChecks } from '../services/lint/lint.service';
 
 export async function lintCommand(options: LintOptions): Promise<void> {
@@ -50,12 +51,7 @@ function printSection(title: string, category: LintCheckResult['category'], repo
 
 function printRows(checks: LintCheckResult[]): void {
   for (const check of checks) {
-    const status =
-      check.level === 'ok' ? '[OK]   '
-        : check.level === 'warn' ? '[WARN] '
-          : '[MISS] ';
-
-    ui.text(`${status} ${check.message}`);
+    ui.text(`${LINT_STATUS_LABEL[check.level]} ${check.message}`);
     if (check.fix) {
       ui.text(`       ${check.fix}`);
     }

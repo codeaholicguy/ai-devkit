@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
+import { LINT_LEVEL } from './constants';
 import { runBaseDocsRules } from './rules/base-docs.rule';
 import { runFeatureDocsRules } from './rules/feature-docs.rule';
 import { validateFeatureNameRule, normalizeFeatureName } from './rules/feature-name.rule';
@@ -62,18 +63,18 @@ function finalizeReport(
 ): LintReport {
   const summary = checks.reduce(
     (acc, check) => {
-      if (check.level === 'ok') {
+      if (check.level === LINT_LEVEL.OK) {
         acc.ok += 1;
       }
 
-      if (check.level === 'miss') {
+      if (check.level === LINT_LEVEL.MISS) {
         acc.miss += 1;
         if (check.required) {
           acc.requiredFailures += 1;
         }
       }
 
-      if (check.level === 'warn') {
+      if (check.level === LINT_LEVEL.WARN) {
         acc.warn += 1;
       }
 

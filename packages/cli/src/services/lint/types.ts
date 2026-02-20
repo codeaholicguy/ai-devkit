@@ -1,11 +1,12 @@
 import { GitExecFileSync } from '../../util/git';
+import { LINT_LEVEL } from './constants';
 
 export interface LintOptions {
   feature?: string;
   json?: boolean;
 }
 
-export type LintLevel = 'ok' | 'miss' | 'warn';
+export type LintLevel = (typeof LINT_LEVEL)[keyof typeof LINT_LEVEL];
 
 export interface LintCheckResult {
   id: string;
