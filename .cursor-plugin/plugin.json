@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "AI-assisted development toolkit with structured SDLC workflows, persistent memory, and reusable skills",
   "author": {
     "name": "Hoang Nguyen",
