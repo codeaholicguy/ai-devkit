@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Lint Command** - Added `ai-devkit lint` command support
+- **Template Mode for Init** - Added init template mode with YAML/JSON support
+- **Memory Update Command** - Added `ai-devkit memory update` for modifying knowledge items by ID
+- **New Skills** - Added `capture-knowledge`, `simplify-implementation` and
+  `technical-writer` skills
+- **Plugin Support** - Added `.claude-plugin` and `.cursor-plugin` integration files
+
+### Changed
+
+- **Dev Lifecycle Workflows** - Refactored worktree setup and new-requirement flow
+- **Lifecycle Documentation** - Updated docs to require feature worktrees and make bootstrap language-agnostic
+- **Web Docs Navigation** - Added linkable anchors for documentation section headings
+- **Command Templates** - Updated CLI command templates
+- **Skill Registry Handling** - Refresh cached skill registry automatically on `skill add`
+- **Documentation Updates** - Refreshed README and development docs for current CLI behavior
+
+### Fixed
+
+- **Memory Test Stability** - Fixed flaky `updated_at` timestamp test in memory module
+
 ## [0.12.0] - 2026-02-17
 
 ### Added
