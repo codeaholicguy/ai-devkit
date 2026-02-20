@@ -6,6 +6,7 @@ import { Page, PageMetadata, RoadmapItem, RoadmapItemMetadata } from './types';
 const contentDirectory = path.join(process.cwd(), 'content');
 const docsDirectory = path.join(contentDirectory, 'docs');
 const pagesDirectory = path.join(contentDirectory, 'pages');
+const faqDirectory = path.join(contentDirectory, 'faq');
 
 /**
  * Get all Markdown files from a directory
@@ -131,6 +132,53 @@ export function getAllDocPages(): Page[] {
 }
 
 /**
+ * Get a single FAQ page by slug
+ */
+export function getFaqPage(slug: string): Page | null {
+  const filePath = path.join(faqDirectory, `${slug}.md`);
+
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  const parsed = parseMarkdownFile<PageMetadata>(filePath);
+
+  return {
+    metadata: {
+      ...parsed.metadata,
+      slug,
+    },
+    content: parsed.content,
+  };
+}
+
+/**
+ * Get all FAQ pages
+ */
+export function getAllFaqPages(): Page[] {
+  const files = getMarkdownFiles(faqDirectory);
+
+  const pages = files.map(filePath => {
+    const slug = path.basename(filePath, path.extname(filePath));
+    const parsed = parseMarkdownFile<PageMetadata>(filePath);
+
+    return {
+      metadata: {
+        ...parsed.metadata,
+        slug,
+      },
+      content: parsed.content,
+    };
+  });
+
+  return pages.sort((a, b) => {
+    const orderA = a.metadata.order ?? 999;
+    const orderB = b.metadata.order ?? 999;
+    return orderA - orderB;
+  });
+}
+
+/**
  * Get all roadmap items
  */
 export function getRoadmap(): RoadmapItem[] {
@@ -149,4 +197,3 @@ export function getRoadmap(): RoadmapItem[] {
     return orderA - orderB;
   });
 }
-

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import MarkdownContent from "@/components/MarkdownContent";
 import FaqKeywordLinks from "@/components/FaqKeywordLinks";
-import { getDocPage } from "@/lib/content/loader";
+import { getAllFaqPages, getDocPage, getFaqPage } from "@/lib/content/loader";
 import {
   findSeoKeywordBySlug,
   seoKeywordEntries,
@@ -37,15 +37,51 @@ function buildDescription(keyword: string): string {
 }
 
 export async function generateStaticParams() {
-  return seoKeywordEntries.map((entry) => ({
-    keyword: entry.slug,
-  }));
+  const seoParams = seoKeywordEntries.map((entry) => entry.slug);
+  const faqParams = getAllFaqPages().map((page) => page.metadata.slug);
+  const uniqueSlugs = Array.from(new Set([...seoParams, ...faqParams]));
+
+  return uniqueSlugs.map((keyword) => ({ keyword }));
 }
 
 export async function generateMetadata({
   params,
 }: SeoPageProps): Promise<Metadata> {
   const { keyword: slug } = await params;
+  const faqPage = getFaqPage(slug);
+
+  if (faqPage) {
+    const pageUrl = `${siteUrl}/faq/${slug}`;
+
+    return {
+      title: faqPage.metadata.title,
+      description: faqPage.metadata.description,
+      keywords: [
+        faqPage.metadata.title,
+        "AI DevKit FAQ",
+        "AI coding tools comparison",
+        "AI development tools",
+        "structured workflows",
+      ],
+      openGraph: {
+        title: faqPage.metadata.title,
+        description: faqPage.metadata.description,
+        url: pageUrl,
+        siteName: "AI DevKit",
+        locale: "en_US",
+        type: "article",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: faqPage.metadata.title,
+        description: faqPage.metadata.description,
+      },
+      alternates: {
+        canonical: pageUrl,
+      },
+    };
+  }
+
   const entry = findSeoKeywordBySlug(slug);
 
   if (!entry) {
@@ -91,6 +127,47 @@ export async function generateMetadata({
 
 export default async function SeoKeywordPage({ params }: SeoPageProps) {
   const { keyword: slug } = await params;
+  const faqPage = getFaqPage(slug);
+
+  if (faqPage) {
+    const pageUrl = `${siteUrl}/faq/${slug}`;
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: faqPage.metadata.title,
+      description: faqPage.metadata.description,
+      url: pageUrl,
+      author: {
+        "@type": "Organization",
+        name: "AI DevKit",
+      },
+      publisher: {
+        "@type": "Organization",
+        name: "AI DevKit",
+        url: siteUrl,
+      },
+    };
+
+    return (
+      <div className="bg-white py-16">
+        <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+          />
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            {faqPage.metadata.title}
+          </h1>
+          <p className="text-xl text-gray-600 mb-12">
+            {faqPage.metadata.description}
+          </p>
+          <MarkdownContent content={faqPage.content} />
+          <FaqKeywordLinks />
+        </article>
+      </div>
+    );
+  }
+
   const entry = findSeoKeywordBySlug(slug);
 
   if (!entry) {

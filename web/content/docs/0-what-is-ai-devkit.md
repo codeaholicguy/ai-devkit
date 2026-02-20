@@ -7,6 +7,8 @@ order: 0
 
 AI DevKit is an open-source toolkit that brings structure and consistency to AI-assisted software development. It works alongside AI coding assistants like Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, and others, giving them the context, workflows, and memory they need to help you build software more effectively.
 
+AI DevKit is intentionally feature-rich: it combines workflow orchestration, documentation scaffolding, memory, skills, linting, and agent operations in one toolkit. The long-term direction is to become the **operating system for AI-driven development**.
+
 ## The Problem
 
 AI coding assistants are powerful, but using them day-to-day often feels inconsistent:
@@ -15,6 +17,80 @@ AI coding assistants are powerful, but using them day-to-day often feels inconsi
 - **Workflows are ad hoc.** There's no standard way to move from requirements through design, implementation, and testing with AI assistance.
 - **Instructions are repeated constantly.** You re-explain the same rules, preferences, and patterns in every session.
 - **Knowledge stays siloed.** Lessons learned during development aren't captured in a way your AI assistant can reuse later.
+
+## Platform Direction
+
+AI DevKit is evolving toward an operating system model for AI-driven development:
+
+- **Standard interfaces** for commands, skills, memory, and docs across agents
+- **Stateful development context** through phase docs and long-term memory
+- **Composable capabilities** via built-in and community skills
+- **Operational controls** like lint checks, worktree workflows, and agent management
+
+This means teams can run consistent workflows regardless of which AI coding assistant they use.
+
+## Feature Inventory
+
+AI DevKit includes the following core feature areas:
+
+| Feature Area | What You Get |
+|---|---|
+| **Project initialization** | `ai-devkit init` wizard to scaffold `docs/ai/`, environment files, and project config |
+| **Phase templates** | Requirements, design, planning, implementation, testing, deployment, and monitoring templates |
+| **Structured slash commands** | End-to-end development commands installed into supported AI environments |
+| **Memory system** | Local SQLite memory with `store`, `search`, and `update` commands plus MCP integration |
+| **Skills system** | Built-in skills and community registry support (`add`, `find`, `update`, `list`, `remove`) |
+| **Agent management** | Inspect and focus running agents via `ai-devkit agent list` and `ai-devkit agent open` |
+| **Workflow linting** | `ai-devkit lint` checks docs, feature conventions, and git/worktree alignment |
+| **Global setup** | `ai-devkit setup --global` to install command packs for global agent environments |
+
+## Available Slash Commands
+
+These commands are installed into your AI coding environment:
+
+- `/new-requirement`
+- `/review-requirements`
+- `/review-design`
+- `/execute-plan`
+- `/update-planning`
+- `/check-implementation`
+- `/writing-test`
+- `/code-review`
+- `/debug`
+- `/capture-knowledge`
+- `/simplify-implementation`
+- `/remember`
+
+## Available CLI Commands
+
+Top-level CLI commands:
+
+- `ai-devkit init`
+- `ai-devkit phase`
+- `ai-devkit setup --global`
+- `ai-devkit lint`
+- `ai-devkit skill ...`
+- `ai-devkit memory ...`
+- `ai-devkit agent ...`
+
+Subcommands:
+
+- `ai-devkit skill add|list|remove|update|find|rebuild-index`
+- `ai-devkit memory store|search|update`
+- `ai-devkit agent list|open`
+
+## Built-in Skills
+
+AI DevKit includes these built-in skills in the default registry:
+
+| Skill | Purpose |
+|---|---|
+| `dev-lifecycle` | End-to-end SDLC workflow across requirements, design, planning, implementation, testing, and review |
+| `debug` | Structured debugging and root-cause workflow before code changes |
+| `simplify-implementation` | Reduce complexity and improve maintainability of existing implementations |
+| `capture-knowledge` | Analyze code and capture reusable project knowledge in docs |
+| `memory` | Use AI DevKit memory service from CLI workflows |
+| `technical-writer` | Improve documentation quality and clarity |
 
 ## How AI DevKit Helps
 

@@ -6,6 +6,8 @@ order: 1
 
 **AI DevKit** is a toolkit that helps you work more effectively with AI coding assistants like Cursor, Claude Code, Codex, Antigravity, OpenCode, GitHub Copilot, and more. It provides structured workflows, reusable commands, and memory features to make AI-assisted development more consistent and productive.
 
+The direction of AI DevKit is to become the **operating system for AI-driven development**: one standard layer for workflows, memory, skills, and execution across agents.
+
 ## Why AI DevKit?
 
 When working with AI assistants, you often find yourself:
@@ -124,4 +126,3 @@ Here's how a typical workflow might look:
 - Check the [Supported Agents](/docs/2-supported-agents) page for environment-specific setup
 - Browse the [Roadmap](/roadmap) to see what's coming
 - Open an issue on [GitHub](https://github.com/Codeaholicguy/ai-devkit) for bugs or questions
-

@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next';
-import { getAllDocPages } from '@/lib/content/loader';
+import { getAllDocPages, getAllFaqPages } from '@/lib/content/loader';
 import { seoKeywordEntries } from '@/lib/seo/keywords';
 import { setupToolEntries } from '@/lib/seo/setup-tools';
 
@@ -55,6 +55,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
+  const faqs = getAllFaqPages();
+  const faqRoutes = faqs.map((faq) => ({
+    url: `${baseUrl}/faq/${faq.metadata.slug}`,
+    lastModified: new Date(),
+    changeFrequency: 'weekly' as const,
+    priority: 0.7,
+  }));
+
   const seoRoutes = seoKeywordEntries.map((entry) => ({
     url: `${baseUrl}/faq/${entry.slug}`,
     lastModified: new Date(),
@@ -69,6 +77,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  return [...staticRoutes, ...docRoutes, ...seoRoutes, ...setupRoutes];
-}
+  const allRoutes = [...staticRoutes, ...docRoutes, ...faqRoutes, ...seoRoutes, ...setupRoutes];
+  const routeMap = new Map(allRoutes.map((route) => [route.url, route]));
 
+  return Array.from(routeMap.values());
+}
