@@ -29,69 +29,6 @@ AI DevKit is evolving toward an operating system model for AI-driven development
 
 This means teams can run consistent workflows regardless of which AI coding assistant they use.
 
-## Feature Inventory
-
-AI DevKit includes the following core feature areas:
-
-| Feature Area | What You Get |
-|---|---|
-| **Project initialization** | `ai-devkit init` wizard to scaffold `docs/ai/`, environment files, and project config |
-| **Phase templates** | Requirements, design, planning, implementation, testing, deployment, and monitoring templates |
-| **Structured slash commands** | End-to-end development commands installed into supported AI environments |
-| **Memory system** | Local SQLite memory with `store`, `search`, and `update` commands plus MCP integration |
-| **Skills system** | Built-in skills and community registry support (`add`, `find`, `update`, `list`, `remove`) |
-| **Agent management** | Inspect and focus running agents via `ai-devkit agent list` and `ai-devkit agent open` |
-| **Workflow linting** | `ai-devkit lint` checks docs, feature conventions, and git/worktree alignment |
-| **Global setup** | `ai-devkit setup --global` to install command packs for global agent environments |
-
-## Available Slash Commands
-
-These commands are installed into your AI coding environment:
-
-- `/new-requirement`
-- `/review-requirements`
-- `/review-design`
-- `/execute-plan`
-- `/update-planning`
-- `/check-implementation`
-- `/writing-test`
-- `/code-review`
-- `/debug`
-- `/capture-knowledge`
-- `/simplify-implementation`
-- `/remember`
-
-## Available CLI Commands
-
-Top-level CLI commands:
-
-- `ai-devkit init`
-- `ai-devkit phase`
-- `ai-devkit setup --global`
-- `ai-devkit lint`
-- `ai-devkit skill ...`
-- `ai-devkit memory ...`
-- `ai-devkit agent ...`
-
-Subcommands:
-
-- `ai-devkit skill add|list|remove|update|find|rebuild-index`
-- `ai-devkit memory store|search|update`
-- `ai-devkit agent list|open`
-
-## Built-in Skills
-
-AI DevKit includes these built-in skills in the default registry:
-
-| Skill | Purpose |
-|---|---|
-| `dev-lifecycle` | End-to-end SDLC workflow across requirements, design, planning, implementation, testing, and review |
-| `debug` | Structured debugging and root-cause workflow before code changes |
-| `simplify-implementation` | Reduce complexity and improve maintainability of existing implementations |
-| `capture-knowledge` | Analyze code and capture reusable project knowledge in docs |
-| `memory` | Use AI DevKit memory service from CLI workflows |
-| `technical-writer` | Improve documentation quality and clarity |
-
 ## How AI DevKit Helps
 
 AI DevKit addresses these gaps with four core capabilities:
