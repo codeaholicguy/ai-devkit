@@ -18,11 +18,7 @@ export interface LintCheckResult {
 
 export interface LintReport {
   cwd: string;
-  feature?: {
-    raw: string;
-    normalizedName: string;
-    branchName: string;
-  };
+  feature?: FeatureTarget;
   checks: LintCheckResult[];
   summary: {
     ok: number;
@@ -32,6 +28,12 @@ export interface LintReport {
   };
   pass: boolean;
   exitCode: 0 | 1;
+}
+
+export interface FeatureTarget {
+  raw: string;
+  normalizedName: string;
+  branchName: string;
 }
 
 export interface LintDependencies {

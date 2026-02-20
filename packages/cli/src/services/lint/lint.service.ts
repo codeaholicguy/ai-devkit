@@ -4,7 +4,7 @@ import { runBaseDocsRules } from './rules/base-docs.rule';
 import { runFeatureDocsRules } from './rules/feature-docs.rule';
 import { validateFeatureNameRule, normalizeFeatureName } from './rules/feature-name.rule';
 import { runGitWorktreeRules } from './rules/git-worktree.rule';
-import { LintCheckResult, LintDependencies, LintOptions, LintReport } from './types';
+import { FeatureTarget, LintCheckResult, LintDependencies, LintOptions, LintReport } from './types';
 
 const defaultDependencies: LintDependencies = {
   cwd: () => process.cwd(),
@@ -34,7 +34,16 @@ export function runLintChecks(
     return finalizeReport(cwd, checks);
   }
 
-  const featureValidation = validateFeatureNameRule(options.feature);
+  return runFeatureChecks(cwd, checks, options.feature, deps);
+}
+
+function runFeatureChecks(
+  cwd: string,
+  checks: LintCheckResult[],
+  rawFeature: string,
+  deps: LintDependencies
+): LintReport {
+  const featureValidation = validateFeatureNameRule(rawFeature);
   if (featureValidation.check) {
     checks.push(featureValidation.check);
     return finalizeReport(cwd, checks, featureValidation.target);
@@ -49,7 +58,7 @@ export function runLintChecks(
 function finalizeReport(
   cwd: string,
   checks: LintCheckResult[],
-  feature?: { raw: string; normalizedName: string; branchName: string }
+  feature?: FeatureTarget
 ): LintReport {
   const summary = checks.reduce(
     (acc, check) => {

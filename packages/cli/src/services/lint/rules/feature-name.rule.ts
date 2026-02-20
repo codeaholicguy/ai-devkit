@@ -1,12 +1,6 @@
 import { FEATURE_NAME_PATTERN } from '../constants';
-import { LintCheckResult } from '../types';
+import { FeatureTarget, LintCheckResult } from '../types';
 import { createMissingCheck } from './check-factories';
-
-export interface FeatureTarget {
-  raw: string;
-  normalizedName: string;
-  branchName: string;
-}
 
 export function normalizeFeatureName(input: string): string {
   const trimmed = input.trim();

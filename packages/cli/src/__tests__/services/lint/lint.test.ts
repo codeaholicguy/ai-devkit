@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { normalizeFeatureName, runLintChecks } from '../../../services/lint/lint.service';
 
-describe('lint utilities', () => {
+describe('lint service', () => {
   it('normalizes feature names with optional feature- prefix', () => {
     expect(normalizeFeatureName('lint-command')).toBe('lint-command');
     expect(normalizeFeatureName('feature-lint-command')).toBe('lint-command');

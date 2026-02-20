@@ -23,6 +23,7 @@ description: Define testing approach, test cases, and quality assurance
 - [x] Branch exists + no dedicated worktree returns pass with warning.
 - [x] Missing feature branch returns required failure.
 - [x] Non-git directory in feature mode returns required failure.
+- [x] Rule-level suites cover base-docs, feature-name, and git-worktree rule behavior directly.
 
 ## Integration Tests
 **How do we test component interactions?**
@@ -48,7 +49,7 @@ description: Define testing approach, test cases, and quality assurance
 **How do we verify and communicate test results?**
 
 - Executed:
-  - `nx run cli:test -- --runInBand lint.test.ts` (pass, 2 suites / 9 tests)
+  - `nx run cli:test -- --runInBand lint.test.ts` (pass, 5 suites / 16 tests)
   - `npm run lint` in `packages/cli` (pass with pre-existing repo warnings unrelated to lint command)
 - Manual verification runs:
   - Current repo + `feature=lint-command`: pass `true`, exit code `0`, zero required failures.

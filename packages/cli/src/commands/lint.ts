@@ -13,17 +13,23 @@ export function renderLintReport(report: LintReport, options: LintOptions = {}):
     return;
   }
 
-  printCategory('base-docs', report);
+  const sections: Array<{ title: string; category: LintCheckResult['category'] }> = [
+    { title: '=== Base Structure ===', category: 'base-docs' }
+  ];
 
   if (report.feature) {
-    ui.text('');
-    ui.text(`=== Feature: ${report.feature.normalizedName} ===`);
-    printRows(report.checks.filter(check => check.category === 'feature-docs'));
-
-    ui.text('');
-    ui.text(`=== Git: ${report.feature.branchName} ===`);
-    printRows(report.checks.filter(check => check.category === 'git-worktree'));
+    sections.push(
+      { title: `=== Feature: ${report.feature.normalizedName} ===`, category: 'feature-docs' },
+      { title: `=== Git: ${report.feature.branchName} ===`, category: 'git-worktree' }
+    );
   }
+
+  sections.forEach((section, index) => {
+    if (index > 0) {
+      ui.text('');
+    }
+    printSection(section.title, section.category, report);
+  });
 
   ui.text('');
   if (report.pass) {
@@ -37,11 +43,8 @@ export function renderLintReport(report: LintReport, options: LintOptions = {}):
   }
 }
 
-function printCategory(category: LintCheckResult['category'], report: LintReport): void {
-  if (category === 'base-docs') {
-    ui.text('=== Base Structure ===');
-  }
-
+function printSection(title: string, category: LintCheckResult['category'], report: LintReport): void {
+  ui.text(title);
   printRows(report.checks.filter(check => check.category === category));
 }
 

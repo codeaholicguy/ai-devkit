@@ -20,7 +20,7 @@ graph TD
   BaseCheck --> FS[(File System)]
   FeatureCheck --> FS
   GitCheck --> Git[(Git metadata)]
-  LintService --> Reporter[Terminal and JSON reporter]
+  CLI --> Reporter[Terminal and JSON reporter]
 ```
 
 - Key components and responsibilities
@@ -29,7 +29,7 @@ graph TD
   - Base docs checker: validate required phase template files (`docs/ai/*/README.md`).
   - Feature docs checker: validate `docs/ai/{phase}/feature-<name>.md` across lifecycle phases.
   - Git/worktree checker: evaluate feature branch/worktree convention used by `dev-lifecycle` Phase 1 prerequisite.
-  - Reporter: consistent output rows (`[OK]`, `[MISS]`, `[WARN]`) and final summary with exit code.
+  - Reporter (command-owned): consistent output rows (`[OK]`, `[MISS]`, `[WARN]`) and final summary with exit code.
 - Technology stack choices and rationale
   - TypeScript within existing CLI package for shared UX and testability.
   - Extract shell script checks into reusable TS utilities to avoid behavior drift.

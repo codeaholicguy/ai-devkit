@@ -43,12 +43,13 @@ description: Technical implementation notes, patterns, and code guidelines
   - Missing git repository => required failure.
   - Missing `feature-<name>` branch => required failure.
   - Missing dedicated worktree for branch => warning only.
-- Reporter supports:
+- Command rendering supports:
   - human-readable checklist output
   - JSON report output with summary and per-check metadata
 
 ### Patterns & Best Practices
 - `runLintChecks` accepts injected dependencies (`cwd`, `existsSync`, `execFileSync`) for testability.
+- Shared phase-doc rule helper keeps base/feature doc checks consistent while avoiding duplication.
 - Check results use a normalized shape (`LintCheckResult`) so rendering and JSON use one source of truth.
 - Required failures drive exit code; warnings are advisory only.
 
