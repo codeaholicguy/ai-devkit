@@ -80,7 +80,7 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 **AI DevKit** provides structure but remains flexible. Built-in skills like `dev-lifecycle` and `debug` encourage consistency, while `simplify-implementation` and `capture-knowledge` keep solutions practical and reusable. You can still use commands in the order that fits your project. The docs structure is guidance, not a hard gate.
 
-**Superpowers** enforces strict process discipline. In its documented methodology, test-first development is treated as mandatory. The framework also documents patterns that indicate process bypass and introduces a "1% threshold" style rule where skills should be applied whenever they might be relevant.
+**Superpowers** enforces strict process discipline. In its documented methodology, test-first development is treated as mandatory.
 
 ### Skills and Extensibility
 
@@ -141,4 +141,3 @@ Then use commands like `/new-requirement` to start building with a structured wo
 
 - AI DevKit repository: https://github.com/codeaholicguy/ai-devkit
 - Superpowers repository: https://github.com/obra/superpowers
-- Feature and workflow details are based on the project documentation and repository content as of February 20, 2026.
