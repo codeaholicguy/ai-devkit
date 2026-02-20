@@ -65,6 +65,37 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}/#website`,
+        name: "AI DevKit",
+        url: siteUrl,
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${siteUrl}/#softwareapplication`,
+        name: "AI DevKit",
+        applicationCategory: "DeveloperApplication",
+        operatingSystem: "macOS, Linux, Windows",
+        description:
+          "A CLI toolkit for AI-assisted software development with phase templates, structured workflows, skills, and memory.",
+        url: siteUrl,
+        downloadUrl: "https://www.npmjs.com/package/ai-devkit",
+        softwareHelp: `${siteUrl}/docs`,
+        sourceOrganization: {
+          "@type": "Organization",
+          name: "AI DevKit",
+          url: siteUrl,
+        },
+        isAccessibleForFree: true,
+        sameAs: ["https://github.com/codeaholicguy/ai-devkit"],
+      },
+    ],
+  };
+
   return (
     <html lang="en">
       <body className="flex flex-col min-h-screen">
@@ -72,7 +103,7 @@ export default function RootLayout({
           async
           src="https://www.googletagmanager.com/gtag/js?id=G-XYJ8T5JK0Y"
         ></Script>
-        <Script>
+        <Script id="gtag-init">
           {`
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
@@ -91,12 +122,7 @@ export default function RootLayout({
             id="structured-data"
             type="application/ld+json"
             dangerouslySetInnerHTML={{
-              __html: JSON.stringify({
-                "@context": "https://schema.org",
-                "@type": "website",
-                name: "AI DevKit",
-                url: siteUrl,
-              }),
+              __html: JSON.stringify(structuredData),
             }}
           />
         </GitHubProvider>
