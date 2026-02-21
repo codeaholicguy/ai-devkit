@@ -16,7 +16,7 @@ description: Clarify the problem space, gather requirements, and define success 
 ## Goals & Objectives
 **What do we want to achieve?**
 
-- Provide `npx ai-devkit skill find <keyword>` to list matching skills.
+- Provide `npx ai-devkit@latest skill find <keyword>` to list matching skills.
 - Make search fast without cloning full registries.
 - Keep results reasonably fresh via a lightweight index update trigger.
 - Keep output useful for install (skill name + description).
@@ -34,7 +34,7 @@ description: Clarify the problem space, gather requirements, and define success 
 ## Success Criteria
 **How will we know when we're done?**
 
-- `npx ai-devkit skill find typescript` returns matching skills within 500ms with warm cache.
+- `npx ai-devkit@latest skill find typescript` returns matching skills within 500ms with warm cache.
 - Index update does not clone full registries for typical usage.
 - Search works across all registries in `skills/registry.json`.
 - Clear output format and exit codes for no matches or errors.

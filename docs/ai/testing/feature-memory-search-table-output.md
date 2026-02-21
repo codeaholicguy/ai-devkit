@@ -40,8 +40,8 @@ description: Define testing approach, test cases, and quality assurance
 ## End-to-End Tests
 **What user flows need validation?**
 
-- [ ] Manual smoke: run `npx ai-devkit memory search --query "<q>"`.
-- [ ] Manual smoke: run `npx ai-devkit memory search --query "<q>" --table`.
+- [ ] Manual smoke: run `npx ai-devkit@latest memory search --query "<q>"`.
+- [ ] Manual smoke: run `npx ai-devkit@latest memory search --query "<q>" --table`.
 
 ## Test Data
 **What data do we use for testing?**

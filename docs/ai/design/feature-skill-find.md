@@ -58,7 +58,7 @@ description: Define the technical architecture, components, and data models
   - `ensureIndex(registries): Index` (checks TTL, registry list hash, optional head hash)
   - `searchIndex(index, keyword): SkillEntry[]`
 - Request/response formats
-  - CLI: `npx ai-devkit skill find <keyword>`
+  - CLI: `npx ai-devkit@latest skill find <keyword>`
   - Output: table or list with `skillName` and `description`
 - Authentication/authorization approach
   - GitHub unauthenticated rate limits apply (60 requests/hour).

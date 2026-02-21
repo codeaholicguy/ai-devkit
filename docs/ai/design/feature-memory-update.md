@@ -71,7 +71,7 @@ interface MemoryUpdateOptions {
 ### CLI Command
 
 ```
-npx ai-devkit memory update --id <uuid> [--title <title>] [--content <content>] [--tags <tags>] [--scope <scope>]
+npx ai-devkit@latest memory update --id <uuid> [--title <title>] [--content <content>] [--tags <tags>] [--scope <scope>]
 ```
 
 | Option | Required | Description |

@@ -10,14 +10,14 @@ description: Allow users to update existing memory content by ID via the CLI
 
 Users can store and search knowledge items via the CLI (`memory store`, `memory search`), but there is no way to update an existing entry. If a knowledge item becomes outdated or contains errors, the user cannot modify it — they would need to delete and re-create it (and deletion isn't supported either). This creates stale knowledge that can mislead AI assistants relying on the memory service.
 
-- **Who is affected?** Developers and AI assistants using `npx ai-devkit memory` to manage knowledge.
+- **Who is affected?** Developers and AI assistants using `npx ai-devkit@latest memory` to manage knowledge.
 - **Current workaround:** None — users cannot modify stored knowledge at all.
 
 ## Goals & Objectives
 
 **Primary goals:**
 - Allow users to update the title, content, tags, and/or scope of an existing memory item by its ID
-- Expose the update operation via CLI (`npx ai-devkit memory update`)
+- Expose the update operation via CLI (`npx ai-devkit@latest memory update`)
 - Expose the update operation via MCP tool (`memory.updateKnowledge`)
 
 **Non-goals:**
@@ -44,7 +44,7 @@ Users can store and search knowledge items via the CLI (`memory store`, `memory 
 
 ## Success Criteria
 
-1. `npx ai-devkit memory update --id <uuid> [options]` successfully updates the specified fields
+1. `npx ai-devkit@latest memory update --id <uuid> [options]` successfully updates the specified fields
 2. Only provided fields are updated; unspecified fields remain unchanged
 3. Validation rules (title length, content length, tag format, scope format) are enforced on updated values
 4. Duplicate detection (normalized title + scope, content hash + scope) is enforced, excluding the item being updated

@@ -71,9 +71,9 @@ description: Define testing approach, test cases, and quality assurance
 - Browser/device compatibility
   - Not applicable
 - Smoke tests after deployment
-  - `npx ai-devkit setup` (interactive)
-  - `npx ai-devkit setup --dry-run`
-  - `npx ai-devkit setup --non-interactive --profile quickstart --tools codex,claude`
+  - `npx ai-devkit@latest setup` (interactive)
+  - `npx ai-devkit@latest setup --dry-run`
+  - `npx ai-devkit@latest setup --non-interactive --profile quickstart --tools codex,claude`
 
 ## Performance Testing
 **How do we validate performance?**

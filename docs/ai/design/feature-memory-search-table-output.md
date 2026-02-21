@@ -49,9 +49,9 @@ description: Define the technical architecture, components, and data models
   - Keep `memorySearchCommand(options)` unchanged.
 - Request/response formats
   - Existing command:
-    - `npx ai-devkit memory search --query "<query>" [--tags "..."] [--scope "..."] [--limit N]`
+    - `npx ai-devkit@latest memory search --query "<query>" [--tags "..."] [--scope "..."] [--limit N]`
   - New table mode:
-    - `npx ai-devkit memory search --query "<query>" --table`
+    - `npx ai-devkit@latest memory search --query "<query>" --table`
   - Table output columns:
     - `id`
     - `title`

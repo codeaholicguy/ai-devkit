@@ -66,7 +66,7 @@ description: Technical implementation notes, patterns, and code guidelines
 
 - Git command failures are converted into deterministic lint results (miss or warn), not thrown errors.
 - Missing files are reported with explicit path and remediation guidance.
-- Output includes suggested fixes (for example `npx ai-devkit init`, `git worktree add ...`).
+- Output includes suggested fixes (for example `npx ai-devkit@latest init`, `git worktree add ...`).
 
 ## Performance Considerations
 **How do we keep it fast?**

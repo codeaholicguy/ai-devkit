@@ -66,7 +66,7 @@ description: Define the technical architecture, components, and data models
   - `installSkills(skills: TemplateSkill[]): Promise<SkillInstallResult[]>`
 - Request/response formats
   - CLI command
-    - `npx ai-devkit init --template <path>`
+    - `npx ai-devkit@latest init --template <path>`
     - Path resolution: absolute path as-is; relative path resolved from current working directory.
   - Sample YAML template
     ```yaml

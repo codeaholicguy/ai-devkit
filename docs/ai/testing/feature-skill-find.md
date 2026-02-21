@@ -70,7 +70,7 @@ description: Define testing approach, test cases, and quality assurance
 - Browser/device compatibility
   - Not applicable
 - Smoke tests after deployment
-  - Run `npx ai-devkit skill find typescript`
+  - Run `npx ai-devkit@latest skill find typescript`
 
 ## Performance Testing
 **How do we validate performance?**

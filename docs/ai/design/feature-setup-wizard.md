@@ -71,10 +71,10 @@ description: Define the technical architecture, components, and data models
   - `renderReport(report): void`
 - Request/response formats
   - CLI entry points
-    - `npx ai-devkit setup` (interactive wizard default)
-    - `npx ai-devkit setup --non-interactive --profile <name> --tools codex,claude --assets commands,skills`
-    - `npx ai-devkit setup --dry-run`
-    - `npx ai-devkit setup --doctor` (recommended extension for diagnostics)
+    - `npx ai-devkit@latest setup` (interactive wizard default)
+    - `npx ai-devkit@latest setup --non-interactive --profile <name> --tools codex,claude --assets commands,skills`
+    - `npx ai-devkit@latest setup --dry-run`
+    - `npx ai-devkit@latest setup --doctor` (recommended extension for diagnostics)
   - Output
     - Human-readable summary by default.
     - Optional machine-readable JSON report (`--json`) for CI/auditing.

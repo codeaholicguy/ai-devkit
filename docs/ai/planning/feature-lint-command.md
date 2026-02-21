@@ -31,7 +31,7 @@ description: Break down work into actionable tasks and estimate timeline
 ### Phase 3: Integration & Polish
 - [x] Task 3.1: Update help text and README command documentation
 - [x] Task 3.2: Decide whether to keep `skills/dev-lifecycle/scripts/check-docs.sh` as wrapper or migrate references to `ai-devkit lint`
-- [x] Task 3.3: Add actionable remediation guidance in failures (`npx ai-devkit init`, worktree creation command)
+- [x] Task 3.3: Add actionable remediation guidance in failures (`npx ai-devkit@latest init`, worktree creation command)
 - [x] Task 3.4: Validate behavior against existing lifecycle docs and feature naming conventions
 
 ### Phase 4: Validation

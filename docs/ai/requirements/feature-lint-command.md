@@ -72,7 +72,7 @@ description: Clarify the problem space, gather requirements, and define success 
   - `ai-devkit lint --feature <name>` checks dedicated worktree/branch convention (`feature-<name>`).
   - Missing dedicated worktree returns a warning, not a hard failure.
   - Command exits `0` when all required checks pass and non-zero when required checks fail.
-  - Output includes recommended remediation (for example `npx ai-devkit init` or worktree creation commands).
+  - Output includes recommended remediation (for example `npx ai-devkit@latest init` or worktree creation commands).
   - `--json` returns machine-readable structured results for CI tooling.
 - Performance benchmarks (if applicable)
   - File-system checks and git checks should avoid expensive scans and run in sub-second to low-second range.

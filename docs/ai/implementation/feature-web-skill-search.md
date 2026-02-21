@@ -52,7 +52,7 @@ const filteredSkills = skills.filter(skill =>
 
 ### Copy to Clipboard
 ```typescript
-navigator.clipboard.writeText(`npx ai-devkit skill add ${skill.name}`);
+navigator.clipboard.writeText(`npx ai-devkit@latest skill add ${skill.name}`);
 ```
 
 ## Integration Points

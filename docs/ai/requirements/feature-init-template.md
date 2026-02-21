@@ -10,7 +10,7 @@ description: Clarify the problem space, gather requirements, and define success 
 
 **What problem are we solving?**
 
-- `npx ai-devkit init` currently requires interactive step-by-step prompts, which slows down repeatable setup and automation.
+- `npx ai-devkit@latest init` currently requires interactive step-by-step prompts, which slows down repeatable setup and automation.
 - Teams and power users cannot define a reusable bootstrap configuration that includes environments, phases, and skills in one command.
 - Skill installation during init is not fully declarative from a single template file.
 - Who is affected:
@@ -23,12 +23,12 @@ description: Clarify the problem space, gather requirements, and define success 
 **What do we want to achieve?**
 
 - Primary goals
-  - Add support for `npx ai-devkit init --template <file>` (example: `npx ai-devkit init --template test.yaml`).
+  - Add support for `npx ai-devkit@latest init --template <file>` (example: `npx ai-devkit@latest init --template test.yaml`).
   - Allow template-driven initialization for:
     - `environments`
     - `skills` (`registry`, `skill`)
     - `phases`
-  - Automatically install requested skills via `npx ai-devkit skill add` during init.
+  - Automatically install requested skills via `npx ai-devkit@latest skill add` during init.
   - Reduce or eliminate interactive prompts when a valid template provides required values.
 - Secondary goals
   - Keep backward compatibility for current interactive `init` flow.
@@ -43,7 +43,7 @@ description: Clarify the problem space, gather requirements, and define success 
 
 **How will users interact with the solution?**
 
-- As a developer, I want to run `npx ai-devkit init --template test.yaml` so that I can initialize without answering prompts one by one.
+- As a developer, I want to run `npx ai-devkit@latest init --template test.yaml` so that I can initialize without answering prompts one by one.
 - As a team lead, I want to commit a template file so that every teammate gets the same environments, skills, and phases.
 - As a CI maintainer, I want deterministic initialization from template so that pipeline setup is reproducible.
 - Key workflows and scenarios
@@ -70,7 +70,7 @@ description: Clarify the problem space, gather requirements, and define success 
   - Template format supports both YAML (`.yml`/`.yaml`) and JSON (`.json`) in v1.
   - Template path accepts both relative and absolute file paths.
   - Init parses template and applies `environments`, `skills`, and `phases`.
-  - For each template skill entry, init triggers the same install path as `npx ai-devkit skill add`.
+  - For each template skill entry, init triggers the same install path as `npx ai-devkit@latest skill add`.
   - Multiple entries with the same registry and different skill names are all processed.
   - Skill installation continues after individual failures and reports all failed items in the final summary.
   - If one or more skills fail, command exits with status code `0` and warning output.

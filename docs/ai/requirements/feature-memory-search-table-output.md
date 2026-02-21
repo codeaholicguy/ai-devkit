@@ -38,9 +38,9 @@ description: Clarify the problem space, gather requirements, and define success 
 ## Success Criteria
 **How will we know when we're done?**
 
-- `npx ai-devkit memory search --query "<q>" --table` displays a terminal table.
+- `npx ai-devkit@latest memory search --query "<q>" --table` displays a terminal table.
 - Table columns are present and ordered: `id`, `title`, `scope`.
-- `npx ai-devkit memory search --query "<q>"` without `--table` preserves current JSON output behavior.
+- `npx ai-devkit@latest memory search --query "<q>"` without `--table` preserves current JSON output behavior.
 - Existing search filters (`--tags`, `--scope`, `--limit`) continue to work with `--table`.
 - When no results are found in table mode, CLI prints a clear warning and exits successfully (exit code `0`).
 

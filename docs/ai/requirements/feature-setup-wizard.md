@@ -25,7 +25,7 @@ description: Clarify the problem space, gather requirements, and define success 
 **What do we want to achieve?**
 
 - Primary goals
-  - Turn `npx ai-devkit setup` into a guided interactive wizard by default (no required `--global` gate).
+  - Turn `npx ai-devkit@latest setup` into a guided interactive wizard by default (no required `--global` gate).
   - Configure local global environments for supported tools in one run (for example: Codex, Claude Code, Antigravity).
   - Support setup of global assets: commands, skills, and instruction/context files where each tool supports them.
   - Make setup idempotent, re-runnable, and safe (preview + backup + overwrite policy).
@@ -49,8 +49,8 @@ description: Clarify the problem space, gather requirements, and define success 
 - As a power user, I want `--dry-run`, diff preview, and non-interactive flags so that I can automate setup safely.
 - As a returning user, I want re-running setup to be fast and safe so that I can update assets without breaking my custom files.
 - Key workflows and scenarios
-  - Run `npx ai-devkit setup` -> choose persona/profile -> select tools -> choose assets -> preview -> apply -> report.
-  - Run `npx ai-devkit setup --non-interactive --profile team-default` for deterministic onboarding.
+  - Run `npx ai-devkit@latest setup` -> choose persona/profile -> select tools -> choose assets -> preview -> apply -> report.
+  - Run `npx ai-devkit@latest setup --non-interactive --profile team-default` for deterministic onboarding.
   - Run setup again after upgrading ai-devkit -> detect drift -> apply selective updates.
 - Edge cases to consider
   - Tool installed but config directory missing.
@@ -68,7 +68,7 @@ description: Clarify the problem space, gather requirements, and define success 
   - 90%+ of sampled users can complete setup without external docs, measured via onboarding study or opt-in post-setup prompt feedback.
   - Re-run setup changes only drifted files (idempotent behavior).
 - Acceptance criteria
-  - `npx ai-devkit setup` launches wizard by default.
+  - `npx ai-devkit@latest setup` launches wizard by default.
   - Wizard supports at least Codex, Claude Code, and Antigravity in v1.
   - User can select assets by type (`commands`, `skills`, instruction docs) per tool.
   - Wizard shows planned file operations before writing.
