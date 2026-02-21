@@ -124,7 +124,7 @@ export default function Home() {
               </pre>
               <p className="text-gray-600 mt-6">or</p>
               <pre className="bg-black text-white p-4 rounded overflow-x-auto">
-                <code>npx ai-devkit init</code>
+                <code>npx ai-devkit@latest init</code>
               </pre>
               <p className="text-gray-600 mt-6">
                 This creates a <code>docs/ai/</code> directory with phase templates for

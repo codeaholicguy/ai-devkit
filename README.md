@@ -11,7 +11,7 @@ AI DevKit helps AI coding agents work more effectively with your codebase. It pr
 ## Quick Start
 
 ```bash
-npx ai-devkit init
+npx ai-devkit@latest init
 ```
 
 This launches an interactive setup wizard that configures your project for AI-assisted development in under a minute.

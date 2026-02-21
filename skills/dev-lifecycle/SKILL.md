@@ -9,7 +9,7 @@ Sequential phases producing docs in `docs/ai/`. Flow: 1→2→3→4→(5 after e
 
 ## Prerequisite
 
-Before starting any phase, run `scripts/check-docs.sh` to verify the base `docs/ai/` structure exists. If it fails, run `npx ai-devkit init` first. Do not proceed until all checks pass.
+Before starting any phase, run `scripts/check-docs.sh` to verify the base `docs/ai/` structure exists. If it fails, run `npx ai-devkit@latest init` first. Do not proceed until all checks pass.
 
 For a **new feature start** (Phase 1 or `/new-requirement`), apply the shared worktree setup in [references/worktree-setup.md](references/worktree-setup.md) before phase work. This setup is worktree-first by default and includes explicit no-worktree fallback, context verification, and dependency bootstrap.
 
@@ -50,10 +50,10 @@ Phases: `requirements/`, `design/`, `planning/`, `implementation/`, `testing/`.
 
 ## Memory Integration
 
-Use `npx ai-devkit memory` CLI in any phase that involves clarification questions (typically Phases 1-3):
+Use `npx ai-devkit@latest memory` CLI in any phase that involves clarification questions (typically Phases 1-3):
 
-1. **Before asking questions**: `npx ai-devkit memory search --query "<topic>"`. Apply matches; only ask about uncovered gaps.
-2. **After clarification**: `npx ai-devkit memory store --title "<title>" --content "<knowledge>" --tags "<tags>"`.
+1. **Before asking questions**: `npx ai-devkit@latest memory search --query "<topic>"`. Apply matches; only ask about uncovered gaps.
+2. **After clarification**: `npx ai-devkit@latest memory store --title "<title>" --content "<knowledge>" --tags "<tags>"`.
 
 ## Rules
 

@@ -51,7 +51,7 @@ if [[ $MISSING -eq 0 ]]; then
 else
   echo "$MISSING item(s) missing."
   if [[ ! -d "$DOCS_DIR" ]]; then
-    echo "Run: npx ai-devkit init"
+    echo "Run: npx ai-devkit@latest init"
   fi
   exit 1
 fi

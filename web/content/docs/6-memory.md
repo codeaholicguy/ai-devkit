@@ -14,7 +14,7 @@ The **Memory** service allows you to store actionable insights, coding patterns,
 Before using Memory, ensure you have:
 
 - **Node.js 18+** installed
-- **AI DevKit CLI** installed: `npm install -g ai-devkit` or use `npx ai-devkit`
+- **AI DevKit CLI** installed: `npm install -g ai-devkit` or use `npx ai-devkit@latest`
 - For MCP usage: A compatible AI assistant (Cursor, Claude Code, etc.)
 
 ## How It Works

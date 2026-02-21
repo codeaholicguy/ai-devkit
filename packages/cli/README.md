@@ -16,7 +16,7 @@ The command-line interface for **AI DevKit** — set up and manage AI-assisted d
 
 ```bash
 # Run directly (no install needed)
-npx ai-devkit init
+npx ai-devkit@latest init
 
 # Or install globally
 npm install -g ai-devkit

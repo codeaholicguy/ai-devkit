@@ -27,6 +27,6 @@ describe('base docs rule', () => {
 
     expect(checks).toHaveLength(5);
     expect(checks.every(check => check.level === 'miss')).toBe(true);
-    expect(checks[0].fix).toBe('Run: npx ai-devkit init');
+    expect(checks[0].fix).toBe('Run: npx ai-devkit@latest init');
   });
 });

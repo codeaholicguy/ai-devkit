@@ -64,7 +64,7 @@ ai-devkit skill add codeaholicguy/ai-devkit dev-lifecycle
 or
 
 ```bash
-npx ai-devkit skill add codeaholicguy/ai-devkit dev-lifecycle
+npx ai-devkit@latest skill add codeaholicguy/ai-devkit dev-lifecycle
 ```
 
 Once installed, the skill is immediately available to your AI agent. For more details on managing skills, see [Skills](/docs/skills).

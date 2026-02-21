@@ -9,7 +9,7 @@ export function runBaseDocsRules(cwd: string, deps: LintDependencies): LintCheck
     idPrefix: 'base',
     category: 'base-docs',
     filePathForPhase: (phase: string) => `${DOCS_DIR}/${phase}/README.md`,
-    missingFix: 'Run: npx ai-devkit init',
+    missingFix: 'Run: npx ai-devkit@latest init',
     deps
   });
 }

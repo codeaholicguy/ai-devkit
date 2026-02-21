@@ -19,7 +19,7 @@ Use the memory CLI commands when:
 
 Ensure AI DevKit CLI is available:
 ```bash
-npx ai-devkit --version
+npx ai-devkit@latest --version
 ```
 
 ## Commands Reference
@@ -29,7 +29,7 @@ npx ai-devkit --version
 Store new knowledge items using the `memory store` command:
 
 ```bash
-npx ai-devkit memory store \
+npx ai-devkit@latest memory store \
   --title "<short descriptive title>" \
   --content "<detailed knowledge content>" \
   --tags "<comma-separated tags>" \
@@ -49,20 +49,20 @@ npx ai-devkit memory store \
 
 ```bash
 # Store a global coding pattern
-npx ai-devkit memory store \
+npx ai-devkit@latest memory store \
   --title "Always handle BigInt serialization in API responses" \
   --content "When returning BigInt values from API endpoints, convert them to strings using \`BigInt.toString()\` before serialization. JSON.stringify() cannot serialize BigInt natively." \
   --tags "api,backend,serialization" \
   --scope "global"
 
 # Store project-specific knowledge
-npx ai-devkit memory store \
+npx ai-devkit@latest memory store \
   --title "Use pnpm for package management" \
   --content "This monorepo uses pnpm workspaces. Always use 'pnpm' instead of 'npm' or 'yarn'. Install dependencies with 'pnpm install' and run scripts with 'pnpm run <script>'." \
   --scope "project:my-monorepo"
 
 # Store repository-specific rules
-npx ai-devkit memory store \
+npx ai-devkit@latest memory store \
   --title "Database migrations require review" \
   --content "All database schema changes must be reviewed by the DBA team before merging. Create migration files in /migrations and tag the PR with 'needs-dba-review'." \
   --tags "database,migrations,process" \
@@ -74,7 +74,7 @@ npx ai-devkit memory store \
 Search for stored knowledge using the `memory search` command:
 
 ```bash
-npx ai-devkit memory search --query "<search query>"
+npx ai-devkit@latest memory search --query "<search query>"
 ```
 
 **Parameters:**
@@ -90,15 +90,15 @@ npx ai-devkit memory search --query "<search query>"
 
 ```bash
 # Basic search
-npx ai-devkit memory search --query "API response handling"
+npx ai-devkit@latest memory search --query "API response handling"
 
 # Search with tag boosting
-npx ai-devkit memory search \
+npx ai-devkit@latest memory search \
   --query "docker configuration" \
   --tags "docker,infra"
 
 # Search within a specific scope
-npx ai-devkit memory search \
+npx ai-devkit@latest memory search \
   --query "coding standards" \
   --scope "project:my-app" \
   --limit 10
@@ -158,12 +158,12 @@ When storing knowledge during a conversation:
 
 1. **Before storing**, search to avoid duplicates:
    ```bash
-   npx ai-devkit memory search --query "similar topic"
+   npx ai-devkit@latest memory search --query "similar topic"
    ```
 
 2. **After resolving an issue**, store the solution:
    ```bash
-   npx ai-devkit memory store \
+   npx ai-devkit@latest memory store \
      --title "Fix: Issue description" \
      --content "Solution details with code examples..." \
      --tags "relevant,tags"
@@ -171,7 +171,7 @@ When storing knowledge during a conversation:
 
 3. **Before starting a task**, search for relevant context:
    ```bash
-   npx ai-devkit memory search --query "task description"
+   npx ai-devkit@latest memory search --query "task description"
    ```
 
 ## Storage Location

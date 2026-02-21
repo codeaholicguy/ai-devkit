@@ -39,7 +39,7 @@ npm install -g ai-devkit
 Or use it directly with npx (no installation required):
 
 ```bash
-npx ai-devkit init
+npx ai-devkit@latest init
 ```
 
 ## Initialize Your Project

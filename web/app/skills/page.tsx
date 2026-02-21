@@ -72,7 +72,7 @@ export default function SkillsPage() {
 
     const handleCopy = async (skillName: string) => {
         try {
-            await navigator.clipboard.writeText(`npx ai-devkit skill add ${skillName}`);
+            await navigator.clipboard.writeText(`npx ai-devkit@latest skill add ${skillName}`);
             setCopied(true);
             setTimeout(() => setCopied(false), 2000);
         } catch {
@@ -258,7 +258,7 @@ export default function SkillsPage() {
                                     <div className="group relative">
                                         <div className="flex items-stretch rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
                                             <code className="flex-1 px-4 py-4 font-mono text-sm text-gray-800 overflow-x-auto">
-                                                npx ai-devkit skill add {selectedSkill.registry} {selectedSkill.name}
+                                                npx ai-devkit@latest skill add {selectedSkill.registry} {selectedSkill.name}
                                             </code>
                                             <button
                                                 onClick={() => handleCopy(selectedSkill.registry + " " + selectedSkill.name)}
