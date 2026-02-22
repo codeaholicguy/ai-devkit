@@ -11,3 +11,5 @@ coverage/
 .claude/settings.local.json
 .claude/skills/
 .cursor/skills/
+
+.worktrees/

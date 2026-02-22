@@ -8,13 +8,12 @@ Use this setup for **new feature starts** unless the user explicitly requests no
    - Call out that branch/workspace isolation is reduced.
    - Skip to step 7 (dependency bootstrap).
 3. Otherwise (default), use branch/worktree name `feature-<name>`.
-4. Create worktree directory as sibling path `../feature-<name>`.
-5. If branch does not exist: `git worktree add -b feature-<name> ../feature-<name>`.
-6. If branch exists: `git worktree add ../feature-<name> feature-<name>`.
-7. If using worktree, switch and verify context before any other step:
-   - `cd ../feature-<name>`
-   - `pwd` must end with `/feature-<name>`
-   - `git branch --show-current` must equal `feature-<name>`
+4. Create worktree directory inside current workspace at `.worktrees/feature-<name>`.
+5. If branch does not exist: `git worktree add -b feature-<name> .worktrees/feature-<name>`.
+6. If branch exists: `git worktree add .worktrees/feature-<name> feature-<name>`.
+7. If using worktree, verify and operate in that context without changing to paths outside the workspace:
+   - Verify branch with `git -C .worktrees/feature-<name> branch --show-current` (must equal `feature-<name>`).
+   - Run all phase commands with explicit workdir set to `.worktrees/feature-<name>` (or use `git -C .worktrees/feature-<name> ...` for git commands).
 8. Bootstrap dependencies before any phase work (be proactive and project-specific):
    - Detect language/ecosystem first by checking lockfiles, manifest files, and common tooling configs.
    - Prefer deterministic, lockfile-based installs when available.
