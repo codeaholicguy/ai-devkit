@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Lifecycle"
+  short_description: "Run structured SDLC phases from requirements to code review"
+  default_prompt: "Use $dev-lifecycle to run the current SDLC phase, update docs/ai outputs, and recommend the next phase based on project status."

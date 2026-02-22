@@ -1,0 +1,4 @@
+interface:
+  display_name: "Simplify Implementation Assistant"
+  short_description: "Simplify complex code with an analysis-first workflow"
+  default_prompt: "Use $simplify-implementation to analyze complexity, propose prioritized simplifications with risks, and wait for approval before changing code."

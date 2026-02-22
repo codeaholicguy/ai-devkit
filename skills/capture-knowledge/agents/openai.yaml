@@ -1,0 +1,4 @@
+interface:
+  display_name: "Knowledge Capture Assistant"
+  short_description: "Capture structured knowledge for code entry points"
+  default_prompt: "Use $capture-knowledge to analyze this code entry point, map dependencies, and create docs/ai/implementation/knowledge-<name>.md after validation is complete."

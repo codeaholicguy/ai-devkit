@@ -1,0 +1,4 @@
+interface:
+  display_name: "Memory Assistant"
+  short_description: "Use AI DevKit memory CLI to store and retrieve knowledge"
+  default_prompt: "Use $memory to search existing knowledge first, then store reusable project knowledge via npx ai-devkit@latest memory commands when needed."
