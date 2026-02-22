@@ -9,9 +9,9 @@ Sequential phases producing docs in `docs/ai/`. Flow: 1→2→3→4→(5 after e
 
 ## Prerequisite
 
-Before starting any phase, run `npx ai-devkit lint` to verify the base `docs/ai/` structure exists and is valid.
+Before starting any phase, run `npx ai-devkit@latest lint` to verify the base `docs/ai/` structure exists and is valid.
 
-If working on a specific feature, also run `npx ai-devkit lint --feature <name>` to validate feature-scoped docs.
+If working on a specific feature, also run `npx ai-devkit@latest lint --feature <name>` to validate feature-scoped docs.
 
 If lint fails because project docs are not initialized, run `npx ai-devkit@latest init`, then rerun lint. Do not proceed until checks pass.
 
@@ -34,7 +34,7 @@ Load only the reference file for the current phase. For Phase 1, also load [refe
 
 ## Resuming Work
 
-If the user wants to continue work on an existing feature, run `npx ai-devkit lint --feature <feature-name>` first, then run `scripts/check-status.sh <feature-name>` to infer the current phase from doc state and planning progress. Start from the suggested phase.
+If the user wants to continue work on an existing feature, run `npx ai-devkit@latest lint --feature <feature-name>` first, then run `scripts/check-status.sh <feature-name>` to infer the current phase from doc state and planning progress. Start from the suggested phase.
 
 ## Backward Transitions
 
