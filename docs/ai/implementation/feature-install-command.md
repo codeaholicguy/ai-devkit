@@ -10,7 +10,7 @@ feature: install-command
 ## Development Setup
 
 - Implemented in `packages/cli` using existing command architecture (`commander`).
-- No new external dependencies required.
+- Uses `zod` for schema-based config validation.
 - Feature reuses existing managers: `ConfigManager`, `TemplateManager`, `SkillManager`.
 
 ## Code Structure
@@ -18,12 +18,14 @@ feature: install-command
 - `packages/cli/src/commands/install.ts`
   - New CLI handler for `ai-devkit install`.
   - Handles config loading, report output, and process exit code.
-- `packages/cli/src/lib/InstallConfig.ts`
-  - Validates and normalizes install config file data.
-  - Supports backward-compatible skill shape (`name` and legacy `skill` key).
-- `packages/cli/src/lib/InstallOrchestrator.ts`
+- `packages/cli/src/services/config/config.service.ts`
+  - Loads and parses config file JSON from disk.
+- `packages/cli/src/util/config.ts`
+  - Validates and normalizes install config data using Zod.
+  - Supports skill shape normalization (`name` and legacy `skill` key).
+- `packages/cli/src/services/install/install.service.ts`
   - Reconciles desired state and applies environment/phase/skill installation.
-  - Implements overwrite and strict-failure policy.
+  - Implements overwrite and warning-based partial-failure policy.
 - `packages/cli/src/types.ts`
   - Adds optional `skills` metadata to `DevKitConfig`.
 - `packages/cli/src/lib/Config.ts`
@@ -40,9 +42,7 @@ feature: install-command
 - `ai-devkit install`
 - Options:
   - `--config <path>`: alternate config file path (default `.ai-devkit.json`)
-  - `--overwrite`: allow replacing existing artifacts
-  - `--yes`: auto-confirm overwrite when `--overwrite` is set
-  - `--strict`: return exit code `1` when any skill installation fails
+  - `--overwrite`: overwrite all existing artifacts without additional prompts
 
 ### Reconcile Behavior
 
@@ -56,7 +56,6 @@ feature: install-command
 - `1` for invalid/missing config.
 - `1` for environment/phase failures.
 - `0` for successful run and for skill-only partial failures.
-- `1` for skill failures when `--strict` is enabled.
 
 ## Error Handling
 

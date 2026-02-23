@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Install Command** - Added `ai-devkit install` to apply project configuration from `.ai-devkit.json`
+  - Supports `--config <path>` for custom config file locations
+  - Supports `--overwrite` for non-interactive full overwrite mode
+  - Installs environments, phases, and skills in a single run with summary output
+
 ## [0.14.0] - 2026-02-21
 
 ### Changed

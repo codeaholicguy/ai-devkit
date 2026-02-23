@@ -14,8 +14,8 @@ feature: install-command
 ```mermaid
 graph TD
   User[User: ai-devkit install] --> InstallCommand
-  InstallCommand --> ConfigManager[ConfigManager: read .ai-devkit.json]
-  ConfigManager --> Validator[InstallConfig Validator]
+  InstallCommand --> ConfigLoader[Config Service: load .ai-devkit.json]
+  ConfigLoader --> Validator[Config Util Validator]
   Validator --> Reconciler[Install Reconciler]
   Reconciler --> Confirmer[Overwrite Confirmation Prompt]
   Reconciler --> EnvSetup[TemplateManager.setupMultipleEnvironments]
@@ -44,7 +44,7 @@ graph TD
 interface DevKitInstallConfig {
   version: string;
   environments: EnvironmentCode[];
-  initializedPhases: Phase[];
+  phases: Phase[];
   skills?: Array<{
     registry: string;
     name: string;
@@ -67,7 +67,7 @@ interface DevKitInstallConfig {
 - `ai-devkit install`
 - Optional follow-up flags (proposed):
   - `--config <path>` (default `.ai-devkit.json`)
-  - `--yes` (auto-confirm overwrite prompts for automation)
+  - `--overwrite` (overwrite all existing artifacts without additional prompts)
 
 **Internal interfaces (proposed):**
 
@@ -91,11 +91,12 @@ async function reconcileAndInstall(config: ValidatedInstallConfig, options: Inst
 **What are the major building blocks?**
 
 1. `packages/cli/src/commands/install.ts` (new): top-level command execution.
-2. `packages/cli/src/lib/InstallConfig.ts` (new): schema validation and normalization.
-3. `packages/cli/src/lib/InstallOrchestrator.ts` (new): reconcile and apply installation.
-4. `packages/cli/src/lib/Config.ts` (update): persist/read `skills` metadata.
-5. `packages/cli/src/lib/SkillManager.ts` (update): on successful `addSkill`, sync skill entry into `.ai-devkit.json`.
-6. `packages/cli/src/cli.ts` (update): register `install` command and options.
+2. `packages/cli/src/services/config/config.service.ts` (new): load config file from disk.
+3. `packages/cli/src/util/config.ts` (new): schema validation and normalization.
+4. `packages/cli/src/services/install/install.service.ts` (new): reconcile and apply installation.
+5. `packages/cli/src/lib/Config.ts` (update): persist/read `skills` metadata.
+6. `packages/cli/src/lib/SkillManager.ts` (update): on successful `addSkill`, sync skill entry into `.ai-devkit.json`.
+7. `packages/cli/src/cli.ts` (update): register `install` command and options.
 
 ## Design Decisions
 

@@ -13,7 +13,7 @@ feature: install-command
 
 - [x] Milestone 1: Requirements/design approved for `ai-devkit install`.
 - [x] Milestone 2: Core install flow (config read + env/phase reconcile) implemented.
-- [ ] Milestone 3: Skill install integration + tests + docs completed.
+- [x] Milestone 3: Skill install integration + tests + docs completed.
 
 ## Task Breakdown
 
@@ -29,7 +29,7 @@ feature: install-command
 ### Phase 2: Core Features
 
 - [x] Task 2.1: Implement environment setup from `environments` using `TemplateManager`.
-- [x] Task 2.2: Implement phase setup from `initializedPhases` using `TemplateManager`.
+- [x] Task 2.2: Implement phase setup from `phases` using `TemplateManager`.
 - [x] Task 2.3: Add idempotent handling for existing artifacts.
 - [x] Task 2.4: Add `--overwrite` behavior and conflict messaging.
 
@@ -37,7 +37,7 @@ feature: install-command
 
 - [x] Task 3.1: Implement skills install loop from config skills entries.
 - [x] Task 3.2: Deduplicate skill entries by `registry + name`.
-- [x] Task 3.3: Add partial-failure handling and optional `--strict` exit behavior.
+- [x] Task 3.3: Add partial-failure handling with warning-only skill failures.
 - [x] Task 3.4: Update config types/read-write paths for optional `skills` field.
 
 ### Phase 4: Validation & Docs
@@ -45,7 +45,7 @@ feature: install-command
 - [x] Task 4.1: Unit tests for config validation and normalization.
 - [x] Task 4.2: Integration tests for full `ai-devkit install` happy path.
 - [x] Task 4.3: Integration tests for missing config, invalid config, and partial failures.
-- [ ] Task 4.4: Update README/CLI help/changelog with usage examples.
+- [x] Task 4.4: Update README/CLI help/changelog with usage examples.
 
 ## Dependencies
 
@@ -72,8 +72,8 @@ graph TD
 - Phase 1: completed
 - Phase 2: completed
 - Phase 3: completed
-- Phase 4: in progress (`4.4` pending)
-- Remaining estimate: 0.5 day
+- Phase 4: completed
+- Remaining estimate: 0 day
 
 ## Risks & Mitigation
 
@@ -82,7 +82,7 @@ graph TD
 - Risk: Existing `.ai-devkit.json` files lack `skills`.
   - Mitigation: keep field optional and treat as empty array.
 - Risk: Skill installs fail because of network/registry issues.
-  - Mitigation: continue on error, collect warnings, return non-zero only in `--strict` mode.
+  - Mitigation: continue on error and collect warnings with clear per-skill failure details.
 - Risk: Overwrite policy causes accidental template replacement.
   - Mitigation: default skip existing artifacts unless `--overwrite` is enabled.
 

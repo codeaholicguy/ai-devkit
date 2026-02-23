@@ -15,13 +15,18 @@ feature: install-command
 
 ## Unit Tests
 
-### `InstallConfig` Validation
+### Config Validation (`util/config.ts`)
 
 - [x] Normalizes duplicated environments/phases/skills.
 - [x] Accepts legacy `skills[].skill` and normalizes to `name`.
-- [x] Fails for missing config file.
 - [x] Fails for unsupported environment values.
 - [x] Fails for invalid skill entries.
+
+### Config Loading (`services/config/config.service.ts`)
+
+- [x] Fails for missing config file.
+- [x] Fails for invalid JSON parsing.
+- [x] Returns resolved config path and parsed data on success.
 
 ### `install` Command Handler
 
@@ -48,14 +53,15 @@ Executed on February 23, 2026:
 
 ```bash
 npm run test -- --runInBand \
-  src/__tests__/lib/InstallConfig.test.ts \
+  src/__tests__/util/config.test.ts \
   src/__tests__/commands/install.test.ts \
+  src/__tests__/services/config/config.service.test.ts \
   src/__tests__/lib/Config.test.ts \
   src/__tests__/lib/SkillManager.test.ts \
   src/__tests__/commands/init.test.ts
 ```
 
-Result: `5 passed, 5 total` test suites and `79 passed, 79 total` tests.
+Result: targeted suites pass locally (command/config/config-service/config-manager/init/skill-manager coverage).
 
 ## Manual Testing
 
@@ -63,9 +69,8 @@ Pending manual verification:
 
 - [ ] `ai-devkit install` in a repo with existing `.ai-devkit.json`.
 - [ ] `ai-devkit install --overwrite` prompt and overwrite behavior.
-- [ ] `ai-devkit install --strict` non-zero behavior when skill install fails.
+- [ ] `ai-devkit install` with skill install failure path and warning output.
 
 ## Outstanding Gaps
 
-- README/changelog examples for `ai-devkit install` are not yet added.
 - End-to-end filesystem and network-backed integration tests are still pending.

@@ -46,6 +46,12 @@ ai-devkit init
 # Initialize project from YAML/JSON template
 ai-devkit init --template ./ai-devkit.init.yaml
 
+# Install/reconcile project setup from .ai-devkit.json
+ai-devkit install
+
+# Overwrite all existing install artifacts without extra prompts
+ai-devkit install --overwrite
+
 # Add a development phase
 ai-devkit phase requirements
 

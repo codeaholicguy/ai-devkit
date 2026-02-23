@@ -80,17 +80,17 @@ feature: install-command
 
 **How will we know when we're done?**
 
-- [ ] `ai-devkit install` command is available and documented.
-- [ ] Command loads `.ai-devkit.json` from CWD by default.
-- [ ] Command applies configured environments (command/context templates).
-- [ ] Command applies configured `initializedPhases` templates.
-- [ ] Command installs configured skills using existing skill installation flow.
-- [ ] Command prints final summary with installed/skipped/failed counts.
-- [ ] Command returns non-zero exit code for invalid/missing config.
-- [ ] Command returns exit code `0` for partial skill-install failures and emits warnings with failure details.
-- [ ] Re-running command is safe and does not duplicate work.
-- [ ] `ai-devkit skill add` persists installed skill metadata into `.ai-devkit.json`.
-- [ ] Existing artifacts trigger user confirmation before overwrite.
+- [x] `ai-devkit install` command is available and documented.
+- [x] Command loads `.ai-devkit.json` from CWD by default.
+- [x] Command applies configured environments (command/context templates).
+- [x] Command applies configured `phases` templates.
+- [x] Command installs configured skills using existing skill installation flow.
+- [x] Command prints final summary with installed/skipped/failed counts.
+- [x] Command returns non-zero exit code for invalid/missing config.
+- [x] Command returns exit code `0` for partial skill-install failures and emits warnings with failure details.
+- [x] Re-running command is safe and does not duplicate work.
+- [x] `ai-devkit skill add` persists installed skill metadata into `.ai-devkit.json`.
+- [x] Existing artifacts trigger user confirmation before overwrite.
 
 ## Constraints & Assumptions
 
