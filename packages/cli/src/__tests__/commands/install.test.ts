@@ -47,6 +47,10 @@ describe('install command', () => {
     });
   });
 
+  afterEach(() => {
+    process.exitCode = undefined;
+  });
+
   it('fails with non-zero exit code when config loading fails', async () => {
     mockLoadConfigFile.mockRejectedValue(new Error('Config file not found: /tmp/.ai-devkit.json'));
 
@@ -98,5 +102,23 @@ describe('install command', () => {
     );
     expect(mockUi.summary).toHaveBeenCalled();
     expect(process.exitCode).toBe(0);
+  });
+
+  it('fails with non-zero exit code when reconcile step throws', async () => {
+    mockLoadConfigFile.mockResolvedValue({
+      configPath: '/tmp/.ai-devkit.json',
+      data: {}
+    });
+    mockLoadAndValidateInstallConfig.mockReturnValue({
+      environments: ['codex'],
+      phases: ['requirements'],
+      skills: []
+    });
+    mockReconcileAndInstall.mockRejectedValue(new Error('install failed'));
+
+    await installCommand({});
+
+    expect(mockUi.error).toHaveBeenCalledWith('install failed');
+    expect(process.exitCode).toBe(1);
   });
 });

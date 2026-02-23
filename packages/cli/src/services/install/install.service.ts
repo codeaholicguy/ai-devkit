@@ -50,11 +50,9 @@ export async function reconcileAndInstall(
     throw new Error('Failed to initialize project config for install command.');
   }
 
-  await configManager.update({
-    environments: config.environments,
-    phases: config.phases,
-    skills: config.skills
-  });
+  const successfulEnvironments: typeof config.environments = [];
+  const successfulPhases: typeof config.phases = [];
+  const successfulSkills: typeof config.skills = [];
 
   for (const envCode of config.environments) {
     try {
@@ -66,6 +64,7 @@ export async function reconcileAndInstall(
 
       await templateManager.setupMultipleEnvironments([envCode]);
       report.environments.installed += 1;
+      successfulEnvironments.push(envCode);
     } catch (error) {
       report.environments.failed += 1;
       report.warnings.push(
@@ -85,6 +84,7 @@ export async function reconcileAndInstall(
       await templateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
       report.phases.installed += 1;
+      successfulPhases.push(phase);
     } catch (error) {
       report.phases.failed += 1;
       report.warnings.push(
@@ -97,6 +97,7 @@ export async function reconcileAndInstall(
     try {
       await skillManager.addSkill(skill.registry, skill.name);
       report.skills.installed += 1;
+      successfulSkills.push(skill);
     } catch (error) {
       report.skills.failed += 1;
       report.warnings.push(
@@ -104,6 +105,12 @@ export async function reconcileAndInstall(
       );
     }
   }
+
+  await configManager.update({
+    environments: successfulEnvironments,
+    phases: successfulPhases,
+    skills: successfulSkills
+  });
 
   return report;
 }

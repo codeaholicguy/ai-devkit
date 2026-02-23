@@ -111,6 +111,10 @@ describe('init command template mode', () => {
     mockLoadInitTemplate.mockResolvedValue({});
   });
 
+  afterEach(() => {
+    process.exitCode = undefined;
+  });
+
   it('uses template values and installs multiple skills from same registry without prompts', async () => {
     mockLoadInitTemplate.mockResolvedValue({
       environments: ['codex'],

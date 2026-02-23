@@ -43,9 +43,16 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
     return;
   }
 
-  const report = await reconcileAndInstall(validatedConfig, {
-    overwrite: options.overwrite
-  });
+  let report;
+  try {
+    report = await reconcileAndInstall(validatedConfig, {
+      overwrite: options.overwrite
+    });
+  } catch (error) {
+    ui.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+    return;
+  }
 
   ui.summary({
     title: 'Install Summary',

@@ -40,9 +40,19 @@ feature: install-command
 - [x] `ConfigManager.addSkill` skips duplicates.
 - [x] `SkillManager.addSkill` persists skill metadata (`registry`, `name`) to config.
 
+### Install Orchestration (`services/install/install.service.ts`)
+
+- [x] Installs environments/phases/skills in happy path.
+- [x] Prompts once and skips conflicting artifacts when overwrite is declined.
+- [x] Overwrites conflicting artifacts when prompted confirmation is accepted.
+- [x] Auto-overwrites without prompt when `--overwrite` is set.
+- [x] Skill failures are collected as warnings and do not change exit code.
+- [x] Exit code is non-zero when environment/phase failures occur.
+
 ## Integration Tests
 
 - [x] Command-level flow covered via `install` command tests with mocked orchestrator.
+- [x] Service-level integration flow covered with mocked dependencies for overwrite and partial-failure branches.
 - [ ] Real filesystem integration test for `ai-devkit install` happy path.
 - [ ] Real filesystem integration test for `--overwrite` confirmation flow.
 - [ ] Real skill install partial-failure integration with network errors.
@@ -53,6 +63,7 @@ Executed on February 23, 2026:
 
 ```bash
 npm run test -- --runInBand \
+  src/__tests__/services/install/install.service.test.ts \
   src/__tests__/util/config.test.ts \
   src/__tests__/commands/install.test.ts \
   src/__tests__/services/config/config.service.test.ts \
@@ -62,6 +73,17 @@ npm run test -- --runInBand \
 ```
 
 Result: targeted suites pass locally (command/config/config-service/config-manager/init/skill-manager coverage).
+Additional focused run:
+
+```bash
+npm run test -- --runInBand \
+  src/__tests__/services/install/install.service.test.ts \
+  src/__tests__/commands/install.test.ts \
+  src/__tests__/util/config.test.ts \
+  src/__tests__/services/config/config.service.test.ts
+```
+
+Result: `4 passed, 4 total` suites and `16 passed, 16 total` tests.
 
 ## Manual Testing
 
