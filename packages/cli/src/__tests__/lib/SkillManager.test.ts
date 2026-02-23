@@ -85,6 +85,7 @@ describe("SkillManager", () => {
     mockedSkillUtil.validateRegistryId.mockImplementation(() => { });
     mockedSkillUtil.validateSkillName.mockImplementation(() => { });
     mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
+    mockConfigManager.addSkill.mockResolvedValue({} as any);
   });
 
   afterEach(() => {
@@ -131,6 +132,10 @@ describe("SkillManager", () => {
         mockSkillName,
       );
       expect(mockedGitUtil.ensureGitInstalled).toHaveBeenCalled();
+      expect(mockConfigManager.addSkill).toHaveBeenCalledWith({
+        registry: mockRegistryId,
+        name: mockSkillName
+      });
     });
 
     it("should fetch registry using fetch API", async () => {

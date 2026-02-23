@@ -17,9 +17,11 @@ graph TD
   InstallCommand --> ConfigManager[ConfigManager: read .ai-devkit.json]
   ConfigManager --> Validator[InstallConfig Validator]
   Validator --> Reconciler[Install Reconciler]
+  Reconciler --> Confirmer[Overwrite Confirmation Prompt]
   Reconciler --> EnvSetup[TemplateManager.setupMultipleEnvironments]
   Reconciler --> PhaseSetup[TemplateManager.copyPhaseTemplate]
   Reconciler --> SkillSetup[SkillManager.addSkill]
+  SkillSetup --> SkillConfigSync[ConfigManager.update skills metadata]
   Reconciler --> Reporter[Install Summary Reporter]
 ```
 
@@ -30,6 +32,8 @@ graph TD
 - `Install Reconciler`: computes desired state vs existing files.
 - `TemplateManager` integration: applies environment and phase templates.
 - `SkillManager` integration: installs skills from config entries.
+- `Overwrite Confirmation Prompt`: when destination artifacts already exist, ask user to confirm replacement.
+- `SkillConfigSync`: ensures `ai-devkit skill add` writes skill metadata back to `.ai-devkit.json`.
 - `Reporter`: emits per-section summary and final exit status.
 
 ## Data Models
@@ -63,8 +67,7 @@ interface DevKitInstallConfig {
 - `ai-devkit install`
 - Optional follow-up flags (proposed):
   - `--config <path>` (default `.ai-devkit.json`)
-  - `--overwrite`
-  - `--strict`
+  - `--yes` (auto-confirm overwrite prompts for automation)
 
 **Internal interfaces (proposed):**
 
@@ -81,7 +84,7 @@ async function reconcileAndInstall(config: ValidatedInstallConfig, options: Inst
 - Exit codes:
   - Invalid/missing config: `1`
   - Valid config with success: `0`
-  - Partial failures: `0` by default, `1` with `--strict`.
+  - Partial skill-install failures: `0` with warning output and failed item details.
 
 ## Component Breakdown
 
@@ -90,8 +93,9 @@ async function reconcileAndInstall(config: ValidatedInstallConfig, options: Inst
 1. `packages/cli/src/commands/install.ts` (new): top-level command execution.
 2. `packages/cli/src/lib/InstallConfig.ts` (new): schema validation and normalization.
 3. `packages/cli/src/lib/InstallOrchestrator.ts` (new): reconcile and apply installation.
-4. `packages/cli/src/lib/Config.ts` (update): optionally persist/read `skills` metadata.
-5. `packages/cli/src/cli.ts` (update): register `install` command and options.
+4. `packages/cli/src/lib/Config.ts` (update): persist/read `skills` metadata.
+5. `packages/cli/src/lib/SkillManager.ts` (update): on successful `addSkill`, sync skill entry into `.ai-devkit.json`.
+6. `packages/cli/src/cli.ts` (update): register `install` command and options.
 
 ## Design Decisions
 
@@ -102,7 +106,8 @@ async function reconcileAndInstall(config: ValidatedInstallConfig, options: Inst
   - `init`: configure project interactively/template-first.
   - `install`: apply existing project config deterministically.
 - Keep new config field optional to avoid breaking older projects.
-- Prefer idempotent behavior (skip existing by default, explicit overwrite flag).
+- Existing artifacts require explicit user confirmation before overwrite (safe interactive default).
+- Partial skill failures do not fail the whole install run; command exits `0` and reports warnings for failed items.
 
 ## Non-Functional Requirements
 

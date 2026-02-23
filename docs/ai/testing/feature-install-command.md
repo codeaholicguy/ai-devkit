@@ -5,77 +5,67 @@ description: Define testing approach, test cases, and quality assurance
 feature: install-command
 ---
 
-# Testing Strategy
+# Testing Strategy - Install Command
 
 ## Test Coverage Goals
-**What level of testing do we aim for?**
 
-- Unit test coverage target (default: 100% of new/changed code)
-- Integration test scope (critical paths + error handling)
-- End-to-end test scenarios (key user journeys)
-- Alignment with requirements/design acceptance criteria
+- Validate config parsing and normalization for install command.
+- Validate install command behavior and exit-code policy.
+- Validate config skill metadata persistence path used by `skill add`.
 
 ## Unit Tests
-**What individual components need testing?**
 
-### Component/Module 1
-- [ ] Test case 1: [Description] (covers scenario / branch)
-- [ ] Test case 2: [Description] (covers edge case / error handling)
-- [ ] Additional coverage: [Description]
+### `InstallConfig` Validation
 
-### Component/Module 2
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Additional coverage: [Description]
+- [x] Normalizes duplicated environments/phases/skills.
+- [x] Accepts legacy `skills[].skill` and normalizes to `name`.
+- [x] Fails for missing config file.
+- [x] Fails for unsupported environment values.
+- [x] Fails for invalid skill entries.
+
+### `install` Command Handler
+
+- [x] Returns exit code `1` when config loading fails.
+- [x] Returns exit code `1` for empty install sections.
+- [x] Calls orchestrator with provided options and uses orchestrator exit code.
+
+### Existing Modules Updated
+
+- [x] `ConfigManager.addSkill` adds unique entries.
+- [x] `ConfigManager.addSkill` skips duplicates.
+- [x] `SkillManager.addSkill` persists skill metadata (`registry`, `name`) to config.
 
 ## Integration Tests
-**How do we test component interactions?**
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
-- [ ] API endpoint tests
-- [ ] Integration scenario 3 (failure mode / rollback)
-
-## End-to-End Tests
-**What user flows need validation?**
-
-- [ ] User flow 1: [Description]
-- [ ] User flow 2: [Description]
-- [ ] Critical path testing
-- [ ] Regression of adjacent features
-
-## Test Data
-**What data do we use for testing?**
-
-- Test fixtures and mocks
-- Seed data requirements
-- Test database setup
+- [x] Command-level flow covered via `install` command tests with mocked orchestrator.
+- [ ] Real filesystem integration test for `ai-devkit install` happy path.
+- [ ] Real filesystem integration test for `--overwrite` confirmation flow.
+- [ ] Real skill install partial-failure integration with network errors.
 
 ## Test Reporting & Coverage
-**How do we verify and communicate test results?**
 
-- Coverage commands and thresholds (`npm run test -- --coverage`)
-- Coverage gaps (files/functions below 100% and rationale)
-- Links to test reports or dashboards
-- Manual testing outcomes and sign-off
+Executed on February 23, 2026:
+
+```bash
+npm run test -- --runInBand \
+  src/__tests__/lib/InstallConfig.test.ts \
+  src/__tests__/commands/install.test.ts \
+  src/__tests__/lib/Config.test.ts \
+  src/__tests__/lib/SkillManager.test.ts \
+  src/__tests__/commands/init.test.ts
+```
+
+Result: `5 passed, 5 total` test suites and `79 passed, 79 total` tests.
 
 ## Manual Testing
-**What requires human validation?**
 
-- UI/UX testing checklist (include accessibility)
-- Browser/device compatibility
-- Smoke tests after deployment
+Pending manual verification:
 
-## Performance Testing
-**How do we validate performance?**
+- [ ] `ai-devkit install` in a repo with existing `.ai-devkit.json`.
+- [ ] `ai-devkit install --overwrite` prompt and overwrite behavior.
+- [ ] `ai-devkit install --strict` non-zero behavior when skill install fails.
 
-- Load testing scenarios
-- Stress testing approach
-- Performance benchmarks
+## Outstanding Gaps
 
-## Bug Tracking
-**How do we manage issues?**
-
-- Issue tracking process
-- Bug severity levels
-- Regression testing strategy
+- README/changelog examples for `ai-devkit install` are not yet added.
+- End-to-end filesystem and network-backed integration tests are still pending.

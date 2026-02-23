@@ -39,6 +39,7 @@ feature: install-command
   - Environment command/context files.
   - Initialized phase templates.
   - Skills declared in config.
+- Ensure `ai-devkit skill add` updates `.ai-devkit.json` so skills become part of installable project state.
 - Keep behavior non-interactive by default for automation.
 
 **Secondary goals:**
@@ -64,7 +65,7 @@ feature: install-command
 **Key workflows and scenarios:**
 
 - `.ai-devkit.json` exists with environments, initialized phases, and skills metadata -> command installs all.
-- Some artifacts already exist -> command skips or overwrites based on flags/policy and reports actions.
+- Some artifacts already exist -> command prompts for confirmation, then overwrites when confirmed.
 - Config is partial -> command installs available sections and reports skipped sections.
 
 **Edge cases to consider:**
@@ -85,8 +86,11 @@ feature: install-command
 - [ ] Command applies configured `initializedPhases` templates.
 - [ ] Command installs configured skills using existing skill installation flow.
 - [ ] Command prints final summary with installed/skipped/failed counts.
-- [ ] Command returns non-zero exit code for invalid/missing config, and configurable behavior for partial install failures.
+- [ ] Command returns non-zero exit code for invalid/missing config.
+- [ ] Command returns exit code `0` for partial skill-install failures and emits warnings with failure details.
 - [ ] Re-running command is safe and does not duplicate work.
+- [ ] `ai-devkit skill add` persists installed skill metadata into `.ai-devkit.json`.
+- [ ] Existing artifacts trigger user confirmation before overwrite.
 
 ## Constraints & Assumptions
 
@@ -94,20 +98,18 @@ feature: install-command
 
 **Technical constraints:**
 
-- Existing `.ai-devkit.json` schema currently stores environments and phases, but not explicit project skill list.
+- Existing `.ai-devkit.json` schema currently stores environments and phases; this feature extends it to persist project skills.
 - Skill installation depends on registry/network availability and local cache state.
 - Must keep compatibility with existing config files.
 
 **Assumptions:**
 
 - Repositories using `ai-devkit install` commit a valid `.ai-devkit.json`.
-- Skills can be represented in config via a new optional field without breaking old files.
+- Skills are represented in config as `skills: [{ registry, name }]` and are updated when `ai-devkit skill add` succeeds.
 - Existing template managers remain the source of truth for file generation.
 
 ## Questions & Open Items
 
 **What do we still need to clarify?**
 
-- [ ] Confirm canonical schema for persisted skills in `.ai-devkit.json` (for example `skills: [{ registry, name }]`).
-- [ ] Decide default overwrite strategy when artifacts already exist (`skip` vs `overwrite`, and optional flags).
-- [ ] Decide exit code policy when only some skills fail (strict vs warning-only mode).
+- None for Phase 3 design review.

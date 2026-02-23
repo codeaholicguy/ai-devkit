@@ -24,9 +24,15 @@ export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex
 export interface DevKitConfig {
   version: string;
   environments: EnvironmentCode[];
-  initializedPhases: Phase[];
+  phases: Phase[];
+  skills?: ConfigSkill[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ConfigSkill {
+  registry: string;
+  name: string;
 }
 
 export interface SkillRegistriesConfig {

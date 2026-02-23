@@ -1,6 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { DevKitConfig, Phase, EnvironmentCode } from '../types';
+import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill } from '../types';
 import packageJson from '../../package.json';
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
@@ -18,7 +18,11 @@ export class ConfigManager {
 
   async read(): Promise<DevKitConfig | null> {
     if (await this.exists()) {
-      return fs.readJson(this.configPath);
+      const raw = await fs.readJson(this.configPath);
+      if (!raw) {
+        return null;
+      }
+      return raw as DevKitConfig;
     }
     return null;
   }
@@ -27,7 +31,7 @@ export class ConfigManager {
     const config: DevKitConfig = {
       version: packageJson.version,
       environments: [],
-      initializedPhases: [],
+      phases: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -58,9 +62,10 @@ export class ConfigManager {
       throw new Error('Config file not found. Run ai-devkit init first.');
     }
 
-    if (!config.initializedPhases.includes(phase)) {
-      config.initializedPhases.push(phase);
-      return this.update({ initializedPhases: config.initializedPhases });
+    const phases = config.phases;
+    if (!phases.includes(phase)) {
+      phases.push(phase);
+      return this.update({ phases });
     }
 
     return config;
@@ -68,7 +73,11 @@ export class ConfigManager {
 
   async hasPhase(phase: Phase): Promise<boolean> {
     const config = await this.read();
-    return config ? config.initializedPhases.includes(phase) : false;
+    if (!config) {
+      return false;
+    }
+
+    return config.phases.includes(phase);
   }
 
   async getEnvironments(): Promise<EnvironmentCode[]> {
@@ -84,5 +93,23 @@ export class ConfigManager {
     const environments = await this.getEnvironments();
     return environments.includes(envId);
   }
-}
 
+  async addSkill(skill: ConfigSkill): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new Error('Config file not found. Run ai-devkit init first.');
+    }
+
+    const skills = config.skills || [];
+    const exists = skills.some(
+      entry => entry.registry === skill.registry && entry.name === skill.name
+    );
+
+    if (exists) {
+      return config;
+    }
+
+    skills.push(skill);
+    return this.update({ skills });
+  }
+}

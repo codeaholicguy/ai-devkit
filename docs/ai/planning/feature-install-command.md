@@ -11,8 +11,8 @@ feature: install-command
 
 **What are the major checkpoints?**
 
-- [ ] Milestone 1: Requirements/design approved for `ai-devkit install`.
-- [ ] Milestone 2: Core install flow (config read + env/phase reconcile) implemented.
+- [x] Milestone 1: Requirements/design approved for `ai-devkit install`.
+- [x] Milestone 2: Core install flow (config read + env/phase reconcile) implemented.
 - [ ] Milestone 3: Skill install integration + tests + docs completed.
 
 ## Task Breakdown
@@ -21,30 +21,30 @@ feature: install-command
 
 ### Phase 1: Foundation
 
-- [ ] Task 1.1: Add `install` command wiring in `packages/cli/src/cli.ts`.
-- [ ] Task 1.2: Implement install config validator for `.ai-devkit.json`.
-- [ ] Task 1.3: Define backward-compatible skills schema (`skills[]` optional).
-- [ ] Task 1.4: Add install report model (installed/skipped/failed counters).
+- [x] Task 1.1: Add `install` command wiring in `packages/cli/src/cli.ts`.
+- [x] Task 1.2: Implement install config validator for `.ai-devkit.json`.
+- [x] Task 1.3: Define backward-compatible skills schema (`skills[]` optional).
+- [x] Task 1.4: Add install report model (installed/skipped/failed counters).
 
 ### Phase 2: Core Features
 
-- [ ] Task 2.1: Implement environment setup from `environments` using `TemplateManager`.
-- [ ] Task 2.2: Implement phase setup from `initializedPhases` using `TemplateManager`.
-- [ ] Task 2.3: Add idempotent handling for existing artifacts.
-- [ ] Task 2.4: Add `--overwrite` behavior and conflict messaging.
+- [x] Task 2.1: Implement environment setup from `environments` using `TemplateManager`.
+- [x] Task 2.2: Implement phase setup from `initializedPhases` using `TemplateManager`.
+- [x] Task 2.3: Add idempotent handling for existing artifacts.
+- [x] Task 2.4: Add `--overwrite` behavior and conflict messaging.
 
 ### Phase 3: Skills Integration
 
-- [ ] Task 3.1: Implement skills install loop from config skills entries.
-- [ ] Task 3.2: Deduplicate skill entries by `registry + name`.
-- [ ] Task 3.3: Add partial-failure handling and optional `--strict` exit behavior.
-- [ ] Task 3.4: Update config types/read-write paths for optional `skills` field.
+- [x] Task 3.1: Implement skills install loop from config skills entries.
+- [x] Task 3.2: Deduplicate skill entries by `registry + name`.
+- [x] Task 3.3: Add partial-failure handling and optional `--strict` exit behavior.
+- [x] Task 3.4: Update config types/read-write paths for optional `skills` field.
 
 ### Phase 4: Validation & Docs
 
-- [ ] Task 4.1: Unit tests for config validation and normalization.
-- [ ] Task 4.2: Integration tests for full `ai-devkit install` happy path.
-- [ ] Task 4.3: Integration tests for missing config, invalid config, and partial failures.
+- [x] Task 4.1: Unit tests for config validation and normalization.
+- [x] Task 4.2: Integration tests for full `ai-devkit install` happy path.
+- [x] Task 4.3: Integration tests for missing config, invalid config, and partial failures.
 - [ ] Task 4.4: Update README/CLI help/changelog with usage examples.
 
 ## Dependencies
@@ -65,29 +65,26 @@ graph TD
   T43 --> T44
 ```
 
-- Validator and schema updates must land before orchestration logic.
-- Skill flow depends on finalized config schema for `skills`.
-
 ## Timeline & Estimates
 
 **When will things be done?**
 
-- Phase 1: 0.5 day
-- Phase 2: 1 day
-- Phase 3: 0.5-1 day
-- Phase 4: 1 day
-- Total estimate: 3-3.5 days
+- Phase 1: completed
+- Phase 2: completed
+- Phase 3: completed
+- Phase 4: in progress (`4.4` pending)
+- Remaining estimate: 0.5 day
 
 ## Risks & Mitigation
 
 **What could go wrong?**
 
 - Risk: Existing `.ai-devkit.json` files lack `skills`.
-  - Mitigation: keep field optional and warn clearly when absent.
+  - Mitigation: keep field optional and treat as empty array.
 - Risk: Skill installs fail because of network/registry issues.
-  - Mitigation: continue on error, report failures, support `--strict`.
+  - Mitigation: continue on error, collect warnings, return non-zero only in `--strict` mode.
 - Risk: Overwrite policy causes accidental template replacement.
-  - Mitigation: safe default skip behavior and explicit `--overwrite`.
+  - Mitigation: default skip existing artifacts unless `--overwrite` is enabled.
 
 ## Resources Needed
 
@@ -95,4 +92,4 @@ graph TD
 
 - Existing CLI command framework (`commander`).
 - Existing managers (`ConfigManager`, `TemplateManager`, `SkillManager`).
-- Test harness for command-level integration tests.
+- Test harness for command-level tests.

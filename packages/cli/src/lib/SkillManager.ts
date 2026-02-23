@@ -151,6 +151,11 @@ export class SkillManager {
       }
     }
 
+    await this.configManager.addSkill({
+      registry: registryId,
+      name: skillName
+    });
+
     ui.text(`Successfully installed: ${skillName}`);
     ui.info(`  Source: ${registryId}`);
     ui.info(`  Installed to: ${skillCapableEnvs.join(', ')}`);

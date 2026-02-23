@@ -93,7 +93,7 @@ describe('init command template mode', () => {
 
     mockConfigManager.exists.mockResolvedValue(false);
     mockConfigManager.read.mockResolvedValue(null);
-    mockConfigManager.create.mockResolvedValue({ environments: [], initializedPhases: [] });
+    mockConfigManager.create.mockResolvedValue({ environments: [], phases: [] });
     mockConfigManager.setEnvironments.mockResolvedValue(undefined);
     mockConfigManager.addPhase.mockResolvedValue(undefined);
 

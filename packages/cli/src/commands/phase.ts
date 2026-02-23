@@ -22,7 +22,7 @@ export async function phaseCommand(phaseName?: string) {
     return;
   } else {
     const config = await configManager.read();
-    const availableToAdd = AVAILABLE_PHASES.filter(p => !config?.initializedPhases.includes(p));
+    const availableToAdd = AVAILABLE_PHASES.filter(p => !config?.phases.includes(p));
 
     if (availableToAdd.length === 0) {
       ui.warning('All phases are already initialized.');

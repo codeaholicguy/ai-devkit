@@ -60,7 +60,7 @@ describe('ConfigManager', () => {
       const mockConfig: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor' as any],
-        initializedPhases: ['requirements' as any],
+        phases: ['requirements' as any],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -89,7 +89,7 @@ describe('ConfigManager', () => {
       const expectedConfig: DevKitConfig = {
         version: '1.0.0',
         environments: [],
-        initializedPhases: [],
+        phases: [],
         createdAt: expect.any(String),
         updatedAt: expect.any(String)
       };
@@ -112,7 +112,7 @@ describe('ConfigManager', () => {
       const existingConfig: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor'],
-        initializedPhases: [],
+        phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -140,11 +140,11 @@ describe('ConfigManager', () => {
   });
 
   describe('addPhase', () => {
-    it('should add new phase to initializedPhases', async () => {
+    it('should add new phase to phases', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: [],
-        initializedPhases: ['requirements'],
+        phases: ['requirements'],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -155,14 +155,14 @@ describe('ConfigManager', () => {
 
       const result = await configManager.addPhase('design');
 
-      expect(result.initializedPhases).toEqual(['requirements', 'design']);
+      expect(result.phases).toEqual(['requirements', 'design']);
     });
 
     it('should not add duplicate phase', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: [],
-        initializedPhases: ['requirements'],
+        phases: ['requirements'],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -172,7 +172,7 @@ describe('ConfigManager', () => {
 
       const result = await configManager.addPhase('requirements');
 
-      expect(result.initializedPhases).toEqual(['requirements']);
+      expect(result.phases).toEqual(['requirements']);
       expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
   });
@@ -182,7 +182,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: [],
-        initializedPhases: ['requirements', 'design'],
+        phases: ['requirements', 'design'],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -199,7 +199,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: [],
-        initializedPhases: ['requirements'],
+        phases: ['requirements'],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -226,7 +226,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor', 'claude'],
-        initializedPhases: [],
+        phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -251,7 +251,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: [],
-        initializedPhases: [],
+        phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -270,7 +270,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor'],
-        initializedPhases: [],
+        phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -291,7 +291,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor', 'claude'],
-        initializedPhases: [],
+        phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -308,7 +308,7 @@ describe('ConfigManager', () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor'],
-        initializedPhases: [],
+        phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -319,6 +319,56 @@ describe('ConfigManager', () => {
       const result = await configManager.hasEnvironment('claude');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('addSkill', () => {
+    it('adds a new skill entry to config', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addSkill({
+        registry: 'codeaholicguy/ai-devkit',
+        name: 'memory'
+      });
+
+      expect(result.skills).toEqual([
+        { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      ]);
+      expect(mockFs.writeJson).toHaveBeenCalled();
+    });
+
+    it('does not add duplicate skill entry', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkill({
+        registry: 'codeaholicguy/ai-devkit',
+        name: 'debug'
+      });
+
+      expect(result.skills).toEqual([{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
   });
 });

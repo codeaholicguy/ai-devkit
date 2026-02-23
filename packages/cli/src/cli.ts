@@ -5,6 +5,7 @@ import { initCommand } from './commands/init';
 import { phaseCommand } from './commands/phase';
 import { setupCommand } from './commands/setup';
 import { lintCommand } from './commands/lint';
+import { installCommand } from './commands/install';
 import { registerMemoryCommand } from './commands/memory';
 import { registerSkillCommand } from './commands/skill';
 import { registerAgentCommand } from './commands/agent';
@@ -42,6 +43,13 @@ program
   .option('-f, --feature <name>', 'Validate docs and git worktree conventions for a feature')
   .option('--json', 'Output lint results as JSON')
   .action(lintCommand);
+
+program
+  .command('install')
+  .description('Install AI DevKit artifacts from a project config')
+  .option('-c, --config <path>', 'Path to config file (default: .ai-devkit.json)')
+  .option('--overwrite', 'Overwrite existing install artifacts')
+  .action(installCommand);
 
 registerMemoryCommand(program);
 registerSkillCommand(program);

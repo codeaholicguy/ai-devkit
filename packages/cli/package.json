@@ -34,7 +34,8 @@
     "gray-matter": "^4.0.3",
     "inquirer": "^8.2.6",
     "ora": "^9.1.0",
-    "yaml": "^2.3.4"
+    "yaml": "^2.3.4",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
