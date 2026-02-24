@@ -1,0 +1,39 @@
+environments:
+  - cursor
+  - claude
+  - codex
+phases:
+  - requirements
+  - design
+  - planning
+  - implementation
+  - testing
+skills:
+  - registry: codeaholicguy/ai-devkit
+    skill: dev-lifecycle
+  - registry: codeaholicguy/ai-devkit
+    skill: debug
+  - registry: codeaholicguy/ai-devkit
+    skill: capture-knowledge
+  - registry: codeaholicguy/ai-devkit
+    skill: memory
+  - registry: codeaholicguy/ai-devkit
+    skill: simplify-implementation
+  - registry: codeaholicguy/ai-devkit
+    skill: technical-writer
+  - registry: anthropics/skills
+    skill: frontend-design
+  - registry: anthropics/skills
+    skill: webapp-testing
+  - registry: anthropics/skills
+    skill: doc-coauthoring
+  - registry: vercel-labs/agent-skills
+    skill: react-best-practices
+  - registry: vercel-labs/agent-skills
+    skill: composition-patterns
+  - registry: vercel-labs/agent-skills
+    skill: web-design-guidelines
+  - registry: vercel-labs/next-skills
+    skill: next-best-practices
+  - registry: supabase/agent-skills
+    skill: supabase-postgres-best-practices
