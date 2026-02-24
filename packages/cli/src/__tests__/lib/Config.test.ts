@@ -175,6 +175,23 @@ describe('ConfigManager', () => {
       expect(result.phases).toEqual(['requirements']);
       expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
+
+    it('should initialize phases when phases field is missing', async () => {
+      const configWithoutPhases = {
+        version: '1.0.0',
+        environments: [],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(configWithoutPhases);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addPhase('requirements');
+
+      expect(result.phases).toEqual(['requirements']);
+    });
   });
 
   describe('hasPhase', () => {
@@ -214,6 +231,22 @@ describe('ConfigManager', () => {
 
     it('should return false when config does not exist', async () => {
       (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await configManager.hasPhase('requirements');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when phases field is missing', async () => {
+      const configWithoutPhases = {
+        version: '1.0.0',
+        environments: [],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(configWithoutPhases);
 
       const result = await configManager.hasPhase('requirements');
 

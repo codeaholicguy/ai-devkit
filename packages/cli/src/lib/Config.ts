@@ -62,7 +62,7 @@ export class ConfigManager {
       throw new Error('Config file not found. Run ai-devkit init first.');
     }
 
-    const phases = config.phases;
+    const phases = Array.isArray(config.phases) ? config.phases : [];
     if (!phases.includes(phase)) {
       phases.push(phase);
       return this.update({ phases });
@@ -77,7 +77,7 @@ export class ConfigManager {
       return false;
     }
 
-    return config.phases.includes(phase);
+    return Array.isArray(config.phases) && config.phases.includes(phase);
   }
 
   async getEnvironments(): Promise<EnvironmentCode[]> {
