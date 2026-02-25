@@ -67,6 +67,7 @@ ai-devkit install --overwrite
 Based on your configured environments, AI DevKit installs or updates files such as:
 - `AGENTS.md` or `CLAUDE.md`
 - Environment command folders (for example `.cursor/commands/`, `.claude/commands/`, `.codex/commands/`)
+- Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.codex/skills/`)
 - Other environment-specific templates defined by AI DevKit
 
 The exact artifacts depend on the environments configured in `.ai-devkit.json`.
