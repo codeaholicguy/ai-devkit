@@ -4,7 +4,7 @@ export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter';
 export { AgentStatus } from './adapters/AgentAdapter';
 export type { AgentAdapter, AgentType, AgentInfo, ProcessInfo } from './adapters/AgentAdapter';
 
-export { TerminalFocusManager } from './terminal/TerminalFocusManager';
+export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusManager';
 export type { TerminalLocation } from './terminal/TerminalFocusManager';
 
 export { listProcesses, getProcessCwd, getProcessTty, isProcessRunning, getProcessInfo } from './utils/process';

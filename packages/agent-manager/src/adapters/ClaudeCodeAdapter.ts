@@ -19,11 +19,21 @@ interface SessionsIndex {
     originalPath: string;
 }
 
+enum SessionEntryType {
+    ASSISTANT = 'assistant',
+    USER = 'user',
+    PROGRESS = 'progress',
+    THINKING = 'thinking',
+    SYSTEM = 'system',
+    MESSAGE = 'message',
+    TEXT = 'text',
+}
+
 /**
  * Entry in session JSONL file
  */
 interface SessionEntry {
-    type?: 'assistant' | 'user' | 'progress' | 'thinking' | 'system' | 'message' | 'text';
+    type?: SessionEntryType;
     timestamp?: string;
     slug?: string;
     cwd?: string;
@@ -289,12 +299,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             return AgentStatus.IDLE;
         }
 
-        if (entryType === 'user') {
+        if (entryType === SessionEntryType.USER) {
             // Check if user interrupted manually - this puts agent back in waiting state
             const content = session.lastEntry.message?.content;
             if (Array.isArray(content)) {
                 const isInterrupted = content.some(c =>
-                    (c.type === 'text' && c.text?.includes('[Request interrupted')) ||
+                    (c.type === SessionEntryType.TEXT && c.text?.includes('[Request interrupted')) ||
                     (c.type === 'tool_result' && c.content?.includes('[Request interrupted'))
                 );
                 if (isInterrupted) return AgentStatus.WAITING;
@@ -302,11 +312,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             return AgentStatus.RUNNING;
         }
 
-        if (entryType === 'progress' || entryType === 'thinking') {
+        if (entryType === SessionEntryType.PROGRESS || entryType === SessionEntryType.THINKING) {
             return AgentStatus.RUNNING;
-        } else if (entryType === 'assistant') {
+        } else if (entryType === SessionEntryType.ASSISTANT) {
             return AgentStatus.WAITING;
-        } else if (entryType === 'system') {
+        } else if (entryType === SessionEntryType.SYSTEM) {
             return AgentStatus.IDLE;
         }
 

@@ -103,6 +103,9 @@ Data-model refinements (February 25, 2026):
   - Removed `AgentInfo.statusDisplay`
   - Removed `AgentInfo.lastActiveDisplay`
 - Updated `ClaudeCodeAdapter` to return data-only fields (`status`, `lastActive`, `summary`) without UI formatting
+- Replaced hardcoded string literals with enums where appropriate:
+  - Added `TerminalType` enum for terminal location/focus flow
+  - Added `SessionEntryType` enum in `ClaudeCodeAdapter` status logic
 
 ## Phase 6 Check Implementation (February 25, 2026)
 

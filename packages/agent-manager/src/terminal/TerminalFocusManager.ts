@@ -5,8 +5,15 @@ import { getProcessTty } from '../utils/process';
 const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
+export enum TerminalType {
+    TMUX = 'tmux',
+    ITERM2 = 'iterm2',
+    TERMINAL_APP = 'terminal-app',
+    UNKNOWN = 'unknown',
+}
+
 export interface TerminalLocation {
-    type: 'tmux' | 'iterm2' | 'terminal-app' | 'unknown';
+    type: TerminalType;
     identifier: string; // e.g., "session:window.pane" for tmux, or TTY for others
     tty: string;        // e.g., "/dev/ttys030"
 }
@@ -39,7 +46,7 @@ export class TerminalFocusManager {
 
         // 4. Fallback: we know the TTY but not the emulator wrapper
         return {
-            type: 'unknown',
+            type: TerminalType.UNKNOWN,
             identifier: '',
             tty: fullTty
         };
@@ -51,11 +58,11 @@ export class TerminalFocusManager {
     async focusTerminal(location: TerminalLocation): Promise<boolean> {
         try {
             switch (location.type) {
-                case 'tmux':
+                case TerminalType.TMUX:
                     return await this.focusTmuxPane(location.identifier);
-                case 'iterm2':
+                case TerminalType.ITERM2:
                     return await this.focusITerm2Session(location.tty);
-                case 'terminal-app':
+                case TerminalType.TERMINAL_APP:
                     return await this.focusTerminalAppWindow(location.tty);
                 default:
                     return false;
@@ -78,7 +85,7 @@ export class TerminalFocusManager {
                 const [paneTty, identifier] = line.split('|');
                 if (paneTty === tty && identifier) {
                     return {
-                        type: 'tmux',
+                        type: TerminalType.TMUX,
                         identifier,
                         tty
                     };
@@ -113,7 +120,7 @@ export class TerminalFocusManager {
             const { stdout } = await execAsync(`osascript -e '${script}'`);
             if (stdout.trim() === "found") {
                 return {
-                    type: 'iterm2',
+                    type: TerminalType.ITERM2,
                     identifier: tty,
                     tty
                 };
@@ -145,7 +152,7 @@ export class TerminalFocusManager {
             const { stdout } = await execAsync(`osascript -e '${script}'`);
             if (stdout.trim() === "found") {
                 return {
-                    type: 'terminal-app',
+                    type: TerminalType.TERMINAL_APP,
                     identifier: tty,
                     tty
                 };

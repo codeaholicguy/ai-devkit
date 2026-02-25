@@ -72,7 +72,8 @@ Types are adapted for a data-first package contract:
 - **AgentInfo**: Full agent information (name, type, status, pid, projectPath, sessionId, slug, lastActive, etc.)
 - **ProcessInfo**: `{ pid, command, cwd, tty }`
 - **AgentAdapter**: Interface with `type`, `detectAgents()`, `canHandle()`
-- **TerminalLocation**: `{ type, identifier, tty }` (from TerminalFocusManager)
+- **TerminalType**: Enum (`TMUX`, `ITERM2`, `TERMINAL_APP`, `UNKNOWN`)
+- **TerminalLocation**: `{ type: TerminalType, identifier, tty }` (from TerminalFocusManager)
 
 ## API Design
 
@@ -89,7 +90,7 @@ export { AgentStatus } from './adapters/AgentAdapter';
 export type { AgentType, AgentInfo, ProcessInfo } from './adapters/AgentAdapter';
 
 // Terminal
-export { TerminalFocusManager } from './terminal/TerminalFocusManager';
+export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusManager';
 export type { TerminalLocation } from './terminal/TerminalFocusManager';
 
 // Utilities
