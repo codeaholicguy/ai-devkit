@@ -39,16 +39,14 @@ class MockAdapter implements AgentAdapter {
 function createMockAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
     return {
         name: 'test-agent',
-        type: 'Claude Code',
+        type: 'claude',
         status: AgentStatus.RUNNING,
-        statusDisplay: '🟢 run',
         summary: 'Test summary',
         pid: 12345,
         projectPath: '/test/path',
         sessionId: 'test-session-id',
         slug: 'test-slug',
         lastActive: new Date(),
-        lastActiveDisplay: 'just now',
         ...overrides,
     };
 }
@@ -62,47 +60,47 @@ describe('AgentManager', () => {
 
     describe('registerAdapter', () => {
         it('should register a new adapter', () => {
-            const adapter = new MockAdapter('Claude Code');
+            const adapter = new MockAdapter('claude');
 
             manager.registerAdapter(adapter);
 
-            expect(manager.hasAdapter('Claude Code')).toBe(true);
+            expect(manager.hasAdapter('claude')).toBe(true);
             expect(manager.getAdapterCount()).toBe(1);
         });
 
         it('should throw error when registering duplicate adapter type', () => {
-            const adapter1 = new MockAdapter('Claude Code');
-            const adapter2 = new MockAdapter('Claude Code');
+            const adapter1 = new MockAdapter('claude');
+            const adapter2 = new MockAdapter('claude');
 
             manager.registerAdapter(adapter1);
 
             expect(() => manager.registerAdapter(adapter2)).toThrow(
-                'Adapter for type "Claude Code" is already registered'
+                'Adapter for type "claude" is already registered'
             );
         });
 
         it('should allow registering multiple different adapter types', () => {
-            const adapter1 = new MockAdapter('Claude Code');
-            const adapter2 = new MockAdapter('Gemini CLI');
+            const adapter1 = new MockAdapter('claude');
+            const adapter2 = new MockAdapter('gemini_cli');
 
             manager.registerAdapter(adapter1);
             manager.registerAdapter(adapter2);
 
             expect(manager.getAdapterCount()).toBe(2);
-            expect(manager.hasAdapter('Claude Code')).toBe(true);
-            expect(manager.hasAdapter('Gemini CLI')).toBe(true);
+            expect(manager.hasAdapter('claude')).toBe(true);
+            expect(manager.hasAdapter('gemini_cli')).toBe(true);
         });
     });
 
     describe('unregisterAdapter', () => {
         it('should unregister an existing adapter', () => {
-            const adapter = new MockAdapter('Claude Code');
+            const adapter = new MockAdapter('claude');
             manager.registerAdapter(adapter);
 
-            const removed = manager.unregisterAdapter('Claude Code');
+            const removed = manager.unregisterAdapter('claude');
 
             expect(removed).toBe(true);
-            expect(manager.hasAdapter('Claude Code')).toBe(false);
+            expect(manager.hasAdapter('claude')).toBe(false);
             expect(manager.getAdapterCount()).toBe(0);
         });
 
@@ -119,8 +117,8 @@ describe('AgentManager', () => {
         });
 
         it('should return all registered adapters', () => {
-            const adapter1 = new MockAdapter('Claude Code');
-            const adapter2 = new MockAdapter('Gemini CLI');
+            const adapter1 = new MockAdapter('claude');
+            const adapter2 = new MockAdapter('gemini_cli');
 
             manager.registerAdapter(adapter1);
             manager.registerAdapter(adapter2);
@@ -134,12 +132,12 @@ describe('AgentManager', () => {
 
     describe('hasAdapter', () => {
         it('should return true for registered adapter', () => {
-            manager.registerAdapter(new MockAdapter('Claude Code'));
-            expect(manager.hasAdapter('Claude Code')).toBe(true);
+            manager.registerAdapter(new MockAdapter('claude'));
+            expect(manager.hasAdapter('claude')).toBe(true);
         });
 
         it('should return false for non-registered adapter', () => {
-            expect(manager.hasAdapter('Claude Code')).toBe(false);
+            expect(manager.hasAdapter('claude')).toBe(false);
         });
     });
 
@@ -154,7 +152,7 @@ describe('AgentManager', () => {
                 createMockAgent({ name: 'agent1' }),
                 createMockAgent({ name: 'agent2' }),
             ];
-            const adapter = new MockAdapter('Claude Code', mockAgents);
+            const adapter = new MockAdapter('claude', mockAgents);
 
             manager.registerAdapter(adapter);
             const agents = await manager.listAgents();
@@ -165,11 +163,11 @@ describe('AgentManager', () => {
         });
 
         it('should aggregate agents from multiple adapters', async () => {
-            const claudeAgents = [createMockAgent({ name: 'claude-agent', type: 'Claude Code' })];
-            const geminiAgents = [createMockAgent({ name: 'gemini-agent', type: 'Gemini CLI' })];
+            const claudeAgents = [createMockAgent({ name: 'claude-agent', type: 'claude' })];
+            const geminiAgents = [createMockAgent({ name: 'gemini-agent', type: 'gemini_cli' })];
 
-            manager.registerAdapter(new MockAdapter('Claude Code', claudeAgents));
-            manager.registerAdapter(new MockAdapter('Gemini CLI', geminiAgents));
+            manager.registerAdapter(new MockAdapter('claude', claudeAgents));
+            manager.registerAdapter(new MockAdapter('gemini_cli', geminiAgents));
 
             const agents = await manager.listAgents();
 
@@ -185,7 +183,7 @@ describe('AgentManager', () => {
                 createMockAgent({ name: 'running-agent', status: AgentStatus.RUNNING }),
                 createMockAgent({ name: 'unknown-agent', status: AgentStatus.UNKNOWN }),
             ];
-            const adapter = new MockAdapter('Claude Code', mockAgents);
+            const adapter = new MockAdapter('claude', mockAgents);
 
             manager.registerAdapter(adapter);
             const agents = await manager.listAgents();
@@ -197,10 +195,10 @@ describe('AgentManager', () => {
         });
 
         it('should handle adapter errors gracefully', async () => {
-            const goodAdapter = new MockAdapter('Claude Code', [
+            const goodAdapter = new MockAdapter('claude', [
                 createMockAgent({ name: 'good-agent' }),
             ]);
-            const badAdapter = new MockAdapter('Gemini CLI', [], true); // Will fail
+            const badAdapter = new MockAdapter('gemini_cli', [], true); // Will fail
 
             manager.registerAdapter(goodAdapter);
             manager.registerAdapter(badAdapter);
@@ -213,8 +211,8 @@ describe('AgentManager', () => {
         });
 
         it('should return empty array when all adapters fail', async () => {
-            const adapter1 = new MockAdapter('Claude Code', [], true);
-            const adapter2 = new MockAdapter('Gemini CLI', [], true);
+            const adapter1 = new MockAdapter('claude', [], true);
+            const adapter2 = new MockAdapter('gemini_cli', [], true);
 
             manager.registerAdapter(adapter1);
             manager.registerAdapter(adapter2);
@@ -230,18 +228,18 @@ describe('AgentManager', () => {
         });
 
         it('should return correct count', () => {
-            manager.registerAdapter(new MockAdapter('Claude Code'));
+            manager.registerAdapter(new MockAdapter('claude'));
             expect(manager.getAdapterCount()).toBe(1);
 
-            manager.registerAdapter(new MockAdapter('Gemini CLI'));
+            manager.registerAdapter(new MockAdapter('gemini_cli'));
             expect(manager.getAdapterCount()).toBe(2);
         });
     });
 
     describe('clear', () => {
         it('should remove all adapters', () => {
-            manager.registerAdapter(new MockAdapter('Claude Code'));
-            manager.registerAdapter(new MockAdapter('Gemini CLI'));
+            manager.registerAdapter(new MockAdapter('claude'));
+            manager.registerAdapter(new MockAdapter('gemini_cli'));
 
             manager.clear();
 

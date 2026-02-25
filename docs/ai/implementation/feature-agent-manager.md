@@ -91,10 +91,18 @@ Completed on February 25, 2026 in worktree `feature-agent-manager`.
   - `src/__tests__/adapters/ClaudeCodeAdapter.test.ts`
 
 Validation:
-- `npm run lint` passes (warnings only from inherited `any` usage in extracted code)
+- `npm run lint` passes
 - `npm run typecheck` passes
 - `npm run build` passes
-- `npm run test` passes (43 tests)
+- `npm run test` passes (38 tests)
+
+Data-model refinements (February 25, 2026):
+- Normalized `AgentType` to code-style values: `claude`, `gemini_cli`, `codex`, `other`
+- Removed display-oriented contract elements from package API:
+  - Removed `STATUS_CONFIG` and `StatusConfig`
+  - Removed `AgentInfo.statusDisplay`
+  - Removed `AgentInfo.lastActiveDisplay`
+- Updated `ClaudeCodeAdapter` to return data-only fields (`status`, `lastActive`, `summary`) without UI formatting
 
 ## Phase 6 Check Implementation (February 25, 2026)
 
@@ -150,3 +158,15 @@ Validation:
 
 - No remaining blocking correctness or security issues in `packages/agent-manager`.
 - Feature is ready for commit/PR from a code review perspective.
+
+## Code Review Continuation (February 25, 2026)
+
+### Findings
+
+1. **No new blocking issues** after `AgentType` normalization and display-field removal.
+2. **Compatibility note**: this is an intentional contract change for package consumers (type literals and removed display fields/constants).
+
+### Documentation Updates Applied
+
+- Requirements/design docs updated to describe the data-first API boundary.
+- Added explicit migration notes for callers formatting status/time displays externally.

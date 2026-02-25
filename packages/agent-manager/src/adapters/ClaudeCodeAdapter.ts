@@ -8,7 +8,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
-import { AgentStatus, STATUS_CONFIG } from './AgentAdapter';
+import { AgentStatus } from './AgentAdapter';
 import { listProcesses } from '../utils/process';
 import { readLastLines, readJsonLines, readJson } from '../utils/file';
 
@@ -71,7 +71,7 @@ interface ClaudeSession {
  * 5. Extracting summary from history.jsonl
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
-    readonly type = 'Claude Code' as const;
+    readonly type = 'claude' as const;
 
     /** Threshold in minutes before considering a session idle */
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
@@ -152,23 +152,16 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 const status = this.determineStatus(session);
                 const agentName = this.generateAgentName(session, agents); // Pass currently built agents for collision checks
 
-                // Get status display config
-                const statusConfig = STATUS_CONFIG[status] || STATUS_CONFIG[AgentStatus.UNKNOWN];
-                const statusDisplay = `${statusConfig.emoji} ${statusConfig.label}`;
-                const lastActiveDisplay = this.getRelativeTime(session.lastActive || new Date());
-
                 agents.push({
                     name: agentName,
                     type: this.type,
                     status,
-                    statusDisplay,
-                    summary: this.truncateSummary(summary),
+                    summary,
                     pid: process.pid,
                     projectPath: session.projectPath,
                     sessionId: session.sessionId,
                     slug: session.slug,
                     lastActive: session.lastActive || new Date(),
-                    lastActiveDisplay,
                 });
             }
         }
@@ -348,31 +341,4 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         return `${projectName} (${session.sessionId.slice(0, 8)})`;
     }
 
-    /**
-     * Truncate summary to ~40 characters
-     */
-    private truncateSummary(summary: string, maxLength: number = 40): string {
-        if (summary.length <= maxLength) {
-            return summary;
-        }
-        return summary.slice(0, maxLength - 3) + '...';
-    }
-
-    /**
-     * Get relative time display (e.g., "2m ago", "just now")
-     */
-    private getRelativeTime(date: Date): string {
-        const now = new Date();
-        const diffMs = now.getTime() - date.getTime();
-        const diffMins = Math.floor(diffMs / 60000);
-
-        if (diffMins < 1) return 'just now';
-        if (diffMins < 60) return `${diffMins}m ago`;
-
-        const diffHours = Math.floor(diffMins / 60);
-        if (diffHours < 24) return `${diffHours}h ago`;
-
-        const diffDays = Math.floor(diffHours / 24);
-        return `${diffDays}d ago`;
-    }
 }

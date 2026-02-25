@@ -29,7 +29,7 @@ description: Testing approach for the @ai-devkit/agent-manager package
 ### ClaudeCodeAdapter (`src/__tests__/adapters/ClaudeCodeAdapter.test.ts`)
 - [x] Adapter type and canHandle()
 - [x] Agent detection (mocked process/session data)
-- [x] Helper methods: truncateSummary(), getRelativeTime(), determineStatus(), generateAgentName()
+- [x] Helper methods: determineStatus(), generateAgentName()
 
 ## Test Data
 
@@ -48,5 +48,5 @@ description: Testing approach for the @ai-devkit/agent-manager package
 Executed on February 25, 2026:
 
 - `npm run test` passed
-- Total: 44 tests passed, 2 suites passed
+- Total: 38 tests passed, 2 suites passed
 - Claude adapter unit tests are deterministic and run without relying on host process permissions

@@ -31,7 +31,7 @@ describe('ClaudeCodeAdapter', () => {
 
     describe('initialization', () => {
         it('should create adapter with correct type', () => {
-            expect(adapter.type).toBe('Claude Code');
+            expect(adapter.type).toBe('claude');
         });
     });
 
@@ -117,7 +117,7 @@ describe('ClaudeCodeAdapter', () => {
             expect(agents).toHaveLength(1);
             expect(agents[0]).toMatchObject({
                 name: 'my-project',
-                type: 'Claude Code',
+                type: 'claude',
                 status: AgentStatus.WAITING,
                 pid: 12345,
                 projectPath: '/Users/test/my-project',
@@ -153,72 +153,6 @@ describe('ClaudeCodeAdapter', () => {
     });
 
     describe('helper methods', () => {
-        describe('truncateSummary', () => {
-            it('should truncate long summaries', () => {
-                const adapter = new ClaudeCodeAdapter();
-
-                const truncate = (adapter as any).truncateSummary.bind(adapter);
-
-                const longSummary = 'This is a very long summary that should be truncated';
-                const result = truncate(longSummary, 20);
-
-                expect(result.length).toBeLessThanOrEqual(20);
-                expect(result).toContain('...');
-            });
-
-            it('should not truncate short summaries', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const truncate = (adapter as any).truncateSummary.bind(adapter);
-
-                const shortSummary = 'Short';
-                const result = truncate(shortSummary, 20);
-
-                expect(result).toBe(shortSummary);
-            });
-        });
-
-        describe('getRelativeTime', () => {
-            it('should return "just now" for very recent dates', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const getRelativeTime = (adapter as any).getRelativeTime.bind(adapter);
-
-                const now = new Date();
-                const result = getRelativeTime(now);
-
-                expect(result).toBe('just now');
-            });
-
-            it('should return minutes for recent dates', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const getRelativeTime = (adapter as any).getRelativeTime.bind(adapter);
-
-                const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-                const result = getRelativeTime(fiveMinutesAgo);
-
-                expect(result).toMatch(/^\d+m ago$/);
-            });
-
-            it('should return hours for older dates', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const getRelativeTime = (adapter as any).getRelativeTime.bind(adapter);
-
-                const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-                const result = getRelativeTime(twoHoursAgo);
-
-                expect(result).toMatch(/^\d+h ago$/);
-            });
-
-            it('should return days for very old dates', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const getRelativeTime = (adapter as any).getRelativeTime.bind(adapter);
-
-                const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
-                const result = getRelativeTime(twoDaysAgo);
-
-                expect(result).toMatch(/^\d+d ago$/);
-            });
-        });
-
         describe('determineStatus', () => {
             it('should return "unknown" for sessions with no last entry', () => {
                 const adapter = new ClaudeCodeAdapter();
@@ -328,15 +262,13 @@ describe('ClaudeCodeAdapter', () => {
                 const existingAgent: AgentInfo = {
                     name: 'my-project',
                     projectPath: '/Users/test/my-project',
-                    type: 'Claude Code',
+                    type: 'claude',
                     status: AgentStatus.RUNNING,
-                    statusDisplay: '🟢 run',
                     summary: 'Test',
                     pid: 123,
                     sessionId: 'existing-123',
                     slug: 'happy-cat',
                     lastActive: new Date(),
-                    lastActiveDisplay: 'just now',
                 };
 
                 const session = {

@@ -28,6 +28,7 @@ Agent detection and management code (AgentManager, adapters, process utilities, 
 - Improve code quality during extraction (better error handling, consistent patterns)
 - Include TerminalFocusManager as an optional export (terminal focus capability)
 - Maintain backward compatibility — CLI should still function identically after extraction
+- Keep package contracts data-first (machine-friendly enums/codes, no UI display formatting)
 
 ### Non-Goals
 - Modifying the CLI `agent` command behavior or UI (stays in CLI, just re-imports)
@@ -66,6 +67,7 @@ Agent detection and management code (AgentManager, adapters, process utilities, 
 - The CLI package will NOT be modified to import from the new package in this iteration
 - TerminalFocusManager is macOS-specific and should be documented as such
 - Process detection utilities (`ps aux`, `lsof`) are Unix/macOS-specific
+- Any consumer-facing formatting (emoji/labels/relative-time strings) is the responsibility of callers, not this package
 
 ## Questions & Open Items
 

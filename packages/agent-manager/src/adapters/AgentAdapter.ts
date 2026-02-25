@@ -2,13 +2,13 @@
  * Agent Adapter Interface
  * 
  * Defines the contract for detecting and managing different types of AI agents.
- * Each adapter is responsible for detecting agents of a specific type (e.g., Claude Code).
+ * Each adapter is responsible for detecting agents of a specific type (e.g., claude).
  */
 
 /**
  * Type of AI agent
  */
-export type AgentType = 'Claude Code' | 'Gemini CLI' | 'Codex' | "Other";
+export type AgentType = 'claude' | 'gemini_cli' | 'codex' | 'other';
 
 /**
  * Current status of an agent
@@ -19,25 +19,6 @@ export enum AgentStatus {
     IDLE = 'idle',
     UNKNOWN = 'unknown'
 }
-
-/**
- * Status display configuration
- */
-export interface StatusConfig {
-    emoji: string;
-    label: string;
-    color: string;
-}
-
-/**
- * Status configuration map
- */
-export const STATUS_CONFIG: Record<AgentStatus, StatusConfig> = {
-    [AgentStatus.RUNNING]: { emoji: '🟢', label: 'running', color: 'green' },
-    [AgentStatus.WAITING]: { emoji: '🟡', label: 'waiting', color: 'yellow' },
-    [AgentStatus.IDLE]: { emoji: '⚪', label: 'idle', color: 'dim' },
-    [AgentStatus.UNKNOWN]: { emoji: '❓', label: 'unknown', color: 'gray' },
-};
 
 /**
  * Information about a detected agent
@@ -52,10 +33,7 @@ export interface AgentInfo {
     /** Current status */
     status: AgentStatus;
 
-    /** Display format for status (e.g., "🟡 wait", "🟢 run") */
-    statusDisplay: string;
-
-    /** Last user prompt from history (truncated ~40 chars) */
+    /** Last user prompt from history */
     summary: string;
 
     /** Process ID */
@@ -73,8 +51,6 @@ export interface AgentInfo {
     /** Timestamp of last activity */
     lastActive: Date;
 
-    /** Relative time display (e.g., "2m ago", "just now") */
-    lastActiveDisplay: string;
 }
 
 /**

@@ -65,11 +65,10 @@ packages/agent-manager/
 
 ## Data Models
 
-All types are extracted from the existing `AgentAdapter.ts` without changes:
+Types are adapted for a data-first package contract:
 
-- **AgentType**: `'Claude Code' | 'Gemini CLI' | 'Codex' | 'Other'`
+- **AgentType**: `'claude' | 'gemini_cli' | 'codex' | 'other'`
 - **AgentStatus**: Enum (`RUNNING`, `WAITING`, `IDLE`, `UNKNOWN`)
-- **StatusConfig**: `{ emoji, label, color }`
 - **AgentInfo**: Full agent information (name, type, status, pid, projectPath, sessionId, slug, lastActive, etc.)
 - **ProcessInfo**: `{ pid, command, cwd, tty }`
 - **AgentAdapter**: Interface with `type`, `detectAgents()`, `canHandle()`
@@ -86,8 +85,8 @@ export { AgentManager } from './AgentManager';
 // Adapters
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter';
 export type { AgentAdapter } from './adapters/AgentAdapter';
-export { AgentStatus, STATUS_CONFIG } from './adapters/AgentAdapter';
-export type { AgentType, AgentInfo, ProcessInfo, StatusConfig } from './adapters/AgentAdapter';
+export { AgentStatus } from './adapters/AgentAdapter';
+export type { AgentType, AgentInfo, ProcessInfo } from './adapters/AgentAdapter';
 
 // Terminal
 export { TerminalFocusManager } from './terminal/TerminalFocusManager';
@@ -109,9 +108,15 @@ manager.registerAdapter(new ClaudeCodeAdapter());
 
 const agents = await manager.listAgents();
 agents.forEach(agent => {
-  console.log(`${agent.name}: ${agent.statusDisplay}`);
+  console.log(`${agent.name}: ${agent.status}`);
 });
 ```
+
+### Migration Notes
+
+- `AgentType` values are now normalized codes (`claude`, `gemini_cli`, `codex`, `other`)
+- `AgentInfo` no longer includes UI/display fields (`statusDisplay`, `lastActiveDisplay`)
+- `STATUS_CONFIG` / `StatusConfig` were removed; consumers should map presentation in their own layer
 
 ## Component Breakdown
 
@@ -126,9 +131,9 @@ agents.forEach(agent => {
 ### 2. AgentAdapter + Types (interface layer)
 - Interface contract for adapters
 - Type definitions and enums
-- Status display configuration
+- Normalized agent type codes for machine-friendly integrations
 - **Extracted from**: `packages/cli/src/lib/adapters/AgentAdapter.ts`
-- **Changes**: None — direct copy
+- **Changes**: Agent type literals normalized; display-oriented fields removed from core model
 
 ### 3. ClaudeCodeAdapter (concrete adapter)
 - Claude Code process detection via `ps aux`
