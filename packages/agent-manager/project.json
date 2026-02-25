@@ -1,0 +1,29 @@
+{
+  "name": "agent-manager",
+  "root": "packages/agent-manager",
+  "sourceRoot": "packages/agent-manager/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/agent-manager"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "packages/agent-manager"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint",
+        "cwd": "packages/agent-manager"
+      }
+    }
+  }
+}
