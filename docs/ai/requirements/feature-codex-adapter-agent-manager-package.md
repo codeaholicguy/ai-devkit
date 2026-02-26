@@ -28,6 +28,7 @@ Who is affected:
 - Reuse shared process/file utilities and adapter contract patterns
 - Add tests for Codex adapter discovery, status mapping, and command metadata
 - Establish a clean extension path for future adapters (Gemini/others)
+- Keep Codex adapter internals maintainable via small helper functions without changing runtime behavior
 
 ### Non-Goals
 - Reworking overall `ai-devkit agent` UX
@@ -48,6 +49,7 @@ Who is affected:
 - `packages/cli/src/commands/agent.ts` registers `CodexAdapter` from package exports
 - Unit tests cover Codex adapter happy path, empty/no-session path, and invalid data handling
 - Existing agent command tests continue to pass without regressions
+- Implementation remains readable enough for future adapter extension work (clear matching phases/helpers)
 
 ## Constraints & Assumptions
 

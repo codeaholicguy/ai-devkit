@@ -40,6 +40,9 @@ description: Task plan for adding Codex adapter support and integrating it into 
 - [x] Task 3.2: Validate and document
   - Run lint/build/tests for affected projects
   - Record implementation + testing outcomes in docs/ai
+- [x] Task 3.3: Simplify implementation structure without behavior changes
+  - Extract matching orchestration and ranking helpers for readability
+  - Replace repeated PID lookup scans with set-based tracking
 
 ## Dependencies
 
@@ -71,4 +74,4 @@ description: Task plan for adding Codex adapter support and integrating it into 
 
 ## Progress Summary
 
-Implementation scope is complete. `CodexAdapter` was added to `@ai-devkit/agent-manager`, exported through package entry points, and registered in CLI agent command flows. Follow-up fixes addressed three runtime issues: false-positive process matching, missing long-lived session links, and list latency from broad session scans. Matching now uses `etime`-based process start time with configurable tolerance and process-start day-window session inclusion, while keeping a bounded recent-file scan for performance. Focused adapter and CLI agent-command tests pass, and package lint/build/test checks pass for affected areas. Full `cli:test` includes unrelated pre-existing module-resolution failures (`@ai-devkit/memory` and workspace package mocking) and is tracked as external validation noise rather than a feature regression.
+Implementation scope is complete. `CodexAdapter` was added to `@ai-devkit/agent-manager`, exported through package entry points, and registered in CLI agent command flows. Follow-up fixes addressed false-positive process matching, missing long-lived session links, and list latency from broad session scans. Matching now uses `etime`-based process start time with configurable tolerance and process-start day-window session inclusion, while keeping a bounded recent-file scan for performance. A final simplification pass extracted helper methods for match phases/ranking and introduced set-based PID assignment tracking; behavior is unchanged with focused tests still passing.

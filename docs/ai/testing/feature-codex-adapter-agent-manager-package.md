@@ -59,6 +59,7 @@ description: Test strategy and coverage plan for Codex adapter integration
 
 Coverage and residual gaps:
 - New Codex adapter unit suite (`CodexAdapter.test.ts`) is passing with coverage on detection, filtering, status mapping, fallback naming, and time-based matching.
+- Post-simplification verification: focused Codex adapter tests and lint still pass after helper extraction/set-based PID tracking refactor.
 - Full `npx nx run cli:test` currently fails due to unrelated pre-existing module-resolution issues in `memory.test.ts` and baseline `agent.test.ts` mocking behavior when running the entire suite without focused filtering.
 - Runtime validation confirmed targeted mapping: PID `81442` maps to session `019c7024-89e6-7880-81eb-1417bd2177b5` after time-based matching + process-day window logic.
 

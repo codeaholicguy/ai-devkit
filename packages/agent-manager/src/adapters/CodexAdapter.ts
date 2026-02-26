@@ -43,6 +43,8 @@ interface CodexSession {
     lastPayloadType?: string;
 }
 
+type SessionMatchMode = 'cwd' | 'missing-cwd' | 'any';
+
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
 
@@ -69,9 +71,7 @@ export class CodexAdapter implements AgentAdapter {
     }
 
     async detectAgents(): Promise<AgentInfo[]> {
-        const codexProcesses = listProcesses({ namePattern: 'codex' }).filter((processInfo) =>
-            this.canHandle(processInfo),
-        );
+        const codexProcesses = this.listCodexProcesses();
 
         if (codexProcesses.length === 0) {
             return [];
@@ -79,13 +79,7 @@ export class CodexAdapter implements AgentAdapter {
 
         const processStartByPid = this.getProcessStartTimes(codexProcesses.map((processInfo) => processInfo.pid));
 
-        const sessionScanLimit = Math.min(
-            Math.max(
-                codexProcesses.length * CodexAdapter.SESSION_SCAN_MULTIPLIER,
-                CodexAdapter.MIN_SESSION_SCAN,
-            ),
-            CodexAdapter.MAX_SESSION_SCAN,
-        );
+        const sessionScanLimit = this.calculateSessionScanLimit(codexProcesses.length);
         const sessions = this.readSessions(sessionScanLimit, processStartByPid);
         if (sessions.length === 0) {
             return codexProcesses.map((processInfo) =>
@@ -97,72 +91,114 @@ export class CodexAdapter implements AgentAdapter {
             (a, b) => b.lastActive.getTime() - a.lastActive.getTime(),
         );
         const usedSessionIds = new Set<string>();
+        const assignedPids = new Set<number>();
         const agents: AgentInfo[] = [];
 
-        // First pass: match sessions by exact cwd, then closest start time.
+        // Match exact cwd first, then missing-cwd sessions, then any available session.
+        this.assignSessionsForMode(
+            'cwd',
+            codexProcesses,
+            sortedSessions,
+            usedSessionIds,
+            assignedPids,
+            processStartByPid,
+            agents,
+        );
+        this.assignSessionsForMode(
+            'missing-cwd',
+            codexProcesses,
+            sortedSessions,
+            usedSessionIds,
+            assignedPids,
+            processStartByPid,
+            agents,
+        );
+        this.assignSessionsForMode(
+            'any',
+            codexProcesses,
+            sortedSessions,
+            usedSessionIds,
+            assignedPids,
+            processStartByPid,
+            agents,
+        );
+
+        // Every running codex process should still be listed.
         for (const processInfo of codexProcesses) {
-            const match = this.selectBestSession(
-                processInfo,
-                sortedSessions,
-                usedSessionIds,
-                processStartByPid,
-                'cwd',
-            );
-
-            if (!match) {
+            if (assignedPids.has(processInfo.pid)) {
                 continue;
             }
 
-            usedSessionIds.add(match.sessionId);
-            agents.push(this.mapSessionToAgent(match, processInfo, agents));
-        }
-
-        // Second pass: allow missing-cwd sessions to attach to unmatched codex processes.
-        for (const processInfo of codexProcesses) {
-            if (agents.some((agent) => agent.pid === processInfo.pid)) {
-                continue;
-            }
-
-            const match = this.selectBestSession(
-                processInfo,
-                sortedSessions,
-                usedSessionIds,
-                processStartByPid,
-                'missing-cwd',
-            );
-
-            if (!match) {
-                continue;
-            }
-
-            usedSessionIds.add(match.sessionId);
-            agents.push(this.mapSessionToAgent(match, processInfo, agents));
-        }
-
-        // Third pass: every running codex process should still be listed.
-        for (const processInfo of codexProcesses) {
-            if (agents.some((agent) => agent.pid === processInfo.pid)) {
-                continue;
-            }
-
-            const fallbackSession = this.selectBestSession(
-                processInfo,
-                sortedSessions,
-                usedSessionIds,
-                processStartByPid,
-                'any',
-            );
-
-            if (fallbackSession) {
-                usedSessionIds.add(fallbackSession.sessionId);
-                agents.push(this.mapSessionToAgent(fallbackSession, processInfo, agents));
-                continue;
-            }
-
-            agents.push(this.mapProcessOnlyAgent(processInfo, agents));
+            this.addProcessOnlyAgent(processInfo, assignedPids, agents);
         }
 
         return agents;
+    }
+
+    private listCodexProcesses(): ProcessInfo[] {
+        return listProcesses({ namePattern: 'codex' }).filter((processInfo) =>
+            this.canHandle(processInfo),
+        );
+    }
+
+    private calculateSessionScanLimit(processCount: number): number {
+        return Math.min(
+            Math.max(
+                processCount * CodexAdapter.SESSION_SCAN_MULTIPLIER,
+                CodexAdapter.MIN_SESSION_SCAN,
+            ),
+            CodexAdapter.MAX_SESSION_SCAN,
+        );
+    }
+
+    private assignSessionsForMode(
+        mode: SessionMatchMode,
+        codexProcesses: ProcessInfo[],
+        sessions: CodexSession[],
+        usedSessionIds: Set<string>,
+        assignedPids: Set<number>,
+        processStartByPid: Map<number, Date>,
+        agents: AgentInfo[],
+    ): void {
+        for (const processInfo of codexProcesses) {
+            if (assignedPids.has(processInfo.pid)) {
+                continue;
+            }
+
+            const session = this.selectBestSession(
+                processInfo,
+                sessions,
+                usedSessionIds,
+                processStartByPid,
+                mode,
+            );
+            if (!session) {
+                continue;
+            }
+
+            this.addMappedSessionAgent(session, processInfo, usedSessionIds, assignedPids, agents);
+        }
+    }
+
+    private addMappedSessionAgent(
+        session: CodexSession,
+        processInfo: ProcessInfo,
+        usedSessionIds: Set<string>,
+        assignedPids: Set<number>,
+        agents: AgentInfo[],
+    ): void {
+        usedSessionIds.add(session.sessionId);
+        assignedPids.add(processInfo.pid);
+        agents.push(this.mapSessionToAgent(session, processInfo, agents));
+    }
+
+    private addProcessOnlyAgent(
+        processInfo: ProcessInfo,
+        assignedPids: Set<number>,
+        agents: AgentInfo[],
+    ): void {
+        assignedPids.add(processInfo.pid);
+        agents.push(this.mapProcessOnlyAgent(processInfo, agents));
     }
 
     private mapSessionToAgent(
@@ -260,14 +296,13 @@ export class CodexAdapter implements AgentAdapter {
             }
         }
 
-        const selectedPaths = new Set(
-            files
+        const recentFiles = files
             .sort((a, b) => b.mtimeMs - a.mtimeMs)
             .slice(0, limit)
-            .map((file) => file.path),
-        );
-
+            .map((file) => file.path);
         const processDayFiles = this.findProcessDaySessionFiles(processStartByPid);
+
+        const selectedPaths = new Set(recentFiles);
         for (const processDayFile of processDayFiles) {
             selectedPaths.add(processDayFile);
         }
@@ -385,9 +420,29 @@ export class CodexAdapter implements AgentAdapter {
         sessions: CodexSession[],
         usedSessionIds: Set<string>,
         processStartByPid: Map<number, Date>,
-        mode: 'cwd' | 'missing-cwd' | 'any',
+        mode: SessionMatchMode,
     ): CodexSession | undefined {
-        const candidates = sessions.filter((session) => {
+        const candidates = this.filterCandidateSessions(processInfo, sessions, usedSessionIds, mode);
+
+        if (candidates.length === 0) {
+            return undefined;
+        }
+
+        const processStart = processStartByPid.get(processInfo.pid);
+        if (!processStart) {
+            return candidates.sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime())[0];
+        }
+
+        return this.rankCandidatesByStartTime(candidates, processStart)[0];
+    }
+
+    private filterCandidateSessions(
+        processInfo: ProcessInfo,
+        sessions: CodexSession[],
+        usedSessionIds: Set<string>,
+        mode: SessionMatchMode,
+    ): CodexSession[] {
+        return sessions.filter((session) => {
             if (usedSessionIds.has(session.sessionId)) {
                 return false;
             }
@@ -402,17 +457,11 @@ export class CodexAdapter implements AgentAdapter {
 
             return true;
         });
+    }
 
-        if (candidates.length === 0) {
-            return undefined;
-        }
-
-        const processStart = processStartByPid.get(processInfo.pid);
-        if (!processStart) {
-            return candidates.sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime())[0];
-        }
-
+    private rankCandidatesByStartTime(candidates: CodexSession[], processStart: Date): CodexSession[] {
         const toleranceMs = CodexAdapter.PROCESS_SESSION_TIME_TOLERANCE_MS;
+
         return candidates
             .map((session) => {
                 const diffMs = Math.abs(session.sessionStart.getTime() - processStart.getTime());
@@ -428,7 +477,8 @@ export class CodexAdapter implements AgentAdapter {
                 if (a.rank !== b.rank) return a.rank - b.rank;
                 if (a.diffMs !== b.diffMs) return a.diffMs - b.diffMs;
                 return b.recency - a.recency;
-            })[0]?.session;
+            })
+            .map((ranked) => ranked.session);
     }
 
     private getProcessStartTimes(pids: number[]): Map<number, Date> {

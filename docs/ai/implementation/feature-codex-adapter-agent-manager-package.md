@@ -40,6 +40,7 @@ description: Implementation notes for Codex adapter support in package agent man
 - Follow `ClaudeCodeAdapter` structure for consistency.
 - Keep adapter-specific parsing in adapter module; keep formatting in CLI.
 - Fail soft on malformed/partial entries; avoid throwing across adapter boundary.
+- Keep `detectAgents` orchestration readable via small private helpers for each matching stage.
 
 ## Integration Points
 
@@ -78,3 +79,13 @@ description: Implementation notes for Codex adapter support in package agent man
     - `PROCESS_SESSION_TIME_TOLERANCE_MS`
     - `PROCESS_START_DAY_WINDOW_DAYS`
     - session-scan bound constants (`MIN/MAX/SCAN_MULTIPLIER`)
+  - Simplification refactor (no behavior change):
+    - extracted orchestration helpers:
+      - `listCodexProcesses`
+      - `calculateSessionScanLimit`
+      - `assignSessionsForMode`
+      - `addMappedSessionAgent`
+      - `addProcessOnlyAgent`
+      - `filterCandidateSessions`
+      - `rankCandidatesByStartTime`
+    - replaced repeated `agents.some(...)` PID checks with `assignedPids` set tracking

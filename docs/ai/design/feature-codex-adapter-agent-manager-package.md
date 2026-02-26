@@ -91,6 +91,8 @@ Responsibilities:
   - Rationale: preserves cross-agent behavior consistency and avoids adapter-specific drift.
 - Decision: Use `codex-<session-id-prefix>` fallback naming when `cwd` is unavailable.
   - Rationale: keeps identifiers deterministic and short while remaining user-readable.
+- Decision: Keep matching orchestration in explicit phases (`cwd`, `missing-cwd`, `any`) with extracted helper methods and PID/session tracking sets.
+  - Rationale: preserves behavior while reducing branching complexity and repeated scans in `detectAgents`.
 
 ## Non-Functional Requirements
 
