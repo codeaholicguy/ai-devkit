@@ -37,6 +37,11 @@ function formatRelativeTime(timestamp: Date): string {
     return `${diffDays}d ago`;
 }
 
+function formatWorkOn(summary?: string): string {
+    const firstLine = (summary ?? '').split(/\r?\n/, 1)[0] || '';
+    return firstLine || 'No active task';
+}
+
 export function registerAgentCommand(program: Command): void {
     const agentCommand = program
         .command('agent')
@@ -72,7 +77,7 @@ export function registerAgentCommand(program: Command): void {
                 const rows = agents.map(agent => [
                     agent.name,
                     formatStatus(agent.status),
-                    agent.summary || 'No active task',
+                    formatWorkOn(agent.summary),
                     formatRelativeTime(agent.lastActive)
                 ]);
 

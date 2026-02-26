@@ -125,6 +125,27 @@ describe('agent command', () => {
     expect(ui.warning).toHaveBeenCalledWith('1 agent(s) waiting for input.');
   });
 
+  it('truncates working-on text to first line', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
+    mockManager.listAgents.mockResolvedValue([
+      {
+        name: 'repo-a',
+        status: AgentStatus.RUNNING,
+        summary: `Investigating parser bug
+Waiting on user input`,
+        lastActive: new Date('2026-02-26T09:58:00.000Z'),
+        pid: 100,
+      },
+    ]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'list']);
+
+    const tableArg: any = (ui.table as any).mock.calls[0][0];
+    expect(tableArg.rows[0][2]).toBe('Investigating parser bug');
+  });
+
   it('shows available agents when open target is not found', async () => {
     mockManager.listAgents.mockResolvedValue([
       { name: 'repo-a', status: AgentStatus.RUNNING, summary: 'A', lastActive: new Date(), pid: 1 },
