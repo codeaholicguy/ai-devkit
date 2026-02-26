@@ -2,7 +2,8 @@
  * Tests for process detection utilities
  */
 
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { execSync } from 'child_process';
 import {
     listProcesses,
     getProcessCwd,
@@ -11,143 +12,155 @@ import {
     getProcessInfo,
 } from '../../util/process';
 
-describe('process utilities', () => {
-    let currentPid: number;
+jest.mock('child_process', () => ({
+    execSync: jest.fn(),
+}));
 
-    beforeAll(() => {
-        currentPid = process.pid;
+const mockExecSync = execSync as unknown as jest.Mock;
+
+function defaultExec(command: string): string {
+    if (command === 'ps aux') {
+        return [
+            'USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND',
+            'dev 101 0.0 0.1 1000 100 ttys001 S 10:00 0:00 node server.js',
+            'dev 202 0.0 0.1 1000 100 ttys002 S 10:01 0:00 claude --debug',
+        ].join('\n');
+    }
+
+    const lsofMatch = command.match(/^lsof -a -p (\d+) -d cwd -Fn 2>\/dev\/null$/);
+    if (lsofMatch) {
+        const pid = lsofMatch[1];
+        return `p${pid}\nn/tmp/project-${pid}\n`;
+    }
+
+    const pwdxMatch = command.match(/^pwdx (\d+) 2>\/dev\/null$/);
+    if (pwdxMatch) {
+        return `${pwdxMatch[1]}: /tmp/pwdx-${pwdxMatch[1]}\n`;
+    }
+
+    const ttyMatch = command.match(/^ps -p (\d+) -o tty=$/);
+    if (ttyMatch) {
+        return '/dev/ttys009\n';
+    }
+
+    const killMatch = command.match(/^kill -0 (\d+) 2>\/dev\/null$/);
+    if (killMatch) {
+        if (killMatch[1] === '999999') {
+            throw new Error('No such process');
+        }
+        return '';
+    }
+
+    throw new Error(`Unexpected command: ${command}`);
+}
+
+function setupDefaultExecMocks(): void {
+    mockExecSync.mockImplementation((cmd: unknown) => {
+        const command = String(cmd);
+        return defaultExec(command);
+    });
+}
+
+describe('process utilities', () => {
+    beforeEach(() => {
+        mockExecSync.mockReset();
+        setupDefaultExecMocks();
     });
 
     describe('listProcesses', () => {
-        it('should return an array of processes', () => {
+        it('should return parsed process list', () => {
             const processes = listProcesses();
-            expect(Array.isArray(processes)).toBe(true);
-            expect(processes.length).toBeGreaterThan(0);
-        });
 
-        it('should include process info fields', () => {
-            const processes = listProcesses();
-            const firstProcess = processes[0];
-
-            expect(firstProcess).toHaveProperty('pid');
-            expect(firstProcess).toHaveProperty('command');
-            expect(firstProcess).toHaveProperty('cwd');
-            expect(firstProcess).toHaveProperty('tty');
-
-            expect(typeof firstProcess.pid).toBe('number');
-            expect(typeof firstProcess.command).toBe('string');
-            expect(typeof firstProcess.cwd).toBe('string');
-            expect(typeof firstProcess.tty).toBe('string');
-        });
-
-        it('should filter by name pattern', () => {
-            // Filter for node processes (this test itself runs in node)
-            const nodeProcesses = listProcesses({ namePattern: 'node' });
-
-            expect(nodeProcesses.length).toBeGreaterThan(0);
-
-            // All results should contain 'node' in command (case-insensitive)
-            nodeProcesses.forEach(proc => {
-                expect(proc.command.toLowerCase()).toContain('node');
+            expect(processes).toHaveLength(2);
+            expect(processes[0]).toEqual({
+                pid: 101,
+                command: 'node server.js',
+                cwd: '/tmp/project-101',
+                tty: 'ttys001',
             });
         });
 
-        it('should filter by PID', () => {
-            const processes = listProcesses({ pids: [currentPid] });
+        it('should filter by name pattern case-insensitively', () => {
+            const upper = listProcesses({ namePattern: 'NODE' });
+            const lower = listProcesses({ namePattern: 'node' });
 
-            expect(processes.length).toBeGreaterThan(0);
-            expect(processes[0].pid).toBe(currentPid);
+            expect(upper).toHaveLength(1);
+            expect(lower).toHaveLength(1);
+            expect(upper[0].command.toLowerCase()).toContain('node');
         });
 
-        it('should return empty array for non-existent PID', () => {
-            // Use a very high PID that's unlikely to exist
-            const processes = listProcesses({ pids: [999999] });
-            expect(processes.length).toBe(0);
+        it('should filter by pid', () => {
+            const processes = listProcesses({ pids: [202] });
+            expect(processes).toHaveLength(1);
+            expect(processes[0].pid).toBe(202);
         });
 
-        it('should handle case-insensitive name matching', () => {
-            const upperCase = listProcesses({ namePattern: 'NODE' });
-            const lowerCase = listProcesses({ namePattern: 'node' });
+        it('should return empty array when ps fails', () => {
+            mockExecSync.mockImplementationOnce(() => {
+                throw new Error('ps failed');
+            });
 
-            // Should return same results regardless of case
-            expect(upperCase.length).toBe(lowerCase.length);
+            expect(listProcesses()).toEqual([]);
         });
     });
 
     describe('getProcessCwd', () => {
-        it('should return current working directory for current process', () => {
-            const cwd = getProcessCwd(currentPid);
-
-            expect(cwd).toBeTruthy();
-            expect(cwd.length).toBeGreaterThan(0);
-            // Should be an absolute path
-            expect(cwd).toMatch(/^\//);
+        it('should return cwd from lsof', () => {
+            expect(getProcessCwd(101)).toBe('/tmp/project-101');
         });
 
-        it('should return empty string for non-existent process', () => {
-            const cwd = getProcessCwd(999999);
-            expect(cwd).toBe('');
+        it('should return empty string when both lsof and pwdx fail', () => {
+            mockExecSync.mockImplementation((cmd: unknown) => {
+                const command = String(cmd);
+                if (command.startsWith('lsof -a -p 404') || command.startsWith('pwdx 404')) {
+                    throw new Error('failed');
+                }
+                throw new Error(`Unexpected command: ${command}`);
+            });
+
+            expect(getProcessCwd(404)).toBe('');
         });
     });
 
     describe('getProcessTty', () => {
-        it('should return TTY for current process', () => {
-            const tty = getProcessTty(currentPid);
-
-            expect(typeof tty).toBe('string');
-            // TTY should not start with /dev/ (we strip it)
-            expect(tty).not.toMatch(/^\/dev\//);
+        it('should return tty without /dev prefix', () => {
+            expect(getProcessTty(101)).toBe('ttys009');
         });
 
-        it('should return "?" for non-existent process', () => {
-            const tty = getProcessTty(999999);
-            expect(tty).toBe('?');
+        it('should return ? when lookup fails', () => {
+            mockExecSync.mockImplementation((cmd: unknown) => {
+                const command = String(cmd);
+                if (command === 'ps -p 505 -o tty=') {
+                    throw new Error('ps failed');
+                }
+                return defaultExec(command);
+            });
+
+            expect(getProcessTty(505)).toBe('?');
         });
     });
 
     describe('isProcessRunning', () => {
-        it('should return true for current process', () => {
-            const running = isProcessRunning(currentPid);
-            expect(running).toBe(true);
+        it('should return true when kill -0 succeeds', () => {
+            expect(isProcessRunning(101)).toBe(true);
         });
 
-        it('should return false for non-existent process', () => {
-            const running = isProcessRunning(999999);
-            expect(running).toBe(false);
+        it('should return false when kill -0 fails', () => {
+            expect(isProcessRunning(999999)).toBe(false);
         });
     });
 
     describe('getProcessInfo', () => {
-        it('should return process info for existing process', () => {
-            const info = getProcessInfo(currentPid);
+        it('should return process details when found', () => {
+            const info = getProcessInfo(101);
 
             expect(info).not.toBeNull();
-            expect(info?.pid).toBe(currentPid);
+            expect(info?.pid).toBe(101);
             expect(info?.command).toContain('node');
-            expect(info?.cwd).toBeTruthy();
         });
 
-        it('should return null for non-existent process', () => {
-            const info = getProcessInfo(999999);
-            expect(info).toBeNull();
-        });
-    });
-
-    describe('integration test', () => {
-        it('should find node process with all details', () => {
-            const processes = listProcesses({ namePattern: 'node' });
-
-            // Should find at least the test runner process
-            expect(processes.length).toBeGreaterThan(0);
-
-            const currentProcess = processes.find(p => p.pid === currentPid);
-            expect(currentProcess).toBeDefined();
-
-            if (currentProcess) {
-                expect(currentProcess.command).toContain('node');
-                expect(currentProcess.cwd.length).toBeGreaterThan(0);
-                expect(currentProcess.tty).toBeDefined();
-            }
+        it('should return null when process does not exist', () => {
+            expect(getProcessInfo(999999)).toBeNull();
         });
     });
 });

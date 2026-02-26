@@ -1,11 +1,40 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { AgentManager } from '../lib/AgentManager';
-import { ClaudeCodeAdapter } from '../lib/adapters/ClaudeCodeAdapter';
-import { AgentStatus, STATUS_CONFIG, AgentInfo } from '../lib/adapters/AgentAdapter';
-import { TerminalFocusManager } from '../lib/TerminalFocusManager';
+import {
+    AgentManager,
+    ClaudeCodeAdapter,
+    AgentStatus,
+    TerminalFocusManager,
+    type AgentInfo,
+} from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui';
+
+const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
+    [AgentStatus.RUNNING]: { emoji: '🟢', label: 'run' },
+    [AgentStatus.WAITING]: { emoji: '🟡', label: 'wait' },
+    [AgentStatus.IDLE]: { emoji: '⚪', label: 'idle' },
+    [AgentStatus.UNKNOWN]: { emoji: '❓', label: 'unknown' },
+};
+
+function formatStatus(status: AgentStatus): string {
+    const config = STATUS_DISPLAY[status] || STATUS_DISPLAY[AgentStatus.UNKNOWN];
+    return `${config.emoji} ${config.label}`;
+}
+
+function formatRelativeTime(timestamp: Date): string {
+    const diffMs = Date.now() - new Date(timestamp).getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes < 1) return 'just now';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+}
 
 export function registerAgentCommand(program: Command): void {
     const agentCommand = program
@@ -40,9 +69,9 @@ export function registerAgentCommand(program: Command): void {
 
                 const rows = agents.map(agent => [
                     agent.name,
-                    agent.statusDisplay,
+                    formatStatus(agent.status),
                     agent.summary || 'No active task',
-                    agent.lastActiveDisplay
+                    formatRelativeTime(agent.lastActive)
                 ]);
 
                 ui.table({
@@ -57,9 +86,9 @@ export function registerAgentCommand(program: Command): void {
                         (text) => chalk.cyan(text),
                         (text) => {
                             // Extract status keyword to determine color
-                            if (text.includes(STATUS_CONFIG[AgentStatus.RUNNING].label)) return chalk.green(text);
-                            if (text.includes(STATUS_CONFIG[AgentStatus.WAITING].label)) return chalk.yellow(text);
-                            if (text.includes(STATUS_CONFIG[AgentStatus.IDLE].label)) return chalk.dim(text);
+                            if (text.includes(STATUS_DISPLAY[AgentStatus.RUNNING].label)) return chalk.green(text);
+                            if (text.includes(STATUS_DISPLAY[AgentStatus.WAITING].label)) return chalk.yellow(text);
+                            if (text.includes(STATUS_DISPLAY[AgentStatus.IDLE].label)) return chalk.dim(text);
                             return chalk.gray(text);
                         },
                         (text) => text,
@@ -116,7 +145,7 @@ export function registerAgentCommand(program: Command): void {
                             name: 'selectedAgent',
                             message: 'Select an agent to open:',
                             choices: resolved.map(a => ({
-                                name: `${a.name} (${a.statusDisplay}) - ${a.summary}`,
+                                name: `${a.name} (${formatStatus(a.status)}) - ${a.summary}`,
                                 value: a
                             }))
                         }

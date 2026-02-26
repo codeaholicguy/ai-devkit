@@ -6,7 +6,7 @@
  */
 
 import { execSync } from 'child_process';
-import type { ProcessInfo } from '../lib/adapters/AgentAdapter';
+import type { ProcessInfo } from '@ai-devkit/agent-manager';
 
 /**
  * Options for listing processes
