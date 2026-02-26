@@ -127,7 +127,7 @@ describe('ClaudeCodeAdapter', () => {
             expect(agents[0].summary).toContain('Investigate failing tests in package');
         });
 
-        it('should return empty list when process cwd has no matching session', async () => {
+        it('should include process-only entry when process cwd has no matching session', async () => {
             mockedListProcesses.mockReturnValue([
                 {
                     pid: 777,
@@ -148,7 +148,125 @@ describe('ClaudeCodeAdapter', () => {
             jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([]);
 
             const agents = await adapter.detectAgents();
-            expect(agents).toEqual([]);
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'claude',
+                status: AgentStatus.RUNNING,
+                pid: 777,
+                projectPath: '/project/without-session',
+                sessionId: 'pid-777',
+                summary: 'Claude process running',
+            });
+        });
+
+        it('should match process in subdirectory to project-root session', async () => {
+            mockedListProcesses.mockReturnValue([
+                {
+                    pid: 888,
+                    command: 'claude',
+                    cwd: '/Users/test/my-project/packages/cli',
+                    tty: 'ttys009',
+                },
+            ]);
+            jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue([
+                {
+                    sessionId: 'session-3',
+                    projectPath: '/Users/test/my-project',
+                    sessionLogPath: '/mock/path/session-3.jsonl',
+                    slug: 'gentle-otter',
+                    lastEntry: { type: 'assistant' },
+                    lastActive: new Date(),
+                },
+            ]);
+            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
+                {
+                    display: 'Refactor CLI command flow',
+                    timestamp: Date.now(),
+                    project: '/Users/test/my-project',
+                    sessionId: 'session-3',
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'claude',
+                pid: 888,
+                sessionId: 'session-3',
+                projectPath: '/Users/test/my-project',
+                summary: 'Refactor CLI command flow',
+            });
+        });
+
+        it('should use latest history entry for process-only fallback session id', async () => {
+            mockedListProcesses.mockReturnValue([
+                {
+                    pid: 97529,
+                    command: 'claude',
+                    cwd: '/Users/test/my-project/packages/cli',
+                    tty: 'ttys021',
+                },
+            ]);
+            jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue([]);
+            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
+                {
+                    display: '/status',
+                    timestamp: 1772122701536,
+                    project: '/Users/test/my-project/packages/cli',
+                    sessionId: '69237415-b0c3-4990-ba53-15882616509e',
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'claude',
+                pid: 97529,
+                projectPath: '/Users/test/my-project/packages/cli',
+                sessionId: '69237415-b0c3-4990-ba53-15882616509e',
+                summary: '/status',
+                status: AgentStatus.RUNNING,
+            });
+            expect(agents[0].lastActive.toISOString()).toBe('2026-02-26T16:18:21.536Z');
+        });
+
+        it('should prefer exact-cwd history session over parent-project session match', async () => {
+            mockedListProcesses.mockReturnValue([
+                {
+                    pid: 97529,
+                    command: 'claude',
+                    cwd: '/Users/test/my-project/packages/cli',
+                    tty: 'ttys021',
+                },
+            ]);
+            jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue([
+                {
+                    sessionId: 'old-parent-session',
+                    projectPath: '/Users/test/my-project',
+                    sessionLogPath: '/mock/path/old-parent-session.jsonl',
+                    slug: 'fluffy-brewing-kazoo',
+                    lastEntry: { type: 'assistant' },
+                    lastActive: new Date('2026-02-23T17:24:50.996Z'),
+                },
+            ]);
+            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
+                {
+                    display: '/status',
+                    timestamp: 1772122701536,
+                    project: '/Users/test/my-project/packages/cli',
+                    sessionId: '69237415-b0c3-4990-ba53-15882616509e',
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'claude',
+                pid: 97529,
+                sessionId: '69237415-b0c3-4990-ba53-15882616509e',
+                projectPath: '/Users/test/my-project/packages/cli',
+                summary: '/status',
+            });
         });
     });
 

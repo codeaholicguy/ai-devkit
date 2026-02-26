@@ -64,11 +64,14 @@ interface HistoryEntry {
 interface ClaudeSession {
     sessionId: string;
     projectPath: string;
+    lastCwd?: string;
     slug?: string;
     sessionLogPath: string;
     lastEntry?: SessionEntry;
     lastActive?: Date;
 }
+
+type SessionMatchMode = 'cwd' | 'project-parent';
 
 /**
  * Claude Code Adapter
@@ -108,75 +111,274 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      * Detect running Claude Code agents
      */
     async detectAgents(): Promise<AgentInfo[]> {
-        // 1. Find running claude processes
-        const claudeProcesses = listProcesses({ namePattern: 'claude' });
+        const claudeProcesses = listProcesses({ namePattern: 'claude' }).filter((processInfo) =>
+            this.canHandle(processInfo),
+        );
 
         if (claudeProcesses.length === 0) {
             return [];
         }
 
-        // 2. Read all sessions
         const sessions = this.readSessions();
-
-        // 3. Read history for summaries
         const history = this.readHistory();
-
-        // 4. Group processes by CWD
-        const processesByCwd = new Map<string, ProcessInfo[]>();
-        for (const p of claudeProcesses) {
-            const list = processesByCwd.get(p.cwd) || [];
-            list.push(p);
-            processesByCwd.set(p.cwd, list);
+        const historyByProjectPath = this.indexHistoryByProjectPath(history);
+        const historyBySessionId = new Map<string, HistoryEntry>();
+        for (const entry of history) {
+            historyBySessionId.set(entry.sessionId, entry);
         }
 
-        // 5. Match sessions to processes
+        const sortedSessions = [...sessions].sort((a, b) => {
+            const timeA = a.lastActive?.getTime() || 0;
+            const timeB = b.lastActive?.getTime() || 0;
+            return timeB - timeA;
+        });
+
+        const usedSessionIds = new Set<string>();
+        const assignedPids = new Set<number>();
         const agents: AgentInfo[] = [];
 
-        for (const [cwd, processes] of processesByCwd) {
-            // Find sessions for this project path
-            const projectSessions = sessions.filter(s => s.projectPath === cwd);
-
-            if (projectSessions.length === 0) {
+        this.assignSessionsForMode(
+            'cwd',
+            claudeProcesses,
+            sortedSessions,
+            usedSessionIds,
+            assignedPids,
+            historyBySessionId,
+            agents,
+        );
+        this.assignHistoryEntriesForExactProcessCwd(
+            claudeProcesses,
+            assignedPids,
+            historyByProjectPath,
+            usedSessionIds,
+            agents,
+        );
+        this.assignSessionsForMode(
+            'project-parent',
+            claudeProcesses,
+            sortedSessions,
+            usedSessionIds,
+            assignedPids,
+            historyBySessionId,
+            agents,
+        );
+        for (const processInfo of claudeProcesses) {
+            if (assignedPids.has(processInfo.pid)) {
                 continue;
             }
 
-            // Sort sessions by last active time (newest first)
-            projectSessions.sort((a, b) => {
-                const timeA = a.lastActive?.getTime() || 0;
-                const timeB = b.lastActive?.getTime() || 0;
-                return timeB - timeA;
-            });
-
-            // Map processes to the most recent sessions
-            // If there are 2 processes, we take the 2 most recent sessions
-            const activeSessions = projectSessions.slice(0, processes.length);
-
-            for (let i = 0; i < activeSessions.length; i++) {
-                const session = activeSessions[i];
-                const process = processes[i]; // Assign process to session (arbitrary 1-to-1 mapping)
-
-                const historyEntry = [...history].reverse().find(
-                    h => h.sessionId === session.sessionId
-                );
-                const summary = historyEntry?.display || 'Session started';
-                const status = this.determineStatus(session);
-                const agentName = this.generateAgentName(session, agents); // Pass currently built agents for collision checks
-
-                agents.push({
-                    name: agentName,
-                    type: this.type,
-                    status,
-                    summary,
-                    pid: process.pid,
-                    projectPath: session.projectPath,
-                    sessionId: session.sessionId,
-                    slug: session.slug,
-                    lastActive: session.lastActive || new Date(),
-                });
-            }
+            assignedPids.add(processInfo.pid);
+            agents.push(this.mapProcessOnlyAgent(processInfo, agents, historyByProjectPath, usedSessionIds));
         }
 
         return agents;
+    }
+
+    private assignHistoryEntriesForExactProcessCwd(
+        claudeProcesses: ProcessInfo[],
+        assignedPids: Set<number>,
+        historyByProjectPath: Map<string, HistoryEntry[]>,
+        usedSessionIds: Set<string>,
+        agents: AgentInfo[],
+    ): void {
+        for (const processInfo of claudeProcesses) {
+            if (assignedPids.has(processInfo.pid)) {
+                continue;
+            }
+
+            const historyEntry = this.selectHistoryForProcess(processInfo.cwd || '', historyByProjectPath, usedSessionIds);
+            if (!historyEntry) {
+                continue;
+            }
+
+            assignedPids.add(processInfo.pid);
+            usedSessionIds.add(historyEntry.sessionId);
+            agents.push(this.mapHistoryToAgent(processInfo, historyEntry, agents));
+        }
+    }
+
+    private assignSessionsForMode(
+        mode: SessionMatchMode,
+        claudeProcesses: ProcessInfo[],
+        sessions: ClaudeSession[],
+        usedSessionIds: Set<string>,
+        assignedPids: Set<number>,
+        historyBySessionId: Map<string, HistoryEntry>,
+        agents: AgentInfo[],
+    ): void {
+        for (const processInfo of claudeProcesses) {
+            if (assignedPids.has(processInfo.pid)) {
+                continue;
+            }
+
+            const session = this.selectBestSession(processInfo, sessions, usedSessionIds, mode);
+            if (!session) {
+                continue;
+            }
+
+            usedSessionIds.add(session.sessionId);
+            assignedPids.add(processInfo.pid);
+            agents.push(this.mapSessionToAgent(session, processInfo, historyBySessionId, agents));
+        }
+    }
+
+    private selectBestSession(
+        processInfo: ProcessInfo,
+        sessions: ClaudeSession[],
+        usedSessionIds: Set<string>,
+        mode: SessionMatchMode,
+    ): ClaudeSession | null {
+        const candidates = sessions.filter((session) => {
+            if (usedSessionIds.has(session.sessionId)) {
+                return false;
+            }
+
+            if (mode === 'cwd') {
+                return this.pathEquals(processInfo.cwd, session.lastCwd)
+                    || this.pathEquals(processInfo.cwd, session.projectPath);
+            }
+
+            if (mode === 'project-parent') {
+                return this.isChildPath(processInfo.cwd, session.projectPath)
+                    || this.isChildPath(processInfo.cwd, session.lastCwd);
+            }
+
+            return false;
+        });
+
+        if (candidates.length === 0) {
+            return null;
+        }
+
+        if (mode !== 'project-parent') {
+            return candidates[0];
+        }
+
+        return candidates.sort((a, b) => {
+            const depthA = Math.max(this.pathDepth(a.projectPath), this.pathDepth(a.lastCwd));
+            const depthB = Math.max(this.pathDepth(b.projectPath), this.pathDepth(b.lastCwd));
+            if (depthA !== depthB) {
+                return depthB - depthA;
+            }
+
+            const lastActiveA = a.lastActive?.getTime() || 0;
+            const lastActiveB = b.lastActive?.getTime() || 0;
+            return lastActiveB - lastActiveA;
+        })[0];
+    }
+
+    private mapSessionToAgent(
+        session: ClaudeSession,
+        processInfo: ProcessInfo,
+        historyBySessionId: Map<string, HistoryEntry>,
+        existingAgents: AgentInfo[],
+    ): AgentInfo {
+        const historyEntry = historyBySessionId.get(session.sessionId);
+
+        return {
+            name: this.generateAgentName(session, existingAgents),
+            type: this.type,
+            status: this.determineStatus(session),
+            summary: historyEntry?.display || 'Session started',
+            pid: processInfo.pid,
+            projectPath: session.projectPath || processInfo.cwd || '',
+            sessionId: session.sessionId,
+            slug: session.slug,
+            lastActive: session.lastActive || new Date(),
+        };
+    }
+
+    private mapProcessOnlyAgent(
+        processInfo: ProcessInfo,
+        existingAgents: AgentInfo[],
+        historyByProjectPath: Map<string, HistoryEntry[]>,
+        usedSessionIds: Set<string>,
+    ): AgentInfo {
+        const projectPath = processInfo.cwd || '';
+        const historyEntry = this.selectHistoryForProcess(projectPath, historyByProjectPath, usedSessionIds);
+        const sessionId = historyEntry?.sessionId || `pid-${processInfo.pid}`;
+        const lastActive = historyEntry ? new Date(historyEntry.timestamp) : new Date();
+        if (historyEntry) {
+            usedSessionIds.add(historyEntry.sessionId);
+        }
+
+        const processSession: ClaudeSession = {
+            sessionId,
+            projectPath,
+            lastCwd: projectPath,
+            sessionLogPath: '',
+            lastActive,
+        };
+
+        return {
+            name: this.generateAgentName(processSession, existingAgents),
+            type: this.type,
+            status: AgentStatus.RUNNING,
+            summary: historyEntry?.display || 'Claude process running',
+            pid: processInfo.pid,
+            projectPath,
+            sessionId: processSession.sessionId,
+            lastActive: processSession.lastActive || new Date(),
+        };
+    }
+
+    private mapHistoryToAgent(
+        processInfo: ProcessInfo,
+        historyEntry: HistoryEntry,
+        existingAgents: AgentInfo[],
+    ): AgentInfo {
+        const projectPath = processInfo.cwd || historyEntry.project;
+        const historySession: ClaudeSession = {
+            sessionId: historyEntry.sessionId,
+            projectPath,
+            lastCwd: projectPath,
+            sessionLogPath: '',
+            lastActive: new Date(historyEntry.timestamp),
+        };
+
+        return {
+            name: this.generateAgentName(historySession, existingAgents),
+            type: this.type,
+            status: AgentStatus.RUNNING,
+            summary: historyEntry.display || 'Claude process running',
+            pid: processInfo.pid,
+            projectPath,
+            sessionId: historySession.sessionId,
+            lastActive: historySession.lastActive || new Date(),
+        };
+    }
+
+    private indexHistoryByProjectPath(historyEntries: HistoryEntry[]): Map<string, HistoryEntry[]> {
+        const grouped = new Map<string, HistoryEntry[]>();
+
+        for (const entry of historyEntries) {
+            const key = this.normalizePath(entry.project);
+            const list = grouped.get(key) || [];
+            list.push(entry);
+            grouped.set(key, list);
+        }
+
+        for (const [key, list] of grouped.entries()) {
+            grouped.set(
+                key,
+                [...list].sort((a, b) => b.timestamp - a.timestamp),
+            );
+        }
+
+        return grouped;
+    }
+
+    private selectHistoryForProcess(
+        processCwd: string,
+        historyByProjectPath: Map<string, HistoryEntry[]>,
+        usedSessionIds: Set<string>,
+    ): HistoryEntry | undefined {
+        if (!processCwd) {
+            return undefined;
+        }
+
+        const candidates = historyByProjectPath.get(this.normalizePath(processCwd)) || [];
+        return candidates.find((entry) => !usedSessionIds.has(entry.sessionId));
     }
 
     /**
@@ -224,6 +426,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                     sessions.push({
                         sessionId,
                         projectPath: sessionsIndex.originalPath,
+                        lastCwd: sessionData.lastCwd,
                         slug: sessionData.slug,
                         sessionLogPath,
                         lastEntry: sessionData.lastEntry,
@@ -247,12 +450,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         slug?: string;
         lastEntry?: SessionEntry;
         lastActive?: Date;
+        lastCwd?: string;
     } {
         const lines = readLastLines(logPath, 100);
 
         let slug: string | undefined;
         let lastEntry: SessionEntry | undefined;
         let lastActive: Date | undefined;
+        let lastCwd: string | undefined;
 
         for (const line of lines) {
             try {
@@ -267,12 +472,16 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 if (entry.timestamp) {
                     lastActive = new Date(entry.timestamp);
                 }
+
+                if (typeof entry.cwd === 'string' && entry.cwd.trim().length > 0) {
+                    lastCwd = entry.cwd;
+                }
             } catch (error) {
                 continue;
             }
         }
 
-        return { slug, lastEntry, lastActive };
+        return { slug, lastEntry, lastActive, lastCwd };
     }
 
     /**
@@ -328,7 +537,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      * Uses project basename, appends slug if multiple sessions for same project
      */
     private generateAgentName(session: ClaudeSession, existingAgents: AgentInfo[]): string {
-        const projectName = path.basename(session.projectPath);
+        const projectName = path.basename(session.projectPath) || 'claude';
 
         const sameProjectAgents = existingAgents.filter(
             a => a.projectPath === session.projectPath
@@ -349,6 +558,40 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         // No slug available, use session ID prefix
         return `${projectName} (${session.sessionId.slice(0, 8)})`;
+    }
+
+    private pathEquals(a?: string, b?: string): boolean {
+        if (!a || !b) {
+            return false;
+        }
+
+        return this.normalizePath(a) === this.normalizePath(b);
+    }
+
+    private isChildPath(child?: string, parent?: string): boolean {
+        if (!child || !parent) {
+            return false;
+        }
+
+        const normalizedChild = this.normalizePath(child);
+        const normalizedParent = this.normalizePath(parent);
+        return normalizedChild === normalizedParent || normalizedChild.startsWith(`${normalizedParent}${path.sep}`);
+    }
+
+    private normalizePath(value: string): string {
+        const resolved = path.resolve(value);
+        if (resolved.length > 1 && resolved.endsWith(path.sep)) {
+            return resolved.slice(0, -1);
+        }
+        return resolved;
+    }
+
+    private pathDepth(value?: string): number {
+        if (!value) {
+            return 0;
+        }
+
+        return this.normalizePath(value).split(path.sep).filter(Boolean).length;
     }
 
 }

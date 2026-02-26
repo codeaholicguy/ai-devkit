@@ -119,6 +119,7 @@ const STATUS_CONFIG = {
 interface ClaudeCodeSession {
   sessionId: string;        // UUID from session filename
   projectPath: string;      // Original project path (from sessions-index.json)
+  lastCwd?: string;         // Last cwd seen in session entries (when available)
   slug: string;             // Human-readable name (e.g., "merry-wobbling-starlight")
   sessionLogPath: string;   // Path to the .jsonl session file
   debugLogPath?: string;    // Path to the debug log file
@@ -147,12 +148,13 @@ interface HistoryEntry {
 1. **Process Detection**: Query running processes (`ps aux | grep claude`) → List of PIDs + TTYs
 2. **Session Discovery**: Read `~/.claude/projects/*/sessions-index.json` → List of sessions with project paths
 3. **Session-Process Correlation**: 
-   - Group running processes by CWD (project path)
-   - Group available sessions by project path
-   - **Duplicate Filtering**: If multiple sessions match a project path:
-     - Sort sessions by last active time (newest first)
-     - Take the top N sessions, where N is the number of active processes for that path
-     - Strictly map active processes to these N sessions to avoid "ghost" agents
+   - Running Claude processes are source-of-truth for membership
+   - Correlation priority for each process:
+     - **Phase 1 (`cwd`)**: Exact match with session `lastCwd` or `projectPath`
+     - **Phase 2 (`history-cwd`)**: Exact match with `history.jsonl` where `history.project === process.cwd`
+     - **Phase 3 (`project-parent`)**: Process cwd is child of session `projectPath` or `lastCwd`
+     - **Phase 4 (`process-only`)**: Emit process-only agent when no session match exists
+   - This prevents dropped Claude processes when transcripts lag or when process cwd is a subdirectory (e.g. `packages/cli`)
 4. **Terminal Location**: For each matched process, find terminal location:
    - Get TTY from PID: `ps -p {PID} -o tty=`
    - Query tmux: `tmux list-panes -a -F '#{pane_tty} #{session}:#{window}.#{pane}'`
@@ -164,6 +166,7 @@ interface HistoryEntry {
    - `progress` or `thinking` → running
    - `system` or old timestamp → idle
 6. **Summary Extraction**: Read `~/.claude/history.jsonl` → Get last user prompt for each session
+   - For history-cwd fallback and process-only fallback, history entry also provides `sessionId` and `lastActive`
 7. **Agent Naming**: 
    - Use project basename (e.g., "ai-devkit")
    - If `slug` exists in session, use for disambiguation (e.g., "ai-devkit (merry)")
