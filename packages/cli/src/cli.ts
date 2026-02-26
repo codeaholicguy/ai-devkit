@@ -9,13 +9,15 @@ import { installCommand } from './commands/install';
 import { registerMemoryCommand } from './commands/memory';
 import { registerSkillCommand } from './commands/skill';
 import { registerAgentCommand } from './commands/agent';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { version } = require('../package.json') as { version: string };
 
 const program = new Command();
 
 program
   .name('ai-devkit')
   .description('AI-assisted software development toolkit')
-  .version('0.1.0');
+  .version(version);
 
 program
   .command('init')
