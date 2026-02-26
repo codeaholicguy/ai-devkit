@@ -254,4 +254,66 @@ describe('CodexAdapter', () => {
         expect(agents).toHaveLength(1);
         expect(agents[0].sessionId).toBe('near-session');
     });
+
+    it('should prefer missing-cwd session before any-session fallback for unmatched process', async () => {
+        mockedListProcesses.mockReturnValue([
+            { pid: 108, command: 'codex', cwd: '/repo-missing-cwd', tty: 'ttys015' },
+        ] as ProcessInfo[]);
+
+        jest.spyOn(adapter as any, 'readSessions').mockReturnValue([
+            {
+                sessionId: 'any-session',
+                projectPath: '/another-repo',
+                summary: 'Any session fallback',
+                sessionStart: new Date('2026-02-26T15:00:00.000Z'),
+                lastActive: new Date('2026-02-26T15:12:00.000Z'),
+                lastPayloadType: 'agent_message',
+            } as MockSession,
+            {
+                sessionId: 'missing-cwd-session',
+                projectPath: '',
+                summary: 'Missing cwd session',
+                sessionStart: new Date('2026-02-26T15:00:10.000Z'),
+                lastActive: new Date('2026-02-26T15:11:00.000Z'),
+                lastPayloadType: 'agent_message',
+            } as MockSession,
+        ]);
+        jest.spyOn(adapter as any, 'getProcessStartTimes').mockReturnValue(
+            new Map([[108, new Date('2026-02-26T15:00:00.000Z')]]),
+        );
+
+        const agents = await adapter.detectAgents();
+        expect(agents).toHaveLength(1);
+        expect(agents[0].sessionId).toBe('missing-cwd-session');
+    });
+
+    it('should not reuse the same session for multiple running processes', async () => {
+        mockedListProcesses.mockReturnValue([
+            { pid: 109, command: 'codex', cwd: '/repo-shared', tty: 'ttys016' },
+            { pid: 110, command: 'codex', cwd: '/repo-shared', tty: 'ttys017' },
+        ] as ProcessInfo[]);
+
+        jest.spyOn(adapter as any, 'readSessions').mockReturnValue([
+            {
+                sessionId: 'shared-session',
+                projectPath: '/repo-shared',
+                summary: 'Only one session exists',
+                sessionStart: new Date('2026-02-26T15:00:00.000Z'),
+                lastActive: new Date('2026-02-26T15:11:00.000Z'),
+                lastPayloadType: 'agent_message',
+            } as MockSession,
+        ]);
+        jest.spyOn(adapter as any, 'getProcessStartTimes').mockReturnValue(
+            new Map([
+                [109, new Date('2026-02-26T15:00:00.000Z')],
+                [110, new Date('2026-02-26T15:00:30.000Z')],
+            ]),
+        );
+
+        const agents = await adapter.detectAgents();
+        expect(agents).toHaveLength(2);
+        const mappedAgents = agents.filter((agent) => agent.sessionId === 'shared-session');
+        expect(mappedAgents).toHaveLength(1);
+        expect(agents.some((agent) => agent.sessionId.startsWith('pid-'))).toBe(true);
+    });
 });
