@@ -89,3 +89,51 @@ description: Implementation notes for Codex adapter support in package agent man
       - `filterCandidateSessions`
       - `rankCandidatesByStartTime`
     - replaced repeated `agents.some(...)` PID checks with `assignedPids` set tracking
+
+## Phase 6 Check Implementation (February 26, 2026)
+
+### Alignment Summary
+
+- Overall status: aligned with requirements and design.
+- Codex adapter implementation remains package-owned and exported through public entry points.
+- CLI registration for `list` and `open` includes `CodexAdapter` and preserves existing command UX boundaries.
+
+### File-by-File Comparison
+
+- `packages/agent-manager/src/adapters/CodexAdapter.ts`
+  - Implements required adapter contract and process-first list membership.
+  - Uses configured time-based matching (`etime` start time vs `session_meta.timestamp`) with tolerance and day-window file inclusion.
+  - Includes simplification refactor helpers and set-based PID/session assignment tracking with no behavior drift.
+- `packages/agent-manager/src/adapters/index.ts`
+  - Exports `CodexAdapter` as designed.
+- `packages/agent-manager/src/index.ts`
+  - Re-exports `CodexAdapter` from package root as designed.
+- `packages/cli/src/commands/agent.ts`
+  - Registers `CodexAdapter` for both list and open manager paths; no CLI presentation logic moved into package.
+- `packages/agent-manager/src/__tests__/adapters/CodexAdapter.test.ts`
+  - Covers core mapping/status behavior plus simplified matching-phase behavior (`cwd`, `missing-cwd`, `any`) and no-session-reuse expectations.
+
+### Deviations / Concerns
+
+- No requirement/design deviations found.
+- Residual validation note: full `cli:test` still has known unrelated pre-existing failures outside this feature scope; focused Codex adapter tests pass.
+
+## Phase 8 Code Review (February 26, 2026)
+
+### Findings
+
+1. No blocking correctness, security, or design-alignment issues found in the Codex adapter implementation or CLI integration paths.
+2. Non-blocking performance follow-up: `readFirstLine` currently reads full file content (`fs.readFileSync`) before splitting first line in `CodexAdapter`; this is acceptable for current bounded scan but can be optimized later for very large transcripts.
+3. Test-phase risk remains low for changed paths (focused suites pass), with residual global coverage/flaky-suite signals tracked as pre-existing workspace-level issues.
+
+### Final Checklist
+
+- Design/requirements match: ✅
+- Logic gaps on changed paths: ✅ none identified
+- Security concerns introduced: ✅ none identified
+- Tests for changed behavior: ✅ focused adapter + CLI command suites pass
+- Docs updated across lifecycle phases: ✅
+
+### Review Verdict
+
+- Ready for push/PR from a Phase 8 review perspective.

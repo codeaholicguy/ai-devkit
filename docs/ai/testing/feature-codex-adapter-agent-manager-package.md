@@ -78,3 +78,34 @@ Coverage and residual gaps:
 
 - Track defects by severity (`blocking`, `major`, `minor`)
 - Re-run adapter + command regressions for every bug fix
+
+## Phase 7 Execution (February 26, 2026)
+
+### New Test Coverage Added
+
+- Updated `packages/agent-manager/src/__tests__/adapters/CodexAdapter.test.ts` with:
+  - missing-cwd phase priority over any-session fallback
+  - one-session-per-process assignment behavior (no session reuse across PIDs)
+
+### Commands Run
+
+- `npx nx run agent-manager:test -- --runInBand src/__tests__/adapters/CodexAdapter.test.ts` ✅
+  - 1 suite passed, 13 tests passed
+- `npx nx run cli:test -- --runInBand src/__tests__/commands/agent.test.ts` ✅
+  - 1 suite passed, 5 tests passed
+  - Nx flagged `cli:test` as flaky (environment-level signal seen previously)
+- `npx nx run agent-manager:test -- --coverage` ✅ (tests passed; coverage policy failed)
+  - 3 suites passed, 51 tests passed
+
+### Coverage Snapshot (`packages/agent-manager`)
+
+- Statements: 40.65%
+- Branches: 37.31%
+- Functions: 49.05%
+- Lines: 41.68%
+- `CodexAdapter.ts`: statements 44.64%, branches 38.94%, functions 63.41%, lines 45.53%
+
+### Phase 7 Assessment
+
+- Codex adapter changed paths are covered, including the simplified matching orchestration branches.
+- Global 80% thresholds remain unmet due broader package backlog coverage outside this feature scope.
