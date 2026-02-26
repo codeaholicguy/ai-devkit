@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import {
     AgentManager,
     ClaudeCodeAdapter,
+    CodexAdapter,
     AgentStatus,
     TerminalFocusManager,
     type AgentInfo,
@@ -52,6 +53,7 @@ export function registerAgentCommand(program: Command): void {
                 // Register adapters
                 // In the future, we might load these dynamically or based on config
                 manager.registerAdapter(new ClaudeCodeAdapter());
+                manager.registerAdapter(new CodexAdapter());
 
                 const agents = await manager.listAgents();
 
@@ -118,6 +120,7 @@ export function registerAgentCommand(program: Command): void {
                 const focusManager = new TerminalFocusManager();
 
                 manager.registerAdapter(new ClaudeCodeAdapter());
+                manager.registerAdapter(new CodexAdapter());
 
                 const agents = await manager.listAgents();
                 if (agents.length === 0) {

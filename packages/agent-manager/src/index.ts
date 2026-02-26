@@ -1,6 +1,7 @@
 export { AgentManager } from './AgentManager';
 
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter';
+export { CodexAdapter } from './adapters/CodexAdapter';
 export { AgentStatus } from './adapters/AgentAdapter';
 export type { AgentAdapter, AgentType, AgentInfo, ProcessInfo } from './adapters/AgentAdapter';
 
