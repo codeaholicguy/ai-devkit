@@ -40,8 +40,9 @@ Responsibilities:
   - `id`: deterministic session/process identifier
   - `name`: user-facing label derived from `cwd`; fallback to `codex-<session-id-prefix>` when `cwd` is missing
   - `cwd`: workspace path (if available)
+  - `sessionStart`: parsed from `session_meta.timestamp` for process/session time matching
   - `status`: computed from recency/activity metadata using the same threshold values already used by existing adapters
-  - `command`: executable + args required for open/focus flow
+  - `pid`: matched running Codex process id used by terminal focus flow
 
 ## API Design
 
@@ -80,8 +81,12 @@ Responsibilities:
   - Rationale: this feature adds detection capability, not UX changes.
 - Decision: Parse the first JSON line (`type=session_meta`) as the authoritative session identity/cwd/timestamp source.
   - Rationale: sampled session files consistently include this shape, and it avoids scanning full transcript payloads.
-- Decision: Determine end-of-session by reading the last JSON line and checking `payload.type`.
-  - Rationale: `task_complete`/`turn_aborted` reliably indicate ended runs in sampled data.
+- Decision: Treat running `codex` processes as source-of-truth for list membership.
+  - Rationale: session tail events can represent turn completion while process remains active.
+- Decision: Match `pid -> session` by closest process start time (`now - etime`) to `session_meta.timestamp` with tolerance.
+  - Rationale: improves accuracy when multiple Codex processes share the same project `cwd`.
+- Decision: Bound session scanning for performance while including process-start day windows.
+  - Rationale: keeps list latency low and still supports long-lived process/session mappings.
 - Decision: Keep status-threshold values consistent across adapters.
   - Rationale: preserves cross-agent behavior consistency and avoids adapter-specific drift.
 - Decision: Use `codex-<session-id-prefix>` fallback naming when `cwd` is unavailable.

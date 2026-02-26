@@ -64,8 +64,9 @@ Who is affected:
 ## Questions & Open Items
 
 - Resolved (2026-02-26): Canonical discovery source is `~/.codex/sessions` JSONL files. In 88/88 sampled files, line 1 is `type=session_meta` with `payload.id`, `payload.cwd`, and `payload.timestamp`.
-- Resolved (2026-02-26): Active-vs-ended heuristic should use latest event in session file.
-  - `payload.type` of `task_complete` or `turn_aborted` => session ended.
-  - other trailing event/message types + recent timestamp => potentially active.
+- Resolved (2026-02-26): Running `codex` process list is the source of truth for whether an agent is listed.
+  - Session tail events such as `task_complete` and `turn_aborted` do not hide an agent when the process is still running.
+- Resolved (2026-02-26): Session matching uses process start time (`now - etime`) against `session_meta.timestamp` with a configurable tolerance window constant.
+- Resolved (2026-02-26): For long-lived processes, session scan includes process-start day window in addition to bounded recent-file scanning.
 - Resolved (2026-02-26): Use the same status threshold values across all adapters (Codex uses existing shared/Claude-equivalent thresholds).
 - Resolved (2026-02-26): If `cwd` is missing, fallback display identifier is `codex-<session-id-prefix>`.

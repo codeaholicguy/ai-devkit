@@ -9,35 +9,35 @@ description: Task plan for adding Codex adapter support and integrating it into 
 
 ## Milestones
 
-- [ ] Milestone 1: Codex adapter design finalized and scaffolding created
-- [ ] Milestone 2: Codex adapter implementation and package exports complete
-- [ ] Milestone 3: CLI integration, tests, and verification complete
+- [x] Milestone 1: Codex adapter design finalized and scaffolding created
+- [x] Milestone 2: Codex adapter implementation and package exports complete
+- [x] Milestone 3: CLI integration, tests, and verification complete
 
 ## Task Breakdown
 
 ### Phase 1: Foundation
-- [ ] Task 1.1: Confirm Codex discovery inputs and mapping contract
+- [x] Task 1.1: Confirm Codex discovery inputs and mapping contract
   - Use `~/.codex/sessions/YYYY/MM/DD/*.jsonl` as the primary source
   - Parse line 1 `session_meta` for `id`, `cwd`, `timestamp`
   - Parse the last line for terminal event markers (`task_complete`, `turn_aborted`)
   - Define normalization rules for `id`, `name`, `cwd`, and `status`
-- [ ] Task 1.2: Scaffold package adapter files
+- [x] Task 1.2: Scaffold package adapter files
   - Add `CodexAdapter.ts` and test file skeleton
   - Update adapter/index exports
 
 ### Phase 2: Core Features
-- [ ] Task 2.1: Implement Codex discovery and mapping logic
+- [x] Task 2.1: Implement Codex discovery and mapping logic
   - Parse metadata with robust validation/fallback behavior
   - Compute status using existing status model
-- [ ] Task 2.2: Register Codex adapter in CLI command flow
+- [x] Task 2.2: Register Codex adapter in CLI command flow
   - Update all manager registration paths in `commands/agent.ts`
   - Preserve output structure and errors
 
 ### Phase 3: Integration & Polish
-- [ ] Task 3.1: Add/extend tests
+- [x] Task 3.1: Add/extend tests
   - Unit tests for Codex adapter branches and failure handling
   - CLI command tests for registration/path coverage
-- [ ] Task 3.2: Validate and document
+- [x] Task 3.2: Validate and document
   - Run lint/build/tests for affected projects
   - Record implementation + testing outcomes in docs/ai
 
@@ -68,3 +68,7 @@ description: Task plan for adding Codex adapter support and integrating it into 
 - Existing adapter examples (`ClaudeCodeAdapter`) as implementation template
 - Maintainer validation for Codex session/source assumptions
 - CI runtime for lint/build/test verification
+
+## Progress Summary
+
+Implementation scope is complete. `CodexAdapter` was added to `@ai-devkit/agent-manager`, exported through package entry points, and registered in CLI agent command flows. Follow-up fixes addressed three runtime issues: false-positive process matching, missing long-lived session links, and list latency from broad session scans. Matching now uses `etime`-based process start time with configurable tolerance and process-start day-window session inclusion, while keeping a bounded recent-file scan for performance. Focused adapter and CLI agent-command tests pass, and package lint/build/test checks pass for affected areas. Full `cli:test` includes unrelated pre-existing module-resolution failures (`@ai-devkit/memory` and workspace package mocking) and is tracked as external validation noise rather than a feature regression.

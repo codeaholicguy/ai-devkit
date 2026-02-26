@@ -31,9 +31,10 @@ description: Implementation notes for Codex adapter support in package agent man
 ## Implementation Notes
 
 ### Core Features
-- Implement Codex adapter contract (`type`, `name`, `listRunningAgents`) using existing utilities where possible.
+- Implement Codex adapter contract (`type`, `canHandle`, `detectAgents`) using existing utilities where possible.
 - Normalize Codex metadata into stable `AgentInfo` output.
 - Register Codex adapter in command paths that instantiate `AgentManager`.
+- Match process/session pairs by `cwd` plus process-start-time proximity (`etime` vs `session_meta.timestamp`) using configurable tolerance.
 
 ### Patterns & Best Practices
 - Follow `ClaudeCodeAdapter` structure for consistency.
@@ -54,11 +55,26 @@ description: Implementation notes for Codex adapter support in package agent man
 
 ## Performance Considerations
 
-- Avoid repeated filesystem scans where possible.
-- Keep parsing linear to discovered entries.
+- Avoid full session-history scans per run; use bounded recent-file selection.
+- Include process-start day windows to preserve long-lived session mapping without scanning all days.
+- Keep parsing linear to selected entries only.
 - Reuse existing async aggregation model.
 
 ## Security Notes
 
 - Read only local metadata/process information necessary for agent detection.
 - Do not execute arbitrary commands during detection.
+
+## Implementation Status
+
+- Completed:
+  - Added `packages/agent-manager/src/adapters/CodexAdapter.ts`
+  - Added package exports in `packages/agent-manager/src/adapters/index.ts` and `packages/agent-manager/src/index.ts`
+  - Updated `packages/cli/src/commands/agent.ts` to register `CodexAdapter` for `list` and `open`
+  - Added adapter unit tests and CLI command test mock update for Codex export
+- Notes:
+  - CLI TypeScript tests resolve workspace package exports from built artifacts; run `npx nx run agent-manager:build` before focused CLI agent-command tests when export surface changes.
+  - Matching/performance constants are defined in `CodexAdapter`:
+    - `PROCESS_SESSION_TIME_TOLERANCE_MS`
+    - `PROCESS_START_DAY_WINDOW_DAYS`
+    - session-scan bound constants (`MIN/MAX/SCAN_MULTIPLIER`)

@@ -16,19 +16,21 @@ description: Test strategy and coverage plan for Codex adapter integration
 ## Unit Tests
 
 ### `CodexAdapter`
-- [ ] Detect and map valid Codex entries into `AgentInfo`
-- [ ] Return empty array when no Codex metadata exists
-- [ ] Skip malformed entries without failing full result
-- [ ] Map status values based on activity thresholds
-- [ ] Produce stable name/id collision handling
+- [x] Detect and map valid Codex entries into `AgentInfo`
+- [x] Return empty array when no Codex metadata exists
+- [x] Skip malformed entries without failing full result
+- [x] Map status values based on activity thresholds
+- [x] Produce stable name/id collision handling
+- [x] Match same-cwd sessions by closest process start time
+- [x] Keep running processes listed even when session tail is `task_complete`/`turn_aborted`
 
 ### `AgentManager` integration seam
-- [ ] Aggregates Codex + Claude adapter output
+- [x] Aggregates Codex + Claude adapter output
 - [ ] Handles Codex adapter errors while preserving other adapter results
 
 ## Integration Tests
 
-- [ ] `agent` command registers `CodexAdapter` in manager setup path(s)
+- [x] `agent` command registers `CodexAdapter` in manager setup path(s)
 - [ ] `agent list --json` includes Codex entries with expected fields
 - [ ] `agent open` handles Codex agent command metadata path correctly
 
@@ -47,11 +49,18 @@ description: Test strategy and coverage plan for Codex adapter integration
 ## Test Reporting & Coverage
 
 - Commands:
-  - `npm run lint`
-  - `npm run build`
-  - `npm run test -- --coverage`
-  - project-scoped Nx tests for `agent-manager` and `cli`
+  - `npx nx run agent-manager:lint` ✅
+  - `npx nx run agent-manager:build` ✅
+  - `npx nx run agent-manager:test` ✅
+  - `npx nx run agent-manager:test -- --runInBand src/__tests__/adapters/CodexAdapter.test.ts` ✅
+  - `npx nx run cli:test -- --runInBand src/__tests__/commands/agent.test.ts` ✅
+  - `npx nx run cli:lint` ✅ (warnings only, no errors)
 - Capture coverage deltas and list any residual gaps in this doc
+
+Coverage and residual gaps:
+- New Codex adapter unit suite (`CodexAdapter.test.ts`) is passing with coverage on detection, filtering, status mapping, fallback naming, and time-based matching.
+- Full `npx nx run cli:test` currently fails due to unrelated pre-existing module-resolution issues in `memory.test.ts` and baseline `agent.test.ts` mocking behavior when running the entire suite without focused filtering.
+- Runtime validation confirmed targeted mapping: PID `81442` maps to session `019c7024-89e6-7880-81eb-1417bd2177b5` after time-based matching + process-day window logic.
 
 ## Manual Testing
 

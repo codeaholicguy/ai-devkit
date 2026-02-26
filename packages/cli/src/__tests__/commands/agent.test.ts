@@ -26,6 +26,7 @@ const mockPrompt: any = jest.fn();
 jest.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: jest.fn(() => mockManager),
   ClaudeCodeAdapter: jest.fn(),
+  CodexAdapter: jest.fn(),
   TerminalFocusManager: jest.fn(() => mockFocusManager),
   AgentStatus: {
     RUNNING: 'running',
@@ -33,7 +34,7 @@ jest.mock('@ai-devkit/agent-manager', () => ({
     IDLE: 'idle',
     UNKNOWN: 'unknown',
   },
-}));
+}), { virtual: true });
 
 jest.mock('inquirer', () => ({
   __esModule: true,
