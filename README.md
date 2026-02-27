@@ -16,13 +16,6 @@ npx ai-devkit@latest init
 
 This launches an interactive setup wizard that configures your project for AI-assisted development in under a minute.
 
-## What's Included
-
-| Package | Description |
-|---------|-------------|
-| [**ai-devkit (CLI)**](./packages/cli) | Scaffold structured docs, configure AI environments, and manage development phases |
-| [**@ai-devkit/memory**](./packages/memory) | Give agents persistent, searchable long-term memory via MCP |
-
 ## Supported Agents
 
 | Agent | Status |
