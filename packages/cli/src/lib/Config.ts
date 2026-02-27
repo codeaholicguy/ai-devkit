@@ -112,4 +112,23 @@ export class ConfigManager {
     skills.push(skill);
     return this.update({ skills });
   }
+
+  async getSkillRegistries(): Promise<Record<string, string>> {
+    const config = await this.read() as any;
+    const rootRegistries = config?.registries;
+    const nestedRegistries =
+      config?.skills && !Array.isArray(config.skills)
+        ? config.skills.registries
+        : undefined;
+
+    const registries = rootRegistries ?? nestedRegistries;
+
+    if (!registries || typeof registries !== 'object' || Array.isArray(registries)) {
+      return {};
+    }
+
+    return Object.fromEntries(
+      Object.entries(registries).filter(([, value]) => typeof value === 'string')
+    ) as Record<string, string>;
+  }
 }

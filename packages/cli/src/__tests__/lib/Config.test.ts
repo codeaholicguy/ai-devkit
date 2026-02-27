@@ -404,4 +404,66 @@ describe('ConfigManager', () => {
       expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
   });
+
+  describe('getSkillRegistries', () => {
+    it('returns registries from root-level "registries"', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        registries: {
+          'project/skills': 'https://github.com/project/skills.git',
+          'invalid/entry': 123
+        },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      const registries = await configManager.getSkillRegistries();
+
+      expect(registries).toEqual({
+        'project/skills': 'https://github.com/project/skills.git'
+      });
+    });
+
+    it('falls back to nested "skills.registries" when root registries are missing', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        skills: {
+          registries: {
+            'nested/skills': 'https://github.com/nested/skills.git',
+            'invalid/value': false
+          }
+        },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      const registries = await configManager.getSkillRegistries();
+
+      expect(registries).toEqual({
+        'nested/skills': 'https://github.com/nested/skills.git'
+      });
+    });
+
+    it('returns empty object when no registry map exists', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      const registries = await configManager.getSkillRegistries();
+
+      expect(registries).toEqual({});
+    });
+  });
 });

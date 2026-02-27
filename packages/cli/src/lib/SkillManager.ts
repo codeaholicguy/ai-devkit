@@ -379,12 +379,14 @@ export class SkillManager {
       defaultRegistries = {};
     }
 
-    const customRegistries = await this.globalConfigManager.getSkillRegistries();
+    const globalRegistries = await this.globalConfigManager.getSkillRegistries();
+    const projectRegistries = await this.configManager.getSkillRegistries();
 
     return {
       registries: {
         ...defaultRegistries,
-        ...customRegistries
+        ...globalRegistries,
+        ...projectRegistries
       }
     };
   }
