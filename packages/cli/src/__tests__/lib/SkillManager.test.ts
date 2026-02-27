@@ -75,6 +75,7 @@ describe("SkillManager", () => {
       new MockedGlobalConfigManager() as jest.Mocked<GlobalConfigManager>;
 
     mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
+    mockConfigManager.getSkillRegistries.mockResolvedValue({});
 
     skillManager = new SkillManager(
       mockConfigManager,
@@ -213,6 +214,56 @@ describe("SkillManager", () => {
         path.join(os.homedir(), ".ai-devkit", "skills"),
         mockRegistryId,
         customGitUrl,
+      );
+    });
+
+    it("should prefer project registry URL over global and default", async () => {
+      const defaultGitUrl = "https://github.com/default/skills.git";
+      const globalGitUrl = "https://github.com/global/skills.git";
+      const projectGitUrl = "https://github.com/project/skills.git";
+
+      mockFetch({
+        registries: {
+          [mockRegistryId]: defaultGitUrl,
+        },
+      });
+
+      mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({
+        [mockRegistryId]: globalGitUrl,
+      });
+      mockConfigManager.getSkillRegistries.mockResolvedValue({
+        [mockRegistryId]: projectGitUrl,
+      });
+
+      const repoPath = path.join(
+        os.homedir(),
+        ".ai-devkit",
+        "skills",
+        mockRegistryId,
+      );
+
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === repoPath) {
+          return Promise.resolve(false);
+        }
+
+        if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
+          return Promise.resolve(true);
+        }
+
+        if (checkPath.endsWith(`${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+
+        return Promise.resolve(true);
+      });
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockedGitUtil.cloneRepository).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".ai-devkit", "skills"),
+        mockRegistryId,
+        projectGitUrl,
       );
     });
 
