@@ -24,7 +24,7 @@ describe('TemplateManager', () => {
   });
 
   describe('setupSingleEnvironment', () => {
-    it('should copy context file when it exists', async () => {
+    it('should not copy context files', async () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
@@ -33,24 +33,17 @@ describe('TemplateManager', () => {
         isCustomCommandPath: false
       };
 
-      (mockFs.pathExists as any)
-        .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true);
+      (mockFs.pathExists as any).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(['command1.md', 'command2.toml']);
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
-      expect(mockFs.copy).toHaveBeenCalledWith(
-        path.join(templateManager['templatesDir'], 'env', 'base.md'),
-        path.join(templateManager['targetDir'], env.contextFileName)
-      );
-      expect(result).toContain(path.join(templateManager['targetDir'], env.contextFileName));
+      expect(mockFs.copy).toHaveBeenCalledTimes(1);
+      expect(result).toEqual([path.join(templateManager['targetDir'], env.commandPath, 'command1.md')]);
     });
 
-    it('should warn when context file does not exist', async () => {
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
+    it('should not warn for missing context file', async () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
@@ -59,17 +52,14 @@ describe('TemplateManager', () => {
         isCustomCommandPath: false
       };
 
-      (mockFs.pathExists as any)
-        .mockResolvedValueOnce(false)
-        .mockResolvedValueOnce(true);
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      (mockFs.pathExists as any).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(['command1.md']);
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: Context file not found')
-      );
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
       expect(result).toEqual([path.join(templateManager['targetDir'], env.commandPath, 'command1.md')]);
 
       consoleWarnSpy.mockRestore();
@@ -86,9 +76,7 @@ describe('TemplateManager', () => {
 
       const mockCommandFiles = ['command1.md', 'command2.toml', 'command3.md'];
 
-      (mockFs.pathExists as any)
-        .mockResolvedValueOnce(true) // context file exists
-        .mockResolvedValueOnce(true); // commands directory exists
+      (mockFs.pathExists as any).mockResolvedValueOnce(true); // commands directory exists
 
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
 
@@ -121,13 +109,11 @@ describe('TemplateManager', () => {
         isCustomCommandPath: true
       };
 
-      (mockFs.pathExists as any).mockResolvedValueOnce(true);
-
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
       expect(mockFs.ensureDir).not.toHaveBeenCalled();
-      expect(mockFs.copy).toHaveBeenCalledTimes(1);
-      expect(result).toContain(path.join(templateManager['targetDir'], env.contextFileName));
+      expect(mockFs.copy).not.toHaveBeenCalled();
+      expect(result).toEqual([]);
     });
 
     it('should handle cursor environment with special files', async () => {
@@ -142,7 +128,6 @@ describe('TemplateManager', () => {
       const mockRuleFiles = ['rule1.md', 'rule2.toml'];
 
       (mockFs.pathExists as any)
-        .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(true).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any)
@@ -181,7 +166,6 @@ This is the prompt content.`;
 
       (mockFs.pathExists as any)
         .mockResolvedValueOnce(true)
-        .mockResolvedValueOnce(true)
         .mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
@@ -219,7 +203,8 @@ This is the prompt content.`;
       };
 
       const testError = new Error('Test error');
-      (mockFs.pathExists as any).mockRejectedValue(testError);
+      (mockFs.pathExists as any).mockResolvedValueOnce(true);
+      (mockFs.readdir as any).mockRejectedValue(testError);
 
       await expect((templateManager as any).setupSingleEnvironment(env)).rejects.toThrow('Test error');
 
@@ -400,7 +385,7 @@ This is the prompt content.`;
       expect(result).toBe(false);
     });
 
-    it('should return true when context file exists', async () => {
+    it('should return false when only context file exists', async () => {
       const envId: EnvironmentCode = 'cursor';
       const env = {
         code: 'cursor',
@@ -411,19 +396,14 @@ This is the prompt content.`;
 
       mockGetEnvironment.mockReturnValue(env);
 
-      (mockFs.pathExists as any)
-        .mockResolvedValueOnce(true) // context file exists
-        .mockResolvedValueOnce(false); // command dir doesn't exist
+      (mockFs.pathExists as any).mockResolvedValueOnce(false); // command dir doesn't exist
 
       const result = await templateManager.checkEnvironmentExists(envId);
 
       expect(mockFs.pathExists).toHaveBeenCalledWith(
-        path.join(templateManager['targetDir'], env.contextFileName)
-      );
-      expect(mockFs.pathExists).toHaveBeenCalledWith(
         path.join(templateManager['targetDir'], env.commandPath)
       );
-      expect(result).toBe(true);
+      expect(result).toBe(false);
     });
 
     it('should return true when command directory exists', async () => {
@@ -437,16 +417,14 @@ This is the prompt content.`;
 
       mockGetEnvironment.mockReturnValue(env);
 
-      (mockFs.pathExists as any)
-        .mockResolvedValueOnce(false) // context file doesn't exist
-        .mockResolvedValueOnce(true); // command dir exists
+      (mockFs.pathExists as any).mockResolvedValueOnce(true); // command dir exists
 
       const result = await templateManager.checkEnvironmentExists(envId);
 
       expect(result).toBe(true);
     });
 
-    it('should return false when neither context file nor command directory exists', async () => {
+    it('should return false when command directory does not exist', async () => {
       const envId: EnvironmentCode = 'cursor';
       const env = {
         code: 'cursor',
@@ -457,9 +435,7 @@ This is the prompt content.`;
 
       mockGetEnvironment.mockReturnValue(env);
 
-      (mockFs.pathExists as any)
-        .mockResolvedValueOnce(false) // context file doesn't exist
-        .mockResolvedValueOnce(false); // command dir doesn't exist
+      (mockFs.pathExists as any).mockResolvedValueOnce(false); // command dir doesn't exist
 
       const result = await templateManager.checkEnvironmentExists(envId);
 

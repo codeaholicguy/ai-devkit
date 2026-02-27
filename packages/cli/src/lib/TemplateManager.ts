@@ -67,13 +67,10 @@ export class TemplateManager {
       return false;
     }
 
-    const contextFilePath = path.join(this.targetDir, env.contextFileName);
-    const contextFileExists = await fs.pathExists(contextFilePath);
-
     const commandDirPath = path.join(this.targetDir, env.commandPath);
     const commandDirExists = await fs.pathExists(commandDirPath);
 
-    return contextFileExists || commandDirExists;
+    return commandDirExists;
   }
 
   private async setupSingleEnvironment(
@@ -82,16 +79,6 @@ export class TemplateManager {
     const copiedFiles: string[] = [];
 
     try {
-      const contextSource = path.join(this.templatesDir, "env", "base.md");
-      const contextTarget = path.join(this.targetDir, env.contextFileName);
-
-      if (await fs.pathExists(contextSource)) {
-        await fs.copy(contextSource, contextTarget);
-        copiedFiles.push(contextTarget);
-      } else {
-        console.warn(`Warning: Context file not found: ${contextSource}`);
-      }
-
       if (!env.isCustomCommandPath) {
         await this.copyCommands(env, copiedFiles);
       }
