@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Codex Adapter** - Added Codex adapter support.
+- **Agent Manager Package** - Added standalone `@ai-devkit/agent-manager` package.
+
+### Changed
+
+- **CLI Agent Migration** - Migrated `agent` command to `@ai-devkit/agent-manager`.
+- **Skill Registry Priority** - Updated skill registry priority handling.
+- **Init/Install Templates** - Stopped copying context templates during `init`/`install`.
+- **Version Output Source** - `--version` now uses package version output.
+- **Documentation** - Updated docs and improved web agent setup guide with template-based init.
+- **Project Templates** - Added and updated templates used across setup flows.
+- **Install Validation** - Added install smoke-test updates for `ai-devkit install`.
+
+### Fixed
+
+- **Agent List Display** - Kept the `working-on` column to one line in agent list output.
+- **Claude PID Session Mapping** - Prefer exact history cwd for Claude pid-session mapping.
+- **Config Manager Phase Handling** - Guarded missing phases in config manager.
+- **Docs Typos/Troubleshooting** - Fixed typo and added Codex sandbox `npx` troubleshooting FAQ.
+
 ## [0.15.0] - 2026-02-24
 
 ### Added
