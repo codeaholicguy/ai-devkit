@@ -37,14 +37,23 @@ description: Implementation notes for project-level registry override precedence
 - Constant-time map merge relative to source map sizes.
 
 ## Check Implementation (Phase 6)
-- Requirements-to-code mapping:
-- Project registry source support implemented in `packages/cli/src/lib/Config.ts` via `getSkillRegistries()`.
-- Precedence contract (`project > global > default`) implemented in `packages/cli/src/lib/SkillManager.ts` within `fetchMergedRegistry()`.
-- Compatibility preserved:
-- Existing global override behavior still works.
-- Default registry fetch fallback behavior unchanged.
+- Date: 2026-02-27
+- Verification checklist:
+- [x] Requirement: project config contributes registry mappings.
+  - Implemented in `ConfigManager.getSkillRegistries()` (`packages/cli/src/lib/Config.ts`).
+- [x] Requirement: precedence is `project > global > default`.
+  - Implemented in `SkillManager.fetchMergedRegistry()` merge order (`packages/cli/src/lib/SkillManager.ts`).
+- [x] Requirement: backward compatibility for existing flows.
+  - Existing global override behavior remains active.
+  - Default registry fetch failure still falls back to other sources.
 
 ## Code Review (Phase 8)
-- Reviewed changed production files for regressions in install flow and config parsing.
-- No blocking issues found.
-- Residual risk: only unit-level validation was run; end-to-end CLI fixture validation is still optional follow-up.
+- Date: 2026-02-27
+- Findings: No blocking defects found in changed production code.
+- Reviewed scope:
+  - `packages/cli/src/lib/Config.ts`
+  - `packages/cli/src/lib/SkillManager.ts`
+  - Updated unit tests for precedence and parsing behavior.
+- Residual risks:
+  - Full CLI suite currently has one unrelated failing test (`commands/memory.test.ts` module resolution).
+  - End-to-end fixture coverage for project-level registry override remains optional follow-up.

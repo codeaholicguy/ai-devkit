@@ -6,6 +6,11 @@ description: Test precedence and parsing for project/global/default skill regist
 
 # Testing Strategy
 
+## Phase 7 Status
+- Date: 2026-02-27
+- Status: Completed for changed scope
+- Notes: Feature-specific tests pass; one unrelated pre-existing workspace test failure remains in full CLI sweep.
+
 ## Test Coverage Goals
 - Unit coverage for new/changed behavior in `ConfigManager` and `SkillManager`.
 - Validate precedence conflict resolution and parser resilience.
@@ -27,6 +32,10 @@ description: Test precedence and parsing for project/global/default skill regist
 - Focused command executed:
   - `npm run test --workspace=packages/cli -- --runInBand src/__tests__/lib/Config.test.ts src/__tests__/lib/SkillManager.test.ts`
   - Result: 2 suites passed, 73 tests passed, 0 failed.
+- Broader regression sweep:
+  - `npm run test --workspace=packages/cli -- --runInBand`
+  - Result: 25 suites passed, 1 failed.
+  - Failure: `src/__tests__/commands/memory.test.ts` (`Cannot find module '@ai-devkit/memory'`), outside this feature's changed files.
 - Feature documentation lint:
   - `npx ai-devkit@latest lint --feature project-skill-registry-priority`
   - Result: pass.
