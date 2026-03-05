@@ -1,6 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill } from '../types';
+import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR } from '../types';
 import packageJson from '../../package.json';
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
@@ -78,6 +78,15 @@ export class ConfigManager {
     }
 
     return Array.isArray(config.phases) && config.phases.includes(phase);
+  }
+
+  async getDocsDir(): Promise<string> {
+    const config = await this.read();
+    return config?.docsDir || DEFAULT_DOCS_DIR;
+  }
+
+  async setDocsDir(docsDir: string): Promise<DevKitConfig> {
+    return this.update({ docsDir });
   }
 
   async getEnvironments(): Promise<EnvironmentCode[]> {

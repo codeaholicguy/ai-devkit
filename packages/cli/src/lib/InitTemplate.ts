@@ -11,12 +11,13 @@ export interface InitTemplateSkill {
 
 export interface InitTemplateConfig {
   version?: number | string;
+  docsDir?: string;
   environments?: EnvironmentCode[];
   phases?: Phase[];
   skills?: InitTemplateSkill[];
 }
 
-const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'environments', 'phases', 'skills']);
+const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'docsDir', 'environments', 'phases', 'skills']);
 
 function validationError(templatePath: string, message: string): Error {
   return new Error(`Invalid template at ${templatePath}: ${message}`);
@@ -79,6 +80,13 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
       throw validationError(resolvedPath, '"version" must be a string or number');
     }
     result.version = candidate.version;
+  }
+
+  if (candidate.docsDir !== undefined) {
+    if (typeof candidate.docsDir !== 'string' || candidate.docsDir.trim().length === 0) {
+      throw validationError(resolvedPath, '"docsDir" must be a non-empty string');
+    }
+    result.docsDir = candidate.docsDir.trim();
   }
 
   if (candidate.environments !== undefined) {

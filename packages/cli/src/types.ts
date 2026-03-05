@@ -21,8 +21,11 @@ export interface EnvironmentDefinition {
 
 export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity';
 
+export const DEFAULT_DOCS_DIR = 'docs/ai';
+
 export interface DevKitConfig {
   version: string;
+  docsDir?: string;
   environments: EnvironmentCode[];
   phases: Phase[];
   skills?: ConfigSkill[];

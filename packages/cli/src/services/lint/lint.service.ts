@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
-import { LINT_LEVEL } from './constants';
+import { DOCS_DIR, LINT_LEVEL } from './constants';
 import { runBaseDocsRules } from './rules/base-docs.rule';
 import { runFeatureDocsRules } from './rules/feature-docs.rule';
 import { validateFeatureNameRule, normalizeFeatureName } from './rules/feature-name.rule';
@@ -27,19 +27,21 @@ export function runLintChecks(
   };
 
   const cwd = deps.cwd();
+  const docsDir = options.docsDir || DOCS_DIR;
   const checks: LintCheckResult[] = [];
 
-  checks.push(...runBaseDocsRules(cwd, deps));
+  checks.push(...runBaseDocsRules(cwd, docsDir, deps));
 
   if (!options.feature) {
     return finalizeReport(cwd, checks);
   }
 
-  return runFeatureChecks(cwd, checks, options.feature, deps);
+  return runFeatureChecks(cwd, docsDir, checks, options.feature, deps);
 }
 
 function runFeatureChecks(
   cwd: string,
+  docsDir: string,
   checks: LintCheckResult[],
   rawFeature: string,
   deps: LintDependencies
@@ -50,7 +52,7 @@ function runFeatureChecks(
     return finalizeReport(cwd, checks, featureValidation.target);
   }
 
-  checks.push(...runFeatureDocsRules(cwd, featureValidation.target.normalizedName, deps));
+  checks.push(...runFeatureDocsRules(cwd, docsDir, featureValidation.target.normalizedName, deps));
   checks.push(...runGitWorktreeRules(cwd, featureValidation.target.branchName, deps));
 
   return finalizeReport(cwd, checks, featureValidation.target);

@@ -104,6 +104,34 @@ describe('lint service', () => {
     ).toBe(true);
   });
 
+  it('uses custom docsDir from options', () => {
+    const existingPaths = new Set([
+      '/repo/custom-docs/requirements/README.md',
+      '/repo/custom-docs/design/README.md',
+      '/repo/custom-docs/planning/README.md',
+      '/repo/custom-docs/implementation/README.md',
+      '/repo/custom-docs/testing/README.md',
+    ]);
+
+    const report = runLintChecks({ docsDir: 'custom-docs' }, {
+      cwd: () => '/repo',
+      existsSync: (p: string) => existingPaths.has(p)
+    });
+
+    expect(report.exitCode).toBe(0);
+    expect(report.pass).toBe(true);
+    expect(report.checks.every(check => check.message.startsWith('custom-docs/'))).toBe(true);
+  });
+
+  it('falls back to default docs/ai when docsDir is not provided', () => {
+    const report = runLintChecks({}, {
+      cwd: () => '/repo',
+      existsSync: () => false
+    });
+
+    expect(report.checks.every(check => check.message.startsWith('docs/ai/'))).toBe(true);
+  });
+
   it('fails fast for invalid feature names', () => {
     const report = runLintChecks({ feature: 'bad name;rm -rf /' }, {
       cwd: () => '/repo',

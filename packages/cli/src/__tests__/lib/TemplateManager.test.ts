@@ -235,6 +235,25 @@ This is the prompt content.`;
       );
       expect(result).toBe(path.join(templateManager['targetDir'], 'docs', 'ai', phase, 'README.md'));
     });
+
+    it('should use custom docsDir when provided', async () => {
+      const customManager = new TemplateManager('/test/target', '.ai-docs');
+      const phase: Phase = 'design';
+
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.copy as any).mockResolvedValue(undefined);
+
+      const result = await customManager.copyPhaseTemplate(phase);
+
+      expect(mockFs.ensureDir).toHaveBeenCalledWith(
+        path.join(customManager['targetDir'], '.ai-docs', phase)
+      );
+      expect(mockFs.copy).toHaveBeenCalledWith(
+        path.join(customManager['templatesDir'], 'phases', `${phase}.md`),
+        path.join(customManager['targetDir'], '.ai-docs', phase, 'README.md')
+      );
+      expect(result).toBe(path.join(customManager['targetDir'], '.ai-docs', phase, 'README.md'));
+    });
   });
 
   describe('fileExists', () => {
@@ -262,6 +281,20 @@ This is the prompt content.`;
         path.join(templateManager['targetDir'], 'docs', 'ai', phase, 'README.md')
       );
       expect(result).toBe(false);
+    });
+
+    it('should check custom docsDir path when provided', async () => {
+      const customManager = new TemplateManager('/test/target', 'custom/docs');
+      const phase: Phase = 'testing';
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+
+      const result = await customManager.fileExists(phase);
+
+      expect(mockFs.pathExists).toHaveBeenCalledWith(
+        path.join(customManager['targetDir'], 'custom/docs', phase, 'README.md')
+      );
+      expect(result).toBe(true);
     });
   });
 

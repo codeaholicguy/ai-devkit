@@ -30,6 +30,7 @@ const skillEntrySchema = z.object({
 });
 
 const installConfigSchema = z.object({
+  docsDir: z.string().trim().min(1).optional(),
   environments: z.array(z.string()).optional().default([]).superRefine((values, ctx) => {
     values.forEach((value, index) => {
       if (!isValidEnvironmentCode(value)) {

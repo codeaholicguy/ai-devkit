@@ -6,7 +6,7 @@ import { EnvironmentSelector } from '../lib/EnvironmentSelector';
 import { PhaseSelector } from '../lib/PhaseSelector';
 import { SkillManager } from '../lib/SkillManager';
 import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate';
-import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase } from '../types';
+import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types';
 import { isValidEnvironmentCode } from '../util/env';
 import { ui } from '../util/terminal-ui';
 
@@ -208,12 +208,33 @@ export async function initCommand(options: InitOptions) {
     return;
   }
 
+  let docsDir = DEFAULT_DOCS_DIR;
+  if (templateConfig?.docsDir) {
+    docsDir = templateConfig.docsDir;
+  } else if (!hasTemplate) {
+    const { selectedDocsDir } = await inquirer.prompt([
+      {
+        type: 'input',
+        name: 'selectedDocsDir',
+        message: 'Where would you like to store AI documentation?',
+        default: DEFAULT_DOCS_DIR
+      }
+    ]);
+    docsDir = selectedDocsDir.trim() || DEFAULT_DOCS_DIR;
+  }
+
+  const phaseTemplateManager = new TemplateManager(undefined, docsDir);
+
   ui.text('Initializing AI DevKit...', { breakline: true });
 
   let config = await configManager.read();
   if (!config) {
     config = await configManager.create();
     ui.success('Created configuration file');
+  }
+
+  if (docsDir !== DEFAULT_DOCS_DIR) {
+    await configManager.setDocsDir(docsDir);
   }
 
   await configManager.setEnvironments(selectedEnvironments);
@@ -235,7 +256,7 @@ export async function initCommand(options: InitOptions) {
   });
 
   for (const phase of selectedPhases) {
-    const exists = await templateManager.fileExists(phase);
+    const exists = await phaseTemplateManager.fileExists(phase);
     let shouldCopy = true;
 
     if (exists) {
@@ -255,7 +276,7 @@ export async function initCommand(options: InitOptions) {
     }
 
     if (shouldCopy) {
-      await templateManager.copyPhaseTemplate(phase);
+      await phaseTemplateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
       ui.success(`Created ${phase} phase`);
     } else {
@@ -288,7 +309,7 @@ export async function initCommand(options: InitOptions) {
 
   ui.text('AI DevKit initialized successfully!', { breakline: true });
   ui.info('Next steps:');
-  ui.text('  • Review and customize templates in docs/ai/');
+  ui.text(`  • Review and customize templates in ${docsDir}/`);
   ui.text('  • Your AI environments are ready to use with the generated configurations');
   ui.text('  • Run `ai-devkit phase <name>` to add more phases later');
   ui.text('  • Run `ai-devkit init` again to add more environments\n');

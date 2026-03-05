@@ -1,4 +1,6 @@
-export const DOCS_DIR = 'docs/ai';
+import { DEFAULT_DOCS_DIR } from '../../types';
+
+export const DOCS_DIR = DEFAULT_DOCS_DIR;
 export const LIFECYCLE_PHASES = ['requirements', 'design', 'planning', 'implementation', 'testing'] as const;
 export const FEATURE_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

@@ -2,21 +2,23 @@ import * as fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
 import matter from "gray-matter";
-import { Phase, EnvironmentCode, EnvironmentDefinition } from "../types";
+import { Phase, EnvironmentCode, EnvironmentDefinition, DEFAULT_DOCS_DIR } from "../types";
 import { getEnvironment } from "../util/env";
 
 export class TemplateManager {
   private templatesDir: string;
   private targetDir: string;
+  private docsDir: string;
 
-  constructor(targetDir: string = process.cwd()) {
+  constructor(targetDir: string = process.cwd(), docsDir: string = DEFAULT_DOCS_DIR) {
     this.templatesDir = path.join(__dirname, "../../templates");
     this.targetDir = targetDir;
+    this.docsDir = docsDir;
   }
 
   async copyPhaseTemplate(phase: Phase): Promise<string> {
     const sourceFile = path.join(this.templatesDir, "phases", `${phase}.md`);
-    const targetDir = path.join(this.targetDir, "docs", "ai", phase);
+    const targetDir = path.join(this.targetDir, this.docsDir, phase);
     const targetFile = path.join(targetDir, "README.md");
 
     await fs.ensureDir(targetDir);
@@ -28,8 +30,7 @@ export class TemplateManager {
   async fileExists(phase: Phase): Promise<boolean> {
     const targetFile = path.join(
       this.targetDir,
-      "docs",
-      "ai",
+      this.docsDir,
       phase,
       "README.md"
     );

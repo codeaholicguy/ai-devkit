@@ -6,7 +6,8 @@ const mockConfigManager: any = {
   read: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
-  addPhase: jest.fn()
+  addPhase: jest.fn(),
+  getDocsDir: jest.fn()
 };
 
 const mockTemplateManager: any = {
@@ -65,6 +66,7 @@ describe('install service', () => {
     });
     mockConfigManager.update.mockResolvedValue({});
     mockConfigManager.addPhase.mockResolvedValue({});
+    mockConfigManager.getDocsDir.mockResolvedValue('docs/ai');
 
     mockTemplateManager.checkEnvironmentExists.mockResolvedValue(false);
     mockTemplateManager.fileExists.mockResolvedValue(false);
