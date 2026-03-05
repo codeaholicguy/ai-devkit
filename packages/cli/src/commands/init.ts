@@ -46,6 +46,7 @@ interface InitOptions {
   all?: boolean;
   phases?: string;
   template?: string;
+  docsDir?: string;
 }
 
 function normalizeEnvironmentOption(
@@ -209,7 +210,9 @@ export async function initCommand(options: InitOptions) {
   }
 
   let docsDir = DEFAULT_DOCS_DIR;
-  if (templateConfig?.docsDir) {
+  if (options.docsDir?.trim()) {
+    docsDir = options.docsDir.trim();
+  } else if (templateConfig?.docsDir) {
     docsDir = templateConfig.docsDir;
   } else if (!hasTemplate) {
     const { selectedDocsDir } = await inquirer.prompt([

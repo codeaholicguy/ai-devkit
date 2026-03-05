@@ -26,6 +26,7 @@ program
   .option('-a, --all', 'Initialize all phases')
   .option('-p, --phases <phases>', 'Comma-separated list of phases to initialize')
   .option('-t, --template <path>', 'Initialize from template file (.yaml, .yml, .json)')
+  .option('-d, --docs-dir <path>', 'Custom directory for AI documentation (default: docs/ai)')
   .action(initCommand);
 
 program
