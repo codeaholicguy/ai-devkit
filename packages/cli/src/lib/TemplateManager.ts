@@ -119,9 +119,14 @@ export class TemplateManager {
           .filter((file: string) => file.endsWith(".md"))
           .map(async (file: string) => {
             const targetFile = file.replace('.md', commandExtension);
-            await fs.copy(
+            const content = await fs.readFile(
               path.join(commandsSourceDir, file),
-              path.join(commandsTargetDir, targetFile)
+              "utf-8"
+            );
+            const replaced = this.replaceDocsDir(content);
+            await fs.writeFile(
+              path.join(commandsTargetDir, targetFile),
+              replaced
             );
             copiedFiles.push(path.join(commandsTargetDir, targetFile));
           })
@@ -168,7 +173,8 @@ export class TemplateManager {
             path.join(this.templatesDir, "commands", file),
             "utf-8"
           );
-          const { data, content } = matter(mdContent);
+          const replaced = this.replaceDocsDir(mdContent);
+          const { data, content } = matter(replaced);
           const description = (data.description as string) || "";
           const tomlContent = this.generateTomlContent(description, content.trim());
           const tomlFile = file.replace(".md", ".toml");
@@ -197,6 +203,13 @@ prompt='''${escapedPrompt}'''
 `;
   }
 
+  private replaceDocsDir(content: string): string {
+    if (this.docsDir === DEFAULT_DOCS_DIR) {
+      return content;
+    }
+    return content.split(DEFAULT_DOCS_DIR).join(this.docsDir);
+  }
+
   /**
    * Copy command templates to the global folder for a specific environment.
    * Global folders are located in the user's home directory.
@@ -221,8 +234,10 @@ prompt='''${escapedPrompt}'''
 
         const sourceFile = path.join(commandsSourceDir, file);
         const targetFile = path.join(globalTargetDir, file);
+        const content = await fs.readFile(sourceFile, "utf-8");
+        const replaced = this.replaceDocsDir(content);
 
-        await fs.copy(sourceFile, targetFile);
+        await fs.writeFile(targetFile, replaced);
         copiedFiles.push(targetFile);
       }
     } catch (error) {

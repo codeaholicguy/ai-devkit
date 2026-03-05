@@ -253,7 +253,7 @@ export async function initCommand(options: InitOptions) {
     }
   }
   ui.text('Setting up environment templates...', { breakline: true });
-  const envFiles = await templateManager.setupMultipleEnvironments(selectedEnvironments);
+  const envFiles = await phaseTemplateManager.setupMultipleEnvironments(selectedEnvironments);
   envFiles.forEach(file => {
     ui.success(`Created ${file}`);
   });
