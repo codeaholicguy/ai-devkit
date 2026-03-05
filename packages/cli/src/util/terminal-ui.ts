@@ -1,5 +1,4 @@
 import chalk from 'chalk';
-import ora from 'ora';
 
 /**
  * Sanitize message to prevent terminal injection
@@ -89,6 +88,8 @@ export const ui = {
      * @returns Ora spinner instance with start/succeed/fail/warn/stop methods
      */
     spinner: (text: string) => {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const ora = require('ora');
         return ora({
             text: sanitize(text),
             color: 'cyan',
