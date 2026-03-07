@@ -21,15 +21,16 @@ graph TD
     AM --> Resolve
     Resolve -->|matched agent| TTY
     TTY -->|tty path| Writer
-    Writer -->|write message + newline| Device
+    Writer -->|write message + CR| Device
 ```
 
 The flow is:
 1. CLI parses `--id` flag and message argument
 2. `AgentManager.listAgents()` detects all running agents
 3. `AgentManager.resolveAgent(id, agents)` finds the target
-4. `getProcessTty(pid)` resolves the agent's TTY device
-5. `TtyWriter.send(tty, message)` writes message + `\n` to the TTY
+4. If agent status is not `waiting`, print a warning but continue
+5. `getProcessTty(pid)` resolves the agent's TTY device
+6. `TtyWriter.send(tty, message)` writes message + `\r` to the TTY
 
 ## Data Models
 
@@ -58,10 +59,10 @@ export class TtyWriter {
    * Send a message to a TTY device
    * @param tty - Short TTY name (e.g., "ttys030")
    * @param message - Text to send
-   * @param appendNewline - Whether to append \n (default: true)
+   * @param appendCR - Whether to append \r (carriage return) to trigger submit (default: true)
    * @throws Error if TTY is not writable
    */
-  static async send(tty: string, message: string, appendNewline?: boolean): Promise<void>;
+  static async send(tty: string, message: string, appendCR?: boolean): Promise<void>;
 }
 ```
 
@@ -70,15 +71,16 @@ Implementation: Opens `/dev/${tty}` for writing via `fs.writeFile` and writes `m
 ## Component Breakdown
 
 ### 1. TtyWriter (new) - `agent-manager` package
-- Single static method `send(tty, message, appendNewline)`
+- Single static method `send(tty, message, appendCR)`
 - Opens TTY device file for writing
-- Writes message (+ optional newline)
+- Writes message (+ optional `\r` to trigger submit)
 - Validates TTY exists and is writable before writing
 
 ### 2. CLI `agent send` subcommand (new) - `cli` package
 - Registers under existing `agentCommand`
 - Parses `<message>` positional arg and `--id` required option
 - Uses `AgentManager` to list and resolve agent
+- Warns if agent status is not `waiting` (but still proceeds)
 - Uses `getProcessTty()` to get TTY
 - Uses `TtyWriter.send()` to deliver message
 - Displays success/error feedback via `ui`

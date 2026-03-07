@@ -21,7 +21,7 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 **Primary goals:**
 - Allow users to send text input to a running agent's terminal via CLI
 - Support identifying target agents via `--id` flag (name, slug, or partial match)
-- Auto-append Enter (newline) so the message is submitted immediately
+- Auto-append `\r` (carriage return) so the message is submitted immediately in raw-mode terminals
 
 **Non-goals:**
 - Interactive/bidirectional communication with agents
