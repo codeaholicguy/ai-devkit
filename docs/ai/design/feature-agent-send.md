@@ -13,15 +13,16 @@ graph TD
     CLI["CLI: agent send &lt;msg&gt; --id &lt;id&gt;"]
     AM[AgentManager]
     Resolve["resolveAgent()"]
-    TTY["getProcessTty(pid)"]
-    Writer["TtyWriter.send(tty, message)"]
-    Device["/dev/ttysXXX"]
+    Find["TerminalFocusManager.findTerminal(pid)"]
+    Writer["TtyWriter.send(location, message)"]
 
     CLI --> AM
     AM --> Resolve
-    Resolve -->|matched agent| TTY
-    TTY -->|tty path| Writer
-    Writer -->|write message + CR| Device
+    Resolve -->|matched agent| Find
+    Find -->|TerminalLocation| Writer
+    Writer -->|dispatch| Tmux["tmux send-keys"]
+    Writer -->|dispatch| ITerm["iTerm2: write text"]
+    Writer -->|dispatch| TermApp["Terminal.app: System Events keystroke"]
 ```
 
 The flow is:
@@ -29,14 +30,14 @@ The flow is:
 2. `AgentManager.listAgents()` detects all running agents
 3. `AgentManager.resolveAgent(id, agents)` finds the target
 4. If agent status is not `waiting`, print a warning but continue
-5. `getProcessTty(pid)` resolves the agent's TTY device
-6. `TtyWriter.send(tty, message)` writes message + `\r` to the TTY
+5. `TerminalFocusManager.findTerminal(pid)` identifies the terminal emulator and session
+6. `TtyWriter.send(location, message)` dispatches to the correct send mechanism
 
 ## Data Models
 
 No new data models needed. Reuses existing:
 - `AgentInfo` (from `AgentAdapter.ts`) - contains `pid`, `name`, `slug`, `status`
-- `ProcessInfo` (from `AgentAdapter.ts`) - contains `tty`
+- `TerminalLocation` (from `TerminalFocusManager.ts`) - contains `type`, `identifier`, `tty`
 
 ## API Design
 
@@ -49,40 +50,49 @@ ai-devkit agent send <message> --id <identifier>
 - `<message>`: Required positional argument. The text to send.
 - `--id <identifier>`: Required flag. Agent name, slug, or partial match string.
 
-### New Module: TtyWriter
+### Module: TtyWriter
 
 Location: `packages/agent-manager/src/terminal/TtyWriter.ts`
 
 ```typescript
 export class TtyWriter {
   /**
-   * Send a message to a TTY device
-   * @param tty - Short TTY name (e.g., "ttys030")
+   * Send a message as keyboard input to a terminal session.
+   * Dispatches to the correct mechanism based on terminal type.
+   *
+   * @param location - Terminal location from TerminalFocusManager.findTerminal()
    * @param message - Text to send
-   * @param appendCR - Whether to append \r (carriage return) to trigger submit (default: true)
-   * @throws Error if TTY is not writable
+   * @throws Error if terminal type is unsupported or send fails
    */
-  static async send(tty: string, message: string, appendCR?: boolean): Promise<void>;
+  static async send(location: TerminalLocation, message: string): Promise<void>;
 }
 ```
 
-Implementation: Opens `/dev/${tty}` for writing via `fs.writeFile` and writes `message + '\r'`. Uses `\r` (carriage return) instead of `\n` because interactive CLIs like Claude Code run in raw terminal mode where Enter sends CR (0x0D), not LF (0x0A).
+### Per-terminal mechanisms
+
+| Terminal | Method | How Enter is sent |
+|----------|--------|-------------------|
+| tmux | `tmux send-keys -t <pane> "msg" Enter` | tmux `Enter` key literal |
+| iTerm2 | AppleScript `write text "msg"` | `write text` auto-appends newline |
+| Terminal.app | System Events `keystroke "msg"` + `key code 36` | `key code 36` = Return key |
 
 ## Component Breakdown
 
 ### 1. TtyWriter (new) - `agent-manager` package
-- Single static method `send(tty, message, appendCR)`
-- Opens TTY device file for writing
-- Writes message (+ optional `\r` to trigger submit)
-- Validates TTY exists and is writable before writing
+- Single static method `send(location, message)`
+- Dispatches to `sendViaTmux`, `sendViaITerm2`, or `sendViaTerminalApp`
+- tmux: uses `execFile('tmux', ['send-keys', ...])` — no shell
+- iTerm2: uses `execFile('osascript', ['-e', script])` — no shell
+- Terminal.app: uses `execFile('osascript', ['-e', script])` with System Events `keystroke` + `key code 36` — no shell
+- Throws descriptive error for unsupported terminal types (`UNKNOWN`)
 
 ### 2. CLI `agent send` subcommand (new) - `cli` package
 - Registers under existing `agentCommand`
 - Parses `<message>` positional arg and `--id` required option
 - Uses `AgentManager` to list and resolve agent
 - Warns if agent status is not `waiting` (but still proceeds)
-- Uses `getProcessTty()` to get TTY
-- Uses `TtyWriter.send()` to deliver message
+- Uses `TerminalFocusManager.findTerminal(pid)` to identify terminal
+- Uses `TtyWriter.send(location, message)` to deliver message
 - Displays success/error feedback via `ui`
 
 ### 3. Export from agent-manager (update)
@@ -93,15 +103,25 @@ Implementation: Opens `/dev/${tty}` for writing via `fs.writeFile` and writes `m
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Delivery mechanism | TTY write | Cross-terminal-emulator, fast, no dependency on tmux/AppleScript |
+| Delivery mechanism | Terminal-native input injection | Writing to `/dev/ttysXXX` only outputs to terminal display, doesn't inject input. Must go through the terminal emulator. |
 | Agent identification | `--id` flag only | Explicit, avoids confusion with positional args |
-| Auto-submit | Append `\r` (CR) | Interactive CLIs run in raw mode where Enter = `\r` (0x0D), not `\n` (0x0A). Appending `\r` triggers submit. |
-| Embedded newlines | Send as-is (single write) | Write the entire message in one TTY write, then append `\r`. No line-by-line splitting. |
-| Module location | `TtyWriter` in agent-manager | Reusable by other features; keeps terminal logic together |
+| tmux send | `tmux send-keys` + `Enter` | Standard tmux API for injecting keystrokes into a pane |
+| iTerm2 send | AppleScript `write text` | Writes to session as typed input, auto-appends newline |
+| Terminal.app send | System Events `keystroke` + `key code 36` | `do script` runs a new shell command (wrong). `keystroke` types into the foreground process and `key code 36` sends Return. |
+| Shell safety | `execFile` for all subprocess calls | `execFile` bypasses the shell entirely, preventing command injection from message content (e.g., single quotes, backticks). |
+| AppleScript escaping | Escape `\` and `"` for double-quoted strings | Prevents AppleScript string breakout. Combined with `execFile`, no shell escaping needed. |
+| Embedded newlines | Send as-is | Each emulator handles the message as a single input. No splitting. |
+| Module location | `TtyWriter` in agent-manager | Reusable by other features; keeps terminal logic together with `TerminalFocusManager` |
 
 ## Non-Functional Requirements
 
-- **Performance**: TTY write is near-instant; no meaningful latency concern
-- **Security**: Only writes to TTY devices the current user has permission to access (OS-level enforcement)
-- **Reliability**: Validates TTY exists before writing; clear error on failure
-- **Portability**: Works on macOS and Linux (both use `/dev/ttyXXX` convention)
+- **Performance**: All mechanisms are near-instant (exec a single command)
+- **Security**: All subprocesses use `execFile` (no shell). AppleScript strings are escaped for `\` and `"`. No command injection vector.
+- **Reliability**: Terminal type is detected first; unsupported types fail with clear error. Each emulator method validates session was found.
+- **Portability**: Works on macOS (tmux, iTerm2, Terminal.app). Linux supported via tmux. Other Linux terminals are unsupported (returns `UNKNOWN`).
+
+## Known Limitations
+
+- **`UNKNOWN` terminal type**: If the agent runs in a terminal we can't identify (Warp, VS Code terminal, Alacritty without tmux), `send` fails. Users must use tmux in these cases.
+- **Terminal.app `keystroke`**: Requires Terminal.app to be brought to foreground (the script activates it). This briefly steals focus.
+- **iTerm2 `write text`**: Auto-appends a newline. Messages with embedded newlines will submit multiple lines.

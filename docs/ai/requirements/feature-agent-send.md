@@ -21,7 +21,7 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 **Primary goals:**
 - Allow users to send text input to a running agent's terminal via CLI
 - Support identifying target agents via `--id` flag (name, slug, or partial match)
-- Auto-append `\r` (carriage return) so the message is submitted immediately in raw-mode terminals
+- Auto-submit the message via the terminal emulator's native input mechanism (tmux send-keys, AppleScript write text / keystroke)
 
 **Non-goals:**
 - Interactive/bidirectional communication with agents
@@ -43,28 +43,31 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 4. **Edge cases:**
    - Agent is not in waiting state (warn but still allow send)
    - Agent ID matches multiple agents (error with disambiguation list)
-   - Agent's TTY is not writable (clear error message)
+   - Agent's terminal type is unsupported (clear error message)
    - Agent not found (clear error message)
 
 ## Success Criteria
 
-- `ai-devkit agent send "<message>" --id <identifier>` delivers the message + `\r` (carriage return) to the correct agent's TTY, triggering submit in raw-mode CLIs
+- `ai-devkit agent send "<message>" --id <identifier>` delivers the message as keyboard input to the agent's terminal and submits it
 - The command resolves agents by name, slug, or partial match via `--id`
-- Clear error messages for: agent not found, ambiguous match, TTY not writable
+- Clear error messages for: agent not found, ambiguous match, unsupported terminal type, terminal not found
 - Works in tmux, iTerm2, and Terminal.app environments
 - Message delivery is confirmed with success output
 
 ## Constraints & Assumptions
 
-- **Platform**: macOS primary (TTY write via `/dev/ttysXXX`), Linux secondary
-- **Permissions**: Requires write access to the target TTY device
-- **Delivery mechanism**: Direct TTY write (writing to `/dev/ttysXXX`)
-- **Assumes**: The agent process has a valid TTY (not a background/daemon process)
-- **Depends on**: Existing `AgentManager`, `AgentAdapter`, and process detection infrastructure
+- **Platform**: macOS primary (tmux, iTerm2, Terminal.app), Linux via tmux only
+- **Delivery mechanism**: Terminal-native input injection (not TTY device write, which only outputs to display)
+- **Supported terminals**: tmux, iTerm2, Terminal.app. Other terminals (Warp, VS Code, Alacritty without tmux) are unsupported.
+- **Security**: All subprocess calls use `execFile` (no shell) to prevent command injection
+- **Assumes**: The agent process has a valid TTY and runs in a supported terminal emulator
+- **Depends on**: Existing `AgentManager`, `AgentAdapter`, `TerminalFocusManager`, and process detection infrastructure
 
 ## Questions & Open Items
 
 - ~Agent identification approach~ -> Resolved: explicit `--id` flag only
-- ~Delivery mechanism~ -> Resolved: TTY write
-- ~Auto-Enter behavior~ -> Resolved: always auto-append `\r` (carriage return). Raw-mode terminals (like Claude Code) use CR as Enter, not LF.
-- ~Embedded newlines~ -> Resolved: send message as-is (single TTY write), append `\r` at end. No splitting or special interpretation.
+- ~Delivery mechanism~ -> Resolved: terminal-native input injection (tmux send-keys, AppleScript write text / keystroke). Direct TTY write was rejected — it only writes to terminal display, not input.
+- ~Auto-Enter behavior~ -> Resolved: each terminal mechanism handles Enter natively (tmux `Enter`, iTerm2 auto-newline, Terminal.app `key code 36`).
+- ~Embedded newlines~ -> Resolved: send message as-is. No splitting or special interpretation.
+- ~Command injection risk~ -> Resolved: all subprocess calls use `execFile` (no shell). AppleScript strings escaped for `\` and `"`.
+- ~Terminal.app `do script`~ -> Resolved: replaced with System Events `keystroke` + `key code 36`. `do script` runs a new shell command, not input to the foreground process.
