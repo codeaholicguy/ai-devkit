@@ -8,7 +8,7 @@ describe('lint service', () => {
   });
 
   it('fails when base docs are missing', () => {
-    const report = runLintChecks({}, {
+    const report = runLintChecks({}, undefined, {
       cwd: () => '/repo',
       existsSync: () => false
     });
@@ -21,6 +21,7 @@ describe('lint service', () => {
   it('passes with warning when branch exists but no dedicated worktree', () => {
     const report = runLintChecks(
       { feature: 'feature-sample' },
+      undefined,
       {
         cwd: () => '/repo',
         existsSync: () => true,
@@ -54,6 +55,7 @@ describe('lint service', () => {
   it('fails when feature branch does not exist', () => {
     const report = runLintChecks(
       { feature: 'sample' },
+      undefined,
       {
         cwd: () => '/repo',
         existsSync: () => true,
@@ -82,6 +84,7 @@ describe('lint service', () => {
   it('reports non-git directory as required failure for feature lint', () => {
     const report = runLintChecks(
       { feature: 'sample' },
+      undefined,
       {
         cwd: () => '/repo',
         existsSync: () => true,
@@ -113,7 +116,7 @@ describe('lint service', () => {
       '/repo/custom-docs/testing/README.md',
     ]);
 
-    const report = runLintChecks({ docsDir: 'custom-docs' }, {
+    const report = runLintChecks({}, 'custom-docs', {
       cwd: () => '/repo',
       existsSync: (p: string) => existingPaths.has(p)
     });
@@ -124,7 +127,7 @@ describe('lint service', () => {
   });
 
   it('falls back to default docs/ai when docsDir is not provided', () => {
-    const report = runLintChecks({}, {
+    const report = runLintChecks({}, undefined, {
       cwd: () => '/repo',
       existsSync: () => false
     });
@@ -133,7 +136,7 @@ describe('lint service', () => {
   });
 
   it('fails fast for invalid feature names', () => {
-    const report = runLintChecks({ feature: 'bad name;rm -rf /' }, {
+    const report = runLintChecks({ feature: 'bad name;rm -rf /' }, undefined, {
       cwd: () => '/repo',
       existsSync: () => true
     });

@@ -14,7 +14,7 @@ describe('TemplateManager', () => {
   beforeEach(() => {
     mockFs = fs as jest.Mocked<typeof fs>;
     mockGetEnvironment = require('../../util/env').getEnvironment as jest.MockedFunction<any>;
-    templateManager = new TemplateManager('/test/target');
+    templateManager = new TemplateManager({ targetDir: '/test/target' });
 
     jest.clearAllMocks();
   });
@@ -107,7 +107,7 @@ describe('TemplateManager', () => {
     });
 
     it('should replace docs/ai with custom docsDir in command content', async () => {
-      const customManager = new TemplateManager('/test/target', '.ai-docs');
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: '.ai-docs' });
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
@@ -118,7 +118,7 @@ describe('TemplateManager', () => {
 
       (mockFs.pathExists as any).mockResolvedValueOnce(true);
       (mockFs.readdir as any).mockResolvedValue(['command1.md']);
-      (mockFs.readFile as any).mockResolvedValue('Review docs/ai/design/feature-{name}.md and docs/ai/requirements/.');
+      (mockFs.readFile as any).mockResolvedValue('Review {{docsDir}}/design/feature-{name}.md and {{docsDir}}/requirements/.');
       (mockFs.writeFile as any).mockResolvedValue(undefined);
 
       await (customManager as any).setupSingleEnvironment(env);
@@ -266,7 +266,7 @@ This is the prompt content.`;
     });
 
     it('should use custom docsDir when provided', async () => {
-      const customManager = new TemplateManager('/test/target', '.ai-docs');
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: '.ai-docs' });
       const phase: Phase = 'design';
 
       (mockFs.ensureDir as any).mockResolvedValue(undefined);
@@ -313,7 +313,7 @@ This is the prompt content.`;
     });
 
     it('should check custom docsDir path when provided', async () => {
-      const customManager = new TemplateManager('/test/target', 'custom/docs');
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: 'custom/docs' });
       const phase: Phase = 'testing';
 
       (mockFs.pathExists as any).mockResolvedValue(true);

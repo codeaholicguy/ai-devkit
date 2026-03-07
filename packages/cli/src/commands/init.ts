@@ -212,21 +212,13 @@ export async function initCommand(options: InitOptions) {
   let docsDir = DEFAULT_DOCS_DIR;
   if (options.docsDir?.trim()) {
     docsDir = options.docsDir.trim();
+  } else if (templateConfig?.paths?.docs) {
+    docsDir = templateConfig.paths.docs;
   } else if (templateConfig?.docsDir) {
     docsDir = templateConfig.docsDir;
-  } else if (!hasTemplate) {
-    const { selectedDocsDir } = await inquirer.prompt([
-      {
-        type: 'input',
-        name: 'selectedDocsDir',
-        message: 'Where would you like to store AI documentation?',
-        default: DEFAULT_DOCS_DIR
-      }
-    ]);
-    docsDir = selectedDocsDir.trim() || DEFAULT_DOCS_DIR;
   }
 
-  const phaseTemplateManager = new TemplateManager(undefined, docsDir);
+  const phaseTemplateManager = new TemplateManager({ docsDir });
 
   ui.text('Initializing AI DevKit...', { breakline: true });
 
@@ -237,7 +229,7 @@ export async function initCommand(options: InitOptions) {
   }
 
   if (docsDir !== DEFAULT_DOCS_DIR) {
-    await configManager.setDocsDir(docsDir);
+    await configManager.update({ paths: { docs: docsDir } });
   }
 
   await configManager.setEnvironments(selectedEnvironments);

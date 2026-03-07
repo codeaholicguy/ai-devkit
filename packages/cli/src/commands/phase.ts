@@ -7,7 +7,7 @@ import { ui } from '../util/terminal-ui';
 export async function phaseCommand(phaseName?: string) {
   const configManager = new ConfigManager();
   const docsDir = await configManager.getDocsDir();
-  const templateManager = new TemplateManager(undefined, docsDir);
+  const templateManager = new TemplateManager({ docsDir });
 
   if (!(await configManager.exists())) {
     ui.error('AI DevKit not initialized. Run `ai-devkit init` first.');

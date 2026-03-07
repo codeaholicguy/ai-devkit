@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
-import { DOCS_DIR, LINT_LEVEL } from './constants';
+import { DEFAULT_DOCS_DIR } from '../../types';
+import { LINT_LEVEL } from './constants';
 import { runBaseDocsRules } from './rules/base-docs.rule';
 import { runFeatureDocsRules } from './rules/feature-docs.rule';
 import { validateFeatureNameRule, normalizeFeatureName } from './rules/feature-name.rule';
@@ -19,6 +20,7 @@ export type { LintOptions, LintLevel, LintCheckResult, LintReport, LintDependenc
 
 export function runLintChecks(
   options: LintOptions,
+  docsDir: string = DEFAULT_DOCS_DIR,
   dependencies: Partial<LintDependencies> = {}
 ): LintReport {
   const deps: LintDependencies = {
@@ -27,7 +29,6 @@ export function runLintChecks(
   };
 
   const cwd = deps.cwd();
-  const docsDir = options.docsDir || DOCS_DIR;
   const checks: LintCheckResult[] = [];
 
   checks.push(...runBaseDocsRules(cwd, docsDir, deps));

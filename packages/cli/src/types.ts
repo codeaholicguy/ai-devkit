@@ -25,7 +25,9 @@ export const DEFAULT_DOCS_DIR = 'docs/ai';
 
 export interface DevKitConfig {
   version: string;
-  docsDir?: string;
+  paths?: {
+    docs?: string;
+  };
   environments: EnvironmentCode[];
   phases: Phase[];
   skills?: ConfigSkill[];

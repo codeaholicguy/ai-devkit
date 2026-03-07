@@ -52,7 +52,7 @@ describe('lint command', () => {
 
     await lintCommand({ feature: 'lint-command', json: true });
 
-    expect(mockedRunLintChecks).toHaveBeenCalledWith({ feature: 'lint-command', json: true, docsDir: 'docs/ai' });
+    expect(mockedRunLintChecks).toHaveBeenCalledWith({ feature: 'lint-command', json: true }, 'docs/ai');
     expect(mockedUi.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
     expect(process.exitCode).toBe(0);
   });

@@ -258,7 +258,7 @@ describe('ConfigManager', () => {
     it('should return custom docsDir when set in config', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
-        docsDir: '.ai-docs',
+        paths: { docs: '.ai-docs' },
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
@@ -315,7 +315,7 @@ describe('ConfigManager', () => {
 
       const result = await configManager.setDocsDir('.ai-docs');
 
-      expect(result.docsDir).toBe('.ai-docs');
+      expect(result.paths?.docs).toBe('.ai-docs');
       expect(mockFs.writeJson).toHaveBeenCalled();
     });
   });

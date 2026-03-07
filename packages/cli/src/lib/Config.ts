@@ -82,11 +82,15 @@ export class ConfigManager {
 
   async getDocsDir(): Promise<string> {
     const config = await this.read();
-    return config?.docsDir || DEFAULT_DOCS_DIR;
+    return config?.paths?.docs || DEFAULT_DOCS_DIR;
   }
 
   async setDocsDir(docsDir: string): Promise<DevKitConfig> {
-    return this.update({ docsDir });
+    const config = await this.read();
+    if (!config) {
+      throw new Error('Config file not found. Run ai-devkit init first.');
+    }
+    return this.update({ paths: { ...config.paths, docs: docsDir } });
   }
 
   async getEnvironments(): Promise<EnvironmentCode[]> {

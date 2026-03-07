@@ -5,15 +5,20 @@ import matter from "gray-matter";
 import { Phase, EnvironmentCode, EnvironmentDefinition, DEFAULT_DOCS_DIR } from "../types";
 import { getEnvironment } from "../util/env";
 
+export interface TemplateManagerOptions {
+  targetDir?: string;
+  docsDir?: string;
+}
+
 export class TemplateManager {
   private templatesDir: string;
   private targetDir: string;
   private docsDir: string;
 
-  constructor(targetDir: string = process.cwd(), docsDir: string = DEFAULT_DOCS_DIR) {
+  constructor(options: TemplateManagerOptions = {}) {
     this.templatesDir = path.join(__dirname, "../../templates");
-    this.targetDir = targetDir;
-    this.docsDir = docsDir;
+    this.targetDir = options.targetDir ?? process.cwd();
+    this.docsDir = options.docsDir ?? DEFAULT_DOCS_DIR;
   }
 
   async copyPhaseTemplate(phase: Phase): Promise<string> {
@@ -204,10 +209,7 @@ prompt='''${escapedPrompt}'''
   }
 
   private replaceDocsDir(content: string): string {
-    if (this.docsDir === DEFAULT_DOCS_DIR) {
-      return content;
-    }
-    return content.split(DEFAULT_DOCS_DIR).join(this.docsDir);
+    return content.split('{{docsDir}}').join(this.docsDir);
   }
 
   /**

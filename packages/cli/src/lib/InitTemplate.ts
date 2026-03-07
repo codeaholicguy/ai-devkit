@@ -12,12 +12,15 @@ export interface InitTemplateSkill {
 export interface InitTemplateConfig {
   version?: number | string;
   docsDir?: string;
+  paths?: {
+    docs?: string;
+  };
   environments?: EnvironmentCode[];
   phases?: Phase[];
   skills?: InitTemplateSkill[];
 }
 
-const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'docsDir', 'environments', 'phases', 'skills']);
+const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'docsDir', 'paths', 'environments', 'phases', 'skills']);
 
 function validationError(templatePath: string, message: string): Error {
   return new Error(`Invalid template at ${templatePath}: ${message}`);
@@ -82,11 +85,26 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
     result.version = candidate.version;
   }
 
+  if (candidate.paths !== undefined) {
+    if (typeof candidate.paths !== 'object' || candidate.paths === null || Array.isArray(candidate.paths)) {
+      throw validationError(resolvedPath, '"paths" must be an object');
+    }
+    const paths = candidate.paths as Record<string, unknown>;
+    if (paths.docs !== undefined) {
+      if (typeof paths.docs !== 'string' || paths.docs.trim().length === 0) {
+        throw validationError(resolvedPath, '"paths.docs" must be a non-empty string');
+      }
+      result.paths = { docs: paths.docs.trim() };
+    }
+  }
+
   if (candidate.docsDir !== undefined) {
     if (typeof candidate.docsDir !== 'string' || candidate.docsDir.trim().length === 0) {
       throw validationError(resolvedPath, '"docsDir" must be a non-empty string');
     }
-    result.docsDir = candidate.docsDir.trim();
+    if (!result.paths?.docs) {
+      result.docsDir = candidate.docsDir.trim();
+    }
   }
 
   if (candidate.environments !== undefined) {
