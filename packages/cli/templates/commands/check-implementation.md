@@ -2,7 +2,7 @@
 description: Compare implementation with design and requirements docs to ensure alignment.
 ---
 
-Compare the current implementation with the design in `docs/ai/design/` and requirements in `docs/ai/requirements/`.
+Compare the current implementation with the design in `{{docsDir}}/design/` and requirements in `{{docsDir}}/requirements/`.
 
 1. If not already provided, ask for: feature/branch description, list of modified files, relevant design doc(s), and any known constraints or assumptions.
 2. **Use Memory for Context** — Search memory for known constraints and prior decisions before assessing mismatches: `npx ai-devkit@latest memory search --query "<feature implementation alignment>"`.

@@ -3,6 +3,12 @@ import { ui } from '../../util/terminal-ui';
 import { lintCommand, renderLintReport } from '../../commands/lint';
 import { LintReport, runLintChecks } from '../../services/lint/lint.service';
 
+jest.mock('../../lib/Config', () => ({
+  ConfigManager: jest.fn(() => ({
+    getDocsDir: jest.fn<() => Promise<string>>().mockResolvedValue('docs/ai')
+  }))
+}));
+
 jest.mock('../../services/lint/lint.service', () => ({
   runLintChecks: jest.fn()
 }));
@@ -46,7 +52,7 @@ describe('lint command', () => {
 
     await lintCommand({ feature: 'lint-command', json: true });
 
-    expect(mockedRunLintChecks).toHaveBeenCalledWith({ feature: 'lint-command', json: true });
+    expect(mockedRunLintChecks).toHaveBeenCalledWith({ feature: 'lint-command', json: true }, 'docs/ai');
     expect(mockedUi.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
     expect(process.exitCode).toBe(0);
   });
