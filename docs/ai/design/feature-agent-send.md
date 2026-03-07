@@ -65,7 +65,7 @@ export class TtyWriter {
 }
 ```
 
-Implementation: Opens `/dev/${tty}` for writing via `fs.writeFile` and writes `message + '\n'`.
+Implementation: Opens `/dev/${tty}` for writing via `fs.writeFile` and writes `message + '\r'`. Uses `\r` (carriage return) instead of `\n` because interactive CLIs like Claude Code run in raw terminal mode where Enter sends CR (0x0D), not LF (0x0A).
 
 ## Component Breakdown
 
@@ -93,7 +93,8 @@ Implementation: Opens `/dev/${tty}` for writing via `fs.writeFile` and writes `m
 |----------|--------|-----------|
 | Delivery mechanism | TTY write | Cross-terminal-emulator, fast, no dependency on tmux/AppleScript |
 | Agent identification | `--id` flag only | Explicit, avoids confusion with positional args |
-| Auto newline | Always append | Primary use case is submitting input; no `--no-enter` for simplicity |
+| Auto-submit | Append `\r` (CR) | Interactive CLIs run in raw mode where Enter = `\r` (0x0D), not `\n` (0x0A). Appending `\r` triggers submit. |
+| Embedded newlines | Send as-is (single write) | Write the entire message in one TTY write, then append `\r`. No line-by-line splitting. |
 | Module location | `TtyWriter` in agent-manager | Reusable by other features; keeps terminal logic together |
 
 ## Non-Functional Requirements

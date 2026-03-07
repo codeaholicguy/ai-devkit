@@ -48,7 +48,7 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 
 ## Success Criteria
 
-- `ai-devkit agent send "<message>" --id <identifier>` delivers the message + newline to the correct agent's TTY
+- `ai-devkit agent send "<message>" --id <identifier>` delivers the message + `\r` (carriage return) to the correct agent's TTY, triggering submit in raw-mode CLIs
 - The command resolves agents by name, slug, or partial match via `--id`
 - Clear error messages for: agent not found, ambiguous match, TTY not writable
 - Works in tmux, iTerm2, and Terminal.app environments
@@ -66,4 +66,5 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 
 - ~Agent identification approach~ -> Resolved: explicit `--id` flag only
 - ~Delivery mechanism~ -> Resolved: TTY write
-- ~Auto-Enter behavior~ -> Resolved: always auto-append newline
+- ~Auto-Enter behavior~ -> Resolved: always auto-append `\r` (carriage return). Raw-mode terminals (like Claude Code) use CR as Enter, not LF.
+- ~Embedded newlines~ -> Resolved: send message as-is (single TTY write), append `\r` at end. No splitting or special interpretation.
