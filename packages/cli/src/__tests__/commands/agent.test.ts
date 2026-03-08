@@ -23,11 +23,14 @@ const mockSpinner: any = {
 
 const mockPrompt: any = jest.fn();
 
+const mockTtyWriterSend = jest.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
+
 jest.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: jest.fn(() => mockManager),
   ClaudeCodeAdapter: jest.fn(),
   CodexAdapter: jest.fn(),
   TerminalFocusManager: jest.fn(() => mockFocusManager),
+  TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
     RUNNING: 'running',
     WAITING: 'waiting',
@@ -48,6 +51,7 @@ jest.mock('../../util/terminal-ui', () => ({
     text: jest.fn(),
     table: jest.fn(),
     info: jest.fn(),
+    success: jest.fn(),
     warning: jest.fn(),
     error: jest.fn(),
     breakline: jest.fn(),
@@ -57,10 +61,10 @@ jest.mock('../../util/terminal-ui', () => ({
 
 describe('agent command', () => {
   let logSpy: ReturnType<typeof jest.spyOn>;
-
   beforeEach(() => {
     jest.clearAllMocks();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
   });
 
   it('outputs JSON for list --json', async () => {
@@ -186,5 +190,103 @@ Waiting on user input`,
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
     expect(mockFocusManager.focusTerminal).toHaveBeenCalled();
     expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
+  });
+
+  it('sends message to a resolved agent', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a']);
+
+    expect(mockManager.resolveAgent).toHaveBeenCalledWith('repo-a', [agent]);
+    expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
+    expect(mockTtyWriterSend).toHaveBeenCalledWith(location, 'continue');
+    expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('shows error when send target agent is not found', async () => {
+    mockManager.listAgents.mockResolvedValue([
+      { name: 'repo-a', status: AgentStatus.RUNNING, summary: 'A', lastActive: new Date(), pid: 1 },
+    ]);
+    mockManager.resolveAgent.mockReturnValue(null);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'missing']);
+
+    expect(ui.error).toHaveBeenCalledWith('No agent found matching "missing".');
+  });
+
+  it('shows error when send matches multiple agents', async () => {
+    const agents = [
+      { name: 'repo-a', status: AgentStatus.WAITING, summary: 'A', lastActive: new Date(), pid: 1 },
+      { name: 'repo-ab', status: AgentStatus.RUNNING, summary: 'B', lastActive: new Date(), pid: 2 },
+    ];
+    mockManager.listAgents.mockResolvedValue(agents);
+    mockManager.resolveAgent.mockReturnValue(agents);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'repo']);
+
+    expect(ui.error).toHaveBeenCalledWith('Multiple agents match "repo":');
+    expect(ui.info).toHaveBeenCalledWith('Please use a more specific identifier.');
+  });
+
+  it('warns when agent is not waiting but still sends', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.RUNNING,
+      summary: 'Running',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a']);
+
+    expect(ui.warning).toHaveBeenCalledWith(
+      'Agent "repo-a" is not waiting for input (status: running). Sending anyway.'
+    );
+    expect(mockTtyWriterSend).toHaveBeenCalled();
+    expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('shows error when terminal cannot be found', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(null);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'repo-a']);
+
+    expect(ui.error).toHaveBeenCalledWith('Cannot find terminal for agent "repo-a" (PID: 10).');
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
 });
