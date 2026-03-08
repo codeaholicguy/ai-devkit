@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { AgentManager, AgentStatus, TerminalFocusManager, TtyWriter } from '@ai-devkit/agent-manager';
+import { AgentManager, AgentStatus, TerminalFocusManager } from '@ai-devkit/agent-manager';
 import { registerAgentCommand } from '../../commands/agent';
 import { ui } from '../../util/terminal-ui';
 
@@ -61,12 +61,10 @@ jest.mock('../../util/terminal-ui', () => ({
 
 describe('agent command', () => {
   let logSpy: ReturnType<typeof jest.spyOn>;
-  let exitSpy: ReturnType<typeof jest.spyOn>;
-
   beforeEach(() => {
     jest.clearAllMocks();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
+    jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
   });
 
   it('outputs JSON for list --json', async () => {
