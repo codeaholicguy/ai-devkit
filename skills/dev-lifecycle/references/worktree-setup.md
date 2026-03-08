@@ -8,7 +8,7 @@ Use this setup for **new feature starts** unless the user explicitly requests no
    - Call out that branch/workspace isolation is reduced.
    - Skip to step 7 (dependency bootstrap).
 3. Otherwise (default), use branch/worktree name `feature-<name>`.
-4. Create worktree directory inside current workspace at `.worktrees/feature-<name>`.
+4. Determine the **project root** (the directory containing the `.git` folder). Create the worktree directory at `<project-root>/.worktrees/feature-<name>`. All `.worktrees/` paths below are relative to the project root. Ensure `.worktrees` is listed in the project's `.gitignore`; if not, add it.
 5. If branch does not exist: `git worktree add -b feature-<name> .worktrees/feature-<name>`.
 6. If branch exists: `git worktree add .worktrees/feature-<name> feature-<name>`.
 7. If using worktree, verify and operate in that context without changing to paths outside the workspace:

@@ -39,12 +39,12 @@ If the user wants to continue work on an existing feature:
 1. Check branch and worktree state before phase work:
    - Branch check: `git branch --show-current`
    - Worktree check: `git worktree list`
-2. Determine target context for `<feature-name>`:
-   - Prefer worktree `.worktrees/feature-<name>` when it exists.
+2. Determine target context for `<feature-name>` (all `.worktrees/` paths are relative to the **project root** — the directory containing `.git`):
+   - Prefer worktree `<project-root>/.worktrees/feature-<name>` when it exists.
    - Otherwise use branch `feature-<name>` in the current repository.
 3. Before switching, explicitly confirm target with the user (branch or worktree path).
 4. After user confirmation, switch to the confirmed context first:
-   - Worktree: run phase commands with `workdir=.worktrees/feature-<name>`.
+   - Worktree: run phase commands with `workdir=<project-root>/.worktrees/feature-<name>`.
    - Branch: checkout `feature-<name>` in current repo.
 5. After switching, run `npx ai-devkit@latest lint --feature <feature-name>` in the active branch/worktree context.
 6. Then run the phase detector using the installed skill directory (same resolution rule as reference docs), not a workspace-relative `skills/...` path:
