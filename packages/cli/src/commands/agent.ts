@@ -9,6 +9,7 @@ import {
     TerminalFocusManager,
     TtyWriter,
     type AgentInfo,
+    type AgentType,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui';
 
@@ -36,6 +37,17 @@ function formatRelativeTime(timestamp: Date): string {
 
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays}d ago`;
+}
+
+const TYPE_LABELS: Record<AgentType, string> = {
+    claude: 'Claude Code',
+    codex: 'Codex',
+    gemini_cli: 'Gemini CLI',
+    other: 'Other',
+};
+
+function formatType(type: AgentType): string {
+    return TYPE_LABELS[type] ?? type;
 }
 
 function formatWorkOn(summary?: string): string {
@@ -77,23 +89,19 @@ export function registerAgentCommand(program: Command): void {
 
                 const rows = agents.map(agent => [
                     agent.name,
+                    formatType(agent.type),
                     formatStatus(agent.status),
                     formatWorkOn(agent.summary),
                     formatRelativeTime(agent.lastActive)
                 ]);
 
                 ui.table({
-                    headers: ['Agent', 'Status', 'Working On', 'Active'],
+                    headers: ['Agent', 'Type', 'Status', 'Working On', 'Active'],
                     rows: rows,
-                    // Custom column styling
-                    // 0: Name (cyan)
-                    // 1: Status (dynamic based on content)
-                    // 2: Working On (standard)
-                    // 3: Active (dim)
                     columnStyles: [
                         (text) => chalk.cyan(text),
+                        (text) => chalk.dim(text),
                         (text) => {
-                            // Extract status keyword to determine color
                             if (text.includes(STATUS_DISPLAY[AgentStatus.RUNNING].label)) return chalk.green(text);
                             if (text.includes(STATUS_DISPLAY[AgentStatus.WAITING].label)) return chalk.yellow(text);
                             if (text.includes(STATUS_DISPLAY[AgentStatus.IDLE].label)) return chalk.dim(text);

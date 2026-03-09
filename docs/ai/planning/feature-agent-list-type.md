@@ -14,15 +14,15 @@ description: Task breakdown for adding agent type to list output
 
 ### Phase 1: Implementation
 
-- [ ] Task 1.1: Add `formatType()` helper function in `packages/cli/src/commands/agent.ts`
-- [ ] Task 1.2: Update table headers to include "Type" as 2nd column
-- [ ] Task 1.3: Update row mapping to include formatted type as 2nd value
-- [ ] Task 1.4: Update columnStyles array to include Type column style
+- [x] Task 1.1: Add `formatType()` helper function in `packages/cli/src/commands/agent.ts`
+- [x] Task 1.2: Update table headers to include "Type" as 2nd column
+- [x] Task 1.3: Update row mapping to include formatted type as 2nd value
+- [x] Task 1.4: Update columnStyles array to include Type column style
 
 ### Phase 2: Testing
 
-- [ ] Task 2.1: Update existing agent list tests to expect the Type column
-- [ ] Task 2.2: Add unit tests for `formatType()` covering all AgentType values
+- [x] Task 2.1: Update existing agent list tests to expect the Type column
+- [x] Task 2.2: Add unit tests for `formatType()` covering all AgentType values
 
 ## Dependencies
 
