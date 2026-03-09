@@ -72,6 +72,7 @@ describe('agent command', () => {
     const agents = [
       {
         name: 'repo-a',
+        type: 'claude',
         status: AgentStatus.RUNNING,
         summary: 'Working',
         lastActive: now,
@@ -104,6 +105,7 @@ describe('agent command', () => {
     mockManager.listAgents.mockResolvedValue([
       {
         name: 'repo-a',
+        type: 'claude',
         status: AgentStatus.WAITING,
         summary: 'Need input',
         lastActive: new Date('2026-02-26T10:00:00.000Z'),
@@ -111,6 +113,7 @@ describe('agent command', () => {
       },
       {
         name: 'repo-b',
+        type: 'codex',
         status: AgentStatus.IDLE,
         summary: '',
         lastActive: new Date('2026-02-26T09:55:00.000Z'),
@@ -124,9 +127,32 @@ describe('agent command', () => {
 
     expect(ui.table).toHaveBeenCalled();
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.rows[0][1]).toContain('wait');
-    expect(tableArg.rows[0][3]).toBe('just now');
+    expect(tableArg.headers).toEqual(['Agent', 'Type', 'Status', 'Working On', 'Active']);
+    expect(tableArg.rows[0][1]).toBe('Claude Code');
+    expect(tableArg.rows[1][1]).toBe('Codex');
+    expect(tableArg.rows[0][2]).toContain('wait');
+    expect(tableArg.rows[0][4]).toBe('just now');
     expect(ui.warning).toHaveBeenCalledWith('1 agent(s) waiting for input.');
+  });
+
+  it('formats all agent types with human-friendly labels', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
+    mockManager.listAgents.mockResolvedValue([
+      { name: 'a', type: 'claude', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 1 },
+      { name: 'b', type: 'codex', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 2 },
+      { name: 'c', type: 'gemini_cli', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 3 },
+      { name: 'd', type: 'other', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 4 },
+    ]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'list']);
+
+    const tableArg: any = (ui.table as any).mock.calls[0][0];
+    expect(tableArg.rows[0][1]).toBe('Claude Code');
+    expect(tableArg.rows[1][1]).toBe('Codex');
+    expect(tableArg.rows[2][1]).toBe('Gemini CLI');
+    expect(tableArg.rows[3][1]).toBe('Other');
   });
 
   it('truncates working-on text to first line', async () => {
@@ -134,6 +160,7 @@ describe('agent command', () => {
     mockManager.listAgents.mockResolvedValue([
       {
         name: 'repo-a',
+        type: 'claude',
         status: AgentStatus.RUNNING,
         summary: `Investigating parser bug
 Waiting on user input`,
@@ -147,7 +174,7 @@ Waiting on user input`,
     await program.parseAsync(['node', 'test', 'agent', 'list']);
 
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.rows[0][2]).toBe('Investigating parser bug');
+    expect(tableArg.rows[0][3]).toBe('Investigating parser bug');
   });
 
   it('shows available agents when open target is not found', async () => {
