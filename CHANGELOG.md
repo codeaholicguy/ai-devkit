@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Send Command** - New `ai-devkit agent send` command for sending input to running agents via TTY writer.
+- **Agent Type Display** - Agent list now shows agent type (e.g., Claude Code, Codex) in the listing output.
+
+### Changed
+
+- **Worktrees Location** - Updated dev-lifecycle skill worktree setup references.
+
 ## [0.16.0] - 2026-02-27
 
 ### Added
