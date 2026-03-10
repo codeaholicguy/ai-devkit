@@ -2,7 +2,7 @@
 description: Review feature requirements for completeness.
 ---
 
-Review `docs/ai/requirements/feature-{name}.md` and the project-level template `docs/ai/requirements/README.md` to ensure structure and content alignment.
+Review `{{docsDir}}/requirements/feature-{name}.md` and the project-level template `{{docsDir}}/requirements/README.md` to ensure structure and content alignment.
 
 1. **Use Memory for Context** — Search memory for related requirements/domain decisions before starting: `npx ai-devkit@latest memory search --query "<feature requirements>"`.
 2. Summarize:

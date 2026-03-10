@@ -1,9 +1,10 @@
-import { DOCS_DIR, LIFECYCLE_PHASES } from '../constants';
+import { LIFECYCLE_PHASES } from '../constants';
 import { LintCheckResult, LintDependencies } from '../types';
 import { runPhaseDocRules } from './phase-docs.rule';
 
 export function runFeatureDocsRules(
   cwd: string,
+  docsDir: string,
   normalizedName: string,
   deps: LintDependencies
 ): LintCheckResult[] {
@@ -12,7 +13,7 @@ export function runFeatureDocsRules(
     phases: LIFECYCLE_PHASES,
     idPrefix: 'feature-doc',
     category: 'feature-docs',
-    filePathForPhase: (phase: string) => `${DOCS_DIR}/${phase}/feature-${normalizedName}.md`,
+    filePathForPhase: (phase: string) => `${docsDir}/${phase}/feature-${normalizedName}.md`,
     deps
   });
 }

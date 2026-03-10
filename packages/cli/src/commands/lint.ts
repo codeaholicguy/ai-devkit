@@ -1,9 +1,12 @@
+import { ConfigManager } from '../lib/Config';
 import { ui } from '../util/terminal-ui';
 import { LINT_STATUS_LABEL } from '../services/lint/constants';
 import { LintCheckResult, LintOptions, LintReport, runLintChecks } from '../services/lint/lint.service';
 
 export async function lintCommand(options: LintOptions): Promise<void> {
-  const report = runLintChecks(options);
+  const configManager = new ConfigManager();
+  const docsDir = await configManager.getDocsDir();
+  const report = runLintChecks(options, docsDir);
   renderLintReport(report, options);
   process.exitCode = report.exitCode;
 }

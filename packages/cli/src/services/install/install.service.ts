@@ -27,7 +27,8 @@ export async function reconcileAndInstall(
   options: InstallRunOptions = {}
 ): Promise<InstallReport> {
   const configManager = new ConfigManager();
-  const templateManager = new TemplateManager();
+  const docsDir = await configManager.getDocsDir();
+  const templateManager = new TemplateManager({ docsDir });
   const skillManager = new SkillManager(configManager, new EnvironmentSelector());
 
   const report: InstallReport = {

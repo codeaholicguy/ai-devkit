@@ -14,7 +14,7 @@ describe('TemplateManager', () => {
   beforeEach(() => {
     mockFs = fs as jest.Mocked<typeof fs>;
     mockGetEnvironment = require('../../util/env').getEnvironment as jest.MockedFunction<any>;
-    templateManager = new TemplateManager('/test/target');
+    templateManager = new TemplateManager({ targetDir: '/test/target' });
 
     jest.clearAllMocks();
   });
@@ -36,10 +36,12 @@ describe('TemplateManager', () => {
       (mockFs.pathExists as any).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(['command1.md', 'command2.toml']);
+      (mockFs.readFile as any).mockResolvedValue('command content');
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
-      expect(mockFs.copy).toHaveBeenCalledTimes(1);
+      expect(mockFs.writeFile).toHaveBeenCalledTimes(1);
       expect(result).toEqual([path.join(templateManager['targetDir'], env.commandPath, 'command1.md')]);
     });
 
@@ -56,6 +58,8 @@ describe('TemplateManager', () => {
       (mockFs.pathExists as any).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(['command1.md']);
+      (mockFs.readFile as any).mockResolvedValue('command content');
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
@@ -79,6 +83,8 @@ describe('TemplateManager', () => {
       (mockFs.pathExists as any).mockResolvedValueOnce(true); // commands directory exists
 
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
+      (mockFs.readFile as any).mockResolvedValue('command content');
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
@@ -86,18 +92,41 @@ describe('TemplateManager', () => {
         path.join(templateManager['targetDir'], env.commandPath)
       );
 
-      // Should only copy .md files (not .toml files)
-      expect(mockFs.copy).toHaveBeenCalledWith(
-        path.join(templateManager['templatesDir'], 'commands', 'command1.md'),
-        path.join(templateManager['targetDir'], env.commandPath, 'command1.md')
+      // Should only write .md files (not .toml files)
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], env.commandPath, 'command1.md'),
+        'command content'
       );
-      expect(mockFs.copy).toHaveBeenCalledWith(
-        path.join(templateManager['templatesDir'], 'commands', 'command3.md'),
-        path.join(templateManager['targetDir'], env.commandPath, 'command3.md')
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(templateManager['targetDir'], env.commandPath, 'command3.md'),
+        'command content'
       );
 
       expect(result).toContain(path.join(templateManager['targetDir'], env.commandPath, 'command1.md'));
       expect(result).toContain(path.join(templateManager['targetDir'], env.commandPath, 'command3.md'));
+    });
+
+    it('should replace docs/ai with custom docsDir in command content', async () => {
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: '.ai-docs' });
+      const env: EnvironmentDefinition = {
+        code: 'test-env',
+        name: 'Test Environment',
+        contextFileName: '.test-context.md',
+        commandPath: '.test',
+        isCustomCommandPath: false
+      };
+
+      (mockFs.pathExists as any).mockResolvedValueOnce(true);
+      (mockFs.readdir as any).mockResolvedValue(['command1.md']);
+      (mockFs.readFile as any).mockResolvedValue('Review {{docsDir}}/design/feature-{name}.md and {{docsDir}}/requirements/.');
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
+
+      await (customManager as any).setupSingleEnvironment(env);
+
+      expect(mockFs.writeFile).toHaveBeenCalledWith(
+        path.join(customManager['targetDir'], env.commandPath, 'command1.md'),
+        'Review .ai-docs/design/feature-{name}.md and .ai-docs/requirements/.'
+      );
     });
 
     it('should skip commands when isCustomCommandPath is true', async () => {
@@ -235,6 +264,25 @@ This is the prompt content.`;
       );
       expect(result).toBe(path.join(templateManager['targetDir'], 'docs', 'ai', phase, 'README.md'));
     });
+
+    it('should use custom docsDir when provided', async () => {
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: '.ai-docs' });
+      const phase: Phase = 'design';
+
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.copy as any).mockResolvedValue(undefined);
+
+      const result = await customManager.copyPhaseTemplate(phase);
+
+      expect(mockFs.ensureDir).toHaveBeenCalledWith(
+        path.join(customManager['targetDir'], '.ai-docs', phase)
+      );
+      expect(mockFs.copy).toHaveBeenCalledWith(
+        path.join(customManager['templatesDir'], 'phases', `${phase}.md`),
+        path.join(customManager['targetDir'], '.ai-docs', phase, 'README.md')
+      );
+      expect(result).toBe(path.join(customManager['targetDir'], '.ai-docs', phase, 'README.md'));
+    });
   });
 
   describe('fileExists', () => {
@@ -262,6 +310,20 @@ This is the prompt content.`;
         path.join(templateManager['targetDir'], 'docs', 'ai', phase, 'README.md')
       );
       expect(result).toBe(false);
+    });
+
+    it('should check custom docsDir path when provided', async () => {
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: 'custom/docs' });
+      const phase: Phase = 'testing';
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+
+      const result = await customManager.fileExists(phase);
+
+      expect(mockFs.pathExists).toHaveBeenCalledWith(
+        path.join(customManager['targetDir'], 'custom/docs', phase, 'README.md')
+      );
+      expect(result).toBe(true);
     });
   });
 
@@ -633,12 +695,13 @@ description: Test
       mockGetEnvironment.mockReturnValue(envWithGlobal);
       (mockFs.ensureDir as any).mockResolvedValue(undefined);
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
-      (mockFs.copy as any).mockResolvedValue(undefined);
+      (mockFs.readFile as any).mockResolvedValue('command content');
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
 
       const result = await templateManager.copyCommandsToGlobal('antigravity');
 
       expect(mockFs.ensureDir).toHaveBeenCalled();
-      expect(mockFs.copy).toHaveBeenCalledTimes(2); // Only .md files
+      expect(mockFs.writeFile).toHaveBeenCalledTimes(2); // Only .md files
       expect(result).toHaveLength(2);
     });
 
@@ -656,11 +719,12 @@ description: Test
       mockGetEnvironment.mockReturnValue(envWithGlobal);
       (mockFs.ensureDir as any).mockResolvedValue(undefined);
       (mockFs.readdir as any).mockResolvedValue(mockCommandFiles);
-      (mockFs.copy as any).mockResolvedValue(undefined);
+      (mockFs.readFile as any).mockResolvedValue('command content');
+      (mockFs.writeFile as any).mockResolvedValue(undefined);
 
       const result = await templateManager.copyCommandsToGlobal('codex');
 
-      expect(mockFs.copy).toHaveBeenCalledTimes(1);
+      expect(mockFs.writeFile).toHaveBeenCalledTimes(1);
       expect(result).toHaveLength(1);
     });
 

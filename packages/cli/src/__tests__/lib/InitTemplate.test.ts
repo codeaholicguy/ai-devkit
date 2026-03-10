@@ -88,6 +88,44 @@ environments:
     );
   });
 
+  it('loads template with paths.docs config', async () => {
+    mockFs.pathExists.mockResolvedValue(true as never);
+    mockFs.readFile.mockResolvedValue(`
+paths:
+  docs: .ai-docs
+environments:
+  - claude
+phases:
+  - requirements
+` as never);
+
+    const result = await loadInitTemplate('/tmp/init.yaml');
+
+    expect(result.paths?.docs).toBe('.ai-docs');
+    expect(result.environments).toEqual(['claude']);
+  });
+
+  it('throws when paths.docs is empty string', async () => {
+    mockFs.pathExists.mockResolvedValue(true as never);
+    mockFs.readFile.mockResolvedValue(`
+paths:
+  docs: "  "
+` as never);
+
+    await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
+      '"paths.docs" must be a non-empty string'
+    );
+  });
+
+  it('throws when paths is not an object', async () => {
+    mockFs.pathExists.mockResolvedValue(true as never);
+    mockFs.readFile.mockResolvedValue(JSON.stringify({ paths: 'invalid' }) as never);
+
+    await expect(loadInitTemplate('/tmp/init.json')).rejects.toThrow(
+      '"paths" must be an object'
+    );
+  });
+
   it('throws when unknown field exists', async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(`

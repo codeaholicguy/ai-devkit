@@ -10,10 +10,31 @@ describe('base docs rule', () => {
       execFileSync: () => ''
     };
 
-    const checks = runBaseDocsRules('/repo', deps);
+    const checks = runBaseDocsRules('/repo', 'docs/ai', deps);
 
     expect(checks).toHaveLength(5);
     expect(checks.every(check => check.level === 'ok')).toBe(true);
+  });
+
+  it('uses custom docsDir for file paths', () => {
+    const existingPaths = new Set([
+      '/repo/.ai-docs/requirements/README.md',
+      '/repo/.ai-docs/design/README.md',
+      '/repo/.ai-docs/planning/README.md',
+      '/repo/.ai-docs/implementation/README.md',
+      '/repo/.ai-docs/testing/README.md',
+    ]);
+    const deps: LintDependencies = {
+      cwd: () => '/repo',
+      existsSync: (p: string) => existingPaths.has(p),
+      execFileSync: () => ''
+    };
+
+    const checks = runBaseDocsRules('/repo', '.ai-docs', deps);
+
+    expect(checks).toHaveLength(5);
+    expect(checks.every(check => check.level === 'ok')).toBe(true);
+    expect(checks[0].message).toBe('.ai-docs/requirements/README.md');
   });
 
   it('returns missing checks when base docs do not exist', () => {
@@ -23,7 +44,7 @@ describe('base docs rule', () => {
       execFileSync: () => ''
     };
 
-    const checks = runBaseDocsRules('/repo', deps);
+    const checks = runBaseDocsRules('/repo', 'docs/ai', deps);
 
     expect(checks).toHaveLength(5);
     expect(checks.every(check => check.level === 'miss')).toBe(true);
