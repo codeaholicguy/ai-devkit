@@ -41,7 +41,9 @@ No changes to exports, index files, or CLI command.
 | — | `filterCandidateSessions()` — extracted |
 | — | `rankCandidatesByStartTime()` — new |
 | `assignSessionsForMode()` | `assignSessionsForMode()` — same structure |
-| `assignHistoryEntriesForExactProcessCwd()` | Removed — subsumed by `any` mode |
+| `assignHistoryEntriesForExactProcessCwd()` | Removed — subsumed by `parent-child` mode |
+| — | `isClaudeExecutable()` — precise executable basename check |
+| — | `isChildPath()` — parent-child path relationship check |
 | `mapSessionToAgent()` | `mapSessionToAgent()` — simplified |
 | `mapProcessOnlyAgent()` | `mapProcessOnlyAgent()` — simplified |
 | `mapHistoryToAgent()` | Removed — integrated into session mapping |
@@ -50,7 +52,7 @@ No changes to exports, index files, or CLI command.
 
 ### Claude-Specific Adaptations
 
-1. **Session discovery**: Walk `~/.claude/projects/*/` dirs, read `sessions-index.json` for `originalPath`, collect `*.jsonl` files with mtime. Sort by mtime descending, take top N.
+1. **Session discovery**: Walk `~/.claude/projects/*/` dirs, collect `*.jsonl` files with mtime. Use `sessions-index.json` for `originalPath` when available; when missing (common in practice), set `projectPath` to empty and derive from `lastCwd` in session content during `readSession()`. Sort by mtime descending, take top N.
 
 2. **Session parsing**: Read first line for `sessionStart` timestamp. Read last 100 lines for `lastEntryType`, `lastActive`, `lastCwd`, `slug`.
 
@@ -60,9 +62,14 @@ No changes to exports, index files, or CLI command.
 
 5. **Name generation**: project basename + slug disambiguation (keep existing logic).
 
+6. **Process detection**: `canHandle()` uses `isClaudeExecutable()` which checks `path.basename()` of the first word in the command. Only matches `claude` or `claude.exe`, not processes with "claude" in path arguments (e.g., nx daemon running in a worktree named `feature-reimpl-claude-code-adapter`).
+
+7. **Matching modes**: `cwd` → exact CWD match, `missing-cwd` → sessions with no `projectPath`, `parent-child` → process CWD is a parent or child of session project/lastCwd path. The `parent-child` mode replaces the original `any` mode which was too greedy and caused cross-project session stealing.
+
 ## Error Handling
 
 - `readSession()`: try/catch per file, skip on error
 - `getProcessStartTimes()`: return empty map on failure
 - `findSessionFiles()`: return empty array if dirs don't exist
+- `sessions-index.json` missing: graceful fallback to empty `projectPath`, filled from `lastCwd`
 - All errors logged to `console.error`, never thrown to caller

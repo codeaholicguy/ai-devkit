@@ -1,16 +1,19 @@
 /**
  * Claude Code Adapter
- * 
- * Detects running Claude Code agents by reading session files
- * from ~/.claude/ directory and correlating with running processes.
+ *
+ * Detects running Claude Code agents by combining:
+ * 1. Running `claude` processes
+ * 2. Session metadata under ~/.claude/projects
+ * 3. History entries from ~/.claude/history.jsonl
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
+import { execSync } from 'child_process';
 import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listProcesses } from '../utils/process';
-import { readLastLines, readJsonLines, readJson } from '../utils/file';
+import { readJsonLines, readJson } from '../utils/file';
 
 /**
  * Structure of ~/.claude/projects/{path}/sessions-index.json
@@ -19,25 +22,14 @@ interface SessionsIndex {
     originalPath: string;
 }
 
-enum SessionEntryType {
-    ASSISTANT = 'assistant',
-    USER = 'user',
-    PROGRESS = 'progress',
-    THINKING = 'thinking',
-    SYSTEM = 'system',
-    MESSAGE = 'message',
-    TEXT = 'text',
-}
-
 /**
  * Entry in session JSONL file
  */
 interface SessionEntry {
-    type?: SessionEntryType;
+    type?: string;
     timestamp?: string;
     slug?: string;
     cwd?: string;
-    sessionId?: string;
     message?: {
         content?: Array<{
             type?: string;
@@ -45,7 +37,6 @@ interface SessionEntry {
             content?: string;
         }>;
     };
-    [key: string]: unknown;
 }
 
 /**
@@ -66,28 +57,35 @@ interface ClaudeSession {
     projectPath: string;
     lastCwd?: string;
     slug?: string;
-    sessionLogPath: string;
-    lastEntry?: SessionEntry;
-    lastActive?: Date;
+    sessionStart: Date;
+    lastActive: Date;
+    lastEntryType?: string;
+    isInterrupted: boolean;
 }
 
-type SessionMatchMode = 'cwd' | 'project-parent';
+type SessionMatchMode = 'cwd' | 'missing-cwd' | 'parent-child';
 
 /**
  * Claude Code Adapter
- * 
+ *
  * Detects Claude Code agents by:
  * 1. Finding running claude processes
- * 2. Reading session files from ~/.claude/projects/
- * 3. Matching sessions to processes via CWD
- * 4. Extracting status from session JSONL
+ * 2. Getting process start times for accurate session matching
+ * 3. Reading bounded session files from ~/.claude/projects/
+ * 4. Matching sessions to processes via CWD then start time ranking
  * 5. Extracting summary from history.jsonl
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
     readonly type = 'claude' as const;
 
-    /** Threshold in minutes before considering a session idle */
+    /** Keep status thresholds aligned across adapters. */
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
+    /** Limit session parsing per run to keep list latency bounded. */
+    private static readonly MIN_SESSION_SCAN = 12;
+    private static readonly MAX_SESSION_SCAN = 40;
+    private static readonly SESSION_SCAN_MULTIPLIER = 4;
+    /** Matching tolerance between process start time and session start time. */
+    private static readonly PROCESS_SESSION_TIME_TOLERANCE_MS = 2 * 60 * 1000;
 
     private claudeDir: string;
     private projectsDir: string;
@@ -104,35 +102,44 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      * Check if this adapter can handle a given process
      */
     canHandle(processInfo: ProcessInfo): boolean {
-        return processInfo.command.toLowerCase().includes('claude');
+        return this.isClaudeExecutable(processInfo.command);
+    }
+
+    private isClaudeExecutable(command: string): boolean {
+        const executable = command.trim().split(/\s+/)[0] || '';
+        const base = path.basename(executable).toLowerCase();
+        return base === 'claude' || base === 'claude.exe';
     }
 
     /**
      * Detect running Claude Code agents
      */
     async detectAgents(): Promise<AgentInfo[]> {
-        const claudeProcesses = listProcesses({ namePattern: 'claude' }).filter((processInfo) =>
-            this.canHandle(processInfo),
-        );
-
+        const claudeProcesses = this.listClaudeProcesses();
         if (claudeProcesses.length === 0) {
             return [];
         }
 
-        const sessions = this.readSessions();
+        const processStartByPid = this.getProcessStartTimes(
+            claudeProcesses.map((p) => p.pid),
+        );
+        const sessionScanLimit = this.calculateSessionScanLimit(claudeProcesses.length);
+        const sessions = this.readSessions(sessionScanLimit);
         const history = this.readHistory();
-        const historyByProjectPath = this.indexHistoryByProjectPath(history);
         const historyBySessionId = new Map<string, HistoryEntry>();
         for (const entry of history) {
             historyBySessionId.set(entry.sessionId, entry);
         }
 
-        const sortedSessions = [...sessions].sort((a, b) => {
-            const timeA = a.lastActive?.getTime() || 0;
-            const timeB = b.lastActive?.getTime() || 0;
-            return timeB - timeA;
-        });
+        if (sessions.length === 0) {
+            return claudeProcesses.map((p) =>
+                this.mapProcessOnlyAgent(p, [], history),
+            );
+        }
 
+        const sortedSessions = [...sessions].sort(
+            (a, b) => b.lastActive.getTime() - a.lastActive.getTime(),
+        );
         const usedSessionIds = new Set<string>();
         const assignedPids = new Set<number>();
         const agents: AgentInfo[] = [];
@@ -143,58 +150,56 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             sortedSessions,
             usedSessionIds,
             assignedPids,
+            processStartByPid,
             historyBySessionId,
             agents,
         );
-        this.assignHistoryEntriesForExactProcessCwd(
-            claudeProcesses,
-            assignedPids,
-            historyByProjectPath,
-            usedSessionIds,
-            agents,
-        );
         this.assignSessionsForMode(
-            'project-parent',
+            'missing-cwd',
             claudeProcesses,
             sortedSessions,
             usedSessionIds,
             assignedPids,
+            processStartByPid,
             historyBySessionId,
             agents,
         );
+        this.assignSessionsForMode(
+            'parent-child',
+            claudeProcesses,
+            sortedSessions,
+            usedSessionIds,
+            assignedPids,
+            processStartByPid,
+            historyBySessionId,
+            agents,
+        );
+
         for (const processInfo of claudeProcesses) {
             if (assignedPids.has(processInfo.pid)) {
                 continue;
             }
 
-            assignedPids.add(processInfo.pid);
-            agents.push(this.mapProcessOnlyAgent(processInfo, agents, historyByProjectPath, usedSessionIds));
+            this.addProcessOnlyAgent(processInfo, assignedPids, agents, history);
         }
 
         return agents;
     }
 
-    private assignHistoryEntriesForExactProcessCwd(
-        claudeProcesses: ProcessInfo[],
-        assignedPids: Set<number>,
-        historyByProjectPath: Map<string, HistoryEntry[]>,
-        usedSessionIds: Set<string>,
-        agents: AgentInfo[],
-    ): void {
-        for (const processInfo of claudeProcesses) {
-            if (assignedPids.has(processInfo.pid)) {
-                continue;
-            }
+    private listClaudeProcesses(): ProcessInfo[] {
+        return listProcesses({ namePattern: 'claude' }).filter((p) =>
+            this.canHandle(p),
+        );
+    }
 
-            const historyEntry = this.selectHistoryForProcess(processInfo.cwd || '', historyByProjectPath, usedSessionIds);
-            if (!historyEntry) {
-                continue;
-            }
-
-            assignedPids.add(processInfo.pid);
-            usedSessionIds.add(historyEntry.sessionId);
-            agents.push(this.mapHistoryToAgent(processInfo, historyEntry, agents));
-        }
+    private calculateSessionScanLimit(processCount: number): number {
+        return Math.min(
+            Math.max(
+                processCount * ClaudeCodeAdapter.SESSION_SCAN_MULTIPLIER,
+                ClaudeCodeAdapter.MIN_SESSION_SCAN,
+            ),
+            ClaudeCodeAdapter.MAX_SESSION_SCAN,
+        );
     }
 
     private assignSessionsForMode(
@@ -203,6 +208,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         sessions: ClaudeSession[],
         usedSessionIds: Set<string>,
         assignedPids: Set<number>,
+        processStartByPid: Map<number, Date>,
         historyBySessionId: Map<string, HistoryEntry>,
         agents: AgentInfo[],
     ): void {
@@ -211,60 +217,49 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 continue;
             }
 
-            const session = this.selectBestSession(processInfo, sessions, usedSessionIds, mode);
+            const session = this.selectBestSession(
+                processInfo,
+                sessions,
+                usedSessionIds,
+                processStartByPid,
+                mode,
+            );
             if (!session) {
                 continue;
             }
 
-            usedSessionIds.add(session.sessionId);
-            assignedPids.add(processInfo.pid);
-            agents.push(this.mapSessionToAgent(session, processInfo, historyBySessionId, agents));
+            this.addMappedSessionAgent(
+                session,
+                processInfo,
+                usedSessionIds,
+                assignedPids,
+                historyBySessionId,
+                agents,
+            );
         }
     }
 
-    private selectBestSession(
+    private addMappedSessionAgent(
+        session: ClaudeSession,
         processInfo: ProcessInfo,
-        sessions: ClaudeSession[],
         usedSessionIds: Set<string>,
-        mode: SessionMatchMode,
-    ): ClaudeSession | null {
-        const candidates = sessions.filter((session) => {
-            if (usedSessionIds.has(session.sessionId)) {
-                return false;
-            }
+        assignedPids: Set<number>,
+        historyBySessionId: Map<string, HistoryEntry>,
+        agents: AgentInfo[],
+    ): void {
+        usedSessionIds.add(session.sessionId);
+        assignedPids.add(processInfo.pid);
+        agents.push(this.mapSessionToAgent(session, processInfo, historyBySessionId, agents));
+    }
 
-            if (mode === 'cwd') {
-                return this.pathEquals(processInfo.cwd, session.lastCwd)
-                    || this.pathEquals(processInfo.cwd, session.projectPath);
-            }
-
-            if (mode === 'project-parent') {
-                return this.isChildPath(processInfo.cwd, session.projectPath)
-                    || this.isChildPath(processInfo.cwd, session.lastCwd);
-            }
-
-            return false;
-        });
-
-        if (candidates.length === 0) {
-            return null;
-        }
-
-        if (mode !== 'project-parent') {
-            return candidates[0];
-        }
-
-        return candidates.sort((a, b) => {
-            const depthA = Math.max(this.pathDepth(a.projectPath), this.pathDepth(a.lastCwd));
-            const depthB = Math.max(this.pathDepth(b.projectPath), this.pathDepth(b.lastCwd));
-            if (depthA !== depthB) {
-                return depthB - depthA;
-            }
-
-            const lastActiveA = a.lastActive?.getTime() || 0;
-            const lastActiveB = b.lastActive?.getTime() || 0;
-            return lastActiveB - lastActiveA;
-        })[0];
+    private addProcessOnlyAgent(
+        processInfo: ProcessInfo,
+        assignedPids: Set<number>,
+        agents: AgentInfo[],
+        history: HistoryEntry[],
+    ): void {
+        assignedPids.add(processInfo.pid);
+        agents.push(this.mapProcessOnlyAgent(processInfo, agents, history));
     }
 
     private mapSessionToAgent(
@@ -284,158 +279,206 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             projectPath: session.projectPath || processInfo.cwd || '',
             sessionId: session.sessionId,
             slug: session.slug,
-            lastActive: session.lastActive || new Date(),
+            lastActive: session.lastActive,
         };
     }
 
     private mapProcessOnlyAgent(
         processInfo: ProcessInfo,
         existingAgents: AgentInfo[],
-        historyByProjectPath: Map<string, HistoryEntry[]>,
-        usedSessionIds: Set<string>,
+        history: HistoryEntry[],
     ): AgentInfo {
-        const projectPath = processInfo.cwd || '';
-        const historyEntry = this.selectHistoryForProcess(projectPath, historyByProjectPath, usedSessionIds);
+        const processCwd = processInfo.cwd || '';
+        const historyEntry = this.findHistoryForCwd(processCwd, history);
         const sessionId = historyEntry?.sessionId || `pid-${processInfo.pid}`;
         const lastActive = historyEntry ? new Date(historyEntry.timestamp) : new Date();
-        if (historyEntry) {
-            usedSessionIds.add(historyEntry.sessionId);
-        }
 
-        const processSession: ClaudeSession = {
+        const syntheticSession: ClaudeSession = {
             sessionId,
-            projectPath,
-            lastCwd: projectPath,
-            sessionLogPath: '',
+            projectPath: processCwd,
+            lastCwd: processCwd,
+            sessionStart: lastActive,
             lastActive,
+            isInterrupted: false,
         };
 
         return {
-            name: this.generateAgentName(processSession, existingAgents),
+            name: this.generateAgentName(syntheticSession, existingAgents),
             type: this.type,
             status: AgentStatus.RUNNING,
             summary: historyEntry?.display || 'Claude process running',
             pid: processInfo.pid,
-            projectPath,
-            sessionId: processSession.sessionId,
-            lastActive: processSession.lastActive || new Date(),
+            projectPath: processCwd,
+            sessionId,
+            lastActive,
         };
     }
 
-    private mapHistoryToAgent(
-        processInfo: ProcessInfo,
-        historyEntry: HistoryEntry,
-        existingAgents: AgentInfo[],
-    ): AgentInfo {
-        const projectPath = processInfo.cwd || historyEntry.project;
-        const historySession: ClaudeSession = {
-            sessionId: historyEntry.sessionId,
-            projectPath,
-            lastCwd: projectPath,
-            sessionLogPath: '',
-            lastActive: new Date(historyEntry.timestamp),
-        };
-
-        return {
-            name: this.generateAgentName(historySession, existingAgents),
-            type: this.type,
-            status: AgentStatus.RUNNING,
-            summary: historyEntry.display || 'Claude process running',
-            pid: processInfo.pid,
-            projectPath,
-            sessionId: historySession.sessionId,
-            lastActive: historySession.lastActive || new Date(),
-        };
-    }
-
-    private indexHistoryByProjectPath(historyEntries: HistoryEntry[]): Map<string, HistoryEntry[]> {
-        const grouped = new Map<string, HistoryEntry[]>();
-
-        for (const entry of historyEntries) {
-            const key = this.normalizePath(entry.project);
-            const list = grouped.get(key) || [];
-            list.push(entry);
-            grouped.set(key, list);
-        }
-
-        for (const [key, list] of grouped.entries()) {
-            grouped.set(
-                key,
-                [...list].sort((a, b) => b.timestamp - a.timestamp),
-            );
-        }
-
-        return grouped;
-    }
-
-    private selectHistoryForProcess(
-        processCwd: string,
-        historyByProjectPath: Map<string, HistoryEntry[]>,
-        usedSessionIds: Set<string>,
+    private findHistoryForCwd(
+        cwd: string,
+        history: HistoryEntry[],
     ): HistoryEntry | undefined {
-        if (!processCwd) {
+        if (!cwd) {
             return undefined;
         }
 
-        const candidates = historyByProjectPath.get(this.normalizePath(processCwd)) || [];
-        return candidates.find((entry) => !usedSessionIds.has(entry.sessionId));
+        const normalizedCwd = this.normalizePath(cwd);
+        return history.find(
+            (entry) => this.normalizePath(entry.project) === normalizedCwd,
+        );
+    }
+
+    private selectBestSession(
+        processInfo: ProcessInfo,
+        sessions: ClaudeSession[],
+        usedSessionIds: Set<string>,
+        processStartByPid: Map<number, Date>,
+        mode: SessionMatchMode,
+    ): ClaudeSession | undefined {
+        const candidates = this.filterCandidateSessions(
+            processInfo,
+            sessions,
+            usedSessionIds,
+            mode,
+        );
+
+        if (candidates.length === 0) {
+            return undefined;
+        }
+
+        const processStart = processStartByPid.get(processInfo.pid);
+        if (!processStart) {
+            return candidates.sort(
+                (a, b) => b.lastActive.getTime() - a.lastActive.getTime(),
+            )[0];
+        }
+
+        return this.rankCandidatesByStartTime(candidates, processStart)[0];
+    }
+
+    private filterCandidateSessions(
+        processInfo: ProcessInfo,
+        sessions: ClaudeSession[],
+        usedSessionIds: Set<string>,
+        mode: SessionMatchMode,
+    ): ClaudeSession[] {
+        return sessions.filter((session) => {
+            if (usedSessionIds.has(session.sessionId)) {
+                return false;
+            }
+
+            if (mode === 'cwd') {
+                return (
+                    this.pathEquals(processInfo.cwd, session.projectPath) ||
+                    this.pathEquals(processInfo.cwd, session.lastCwd)
+                );
+            }
+
+            if (mode === 'missing-cwd') {
+                return !session.projectPath;
+            }
+
+            // parent-child mode: match if process CWD is under session project or vice versa
+            return (
+                this.isChildPath(processInfo.cwd, session.projectPath) ||
+                this.isChildPath(processInfo.cwd, session.lastCwd) ||
+                this.isChildPath(session.projectPath, processInfo.cwd) ||
+                this.isChildPath(session.lastCwd, processInfo.cwd)
+            );
+        });
+    }
+
+    private rankCandidatesByStartTime(
+        candidates: ClaudeSession[],
+        processStart: Date,
+    ): ClaudeSession[] {
+        const toleranceMs = ClaudeCodeAdapter.PROCESS_SESSION_TIME_TOLERANCE_MS;
+
+        return candidates
+            .map((session) => {
+                const diffMs = Math.abs(
+                    session.sessionStart.getTime() - processStart.getTime(),
+                );
+                const outsideTolerance = diffMs > toleranceMs ? 1 : 0;
+                return {
+                    session,
+                    rank: outsideTolerance,
+                    diffMs,
+                    recency: session.lastActive.getTime(),
+                };
+            })
+            .sort((a, b) => {
+                if (a.rank !== b.rank) return a.rank - b.rank;
+                if (a.diffMs !== b.diffMs) return a.diffMs - b.diffMs;
+                return b.recency - a.recency;
+            })
+            .map((ranked) => ranked.session);
+    }
+
+    private getProcessStartTimes(pids: number[]): Map<number, Date> {
+        if (pids.length === 0 || process.env.JEST_WORKER_ID) {
+            return new Map();
+        }
+
+        try {
+            const output = execSync(
+                `ps -o pid=,etime= -p ${pids.join(',')}`,
+                { encoding: 'utf-8' },
+            );
+            const nowMs = Date.now();
+            const startTimes = new Map<number, Date>();
+
+            for (const rawLine of output.split('\n')) {
+                const line = rawLine.trim();
+                if (!line) continue;
+
+                const parts = line.split(/\s+/);
+                if (parts.length < 2) continue;
+
+                const pid = Number.parseInt(parts[0], 10);
+                const elapsedSeconds = this.parseElapsedSeconds(parts[1]);
+                if (!Number.isFinite(pid) || elapsedSeconds === null) continue;
+
+                startTimes.set(pid, new Date(nowMs - elapsedSeconds * 1000));
+            }
+
+            return startTimes;
+        } catch {
+            return new Map();
+        }
+    }
+
+    private parseElapsedSeconds(etime: string): number | null {
+        const match = etime
+            .trim()
+            .match(/^(?:(\d+)-)?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/);
+        if (!match) {
+            return null;
+        }
+
+        const days = Number.parseInt(match[1] || '0', 10);
+        const hours = Number.parseInt(match[2] || '0', 10);
+        const minutes = Number.parseInt(match[3] || '0', 10);
+        const seconds = Number.parseInt(match[4] || '0', 10);
+
+        return ((days * 24 + hours) * 60 + minutes) * 60 + seconds;
     }
 
     /**
-     * Read all Claude Code sessions
+     * Read Claude Code sessions with bounded scanning
      */
-    private readSessions(): ClaudeSession[] {
-        if (!fs.existsSync(this.projectsDir)) {
-            return [];
-        }
-
+    private readSessions(limit: number): ClaudeSession[] {
+        const sessionFiles = this.findSessionFiles(limit);
         const sessions: ClaudeSession[] = [];
-        const projectDirs = fs.readdirSync(this.projectsDir);
 
-        for (const dirName of projectDirs) {
-            if (dirName.startsWith('.')) {
-                continue;
-            }
-
-            const projectDir = path.join(this.projectsDir, dirName);
-            if (!fs.statSync(projectDir).isDirectory()) {
-                continue;
-            }
-
-            // Read sessions-index.json to get original project path
-            const indexPath = path.join(projectDir, 'sessions-index.json');
-            if (!fs.existsSync(indexPath)) {
-                continue;
-            }
-
-            const sessionsIndex = readJson<SessionsIndex>(indexPath);
-            if (!sessionsIndex) {
-                console.error(`Failed to parse ${indexPath}`);
-                continue;
-            }
-
-            const sessionFiles = fs.readdirSync(projectDir).filter(f => f.endsWith('.jsonl'));
-
-            for (const sessionFile of sessionFiles) {
-                const sessionId = sessionFile.replace('.jsonl', '');
-                const sessionLogPath = path.join(projectDir, sessionFile);
-
-                try {
-                    const sessionData = this.readSessionLog(sessionLogPath);
-
-                    sessions.push({
-                        sessionId,
-                        projectPath: sessionsIndex.originalPath,
-                        lastCwd: sessionData.lastCwd,
-                        slug: sessionData.slug,
-                        sessionLogPath,
-                        lastEntry: sessionData.lastEntry,
-                        lastActive: sessionData.lastActive,
-                    });
-                } catch (error) {
-                    console.error(`Failed to read session ${sessionId}:`, error);
-                    continue;
+        for (const file of sessionFiles) {
+            try {
+                const session = this.readSession(file.filePath, file.projectPath);
+                if (session) {
+                    sessions.push(session);
                 }
+            } catch (error) {
+                console.error(`Failed to parse Claude session ${file.filePath}:`, error);
             }
         }
 
@@ -443,49 +486,159 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     }
 
     /**
-     * Read a session JSONL file
-     * Only reads last 100 lines for performance with large files
+     * Find session files bounded by mtime, sorted most-recent first
      */
-    private readSessionLog(logPath: string): {
-        slug?: string;
-        lastEntry?: SessionEntry;
-        lastActive?: Date;
-        lastCwd?: string;
-    } {
-        const lines = readLastLines(logPath, 100);
+    private findSessionFiles(
+        limit: number,
+    ): Array<{ filePath: string; projectPath: string; mtimeMs: number }> {
+        if (!fs.existsSync(this.projectsDir)) {
+            return [];
+        }
 
+        const files: Array<{
+            filePath: string;
+            projectPath: string;
+            mtimeMs: number;
+        }> = [];
+
+        for (const dirName of fs.readdirSync(this.projectsDir)) {
+            if (dirName.startsWith('.')) {
+                continue;
+            }
+
+            const projectDir = path.join(this.projectsDir, dirName);
+            try {
+                if (!fs.statSync(projectDir).isDirectory()) continue;
+            } catch {
+                continue;
+            }
+
+            const indexPath = path.join(projectDir, 'sessions-index.json');
+            const index = readJson<SessionsIndex>(indexPath);
+            const projectPath = index?.originalPath || '';
+
+            for (const entry of fs.readdirSync(projectDir)) {
+                if (!entry.endsWith('.jsonl')) {
+                    continue;
+                }
+
+                const filePath = path.join(projectDir, entry);
+                try {
+                    files.push({
+                        filePath,
+                        projectPath,
+                        mtimeMs: fs.statSync(filePath).mtimeMs,
+                    });
+                } catch {
+                    continue;
+                }
+            }
+        }
+
+        return files
+            .sort((a, b) => b.mtimeMs - a.mtimeMs)
+            .slice(0, limit);
+    }
+
+    /**
+     * Parse a single session file into ClaudeSession
+     */
+    private readSession(
+        filePath: string,
+        projectPath: string,
+    ): ClaudeSession | null {
+        const sessionId = path.basename(filePath, '.jsonl');
+
+        let content: string;
+        try {
+            content = fs.readFileSync(filePath, 'utf-8');
+        } catch {
+            return null;
+        }
+
+        const allLines = content.trim().split('\n');
+        if (allLines.length === 0) {
+            return null;
+        }
+
+        // Parse first line for sessionStart
+        let sessionStart: Date | null = null;
+        try {
+            const firstEntry: SessionEntry = JSON.parse(allLines[0]);
+            if (firstEntry.timestamp) {
+                const ts = new Date(firstEntry.timestamp);
+                if (!Number.isNaN(ts.getTime())) {
+                    sessionStart = ts;
+                }
+            }
+        } catch {
+            /* skip */
+        }
+
+        // Parse last N lines for recent state
+        const recentLines = allLines.slice(-100);
         let slug: string | undefined;
-        let lastEntry: SessionEntry | undefined;
+        let lastEntryType: string | undefined;
         let lastActive: Date | undefined;
         let lastCwd: string | undefined;
+        let isInterrupted = false;
 
-        for (const line of lines) {
+        for (const line of recentLines) {
             try {
                 const entry: SessionEntry = JSON.parse(line);
+
+                if (entry.timestamp) {
+                    const ts = new Date(entry.timestamp);
+                    if (!Number.isNaN(ts.getTime())) {
+                        lastActive = ts;
+                    }
+                }
 
                 if (entry.slug && !slug) {
                     slug = entry.slug;
                 }
 
-                lastEntry = entry;
-
-                if (entry.timestamp) {
-                    lastActive = new Date(entry.timestamp);
-                }
-
                 if (typeof entry.cwd === 'string' && entry.cwd.trim().length > 0) {
                     lastCwd = entry.cwd;
                 }
-            } catch (error) {
+
+                if (entry.type) {
+                    lastEntryType = entry.type;
+
+                    if (entry.type === 'user') {
+                        const msgContent = entry.message?.content;
+                        isInterrupted =
+                            Array.isArray(msgContent) &&
+                            msgContent.some(
+                                (c) =>
+                                    (c.type === 'text' &&
+                                        c.text?.includes('[Request interrupted')) ||
+                                    (c.type === 'tool_result' &&
+                                        c.content?.includes('[Request interrupted')),
+                            );
+                    } else {
+                        isInterrupted = false;
+                    }
+                }
+            } catch {
                 continue;
             }
         }
 
-        return { slug, lastEntry, lastActive, lastCwd };
+        return {
+            sessionId,
+            projectPath: projectPath || lastCwd || '',
+            lastCwd,
+            slug,
+            sessionStart: sessionStart || lastActive || new Date(),
+            lastActive: lastActive || new Date(),
+            lastEntryType,
+            isInterrupted,
+        };
     }
 
     /**
-     * Read history.jsonl for user prompts
+     * Read history.jsonl for summaries
      * Only reads last 100 lines for performance
      */
     private readHistory(): HistoryEntry[] {
@@ -493,39 +646,37 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     }
 
     /**
-     * Determine agent status from session entry
+     * Determine agent status from session state
      */
     private determineStatus(session: ClaudeSession): AgentStatus {
-        if (!session.lastEntry) {
+        if (!session.lastEntryType) {
             return AgentStatus.UNKNOWN;
         }
 
-        const entryType = session.lastEntry.type;
-        const lastActive = session.lastActive || new Date(0);
-        const ageMinutes = (Date.now() - lastActive.getTime()) / 1000 / 60;
-
+        const ageMinutes =
+            (Date.now() - session.lastActive.getTime()) / 60000;
         if (ageMinutes > ClaudeCodeAdapter.IDLE_THRESHOLD_MINUTES) {
             return AgentStatus.IDLE;
         }
 
-        if (entryType === SessionEntryType.USER) {
-            // Check if user interrupted manually - this puts agent back in waiting state
-            const content = session.lastEntry.message?.content;
-            if (Array.isArray(content)) {
-                const isInterrupted = content.some(c =>
-                    (c.type === SessionEntryType.TEXT && c.text?.includes('[Request interrupted')) ||
-                    (c.type === 'tool_result' && c.content?.includes('[Request interrupted'))
-                );
-                if (isInterrupted) return AgentStatus.WAITING;
-            }
+        if (session.lastEntryType === 'user') {
+            return session.isInterrupted
+                ? AgentStatus.WAITING
+                : AgentStatus.RUNNING;
+        }
+
+        if (
+            session.lastEntryType === 'progress' ||
+            session.lastEntryType === 'thinking'
+        ) {
             return AgentStatus.RUNNING;
         }
 
-        if (entryType === SessionEntryType.PROGRESS || entryType === SessionEntryType.THINKING) {
-            return AgentStatus.RUNNING;
-        } else if (entryType === SessionEntryType.ASSISTANT) {
+        if (session.lastEntryType === 'assistant') {
             return AgentStatus.WAITING;
-        } else if (entryType === SessionEntryType.SYSTEM) {
+        }
+
+        if (session.lastEntryType === 'system') {
             return AgentStatus.IDLE;
         }
 
@@ -536,27 +687,27 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      * Generate unique agent name
      * Uses project basename, appends slug if multiple sessions for same project
      */
-    private generateAgentName(session: ClaudeSession, existingAgents: AgentInfo[]): string {
+    private generateAgentName(
+        session: ClaudeSession,
+        existingAgents: AgentInfo[],
+    ): string {
         const projectName = path.basename(session.projectPath) || 'claude';
 
         const sameProjectAgents = existingAgents.filter(
-            a => a.projectPath === session.projectPath
+            (a) => a.projectPath === session.projectPath,
         );
 
         if (sameProjectAgents.length === 0) {
             return projectName;
         }
 
-        // Multiple sessions for same project, append slug
         if (session.slug) {
-            // Use first word of slug for brevity (with safety check for format)
             const slugPart = session.slug.includes('-')
                 ? session.slug.split('-')[0]
                 : session.slug.slice(0, 8);
             return `${projectName} (${slugPart})`;
         }
 
-        // No slug available, use session ID prefix
         return `${projectName} (${session.sessionId.slice(0, 8)})`;
     }
 
@@ -575,7 +726,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         const normalizedChild = this.normalizePath(child);
         const normalizedParent = this.normalizePath(parent);
-        return normalizedChild === normalizedParent || normalizedChild.startsWith(`${normalizedParent}${path.sep}`);
+        return normalizedChild.startsWith(`${normalizedParent}${path.sep}`);
     }
 
     private normalizePath(value: string): string {
@@ -585,13 +736,4 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         }
         return resolved;
     }
-
-    private pathDepth(value?: string): number {
-        if (!value) {
-            return 0;
-        }
-
-        return this.normalizePath(value).split(path.sep).filter(Boolean).length;
-    }
-
 }
