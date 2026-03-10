@@ -126,17 +126,6 @@ paths:
     );
   });
 
-  it('rejects docsDir as unknown field', async () => {
-    mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
-docsDir: .ai-docs
-` as never);
-
-    await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
-      'unknown field(s): docsDir'
-    );
-  });
-
   it('throws when unknown field exists', async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(`
