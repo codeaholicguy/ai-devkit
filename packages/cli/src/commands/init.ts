@@ -214,8 +214,6 @@ export async function initCommand(options: InitOptions) {
     docsDir = options.docsDir.trim();
   } else if (templateConfig?.paths?.docs) {
     docsDir = templateConfig.paths.docs;
-  } else if (templateConfig?.docsDir) {
-    docsDir = templateConfig.docsDir;
   }
 
   const phaseTemplateManager = new TemplateManager({ docsDir });

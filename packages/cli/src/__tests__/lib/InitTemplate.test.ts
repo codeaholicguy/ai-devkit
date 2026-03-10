@@ -88,22 +88,6 @@ environments:
     );
   });
 
-  it('loads template with custom docsDir', async () => {
-    mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
-docsDir: .ai-docs
-environments:
-  - claude
-phases:
-  - requirements
-` as never);
-
-    const result = await loadInitTemplate('/tmp/init.yaml');
-
-    expect(result.docsDir).toBe('.ai-docs');
-    expect(result.environments).toEqual(['claude']);
-  });
-
   it('loads template with paths.docs config', async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(`
@@ -142,23 +126,14 @@ paths:
     );
   });
 
-  it('throws when docsDir is empty string', async () => {
+  it('rejects docsDir as unknown field', async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(`
-docsDir: "  "
+docsDir: .ai-docs
 ` as never);
 
     await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
-      '"docsDir" must be a non-empty string'
-    );
-  });
-
-  it('throws when docsDir is not a string', async () => {
-    mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(JSON.stringify({ docsDir: 123 }) as never);
-
-    await expect(loadInitTemplate('/tmp/init.json')).rejects.toThrow(
-      '"docsDir" must be a non-empty string'
+      'unknown field(s): docsDir'
     );
   });
 

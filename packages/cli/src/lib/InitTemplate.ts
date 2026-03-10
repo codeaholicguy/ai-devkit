@@ -11,7 +11,6 @@ export interface InitTemplateSkill {
 
 export interface InitTemplateConfig {
   version?: number | string;
-  docsDir?: string;
   paths?: {
     docs?: string;
   };
@@ -20,7 +19,7 @@ export interface InitTemplateConfig {
   skills?: InitTemplateSkill[];
 }
 
-const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'docsDir', 'paths', 'environments', 'phases', 'skills']);
+const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'paths', 'environments', 'phases', 'skills']);
 
 function validationError(templatePath: string, message: string): Error {
   return new Error(`Invalid template at ${templatePath}: ${message}`);
@@ -95,15 +94,6 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
         throw validationError(resolvedPath, '"paths.docs" must be a non-empty string');
       }
       result.paths = { docs: paths.docs.trim() };
-    }
-  }
-
-  if (candidate.docsDir !== undefined) {
-    if (typeof candidate.docsDir !== 'string' || candidate.docsDir.trim().length === 0) {
-      throw validationError(resolvedPath, '"docsDir" must be a non-empty string');
-    }
-    if (!result.paths?.docs) {
-      result.docsDir = candidate.docsDir.trim();
     }
   }
 
