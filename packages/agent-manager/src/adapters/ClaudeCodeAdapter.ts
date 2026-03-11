@@ -1,11 +1,3 @@
-/**
- * Claude Code Adapter
- *
- * Detects running Claude Code agents by combining:
- * 1. Running `claude` processes
- * 2. Session metadata under ~/.claude/projects
- */
-
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
@@ -123,40 +115,26 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         const assignedPids = new Set<number>();
         const agents: AgentInfo[] = [];
 
-        this.assignSessionsForMode(
-            'cwd',
-            claudeProcesses,
-            sortedSessions,
-            usedSessionIds,
-            assignedPids,
-            processStartByPid,
-            agents,
-        );
-        this.assignSessionsForMode(
-            'missing-cwd',
-            claudeProcesses,
-            sortedSessions,
-            usedSessionIds,
-            assignedPids,
-            processStartByPid,
-            agents,
-        );
-        this.assignSessionsForMode(
-            'parent-child',
-            claudeProcesses,
-            sortedSessions,
-            usedSessionIds,
-            assignedPids,
-            processStartByPid,
-            agents,
-        );
+        const modes: SessionMatchMode[] = ['cwd', 'missing-cwd', 'parent-child'];
+        for (const mode of modes) {
+            this.assignSessionsForMode(
+                mode,
+                claudeProcesses,
+                sortedSessions,
+                usedSessionIds,
+                assignedPids,
+                processStartByPid,
+                agents,
+            );
+        }
 
         for (const processInfo of claudeProcesses) {
             if (assignedPids.has(processInfo.pid)) {
                 continue;
             }
 
-            this.addProcessOnlyAgent(processInfo, assignedPids, agents);
+            assignedPids.add(processInfo.pid);
+            agents.push(this.mapProcessOnlyAgent(processInfo, agents));
         }
 
         return agents;
@@ -203,35 +181,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 continue;
             }
 
-            this.addMappedSessionAgent(
-                session,
-                processInfo,
-                usedSessionIds,
-                assignedPids,
-                agents,
-            );
+            usedSessionIds.add(session.sessionId);
+            assignedPids.add(processInfo.pid);
+            agents.push(this.mapSessionToAgent(session, processInfo, agents));
         }
-    }
-
-    private addMappedSessionAgent(
-        session: ClaudeSession,
-        processInfo: ProcessInfo,
-        usedSessionIds: Set<string>,
-        assignedPids: Set<number>,
-        agents: AgentInfo[],
-    ): void {
-        usedSessionIds.add(session.sessionId);
-        assignedPids.add(processInfo.pid);
-        agents.push(this.mapSessionToAgent(session, processInfo, agents));
-    }
-
-    private addProcessOnlyAgent(
-        processInfo: ProcessInfo,
-        assignedPids: Set<number>,
-        agents: AgentInfo[],
-    ): void {
-        assignedPids.add(processInfo.pid);
-        agents.push(this.mapProcessOnlyAgent(processInfo, agents));
     }
 
     private mapSessionToAgent(
@@ -257,25 +210,18 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         existingAgents: AgentInfo[],
     ): AgentInfo {
         const processCwd = processInfo.cwd || '';
-
-        const syntheticSession: ClaudeSession = {
-            sessionId: `pid-${processInfo.pid}`,
-            projectPath: processCwd,
-            lastCwd: processCwd,
-            sessionStart: new Date(),
-            lastActive: new Date(),
-            isInterrupted: false,
-        };
+        const projectName = path.basename(processCwd) || 'claude';
+        const hasDuplicate = existingAgents.some((a) => a.projectPath === processCwd);
 
         return {
-            name: this.generateAgentName(syntheticSession, existingAgents),
+            name: hasDuplicate ? `${projectName} (pid-${processInfo.pid})` : projectName,
             type: this.type,
             status: AgentStatus.IDLE,
             summary: 'Unknown',
             pid: processInfo.pid,
             projectPath: processCwd,
-            sessionId: syntheticSession.sessionId,
-            lastActive: syntheticSession.lastActive,
+            sessionId: `pid-${processInfo.pid}`,
+            lastActive: new Date(),
         };
     }
 
@@ -350,12 +296,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             // a parent of session project/lastCwd.  This also catches exact CWD
             // matches that were deferred from `cwd` mode due to start-time tolerance.
             return (
-                this.pathEquals(processInfo.cwd, session.projectPath) ||
-                this.pathEquals(processInfo.cwd, session.lastCwd) ||
-                this.isChildPath(processInfo.cwd, session.projectPath) ||
-                this.isChildPath(processInfo.cwd, session.lastCwd) ||
-                this.isChildPath(session.projectPath, processInfo.cwd) ||
-                this.isChildPath(session.lastCwd, processInfo.cwd)
+                this.pathRelated(processInfo.cwd, session.projectPath) ||
+                this.pathRelated(processInfo.cwd, session.lastCwd)
             );
         });
     }
@@ -711,6 +653,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         }
 
         return `${projectName} (${session.sessionId.slice(0, 8)})`;
+    }
+
+    /** Check if two paths are equal, or one is a parent/child of the other. */
+    private pathRelated(a?: string, b?: string): boolean {
+        return this.pathEquals(a, b) || this.isChildPath(a, b) || this.isChildPath(b, a);
     }
 
     private pathEquals(a?: string, b?: string): boolean {

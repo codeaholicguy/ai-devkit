@@ -107,7 +107,7 @@ All tasks complete. ClaudeCodeAdapter rewritten from 598 to ~800 lines following
 - Smart message extraction: parses `<command-message>` tags, extracts ARGUMENTS from skill expansions, filters noise
 - Metadata entry types (`last-prompt`, `file-history-snapshot`) excluded from status tracking
 - Process-only agents show IDLE status with "Unknown" summary
-- All 51 tests pass in ClaudeCodeAdapter suite, TypeScript compiles clean
+- All 71 tests pass in ClaudeCodeAdapter suite, TypeScript compiles clean
 
 Runtime fixes discovered during integration testing:
 - **`any` → `parent-child` mode**: `any` mode was too greedy, stealing sessions from unrelated projects

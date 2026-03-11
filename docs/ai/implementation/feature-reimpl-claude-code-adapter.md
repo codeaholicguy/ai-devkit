@@ -44,15 +44,16 @@ No changes to exports, index files, or CLI command.
 | `selectBestSession()` | `selectBestSession()` — adds start-time ranking |
 | — | `filterCandidateSessions()` — extracted |
 | — | `rankCandidatesByStartTime()` — new |
-| `assignSessionsForMode()` | `assignSessionsForMode()` — same structure |
+| `assignSessionsForMode()` | `assignSessionsForMode()` — same structure, tracking inlined |
 | `assignHistoryEntriesForExactProcessCwd()` | Removed — subsumed by `parent-child` mode |
 | — | `isClaudeExecutable()` — precise executable basename check |
 | — | `isChildPath()` — parent-child path relationship check |
+| — | `pathRelated()` — combined equals/parent/child check |
 | `mapSessionToAgent()` | `mapSessionToAgent()` — simplified |
-| `mapProcessOnlyAgent()` | `mapProcessOnlyAgent()` — simplified |
+| `mapProcessOnlyAgent()` | `mapProcessOnlyAgent()` — simplified, inlined name logic |
 | `mapHistoryToAgent()` | Removed — integrated into session mapping |
 | `determineStatus()` | `determineStatus()` — uses `lastEntryType` string |
-| `generateAgentName()` | `generateAgentName()` — keeps slug disambiguation |
+| `generateAgentName()` | `generateAgentName()` — keeps slug disambiguation (session-backed agents only) |
 
 ### Claude-Specific Adaptations
 

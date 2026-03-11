@@ -69,9 +69,9 @@ Responsibilities:
      - `filterCandidateSessions()`: mode-based filtering (`cwd` / `missing-cwd` / `parent-child`)
      - `isClaudeExecutable()`: precise executable detection (basename check, not substring)
      - `isChildPath()`: parent-child path relationship check
+     - `pathRelated()`: combined equals/parent/child check for path matching
      - `rankCandidatesByStartTime()`: tolerance-based ranking
-     - `assignSessionsForMode()`: orchestrate matching per mode
-     - `addMappedSessionAgent()` / `addProcessOnlyAgent()`: tracking helpers
+     - `assignSessionsForMode()`: orchestrate matching per mode (tracking inlined)
      - `extractUserMessageText()`: extract meaningful text from user messages (string or array content)
      - `parseCommandMessage()`: parse `<command-message>` tags into `/command args` format
      - `isNoiseMessage()`: filter out non-meaningful messages (interruptions, tool loads, continuations)

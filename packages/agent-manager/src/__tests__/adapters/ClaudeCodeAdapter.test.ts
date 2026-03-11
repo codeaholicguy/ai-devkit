@@ -705,6 +705,61 @@ describe('ClaudeCodeAdapter', () => {
                 expect(ranked[1].sessionId).toBe('far');
             });
 
+            it('should prefer recency over diffMs when both within tolerance', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const rankCandidatesByStartTime = (adapter as any).rankCandidatesByStartTime.bind(adapter);
+
+                const processStart = new Date('2026-03-10T10:00:00Z');
+                const candidates = [
+                    {
+                        sessionId: 'closer-but-stale',
+                        projectPath: '/test',
+                        sessionStart: new Date('2026-03-10T10:00:06Z'), // 6s diff
+                        lastActive: new Date('2026-03-10T10:00:10Z'),  // older activity
+                        isInterrupted: false,
+                    },
+                    {
+                        sessionId: 'farther-but-active',
+                        projectPath: '/test',
+                        sessionStart: new Date('2026-03-10T10:00:45Z'), // 45s diff
+                        lastActive: new Date('2026-03-10T10:30:00Z'),  // much more recent
+                        isInterrupted: false,
+                    },
+                ];
+
+                const ranked = rankCandidatesByStartTime(candidates, processStart);
+                // Both within tolerance — recency wins over smaller diffMs
+                expect(ranked[0].sessionId).toBe('farther-but-active');
+                expect(ranked[1].sessionId).toBe('closer-but-stale');
+            });
+
+            it('should break ties by recency when outside tolerance with same diffMs', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const rankCandidatesByStartTime = (adapter as any).rankCandidatesByStartTime.bind(adapter);
+
+                const processStart = new Date('2026-03-10T10:00:00Z');
+                const candidates = [
+                    {
+                        sessionId: 'older-activity',
+                        projectPath: '/test',
+                        sessionStart: new Date('2026-03-10T09:50:00Z'), // 10min diff
+                        lastActive: new Date('2026-03-10T10:01:00Z'),
+                        isInterrupted: false,
+                    },
+                    {
+                        sessionId: 'newer-activity',
+                        projectPath: '/test',
+                        sessionStart: new Date('2026-03-10T10:10:00Z'), // 10min diff (same abs)
+                        lastActive: new Date('2026-03-10T10:30:00Z'),
+                        isInterrupted: false,
+                    },
+                ];
+
+                const ranked = rankCandidatesByStartTime(candidates, processStart);
+                // Both outside tolerance, same diffMs — recency wins
+                expect(ranked[0].sessionId).toBe('newer-activity');
+            });
+
             it('should fall back to recency when both outside tolerance', () => {
                 const adapter = new ClaudeCodeAdapter();
                 const rankCandidatesByStartTime = (adapter as any).rankCandidatesByStartTime.bind(adapter);
@@ -782,6 +837,55 @@ describe('ClaudeCodeAdapter', () => {
                 expect(result[0].sessionId).toBe('s1');
             });
 
+            it('should include exact CWD matches in parent-child mode', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const filterCandidateSessions = (adapter as any).filterCandidateSessions.bind(adapter);
+
+                const processInfo = { pid: 1, command: 'claude', cwd: '/my/project', tty: '' };
+                const sessions = [
+                    {
+                        sessionId: 's1',
+                        projectPath: '/my/project',
+                        lastCwd: '/my/project',
+                        sessionStart: new Date(),
+                        lastActive: new Date(),
+                        isInterrupted: false,
+                    },
+                ];
+
+                const result = filterCandidateSessions(processInfo, sessions, new Set(), 'parent-child');
+                expect(result).toHaveLength(1);
+                expect(result[0].sessionId).toBe('s1');
+            });
+
+            it('should match parent-child relationships', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const filterCandidateSessions = (adapter as any).filterCandidateSessions.bind(adapter);
+
+                const processInfo = { pid: 1, command: 'claude', cwd: '/my/project', tty: '' };
+                const sessions = [
+                    {
+                        sessionId: 'child-session',
+                        projectPath: '/my/project/packages/sub',
+                        lastCwd: '/my/project/packages/sub',
+                        sessionStart: new Date(),
+                        lastActive: new Date(),
+                        isInterrupted: false,
+                    },
+                    {
+                        sessionId: 'parent-session',
+                        projectPath: '/my',
+                        lastCwd: '/my',
+                        sessionStart: new Date(),
+                        lastActive: new Date(),
+                        isInterrupted: false,
+                    },
+                ];
+
+                const result = filterCandidateSessions(processInfo, sessions, new Set(), 'parent-child');
+                expect(result).toHaveLength(2);
+            });
+
             it('should skip used sessions', () => {
                 const adapter = new ClaudeCodeAdapter();
                 const filterCandidateSessions = (adapter as any).filterCandidateSessions.bind(adapter);
@@ -801,7 +905,172 @@ describe('ClaudeCodeAdapter', () => {
                 expect(result).toHaveLength(0);
             });
         });
+
+        describe('extractUserMessageText', () => {
+            it('should extract plain string content', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                expect(extract('hello world')).toBe('hello world');
+            });
+
+            it('should extract text from array content blocks', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                const content = [
+                    { type: 'tool_result', content: 'some result' },
+                    { type: 'text', text: 'user question' },
+                ];
+                expect(extract(content)).toBe('user question');
+            });
+
+            it('should return undefined for empty/null content', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                expect(extract(undefined)).toBeUndefined();
+                expect(extract('')).toBeUndefined();
+                expect(extract([])).toBeUndefined();
+            });
+
+            it('should parse command-message tags', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                const msg = '<command-message><command-name>commit</command-name><command-args>fix bug</command-args></command-message>';
+                expect(extract(msg)).toBe('commit fix bug');
+            });
+
+            it('should parse command-message without args', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                const msg = '<command-message><command-name>help</command-name></command-message>';
+                expect(extract(msg)).toBe('help');
+            });
+
+            it('should extract ARGUMENTS from skill expansion', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                const msg = 'Base directory for this skill: /some/path\n\nSome instructions\n\nARGUMENTS: implement the feature';
+                expect(extract(msg)).toBe('implement the feature');
+            });
+
+            it('should return undefined for skill expansion without ARGUMENTS', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                const msg = 'Base directory for this skill: /some/path\n\nSome instructions only';
+                expect(extract(msg)).toBeUndefined();
+            });
+
+            it('should filter noise messages', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+
+                expect(extract('[Request interrupted by user]')).toBeUndefined();
+                expect(extract('Tool loaded.')).toBeUndefined();
+                expect(extract('This session is being continued from a previous conversation')).toBeUndefined();
+            });
+        });
+
+        describe('parseCommandMessage', () => {
+            it('should return undefined for malformed command-message', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const parse = (adapter as any).parseCommandMessage.bind(adapter);
+
+                expect(parse('<command-message>no tags</command-message>')).toBeUndefined();
+            });
+        });
     });
+
+    describe('selectBestSession', () => {
+            it('should defer in cwd mode when best candidate is outside tolerance', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const selectBestSession = (adapter as any).selectBestSession.bind(adapter);
+
+                const processInfo = { pid: 1, command: 'claude', cwd: '/my/project', tty: '' };
+                const processStart = new Date('2026-03-10T10:00:00Z');
+                const processStartByPid = new Map([[1, processStart]]);
+
+                const sessions = [
+                    {
+                        sessionId: 'stale-exact-cwd',
+                        projectPath: '/my/project',
+                        lastCwd: '/my/project',
+                        sessionStart: new Date('2026-03-07T10:00:00Z'), // 3 days old — outside tolerance
+                        lastActive: new Date('2026-03-10T10:05:00Z'),
+                        isInterrupted: false,
+                    },
+                ];
+
+                // In cwd mode, should defer (return undefined) because outside tolerance
+                const cwdResult = selectBestSession(processInfo, sessions, new Set(), processStartByPid, 'cwd');
+                expect(cwdResult).toBeUndefined();
+
+                // In parent-child mode, should accept the same candidate (no tolerance gate)
+                const parentChildResult = selectBestSession(processInfo, sessions, new Set(), processStartByPid, 'parent-child');
+                expect(parentChildResult).toBeDefined();
+                expect(parentChildResult.sessionId).toBe('stale-exact-cwd');
+            });
+
+            it('should fall back to recency when no processStart available', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const selectBestSession = (adapter as any).selectBestSession.bind(adapter);
+
+                const processInfo = { pid: 1, command: 'claude', cwd: '/my/project', tty: '' };
+                const processStartByPid = new Map<number, Date>(); // empty — no start time
+
+                const sessions = [
+                    {
+                        sessionId: 'older',
+                        projectPath: '/my/project',
+                        lastCwd: '/my/project',
+                        sessionStart: new Date('2026-03-10T09:00:00Z'),
+                        lastActive: new Date('2026-03-10T09:30:00Z'),
+                        isInterrupted: false,
+                    },
+                    {
+                        sessionId: 'newer',
+                        projectPath: '/my/project',
+                        lastCwd: '/my/project',
+                        sessionStart: new Date('2026-03-10T10:00:00Z'),
+                        lastActive: new Date('2026-03-10T10:30:00Z'),
+                        isInterrupted: false,
+                    },
+                ];
+
+                const result = selectBestSession(processInfo, sessions, new Set(), processStartByPid, 'cwd');
+                expect(result).toBeDefined();
+                expect(result.sessionId).toBe('newer');
+            });
+
+            it('should accept in cwd mode when best candidate is within tolerance', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const selectBestSession = (adapter as any).selectBestSession.bind(adapter);
+
+                const processInfo = { pid: 1, command: 'claude', cwd: '/my/project', tty: '' };
+                const processStart = new Date('2026-03-10T10:00:00Z');
+                const processStartByPid = new Map([[1, processStart]]);
+
+                const sessions = [
+                    {
+                        sessionId: 'fresh-exact-cwd',
+                        projectPath: '/my/project',
+                        lastCwd: '/my/project',
+                        sessionStart: new Date('2026-03-10T10:00:30Z'), // 30s — within tolerance
+                        lastActive: new Date('2026-03-10T10:05:00Z'),
+                        isInterrupted: false,
+                    },
+                ];
+
+                const result = selectBestSession(processInfo, sessions, new Set(), processStartByPid, 'cwd');
+                expect(result).toBeDefined();
+                expect(result.sessionId).toBe('fresh-exact-cwd');
+            });
+        });
 
     describe('file I/O methods', () => {
         let tmpDir: string;
@@ -879,6 +1148,77 @@ describe('ClaudeCodeAdapter', () => {
                 const readSession = (adapter as any).readSession.bind(adapter);
 
                 expect(readSession(path.join(tmpDir, 'nonexistent.jsonl'), '/test')).toBeNull();
+            });
+
+            it('should skip metadata entry types for lastEntryType', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const readSession = (adapter as any).readSession.bind(adapter);
+
+                const filePath = path.join(tmpDir, 'metadata-test.jsonl');
+                const lines = [
+                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:00:00Z', message: { content: 'hello' } }),
+                    JSON.stringify({ type: 'assistant', timestamp: '2026-03-10T10:01:00Z' }),
+                    JSON.stringify({ type: 'last-prompt', timestamp: '2026-03-10T10:02:00Z' }),
+                    JSON.stringify({ type: 'file-history-snapshot', timestamp: '2026-03-10T10:03:00Z' }),
+                ];
+                fs.writeFileSync(filePath, lines.join('\n'));
+
+                const session = readSession(filePath, '/test');
+                // lastEntryType should be 'assistant', not 'last-prompt' or 'file-history-snapshot'
+                expect(session.lastEntryType).toBe('assistant');
+            });
+
+            it('should parse snapshot.timestamp from file-history-snapshot first entry', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const readSession = (adapter as any).readSession.bind(adapter);
+
+                const filePath = path.join(tmpDir, 'snapshot-ts.jsonl');
+                const lines = [
+                    JSON.stringify({
+                        type: 'file-history-snapshot',
+                        snapshot: { timestamp: '2026-03-10T09:55:00Z', files: [] },
+                    }),
+                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:00:00Z', message: { content: 'test' } }),
+                    JSON.stringify({ type: 'assistant', timestamp: '2026-03-10T10:01:00Z' }),
+                ];
+                fs.writeFileSync(filePath, lines.join('\n'));
+
+                const session = readSession(filePath, '/test');
+                // sessionStart should come from snapshot.timestamp, not lastActive
+                expect(session.sessionStart.toISOString()).toBe('2026-03-10T09:55:00.000Z');
+                expect(session.lastActive.toISOString()).toBe('2026-03-10T10:01:00.000Z');
+            });
+
+            it('should extract lastUserMessage from session entries', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const readSession = (adapter as any).readSession.bind(adapter);
+
+                const filePath = path.join(tmpDir, 'user-msg.jsonl');
+                const lines = [
+                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:00:00Z', message: { content: 'first question' } }),
+                    JSON.stringify({ type: 'assistant', timestamp: '2026-03-10T10:01:00Z' }),
+                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:02:00Z', message: { content: [{ type: 'text', text: 'second question' }] } }),
+                    JSON.stringify({ type: 'assistant', timestamp: '2026-03-10T10:03:00Z' }),
+                ];
+                fs.writeFileSync(filePath, lines.join('\n'));
+
+                const session = readSession(filePath, '/test');
+                // Last user message should be the most recent one
+                expect(session.lastUserMessage).toBe('second question');
+            });
+
+            it('should use lastCwd as projectPath when projectPath is empty', () => {
+                const adapter = new ClaudeCodeAdapter();
+                const readSession = (adapter as any).readSession.bind(adapter);
+
+                const filePath = path.join(tmpDir, 'no-project.jsonl');
+                const lines = [
+                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:00:00Z', cwd: '/derived/path', message: { content: 'test' } }),
+                ];
+                fs.writeFileSync(filePath, lines.join('\n'));
+
+                const session = readSession(filePath, '');
+                expect(session.projectPath).toBe('/derived/path');
             });
 
             it('should handle malformed JSON lines gracefully', () => {
