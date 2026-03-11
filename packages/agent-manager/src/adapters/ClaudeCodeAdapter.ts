@@ -4,7 +4,6 @@
  * Detects running Claude Code agents by combining:
  * 1. Running `claude` processes
  * 2. Session metadata under ~/.claude/projects
- * 3. History entries from ~/.claude/history.jsonl
  */
 
 import * as fs from 'fs';
@@ -13,7 +12,7 @@ import { execSync } from 'child_process';
 import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listProcesses } from '../utils/process';
-import { readJsonLines, readJson } from '../utils/file';
+import { readJson } from '../utils/file';
 
 /**
  * Structure of ~/.claude/projects/{path}/sessions-index.json
@@ -31,22 +30,12 @@ interface SessionEntry {
     slug?: string;
     cwd?: string;
     message?: {
-        content?: Array<{
+        content?: string | Array<{
             type?: string;
             text?: string;
             content?: string;
         }>;
     };
-}
-
-/**
- * Entry in ~/.claude/history.jsonl
- */
-interface HistoryEntry {
-    display: string;
-    timestamp: number;
-    project: string;
-    sessionId: string;
 }
 
 /**
@@ -61,6 +50,7 @@ interface ClaudeSession {
     lastActive: Date;
     lastEntryType?: string;
     isInterrupted: boolean;
+    lastUserMessage?: string;
 }
 
 type SessionMatchMode = 'cwd' | 'missing-cwd' | 'parent-child';
@@ -73,13 +63,11 @@ type SessionMatchMode = 'cwd' | 'missing-cwd' | 'parent-child';
  * 2. Getting process start times for accurate session matching
  * 3. Reading bounded session files from ~/.claude/projects/
  * 4. Matching sessions to processes via CWD then start time ranking
- * 5. Extracting summary from history.jsonl
+ * 5. Extracting summary from last user message in session JSONL
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
     readonly type = 'claude' as const;
 
-    /** Keep status thresholds aligned across adapters. */
-    private static readonly IDLE_THRESHOLD_MINUTES = 5;
     /** Limit session parsing per run to keep list latency bounded. */
     private static readonly MIN_SESSION_SCAN = 12;
     private static readonly MAX_SESSION_SCAN = 40;
@@ -87,15 +75,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     /** Matching tolerance between process start time and session start time. */
     private static readonly PROCESS_SESSION_TIME_TOLERANCE_MS = 2 * 60 * 1000;
 
-    private claudeDir: string;
     private projectsDir: string;
-    private historyPath: string;
 
     constructor() {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-        this.claudeDir = path.join(homeDir, '.claude');
-        this.projectsDir = path.join(this.claudeDir, 'projects');
-        this.historyPath = path.join(this.claudeDir, 'history.jsonl');
+        this.projectsDir = path.join(homeDir, '.claude', 'projects');
     }
 
     /**
@@ -125,15 +109,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         );
         const sessionScanLimit = this.calculateSessionScanLimit(claudeProcesses.length);
         const sessions = this.readSessions(sessionScanLimit);
-        const history = this.readHistory();
-        const historyBySessionId = new Map<string, HistoryEntry>();
-        for (const entry of history) {
-            historyBySessionId.set(entry.sessionId, entry);
-        }
 
         if (sessions.length === 0) {
             return claudeProcesses.map((p) =>
-                this.mapProcessOnlyAgent(p, [], history),
+                this.mapProcessOnlyAgent(p, []),
             );
         }
 
@@ -151,7 +130,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             usedSessionIds,
             assignedPids,
             processStartByPid,
-            historyBySessionId,
             agents,
         );
         this.assignSessionsForMode(
@@ -161,7 +139,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             usedSessionIds,
             assignedPids,
             processStartByPid,
-            historyBySessionId,
             agents,
         );
         this.assignSessionsForMode(
@@ -171,7 +148,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             usedSessionIds,
             assignedPids,
             processStartByPid,
-            historyBySessionId,
             agents,
         );
 
@@ -180,7 +156,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 continue;
             }
 
-            this.addProcessOnlyAgent(processInfo, assignedPids, agents, history);
+            this.addProcessOnlyAgent(processInfo, assignedPids, agents);
         }
 
         return agents;
@@ -209,7 +185,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         usedSessionIds: Set<string>,
         assignedPids: Set<number>,
         processStartByPid: Map<number, Date>,
-        historyBySessionId: Map<string, HistoryEntry>,
         agents: AgentInfo[],
     ): void {
         for (const processInfo of claudeProcesses) {
@@ -233,7 +208,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 processInfo,
                 usedSessionIds,
                 assignedPids,
-                historyBySessionId,
                 agents,
             );
         }
@@ -244,37 +218,32 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         processInfo: ProcessInfo,
         usedSessionIds: Set<string>,
         assignedPids: Set<number>,
-        historyBySessionId: Map<string, HistoryEntry>,
         agents: AgentInfo[],
     ): void {
         usedSessionIds.add(session.sessionId);
         assignedPids.add(processInfo.pid);
-        agents.push(this.mapSessionToAgent(session, processInfo, historyBySessionId, agents));
+        agents.push(this.mapSessionToAgent(session, processInfo, agents));
     }
 
     private addProcessOnlyAgent(
         processInfo: ProcessInfo,
         assignedPids: Set<number>,
         agents: AgentInfo[],
-        history: HistoryEntry[],
     ): void {
         assignedPids.add(processInfo.pid);
-        agents.push(this.mapProcessOnlyAgent(processInfo, agents, history));
+        agents.push(this.mapProcessOnlyAgent(processInfo, agents));
     }
 
     private mapSessionToAgent(
         session: ClaudeSession,
         processInfo: ProcessInfo,
-        historyBySessionId: Map<string, HistoryEntry>,
         existingAgents: AgentInfo[],
     ): AgentInfo {
-        const historyEntry = historyBySessionId.get(session.sessionId);
-
         return {
             name: this.generateAgentName(session, existingAgents),
             type: this.type,
             status: this.determineStatus(session),
-            summary: historyEntry?.display || 'Session started',
+            summary: session.lastUserMessage || 'Session started',
             pid: processInfo.pid,
             projectPath: session.projectPath || processInfo.cwd || '',
             sessionId: session.sessionId,
@@ -286,46 +255,28 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     private mapProcessOnlyAgent(
         processInfo: ProcessInfo,
         existingAgents: AgentInfo[],
-        history: HistoryEntry[],
     ): AgentInfo {
         const processCwd = processInfo.cwd || '';
-        const historyEntry = this.findHistoryForCwd(processCwd, history);
-        const sessionId = historyEntry?.sessionId || `pid-${processInfo.pid}`;
-        const lastActive = historyEntry ? new Date(historyEntry.timestamp) : new Date();
 
         const syntheticSession: ClaudeSession = {
-            sessionId,
+            sessionId: `pid-${processInfo.pid}`,
             projectPath: processCwd,
             lastCwd: processCwd,
-            sessionStart: lastActive,
-            lastActive,
+            sessionStart: new Date(),
+            lastActive: new Date(),
             isInterrupted: false,
         };
 
         return {
             name: this.generateAgentName(syntheticSession, existingAgents),
             type: this.type,
-            status: AgentStatus.RUNNING,
-            summary: historyEntry?.display || 'Claude process running',
+            status: AgentStatus.IDLE,
+            summary: 'Unknown',
             pid: processInfo.pid,
             projectPath: processCwd,
-            sessionId,
-            lastActive,
+            sessionId: syntheticSession.sessionId,
+            lastActive: syntheticSession.lastActive,
         };
-    }
-
-    private findHistoryForCwd(
-        cwd: string,
-        history: HistoryEntry[],
-    ): HistoryEntry | undefined {
-        if (!cwd) {
-            return undefined;
-        }
-
-        const normalizedCwd = this.normalizePath(cwd);
-        return history.find(
-            (entry) => this.normalizePath(entry.project) === normalizedCwd,
-        );
     }
 
     private selectBestSession(
@@ -353,7 +304,24 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             )[0];
         }
 
-        return this.rankCandidatesByStartTime(candidates, processStart)[0];
+        const best = this.rankCandidatesByStartTime(candidates, processStart)[0];
+        if (!best) {
+            return undefined;
+        }
+
+        // In early modes (cwd/missing-cwd), defer assignment when the best
+        // candidate is outside start-time tolerance — a closer match may
+        // exist in parent-child mode (e.g., worktree sessions).
+        if (mode !== 'parent-child') {
+            const diffMs = Math.abs(
+                best.sessionStart.getTime() - processStart.getTime(),
+            );
+            if (diffMs > ClaudeCodeAdapter.PROCESS_SESSION_TIME_TOLERANCE_MS) {
+                return undefined;
+            }
+        }
+
+        return best;
     }
 
     private filterCandidateSessions(
@@ -378,8 +346,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 return !session.projectPath;
             }
 
-            // parent-child mode: match if process CWD is under session project or vice versa
+            // parent-child mode: match if process CWD equals, is under, or is
+            // a parent of session project/lastCwd.  This also catches exact CWD
+            // matches that were deferred from `cwd` mode due to start-time tolerance.
             return (
+                this.pathEquals(processInfo.cwd, session.projectPath) ||
+                this.pathEquals(processInfo.cwd, session.lastCwd) ||
                 this.isChildPath(processInfo.cwd, session.projectPath) ||
                 this.isChildPath(processInfo.cwd, session.lastCwd) ||
                 this.isChildPath(session.projectPath, processInfo.cwd) ||
@@ -409,6 +381,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             })
             .sort((a, b) => {
                 if (a.rank !== b.rank) return a.rank - b.rank;
+                // Within tolerance (rank 0): prefer most recently active session.
+                // The exact diff is noise — a 6s vs 45s difference is meaningless,
+                // but the session with recent activity is more likely the real one.
+                if (a.rank === 0) return b.recency - a.recency;
+                // Outside tolerance: prefer smallest time difference, then recency.
                 if (a.diffMs !== b.diffMs) return a.diffMs - b.diffMs;
                 return b.recency - a.recency;
             })
@@ -535,9 +512,33 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             }
         }
 
-        return files
-            .sort((a, b) => b.mtimeMs - a.mtimeMs)
-            .slice(0, limit);
+        // Ensure breadth: include at least the most recent session per project,
+        // then fill remaining slots with globally most-recent sessions.
+        const sorted = files.sort((a, b) => b.mtimeMs - a.mtimeMs);
+        const result: typeof files = [];
+        const seenProjects = new Set<string>();
+
+        // First pass: one most-recent session per project directory
+        for (const file of sorted) {
+            const projDir = path.dirname(file.filePath);
+            if (!seenProjects.has(projDir)) {
+                seenProjects.add(projDir);
+                result.push(file);
+            }
+        }
+
+        // Second pass: fill remaining slots with globally most-recent
+        if (result.length < limit) {
+            const resultSet = new Set(result.map((f) => f.filePath));
+            for (const file of sorted) {
+                if (result.length >= limit) break;
+                if (!resultSet.has(file.filePath)) {
+                    result.push(file);
+                }
+            }
+        }
+
+        return result.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
     }
 
     /**
@@ -561,12 +562,16 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             return null;
         }
 
-        // Parse first line for sessionStart
+        // Parse first line for sessionStart.
+        // Claude Code may emit a "file-history-snapshot" as the first entry, which
+        // stores its timestamp inside "snapshot.timestamp" rather than at the root.
         let sessionStart: Date | null = null;
         try {
-            const firstEntry: SessionEntry = JSON.parse(allLines[0]);
-            if (firstEntry.timestamp) {
-                const ts = new Date(firstEntry.timestamp);
+            const firstEntry = JSON.parse(allLines[0]);
+            const rawTs: string | undefined =
+                firstEntry.timestamp || firstEntry.snapshot?.timestamp;
+            if (rawTs) {
+                const ts = new Date(rawTs);
                 if (!Number.isNaN(ts.getTime())) {
                     sessionStart = ts;
                 }
@@ -575,15 +580,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             /* skip */
         }
 
-        // Parse last N lines for recent state
-        const recentLines = allLines.slice(-100);
+        // Parse all lines for session state (file already in memory)
         let slug: string | undefined;
         let lastEntryType: string | undefined;
         let lastActive: Date | undefined;
         let lastCwd: string | undefined;
         let isInterrupted = false;
+        let lastUserMessage: string | undefined;
 
-        for (const line of recentLines) {
+        for (const line of allLines) {
             try {
                 const entry: SessionEntry = JSON.parse(line);
 
@@ -602,7 +607,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                     lastCwd = entry.cwd;
                 }
 
-                if (entry.type) {
+                if (entry.type && !this.isMetadataEntryType(entry.type)) {
                     lastEntryType = entry.type;
 
                     if (entry.type === 'user') {
@@ -616,6 +621,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                                     (c.type === 'tool_result' &&
                                         c.content?.includes('[Request interrupted')),
                             );
+
+                        // Extract user message text for summary fallback
+                        const text = this.extractUserMessageText(msgContent);
+                        if (text) {
+                            lastUserMessage = text;
+                        }
                     } else {
                         isInterrupted = false;
                     }
@@ -634,15 +645,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             lastActive: lastActive || new Date(),
             lastEntryType,
             isInterrupted,
+            lastUserMessage,
         };
-    }
-
-    /**
-     * Read history.jsonl for summaries
-     * Only reads last 100 lines for performance
-     */
-    private readHistory(): HistoryEntry[] {
-        return readJsonLines<HistoryEntry>(this.historyPath, 100);
     }
 
     /**
@@ -653,11 +657,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             return AgentStatus.UNKNOWN;
         }
 
-        const ageMinutes =
-            (Date.now() - session.lastActive.getTime()) / 60000;
-        if (ageMinutes > ClaudeCodeAdapter.IDLE_THRESHOLD_MINUTES) {
-            return AgentStatus.IDLE;
-        }
+        // No age-based IDLE override: every agent in the list is backed by
+        // a running process (found via ps), so the entry type is the best
+        // indicator of actual state.
 
         if (session.lastEntryType === 'user') {
             return session.isInterrupted
@@ -727,6 +729,86 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         const normalizedChild = this.normalizePath(child);
         const normalizedParent = this.normalizePath(parent);
         return normalizedChild.startsWith(`${normalizedParent}${path.sep}`);
+    }
+
+    /**
+     * Extract meaningful text from a user message content.
+     * Handles string and array formats, skill command expansion, and noise filtering.
+     */
+    private extractUserMessageText(
+        content: string | Array<{ type?: string; text?: string }> | undefined,
+    ): string | undefined {
+        if (!content) {
+            return undefined;
+        }
+
+        let raw: string | undefined;
+
+        if (typeof content === 'string') {
+            raw = content.trim();
+        } else if (Array.isArray(content)) {
+            for (const block of content) {
+                if (block.type === 'text' && block.text?.trim()) {
+                    raw = block.text.trim();
+                    break;
+                }
+            }
+        }
+
+        if (!raw) {
+            return undefined;
+        }
+
+        // Skill slash-command: extract /command-name and args
+        if (raw.startsWith('<command-message>')) {
+            return this.parseCommandMessage(raw);
+        }
+
+        // Expanded skill content: extract ARGUMENTS line if present, skip otherwise
+        if (raw.startsWith('Base directory for this skill:')) {
+            const argsMatch = raw.match(/\nARGUMENTS:\s*(.+)/);
+            return argsMatch?.[1]?.trim() || undefined;
+        }
+
+        // Filter noise
+        if (this.isNoiseMessage(raw)) {
+            return undefined;
+        }
+
+        return raw;
+    }
+
+    /**
+     * Parse a <command-message> string into "/command args" format.
+     */
+    private parseCommandMessage(raw: string): string | undefined {
+        const nameMatch = raw.match(/<command-name>([^<]+)<\/command-name>/);
+        const argsMatch = raw.match(/<command-args>([^<]+)<\/command-args>/);
+        const name = nameMatch?.[1]?.trim();
+        if (!name) {
+            return undefined;
+        }
+        const args = argsMatch?.[1]?.trim();
+        return args ? `${name} ${args}` : name;
+    }
+
+    /**
+     * Check if a message is noise (not a meaningful user intent).
+     */
+    private isNoiseMessage(text: string): boolean {
+        return (
+            text.startsWith('[Request interrupted') ||
+            text === 'Tool loaded.' ||
+            text.startsWith('This session is being continued')
+        );
+    }
+
+    /**
+     * Check if an entry type is metadata (not conversation state).
+     * These should not overwrite lastEntryType used for status determination.
+     */
+    private isMetadataEntryType(type: string): boolean {
+        return type === 'last-prompt' || type === 'file-history-snapshot';
     }
 
     private normalizePath(value: string): string {

@@ -34,15 +34,15 @@ description: Task breakdown for re-implementing ClaudeCodeAdapter
   - Files: `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts`
 
 - [x] Task 1.4: Rewrite `readSession()` for single session parsing
-  - Parse first entry for `sessionStart` timestamp
-  - Read last N lines for `lastEntryType`, `lastActive`, `lastCwd`, `slug`
-  - Simple history.jsonl lookup for summary
+  - Parse first entry for `sessionStart` timestamp (including `snapshot.timestamp` for `file-history-snapshot` entries)
+  - Read all lines for `lastEntryType`, `lastActive`, `lastCwd`, `slug` (skip metadata entry types)
+  - Extract `lastUserMessage` from session JSONL with command parsing and noise filtering
   - Files: `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts`
 
 - [x] Task 1.5: Rewrite matching flow to `cwd` → `missing-cwd` → `parent-child`
   - Implement `assignSessionsForMode()`, `filterCandidateSessions()`, `addMappedSessionAgent()`, `addProcessOnlyAgent()`
   - Remove `assignHistoryEntriesForExactProcessCwd()` and old `project-parent` mode
-  - `parent-child` mode matches when process CWD is parent/child of session path (avoids greedy `any` mode)
+  - `parent-child` mode matches when process CWD equals, is parent, or child of session path (avoids greedy `any` mode)
   - Files: `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts`
 
 - [x] Task 1.6: Rewrite `determineStatus()` and `generateAgentName()`
@@ -98,23 +98,34 @@ description: Task breakdown for re-implementing ClaudeCodeAdapter
 
 ## Progress Summary
 
-All tasks complete. ClaudeCodeAdapter rewritten from 598 to ~740 lines following CodexAdapter patterns. Key changes:
+All tasks complete. ClaudeCodeAdapter rewritten from 598 to ~800 lines following CodexAdapter patterns. Key changes:
 - Added process start time matching (`getProcessStartTimes`, `rankCandidatesByStartTime`)
-- Bounded session scanning (`calculateSessionScanLimit`, `findSessionFiles` with mtime sort + limit)
-- Restructured matching to `cwd` → `missing-cwd` → `parent-child` phases
-- Simplified session model: `lastEntryType` + `isInterrupted` instead of full `lastEntry` object
-- History.jsonl kept simple: summary lookup by sessionId for matched sessions, CWD lookup for process-only
-- All 100 tests pass (4 suites), TypeScript compiles clean
+- Bounded session scanning with breadth guarantee (`findSessionFiles` ensures one session per project dir)
+- Restructured matching to `cwd` → `missing-cwd` → `parent-child` phases with tolerance-gated deferral
+- Simplified session model: `lastEntryType` + `isInterrupted` + `lastUserMessage`
+- Removed history.jsonl dependency — summary extracted from session JSONL `lastUserMessage`
+- Smart message extraction: parses `<command-message>` tags, extracts ARGUMENTS from skill expansions, filters noise
+- Metadata entry types (`last-prompt`, `file-history-snapshot`) excluded from status tracking
+- Process-only agents show IDLE status with "Unknown" summary
+- All 51 tests pass in ClaudeCodeAdapter suite, TypeScript compiles clean
 
 Runtime fixes discovered during integration testing:
-- **`any` → `parent-child` mode**: `any` mode was too greedy, stealing sessions from unrelated projects. Replaced with `parent-child` mode that only matches when process CWD has a parent-child relationship with session path.
-- **`isClaudeExecutable`**: `command.includes('claude')` falsely matched nx daemon processes whose path arguments contained "claude" (from worktree directory names). Changed to check basename of the first command word, matching CodexAdapter's `isCodexExecutable` pattern.
-- **Optional `sessions-index.json`**: Most Claude project directories lack this file in practice. Made it optional — when missing, `projectPath` is derived from `lastCwd` in session JSONL content.
+- **`any` → `parent-child` mode**: `any` mode was too greedy, stealing sessions from unrelated projects
+- **`isClaudeExecutable`**: precise basename check instead of `command.includes('claude')`
+- **Optional `sessions-index.json`**: falls back to `lastCwd` from session JSONL content
+- **Breadth-first scanning**: ensures at least one session per project directory before filling remaining slots
+- **Full-file user message scan**: parses all session lines (not just last 100) to find meaningful user messages
+- **`file-history-snapshot` timestamp**: first JSONL entry may be `file-history-snapshot` with timestamp nested in `snapshot.timestamp` instead of top-level `timestamp`. Falling back to `lastActive` caused wrong session matching when a stale session's last activity coincided with a new process start
+- **No age-based IDLE override**: removed 5-minute IDLE threshold since every listed agent is backed by a running process — entry type is the correct status indicator
+- **Metadata entry type filtering**: `last-prompt` and `file-history-snapshot` entries are metadata, not conversation state. Skipping them via `isMetadataEntryType()` prevents them from overwriting `lastEntryType` and causing UNKNOWN status
+- **Tolerance-gated CWD matching**: `cwd` and `missing-cwd` modes now defer assignment when the best candidate is outside start-time tolerance. This prevents stale sessions from being matched when a better match exists in `parent-child` mode (e.g., worktree sessions where process CWD is the main repo but session CWD is the worktree)
+- **Recency-first ranking within tolerance**: when multiple sessions are within the 2-minute tolerance, sort by `lastActive` (most recent first) instead of smallest `diffMs`. Fixes stub sessions (3 lines) beating real sessions (270+ lines) due to a few seconds' start-time advantage
+- **`parent-child` mode includes exact CWD**: expanded to also accept exact CWD matches as a safety net for deferred `cwd` assignments. Old processes whose sessions were created days later get matched correctly
 
 Behavioral changes from original:
 - `parent-child`-mode matching replaces `project-parent` and `assignHistoryEntriesForExactProcessCwd`
-- Session matching now takes precedence over history-based matching in all cases
-- Tests updated accordingly with new test cases for `parseElapsedSeconds`, `calculateSessionScanLimit`, `rankCandidatesByStartTime`, `isClaudeExecutable`, `parent-child` filtering
+- Session JSONL provides summaries directly (no history.jsonl dependency)
+- Process-only agents show IDLE/Unknown instead of RUNNING/"Claude process running"
 
 ## Risks & Mitigation
 
@@ -123,4 +134,4 @@ Behavioral changes from original:
 - **Risk**: Process start time unavailable on some systems.
   - Mitigation: Graceful fallback to recency-based ranking (same as CodexAdapter).
 - **Risk**: Bounded scanning may miss relevant sessions.
-  - Mitigation: Include process-start-day window files (same as CodexAdapter pattern).
+  - Mitigation: Breadth-first scanning ensures at least one session per project directory; mtime-based top-N covers most-recently-active sessions.

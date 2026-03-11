@@ -13,7 +13,7 @@ The current `ClaudeCodeAdapter` (598 lines) uses a different architectural appro
 
 - **No process start time matching**: Claude adapter relies solely on CWD and parent-path matching to pair processes with sessions, which is fragile when multiple Claude processes share the same project directory.
 - **Unbounded session scanning**: Reads all session files across all projects in `~/.claude/projects/`, which degrades performance as session history grows.
-- **Inconsistent matching phases**: Uses `cwd` → `history` → `project-parent` → `process-only` flow, while Codex uses the cleaner `cwd` → `missing-cwd` → `any` pattern with extracted helpers and PID/session tracking sets.
+- **Inconsistent matching phases**: Uses `cwd` → `history` → `project-parent` → `process-only` flow, while Codex uses the cleaner `cwd` → `missing-cwd` → `parent-child` pattern with extracted helpers and PID/session tracking sets.
 - **Structural divergence**: Two adapters in the same package follow different patterns, making maintenance harder.
 
 ## Goals & Objectives
@@ -22,11 +22,11 @@ The current `ClaudeCodeAdapter` (598 lines) uses a different architectural appro
 - Re-implement `ClaudeCodeAdapter` using the same architectural patterns as `CodexAdapter`
 - Add process start time matching (`getProcessStartTimes` + `rankCandidatesByStartTime`) for accurate process-session pairing
 - Introduce bounded session scanning to keep `agent list` latency predictable
-- Align matching phases to `cwd` → `missing-cwd` → `any` with extracted helper methods
+- Align matching phases to `cwd` → `missing-cwd` → `parent-child` with extracted helper methods
 
 ### Secondary Goals
 - Improve disambiguation when multiple Claude processes share the same CWD
-- Keep history.jsonl integration for summaries (simple read, no complex indexing)
+- Extract summary from session JSONL directly (no history.jsonl dependency)
 
 ### Non-Goals
 - Changing Claude Code's session file structure (`~/.claude/projects/`)
@@ -51,10 +51,9 @@ The current `ClaudeCodeAdapter` (598 lines) uses a different architectural appro
 
 ## Constraints & Assumptions
 
-- **Session structure is fixed**: Claude Code stores sessions in `~/.claude/projects/{encoded-path}/` with `sessions-index.json` and `*.jsonl` files — this cannot change.
-- **history.jsonl**: Available at `~/.claude/history.jsonl` for summary extraction — keep simple.
+- **Session structure is fixed**: Claude Code stores sessions in `~/.claude/projects/{encoded-path}/` with optional `sessions-index.json` and `*.jsonl` files — this cannot change.
 - **Process detection**: Uses existing `listProcesses()` utility — no changes.
-- **Status thresholds**: Must remain aligned across adapters (5-minute IDLE threshold).
+- **Status determination**: Based on session entry type; no age-based IDLE override since every listed agent is backed by a running process.
 - **Platform**: macOS/Linux only (same as existing adapter).
 
 ## Questions & Open Items

@@ -41,10 +41,10 @@ Responsibilities:
   - `projectPath`: from `sessions-index.json` → `originalPath`, falls back to `lastCwd` when index missing
   - `lastCwd`: from session JSONL entries
   - `slug`: from session JSONL entries
-  - `sessionStart`: earliest timestamp in session (first entry or file creation)
+  - `sessionStart`: from first JSONL entry timestamp (supports both top-level `timestamp` and `snapshot.timestamp` for `file-history-snapshot` entries)
   - `lastActive`: latest timestamp in session
-  - `lastEntryType`: type of last session entry (for status determination)
-  - `summary`: from `history.jsonl` lookup (simple, not indexed)
+  - `lastEntryType`: type of last non-metadata session entry (excludes `last-prompt`, `file-history-snapshot`; used for status determination)
+  - `lastUserMessage`: last meaningful user message from session JSONL (with command parsing and noise filtering)
 
 ## API Design
 
@@ -63,7 +63,7 @@ Responsibilities:
      - `listClaudeProcesses()`: extract process listing
      - `calculateSessionScanLimit()`: bounded scanning
      - `getProcessStartTimes()`: process elapsed time → start time mapping
-     - `findSessionFiles()`: bounded file discovery with recent + process-day windows
+     - `findSessionFiles()`: bounded file discovery with breadth-first scanning (one per project, then fill globally by mtime)
      - `readSession()`: parse single session (meta + last entry + timestamps)
      - `selectBestSession()`: filter + rank candidates by start time
      - `filterCandidateSessions()`: mode-based filtering (`cwd` / `missing-cwd` / `parent-child`)
@@ -72,15 +72,19 @@ Responsibilities:
      - `rankCandidatesByStartTime()`: tolerance-based ranking
      - `assignSessionsForMode()`: orchestrate matching per mode
      - `addMappedSessionAgent()` / `addProcessOnlyAgent()`: tracking helpers
-     - `determineStatus()`: status from entry type + recency
+     - `extractUserMessageText()`: extract meaningful text from user messages (string or array content)
+     - `parseCommandMessage()`: parse `<command-message>` tags into `/command args` format
+     - `isNoiseMessage()`: filter out non-meaningful messages (interruptions, tool loads, continuations)
+     - `isMetadataEntryType()`: skip metadata entry types (`last-prompt`, `file-history-snapshot`) when tracking `lastEntryType`
+     - `determineStatus()`: status from entry type (no age override)
      - `generateAgentName()`: project basename + disambiguation
 
    - Claude-specific adaptations (differs from Codex):
      - Session discovery: walk `~/.claude/projects/*/` reading `*.jsonl` files. Uses `sessions-index.json` for `originalPath` when available, falls back to `lastCwd` from session content when index is missing (common in practice)
      - Bounded scanning: collect all `*.jsonl` files with mtime, sort by mtime descending, take top N. No process-day window (Claude sessions aren't organized by date — mtime-based cutoff is sufficient since we already stat files during discovery).
-     - `sessionStart`: parsed from first JSONL entry timestamp (not `session_meta` type)
-     - Summary: lookup from `~/.claude/history.jsonl` by sessionId (simple scan, no complex indexing)
-     - Status: map Claude entry types (`user`, `assistant`, `progress`, `thinking`, `system`) to `AgentStatus`
+     - `sessionStart`: parsed from first JSONL entry — checks `entry.timestamp` then `entry.snapshot.timestamp` (for `file-history-snapshot` entries common in practice)
+     - Summary: extracted from last user message in session JSONL (no history.jsonl dependency). Handles `<command-message>` tags for slash commands, filters skill expansions and noise messages
+     - Status: map Claude entry types (`user`, `assistant`, `progress`, `thinking`, `system`) to `AgentStatus`. Metadata types (`last-prompt`, `file-history-snapshot`) are excluded. No age-based IDLE override
      - Name: use slug for disambiguation (Claude sessions have slugs)
 
 2. `packages/agent-manager/src/__tests__/adapters/ClaudeCodeAdapter.test.ts` — update tests
@@ -97,16 +101,22 @@ Responsibilities:
   - Rationale: improves accuracy when multiple Claude processes share the same CWD, consistent with CodexAdapter.
 - Decision: Bound session scanning with MIN/MAX limits.
   - Rationale: keeps latency predictable as history grows, consistent with CodexAdapter.
-- Decision: Replace `cwd` → `history` → `project-parent` flow with `cwd` → `missing-cwd` → `parent-child`.
-  - Rationale: simpler, consistent with CodexAdapter. `parent-child` mode matches sessions where process CWD is a parent or child of session project path, avoiding the greedy matching of `any` mode which caused cross-project session stealing.
+- Decision: Replace `cwd` → `history` → `project-parent` flow with `cwd` → `missing-cwd` → `parent-child`, with tolerance-gated deferral in early modes.
+  - Rationale: simpler, consistent with CodexAdapter. `cwd` and `missing-cwd` modes defer assignment when the best candidate is outside start-time tolerance, allowing `parent-child` mode to find a better match (e.g., worktree sessions). `parent-child` mode matches sessions where process CWD equals, is a parent, or child of session project path — it includes exact CWD as a safety net for deferred matches. This avoids the greedy matching of the original `any` mode which caused cross-project session stealing.
+- Decision: Within start-time tolerance, rank by recency (`lastActive`) instead of smallest time difference.
+  - Rationale: a 6s vs 45s start-time diff is noise within the 2-minute window. The session with more recent activity is the correct one — prevents stub sessions from beating real work sessions.
 - Decision: Use precise executable detection (`isClaudeExecutable`) instead of substring matching.
   - Rationale: `command.includes('claude')` falsely matched processes whose path arguments contained "claude" (e.g., nx daemon in a worktree named `feature-reimpl-claude-code-adapter`). Checking the basename of the first command word (`claude` or `claude.exe`) matches CodexAdapter's `isCodexExecutable` pattern.
 - Decision: Make `sessions-index.json` optional, fall back to `lastCwd` from session content.
   - Rationale: most Claude project directories lack `sessions-index.json` in practice, causing entire projects to be skipped during session discovery. Using `lastCwd` from the JSONL entries provides a reliable fallback.
-- Decision: Keep history.jsonl summary lookup simple (scan last N entries, match by sessionId).
-  - Rationale: avoids complex indexing; keeps it simple at first per user request.
-- Decision: Keep status-threshold values consistent across adapters (5-minute IDLE).
-  - Rationale: preserves cross-agent behavior consistency.
+- Decision: Remove history.jsonl dependency, extract summary from session JSONL directly.
+  - Rationale: session JSONL already contains the conversation. Extracting the last user message is more reliable than history.jsonl which only covers recent sessions. Includes command tag parsing for slash commands and noise filtering.
+- Decision: Process-only agents (no session file) show IDLE status with "Unknown" summary.
+  - Rationale: without session data, we can't determine actual status or task. IDLE + Unknown is more honest than RUNNING + "Claude process running".
+- Decision: Ensure breadth in bounded scanning — at least one session per project directory.
+  - Rationale: projects with many sessions (e.g., ai-devkit with 20+ files) consumed all scan slots, starving other projects. Two-pass scanning (one per project, then fill globally) ensures every project is represented.
+- Decision: No age-based IDLE override for process-backed agents.
+  - Rationale: every agent in the list is backed by a running process found via `ps`. The session entry type (`user`/`assistant`/`progress`/`system`) is a more accurate status indicator than a time threshold. Removed the 5-minute IDLE override.
 - Decision: Keep matching orchestration in explicit phases with extracted helper methods and PID/session tracking sets.
   - Rationale: mirrors CodexAdapter structure for maintainability.
 - Decision: Use mtime-based bounded scanning without process-day window.

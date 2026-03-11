@@ -32,7 +32,9 @@ description: Testing strategy for re-implemented ClaudeCodeAdapter
 - [x] `getProcessStartTimes()` parses `ps` output correctly
 - [x] `parseElapsedSeconds()` handles `MM:SS`, `HH:MM:SS`, `D-HH:MM:SS` formats
 - [x] `rankCandidatesByStartTime()` prefers sessions within tolerance window
+- [x] `rankCandidatesByStartTime()` within tolerance, ranks by recency not diffMs
 - [x] `rankCandidatesByStartTime()` falls back to recency when no start time
+- [x] `selectBestSession()` defers `cwd` mode when outside tolerance (falls through to `parent-child`)
 - [x] Graceful fallback when `ps` command fails
 
 ### Bounded Session Scanning
@@ -54,7 +56,8 @@ description: Testing strategy for re-implemented ClaudeCodeAdapter
 - [x] `assistant` entry type → WAITING
 - [x] `progress`/`thinking` → RUNNING
 - [x] `system` → IDLE
-- [x] Age > 5 minutes → IDLE (overrides entry type)
+- [x] No age-based IDLE override (process is running, entry type is authoritative)
+- [x] Metadata entry types (`last-prompt`, `file-history-snapshot`) do not affect status
 - [x] No last entry → UNKNOWN
 
 ### Name Generation
@@ -63,21 +66,25 @@ description: Testing strategy for re-implemented ClaudeCodeAdapter
 - [x] Appends slug when multiple sessions for same project
 - [x] Falls back to sessionId prefix when no slug
 
-### History Summary
+### Summary Extraction
 
-- [x] Reads summary from history.jsonl by sessionId
-- [x] Falls back to default summary when no history match
+- [x] Uses `lastUserMessage` from session JSONL as "Working On" text
+- [x] Parses `<command-message>` tags into `/command args` format for slash commands
+- [x] Extracts ARGUMENTS from skill expansion content ("Base directory for this skill:...")
+- [x] Filters noise messages: "[Request interrupted...]", "Tool loaded.", continuation summaries
+- [x] Falls back to "Session started" when no meaningful user message found
+- [x] Process-only agents show IDLE status with "Unknown" summary
 
 ## Test Data
 
 - Mock `listProcesses()` to return controlled process lists
 - Mock `fs` operations for session file reads
 - Mock `execSync` for `ps` output in start time tests
-- Use inline JSONL fixtures for session and history data
+- Use inline JSONL fixtures for session data
 
 ## Test Reporting & Coverage
 
 - Run: `cd packages/agent-manager && npx jest --coverage src/__tests__/adapters/ClaudeCodeAdapter.test.ts`
 - Uncoverable: `getProcessStartTimes` body (skipped in JEST_WORKER_ID — same pattern as CodexAdapter)
-- All 100 tests pass across 4 suites
+- All 51 tests pass in ClaudeCodeAdapter suite
 - Integration tested: `npm run build && node packages/cli/dist/cli.js agent list` verified with 9 concurrent Claude processes

@@ -20,7 +20,6 @@ type PrivateMethod<T extends (...args: never[]) => unknown> = T;
 
 interface AdapterPrivates {
     readSessions: PrivateMethod<(limit: number) => unknown[]>;
-    readHistory: PrivateMethod<() => unknown[]>;
 }
 
 describe('ClaudeCodeAdapter', () => {
@@ -102,7 +101,7 @@ describe('ClaudeCodeAdapter', () => {
             expect(agents).toEqual([]);
         });
 
-        it('should detect agents using mocked process/session/history data', async () => {
+        it('should detect agents using mocked process/session data', async () => {
             const processData: ProcessInfo[] = [
                 {
                     pid: 12345,
@@ -121,21 +120,12 @@ describe('ClaudeCodeAdapter', () => {
                     lastActive: new Date(),
                     lastEntryType: 'assistant',
                     isInterrupted: false,
-                },
-            ];
-
-            const historyData = [
-                {
-                    display: 'Investigate failing tests in package',
-                    timestamp: Date.now(),
-                    project: '/Users/test/my-project',
-                    sessionId: 'session-1',
+                    lastUserMessage: 'Investigate failing tests in package',
                 },
             ];
 
             mockedListProcesses.mockReturnValue(processData);
             jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue(sessionData);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue(historyData);
 
             const agents = await adapter.detectAgents();
 
@@ -162,17 +152,17 @@ describe('ClaudeCodeAdapter', () => {
                 },
             ]);
             jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue([]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([]);
+
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
             expect(agents[0]).toMatchObject({
                 type: 'claude',
-                status: AgentStatus.RUNNING,
+                status: AgentStatus.IDLE,
                 pid: 777,
                 projectPath: '/project/without-session',
                 sessionId: 'pid-777',
-                summary: 'Claude process running',
+                summary: 'Unknown',
             });
         });
 
@@ -195,7 +185,7 @@ describe('ClaudeCodeAdapter', () => {
                     isInterrupted: false,
                 },
             ]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([]);
+
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
@@ -205,7 +195,7 @@ describe('ClaudeCodeAdapter', () => {
                 pid: 777,
                 sessionId: 'pid-777',
                 projectPath: '/project/without-session',
-                status: AgentStatus.RUNNING,
+                status: AgentStatus.IDLE,
             });
         });
 
@@ -229,14 +219,6 @@ describe('ClaudeCodeAdapter', () => {
                     isInterrupted: false,
                 },
             ]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
-                {
-                    display: 'Refactor CLI command flow',
-                    timestamp: Date.now(),
-                    project: '/Users/test/my-project',
-                    sessionId: 'session-3',
-                },
-            ]);
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
@@ -245,11 +227,10 @@ describe('ClaudeCodeAdapter', () => {
                 pid: 888,
                 sessionId: 'session-3',
                 projectPath: '/Users/test/my-project',
-                summary: 'Refactor CLI command flow',
             });
         });
 
-        it('should use history entry for process-only fallback when no sessions exist', async () => {
+        it('should show idle status with Unknown summary for process-only fallback when no sessions exist', async () => {
             mockedListProcesses.mockReturnValue([
                 {
                     pid: 97529,
@@ -259,14 +240,6 @@ describe('ClaudeCodeAdapter', () => {
                 },
             ]);
             jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue([]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
-                {
-                    display: '/status',
-                    timestamp: 1772122701536,
-                    project: '/Users/test/my-project/packages/cli',
-                    sessionId: '69237415-b0c3-4990-ba53-15882616509e',
-                },
-            ]);
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
@@ -274,11 +247,10 @@ describe('ClaudeCodeAdapter', () => {
                 type: 'claude',
                 pid: 97529,
                 projectPath: '/Users/test/my-project/packages/cli',
-                sessionId: '69237415-b0c3-4990-ba53-15882616509e',
-                summary: '/status',
-                status: AgentStatus.RUNNING,
+                sessionId: 'pid-97529',
+                summary: 'Unknown',
+                status: AgentStatus.IDLE,
             });
-            expect(agents[0].lastActive.toISOString()).toBe('2026-02-26T16:18:21.536Z');
         });
 
         it('should match session via parent-child mode when process cwd is under session project path', async () => {
@@ -301,18 +273,10 @@ describe('ClaudeCodeAdapter', () => {
                     isInterrupted: false,
                 },
             ]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
-                {
-                    display: '/status',
-                    timestamp: 1772122701536,
-                    project: '/Users/test/my-project/packages/cli',
-                    sessionId: '69237415-b0c3-4990-ba53-15882616509e',
-                },
-            ]);
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
-            // Session matched via any-mode; history lookup is by session ID
+            // Session matched via parent-child mode
             expect(agents[0]).toMatchObject({
                 type: 'claude',
                 pid: 97529,
@@ -346,7 +310,7 @@ describe('ClaudeCodeAdapter', () => {
                     isInterrupted: false,
                 },
             ]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([]);
+
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(2);
@@ -359,8 +323,8 @@ describe('ClaudeCodeAdapter', () => {
             expect(agents[1]).toMatchObject({
                 pid: 200,
                 sessionId: 'pid-200',
-                status: AgentStatus.RUNNING,
-                summary: 'Claude process running',
+                status: AgentStatus.IDLE,
+                summary: 'Unknown',
             });
         });
 
@@ -374,22 +338,13 @@ describe('ClaudeCodeAdapter', () => {
                 },
             ]);
             jest.spyOn(adapter as unknown as AdapterPrivates, 'readSessions').mockReturnValue([]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([
-                {
-                    display: 'some task',
-                    timestamp: Date.now(),
-                    project: '/some/project',
-                    sessionId: 'hist-1',
-                },
-            ]);
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
-            // Empty cwd → findHistoryForCwd returns undefined → pid-based sessionId
             expect(agents[0]).toMatchObject({
                 pid: 300,
                 sessionId: 'pid-300',
-                summary: 'Claude process running',
+                summary: 'Unknown',
                 projectPath: '',
             });
         });
@@ -422,7 +377,7 @@ describe('ClaudeCodeAdapter', () => {
                     isInterrupted: false,
                 },
             ]);
-            jest.spyOn(adapter as unknown as AdapterPrivates, 'readHistory').mockReturnValue([]);
+
 
             const agents = await adapter.detectAgents();
             expect(agents).toHaveLength(1);
@@ -502,7 +457,7 @@ describe('ClaudeCodeAdapter', () => {
                 expect(status).toBe(AgentStatus.RUNNING);
             });
 
-            it('should return "idle" for old sessions', () => {
+            it('should not override status based on age (process is running)', () => {
                 const adapter = new ClaudeCodeAdapter();
                 const determineStatus = (adapter as any).determineStatus.bind(adapter);
 
@@ -517,8 +472,10 @@ describe('ClaudeCodeAdapter', () => {
                     isInterrupted: false,
                 };
 
+                // Even with old lastActive, entry type determines status
+                // because the process is known to be running
                 const status = determineStatus(session);
-                expect(status).toBe(AgentStatus.IDLE);
+                expect(status).toBe(AgentStatus.WAITING);
             });
 
             it('should return "idle" for system entries', () => {
@@ -773,39 +730,6 @@ describe('ClaudeCodeAdapter', () => {
                 const ranked = rankCandidatesByStartTime(candidates, processStart);
                 // Both outside tolerance (rank=1), newer has smaller diffMs
                 expect(ranked[0].sessionId).toBe('newer');
-            });
-        });
-
-        describe('findHistoryForCwd', () => {
-            it('should return undefined for empty cwd', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const findHistoryForCwd = (adapter as any).findHistoryForCwd.bind(adapter);
-
-                expect(findHistoryForCwd('', [])).toBeUndefined();
-            });
-
-            it('should find matching history entry by normalized path', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const findHistoryForCwd = (adapter as any).findHistoryForCwd.bind(adapter);
-
-                const history = [
-                    { display: 'task 1', timestamp: 100, project: '/Users/test/my-project', sessionId: 'h1' },
-                    { display: 'task 2', timestamp: 200, project: '/Users/test/other', sessionId: 'h2' },
-                ];
-
-                const result = findHistoryForCwd('/Users/test/my-project', history);
-                expect(result).toMatchObject({ sessionId: 'h1' });
-            });
-
-            it('should return undefined when no match', () => {
-                const adapter = new ClaudeCodeAdapter();
-                const findHistoryForCwd = (adapter as any).findHistoryForCwd.bind(adapter);
-
-                const history = [
-                    { display: 'task', timestamp: 100, project: '/other/path', sessionId: 'h1' },
-                ];
-
-                expect(findHistoryForCwd('/Users/test/my-project', history)).toBeUndefined();
             });
         });
 
