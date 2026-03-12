@@ -24,7 +24,7 @@ AI DevKit solves these problems by giving your AI assistant:
 ## Prerequisites
 
 Before you begin, make sure have:
-- **Node.js** (version 18 or higher)
+- **Node.js** (version 20.20.0 or higher)
 - **npm** or **npx** (comes with Node.js)
 - An AI coding assistant (Cursor, Claude Code, Codex, Antigravity, OpenCode, GitHub Copilot, etc.)
 
