@@ -208,7 +208,13 @@ describe('CodexAdapter', () => {
 
         const agents = await adapter.detectAgents();
         expect(agents).toHaveLength(1);
-        expect(agents[0].pid).toBe(105);
+        expect(agents[0]).toMatchObject({
+            pid: 105,
+            name: 'repo-x',
+            summary: 'Codex process running',
+            projectPath: '/repo-x',
+        });
+        expect(agents[0].sessionId).toBe('pid-105');
     });
 
     it('should list process when session metadata is unavailable', async () => {

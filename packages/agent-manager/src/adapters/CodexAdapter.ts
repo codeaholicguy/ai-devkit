@@ -43,7 +43,7 @@ interface CodexSession {
     lastPayloadType?: string;
 }
 
-type SessionMatchMode = 'cwd' | 'missing-cwd' | 'any';
+type SessionMatchMode = 'cwd' | 'missing-cwd';
 
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
@@ -94,7 +94,7 @@ export class CodexAdapter implements AgentAdapter {
         const assignedPids = new Set<number>();
         const agents: AgentInfo[] = [];
 
-        // Match exact cwd first, then missing-cwd sessions, then any available session.
+        // Match exact cwd first, then missing-cwd sessions.
         this.assignSessionsForMode(
             'cwd',
             codexProcesses,
@@ -106,15 +106,6 @@ export class CodexAdapter implements AgentAdapter {
         );
         this.assignSessionsForMode(
             'missing-cwd',
-            codexProcesses,
-            sortedSessions,
-            usedSessionIds,
-            assignedPids,
-            processStartByPid,
-            agents,
-        );
-        this.assignSessionsForMode(
-            'any',
             codexProcesses,
             sortedSessions,
             usedSessionIds,
@@ -454,8 +445,6 @@ export class CodexAdapter implements AgentAdapter {
             if (mode === 'missing-cwd') {
                 return !session.projectPath;
             }
-
-            return true;
         });
     }
 
