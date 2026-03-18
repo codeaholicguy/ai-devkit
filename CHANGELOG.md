@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Custom Docs Directory** - Added support for configuring a custom AI documentation directory via `paths.docs` and `ai-devkit init --docs-dir <path>`.
+
+### Changed
+
+- **Claude Code Adapter** - Reimplemented Claude Code session matching to use process start times, bounded session scanning, and direct session-based summaries for more reliable agent detection.
+- **Node.js Requirement** - Updated the minimum supported Node.js version to `20.20.0`.
+
+### Fixed
+
+- **Codex Cross-Repo Matching** - Prevented Codex agent session matching from incorrectly attaching sessions across repositories.
+- **Git Passphrase Prompts** - Fixed skill registry git operations so passphrase input works correctly during clone and update flows.
+
 ## [0.17.0] - 2026-03-09
 
 ### Added
