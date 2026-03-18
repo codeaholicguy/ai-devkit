@@ -303,7 +303,7 @@ describe('Git Utilities', () => {
       await pullRepository(mockRepoPath);
     });
 
-    it('should have 30 second timeout', async () => {
+    it('should have 60 second timeout for git pull', async () => {
       mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
         expect(options.timeout).toBe(60000);
         if (callback) {

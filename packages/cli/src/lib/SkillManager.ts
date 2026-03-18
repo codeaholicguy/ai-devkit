@@ -316,16 +316,15 @@ export class SkillManager {
     const results: UpdateResult[] = [];
 
     for (const registry of registries) {
-      const spinner = ui.spinner(`Updating ${registry.id}...`);
-      spinner.start();
+      ui.info(`Updating ${registry.id}...`);
       const result = await this.updateRegistry(registry.path, registry.id);
       results.push(result);
       if (result.status === 'success') {
-        spinner.succeed(`${registry.id} updated`);
+        ui.success(`${registry.id} updated`);
       } else if (result.status === 'skipped') {
-        spinner.warn(`${registry.id} skipped (${result.message})`);
+        ui.warning(`${registry.id} skipped (${result.message})`);
       } else {
-        spinner.fail(`${registry.id} failed`);
+        ui.error(`${registry.id} failed`);
       }
     }
 
@@ -413,10 +412,9 @@ export class SkillManager {
 
     if (await fs.pathExists(repoPath)) {
       if (await isGitRepository(repoPath)) {
-        const spinner = ui.spinner(`Updating cached repository ${registryId}...`);
-        spinner.start();
+        ui.info(`Updating cached repository ${registryId}...`);
         await pullRepository(repoPath);
-        spinner.succeed(`Cached repository ${registryId} updated`);
+        ui.success(`Cached repository ${registryId} updated`);
       } else {
         ui.warning(`Cached registry ${registryId} is not a git repository, using as-is.`);
       }
@@ -428,12 +426,11 @@ export class SkillManager {
       throw new Error(`Registry "${registryId}" is not cached and has no configured URL.`);
     }
 
-    const spinner = ui.spinner(`Cloning ${registryId} (this may take a moment)...`);
-    spinner.start();
+    ui.info(`Cloning ${registryId} (this may take a moment)...`);
     await fs.ensureDir(path.dirname(repoPath));
 
     const result = await cloneRepository(SKILL_CACHE_DIR, registryId, gitUrl);
-    spinner.succeed(`${registryId} cloned successfully`);
+    ui.success(`${registryId} cloned successfully`);
     return result;
   }
 
