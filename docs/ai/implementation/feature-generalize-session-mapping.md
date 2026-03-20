@@ -15,10 +15,9 @@ packages/agent-manager/src/
 │   ├── ClaudeCodeAdapter.ts     # ~419 lines — session dir via path encoding
 │   └── CodexAdapter.ts          # ~319 lines — session dir via date dirs
 ├── utils/
-│   ├── process.ts               # Shell wrappers: ps aux, lsof, ps lstart
+│   ├── process.ts               # Shell wrappers: ps aux, lsof, ps lstart, getProcessTty
 │   ├── session.ts               # Shell wrappers: stat for birthtimes
 │   ├── matching.ts              # 1:1 greedy matching + agent naming
-│   ├── file.ts                  # readLastLines, readJsonLines
 │   └── index.ts                 # Re-exports
 └── AgentManager.ts              # Orchestrates adapters
 ```
@@ -35,7 +34,6 @@ packages/agent-manager/src/
 
 **`utils/session.ts`** — Session file discovery:
 - `batchGetSessionFileBirthtimes(dirs)`: Combines all dir globs into single `stat` call. Uses `|| true` to handle empty globs gracefully.
-- `getSessionFileBirthtimes(dir)`: Thin wrapper around batch version.
 
 **`utils/matching.ts`** — Matching algorithm:
 - `matchProcessesToSessions`: Builds candidate pairs (CWD match + within 3min tolerance), sorts by delta ascending, greedy 1:1 assign.
@@ -69,4 +67,16 @@ packages/agent-manager/src/
 - 1 `ps -o lstart` for all PIDs
 - 1 `stat` per adapter across all session directories
 - JSONL files only read for matched sessions (CodexAdapter caches content from discovery phase)
-- Legacy `listProcesses` + `getProcessCwd` kept for backward compatibility but deprecated
+- Legacy `listProcesses`, `getProcessCwd`, `getSessionFileBirthtimes` removed — no consumers
+- `getProcessTty` kept — used by `TerminalFocusManager`
+
+## Dead Code Removed
+
+**agent-manager package:**
+- `utils/file.ts` — entire file (`readLastLines`, `readJsonLines`) — no production callers
+- `utils/process.ts` — `listProcesses`, `getProcessCwd`, `ListProcessesOptions` — deprecated, no callers
+- `utils/session.ts` — `getSessionFileBirthtimes` — unused wrapper, all callers use batch version
+
+**CLI package:**
+- `util/process.ts` — entire file (`listProcesses`, `getProcessCwd`, `getProcessTty`, `isProcessRunning`, `getProcessInfo`) — zero production imports
+- `util/file.ts` — entire file (`readLastLines`, `readJsonLines`, `fileExists`, `readJson`) — zero production imports

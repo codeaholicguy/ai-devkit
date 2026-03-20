@@ -104,7 +104,7 @@ interface SessionFile {
 }
 ```
 
-`resolvedCwd` is set by the adapter after calling `getSessionFileBirthtimes()`. This keeps the CWD↔session mapping adapter-specific while allowing the shared matcher to compare `process.cwd === session.resolvedCwd` without callbacks or maps.
+`resolvedCwd` is set by the adapter after calling `batchGetSessionFileBirthtimes()`. This keeps the CWD↔session mapping adapter-specific while allowing the shared matcher to compare `process.cwd === session.resolvedCwd` without callbacks or maps.
 
 ### MatchResult (new, shared)
 
@@ -141,10 +141,9 @@ New file.
 | Function | Shell command | Returns |
 |----------|-------------|---------|
 | `batchGetSessionFileBirthtimes(dirs)` | `stat -f '%B %N' dir1/*.jsonl dir2/*.jsonl ...` (macOS) or `stat --format='%W %n' ...` (Linux) | `SessionFile[]` |
-| `getSessionFileBirthtimes(dir)` | Delegates to `batchGetSessionFileBirthtimes([dir])` | `SessionFile[]` |
 
 Notes:
-- `batchGetSessionFileBirthtimes` is the primary function — combines all directory globs into a single `stat` call
+- Combines all directory globs into a single `stat` call
 - Uses `stat` instead of `ls -lU` — gives epoch seconds (exact, no parsing ambiguity)
 - Platform detection via `process.platform`
 - Returns empty array if directories don't exist, have no `.jsonl` files, or command fails

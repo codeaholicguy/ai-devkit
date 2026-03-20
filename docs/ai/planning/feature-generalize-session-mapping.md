@@ -19,7 +19,7 @@ description: Task breakdown for extracting shared matching logic into utilities
 
 - [x] Task 1.1: Extend `utils/process.ts` — add `listAgentProcesses(namePattern)` (runs `ps aux | grep <pattern>`, post-filters by `path.basename(executable)` match, returns `ProcessInfo[]` with pid, command, tty). Add `batchGetProcessCwds(pids)` (single `lsof -a -d cwd -Fn -p PID1,PID2,...`). Add `batchGetProcessStartTimes(pids)` (single `ps -o pid=,lstart= -p PID1,...`, parses full timestamp). Add `enrichProcesses(processes)` convenience that calls both batch functions and populates cwd + startTime on each ProcessInfo. Returns partial results on failure. Remove per-PID `getProcessCwd()`.
 
-- [x] Task 1.2: Create `utils/session.ts` — implement `getSessionFileBirthtimes(dir)` using `stat -f '%B %N'` on macOS or `stat --format='%W %n'` on Linux. Parse epoch seconds + filename. Return `SessionFile[]` with `resolvedCwd` left empty (adapter sets it). Platform detection via `process.platform`. Return empty array on failure.
+- [x] Task 1.2: Create `utils/session.ts` — implement `batchGetSessionFileBirthtimes(dirs)` using `stat -f '%B %N'` on macOS or `stat --format='%W %n'` on Linux. Combines all dir globs into single shell call. Parse epoch seconds + filename. Return `SessionFile[]` with `resolvedCwd` left empty (adapter sets it). Platform detection via `process.platform`. Return empty array on failure.
 
 - [x] Task 1.3: Create `utils/matching.ts` — implement `matchProcessesToSessions(processes, sessions)`: exclude processes without `startTime`, build candidate pairs where `process.cwd === session.resolvedCwd` and `deltaMs <= 180_000`, sort by deltaMs ascending, greedy 1:1 assign. Implement `generateAgentName(cwd, pid)` returning `basename(cwd) (pid)`.
 
@@ -59,9 +59,11 @@ description: Task breakdown for extracting shared matching logic into utilities
 
 ### Phase 4: Cleanup
 
-- [x] Task 4.1: Remove dead code — removed `isProcessRunning()`, `getProcessInfo()` from process.ts; removed `fileExists()`, `readJson()` from file.ts; updated exports in utils/index.ts and src/index.ts. Kept `listProcesses`, `getProcessCwd` (public API), `getProcessTty` (used by TerminalFocusManager).
+- [x] Task 4.1: Remove dead code from agent-manager — removed `listProcesses()`, `getProcessCwd()`, `ListProcessesOptions` (deprecated, no callers), `getSessionFileBirthtimes()` (unused wrapper), entire `utils/file.ts` (`readLastLines`, `readJsonLines` — no production callers). Kept `getProcessTty` (used by TerminalFocusManager). Updated exports in utils/index.ts and src/index.ts.
 
-- [x] Task 4.2: Run full test suite — 375 tests pass across 26 suites, CLI verified with 10 agents (9 Claude + 1 Codex).
+- [x] Task 4.2: Remove dead code from CLI — removed entire `util/process.ts` (`listProcesses`, `getProcessCwd`, `getProcessTty`, `isProcessRunning`, `getProcessInfo`) and `util/file.ts` (`readLastLines`, `readJsonLines`, `fileExists`, `readJson`) — zero production imports in CLI package.
+
+- [x] Task 4.3: Run full test suite — 145 agent-manager tests (7 suites) + 348 CLI tests (24 suites) = 493 total, all passing.
 
 ## Dependencies
 
