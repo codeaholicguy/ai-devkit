@@ -44,7 +44,7 @@ interface ClaudeSession {
  * Detects Claude Code agents by:
  * 1. Finding running claude processes via shared listAgentProcesses()
  * 2. Enriching with CWD and start times via shared enrichProcesses()
- * 3. Discovering session files from ~/.claude/projects/ via shared getSessionFileBirthtimes()
+ * 3. Discovering session files from ~/.claude/projects/ via shared batchGetSessionFileBirthtimes()
  * 4. Matching sessions to processes via shared matchProcessesToSessions()
  * 5. Extracting summary from last user message in session JSONL
  */

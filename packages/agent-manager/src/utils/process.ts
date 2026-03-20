@@ -10,17 +10,6 @@ import { execSync } from 'child_process';
 import type { ProcessInfo } from '../adapters/AgentAdapter';
 
 /**
- * Options for listing processes
- */
-export interface ListProcessesOptions {
-    /** Filter processes by name pattern (case-insensitive) */
-    namePattern?: string;
-
-    /** Include only processes matching these PIDs */
-    pids?: number[];
-}
-
-/**
  * List running processes matching an agent executable name.
  *
  * Uses `ps aux | grep <pattern>` at shell level for performance, then post-filters
@@ -189,93 +178,6 @@ export function enrichProcesses(processes: ProcessInfo[]): ProcessInfo[] {
     }
 
     return processes;
-}
-
-// ---- Legacy functions kept for backward compatibility ----
-
-/**
- * List running processes on the system
- *
- * @deprecated Use listAgentProcesses() + enrichProcesses() instead.
- */
-export function listProcesses(options: ListProcessesOptions = {}): ProcessInfo[] {
-    try {
-        const psOutput = execSync('ps aux', { encoding: 'utf-8' });
-
-        const lines = psOutput.trim().split('\n');
-        const processLines = lines.slice(1);
-
-        const processes: ProcessInfo[] = [];
-
-        for (const line of processLines) {
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 11) continue;
-
-            const pid = parseInt(parts[1], 10);
-            if (Number.isNaN(pid)) continue;
-
-            const tty = parts[6];
-            const command = parts.slice(10).join(' ');
-
-            if (options.pids && !options.pids.includes(pid)) {
-                continue;
-            }
-
-            if (options.namePattern) {
-                const pattern = options.namePattern.toLowerCase();
-                const commandLower = command.toLowerCase();
-                if (!commandLower.includes(pattern)) {
-                    continue;
-                }
-            }
-
-            const cwd = getProcessCwd(pid);
-            const ttyShort = tty.startsWith('/dev/') ? tty.slice(5) : tty;
-
-            processes.push({
-                pid,
-                command,
-                cwd,
-                tty: ttyShort,
-            });
-        }
-
-        return processes;
-    } catch {
-        return [];
-    }
-}
-
-/**
- * Get the current working directory for a specific process
- *
- * @deprecated Use batchGetProcessCwds() instead.
- */
-export function getProcessCwd(pid: number): string {
-    try {
-        const output = execSync(`lsof -a -p ${pid} -d cwd -Fn 2>/dev/null`, {
-            encoding: 'utf-8',
-        });
-
-        const lines = output.trim().split('\n');
-        for (const line of lines) {
-            if (line.startsWith('n')) {
-                return line.slice(1);
-            }
-        }
-
-        return '';
-    } catch {
-        try {
-            const output = execSync(`pwdx ${pid} 2>/dev/null`, {
-                encoding: 'utf-8',
-            });
-            const match = output.match(/^\d+:\s*(.+)$/);
-            return match ? match[1].trim() : '';
-        } catch {
-            return '';
-        }
-    }
 }
 
 /**

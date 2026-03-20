@@ -24,22 +24,8 @@ export interface SessionFile {
     /** File creation time in milliseconds since epoch */
     birthtimeMs: number;
 
-    /** CWD this session maps to — set by the adapter after calling getSessionFileBirthtimes() */
+    /** CWD this session maps to — set by the adapter after calling batchGetSessionFileBirthtimes() */
     resolvedCwd: string;
-}
-
-/**
- * Get birth times for all .jsonl session files in a directory.
- *
- * Uses `stat` to get epoch-second birth timestamps:
- * - macOS: `stat -f '%B %N' <dir>/*.jsonl`
- * - Linux: `stat --format='%W %n' <dir>/*.jsonl`
- *
- * Returns empty array if directory doesn't exist, has no .jsonl files, or command fails.
- * resolvedCwd is left empty — the adapter must set it.
- */
-export function getSessionFileBirthtimes(dir: string): SessionFile[] {
-    return batchGetSessionFileBirthtimes([dir]);
 }
 
 /**

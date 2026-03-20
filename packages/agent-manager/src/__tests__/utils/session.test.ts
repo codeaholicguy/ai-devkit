@@ -4,7 +4,7 @@
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { execSync } from 'child_process';
-import { getSessionFileBirthtimes, batchGetSessionFileBirthtimes } from '../../utils/session';
+import { batchGetSessionFileBirthtimes } from '../../utils/session';
 
 jest.mock('child_process', () => ({
     execSync: jest.fn(),
@@ -12,18 +12,18 @@ jest.mock('child_process', () => ({
 
 const mockedExecSync = execSync as jest.MockedFunction<typeof execSync>;
 
-describe('getSessionFileBirthtimes', () => {
+describe('batchGetSessionFileBirthtimes', () => {
     beforeEach(() => {
         mockedExecSync.mockReset();
     });
 
-    it('should parse macOS stat output correctly', () => {
+    it('should parse stat output correctly', () => {
         mockedExecSync.mockReturnValue(
             '1710800324 /home/.claude/projects/my-app/abc123.jsonl\n' +
             '1710800500 /home/.claude/projects/my-app/def456.jsonl\n',
         );
 
-        const results = getSessionFileBirthtimes('/home/.claude/projects/my-app');
+        const results = batchGetSessionFileBirthtimes(['/home/.claude/projects/my-app']);
 
         expect(results).toHaveLength(2);
         expect(results[0]).toEqual({
@@ -37,12 +37,9 @@ describe('getSessionFileBirthtimes', () => {
         expect(results[1].birthtimeMs).toBe(1710800500000);
     });
 
-    it('should return empty array when directory has no jsonl files', () => {
-        mockedExecSync.mockImplementation(() => {
-            throw new Error('No matches');
-        });
-
-        expect(getSessionFileBirthtimes('/nonexistent')).toEqual([]);
+    it('should return empty array for empty dirs list', () => {
+        expect(batchGetSessionFileBirthtimes([])).toEqual([]);
+        expect(mockedExecSync).not.toHaveBeenCalled();
     });
 
     it('should return empty array on command failure', () => {
@@ -50,7 +47,7 @@ describe('getSessionFileBirthtimes', () => {
             throw new Error('Command failed');
         });
 
-        expect(getSessionFileBirthtimes('/some/dir')).toEqual([]);
+        expect(batchGetSessionFileBirthtimes(['/some/dir'])).toEqual([]);
     });
 
     it('should skip lines with invalid epoch (0 or negative)', () => {
@@ -60,7 +57,7 @@ describe('getSessionFileBirthtimes', () => {
             '1710800324 /dir/good.jsonl\n',
         );
 
-        const results = getSessionFileBirthtimes('/dir');
+        const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results).toHaveLength(1);
         expect(results[0].sessionId).toBe('good');
     });
@@ -71,14 +68,14 @@ describe('getSessionFileBirthtimes', () => {
             '1710800500 /dir/abc123.jsonl\n',
         );
 
-        const results = getSessionFileBirthtimes('/dir');
+        const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results).toHaveLength(1);
         expect(results[0].sessionId).toBe('abc123');
     });
 
     it('should handle empty output', () => {
         mockedExecSync.mockReturnValue('');
-        expect(getSessionFileBirthtimes('/dir')).toEqual([]);
+        expect(batchGetSessionFileBirthtimes(['/dir'])).toEqual([]);
     });
 
     it('should handle UUID session IDs', () => {
@@ -86,7 +83,7 @@ describe('getSessionFileBirthtimes', () => {
             '1710800324 /dir/068e7b1f-cff5-4c94-bf69-b9acd32d765c.jsonl\n',
         );
 
-        const results = getSessionFileBirthtimes('/dir');
+        const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results).toHaveLength(1);
         expect(results[0].sessionId).toBe('068e7b1f-cff5-4c94-bf69-b9acd32d765c');
     });
@@ -94,20 +91,8 @@ describe('getSessionFileBirthtimes', () => {
     it('should leave resolvedCwd empty', () => {
         mockedExecSync.mockReturnValue('1710800324 /dir/abc.jsonl\n');
 
-        const results = getSessionFileBirthtimes('/dir');
+        const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results[0].resolvedCwd).toBe('');
-    });
-
-});
-
-describe('batchGetSessionFileBirthtimes', () => {
-    beforeEach(() => {
-        mockedExecSync.mockReset();
-    });
-
-    it('should return empty array for empty dirs list', () => {
-        expect(batchGetSessionFileBirthtimes([])).toEqual([]);
-        expect(mockedExecSync).not.toHaveBeenCalled();
     });
 
     it('should combine multiple directories into a single stat call', () => {
@@ -129,13 +114,4 @@ describe('batchGetSessionFileBirthtimes', () => {
         expect(results[1].projectDir).toBe('/projects/app-b');
         expect(results[2].projectDir).toBe('/projects/app-a');
     });
-
-    it('should return empty array on command failure', () => {
-        mockedExecSync.mockImplementation(() => {
-            throw new Error('stat failed');
-        });
-
-        expect(batchGetSessionFileBirthtimes(['/dir-a', '/dir-b'])).toEqual([]);
-    });
-
 });
