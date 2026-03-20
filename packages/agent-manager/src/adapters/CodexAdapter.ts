@@ -1,29 +1,23 @@
 /**
  * Codex Adapter
  *
- * Detects running Codex agents by combining:
- * 1. Running `codex` processes
- * 2. Session metadata under ~/.codex/sessions
+ * Detects running Codex agents by:
+ * 1. Finding running codex processes via shared listAgentProcesses()
+ * 2. Enriching with CWD and start times via shared enrichProcesses()
+ * 3. Discovering session files from ~/.codex/sessions/YYYY/MM/DD/ via shared batchGetSessionFileBirthtimes()
+ * 4. Setting resolvedCwd from session_meta first line
+ * 5. Matching sessions to processes via shared matchProcessesToSessions()
+ * 6. Extracting summary from last event entry in session JSONL
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
 import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
-import { listProcesses } from '../utils/process';
-import { readJsonLines } from '../utils/file';
-
-interface CodexSessionMetaPayload {
-    id?: string;
-    timestamp?: string;
-    cwd?: string;
-}
-
-interface CodexSessionMetaEntry {
-    type?: string;
-    payload?: CodexSessionMetaPayload;
-}
+import { listAgentProcesses, enrichProcesses } from '../utils/process';
+import { batchGetSessionFileBirthtimes } from '../utils/session';
+import type { SessionFile } from '../utils/session';
+import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
 
 interface CodexEventEntry {
     timestamp?: string;
@@ -31,6 +25,9 @@ interface CodexEventEntry {
     payload?: {
         type?: string;
         message?: string;
+        id?: string;
+        cwd?: string;
+        timestamp?: string;
     };
 }
 
@@ -43,21 +40,12 @@ interface CodexSession {
     lastPayloadType?: string;
 }
 
-type SessionMatchMode = 'cwd' | 'missing-cwd';
-
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
 
-    /** Keep status thresholds aligned across adapters. */
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
-    /** Limit session parsing per run to keep list latency bounded. */
-    private static readonly MIN_SESSION_SCAN = 12;
-    private static readonly MAX_SESSION_SCAN = 40;
-    private static readonly SESSION_SCAN_MULTIPLIER = 4;
-    /** Also include session files around process start day to recover long-lived processes. */
+    /** Include session files around process start day to recover long-lived processes. */
     private static readonly PROCESS_START_DAY_WINDOW_DAYS = 1;
-    /** Matching tolerance between process start time and session start time. */
-    private static readonly PROCESS_SESSION_TIME_TOLERANCE_MS = 2 * 60 * 1000;
 
     private codexSessionsDir: string;
 
@@ -70,264 +58,113 @@ export class CodexAdapter implements AgentAdapter {
         return this.isCodexExecutable(processInfo.command);
     }
 
+    /**
+     * Detect running Codex agents
+     */
     async detectAgents(): Promise<AgentInfo[]> {
-        const codexProcesses = this.listCodexProcesses();
+        const processes = enrichProcesses(listAgentProcesses('codex'));
+        if (processes.length === 0) return [];
 
-        if (codexProcesses.length === 0) {
-            return [];
-        }
-
-        const processStartByPid = this.getProcessStartTimes(codexProcesses.map((processInfo) => processInfo.pid));
-
-        const sessionScanLimit = this.calculateSessionScanLimit(codexProcesses.length);
-        const sessions = this.readSessions(sessionScanLimit, processStartByPid);
+        const { sessions, contentCache } = this.discoverSessions(processes);
         if (sessions.length === 0) {
-            return codexProcesses.map((processInfo) =>
-                this.mapProcessOnlyAgent(processInfo, [], 'No Codex session metadata found'),
-            );
+            return processes.map((p) => this.mapProcessOnlyAgent(p));
         }
 
-        const sortedSessions = [...sessions].sort(
-            (a, b) => b.lastActive.getTime() - a.lastActive.getTime(),
-        );
-        const usedSessionIds = new Set<string>();
-        const assignedPids = new Set<number>();
+        const matches = matchProcessesToSessions(processes, sessions);
+        const matchedPids = new Set(matches.map((m) => m.process.pid));
         const agents: AgentInfo[] = [];
 
-        // Match exact cwd first, then missing-cwd sessions.
-        this.assignSessionsForMode(
-            'cwd',
-            codexProcesses,
-            sortedSessions,
-            usedSessionIds,
-            assignedPids,
-            processStartByPid,
-            agents,
-        );
-        this.assignSessionsForMode(
-            'missing-cwd',
-            codexProcesses,
-            sortedSessions,
-            usedSessionIds,
-            assignedPids,
-            processStartByPid,
-            agents,
-        );
-
-        // Every running codex process should still be listed.
-        for (const processInfo of codexProcesses) {
-            if (assignedPids.has(processInfo.pid)) {
-                continue;
+        for (const match of matches) {
+            const cachedContent = contentCache.get(match.session.filePath);
+            const sessionData = this.parseSession(cachedContent, match.session.filePath);
+            if (sessionData) {
+                agents.push(this.mapSessionToAgent(sessionData, match.process));
+            } else {
+                matchedPids.delete(match.process.pid);
             }
+        }
 
-            this.addProcessOnlyAgent(processInfo, assignedPids, agents);
+        for (const proc of processes) {
+            if (!matchedPids.has(proc.pid)) {
+                agents.push(this.mapProcessOnlyAgent(proc));
+            }
         }
 
         return agents;
     }
 
-    private listCodexProcesses(): ProcessInfo[] {
-        return listProcesses({ namePattern: 'codex' }).filter((processInfo) =>
-            this.canHandle(processInfo),
-        );
-    }
+    /**
+     * Discover session files for the given processes.
+     *
+     * Uses process start times to determine which YYYY/MM/DD date directories
+     * to scan (±1 day window), then batches stat calls across all directories.
+     * Reads each file once and caches content for later parsing by parseSession().
+     * Sets resolvedCwd from session_meta first line.
+     */
+    private discoverSessions(processes: ProcessInfo[]): {
+        sessions: SessionFile[];
+        contentCache: Map<string, string>;
+    } {
+        const empty = { sessions: [], contentCache: new Map<string, string>() };
+        if (!fs.existsSync(this.codexSessionsDir)) return empty;
 
-    private calculateSessionScanLimit(processCount: number): number {
-        return Math.min(
-            Math.max(
-                processCount * CodexAdapter.SESSION_SCAN_MULTIPLIER,
-                CodexAdapter.MIN_SESSION_SCAN,
-            ),
-            CodexAdapter.MAX_SESSION_SCAN,
-        );
-    }
+        const dateDirs = this.getDateDirs(processes);
+        if (dateDirs.length === 0) return empty;
 
-    private assignSessionsForMode(
-        mode: SessionMatchMode,
-        codexProcesses: ProcessInfo[],
-        sessions: CodexSession[],
-        usedSessionIds: Set<string>,
-        assignedPids: Set<number>,
-        processStartByPid: Map<number, Date>,
-        agents: AgentInfo[],
-    ): void {
-        for (const processInfo of codexProcesses) {
-            if (assignedPids.has(processInfo.pid)) {
-                continue;
-            }
+        const files = batchGetSessionFileBirthtimes(dateDirs);
+        const contentCache = new Map<string, string>();
 
-            const session = this.selectBestSession(
-                processInfo,
-                sessions,
-                usedSessionIds,
-                processStartByPid,
-                mode,
-            );
-            if (!session) {
-                continue;
-            }
-
-            this.addMappedSessionAgent(session, processInfo, usedSessionIds, assignedPids, agents);
-        }
-    }
-
-    private addMappedSessionAgent(
-        session: CodexSession,
-        processInfo: ProcessInfo,
-        usedSessionIds: Set<string>,
-        assignedPids: Set<number>,
-        agents: AgentInfo[],
-    ): void {
-        usedSessionIds.add(session.sessionId);
-        assignedPids.add(processInfo.pid);
-        agents.push(this.mapSessionToAgent(session, processInfo, agents));
-    }
-
-    private addProcessOnlyAgent(
-        processInfo: ProcessInfo,
-        assignedPids: Set<number>,
-        agents: AgentInfo[],
-    ): void {
-        assignedPids.add(processInfo.pid);
-        agents.push(this.mapProcessOnlyAgent(processInfo, agents));
-    }
-
-    private mapSessionToAgent(
-        session: CodexSession,
-        processInfo: ProcessInfo,
-        existingAgents: AgentInfo[],
-    ): AgentInfo {
-        return {
-            name: this.generateAgentName(session, existingAgents),
-            type: this.type,
-            status: this.determineStatus(session),
-            summary: session.summary || 'Codex session active',
-            pid: processInfo.pid,
-            projectPath: session.projectPath || processInfo.cwd || '',
-            sessionId: session.sessionId,
-            lastActive: session.lastActive,
-        };
-    }
-
-    private mapProcessOnlyAgent(
-        processInfo: ProcessInfo,
-        existingAgents: AgentInfo[],
-        summary: string = 'Codex process running',
-    ): AgentInfo {
-        const syntheticSession: CodexSession = {
-            sessionId: `pid-${processInfo.pid}`,
-            projectPath: processInfo.cwd || '',
-            summary,
-            sessionStart: new Date(),
-            lastActive: new Date(),
-            lastPayloadType: 'process_only',
-        };
-
-        return {
-            name: this.generateAgentName(syntheticSession, existingAgents),
-            type: this.type,
-            status: AgentStatus.RUNNING,
-            summary,
-            pid: processInfo.pid,
-            projectPath: processInfo.cwd || '',
-            sessionId: syntheticSession.sessionId,
-            lastActive: syntheticSession.lastActive,
-        };
-    }
-
-    private readSessions(limit: number, processStartByPid: Map<number, Date>): CodexSession[] {
-        const sessionFiles = this.findSessionFiles(limit, processStartByPid);
-        const sessions: CodexSession[] = [];
-
-        for (const sessionFile of sessionFiles) {
+        // Read each file once: extract CWD for matching, cache content for later parsing
+        for (const file of files) {
             try {
-                const session = this.readSession(sessionFile);
-                if (session) {
-                    sessions.push(session);
-                }
-            } catch (error) {
-                console.error(`Failed to parse Codex session ${sessionFile}:`, error);
-            }
-        }
+                const content = fs.readFileSync(file.filePath, 'utf-8');
+                contentCache.set(file.filePath, content);
 
-        return sessions;
-    }
-
-    private findSessionFiles(limit: number, processStartByPid: Map<number, Date>): string[] {
-        if (!fs.existsSync(this.codexSessionsDir)) {
-            return [];
-        }
-
-        const files: Array<{ path: string; mtimeMs: number }> = [];
-        const stack: string[] = [this.codexSessionsDir];
-
-        while (stack.length > 0) {
-            const currentDir = stack.pop();
-            if (!currentDir || !fs.existsSync(currentDir)) {
-                continue;
-            }
-
-            for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
-                const fullPath = path.join(currentDir, entry.name);
-                if (entry.isDirectory()) {
-                    stack.push(fullPath);
-                    continue;
-                }
-
-                if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-                    try {
-                        files.push({
-                            path: fullPath,
-                            mtimeMs: fs.statSync(fullPath).mtimeMs,
-                        });
-                    } catch {
-                        continue;
+                const firstLine = content.split('\n')[0]?.trim();
+                if (firstLine) {
+                    const parsed = JSON.parse(firstLine);
+                    if (parsed.type === 'session_meta') {
+                        file.resolvedCwd = parsed.payload?.cwd || '';
                     }
                 }
+            } catch {
+                // Skip unreadable files
             }
         }
 
-        const recentFiles = files
-            .sort((a, b) => b.mtimeMs - a.mtimeMs)
-            .slice(0, limit)
-            .map((file) => file.path);
-        const processDayFiles = this.findProcessDaySessionFiles(processStartByPid);
-
-        const selectedPaths = new Set(recentFiles);
-        for (const processDayFile of processDayFiles) {
-            selectedPaths.add(processDayFile);
-        }
-
-        return Array.from(selectedPaths);
+        return { sessions: files, contentCache };
     }
 
-    private findProcessDaySessionFiles(processStartByPid: Map<number, Date>): string[] {
-        const files: string[] = [];
+    /**
+     * Determine which date directories to scan based on process start times.
+     * Returns only directories that actually exist.
+     */
+    private getDateDirs(processes: ProcessInfo[]): string[] {
         const dayKeys = new Set<string>();
-        const dayWindow = CodexAdapter.PROCESS_START_DAY_WINDOW_DAYS;
+        const window = CodexAdapter.PROCESS_START_DAY_WINDOW_DAYS;
 
-        for (const processStart of processStartByPid.values()) {
-            for (let offset = -dayWindow; offset <= dayWindow; offset++) {
-                const day = new Date(processStart.getTime());
+        for (const proc of processes) {
+            const startTime = proc.startTime || new Date();
+            for (let offset = -window; offset <= window; offset++) {
+                const day = new Date(startTime.getTime());
                 day.setDate(day.getDate() + offset);
                 dayKeys.add(this.toSessionDayKey(day));
             }
         }
 
+        const dirs: string[] = [];
         for (const dayKey of dayKeys) {
             const dayDir = path.join(this.codexSessionsDir, dayKey);
-            if (!fs.existsSync(dayDir)) {
-                continue;
-            }
-
-            for (const entry of fs.readdirSync(dayDir, { withFileTypes: true })) {
-                if (entry.isFile() && entry.name.endsWith('.jsonl')) {
-                    files.push(path.join(dayDir, entry.name));
+            try {
+                if (fs.statSync(dayDir).isDirectory()) {
+                    dirs.push(dayDir);
                 }
+            } catch {
+                continue;
             }
         }
 
-        return files;
+        return dirs;
     }
 
     private toSessionDayKey(date: Date): string {
@@ -337,18 +174,45 @@ export class CodexAdapter implements AgentAdapter {
         return path.join(yyyy, mm, dd);
     }
 
-    private readSession(filePath: string): CodexSession | null {
-        const firstLine = this.readFirstLine(filePath);
-        if (!firstLine) {
+    /**
+     * Parse session file content into CodexSession.
+     * Uses cached content if available, otherwise reads from disk.
+     */
+    private parseSession(cachedContent: string | undefined, filePath: string): CodexSession | null {
+        let content: string;
+        if (cachedContent !== undefined) {
+            content = cachedContent;
+        } else {
+            try {
+                content = fs.readFileSync(filePath, 'utf-8');
+            } catch {
+                return null;
+            }
+        }
+
+        const allLines = content.trim().split('\n');
+        if (!allLines[0]) return null;
+
+        let metaEntry: CodexEventEntry;
+        try {
+            metaEntry = JSON.parse(allLines[0]);
+        } catch {
             return null;
         }
 
-        const metaEntry = this.parseSessionMeta(firstLine);
-        if (!metaEntry?.payload?.id) {
+        if (metaEntry.type !== 'session_meta' || !metaEntry.payload?.id) {
             return null;
         }
 
-        const entries = readJsonLines<CodexEventEntry>(filePath, 300);
+        const entries: CodexEventEntry[] = [];
+        for (const line of allLines) {
+            try {
+                entries.push(JSON.parse(line));
+            } catch {
+                continue;
+            }
+        }
+
         const lastEntry = this.findLastEventEntry(entries);
         const lastPayloadType = lastEntry?.payload?.type;
 
@@ -370,21 +234,30 @@ export class CodexAdapter implements AgentAdapter {
         };
     }
 
-    private readFirstLine(filePath: string): string {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        return content.split('\n')[0]?.trim() || '';
+    private mapSessionToAgent(session: CodexSession, processInfo: ProcessInfo): AgentInfo {
+        return {
+            name: generateAgentName(session.projectPath || processInfo.cwd || '', processInfo.pid),
+            type: this.type,
+            status: this.determineStatus(session),
+            summary: session.summary || 'Codex session active',
+            pid: processInfo.pid,
+            projectPath: session.projectPath || processInfo.cwd || '',
+            sessionId: session.sessionId,
+            lastActive: session.lastActive,
+        };
     }
 
-    private parseSessionMeta(line: string): CodexSessionMetaEntry | null {
-        try {
-            const parsed = JSON.parse(line) as CodexSessionMetaEntry;
-            if (parsed.type !== 'session_meta') {
-                return null;
-            }
-            return parsed;
-        } catch {
-            return null;
-        }
+    private mapProcessOnlyAgent(processInfo: ProcessInfo): AgentInfo {
+        return {
+            name: generateAgentName(processInfo.cwd || '', processInfo.pid),
+            type: this.type,
+            status: AgentStatus.RUNNING,
+            summary: 'Codex process running',
+            pid: processInfo.pid,
+            projectPath: processInfo.cwd || '',
+            sessionId: `pid-${processInfo.pid}`,
+            lastActive: new Date(),
+        };
     }
 
     private findLastEventEntry(entries: CodexEventEntry[]): CodexEventEntry | undefined {
@@ -398,146 +271,9 @@ export class CodexAdapter implements AgentAdapter {
     }
 
     private parseTimestamp(value?: string): Date | null {
-        if (!value) {
-            return null;
-        }
-
+        if (!value) return null;
         const timestamp = new Date(value);
         return Number.isNaN(timestamp.getTime()) ? null : timestamp;
-    }
-
-    private selectBestSession(
-        processInfo: ProcessInfo,
-        sessions: CodexSession[],
-        usedSessionIds: Set<string>,
-        processStartByPid: Map<number, Date>,
-        mode: SessionMatchMode,
-    ): CodexSession | undefined {
-        const candidates = this.filterCandidateSessions(processInfo, sessions, usedSessionIds, mode);
-
-        if (candidates.length === 0) {
-            return undefined;
-        }
-
-        const processStart = processStartByPid.get(processInfo.pid);
-        if (!processStart) {
-            return candidates.sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime())[0];
-        }
-
-        return this.rankCandidatesByStartTime(candidates, processStart)[0];
-    }
-
-    private filterCandidateSessions(
-        processInfo: ProcessInfo,
-        sessions: CodexSession[],
-        usedSessionIds: Set<string>,
-        mode: SessionMatchMode,
-    ): CodexSession[] {
-        return sessions.filter((session) => {
-            if (usedSessionIds.has(session.sessionId)) {
-                return false;
-            }
-
-            if (mode === 'cwd') {
-                return session.projectPath === processInfo.cwd;
-            }
-
-            if (mode === 'missing-cwd') {
-                return !session.projectPath;
-            }
-        });
-    }
-
-    private rankCandidatesByStartTime(candidates: CodexSession[], processStart: Date): CodexSession[] {
-        const toleranceMs = CodexAdapter.PROCESS_SESSION_TIME_TOLERANCE_MS;
-
-        return candidates
-            .map((session) => {
-                const diffMs = Math.abs(session.sessionStart.getTime() - processStart.getTime());
-                const outsideTolerance = diffMs > toleranceMs ? 1 : 0;
-                return {
-                    session,
-                    rank: outsideTolerance,
-                    diffMs,
-                    recency: session.lastActive.getTime(),
-                };
-            })
-            .sort((a, b) => {
-                if (a.rank !== b.rank) return a.rank - b.rank;
-                if (a.diffMs !== b.diffMs) return a.diffMs - b.diffMs;
-                return b.recency - a.recency;
-            })
-            .map((ranked) => ranked.session);
-    }
-
-    private getProcessStartTimes(pids: number[]): Map<number, Date> {
-        if (pids.length === 0 || process.env.JEST_WORKER_ID) {
-            return new Map();
-        }
-
-        try {
-            const output = execSync(`ps -o pid=,etime= -p ${pids.join(',')}`, {
-                encoding: 'utf-8',
-            });
-            const nowMs = Date.now();
-            const startTimes = new Map<number, Date>();
-
-            for (const rawLine of output.split('\n')) {
-                const line = rawLine.trim();
-                if (!line) continue;
-
-                const parts = line.split(/\s+/);
-                if (parts.length < 2) continue;
-
-                const pid = Number.parseInt(parts[0], 10);
-                const elapsedSeconds = this.parseElapsedSeconds(parts[1]);
-                if (!Number.isFinite(pid) || elapsedSeconds === null) continue;
-
-                startTimes.set(pid, new Date(nowMs - elapsedSeconds * 1000));
-            }
-
-            return startTimes;
-        } catch {
-            return new Map();
-        }
-    }
-
-    private parseElapsedSeconds(etime: string): number | null {
-        const match = etime.trim().match(/^(?:(\d+)-)?(?:(\d{1,2}):)?(\d{1,2}):(\d{2})$/);
-        if (!match) {
-            return null;
-        }
-
-        const days = Number.parseInt(match[1] || '0', 10);
-        const hours = Number.parseInt(match[2] || '0', 10);
-        const minutes = Number.parseInt(match[3] || '0', 10);
-        const seconds = Number.parseInt(match[4] || '0', 10);
-
-        return (((days * 24 + hours) * 60 + minutes) * 60) + seconds;
-    }
-
-    private extractSummary(entries: CodexEventEntry[]): string {
-        for (let i = entries.length - 1; i >= 0; i--) {
-            const message = entries[i]?.payload?.message;
-            if (typeof message === 'string' && message.trim().length > 0) {
-                return this.truncate(message.trim(), 120);
-            }
-        }
-
-        return 'Codex session active';
-    }
-
-    private truncate(value: string, maxLength: number): string {
-        if (value.length <= maxLength) {
-            return value;
-        }
-        return `${value.slice(0, maxLength - 3)}...`;
-    }
-
-    private isCodexExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
-        return base === 'codex' || base === 'codex.exe';
     }
 
     private determineStatus(session: CodexSession): AgentStatus {
@@ -559,15 +295,25 @@ export class CodexAdapter implements AgentAdapter {
         return AgentStatus.RUNNING;
     }
 
-    private generateAgentName(session: CodexSession, existingAgents: AgentInfo[]): string {
-        const fallback = `codex-${session.sessionId.slice(0, 8)}`;
-        const baseName = session.projectPath ? path.basename(path.normalize(session.projectPath)) : fallback;
-
-        const conflict = existingAgents.some((agent) => agent.name === baseName);
-        if (!conflict) {
-            return baseName || fallback;
+    private extractSummary(entries: CodexEventEntry[]): string {
+        for (let i = entries.length - 1; i >= 0; i--) {
+            const message = entries[i]?.payload?.message;
+            if (typeof message === 'string' && message.trim().length > 0) {
+                return this.truncate(message.trim(), 120);
+            }
         }
 
-        return `${baseName || fallback} (${session.sessionId.slice(0, 8)})`;
+        return 'Codex session active';
+    }
+
+    private truncate(value: string, maxLength: number): string {
+        if (value.length <= maxLength) return value;
+        return `${value.slice(0, maxLength - 3)}...`;
+    }
+
+    private isCodexExecutable(command: string): boolean {
+        const executable = command.trim().split(/\s+/)[0] || '';
+        const base = path.basename(executable).toLowerCase();
+        return base === 'codex' || base === 'codex.exe';
     }
 }
