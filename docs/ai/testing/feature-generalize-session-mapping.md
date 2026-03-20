@@ -1,81 +1,75 @@
 ---
 phase: testing
-title: Testing Strategy
-description: Define testing approach, test cases, and quality assurance
+title: Generalize Process-to-Session Mapping — Testing
+description: Test inventory and coverage for shared utilities and adapter refactoring
 ---
 
 # Testing Strategy
 
 ## Test Coverage Goals
-**What level of testing do we aim for?**
 
-- Unit test coverage target (default: 100% of new/changed code)
-- Integration test scope (critical paths + error handling)
-- End-to-end test scenarios (key user journeys)
-- Alignment with requirements/design acceptance criteria
+- 100% of new/changed code in shared utilities
+- Adapter tests mock shared utils at module level (`jest.mock`)
+- File I/O tests use real temp directories (`fs.mkdtempSync`)
 
-## Unit Tests
-**What individual components need testing?**
+## Test Suites (155 tests, 8 suites)
 
-### Component/Module 1
-- [ ] Test case 1: [Description] (covers scenario / branch)
-- [ ] Test case 2: [Description] (covers edge case / error handling)
-- [ ] Additional coverage: [Description]
+### `utils/process.test.ts` (14 tests)
 
-### Component/Module 2
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Additional coverage: [Description]
+- **listAgentProcesses**: Parse ps aux output, post-filter by executable name, filter non-matching, empty output, command failure, empty pattern rejection, shell injection rejection, valid patterns with dashes/underscores
+- **batchGetProcessCwds**: Parse lsof output, empty pids, partial results, total failure
+- **batchGetProcessStartTimes**: Parse ps lstart output, empty pids, unparseable dates, failure
+- **enrichProcesses**: Populate cwd + startTime, empty input, partial failures
 
-## Integration Tests
-**How do we test component interactions?**
+### `utils/session.test.ts` (11 tests)
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
-- [ ] API endpoint tests
-- [ ] Integration scenario 3 (failure mode / rollback)
+- **getSessionFileBirthtimes**: Parse stat output, no jsonl files, command failure, invalid epochs, non-jsonl files, empty output, UUID session IDs, resolvedCwd left empty
+- **batchGetSessionFileBirthtimes**: Empty dirs, multiple directories single call, command failure
 
-## End-to-End Tests
-**What user flows need validation?**
+### `utils/matching.test.ts` (17 tests)
 
-- [ ] User flow 1: [Description]
-- [ ] User flow 2: [Description]
-- [ ] Critical path testing
-- [ ] Regression of adjacent features
+- **matchProcessesToSessions**: Empty processes, empty sessions, single match closest, 1:1 constraint, disambiguation by birthtime, exclude without startTime, exclude without cwd, CWD mismatch, delta exceeds tolerance, exact 3-min boundary, more sessions than processes, more processes than sessions, empty resolvedCwd, greedy ordering preference
+- **generateAgentName**: Standard path, root path, empty cwd, nested paths
 
-## Test Data
-**What data do we use for testing?**
+### `utils/file.test.ts` (8 tests)
 
-- Test fixtures and mocks
-- Seed data requirements
-- Test database setup
+- **readLastLines**: Small file, last N lines, non-existent file, empty file
+- **readJsonLines**: Parse JSONL, skip malformed, non-existent file, maxLines parameter
 
-## Test Reporting & Coverage
-**How do we verify and communicate test results?**
+### `adapters/ClaudeCodeAdapter.test.ts` (41 tests)
 
-- Coverage commands and thresholds (`npm run test -- --coverage`)
-- Coverage gaps (files/functions below 100% and rationale)
-- Links to test reports or dashboards
-- Manual testing outcomes and sign-off
+- **canHandle**: claude, full path, case-insensitive, non-claude, "claude" in path args
+- **detectAgents**: No processes, no sessions (process-only fallback), matched sessions, unmatched processes fallback, empty cwd fallback
+- **discoverSessions**: Non-existent projects dir, scan matching CWDs, non-existent encoded dir, dedup same CWD, skip empty cwd
+- **determineStatus**: unknown, waiting (assistant), waiting (interrupted user), running (user/progress/thinking), idle (system), unknown (unrecognized), no age override
+- **extractUserMessageText**: Plain string, array blocks, empty/null, command-message tags, command without args, skill ARGUMENTS, skill without ARGUMENTS, noise messages
+- **readSession**: Full parse, interruption detection, empty file, non-existent, metadata entry skip, snapshot.timestamp, lastUserMessage, lastCwd as projectPath, malformed JSON
 
-## Manual Testing
-**What requires human validation?**
+### `adapters/CodexAdapter.test.ts` (27 tests)
 
-- UI/UX testing checklist (include accessibility)
-- Browser/device compatibility
-- Smoke tests after deployment
+- **canHandle**: codex, full path case-insensitive, non-codex, "codex" in path args
+- **detectAgents**: No processes, no sessions, matched sessions, unmatched fallback
+- **discoverSessions**: Non-existent dir, scan date dirs, ±1 day window, session without session_meta
+- **determineStatus**: waiting (agent_message/task_complete/turn_aborted), running, idle (threshold)
+- **parseSession**: Full parse, cached content, non-existent file, no session_meta, no id, summary extraction, malformed JSON, default summary, empty content, truncation
 
-## Performance Testing
-**How do we validate performance?**
+### `AgentManager.test.ts` (13 tests)
 
-- Load testing scenarios
-- Stress testing approach
-- Performance benchmarks
+- **registerAdapter**: Register, duplicate error, multiple types
+- **unregisterAdapter**: Remove, non-existent
+- **getAdapters**: Empty, all registered
+- **listAgents**: Empty, single adapter, multiple adapters, status sort, adapter error handling, all fail
+- **clear**: Remove all
+- **resolveAgent**: Empty input, exact match, partial match, ambiguous, no match, prefer exact
 
-## Bug Tracking
-**How do we manage issues?**
+### `terminal/TtyWriter.test.ts` (24 tests)
 
-- Issue tracking process
-- Bug severity levels
-- Regression testing strategy
+- Terminal output formatting tests (unchanged by this feature)
 
+## Running Tests
+
+```bash
+cd packages/agent-manager
+npx jest           # all tests
+npx jest --coverage  # with coverage report
+```

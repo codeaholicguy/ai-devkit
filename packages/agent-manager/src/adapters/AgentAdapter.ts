@@ -68,6 +68,9 @@ export interface ProcessInfo {
 
     /** Terminal TTY (e.g., "ttys030") */
     tty: string;
+
+    /** Process start time, populated by enrichProcesses */
+    startTime?: Date;
 }
 
 /**

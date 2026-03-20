@@ -56,19 +56,19 @@ sequenceDiagram
     Note right of P: batchGetProcessCwds (1 lsof)<br/>+ batchGetProcessStartTimes (1 ps lstart)<br/>→ populates cwd + startTime
     P-->>A: ProcessInfo[] (fully populated)
 
-    A->>A: scanSessionDirs(processes)
-    Note right of A: Adapter-specific:<br/>CWD → session dir path(s)<br/>Sets resolvedCwd on each SessionFile
+    A->>A: discoverSessions(processes)
+    Note right of A: Adapter-specific:<br/>CWD → session dir path(s)<br/>Sets resolvedCwd on each SessionFile<br/>CodexAdapter also caches file content
 
-    A->>S: getSessionFileBirthtimes(dir)
-    Note right of S: stat -f '%B %N' (macOS)<br/>stat --format='%W %n' (Linux)
+    A->>S: batchGetSessionFileBirthtimes(dirs)
+    Note right of S: stat -f '%B %N' (macOS)<br/>stat --format='%W %n' (Linux)<br/>Single call across all dirs
     S-->>A: SessionFile[]
 
     A->>M: matchProcessesToSessions(processes, sessions)
     Note right of M: Filter: process.cwd === session.resolvedCwd<br/>Filter: deltaMs <= 180s<br/>Filter: startTime must exist<br/>1:1 greedy by smallest delta
     M-->>A: MatchResult[]
 
-    A->>A: parseMatchedSessions(results)
-    Note right of A: Adapter-specific:<br/>Read JSONL for status/summary<br/>Only matched files
+    A->>A: parseSession / readSession per match
+    Note right of A: Adapter-specific:<br/>Read JSONL for status/summary<br/>Only matched files<br/>CodexAdapter uses cached content
 
     A->>M: generateAgentName(cwd, pid)
     M-->>A: "folderName (pid)"
@@ -99,7 +99,7 @@ interface SessionFile {
     sessionId: string;      // filename without .jsonl
     filePath: string;       // full path
     projectDir: string;     // parent directory
-    birthtimeMs: number;    // from stat (epoch seconds)
+    birthtimeMs: number;    // from stat (epoch seconds × 1000 → milliseconds)
     resolvedCwd: string;    // set by adapter: the CWD this session maps to
 }
 ```
@@ -140,12 +140,14 @@ New file.
 
 | Function | Shell command | Returns |
 |----------|-------------|---------|
-| `getSessionFileBirthtimes(dir)` | `stat -f '%B %N' <dir>/*.jsonl` (macOS) or `stat --format='%W %n' <dir>/*.jsonl` (Linux) | `SessionFile[]` |
+| `batchGetSessionFileBirthtimes(dirs)` | `stat -f '%B %N' dir1/*.jsonl dir2/*.jsonl ...` (macOS) or `stat --format='%W %n' ...` (Linux) | `SessionFile[]` |
+| `getSessionFileBirthtimes(dir)` | Delegates to `batchGetSessionFileBirthtimes([dir])` | `SessionFile[]` |
 
 Notes:
+- `batchGetSessionFileBirthtimes` is the primary function — combines all directory globs into a single `stat` call
 - Uses `stat` instead of `ls -lU` — gives epoch seconds (exact, no parsing ambiguity)
 - Platform detection via `process.platform`
-- Returns empty array if directory doesn't exist, has no `.jsonl` files, or command fails
+- Returns empty array if directories don't exist, have no `.jsonl` files, or command fails
 - `resolvedCwd` is left empty — adapter must set it after calling this function
 
 ### `utils/matching.ts` — Shared matching algorithm and naming
@@ -199,17 +201,18 @@ Unmatched processes (no session within tolerance, or no startTime) → adapter c
 | `canHandle(command)` | Yes (interface contract) | Kept for interface, but `listAgentProcesses` already filters |
 | Session dir scanning | Yes | Claude: `~/.claude/projects/<encoded>/`, Codex: `~/.codex/sessions/YYYY/MM/DD/` |
 | CWD → session dir mapping | Yes | Adapter sets `resolvedCwd` on each SessionFile |
-| `parseSession(filePath)` | Yes | JSONL schema differs per agent |
+| Session parsing (`parseSession`/`readSession`) | Yes | JSONL schema differs per agent. CodexAdapter supports cached content to avoid double I/O. |
 | `determineStatus(session)` | Yes | Entry types and status mapping differ |
 | Summary extraction | Yes | Content structure differs |
 
 #### Codex date-dir scanning
 
 Codex stores sessions in `~/.codex/sessions/YYYY/MM/DD/*.jsonl`. The adapter will:
-1. Use `batchGetProcessStartTimes` to get process start dates
+1. Use process start times (from `enrichProcesses`) to determine date dirs
 2. Scan date directories around each process start date (±1 day window)
-3. Call `getSessionFileBirthtimes()` per date directory
-4. Set `resolvedCwd` from the session meta entry's `cwd` field
+3. Call `batchGetSessionFileBirthtimes(dateDirs)` once with all date directories
+4. Read each file once and cache content in `Map<string, string>` for later parsing
+5. Set `resolvedCwd` from the session_meta first line's `cwd` field
 
 ## Design Decisions
 

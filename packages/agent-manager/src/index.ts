@@ -9,6 +9,6 @@ export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusMana
 export type { TerminalLocation } from './terminal/TerminalFocusManager';
 export { TtyWriter } from './terminal/TtyWriter';
 
-export { listProcesses, getProcessCwd, getProcessTty, isProcessRunning, getProcessInfo } from './utils/process';
+export { listProcesses, getProcessCwd, getProcessTty } from './utils/process';
 export type { ListProcessesOptions } from './utils/process';
-export { readLastLines, readJsonLines, fileExists, readJson } from './utils/file';
+export { readLastLines, readJsonLines } from './utils/file';

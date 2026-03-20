@@ -19,18 +19,13 @@ import * as fs from 'fs';
  * ```
  */
 export function readLastLines(filePath: string, lineCount: number = 100): string[] {
-    if (!fs.existsSync(filePath)) {
-        return [];
-    }
-
     try {
         const content = fs.readFileSync(filePath, 'utf-8');
         const allLines = content.trim().split('\n');
 
         // Return last N lines (or all if file has fewer lines)
         return allLines.slice(-lineCount);
-    } catch (error) {
-        console.error(`Failed to read ${filePath}:`, error);
+    } catch {
         return [];
     }
 }
@@ -60,41 +55,3 @@ export function readJsonLines<T = unknown>(filePath: string, maxLines: number = 
     }).filter((entry): entry is T => entry !== null);
 }
 
-/**
- * Check if a file exists
- * 
- * @param filePath Path to check
- * @returns True if file exists
- */
-export function fileExists(filePath: string): boolean {
-    try {
-        return fs.existsSync(filePath);
-    } catch {
-        return false;
-    }
-}
-
-/**
- * Read a JSON file safely
- * 
- * @param filePath Path to JSON file
- * @returns Parsed JSON object or null if error
- * 
- * @example
- * ```typescript
- * const config = readJson<ConfigType>('/path/to/config.json');
- * ```
- */
-export function readJson<T = unknown>(filePath: string): T | null {
-    if (!fs.existsSync(filePath)) {
-        return null;
-    }
-
-    try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        return JSON.parse(content) as T;
-    } catch (error) {
-        console.error(`Failed to parse JSON from ${filePath}:`, error);
-        return null;
-    }
-}

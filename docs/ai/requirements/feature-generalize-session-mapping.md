@@ -23,7 +23,7 @@ Adding a new CLI agent requires rewriting all of this. Shell command calls (`exe
 - Extract all shell command wrappers into shared utils — no adapter calls `execSync` directly
   - `ps -o pid=,lstart=,comm= -p PID1,...` for process start times (single batched call, full timestamp)
   - `lsof -a -d cwd -Fn -p PID1,PID2,...` for CWDs (single batched call)
-  - `ls -lU <dir>/*.jsonl` for session file birthtimes (one per directory)
+  - `stat -f '%B %N' <dir>/*.jsonl` (macOS) / `stat --format='%W %n'` (Linux) for session file birthtimes (batched across all directories)
   - `ps aux | grep <pattern>` for process discovery (filtered at shell level, not in code)
 - Extract shared matching algorithm into `utils/matching.ts`
 - Use file `birthtimeMs` as the primary matching signal
@@ -70,7 +70,7 @@ Adding a new CLI agent requires rewriting all of this. Shell command calls (`exe
 
 - **macOS and Linux only**: No Windows support. `birthtimeMs` reliable on APFS/HFS+ and modern ext4 (kernel 4.11+).
 - **`AgentAdapter` interface is frozen**: No changes to `type`, `detectAgents()`, or `canHandle()`.
-- **Platform differences**: `ls -lU` (macOS) vs `stat --format='%W %n'` (Linux) — utils handle internally.
+- **Platform differences**: `stat -f '%B %N'` (macOS) vs `stat --format='%W %n'` (Linux) — utils handle internally.
 - **birthtimeMs limitation**: accepted — process switching sessions without restart matches original session.
 - **Tolerance threshold**: 3-minute maximum delta between process start time and session file birthtime. Beyond this → process-only fallback.
 
@@ -83,7 +83,7 @@ Adding a new CLI agent requires rewriting all of this. Shell command calls (`exe
 | 3 | Use `grep` at shell level for process filtering | `ps aux \| grep claude` instead of listing all processes and filtering in code |
 | 4 | Use `ps -o pid=,lstart=,comm=` for start times | Full timestamp (not lossy `START` column from `ps aux`). Single batched call for all PIDs. |
 | 5 | Session scanning logic stays in adapter | Only exec functions (`ps`, `ls`, `lsof`) move to shared utils. Adapters control which dirs to scan. |
-| 6 | No session scan limit | `ls -lU` is cheap (no file reads). List all `.jsonl` files in project dirs. |
+| 6 | No session scan limit | `stat` is cheap (no file reads). List all `.jsonl` files in project dirs. |
 | 7 | Drop parent-child path matching | Simpler. Process CWD must match session project dir exactly. |
 | 8 | Remove redundant `canHandle()` logic | `listAgentProcesses` already filters by executable name via grep. `canHandle()` kept for interface contract only. |
 | 9 | 3-minute tolerance, then process-only fallback | Covers all observed deltas (max 2m24s). Wrong match is worse than no match. |
