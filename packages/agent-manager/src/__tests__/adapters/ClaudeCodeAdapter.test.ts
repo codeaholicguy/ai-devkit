@@ -6,7 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { ClaudeCodeAdapter } from '../../adapters/ClaudeCodeAdapter';
-import type { AgentInfo, ProcessInfo } from '../../adapters/AgentAdapter';
+import type { ProcessInfo } from '../../adapters/AgentAdapter';
 import { AgentStatus } from '../../adapters/AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../../utils/process';
 import { batchGetSessionFileBirthtimes } from '../../utils/session';
