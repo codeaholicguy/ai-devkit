@@ -27,6 +27,10 @@ program
   .option('-p, --phases <phases>', 'Comma-separated list of phases to initialize')
   .option('-t, --template <path>', 'Initialize from template file (.yaml, .yml, .json)')
   .option('-d, --docs-dir <path>', 'Custom directory for AI documentation (default: docs/ai)')
+  .option(
+    '--gitignore-artifacts',
+    'Add .ai-devkit.json, the AI docs directory, and ai-devkit command folders (per-tool commandPath) to .gitignore'
+  )
   .action(initCommand);
 
 program

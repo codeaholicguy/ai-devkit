@@ -5,7 +5,8 @@ import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
 import { PhaseSelector } from '../lib/PhaseSelector';
 import { SkillManager } from '../lib/SkillManager';
-import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate';
+import { loadInitTemplate, InitTemplateConfig, InitTemplateSkill } from '../lib/InitTemplate';
+import { writeGitignoreWithAiDevkitBlock } from '../lib/gitignoreArtifacts';
 import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types';
 import { isValidEnvironmentCode } from '../util/env';
 import { ui } from '../util/terminal-ui';
@@ -13,6 +14,18 @@ import { ui } from '../util/terminal-ui';
 function isGitAvailable(): boolean {
   try {
     execSync('git --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isInsideGitWorkTree(): boolean {
+  if (!isGitAvailable()) {
+    return false;
+  }
+  try {
+    execSync('git rev-parse --is-inside-work-tree', { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -47,6 +60,35 @@ interface InitOptions {
   phases?: string;
   template?: string;
   docsDir?: string;
+  gitignoreArtifacts?: boolean;
+}
+
+async function resolveShouldGitignoreArtifacts(
+  options: InitOptions,
+  templateConfig: InitTemplateConfig | null
+): Promise<boolean> {
+  if (options.gitignoreArtifacts === true) {
+    return true;
+  }
+  if (templateConfig?.gitignoreArtifacts === true) {
+    return true;
+  }
+  if (templateConfig?.gitignoreArtifacts === false) {
+    return false;
+  }
+  if (process.stdin.isTTY) {
+    const { addGitignore } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'addGitignore',
+        message:
+          'Add .ai-devkit.json, your AI docs folder, and installed slash-command folders (e.g. .cursor/commands, .opencode/commands) to .gitignore? They will not be shared when you push to git.',
+        default: false
+      }
+    ]);
+    return Boolean(addGitignore);
+  }
+  return false;
 }
 
 function normalizeEnvironmentOption(
@@ -297,6 +339,22 @@ export async function initCommand(options: InitOptions) {
       failedResults.forEach(result => {
         ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
       });
+    }
+  }
+
+  const shouldGitignore = await resolveShouldGitignoreArtifacts(options, templateConfig);
+  if (shouldGitignore) {
+    if (!isInsideGitWorkTree()) {
+      ui.warning('Not inside a git repository; skipped updating .gitignore for AI DevKit artifacts.');
+    } else {
+      try {
+        await writeGitignoreWithAiDevkitBlock(process.cwd(), docsDir);
+        ui.success('Updated .gitignore to exclude AI DevKit artifacts (not shared via git).');
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        ui.error(`Failed to update .gitignore: ${message}`);
+        process.exitCode = 1;
+      }
     }
   }
 

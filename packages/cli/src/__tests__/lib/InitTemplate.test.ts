@@ -126,6 +126,32 @@ paths:
     );
   });
 
+  it('loads gitignoreArtifacts boolean from YAML', async () => {
+    mockFs.pathExists.mockResolvedValue(true as never);
+    mockFs.readFile.mockResolvedValue(`
+environments:
+  - codex
+phases:
+  - requirements
+gitignoreArtifacts: true
+` as never);
+
+    const result = await loadInitTemplate('/tmp/init.yaml');
+
+    expect(result.gitignoreArtifacts).toBe(true);
+  });
+
+  it('throws when gitignoreArtifacts is not boolean', async () => {
+    mockFs.pathExists.mockResolvedValue(true as never);
+    mockFs.readFile.mockResolvedValue(`
+gitignoreArtifacts: "yes"
+` as never);
+
+    await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
+      '"gitignoreArtifacts" must be a boolean'
+    );
+  });
+
   it('throws when unknown field exists', async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(`

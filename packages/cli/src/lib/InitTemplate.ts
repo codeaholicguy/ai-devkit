@@ -17,9 +17,18 @@ export interface InitTemplateConfig {
   environments?: EnvironmentCode[];
   phases?: Phase[];
   skills?: InitTemplateSkill[];
+  /** When true, add .ai-devkit.json, docs dir, and each environment commandPath folder to .gitignore after init. */
+  gitignoreArtifacts?: boolean;
 }
 
-const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'paths', 'environments', 'phases', 'skills']);
+const ALLOWED_TEMPLATE_FIELDS = new Set([
+  'version',
+  'paths',
+  'environments',
+  'phases',
+  'skills',
+  'gitignoreArtifacts'
+]);
 
 function validationError(templatePath: string, message: string): Error {
   return new Error(`Invalid template at ${templatePath}: ${message}`);
@@ -136,6 +145,13 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
 
       return normalized as Phase;
     });
+  }
+
+  if (candidate.gitignoreArtifacts !== undefined) {
+    if (typeof candidate.gitignoreArtifacts !== 'boolean') {
+      throw validationError(resolvedPath, '"gitignoreArtifacts" must be a boolean');
+    }
+    result.gitignoreArtifacts = candidate.gitignoreArtifacts;
   }
 
   if (candidate.skills !== undefined) {

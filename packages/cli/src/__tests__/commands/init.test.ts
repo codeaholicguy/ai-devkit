@@ -4,6 +4,7 @@ const mockConfigManager: any = {
   exists: jest.fn(),
   read: jest.fn(),
   create: jest.fn(),
+  update: jest.fn(),
   setEnvironments: jest.fn(),
   addPhase: jest.fn()
 };
@@ -77,16 +78,29 @@ jest.mock('../../lib/InitTemplate', () => ({
   loadInitTemplate: (...args: unknown[]) => mockLoadInitTemplate(...args)
 }));
 
+jest.mock('../../lib/gitignoreArtifacts', () => ({
+  writeGitignoreWithAiDevkitBlock: jest.fn(async () => {
+    /* noop */
+  })
+}));
+
 jest.mock('../../util/terminal-ui', () => ({
   ui: mockUi
 }));
 
 import { initCommand } from '../../commands/init';
+import { writeGitignoreWithAiDevkitBlock } from '../../lib/gitignoreArtifacts';
+
+const mockWriteGitignore = writeGitignoreWithAiDevkitBlock as jest.MockedFunction<
+  typeof writeGitignoreWithAiDevkitBlock
+>;
 
 describe('init command template mode', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.exitCode = undefined;
+    mockWriteGitignore.mockClear();
+    mockWriteGitignore.mockResolvedValue(undefined);
 
     mockExecSync.mockReturnValue(undefined);
     mockPrompt.mockResolvedValue({});
@@ -94,6 +108,7 @@ describe('init command template mode', () => {
     mockConfigManager.exists.mockResolvedValue(false);
     mockConfigManager.read.mockResolvedValue(null);
     mockConfigManager.create.mockResolvedValue({ environments: [], phases: [] });
+    mockConfigManager.update.mockResolvedValue(undefined);
     mockConfigManager.setEnvironments.mockResolvedValue(undefined);
     mockConfigManager.addPhase.mockResolvedValue(undefined);
 
@@ -194,5 +209,51 @@ describe('init command template mode', () => {
     expect(mockUi.error).toHaveBeenCalledWith('Invalid template at /tmp/init.yaml: bad field');
     expect(process.exitCode).toBe(1);
     expect(mockConfigManager.setEnvironments).not.toHaveBeenCalled();
+  });
+
+  it('updates .gitignore when template sets gitignoreArtifacts true', async () => {
+    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue('/my/repo');
+    mockLoadInitTemplate.mockResolvedValue({
+      environments: ['codex'],
+      phases: ['requirements'],
+      gitignoreArtifacts: true,
+      paths: { docs: 'custom-ai-docs' }
+    });
+
+    await initCommand({ template: './init.yaml' });
+
+    expect(mockWriteGitignore).toHaveBeenCalledTimes(1);
+    expect(mockWriteGitignore).toHaveBeenCalledWith('/my/repo', 'custom-ai-docs');
+    expect(mockUi.success).toHaveBeenCalledWith(
+      'Updated .gitignore to exclude AI DevKit artifacts (not shared via git).'
+    );
+
+    cwdSpy.mockRestore();
+  });
+
+  it('does not update .gitignore when template sets gitignoreArtifacts false', async () => {
+    mockLoadInitTemplate.mockResolvedValue({
+      environments: ['codex'],
+      phases: ['requirements'],
+      gitignoreArtifacts: false
+    });
+
+    await initCommand({ template: './init.yaml' });
+
+    expect(mockWriteGitignore).not.toHaveBeenCalled();
+  });
+
+  it('updates .gitignore when --gitignore-artifacts is passed', async () => {
+    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue('/my/repo');
+    mockLoadInitTemplate.mockResolvedValue({
+      environments: ['codex'],
+      phases: ['requirements']
+    });
+
+    await initCommand({ template: './init.yaml', gitignoreArtifacts: true });
+
+    expect(mockWriteGitignore).toHaveBeenCalledWith('/my/repo', 'docs/ai');
+
+    cwdSpy.mockRestore();
   });
 });
