@@ -1,3 +1,4 @@
+import os from 'os';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
@@ -50,6 +51,15 @@ function formatType(type: AgentType): string {
     return TYPE_LABELS[type] ?? type;
 }
 
+function formatCwd(projectPath?: string): string {
+    if (!projectPath) return '';
+    const home = os.homedir();
+    if (projectPath.startsWith(home)) {
+        return '~' + projectPath.slice(home.length);
+    }
+    return projectPath;
+}
+
 function formatWorkOn(summary?: string): string {
     const firstLine = (summary ?? '').split(/\r?\n/, 1)[0] || '';
     return firstLine || 'No active task';
@@ -89,6 +99,7 @@ export function registerAgentCommand(program: Command): void {
 
                 const rows = agents.map(agent => [
                     agent.name,
+                    formatCwd(agent.projectPath),
                     formatType(agent.type),
                     formatStatus(agent.status),
                     formatWorkOn(agent.summary),
@@ -96,10 +107,11 @@ export function registerAgentCommand(program: Command): void {
                 ]);
 
                 ui.table({
-                    headers: ['Agent', 'Type', 'Status', 'Working On', 'Active'],
+                    headers: ['Agent', 'CWD', 'Type', 'Status', 'Working On', 'Active'],
                     rows: rows,
                     columnStyles: [
                         (text) => chalk.cyan(text),
+                        (text) => chalk.dim(text),
                         (text) => chalk.dim(text),
                         (text) => {
                             if (text.includes(STATUS_DISPLAY[AgentStatus.RUNNING].label)) return chalk.green(text);

@@ -127,11 +127,11 @@ describe('agent command', () => {
 
     expect(ui.table).toHaveBeenCalled();
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.headers).toEqual(['Agent', 'Type', 'Status', 'Working On', 'Active']);
-    expect(tableArg.rows[0][1]).toBe('Claude Code');
-    expect(tableArg.rows[1][1]).toBe('Codex');
-    expect(tableArg.rows[0][2]).toContain('wait');
-    expect(tableArg.rows[0][4]).toBe('just now');
+    expect(tableArg.headers).toEqual(['Agent', 'CWD', 'Type', 'Status', 'Working On', 'Active']);
+    expect(tableArg.rows[0][2]).toBe('Claude Code');
+    expect(tableArg.rows[1][2]).toBe('Codex');
+    expect(tableArg.rows[0][3]).toContain('wait');
+    expect(tableArg.rows[0][5]).toBe('just now');
     expect(ui.warning).toHaveBeenCalledWith('1 agent(s) waiting for input.');
   });
 
@@ -149,10 +149,10 @@ describe('agent command', () => {
     await program.parseAsync(['node', 'test', 'agent', 'list']);
 
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.rows[0][1]).toBe('Claude Code');
-    expect(tableArg.rows[1][1]).toBe('Codex');
-    expect(tableArg.rows[2][1]).toBe('Gemini CLI');
-    expect(tableArg.rows[3][1]).toBe('Other');
+    expect(tableArg.rows[0][2]).toBe('Claude Code');
+    expect(tableArg.rows[1][2]).toBe('Codex');
+    expect(tableArg.rows[2][2]).toBe('Gemini CLI');
+    expect(tableArg.rows[3][2]).toBe('Other');
   });
 
   it('truncates working-on text to first line', async () => {
@@ -174,7 +174,7 @@ Waiting on user input`,
     await program.parseAsync(['node', 'test', 'agent', 'list']);
 
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.rows[0][3]).toBe('Investigating parser bug');
+    expect(tableArg.rows[0][4]).toBe('Investigating parser bug');
   });
 
   it('shows available agents when open target is not found', async () => {
