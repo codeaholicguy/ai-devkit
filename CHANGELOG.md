@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-03-11
+
+### Added
+
+- **Agent List CWD** - Agent list command now displays the current working directory for each running agent (#47).
+- **Clarification & Brainstorming Loop** - Added clarification and brainstorming loop to `review-design` and `review-requirements` commands.
+
+### Changed
+
+- **Generalized Session Mapping** - Refactored process-to-session mapping into shared utilities (`matching`, `session`, `process`) used by both Claude Code and Codex adapters, replacing adapter-specific implementations (#45).
+- **Claude Sessions PID Matching** - Updated Claude Code session matching for more reliable PID-based detection (#48).
+
 ## [0.18.0] - 2026-03-10
 
 ### Added
