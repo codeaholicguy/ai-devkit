@@ -285,6 +285,210 @@ describe('ClaudeCodeAdapter', () => {
                 projectPath: '',
             });
         });
+
+        it('should use PID file for direct match and skip legacy matching for that process', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 55001, command: 'claude', cwd: '/project/direct', tty: 'ttys001', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-test-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-direct');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const sessionId = 'pid-file-session';
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(jsonlPath, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/direct', message: { content: 'hello from pid file' } }),
+                JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }),
+            ].join('\n'));
+
+            fs.writeFileSync(
+                path.join(sessionsDir, '55001.json'),
+                JSON.stringify({ pid: 55001, sessionId, cwd: '/project/direct', startedAt: startTime.getTime(), kind: 'interactive', entrypoint: 'cli' }),
+            );
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            const agents = await adapter.detectAgents();
+
+            // Legacy matching utilities should NOT have been called (all processes matched via PID file)
+            expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'claude',
+                pid: 55001,
+                sessionId,
+                projectPath: '/project/direct',
+                status: AgentStatus.WAITING,
+            });
+            expect(agents[0].summary).toContain('hello from pid file');
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should fall back to process-only when direct-matched JSONL becomes unreadable', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 66001, command: 'claude', cwd: '/project/gone', tty: 'ttys001', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-gone-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-gone');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const sessionId = 'gone-session';
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(jsonlPath, JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }));
+            fs.writeFileSync(
+                path.join(sessionsDir, '66001.json'),
+                JSON.stringify({ pid: 66001, sessionId, cwd: '/project/gone', startedAt: startTime.getTime(), kind: 'interactive', entrypoint: 'cli' }),
+            );
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            // Simulate JSONL disappearing between existence check and read
+            jest.spyOn(adapter as any, 'readSession').mockReturnValueOnce(null);
+
+            const agents = await adapter.detectAgents();
+
+            // matchedPids.delete called → process falls back to IDLE
+            expect(agents).toHaveLength(1);
+            expect(agents[0].sessionId).toBe('pid-66001');
+            expect(agents[0].status).toBe(AgentStatus.IDLE);
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+            jest.restoreAllMocks();
+        });
+
+        it('should fall back to process-only when legacy-matched JSONL becomes unreadable', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 66002, command: 'claude', cwd: '/project/legacy-gone', tty: 'ttys001', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-lgone-'));
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-legacy-gone');
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const sessionId = 'legacy-gone-session';
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(jsonlPath, JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }));
+
+            // No PID file → process goes to legacy fallback
+            (adapter as any).sessionsDir = path.join(tmpDir, 'no-sessions');
+            (adapter as any).projectsDir = projectsDir;
+
+            const legacySessionFile = {
+                sessionId,
+                filePath: jsonlPath,
+                projectDir: projDir,
+                birthtimeMs: startTime.getTime(),
+                resolvedCwd: '/project/legacy-gone',
+            };
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([legacySessionFile]);
+            mockedMatchProcessesToSessions.mockReturnValue([
+                { process: processes[0], session: legacySessionFile, deltaMs: 500 },
+            ]);
+
+            // Simulate JSONL disappearing between match and read
+            jest.spyOn(adapter as any, 'readSession').mockReturnValueOnce(null);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].sessionId).toBe('pid-66002');
+            expect(agents[0].status).toBe(AgentStatus.IDLE);
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+            jest.restoreAllMocks();
+        });
+
+        it('should mix direct PID-file matches and legacy matches across processes', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 55002, command: 'claude', cwd: '/project/alpha', tty: 'ttys001', startTime },
+                { pid: 55003, command: 'claude', cwd: '/project/beta', tty: 'ttys002', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-mix-test-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projAlpha = path.join(projectsDir, '-project-alpha');
+            const projBeta = path.join(projectsDir, '-project-beta');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projAlpha, { recursive: true });
+            fs.mkdirSync(projBeta, { recursive: true });
+
+            // PID file only for process 55002
+            const directSessionId = 'direct-session';
+            const directJsonl = path.join(projAlpha, `${directSessionId}.jsonl`);
+            fs.writeFileSync(directJsonl, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/alpha', message: { content: 'direct question' } }),
+                JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }),
+            ].join('\n'));
+            fs.writeFileSync(
+                path.join(sessionsDir, '55002.json'),
+                JSON.stringify({ pid: 55002, sessionId: directSessionId, cwd: '/project/alpha', startedAt: startTime.getTime(), kind: 'interactive', entrypoint: 'cli' }),
+            );
+
+            // Legacy session file for process 55003
+            const legacySessionId = 'legacy-session';
+            const legacyJsonl = path.join(projBeta, `${legacySessionId}.jsonl`);
+            fs.writeFileSync(legacyJsonl, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/beta', message: { content: 'legacy question' } }),
+                JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }),
+            ].join('\n'));
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            // Mock legacy matching for process 55003
+            const legacySessionFile = {
+                sessionId: legacySessionId,
+                filePath: legacyJsonl,
+                projectDir: projBeta,
+                birthtimeMs: startTime.getTime(),
+                resolvedCwd: '/project/beta',
+            };
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([legacySessionFile]);
+            mockedMatchProcessesToSessions.mockReturnValue([
+                { process: processes[1], session: legacySessionFile, deltaMs: 1000 },
+            ]);
+
+            const agents = await adapter.detectAgents();
+
+            // Legacy matching called only for fallback process (55003)
+            expect(mockedMatchProcessesToSessions).toHaveBeenCalledTimes(1);
+            expect(mockedMatchProcessesToSessions.mock.calls[0][0]).toEqual([processes[1]]);
+
+            expect(agents).toHaveLength(2);
+            const alpha = agents.find(a => a.pid === 55002);
+            const beta = agents.find(a => a.pid === 55003);
+            expect(alpha?.sessionId).toBe(directSessionId);
+            expect(beta?.sessionId).toBe(legacySessionId);
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
     });
 
     describe('discoverSessions', () => {
@@ -611,6 +815,165 @@ describe('ClaudeCodeAdapter', () => {
 
         afterEach(() => {
             fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        describe('tryPidFileMatching', () => {
+            let sessionsDir: string;
+            let projectsDir: string;
+
+            beforeEach(() => {
+                sessionsDir = path.join(tmpDir, 'sessions');
+                projectsDir = path.join(tmpDir, 'projects');
+                fs.mkdirSync(sessionsDir, { recursive: true });
+                (adapter as any).sessionsDir = sessionsDir;
+                (adapter as any).projectsDir = projectsDir;
+            });
+
+            const makeProc = (pid: number, cwd = '/project/test', startTime?: Date): ProcessInfo => ({
+                pid, command: 'claude', cwd, tty: 'ttys001', startTime,
+            });
+
+            const writePidFile = (pid: number, sessionId: string, cwd: string, startedAt: number) => {
+                fs.writeFileSync(
+                    path.join(sessionsDir, `${pid}.json`),
+                    JSON.stringify({ pid, sessionId, cwd, startedAt, kind: 'interactive', entrypoint: 'cli' }),
+                );
+            };
+
+            const writeJsonl = (cwd: string, sessionId: string) => {
+                const encoded = cwd.replace(/\//g, '-');
+                const projDir = path.join(projectsDir, encoded);
+                fs.mkdirSync(projDir, { recursive: true });
+                const filePath = path.join(projDir, `${sessionId}.jsonl`);
+                fs.writeFileSync(filePath, JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }));
+                return filePath;
+            };
+
+            it('should return direct match when PID file and JSONL both exist within time tolerance', () => {
+                const startTime = new Date();
+                const proc = makeProc(1001, '/project/test', startTime);
+                writePidFile(1001, 'session-abc', '/project/test', startTime.getTime());
+                writeJsonl('/project/test', 'session-abc');
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc]);
+
+                expect(direct).toHaveLength(1);
+                expect(fallback).toHaveLength(0);
+                expect(direct[0].sessionFile.sessionId).toBe('session-abc');
+                expect(direct[0].sessionFile.resolvedCwd).toBe('/project/test');
+                expect(direct[0].process.pid).toBe(1001);
+            });
+
+            it('should fall back when PID file exists but JSONL is missing', () => {
+                const startTime = new Date();
+                const proc = makeProc(1002, '/project/test', startTime);
+                writePidFile(1002, 'nonexistent-session', '/project/test', startTime.getTime());
+                // No JSONL file written
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc]);
+
+                expect(direct).toHaveLength(0);
+                expect(fallback).toHaveLength(1);
+                expect(fallback[0].pid).toBe(1002);
+            });
+
+            it('should fall back when startedAt is stale (>60s from proc.startTime)', () => {
+                const startTime = new Date();
+                const staleTime = startTime.getTime() - 90_000; // 90 seconds earlier
+                const proc = makeProc(1003, '/project/test', startTime);
+                writePidFile(1003, 'stale-session', '/project/test', staleTime);
+                writeJsonl('/project/test', 'stale-session');
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc]);
+
+                expect(direct).toHaveLength(0);
+                expect(fallback).toHaveLength(1);
+            });
+
+            it('should accept PID file when startedAt is within 60s tolerance', () => {
+                const startTime = new Date();
+                const closeTime = startTime.getTime() - 30_000; // 30 seconds earlier — within tolerance
+                const proc = makeProc(1004, '/project/test', startTime);
+                writePidFile(1004, 'close-session', '/project/test', closeTime);
+                writeJsonl('/project/test', 'close-session');
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc]);
+
+                expect(direct).toHaveLength(1);
+                expect(fallback).toHaveLength(0);
+            });
+
+            it('should fall back when PID file is absent', () => {
+                const proc = makeProc(1005, '/project/test', new Date());
+                // No PID file written
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc]);
+
+                expect(direct).toHaveLength(0);
+                expect(fallback).toHaveLength(1);
+            });
+
+            it('should fall back when PID file contains malformed JSON', () => {
+                const proc = makeProc(1006, '/project/test', new Date());
+                fs.writeFileSync(path.join(sessionsDir, '1006.json'), 'not valid json {{{');
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                expect(() => {
+                    const { direct, fallback } = tryMatch([proc]);
+                    expect(direct).toHaveLength(0);
+                    expect(fallback).toHaveLength(1);
+                }).not.toThrow();
+            });
+
+            it('should fall back for all processes when sessions dir does not exist', () => {
+                (adapter as any).sessionsDir = path.join(tmpDir, 'nonexistent-sessions');
+                const processes = [makeProc(2001, '/a', new Date()), makeProc(2002, '/b', new Date())];
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch(processes);
+
+                expect(direct).toHaveLength(0);
+                expect(fallback).toHaveLength(2);
+            });
+
+            it('should correctly split mixed processes (some with PID files, some without)', () => {
+                const startTime = new Date();
+                const proc1 = makeProc(3001, '/project/one', startTime);
+                const proc2 = makeProc(3002, '/project/two', startTime);
+                const proc3 = makeProc(3003, '/project/three', startTime);
+
+                writePidFile(3001, 'session-one', '/project/one', startTime.getTime());
+                writeJsonl('/project/one', 'session-one');
+                writePidFile(3003, 'session-three', '/project/three', startTime.getTime());
+                writeJsonl('/project/three', 'session-three');
+                // proc2 has no PID file
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc1, proc2, proc3]);
+
+                expect(direct).toHaveLength(2);
+                expect(fallback).toHaveLength(1);
+                expect(direct.map((d: any) => d.process.pid).sort()).toEqual([3001, 3003]);
+                expect(fallback[0].pid).toBe(3002);
+            });
+
+            it('should skip stale-file check when proc.startTime is undefined', () => {
+                const proc = makeProc(4001, '/project/test', undefined); // no startTime
+                writePidFile(4001, 'no-time-session', '/project/test', Date.now() - 999_999);
+                writeJsonl('/project/test', 'no-time-session');
+
+                const tryMatch = (adapter as any).tryPidFileMatching.bind(adapter);
+                const { direct, fallback } = tryMatch([proc]);
+
+                // startTime undefined → stale check skipped → direct match
+                expect(direct).toHaveLength(1);
+                expect(fallback).toHaveLength(0);
+            });
         });
 
         describe('readSession', () => {
