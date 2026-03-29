@@ -67,6 +67,7 @@
     "google-gemini/gemini-skills": "https://github.com/google-gemini/gemini-skills",
     "HeyVincent-ai/agent-skills": "https://github.com/HeyVincent-ai/agent-skills.git",
     "huggingface/skills": "https://github.com/huggingface/skills.git",
-    "mcollina/skills": "https://github.com/mcollina/skills.git"
+    "mcollina/skills": "https://github.com/mcollina/skills.git",
+    "samber/cc-skills-golang": "https://github.com/samber/cc-skills-golang.git"
   }
 }
