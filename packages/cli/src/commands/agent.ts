@@ -216,7 +216,7 @@ export function registerAgentCommand(program: Command): void {
     agentCommand
         .command('send <message>')
         .description('Send a message to a running agent')
-        .requiredOption('--id <identifier>', 'Agent name, slug, or partial match')
+        .requiredOption('--id <identifier>', 'Agent name or partial match')
         .action(async (message, options) => {
             try {
                 const manager = new AgentManager();
@@ -346,7 +346,6 @@ export function registerAgentCommand(program: Command): void {
                         status: agent.status,
                         type: agent.type,
                         name: agent.name,
-                        slug: agent.slug,
                         lastActive: agent.lastActive,
                         conversation: displayMessages,
                     };
@@ -363,10 +362,6 @@ export function registerAgentCommand(program: Command): void {
                 console.log(`  ${chalk.bold('Last Active:')} ${formatRelativeTime(agent.lastActive)}`);
                 console.log(`  ${chalk.bold('Status:')}      ${formatStatus(agent.status)}`);
                 console.log(`  ${chalk.bold('Type:')}        ${formatType(agent.type)}`);
-                if (agent.slug) {
-                    console.log(`  ${chalk.bold('Slug:')}        ${agent.slug}`);
-                }
-
                 ui.breakline();
                 const label = isTruncated
                     ? `Conversation (last ${displayMessages.length} of ${conversation.length} messages)`

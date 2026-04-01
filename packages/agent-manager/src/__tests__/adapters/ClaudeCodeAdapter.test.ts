@@ -168,7 +168,7 @@ describe('ClaudeCodeAdapter', () => {
             // Create session file
             const sessionFile = path.join(projDir, 'session-1.jsonl');
             fs.writeFileSync(sessionFile, [
-                JSON.stringify({ type: 'user', timestamp: '2026-03-18T23:18:44Z', cwd: '/Users/test/my-project', slug: 'merry-dog', message: { content: 'Investigate failing tests' } }),
+                JSON.stringify({ type: 'user', timestamp: '2026-03-18T23:18:44Z', cwd: '/Users/test/my-project', message: { content: 'Investigate failing tests' } }),
                 JSON.stringify({ type: 'assistant', timestamp: '2026-03-18T23:19:00Z' }),
             ].join('\n'));
 
@@ -203,7 +203,6 @@ describe('ClaudeCodeAdapter', () => {
                 pid: 12345,
                 projectPath: '/Users/test/my-project',
                 sessionId: 'session-1',
-                slug: 'merry-dog',
             });
             expect(agents[0].summary).toContain('Investigate failing tests');
 
@@ -977,12 +976,12 @@ describe('ClaudeCodeAdapter', () => {
         });
 
         describe('readSession', () => {
-            it('should parse session file with timestamps, slug, cwd, and entry type', () => {
+            it('should parse session file with timestamps, cwd, and entry type', () => {
                 const readSession = (adapter as any).readSession.bind(adapter);
 
                 const filePath = path.join(tmpDir, 'test-session.jsonl');
                 const lines = [
-                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:00:00Z', cwd: '/my/project', slug: 'happy-dog' }),
+                    JSON.stringify({ type: 'user', timestamp: '2026-03-10T10:00:00Z', cwd: '/my/project' }),
                     JSON.stringify({ type: 'assistant', timestamp: '2026-03-10T10:01:00Z' }),
                 ];
                 fs.writeFileSync(filePath, lines.join('\n'));
@@ -991,7 +990,6 @@ describe('ClaudeCodeAdapter', () => {
                 expect(session).toMatchObject({
                     sessionId: 'test-session',
                     projectPath: '/my/project',
-                    slug: 'happy-dog',
                     lastCwd: '/my/project',
                     lastEntryType: 'assistant',
                     isInterrupted: false,
@@ -1029,7 +1027,6 @@ describe('ClaudeCodeAdapter', () => {
                 const session = readSession(filePath, '/test');
                 expect(session).not.toBeNull();
                 expect(session.lastEntryType).toBeUndefined();
-                expect(session.slug).toBeUndefined();
             });
 
             it('should return null for non-existent file', () => {

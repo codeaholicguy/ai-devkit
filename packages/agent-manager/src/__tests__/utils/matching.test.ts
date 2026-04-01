@@ -173,19 +173,27 @@ describe('matchProcessesToSessions', () => {
 });
 
 describe('generateAgentName', () => {
-    it('should return folderName (pid)', () => {
-        expect(generateAgentName('/projects/my-app', 12345)).toBe('my-app (12345)');
+    it('should return lowercase kebab-case name with pid', () => {
+        expect(generateAgentName('/projects/my-app', 12345)).toBe('my-app-12345');
     });
 
     it('should handle root path', () => {
-        expect(generateAgentName('/', 100)).toBe('unknown (100)');
+        expect(generateAgentName('/', 100)).toBe('unknown-100');
     });
 
     it('should handle empty cwd', () => {
-        expect(generateAgentName('', 100)).toBe('unknown (100)');
+        expect(generateAgentName('', 100)).toBe('unknown-100');
     });
 
     it('should handle nested paths', () => {
-        expect(generateAgentName('/home/user/projects/ai-devkit', 78070)).toBe('ai-devkit (78070)');
+        expect(generateAgentName('/home/user/projects/ai-devkit', 78070)).toBe('ai-devkit-78070');
+    });
+
+    it('should convert spaces and special chars to kebab-case', () => {
+        expect(generateAgentName('/projects/AI DevKit', 123)).toBe('ai-devkit-123');
+    });
+
+    it('should convert uppercase to lowercase', () => {
+        expect(generateAgentName('/projects/MyProject', 456)).toBe('myproject-456');
     });
 });

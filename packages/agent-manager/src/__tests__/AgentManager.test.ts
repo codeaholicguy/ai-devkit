@@ -49,7 +49,6 @@ function createMockAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
         pid: 12345,
         projectPath: '/test/path',
         sessionId: 'test-session-id',
-        slug: 'test-slug',
         lastActive: new Date(),
         ...overrides,
     };

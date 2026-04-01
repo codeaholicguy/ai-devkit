@@ -84,9 +84,13 @@ export function matchProcessesToSessions(
 /**
  * Generate a deterministic agent name from CWD and PID.
  *
- * Format: "folderName (pid)"
+ * Format: "folder-name-pid" (lowercase kebab-case)
  */
 export function generateAgentName(cwd: string, pid: number): string {
     const folderName = path.basename(cwd) || 'unknown';
-    return `${folderName} (${pid})`;
+    const kebab = folderName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${kebab || 'unknown'}-${pid}`;
 }

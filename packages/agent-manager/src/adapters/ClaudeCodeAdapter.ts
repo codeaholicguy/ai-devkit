@@ -22,7 +22,6 @@ interface ContentBlock {
 interface SessionEntry {
     type?: string;
     timestamp?: string;
-    slug?: string;
     cwd?: string;
     message?: {
         content?: string | ContentBlock[];
@@ -56,7 +55,6 @@ interface ClaudeSession {
     sessionId: string;
     projectPath: string;
     lastCwd?: string;
-    slug?: string;
     sessionStart: Date;
     lastActive: Date;
     lastEntryType?: string;
@@ -281,7 +279,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             pid: processInfo.pid,
             projectPath: sessionFile.resolvedCwd || processInfo.cwd || '',
             sessionId: sessionFile.sessionId,
-            slug: session.slug,
             lastActive: session.lastActive,
             sessionFilePath: sessionFile.filePath,
         };
@@ -340,7 +337,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         }
 
         // Parse all lines for session state (file already in memory)
-        let slug: string | undefined;
         let lastEntryType: string | undefined;
         let lastActive: Date | undefined;
         let lastCwd: string | undefined;
@@ -356,10 +352,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                     if (!Number.isNaN(ts.getTime())) {
                         lastActive = ts;
                     }
-                }
-
-                if (entry.slug && !slug) {
-                    slug = entry.slug;
                 }
 
                 if (typeof entry.cwd === 'string' && entry.cwd.trim().length > 0) {
@@ -399,7 +391,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             sessionId,
             projectPath: projectPath || lastCwd || '',
             lastCwd,
-            slug,
             sessionStart: sessionStart || lastActive || new Date(),
             lastActive: lastActive || new Date(),
             lastEntryType,

@@ -45,9 +45,6 @@ export interface AgentInfo {
     /** Session UUID */
     sessionId: string;
 
-    /** Human-readable session name (e.g., "merry-wobbling-starlight"), may be undefined for new sessions */
-    slug?: string;
-
     /** Timestamp of last activity */
     lastActive: Date;
 
