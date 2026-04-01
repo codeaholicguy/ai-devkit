@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Orchestration"
+  short_description: "Proactively orchestrate and coordinate running AI agents"
+  default_prompt: "Use $agent-orchestration to scan all running agents, assess their status, send next instructions to waiting agents, and coordinate multi-agent workflows. Act as the lead — drive progress autonomously and escalate only when you need my input."
