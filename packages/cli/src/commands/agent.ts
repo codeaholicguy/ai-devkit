@@ -12,7 +12,6 @@ import {
     type AgentAdapter,
     type AgentInfo,
     type AgentType,
-    type ConversationMessage,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui';
 
