@@ -12,7 +12,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
+import type { AgentAdapter, AgentInfo, ProcessInfo, ConversationMessage } from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
 import { batchGetSessionFileBirthtimes } from '../utils/session';
@@ -78,7 +78,7 @@ export class CodexAdapter implements AgentAdapter {
             const cachedContent = contentCache.get(match.session.filePath);
             const sessionData = this.parseSession(cachedContent, match.session.filePath);
             if (sessionData) {
-                agents.push(this.mapSessionToAgent(sessionData, match.process));
+                agents.push(this.mapSessionToAgent(sessionData, match.process, match.session.filePath));
             } else {
                 matchedPids.delete(match.process.pid);
             }
@@ -234,7 +234,7 @@ export class CodexAdapter implements AgentAdapter {
         };
     }
 
-    private mapSessionToAgent(session: CodexSession, processInfo: ProcessInfo): AgentInfo {
+    private mapSessionToAgent(session: CodexSession, processInfo: ProcessInfo, filePath: string): AgentInfo {
         return {
             name: generateAgentName(session.projectPath || processInfo.cwd || '', processInfo.pid),
             type: this.type,
@@ -244,6 +244,7 @@ export class CodexAdapter implements AgentAdapter {
             projectPath: session.projectPath || processInfo.cwd || '',
             sessionId: session.sessionId,
             lastActive: session.lastActive,
+            sessionFilePath: filePath,
         };
     }
 
@@ -315,5 +316,60 @@ export class CodexAdapter implements AgentAdapter {
         const executable = command.trim().split(/\s+/)[0] || '';
         const base = path.basename(executable).toLowerCase();
         return base === 'codex' || base === 'codex.exe';
+    }
+
+    /**
+     * Read the full conversation from a Codex session JSONL file.
+     *
+     * Codex entries use payload.type to indicate message role and payload.message for content.
+     */
+    getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+        const verbose = options?.verbose ?? false;
+
+        let content: string;
+        try {
+            content = fs.readFileSync(sessionFilePath, 'utf-8');
+        } catch {
+            return [];
+        }
+
+        const lines = content.trim().split('\n');
+        const messages: ConversationMessage[] = [];
+
+        for (const line of lines) {
+            let entry: CodexEventEntry;
+            try {
+                entry = JSON.parse(line);
+            } catch {
+                continue;
+            }
+
+            if (entry.type === 'session_meta') continue;
+
+            const payloadType = entry.payload?.type;
+            if (!payloadType) continue;
+
+            let role: ConversationMessage['role'];
+            if (payloadType === 'user_message') {
+                role = 'user';
+            } else if (payloadType === 'agent_message' || payloadType === 'task_complete') {
+                role = 'assistant';
+            } else if (verbose) {
+                role = 'system';
+            } else {
+                continue;
+            }
+
+            const text = entry.payload?.message?.trim();
+            if (!text) continue;
+
+            messages.push({
+                role,
+                content: text,
+                timestamp: entry.timestamp,
+            });
+        }
+
+        return messages;
     }
 }

@@ -1117,4 +1117,178 @@ describe('ClaudeCodeAdapter', () => {
             });
         });
     });
+
+    describe('getConversation', () => {
+        let tmpDir: string;
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-conv-'));
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        function writeJsonl(lines: object[]): string {
+            const filePath = path.join(tmpDir, 'session.jsonl');
+            fs.writeFileSync(filePath, lines.map(l => JSON.stringify(l)).join('\n'));
+            return filePath;
+        }
+
+        it('should parse user and assistant text messages', () => {
+            const filePath = writeJsonl([
+                { type: 'user', timestamp: '2026-03-27T10:00:00Z', message: { content: 'Hello' } },
+                { type: 'assistant', timestamp: '2026-03-27T10:00:05Z', message: { content: [{ type: 'text', text: 'Hi there!' }] } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+            expect(messages[0]).toEqual({ role: 'user', content: 'Hello', timestamp: '2026-03-27T10:00:00Z' });
+            expect(messages[1]).toEqual({ role: 'assistant', content: 'Hi there!', timestamp: '2026-03-27T10:00:05Z' });
+        });
+
+        it('should skip metadata entry types', () => {
+            const filePath = writeJsonl([
+                { type: 'file-history-snapshot', timestamp: '2026-03-27T10:00:00Z', snapshot: {} },
+                { type: 'last-prompt', timestamp: '2026-03-27T10:00:00Z' },
+                { type: 'user', timestamp: '2026-03-27T10:00:01Z', message: { content: 'Fix bug' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0].content).toBe('Fix bug');
+        });
+
+        it('should skip progress and thinking entries', () => {
+            const filePath = writeJsonl([
+                { type: 'user', timestamp: '2026-03-27T10:00:00Z', message: { content: 'Hello' } },
+                { type: 'progress', timestamp: '2026-03-27T10:00:01Z', data: {} },
+                { type: 'thinking', timestamp: '2026-03-27T10:00:02Z' },
+                { type: 'assistant', timestamp: '2026-03-27T10:00:03Z', message: { content: [{ type: 'text', text: 'Done' }] } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+            expect(messages[0].role).toBe('user');
+            expect(messages[1].role).toBe('assistant');
+        });
+
+        it('should include system messages', () => {
+            const filePath = writeJsonl([
+                { type: 'system', timestamp: '2026-03-27T10:00:00Z', message: { content: 'System initialized' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0]).toEqual({ role: 'system', content: 'System initialized', timestamp: '2026-03-27T10:00:00Z' });
+        });
+
+        it('should skip tool_use and tool_result blocks in default mode', () => {
+            const filePath = writeJsonl([
+                {
+                    type: 'assistant', timestamp: '2026-03-27T10:00:00Z',
+                    message: {
+                        content: [
+                            { type: 'text', text: 'Let me read the file.' },
+                            { type: 'tool_use', name: 'Read', input: { file_path: '/src/app.ts' } },
+                        ],
+                    },
+                },
+                {
+                    type: 'user', timestamp: '2026-03-27T10:00:01Z',
+                    message: {
+                        content: [
+                            { type: 'tool_result', tool_use_id: 'toolu_1', content: 'file contents here' },
+                        ],
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0].content).toBe('Let me read the file.');
+        });
+
+        it('should include tool_use and tool_result blocks in verbose mode', () => {
+            const filePath = writeJsonl([
+                {
+                    type: 'assistant', timestamp: '2026-03-27T10:00:00Z',
+                    message: {
+                        content: [
+                            { type: 'text', text: 'Let me read the file.' },
+                            { type: 'tool_use', name: 'Read', input: { file_path: '/src/app.ts' } },
+                        ],
+                    },
+                },
+                {
+                    type: 'user', timestamp: '2026-03-27T10:00:01Z',
+                    message: {
+                        content: [
+                            { type: 'tool_result', tool_use_id: 'toolu_1', content: 'file contents here' },
+                        ],
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath, { verbose: true });
+            expect(messages).toHaveLength(2);
+            expect(messages[0].content).toContain('[Tool: Read]');
+            expect(messages[0].content).toContain('/src/app.ts');
+            expect(messages[1].content).toContain('[Tool Result]');
+        });
+
+        it('should handle tool_result errors in verbose mode', () => {
+            const filePath = writeJsonl([
+                {
+                    type: 'user', timestamp: '2026-03-27T10:00:00Z',
+                    message: {
+                        content: [
+                            { type: 'tool_result', tool_use_id: 'toolu_1', content: 'Something went wrong', is_error: true },
+                        ],
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath, { verbose: true });
+            expect(messages).toHaveLength(1);
+            expect(messages[0].content).toContain('[Tool Error]');
+        });
+
+        it('should handle malformed JSON lines gracefully', () => {
+            const filePath = path.join(tmpDir, 'malformed.jsonl');
+            fs.writeFileSync(filePath, [
+                JSON.stringify({ type: 'user', timestamp: '2026-03-27T10:00:00Z', message: { content: 'Hello' } }),
+                'this is not valid json',
+                JSON.stringify({ type: 'assistant', timestamp: '2026-03-27T10:00:01Z', message: { content: [{ type: 'text', text: 'World' }] } }),
+            ].join('\n'));
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+        });
+
+        it('should return empty array for missing file', () => {
+            const messages = adapter.getConversation('/nonexistent/path.jsonl');
+            expect(messages).toEqual([]);
+        });
+
+        it('should return empty array for empty file', () => {
+            const filePath = path.join(tmpDir, 'empty.jsonl');
+            fs.writeFileSync(filePath, '');
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toEqual([]);
+        });
+
+        it('should filter noise messages from user entries', () => {
+            const filePath = writeJsonl([
+                { type: 'user', timestamp: '2026-03-27T10:00:00Z', message: { content: [{ type: 'text', text: '[Request interrupted by user]' }] } },
+                { type: 'user', timestamp: '2026-03-27T10:00:01Z', message: { content: 'Tool loaded.' } },
+                { type: 'user', timestamp: '2026-03-27T10:00:02Z', message: { content: 'Real question' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0].content).toBe('Real question');
+        });
+    });
 });

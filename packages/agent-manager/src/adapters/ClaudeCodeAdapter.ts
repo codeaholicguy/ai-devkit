@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AgentAdapter, AgentInfo, ProcessInfo } from './AgentAdapter';
+import type { AgentAdapter, AgentInfo, ProcessInfo, ConversationMessage } from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
 import { batchGetSessionFileBirthtimes } from '../utils/session';
@@ -9,17 +9,23 @@ import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
 /**
  * Entry in session JSONL file
  */
+interface ContentBlock {
+    type?: string;
+    text?: string;
+    content?: string;
+    name?: string;
+    input?: Record<string, unknown>;
+    tool_use_id?: string;
+    is_error?: boolean;
+}
+
 interface SessionEntry {
     type?: string;
     timestamp?: string;
     slug?: string;
     cwd?: string;
     message?: {
-        content?: string | Array<{
-            type?: string;
-            text?: string;
-            content?: string;
-        }>;
+        content?: string | ContentBlock[];
     };
 }
 
@@ -277,6 +283,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             sessionId: sessionFile.sessionId,
             slug: session.slug,
             lastActive: session.lastActive,
+            sessionFilePath: sessionFile.filePath,
         };
     }
 
@@ -515,6 +522,104 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      */
     private isMetadataEntryType(type: string): boolean {
         return type === 'last-prompt' || type === 'file-history-snapshot';
+    }
+
+    /**
+     * Read the full conversation from a Claude Code session JSONL file.
+     *
+     * Default mode returns only text content from user/assistant/system messages.
+     * Verbose mode also includes tool_use and tool_result blocks.
+     */
+    getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+        const verbose = options?.verbose ?? false;
+
+        let content: string;
+        try {
+            content = fs.readFileSync(sessionFilePath, 'utf-8');
+        } catch {
+            return [];
+        }
+
+        const lines = content.trim().split('\n');
+        const messages: ConversationMessage[] = [];
+
+        for (const line of lines) {
+            let entry: SessionEntry;
+            try {
+                entry = JSON.parse(line);
+            } catch {
+                continue;
+            }
+
+            const entryType = entry.type;
+            if (!entryType || this.isMetadataEntryType(entryType)) continue;
+            if (entryType === 'progress' || entryType === 'thinking') continue;
+
+            let role: ConversationMessage['role'];
+            if (entryType === 'user') {
+                role = 'user';
+            } else if (entryType === 'assistant') {
+                role = 'assistant';
+            } else if (entryType === 'system') {
+                role = 'system';
+            } else {
+                continue;
+            }
+
+            const text = this.extractConversationContent(entry.message?.content, role, verbose);
+            if (!text) continue;
+
+            messages.push({
+                role,
+                content: text,
+                timestamp: entry.timestamp,
+            });
+        }
+
+        return messages;
+    }
+
+    /**
+     * Extract displayable content from a message content field.
+     */
+    private extractConversationContent(
+        content: string | ContentBlock[] | undefined,
+        role: ConversationMessage['role'],
+        verbose: boolean,
+    ): string | undefined {
+        if (!content) return undefined;
+
+        if (typeof content === 'string') {
+            const trimmed = content.trim();
+            if (role === 'user' && this.isNoiseMessage(trimmed)) return undefined;
+            return trimmed || undefined;
+        }
+
+        if (!Array.isArray(content)) return undefined;
+
+        const parts: string[] = [];
+
+        for (const block of content) {
+            if (block.type === 'text' && block.text?.trim()) {
+                if (role === 'user' && this.isNoiseMessage(block.text.trim())) continue;
+                parts.push(block.text.trim());
+            } else if (block.type === 'tool_use' && verbose) {
+                const inputSummary = block.input?.file_path || block.input?.pattern || block.input?.command || '';
+                parts.push(`[Tool: ${block.name}]${inputSummary ? ' ' + inputSummary : ''}`);
+            } else if (block.type === 'tool_result' && verbose) {
+                const truncated = this.truncateToolResult(block.content || '');
+                const prefix = block.is_error ? '[Tool Error]' : '[Tool Result]';
+                parts.push(`${prefix} ${truncated}`);
+            }
+        }
+
+        return parts.length > 0 ? parts.join('\n') : undefined;
+    }
+
+    private truncateToolResult(content: string, maxLength = 200): string {
+        const firstLine = content.split('\n')[0] || '';
+        if (firstLine.length <= maxLength) return firstLine;
+        return firstLine.slice(0, maxLength - 3) + '...';
     }
 
 }
