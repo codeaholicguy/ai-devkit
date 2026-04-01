@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Detail Command** - New `ai-devkit agent detail --id <name>` command to inspect running agent conversations (#49).
+- **Skill Registry** - Added `samber/cc-skills-golang` skill repository.
+
+### Changed
+
+- **Agent Identifier** - Updated agent identifier; removed `slug` field from `AgentInfo` in favor of simplified name-based matching.
+
 ## [0.19.0] - 2026-03-11
 
 ### Added
