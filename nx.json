@@ -32,5 +32,6 @@
     "version": {
       "preserveMatchingDependencyRanges": false
     }
-  }
+  },
+  "analytics": false
 }
