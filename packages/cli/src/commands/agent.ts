@@ -9,6 +9,7 @@ import {
     AgentStatus,
     TerminalFocusManager,
     TtyWriter,
+    type AgentAdapter,
     type AgentInfo,
     type AgentType,
 } from '@ai-devkit/agent-manager';
@@ -262,6 +263,140 @@ export function registerAgentCommand(program: Command): void {
 
             } catch (error: any) {
                 ui.error(`Failed to send message: ${error.message}`);
+                process.exit(1);
+            }
+        });
+
+    agentCommand
+        .command('detail')
+        .description('Show detailed information about a running agent')
+        .requiredOption('--id <name>', 'Agent name (as shown in agent list)')
+        .option('-j, --json', 'Output as JSON')
+        .option('--full', 'Show entire conversation history')
+        .option('--tail <n>', 'Show last N messages (default: 20)', '20')
+        .option('--verbose', 'Include tool call/result details')
+        .action(async (options) => {
+            try {
+                const claudeAdapter = new ClaudeCodeAdapter();
+                const codexAdapter = new CodexAdapter();
+
+                const manager = new AgentManager();
+                manager.registerAdapter(claudeAdapter);
+                manager.registerAdapter(codexAdapter);
+
+                const agents = await manager.listAgents();
+                if (agents.length === 0) {
+                    ui.error('No running agents found.');
+                    return;
+                }
+
+                const resolved = manager.resolveAgent(options.id, agents);
+
+                if (!resolved) {
+                    ui.error(`No agent found matching "${options.id}".`);
+                    ui.info('Available agents:');
+                    agents.forEach(a => console.log(`  - ${a.name}`));
+                    return;
+                }
+
+                if (Array.isArray(resolved)) {
+                    ui.error(`Multiple agents match "${options.id}":`);
+                    resolved.forEach(a => console.log(`  - ${a.name} (${formatStatus(a.status)})`));
+                    ui.info('Please use a more specific name.');
+                    return;
+                }
+
+                const agent = resolved as AgentInfo;
+
+                if (!agent.sessionFilePath) {
+                    ui.error(`No session file found for agent "${agent.name}".`);
+                    return;
+                }
+
+                // Pick the right adapter for conversation reading
+                const adapters: Record<string, AgentAdapter> = {
+                    claude: claudeAdapter,
+                    codex: codexAdapter,
+                };
+                const adapter = adapters[agent.type];
+                if (!adapter) {
+                    ui.error(`Unsupported agent type: ${agent.type}`);
+                    return;
+                }
+
+                const conversation = adapter.getConversation(agent.sessionFilePath, {
+                    verbose: options.verbose,
+                });
+
+                // Apply tail/full limit
+                const tailCount = options.full ? conversation.length : parseInt(options.tail, 10) || 20;
+                const displayMessages = conversation.slice(-tailCount);
+                const isTruncated = displayMessages.length < conversation.length;
+
+                // Derive start time from first conversation message, fall back to lastActive
+                const startTime = conversation.length > 0 && conversation[0].timestamp
+                    ? new Date(conversation[0].timestamp)
+                    : agent.lastActive;
+
+                if (options.json) {
+                    const output = {
+                        sessionId: agent.sessionId,
+                        cwd: agent.projectPath,
+                        startTime,
+                        status: agent.status,
+                        type: agent.type,
+                        name: agent.name,
+                        slug: agent.slug,
+                        lastActive: agent.lastActive,
+                        conversation: displayMessages,
+                    };
+                    console.log(JSON.stringify(output, null, 2));
+                    return;
+                }
+
+                // Human-readable output
+                ui.text('Agent Detail', { breakline: true });
+                console.log(chalk.dim('─'.repeat(40)));
+                console.log(`  ${chalk.bold('Session ID:')}  ${agent.sessionId}`);
+                console.log(`  ${chalk.bold('CWD:')}         ${formatCwd(agent.projectPath)}`);
+                console.log(`  ${chalk.bold('Start Time:')}  ${new Date(startTime).toLocaleString()}`);
+                console.log(`  ${chalk.bold('Last Active:')} ${formatRelativeTime(agent.lastActive)}`);
+                console.log(`  ${chalk.bold('Status:')}      ${formatStatus(agent.status)}`);
+                console.log(`  ${chalk.bold('Type:')}        ${formatType(agent.type)}`);
+                if (agent.slug) {
+                    console.log(`  ${chalk.bold('Slug:')}        ${agent.slug}`);
+                }
+
+                ui.breakline();
+                const label = isTruncated
+                    ? `Conversation (last ${displayMessages.length} of ${conversation.length} messages)`
+                    : `Conversation (${displayMessages.length} messages)`;
+                ui.text(label, { breakline: false });
+                console.log(chalk.dim('─'.repeat(40)));
+
+                for (const msg of displayMessages) {
+                    const time = msg.timestamp
+                        ? chalk.dim(`[${new Date(msg.timestamp).toLocaleTimeString()}]`)
+                        : '';
+                    const roleColor = msg.role === 'user'
+                        ? chalk.green
+                        : msg.role === 'assistant'
+                            ? chalk.cyan
+                            : chalk.yellow;
+                    console.log(`${time} ${roleColor(msg.role + ':')}`);
+                    const lines = msg.content.split('\n');
+                    for (const line of lines) {
+                        console.log(`  ${line}`);
+                    }
+                    console.log();
+                }
+
+                if (isTruncated) {
+                    ui.info(`Showing last ${displayMessages.length} of ${conversation.length} messages. Use --full to see all.`);
+                }
+
+            } catch (error: any) {
+                ui.error(`Failed to get agent detail: ${error.message}`);
                 process.exit(1);
             }
         });

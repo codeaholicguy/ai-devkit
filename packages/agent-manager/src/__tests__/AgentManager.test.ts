@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { AgentManager } from '../AgentManager';
-import type { AgentAdapter, AgentInfo, AgentType } from '../adapters/AgentAdapter';
+import type { AgentAdapter, AgentInfo, AgentType, ConversationMessage } from '../adapters/AgentAdapter';
 import { AgentStatus } from '../adapters/AgentAdapter';
 
 // Mock adapter for testing
@@ -24,6 +24,10 @@ class MockAdapter implements AgentAdapter {
 
     canHandle(): boolean {
         return true;
+    }
+
+    getConversation(): ConversationMessage[] {
+        return [];
     }
 
     setAgents(agents: AgentInfo[]): void {

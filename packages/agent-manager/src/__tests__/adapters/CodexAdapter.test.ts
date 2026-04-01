@@ -515,4 +515,119 @@ describe('CodexAdapter', () => {
             });
         });
     });
+
+    describe('getConversation', () => {
+        let tmpDir: string;
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-conv-'));
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        function writeJsonl(lines: object[]): string {
+            const filePath = path.join(tmpDir, 'session.jsonl');
+            fs.writeFileSync(filePath, lines.map(l => JSON.stringify(l)).join('\n'));
+            return filePath;
+        }
+
+        it('should parse user and agent messages', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:01Z', payload: { type: 'user_message', message: 'Fix the bug' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:05Z', payload: { type: 'agent_message', message: 'I found the issue' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+            expect(messages[0]).toEqual({ role: 'user', content: 'Fix the bug', timestamp: '2026-03-27T10:00:01Z' });
+            expect(messages[1]).toEqual({ role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' });
+        });
+
+        it('should skip session_meta entry', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:01Z', payload: { type: 'user_message', message: 'Hello' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0].role).toBe('user');
+        });
+
+        it('should map task_complete to assistant role', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:05Z', payload: { type: 'task_complete', message: 'Task finished successfully' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0].role).toBe('assistant');
+            expect(messages[0].content).toBe('Task finished successfully');
+        });
+
+        it('should skip non-conversation types in default mode', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:01Z', payload: { type: 'user_message', message: 'Hello' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:02Z', payload: { type: 'exec_command', message: 'Running npm test' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:03Z', payload: { type: 'agent_message', message: 'Done' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+        });
+
+        it('should include non-conversation types as system in verbose mode', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:02Z', payload: { type: 'exec_command', message: 'Running npm test' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath, { verbose: true });
+            expect(messages).toHaveLength(1);
+            expect(messages[0].role).toBe('system');
+            expect(messages[0].content).toBe('Running npm test');
+        });
+
+        it('should handle malformed JSON lines gracefully', () => {
+            const filePath = path.join(tmpDir, 'malformed.jsonl');
+            fs.writeFileSync(filePath, [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } }),
+                'invalid json line',
+                JSON.stringify({ type: 'event', timestamp: '2026-03-27T10:00:01Z', payload: { type: 'user_message', message: 'Hello' } }),
+            ].join('\n'));
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+        });
+
+        it('should return empty array for missing file', () => {
+            const messages = adapter.getConversation('/nonexistent/path.jsonl');
+            expect(messages).toEqual([]);
+        });
+
+        it('should return empty array for empty file', () => {
+            const filePath = path.join(tmpDir, 'empty.jsonl');
+            fs.writeFileSync(filePath, '');
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toEqual([]);
+        });
+
+        it('should skip entries with empty payload message', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:01Z', payload: { type: 'user_message', message: '' } },
+                { type: 'event', timestamp: '2026-03-27T10:00:02Z', payload: { type: 'agent_message', message: 'Response' } },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(1);
+            expect(messages[0].content).toBe('Response');
+        });
+    });
 });
