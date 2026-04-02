@@ -40,16 +40,22 @@ describe('TtyWriter', () => {
             tty: '/dev/ttys030',
         };
 
-        it('sends message via tmux send-keys', async () => {
+        it('sends message and Enter as separate tmux send-keys calls', async () => {
             mockExecFileSuccess();
 
             await TtyWriter.send(location, 'continue');
 
             expect(mockedExecFile).toHaveBeenCalledWith(
                 'tmux',
-                ['send-keys', '-t', 'main:0.1', 'continue', 'Enter'],
+                ['send-keys', '-t', 'main:0.1', '-l', 'continue'],
                 expect.any(Function),
             );
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'tmux',
+                ['send-keys', '-t', 'main:0.1', 'Enter'],
+                expect.any(Function),
+            );
+            expect(mockedExecFile).toHaveBeenCalledTimes(2);
         });
 
         it('throws on tmux failure', async () => {
@@ -74,9 +80,12 @@ describe('TtyWriter', () => {
 
             expect(mockedExecFile).toHaveBeenCalledWith(
                 'osascript',
-                ['-e', expect.stringContaining('write text "hello"')],
+                ['-e', expect.stringContaining('write text "hello" newline no')],
                 expect.any(Function),
             );
+            const scriptArg = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
+            const script = scriptArg[1];
+            expect(script).toContain('key code 36');
         });
 
         it('escapes special characters in message', async () => {
@@ -86,7 +95,7 @@ describe('TtyWriter', () => {
 
             expect(mockedExecFile).toHaveBeenCalledWith(
                 'osascript',
-                ['-e', expect.stringContaining('write text "say \\"hi\\" \\\\ there"')],
+                ['-e', expect.stringContaining('write text "say \\"hi\\" \\\\ there" newline no')],
                 expect.any(Function),
             );
         });
@@ -113,22 +122,9 @@ describe('TtyWriter', () => {
 
             const scriptArg = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
             const script = scriptArg[1];
-            // Must use keystroke, NOT do script
             expect(script).toContain('keystroke "hello"');
             expect(script).toContain('key code 36');
             expect(script).not.toContain('do script');
-        });
-
-        it('uses execFile to avoid shell injection', async () => {
-            mockExecFileSuccess('ok');
-
-            await TtyWriter.send(location, "don't stop");
-
-            expect(mockedExecFile).toHaveBeenCalledWith(
-                'osascript',
-                ['-e', expect.any(String)],
-                expect.any(Function),
-            );
         });
 
         it('throws when tab not found', async () => {

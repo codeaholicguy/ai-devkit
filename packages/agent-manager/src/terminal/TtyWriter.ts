@@ -46,25 +46,47 @@ export class TtyWriter {
     }
 
     private static async sendViaTmux(identifier: string, message: string): Promise<void> {
-        await execFileAsync('tmux', ['send-keys', '-t', identifier, message, 'Enter']);
+        // Send text and Enter as two separate calls so that Enter arrives
+        // outside of bracketed paste mode. When the inner application (e.g.
+        // Claude Code) has bracketed paste enabled, tmux wraps the send-keys
+        // payload in paste brackets — if Enter is included, it gets swallowed
+        // as part of the paste instead of acting as a submit action.
+        await execFileAsync('tmux', ['send-keys', '-t', identifier, '-l', message]);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await execFileAsync('tmux', ['send-keys', '-t', identifier, 'Enter']);
     }
 
     private static async sendViaITerm2(tty: string, message: string): Promise<void> {
         const escaped = escapeAppleScript(message);
+        // Send text WITHOUT a trailing newline to avoid the newline being swallowed
+        // by bracketed paste mode. Then simulate pressing Return separately so that
+        // Claude Code (and other interactive TUIs) treat it as a real submit action.
         const script = `
 tell application "iTerm"
+  set targetSession to missing value
   repeat with w in windows
     repeat with t in tabs of w
       repeat with s in sessions of t
         if tty of s is "${tty}" then
-          tell s to write text "${escaped}"
-          return "ok"
+          set targetSession to s
+          exit repeat
         end if
       end repeat
+      if targetSession is not missing value then exit repeat
     end repeat
+    if targetSession is not missing value then exit repeat
   end repeat
+  if targetSession is missing value then return "not_found"
+  tell targetSession to write text "${escaped}" newline no
 end tell
-return "not_found"`;
+tell application "iTerm" to activate
+delay 0.15
+tell application "System Events"
+  tell process "iTerm2"
+    key code 36
+  end tell
+end tell
+return "ok"`;
 
         const { stdout } = await execFileAsync('osascript', ['-e', script]);
         if (stdout.trim() !== 'ok') {
@@ -77,6 +99,9 @@ return "not_found"`;
         // Use System Events keystroke to type into the foreground process,
         // NOT Terminal.app's "do script" which runs a new shell command.
         // First activate Terminal and select the correct tab, then type via System Events.
+        // Send the text first, then wait for the paste/input to complete before pressing
+        // Return separately — this ensures interactive TUIs (like Claude Code) see the
+        // Return as a real submit action, not part of a bracketed paste.
         const script = `
 tell application "Terminal"
   set targetFound to false
@@ -99,6 +124,11 @@ delay 0.1
 tell application "System Events"
   tell process "Terminal"
     keystroke "${escaped}"
+  end tell
+end tell
+delay 0.15
+tell application "System Events"
+  tell process "Terminal"
     key code 36
   end tell
 end tell
