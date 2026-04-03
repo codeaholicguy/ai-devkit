@@ -76,7 +76,7 @@ Keep assessment concise — read only what you need. Avoid `--full` unless a sho
 
 | Situation | Action |
 |-----------|--------|
-| Finished task | Apply `$verify` — check the agent's diff and run tests before marking complete |
+| Finished task | Apply the `verify` skill — check the agent's diff and run tests before marking complete |
 | Waiting for approval | Auto-approve if within guardrails, else escalate |
 | Waiting for clarification | Answer from your context, escalate only if you truly lack the answer |
 | Stuck or looping | Send corrective instruction or new approach |

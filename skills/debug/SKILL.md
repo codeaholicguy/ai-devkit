@@ -33,7 +33,7 @@ For each hypothesis, include:
 
 ## Validation
 - Confirm a pre-fix failing signal exists.
-- Confirm post-fix success using `$verify` — including regression verification for bug fixes.
+- Confirm post-fix success using the `verify` skill — including regression verification for bug fixes.
 - Summarize remaining risks and follow-ups.
 
 ## Output Template

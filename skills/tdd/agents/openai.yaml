@@ -1,0 +1,4 @@
+interface:
+  display_name: "TDD"
+  short_description: "Test-driven development — write failing tests before production code"
+  default_prompt: "Use $tdd to implement this behavior test-first — write a failing test, make it pass with minimum code, refactor, repeat."

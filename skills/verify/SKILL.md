@@ -64,4 +64,4 @@ If step 4 passes, the test is wrong. Rewrite it.
 
 ## Memory Integration
 
-After a failed verification, store the failure pattern via `$memory` with tags `verify,failure-pattern` so future sessions can avoid the same mistake.
+After a failed verification, store the failure pattern via the `memory` skill with tags `verify,failure-pattern` so future sessions can avoid the same mistake.

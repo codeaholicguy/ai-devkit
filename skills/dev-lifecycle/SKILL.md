@@ -80,4 +80,4 @@ Use `npx ai-devkit@latest memory` CLI in any phase that involves clarification q
 - Read existing `docs/ai/` before changes. Keep diffs minimal.
 - Use mermaid diagrams for architecture visuals.
 - After each phase, summarize output and suggest next phase.
-- Apply `$verify` before completing Phase 4 tasks, Phase 6 checks, Phase 7 coverage claims, and Phase 8 review items. No phase transition without fresh evidence.
+- Apply the `verify` skill before completing Phase 4 tasks, Phase 6 checks, Phase 7 coverage claims, and Phase 8 review items. No phase transition without fresh evidence.
