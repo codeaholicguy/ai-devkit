@@ -21,6 +21,10 @@ skills:
     skill: simplify-implementation
   - registry: codeaholicguy/ai-devkit
     skill: technical-writer
+  - registry: codeaholicguy/ai-devkit
+    skill: verify
+  - registry: codeaholicguy/ai-devkit
+    skill: tdd
   - registry: anthropics/skills
     skill: frontend-design
   - registry: anthropics/skills
