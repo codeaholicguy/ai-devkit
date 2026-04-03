@@ -1,5 +1,8 @@
-description='''Add tests for a new feature.'''
-prompt='''Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the base template before writing tests.
+---
+description: Add tests for a new feature.
+---
+
+Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the base template before writing tests.
 
 1. **Gather Context** — If not already provided, ask for: feature name/branch, summary of changes (link to design & requirements docs), target environment, existing test suites, and any flaky/slow tests to avoid.
 2. **Use Memory for Context** — Search memory for existing testing patterns and prior edge cases: `npx ai-devkit@latest memory search --query "<feature testing strategy>"`.
@@ -9,4 +12,4 @@ prompt='''Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the b
 6. **Coverage Strategy** — Recommend coverage tooling commands. Call out files/functions still needing coverage and suggest additional tests if <100%.
 7. **Store Reusable Knowledge** — Save reusable testing patterns or tricky fixtures with `npx ai-devkit@latest memory store ...`.
 8. **Update Documentation** — Summarize tests added or still missing. Update `docs/ai/testing/feature-{name}.md` with links to test files and results. Flag deferred tests as follow-up tasks.
-9. **Next Command Guidance** — If tests expose design issues, return to `/review-design`; otherwise continue to `/code-review`.'''
+9. **Next Command Guidance** — If tests expose design issues, return to `/review-design`; otherwise continue to `/code-review`.

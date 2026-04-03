@@ -1,5 +1,8 @@
-description='''Execute a feature plan task by task.'''
-prompt='''Help me work through a feature plan one task at a time.
+---
+description: Execute a feature plan task by task.
+---
+
+Help me work through a feature plan one task at a time.
 
 1. **Gather Context** — If not already provided, ask for: feature name (kebab-case, e.g., `user-authentication`), brief feature/branch description, planning doc path (default `docs/ai/planning/feature-{name}.md`), and any supporting docs (design, requirements, implementation).
 2. **Use Memory for Context** — Search for prior implementation notes/patterns before starting: `npx ai-devkit@latest memory search --query "<feature implementation plan>"`.
@@ -8,4 +11,4 @@ prompt='''Help me work through a feature plan one task at a time.
 5. **Update Planning Doc** — After each completed or status-changed task, run `/update-planning` to keep `docs/ai/planning/feature-{name}.md` accurate.
 6. **Store Reusable Knowledge** — Save reusable implementation guidance/decisions with `npx ai-devkit@latest memory store ...`.
 7. **Session Summary** — Produce a summary: Completed, In Progress (with next steps), Blocked (with blockers), Skipped/Deferred, and New Tasks.
-8. **Next Command Guidance** — Continue `/execute-plan` until plan completion; then run `/check-implementation`.'''
+8. **Next Command Guidance** — Continue `/execute-plan` until plan completion; then run `/check-implementation`.
