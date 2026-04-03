@@ -1,5 +1,5 @@
 import { execSync, ExecSyncOptionsWithStringEncoding } from 'child_process';
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
