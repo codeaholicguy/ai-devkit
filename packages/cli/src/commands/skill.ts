@@ -13,12 +13,17 @@ export function registerSkillCommand(program: Command): void {
   skillCommand
     .command('add <registry-repo> <skill-name>')
     .description('Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills frontend-design)')
-    .action(async (registryRepo: string, skillName: string) => {
+    .option('-g, --global', 'Install skill into configured global skill paths (~/<path>)')
+    .option('-e, --env <environment...>', 'Target environment(s) for global install (e.g., --global --env claude)')
+    .action(async (registryRepo: string, skillName: string, options: { global?: boolean; env?: string[] }) => {
       try {
         const configManager = new ConfigManager();
         const skillManager = new SkillManager(configManager);
 
-        await skillManager.addSkill(registryRepo, skillName);
+        await skillManager.addSkill(registryRepo, skillName, {
+          global: options.global,
+          environments: options.env,
+        });
       } catch (error: any) {
         ui.error(`Failed to add skill: ${error.message}`);
         process.exit(1);

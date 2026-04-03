@@ -1,5 +1,5 @@
 import inquirer from "inquirer";
-import { EnvironmentCode } from "../types";
+import { EnvironmentCode, EnvironmentDefinition } from "../types";
 import {
   getAllEnvironments,
   getEnvironmentDisplayName,
@@ -8,8 +8,15 @@ import {
 } from "../util/env";
 
 export class EnvironmentSelector {
-  async selectEnvironments(): Promise<EnvironmentCode[]> {
-    const environments = getAllEnvironments();
+  private async selectFromEnvironments(
+    environments: EnvironmentDefinition[],
+    message: string,
+    emptyMessage: string
+  ): Promise<EnvironmentCode[]> {
+    if (environments.length === 0) {
+      console.log(emptyMessage);
+      return [];
+    }
 
     const choices = environments.map((env) => ({
       name: env.name,
@@ -21,8 +28,7 @@ export class EnvironmentSelector {
       {
         type: "checkbox",
         name: "environments",
-        message:
-          "Select AI environments to set up (use space to select, enter to confirm):",
+        message,
         choices,
         pageSize: 10,
         validate: (input: EnvironmentCode[]) => {
@@ -35,6 +41,14 @@ export class EnvironmentSelector {
     ]);
 
     return answers.environments;
+  }
+
+  async selectEnvironments(): Promise<EnvironmentCode[]> {
+    return this.selectFromEnvironments(
+      getAllEnvironments(),
+      "Select AI environments to set up (use space to select, enter to confirm):",
+      "No environments available."
+    );
   }
 
   async confirmOverride(conflicts: EnvironmentCode[]): Promise<boolean> {
@@ -70,70 +84,26 @@ export class EnvironmentSelector {
   }
 
   async selectGlobalEnvironments(): Promise<EnvironmentCode[]> {
-    const globalCapableEnvs = getGlobalCapableEnvironments();
-
-    if (globalCapableEnvs.length === 0) {
-      console.log("No environments support global setup.");
-      return [];
-    }
-
-    const choices = globalCapableEnvs.map((env) => ({
-      name: env.name,
-      value: env.code as EnvironmentCode,
-      short: env.name,
-    }));
-
-    const answers = await inquirer.prompt([
-      {
-        type: "checkbox",
-        name: "environments",
-        message:
-          "Select AI environments for global setup (use space to select, enter to confirm):",
-        choices,
-        pageSize: 10,
-        validate: (input: EnvironmentCode[]) => {
-          if (input.length === 0) {
-            return "Please select at least one environment.";
-          }
-          return true;
-        },
-      },
-    ]);
-
-    return answers.environments;
+    return this.selectFromEnvironments(
+      getGlobalCapableEnvironments(),
+      "Select AI environments for global setup (use space to select, enter to confirm):",
+      "No environments support global setup."
+    );
   }
 
   async selectSkillEnvironments(): Promise<EnvironmentCode[]> {
-    const skillCapableEnvs = getSkillCapableEnvironments();
+    return this.selectFromEnvironments(
+      getSkillCapableEnvironments(),
+      "Select AI environments for skill installation (use space to select, enter to confirm):",
+      "No environments support skills."
+    );
+  }
 
-    if (skillCapableEnvs.length === 0) {
-      console.log("No environments support skills.");
-      return [];
-    }
-
-    const choices = skillCapableEnvs.map((env) => ({
-      name: env.name,
-      value: env.code as EnvironmentCode,
-      short: env.name,
-    }));
-
-    const answers = await inquirer.prompt([
-      {
-        type: "checkbox",
-        name: "environments",
-        message:
-          "Select AI environments for skill installation (use space to select, enter to confirm):",
-        choices,
-        pageSize: 10,
-        validate: (input: EnvironmentCode[]) => {
-          if (input.length === 0) {
-            return "Please select at least one environment.";
-          }
-          return true;
-        },
-      },
-    ]);
-
-    return answers.environments;
+  async selectGlobalSkillEnvironments(): Promise<EnvironmentCode[]> {
+    return this.selectFromEnvironments(
+      getAllEnvironments().filter(env => env.globalSkillPath !== undefined),
+      "Select AI environments for global skill installation (use space to select, enter to confirm):",
+      "No environments support global skill installation."
+    );
   }
 }

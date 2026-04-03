@@ -11,6 +11,7 @@ import {
   getGlobalCapableEnvironments,
   hasGlobalSupport,
   getSkillPath,
+  getGlobalSkillPath,
   getSkillCapableEnvironments
 } from '../../util/env';
 import { EnvironmentCode } from '../../types';
@@ -39,7 +40,8 @@ describe('Environment Utilities', () => {
         name: 'Cursor',
         contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
-        skillPath: '.cursor/skills'
+        skillPath: '.cursor/skills',
+        globalSkillPath: '.cursor/skills'
       });
     });
 
@@ -300,6 +302,25 @@ describe('Environment Utilities', () => {
     });
   });
 
+  describe('getGlobalSkillPath', () => {
+    it('should return global skill path for cursor', () => {
+      expect(getGlobalSkillPath('cursor')).toBe('.cursor/skills');
+    });
+
+    it('should return global skill path for codex', () => {
+      expect(getGlobalSkillPath('codex')).toBe('.codex/skills');
+    });
+
+    it('should return global skill path for gemini', () => {
+      expect(getGlobalSkillPath('gemini')).toBe('.gemini/skills');
+    });
+
+    it('should return undefined for environments without global skill support', () => {
+      expect(getGlobalSkillPath('windsurf')).toBeUndefined();
+      expect(getGlobalSkillPath('github')).toBeUndefined();
+    });
+  });
+
   describe('getSkillCapableEnvironments', () => {
     it('should return only environments with skillPath defined', () => {
       const skillEnvs = getSkillCapableEnvironments();
@@ -353,4 +374,5 @@ describe('Environment Utilities', () => {
       expect(skillEnvs).toHaveLength(5);
     });
   });
+
 });

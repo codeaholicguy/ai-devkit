@@ -13,6 +13,7 @@ export interface EnvironmentDefinition {
   contextFileName: string;
   commandPath: string;
   skillPath?: string;
+  globalSkillPath?: string;
   description?: string;
   isCustomCommandPath?: boolean;
   customCommandExtension?: string;

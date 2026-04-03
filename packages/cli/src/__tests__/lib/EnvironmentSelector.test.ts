@@ -220,4 +220,38 @@ describe('EnvironmentSelector', () => {
       expect(choices).toHaveLength(2);
     });
   });
+
+  describe('selectGlobalSkillEnvironments', () => {
+    it('should create choices from global-skill-capable environments', async () => {
+      mockPrompt.mockResolvedValue({ environments: ['claude'] });
+
+      await selector.selectGlobalSkillEnvironments();
+
+      expect(mockPrompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'checkbox',
+          name: 'environments',
+          message: 'Select AI environments for global skill installation (use space to select, enter to confirm):',
+          choices: expect.arrayContaining([
+            expect.objectContaining({ value: 'cursor' }),
+            expect.objectContaining({ value: 'claude' }),
+            expect.objectContaining({ value: 'codex' }),
+            expect.objectContaining({ value: 'gemini' }),
+            expect.objectContaining({ value: 'opencode' }),
+            expect.objectContaining({ value: 'antigravity' })
+          ]),
+          validate: expect.any(Function)
+        })
+      ]);
+    });
+
+    it('should return selected global-skill environments', async () => {
+      const selectedEnvs = ['claude', 'codex'];
+      mockPrompt.mockResolvedValue({ environments: selectedEnvs });
+
+      const result = await selector.selectGlobalSkillEnvironments();
+
+      expect(result).toEqual(selectedEnvs);
+    });
+  });
 });

@@ -121,6 +121,10 @@ describe("SkillManager", () => {
       mockConfigManager.read.mockResolvedValue({
         environments: ["cursor", "claude"],
       } as any);
+      mockEnvironmentSelector.selectGlobalSkillEnvironments.mockResolvedValue([
+        "cursor",
+        "claude",
+      ]);
     });
 
     it("should successfully add a skill", async () => {
@@ -137,6 +141,61 @@ describe("SkillManager", () => {
         registry: mockRegistryId,
         name: mockSkillName
       });
+    });
+
+    it("should install to home directory when global option is enabled", async () => {
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (
+          checkPath === path.join(os.homedir(), ".cursor", "skills", mockSkillName)
+          || checkPath === path.join(os.homedir(), ".claude", "skills", mockSkillName)
+        ) {
+          return Promise.resolve(false);
+        }
+        return Promise.resolve(true);
+      });
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName, { global: true });
+
+      expect(mockedFs.symlink).toHaveBeenCalledWith(
+        expect.any(String),
+        path.join(os.homedir(), ".cursor", "skills", mockSkillName),
+        "dir",
+      );
+      expect(mockEnvironmentSelector.selectGlobalSkillEnvironments).toHaveBeenCalled();
+      expect(mockConfigManager.read).not.toHaveBeenCalled();
+      expect(mockConfigManager.create).not.toHaveBeenCalled();
+      expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
+    });
+
+    it("should throw error when global env does not support skills", async () => {
+      await expect(
+        skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["windsurf"] }),
+      ).rejects.toThrow("Global skill installation is not supported for: windsurf");
+    });
+
+    it("should throw error when env is provided without global option", async () => {
+      await expect(
+        skillManager.addSkill(mockRegistryId, mockSkillName, { environments: ["claude"] }),
+      ).rejects.toThrow("--env can only be used with --global");
+    });
+
+    it("should install only selected global environments", async () => {
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === path.join(os.homedir(), ".claude", "skills", mockSkillName)) {
+          return Promise.resolve(false);
+        }
+        return Promise.resolve(true);
+      });
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["claude"] });
+
+      expect(mockedFs.symlink).toHaveBeenCalledTimes(1);
+      expect(mockedFs.symlink).toHaveBeenCalledWith(
+        expect.any(String),
+        path.join(os.homedir(), ".claude", "skills", mockSkillName),
+        "dir",
+      );
+      expect(mockEnvironmentSelector.selectGlobalSkillEnvironments).not.toHaveBeenCalled();
     });
 
     it("should fetch registry using fetch API", async () => {
@@ -428,6 +487,23 @@ describe("SkillManager", () => {
       ).toHaveBeenCalled();
       expect(mockConfigManager.update).toHaveBeenCalledWith({
         environments: ["cursor"],
+      });
+    });
+
+    it("should select environments when config exists but has no environments", async () => {
+      mockConfigManager.read.mockResolvedValue({
+        environments: [],
+      } as any);
+      mockEnvironmentSelector.selectSkillEnvironments.mockResolvedValue([
+        "claude",
+      ]);
+
+      await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(mockConfigManager.create).not.toHaveBeenCalled();
+      expect(mockEnvironmentSelector.selectSkillEnvironments).toHaveBeenCalled();
+      expect(mockConfigManager.update).toHaveBeenCalledWith({
+        environments: ["claude"],
       });
     });
 

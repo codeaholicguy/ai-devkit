@@ -4,7 +4,7 @@ import * as os from 'os';
 import { ConfigManager } from './Config';
 import { GlobalConfigManager } from './GlobalConfig';
 import { EnvironmentSelector } from './EnvironmentSelector';
-import { getSkillPath } from '../util/env';
+import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository, fetchGitHead } from '../util/git';
 import { validateRegistryId, validateSkillName, extractSkillDescription } from '../util/skill';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github';
@@ -61,6 +61,11 @@ interface SkillIndex {
   skills: SkillEntry[];
 }
 
+interface AddSkillOptions {
+  global?: boolean;
+  environments?: string[];
+}
+
 export class SkillManager {
   constructor(
     private configManager: ConfigManager,
@@ -73,7 +78,8 @@ export class SkillManager {
    * @param registryId - e.g., "anthropics/skills"
    * @param skillName - e.g., "frontend-design"
    */
-  async addSkill(registryId: string, skillName: string): Promise<void> {
+  async addSkill(registryId: string, skillName: string, options: AddSkillOptions = {}): Promise<void> {
+    const installMode = options.global ? 'global' : 'project';
     ui.info(`Validating skill: ${skillName} from ${registryId}`);
     validateRegistryId(registryId);
     validateSkillName(skillName);
@@ -109,31 +115,14 @@ export class SkillManager {
       );
     }
 
-    ui.info('Loading project configuration...');
-    let config = await this.configManager.read();
-    if (!config) {
-      ui.info('No .ai-devkit.json found. Creating configuration...');
-      config = await this.configManager.create();
+    const selectedEnvironments = await this.resolveInstallEnvironments(options);
+    const { targets, capableEnvironments } = this.resolveInstallationTargets(selectedEnvironments, options.global);
 
-      if (config.environments.length === 0) {
-        const selectedEnvs = await this.environmentSelector.selectSkillEnvironments();
-        config.environments = selectedEnvs;
-        await this.configManager.update({ environments: selectedEnvs });
-        ui.success('Configuration saved.');
-      }
-    }
-
-    const skillCapableEnvs = this.filterSkillCapableEnvironments(config.environments);
-
-    if (skillCapableEnvs.length === 0) {
-      throw new Error('No skill-capable environments configured.');
-    }
-
-    ui.info('Installing skill to project...');
-    const targets = this.getInstallationTargets(skillCapableEnvs);
+    ui.info(`Installing skill to ${installMode}...`);
+    const baseDir = options.global ? os.homedir() : process.cwd();
 
     for (const targetDir of targets) {
-      const targetPath = path.join(process.cwd(), targetDir, skillName);
+      const targetPath = path.join(baseDir, targetDir, skillName);
 
       if (await fs.pathExists(targetPath)) {
         ui.text(`  → ${targetDir}/${skillName} (already exists, skipped)`);
@@ -151,14 +140,60 @@ export class SkillManager {
       }
     }
 
-    await this.configManager.addSkill({
-      registry: registryId,
-      name: skillName
-    });
+    if (!options.global) {
+      await this.configManager.addSkill({
+        registry: registryId,
+        name: skillName
+      });
+    }
 
     ui.text(`Successfully installed: ${skillName}`);
     ui.info(`  Source: ${registryId}`);
-    ui.info(`  Installed to: ${skillCapableEnvs.join(', ')}`);
+    ui.info(`  Installed to (${installMode}): ${capableEnvironments.join(', ')}`);
+  }
+
+  private async resolveProjectEnvironments(): Promise<string[]> {
+    ui.info('Loading project configuration...');
+    let config = await this.configManager.read();
+    if (!config) {
+      ui.info('No .ai-devkit.json found. Creating configuration...');
+      config = await this.configManager.create();
+    }
+
+    if (config.environments.length === 0) {
+      const selectedEnvs = await this.environmentSelector.selectSkillEnvironments();
+      config.environments = selectedEnvs;
+      await this.configManager.update({ environments: selectedEnvs });
+      ui.success('Configuration saved.');
+    }
+
+    return config.environments;
+  }
+
+  private async resolveGlobalEnvironments(envCodes?: string[]): Promise<string[]> {
+    if (!envCodes || envCodes.length === 0) {
+      return await this.environmentSelector.selectGlobalSkillEnvironments();
+    }
+
+    const validCodes = validateEnvironmentCodes(envCodes);
+    const unsupported = validCodes.filter(env => getGlobalSkillPath(env) === undefined);
+    if (unsupported.length > 0) {
+      throw new Error(`Global skill installation is not supported for: ${unsupported.join(', ')}`);
+    }
+
+    return validCodes;
+  }
+
+  private async resolveInstallEnvironments(options: AddSkillOptions): Promise<string[]> {
+    if (options.environments && options.environments.length > 0 && !options.global) {
+      throw new Error('--env can only be used with --global');
+    }
+
+    if (options.global) {
+      return await this.resolveGlobalEnvironments(options.environments);
+    }
+
+    return await this.resolveProjectEnvironments();
   }
 
   /**
@@ -174,14 +209,7 @@ export class SkillManager {
       return [];
     }
 
-    const skillCapableEnvs = this.filterSkillCapableEnvironments(config.environments);
-
-    if (skillCapableEnvs.length === 0) {
-      ui.warning('No skill-capable environments configured.');
-      return [];
-    }
-
-    const targets = this.getInstallationTargets(skillCapableEnvs);
+    const { targets, capableEnvironments } = this.resolveInstallationTargets(config.environments);
 
     for (const targetDir of targets) {
       const fullPath = path.join(process.cwd(), targetDir);
@@ -216,7 +244,7 @@ export class SkillManager {
             skills.push({
               name: skillName,
               registry,
-              environments: skillCapableEnvs,
+              environments: capableEnvironments,
             });
           }
         }
@@ -239,13 +267,7 @@ export class SkillManager {
       throw new Error('No .ai-devkit.json found. Run: ai-devkit init');
     }
 
-    const skillCapableEnvs = this.filterSkillCapableEnvironments(config.environments);
-
-    if (skillCapableEnvs.length === 0) {
-      throw new Error('No skill-capable environments configured. Supported: cursor, claude');
-    }
-
-    const targets = this.getInstallationTargets(skillCapableEnvs);
+    const { targets } = this.resolveInstallationTargets(config.environments);
     let removedCount = 0;
 
     for (const targetDir of targets) {
@@ -390,21 +412,29 @@ export class SkillManager {
     };
   }
 
-  private getInstallationTargets(environments: string[]): string[] {
+  private resolveInstallationTargets(
+    environments: string[],
+    isGlobal = false
+  ): { targets: string[]; capableEnvironments: string[] } {
     const targets: string[] = [];
+    const capableEnvironments: string[] = [];
 
     for (const env of environments) {
-      const skillPath = getSkillPath(env as any);
+      const skillPath = isGlobal ? getGlobalSkillPath(env as any) : getSkillPath(env as any);
       if (skillPath) {
         targets.push(skillPath);
+        capableEnvironments.push(env);
       }
     }
 
     if (targets.length === 0) {
+      if (isGlobal) {
+        throw new Error('No global-skill-capable environments configured.');
+      }
       throw new Error('No skill-capable environments configured. Supported: cursor, claude');
     }
 
-    return targets;
+    return { targets, capableEnvironments };
   }
 
   private async cloneRepositoryToCache(registryId: string, gitUrl?: string): Promise<string> {
@@ -432,13 +462,6 @@ export class SkillManager {
     const result = await cloneRepository(SKILL_CACHE_DIR, registryId, gitUrl);
     ui.success(`${registryId} cloned successfully`);
     return result;
-  }
-
-  private filterSkillCapableEnvironments(environments: string[]): string[] {
-    return environments.filter(env => {
-      const skillPath = getSkillPath(env as any);
-      return skillPath !== undefined;
-    });
   }
 
   /**

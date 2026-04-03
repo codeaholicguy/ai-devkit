@@ -7,6 +7,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'AGENTS.md',
     commandPath: '.cursor/commands',
     skillPath: '.cursor/skills',
+    globalSkillPath: '.cursor/skills',
   },
   claude: {
     code: 'claude',
@@ -14,6 +15,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'CLAUDE.md',
     commandPath: '.claude/commands',
     skillPath: '.claude/skills',
+    globalSkillPath: '.claude/skills',
   },
   github: {
     code: 'github',
@@ -28,6 +30,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'GEMINI.md',
     commandPath: '.gemini/commands',
     isCustomCommandPath: true,
+    globalSkillPath: '.gemini/skills',
   },
   codex: {
     code: 'codex',
@@ -36,6 +39,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     commandPath: '.codex/commands',
     globalCommandPath: '.codex/prompts',
     skillPath: '.agents/skills',
+    globalSkillPath: '.codex/skills',
   },
   windsurf: {
     code: 'windsurf',
@@ -61,6 +65,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'AGENTS.md',
     commandPath: '.opencode/commands',
     skillPath: '.opencode/skills',
+    globalSkillPath: '.config/opencode/skills',
   },
   roo: {
     code: 'roo',
@@ -75,6 +80,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     commandPath: '.agent/workflows',
     globalCommandPath: '.gemini/antigravity/global_workflows',
     skillPath: '.agent/skills',
+    globalSkillPath: '.gemini/antigravity/skills',
   }
 };
 
@@ -136,6 +142,11 @@ export function hasGlobalSupport(envCode: EnvironmentCode): boolean {
 export function getSkillPath(envCode: EnvironmentCode): string | undefined {
   const env = getEnvironment(envCode);
   return env?.skillPath;
+}
+
+export function getGlobalSkillPath(envCode: EnvironmentCode): string | undefined {
+  const env = getEnvironment(envCode);
+  return env?.globalSkillPath;
 }
 
 export function getSkillCapableEnvironments(): EnvironmentDefinition[] {
