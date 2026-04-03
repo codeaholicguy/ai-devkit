@@ -63,4 +63,4 @@ Then pick the next behavior and repeat.
 
 ## Memory Integration
 
-After completing a TDD session, store reusable test patterns via the `memory` skill — e.g., test setup for a specific framework, common assertion patterns, or fixtures that were hard to get right.
+After completing a TDD session, store reusable test patterns (setup, assertions, fixtures): `npx ai-devkit@latest memory store --title "<pattern>" --content "<details>" --tags "tdd,testing"`

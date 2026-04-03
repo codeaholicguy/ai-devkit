@@ -15,7 +15,7 @@ Build structured understanding of code entry points with an analysis-first workf
 1. Gather & Validate
 - Confirm entry point (file, folder, function, API), purpose, and desired depth.
 - Verify it exists; resolve ambiguity or suggest alternatives if not found.
-- Search the `memory` skill for existing knowledge about this entry point before analyzing.
+- Search for existing knowledge before analyzing: `npx ai-devkit@latest memory search --query "<entry point name or purpose>"`
 
 2. Collect Source Context
 - Summarize purpose, exports, key patterns.

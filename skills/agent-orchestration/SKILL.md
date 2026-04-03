@@ -118,4 +118,4 @@ Then go back to step 1.
 
 ## Completion
 
-When all agents are idle with no remaining work, give the user a final summary: what each agent accomplished, issues encountered, and overall outcome. Store significant coordination issues or patterns via the `memory` skill with tags `orchestration,lesson-learned`. Then stop.
+When all agents are idle with no remaining work, give the user a final summary: what each agent accomplished, issues encountered, and overall outcome. Store significant coordination issues: `npx ai-devkit@latest memory store --title "<issue>" --content "<details>" --tags "orchestration,lesson-learned"`. Then stop.
