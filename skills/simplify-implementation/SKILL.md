@@ -15,6 +15,7 @@ Reduce complexity with an analysis-first approach before changing code.
 
 1. Gather Context
 - Confirm targets, pain points, and constraints (compatibility, API stability, deadlines).
+- Search the `memory` skill for past simplification decisions or known constraints in this area.
 
 2. Analyze Complexity
 - Identify sources (nesting, duplication, coupling, over-engineering, magic values).

@@ -15,6 +15,7 @@ Debug with an evidence-first workflow before changing code.
 1. Clarify
 - Restate observed vs expected behavior in one concise diff.
 - Confirm scope and measurable success criteria.
+- Search the `memory` skill for similar past incidents before investigating.
 
 2. Reproduce
 - Capture minimal reproduction steps.
@@ -35,6 +36,7 @@ For each hypothesis, include:
 - Confirm a pre-fix failing signal exists.
 - Confirm post-fix success using the `verify` skill — including regression verification for bug fixes.
 - Summarize remaining risks and follow-ups.
+- Store the root cause and fix via the `memory` skill with tags `debug,root-cause` so future sessions can skip repeated investigation.
 
 ## Red Flags and Rationalizations
 

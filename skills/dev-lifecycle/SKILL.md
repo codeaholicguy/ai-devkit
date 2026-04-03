@@ -70,10 +70,10 @@ Phases: `requirements/`, `design/`, `planning/`, `implementation/`, `testing/`.
 
 ## Memory Integration
 
-Use `npx ai-devkit@latest memory` CLI in any phase that involves clarification questions (typically Phases 1-3):
+Use the `memory` skill in any phase that involves clarification questions (typically Phases 1-3):
 
-1. **Before asking questions**: `npx ai-devkit@latest memory search --query "<topic>"`. Apply matches; only ask about uncovered gaps.
-2. **After clarification**: `npx ai-devkit@latest memory store --title "<title>" --content "<knowledge>" --tags "<tags>"`.
+1. **Before asking questions**: search for existing knowledge. Apply matches; only ask about uncovered gaps.
+2. **After clarification**: store new knowledge for future sessions.
 
 ## Red Flags and Rationalizations
 
