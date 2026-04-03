@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify"
+  short_description: "Enforce evidence-based completion claims before reporting success"
+  default_prompt: "Use $verify before claiming any task is done — run the proof command fresh, read the full output, and only report the result with evidence."
