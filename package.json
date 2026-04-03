@@ -9,7 +9,8 @@
     "lint": "nx run-many -t lint",
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test --watch",
-    "test:coverage": "nx run-many -t test --coverage"
+    "test:coverage": "nx run-many -t test --coverage",
+    "test:e2e": "jest --config e2e/jest.config.js"
   },
   "workspaces": [
     "apps/*",
