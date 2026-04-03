@@ -36,6 +36,14 @@ For each hypothesis, include:
 - Confirm post-fix success using the `verify` skill — including regression verification for bug fixes.
 - Summarize remaining risks and follow-ups.
 
+## Red Flags and Rationalizations
+
+| Rationalization | Why It's Wrong | Do Instead |
+|---|---|---|
+| "I already know the cause" | Assumptions skip evidence | Reproduce and prove it first |
+| "This is urgent, just fix it" | A wrong fix wastes more time | 10 minutes of diagnosis saves hours |
+| "The fix is obvious from the stack trace" | Stack traces show symptoms, not causes | Trace backward to the root cause |
+
 ## Output Template
 Use this response structure:
 - Observed vs Expected

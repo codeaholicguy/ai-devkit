@@ -37,6 +37,14 @@ Build structured understanding of code entry points with an analysis-first workf
 - Create `docs/ai/implementation/knowledge-{name}.md` using the Output Template.
 - Include mermaid diagrams when they clarify flows or relationships.
 
+## Red Flags and Rationalizations
+
+| Rationalization | Why It's Wrong | Do Instead |
+|---|---|---|
+| "I already understand this code" | Understanding ≠ documented understanding | Write it down, then verify |
+| "The code is self-documenting" | Future readers lack your current context | Capture the why, not just the what |
+| "Dependencies are obvious" | Implicit dependencies cause surprises | Map them explicitly to depth 3 |
+
 ## Validation
 - Documentation covers all Output Template sections.
 - Summarize key insights, open questions, and related areas for deeper dives.

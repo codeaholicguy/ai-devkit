@@ -75,6 +75,15 @@ Use `npx ai-devkit@latest memory` CLI in any phase that involves clarification q
 1. **Before asking questions**: `npx ai-devkit@latest memory search --query "<topic>"`. Apply matches; only ask about uncovered gaps.
 2. **After clarification**: `npx ai-devkit@latest memory store --title "<title>" --content "<knowledge>" --tags "<tags>"`.
 
+## Red Flags and Rationalizations
+
+| Rationalization | Why It's Wrong | Do Instead |
+|---|---|---|
+| "Skip to coding, requirements are clear" | Ambiguity hides in assumptions | Run Phase 1-3 first |
+| "Design hasn't changed, skip Phase 6" | Code drifts from design during implementation | Check implementation against design |
+| "Tests slow us down, ship first" | Bugs in production are slower | Write tests in Phase 4 and 7 |
+| "Just a small change, no review needed" | Small changes cause big outages | Phase 8 applies to all changes |
+
 ## Rules
 
 - Read existing `docs/ai/` before changes. Keep diffs minimal.

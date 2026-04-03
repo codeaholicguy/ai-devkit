@@ -36,6 +36,14 @@ For each issue, apply a pattern:
 5. Prioritize and Plan
 - Rank by impact/risk. Present plan with before/after snippets. Request approval.
 
+## Red Flags and Rationalizations
+
+| Rationalization | Why It's Wrong | Do Instead |
+|---|---|---|
+| "While I'm here, let me refactor this too" | Scope creep breaks things | Only simplify what was requested |
+| "This abstraction will help later" | Predicted reuse rarely materializes | Remove it unless used twice today |
+| "Shorter is simpler" | Brevity can hide complexity | Optimize for readability, not line count |
+
 ## Validation
 - Verify no regressions, add tests for new helpers, update docs if interfaces changed.
 
