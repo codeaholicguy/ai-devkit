@@ -175,9 +175,21 @@ ai-devkit memory store \
 
 Your memory is **100% local**. 
 
-All data is stored in a high-performance SQLite database located at `~/.ai-devkit/memory.db`. No data is sent to the cloud, ensuring your proprietary coding patterns remain private.
+By default, Memory stores data in a local SQLite database at `~/.ai-devkit/memory.db`.
 
-This is portable so you can just copy the database file to another machine to use it across different machines.
+If you use the `ai-devkit` CLI, you can override that location in your `.ai-devkit.json` file with `memory.path`. When `memory.path` is set, CLI commands use that path instead. Absolute paths are used as-is, and relative paths are resolved from the directory that contains `.ai-devkit.json`.
+
+```json
+{
+  "memory": {
+    "path": ".ai-devkit/project-memory.db"
+  }
+}
+```
+
+No data is sent to the cloud, ensuring your proprietary coding patterns remain private.
+
+Because the database is just a local file, you can copy it to another machine and keep using the same memory there.
 
 ## Next Steps
 
