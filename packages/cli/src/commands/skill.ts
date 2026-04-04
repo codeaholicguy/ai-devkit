@@ -11,8 +11,8 @@ export function registerSkillCommand(program: Command): void {
     .description('Manage Agent Skills');
 
   skillCommand
-    .command('add <registry-repo> [skill-name]')
-    .description('Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills [frontend-design])')
+    .command('add <registry-repo> <skill-name>')
+    .description('Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills frontend-design)')
     .option('-g, --global', 'Install skill into configured global skill paths (~/<path>)')
     .option('-e, --env <environment...>', 'Target environment(s) for global install (e.g., --global --env claude)')
     .action(async (registryRepo: string, skillName: string | undefined, options: { global?: boolean; env?: string[] }) => {
