@@ -148,10 +148,22 @@ describe('lint command', () => {
 describe('memory commands', () => {
   let projectDir: string;
   let uid: string;
+  let projectMemoryDbPath: string;
 
   beforeEach(() => {
     projectDir = createTempProject();
     uid = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    projectMemoryDbPath = join(projectDir, '.ai-devkit', 'memory.db');
+    writeConfigFile(projectDir, {
+      version: '1.0.0',
+      environments: [],
+      phases: [],
+      memory: {
+        path: '.ai-devkit/memory.db'
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
   });
 
   afterEach(() => {
@@ -168,6 +180,7 @@ describe('memory commands', () => {
     const stored = JSON.parse(storeResult.stdout.trim());
     expect(stored.success).toBe(true);
     expect(stored.id).toBeDefined();
+    expect(existsSync(projectMemoryDbPath)).toBe(true);
 
     const searchResult = run(`memory search -q "${title}"`, { cwd: projectDir });
     expect(searchResult.exitCode).toBe(0);

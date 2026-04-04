@@ -85,6 +85,26 @@ export class ConfigManager {
     return config?.paths?.docs || DEFAULT_DOCS_DIR;
   }
 
+  async getMemoryDbPath(): Promise<string | undefined> {
+    const config = await this.read() as any;
+    const configuredPath = config?.memory?.path;
+
+    if (typeof configuredPath !== 'string') {
+      return undefined;
+    }
+
+    const trimmedPath = configuredPath.trim();
+    if (!trimmedPath) {
+      return undefined;
+    }
+
+    if (path.isAbsolute(trimmedPath)) {
+      return trimmedPath;
+    }
+
+    return path.resolve(path.dirname(this.configPath), trimmedPath);
+  }
+
   async setDocsDir(docsDir: string): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {

@@ -12,29 +12,29 @@ description: Implementation notes for project-configurable memory database paths
 
 ## Code Structure
 - Config shape and parsing live in the CLI package.
-- Effective database path selection must be shared by all memory entry points.
+- Effective database path selection is resolved in the CLI and passed explicitly into the memory package.
 
 ## Implementation Notes
 ### Core Features
 - Add typed support for `memory.path` in project config.
 - Resolve relative configured paths from the project root.
-- Pass the resolved path into every memory operation entry point.
+- Pass the resolved path into `ai-devkit memory store`, `search`, and `update`.
 
 ### Patterns & Best Practices
 - Keep `DEFAULT_DB_PATH` as the fallback constant.
-- Avoid duplicating path-resolution logic across command handlers and server code.
+- Avoid duplicating path-resolution logic across CLI command handlers.
 
 ## Integration Points
 - `.ai-devkit.json`
 - `ConfigManager`
 - memory CLI command adapters
-- memory MCP server
 
 ## Error Handling
 - Invalid or absent `memory.path` should not break memory commands; fall back to the default path.
 
 ## Performance Considerations
-- Path resolution should happen once per command/tool invocation before opening the database.
+- Path resolution should happen once per CLI command invocation before opening the database.
 
 ## Security Notes
 - Treat `memory.path` as a filesystem path only; no shell execution or interpolation.
+- Standalone `@ai-devkit/memory` server behavior remains unchanged in this feature.
