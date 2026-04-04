@@ -46,7 +46,7 @@ export function registerSkillCommand(program: Command): void {
 
         if (skills.length === 0) {
           ui.warning('No skills installed in this project.');
-          ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> [skill-name]');
+          ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> <skill-name>');
           return;
         }
 
@@ -128,7 +128,7 @@ export function registerSkillCommand(program: Command): void {
           columnStyles: [chalk.cyan, chalk.dim, chalk.white]
         });
 
-        ui.text(`\nInstall with: ai-devkit skill add <registry> [skill-name]`, { breakline: true });
+        ui.text(`\nInstall with: ai-devkit skill add <registry> <skill-name>`, { breakline: true });
       } catch (error: any) {
         ui.error(`Failed to search skills: ${error.message}`);
         process.exit(1);
