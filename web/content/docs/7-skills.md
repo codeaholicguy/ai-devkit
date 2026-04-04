@@ -23,12 +23,15 @@ AI DevKit ships with a core set of skills in its default registry:
 
 | Skill | Purpose |
 |---|---|
+| `agent-orchestration` | Coordinate running AI agents and manage multi-agent workflows |
+| `capture-knowledge` | Capture structured knowledge about code entry points into documentation |
 | `dev-lifecycle` | Run a structured SDLC workflow from requirements to code review |
 | `debug` | Follow a disciplined debugging and RCA process before implementing fixes |
-| `simplify-implementation` | Simplify and refactor complex code paths for maintainability |
-| `capture-knowledge` | Capture structured knowledge from code into documentation |
 | `memory` | Use AI DevKit memory operations via CLI patterns when needed |
+| `simplify-implementation` | Simplify and refactor complex code paths for maintainability |
+| `tdd` | Apply test-driven development by writing a failing test before production code |
 | `technical-writer` | Improve docs clarity, readability, and structure |
+| `verify` | Require fresh terminal evidence before claiming work is complete |
 
 You can install these skills the same way you install community skills.
 
@@ -52,17 +55,15 @@ Once installed, simply ask your AI agent to use the skill's capabilities—it wi
 
 Skills are currently supported by the following AI coding agents:
 
+| Environment     | Project Skill Path | Global Skill Path |
+| --------------- | ------------------ | ----------------- |
+| **Cursor**      | `.cursor/skills`   | `~/.cursor/skills` |
+| **Claude Code** | `.claude/skills`   | `~/.claude/skills` |
+| **Codex**       | `.agents/skills`   | `~/.codex/skills` |
+| **OpenCode**    | `.opencode/skills` | `~/.config/opencode/skills` |
+| **Antigravity** | `.agent/skills`    | `~/.gemini/antigravity/skills` |
 
-| Environment     | Skill Path         |
-| --------------- | ------------------ |
-| **Cursor**      | `.cursor/skills`   |
-| **Claude Code** | `.claude/skills`   |
-| **Codex**       | `.codex/skills`    |
-| **OpenCode**    | `.opencode/skills` |
-| **Antigravity** | `.agent/skills`    |
-
-
-When you install a skill, it's automatically added to all skill-capable environments configured in your project.
+Project installs are added inside the current repository. Global installs are added under your home directory and are shared across projects.
 
 ## Using Installed Skills
 
@@ -94,31 +95,55 @@ The agent will apply the techniques, conventions, and examples defined in the sk
 
 ### `ai-devkit skill add`
 
-Install a skill from a registry.
+Install one or more skills from a registry.
 
 **Syntax:**
 
 ```bash
-ai-devkit skill add <registry-repo> <skill-name>
+ai-devkit skill add <registry-repo> [skill-name]
 ```
 
 **Parameters:**
 
 - `<registry-repo>`: The registry identifier (e.g., `anthropics/skills`)
-- `<skill-name>`: The name of the skill to install (e.g., `frontend-design`)
+- `[skill-name]`: Optional skill name to install directly (e.g., `frontend-design`)
 
-**Example:**
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Install the skill into configured global skill paths in your home directory |
+| `-e, --env <environment...>` | Limit a global install to specific environments; only valid with `--global` |
+
+**Examples:**
 
 ```bash
+# Install a specific skill into the current project
 ai-devkit skill add anthropics/skills frontend-design
+
+# Browse and select one or more skills interactively
+ai-devkit skill add anthropics/skills
+
+# Install globally for all configured global environments
+ai-devkit skill add anthropics/skills frontend-design --global
+
+# Install globally for specific environments only
+ai-devkit skill add anthropics/skills frontend-design --global --env claude codex
 ```
 
 This command will:
 
-1. Fetch the skill registry from GitHub
-2. Clone the registry repository to a local cache (`~/.ai-devkit/skills/`)
-3. Verify the skill exists and contains a valid `SKILL.md`
-4. Symlink the skill into your project's skill directories
+1. Validate the registry identifier
+2. Fetch the merged registry list
+3. Clone or refresh the cached registry in `~/.ai-devkit/skills/`
+4. Resolve the skill name directly, or prompt you to select one or more skills in interactive terminals
+5. Install the skill into the selected project or global environment paths
+
+**Notes:**
+
+- If you omit `[skill-name]` in an interactive terminal, AI DevKit shows a multi-select prompt
+- In non-interactive environments, `[skill-name]` is required
+- `--env` can only be used together with `--global`
 
 ### `ai-devkit skill list`
 
@@ -149,6 +174,8 @@ The list shows:
 - **Registry**: The source registry where the skill came from
 - **Environments**: Which AI environments have this skill installed
 
+This command lists skills installed in the current project only. It does not show skills installed globally with `ai-devkit skill add --global`.
+
 ### `ai-devkit skill remove`
 
 Remove a skill from your project.
@@ -166,6 +193,16 @@ ai-devkit skill remove frontend-design
 ```
 
 The cached copy remains in `~/.ai-devkit/skills/` so you can quickly reinstall it in other projects without re-downloading.
+
+This command removes project-installed skills from the current repository. It does not remove skills installed with `ai-devkit skill add --global`.
+
+To remove a globally installed skill, delete it from the matching global skill path for that environment. For example:
+
+```bash
+rm -rf ~/.codex/skills/frontend-design
+```
+
+Use the Supported Environments table above to find the correct global path for your agent.
 
 ### `ai-devkit skill update`
 
@@ -248,7 +285,7 @@ ai-devkit skill find frontend
 
 The find command searches a pre-built skill index that aggregates skills from all known registries:
 
-1. Checks for a cached skill index (updated weekly or on demand)
+1. Checks for a cached local skill index
 2. Matches your keyword against skill names and descriptions
 3. Returns sorted results showing skill name, registry, and description
 4. Provides the install command for easy copy-paste
@@ -261,9 +298,40 @@ The find command searches a pre-built skill index that aggregates skills from al
 
 **Notes:**
 
-- The skill index is automatically rebuilt weekly via GitHub Actions
-- First-time searches may take longer while the index builds
+- AI DevKit stores the local skill index at `~/.ai-devkit/skills.json`
+- Cached index data is reused for up to 24 hours
+- If no local index exists, AI DevKit first tries to download a seed index, then falls back to rebuilding it
+- Use `--refresh` to force a rebuild before searching
 - Search is case-insensitive and matches partial words
+
+### `ai-devkit skill rebuild-index`
+
+Rebuild the skill index from all registries.
+
+**Syntax:**
+
+```bash
+ai-devkit skill rebuild-index
+ai-devkit skill rebuild-index --output <path>
+```
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--output <path>` | Write the rebuilt index to a custom output path |
+
+**Examples:**
+
+```bash
+# Rebuild the default local index
+ai-devkit skill rebuild-index
+
+# Write the rebuilt index to a custom file
+ai-devkit skill rebuild-index --output ./tmp/skills.json
+```
+
+This command is mainly useful for CI, automation, or debugging index issues.
 
 ## Skill Registry
 
