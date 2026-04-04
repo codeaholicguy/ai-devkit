@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-03-14
+
+### Added
+
+- **Interactive Skill Selection** - `ai-devkit skill add` can now present an interactive multi-select flow when adding skills from a registry (#51).
+- **Memory DB Path Configuration** - Added support for configuring a project-specific memory database path and using it in CLI and memory API flows (#50).
+- **Senior Engineer Skills** - Added `verify` and `tdd` skills and included them in the `senior-engineer` template.
+- **Targeted Global Skill Install Prompt** - Added environment-aware prompting to support targeted global skill installation.
+- **E2E Coverage** - Added end-to-end test coverage for the new memory database path configuration flow.
+
+### Changed
+
+- **Skill Guidance** - Updated memory skill instructions and refreshed skill red-flag guidance.
+- **Bundled Skills Data** - Added new bundled skills and updated skill registry metadata.
+- **E2E Test Maintenance** - Cleaned up the end-to-end test suite for the new CLI flows.
+
+### Fixed
+
+- **Ora Compatibility** - Fixed the `ora` dependency/version issue.
+
 ## [0.20.1] - 2026-03-13
 
 ### Added
