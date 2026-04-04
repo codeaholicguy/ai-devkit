@@ -19,6 +19,9 @@ describe('ConfigManager', () => {
     mockFs = fs as jest.Mocked<typeof fs>;
     mockPath = path as jest.Mocked<typeof path>;
     mockPath.join.mockImplementation((...args) => args.join('/'));
+    mockPath.dirname.mockImplementation((input: string) => input.split('/').slice(0, -1).join('/') || '/');
+    mockPath.resolve.mockImplementation((...args) => args.join('/').replace(/\/+/g, '/'));
+    mockPath.isAbsolute.mockImplementation((input: string) => input.startsWith('/'));
   });
 
   afterEach(() => {
@@ -530,6 +533,91 @@ describe('ConfigManager', () => {
       const registries = await configManager.getSkillRegistries();
 
       expect(registries).toEqual({});
+    });
+  });
+
+  describe('getMemoryDbPath', () => {
+    it('returns undefined when config does not exist', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await configManager.getMemoryDbPath();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when memory.path is missing', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      const result = await configManager.getMemoryDbPath();
+
+      expect(result).toBeUndefined();
+    });
+
+    it('returns undefined when memory.path is blank or invalid', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        memory: { path: '   ' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      await expect(configManager.getMemoryDbPath()).resolves.toBeUndefined();
+
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        memory: { path: 42 },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      await expect(configManager.getMemoryDbPath()).resolves.toBeUndefined();
+    });
+
+    it('returns absolute memory.path as-is', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        memory: { path: '/custom/memory.db' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      const result = await configManager.getMemoryDbPath();
+
+      expect(result).toBe('/custom/memory.db');
+      expect(mockPath.isAbsolute).toHaveBeenCalledWith('/custom/memory.db');
+    });
+
+    it('resolves relative memory.path from the config directory', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        memory: { path: '.ai-devkit/project-memory.db' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      });
+
+      const result = await configManager.getMemoryDbPath();
+
+      expect(mockPath.dirname).toHaveBeenCalledWith('/test/dir/.ai-devkit.json');
+      expect(mockPath.resolve).toHaveBeenCalledWith('/test/dir', '.ai-devkit/project-memory.db');
+      expect(result).toBe('/test/dir/.ai-devkit/project-memory.db');
     });
   });
 });

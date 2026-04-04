@@ -1,7 +1,7 @@
 import { storeKnowledge } from './handlers/store';
 import { searchKnowledge } from './handlers/search';
 import { updateKnowledge } from './handlers/update';
-import { closeDatabase } from './database';
+import { closeDatabase, getDatabase } from './database';
 import type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult } from './types';
 
 export { storeKnowledge, searchKnowledge, updateKnowledge };
@@ -13,6 +13,7 @@ export interface MemoryStoreOptions {
     content: string;
     tags?: string;
     scope?: string;
+    dbPath?: string;
 }
 
 export interface MemoryUpdateOptions {
@@ -21,6 +22,7 @@ export interface MemoryUpdateOptions {
     content?: string;
     tags?: string;
     scope?: string;
+    dbPath?: string;
 }
 
 export interface MemorySearchOptions {
@@ -28,10 +30,12 @@ export interface MemorySearchOptions {
     tags?: string;
     scope?: string;
     limit?: number;
+    dbPath?: string;
 }
 
 export function memoryStoreCommand(options: MemoryStoreOptions): StoreKnowledgeResult {
     try {
+        getDatabase({ dbPath: options.dbPath });
         const input: StoreKnowledgeInput = {
             title: options.title,
             content: options.content,
@@ -47,6 +51,7 @@ export function memoryStoreCommand(options: MemoryStoreOptions): StoreKnowledgeR
 
 export function memoryUpdateCommand(options: MemoryUpdateOptions): UpdateKnowledgeResult {
     try {
+        getDatabase({ dbPath: options.dbPath });
         const input: UpdateKnowledgeInput = {
             id: options.id,
             title: options.title,
@@ -63,6 +68,7 @@ export function memoryUpdateCommand(options: MemoryUpdateOptions): UpdateKnowled
 
 export function memorySearchCommand(options: MemorySearchOptions): SearchKnowledgeResult {
     try {
+        getDatabase({ dbPath: options.dbPath });
         const input: SearchKnowledgeInput = {
             query: options.query,
             contextTags: options.tags ? options.tags.split(',').map(t => t.trim()) : undefined,

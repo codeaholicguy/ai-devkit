@@ -29,6 +29,9 @@ export interface DevKitConfig {
   paths?: {
     docs?: string;
   };
+  memory?: {
+    path?: string;
+  };
   environments: EnvironmentCode[];
   phases: Phase[];
   skills?: ConfigSkill[];
