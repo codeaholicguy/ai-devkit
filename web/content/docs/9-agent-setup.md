@@ -56,6 +56,12 @@ If `.ai-devkit.json` already exists in this project, apply setup with:
 ai-devkit install
 ```
 
+Use a non-default config file if your project stores AI DevKit config elsewhere:
+
+```bash
+ai-devkit install --config ./.ai-devkit.team.json
+```
+
 Overwrite existing install artifacts without extra prompts:
 
 ```bash
@@ -67,10 +73,12 @@ ai-devkit install --overwrite
 Based on your configured environments, AI DevKit installs or updates files such as:
 - `AGENTS.md` or `CLAUDE.md`
 - Environment command folders (for example `.cursor/commands/`, `.claude/commands/`, `.codex/commands/`)
-- Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.codex/skills/`)
+- Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.agents/skills/` for Codex, and `.agent/skills/` for Antigravity)
 - Other environment-specific templates defined by AI DevKit
 
 The exact artifacts depend on the environments configured in `.ai-devkit.json`.
+
+> **Note:** `ai-devkit install` manages project-local artifacts from `.ai-devkit.json`. For environments that also support global prompt or workflow installation, use `ai-devkit setup --global` separately.
 
 ## Typical Agent Setup Flow
 
