@@ -12,7 +12,7 @@ The `agent` command allows AI DevKit to detect, list, and interact with other AI
 
 To use the `agent open` command, your environment must meet these requirements:
 
-- **Operating System**: macOS (Linux/Windows support coming soon).
+- **Operating System**: macOS is currently the primary supported platform for terminal focusing. Linux detection may work, but terminal focus behavior depends on your terminal and desktop environment.
 - **Terminal Emulator**: The agent must be running in one of the following:
   - **tmux**
   - **iTerm2**
@@ -26,6 +26,7 @@ To use the `agent open` command, your environment must meet these requirements:
 AI DevKit detects active sessions from the following tools:
 
 - **Claude Code**: Automatically detects running `claude` processes and correlates them with your active projects.
+- **Codex**: Detects running Codex sessions and exposes the same list, open, send, and detail workflows.
 
 ## Commands
 
@@ -35,14 +36,17 @@ List all detected running agents.
 
 ```bash
 ai-devkit agent list
+ai-devkit agent list --json
 ```
 
-**Output:**
+**Table output includes:**
 
-| Agent | Status | Working On | Active |
-|-------|--------|------------|--------|
-| `my-project` | 🟢 running | implementing new feature | just now |
-| `website` | ⚪ idle | fixed css bug | 10m ago |
+| Agent | CWD | Type | Status | Working On | Active |
+|-------|-----|------|--------|------------|--------|
+| `my-project` | `~/code/my-project` | `Claude Code` | 🟢 run | implementing new feature | just now |
+| `website` | `~/code/website` | `Codex` | ⚪ idle | fixed css bug | 10m ago |
+
+Use `--json` when you want the raw machine-readable agent list.
 
 ### Open Agent
 
@@ -57,6 +61,31 @@ This command finds the exact window (tmux pane, iTerm2 session, etc.) where the 
 **Features:**
 - **Fuzzy Matching**: `ai-devkit agent open my-proj` will match `my-project-name`.
 - **Ambiguity Handling**: If multiple agents match (e.g., `web-frontend`, `web-backend`), you will be prompted to select one.
+
+### Send Message
+
+Send a message directly to a running agent.
+
+```bash
+ai-devkit agent send "continue with the failing tests" --id my-project
+```
+
+If the agent is not currently waiting for input, AI DevKit warns you and still sends the message.
+
+### Show Agent Details
+
+Inspect a running agent's conversation details.
+
+```bash
+ai-devkit agent detail --id my-project
+```
+
+Useful options:
+
+- `--json` for machine-readable output
+- `--tail <n>` to show only the last `n` messages
+- `--full` to show the entire conversation history
+- `--verbose` to include tool call and tool result details
 
 ## Troubleshooting
 
