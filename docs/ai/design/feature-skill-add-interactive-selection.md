@@ -18,7 +18,7 @@ graph TD
   SkillManager --> CacheResolver[cloneRepositoryToCache]
   CacheResolver --> RegistryRepo[registry checkout/cache]
   RegistryRepo --> SkillEnumerator[scan skills/*/SKILL.md]
-  SkillEnumerator --> Prompt[inquirer list prompt]
+  SkillEnumerator --> Prompt[inquirer checkbox prompt]
   Prompt --> SkillManager
   SkillManager --> Installer[existing addSkill install path]
   Installer --> ConfigManager[project config update]
@@ -35,13 +35,11 @@ graph TD
 interface RegistrySkillChoice {
   name: string;
   description?: string;
-  skillPath: string;
 }
 
 interface AddSkillOptions {
   global?: boolean;
   environments?: string[];
-  interactive?: boolean;
 }
 ```
 
@@ -64,13 +62,13 @@ interface AddSkillOptions {
 ```ts
 async addSkill(registryId: string, skillName?: string, options?: AddSkillOptions): Promise<void>;
 async listRegistrySkills(registryId: string): Promise<RegistrySkillChoice[]>;
-async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string>;
+async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string[]>;
 ```
 
 **Behavior contract:**
 
 - If `skillName` is provided, skip prompting.
-- If `skillName` is missing and `stdout`/`stdin` are interactive, enumerate skills and prompt.
+- If `skillName` is missing and `stdout`/`stdin` are interactive, enumerate skills and prompt for one or more selections.
 - If `skillName` is missing in a non-interactive context, fail with an error instructing the user to provide `<skill-name>`.
 - If the prompt is cancelled, exit without side effects.
 - If exactly one valid skill exists and `skillName` is omitted, still show the selector instead of auto-installing.
@@ -88,6 +86,7 @@ async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string>;
      - existing installation logic
    - Add a helper that enumerates valid skills from the cloned registry.
    - Add a helper that prompts with `inquirer`.
+   - Reuse the existing install path for each selected skill.
 3. `packages/cli/src/__tests__/commands/skill.test.ts`
    - Add command-level coverage for omitted skill name.
 4. `packages/cli/src/__tests__/lib/SkillManager.test.ts`
@@ -103,6 +102,9 @@ async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string>;
 - Keep interactive selection explicit even for single-skill registries:
   - It matches the stated UX requirement.
   - It avoids hidden behavior changes between one-skill and multi-skill registries.
+- Allow multi-select installation in the prompt:
+  - It reduces repetitive command invocations when a user wants several skills from the same registry.
+  - It keeps the explicit two-argument command unchanged for scripted single-skill installs.
 - Prefer cached registry contents when refresh fails:
   - It keeps the command usable offline or during transient network failures.
   - It aligns with existing cache-oriented registry behavior.
@@ -132,3 +134,4 @@ async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string>;
   - Continue validating `registryId` and selected `skillName` before installation.
 - Usability:
   - Prompt entries should display skill name and short description when available.
+  - Users should be able to select multiple skills in one prompt.

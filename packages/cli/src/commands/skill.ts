@@ -11,11 +11,11 @@ export function registerSkillCommand(program: Command): void {
     .description('Manage Agent Skills');
 
   skillCommand
-    .command('add <registry-repo> <skill-name>')
-    .description('Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills frontend-design)')
+    .command('add <registry-repo> [skill-name]')
+    .description('Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills [frontend-design])')
     .option('-g, --global', 'Install skill into configured global skill paths (~/<path>)')
     .option('-e, --env <environment...>', 'Target environment(s) for global install (e.g., --global --env claude)')
-    .action(async (registryRepo: string, skillName: string, options: { global?: boolean; env?: string[] }) => {
+    .action(async (registryRepo: string, skillName: string | undefined, options: { global?: boolean; env?: string[] }) => {
       try {
         const configManager = new ConfigManager();
         const skillManager = new SkillManager(configManager);
@@ -25,6 +25,10 @@ export function registerSkillCommand(program: Command): void {
           environments: options.env,
         });
       } catch (error: any) {
+        if (error.message === 'Skill selection cancelled.') {
+          ui.warning('Skill selection cancelled.');
+          return;
+        }
         ui.error(`Failed to add skill: ${error.message}`);
         process.exit(1);
       }
@@ -42,7 +46,7 @@ export function registerSkillCommand(program: Command): void {
 
         if (skills.length === 0) {
           ui.warning('No skills installed in this project.');
-          ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> <skill-name>');
+          ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> [skill-name]');
           return;
         }
 
@@ -124,7 +128,7 @@ export function registerSkillCommand(program: Command): void {
           columnStyles: [chalk.cyan, chalk.dim, chalk.white]
         });
 
-        ui.text(`\nInstall with: ai-devkit skill add <registry> <skill-name>`, { breakline: true });
+        ui.text(`\nInstall with: ai-devkit skill add <registry> [skill-name]`, { breakline: true });
       } catch (error: any) {
         ui.error(`Failed to search skills: ${error.message}`);
         process.exit(1);

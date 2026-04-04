@@ -32,7 +32,7 @@ feature: skill-add-interactive-selection
 
 - Allow `ai-devkit skill add <registry>` to enter an interactive selection flow when `<skill-name>` is omitted.
 - Build the selectable list from the requested registry itself, not from a hardcoded list.
-- Reuse the existing installation path once the user selects a skill.
+- Reuse the existing installation path once the user selects one or more skills.
 - Keep the existing explicit flow `ai-devkit skill add <registry> <skill-name>` unchanged.
 
 **Secondary goals:**
@@ -43,7 +43,6 @@ feature: skill-add-interactive-selection
 
 **Non-goals (explicitly out of scope):**
 
-- Multi-select installation in one command.
 - Fuzzy search across all registries in the add flow.
 - Changing `skill find` behavior.
 - Adding a new registry metadata format.
@@ -51,8 +50,8 @@ feature: skill-add-interactive-selection
 ## User Stories & Use Cases
 **How will users interact with the solution?**
 
-1. As a developer, I want to run `ai-devkit skill add my-org/skills` so I can choose a skill interactively when I do not remember the exact skill name.
-2. As a developer, I want the CLI to show the actual skills available in that registry so I can install one without opening GitHub.
+1. As a developer, I want to run `ai-devkit skill add my-org/skills` so I can choose one or more skills interactively when I do not remember the exact skill names.
+2. As a developer, I want the CLI to show the actual skills available in that registry so I can install several of them without opening GitHub.
 3. As an automation user, I want `ai-devkit skill add <registry> <skill-name>` to keep working non-interactively so existing scripts do not break.
 
 **Key workflows and scenarios:**
@@ -61,8 +60,8 @@ feature: skill-add-interactive-selection
   - CLI validates the registry.
   - CLI fetches or reuses the cached registry repository.
   - CLI extracts available skills from `skills/*/SKILL.md`.
-  - CLI shows an interactive selection list, even if the registry only exposes one valid skill.
-  - CLI installs the selected skill using the existing add flow.
+  - CLI shows an interactive multi-selection list, even if the registry only exposes one valid skill.
+  - CLI installs each selected skill using the existing add flow.
 - User runs `ai-devkit skill add <registry> <skill-name>`:
   - Existing direct install flow continues with no interactive prompt.
 - User cancels the prompt:
@@ -84,7 +83,7 @@ feature: skill-add-interactive-selection
 - `ai-devkit skill add <registry>` is accepted by the CLI.
 - When run interactively, the command displays a selection list populated from the target registry.
 - The command still shows the selection list when the registry contains exactly one valid skill.
-- Selecting a skill installs it through the existing installation path and updates project config exactly as today.
+- Selecting one or more skills installs each of them through the existing installation path and updates project config exactly as today.
 - `ai-devkit skill add <registry> <skill-name>` continues to work without prompting.
 - Invalid, empty, and non-interactive cases return actionable error messages.
 - If registry refresh fails but a cached copy exists, the command warns and uses the cached list.
@@ -109,4 +108,4 @@ feature: skill-add-interactive-selection
 ## Questions & Open Items
 **What do we still need to clarify?**
 
-- None for Phase 2 review. The prompt uses a single-select list whenever `<skill-name>` is omitted, and cached registry content is acceptable when refresh fails.
+- None for Phase 2 review. The prompt uses a multi-select list whenever `<skill-name>` is omitted, and cached registry content is acceptable when refresh fails.
