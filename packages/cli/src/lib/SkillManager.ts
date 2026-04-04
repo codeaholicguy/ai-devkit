@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
+import inquirer from 'inquirer';
 import { ConfigManager } from './Config';
 import { GlobalConfigManager } from './GlobalConfig';
 import { EnvironmentSelector } from './EnvironmentSelector';
@@ -66,6 +67,18 @@ interface AddSkillOptions {
   environments?: string[];
 }
 
+interface RegistrySkillChoice {
+  name: string;
+  description?: string;
+}
+
+interface ResolvedInstallContext {
+  baseDir: string;
+  capableEnvironments: string[];
+  installMode: 'global' | 'project';
+  targets: string[];
+}
+
 export class SkillManager {
   constructor(
     private configManager: ConfigManager,
@@ -78,11 +91,9 @@ export class SkillManager {
    * @param registryId - e.g., "anthropics/skills"
    * @param skillName - e.g., "frontend-design"
    */
-  async addSkill(registryId: string, skillName: string, options: AddSkillOptions = {}): Promise<void> {
-    const installMode = options.global ? 'global' : 'project';
-    ui.info(`Validating skill: ${skillName} from ${registryId}`);
+  async addSkill(registryId: string, skillName?: string, options: AddSkillOptions = {}): Promise<void> {
+    ui.info(`Validating registry: ${registryId}`);
     validateRegistryId(registryId);
-    validateSkillName(skillName);
     await ensureGitInstalled();
 
     const spinner = ui.spinner('Fetching registries...');
@@ -99,57 +110,17 @@ export class SkillManager {
     }
 
     ui.info('Checking local cache...');
-    const repoPath = await this.cloneRepositoryToCache(registryId, gitUrl);
+    const repoPath = await this.prepareRegistryRepository(registryId, gitUrl);
 
-    const skillPath = path.join(repoPath, 'skills', skillName);
-    if (!await fs.pathExists(skillPath)) {
-      throw new Error(
-        `Skill "${skillName}" not found in ${registryId}. Check the repository for available skills.`
-      );
-    }
-
-    const skillMdPath = path.join(skillPath, 'SKILL.md');
-    if (!await fs.pathExists(skillMdPath)) {
-      throw new Error(
-        `Invalid skill: SKILL.md not found in ${skillName}. This may not be a valid Agent Skill.`
-      );
-    }
-
+    const resolvedSkillNames = skillName
+      ? [skillName]
+      : await this.resolveSkillNamesFromRegistry(registryId, repoPath);
     const selectedEnvironments = await this.resolveInstallEnvironments(options);
-    const { targets, capableEnvironments } = this.resolveInstallationTargets(selectedEnvironments, options.global);
+    const installContext = this.buildInstallContext(selectedEnvironments, options);
 
-    ui.info(`Installing skill to ${installMode}...`);
-    const baseDir = options.global ? os.homedir() : process.cwd();
-
-    for (const targetDir of targets) {
-      const targetPath = path.join(baseDir, targetDir, skillName);
-
-      if (await fs.pathExists(targetPath)) {
-        ui.text(`  → ${targetDir}/${skillName} (already exists, skipped)`);
-        continue;
-      }
-
-      await fs.ensureDir(path.dirname(targetPath));
-
-      try {
-        await fs.symlink(skillPath, targetPath, 'dir');
-        ui.text(`  → ${targetDir}/${skillName} (symlinked)`);
-      } catch (error) {
-        await fs.copy(skillPath, targetPath);
-        ui.text(`  → ${targetDir}/${skillName} (copied)`);
-      }
+    for (const resolvedSkillName of resolvedSkillNames) {
+      await this.installResolvedSkill(registryId, repoPath, resolvedSkillName, options, installContext);
     }
-
-    if (!options.global) {
-      await this.configManager.addSkill({
-        registry: registryId,
-        name: skillName
-      });
-    }
-
-    ui.text(`Successfully installed: ${skillName}`);
-    ui.info(`  Source: ${registryId}`);
-    ui.info(`  Installed to (${installMode}): ${capableEnvironments.join(', ')}`);
   }
 
   private async resolveProjectEnvironments(): Promise<string[]> {
@@ -462,6 +433,180 @@ export class SkillManager {
     const result = await cloneRepository(SKILL_CACHE_DIR, registryId, gitUrl);
     ui.success(`${registryId} cloned successfully`);
     return result;
+  }
+
+  private async prepareRegistryRepository(registryId: string, gitUrl?: string): Promise<string> {
+    const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
+
+    try {
+      return await this.cloneRepositoryToCache(registryId, gitUrl);
+    } catch (error: any) {
+      if (await fs.pathExists(cachedPath)) {
+        ui.warning(`Failed to refresh ${registryId}: ${error.message}. Using cached registry contents.`);
+        return cachedPath;
+      }
+
+      throw error;
+    }
+  }
+
+  private async installResolvedSkill(
+    registryId: string,
+    repoPath: string,
+    resolvedSkillName: string,
+    options: AddSkillOptions,
+    installContext: ResolvedInstallContext
+  ): Promise<void> {
+    ui.info(`Validating skill: ${resolvedSkillName} from ${registryId}`);
+    validateSkillName(resolvedSkillName);
+
+    const skillPath = await this.resolveInstallableSkillPath(repoPath, registryId, resolvedSkillName);
+
+    ui.info(`Installing skill to ${installContext.installMode}...`);
+    for (const targetDir of installContext.targets) {
+      const targetPath = path.join(installContext.baseDir, targetDir, resolvedSkillName);
+
+      if (await fs.pathExists(targetPath)) {
+        ui.text(`  → ${targetDir}/${resolvedSkillName} (already exists, skipped)`);
+        continue;
+      }
+
+      await fs.ensureDir(path.dirname(targetPath));
+
+      try {
+        await fs.symlink(skillPath, targetPath, 'dir');
+        ui.text(`  → ${targetDir}/${resolvedSkillName} (symlinked)`);
+      } catch (error) {
+        await fs.copy(skillPath, targetPath);
+        ui.text(`  → ${targetDir}/${resolvedSkillName} (copied)`);
+      }
+    }
+
+    if (!options.global) {
+      await this.configManager.addSkill({
+        registry: registryId,
+        name: resolvedSkillName
+      });
+    }
+
+    ui.text(`Successfully installed: ${resolvedSkillName}`);
+    ui.info(`  Source: ${registryId}`);
+    ui.info(`  Installed to (${installContext.installMode}): ${installContext.capableEnvironments.join(', ')}`);
+  }
+
+  private buildInstallContext(
+    selectedEnvironments: string[],
+    options: AddSkillOptions
+  ): ResolvedInstallContext {
+    const { targets, capableEnvironments } = this.resolveInstallationTargets(selectedEnvironments, options.global);
+
+    return {
+      baseDir: options.global ? os.homedir() : process.cwd(),
+      capableEnvironments,
+      installMode: options.global ? 'global' : 'project',
+      targets,
+    };
+  }
+
+  private async resolveInstallableSkillPath(
+    repoPath: string,
+    registryId: string,
+    resolvedSkillName: string
+  ): Promise<string> {
+    const skillPath = path.join(repoPath, 'skills', resolvedSkillName);
+    if (!await fs.pathExists(skillPath)) {
+      throw new Error(
+        `Skill "${resolvedSkillName}" not found in ${registryId}. Check the repository for available skills.`
+      );
+    }
+
+    const skillMdPath = path.join(skillPath, 'SKILL.md');
+    if (!await fs.pathExists(skillMdPath)) {
+      throw new Error(
+        `Invalid skill: SKILL.md not found in ${resolvedSkillName}. This may not be a valid Agent Skill.`
+      );
+    }
+
+    return skillPath;
+  }
+
+  private async resolveSkillNamesFromRegistry(registryId: string, repoPath: string): Promise<string[]> {
+    if (!this.isInteractiveTerminal()) {
+      throw new Error('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
+    }
+
+    const skills = await this.listRegistrySkills(registryId, repoPath);
+    return this.promptForSkillSelection(skills);
+  }
+
+  private async listRegistrySkills(registryId: string, repoPath: string): Promise<RegistrySkillChoice[]> {
+    const skillsDir = path.join(repoPath, 'skills');
+    if (!await fs.pathExists(skillsDir)) {
+      throw new Error(`No valid skills found in ${registryId}.`);
+    }
+
+    const entries = await fs.readdir(skillsDir, { withFileTypes: true });
+    const skills: RegistrySkillChoice[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) {
+        continue;
+      }
+
+      const skillMdPath = path.join(skillsDir, entry.name, 'SKILL.md');
+      if (!await fs.pathExists(skillMdPath)) {
+        continue;
+      }
+
+      let description: string | undefined;
+      try {
+        const content = await fs.readFile(skillMdPath, 'utf8');
+        description = extractSkillDescription(content);
+      } catch {
+        description = undefined;
+      }
+
+      skills.push({
+        name: entry.name,
+        description,
+      });
+    }
+
+    if (skills.length === 0) {
+      throw new Error(`No valid skills found in ${registryId}.`);
+    }
+
+    skills.sort((a, b) => a.name.localeCompare(b.name));
+    return skills;
+  }
+
+  private async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string[]> {
+    try {
+      const { selectedSkills } = await inquirer.prompt([
+        {
+          type: 'checkbox',
+          name: 'selectedSkills',
+          message: 'Select skill(s) to install',
+          choices: skills.map(skill => ({
+            name: skill.description ? `${skill.name} - ${skill.description}` : skill.name,
+            value: skill.name,
+          })),
+          validate: (value: string[]) => value.length > 0 || 'Select at least one skill.',
+        },
+      ]);
+
+      return selectedSkills;
+    } catch (error: any) {
+      if (error?.name === 'ExitPromptError' || error?.message?.toLowerCase().includes('cancel')) {
+        throw new Error('Skill selection cancelled.');
+      }
+
+      throw error;
+    }
+  }
+
+  private isInteractiveTerminal(): boolean {
+    return Boolean(process.stdin.isTTY && process.stdout.isTTY);
   }
 
   /**

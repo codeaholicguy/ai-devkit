@@ -24,6 +24,13 @@ jest.mock("../../lib/EnvironmentSelector");
 jest.mock("../../lib/GlobalConfig");
 jest.mock("../../util/git");
 jest.mock("../../util/skill");
+const mockPrompt = jest.fn();
+jest.mock("inquirer", () => ({
+  __esModule: true,
+  default: {
+    prompt: (...args: unknown[]) => mockPrompt(...args),
+  },
+}));
 jest.mock("ora", () => {
   return jest.fn(() => ({
     start: jest.fn().mockReturnThis(),
@@ -54,6 +61,34 @@ function mockFetch(response: any) {
     ok: true,
     json: () => Promise.resolve(response)
   });
+}
+
+function setTTY(stdoutIsTTY: boolean, stdinIsTTY: boolean): () => void {
+  const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+  const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
+
+  Object.defineProperty(process.stdout, "isTTY", {
+    configurable: true,
+    value: stdoutIsTTY,
+  });
+  Object.defineProperty(process.stdin, "isTTY", {
+    configurable: true,
+    value: stdinIsTTY,
+  });
+
+  return () => {
+    if (stdoutDescriptor) {
+      Object.defineProperty(process.stdout, "isTTY", stdoutDescriptor);
+    } else {
+      delete (process.stdout as any).isTTY;
+    }
+
+    if (stdinDescriptor) {
+      Object.defineProperty(process.stdin, "isTTY", stdinDescriptor);
+    } else {
+      delete (process.stdin as any).isTTY;
+    }
+  };
 }
 
 
@@ -112,11 +147,15 @@ describe("SkillManager", () => {
       });
 
       mockedGitUtil.cloneRepository.mockResolvedValue(mockRepoPath);
+      mockedGitUtil.isGitRepository.mockResolvedValue(true);
+      mockedGitUtil.pullRepository.mockResolvedValue(undefined);
 
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.ensureDir as any).mockResolvedValue(undefined);
       (mockedFs.symlink as any).mockResolvedValue(undefined);
       (mockedFs.copy as any).mockResolvedValue(undefined);
+      (mockedFs.readdir as any).mockResolvedValue([]);
+      (mockedFs.readFile as any)?.mockResolvedValue?.('');
 
       mockConfigManager.read.mockResolvedValue({
         environments: ["cursor", "claude"],
@@ -126,6 +165,45 @@ describe("SkillManager", () => {
         "claude",
       ]);
     });
+
+    const configureRegistrySkills = (skillNames: string[]) => {
+      (mockedFs.readdir as any).mockResolvedValue(
+        skillNames.map(name => ({ name, isDirectory: () => true })),
+      );
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === mockRepoPath) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}skills`)) {
+          return Promise.resolve(true);
+        }
+
+        for (const skillName of skillNames) {
+          if (checkPath.endsWith(`${path.sep}${skillName}${path.sep}SKILL.md`)) {
+            return Promise.resolve(true);
+          }
+          if (checkPath.includes(`${path.sep}skills${path.sep}${skillName}`)) {
+            return Promise.resolve(true);
+          }
+        }
+
+        return Promise.resolve(false);
+      });
+      (mockedFs.readFile as any) = jest.fn().mockImplementation((filePath: string) => {
+        const matchedSkill = skillNames.find(skillName =>
+          filePath.endsWith(`${skillName}${path.sep}SKILL.md`),
+        );
+
+        return Promise.resolve(
+          matchedSkill === "frontend-design"
+            ? "description: Frontend skill"
+            : "description: Debug skill",
+        );
+      });
+      mockedSkillUtil.extractSkillDescription.mockImplementation((content: string) =>
+        content.replace("description: ", ""),
+      );
+    };
 
     it("should successfully add a skill", async () => {
       await skillManager.addSkill(mockRegistryId, mockSkillName);
@@ -526,6 +604,152 @@ describe("SkillManager", () => {
       expect(mockedSkillUtil.validateSkillName).toHaveBeenCalledWith(
         mockSkillName,
       );
+    });
+
+    it("should prompt for multiple skill selection when skill name is omitted", async () => {
+      configureRegistrySkills(["frontend-design", "debug"]);
+      mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
+
+      const restoreTTY = setTTY(true, true);
+
+      await skillManager.addSkill(mockRegistryId, undefined as any);
+
+      expect(mockPrompt).toHaveBeenCalled();
+      expect(mockedSkillUtil.validateSkillName).toHaveBeenCalledWith("debug");
+      expect(mockedSkillUtil.validateSkillName).toHaveBeenCalledWith("frontend-design");
+      expect(mockConfigManager.addSkill).toHaveBeenNthCalledWith(1, {
+        registry: mockRegistryId,
+        name: "debug",
+      });
+      expect(mockConfigManager.addSkill).toHaveBeenNthCalledWith(2, {
+        registry: mockRegistryId,
+        name: "frontend-design",
+      });
+      expect(mockConfigManager.addSkill).toHaveBeenCalledTimes(2);
+
+      restoreTTY();
+    });
+
+    it("should fail when skill name is omitted in non-interactive mode", async () => {
+      const restoreTTY = setTTY(false, false);
+
+      await expect(
+        skillManager.addSkill(mockRegistryId, undefined as any),
+      ).rejects.toThrow('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
+
+      expect(mockPrompt).not.toHaveBeenCalled();
+
+      restoreTTY();
+    });
+
+    it("should use cached registry contents for multi-selection when pull fails", async () => {
+      configureRegistrySkills(["debug", "frontend-design"]);
+      mockedGitUtil.pullRepository.mockRejectedValue(new Error('network down'));
+      mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
+
+      const restoreTTY = setTTY(true, true);
+
+      await skillManager.addSkill(mockRegistryId, undefined as any);
+
+      expect(mockPrompt).toHaveBeenCalled();
+      expect(mockConfigManager.addSkill).toHaveBeenCalledTimes(2);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining("⚠"),
+        expect.stringContaining("Using cached registry contents"),
+      );
+
+      restoreTTY();
+    });
+
+    it("should stop without installing when skill selection is cancelled", async () => {
+      configureRegistrySkills(["debug"]);
+      mockPrompt.mockRejectedValue(new Error('User cancelled'));
+
+      const restoreTTY = setTTY(true, true);
+
+      await expect(
+        skillManager.addSkill(mockRegistryId, undefined as any),
+      ).rejects.toThrow('Skill selection cancelled.');
+
+      expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
+      expect(mockedFs.symlink).not.toHaveBeenCalled();
+
+      restoreTTY();
+    });
+
+    it("should throw a clear error when the registry has no valid skills", async () => {
+      (mockedFs.readdir as any).mockResolvedValue([
+        { name: "broken-skill", isDirectory: () => true },
+      ]);
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === mockRepoPath) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}skills`)) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
+      });
+
+      const restoreTTY = setTTY(true, true);
+
+      await expect(
+        skillManager.addSkill(mockRegistryId, undefined as any),
+      ).rejects.toThrow(`No valid skills found in ${mockRegistryId}.`);
+
+      expect(mockPrompt).not.toHaveBeenCalled();
+
+      restoreTTY();
+    });
+
+    it("should support global installation after interactive multi-selection", async () => {
+      configureRegistrySkills(["debug", "frontend-design"]);
+      mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+        if (checkPath === path.join(os.homedir(), ".claude", "skills", "debug")) {
+          return Promise.resolve(false);
+        }
+        if (checkPath === path.join(os.homedir(), ".claude", "skills", "frontend-design")) {
+          return Promise.resolve(false);
+        }
+        if (checkPath === mockRepoPath) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}skills`)) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}debug${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.endsWith(`${path.sep}frontend-design${path.sep}SKILL.md`)) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.includes(`${path.sep}skills${path.sep}debug`)) {
+          return Promise.resolve(true);
+        }
+        if (checkPath.includes(`${path.sep}skills${path.sep}frontend-design`)) {
+          return Promise.resolve(true);
+        }
+        return Promise.resolve(false);
+      });
+
+      const restoreTTY = setTTY(true, true);
+
+      await skillManager.addSkill(mockRegistryId, undefined as any, { global: true, environments: ["claude"] });
+
+      expect(mockedFs.symlink).toHaveBeenCalledWith(
+        expect.any(String),
+        path.join(os.homedir(), ".claude", "skills", "debug"),
+        "dir",
+      );
+      expect(mockedFs.symlink).toHaveBeenCalledWith(
+        expect.any(String),
+        path.join(os.homedir(), ".claude", "skills", "frontend-design"),
+        "dir",
+      );
+      expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
+
+      restoreTTY();
     });
   });
 
