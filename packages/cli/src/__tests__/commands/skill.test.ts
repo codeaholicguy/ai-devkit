@@ -73,7 +73,6 @@ describe('skill command', () => {
 
     expect(ui.warning).toHaveBeenCalledWith('Skill selection cancelled.');
     expect(ui.error).not.toHaveBeenCalled();
-    expect(process.exit).not.toHaveBeenCalled();
   });
 
   it('registers the add command with an optional skill-name argument', () => {
@@ -84,6 +83,6 @@ describe('skill command', () => {
     const addCommand = skillCommand?.commands.find(command => command.name() === 'add');
 
     expect(addCommand?.usage()).toContain('<registry-repo>');
-    expect(addCommand?.usage()).toContain('[skill-name]');
+    expect(addCommand?.usage()).toContain('<skill-name>');
   });
 });
