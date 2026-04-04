@@ -35,6 +35,7 @@ describe('skill command', () => {
     jest.clearAllMocks();
     mockAddSkill.mockImplementation(async () => undefined);
     jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
+    jest.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
   });
 
   it('parses skill add with registry only and forwards undefined skill name', async () => {
@@ -47,6 +48,7 @@ describe('skill command', () => {
       global: undefined,
       environments: undefined,
     });
+    expect(process.stderr.write).not.toHaveBeenCalled();
   });
 
   it('parses skill add with explicit skill name and forwards both args', async () => {
@@ -83,6 +85,6 @@ describe('skill command', () => {
     const addCommand = skillCommand?.commands.find(command => command.name() === 'add');
 
     expect(addCommand?.usage()).toContain('<registry-repo>');
-    expect(addCommand?.usage()).toContain('<skill-name>');
+    expect(addCommand?.usage()).toContain('[skill-name]');
   });
 });

@@ -65,7 +65,7 @@ ai-devkit lint --feature lint-command
 ai-devkit lint --feature lint-command --json
 
 # Install a skill
-ai-devkit skill add <skill-registry> <skill-name>
+ai-devkit skill add <skill-registry> [skill-name]
 
 # Store a memory
 ai-devkit memory store
