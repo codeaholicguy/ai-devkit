@@ -51,7 +51,9 @@ docs/ai/
 
 ## Using the Dev Lifecycle Skill
 
-Instead of manually typing each command, you can use the `dev-lifecycle` skill to guide you through the entire workflow automatically. The skill triggers the next phase for you whenever the current phase is complete — no need to remember which command comes next.
+Instead of manually typing each command, you can use the `dev-lifecycle` skill to guide you through the entire workflow automatically. The skill triggers the next phase for you whenever the current phase is complete, so you do not need to remember which command comes next.
+
+If you want the full setup, dependencies, and usage guide, see [Dev Lifecycle Skill](/docs/10-dev-lifecycle-skill).
 
 ### Installing the skill
 
@@ -67,13 +69,13 @@ or
 npx ai-devkit@latest skill add codeaholicguy/ai-devkit dev-lifecycle
 ```
 
-Once installed, the skill is immediately available to your AI agent. For more details on managing skills, see [Skills](/docs/skills).
+Once installed, the skill is immediately available to your AI agent. For more details on managing skills, see [Skills](/docs/7-skills).
 
 ### How to use it
 
 Tell your AI assistant to use the skill and describe what you want to build. For example:
 
-> "Use dev-lifecycle skill to build a feature to update the agent memory"
+> "Use dev-lifecycle skill to build an authentication feature with Google OAuth and email login"
 
 The skill takes over from there:
 
