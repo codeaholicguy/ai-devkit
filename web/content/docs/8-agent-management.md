@@ -1,6 +1,8 @@
 ---
 title: Agent Management
 description: Manage and interact with other AI agents running on your system
+slug: agent-management
+order: 9
 ---
 
 > ⚠️ **WARNING**

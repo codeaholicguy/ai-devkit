@@ -1,6 +1,8 @@
 ---
 title: Agent Setup
 description: Use `ai-devkit install` to apply or reconcile AI agent setup from your project configuration.
+slug: agent-setup
+order: 10
 ---
 
 The `ai-devkit install` command applies your saved project configuration (`.ai-devkit.json`) to your workspace.  
