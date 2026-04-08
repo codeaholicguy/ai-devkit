@@ -201,15 +201,16 @@ describe('EnvironmentSelector', () => {
       const choices = callArgs[0].choices;
       const choiceValues = choices.map((c: any) => c.value);
 
-      // Should only have Antigravity and Codex
+      expect(choiceValues).toContain('cursor');
+      expect(choiceValues).toContain('claude');
       expect(choiceValues).toContain('antigravity');
       expect(choiceValues).toContain('codex');
-      expect(choiceValues).not.toContain('cursor');
-      expect(choiceValues).not.toContain('claude');
       expect(choiceValues).not.toContain('github');
+      expect(choiceValues).not.toContain('gemini');
+      expect(choiceValues).not.toContain('windsurf');
     });
 
-    it('should show exactly 2 choices (Antigravity and Codex)', async () => {
+    it('should show exactly 4 choices (Cursor, Claude Code, Codex, and Antigravity)', async () => {
       mockPrompt.mockResolvedValue({ environments: [] });
 
       await selector.selectGlobalEnvironments();
@@ -217,7 +218,7 @@ describe('EnvironmentSelector', () => {
       const callArgs = mockPrompt.mock.calls[0][0];
       const choices = callArgs[0].choices;
 
-      expect(choices).toHaveLength(2);
+      expect(choices).toHaveLength(4);
     });
   });
 

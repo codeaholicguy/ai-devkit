@@ -1,4 +1,5 @@
 import { exec } from 'child_process';
+import * as path from 'path';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../util/git';
 
 jest.mock('child_process');
@@ -81,8 +82,9 @@ describe('Git Utilities', () => {
 
       const result = await cloneRepository(mockTargetDir, mockRepoName, mockGitUrl);
 
-      expect(result).toBe(`${mockTargetDir}/${mockRepoName}`);
-      expect(mockedFs.pathExists).toHaveBeenCalledWith(`${mockTargetDir}/${mockRepoName}`);
+      const expectedPath = path.join(mockTargetDir, mockRepoName);
+      expect(result).toBe(expectedPath);
+      expect(mockedFs.pathExists).toHaveBeenCalledWith(expectedPath);
       expect(mockedExec).not.toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('already exists, skipped')
@@ -101,8 +103,9 @@ describe('Git Utilities', () => {
 
       const result = await cloneRepository(mockTargetDir, mockRepoName, mockGitUrl);
 
-      expect(result).toBe(`${mockTargetDir}/${mockRepoName}`);
-      expect(mockedFs.pathExists).toHaveBeenCalledWith(`${mockTargetDir}/${mockRepoName}`);
+      const expectedPath = path.join(mockTargetDir, mockRepoName);
+      expect(result).toBe(expectedPath);
+      expect(mockedFs.pathExists).toHaveBeenCalledWith(expectedPath);
       expect(mockedFs.ensureDir).toHaveBeenCalled();
       expect(mockedExec).toHaveBeenCalled();
     });
@@ -110,12 +113,13 @@ describe('Git Utilities', () => {
     it('should use correct git clone command with flags', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
+      const expectedPath = path.join(mockTargetDir, mockRepoName);
       mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
         expect(command).toContain('git clone');
         expect(command).toContain('--depth 1');
         expect(command).toContain('--single-branch');
         expect(command).toContain(mockGitUrl);
-        expect(command).toContain(`"${mockTargetDir}/${mockRepoName}"`);
+        expect(command).toContain(`"${expectedPath}"`);
         if (callback) {
           callback(null, { stdout: '', stderr: '' });
         }
@@ -230,7 +234,7 @@ describe('Git Utilities', () => {
       const result = await isGitRepository('/path/to/repo');
 
       expect(result).toBe(true);
-      expect(mockedFs.pathExists).toHaveBeenCalledWith('/path/to/repo/.git');
+      expect(mockedFs.pathExists).toHaveBeenCalledWith(path.join('/path/to/repo', '.git'));
     });
 
     it('should return false when .git directory does not exist', async () => {
@@ -239,7 +243,7 @@ describe('Git Utilities', () => {
       const result = await isGitRepository('/path/to/non-git');
 
       expect(result).toBe(false);
-      expect(mockedFs.pathExists).toHaveBeenCalledWith('/path/to/non-git/.git');
+      expect(mockedFs.pathExists).toHaveBeenCalledWith(path.join('/path/to/non-git', '.git'));
     });
 
     it('should handle paths with trailing slashes', async () => {
@@ -257,7 +261,7 @@ describe('Git Utilities', () => {
       const result = await isGitRepository('./repo');
 
       expect(result).toBe(true);
-      expect(mockedFs.pathExists).toHaveBeenCalledWith('repo/.git');
+      expect(mockedFs.pathExists).toHaveBeenCalledWith(path.join('repo', '.git'));
     });
   });
 

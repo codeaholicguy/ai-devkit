@@ -40,6 +40,7 @@ describe('Environment Utilities', () => {
         name: 'Cursor',
         contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
+        globalCommandPath: '.cursor/commands',
         skillPath: '.cursor/skills',
         globalSkillPath: '.cursor/skills'
       });
@@ -236,19 +237,34 @@ describe('Environment Utilities', () => {
       expect(codex?.globalCommandPath).toBe('.codex/prompts');
     });
 
+    it('should include Cursor in global-capable environments', () => {
+      const globalEnvs = getGlobalCapableEnvironments();
+      const cursor = globalEnvs.find(env => env.code === 'cursor');
+
+      expect(cursor).toBeDefined();
+      expect(cursor?.globalCommandPath).toBe('.cursor/commands');
+    });
+
+    it('should include Claude Code in global-capable environments', () => {
+      const globalEnvs = getGlobalCapableEnvironments();
+      const claude = globalEnvs.find(env => env.code === 'claude');
+
+      expect(claude).toBeDefined();
+      expect(claude?.globalCommandPath).toBe('.claude/commands');
+    });
+
     it('should not include environments without globalCommandPath', () => {
       const globalEnvs = getGlobalCapableEnvironments();
       const envCodes = globalEnvs.map(env => env.code);
 
-      // Cursor should not be in the list (no global support)
-      expect(envCodes).not.toContain('cursor');
-      expect(envCodes).not.toContain('claude');
       expect(envCodes).not.toContain('github');
+      expect(envCodes).not.toContain('gemini');
+      expect(envCodes).not.toContain('windsurf');
     });
 
-    it('should return exactly 2 environments (Antigravity and Codex)', () => {
+    it('should return exactly 4 environments (Cursor, Claude Code, Codex, and Antigravity)', () => {
       const globalEnvs = getGlobalCapableEnvironments();
-      expect(globalEnvs).toHaveLength(2);
+      expect(globalEnvs).toHaveLength(4);
     });
   });
 
@@ -261,12 +277,12 @@ describe('Environment Utilities', () => {
       expect(hasGlobalSupport('codex')).toBe(true);
     });
 
-    it('should return false for Cursor (no global support)', () => {
-      expect(hasGlobalSupport('cursor')).toBe(false);
+    it('should return true for Cursor', () => {
+      expect(hasGlobalSupport('cursor')).toBe(true);
     });
 
-    it('should return false for Claude (no global support)', () => {
-      expect(hasGlobalSupport('claude')).toBe(false);
+    it('should return true for Claude Code', () => {
+      expect(hasGlobalSupport('claude')).toBe(true);
     });
 
     it('should return false for GitHub Copilot (no global support)', () => {

@@ -306,15 +306,25 @@ describe('CodexAdapter', () => {
             (adapter as any).codexSessionsDir = sessionsDir;
             const discoverSessions = (adapter as any).discoverSessions.bind(adapter);
 
-            // Create date dirs for 17, 18, 19
-            for (const day of ['17', '18', '19']) {
-                fs.mkdirSync(path.join(sessionsDir, '2026', '03', day), { recursive: true });
+            // Use local time to avoid timezone shifts changing the date
+            const startTime = new Date(2026, 2, 18, 12, 0, 0);
+            const prevDay = new Date(startTime); prevDay.setDate(prevDay.getDate() - 1);
+            const nextDay = new Date(startTime); nextDay.setDate(nextDay.getDate() + 1);
+
+            const toDir = (d: Date) => path.join(
+              sessionsDir,
+              String(d.getFullYear()),
+              String(d.getMonth() + 1).padStart(2, '0'),
+              String(d.getDate()).padStart(2, '0')
+            );
+            for (const d of [prevDay, startTime, nextDay]) {
+                fs.mkdirSync(toDir(d), { recursive: true });
             }
 
             mockedBatchGetSessionFileBirthtimes.mockReturnValue([]);
 
             const processes = [
-                { pid: 1, command: 'codex', cwd: '/repo', tty: '', startTime: new Date('2026-03-18T15:00:00Z') },
+                { pid: 1, command: 'codex', cwd: '/repo', tty: '', startTime },
             ];
 
             discoverSessions(processes);

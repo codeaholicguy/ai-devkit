@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import * as path from 'path';
 import { normalizeFeatureName, runLintChecks } from '../../../services/lint/lint.service';
 
 describe('lint service', () => {
@@ -108,16 +109,15 @@ describe('lint service', () => {
   });
 
   it('uses custom docsDir from options', () => {
-    const existingPaths = new Set([
-      '/repo/custom-docs/requirements/README.md',
-      '/repo/custom-docs/design/README.md',
-      '/repo/custom-docs/planning/README.md',
-      '/repo/custom-docs/implementation/README.md',
-      '/repo/custom-docs/testing/README.md',
-    ]);
+    const cwd = '/repo';
+    const docsDir = 'custom-docs';
+    const phases = ['requirements', 'design', 'planning', 'implementation', 'testing'];
+    const existingPaths = new Set(
+      phases.map(phase => path.join(cwd, docsDir, phase, 'README.md'))
+    );
 
-    const report = runLintChecks({}, 'custom-docs', {
-      cwd: () => '/repo',
+    const report = runLintChecks({}, docsDir, {
+      cwd: () => cwd,
       existsSync: (p: string) => existingPaths.has(p)
     });
 

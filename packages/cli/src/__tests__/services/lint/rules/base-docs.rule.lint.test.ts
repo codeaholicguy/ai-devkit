@@ -1,4 +1,5 @@
 import { describe, expect, it } from '@jest/globals';
+import * as path from 'path';
 import { runBaseDocsRules } from '../../../../services/lint/rules/base-docs.rule';
 import { LintDependencies } from '../../../../services/lint/types';
 
@@ -17,20 +18,19 @@ describe('base docs rule', () => {
   });
 
   it('uses custom docsDir for file paths', () => {
-    const existingPaths = new Set([
-      '/repo/.ai-docs/requirements/README.md',
-      '/repo/.ai-docs/design/README.md',
-      '/repo/.ai-docs/planning/README.md',
-      '/repo/.ai-docs/implementation/README.md',
-      '/repo/.ai-docs/testing/README.md',
-    ]);
+    const cwd = '/repo';
+    const docsDir = '.ai-docs';
+    const phases = ['requirements', 'design', 'planning', 'implementation', 'testing'];
+    const existingPaths = new Set(
+      phases.map(phase => path.join(cwd, docsDir, phase, 'README.md'))
+    );
     const deps: LintDependencies = {
-      cwd: () => '/repo',
+      cwd: () => cwd,
       existsSync: (p: string) => existingPaths.has(p),
       execFileSync: () => ''
     };
 
-    const checks = runBaseDocsRules('/repo', '.ai-docs', deps);
+    const checks = runBaseDocsRules(cwd, docsDir, deps);
 
     expect(checks).toHaveLength(5);
     expect(checks.every(check => check.level === 'ok')).toBe(true);

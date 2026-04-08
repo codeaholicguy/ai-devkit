@@ -303,8 +303,9 @@ describe("SkillManager", () => {
         })
       });
 
+      const cachedPath = path.join(os.homedir(), ".ai-devkit", "skills", mockRegistryId);
       (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
-        if (checkPath.includes(mockRegistryId)) return Promise.resolve(false);
+        if (checkPath === cachedPath) return Promise.resolve(false);
         return Promise.resolve(true);
       });
 
@@ -414,6 +415,7 @@ describe("SkillManager", () => {
       mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
       mockFetch({ registries: {} });
 
+      const registryParts = mockRegistryId.split('/');
       (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
         if (checkPath.includes(`${path.sep}skills${path.sep}${mockSkillName}`)) {
           return Promise.resolve(true);
@@ -423,7 +425,7 @@ describe("SkillManager", () => {
           return Promise.resolve(true);
         }
 
-        if (checkPath.includes(mockRegistryId)) {
+        if (registryParts.every(part => checkPath.includes(part))) {
           return Promise.resolve(false);
         }
 

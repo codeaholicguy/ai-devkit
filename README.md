@@ -16,6 +16,43 @@ npx ai-devkit@latest init
 
 This launches an interactive setup wizard that configures your project for AI-assisted development in under a minute.
 
+## Usage
+
+### Setting Up a New Project
+
+Run `init` in any project directory to start the interactive setup:
+
+```bash
+cd your-project
+npx ai-devkit@latest init
+```
+
+This creates a `.ai-devkit.json` config file and sets up environment-specific files (`.cursor/`, `.claude/`, `.github/`, etc.) and phase templates (`docs/ai/`).
+
+### Reproducing the Setup (Team / CI)
+
+Once `.ai-devkit.json` is committed to the repository, team members can reproduce the same environment with:
+
+```bash
+npx ai-devkit@latest install
+```
+
+This reads `.ai-devkit.json` and installs all configured environments, phases, and skills. Use `--overwrite` to force-refresh existing files:
+
+```bash
+npx ai-devkit@latest install --overwrite
+```
+
+### Global Setup
+
+To make AI DevKit commands available across all projects (not just the current one), use:
+
+```bash
+npx ai-devkit@latest setup --global
+```
+
+This copies commands to global environment folders in your home directory (`~/.cursor/commands/`, `~/.claude/commands/`, etc.), so they are available regardless of which project you have open.
+
 ## Supported Agents
 
 | Agent | Status |
