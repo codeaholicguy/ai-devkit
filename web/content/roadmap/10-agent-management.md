@@ -4,4 +4,4 @@ status: in-progress
 order: 10
 ---
 
-Take control of your AI workforce. Agent Management will provide a unified dashboard to monitor, configure, and orchestrate multiple AI agents across your development environment. Define agent roles, set permissions, track activity logs, and manage resource allocation—all from a single interface—so you can scale your AI-assisted workflows with confidence and visibility.
+Agent management is now available through the CLI: you can detect running agents, list them, inspect details, focus their terminals, and send input to supported tools such as Claude Code and Codex. Broader orchestration features, richer cross-agent controls, and a more unified management surface are still in progress.

@@ -1,7 +1,7 @@
 ---
 title: Coding Agent Integration
-status: in-progress
+status: completed
 order: 2
 ---
 
-Expand AI DevKit’s ecosystem with other AI coding agents such as: ChatGPT Codex, Gemini CLI, etc. The goal is to make AI DevKit the universal bridge between your favorite AI assistants and your development workflow, enabling smoother collaboration, faster iteration, and more consistent results.
+AI DevKit now supports a broad set of coding agents and environments, including Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, OpenCode, and Antigravity, with additional environments still being tested. The goal remains the same: make AI DevKit the universal bridge between your preferred AI assistants and your development workflow.

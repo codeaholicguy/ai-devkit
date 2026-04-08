@@ -1,8 +1,7 @@
 ---
 title: CLI Enhancements & Workflows
-status: planned
+status: in-progress
 order: 2
 ---
 
-Expand CLI capabilities with interactive workflows, better error handling, and enhanced command chaining. Focus on improving developer experience and reducing friction in the structured development process.
-
+The CLI now includes interactive setup and skill flows, install and lint commands, memory updates, and stronger terminal output patterns. We are still expanding workflow coverage and polishing command ergonomics to reduce friction in day-to-day use.
