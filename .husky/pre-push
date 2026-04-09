@@ -1,0 +1,3 @@
+npm run lint:hooks
+npm run test:hooks
+npm run test:e2e

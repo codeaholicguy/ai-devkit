@@ -5,9 +5,12 @@
   "description": "A CLI toolkit for AI-assisted software development with phase templates and environment setup",
   "scripts": {
     "nx": "nx",
+    "prepare": "husky",
     "build": "nx run-many -t build",
     "lint": "nx run-many -t lint",
+    "lint:hooks": "npm run lint && npm --prefix web run lint",
     "test": "nx run-many -t test",
+    "test:hooks": "npm run test",
     "test:watch": "nx run-many -t test --watch",
     "test:coverage": "nx run-many -t test --coverage",
     "test:e2e": "jest --config e2e/jest.config.js"
@@ -28,6 +31,7 @@
   "license": "MIT",
   "devDependencies": {
     "@nx/js": "^22.4.0",
+    "husky": "^9.1.7",
     "nx": "^22.4.0"
   },
   "engines": {
