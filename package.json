@@ -8,9 +8,7 @@
     "prepare": "husky",
     "build": "nx run-many -t build",
     "lint": "nx run-many -t lint",
-    "lint:hooks": "npm run lint && npm --prefix web run lint",
     "test": "nx run-many -t test",
-    "test:hooks": "npm run test",
     "test:watch": "nx run-many -t test --watch",
     "test:coverage": "nx run-many -t test --coverage",
     "test:e2e": "jest --config e2e/jest.config.js"

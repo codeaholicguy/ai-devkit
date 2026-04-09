@@ -1,2 +1,2 @@
-npm run lint:hooks
-npm run test:hooks
+npm run lint
+npm run test
