@@ -357,7 +357,6 @@ describe('Environment Utilities', () => {
       expect(envCodes).not.toContain('gemini');
       expect(envCodes).not.toContain('github');
       expect(envCodes).not.toContain('kilocode');
-      expect(envCodes).not.toContain('amp');
       expect(envCodes).not.toContain('roo');
     });
 
@@ -369,9 +368,10 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('cursor');
       expect(envCodes).toContain('claude');
       expect(envCodes).toContain('codex');
+      expect(envCodes).toContain('amp');
       expect(envCodes).toContain('opencode');
       expect(envCodes).toContain('antigravity');
-      expect(skillEnvs).toHaveLength(5);
+      expect(skillEnvs).toHaveLength(6);
     });
   });
 
