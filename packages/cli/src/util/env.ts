@@ -58,6 +58,8 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'AMP',
     contextFileName: 'AGENTS.md',
     commandPath: '.agents/commands',
+    skillPath: '.agents/skills',
+    globalSkillPath: '.config/agents/skills',
   },
   opencode: {
     code: 'opencode',
