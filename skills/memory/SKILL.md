@@ -1,200 +1,121 @@
 ---
 name: memory
-description: Use AI DevKit's memory service to store and retrieve knowledge via CLI commands instead of MCP.
+description: Use AI DevKit memory via CLI commands. Search before non-trivial work, store verified reusable knowledge, update stale entries, and avoid saving transcripts, secrets, or one-off task progress.
 ---
 
-# AI DevKit Memory Skill
+# AI DevKit Memory CLI
 
-This skill teaches you how to use AI DevKit's **Memory** service through CLI commands. Memory allows you to store actionable insights, coding patterns, and project guidelines that persist across sessions.
+Use `npx ai-devkit@latest memory ...` as the durable knowledge layer.
 
-## When to Use This Skill
+## Workflow
 
-Use the memory CLI commands when:
-- MCP (Model Context Protocol) is not available or not configured
-- You need to store knowledge directly from the terminal
-- You want to search for previously stored patterns or guidelines
-- You're scripting memory operations
+1. For implementation, debugging, review, planning, or documentation tasks, search before deep work unless the task is trivial:
+   ```bash
+   npx ai-devkit@latest memory search --query "<task, subsystem, error, or convention>" --limit 5
+   ```
+   For broad or risky tasks, search multiple angles: subsystem, error text, framework, command, and task intent.
 
-## Prerequisites
+2. Use results as context:
+   - Trust repo files, tests, fresh command output, and explicit user instructions over memory.
+   - If memory conflicts with verified evidence, use the evidence and update the stale memory.
+   - Mention memory only when it changes the plan or avoids asking the user again.
 
-Ensure AI DevKit CLI is available:
-```bash
-npx ai-devkit@latest --version
-```
+3. Search before storing:
+   ```bash
+   npx ai-devkit@latest memory search --query "<knowledge to store>" --table
+   ```
 
-## Commands Reference
+4. Store or update only after the quality gate passes.
 
-### Storing Knowledge
+## Quality Gate
 
-Store new knowledge items using the `memory store` command:
+Before storing, all must be true:
 
-```bash
-npx ai-devkit@latest memory store \
-  --title "<short descriptive title>" \
-  --content "<detailed knowledge content>" \
-  --tags "<comma-separated tags>" \
-  --scope "<scope>"
-```
+- Future sessions are likely to reuse it.
+- It is verified by code, docs, tests, command output, or explicit user instruction.
+- It is not merely a restatement of obvious nearby files unless it prevents repeated agent mistakes.
+- It is scoped narrowly enough.
+- Existing memory does not already cover it.
+- It contains no secrets, credentials, private customer data, personal data, raw logs, or temporary paths.
 
-**Parameters:**
+Store:
+- Project conventions, user preferences, durable decisions.
+- Reusable fixes, testing patterns, commands, setup gotchas.
+- Non-obvious constraints, architecture rules, failure patterns.
 
-| Parameter   | Required | Description |
-|-------------|----------|-------------|
-| `--title`   | Yes      | Short, descriptive title (5-12 words, 10-100 chars) |
-| `--content` | Yes      | Detailed explanation in markdown format (50-5000 chars) |
-| `--tags`    | No       | Comma-separated domain keywords (e.g., `typescript,react`) |
-| `--scope`   | No       | `global` (default), `project:<name>`, or `repo:<org/repo>` |
+Do not store:
+- Task progress, transcripts, speculation, generic programming facts.
+- Raw errors without diagnosis.
+- Anything the user did not intend to persist.
 
-**Examples:**
+## Commands
 
-```bash
-# Store a global coding pattern
-npx ai-devkit@latest memory store \
-  --title "Always handle BigInt serialization in API responses" \
-  --content "When returning BigInt values from API endpoints, convert them to strings using \`BigInt.toString()\` before serialization. JSON.stringify() cannot serialize BigInt natively." \
-  --tags "api,backend,serialization" \
-  --scope "global"
-
-# Store project-specific knowledge
-npx ai-devkit@latest memory store \
-  --title "Use pnpm for package management" \
-  --content "This monorepo uses pnpm workspaces. Always use 'pnpm' instead of 'npm' or 'yarn'. Install dependencies with 'pnpm install' and run scripts with 'pnpm run <script>'." \
-  --scope "project:my-monorepo"
-
-# Store repository-specific rules
-npx ai-devkit@latest memory store \
-  --title "Database migrations require review" \
-  --content "All database schema changes must be reviewed by the DBA team before merging. Create migration files in /migrations and tag the PR with 'needs-dba-review'." \
-  --tags "database,migrations,process" \
-  --scope "repo:myorg/backend-api"
-```
-
-### Searching Knowledge
-
-Search for stored knowledge using the `memory search` command:
+### Search
 
 ```bash
-npx ai-devkit@latest memory search --query "<search query>"
-```
-
-**Parameters:**
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `--query` | Yes      | Natural language search query (3-500 chars) |
-| `--tags`  | No       | Comma-separated tags to boost matching (e.g., `api,backend`) |
-| `--scope` | No       | Filter by scope (results from matching scope are prioritized) |
-| `--limit` | No       | Maximum results to return (1-20, default: 5) |
-
-**Example:**
-
-```bash
-# Basic search
-npx ai-devkit@latest memory search --query "API response handling"
-
-# Search with tag boosting
 npx ai-devkit@latest memory search \
-  --query "docker configuration" \
-  --tags "docker,infra"
-
-# Search within a specific scope
-npx ai-devkit@latest memory search \
-  --query "coding standards" \
-  --scope "project:my-app" \
-  --limit 10
+  --query "<query>" \
+  --tags "<tags>" \
+  --scope "<scope>" \
+  --limit 5
 ```
 
-**Output Format:**
+Use `--table` to get IDs for updates:
 
-The search command returns JSON with ranked results:
-
-```json
-{
-  "results": [
-    {
-      "id": "uuid-string",
-      "title": "Knowledge title",
-      "content": "Detailed content...",
-      "tags": ["tag1", "tag2"],
-      "scope": "global",
-      "score": 5.2
-    }
-  ],
-  "totalMatches": 1,
-  "query": "your search query"
-}
+```bash
+npx ai-devkit@latest memory search --query "<query>" --table
 ```
 
-## Best Practices
+Options: `--query/-q` required; `--tags`; `--scope/-s`; `--limit/-l` from 1-20; `--table`.
 
-### Crafting Good Titles
-- Be explicit and actionable: "Always validate user input before database queries"
-- Include the domain: "React: Use useCallback for event handlers in list items"
-- Keep it concise: 5-12 words that capture the essence
+### Store
 
-### Writing Effective Content
-- Use markdown for formatting
-- Include code examples when applicable
-- Explain the "why" not just the "what"
-- Add edge cases and exceptions
-
-### Using Tags Effectively
-- Use lowercase, single-word tags
-- Include technology names: `typescript`, `react`, `docker`
-- Include domains: `api`, `frontend`, `testing`, `security`
-- Include action types: `debugging`, `performance`, `patterns`
-
-### Choosing the Right Scope
-
-| Scope | Use When |
-|-------|----------|
-| `global` | Knowledge applies to all your projects |
-| `project:<name>` | Specific to a named project |
-| `repo:<org/repo>` | Specific to a git repository |
-
-## Integration with AI Workflows
-
-When storing knowledge during a conversation:
-
-1. **Before storing**, search to avoid duplicates:
-   ```bash
-   npx ai-devkit@latest memory search --query "similar topic"
-   ```
-
-2. **After resolving an issue**, store the solution:
-   ```bash
-   npx ai-devkit@latest memory store \
-     --title "Fix: Issue description" \
-     --content "Solution details with code examples..." \
-     --tags "relevant,tags"
-   ```
-
-3. **Before starting a task**, search for relevant context:
-   ```bash
-   npx ai-devkit@latest memory search --query "task description"
-   ```
-
-## Storage Location
-
-All memory data is stored locally at:
-```
-~/.ai-devkit/memory.db
+```bash
+npx ai-devkit@latest memory store \
+  --title "<actionable title, 10-100 chars>" \
+  --content "<context, guidance, evidence, exceptions>" \
+  --tags "<lowercase,tags>" \
+  --scope "<global|project:name|repo:org/repo>"
 ```
 
-This SQLite database is portable—copy it to another machine to share knowledge.
+Use this content shape when helpful:
+
+```text
+Context: Where this applies.
+Guidance: What to do.
+Evidence: File, command, test, or user instruction.
+Exceptions: When not to apply it.
+```
+
+### Update
+
+Find the ID with `search --table`, then update only changed fields:
+
+```bash
+npx ai-devkit@latest memory update \
+  --id "<memory-id>" \
+  --title "<updated title>" \
+  --content "<updated content>" \
+  --tags "<replacement,tags>" \
+  --scope "<updated scope>"
+```
+
+`--tags` replaces all existing tags.
+
+## Scoping
+
+Use the narrowest useful scope:
+
+- `repo:<org/repo>` for one repository.
+- `project:<name>` for one app, product, or workspace.
+- `global` only for knowledge that applies across unrelated projects.
+
+If unsure, use a narrower scope.
 
 ## Troubleshooting
 
-### "Duplicate title" error
-A knowledge item with a similar title already exists in that scope. Either:
-- Use a more specific title
-- Update the existing entry (delete and re-add)
-- Use a different scope
-
-### "Query too short" error
-Search queries must be at least 3 characters. Provide more context in your search.
-
-### Empty search results
-- Broaden your search terms
-- Remove tag filters
-- Try different keyword variations
+- CLI missing: run `npx ai-devkit@latest --version`.
+- Duplicate title: search, then update the existing item if it is the same knowledge.
+- Empty results: broaden terms, remove filters, or search symptoms and subsystem names separately.
+- Validation error: check title/content lengths, query length, and `--limit` range.
+- DB path: default is `~/.ai-devkit/memory.db`; project config can override it automatically.
