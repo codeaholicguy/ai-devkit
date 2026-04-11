@@ -8,43 +8,43 @@ description: Implementation plan for the channel-connector package
 
 ## Milestones
 
-- [ ] Milestone 1: Package scaffold and core abstractions
-- [ ] Milestone 2: Telegram adapter (send/receive messages via callback)
-- [ ] Milestone 3: CLI channel commands and agent bridge
+- [x] Milestone 1: Package scaffold and core abstractions
+- [x] Milestone 2: Telegram adapter (send/receive messages via callback)
+- [x] Milestone 3: CLI channel commands and agent bridge
 - [ ] Milestone 4: End-to-end flow working
 
 ## Task Breakdown
 
 ### Phase 1: Package Foundation
-- [ ] Task 1.1: Scaffold `packages/channel-connector` package (package.json, tsconfig, jest config, nx project config)
-- [ ] Task 1.2: Define core types (`IncomingMessage`, `MessageHandler`, `ChannelConfig`, `ChannelEntry`, `TelegramConfig`)
-- [ ] Task 1.3: Implement `ChannelAdapter` interface
-- [ ] Task 1.4: Implement `ChannelManager` (adapter registration, lifecycle start/stop)
-- [ ] Task 1.5: Implement `ConfigStore` (read/write `~/.ai-devkit/channels.json`, file permissions)
-- [ ] Task 1.6: Add `index.ts` public exports
+- [x] Task 1.1: Scaffold `packages/channel-connector` package (package.json, tsconfig, jest config, nx project config)
+- [x] Task 1.2: Define core types (`IncomingMessage`, `MessageHandler`, `ChannelConfig`, `ChannelEntry`, `TelegramConfig`)
+- [x] Task 1.3: Implement `ChannelAdapter` interface
+- [x] Task 1.4: Implement `ChannelManager` (adapter registration, lifecycle start/stop)
+- [x] Task 1.5: Implement `ConfigStore` (read/write `~/.ai-devkit/channels.json`, file permissions)
+- [x] Task 1.6: Add `index.ts` public exports
 
 ### Phase 2: Telegram Adapter
-- [ ] Task 2.1: Add `telegraf` dependency, implement `TelegramAdapter` (connect, long polling, map telegraf context to `IncomingMessage`)
-- [ ] Task 2.2: Implement `onMessage` — call registered handler and send return value as reply
-- [ ] Task 2.3: Implement `sendMessage` with message chunking — split at 4096 chars preferring newline boundaries
-- [ ] Task 2.4: Implement chat authorization (auto-authorize first user, reject others)
-- [ ] Task 2.5: Implement auto-reconnect with exponential backoff
-- [ ] Task 2.6: Implement graceful shutdown (SIGINT/SIGTERM handling)
+- [x] Task 2.1: Add `telegraf` dependency, implement `TelegramAdapter` (connect, long polling, map telegraf context to `IncomingMessage`)
+- [x] Task 2.2: Implement `onMessage` — call registered handler (fire-and-forget, void return)
+- [x] Task 2.3: Implement `sendMessage` with message chunking — split at 4096 chars preferring newline boundaries
+- [x] Task 2.4: Implement chat authorization (auto-authorize first user, reject others)
+- [ ] Task 2.5: Implement auto-reconnect with exponential backoff (deferred — telegraf handles basic reconnect)
+- [x] Task 2.6: Implement graceful shutdown (SIGINT/SIGTERM handling in CLI)
 
 ### Phase 3: CLI Integration
-- [ ] Task 3.1: Create `channel connect telegram` command (interactive bot token setup, validation, persist via ConfigStore)
-- [ ] Task 3.2: Create `channel list` command (show configured channels with status)
-- [ ] Task 3.3: Create `channel disconnect telegram` command (remove config)
-- [ ] Task 3.4: Create `channel start --agent <agent-name>` command — resolve agent by name, instantiate channel-connector, wire input handler and output loop
-- [ ] Task 3.5: Implement input handler in CLI — capture chatId from first message, fire-and-forget to agent via TtyWriter
-- [ ] Task 3.6: Implement output polling loop in CLI — poll `getConversation()` from agent-manager, detect new assistant messages, push to tracked chatId via `sendMessage()`
-- [ ] Task 3.7: Create `channel stop` / `channel status` commands
-- [ ] Task 3.8: Register channel commands in CLI entry point (`cli.ts`)
+- [x] Task 3.1: Create `channel connect telegram` command (interactive bot token setup, validation, persist via ConfigStore)
+- [x] Task 3.2: Create `channel list` command (show configured channels with status)
+- [x] Task 3.3: Create `channel disconnect telegram` command (remove config)
+- [x] Task 3.4: Create `channel start --agent <agent-name>` command — resolve agent by name, instantiate channel-connector, wire input handler and output loop
+- [x] Task 3.5: Implement input handler in CLI — capture chatId from first message, fire-and-forget to agent via TtyWriter
+- [x] Task 3.6: Implement output polling loop in CLI — poll `getConversation()` from agent-manager, detect new assistant messages, push to tracked chatId via `sendMessage()`
+- [x] Task 3.7: Create `channel status` command
+- [x] Task 3.8: Register channel commands in CLI entry point (`cli.ts`)
 
 ### Phase 4: Integration & Polish
 - [ ] Task 4.1: End-to-end testing — connect Telegram, send message, verify agent receives and responds
-- [ ] Task 4.2: Handle edge cases — agent termination notification, invalid token, unauthorized user
-- [ ] Task 4.3: Update root workspace config (package.json workspaces, nx.json if needed)
+- [x] Task 4.2: Handle edge cases — unauthorized user rejection, invalid token validation, handler errors
+- [x] Task 4.3: Update root workspace config (package.json workspaces — already included via packages/*)
 
 ## Dependencies
 

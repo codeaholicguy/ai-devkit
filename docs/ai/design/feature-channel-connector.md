@@ -92,13 +92,13 @@ interface ChannelEntry {
   type: 'telegram' | 'slack' | 'whatsapp';
   enabled: boolean;
   createdAt: string;
-  config: TelegramConfig | SlackConfig; // union per type
+  config: TelegramConfig; // extend with union for future channel types
 }
 
 interface TelegramConfig {
   botToken: string;
-  allowedChatIds: number[]; // authorized users
   botUsername: string;
+  authorizedChatId?: number; // auto-set from first user to message the bot
 }
 ```
 
