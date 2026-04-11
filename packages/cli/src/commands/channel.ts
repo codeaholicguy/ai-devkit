@@ -123,7 +123,7 @@ function startOutputPolling(
             lastMessageCount = conversation.length;
 
             for (const msg of newMessages) {
-                if (msg.role === 'assistant' && msg.content) {
+                if (msg.role !== 'user' && msg.content) {
                     await telegram.sendMessage(chatIdRef.value, msg.content);
                 }
             }
