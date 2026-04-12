@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/channel-connector",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Generic messaging bridge for connecting to external communication platforms",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
