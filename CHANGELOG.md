@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Channel Connector Package** - Added new `@ai-devkit/channel-connector` package with channel management, config storage, and Telegram adapter support, plus CLI commands for channel operations (#53).
+- **Channel Connector Release Workflow** - Added publish workflow and package ignore rules for releasing the channel connector package.
+- **Codex Plugin Config** - Added `.codex-plugin/plugin.json` configuration.
+- **Dev Lifecycle Guide** - Added web documentation for the dev-lifecycle skill.
+- **Shopify Toolkit Registry Entry** - Added the Shopify toolkit skill to the registry.
+- **Git Hooks** - Added Husky `pre-commit` and `pre-push` hooks.
+
+### Changed
+
+- **Memory Skill Workflow** - Improved the memory skill workflow and updated the OpenAI agent configuration used by the skill.
+- **Dev Lifecycle Brainstorming** - Updated the dev-lifecycle `new-requirement` guidance to include brainstorming refinements.
+- **Code Review Guidance** - Refreshed code review instructions across command templates and dev-lifecycle references.
+- **CLI Environment Support** - Added Amp Code environment configuration support and updated related CLI expectations.
+
 ## [0.21.1] - 2026-04-04
 
 ### Fixed
