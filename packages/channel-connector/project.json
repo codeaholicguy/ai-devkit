@@ -1,0 +1,29 @@
+{
+  "name": "channel-connector",
+  "root": "packages/channel-connector",
+  "sourceRoot": "packages/channel-connector/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/channel-connector"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "packages/channel-connector"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint",
+        "cwd": "packages/channel-connector"
+      }
+    }
+  }
+}
