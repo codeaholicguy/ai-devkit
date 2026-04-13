@@ -32,6 +32,7 @@
     "@ai-devkit/memory": "0.8.0",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
+    "debug": "^4.4.3",
     "fs-extra": "^11.2.0",
     "gray-matter": "^4.0.3",
     "inquirer": "^8.2.6",
@@ -40,6 +41,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@types/debug": "^4.1.13",
     "@types/fs-extra": "^11.0.4",
     "@types/inquirer": "^8.2.10",
     "@types/jest": "^30.0.0",

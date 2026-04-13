@@ -21,7 +21,9 @@ import {
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
 import { ui } from '../util/terminal-ui';
+import { createLogger, enableDebug } from '../util/debug';
 
+const debug = createLogger('channel');
 const AGENT_POLL_INTERVAL_MS = 2000;
 
 function createAgentManager(): AgentManager {
@@ -77,18 +79,22 @@ function setupInputHandler(
     chatIdRef: { value: string | null },
 ): void {
     telegram.onMessage(async (msg) => {
+        debug(`Received message from chat ID: ${msg.chatId}, text length: ${msg.text?.length ?? 0}`);
+
         if (!chatIdRef.value) {
             chatIdRef.value = msg.chatId;
             ui.info(`Authorized Telegram user (chat ID: ${msg.chatId})`);
         }
 
         if (msg.chatId !== chatIdRef.value) {
+            debug(`Rejected message from unauthorized chat ID: ${msg.chatId}`);
             await telegram.sendMessage(msg.chatId, 'Unauthorized. Only the first user is allowed.');
             return;
         }
 
         try {
             await TtyWriter.send(terminalLocation, msg.text);
+            debug(`Sent message to agent terminal (length: ${msg.text?.length ?? 0})`);
         } catch (error: any) {
             ui.error(`Failed to send to agent: ${error.message}`);
             await telegram.sendMessage(msg.chatId, `Failed to send to agent: ${error.message}`);
@@ -122,9 +128,14 @@ function startOutputPolling(
             const newMessages = conversation.slice(lastMessageCount);
             lastMessageCount = conversation.length;
 
+            if (newMessages.length > 0) {
+                debug(`Polled ${newMessages.length} new message(s) from agent conversation`);
+            }
+
             for (const msg of newMessages) {
                 if (msg.role !== 'user' && msg.content) {
                     await telegram.sendMessage(chatIdRef.value, msg.content);
+                    debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${msg.content.length})`);
                 }
             }
         } catch {
@@ -135,9 +146,12 @@ function startOutputPolling(
 
 function setupGracefulShutdown(manager: ChannelManager, pollInterval: NodeJS.Timeout): void {
     const shutdown = async () => {
+        debug('Shutdown signal received');
         ui.info('\nShutting down...');
         clearInterval(pollInterval);
+        debug('Output polling stopped');
         await manager.stopAll();
+        debug('ChannelManager stopped');
         ui.success('Channel bridge stopped.');
         process.exit(0);
     };
@@ -296,9 +310,17 @@ export function registerChannelCommand(program: Command): void {
         .command('start')
         .description('Start the channel bridge to a running agent')
         .requiredOption('--agent <name>', 'Name of the agent to bridge')
+        .option('--debug', 'Enable debug logging')
         .action(async (options) => {
             try {
+                if (options.debug) {
+                    enableDebug();
+                }
+
+                debug(`Starting channel bridge: agent=${options.agent}`);
+
                 const configStore = new ConfigStore();
+                debug('Loading channel configuration from ConfigStore');
                 const channelEntry = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
 
                 if (!channelEntry) {
@@ -307,11 +329,16 @@ export function registerChannelCommand(program: Command): void {
                 }
 
                 const telegramConfig = channelEntry.config as TelegramConfig;
+                debug(`Telegram channel found: bot=@${telegramConfig.botUsername}`);
 
                 // Resolve agent
+                debug(`Resolving agent: "${options.agent}"`);
                 const agentManager = createAgentManager();
                 const agent = await resolveTargetAgent(agentManager, options.agent);
                 if (!agent) return;
+
+                debug(`Agent resolved: name=${agent.name}, type=${agent.type}, pid=${agent.pid}`);
+                debug(`Agent session file: ${agent.sessionFilePath ?? 'none'}`);
 
                 // Get the adapter for reading conversation
                 const agentAdapter = getAgentAdapter(agent.type);
@@ -320,7 +347,10 @@ export function registerChannelCommand(program: Command): void {
                     return;
                 }
 
+                debug(`Agent adapter loaded for type: ${agent.type}`);
+
                 // Find agent terminal
+                debug(`Looking up terminal for PID: ${agent.pid}`);
                 const focusManager = new TerminalFocusManager();
                 const terminalLocation = await focusManager.findTerminal(agent.pid);
 
@@ -329,11 +359,14 @@ export function registerChannelCommand(program: Command): void {
                     return;
                 }
 
+                debug(`Terminal found: ${JSON.stringify(terminalLocation)}`);
+
                 // Set up channel bridge
                 const telegram = new TelegramAdapter({ botToken: telegramConfig.botToken });
                 const chatIdRef = { value: null as string | null };
 
                 setupInputHandler(telegram, terminalLocation, chatIdRef);
+                debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
                 const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
 
                 // Start the bot
@@ -345,11 +378,14 @@ export function registerChannelCommand(program: Command): void {
                 ui.info('Send a message to your Telegram bot to start chatting.');
                 ui.info('Press Ctrl+C to stop.\n');
 
+                debug('Calling manager.startAll()');
                 await manager.startAll();
+                debug('ChannelManager started successfully');
 
                 // Keep process running
                 await new Promise(() => {});
             } catch (error: any) {
+                debug(`Error caught: ${error.stack ?? error.message}`);
                 ui.error(`Failed to start channel bridge: ${error.message}`);
                 process.exit(1);
             }
