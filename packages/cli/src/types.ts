@@ -24,6 +24,11 @@ export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex
 
 export const DEFAULT_DOCS_DIR = 'docs/ai';
 
+export interface SkillsConfig {
+  registries?: Record<string, string>;
+  installed?: ConfigSkill[];
+}
+
 export interface DevKitConfig {
   version: string;
   paths?: {
@@ -34,7 +39,8 @@ export interface DevKitConfig {
   };
   environments: EnvironmentCode[];
   phases: Phase[];
-  skills?: ConfigSkill[];
+  skills?: ConfigSkill[] | SkillsConfig;
+  registries?: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -44,12 +50,8 @@ export interface ConfigSkill {
   name: string;
 }
 
-export interface SkillRegistriesConfig {
-  registries?: Record<string, string>;
-}
-
 export interface GlobalDevKitConfig {
-  skills?: SkillRegistriesConfig;
+  skills?: SkillsConfig;
 }
 
 export interface PhaseMetadata {
