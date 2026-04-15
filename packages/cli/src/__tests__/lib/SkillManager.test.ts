@@ -549,6 +549,7 @@ describe("SkillManager", () => {
     });
 
     it("should create config if missing", async () => {
+      jest.spyOn(skillManager as any, 'isInteractiveTerminal').mockReturnValue(true);
       mockConfigManager.read.mockResolvedValue(null);
       mockConfigManager.create.mockResolvedValue({
         environments: [],
@@ -569,6 +570,7 @@ describe("SkillManager", () => {
     });
 
     it("should select environments when config exists but has no environments", async () => {
+      jest.spyOn(skillManager as any, 'isInteractiveTerminal').mockReturnValue(true);
       mockConfigManager.read.mockResolvedValue({
         environments: [],
       } as any);
@@ -583,6 +585,17 @@ describe("SkillManager", () => {
       expect(mockConfigManager.update).toHaveBeenCalledWith({
         environments: ["claude"],
       });
+    });
+
+    it("should throw in non-interactive mode when no environments configured", async () => {
+      jest.spyOn(skillManager as any, 'isInteractiveTerminal').mockReturnValue(false);
+      mockConfigManager.read.mockResolvedValue({
+        environments: [],
+      } as any);
+
+      await expect(
+        skillManager.addSkill(mockRegistryId, mockSkillName),
+      ).rejects.toThrow('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
     });
 
     it("should throw error if no skill-capable environments configured", async () => {
