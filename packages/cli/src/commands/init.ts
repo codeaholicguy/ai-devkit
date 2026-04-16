@@ -66,6 +66,19 @@ function normalizeEnvironmentOption(
     .filter((value): value is EnvironmentCode => value.length > 0);
 }
 
+const BUILTIN_SKILL_REGISTRY = 'codeaholicguy/ai-devkit';
+
+const BUILTIN_SKILLS: InitTemplateSkill[] = [
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'dev-lifecycle' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'debug' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'capture-knowledge' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'memory' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'simplify-implementation' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'technical-writer' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'verify' },
+  { registry: BUILTIN_SKILL_REGISTRY, skill: 'tdd' }
+];
+
 interface TemplateSkillInstallResult {
   registry: string;
   skill: string;
@@ -297,6 +310,34 @@ export async function initCommand(options: InitOptions) {
       failedResults.forEach(result => {
         ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
       });
+    }
+  } else if (!hasTemplate) {
+    const { installBuiltinSkills } = await inquirer.prompt([
+      {
+        type: 'confirm',
+        name: 'installBuiltinSkills',
+        message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
+        default: true
+      }
+    ]);
+
+    if (installBuiltinSkills) {
+      ui.text('Installing AI DevKit built-in skills...', { breakline: true });
+      const skillResults = await installTemplateSkills(skillManager, BUILTIN_SKILLS);
+      const installedCount = skillResults.filter(result => result.status === 'installed').length;
+      const failedResults = skillResults.filter(result => result.status === 'failed');
+
+      if (installedCount > 0) {
+        ui.success(`Installed ${installedCount} built-in skill(s).`);
+      }
+      if (failedResults.length > 0) {
+        ui.warning(
+          `${failedResults.length} built-in skill install(s) failed. Continuing with warnings.`
+        );
+        failedResults.forEach(result => {
+          ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
+        });
+      }
     }
   }
 

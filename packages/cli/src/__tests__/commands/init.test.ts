@@ -195,4 +195,62 @@ describe('init command template mode', () => {
     expect(process.exitCode).toBe(1);
     expect(mockConfigManager.setEnvironments).not.toHaveBeenCalled();
   });
+
+  describe('built-in skills prompt (interactive init without template)', () => {
+    it('installs built-in AI DevKit skills when user confirms the prompt', async () => {
+      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: true });
+
+      await initCommand({});
+
+      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
+      );
+      expect(builtinCalls.length).toBeGreaterThan(0);
+      expect(mockPrompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'confirm',
+          name: 'installBuiltinSkills',
+          default: true
+        })
+      ]);
+    });
+
+    it('skips installing built-in skills when user declines the prompt', async () => {
+      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: false });
+
+      await initCommand({});
+
+      const builtinPromptCalls = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPromptCalls.length).toBe(1);
+      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+    });
+
+    it('does not prompt for built-in skills when running in template mode', async () => {
+      mockLoadInitTemplate.mockResolvedValue({
+        environments: ['codex'],
+        phases: ['requirements']
+      });
+
+      await initCommand({ template: './init.yaml' });
+
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        if (!Array.isArray(questions)) return false;
+        return questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+    });
+
+    it('continues init when built-in skill install fails', async () => {
+      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: true });
+      mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
+
+      await expect(initCommand({})).resolves.toBeUndefined();
+      expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', expect.any(String));
+      expect(process.exitCode).not.toBe(1);
+    });
+  });
 });
