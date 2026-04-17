@@ -41,6 +41,7 @@ const mockUi: any = {
 const mockPrompt: any = jest.fn();
 const mockLoadInitTemplate: any = jest.fn();
 const mockExecSync: any = jest.fn();
+const mockIsInteractiveTerminal: any = jest.fn();
 
 jest.mock('child_process', () => ({
   execSync: (...args: unknown[]) => mockExecSync(...args)
@@ -81,9 +82,13 @@ jest.mock('../../util/terminal-ui', () => ({
   ui: mockUi
 }));
 
+jest.mock('../../util/terminal', () => ({
+  isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args)
+}));
+
 import { initCommand } from '../../commands/init';
 
-describe('init command template mode', () => {
+describe('init command', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.exitCode = undefined;
@@ -109,13 +114,15 @@ describe('init command template mode', () => {
 
     mockSkillManager.addSkill.mockResolvedValue(undefined);
     mockLoadInitTemplate.mockResolvedValue({});
+    mockIsInteractiveTerminal.mockReturnValue(true);
   });
 
   afterEach(() => {
     process.exitCode = undefined;
   });
 
-  it('uses template values and installs multiple skills from same registry without prompts', async () => {
+  describe('template mode', () => {
+    it('uses template values and installs multiple skills from same registry without prompts', async () => {
     mockLoadInitTemplate.mockResolvedValue({
       environments: ['codex'],
       phases: ['requirements', 'design'],
@@ -186,13 +193,156 @@ describe('init command template mode', () => {
     expect(mockUi.warning).toHaveBeenCalledWith('Initialization cancelled.');
   });
 
-  it('sets non-zero exit code when template loading fails', async () => {
-    mockLoadInitTemplate.mockRejectedValue(new Error('Invalid template at /tmp/init.yaml: bad field'));
+    it('sets non-zero exit code when template loading fails', async () => {
+      mockLoadInitTemplate.mockRejectedValue(new Error('Invalid template at /tmp/init.yaml: bad field'));
 
-    await initCommand({ template: '/tmp/init.yaml' });
+      await initCommand({ template: '/tmp/init.yaml' });
 
-    expect(mockUi.error).toHaveBeenCalledWith('Invalid template at /tmp/init.yaml: bad field');
-    expect(process.exitCode).toBe(1);
-    expect(mockConfigManager.setEnvironments).not.toHaveBeenCalled();
+      expect(mockUi.error).toHaveBeenCalledWith('Invalid template at /tmp/init.yaml: bad field');
+      expect(process.exitCode).toBe(1);
+      expect(mockConfigManager.setEnvironments).not.toHaveBeenCalled();
+    });
+
+    it('silently ignores --built-in when the template declares skills', async () => {
+      mockLoadInitTemplate.mockResolvedValue({
+        environments: ['codex'],
+        phases: ['requirements'],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', skill: 'debug' }]
+      });
+
+      await initCommand({ template: './init.yaml', builtIn: true });
+
+      expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(1);
+      expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'debug');
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+    });
+
+    it('silently ignores --built-in when the template has no skills declared', async () => {
+      mockLoadInitTemplate.mockResolvedValue({
+        environments: ['codex'],
+        phases: ['requirements']
+      });
+
+      await initCommand({ template: './init.yaml', builtIn: true });
+
+      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+    });
+  });
+
+  describe('built-in skills prompt (interactive init without template)', () => {
+    it('installs built-in AI DevKit skills when user confirms the prompt', async () => {
+      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: true });
+
+      await initCommand({});
+
+      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
+      );
+      expect(builtinCalls.length).toBeGreaterThan(0);
+      expect(mockPrompt).toHaveBeenCalledWith([
+        expect.objectContaining({
+          type: 'confirm',
+          name: 'installBuiltinSkills',
+          default: true
+        })
+      ]);
+    });
+
+    it('skips installing built-in skills when user declines the prompt', async () => {
+      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: false });
+
+      await initCommand({});
+
+      const builtinPromptCalls = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPromptCalls.length).toBe(1);
+      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+    });
+
+    it('does not prompt for built-in skills when running in template mode', async () => {
+      mockLoadInitTemplate.mockResolvedValue({
+        environments: ['codex'],
+        phases: ['requirements']
+      });
+
+      await initCommand({ template: './init.yaml' });
+
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        if (!Array.isArray(questions)) return false;
+        return questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+    });
+
+    it('continues init when built-in skill install fails', async () => {
+      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: true });
+      mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
+
+      await expect(initCommand({})).resolves.toBeUndefined();
+      expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', expect.any(String));
+      expect(process.exitCode).not.toBe(1);
+    });
+  });
+
+  describe('built-in skills in non-interactive environments (CI)', () => {
+    it('skips the built-in skills prompt and install when stdin is not a TTY', async () => {
+      mockIsInteractiveTerminal.mockReturnValue(false);
+
+      await initCommand({});
+
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockUi.info).toHaveBeenCalledWith(
+        expect.stringMatching(/non-interactive|--built-in/)
+      );
+    });
+
+    it('installs built-in skills without prompting when --built-in is passed in a non-interactive environment', async () => {
+      mockIsInteractiveTerminal.mockReturnValue(false);
+
+      await initCommand({ builtIn: true });
+
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
+      );
+      expect(builtinCalls.length).toBeGreaterThan(0);
+    });
+
+    it('installs built-in skills without prompting when --built-in is passed in an interactive environment', async () => {
+      mockIsInteractiveTerminal.mockReturnValue(true);
+
+      await initCommand({ builtIn: true });
+
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
+      );
+      expect(builtinCalls.length).toBeGreaterThan(0);
+    });
   });
 });

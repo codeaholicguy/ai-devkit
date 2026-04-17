@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import inquirer from 'inquirer';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants';
 import { ConfigManager } from '../lib/Config';
 import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
@@ -8,6 +9,7 @@ import { SkillManager } from '../lib/SkillManager';
 import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate';
 import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types';
 import { isValidEnvironmentCode } from '../util/env';
+import { isInteractiveTerminal } from '../util/terminal';
 import { ui } from '../util/terminal-ui';
 
 function isGitAvailable(): boolean {
@@ -47,6 +49,7 @@ interface InitOptions {
   phases?: string;
   template?: string;
   docsDir?: string;
+  builtIn?: boolean;
 }
 
 function normalizeEnvironmentOption(
@@ -64,6 +67,35 @@ function normalizeEnvironmentOption(
     .split(',')
     .map(value => value.trim())
     .filter((value): value is EnvironmentCode => value.length > 0);
+}
+
+const BUILTIN_SKILLS: InitTemplateSkill[] = BUILTIN_SKILL_NAMES.map((skill: string) => ({
+  registry: BUILTIN_SKILL_REGISTRY,
+  skill
+}));
+
+async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean> {
+  if (options.builtIn) {
+    return true;
+  }
+
+  if (!isInteractiveTerminal()) {
+    ui.info(
+      `Skipping built-in skills (non-interactive environment). Pass --built-in to install them from ${BUILTIN_SKILL_REGISTRY}.`
+    );
+    return false;
+  }
+
+  const { installBuiltinSkills } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'installBuiltinSkills',
+      message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
+      default: true
+    }
+  ]);
+
+  return Boolean(installBuiltinSkills);
 }
 
 interface TemplateSkillInstallResult {
@@ -297,6 +329,27 @@ export async function initCommand(options: InitOptions) {
       failedResults.forEach(result => {
         ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
       });
+    }
+  } else if (!hasTemplate) {
+    const shouldInstall = await shouldInstallBuiltinSkills(options);
+
+    if (shouldInstall) {
+      ui.text('Installing AI DevKit built-in skills...', { breakline: true });
+      const skillResults = await installTemplateSkills(skillManager, BUILTIN_SKILLS);
+      const installedCount = skillResults.filter(result => result.status === 'installed').length;
+      const failedResults = skillResults.filter(result => result.status === 'failed');
+
+      if (installedCount > 0) {
+        ui.success(`Installed ${installedCount} built-in skill(s).`);
+      }
+      if (failedResults.length > 0) {
+        ui.warning(
+          `${failedResults.length} built-in skill install(s) failed. Continuing with warnings.`
+        );
+        failedResults.forEach(result => {
+          ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
+        });
+      }
     }
   }
 
