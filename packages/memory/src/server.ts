@@ -14,7 +14,7 @@ const SERVER_NAME = 'ai-devkit-memory';
 const SERVER_VERSION = '0.1.0';
 
 const STORE_TOOL = {
-    name: 'memory.storeKnowledge',
+    name: 'memory_storeKnowledge',
     description: 'Store a new knowledge item. Use this to save actionable guidelines, rules, or patterns for future reference.',
     inputSchema: {
         type: 'object' as const,
@@ -42,7 +42,7 @@ const STORE_TOOL = {
 };
 
 const UPDATE_TOOL = {
-    name: 'memory.updateKnowledge',
+    name: 'memory_updateKnowledge',
     description: 'Update an existing knowledge item by ID. Use this to correct outdated or inaccurate knowledge.',
     inputSchema: {
         type: 'object' as const,
@@ -74,7 +74,7 @@ const UPDATE_TOOL = {
 };
 
 const SEARCH_TOOL = {
-    name: 'memory.searchKnowledge',
+    name: 'memory_searchKnowledge',
     description: 'Search for relevant knowledge based on a task description. Returns ranked results.',
     inputSchema: {
         type: 'object' as const,
@@ -101,6 +101,8 @@ const SEARCH_TOOL = {
     },
 };
 
+export const TOOLS = [STORE_TOOL, UPDATE_TOOL, SEARCH_TOOL];
+
 export function createServer(): Server {
     const server = new Server(
         {
@@ -126,7 +128,9 @@ export function createServer(): Server {
         const { name, arguments: args } = request.params;
 
         try {
-            if (name === 'memory.storeKnowledge') {
+            // Backward-compat: accept deprecated dotted names so agents with
+            // stale prompts/templates continue to work. Remove in next major.
+            if (name === 'memory_storeKnowledge' || name === 'memory.storeKnowledge') {
                 const input = args as unknown as StoreKnowledgeInput;
                 const result = storeKnowledge(input);
                 return {
@@ -139,7 +143,7 @@ export function createServer(): Server {
                 };
             }
 
-            if (name === 'memory.updateKnowledge') {
+            if (name === 'memory_updateKnowledge' || name === 'memory.updateKnowledge') {
                 const input = args as unknown as UpdateKnowledgeInput;
                 const result = updateKnowledge(input);
                 return {
@@ -152,7 +156,7 @@ export function createServer(): Server {
                 };
             }
 
-            if (name === 'memory.searchKnowledge') {
+            if (name === 'memory_searchKnowledge' || name === 'memory.searchKnowledge') {
                 const input = args as unknown as SearchKnowledgeInput;
                 const result = searchKnowledge(input);
                 return {

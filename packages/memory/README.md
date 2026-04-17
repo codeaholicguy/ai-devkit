@@ -38,7 +38,7 @@ Add to your MCP client configuration (e.g., Claude Code, Cursor):
 
 ```json
 {
-  "tool": "memory.storeKnowledge",
+  "tool": "memory_storeKnowledge",
   "arguments": {
     "title": "Always use Response DTOs for API endpoints",
     "content": "When building REST APIs, always use Response DTOs instead of returning domain entities directly.",
@@ -52,7 +52,7 @@ Add to your MCP client configuration (e.g., Claude Code, Cursor):
 
 ```json
 {
-  "tool": "memory.searchKnowledge",
+  "tool": "memory_searchKnowledge",
   "arguments": {
     "query": "building an API endpoint",
     "contextTags": ["api"],
