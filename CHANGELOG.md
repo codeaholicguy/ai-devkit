@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Skill Remove Config Cleanup** - Fixed `skill remove` not removing the skill entry from `.ai-devkit.json`.
+- **Install Update Guard** - Fixed install service updating config when there are no successful installs.
+- **Install Skills Update Guard** - Fixed install service including skills in the update object when there are no successful skills.
+- **Install Skills Object Format** - Fixed `install` failing when the `skills` field in config is an object with an `installed` array rather than a plain array.
+
 ## [0.23.0] - 2026-04-17
 
 ### Added
