@@ -145,6 +145,22 @@ describe('install service', () => {
     expect(report.phases.installed).toBe(1);
   });
 
+  it('does not add skills field to config when no skills are in the install config (issue #64)', async () => {
+    const configWithoutSkills = {
+      environments: ['codex' as const],
+      phases: ['requirements' as const],
+      skills: [],
+      mcpServers: {}
+    };
+
+    const report = await reconcileAndInstall(configWithoutSkills, {});
+
+    expect(report.skills.installed).toBe(0);
+    expect(mockConfigManager.update).toHaveBeenCalledWith(
+      expect.not.objectContaining({ skills: expect.anything() })
+    );
+  });
+
   it('reports skill failures as warnings and continues', async () => {
     mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
 

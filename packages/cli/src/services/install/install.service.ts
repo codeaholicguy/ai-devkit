@@ -133,8 +133,10 @@ export async function reconcileAndInstall(
   const updates: Record<string, unknown> = {
     environments: successfulEnvironments,
     phases: successfulPhases,
-    skills: successfulSkills,
   };
+  if (successfulSkills.length > 0) {
+    updates.skills = successfulSkills;
+  }
   if (config.mcpServers && Object.keys(config.mcpServers).length > 0) {
     updates.mcpServers = config.mcpServers;
   }
