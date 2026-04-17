@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import inquirer from 'inquirer';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants';
 import { ConfigManager } from '../lib/Config';
 import { TemplateManager } from '../lib/TemplateManager';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector';
@@ -8,6 +9,7 @@ import { SkillManager } from '../lib/SkillManager';
 import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate';
 import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types';
 import { isValidEnvironmentCode } from '../util/env';
+import { isInteractiveTerminal } from '../util/terminal';
 import { ui } from '../util/terminal-ui';
 
 function isGitAvailable(): boolean {
@@ -47,6 +49,7 @@ interface InitOptions {
   phases?: string;
   template?: string;
   docsDir?: string;
+  builtIn?: boolean;
 }
 
 function normalizeEnvironmentOption(
@@ -66,18 +69,34 @@ function normalizeEnvironmentOption(
     .filter((value): value is EnvironmentCode => value.length > 0);
 }
 
-const BUILTIN_SKILL_REGISTRY = 'codeaholicguy/ai-devkit';
+const BUILTIN_SKILLS: InitTemplateSkill[] = BUILTIN_SKILL_NAMES.map((skill: string) => ({
+  registry: BUILTIN_SKILL_REGISTRY,
+  skill
+}));
 
-const BUILTIN_SKILLS: InitTemplateSkill[] = [
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'dev-lifecycle' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'debug' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'capture-knowledge' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'memory' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'simplify-implementation' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'technical-writer' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'verify' },
-  { registry: BUILTIN_SKILL_REGISTRY, skill: 'tdd' }
-];
+async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean> {
+  if (options.builtIn) {
+    return true;
+  }
+
+  if (!isInteractiveTerminal()) {
+    ui.info(
+      `Skipping built-in skills (non-interactive environment). Pass --built-in to install them from ${BUILTIN_SKILL_REGISTRY}.`
+    );
+    return false;
+  }
+
+  const { installBuiltinSkills } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'installBuiltinSkills',
+      message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
+      default: true
+    }
+  ]);
+
+  return Boolean(installBuiltinSkills);
+}
 
 interface TemplateSkillInstallResult {
   registry: string;
@@ -312,16 +331,9 @@ export async function initCommand(options: InitOptions) {
       });
     }
   } else if (!hasTemplate) {
-    const { installBuiltinSkills } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'installBuiltinSkills',
-        message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
-        default: true
-      }
-    ]);
+    const shouldInstall = await shouldInstallBuiltinSkills(options);
 
-    if (installBuiltinSkills) {
+    if (shouldInstall) {
       ui.text('Installing AI DevKit built-in skills...', { breakline: true });
       const skillResults = await installTemplateSkills(skillManager, BUILTIN_SKILLS);
       const installedCount = skillResults.filter(result => result.status === 'installed').length;

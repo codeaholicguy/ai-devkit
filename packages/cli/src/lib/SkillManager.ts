@@ -8,8 +8,8 @@ import { EnvironmentSelector } from './EnvironmentSelector';
 import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository, fetchGitHead } from '../util/git';
 import { validateRegistryId, validateSkillName, extractSkillDescription } from '../util/skill';
-import { isInteractiveTerminal } from '../util/terminal';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github';
+import { isInteractiveTerminal } from '../util/terminal';
 import { ui } from '../util/terminal-ui';
 
 const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
@@ -609,7 +609,6 @@ export class SkillManager {
       throw error;
     }
   }
-
 
   /**
    * Display update summary with colored output

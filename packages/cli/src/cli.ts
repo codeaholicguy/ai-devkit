@@ -28,6 +28,7 @@ program
   .option('-p, --phases <phases>', 'Comma-separated list of phases to initialize')
   .option('-t, --template <path>', 'Initialize from template file (.yaml, .yml, .json)')
   .option('-d, --docs-dir <path>', 'Custom directory for AI documentation (default: docs/ai)')
+  .option('--built-in', 'Install AI DevKit built-in skills without prompting (useful for CI/non-interactive runs)')
   .action(initCommand);
 
 program
