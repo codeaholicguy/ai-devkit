@@ -18,6 +18,7 @@ export interface EnvironmentDefinition {
   isCustomCommandPath?: boolean;
   customCommandExtension?: string;
   globalCommandPath?: string;
+  mcpConfigPath?: string;
 }
 
 export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity';
@@ -40,7 +41,7 @@ export interface DevKitConfig {
   environments: EnvironmentCode[];
   phases: Phase[];
   skills?: ConfigSkill[] | SkillsConfig;
-  registries?: Record<string, string>;
+  mcpServers?: Record<string, McpServerDefinition>;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,6 +49,23 @@ export interface DevKitConfig {
 export interface ConfigSkill {
   registry: string;
   name: string;
+}
+
+export type McpTransport = 'stdio' | 'http' | 'sse';
+
+export const MCP_TRANSPORTS: McpTransport[] = ['stdio', 'http', 'sse'];
+
+export interface McpServerDefinition {
+  transport: McpTransport;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  headers?: Record<string, string>;
+}
+
+export interface SkillRegistriesConfig {
+  registries?: Record<string, string>;
 }
 
 export interface GlobalDevKitConfig {

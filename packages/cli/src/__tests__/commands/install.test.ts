@@ -43,6 +43,7 @@ describe('install command', () => {
       environments: { installed: 1, skipped: 0, failed: 0 },
       phases: { installed: 1, skipped: 0, failed: 0 },
       skills: { installed: 1, skipped: 0, failed: 0 },
+      mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0 },
       warnings: []
     });
   });
@@ -69,7 +70,8 @@ describe('install command', () => {
     mockLoadAndValidateInstallConfig.mockReturnValue({
       environments: [],
       phases: [],
-      skills: []
+      skills: [],
+      mcpServers: {}
     });
 
     await installCommand({});

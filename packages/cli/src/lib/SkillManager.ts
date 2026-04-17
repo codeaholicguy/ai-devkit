@@ -8,6 +8,7 @@ import { EnvironmentSelector } from './EnvironmentSelector';
 import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository, fetchGitHead } from '../util/git';
 import { validateRegistryId, validateSkillName, extractSkillDescription } from '../util/skill';
+import { isInteractiveTerminal } from '../util/terminal';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github';
 import { ui } from '../util/terminal-ui';
 
@@ -132,7 +133,7 @@ export class SkillManager {
     }
 
     if (!config.environments || config.environments.length === 0) {
-      if (!this.isInteractiveTerminal()) {
+      if (!isInteractiveTerminal()) {
         throw new Error('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
       }
 
@@ -535,7 +536,7 @@ export class SkillManager {
   }
 
   private async resolveSkillNamesFromRegistry(registryId: string, repoPath: string): Promise<string[]> {
-    if (!this.isInteractiveTerminal()) {
+    if (!isInteractiveTerminal()) {
       throw new Error('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
     }
 
@@ -609,9 +610,6 @@ export class SkillManager {
     }
   }
 
-  private isInteractiveTerminal(): boolean {
-    return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  }
 
   /**
    * Display update summary with colored output

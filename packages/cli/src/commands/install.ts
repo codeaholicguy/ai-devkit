@@ -36,9 +36,10 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
     validatedConfig.environments.length === 0
     && validatedConfig.phases.length === 0
     && validatedConfig.skills.length === 0
+    && Object.keys(validatedConfig.mcpServers).length === 0
   ) {
     ui.warning(`No installable entries found in ${loadedConfig.configPath}.`);
-    ui.info('Expected one or more of: environments, phases, skills.');
+    ui.info('Expected one or more of: environments, phases, skills, mcpServers.');
     process.exitCode = 1;
     return;
   }
@@ -64,7 +65,11 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
       { type: 'warning', count: report.phases.skipped, label: 'phase template(s) skipped' },
       { type: 'error', count: report.phases.failed, label: 'phase template(s) failed' },
       { type: 'success', count: report.skills.installed, label: 'skill(s) installed' },
-      { type: 'error', count: report.skills.failed, label: 'skill(s) failed' }
+      { type: 'error', count: report.skills.failed, label: 'skill(s) failed' },
+      { type: 'success', count: report.mcpServers.installed, label: 'MCP server config(s) installed' },
+      { type: 'warning', count: report.mcpServers.skipped, label: 'MCP server config(s) skipped' },
+      { type: 'warning', count: report.mcpServers.conflicts, label: 'MCP server conflict(s) skipped' },
+      { type: 'error', count: report.mcpServers.failed, label: 'MCP server config(s) failed' }
     ]
   });
 

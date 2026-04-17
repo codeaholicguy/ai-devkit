@@ -170,7 +170,7 @@ export class ConfigManager {
     }
 
     const normalized = this.normalizeSkillsConfig(config.skills);
-    const registries = config.registries ?? normalized.registries;
+    const registries = normalized.registries;
 
     if (!registries || typeof registries !== 'object' || Array.isArray(registries)) {
       return {};

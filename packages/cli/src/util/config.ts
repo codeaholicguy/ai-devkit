@@ -1,11 +1,12 @@
 import { z } from 'zod';
-import { ConfigSkill, EnvironmentCode, Phase, AVAILABLE_PHASES } from '../types';
+import { ConfigSkill, EnvironmentCode, McpServerDefinition, Phase, AVAILABLE_PHASES } from '../types';
 import { isValidEnvironmentCode } from './env';
 
 export interface InstallConfigData {
   environments: EnvironmentCode[];
   phases: Phase[];
   skills: ConfigSkill[];
+  mcpServers: Record<string, McpServerDefinition>;
 }
 
 const skillEntrySchema = z.object({
@@ -45,7 +46,15 @@ const installConfigSchema = z.object({
     });
   }).transform(values => dedupe(values) as EnvironmentCode[]),
   phases: z.array(z.string()).optional(),
-  skills: z.array(skillEntrySchema).optional().default([])
+  skills: z.array(skillEntrySchema).optional().default([]),
+  mcpServers: z.record(z.string(), z.object({
+    transport: z.enum(['stdio', 'http', 'sse']),
+    command: z.string().optional(),
+    args: z.array(z.string()).optional(),
+    env: z.record(z.string(), z.string()).optional(),
+    url: z.string().optional(),
+    headers: z.record(z.string(), z.string()).optional(),
+  })).optional().default({})
 }).transform((data, ctx) => {
   const phaseValues = data.phases ?? [];
 
@@ -62,7 +71,8 @@ const installConfigSchema = z.object({
   return {
     environments: data.environments,
     phases: dedupe(phaseValues) as Phase[],
-    skills: dedupeSkills(data.skills)
+    skills: dedupeSkills(data.skills),
+    mcpServers: data.mcpServers as Record<string, McpServerDefinition>
   };
 });
 
