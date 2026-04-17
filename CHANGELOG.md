@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **MCP Server Config Standardization** - Added `mcpServers` support to `init` and `install` flows with environment-specific generators (`ClaudeCodeMcpGenerator`, `CodexMcpGenerator`) for standardized MCP server config across AI agents (#61).
+- **Channel Debug Flag** - Added `--debug` flag to the `channel` command for verbose debugging output.
+
+### Fixed
+
+- **Memory MCP Tool Names** - Renamed MCP tool names from dot-separated (`memory.storeKnowledge`) to underscore-separated (`memory_storeKnowledge`, `memory_updateKnowledge`, `memory_searchKnowledge`) to comply with strict MCP client naming regex `^[a-zA-Z0-9_-]{1,64}$`; backward-compat aliases retained for existing users (#59).
+- **Skill Add With No Environments** - Fixed `skill add` crashing when no environments are defined in config.
+- **Config addSkill Crash** - Fixed `addSkill()` crashing when the `skills` field is an object containing a `registries` key rather than an array.
+
 ## [0.22.0] - 2026-04-12
 
 ### Added
