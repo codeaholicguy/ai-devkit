@@ -130,10 +130,13 @@ export async function reconcileAndInstall(
     }
   }
 
-  const updates: Record<string, unknown> = {
-    environments: successfulEnvironments,
-    phases: successfulPhases,
-  };
+  const updates: Record<string, unknown> = {};
+  if (successfulEnvironments.length > 0) {
+    updates.environments = successfulEnvironments;
+  }
+  if (successfulPhases.length > 0) {
+    updates.phases = successfulPhases;
+  }
   if (successfulSkills.length > 0) {
     updates.skills = successfulSkills;
   }

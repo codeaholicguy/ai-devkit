@@ -108,8 +108,6 @@ describe('install service', () => {
     expect(report.phases.skipped).toBe(1);
     expect(report.skills.installed).toBe(1);
     expect(mockConfigManager.update).toHaveBeenCalledWith({
-      environments: [],
-      phases: [],
       skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
     });
   });
