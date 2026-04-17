@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { run, createTempProject, cleanupTempProject, writeConfigFile } from './helpers';
 
@@ -330,6 +330,74 @@ describe('skill command', () => {
     expect(result.exitCode).toBe(0);
 
     cleanupTempProject(projectDir);
+  });
+
+  describe('skill remove (issue #63)', () => {
+    let projectDir: string;
+
+    beforeEach(() => {
+      projectDir = createTempProject();
+    });
+
+    afterEach(() => {
+      cleanupTempProject(projectDir);
+    });
+
+    it('should remove the skill entry from .ai-devkit.json after removal', () => {
+      writeConfigFile(projectDir, {
+        version: '1.0.0',
+        environments: ['claude'],
+        phases: [],
+        skills: {
+          installed: [
+            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
+          ]
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      // Create the skill directory so the remove command finds it
+      const skillDir = join(projectDir, '.claude', 'skills', 'dev-lifecycle');
+      mkdirSync(skillDir, { recursive: true });
+
+      const result = run('skill remove dev-lifecycle', { cwd: projectDir });
+      expect(result.exitCode).toBe(0);
+
+      // Skill directory should be gone
+      expect(existsSync(skillDir)).toBe(false);
+
+      // .ai-devkit.json should no longer list the skill
+      const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf-8'));
+      const installed = (config.skills?.installed ?? config.skills ?? []) as Array<{ name: string }>;
+      expect(installed.some((s) => s.name === 'dev-lifecycle')).toBe(false);
+    });
+
+    it('should preserve remaining skills in .ai-devkit.json when removing one', () => {
+      writeConfigFile(projectDir, {
+        version: '1.0.0',
+        environments: ['claude'],
+        phases: [],
+        skills: {
+          installed: [
+            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
+            { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+          ]
+        },
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+
+      const skillDir = join(projectDir, '.claude', 'skills', 'dev-lifecycle');
+      mkdirSync(skillDir, { recursive: true });
+
+      run('skill remove dev-lifecycle', { cwd: projectDir });
+
+      const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf-8'));
+      const installed = (config.skills?.installed ?? config.skills ?? []) as Array<{ name: string }>;
+      expect(installed.some((s) => s.name === 'dev-lifecycle')).toBe(false);
+      expect(installed.some((s) => s.name === 'memory')).toBe(true);
+    });
   });
 });
 

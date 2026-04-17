@@ -260,6 +260,7 @@ export class SkillManager {
       ui.warning(`Skill "${skillName}" not found. Nothing to remove.`);
       ui.info('Tip: Run "ai-devkit skill list" to see installed skills.');
     } else {
+      await this.configManager.removeSkill(skillName);
       ui.success(`Successfully removed from ${removedCount} location(s).`);
       ui.info(`Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.`);
     }

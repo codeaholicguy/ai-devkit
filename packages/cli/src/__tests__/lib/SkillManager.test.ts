@@ -891,6 +891,7 @@ describe("SkillManager", () => {
 
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.remove as any).mockResolvedValue(undefined);
+      mockConfigManager.removeSkill.mockResolvedValue({} as any);
     });
 
     it("should validate skill name", async () => {
@@ -918,6 +919,20 @@ describe("SkillManager", () => {
         expect.stringContaining("✔"),
         expect.stringContaining("Successfully removed"),
       );
+    });
+
+    it("should update config to remove skill entry after successful removal", async () => {
+      await skillManager.removeSkill(mockSkillName);
+
+      expect(mockConfigManager.removeSkill).toHaveBeenCalledWith(mockSkillName);
+    });
+
+    it("should not update config when skill files are not found", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(false);
+
+      await skillManager.removeSkill(mockSkillName);
+
+      expect(mockConfigManager.removeSkill).not.toHaveBeenCalled();
     });
 
     it("should handle skill not found gracefully", async () => {

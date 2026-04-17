@@ -163,6 +163,19 @@ export class ConfigManager {
     return this.update({ skills: normalized });
   }
 
+  async removeSkill(skillName: string): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new Error('Config file not found. Run ai-devkit init first.');
+    }
+
+    const normalized = this.normalizeSkillsConfig(config.skills);
+    const installed = normalized.installed || [];
+
+    normalized.installed = installed.filter(entry => entry.name !== skillName);
+    return this.update({ skills: normalized });
+  }
+
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
     if (!config) {

@@ -536,6 +536,121 @@ describe('ConfigManager', () => {
     });
   });
 
+  describe('removeSkill', () => {
+    it('removes the skill entry from the installed array', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['claude'],
+        phases: [],
+        skills: {
+          installed: [
+            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
+            { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+          ]
+        },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.removeSkill('dev-lifecycle');
+
+      expect(result.skills).toEqual({
+        installed: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+        ]
+      });
+      expect(mockFs.writeJson).toHaveBeenCalled();
+    });
+
+    it('removes skill when skills is an array', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['claude'],
+        phases: [],
+        skills: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
+          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+        ],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.removeSkill('dev-lifecycle');
+
+      expect(result.skills).toEqual({
+        installed: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+        ]
+      });
+      expect(mockFs.writeJson).toHaveBeenCalled();
+    });
+
+    it('results in an empty installed array when last skill is removed', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['claude'],
+        phases: [],
+        skills: {
+          installed: [
+            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
+          ]
+        },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.removeSkill('dev-lifecycle');
+
+      expect(result.skills).toEqual({ installed: [] });
+      expect(mockFs.writeJson).toHaveBeenCalled();
+    });
+
+    it('is a no-op when skill name does not exist in installed', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['claude'],
+        phases: [],
+        skills: {
+          installed: [
+            { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+          ]
+        },
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.removeSkill('nonexistent');
+
+      expect(result.skills).toEqual({
+        installed: [{ registry: 'codeaholicguy/ai-devkit', name: 'memory' }]
+      });
+    });
+
+    it('throws when config file is not found', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      await expect(configManager.removeSkill('dev-lifecycle')).rejects.toThrow(
+        'Config file not found'
+      );
+    });
+  });
+
   describe('normalizeSkillsConfig', () => {
     it('normalizes an array to SkillsConfig', () => {
       const result = configManager.normalizeSkillsConfig([
