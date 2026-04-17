@@ -130,12 +130,15 @@ export async function reconcileAndInstall(
     }
   }
 
-  await configManager.update({
+  const updates: Record<string, unknown> = {
     environments: successfulEnvironments,
     phases: successfulPhases,
     skills: successfulSkills,
-    mcpServers: config.mcpServers
-  });
+  };
+  if (config.mcpServers && Object.keys(config.mcpServers).length > 0) {
+    updates.mcpServers = config.mcpServers;
+  }
+  await configManager.update(updates as any);
 
   return report;
 }

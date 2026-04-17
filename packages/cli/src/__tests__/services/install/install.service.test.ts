@@ -85,7 +85,6 @@ describe('install service', () => {
       environments: ['codex'],
       phases: ['requirements'],
       skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
-      mcpServers: {}
     });
     expect(report.environments.installed).toBe(1);
     expect(report.phases.installed).toBe(1);
@@ -112,7 +111,6 @@ describe('install service', () => {
       environments: [],
       phases: [],
       skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
-      mcpServers: {}
     });
   });
 
