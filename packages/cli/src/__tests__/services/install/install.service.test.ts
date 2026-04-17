@@ -50,7 +50,8 @@ describe('install service', () => {
   const installConfig = {
     environments: ['codex' as const],
     phases: ['requirements' as const],
-    skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]
+    skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+    mcpServers: {}
   };
 
   beforeEach(() => {
@@ -83,7 +84,8 @@ describe('install service', () => {
     expect(mockConfigManager.update).toHaveBeenCalledWith({
       environments: ['codex'],
       phases: ['requirements'],
-      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]
+      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+      mcpServers: {}
     });
     expect(report.environments.installed).toBe(1);
     expect(report.phases.installed).toBe(1);
@@ -109,7 +111,8 @@ describe('install service', () => {
     expect(mockConfigManager.update).toHaveBeenCalledWith({
       environments: [],
       phases: [],
-      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]
+      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+      mcpServers: {}
     });
   });
 
@@ -161,6 +164,7 @@ describe('install service', () => {
       environments: { installed: 0, skipped: 0, failed: 1 },
       phases: { installed: 0, skipped: 0, failed: 0 },
       skills: { installed: 0, skipped: 0, failed: 0 },
+      mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0 },
       warnings: []
     };
 

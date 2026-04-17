@@ -4,6 +4,7 @@ import { EnvironmentSelector } from '../../lib/EnvironmentSelector';
 import { SkillManager } from '../../lib/SkillManager';
 import { TemplateManager } from '../../lib/TemplateManager';
 import { InstallConfigData } from '../../util/config';
+import { installMcpServers, McpInstallReport } from './mcp';
 
 export interface InstallRunOptions {
   overwrite?: boolean;
@@ -19,6 +20,7 @@ export interface InstallReport {
   environments: InstallSectionReport;
   phases: InstallSectionReport;
   skills: InstallSectionReport;
+  mcpServers: McpInstallReport;
   warnings: string[];
 }
 
@@ -35,6 +37,7 @@ export async function reconcileAndInstall(
     environments: { installed: 0, skipped: 0, failed: 0 },
     phases: { installed: 0, skipped: 0, failed: 0 },
     skills: { installed: 0, skipped: 0, failed: 0 },
+    mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0 },
     warnings: []
   };
 
@@ -107,10 +110,31 @@ export async function reconcileAndInstall(
     }
   }
 
+  if (config.mcpServers && Object.keys(config.mcpServers).length > 0) {
+    const allEnvironments = [
+      ...new Set([...projectConfig.environments, ...successfulEnvironments])
+    ];
+    try {
+      const mcpReport = await installMcpServers(
+        config.mcpServers,
+        allEnvironments,
+        process.cwd(),
+        { overwrite: options.overwrite }
+      );
+      report.mcpServers = mcpReport;
+    } catch (error) {
+      report.warnings.push(
+        `MCP servers failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+      report.mcpServers.failed = Object.keys(config.mcpServers).length;
+    }
+  }
+
   await configManager.update({
     environments: successfulEnvironments,
     phases: successfulPhases,
-    skills: successfulSkills
+    skills: successfulSkills,
+    mcpServers: config.mcpServers
   });
 
   return report;

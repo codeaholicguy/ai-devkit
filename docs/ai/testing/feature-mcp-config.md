@@ -8,8 +8,22 @@ description: "Testing strategy for MCP config generation"
 
 ## Test Coverage Goals
 
-- Unit test coverage: 100% of new code
-- 35 new tests added, 407 total passing
+- Unit test coverage: 100% of new code (statements/lines)
+- 47 new tests added, 419 total passing
+
+## Coverage Results
+
+| File | Stmts | Branch | Lines |
+|------|-------|--------|-------|
+| `BaseMcpGenerator.ts` | 100% | 100% | 100% |
+| `ClaudeCodeMcpGenerator.ts` | 100% | 92% | 100% |
+| `CodexMcpGenerator.ts` | 100% | 92% | 100% |
+| `McpConfigGenerator.ts` | 100% | 100% | 100% |
+| `util/object.ts` | 82% | 68% | 100% |
+| `util/terminal.ts` | — | — | — |
+| `index.ts` | — | — | — |
+
+Note: `index.ts` (re-export only) and `terminal.ts` (one-liner `process.stdin.isTTY`) are trivial — not worth mocking process globals.
 
 ## Unit Tests
 
@@ -61,15 +75,27 @@ description: "Testing strategy for MCP config generation"
 - [x] Maps http transport to url with http_headers
 - [x] Creates .codex directory if missing
 
-## Integration Tests
-
-- [x] Deferred — pre-existing `install.test.ts` has babel compilation issues unrelated to this feature. Core flows covered by unit tests above.
+### McpConfigGenerator Orchestrator (`src/__tests__/services/install/mcp/McpConfigGenerator.test.ts` — 12 tests)
+- [x] Returns empty report when no servers
+- [x] Skips agents not in environments list
+- [x] Skips agents without MCP support (hasMcpSupport check)
+- [x] Counts skipped servers in report
+- [x] Prompts user for conflicts in interactive mode
+- [x] Skips all conflicts in interactive mode when user chooses skip
+- [x] Skips conflicts in non-interactive mode (CI) by default
+- [x] Overwrites conflicts in non-interactive mode with --overwrite
+- [x] Overwrites conflicts in interactive mode with --overwrite (no prompt)
+- [x] Reports failed when generator throws
+- [x] Handles per-server choice in interactive mode
+- [x] Handles per-server choice where user skips
 
 ## Test Data
 
-All test data is inline via `jest.mock('fs-extra')` — no fixture files needed. Tests mock:
+All test data is inline via `jest.mock('fs-extra')` and `jest.mock('inquirer')` — no fixture files needed. Tests mock:
 - Empty/missing config files (new install)
 - Existing configs with matching servers (skip path)
 - Existing configs with differing servers (conflict path)
 - Malformed files (graceful error handling)
 - Non-MCP content preservation (Codex TOML, Claude Code JSON)
+- Interactive vs non-interactive terminal (TTY mocking)
+- User prompt responses (skip/overwrite/per-server)

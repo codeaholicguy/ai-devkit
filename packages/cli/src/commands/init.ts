@@ -300,6 +300,12 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
+  if (templateConfig?.mcpServers && Object.keys(templateConfig.mcpServers).length > 0) {
+    await configManager.update({ mcpServers: templateConfig.mcpServers });
+    ui.success(`Saved ${Object.keys(templateConfig.mcpServers).length} MCP server definition(s) to config.`);
+    ui.info('Run `ai-devkit install` to generate agent-specific MCP config files.');
+  }
+
   ui.text('AI DevKit initialized successfully!', { breakline: true });
   ui.info('Next steps:');
   ui.text(`  • Review and customize templates in ${docsDir}/`);

@@ -16,6 +16,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     commandPath: '.claude/commands',
     skillPath: '.claude/skills',
     globalSkillPath: '.claude/skills',
+    mcpConfigPath: '.mcp.json',
   },
   github: {
     code: 'github',
@@ -40,6 +41,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     globalCommandPath: '.codex/prompts',
     skillPath: '.agents/skills',
     globalSkillPath: '.codex/skills',
+    mcpConfigPath: '.codex/config.toml',
   },
   windsurf: {
     code: 'windsurf',
@@ -153,4 +155,14 @@ export function getGlobalSkillPath(envCode: EnvironmentCode): string | undefined
 
 export function getSkillCapableEnvironments(): EnvironmentDefinition[] {
   return getAllEnvironments().filter(env => env.skillPath !== undefined);
+}
+
+export function hasMcpSupport(envCode: EnvironmentCode): boolean {
+  const env = getEnvironment(envCode);
+  return env !== undefined && env.mcpConfigPath !== undefined;
+}
+
+export function getMcpConfigPath(envCode: EnvironmentCode): string | undefined {
+  const env = getEnvironment(envCode);
+  return env?.mcpConfigPath;
 }

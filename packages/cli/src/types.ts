@@ -18,6 +18,8 @@ export interface EnvironmentDefinition {
   isCustomCommandPath?: boolean;
   customCommandExtension?: string;
   globalCommandPath?: string;
+  /** Path to MCP config file relative to project root. If set, `ai-devkit install` can generate MCP configs for this agent. */
+  mcpConfigPath?: string;
 }
 
 export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'windsurf' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity';
@@ -35,6 +37,7 @@ export interface DevKitConfig {
   environments: EnvironmentCode[];
   phases: Phase[];
   skills?: ConfigSkill[];
+  mcpServers?: Record<string, McpServerDefinition>;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +45,19 @@ export interface DevKitConfig {
 export interface ConfigSkill {
   registry: string;
   name: string;
+}
+
+export type McpTransport = 'stdio' | 'http' | 'sse';
+
+export const MCP_TRANSPORTS: McpTransport[] = ['stdio', 'http', 'sse'];
+
+export interface McpServerDefinition {
+  transport: McpTransport;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string;
+  headers?: Record<string, string>;
 }
 
 export interface SkillRegistriesConfig {
