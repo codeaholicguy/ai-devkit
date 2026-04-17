@@ -301,6 +301,24 @@ describe('install command', () => {
     const result = run('install -c nonexistent.json', { cwd: projectDir });
     expect(result.exitCode).not.toBe(0);
   });
+
+  it('should install when skills is an object with installed array (issue #62)', () => {
+    writeConfigFile(projectDir, {
+      version: '1.0.0',
+      environments: ['claude'],
+      phases: ['requirements'],
+      skills: {
+        installed: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
+        ]
+      },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
+    const result = run('install', { cwd: projectDir });
+    expect(result.exitCode).toBe(0);
+  });
 });
 
 describe('skill command', () => {

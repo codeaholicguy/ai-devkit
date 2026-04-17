@@ -46,7 +46,18 @@ const installConfigSchema = z.object({
     });
   }).transform(values => dedupe(values) as EnvironmentCode[]),
   phases: z.array(z.string()).optional(),
-  skills: z.array(skillEntrySchema).optional().default([]),
+  skills: z.preprocess(
+    (val) => {
+      if (val == null) return [];
+      if (Array.isArray(val)) return val;
+      if (typeof val === 'object' && !Array.isArray(val)) {
+        const obj = val as Record<string, unknown>;
+        return Array.isArray(obj.installed) ? obj.installed : [];
+      }
+      return val;
+    },
+    z.array(skillEntrySchema).default([])
+  ),
   mcpServers: z.record(z.string(), z.object({
     transport: z.enum(['stdio', 'http', 'sse']),
     command: z.string().optional(),
