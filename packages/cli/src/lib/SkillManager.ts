@@ -132,7 +132,11 @@ export class SkillManager {
       config = await this.configManager.create();
     }
 
-    if (config.environments.length === 0) {
+    if (!config.environments || config.environments.length === 0) {
+      if (!isInteractiveTerminal()) {
+        throw new Error('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
+      }
+
       const selectedEnvs = await this.environmentSelector.selectSkillEnvironments();
       config.environments = selectedEnvs;
       await this.configManager.update({ environments: selectedEnvs });
@@ -176,7 +180,7 @@ export class SkillManager {
     const seenSkills = new Set<string>();
 
     const config = await this.configManager.read();
-    if (!config || config.environments.length === 0) {
+    if (!config || !config.environments || config.environments.length === 0) {
       ui.warning('No .ai-devkit.json found or no environments configured.');
       return [];
     }
@@ -235,7 +239,7 @@ export class SkillManager {
     validateSkillName(skillName);
 
     const config = await this.configManager.read();
-    if (!config || config.environments.length === 0) {
+    if (!config || !config.environments || config.environments.length === 0) {
       throw new Error('No .ai-devkit.json found. Run: ai-devkit init');
     }
 

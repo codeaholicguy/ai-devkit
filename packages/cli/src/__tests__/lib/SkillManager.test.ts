@@ -24,6 +24,10 @@ jest.mock("../../lib/EnvironmentSelector");
 jest.mock("../../lib/GlobalConfig");
 jest.mock("../../util/git");
 jest.mock("../../util/skill");
+const mockIsInteractiveTerminal = jest.fn().mockReturnValue(true);
+jest.mock("../../util/terminal", () => ({
+  isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args),
+}));
 const mockPrompt = jest.fn();
 jest.mock("inquirer", () => ({
   __esModule: true,
@@ -61,34 +65,6 @@ function mockFetch(response: any) {
     ok: true,
     json: () => Promise.resolve(response)
   });
-}
-
-function setTTY(stdoutIsTTY: boolean, stdinIsTTY: boolean): () => void {
-  const stdoutDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
-  const stdinDescriptor = Object.getOwnPropertyDescriptor(process.stdin, "isTTY");
-
-  Object.defineProperty(process.stdout, "isTTY", {
-    configurable: true,
-    value: stdoutIsTTY,
-  });
-  Object.defineProperty(process.stdin, "isTTY", {
-    configurable: true,
-    value: stdinIsTTY,
-  });
-
-  return () => {
-    if (stdoutDescriptor) {
-      Object.defineProperty(process.stdout, "isTTY", stdoutDescriptor);
-    } else {
-      delete (process.stdout as any).isTTY;
-    }
-
-    if (stdinDescriptor) {
-      Object.defineProperty(process.stdin, "isTTY", stdinDescriptor);
-    } else {
-      delete (process.stdin as any).isTTY;
-    }
-  };
 }
 
 
@@ -549,6 +525,7 @@ describe("SkillManager", () => {
     });
 
     it("should create config if missing", async () => {
+      mockIsInteractiveTerminal.mockReturnValue(true);
       mockConfigManager.read.mockResolvedValue(null);
       mockConfigManager.create.mockResolvedValue({
         environments: [],
@@ -569,6 +546,7 @@ describe("SkillManager", () => {
     });
 
     it("should select environments when config exists but has no environments", async () => {
+      mockIsInteractiveTerminal.mockReturnValue(true);
       mockConfigManager.read.mockResolvedValue({
         environments: [],
       } as any);
@@ -583,6 +561,17 @@ describe("SkillManager", () => {
       expect(mockConfigManager.update).toHaveBeenCalledWith({
         environments: ["claude"],
       });
+    });
+
+    it("should throw in non-interactive mode when no environments configured", async () => {
+      mockIsInteractiveTerminal.mockReturnValue(false);
+      mockConfigManager.read.mockResolvedValue({
+        environments: [],
+      } as any);
+
+      await expect(
+        skillManager.addSkill(mockRegistryId, mockSkillName),
+      ).rejects.toThrow('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
     });
 
     it("should throw error if no skill-capable environments configured", async () => {
@@ -610,7 +599,7 @@ describe("SkillManager", () => {
       configureRegistrySkills(["frontend-design", "debug"]);
       mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
 
-      const restoreTTY = setTTY(true, true);
+      mockIsInteractiveTerminal.mockReturnValue(true);
 
       await skillManager.addSkill(mockRegistryId, undefined as any);
 
@@ -626,20 +615,16 @@ describe("SkillManager", () => {
         name: "frontend-design",
       });
       expect(mockConfigManager.addSkill).toHaveBeenCalledTimes(2);
-
-      restoreTTY();
     });
 
     it("should fail when skill name is omitted in non-interactive mode", async () => {
-      const restoreTTY = setTTY(false, false);
+      mockIsInteractiveTerminal.mockReturnValue(false);
 
       await expect(
         skillManager.addSkill(mockRegistryId, undefined as any),
       ).rejects.toThrow('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
 
       expect(mockPrompt).not.toHaveBeenCalled();
-
-      restoreTTY();
     });
 
     it("should use cached registry contents for multi-selection when pull fails", async () => {
@@ -647,7 +632,7 @@ describe("SkillManager", () => {
       mockedGitUtil.pullRepository.mockRejectedValue(new Error('network down'));
       mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
 
-      const restoreTTY = setTTY(true, true);
+      mockIsInteractiveTerminal.mockReturnValue(true);
 
       await skillManager.addSkill(mockRegistryId, undefined as any);
 
@@ -657,15 +642,13 @@ describe("SkillManager", () => {
         expect.stringContaining("⚠"),
         expect.stringContaining("Using cached registry contents"),
       );
-
-      restoreTTY();
     });
 
     it("should stop without installing when skill selection is cancelled", async () => {
       configureRegistrySkills(["debug"]);
       mockPrompt.mockRejectedValue(new Error('User cancelled'));
 
-      const restoreTTY = setTTY(true, true);
+      mockIsInteractiveTerminal.mockReturnValue(true);
 
       await expect(
         skillManager.addSkill(mockRegistryId, undefined as any),
@@ -673,8 +656,6 @@ describe("SkillManager", () => {
 
       expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
       expect(mockedFs.symlink).not.toHaveBeenCalled();
-
-      restoreTTY();
     });
 
     it("should throw a clear error when the registry has no valid skills", async () => {
@@ -691,15 +672,13 @@ describe("SkillManager", () => {
         return Promise.resolve(false);
       });
 
-      const restoreTTY = setTTY(true, true);
+      mockIsInteractiveTerminal.mockReturnValue(true);
 
       await expect(
         skillManager.addSkill(mockRegistryId, undefined as any),
       ).rejects.toThrow(`No valid skills found in ${mockRegistryId}.`);
 
       expect(mockPrompt).not.toHaveBeenCalled();
-
-      restoreTTY();
     });
 
     it("should support global installation after interactive multi-selection", async () => {
@@ -733,7 +712,7 @@ describe("SkillManager", () => {
         return Promise.resolve(false);
       });
 
-      const restoreTTY = setTTY(true, true);
+      mockIsInteractiveTerminal.mockReturnValue(true);
 
       await skillManager.addSkill(mockRegistryId, undefined as any, { global: true, environments: ["claude"] });
 
@@ -748,8 +727,6 @@ describe("SkillManager", () => {
         "dir",
       );
       expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
-
-      restoreTTY();
     });
   });
 
