@@ -6,6 +6,7 @@ import {
     AgentManager,
     ClaudeCodeAdapter,
     CodexAdapter,
+    GeminiCliAdapter,
     AgentStatus,
     TerminalFocusManager,
     TtyWriter,
@@ -83,6 +84,7 @@ export function registerAgentCommand(program: Command): void {
                 // In the future, we might load these dynamically or based on config
                 manager.registerAdapter(new ClaudeCodeAdapter());
                 manager.registerAdapter(new CodexAdapter());
+                manager.registerAdapter(new GeminiCliAdapter());
 
                 const agents = await manager.listAgents();
 
@@ -148,6 +150,7 @@ export function registerAgentCommand(program: Command): void {
 
                 manager.registerAdapter(new ClaudeCodeAdapter());
                 manager.registerAdapter(new CodexAdapter());
+                manager.registerAdapter(new GeminiCliAdapter());
 
                 const agents = await manager.listAgents();
                 if (agents.length === 0) {
@@ -222,6 +225,7 @@ export function registerAgentCommand(program: Command): void {
                 const manager = new AgentManager();
                 manager.registerAdapter(new ClaudeCodeAdapter());
                 manager.registerAdapter(new CodexAdapter());
+                manager.registerAdapter(new GeminiCliAdapter());
 
                 const agents = await manager.listAgents();
                 if (agents.length === 0) {
@@ -279,10 +283,12 @@ export function registerAgentCommand(program: Command): void {
             try {
                 const claudeAdapter = new ClaudeCodeAdapter();
                 const codexAdapter = new CodexAdapter();
+                const geminiAdapter = new GeminiCliAdapter();
 
                 const manager = new AgentManager();
                 manager.registerAdapter(claudeAdapter);
                 manager.registerAdapter(codexAdapter);
+                manager.registerAdapter(geminiAdapter);
 
                 const agents = await manager.listAgents();
                 if (agents.length === 0) {
@@ -317,6 +323,7 @@ export function registerAgentCommand(program: Command): void {
                 const adapters: Record<string, AgentAdapter> = {
                     claude: claudeAdapter,
                     codex: codexAdapter,
+                    gemini_cli: geminiAdapter,
                 };
                 const adapter = adapters[agent.type];
                 if (!adapter) {

@@ -29,6 +29,7 @@ jest.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: jest.fn(() => mockManager),
   ClaudeCodeAdapter: jest.fn(),
   CodexAdapter: jest.fn(),
+  GeminiCliAdapter: jest.fn(),
   TerminalFocusManager: jest.fn(() => mockFocusManager),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
