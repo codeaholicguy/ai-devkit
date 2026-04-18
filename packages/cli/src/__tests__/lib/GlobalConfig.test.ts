@@ -40,10 +40,8 @@ describe('GlobalConfigManager', () => {
 
     it('should return parsed config when file exists', async () => {
       const config = {
-        skills: {
-          registries: {
-            'my-org/skills': 'https://github.com/my-org/skills.git'
-          }
+        registries: {
+          'my-org/skills': 'https://github.com/my-org/skills.git'
         }
       };
 
@@ -78,11 +76,9 @@ describe('GlobalConfigManager', () => {
 
     it('should return only string registry entries', async () => {
       const config = {
-        skills: {
-          registries: {
-            'my-org/skills': 'https://github.com/my-org/skills.git',
-            'bad/entry': 123
-          }
+        registries: {
+          'my-org/skills': 'https://github.com/my-org/skills.git',
+          'bad/entry': 123
         }
       };
 

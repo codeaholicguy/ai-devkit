@@ -5,6 +5,7 @@ import { isValidEnvironmentCode } from './env';
 export interface InstallConfigData {
   environments: EnvironmentCode[];
   phases: Phase[];
+  registries: Record<string, string>;
   skills: ConfigSkill[];
   mcpServers: Record<string, McpServerDefinition>;
 }
@@ -46,18 +47,8 @@ const installConfigSchema = z.object({
     });
   }).transform(values => dedupe(values) as EnvironmentCode[]),
   phases: z.array(z.string()).optional(),
-  skills: z.preprocess(
-    (val) => {
-      if (val == null) return [];
-      if (Array.isArray(val)) return val;
-      if (typeof val === 'object' && !Array.isArray(val)) {
-        const obj = val as Record<string, unknown>;
-        return Array.isArray(obj.installed) ? obj.installed : [];
-      }
-      return val;
-    },
-    z.array(skillEntrySchema).default([])
-  ),
+  registries: z.record(z.string(), z.string()).optional().default({}),
+  skills: z.array(skillEntrySchema).optional().default([]),
   mcpServers: z.record(z.string(), z.object({
     transport: z.enum(['stdio', 'http', 'sse']),
     command: z.string().optional(),
@@ -82,6 +73,7 @@ const installConfigSchema = z.object({
   return {
     environments: data.environments,
     phases: dedupe(phaseValues) as Phase[],
+    registries: data.registries,
     skills: dedupeSkills(data.skills),
     mcpServers: data.mcpServers as Record<string, McpServerDefinition>
   };
@@ -131,6 +123,15 @@ function formatPath(pathParts: Array<string | number>): string {
 
 function dedupe<T>(values: T[]): T[] {
   return [...new Set(values)];
+}
+
+export function filterStringRecord(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(raw).filter(([, value]) => typeof value === 'string')
+  );
 }
 
 function dedupeSkills(skills: ConfigSkill[]): ConfigSkill[] {

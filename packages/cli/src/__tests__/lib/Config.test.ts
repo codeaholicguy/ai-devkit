@@ -425,7 +425,7 @@ describe('ConfigManager', () => {
   });
 
   describe('addSkill', () => {
-    it('adds a new skill entry to config when skills is an array', async () => {
+    it('adds a new skill entry to config', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor'],
@@ -444,46 +444,10 @@ describe('ConfigManager', () => {
         name: 'memory'
       });
 
-      expect(result.skills).toEqual({
-        installed: [
-          { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
-          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-        ]
-      });
-      expect(mockFs.writeJson).toHaveBeenCalled();
-    });
-
-    it('adds a new skill entry when skills is an object with registries', async () => {
-      const config = {
-        version: '1.0.0',
-        environments: ['cursor'],
-        phases: [],
-        skills: {
-          registries: {
-            'custom/repo': 'https://github.com/custom/repo.git'
-          }
-        },
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
-      };
-
-      (mockFs.pathExists as any).mockResolvedValue(true);
-      (mockFs.readJson as any).mockResolvedValue(config);
-      (mockFs.writeJson as any).mockResolvedValue(undefined);
-
-      const result = await configManager.addSkill({
-        registry: 'custom/repo',
-        name: 'my-skill'
-      });
-
-      expect(result.skills).toEqual({
-        registries: {
-          'custom/repo': 'https://github.com/custom/repo.git'
-        },
-        installed: [
-          { registry: 'custom/repo', name: 'my-skill' }
-        ]
-      });
+      expect(result.skills).toEqual([
+        { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      ]);
       expect(mockFs.writeJson).toHaveBeenCalled();
     });
 
@@ -527,46 +491,15 @@ describe('ConfigManager', () => {
         name: 'memory'
       });
 
-      expect(result.skills).toEqual({
-        installed: [
-          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-        ]
-      });
+      expect(result.skills).toEqual([
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      ]);
       expect(mockFs.writeJson).toHaveBeenCalled();
     });
   });
 
   describe('removeSkill', () => {
-    it('removes the skill entry from the installed array', async () => {
-      const config: DevKitConfig = {
-        version: '1.0.0',
-        environments: ['claude'],
-        phases: [],
-        skills: {
-          installed: [
-            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
-            { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-          ]
-        },
-        createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
-      };
-
-      (mockFs.pathExists as any).mockResolvedValue(true);
-      (mockFs.readJson as any).mockResolvedValue(config);
-      (mockFs.writeJson as any).mockResolvedValue(undefined);
-
-      const result = await configManager.removeSkill('dev-lifecycle');
-
-      expect(result.skills).toEqual({
-        installed: [
-          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-        ]
-      });
-      expect(mockFs.writeJson).toHaveBeenCalled();
-    });
-
-    it('removes skill when skills is an array', async () => {
+    it('removes the skill entry from the skills array', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['claude'],
@@ -585,24 +518,20 @@ describe('ConfigManager', () => {
 
       const result = await configManager.removeSkill('dev-lifecycle');
 
-      expect(result.skills).toEqual({
-        installed: [
-          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-        ]
-      });
+      expect(result.skills).toEqual([
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      ]);
       expect(mockFs.writeJson).toHaveBeenCalled();
     });
 
-    it('results in an empty installed array when last skill is removed', async () => {
+    it('results in an empty array when last skill is removed', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['claude'],
         phases: [],
-        skills: {
-          installed: [
-            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
-          ]
-        },
+        skills: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
+        ],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -613,20 +542,18 @@ describe('ConfigManager', () => {
 
       const result = await configManager.removeSkill('dev-lifecycle');
 
-      expect(result.skills).toEqual({ installed: [] });
+      expect(result.skills).toEqual([]);
       expect(mockFs.writeJson).toHaveBeenCalled();
     });
 
-    it('is a no-op when skill name does not exist in installed', async () => {
+    it('is a no-op when skill name does not exist', async () => {
       const config: DevKitConfig = {
         version: '1.0.0',
         environments: ['claude'],
         phases: [],
-        skills: {
-          installed: [
-            { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-          ]
-        },
+        skills: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+        ],
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
       };
@@ -637,9 +564,9 @@ describe('ConfigManager', () => {
 
       const result = await configManager.removeSkill('nonexistent');
 
-      expect(result.skills).toEqual({
-        installed: [{ registry: 'codeaholicguy/ai-devkit', name: 'memory' }]
-      });
+      expect(result.skills).toEqual([
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      ]);
     });
 
     it('throws when config file is not found', async () => {
@@ -651,100 +578,16 @@ describe('ConfigManager', () => {
     });
   });
 
-  describe('normalizeSkillsConfig', () => {
-    it('normalizes an array to SkillsConfig', () => {
-      const result = configManager.normalizeSkillsConfig([
-        { registry: 'r', name: 's' }
-      ]);
-      expect(result).toEqual({
-        installed: [{ registry: 'r', name: 's' }]
-      });
-    });
-
-    it('normalizes an object with registries and installed', () => {
-      const result = configManager.normalizeSkillsConfig({
-        registries: { 'r': 'https://example.com' },
-        installed: [{ registry: 'r', name: 's' }]
-      });
-      expect(result).toEqual({
-        registries: { 'r': 'https://example.com' },
-        installed: [{ registry: 'r', name: 's' }]
-      });
-    });
-
-    it('normalizes an object with only registries', () => {
-      const result = configManager.normalizeSkillsConfig({
-        registries: { 'r': 'https://example.com' }
-      });
-      expect(result).toEqual({
-        registries: { 'r': 'https://example.com' },
-        installed: []
-      });
-    });
-
-    it('normalizes undefined to empty SkillsConfig', () => {
-      const result = configManager.normalizeSkillsConfig(undefined);
-      expect(result).toEqual({ installed: [] });
-    });
-
-    it('normalizes null to empty SkillsConfig', () => {
-      const result = configManager.normalizeSkillsConfig(null);
-      expect(result).toEqual({ installed: [] });
-    });
-  });
-
-  describe('getInstalledSkills', () => {
-    it('returns skills from array format', () => {
-      const config: DevKitConfig = {
-        version: '1.0.0',
-        environments: [],
-        phases: [],
-        skills: [{ registry: 'r', name: 's' }],
-        createdAt: '',
-        updatedAt: ''
-      };
-      expect(configManager.getInstalledSkills(config)).toEqual([{ registry: 'r', name: 's' }]);
-    });
-
-    it('returns skills from object format', () => {
-      const config = {
-        version: '1.0.0',
-        environments: [],
-        phases: [],
-        skills: {
-          registries: { 'r': 'https://example.com' },
-          installed: [{ registry: 'r', name: 's' }]
-        },
-        createdAt: '',
-        updatedAt: ''
-      } as DevKitConfig;
-      expect(configManager.getInstalledSkills(config)).toEqual([{ registry: 'r', name: 's' }]);
-    });
-
-    it('returns empty array when skills is undefined', () => {
-      const config: DevKitConfig = {
-        version: '1.0.0',
-        environments: [],
-        phases: [],
-        createdAt: '',
-        updatedAt: ''
-      };
-      expect(configManager.getInstalledSkills(config)).toEqual([]);
-    });
-  });
-
   describe('getSkillRegistries', () => {
-    it('returns registries from skills.registries', async () => {
+    it('returns registries from top-level registries field', async () => {
       (mockFs.pathExists as any).mockResolvedValue(true);
       (mockFs.readJson as any).mockResolvedValue({
         version: '1.0.0',
         environments: ['cursor'],
         phases: [],
-        skills: {
-          registries: {
-            'nested/skills': 'https://github.com/nested/skills.git',
-            'invalid/value': false
-          }
+        registries: {
+          'my-org/skills': 'https://github.com/my-org/skills.git',
+          'invalid/value': false
         },
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z'
@@ -753,11 +596,11 @@ describe('ConfigManager', () => {
       const registries = await configManager.getSkillRegistries();
 
       expect(registries).toEqual({
-        'nested/skills': 'https://github.com/nested/skills.git'
+        'my-org/skills': 'https://github.com/my-org/skills.git'
       });
     });
 
-    it('returns empty object when no registry map exists', async () => {
+    it('returns empty object when no registries field exists', async () => {
       (mockFs.pathExists as any).mockResolvedValue(true);
       (mockFs.readJson as any).mockResolvedValue({
         version: '1.0.0',

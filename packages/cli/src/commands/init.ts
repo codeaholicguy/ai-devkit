@@ -309,6 +309,14 @@ export async function initCommand(options: InitOptions) {
     }
   }
 
+  if (templateConfig?.registries) {
+    const registryCount = Object.keys(templateConfig.registries).length;
+    if (registryCount > 0) {
+      await configManager.update({ registries: templateConfig.registries });
+      ui.success(`Saved ${registryCount} custom registry(ies) to config.`);
+    }
+  }
+
   if (templateConfig?.skills?.length) {
     ui.text('Installing skills from template...', { breakline: true });
     const skillResults = await installTemplateSkills(skillManager, templateConfig.skills);

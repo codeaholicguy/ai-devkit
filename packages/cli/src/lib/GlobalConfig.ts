@@ -2,6 +2,7 @@ import * as fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
 import { GlobalDevKitConfig } from '../types';
+import { filterStringRecord } from '../util/config';
 
 export class GlobalConfigManager {
   async exists(): Promise<boolean> {
@@ -24,15 +25,7 @@ export class GlobalConfigManager {
 
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
-    const registries = config?.skills?.registries;
-
-    if (!registries || typeof registries !== 'object' || Array.isArray(registries)) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      Object.entries(registries).filter(([, value]) => typeof value === 'string')
-    );
+    return filterStringRecord(config?.registries);
   }
 
   private getGlobalConfigPath(): string {

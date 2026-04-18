@@ -16,11 +16,12 @@ export interface InitTemplateConfig {
   };
   environments?: EnvironmentCode[];
   phases?: Phase[];
+  registries?: Record<string, string>;
   skills?: InitTemplateSkill[];
   mcpServers?: Record<string, McpServerDefinition>;
 }
 
-const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'paths', 'environments', 'phases', 'skills', 'mcpServers']);
+const ALLOWED_TEMPLATE_FIELDS = new Set(['version', 'paths', 'environments', 'phases', 'registries', 'skills', 'mcpServers']);
 
 function validationError(templatePath: string, message: string): Error {
   return new Error(`Invalid template at ${templatePath}: ${message}`);
@@ -137,6 +138,10 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
 
       return normalized as Phase;
     });
+  }
+
+  if (candidate.registries !== undefined) {
+    result.registries = validateStringRecord(candidate.registries, 'registries', resolvedPath);
   }
 
   if (candidate.skills !== undefined) {

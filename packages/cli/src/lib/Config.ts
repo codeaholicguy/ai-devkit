@@ -1,6 +1,7 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, SkillsConfig, DEFAULT_DOCS_DIR } from '../types';
+import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR } from '../types';
+import { filterStringRecord } from '../util/config';
 import packageJson from '../../package.json';
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
@@ -127,28 +128,13 @@ export class ConfigManager {
     return environments.includes(envId);
   }
 
-  normalizeSkillsConfig(raw: unknown): SkillsConfig {
-    if (Array.isArray(raw)) {
-      return { installed: raw };
-    }
-    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
-      const obj = raw as Record<string, unknown>;
-      return {
-        registries: obj.registries as Record<string, string> | undefined,
-        installed: Array.isArray(obj.installed) ? obj.installed as ConfigSkill[] : []
-      };
-    }
-    return { installed: [] };
-  }
-
   async addSkill(skill: ConfigSkill): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
       throw new Error('Config file not found. Run ai-devkit init first.');
     }
 
-    const normalized = this.normalizeSkillsConfig(config.skills);
-    const installed = normalized.installed || [];
+    const installed = Array.isArray(config.skills) ? config.skills : [];
 
     const exists = installed.some(
       entry => entry.registry === skill.registry && entry.name === skill.name
@@ -159,8 +145,7 @@ export class ConfigManager {
     }
 
     installed.push(skill);
-    normalized.installed = installed;
-    return this.update({ skills: normalized });
+    return this.update({ skills: installed });
   }
 
   async removeSkill(skillName: string): Promise<DevKitConfig> {
@@ -169,32 +154,12 @@ export class ConfigManager {
       throw new Error('Config file not found. Run ai-devkit init first.');
     }
 
-    const normalized = this.normalizeSkillsConfig(config.skills);
-    const installed = normalized.installed || [];
-
-    normalized.installed = installed.filter(entry => entry.name !== skillName);
-    return this.update({ skills: normalized });
+    const installed = Array.isArray(config.skills) ? config.skills : [];
+    return this.update({ skills: installed.filter(entry => entry.name !== skillName) });
   }
 
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
-    if (!config) {
-      return {};
-    }
-
-    const normalized = this.normalizeSkillsConfig(config.skills);
-    const registries = normalized.registries;
-
-    if (!registries || typeof registries !== 'object' || Array.isArray(registries)) {
-      return {};
-    }
-
-    return Object.fromEntries(
-      Object.entries(registries).filter(([, value]) => typeof value === 'string')
-    ) as Record<string, string>;
-  }
-
-  getInstalledSkills(config: DevKitConfig): ConfigSkill[] {
-    return this.normalizeSkillsConfig(config.skills).installed || [];
+    return filterStringRecord(config?.registries);
   }
 }

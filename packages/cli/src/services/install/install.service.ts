@@ -137,6 +137,9 @@ export async function reconcileAndInstall(
   if (successfulPhases.length > 0) {
     updates.phases = successfulPhases;
   }
+  if (Object.keys(config.registries).length > 0) {
+    updates.registries = config.registries;
+  }
   if (successfulSkills.length > 0) {
     updates.skills = successfulSkills;
   }

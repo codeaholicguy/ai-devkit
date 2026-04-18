@@ -407,10 +407,8 @@ describe("SkillManager", () => {
       });
 
       (mockedFs.readJson as any).mockResolvedValue({
-        skills: {
-          registries: {
-            [mockRegistryId]: customGitUrl,
-          },
+        registries: {
+          [mockRegistryId]: customGitUrl,
         },
       });
 

@@ -50,6 +50,7 @@ describe('install service', () => {
   const installConfig = {
     environments: ['codex' as const],
     phases: ['requirements' as const],
+    registries: {},
     skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
     mcpServers: {}
   };
@@ -147,6 +148,7 @@ describe('install service', () => {
     const configWithoutSkills = {
       environments: ['codex' as const],
       phases: ['requirements' as const],
+      registries: {},
       skills: [],
       mcpServers: {}
     };
