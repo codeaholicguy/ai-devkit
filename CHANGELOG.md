@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **Flat Config Structure** - Moved `registries` and `skills` to top-level fields in project, global, and template configs. Previously `registries` was nested under `skills` (`skills.registries`); now both `registries` and `skills` sit at the same level for consistency across all config contexts.
+- **Template Registries Support** - Init templates can now declare custom `registries` that get saved to the project config during `ai-devkit init --template`.
+- **Shared Registry Filter** - Extracted duplicate registry-filtering logic from `ConfigManager` and `GlobalConfigManager` into a shared `filterStringRecord()` helper.
+- **Removed Dead Code** - Removed unused `getInstalledSkills()` method, `normalizeSkillsConfig()` method, `SkillsConfig` interface, and `SkillRegistriesConfig` interface.
+
+### Breaking Changes
+
+- The `skills` field in `.ai-devkit.json` is now always a plain array of `{ registry, name }` objects. The previous object format (`{ registries: {...}, installed: [...] }`) is no longer supported.
+- The global config (`~/.ai-devkit/.ai-devkit.json`) now uses a top-level `registries` field instead of `skills.registries`.
+
 ## [0.23.1] - 2026-04-17
 
 ### Fixed
