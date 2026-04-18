@@ -192,6 +192,8 @@ Both formats are accepted. The array format is automatically normalized to the o
 
 Defines MCP servers that agents can connect to. Each key is the server name. This page covers the `mcpServers` field structure. For setup flow, generated files, and conflict behavior during install, see [Agent Setup — MCP Servers](/docs/agent-setup#mcp-servers).
 
+> **Note:** The `mcpServers` field is supported in AI DevKit `0.23.0` or later.
+
 MCP settings can be stored either by initializing from a template or by editing `.ai-devkit.json` directly. `ai-devkit install` reads the final MCP settings from `.ai-devkit.json` and generates MCP config files only for environments that currently support MCP output.
 
 Every server definition requires a `transport` field set to `stdio`, `http`, or `sse`. The remaining fields depend on the transport type:

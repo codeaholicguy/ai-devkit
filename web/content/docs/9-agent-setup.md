@@ -133,6 +133,8 @@ ai-devkit init --docs-dir ./ai-docs
 
 Templates can include MCP server definitions. Add a `mcpServers` section to your template:
 
+> **Note:** `mcpServers` support requires AI DevKit `0.23.0` or later.
+
 ```yaml
 mcpServers:
   memory:
@@ -174,6 +176,8 @@ When using a template with a `skills` section, skills from the template are inst
 ## MCP Servers
 
 [MCP (Model Context Protocol)](https://modelcontextprotocol.io/) servers give AI agents extended capabilities such as persistent memory, database access, or external tool integrations. Define MCP servers in `.ai-devkit.json` and AI DevKit generates the environment-specific config files for you.
+
+> **Note:** `mcpServers` generation and install flow require AI DevKit `0.23.0` or later.
 
 MCP configuration is currently generated for **Claude Code** (`.mcp.json`) and **Codex** (`.codex/config.toml`).
 
