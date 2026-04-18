@@ -100,6 +100,26 @@ paths:
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('AI DevKit initialized successfully');
   });
+
+  it('should save template registries to config', () => {
+    const templatePath = join(projectDir, 'template.yaml');
+    const templateContent = `environments:
+  - claude
+phases:
+  - requirements
+registries:
+  my-org/skills: https://github.com/my-org/skills.git
+`;
+    require('fs').writeFileSync(templatePath, templateContent);
+
+    const result = run(`init -t "${templatePath}"`, { cwd: projectDir });
+    expect(result.exitCode).toBe(0);
+
+    const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf-8'));
+    expect(config.registries).toEqual({
+      'my-org/skills': 'https://github.com/my-org/skills.git'
+    });
+  });
 });
 
 describe('lint command', () => {
@@ -302,16 +322,17 @@ describe('install command', () => {
     expect(result.exitCode).not.toBe(0);
   });
 
-  it('should install when skills is an object with installed array (issue #62)', () => {
+  it('should install when config has registries and skills', () => {
     writeConfigFile(projectDir, {
       version: '1.0.0',
       environments: ['claude'],
       phases: ['requirements'],
-      skills: {
-        installed: [
-          { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
-        ]
+      registries: {
+        'codeaholicguy/ai-devkit': 'https://github.com/codeaholicguy/ai-devkit.git'
       },
+      skills: [
+        { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
+      ],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     });
@@ -348,11 +369,9 @@ describe('skill command', () => {
         version: '1.0.0',
         environments: ['claude'],
         phases: [],
-        skills: {
-          installed: [
-            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
-          ]
-        },
+        skills: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
+        ],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -369,8 +388,8 @@ describe('skill command', () => {
 
       // .ai-devkit.json should no longer list the skill
       const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf-8'));
-      const installed = (config.skills?.installed ?? config.skills ?? []) as Array<{ name: string }>;
-      expect(installed.some((s) => s.name === 'dev-lifecycle')).toBe(false);
+      const skills = (config.skills ?? []) as Array<{ name: string }>;
+      expect(skills.some((s) => s.name === 'dev-lifecycle')).toBe(false);
     });
 
     it('should preserve remaining skills in .ai-devkit.json when removing one', () => {
@@ -378,12 +397,10 @@ describe('skill command', () => {
         version: '1.0.0',
         environments: ['claude'],
         phases: [],
-        skills: {
-          installed: [
-            { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
-            { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
-          ]
-        },
+        skills: [
+          { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
+          { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+        ],
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
@@ -394,9 +411,9 @@ describe('skill command', () => {
       run('skill remove dev-lifecycle', { cwd: projectDir });
 
       const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf-8'));
-      const installed = (config.skills?.installed ?? config.skills ?? []) as Array<{ name: string }>;
-      expect(installed.some((s) => s.name === 'dev-lifecycle')).toBe(false);
-      expect(installed.some((s) => s.name === 'memory')).toBe(true);
+      const skills = (config.skills ?? []) as Array<{ name: string }>;
+      expect(skills.some((s) => s.name === 'dev-lifecycle')).toBe(false);
+      expect(skills.some((s) => s.name === 'memory')).toBe(true);
     });
   });
 });
