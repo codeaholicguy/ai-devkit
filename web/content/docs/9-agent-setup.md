@@ -5,7 +5,7 @@ slug: agent-setup
 order: 10
 ---
 
-The `ai-devkit install` command applies your saved project configuration (`.ai-devkit.json`) to your workspace.  
+The `ai-devkit install` command applies your saved project configuration (`.ai-devkit.json`) to your workspace.
 It is the best command for repeatable setup, onboarding, and syncing agent files after configuration changes.
 
 Before running these commands:
@@ -18,6 +18,7 @@ Use `ai-devkit init` when:
 - You are setting up AI DevKit in a project for the first time
 - You want interactive prompts to choose environments and phases
 - You want non-interactive bootstrap from a template file (`ai-devkit init --template`)
+- You want to install AI DevKit built-in skills (prompted interactively, or pass `--built-in` for CI)
 
 Use `ai-devkit install` when:
 - `.ai-devkit.json` already exists
@@ -26,33 +27,13 @@ Use `ai-devkit install` when:
 
 ## Basic Usage
 
-Create a file named `fullstack-engineer.yaml` in your project root with this content:
-
-```yaml
-environments:
-  - cursor
-  - claude
-  - codex
-phases:
-  - requirements
-  - design
-  - planning
-  - implementation
-  - testing
-skills:
-  - registry: codeaholicguy/ai-devkit
-    skill: debug
-  - registry: codeaholicguy/ai-devkit
-    skill: dev-lifecycle
-```
-
-Initialize from that template:
+The simplest way to get started is the interactive setup. This walks you through choosing environments, phases, and built-in skills:
 
 ```bash
-ai-devkit init --template ./fullstack-engineer.yaml
+ai-devkit init
 ```
 
-If `.ai-devkit.json` already exists in this project, apply setup with:
+Once `.ai-devkit.json` exists in your project, apply or re-apply the setup with:
 
 ```bash
 ai-devkit install
@@ -70,12 +51,76 @@ Overwrite existing install artifacts without extra prompts:
 ai-devkit install --overwrite
 ```
 
+### Template-based Setup
+
+For repeatable, non-interactive setup, create a template file. This is useful for sharing a standard configuration across teams or running in CI.
+
+Create a file named `fullstack-engineer.yaml` in your project root with this content:
+
+```yaml
+environments:
+  - cursor
+  - claude
+  - codex
+phases:
+  - requirements
+  - design
+  - planning
+  - implementation
+  - testing
+paths:
+  docs: docs/ai
+skills:
+  - registry: codeaholicguy/ai-devkit
+    skill: debug
+  - registry: codeaholicguy/ai-devkit
+    skill: dev-lifecycle
+```
+
+Initialize from that template:
+
+```bash
+ai-devkit init --template ./fullstack-engineer.yaml
+```
+
+Use a custom directory for AI documentation (default is `docs/ai`):
+
+```bash
+ai-devkit init --docs-dir ./ai-docs
+```
+
+#### Adding MCP Servers to a Template
+
+Templates can also define [MCP servers](https://modelcontextprotocol.io/) that agents connect to for extended capabilities such as persistent memory or external tool access. Add a `mcpServers` section to your template:
+
+```yaml
+mcpServers:
+  memory:
+    transport: stdio
+    command: npx
+    args:
+      - "@ai-devkit/memory"
+```
+
+After running `ai-devkit init --template`, MCP server definitions are saved to `.ai-devkit.json`. Run `ai-devkit install` to generate the agent-specific MCP config files.
+
+## Built-in Skills
+
+When running `ai-devkit init` interactively (without a template), you are prompted to install AI DevKit's built-in skills. In non-interactive environments such as CI, pass `--built-in` to install them automatically:
+
+```bash
+ai-devkit init --environment cursor,claude --all --built-in
+```
+
+When using a template with a `skills` section, skills from the template are installed instead of the built-in prompt.
+
 ## What `ai-devkit install` Sets Up
 
 Based on your configured environments, AI DevKit installs or updates files such as:
 - `AGENTS.md` or `CLAUDE.md`
 - Environment command folders (for example `.cursor/commands/`, `.claude/commands/`, `.codex/commands/`)
 - Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.agents/skills/` for Codex, and `.agent/skills/` for Antigravity)
+- MCP server configuration files for supported environments
 - Other environment-specific templates defined by AI DevKit
 
 The exact artifacts depend on the environments configured in `.ai-devkit.json`.
@@ -90,7 +135,7 @@ The exact artifacts depend on the environments configured in `.ai-devkit.json`.
 ai-devkit init
 ```
 
-Or initialize deterministically from template:
+Or initialize deterministically from a template:
 
 ```bash
 ai-devkit init --template ./fullstack-engineer.yaml
@@ -118,7 +163,7 @@ ai-devkit init
 
 This creates the configuration file used by `install`.
 
-If you prefer non-interactive setup, use the template command shown in Basic Usage.
+If you prefer non-interactive setup, use the template command shown in [Template-based Setup](#template-based-setup).
 
 ### Existing files are not updated
 
