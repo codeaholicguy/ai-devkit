@@ -30,7 +30,7 @@ This launches an interactive setup wizard that configures your project for AI-as
 | [Windsurf](https://windsurf.com/) | 🚧 Testing | ❌ Not Ready |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode) | 🚧 Testing | ❌ Not Ready |
 | [Roo Code](https://roocode.com/) | 🚧 Testing | ❌ Not Ready |
-| [Amp](https://ampcode.com/) | 🚧 Testing | ❌ Not Ready |
+| [Amp](https://ampcode.com/) | ✅ Supported | ❌ Not Ready |
 
 ## Documentation
 
