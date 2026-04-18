@@ -32,15 +32,13 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
   "memory": {
     "path": ".ai-devkit/memory.db"
   },
-  "skills": {
-    "registries": {
-      "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git"
-    },
-    "installed": [
-      { "registry": "codeaholicguy/ai-devkit", "name": "debug" },
-      { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
-    ]
+  "registries": {
+    "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git"
   },
+  "skills": [
+    { "registry": "codeaholicguy/ai-devkit", "name": "debug" },
+    { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
+  ],
   "mcpServers": {
     "memory": {
       "transport": "stdio",
@@ -146,42 +144,35 @@ Stages of the software development lifecycle that AI DevKit creates document tem
 
 **Read by:** `ai-devkit memory store`, `ai-devkit memory search`, `ai-devkit memory update`
 
-#### `skills`
+#### `registries`
 
-- **Type:** object or array
+- **Type:** `Record<string, string>`
 - **Optional**
 
-The `skills` field tracks installed skills and custom registries. It supports two formats:
-
-**Object format (recommended):**
-
-If you edit this field manually, use the object format. The array format is supported only for backward compatibility.
+Maps custom registry IDs (e.g., `owner/repo`) to Git URLs. These are merged with the built-in registries when resolving skills. Project-level registries take priority over global registries, which take priority over built-in defaults.
 
 ```json
-"skills": {
-  "registries": {
-    "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git"
-  },
-  "installed": [
-    { "registry": "codeaholicguy/ai-devkit", "name": "debug" }
-  ]
+"registries": {
+  "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
+  "my-org/custom-skills": "https://github.com/my-org/custom-skills.git"
 }
 ```
 
-| Sub-field | Type | Description |
-|-----------|------|-------------|
-| `registries` | `Record<string, string>` | Maps registry IDs (e.g., `owner/repo`) to Git URLs. Merged with built-in registries. |
-| `installed` | array of `{ registry, name }` | List of installed skills. Duplicates are automatically deduplicated. |
+**Set by:** `ai-devkit init --template` or by editing `.ai-devkit.json` directly
 
-**Array format (legacy):**
+#### `skills`
+
+- **Type:** array of `{ registry, name }`
+- **Optional**
+
+List of installed skills. Duplicates are automatically deduplicated.
 
 ```json
 "skills": [
-  { "registry": "codeaholicguy/ai-devkit", "name": "debug" }
+  { "registry": "codeaholicguy/ai-devkit", "name": "debug" },
+  { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
 ]
 ```
-
-Both formats are accepted. The array format is automatically normalized to the object format.
 
 **Modified by:** `ai-devkit skill add`, `ai-devkit skill remove`, `ai-devkit skill update`, `ai-devkit init --built-in`
 
@@ -248,11 +239,9 @@ The global config file has a smaller scope than the project config. It only supp
 
 ```json
 {
-  "skills": {
-    "registries": {
-      "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
-      "my-org/custom-skills": "https://github.com/my-org/custom-skills.git"
-    }
+  "registries": {
+    "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
+    "my-org/custom-skills": "https://github.com/my-org/custom-skills.git"
   }
 }
 ```
@@ -261,7 +250,7 @@ Use the global config when you want the same custom skill registries available i
 
 Global registries are merged with any project-level registries. If the same registry ID exists in both, the project-level entry takes priority.
 
-The global config does **not** support `environments`, `phases`, `paths`, `memory`, or `mcpServers`.
+The global config does **not** support `environments`, `phases`, `paths`, `memory`, `skills`, or `mcpServers`.
 
 ## Which Commands Use the Config
 

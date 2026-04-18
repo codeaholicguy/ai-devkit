@@ -349,11 +349,9 @@ You can add your own registries by editing the global AI DevKit config at `~/.ai
 
 ```json
 {
-  "skills": {
-    "registries": {
-      "my-org/skills": "git@gitlab.com:my-org/skills.git",
-      "me/personal-skills": "https://github.com/me/personal-skills.git"
-    }
+  "registries": {
+    "my-org/skills": "git@gitlab.com:my-org/skills.git",
+    "me/personal-skills": "https://github.com/me/personal-skills.git"
   }
 }
 ```

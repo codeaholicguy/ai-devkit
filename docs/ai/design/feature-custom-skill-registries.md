@@ -30,7 +30,7 @@ graph TD
 **What data do we need to manage?**
 
 - Global config (new or extended):
-  - `skills.registries` (map of `registryId -> gitUrl`)
+  - `registries` (map of `registryId -> gitUrl`)
 - Registry JSON (existing):
   - `registries` map of registry IDs to Git URLs
 
@@ -38,11 +38,9 @@ Example global config snippet:
 
 ```json
 {
-  "skills": {
-    "registries": {
-      "my-org/skills": "git@github.com:my-org/skills.git",
-      "me/personal-skills": "https://github.com/me/personal-skills.git"
-    }
+  "registries": {
+    "my-org/skills": "git@github.com:my-org/skills.git",
+    "me/personal-skills": "https://github.com/me/personal-skills.git"
   }
 }
 ```
