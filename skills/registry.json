@@ -70,6 +70,7 @@
     "mcollina/skills": "https://github.com/mcollina/skills.git",
     "samber/cc-skills-golang": "https://github.com/samber/cc-skills-golang.git",
     "addyosmani/agent-skills": "https://github.com/addyosmani/agent-skills.git",
-    "Shopify/Shopify-AI-Toolkit": "https://github.com/Shopify/Shopify-AI-Toolkit.git"
+    "Shopify/Shopify-AI-Toolkit": "https://github.com/Shopify/Shopify-AI-Toolkit.git",
+    "coreyhaines31/marketingskills": "https://github.com/coreyhaines31/marketingskills.git"
   }
 }
