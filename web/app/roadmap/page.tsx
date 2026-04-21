@@ -1,4 +1,5 @@
 import { getRoadmap } from '@/lib/content/loader';
+import type { RoadmapItem as RoadmapItemType } from '@/lib/content/types';
 
 import type { Metadata } from 'next';
 
@@ -154,9 +155,9 @@ export default function RoadmapPage() {
   );
 }
 
-function RoadmapItem({ item }: { item: { metadata: Record<string, string>; content: string } }) {
-  const statusColor = statusColors[item.metadata.status as keyof typeof statusColors] || statusColors.planned;
-  const statusLabel = statusLabels[item.metadata.status as keyof typeof statusLabels] || 'Unknown';
+function RoadmapItem({ item }: { item: RoadmapItemType }) {
+  const statusColor = statusColors[item.metadata.status] || statusColors.planned;
+  const statusLabel = statusLabels[item.metadata.status] || 'Unknown';
 
   return (
     <div className="border border-gray-200 rounded-lg p-6 hover:border-gray-400 transition-colors">
