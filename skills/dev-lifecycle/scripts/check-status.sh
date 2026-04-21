@@ -10,6 +10,12 @@ if [[ $# -lt 1 ]]; then
 fi
 
 FEATURE="$1"
+
+if [[ ! "$FEATURE" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+  echo "Error: feature name must contain only letters, digits, hyphens, and underscores"
+  exit 1
+fi
+
 DOCS="docs/ai"
 
 exists() { [[ -f "$1" ]]; }
