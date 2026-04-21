@@ -87,7 +87,7 @@ export default function Home() {
                   key={`${agent.name}-${index}`}
                   href={agent.href}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="flex flex-shrink-0 items-center justify-center px-6 py-4 transition-transform"
                   aria-hidden={index >= agents.length}
                 >

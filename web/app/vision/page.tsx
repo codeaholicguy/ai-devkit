@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getPage } from "@/lib/content/loader";
 import MarkdownContent from "@/components/MarkdownContent";
 import { notFound } from "next/navigation";
@@ -59,12 +60,12 @@ export default function VisionPage() {
             structured practices and AI assistance.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <a
+            <Link
               href="/docs"
               className="px-6 py-3 bg-black text-white rounded-lg font-medium hover:bg-gray-800 transition-colors no-underline text-center"
             >
               Get Started
-            </a>
+            </Link>
             <a
               href="/roadmap"
               className="px-6 py-3 border border-black rounded-lg font-medium hover:bg-gray-50 transition-colors no-underline text-center"

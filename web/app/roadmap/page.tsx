@@ -1,5 +1,5 @@
 import { getRoadmap } from '@/lib/content/loader';
-import MarkdownContent from '@/components/MarkdownContent';
+
 import type { Metadata } from 'next';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
@@ -68,7 +68,7 @@ export default function RoadmapPage() {
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Roadmap</h1>
 
         <p className="text-xl text-gray-600 mb-12">
-          Our development roadmap shows what we're working on and what's coming next for AI DevKit.
+          {`Our development roadmap shows what we're working on and what's coming next for AI DevKit.`}
         </p>
 
         {roadmapItems.length === 0 ? (
@@ -127,7 +127,7 @@ export default function RoadmapPage() {
           <div className="bg-gray-50 p-8 rounded-lg border border-gray-200">
             <h2 className="text-2xl font-bold mb-4">Have ideas?</h2>
             <p className="text-gray-600 mb-6">
-              We'd love to hear your suggestions for AI DevKit. Open an issue or discussion on GitHub to share your thoughts.
+              {`We'd love to hear your suggestions for AI DevKit. Open an issue or discussion on GitHub to share your thoughts.`}
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <a
@@ -154,7 +154,7 @@ export default function RoadmapPage() {
   );
 }
 
-function RoadmapItem({ item }: { item: { metadata: any; content: string } }) {
+function RoadmapItem({ item }: { item: { metadata: Record<string, string>; content: string } }) {
   const statusColor = statusColors[item.metadata.status as keyof typeof statusColors] || statusColors.planned;
   const statusLabel = statusLabels[item.metadata.status as keyof typeof statusLabels] || 'Unknown';
 
