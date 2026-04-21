@@ -134,7 +134,7 @@ export class TerminalFocusManager {
     private async findTerminalAppWindow(tty: string): Promise<TerminalLocation | null> {
         try {
             // Check if Terminal is running
-            const { stdout: isRunning } = await execAsync('pgrep -x Terminal || echo "no"');
+            const { stdout: isRunning } = await execAsync('ps -eo pid=,comm= | grep "Terminal.app" || echo "no"');
             if (isRunning.trim() === "no") return null;
 
             const script = `
