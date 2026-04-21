@@ -78,14 +78,19 @@ describe('TtyWriter', () => {
 
             await TtyWriter.send(location, 'hello');
 
+            // First call: send text without newline
             expect(mockedExecFile).toHaveBeenCalledWith(
                 'osascript',
                 ['-e', expect.stringContaining('write text "hello" newline no')],
                 expect.any(Function),
             );
-            const scriptArg = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
-            const script = scriptArg[1];
-            expect(script).toContain('key code 36');
+            // Second call: send Enter via separate write text with newline
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'osascript',
+                ['-e', expect.stringContaining('write text "" newline yes')],
+                expect.any(Function),
+            );
+            expect(mockedExecFile).toHaveBeenCalledTimes(2);
         });
 
         it('escapes special characters in message', async () => {
@@ -100,11 +105,36 @@ describe('TtyWriter', () => {
             );
         });
 
+        it('escapes newlines in message', async () => {
+            mockExecFileSuccess('ok');
+
+            await TtyWriter.send(location, 'line1\nline2');
+
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'osascript',
+                ['-e', expect.stringContaining('write text "line1\\nline2" newline no')],
+                expect.any(Function),
+            );
+        });
+
         it('throws when session not found', async () => {
             mockExecFileSuccess('not_found');
 
             await expect(TtyWriter.send(location, 'test'))
                 .rejects.toThrow('iTerm2 session not found');
+        });
+
+        it('throws when session disappears before Enter', async () => {
+            // First call succeeds (text sent), second returns not_found
+            let callCount = 0;
+            mockedExecFile.mockImplementation((...args: unknown[]) => {
+                const cb = args[args.length - 1] as (err: Error | null, result: { stdout: string }, stderr: string) => void;
+                callCount++;
+                cb(null, { stdout: callCount === 1 ? 'ok' : 'not_found' }, '');
+            });
+
+            await expect(TtyWriter.send(location, 'test'))
+                .rejects.toThrow('iTerm2 session disappeared before Enter');
         });
     });
 
@@ -115,16 +145,24 @@ describe('TtyWriter', () => {
             tty: '/dev/ttys030',
         };
 
-        it('sends message via System Events keystroke (not do script)', async () => {
+        it('sends message via do script (not System Events)', async () => {
             mockExecFileSuccess('ok');
 
             await TtyWriter.send(location, 'hello');
 
-            const scriptArg = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
-            const script = scriptArg[1];
-            expect(script).toContain('keystroke "hello"');
-            expect(script).toContain('key code 36');
-            expect(script).not.toContain('do script');
+            // First call: send text via do script
+            const firstCallArgs = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
+            const textScript = firstCallArgs[1];
+            expect(textScript).toContain('do script "hello" in targetTab');
+            expect(textScript).not.toContain('keystroke');
+            expect(textScript).not.toContain('key code 36');
+
+            // Second call: send Enter via separate do script
+            const secondCallArgs = (mockedExecFile.mock.calls[1] as unknown[])[1] as string[];
+            const enterScript = secondCallArgs[1];
+            expect(enterScript).toContain('do script "" in targetTab');
+
+            expect(mockedExecFile).toHaveBeenCalledTimes(2);
         });
 
         it('throws when tab not found', async () => {
@@ -132,6 +170,18 @@ describe('TtyWriter', () => {
 
             await expect(TtyWriter.send(location, 'test'))
                 .rejects.toThrow('Terminal.app tab not found');
+        });
+
+        it('throws when tab disappears before Enter', async () => {
+            let callCount = 0;
+            mockedExecFile.mockImplementation((...args: unknown[]) => {
+                const cb = args[args.length - 1] as (err: Error | null, result: { stdout: string }, stderr: string) => void;
+                callCount++;
+                cb(null, { stdout: callCount === 1 ? 'ok' : 'not_found' }, '');
+            });
+
+            await expect(TtyWriter.send(location, 'test'))
+                .rejects.toThrow('Terminal.app tab disappeared before Enter');
         });
     });
 
