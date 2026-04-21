@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "AI-assisted development toolkit for Codex with structured workflows, reusable commands, persistent memory, and skills",
   "author": {
     "name": "Hoang Nguyen",
