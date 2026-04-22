@@ -7,7 +7,7 @@ import { GlobalConfigManager } from './GlobalConfig';
 import { EnvironmentSelector } from './EnvironmentSelector';
 import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository, fetchGitHead } from '../util/git';
-import { validateRegistryId, validateSkillName, extractSkillDescription } from '../util/skill';
+import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github';
 import { isInteractiveTerminal } from '../util/terminal';
 import { ui } from '../util/terminal-ui';
@@ -555,7 +555,7 @@ export class SkillManager {
     const skills: RegistrySkillChoice[] = [];
 
     for (const entry of entries) {
-      if (!entry.isDirectory()) {
+      if (!entry.isDirectory() || !isValidSkillName(entry.name)) {
         continue;
       }
 

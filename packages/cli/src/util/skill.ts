@@ -37,6 +37,13 @@ export function validateSkillName(skillName: string): void {
 }
 
 /**
+ * Checks if a skill name is valid without throwing
+ */
+export function isValidSkillName(name: string): boolean {
+  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name);
+}
+
+/**
  * Extract skill description from SKILL.md frontmatter
  * @param content - Content of SKILL.md file
  * @returns Description from frontmatter or first non-empty paragraph

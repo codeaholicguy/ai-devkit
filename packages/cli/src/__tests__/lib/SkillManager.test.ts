@@ -96,6 +96,7 @@ describe("SkillManager", () => {
 
     mockedSkillUtil.validateRegistryId.mockImplementation(() => { });
     mockedSkillUtil.validateSkillName.mockImplementation(() => { });
+    mockedSkillUtil.isValidSkillName.mockImplementation((name: string) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name));
     mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
     mockConfigManager.addSkill.mockResolvedValue({} as any);
   });

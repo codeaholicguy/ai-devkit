@@ -1,4 +1,4 @@
-import { validateRegistryId, validateSkillName } from '../../util/skill';
+import { validateRegistryId, validateSkillName, isValidSkillName } from '../../util/skill';
 
 describe('Skill Validation Utilities', () => {
   describe('validateRegistryId', () => {
@@ -178,6 +178,27 @@ describe('Skill Validation Utilities', () => {
           expect(error.message).toContain('cannot contain consecutive hyphens');
         }
       });
+    });
+  });
+
+  describe('isValidSkillName', () => {
+    it('should return true for valid skill names', () => {
+      expect(isValidSkillName('my-skill')).toBe(true);
+      expect(isValidSkillName('skill123')).toBe(true);
+      expect(isValidSkillName('a')).toBe(true);
+    });
+
+    it('should return false for names with path traversal characters', () => {
+      expect(isValidSkillName('../etc')).toBe(false);
+      expect(isValidSkillName('skill/name')).toBe(false);
+      expect(isValidSkillName('.hidden')).toBe(false);
+    });
+
+    it('should return false for names that fail skill name rules', () => {
+      expect(isValidSkillName('-leading')).toBe(false);
+      expect(isValidSkillName('trailing-')).toBe(false);
+      expect(isValidSkillName('double--hyphen')).toBe(false);
+      expect(isValidSkillName('UPPERCASE')).toBe(false);
     });
   });
 });
