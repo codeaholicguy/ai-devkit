@@ -1,10 +1,10 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../util/git';
 
 jest.mock('child_process');
 jest.mock('fs-extra');
 
-const mockedExec = exec as jest.MockedFunction<typeof exec>;
+const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
 
 import * as fs from 'fs-extra';
 const mockedFs = fs as jest.Mocked<typeof fs>;
@@ -21,9 +21,10 @@ describe('Git Utilities', () => {
 
   describe('ensureGitInstalled', () => {
     it('should not throw when git is installed', async () => {
-      mockedExec.mockImplementation((command: string, callback?: any) => {
-        if (callback) {
-          callback(null, { stdout: 'git version 2.39.0', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, callback?: any) => {
+        const cb = typeof args === 'function' ? args : callback;
+        if (cb) {
+          cb(null, 'git version 2.39.0', '');
         }
         return {} as any;
       });
@@ -32,9 +33,10 @@ describe('Git Utilities', () => {
     });
 
     it('should throw error when git is not installed', async () => {
-      mockedExec.mockImplementation((command: string, callback?: any) => {
-        if (callback) {
-          callback(new Error('command not found: git'), { stdout: '', stderr: 'command not found: git' });
+      mockedExecFile.mockImplementation((file: string, args: any, callback?: any) => {
+        const cb = typeof args === 'function' ? args : callback;
+        if (cb) {
+          cb(new Error('command not found: git'), '', '');
         }
         return {} as any;
       });
@@ -45,9 +47,10 @@ describe('Git Utilities', () => {
     });
 
     it('should throw error when git command fails', async () => {
-      mockedExec.mockImplementation((command: string, callback?: any) => {
-        if (callback) {
-          callback(new Error('Exec failed'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, callback?: any) => {
+        const cb = typeof args === 'function' ? args : callback;
+        if (cb) {
+          cb(new Error('Exec failed'), '', '');
         }
         return {} as any;
       });
@@ -55,19 +58,19 @@ describe('Git Utilities', () => {
       await expect(ensureGitInstalled()).rejects.toThrow();
     });
 
-    it('should call git --version command', async () => {
-      mockedExec.mockImplementation((command: string, callback?: any) => {
-        expect(command).toBe('git --version');
-        if (callback) {
-          callback(null, { stdout: 'git version 2.39.0', stderr: '' });
+    it('should call git with --version argument', async () => {
+      mockedExecFile.mockImplementation((file: string, args: any, callback?: any) => {
+        const cb = typeof args === 'function' ? args : callback;
+        if (cb) {
+          cb(null, 'git version 2.39.0', '');
         }
         return {} as any;
       });
 
       await ensureGitInstalled();
-      expect(mockedExec).toHaveBeenCalled();
-      const firstCall = mockedExec.mock.calls[0][0];
-      expect(firstCall).toBe('git --version');
+      expect(mockedExecFile).toHaveBeenCalled();
+      expect(mockedExecFile.mock.calls[0][0]).toBe('git');
+      expect(mockedExecFile.mock.calls[0][1]).toEqual(['--version']);
     });
   });
 
@@ -83,7 +86,7 @@ describe('Git Utilities', () => {
 
       expect(result).toBe(`${mockTargetDir}/${mockRepoName}`);
       expect(mockedFs.pathExists).toHaveBeenCalledWith(`${mockTargetDir}/${mockRepoName}`);
-      expect(mockedExec).not.toHaveBeenCalled();
+      expect(mockedExecFile).not.toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('already exists, skipped')
       );
@@ -92,9 +95,10 @@ describe('Git Utilities', () => {
     it('should clone repository when it does not exist', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(null, { stdout: 'Cloning...', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, 'Cloning...', '');
         }
         return {} as any;
       });
@@ -104,47 +108,55 @@ describe('Git Utilities', () => {
       expect(result).toBe(`${mockTargetDir}/${mockRepoName}`);
       expect(mockedFs.pathExists).toHaveBeenCalledWith(`${mockTargetDir}/${mockRepoName}`);
       expect(mockedFs.ensureDir).toHaveBeenCalled();
-      expect(mockedExec).toHaveBeenCalled();
+      expect(mockedExecFile).toHaveBeenCalled();
     });
 
-    it('should use correct git clone command with flags', async () => {
+    it('should use correct git clone arguments', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        expect(command).toContain('git clone');
-        expect(command).toContain('--depth 1');
-        expect(command).toContain('--single-branch');
-        expect(command).toContain(mockGitUrl);
-        expect(command).toContain(`"${mockTargetDir}/${mockRepoName}"`);
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
 
       await cloneRepository(mockTargetDir, mockRepoName, mockGitUrl);
+
+      expect(mockedExecFile.mock.calls[0][0]).toBe('git');
+      expect(mockedExecFile.mock.calls[0][1]).toEqual([
+        'clone', '--depth', '1', '--single-branch',
+        mockGitUrl,
+        `${mockTargetDir}/${mockRepoName}`,
+      ]);
     });
 
     it('should have 60 second timeout for git clone', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        expect(options.timeout).toBe(60000);
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
 
       await cloneRepository(mockTargetDir, mockRepoName, mockGitUrl);
+
+      expect(mockedExecFile.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ timeout: 60000 })
+      );
     });
 
     it('should log progress messages', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
@@ -162,9 +174,10 @@ describe('Git Utilities', () => {
     it('should throw error when git clone fails', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error('Network error'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error('Network error'), '', '');
         }
         return {} as any;
       });
@@ -177,9 +190,10 @@ describe('Git Utilities', () => {
     it('should throw error when git clone times out', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error('Timeout'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error('Timeout'), '', '');
         }
         return {} as any;
       });
@@ -192,9 +206,10 @@ describe('Git Utilities', () => {
     it('should ensure parent directory exists before cloning', async () => {
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
@@ -203,7 +218,7 @@ describe('Git Utilities', () => {
 
       expect(mockedFs.ensureDir).toHaveBeenCalled();
       const ensureDirCallOrder = mockedFs.ensureDir.mock.invocationCallOrder[0];
-      const execCallOrder = mockedExec.mock.invocationCallOrder[0];
+      const execCallOrder = mockedExecFile.mock.invocationCallOrder[0];
       expect(ensureDirCallOrder).toBeLessThan(execCallOrder);
     });
 
@@ -211,15 +226,17 @@ describe('Git Utilities', () => {
       const specialUrl = 'https://github.com/org-name/repo-name_2.git';
       mockedFs.pathExists.mockResolvedValue(false as never);
       mockedFs.ensureDir.mockResolvedValue(undefined as never);
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        expect(command).toContain(`"${specialUrl}"`);
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
 
       await cloneRepository(mockTargetDir, mockRepoName, specialUrl);
+
+      expect(mockedExecFile.mock.calls[0][1]).toContain(specialUrl);
     });
   });
 
@@ -265,60 +282,70 @@ describe('Git Utilities', () => {
     const mockRepoPath = '/home/user/.ai-devkit/skills/anthropic/skills';
 
     it('should successfully pull repository', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(null, { stdout: 'Already up to date.', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, 'Already up to date.', '');
         }
         return {} as any;
       });
 
       await expect(pullRepository(mockRepoPath)).resolves.not.toThrow();
-      expect(mockedExec).toHaveBeenCalled();
+      expect(mockedExecFile).toHaveBeenCalled();
     });
 
-    it('should use correct git pull command', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        expect(command).toBe('git pull');
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+    it('should use correct git pull arguments', async () => {
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
 
       await pullRepository(mockRepoPath);
 
-      const firstCall = mockedExec.mock.calls[0][0];
-      expect(firstCall).toBe('git pull');
+      expect(mockedExecFile.mock.calls[0][0]).toBe('git');
+      expect(mockedExecFile.mock.calls[0][1]).toEqual(['pull']);
     });
 
     it('should set cwd to repository path', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        expect(options.cwd).toBe(mockRepoPath);
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
 
       await pullRepository(mockRepoPath);
+
+      expect(mockedExecFile.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ cwd: mockRepoPath })
+      );
     });
 
     it('should have 60 second timeout for git pull', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        expect(options.timeout).toBe(60000);
-        if (callback) {
-          callback(null, { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(null, '', '');
         }
         return {} as any;
       });
 
       await pullRepository(mockRepoPath);
+
+      expect(mockedExecFile.mock.calls[0][2]).toEqual(
+        expect.objectContaining({ timeout: 60000 })
+      );
     });
 
     it('should throw error when git pull fails', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error('You have unstaged changes'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error('You have unstaged changes'), '', '');
         }
         return {} as any;
       });
@@ -329,9 +356,10 @@ describe('Git Utilities', () => {
     });
 
     it('should throw error on network failure', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error('Network unreachable'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error('Network unreachable'), '', '');
         }
         return {} as any;
       });
@@ -342,9 +370,10 @@ describe('Git Utilities', () => {
     });
 
     it('should throw error on timeout', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error('Command timeout'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error('Command timeout'), '', '');
         }
         return {} as any;
       });
@@ -355,9 +384,10 @@ describe('Git Utilities', () => {
     });
 
     it('should handle merge conflicts error', async () => {
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error('CONFLICT: Merge conflict in file.txt'), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error('CONFLICT: Merge conflict in file.txt'), '', '');
         }
         return {} as any;
       });
@@ -369,9 +399,10 @@ describe('Git Utilities', () => {
 
     it('should preserve error message from git', async () => {
       const gitError = 'fatal: unable to access repository';
-      mockedExec.mockImplementation((command: string, options: any, callback?: any) => {
-        if (callback) {
-          callback(new Error(gitError), { stdout: '', stderr: '' });
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback?: any) => {
+        const cb = typeof options === 'function' ? options : callback;
+        if (cb) {
+          cb(new Error(gitError), '', '');
         }
         return {} as any;
       });
