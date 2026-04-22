@@ -5,6 +5,7 @@ import {
     AgentManager,
     ClaudeCodeAdapter,
     CodexAdapter,
+    GeminiCliAdapter,
     TerminalFocusManager,
     TtyWriter,
     type AgentAdapter,
@@ -30,6 +31,7 @@ function createAgentManager(): AgentManager {
     const manager = new AgentManager();
     manager.registerAdapter(new ClaudeCodeAdapter());
     manager.registerAdapter(new CodexAdapter());
+    manager.registerAdapter(new GeminiCliAdapter());
     return manager;
 }
 
@@ -37,6 +39,7 @@ function getAgentAdapter(agentType: string): AgentAdapter | null {
     const adapters: Record<string, AgentAdapter> = {
         claude: new ClaudeCodeAdapter(),
         codex: new CodexAdapter(),
+        gemini_cli: new GeminiCliAdapter(),
     };
     return adapters[agentType] ?? null;
 }
