@@ -22,7 +22,7 @@ This launches an interactive setup wizard that configures your project for AI-as
 |-------|---------------------|-----------------------|
 | [Claude Code](https://www.anthropic.com/claude-code) | ✅ Supported | ✅ Ready |
 | [GitHub Copilot](https://code.visualstudio.com/) | ✅ Supported | ❌ Not Ready |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ Supported | ❌ Not Ready |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ Supported | ✅ Ready |
 | [Cursor](https://cursor.sh/) | ✅ Supported | ❌ Not Ready |
 | [opencode](https://opencode.ai/) | ✅ Supported | ❌ Not Ready |
 | [Antigravity](https://antigravity.google/) | ✅ Supported | ❌ Not Ready |
