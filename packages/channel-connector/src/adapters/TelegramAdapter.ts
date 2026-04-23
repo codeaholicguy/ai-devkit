@@ -75,14 +75,23 @@ export class TelegramAdapter implements ChannelAdapter {
         }
     }
 
-    async sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<void> {
+    async sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<number> {
         const inlineKeyboard = buttons.map(row =>
             row.map(btn => ({ text: btn.text, callback_data: btn.callbackData }))
         );
-        await this.bot.telegram.sendMessage(chatId, text, {
+        const result = await this.bot.telegram.sendMessage(chatId, text, {
             parse_mode: 'HTML',
             reply_markup: { inline_keyboard: inlineKeyboard },
         });
+        return result.message_id;
+    }
+
+    async removeKeyboard(chatId: string, messageId: number): Promise<void> {
+        try {
+            await this.bot.telegram.editMessageReplyMarkup(chatId, messageId, undefined, { inline_keyboard: [] });
+        } catch {
+            // Message may already be gone
+        }
     }
 
     onCallbackQuery(handler: (query: CallbackQuery) => Promise<void>): void {

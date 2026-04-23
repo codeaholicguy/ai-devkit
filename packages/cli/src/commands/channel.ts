@@ -150,6 +150,7 @@ function startPermissionPolling(
     telegram: TelegramAdapter,
     terminalLocation: TerminalLocation,
     chatIdRef: { value: string | null },
+    keyboardRef: { chatId: string | null; messageId: number | null },
 ): NodeJS.Timeout {
     let lastPromptText: string | null = null;
 
@@ -165,7 +166,7 @@ function startPermissionPolling(
                     .replace(/&/g, '&amp;')
                     .replace(/</g, '&lt;')
                     .replace(/>/g, '&gt;');
-                await telegram.sendKeyboard(
+                const messageId = await telegram.sendKeyboard(
                     chatIdRef.value,
                     `⚠️ <b>Claude Code cần xác nhận:</b>\n\n<pre>${escaped}</pre>`,
                     [[
@@ -173,9 +174,15 @@ function startPermissionPolling(
                         { text: '❌ No', callbackData: 'permission:no' },
                     ]],
                 );
+                keyboardRef.chatId = chatIdRef.value;
+                keyboardRef.messageId = messageId;
                 debug('Permission prompt detected, sent keyboard to Telegram');
             } else if (!prompt && lastPromptText) {
                 lastPromptText = null;
+                if (keyboardRef.messageId) {
+                    await telegram.removeKeyboard(keyboardRef.chatId!, keyboardRef.messageId);
+                    keyboardRef.messageId = null;
+                }
                 debug('Permission prompt resolved');
             }
         } catch {
@@ -457,10 +464,15 @@ export function registerChannelCommand(program: Command): void {
                 setupInputHandler(telegram, terminalLocation, chatIdRef);
                 debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
                 const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
-                const permissionPollInterval = startPermissionPolling(telegram, terminalLocation, chatIdRef);
+                const keyboardRef = { chatId: null as string | null, messageId: null as number | null };
+                const permissionPollInterval = startPermissionPolling(telegram, terminalLocation, chatIdRef, keyboardRef);
 
                 telegram.onCallbackQuery(async (query) => {
                     if (!query.data.startsWith('permission:')) return;
+                    if (keyboardRef.messageId) {
+                        await telegram.removeKeyboard(keyboardRef.chatId!, keyboardRef.messageId);
+                        keyboardRef.messageId = null;
+                    }
                     const answer = query.data === 'permission:yes' ? 'y' : 'n';
                     debug(`Permission callback: ${query.data} → sending "${answer}" to terminal`);
                     await TtyWriter.send(terminalLocation, answer);

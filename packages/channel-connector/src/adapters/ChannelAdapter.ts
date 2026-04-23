@@ -26,7 +26,9 @@ export interface ChannelAdapter {
     /**
      * Send a message with an inline keyboard to a specific chat.
      */
-    sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<void>;
+    sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<number>;
+
+    removeKeyboard(chatId: string, messageId: number): Promise<void>;
 
     /**
      * Register a handler for inline keyboard button presses.
