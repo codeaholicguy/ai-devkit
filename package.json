@@ -28,9 +28,9 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@nx/js": "^22.4.0",
-    "husky": "^9.1.7",
-    "nx": "^22.4.0"
+    "@nx/js": "22.6.5",
+    "husky": "9.1.7",
+    "nx": "22.6.5"
   },
   "engines": {
     "node": ">=20.20.0"
