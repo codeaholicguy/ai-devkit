@@ -122,6 +122,68 @@ function stripSystemTags(content: string): string {
     return result.trim();
 }
 
+const PERMISSION_PATTERNS = [
+    /Allow\s+.+\?/i,
+    /Do you want to (allow|proceed|continue)/i,
+    /›\s*(Yes|No)/,
+    /❯\s*(Yes|No)/,
+    /\(y\/n\)/i,
+];
+
+function detectPermissionPrompt(output: string): string | null {
+    const lines = output.split('\n').filter(l => l.trim());
+    for (let i = 0; i < lines.length; i++) {
+        if (PERMISSION_PATTERNS.some(p => p.test(lines[i]))) {
+            const start = Math.max(0, i - 4);
+            const end = Math.min(lines.length, i + 2);
+            return lines
+                .slice(start, end)
+                .map(l => l.replace(/[^\x20-\x7E]/g, '').trim())
+                .filter(Boolean)
+                .join('\n');
+        }
+    }
+    return null;
+}
+
+function startPermissionPolling(
+    telegram: TelegramAdapter,
+    terminalLocation: TerminalLocation,
+    chatIdRef: { value: string | null },
+): NodeJS.Timeout {
+    let lastPromptText: string | null = null;
+
+    return setInterval(async () => {
+        if (!chatIdRef.value) return;
+        try {
+            const output = await TtyWriter.captureOutput(terminalLocation);
+            const prompt = detectPermissionPrompt(output);
+
+            if (prompt && prompt !== lastPromptText) {
+                lastPromptText = prompt;
+                const escaped = prompt
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+                await telegram.sendKeyboard(
+                    chatIdRef.value,
+                    `⚠️ <b>Claude Code cần xác nhận:</b>\n\n<pre>${escaped}</pre>`,
+                    [[
+                        { text: '✅ Yes', callbackData: 'permission:yes' },
+                        { text: '❌ No', callbackData: 'permission:no' },
+                    ]],
+                );
+                debug('Permission prompt detected, sent keyboard to Telegram');
+            } else if (!prompt && lastPromptText) {
+                lastPromptText = null;
+                debug('Permission prompt resolved');
+            }
+        } catch {
+            // Terminal may not be accessible
+        }
+    }, AGENT_POLL_INTERVAL_MS);
+}
+
 function startOutputPolling(
     telegram: TelegramAdapter,
     agentAdapter: AgentAdapter,
@@ -166,11 +228,16 @@ function startOutputPolling(
     }, AGENT_POLL_INTERVAL_MS);
 }
 
-function setupGracefulShutdown(manager: ChannelManager, pollInterval: NodeJS.Timeout): void {
+function setupGracefulShutdown(
+    manager: ChannelManager,
+    pollInterval: NodeJS.Timeout,
+    permissionPollInterval: NodeJS.Timeout,
+): void {
     const shutdown = async () => {
         debug('Shutdown signal received');
         ui.info('\nShutting down...');
         clearInterval(pollInterval);
+        clearInterval(permissionPollInterval);
         debug('Output polling stopped');
         await manager.stopAll();
         debug('ChannelManager stopped');
@@ -390,11 +457,19 @@ export function registerChannelCommand(program: Command): void {
                 setupInputHandler(telegram, terminalLocation, chatIdRef);
                 debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
                 const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
+                const permissionPollInterval = startPermissionPolling(telegram, terminalLocation, chatIdRef);
+
+                telegram.onCallbackQuery(async (query) => {
+                    if (!query.data.startsWith('permission:')) return;
+                    const answer = query.data === 'permission:yes' ? 'y' : 'n';
+                    debug(`Permission callback: ${query.data} → sending "${answer}" to terminal`);
+                    await TtyWriter.send(terminalLocation, answer);
+                });
 
                 // Start the bot
                 const manager = new ChannelManager();
                 manager.registerAdapter(telegram);
-                setupGracefulShutdown(manager, pollInterval);
+                setupGracefulShutdown(manager, pollInterval, permissionPollInterval);
 
                 ui.success(`Bridge started: Telegram @${telegramConfig.botUsername} <-> Agent "${agent.name}" (PID: ${agent.pid})`);
                 ui.info('Send a message to your Telegram bot to start chatting.');

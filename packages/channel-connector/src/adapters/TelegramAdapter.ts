@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
 import type { ChannelAdapter } from './ChannelAdapter';
-import type { IncomingMessage } from '../types';
+import type { IncomingMessage, KeyboardButton, CallbackQuery } from '../types';
 
 export const TELEGRAM_CHANNEL_TYPE = 'telegram';
 export const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
@@ -17,6 +17,7 @@ export class TelegramAdapter implements ChannelAdapter {
 
     private bot: Telegraf;
     private messageHandler: ((msg: IncomingMessage) => Promise<void>) | null = null;
+    private callbackHandler: ((query: CallbackQuery) => Promise<void>) | null = null;
     private running = false;
 
     constructor(options: TelegramAdapterOptions) {
@@ -43,6 +44,16 @@ export class TelegramAdapter implements ChannelAdapter {
             }
         });
 
+        this.bot.on('callback_query', async (ctx) => {
+            if (!this.callbackHandler || !('data' in ctx.callbackQuery)) return;
+            await ctx.answerCbQuery();
+            await this.callbackHandler({
+                id: String(ctx.callbackQuery.id),
+                chatId: String(ctx.callbackQuery.message?.chat.id ?? ''),
+                data: ctx.callbackQuery.data ?? '',
+            });
+        });
+
         await this.bot.launch();
         this.running = true;
     }
@@ -62,6 +73,20 @@ export class TelegramAdapter implements ChannelAdapter {
             const html = markdownToHtml(chunk);
             await this.bot.telegram.sendMessage(chatId, html, { parse_mode: 'HTML' });
         }
+    }
+
+    async sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<void> {
+        const inlineKeyboard = buttons.map(row =>
+            row.map(btn => ({ text: btn.text, callback_data: btn.callbackData }))
+        );
+        await this.bot.telegram.sendMessage(chatId, text, {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: inlineKeyboard },
+        });
+    }
+
+    onCallbackQuery(handler: (query: CallbackQuery) => Promise<void>): void {
+        this.callbackHandler = handler;
     }
 
     onMessage(handler: (msg: IncomingMessage) => Promise<void>): void {

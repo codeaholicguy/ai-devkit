@@ -32,6 +32,70 @@ export class TtyWriter {
      * @param message Text to send
      * @throws Error if terminal type is unsupported or send fails
      */
+    static async captureOutput(location: TerminalLocation, lines = 30): Promise<string> {
+        switch (location.type) {
+            case TerminalType.TMUX:
+                return TtyWriter.captureViaTmux(location.identifier, lines);
+            case TerminalType.ITERM2:
+                return TtyWriter.captureViaITerm2(location.tty, lines);
+            case TerminalType.TERMINAL_APP:
+                return TtyWriter.captureViaTerminalApp(location.tty, lines);
+            default:
+                return '';
+        }
+    }
+
+    private static async captureViaTmux(identifier: string, lines: number): Promise<string> {
+        try {
+            const { stdout } = await execFileAsync('tmux', ['capture-pane', '-t', identifier, '-p', '-J']);
+            return stdout.split('\n').slice(-lines).join('\n');
+        } catch {
+            return '';
+        }
+    }
+
+    private static async captureViaITerm2(tty: string, lines: number): Promise<string> {
+        const script = `
+tell application "iTerm"
+  repeat with w in windows
+    repeat with t in tabs of w
+      repeat with s in sessions of t
+        if tty of s is "${tty}" then
+          return contents of s
+        end if
+      end repeat
+    end repeat
+  end repeat
+end tell
+return ""`;
+        try {
+            const { stdout } = await execFileAsync('osascript', ['-e', script]);
+            return stdout.split('\n').slice(-lines).join('\n');
+        } catch {
+            return '';
+        }
+    }
+
+    private static async captureViaTerminalApp(tty: string, lines: number): Promise<string> {
+        const script = `
+tell application "Terminal"
+  repeat with w in windows
+    repeat with t in tabs of w
+      if tty of t is "${tty}" then
+        return contents of t
+      end if
+    end repeat
+  end repeat
+end tell
+return ""`;
+        try {
+            const { stdout } = await execFileAsync('osascript', ['-e', script]);
+            return stdout.split('\n').slice(-lines).join('\n');
+        } catch {
+            return '';
+        }
+    }
+
     static async send(location: TerminalLocation, message: string): Promise<void> {
         switch (location.type) {
             case TerminalType.TMUX:
