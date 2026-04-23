@@ -59,7 +59,8 @@ export class TelegramAdapter implements ChannelAdapter {
     async sendMessage(chatId: string, text: string): Promise<void> {
         const chunks = chunkMessage(text, TELEGRAM_MAX_MESSAGE_LENGTH);
         for (const chunk of chunks) {
-            await this.bot.telegram.sendMessage(chatId, chunk);
+            const html = markdownToHtml(chunk);
+            await this.bot.telegram.sendMessage(chatId, html, { parse_mode: 'HTML' });
         }
     }
 
@@ -107,4 +108,45 @@ function chunkMessage(text: string, maxLen: number): string[] {
     }
 
     return chunks;
+}
+
+function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Convert standard Markdown to Telegram HTML.
+ * Handles code blocks first to prevent formatting inside them.
+ */
+function markdownToHtml(text: string): string {
+    const codeBlocks: string[] = [];
+    const inlineCodes: string[] = [];
+
+    let result = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+        const escaped = escapeHtml(code.trimEnd());
+        const block = lang
+            ? `<pre><code class="language-${lang}">${escaped}</code></pre>`
+            : `<pre><code>${escaped}</code></pre>`;
+        codeBlocks.push(block);
+        return `\x00CODE${codeBlocks.length - 1}\x00`;
+    });
+
+    result = result.replace(/`([^`]+)`/g, (_, code) => {
+        inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
+        return `\x00INLINE${inlineCodes.length - 1}\x00`;
+    });
+
+    result = escapeHtml(result);
+
+    result = result
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        .replace(/__(.+?)__/g, '<b>$1</b>')
+        .replace(/\*(.+?)\*/g, '<i>$1</i>')
+        .replace(/_(.+?)_/g, '<i>$1</i>')
+        .replace(/~~(.+?)~~/g, '<s>$1</s>');
+
+    result = result.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[parseInt(i)]);
+    result = result.replace(/\x00INLINE(\d+)\x00/g, (_, i) => inlineCodes[parseInt(i)]);
+
+    return result;
 }
