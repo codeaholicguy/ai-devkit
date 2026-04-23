@@ -86,9 +86,12 @@ export class TelegramAdapter implements ChannelAdapter {
         return result.message_id;
     }
 
-    async removeKeyboard(chatId: string, messageId: number): Promise<void> {
+    async resolveKeyboard(chatId: string, messageId: number, label: string): Promise<void> {
         try {
-            await this.bot.telegram.editMessageReplyMarkup(chatId, messageId, undefined, { inline_keyboard: [] });
+            await this.bot.telegram.editMessageText(chatId, messageId, undefined, label, {
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: [] },
+            });
         } catch {
             // Message may already be gone
         }

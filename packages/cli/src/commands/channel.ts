@@ -180,7 +180,7 @@ function startPermissionPolling(
             } else if (!prompt && lastPromptText) {
                 lastPromptText = null;
                 if (keyboardRef.messageId) {
-                    await telegram.removeKeyboard(keyboardRef.chatId!, keyboardRef.messageId);
+                    await telegram.resolveKeyboard(keyboardRef.chatId!, keyboardRef.messageId, '✅ Đã xử lý tại terminal');
                     keyboardRef.messageId = null;
                 }
                 debug('Permission prompt resolved');
@@ -469,11 +469,12 @@ export function registerChannelCommand(program: Command): void {
 
                 telegram.onCallbackQuery(async (query) => {
                     if (!query.data.startsWith('permission:')) return;
+                        const answer = query.data === 'permission:yes' ? 'y' : 'n';
                     if (keyboardRef.messageId) {
-                        await telegram.removeKeyboard(keyboardRef.chatId!, keyboardRef.messageId);
+                        const label = answer === 'y' ? '✅ Đã xác nhận: Yes' : '❌ Đã xác nhận: No';
+                        await telegram.resolveKeyboard(keyboardRef.chatId!, keyboardRef.messageId, label);
                         keyboardRef.messageId = null;
                     }
-                    const answer = query.data === 'permission:yes' ? 'y' : 'n';
                     debug(`Permission callback: ${query.data} → sending "${answer}" to terminal`);
                     await TtyWriter.send(terminalLocation, answer);
                 });

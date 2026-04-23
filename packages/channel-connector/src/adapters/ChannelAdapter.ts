@@ -28,7 +28,7 @@ export interface ChannelAdapter {
      */
     sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<number>;
 
-    removeKeyboard(chatId: string, messageId: number): Promise<void>;
+    resolveKeyboard(chatId: string, messageId: number, label: string): Promise<void>;
 
     /**
      * Register a handler for inline keyboard button presses.
