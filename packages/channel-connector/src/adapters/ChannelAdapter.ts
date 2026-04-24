@@ -1,4 +1,4 @@
-import type { IncomingMessage } from '../types';
+import type { IncomingMessage, KeyboardButton, CallbackQuery } from '../types';
 
 /**
  * Interface for messaging platform adapters.
@@ -22,6 +22,18 @@ export interface ChannelAdapter {
      * (e.g., chunking at 4096 chars for Telegram).
      */
     sendMessage(chatId: string, text: string): Promise<void>;
+
+    /**
+     * Send a message with an inline keyboard to a specific chat.
+     */
+    sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<number>;
+
+    resolveKeyboard(chatId: string, messageId: number, label: string): Promise<void>;
+
+    /**
+     * Register a handler for inline keyboard button presses.
+     */
+    onCallbackQuery(handler: (query: CallbackQuery) => Promise<void>): void;
 
     /**
      * Register a handler for incoming text messages.

@@ -1,3 +1,14 @@
+export interface KeyboardButton {
+    text: string;
+    callbackData: string;
+}
+
+export interface CallbackQuery {
+    id: string;
+    chatId: string;
+    data: string;
+}
+
 /**
  * An incoming message from a messaging platform.
  * Generic — no agent-specific concepts.

@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
 import type { ChannelAdapter } from './ChannelAdapter';
-import type { IncomingMessage } from '../types';
+import type { IncomingMessage, KeyboardButton, CallbackQuery } from '../types';
 
 export const TELEGRAM_CHANNEL_TYPE = 'telegram';
 export const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
@@ -17,6 +17,7 @@ export class TelegramAdapter implements ChannelAdapter {
 
     private bot: Telegraf;
     private messageHandler: ((msg: IncomingMessage) => Promise<void>) | null = null;
+    private callbackHandler: ((query: CallbackQuery) => Promise<void>) | null = null;
     private running = false;
 
     constructor(options: TelegramAdapterOptions) {
@@ -43,6 +44,16 @@ export class TelegramAdapter implements ChannelAdapter {
             }
         });
 
+        this.bot.on('callback_query', async (ctx) => {
+            if (!this.callbackHandler || !('data' in ctx.callbackQuery)) return;
+            await ctx.answerCbQuery();
+            await this.callbackHandler({
+                id: String(ctx.callbackQuery.id),
+                chatId: String(ctx.callbackQuery.message?.chat.id ?? ''),
+                data: ctx.callbackQuery.data ?? '',
+            });
+        });
+
         await this.bot.launch();
         this.running = true;
     }
@@ -59,8 +70,35 @@ export class TelegramAdapter implements ChannelAdapter {
     async sendMessage(chatId: string, text: string): Promise<void> {
         const chunks = chunkMessage(text, TELEGRAM_MAX_MESSAGE_LENGTH);
         for (const chunk of chunks) {
-            await this.bot.telegram.sendMessage(chatId, chunk);
+            const html = markdownToHtml(chunk);
+            await this.bot.telegram.sendMessage(chatId, html, { parse_mode: 'HTML' });
         }
+    }
+
+    async sendKeyboard(chatId: string, text: string, buttons: KeyboardButton[][]): Promise<number> {
+        const inlineKeyboard = buttons.map(row =>
+            row.map(btn => ({ text: btn.text, callback_data: btn.callbackData }))
+        );
+        const result = await this.bot.telegram.sendMessage(chatId, text, {
+            parse_mode: 'HTML',
+            reply_markup: { inline_keyboard: inlineKeyboard },
+        });
+        return result.message_id;
+    }
+
+    async resolveKeyboard(chatId: string, messageId: number, label: string): Promise<void> {
+        try {
+            await this.bot.telegram.editMessageText(chatId, messageId, undefined, label, {
+                parse_mode: 'HTML',
+                reply_markup: { inline_keyboard: [] },
+            });
+        } catch {
+            // Message may already be gone
+        }
+    }
+
+    onCallbackQuery(handler: (query: CallbackQuery) => Promise<void>): void {
+        this.callbackHandler = handler;
     }
 
     onMessage(handler: (msg: IncomingMessage) => Promise<void>): void {
@@ -107,4 +145,45 @@ function chunkMessage(text: string, maxLen: number): string[] {
     }
 
     return chunks;
+}
+
+function escapeHtml(text: string): string {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/**
+ * Convert standard Markdown to Telegram HTML.
+ * Handles code blocks first to prevent formatting inside them.
+ */
+function markdownToHtml(text: string): string {
+    const codeBlocks: string[] = [];
+    const inlineCodes: string[] = [];
+
+    let result = text.replace(/```(\w*)\n?([\s\S]*?)```/g, (_, lang, code) => {
+        const escaped = escapeHtml(code.trimEnd());
+        const block = lang
+            ? `<pre><code class="language-${lang}">${escaped}</code></pre>`
+            : `<pre><code>${escaped}</code></pre>`;
+        codeBlocks.push(block);
+        return `\x00CODE${codeBlocks.length - 1}\x00`;
+    });
+
+    result = result.replace(/`([^`]+)`/g, (_, code) => {
+        inlineCodes.push(`<code>${escapeHtml(code)}</code>`);
+        return `\x00INLINE${inlineCodes.length - 1}\x00`;
+    });
+
+    result = escapeHtml(result);
+
+    result = result
+        .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
+        .replace(/__(.+?)__/g, '<b>$1</b>')
+        .replace(/\*(.+?)\*/g, '<i>$1</i>')
+        .replace(/_(.+?)_/g, '<i>$1</i>')
+        .replace(/~~(.+?)~~/g, '<s>$1</s>');
+
+    result = result.replace(/\x00CODE(\d+)\x00/g, (_, i) => codeBlocks[parseInt(i)]);
+    result = result.replace(/\x00INLINE(\d+)\x00/g, (_, i) => inlineCodes[parseInt(i)]);
+
+    return result;
 }
