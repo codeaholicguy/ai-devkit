@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.26.0",
+  "version": "0.27.0",
   "description": "A CLI toolkit for AI-assisted software development with phase templates and environment setup",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,9 +27,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ai-devkit/agent-manager": "0.9.0",
-    "@ai-devkit/channel-connector": "0.2.0",
-    "@ai-devkit/memory": "0.9.0",
+    "@ai-devkit/agent-manager": "0.10.0",
+    "@ai-devkit/channel-connector": "0.3.0",
+    "@ai-devkit/memory": "0.10.0",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "debug": "^4.4.3",
