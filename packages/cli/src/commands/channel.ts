@@ -37,15 +37,6 @@ function createAgentManager(): AgentManager {
     return manager;
 }
 
-function getAgentAdapter(agentType: string): AgentAdapter | null {
-    const adapters: Record<string, AgentAdapter> = {
-        claude: new ClaudeCodeAdapter(),
-        codex: new CodexAdapter(),
-        gemini_cli: new GeminiCliAdapter(),
-    };
-    return adapters[agentType] ?? null;
-}
-
 async function resolveTargetAgent(agentManager: AgentManager, agentName: string): Promise<AgentInfo | null> {
     const agents = await agentManager.listAgents();
 
@@ -324,7 +315,7 @@ export function registerChannelCommand(program: Command): void {
             debug(`Agent resolved: name=${agent.name}, type=${agent.type}, pid=${agent.pid}`);
             debug(`Agent session file: ${agent.sessionFilePath ?? 'none'}`);
 
-            const agentAdapter = getAgentAdapter(agent.type);
+            const agentAdapter = agentManager.getAdapter(agent.type);
             if (!agentAdapter) {
                 ui.error(`Unsupported agent type: ${agent.type}`);
                 return;

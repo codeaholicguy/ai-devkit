@@ -10,7 +10,6 @@ import {
     AgentStatus,
     TerminalFocusManager,
     TtyWriter,
-    type AgentAdapter,
     type AgentInfo,
     type AgentType,
 } from '@ai-devkit/agent-manager';
@@ -255,15 +254,7 @@ export function registerAgentCommand(program: Command): void {
         .option('--tail <n>', 'Show last N messages (default: 20)', '20')
         .option('--verbose', 'Include tool call/result details')
         .action(withErrorHandler('get agent detail', async (options) => {
-            const claudeAdapter = new ClaudeCodeAdapter();
-            const codexAdapter = new CodexAdapter();
-            const geminiAdapter = new GeminiCliAdapter();
-
-            const manager = new AgentManager();
-            manager.registerAdapter(claudeAdapter);
-            manager.registerAdapter(codexAdapter);
-            manager.registerAdapter(geminiAdapter);
-
+            const manager = createAgentManager();
             const agents = await manager.listAgents();
             if (agents.length === 0) {
                 ui.error('No running agents found.');
@@ -293,12 +284,7 @@ export function registerAgentCommand(program: Command): void {
                 return;
             }
 
-            const adapters: Record<string, AgentAdapter> = {
-                claude: claudeAdapter,
-                codex: codexAdapter,
-                gemini_cli: geminiAdapter,
-            };
-            const adapter = adapters[agent.type];
+            const adapter = manager.getAdapter(agent.type);
             if (!adapter) {
                 ui.error(`Unsupported agent type: ${agent.type}`);
                 return;

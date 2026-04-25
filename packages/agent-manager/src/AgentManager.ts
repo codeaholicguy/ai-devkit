@@ -67,8 +67,18 @@ export class AgentManager {
     }
 
     /**
+     * Get a registered adapter by type
+     *
+     * @param type Agent type to look up
+     * @returns The adapter, or undefined if not registered
+     */
+    getAdapter(type: string): AgentAdapter | undefined {
+        return this.adapters.get(type);
+    }
+
+    /**
      * Check if an adapter is registered for a specific type
-     * 
+     *
      * @param type Agent type to check
      * @returns True if adapter is registered
      */
