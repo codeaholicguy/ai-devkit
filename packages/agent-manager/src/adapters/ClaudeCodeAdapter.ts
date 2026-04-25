@@ -6,61 +6,33 @@ import { listAgentProcesses, enrichProcesses } from '../utils/process';
 import { batchGetSessionFileBirthtimes } from '../utils/session';
 import type { SessionFile } from '../utils/session';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
-/**
- * Entry in session JSONL file
- */
-interface ContentBlock {
-    type?: string;
-    text?: string;
-    content?: string;
-    name?: string;
-    input?: Record<string, unknown>;
-    tool_use_id?: string;
-    is_error?: boolean;
-}
-
-interface SessionEntry {
-    type?: string;
-    timestamp?: string;
-    cwd?: string;
-    message?: {
-        content?: string | ContentBlock[];
-    };
-}
+import { ClaudeSessionParser } from '../utils/ClaudeSessionParser';
+import type { ClaudeSession } from '../utils/ClaudeSessionParser';
 
 /**
- * Entry in ~/.claude/sessions/<pid>.json written by Claude Code
+ * Entry in ~/.claude/sessions/<pid>.json written by Claude Code.
+ * Maps a running process to its session file via PID.
  */
 interface PidFileEntry {
     pid: number;
     sessionId: string;
     cwd: string;
-    startedAt: number; // epoch milliseconds
+    /** Epoch milliseconds when the Claude Code process started */
+    startedAt: number;
     kind: string;
     entrypoint: string;
 }
 
 /**
- * A process directly matched to a session via PID file (authoritative path)
+ * A process directly matched to a session via PID file (authoritative path).
  */
 interface DirectMatch {
     process: ProcessInfo;
     sessionFile: SessionFile;
 }
 
-/**
- * Claude Code session information
- */
-interface ClaudeSession {
-    sessionId: string;
-    projectPath: string;
-    lastCwd?: string;
-    sessionStart: Date;
-    lastActive: Date;
-    lastEntryType?: string;
-    isInterrupted: boolean;
-    lastUserMessage?: string;
-}
+/** Maximum allowed delta (ms) between process start time and PID file startedAt. */
+const PID_FILE_STALENESS_MS = 60000;
 
 /**
  * Claude Code Adapter
@@ -77,16 +49,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     private projectsDir: string;
     private sessionsDir: string;
+    private parser: ClaudeSessionParser;
 
     constructor() {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
         this.projectsDir = path.join(homeDir, '.claude', 'projects');
         this.sessionsDir = path.join(homeDir, '.claude', 'sessions');
+        this.parser = new ClaudeSessionParser();
     }
 
-    /**
-     * Check if this adapter can handle a given process
-     */
     canHandle(processInfo: ProcessInfo): boolean {
         return this.isClaudeExecutable(processInfo.command);
     }
@@ -97,9 +68,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         return base === 'claude' || base === 'claude.exe';
     }
 
-    /**
-     * Detect running Claude Code agents
-     */
     async detectAgents(): Promise<AgentInfo[]> {
         const processes = enrichProcesses(listAgentProcesses('claude'));
         if (processes.length === 0) {
@@ -125,7 +93,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         // Build agents from direct (PID-file) matches
         for (const { process: proc, sessionFile } of direct) {
-            const sessionData = this.readSession(sessionFile.filePath, sessionFile.resolvedCwd);
+            const sessionData = this.parser.readSession(sessionFile.filePath, sessionFile.resolvedCwd);
             if (sessionData) {
                 agents.push(this.mapSessionToAgent(sessionData, proc, sessionFile));
             } else {
@@ -135,7 +103,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         // Build agents from legacy matches
         for (const match of legacyMatches) {
-            const sessionData = this.readSession(
+            const sessionData = this.parser.readSession(
                 match.session.filePath,
                 match.session.resolvedCwd,
             );
@@ -164,7 +132,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      * via a single batched stat call across all directories.
      */
     private discoverSessions(processes: ProcessInfo[]): SessionFile[] {
-        // Collect valid project dirs and map them back to their CWD
         const dirToCwd = new Map<string, string>();
 
         for (const proc of processes) {
@@ -184,10 +151,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         if (dirToCwd.size === 0) return [];
 
-        // Single batched stat call across all directories
         const files = batchGetSessionFileBirthtimes([...dirToCwd.keys()]);
 
-        // Set resolvedCwd based on which project dir the file belongs to
         for (const file of files) {
             file.resolvedCwd = dirToCwd.get(file.projectDir) || '';
         }
@@ -203,7 +168,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
      *   fallback — processes with no valid PID file (sent to legacy matching)
      *
      * Per-process fallback triggers on: file absent, malformed JSON,
-     * stale startedAt (>60 s from proc.startTime), or missing JSONL.
+     * stale startedAt (>60s from proc.startTime), or missing JSONL.
      */
     private tryPidFileMatching(processes: ProcessInfo[]): {
         direct: DirectMatch[];
@@ -222,7 +187,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 // Stale-file guard: reject PID files from a previous process with the same PID
                 if (proc.startTime) {
                     const deltaMs = Math.abs(proc.startTime.getTime() - entry.startedAt);
-                    if (deltaMs > 60000) {
+                    if (deltaMs > PID_FILE_STALENESS_MS) {
                         fallback.push(proc);
                         continue;
                     }
@@ -274,7 +239,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         return {
             name: generateAgentName(processInfo.cwd, processInfo.pid),
             type: this.type,
-            status: this.determineStatus(session),
+            status: this.parser.determineStatus(session),
             summary: session.lastUserMessage || 'Session started',
             pid: processInfo.pid,
             projectPath: sessionFile.resolvedCwd || processInfo.cwd || '',
@@ -297,320 +262,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         };
     }
 
-    /**
-     * Parse a single session file into ClaudeSession
-     */
-    private readSession(
-        filePath: string,
-        projectPath: string,
-    ): ClaudeSession | null {
-        const sessionId = path.basename(filePath, '.jsonl');
-
-        let content: string;
-        try {
-            content = fs.readFileSync(filePath, 'utf-8');
-        } catch {
-            return null;
-        }
-
-        const allLines = content.trim().split('\n');
-        if (allLines.length === 0) {
-            return null;
-        }
-
-        // Parse first line for sessionStart.
-        // Claude Code may emit a "file-history-snapshot" as the first entry, which
-        // stores its timestamp inside "snapshot.timestamp" rather than at the root.
-        let sessionStart: Date | null = null;
-        try {
-            const firstEntry = JSON.parse(allLines[0]);
-            const rawTs: string | undefined =
-                firstEntry.timestamp || firstEntry.snapshot?.timestamp;
-            if (rawTs) {
-                const ts = new Date(rawTs);
-                if (!Number.isNaN(ts.getTime())) {
-                    sessionStart = ts;
-                }
-            }
-        } catch {
-            /* skip */
-        }
-
-        // Parse all lines for session state (file already in memory)
-        let lastEntryType: string | undefined;
-        let lastActive: Date | undefined;
-        let lastCwd: string | undefined;
-        let isInterrupted = false;
-        let lastUserMessage: string | undefined;
-
-        for (const line of allLines) {
-            try {
-                const entry: SessionEntry = JSON.parse(line);
-
-                if (entry.timestamp) {
-                    const ts = new Date(entry.timestamp);
-                    if (!Number.isNaN(ts.getTime())) {
-                        lastActive = ts;
-                    }
-                }
-
-                if (typeof entry.cwd === 'string' && entry.cwd.trim().length > 0) {
-                    lastCwd = entry.cwd;
-                }
-
-                if (entry.type && !this.isMetadataEntryType(entry.type)) {
-                    lastEntryType = entry.type;
-
-                    if (entry.type === 'user') {
-                        const msgContent = entry.message?.content;
-                        isInterrupted =
-                            Array.isArray(msgContent) &&
-                            msgContent.some(
-                                (c) =>
-                                    (c.type === 'text' &&
-                                        c.text?.includes('[Request interrupted')) ||
-                                    (c.type === 'tool_result' &&
-                                        c.content?.includes('[Request interrupted')),
-                            );
-
-                        // Extract user message text for summary fallback
-                        const text = this.extractUserMessageText(msgContent);
-                        if (text) {
-                            lastUserMessage = text;
-                        }
-                    } else {
-                        isInterrupted = false;
-                    }
-                }
-            } catch {
-                continue;
-            }
-        }
-
-        return {
-            sessionId,
-            projectPath: projectPath || lastCwd || '',
-            lastCwd,
-            sessionStart: sessionStart || lastActive || new Date(),
-            lastActive: lastActive || new Date(),
-            lastEntryType,
-            isInterrupted,
-            lastUserMessage,
-        };
-    }
-
-    /**
-     * Determine agent status from session state
-     */
-    private determineStatus(session: ClaudeSession): AgentStatus {
-        if (!session.lastEntryType) {
-            return AgentStatus.UNKNOWN;
-        }
-
-        // No age-based IDLE override: every agent in the list is backed by
-        // a running process (found via ps), so the entry type is the best
-        // indicator of actual state.
-
-        if (session.lastEntryType === 'user') {
-            return session.isInterrupted
-                ? AgentStatus.WAITING
-                : AgentStatus.RUNNING;
-        }
-
-        if (
-            session.lastEntryType === 'progress' ||
-            session.lastEntryType === 'thinking'
-        ) {
-            return AgentStatus.RUNNING;
-        }
-
-        if (session.lastEntryType === 'assistant') {
-            return AgentStatus.WAITING;
-        }
-
-        if (session.lastEntryType === 'system') {
-            return AgentStatus.IDLE;
-        }
-
-        return AgentStatus.UNKNOWN;
-    }
-
-    /**
-     * Extract meaningful text from a user message content.
-     * Handles string and array formats, skill command expansion, and noise filtering.
-     */
-    private extractUserMessageText(
-        content: string | Array<{ type?: string; text?: string }> | undefined,
-    ): string | undefined {
-        if (!content) {
-            return undefined;
-        }
-
-        let raw: string | undefined;
-
-        if (typeof content === 'string') {
-            raw = content.trim();
-        } else if (Array.isArray(content)) {
-            for (const block of content) {
-                if (block.type === 'text' && block.text?.trim()) {
-                    raw = block.text.trim();
-                    break;
-                }
-            }
-        }
-
-        if (!raw) {
-            return undefined;
-        }
-
-        // Skill slash-command: extract /command-name and args
-        if (raw.startsWith('<command-message>')) {
-            return this.parseCommandMessage(raw);
-        }
-
-        // Expanded skill content: extract ARGUMENTS line if present, skip otherwise
-        if (raw.startsWith('Base directory for this skill:')) {
-            const argsMatch = raw.match(/\nARGUMENTS:\s*(.+)/);
-            return argsMatch?.[1]?.trim() || undefined;
-        }
-
-        // Filter noise
-        if (this.isNoiseMessage(raw)) {
-            return undefined;
-        }
-
-        return raw;
-    }
-
-    /**
-     * Parse a <command-message> string into "/command args" format.
-     */
-    private parseCommandMessage(raw: string): string | undefined {
-        const nameMatch = raw.match(/<command-name>([^<]+)<\/command-name>/);
-        const argsMatch = raw.match(/<command-args>([^<]+)<\/command-args>/);
-        const name = nameMatch?.[1]?.trim();
-        if (!name) {
-            return undefined;
-        }
-        const args = argsMatch?.[1]?.trim();
-        return args ? `${name} ${args}` : name;
-    }
-
-    /**
-     * Check if a message is noise (not a meaningful user intent).
-     */
-    private isNoiseMessage(text: string): boolean {
-        return (
-            text.startsWith('[Request interrupted') ||
-            text === 'Tool loaded.' ||
-            text.startsWith('This session is being continued')
-        );
-    }
-
-    /**
-     * Check if an entry type is metadata (not conversation state).
-     * These should not overwrite lastEntryType used for status determination.
-     */
-    private isMetadataEntryType(type: string): boolean {
-        return type === 'last-prompt' || type === 'file-history-snapshot';
-    }
-
-    /**
-     * Read the full conversation from a Claude Code session JSONL file.
-     *
-     * Default mode returns only text content from user/assistant/system messages.
-     * Verbose mode also includes tool_use and tool_result blocks.
-     */
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
-        const verbose = options?.verbose ?? false;
-
-        let content: string;
-        try {
-            content = fs.readFileSync(sessionFilePath, 'utf-8');
-        } catch {
-            return [];
-        }
-
-        const lines = content.trim().split('\n');
-        const messages: ConversationMessage[] = [];
-
-        for (const line of lines) {
-            let entry: SessionEntry;
-            try {
-                entry = JSON.parse(line);
-            } catch {
-                continue;
-            }
-
-            const entryType = entry.type;
-            if (!entryType || this.isMetadataEntryType(entryType)) continue;
-            if (entryType === 'progress' || entryType === 'thinking') continue;
-
-            let role: ConversationMessage['role'];
-            if (entryType === 'user') {
-                role = 'user';
-            } else if (entryType === 'assistant') {
-                role = 'assistant';
-            } else if (entryType === 'system') {
-                role = 'system';
-            } else {
-                continue;
-            }
-
-            const text = this.extractConversationContent(entry.message?.content, role, verbose);
-            if (!text) continue;
-
-            messages.push({
-                role,
-                content: text,
-                timestamp: entry.timestamp,
-            });
-        }
-
-        return messages;
+        return this.parser.getConversation(sessionFilePath, options);
     }
-
-    /**
-     * Extract displayable content from a message content field.
-     */
-    private extractConversationContent(
-        content: string | ContentBlock[] | undefined,
-        role: ConversationMessage['role'],
-        verbose: boolean,
-    ): string | undefined {
-        if (!content) return undefined;
-
-        if (typeof content === 'string') {
-            const trimmed = content.trim();
-            if (role === 'user' && this.isNoiseMessage(trimmed)) return undefined;
-            return trimmed || undefined;
-        }
-
-        if (!Array.isArray(content)) return undefined;
-
-        const parts: string[] = [];
-
-        for (const block of content) {
-            if (block.type === 'text' && block.text?.trim()) {
-                if (role === 'user' && this.isNoiseMessage(block.text.trim())) continue;
-                parts.push(block.text.trim());
-            } else if (block.type === 'tool_use' && verbose) {
-                const inputSummary = block.input?.file_path || block.input?.pattern || block.input?.command || '';
-                parts.push(`[Tool: ${block.name}]${inputSummary ? ' ' + inputSummary : ''}`);
-            } else if (block.type === 'tool_result' && verbose) {
-                const truncated = this.truncateToolResult(block.content || '');
-                const prefix = block.is_error ? '[Tool Error]' : '[Tool Result]';
-                parts.push(`${prefix} ${truncated}`);
-            }
-        }
-
-        return parts.length > 0 ? parts.join('\n') : undefined;
-    }
-
-    private truncateToolResult(content: string, maxLength = 200): string {
-        const firstLine = content.split('\n')[0] || '';
-        if (firstLine.length <= maxLength) return firstLine;
-        return firstLine.slice(0, maxLength - 3) + '...';
-    }
-
 }

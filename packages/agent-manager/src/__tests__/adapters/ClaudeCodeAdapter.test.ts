@@ -361,7 +361,7 @@ describe('ClaudeCodeAdapter', () => {
             (adapter as any).projectsDir = projectsDir;
 
             // Simulate JSONL disappearing between existence check and read
-            jest.spyOn(adapter as any, 'readSession').mockReturnValueOnce(null);
+            jest.spyOn((adapter as any).parser, 'readSession').mockReturnValueOnce(null);
 
             const agents = await adapter.detectAgents();
 
@@ -408,7 +408,7 @@ describe('ClaudeCodeAdapter', () => {
             ]);
 
             // Simulate JSONL disappearing between match and read
-            jest.spyOn(adapter as any, 'readSession').mockReturnValueOnce(null);
+            jest.spyOn((adapter as any).parser, 'readSession').mockReturnValueOnce(null);
 
             const agents = await adapter.detectAgents();
 
@@ -601,7 +601,7 @@ describe('ClaudeCodeAdapter', () => {
     describe('helper methods', () => {
         describe('determineStatus', () => {
             it('should return "unknown" for sessions with no last entry type', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -615,7 +615,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "waiting" for assistant entries', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -630,7 +630,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "waiting" for user interruption', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -645,7 +645,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "running" for user/progress entries', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -660,7 +660,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should not override status based on age (process is running)', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const oldDate = new Date(Date.now() - 10 * 60 * 1000);
                 const session = {
@@ -676,7 +676,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "idle" for system entries', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -691,7 +691,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "running" for thinking entries', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -706,7 +706,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "running" for progress entries', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -721,7 +721,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return "unknown" for unrecognized entry types', () => {
-                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const determineStatus = (adapter as any).parser.determineStatus.bind((adapter as any).parser);
 
                 const session = {
                     sessionId: 'test',
@@ -738,12 +738,12 @@ describe('ClaudeCodeAdapter', () => {
 
         describe('extractUserMessageText', () => {
             it('should extract plain string content', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
                 expect(extract('hello world')).toBe('hello world');
             });
 
             it('should extract text from array content blocks', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 const content = [
                     { type: 'tool_result', content: 'some result' },
@@ -753,7 +753,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return undefined for empty/null content', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 expect(extract(undefined)).toBeUndefined();
                 expect(extract('')).toBeUndefined();
@@ -761,35 +761,35 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should parse command-message tags', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 const msg = '<command-message><command-name>commit</command-name><command-args>fix bug</command-args></command-message>';
                 expect(extract(msg)).toBe('commit fix bug');
             });
 
             it('should parse command-message without args', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 const msg = '<command-message><command-name>help</command-name></command-message>';
                 expect(extract(msg)).toBe('help');
             });
 
             it('should extract ARGUMENTS from skill expansion', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 const msg = 'Base directory for this skill: /some/path\n\nSome instructions\n\nARGUMENTS: implement the feature';
                 expect(extract(msg)).toBe('implement the feature');
             });
 
             it('should return undefined for skill expansion without ARGUMENTS', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 const msg = 'Base directory for this skill: /some/path\n\nSome instructions only';
                 expect(extract(msg)).toBeUndefined();
             });
 
             it('should filter noise messages', () => {
-                const extract = (adapter as any).extractUserMessageText.bind(adapter);
+                const extract = (adapter as any).parser['extractUserMessageText'].bind((adapter as any).parser);
 
                 expect(extract('[Request interrupted by user]')).toBeUndefined();
                 expect(extract('Tool loaded.')).toBeUndefined();
@@ -799,7 +799,7 @@ describe('ClaudeCodeAdapter', () => {
 
         describe('parseCommandMessage', () => {
             it('should return undefined for malformed command-message', () => {
-                const parse = (adapter as any).parseCommandMessage.bind(adapter);
+                const parse = (adapter as any).parser['parseCommandMessage'].bind((adapter as any).parser);
                 expect(parse('<command-message>no tags</command-message>')).toBeUndefined();
             });
         });
@@ -977,7 +977,7 @@ describe('ClaudeCodeAdapter', () => {
 
         describe('readSession', () => {
             it('should parse session file with timestamps, cwd, and entry type', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'test-session.jsonl');
                 const lines = [
@@ -999,7 +999,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should detect user interruption', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'interrupted.jsonl');
                 const lines = [
@@ -1019,7 +1019,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return session with defaults for empty file', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'empty.jsonl');
                 fs.writeFileSync(filePath, '');
@@ -1030,12 +1030,12 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should return null for non-existent file', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
                 expect(readSession(path.join(tmpDir, 'nonexistent.jsonl'), '/test')).toBeNull();
             });
 
             it('should skip metadata entry types for lastEntryType', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'metadata-test.jsonl');
                 const lines = [
@@ -1051,7 +1051,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should parse snapshot.timestamp from file-history-snapshot first entry', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'snapshot-ts.jsonl');
                 const lines = [
@@ -1070,7 +1070,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should extract lastUserMessage from session entries', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'user-msg.jsonl');
                 const lines = [
@@ -1086,7 +1086,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should use lastCwd as projectPath when projectPath is empty', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'no-project.jsonl');
                 const lines = [
@@ -1099,7 +1099,7 @@ describe('ClaudeCodeAdapter', () => {
             });
 
             it('should handle malformed JSON lines gracefully', () => {
-                const readSession = (adapter as any).readSession.bind(adapter);
+                const readSession = (adapter as any).parser.readSession.bind((adapter as any).parser);
 
                 const filePath = path.join(tmpDir, 'malformed.jsonl');
                 const lines = [
