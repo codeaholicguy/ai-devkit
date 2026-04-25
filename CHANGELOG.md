@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Check Status Path Traversal** - Validated `FEATURE` argument in `check-status.sh` to prevent path traversal (#66).
+- **Shell Injection in TerminalFocusManager** - Fixed `execAsync` calls to use array arguments instead of string interpolation, preventing potential shell injection.
+
+### Changed
+
+- **SkillManager Refactor** - Split `SkillManager` into dedicated `SkillIndex` and `SkillRegistry` modules for better separation of concerns.
+- **ClaudeCodeAdapter Refactor** - Extracted session parsing logic from `ClaudeCodeAdapter` into a standalone `ClaudeSessionParser` utility.
+- **Centralized Error Handling** - Added `withErrorHandler` utility for consistent error handling across CLI commands (`agent`, `channel`, `memory`, `skill`).
+- **AgentManager getAdapter** - Added `getAdapter()` method to `AgentManager`, reducing adapter resolution duplication in CLI commands.
+- **Standardized Error Types** - Updated all try-catch blocks to use `unknown` error type for type safety.
+- **Environment Code Consistency** - Renamed environment code references for consistency across CLI (`init`, `Config`, `EnvironmentSelector`, `TemplateManager`).
+- **Code Cleanup** - Removed stray `console.log` statements, cleaned up tests, and added `.editorconfig`.
+
 ## [0.26.0] - 2026-04-22
 
 ### Added
@@ -310,7 +327,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Comprehensive Documentation** - Added extensive documentation pages for:
   - Getting Started guide
   - Supported AI agents reference
-  - Development with AI DevKit 
+  - Development with AI DevKit
   - Debug workflows
   - Understanding existing code
   - Memory service usage
