@@ -1,8 +1,7 @@
-import { exec, execFile } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { getProcessTty } from '../utils/process';
 
-const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
 
 export enum TerminalType {
@@ -16,6 +15,10 @@ export interface TerminalLocation {
     type: TerminalType;
     identifier: string; // e.g., "session:window.pane" for tmux, or TTY for others
     tty: string;        // e.g., "/dev/ttys030"
+}
+
+function escapeAppleScript(text: string): string {
+    return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 export class TerminalFocusManager {
@@ -67,17 +70,16 @@ export class TerminalFocusManager {
                 default:
                     return false;
             }
-        } catch (error) {
+        } catch {
             return false;
         }
     }
 
     private async findTmuxPane(tty: string): Promise<TerminalLocation | null> {
         try {
-            // List all panes with their TTYs and identifiers
-            // Format: /dev/ttys001|my-session:1.1
-            // using | as separator to handle spaces in session names
-            const { stdout } = await execAsync("tmux list-panes -a -F '#{pane_tty}|#{session_name}:#{window_index}.#{pane_index}'");
+            const { stdout } = await execFileAsync('tmux', [
+                'list-panes', '-a', '-F', '#{pane_tty}|#{session_name}:#{window_index}.#{pane_index}'
+            ]);
 
             const lines = stdout.trim().split('\n');
             for (const line of lines) {
@@ -91,7 +93,7 @@ export class TerminalFocusManager {
                     };
                 }
             }
-        } catch (error) {
+        } catch {
             // tmux might not be installed or running
         }
         return null;
@@ -100,15 +102,19 @@ export class TerminalFocusManager {
     private async findITerm2Session(tty: string): Promise<TerminalLocation | null> {
         try {
             // Check if iTerm2 is running first to avoid launching it
-            const { stdout: isRunning } = await execAsync('pgrep -x iTerm2 || echo "no"');
-            if (isRunning.trim() === "no") return null;
+            await execFileAsync('pgrep', ['-x', 'iTerm2']);
+        } catch {
+            return null;
+        }
 
+        try {
+            const escapedTty = escapeAppleScript(tty);
             const script = `
         tell application "iTerm"
           repeat with w in windows
             repeat with t in tabs of w
               repeat with s in sessions of t
-                if tty of s is "${tty}" then
+                if tty of s is "${escapedTty}" then
                   return "found"
                 end if
               end repeat
@@ -117,7 +123,7 @@ export class TerminalFocusManager {
         end tell
       `;
 
-            const { stdout } = await execAsync(`osascript -e '${script}'`);
+            const { stdout } = await execFileAsync('osascript', ['-e', script]);
             if (stdout.trim() === "found") {
                 return {
                     type: TerminalType.ITERM2,
@@ -125,23 +131,27 @@ export class TerminalFocusManager {
                     tty
                 };
             }
-        } catch (error) {
-            // iTerm2 not found or script failed
+        } catch {
+            // iTerm2 script failed
         }
         return null;
     }
 
     private async findTerminalAppWindow(tty: string): Promise<TerminalLocation | null> {
         try {
-            // Check if Terminal is running
-            const { stdout: isRunning } = await execAsync('ps -eo pid=,comm= | grep "Terminal.app" || echo "no"');
-            if (isRunning.trim() === "no") return null;
+            // Check if Terminal.app is running
+            await execFileAsync('pgrep', ['-x', 'Terminal']);
+        } catch {
+            return null;
+        }
 
+        try {
+            const escapedTty = escapeAppleScript(tty);
             const script = `
         tell application "Terminal"
           repeat with w in windows
             repeat with t in tabs of w
-              if tty of t is "${tty}" then
+              if tty of t is "${escapedTty}" then
                 return "found"
               end if
             end repeat
@@ -149,7 +159,7 @@ export class TerminalFocusManager {
         end tell
       `;
 
-            const { stdout } = await execAsync(`osascript -e '${script}'`);
+            const { stdout } = await execFileAsync('osascript', ['-e', script]);
             if (stdout.trim() === "found") {
                 return {
                     type: TerminalType.TERMINAL_APP,
@@ -157,8 +167,8 @@ export class TerminalFocusManager {
                     tty
                 };
             }
-        } catch (error) {
-            // Terminal not found or script failed
+        } catch {
+            // Terminal.app script failed
         }
         return null;
     }
@@ -167,19 +177,20 @@ export class TerminalFocusManager {
         try {
             await execFileAsync('tmux', ['switch-client', '-t', identifier]);
             return true;
-        } catch (error) {
+        } catch {
             return false;
         }
     }
 
     private async focusITerm2Session(tty: string): Promise<boolean> {
+        const escapedTty = escapeAppleScript(tty);
         const script = `
        tell application "iTerm"
          activate
          repeat with w in windows
            repeat with t in tabs of w
              repeat with s in sessions of t
-               if tty of s is "${tty}" then
+               if tty of s is "${escapedTty}" then
                  select s
                  return "true"
                end if
@@ -188,17 +199,18 @@ export class TerminalFocusManager {
          end repeat
        end tell
      `;
-        const { stdout } = await execAsync(`osascript -e '${script}'`);
+        const { stdout } = await execFileAsync('osascript', ['-e', script]);
         return stdout.trim() === "true";
     }
 
     private async focusTerminalAppWindow(tty: string): Promise<boolean> {
+        const escapedTty = escapeAppleScript(tty);
         const script = `
        tell application "Terminal"
          activate
          repeat with w in windows
            repeat with t in tabs of w
-             if tty of t is "${tty}" then
+             if tty of t is "${escapedTty}" then
                set index of w to 1
                set selected tab of w to t
                return "true"
@@ -207,7 +219,7 @@ export class TerminalFocusManager {
          end repeat
        end tell
     `;
-        const { stdout } = await execAsync(`osascript -e '${script}'`);
+        const { stdout } = await execFileAsync('osascript', ['-e', script]);
         return stdout.trim() === "true";
     }
 }

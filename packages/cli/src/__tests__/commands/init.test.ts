@@ -40,11 +40,11 @@ const mockUi: any = {
 
 const mockPrompt: any = jest.fn();
 const mockLoadInitTemplate: any = jest.fn();
-const mockExecSync: any = jest.fn();
+const mockExecFileSync: any = jest.fn();
 const mockIsInteractiveTerminal: any = jest.fn();
 
 jest.mock('child_process', () => ({
-  execSync: (...args: unknown[]) => mockExecSync(...args)
+  execFileSync: (...args: unknown[]) => mockExecFileSync(...args)
 }));
 
 jest.mock('inquirer', () => ({
@@ -93,7 +93,7 @@ describe('init command', () => {
     jest.clearAllMocks();
     process.exitCode = undefined;
 
-    mockExecSync.mockReturnValue(undefined);
+    mockExecFileSync.mockReturnValue(undefined);
     mockPrompt.mockResolvedValue({});
 
     mockConfigManager.exists.mockResolvedValue(false);

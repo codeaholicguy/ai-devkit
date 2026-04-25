@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import {
     listAgentProcesses,
     batchGetProcessCwds,
@@ -12,18 +12,18 @@ import {
 } from '../../utils/process';
 
 jest.mock('child_process', () => ({
-    execSync: jest.fn(),
+    execFileSync: jest.fn(),
 }));
 
-const mockedExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockedExecFileSync = execFileSync as jest.MockedFunction<typeof execFileSync>;
 
 describe('listAgentProcesses', () => {
     beforeEach(() => {
-        mockedExecSync.mockReset();
+        mockedExecFileSync.mockReset();
     });
 
     it('should parse ps aux | grep output and post-filter by executable name', () => {
-        mockedExecSync.mockReturnValue(
+        mockedExecFileSync.mockReturnValue(
             'user  78070  1.0  0.5 485636016 245952 s018  S+   11:18PM   1:55.14 claude\n' +
             'user  55106  0.1  0.4 485620368  72496 s015  S+    9Mar26   8:06.36 claude\n',
         );
@@ -38,7 +38,7 @@ describe('listAgentProcesses', () => {
     });
 
     it('should filter out non-matching executables', () => {
-        mockedExecSync.mockReturnValue(
+        mockedExecFileSync.mockReturnValue(
             'user  100  0.0  0.0 0 0 s001  S  1:00PM  0:00 claude\n' +
             'user  200  0.0  0.0 0 0 s002  S  1:00PM  0:00 claude-helper --pid 100\n' +
             'user  300  0.0  0.0 0 0 s003  S  1:00PM  0:00 /usr/bin/claude\n',
@@ -50,46 +50,46 @@ describe('listAgentProcesses', () => {
     });
 
     it('should return empty array on command failure', () => {
-        mockedExecSync.mockImplementation(() => { throw new Error('fail'); });
+        mockedExecFileSync.mockImplementation(() => { throw new Error('fail'); });
         expect(listAgentProcesses('claude')).toEqual([]);
     });
 
     it('should handle empty output', () => {
-        mockedExecSync.mockReturnValue('');
+        mockedExecFileSync.mockReturnValue('');
         expect(listAgentProcesses('claude')).toEqual([]);
     });
 
     it('should reject empty pattern', () => {
         expect(listAgentProcesses('')).toEqual([]);
-        expect(mockedExecSync).not.toHaveBeenCalled();
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
     });
 
     it('should reject patterns with shell injection characters', () => {
         expect(listAgentProcesses('claude; rm -rf /')).toEqual([]);
         expect(listAgentProcesses("claude' || true")).toEqual([]);
         expect(listAgentProcesses('$(whoami)')).toEqual([]);
-        expect(mockedExecSync).not.toHaveBeenCalled();
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
     });
 
     it('should accept valid patterns with dashes and underscores', () => {
-        mockedExecSync.mockReturnValue('');
+        mockedExecFileSync.mockReturnValue('');
         listAgentProcesses('claude-code');
-        expect(mockedExecSync).toHaveBeenCalled();
+        expect(mockedExecFileSync).toHaveBeenCalled();
 
-        mockedExecSync.mockReset();
-        mockedExecSync.mockReturnValue('');
+        mockedExecFileSync.mockReset();
+        mockedExecFileSync.mockReturnValue('');
         listAgentProcesses('my_agent');
-        expect(mockedExecSync).toHaveBeenCalled();
+        expect(mockedExecFileSync).toHaveBeenCalled();
     });
 });
 
 describe('batchGetProcessCwds', () => {
     beforeEach(() => {
-        mockedExecSync.mockReset();
+        mockedExecFileSync.mockReset();
     });
 
     it('should parse batched lsof output', () => {
-        mockedExecSync.mockReturnValue(
+        mockedExecFileSync.mockReturnValue(
             'p78070\nn/Users/user/ai-devkit\np55106\nn/Users/user/other-project\n',
         );
 
@@ -104,7 +104,7 @@ describe('batchGetProcessCwds', () => {
 
     it('should return partial results when lsof succeeds for some PIDs', () => {
         // lsof might not return entries for dead processes
-        mockedExecSync.mockReturnValue(
+        mockedExecFileSync.mockReturnValue(
             'p78070\nn/Users/user/ai-devkit\n',
         );
 
@@ -114,7 +114,7 @@ describe('batchGetProcessCwds', () => {
     });
 
     it('should return empty map on total failure', () => {
-        mockedExecSync.mockImplementation(() => { throw new Error('fail'); });
+        mockedExecFileSync.mockImplementation(() => { throw new Error('fail'); });
         const cwds = batchGetProcessCwds([78070]);
         // Falls through to pwdx fallback which also fails
         expect(cwds.size).toBe(0);
@@ -123,11 +123,11 @@ describe('batchGetProcessCwds', () => {
 
 describe('batchGetProcessStartTimes', () => {
     beforeEach(() => {
-        mockedExecSync.mockReset();
+        mockedExecFileSync.mockReset();
     });
 
     it('should parse ps lstart output', () => {
-        mockedExecSync.mockReturnValue(
+        mockedExecFileSync.mockReturnValue(
             ' 78070 Wed Mar 18 23:18:01 2026\n' +
             ' 55106 Mon Mar  9 21:41:42 2026\n',
         );
@@ -143,7 +143,7 @@ describe('batchGetProcessStartTimes', () => {
     });
 
     it('should skip lines with unparseable dates', () => {
-        mockedExecSync.mockReturnValue(
+        mockedExecFileSync.mockReturnValue(
             ' 78070 Wed Mar 18 23:18:01 2026\n' +
             ' 99999 INVALID_DATE\n',
         );
@@ -154,20 +154,20 @@ describe('batchGetProcessStartTimes', () => {
     });
 
     it('should return empty map on failure', () => {
-        mockedExecSync.mockImplementation(() => { throw new Error('fail'); });
+        mockedExecFileSync.mockImplementation(() => { throw new Error('fail'); });
         expect(batchGetProcessStartTimes([78070])).toEqual(new Map());
     });
 });
 
 describe('enrichProcesses', () => {
     beforeEach(() => {
-        mockedExecSync.mockReset();
+        mockedExecFileSync.mockReset();
     });
 
     it('should populate cwd and startTime on processes', () => {
         // First call: batchGetProcessCwds (lsof)
         // Second call: batchGetProcessStartTimes (ps lstart)
-        mockedExecSync
+        mockedExecFileSync
             .mockReturnValueOnce('p100\nn/projects/app\n')
             .mockReturnValueOnce(' 100 Wed Mar 18 23:18:01 2026\n');
 
@@ -182,12 +182,12 @@ describe('enrichProcesses', () => {
 
     it('should return empty array for empty input', () => {
         expect(enrichProcesses([])).toEqual([]);
-        expect(mockedExecSync).not.toHaveBeenCalled();
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
     });
 
     it('should handle partial failures', () => {
         // lsof succeeds, ps lstart fails
-        mockedExecSync
+        mockedExecFileSync
             .mockReturnValueOnce('p100\nn/projects/app\n')
             .mockImplementationOnce(() => { throw new Error('fail'); });
 

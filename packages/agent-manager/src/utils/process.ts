@@ -2,19 +2,18 @@
  * Process Detection Utilities
  *
  * Shared shell command wrappers for detecting and inspecting running processes.
- * All execSync calls for process data live here — adapters must not call execSync directly.
+ * All execFileSync calls for process data live here — adapters must not call execFileSync directly.
  */
 
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import type { ProcessInfo } from '../adapters/AgentAdapter';
 
 /**
  * List running processes matching an agent executable name.
  *
- * Uses `ps aux | grep <pattern>` at shell level for performance, then post-filters
- * by checking that the executable basename matches exactly (avoids matching
- * `claude-helper`, `vscode-claude-extension`, or the grep process itself).
+ * Uses `ps aux` then filters in JS for exact executable basename match.
+ * This avoids shell pipelines and string interpolation.
  *
  * Returned ProcessInfo has pid, command, tty populated.
  * cwd and startTime are NOT populated — call enrichProcesses() to fill them.
@@ -26,14 +25,9 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
     }
 
     try {
-        // Use [c]laude trick to avoid matching the grep process itself
-        const escapedPattern = `[${namePattern[0]}]${namePattern.slice(1)}`;
+        const output = execFileSync('ps', ['aux'], { encoding: 'utf-8' });
 
-        const output = execSync(
-            `ps aux | grep -i '${escapedPattern}'`,
-            { encoding: 'utf-8' },
-        );
-
+        const lowerPattern = namePattern.toLowerCase();
         const processes: ProcessInfo[] = [];
 
         for (const line of output.trim().split('\n')) {
@@ -48,10 +42,10 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
             const tty = parts[6];
             const command = parts.slice(10).join(' ');
 
-            // Post-filter: check that the executable basename matches exactly
+            // Check that the executable basename matches exactly
             const executable = command.trim().split(/\s+/)[0] || '';
             const base = path.basename(executable).toLowerCase();
-            if (base !== namePattern.toLowerCase() && base !== `${namePattern.toLowerCase()}.exe`) {
+            if (base !== lowerPattern && base !== `${lowerPattern}.exe`) {
                 continue;
             }
 
@@ -82,9 +76,9 @@ export function batchGetProcessCwds(pids: number[]): Map<number, string> {
     if (pids.length === 0) return result;
 
     try {
-        const output = execSync(
-            `lsof -a -d cwd -Fn -p ${pids.join(',')} 2>/dev/null`,
-            { encoding: 'utf-8' },
+        const output = execFileSync(
+            'lsof', ['-a', '-d', 'cwd', '-Fn', '-p', pids.join(',')],
+            { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] },
         );
 
         // lsof output format: p{PID}\nn{path}\np{PID}\nn{path}...
@@ -101,7 +95,10 @@ export function batchGetProcessCwds(pids: number[]): Map<number, string> {
         // Try per-PID fallback with pwdx (Linux)
         for (const pid of pids) {
             try {
-                const output = execSync(`pwdx ${pid} 2>/dev/null`, { encoding: 'utf-8' });
+                const output = execFileSync(
+                    'pwdx', [String(pid)],
+                    { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] },
+                );
                 const match = output.match(/^\d+:\s*(.+)$/);
                 if (match) {
                     result.set(pid, match[1].trim());
@@ -127,8 +124,8 @@ export function batchGetProcessStartTimes(pids: number[]): Map<number, Date> {
     if (pids.length === 0) return result;
 
     try {
-        const output = execSync(
-            `ps -o pid=,lstart= -p ${pids.join(',')}`,
+        const output = execFileSync(
+            'ps', ['-o', 'pid=,lstart=', '-p', pids.join(',')],
             { encoding: 'utf-8' },
         );
 
@@ -185,9 +182,10 @@ export function enrichProcesses(processes: ProcessInfo[]): ProcessInfo[] {
  */
 export function getProcessTty(pid: number): string {
     try {
-        const output = execSync(`ps -p ${pid} -o tty=`, {
-            encoding: 'utf-8',
-        });
+        const output = execFileSync(
+            'ps', ['-p', String(pid), '-o', 'tty='],
+            { encoding: 'utf-8' },
+        );
 
         const tty = output.trim();
         return tty.startsWith('/dev/') ? tty.slice(5) : tty;
@@ -195,4 +193,3 @@ export function getProcessTty(pid: number): string {
         return '?';
     }
 }
-

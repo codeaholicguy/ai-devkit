@@ -1,4 +1,4 @@
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import inquirer from 'inquirer';
 import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants';
 import { ConfigManager } from '../lib/Config';
@@ -14,7 +14,7 @@ import { ui } from '../util/terminal-ui';
 
 function isGitAvailable(): boolean {
   try {
-    execSync('git --version', { stdio: 'ignore' });
+    execFileSync('git', ['--version'], { stdio: 'ignore' });
     return true;
   } catch {
     return false;
@@ -30,10 +30,10 @@ function ensureGitRepository(): void {
   }
 
   try {
-    execSync('git rev-parse --is-inside-work-tree', { stdio: 'ignore' });
+    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'ignore' });
   } catch {
     try {
-      execSync('git init', { stdio: 'ignore' });
+      execFileSync('git', ['init'], { stdio: 'ignore' });
       ui.success('Initialized a new git repository');
     } catch (error) {
       ui.error(
