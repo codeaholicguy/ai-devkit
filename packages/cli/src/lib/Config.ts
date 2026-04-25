@@ -124,9 +124,9 @@ export class ConfigManager {
     return this.update({ environments });
   }
 
-  async hasEnvironment(envId: EnvironmentCode): Promise<boolean> {
+  async hasEnvironment(envCode: EnvironmentCode): Promise<boolean> {
     const environments = await this.getEnvironments();
-    return environments.includes(envId);
+    return environments.includes(envCode);
   }
 
   async addSkill(skill: ConfigSkill): Promise<DevKitConfig> {

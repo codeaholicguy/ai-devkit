@@ -206,9 +206,9 @@ export async function initCommand(options: InitOptions) {
     }
   }
   const existingEnvironments: EnvironmentCode[] = [];
-  for (const envId of selectedEnvironments) {
-    if (await templateManager.checkEnvironmentExists(envId)) {
-      existingEnvironments.push(envId);
+  for (const envCode of selectedEnvironments) {
+    if (await templateManager.checkEnvironmentExists(envCode)) {
+      existingEnvironments.push(envCode);
     }
   }
 

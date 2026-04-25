@@ -325,7 +325,7 @@ This is the prompt content.`;
 
   describe('setupMultipleEnvironments', () => {
     it('should setup multiple environments successfully', async () => {
-      const envIds: EnvironmentCode[] = ['cursor', 'gemini'];
+      const envCodes: EnvironmentCode[] = ['cursor', 'gemini'];
       const cursorEnv = {
         code: 'cursor',
         name: 'Cursor',
@@ -352,7 +352,7 @@ This is the prompt content.`;
 
       (templateManager as any).setupSingleEnvironment = mockSetupSingleEnvironment;
 
-      const result = await templateManager.setupMultipleEnvironments(envIds);
+      const result = await templateManager.setupMultipleEnvironments(envCodes);
 
       expect(mockGetEnvironment).toHaveBeenCalledWith('cursor');
       expect(mockGetEnvironment).toHaveBeenCalledWith('gemini');
@@ -366,7 +366,7 @@ This is the prompt content.`;
     });
 
     it('should skip invalid environments and continue with valid ones', async () => {
-      const envIds: EnvironmentCode[] = ['cursor', 'invalid' as any, 'gemini'];
+      const envCodes: EnvironmentCode[] = ['cursor', 'invalid' as any, 'gemini'];
       const cursorEnv = {
         code: 'cursor',
         name: 'Cursor',
@@ -393,7 +393,7 @@ This is the prompt content.`;
 
       (templateManager as any).setupSingleEnvironment = mockSetupSingleEnvironment;
 
-      const result = await templateManager.setupMultipleEnvironments(envIds);
+      const result = await templateManager.setupMultipleEnvironments(envCodes);
 
       expect(mockUi.warning).toHaveBeenCalledWith("Environment 'invalid' not found, skipping");
       expect(result).toEqual([
@@ -403,7 +403,7 @@ This is the prompt content.`;
     });
 
     it('should throw error when setupSingleEnvironment fails', async () => {
-      const envIds: EnvironmentCode[] = ['cursor'];
+      const envCodes: EnvironmentCode[] = ['cursor'];
       const cursorEnv = {
         code: 'cursor',
         name: 'Cursor',
@@ -416,7 +416,7 @@ This is the prompt content.`;
       const mockSetupSingleEnvironment = jest.fn().mockRejectedValue(new Error('Setup failed'));
       (templateManager as any).setupSingleEnvironment = mockSetupSingleEnvironment;
 
-      await expect(templateManager.setupMultipleEnvironments(envIds)).rejects.toThrow('Setup failed');
+      await expect(templateManager.setupMultipleEnvironments(envCodes)).rejects.toThrow('Setup failed');
 
       expect(mockUi.error).toHaveBeenCalledWith("Error setting up environment 'Cursor': Setup failed");
     });
@@ -424,18 +424,18 @@ This is the prompt content.`;
 
   describe('checkEnvironmentExists', () => {
     it('should return false when environment does not exist', async () => {
-      const envId: EnvironmentCode = 'cursor';
+      const envCode: EnvironmentCode = 'cursor';
 
       mockGetEnvironment.mockReturnValue(undefined);
 
-      const result = await templateManager.checkEnvironmentExists(envId);
+      const result = await templateManager.checkEnvironmentExists(envCode);
 
-      expect(mockGetEnvironment).toHaveBeenCalledWith(envId);
+      expect(mockGetEnvironment).toHaveBeenCalledWith(envCode);
       expect(result).toBe(false);
     });
 
     it('should return false when only context file exists', async () => {
-      const envId: EnvironmentCode = 'cursor';
+      const envCode: EnvironmentCode = 'cursor';
       const env = {
         code: 'cursor',
         name: 'Cursor',
@@ -447,7 +447,7 @@ This is the prompt content.`;
 
       (mockFs.pathExists as any).mockResolvedValueOnce(false); // command dir doesn't exist
 
-      const result = await templateManager.checkEnvironmentExists(envId);
+      const result = await templateManager.checkEnvironmentExists(envCode);
 
       expect(mockFs.pathExists).toHaveBeenCalledWith(
         path.join(templateManager['targetDir'], env.commandPath)
@@ -456,7 +456,7 @@ This is the prompt content.`;
     });
 
     it('should return true when command directory exists', async () => {
-      const envId: EnvironmentCode = 'cursor';
+      const envCode: EnvironmentCode = 'cursor';
       const env = {
         code: 'cursor',
         name: 'Cursor',
@@ -468,13 +468,13 @@ This is the prompt content.`;
 
       (mockFs.pathExists as any).mockResolvedValueOnce(true); // command dir exists
 
-      const result = await templateManager.checkEnvironmentExists(envId);
+      const result = await templateManager.checkEnvironmentExists(envCode);
 
       expect(result).toBe(true);
     });
 
     it('should return false when command directory does not exist', async () => {
-      const envId: EnvironmentCode = 'cursor';
+      const envCode: EnvironmentCode = 'cursor';
       const env = {
         code: 'cursor',
         name: 'Cursor',
@@ -486,7 +486,7 @@ This is the prompt content.`;
 
       (mockFs.pathExists as any).mockResolvedValueOnce(false); // command dir doesn't exist
 
-      const result = await templateManager.checkEnvironmentExists(envId);
+      const result = await templateManager.checkEnvironmentExists(envCode);
 
       expect(result).toBe(false);
     });

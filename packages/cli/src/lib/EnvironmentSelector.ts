@@ -78,8 +78,8 @@ export class EnvironmentSelector {
     }
 
     ui.text("\nSelected environments:");
-    selected.forEach((envId) => {
-      ui.text(`  ${getEnvironmentDisplayName(envId)}`);
+    selected.forEach((envCode) => {
+      ui.text(`  ${getEnvironmentDisplayName(envCode)}`);
     });
     ui.breakline();
   }

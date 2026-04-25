@@ -44,14 +44,14 @@ export class TemplateManager {
   }
 
   async setupMultipleEnvironments(
-    environmentIds: EnvironmentCode[]
+    environmentCodes: EnvironmentCode[]
   ): Promise<string[]> {
     const copiedFiles: string[] = [];
 
-    for (const envId of environmentIds) {
-      const env = getEnvironment(envId);
+    for (const envCode of environmentCodes) {
+      const env = getEnvironment(envCode);
       if (!env) {
-        ui.warning(`Environment '${envId}' not found, skipping`);
+        ui.warning(`Environment '${envCode}' not found, skipping`);
         continue;
       }
 
@@ -67,8 +67,8 @@ export class TemplateManager {
     return copiedFiles;
   }
 
-  async checkEnvironmentExists(envId: EnvironmentCode): Promise<boolean> {
-    const env = getEnvironment(envId);
+  async checkEnvironmentExists(envCode: EnvironmentCode): Promise<boolean> {
+    const env = getEnvironment(envCode);
 
     if (!env) {
       return false;
