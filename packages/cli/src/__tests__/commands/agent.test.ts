@@ -47,8 +47,9 @@ jest.mock('inquirer', () => ({
   },
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
-  ui: {
+jest.mock('../../util/terminal-ui', () => {
+  const { getErrorMessage } = jest.requireActual('../../util/text') as { getErrorMessage: (e: unknown) => string };
+  const mockedUi = {
     text: jest.fn(),
     table: jest.fn(),
     info: jest.fn(),
@@ -57,8 +58,16 @@ jest.mock('../../util/terminal-ui', () => ({
     error: jest.fn(),
     breakline: jest.fn(),
     spinner: jest.fn(() => mockSpinner),
-  },
-}));
+  };
+  return {
+    ui: mockedUi,
+    withErrorHandler: <T extends unknown[]>(label: string, fn: (...args: T) => Promise<void>) =>
+      async (...args: T) => {
+        try { await fn(...args); }
+        catch (error: unknown) { mockedUi.error(`Failed to ${label}: ${getErrorMessage(error)}`); process.exit(1); }
+      },
+  };
+});
 
 describe('agent command', () => {
   let logSpy: ReturnType<typeof jest.spyOn>;

@@ -19,13 +19,22 @@ jest.mock('../../lib/Config', () => ({
   ConfigManager: jest.fn(() => mockConfigManager)
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
-  ui: {
+jest.mock('../../util/terminal-ui', () => {
+  const { getErrorMessage } = jest.requireActual('../../util/text') as { getErrorMessage: (e: unknown) => string };
+  const mockedUi = {
     error: jest.fn(),
     warning: jest.fn(),
     table: jest.fn()
-  }
-}));
+  };
+  return {
+    ui: mockedUi,
+    withErrorHandler: <T extends unknown[]>(label: string, fn: (...args: T) => Promise<void>) =>
+      async (...args: T) => {
+        try { await fn(...args); }
+        catch (error: unknown) { mockedUi.error(`Failed to ${label}: ${getErrorMessage(error)}`); process.exit(1); }
+      },
+  };
+});
 
 describe('memory command', () => {
   const mockedMemorySearchCommand = memorySearchCommand as jest.MockedFunction<typeof memorySearchCommand>;
@@ -121,7 +130,7 @@ describe('memory command', () => {
       ])
     ).rejects.toThrow('process.exit');
 
-    expect(mockedUi.error).toHaveBeenCalledWith('store failed');
+    expect(mockedUi.error).toHaveBeenCalledWith('Failed to store knowledge: store failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -181,7 +190,7 @@ describe('memory command', () => {
       ])
     ).rejects.toThrow('process.exit');
 
-    expect(mockedUi.error).toHaveBeenCalledWith('update failed');
+    expect(mockedUi.error).toHaveBeenCalledWith('Failed to update knowledge: update failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -311,7 +320,7 @@ describe('memory command', () => {
       program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'memory'])
     ).rejects.toThrow('process.exit');
 
-    expect(mockedUi.error).toHaveBeenCalledWith('search failed');
+    expect(mockedUi.error).toHaveBeenCalledWith('Failed to search knowledge: search failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

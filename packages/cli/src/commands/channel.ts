@@ -21,7 +21,7 @@ import {
     type ChannelEntry,
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
-import { ui } from '../util/terminal-ui';
+import { ui, withErrorHandler } from '../util/terminal-ui';
 import { getErrorMessage } from '../util/text';
 import { createLogger, enableDebug } from '../util/debug';
 
@@ -115,7 +115,6 @@ function startOutputPolling(
 ): NodeJS.Timeout {
     let lastMessageCount = 0;
 
-    // Initialize with current conversation length to avoid sending history
     if (agent.sessionFilePath) {
         try {
             const existing = agentAdapter.getConversation(agent.sessionFilePath);
@@ -173,229 +172,197 @@ export function registerChannelCommand(program: Command): void {
     channelCommand
         .command('connect <type>')
         .description('Connect a messaging channel (e.g., telegram)')
-        .action(async (type: string) => {
-            try {
-                if (type !== TELEGRAM_CHANNEL_TYPE) {
-                    ui.error(`Unsupported channel type: ${type}. Supported: ${TELEGRAM_CHANNEL_TYPE}`);
-                    return;
-                }
-
-                const configStore = new ConfigStore();
-                const existing = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
-                if (existing) {
-                    const { overwrite } = await inquirer.prompt([{
-                        type: 'confirm',
-                        name: 'overwrite',
-                        message: 'Telegram is already configured. Overwrite?',
-                        default: false,
-                    }]);
-                    if (!overwrite) return;
-                }
-
-                ui.info('To connect Telegram, you need a bot token from @BotFather.');
-                ui.info('Open Telegram, search for @BotFather, and create a new bot.\n');
-
-                const { botToken } = await inquirer.prompt([{
-                    type: 'password',
-                    name: 'botToken',
-                    message: 'Enter your Telegram bot token:',
-                    validate: (input: string) => {
-                        if (!input.trim()) return 'Bot token is required';
-                        if (!input.includes(':')) return 'Invalid token format (expected number:hash)';
-                        return true;
-                    },
-                }]);
-
-                // Validate token by calling getMe
-                const spinner = ui.spinner('Validating bot token...');
-                spinner.start();
-
-                let botUsername: string;
-                try {
-                    const bot = new Telegraf(botToken.trim());
-                    const me = await bot.telegram.getMe();
-                    botUsername = me.username;
-                    spinner.succeed(`Connected to bot @${botUsername}`);
-                } catch (error: unknown) {
-                    spinner.fail('Invalid bot token. Please check and try again.');
-                    return;
-                }
-
-                const entry: ChannelEntry = {
-                    type: TELEGRAM_CHANNEL_TYPE,
-                    enabled: true,
-                    createdAt: new Date().toISOString(),
-                    config: {
-                        botToken: botToken.trim(),
-                        botUsername,
-                    } as TelegramConfig,
-                };
-
-                await configStore.saveChannel(TELEGRAM_CHANNEL_TYPE, entry);
-                ui.success('Telegram channel configured successfully!');
-                ui.info(`Bot: @${botUsername}`);
-                ui.info('Run "ai-devkit channel start --agent <name>" to start the bridge.');
-
-            } catch (error: unknown) {
-                ui.error(`Failed to connect channel: ${getErrorMessage(error)}`);
-                process.exit(1);
+        .action(withErrorHandler('connect channel', async (type: string) => {
+            if (type !== TELEGRAM_CHANNEL_TYPE) {
+                ui.error(`Unsupported channel type: ${type}. Supported: ${TELEGRAM_CHANNEL_TYPE}`);
+                return;
             }
-        });
+
+            const configStore = new ConfigStore();
+            const existing = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
+            if (existing) {
+                const { overwrite } = await inquirer.prompt([{
+                    type: 'confirm',
+                    name: 'overwrite',
+                    message: 'Telegram is already configured. Overwrite?',
+                    default: false,
+                }]);
+                if (!overwrite) return;
+            }
+
+            ui.info('To connect Telegram, you need a bot token from @BotFather.');
+            ui.info('Open Telegram, search for @BotFather, and create a new bot.\n');
+
+            const { botToken } = await inquirer.prompt([{
+                type: 'password',
+                name: 'botToken',
+                message: 'Enter your Telegram bot token:',
+                validate: (input: string) => {
+                    if (!input.trim()) return 'Bot token is required';
+                    if (!input.includes(':')) return 'Invalid token format (expected number:hash)';
+                    return true;
+                },
+            }]);
+
+            const spinner = ui.spinner('Validating bot token...');
+            spinner.start();
+
+            let botUsername: string;
+            try {
+                const bot = new Telegraf(botToken.trim());
+                const me = await bot.telegram.getMe();
+                botUsername = me.username;
+                spinner.succeed(`Connected to bot @${botUsername}`);
+            } catch (error: unknown) {
+                spinner.fail('Invalid bot token. Please check and try again.');
+                return;
+            }
+
+            const entry: ChannelEntry = {
+                type: TELEGRAM_CHANNEL_TYPE,
+                enabled: true,
+                createdAt: new Date().toISOString(),
+                config: {
+                    botToken: botToken.trim(),
+                    botUsername,
+                } as TelegramConfig,
+            };
+
+            await configStore.saveChannel(TELEGRAM_CHANNEL_TYPE, entry);
+            ui.success('Telegram channel configured successfully!');
+            ui.info(`Bot: @${botUsername}`);
+            ui.info('Run "ai-devkit channel start --agent <name>" to start the bridge.');
+        }));
 
     channelCommand
         .command('list')
         .description('List configured channels')
-        .action(async () => {
-            try {
-                const configStore = new ConfigStore();
-                const config = await configStore.getConfig();
-                const channels = Object.entries(config.channels);
+        .action(withErrorHandler('list channels', async () => {
+            const configStore = new ConfigStore();
+            const config = await configStore.getConfig();
+            const channels = Object.entries(config.channels);
 
-                if (channels.length === 0) {
-                    ui.info('No channels configured. Run "ai-devkit channel connect telegram" to set up.');
-                    return;
-                }
-
-                ui.text('Configured Channels:', { breakline: true });
-
-                const rows = channels.map(([name, entry]) => {
-                    const telegramConfig = entry.config as TelegramConfig;
-                    return [
-                        name,
-                        entry.type,
-                        entry.enabled ? chalk.green('enabled') : chalk.dim('disabled'),
-                        telegramConfig.botUsername ? `@${telegramConfig.botUsername}` : '-',
-                        entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '-',
-                    ];
-                });
-
-                ui.table({
-                    headers: ['Name', 'Type', 'Status', 'Bot', 'Created'],
-                    rows,
-                });
-
-            } catch (error: unknown) {
-                ui.error(`Failed to list channels: ${getErrorMessage(error)}`);
-                process.exit(1);
+            if (channels.length === 0) {
+                ui.info('No channels configured. Run "ai-devkit channel connect telegram" to set up.');
+                return;
             }
-        });
+
+            ui.text('Configured Channels:', { breakline: true });
+
+            const rows = channels.map(([name, entry]) => {
+                const telegramConfig = entry.config as TelegramConfig;
+                return [
+                    name,
+                    entry.type,
+                    entry.enabled ? chalk.green('enabled') : chalk.dim('disabled'),
+                    telegramConfig.botUsername ? `@${telegramConfig.botUsername}` : '-',
+                    entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '-',
+                ];
+            });
+
+            ui.table({
+                headers: ['Name', 'Type', 'Status', 'Bot', 'Created'],
+                rows,
+            });
+        }));
 
     channelCommand
         .command('disconnect <type>')
         .description('Remove a channel configuration')
-        .action(async (type: string) => {
-            try {
-                const configStore = new ConfigStore();
-                const existing = await configStore.getChannel(type);
+        .action(withErrorHandler('disconnect channel', async (type: string) => {
+            const configStore = new ConfigStore();
+            const existing = await configStore.getChannel(type);
 
-                if (!existing) {
-                    ui.info(`No ${type} channel configured.`);
-                    return;
-                }
-
-                const { confirm } = await inquirer.prompt([{
-                    type: 'confirm',
-                    name: 'confirm',
-                    message: `Remove ${type} channel configuration?`,
-                    default: false,
-                }]);
-
-                if (!confirm) return;
-
-                await configStore.removeChannel(type);
-                ui.success(`${type} channel disconnected.`);
-
-            } catch (error: unknown) {
-                ui.error(`Failed to disconnect channel: ${getErrorMessage(error)}`);
-                process.exit(1);
+            if (!existing) {
+                ui.info(`No ${type} channel configured.`);
+                return;
             }
-        });
+
+            const { confirm } = await inquirer.prompt([{
+                type: 'confirm',
+                name: 'confirm',
+                message: `Remove ${type} channel configuration?`,
+                default: false,
+            }]);
+
+            if (!confirm) return;
+
+            await configStore.removeChannel(type);
+            ui.success(`${type} channel disconnected.`);
+        }));
 
     channelCommand
         .command('start')
         .description('Start the channel bridge to a running agent')
         .requiredOption('--agent <name>', 'Name of the agent to bridge')
         .option('--debug', 'Enable debug logging')
-        .action(async (options) => {
-            try {
-                if (options.debug) {
-                    enableDebug();
-                }
-
-                debug(`Starting channel bridge: agent=${options.agent}`);
-
-                const configStore = new ConfigStore();
-                debug('Loading channel configuration from ConfigStore');
-                const channelEntry = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
-
-                if (!channelEntry) {
-                    ui.error('No Telegram channel configured. Run "ai-devkit channel connect telegram" first.');
-                    return;
-                }
-
-                const telegramConfig = channelEntry.config as TelegramConfig;
-                debug(`Telegram channel found: bot=@${telegramConfig.botUsername}`);
-
-                // Resolve agent
-                debug(`Resolving agent: "${options.agent}"`);
-                const agentManager = createAgentManager();
-                const agent = await resolveTargetAgent(agentManager, options.agent);
-                if (!agent) return;
-
-                debug(`Agent resolved: name=${agent.name}, type=${agent.type}, pid=${agent.pid}`);
-                debug(`Agent session file: ${agent.sessionFilePath ?? 'none'}`);
-
-                // Get the adapter for reading conversation
-                const agentAdapter = getAgentAdapter(agent.type);
-                if (!agentAdapter) {
-                    ui.error(`Unsupported agent type: ${agent.type}`);
-                    return;
-                }
-
-                debug(`Agent adapter loaded for type: ${agent.type}`);
-
-                // Find agent terminal
-                debug(`Looking up terminal for PID: ${agent.pid}`);
-                const focusManager = new TerminalFocusManager();
-                const terminalLocation = await focusManager.findTerminal(agent.pid);
-
-                if (!terminalLocation) {
-                    ui.error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
-                    return;
-                }
-
-                debug(`Terminal found: ${JSON.stringify(terminalLocation)}`);
-
-                // Set up channel bridge
-                const telegram = new TelegramAdapter({ botToken: telegramConfig.botToken });
-                const chatIdRef = { value: null as string | null };
-
-                setupInputHandler(telegram, terminalLocation, chatIdRef);
-                debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
-                const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
-
-                // Start the bot
-                const manager = new ChannelManager();
-                manager.registerAdapter(telegram);
-                setupGracefulShutdown(manager, pollInterval);
-
-                ui.success(`Bridge started: Telegram @${telegramConfig.botUsername} <-> Agent "${agent.name}" (PID: ${agent.pid})`);
-                ui.info('Send a message to your Telegram bot to start chatting.');
-                ui.info('Press Ctrl+C to stop.\n');
-
-                debug('Calling manager.startAll()');
-                await manager.startAll();
-                debug('ChannelManager started successfully');
-
-                // Keep process running
-                await new Promise(() => {});
-            } catch (error: unknown) {
-                const message = getErrorMessage(error);
-                debug(`Error caught: ${error instanceof Error ? error.stack : message}`);
-                ui.error(`Failed to start channel bridge: ${message}`);
-                process.exit(1);
+        .action(withErrorHandler('start channel bridge', async (options) => {
+            if (options.debug) {
+                enableDebug();
             }
-        });
+
+            debug(`Starting channel bridge: agent=${options.agent}`);
+
+            const configStore = new ConfigStore();
+            debug('Loading channel configuration from ConfigStore');
+            const channelEntry = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
+
+            if (!channelEntry) {
+                ui.error('No Telegram channel configured. Run "ai-devkit channel connect telegram" first.');
+                return;
+            }
+
+            const telegramConfig = channelEntry.config as TelegramConfig;
+            debug(`Telegram channel found: bot=@${telegramConfig.botUsername}`);
+
+            debug(`Resolving agent: "${options.agent}"`);
+            const agentManager = createAgentManager();
+            const agent = await resolveTargetAgent(agentManager, options.agent);
+            if (!agent) return;
+
+            debug(`Agent resolved: name=${agent.name}, type=${agent.type}, pid=${agent.pid}`);
+            debug(`Agent session file: ${agent.sessionFilePath ?? 'none'}`);
+
+            const agentAdapter = getAgentAdapter(agent.type);
+            if (!agentAdapter) {
+                ui.error(`Unsupported agent type: ${agent.type}`);
+                return;
+            }
+
+            debug(`Agent adapter loaded for type: ${agent.type}`);
+
+            debug(`Looking up terminal for PID: ${agent.pid}`);
+            const focusManager = new TerminalFocusManager();
+            const terminalLocation = await focusManager.findTerminal(agent.pid);
+
+            if (!terminalLocation) {
+                ui.error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
+                return;
+            }
+
+            debug(`Terminal found: ${JSON.stringify(terminalLocation)}`);
+
+            const telegram = new TelegramAdapter({ botToken: telegramConfig.botToken });
+            const chatIdRef = { value: null as string | null };
+
+            setupInputHandler(telegram, terminalLocation, chatIdRef);
+            debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
+            const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
+
+            const manager = new ChannelManager();
+            manager.registerAdapter(telegram);
+            setupGracefulShutdown(manager, pollInterval);
+
+            ui.success(`Bridge started: Telegram @${telegramConfig.botUsername} <-> Agent "${agent.name}" (PID: ${agent.pid})`);
+            ui.info('Send a message to your Telegram bot to start chatting.');
+            ui.info('Press Ctrl+C to stop.\n');
+
+            debug('Calling manager.startAll()');
+            await manager.startAll();
+            debug('ChannelManager started successfully');
+
+            await new Promise(() => {});
+        }));
 
     channelCommand
         .command('status')
