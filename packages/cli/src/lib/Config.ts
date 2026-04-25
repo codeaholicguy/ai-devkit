@@ -2,6 +2,7 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR } from '../types';
 import { filterStringRecord } from '../util/config';
+import { ConfigNotFoundError } from '../util/errors';
 import packageJson from '../../package.json';
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
@@ -44,7 +45,7 @@ export class ConfigManager {
   async update(updates: Partial<DevKitConfig>): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new Error('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
     const updated = {
@@ -60,7 +61,7 @@ export class ConfigManager {
   async addPhase(phase: Phase): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new Error('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
     const phases = Array.isArray(config.phases) ? config.phases : [];
@@ -109,7 +110,7 @@ export class ConfigManager {
   async setDocsDir(docsDir: string): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new Error('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
     return this.update({ paths: { ...config.paths, docs: docsDir } });
   }
@@ -131,7 +132,7 @@ export class ConfigManager {
   async addSkill(skill: ConfigSkill): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new Error('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
     const installed = Array.isArray(config.skills) ? config.skills : [];
@@ -151,7 +152,7 @@ export class ConfigManager {
   async removeSkill(skillName: string): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new Error('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
     const installed = Array.isArray(config.skills) ? config.skills : [];

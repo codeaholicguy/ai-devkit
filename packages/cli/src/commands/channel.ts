@@ -21,7 +21,8 @@ import {
     type ChannelEntry,
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
-import { ui, withErrorHandler } from '../util/terminal-ui';
+import { ui } from '../util/terminal-ui';
+import { withErrorHandler } from '../util/errors';
 import { getErrorMessage } from '../util/text';
 import { createLogger, enableDebug } from '../util/debug';
 

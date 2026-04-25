@@ -12,6 +12,7 @@ import { ensureGitInstalled } from '../util/git';
 import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill';
 import { isInteractiveTerminal } from '../util/terminal';
 import { ui } from '../util/terminal-ui';
+import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors';
 
 import type { UpdateSummary } from './SkillRegistry';
 import type { SkillEntry } from './SkillIndex';
@@ -68,8 +69,8 @@ export class SkillManager {
     const gitUrl = registry.registries[registryId];
     const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
     if (!gitUrl && !await fs.pathExists(cachedPath)) {
-      throw new Error(
-        `Registry "${registryId}" not found.`
+      throw new NotFoundError(
+        `Registry "${registryId}" not found.`, { registryId }
       );
     }
 
@@ -154,7 +155,7 @@ export class SkillManager {
 
     const config = await this.configManager.read();
     if (!config || !config.environments || config.environments.length === 0) {
-      throw new Error('No .ai-devkit.json found. Run: ai-devkit init');
+      throw new ConfigNotFoundError('No .ai-devkit.json found. Run: ai-devkit init');
     }
 
     const { targets } = this.resolveInstallationTargets(config.environments);
@@ -211,7 +212,7 @@ export class SkillManager {
 
     if (!config.environments || config.environments.length === 0) {
       if (!isInteractiveTerminal()) {
-        throw new Error('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
+        throw new ConfigNotFoundError('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
       }
 
       const selectedEnvs = await this.environmentSelector.selectSkillEnvironments();
@@ -231,7 +232,7 @@ export class SkillManager {
     const validCodes = validateEnvironmentCodes(envCodes);
     const unsupported = validCodes.filter(env => getGlobalSkillPath(env) === undefined);
     if (unsupported.length > 0) {
-      throw new Error(`Global skill installation is not supported for: ${unsupported.join(', ')}`);
+      throw new ValidationError(`Global skill installation is not supported for: ${unsupported.join(', ')}`);
     }
 
     return validCodes;
@@ -239,7 +240,7 @@ export class SkillManager {
 
   private async resolveInstallEnvironments(options: AddSkillOptions): Promise<string[]> {
     if (options.environments && options.environments.length > 0 && !options.global) {
-      throw new Error('--env can only be used with --global');
+      throw new ValidationError('--env can only be used with --global');
     }
 
     if (options.global) {
@@ -266,9 +267,9 @@ export class SkillManager {
 
     if (targets.length === 0) {
       if (isGlobal) {
-        throw new Error('No global-skill-capable environments configured.');
+        throw new ValidationError('No global-skill-capable environments configured.');
       }
-      throw new Error('No skill-capable environments configured. Supported: cursor, claude');
+      throw new ValidationError('No skill-capable environments configured. Supported: cursor, claude');
     }
 
     return { targets, capableEnvironments };
@@ -339,15 +340,17 @@ export class SkillManager {
   ): Promise<string> {
     const skillPath = path.join(repoPath, 'skills', resolvedSkillName);
     if (!await fs.pathExists(skillPath)) {
-      throw new Error(
-        `Skill "${resolvedSkillName}" not found in ${registryId}. Check the repository for available skills.`
+      throw new NotFoundError(
+        `Skill "${resolvedSkillName}" not found in ${registryId}. Check the repository for available skills.`,
+        { skillName: resolvedSkillName, registryId }
       );
     }
 
     const skillMdPath = path.join(skillPath, 'SKILL.md');
     if (!await fs.pathExists(skillMdPath)) {
-      throw new Error(
-        `Invalid skill: SKILL.md not found in ${resolvedSkillName}. This may not be a valid Agent Skill.`
+      throw new NotFoundError(
+        `Invalid skill: SKILL.md not found in ${resolvedSkillName}. This may not be a valid Agent Skill.`,
+        { skillName: resolvedSkillName }
       );
     }
 
@@ -356,7 +359,7 @@ export class SkillManager {
 
   private async resolveSkillNamesFromRegistry(registryId: string, repoPath: string): Promise<string[]> {
     if (!isInteractiveTerminal()) {
-      throw new Error('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
+      throw new ValidationError('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
     }
 
     const skills = await this.listRegistrySkills(registryId, repoPath);
@@ -366,7 +369,7 @@ export class SkillManager {
   private async listRegistrySkills(registryId: string, repoPath: string): Promise<RegistrySkillChoice[]> {
     const skillsDir = path.join(repoPath, 'skills');
     if (!await fs.pathExists(skillsDir)) {
-      throw new Error(`No valid skills found in ${registryId}.`);
+      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
     }
 
     const entries = await fs.readdir(skillsDir, { withFileTypes: true });
@@ -397,7 +400,7 @@ export class SkillManager {
     }
 
     if (skills.length === 0) {
-      throw new Error(`No valid skills found in ${registryId}.`);
+      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
     }
 
     skills.sort((a, b) => a.name.localeCompare(b.name));

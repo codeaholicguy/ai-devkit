@@ -2,6 +2,7 @@ import { execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs-extra';
 import * as path from 'path';
+import { GitError } from './errors';
 
 const execFileAsync = promisify(execFile);
 export type GitExecFileSync = (
@@ -24,7 +25,7 @@ export async function ensureGitInstalled(): Promise<void> {
   try {
     await execFileAsync('git', ['--version']);
   } catch {
-    throw new Error(
+    throw new GitError(
       'Git is not installed or not in PATH. Please install Git: https://git-scm.com/downloads'
     );
   }
@@ -57,7 +58,7 @@ export async function cloneRepository(targetDir: string, repoName: string, gitUr
     return repoPath;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Git clone failed: ${message}. Check network and git installation.`);
+    throw new GitError(`Git clone failed: ${message}. Check network and git installation.`, { gitUrl });
   }
 }
 
@@ -84,7 +85,7 @@ export async function pullRepository(repoPath: string): Promise<void> {
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Git pull failed: ${message}`);
+    throw new GitError(`Git pull failed: ${message}`, { repoPath });
   }
 }
 
@@ -100,13 +101,13 @@ export async function fetchGitHead(gitUrl: string): Promise<string> {
     const match = stdout.trim().match(/^([a-f0-9]+)\s+HEAD$/m);
 
     if (!match) {
-      throw new Error('Could not parse HEAD from ls-remote output');
+      throw new GitError('Could not parse HEAD from ls-remote output', { gitUrl });
     }
 
     return match[1];
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to fetch git HEAD: ${message}`);
+    throw new GitError(`Failed to fetch git HEAD: ${message}`, { gitUrl });
   }
 }
 

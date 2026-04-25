@@ -19,22 +19,13 @@ jest.mock('../../lib/Config', () => ({
   ConfigManager: jest.fn(() => mockConfigManager)
 }));
 
-jest.mock('../../util/terminal-ui', () => {
-  const { getErrorMessage } = jest.requireActual('../../util/text') as { getErrorMessage: (e: unknown) => string };
-  const mockedUi = {
+jest.mock('../../util/terminal-ui', () => ({
+  ui: {
     error: jest.fn(),
     warning: jest.fn(),
     table: jest.fn()
-  };
-  return {
-    ui: mockedUi,
-    withErrorHandler: <T extends unknown[]>(label: string, fn: (...args: T) => Promise<void>) =>
-      async (...args: T) => {
-        try { await fn(...args); }
-        catch (error: unknown) { mockedUi.error(`Failed to ${label}: ${getErrorMessage(error)}`); process.exit(1); }
-      },
-  };
-});
+  },
+}));
 
 describe('memory command', () => {
   const mockedMemorySearchCommand = memorySearchCommand as jest.MockedFunction<typeof memorySearchCommand>;

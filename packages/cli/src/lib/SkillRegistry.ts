@@ -6,6 +6,7 @@ import { GlobalConfigManager } from './GlobalConfig';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../util/git';
 import { ui } from '../util/terminal-ui';
 import { getErrorMessage } from '../util/text';
+import { CliError, NotFoundError } from '../util/errors';
 
 export const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
 export const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');
@@ -39,7 +40,7 @@ export class SkillRegistry {
     const response = await fetch(REGISTRY_URL);
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch registry: HTTP ${response.status}`);
+      throw new CliError(`Failed to fetch registry: HTTP ${response.status}`, 'NETWORK_ERROR');
     }
 
     return response.json() as Promise<SkillRegistryData>;
@@ -84,7 +85,7 @@ export class SkillRegistry {
     }
 
     if (!gitUrl) {
-      throw new Error(`Registry "${registryId}" is not cached and has no configured URL.`);
+      throw new NotFoundError(`Registry "${registryId}" is not cached and has no configured URL.`, { registryId });
     }
 
     ui.info(`Cloning ${registryId} (this may take a moment)...`);
@@ -148,7 +149,7 @@ export class SkillRegistry {
     }
 
     if (registryId && registries.length === 0) {
-      throw new Error(`Registry "${registryId}" not found in cache.`);
+      throw new NotFoundError(`Registry "${registryId}" not found in cache.`, { registryId });
     }
 
     const results: UpdateResult[] = [];

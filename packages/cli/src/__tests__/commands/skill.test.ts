@@ -20,24 +20,15 @@ jest.mock('../../lib/SkillManager', () => ({
   })),
 }));
 
-jest.mock('../../util/terminal-ui', () => {
-  const { getErrorMessage } = jest.requireActual('../../util/text') as { getErrorMessage: (e: unknown) => string };
-  const mockedUi = {
+jest.mock('../../util/terminal-ui', () => ({
+  ui: {
     error: jest.fn(),
     warning: jest.fn(),
     info: jest.fn(),
     text: jest.fn(),
     table: jest.fn(),
-  };
-  return {
-    ui: mockedUi,
-    withErrorHandler: <T extends unknown[]>(label: string, fn: (...args: T) => Promise<void>) =>
-      async (...args: T) => {
-        try { await fn(...args); }
-        catch (error: unknown) { mockedUi.error(`Failed to ${label}: ${getErrorMessage(error)}`); process.exit(1); }
-      },
-  };
-});
+  },
+}));
 
 describe('skill command', () => {
   beforeEach(() => {

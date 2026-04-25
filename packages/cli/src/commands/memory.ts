@@ -2,7 +2,8 @@ import type { Command } from 'commander';
 import { memoryStoreCommand, memorySearchCommand, memoryUpdateCommand } from '@ai-devkit/memory';
 import type { MemorySearchOptions, MemoryStoreOptions, MemoryUpdateOptions } from '@ai-devkit/memory';
 import { ConfigManager } from '../lib/Config';
-import { ui, withErrorHandler } from '../util/terminal-ui';
+import { ui } from '../util/terminal-ui';
+import { withErrorHandler } from '../util/errors';
 import { truncate } from '../util/text';
 
 const TITLE_MAX_LENGTH = 60;

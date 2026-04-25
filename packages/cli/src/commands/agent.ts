@@ -14,7 +14,8 @@ import {
     type AgentInfo,
     type AgentType,
 } from '@ai-devkit/agent-manager';
-import { ui, withErrorHandler } from '../util/terminal-ui';
+import { ui } from '../util/terminal-ui';
+import { withErrorHandler } from '../util/errors';
 
 const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
     [AgentStatus.RUNNING]: { emoji: '🟢', label: 'run' },

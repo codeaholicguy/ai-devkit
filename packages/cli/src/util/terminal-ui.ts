@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import { getErrorMessage } from './text';
 
 /**
  * Sanitize message to prevent terminal injection
@@ -209,21 +208,3 @@ export const ui = {
         }
     },
 };
-
-/**
- * Wraps a CLI command action with consistent error handling.
- * Catches errors, prints them via ui.error, and exits with code 1.
- */
-export function withErrorHandler<T extends unknown[]>(
-    label: string,
-    fn: (...args: T) => Promise<void>,
-): (...args: T) => Promise<void> {
-    return async (...args: T) => {
-        try {
-            await fn(...args);
-        } catch (error: unknown) {
-            ui.error(`Failed to ${label}: ${getErrorMessage(error)}`);
-            process.exit(1);
-        }
-    };
-}
