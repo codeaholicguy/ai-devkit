@@ -3,6 +3,7 @@ import * as path from "path";
 import * as os from "os";
 import matter from "gray-matter";
 import { Phase, EnvironmentCode, EnvironmentDefinition, DEFAULT_DOCS_DIR } from "../types";
+import { ui } from "../util/terminal-ui";
 import { getEnvironment } from "../util/env";
 
 export interface TemplateManagerOptions {
@@ -50,7 +51,7 @@ export class TemplateManager {
     for (const envId of environmentIds) {
       const env = getEnvironment(envId);
       if (!env) {
-        console.warn(`Warning: Environment '${envId}' not found, skipping`);
+        ui.warning(`Environment '${envId}' not found, skipping`);
         continue;
       }
 
@@ -58,7 +59,7 @@ export class TemplateManager {
         const envFiles = await this.setupSingleEnvironment(env);
         copiedFiles.push(...envFiles);
       } catch (error) {
-        console.error(`Error setting up environment '${env.name}':`, error);
+        ui.error(`Error setting up environment '${env.name}': ${error instanceof Error ? error.message : String(error)}`);
         throw error; // Re-throw to stop the entire process on failure
       }
     }
@@ -100,7 +101,7 @@ export class TemplateManager {
           break;
       }
     } catch (error) {
-      console.error(`Error setting up environment ${env.name}:`, error);
+      ui.error(`Error setting up environment '${env.name}': ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
 
@@ -137,9 +138,7 @@ export class TemplateManager {
           })
       );
     } else {
-      console.warn(
-        `Warning: Commands directory not found: ${commandsSourceDir}`
-      );
+      ui.warning(`Commands directory not found: ${commandsSourceDir}`);
     }
   }
 

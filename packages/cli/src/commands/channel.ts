@@ -49,7 +49,7 @@ async function resolveTargetAgent(agentManager: AgentManager, agentName: string)
     if (!resolved) {
         ui.error(`No agent found matching "${agentName}".`);
         ui.info('Available agents:');
-        agents.forEach(a => console.log(`  - ${a.name}`));
+        agents.forEach(a => ui.text(`  - ${a.name}`));
         return null;
     }
 
@@ -371,11 +371,11 @@ export function registerChannelCommand(program: Command): void {
 
             for (const [name, entry] of channels) {
                 const telegramConfig = entry.config as TelegramConfig;
-                console.log(`${chalk.bold(name)} (${entry.type})`);
-                console.log(`  Enabled: ${entry.enabled ? chalk.green('yes') : chalk.red('no')}`);
-                console.log(`  Bot: @${telegramConfig.botUsername || 'unknown'}`);
-                console.log(`  Configured: ${entry.createdAt || 'unknown'}`);
-                console.log();
+                ui.text(`${chalk.bold(name)} (${entry.type})`);
+                ui.text(`  Enabled: ${entry.enabled ? chalk.green('yes') : chalk.red('no')}`);
+                ui.text(`  Bot: @${telegramConfig.botUsername || 'unknown'}`);
+                ui.text(`  Configured: ${entry.createdAt || 'unknown'}`);
+                ui.breakline();
             }
         });
 }

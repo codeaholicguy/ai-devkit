@@ -7,6 +7,11 @@ jest.mock('fs-extra');
 jest.mock('os');
 jest.mock('path');
 
+jest.mock('../../util/terminal-ui', () => ({
+  ui: { warning: jest.fn(), info: jest.fn(), error: jest.fn(), text: jest.fn() },
+}));
+import { ui as mockUi } from '../../util/terminal-ui';
+
 describe('GlobalConfigManager', () => {
   let configManager: GlobalConfigManager;
   let mockFs: jest.Mocked<typeof fs>;
@@ -61,7 +66,7 @@ describe('GlobalConfigManager', () => {
       const result = await configManager.read();
 
       expect(result).toBeNull();
-      expect(console.warn).toHaveBeenCalled();
+      expect(mockUi.warning).toHaveBeenCalled();
     });
   });
 

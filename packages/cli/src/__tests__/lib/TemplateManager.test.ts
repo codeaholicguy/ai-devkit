@@ -6,6 +6,11 @@ import { EnvironmentDefinition, Phase, EnvironmentCode } from '../../types';
 jest.mock('fs-extra');
 jest.mock('../../util/env');
 
+jest.mock('../../util/terminal-ui', () => ({
+  ui: { warning: jest.fn(), error: jest.fn(), info: jest.fn(), text: jest.fn() },
+}));
+import { ui as mockUi } from '../../util/terminal-ui';
+
 describe('TemplateManager', () => {
   let templateManager: TemplateManager;
   let mockFs: jest.Mocked<typeof fs>;
@@ -54,7 +59,6 @@ describe('TemplateManager', () => {
         isCustomCommandPath: false
       };
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
       (mockFs.pathExists as any).mockResolvedValueOnce(true);
 
       (mockFs.readdir as any).mockResolvedValue(['command1.md']);
@@ -63,10 +67,8 @@ describe('TemplateManager', () => {
 
       const result = await (templateManager as any).setupSingleEnvironment(env);
 
-      expect(consoleWarnSpy).not.toHaveBeenCalled();
+      expect(mockUi.warning).not.toHaveBeenCalled();
       expect(result).toEqual([path.join(templateManager['targetDir'], env.commandPath, 'command1.md')]);
-
-      consoleWarnSpy.mockRestore();
     });
 
     it('should copy commands when isCustomCommandPath is false', async () => {
@@ -221,8 +223,6 @@ This is the prompt content.`;
     });
 
     it('should handle errors and rethrow them', async () => {
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
@@ -231,18 +231,14 @@ This is the prompt content.`;
         isCustomCommandPath: false
       };
 
-      const testError = new Error('Test error');
       (mockFs.pathExists as any).mockResolvedValueOnce(true);
-      (mockFs.readdir as any).mockRejectedValue(testError);
+      (mockFs.readdir as any).mockRejectedValue(new Error('Test error'));
 
       await expect((templateManager as any).setupSingleEnvironment(env)).rejects.toThrow('Test error');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'Error setting up environment Test Environment:',
-        testError
+      expect(mockUi.error).toHaveBeenCalledWith(
+        "Error setting up environment 'Test Environment': Test error"
       );
-
-      consoleErrorSpy.mockRestore();
     });
   });
 
@@ -385,14 +381,11 @@ This is the prompt content.`;
         isCustomCommandPath: true,
       };
 
-      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-
       mockGetEnvironment
         .mockReturnValueOnce(cursorEnv)
         .mockReturnValueOnce(undefined) // invalid environment
         .mockReturnValueOnce(geminiEnv);
 
-      // Mock setupSingleEnvironment
       const mockSetupSingleEnvironment = jest.fn();
       mockSetupSingleEnvironment
         .mockResolvedValueOnce(['/path/to/cursor/file1'])
@@ -402,13 +395,11 @@ This is the prompt content.`;
 
       const result = await templateManager.setupMultipleEnvironments(envIds);
 
-      expect(consoleWarnSpy).toHaveBeenCalledWith("Warning: Environment 'invalid' not found, skipping");
+      expect(mockUi.warning).toHaveBeenCalledWith("Environment 'invalid' not found, skipping");
       expect(result).toEqual([
         '/path/to/cursor/file1',
         '/path/to/gemini/file1'
       ]);
-
-      consoleWarnSpy.mockRestore();
     });
 
     it('should throw error when setupSingleEnvironment fails', async () => {
@@ -425,13 +416,9 @@ This is the prompt content.`;
       const mockSetupSingleEnvironment = jest.fn().mockRejectedValue(new Error('Setup failed'));
       (templateManager as any).setupSingleEnvironment = mockSetupSingleEnvironment;
 
-      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
-
       await expect(templateManager.setupMultipleEnvironments(envIds)).rejects.toThrow('Setup failed');
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith("Error setting up environment 'Cursor':", expect.any(Error));
-
-      consoleErrorSpy.mockRestore();
+      expect(mockUi.error).toHaveBeenCalledWith("Error setting up environment 'Cursor': Setup failed");
     });
   });
 

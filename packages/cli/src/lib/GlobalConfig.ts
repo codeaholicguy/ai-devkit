@@ -3,6 +3,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { GlobalDevKitConfig } from '../types';
 import { filterStringRecord } from '../util/config';
+import { ui } from '../util/terminal-ui';
 
 export class GlobalConfigManager {
   async exists(): Promise<boolean> {
@@ -18,7 +19,7 @@ export class GlobalConfigManager {
       return await fs.readJson(this.getGlobalConfigPath());
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
-      console.warn(`Warning: Failed to read global config at ${this.getGlobalConfigPath()}. ${message}`);
+      ui.warning(`Failed to read global config at ${this.getGlobalConfigPath()}. ${message}`);
       return null;
     }
   }

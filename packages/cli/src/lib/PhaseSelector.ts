@@ -1,5 +1,6 @@
 import inquirer from 'inquirer';
 import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
+import { ui } from '../util/terminal-ui';
 
 export class PhaseSelector {
   async selectPhases(all?: boolean, phases?: string): Promise<Phase[]> {
@@ -14,7 +15,7 @@ export class PhaseSelector {
     }
 
     if (selectedPhases.length === 0) {
-      console.log('No phases selected.');
+      ui.warning('No phases selected.');
       return [];
     }
 
@@ -43,14 +44,14 @@ export class PhaseSelector {
   }
   displaySelectionSummary(selected: Phase[]): void {
     if (selected.length === 0) {
-      console.log('No phases selected.');
+      ui.warning('No phases selected.');
       return;
     }
 
-    console.log('\nSelected phases:');
+    ui.text('\nSelected phases:');
     selected.forEach(phase => {
-      console.log(`  ${PHASE_DISPLAY_NAMES[phase]}`);
+      ui.text(`  ${PHASE_DISPLAY_NAMES[phase]}`);
     });
-    console.log('');
+    ui.breakline();
   }
 }

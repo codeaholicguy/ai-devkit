@@ -3,6 +3,11 @@ import { AVAILABLE_PHASES } from '../../types';
 
 jest.mock('inquirer');
 
+jest.mock('../../util/terminal-ui', () => ({
+  ui: { warning: jest.fn(), text: jest.fn(), breakline: jest.fn() },
+}));
+import { ui as mockUi } from '../../util/terminal-ui';
+
 describe('PhaseSelector', () => {
   let selector: PhaseSelector;
   let mockPrompt: jest.MockedFunction<any>;
@@ -61,38 +66,27 @@ describe('PhaseSelector', () => {
   });
 
   describe('displaySelectionSummary', () => {
-    let consoleSpy: jest.SpyInstance;
-
-    beforeEach(() => {
-      consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    });
-
-    afterEach(() => {
-      consoleSpy.mockRestore();
-    });
-
     it('should display nothing selected message for empty array', () => {
       selector.displaySelectionSummary([]);
 
-      expect(consoleSpy).toHaveBeenCalledWith('No phases selected.');
-      expect(consoleSpy).toHaveBeenCalledTimes(1);
+      expect(mockUi.warning).toHaveBeenCalledWith('No phases selected.');
     });
 
     it('should display selected phases with checkmarks', () => {
       selector.displaySelectionSummary(['requirements', 'design']);
 
-      expect(consoleSpy).toHaveBeenCalledWith('\nSelected phases:');
-      expect(consoleSpy).toHaveBeenCalledWith('  Requirements & Problem Understanding');
-      expect(consoleSpy).toHaveBeenCalledWith('  System Design & Architecture');
-      expect(consoleSpy).toHaveBeenCalledWith('');
+      expect(mockUi.text).toHaveBeenCalledWith('\nSelected phases:');
+      expect(mockUi.text).toHaveBeenCalledWith('  Requirements & Problem Understanding');
+      expect(mockUi.text).toHaveBeenCalledWith('  System Design & Architecture');
+      expect(mockUi.breakline).toHaveBeenCalled();
     });
 
     it('should handle single phase selection', () => {
       selector.displaySelectionSummary(['requirements']);
 
-      expect(consoleSpy).toHaveBeenCalledWith('\nSelected phases:');
-      expect(consoleSpy).toHaveBeenCalledWith('  Requirements & Problem Understanding');
-      expect(consoleSpy).toHaveBeenCalledWith('');
+      expect(mockUi.text).toHaveBeenCalledWith('\nSelected phases:');
+      expect(mockUi.text).toHaveBeenCalledWith('  Requirements & Problem Understanding');
+      expect(mockUi.breakline).toHaveBeenCalled();
     });
   });
 });

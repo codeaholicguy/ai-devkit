@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import { GitError } from './errors';
+import { ui } from './terminal-ui';
 
 const execFileAsync = promisify(execFile);
 export type GitExecFileSync = (
@@ -43,18 +44,18 @@ export async function cloneRepository(targetDir: string, repoName: string, gitUr
   const repoPath = path.join(targetDir, repoName);
 
   if (await fs.pathExists(repoPath)) {
-    console.log(`  → ${targetDir}/${repoName} (already exists, skipped)`);
+    ui.text(`  → ${targetDir}/${repoName} (already exists, skipped)`);
     return repoPath;
   }
 
-  console.log(`  → Cloning ${repoName} (this may take a moment)...`);
+  ui.text(`  → Cloning ${repoName} (this may take a moment)...`);
   await fs.ensureDir(path.dirname(repoPath));
 
   try {
     await execFileAsync('git', ['clone', '--depth', '1', '--single-branch', gitUrl, repoPath], {
       timeout: 60000,
     });
-    console.log('  → Clone complete');
+    ui.text('  → Clone complete');
     return repoPath;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);

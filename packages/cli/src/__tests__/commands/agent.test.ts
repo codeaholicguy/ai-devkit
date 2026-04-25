@@ -191,8 +191,8 @@ Waiting on user input`,
 
     expect(ui.error).toHaveBeenCalledWith('No agent found matching "missing".');
     expect(ui.info).toHaveBeenCalledWith('Available agents:');
-    expect(logSpy).toHaveBeenCalledWith('  - repo-a');
-    expect(logSpy).toHaveBeenCalledWith('  - repo-b');
+    expect(ui.text).toHaveBeenCalledWith('  - repo-a');
+    expect(ui.text).toHaveBeenCalledWith('  - repo-b');
   });
 
   it('focuses selected agent when open succeeds', async () => {

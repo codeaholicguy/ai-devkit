@@ -152,7 +152,7 @@ export function registerAgentCommand(program: Command): void {
             if (!resolved) {
                 ui.error(`No agent found matching "${name}".`);
                 ui.info('Available agents:');
-                agents.forEach(a => console.log(`  - ${a.name}`));
+                agents.forEach(a => ui.text(`  - ${a.name}`));
                 return;
             }
 
@@ -217,13 +217,13 @@ export function registerAgentCommand(program: Command): void {
             if (!resolved) {
                 ui.error(`No agent found matching "${options.id}".`);
                 ui.info('Available agents:');
-                agents.forEach(a => console.log(`  - ${a.name}`));
+                agents.forEach(a => ui.text(`  - ${a.name}`));
                 return;
             }
 
             if (Array.isArray(resolved)) {
                 ui.error(`Multiple agents match "${options.id}":`);
-                resolved.forEach(a => console.log(`  - ${a.name} (${formatStatus(a.status)})`));
+                resolved.forEach(a => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
                 ui.info('Please use a more specific identifier.');
                 return;
             }
@@ -266,13 +266,13 @@ export function registerAgentCommand(program: Command): void {
             if (!resolved) {
                 ui.error(`No agent found matching "${options.id}".`);
                 ui.info('Available agents:');
-                agents.forEach(a => console.log(`  - ${a.name}`));
+                agents.forEach(a => ui.text(`  - ${a.name}`));
                 return;
             }
 
             if (Array.isArray(resolved)) {
                 ui.error(`Multiple agents match "${options.id}":`);
-                resolved.forEach(a => console.log(`  - ${a.name} (${formatStatus(a.status)})`));
+                resolved.forEach(a => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
                 ui.info('Please use a more specific name.');
                 return;
             }
@@ -318,19 +318,19 @@ export function registerAgentCommand(program: Command): void {
             }
 
             ui.text('Agent Detail', { breakline: true });
-            console.log(chalk.dim('─'.repeat(40)));
-            console.log(`  ${chalk.bold('Session ID:')}  ${agent.sessionId}`);
-            console.log(`  ${chalk.bold('CWD:')}         ${formatCwd(agent.projectPath)}`);
-            console.log(`  ${chalk.bold('Start Time:')}  ${new Date(startTime).toLocaleString()}`);
-            console.log(`  ${chalk.bold('Last Active:')} ${formatRelativeTime(agent.lastActive)}`);
-            console.log(`  ${chalk.bold('Status:')}      ${formatStatus(agent.status)}`);
-            console.log(`  ${chalk.bold('Type:')}        ${formatType(agent.type)}`);
+            ui.text(chalk.dim('─'.repeat(40)));
+            ui.text(`  ${chalk.bold('Session ID:')}  ${agent.sessionId}`);
+            ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(agent.projectPath)}`);
+            ui.text(`  ${chalk.bold('Start Time:')}  ${new Date(startTime).toLocaleString()}`);
+            ui.text(`  ${chalk.bold('Last Active:')} ${formatRelativeTime(agent.lastActive)}`);
+            ui.text(`  ${chalk.bold('Status:')}      ${formatStatus(agent.status)}`);
+            ui.text(`  ${chalk.bold('Type:')}        ${formatType(agent.type)}`);
             ui.breakline();
             const label = isTruncated
                 ? `Conversation (last ${displayMessages.length} of ${conversation.length} messages)`
                 : `Conversation (${displayMessages.length} messages)`;
             ui.text(label, { breakline: false });
-            console.log(chalk.dim('─'.repeat(40)));
+            ui.text(chalk.dim('─'.repeat(40)));
 
             for (const msg of displayMessages) {
                 const time = msg.timestamp
@@ -341,12 +341,12 @@ export function registerAgentCommand(program: Command): void {
                     : msg.role === 'assistant'
                         ? chalk.cyan
                         : chalk.yellow;
-                console.log(`${time} ${roleColor(msg.role + ':')}`);
+                ui.text(`${time} ${roleColor(msg.role + ':')}`);
                 const lines = msg.content.split('\n');
                 for (const line of lines) {
-                    console.log(`  ${line}`);
+                    ui.text(`  ${line}`);
                 }
-                console.log();
+                ui.breakline();
             }
 
             if (isTruncated) {

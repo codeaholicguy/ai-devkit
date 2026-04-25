@@ -6,6 +6,7 @@ import {
   getGlobalCapableEnvironments,
   getSkillCapableEnvironments,
 } from "../util/env";
+import { ui } from "../util/terminal-ui";
 
 export class EnvironmentSelector {
   private async selectFromEnvironments(
@@ -14,7 +15,7 @@ export class EnvironmentSelector {
     emptyMessage: string
   ): Promise<EnvironmentCode[]> {
     if (environments.length === 0) {
-      console.log(emptyMessage);
+      ui.info(emptyMessage);
       return [];
     }
 
@@ -72,15 +73,15 @@ export class EnvironmentSelector {
 
   displaySelectionSummary(selected: EnvironmentCode[]): void {
     if (selected.length === 0) {
-      console.log("No environments selected.");
+      ui.warning("No environments selected.");
       return;
     }
 
-    console.log("\nSelected environments:");
+    ui.text("\nSelected environments:");
     selected.forEach((envId) => {
-      console.log(`  ${getEnvironmentDisplayName(envId)}`);
+      ui.text(`  ${getEnvironmentDisplayName(envId)}`);
     });
-    console.log("");
+    ui.breakline();
   }
 
   async selectGlobalEnvironments(): Promise<EnvironmentCode[]> {
