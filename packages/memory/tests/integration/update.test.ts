@@ -1,6 +1,6 @@
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { unlinkSync, existsSync } from 'fs';
+import { rmSync } from 'fs';
 import { DatabaseConnection } from '../../src/database/connection';
 import { initializeSchema } from '../../src/database/schema';
 import { ValidationError, DuplicateError, NotFoundError } from '../../src/utils/errors';
@@ -144,11 +144,9 @@ describe('update handler', () => {
 
     afterAll(() => {
         db.close();
-        try {
-            if (existsSync(testDbPath)) unlinkSync(testDbPath);
-            if (existsSync(testDbPath + '-wal')) unlinkSync(testDbPath + '-wal');
-            if (existsSync(testDbPath + '-shm')) unlinkSync(testDbPath + '-shm');
-        } catch { }
+        rmSync(testDbPath, { force: true });
+        rmSync(testDbPath + '-wal', { force: true });
+        rmSync(testDbPath + '-shm', { force: true });
     });
 
     beforeEach(() => {
