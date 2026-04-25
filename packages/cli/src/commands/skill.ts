@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config';
 import { SkillManager } from '../lib/SkillManager';
 import { ui } from '../util/terminal-ui';
-import { truncate } from '../util/text';
+import { truncate, getErrorMessage } from '../util/text';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -24,12 +24,13 @@ export function registerSkillCommand(program: Command): void {
           global: options.global,
           environments: options.env,
         });
-      } catch (error: any) {
-        if (error.message === 'Skill selection cancelled.') {
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message === 'Skill selection cancelled.') {
           ui.warning('Skill selection cancelled.');
           return;
         }
-        ui.error(`Failed to add skill: ${error.message}`);
+        ui.error(`Failed to add skill: ${message}`);
         process.exit(1);
       }
     });
@@ -63,8 +64,8 @@ export function registerSkillCommand(program: Command): void {
         });
 
         ui.text(`Total: ${skills.length} skill(s)`, { breakline: true });
-      } catch (error: any) {
-        ui.error(`Failed to list skills: ${error.message}`);
+      } catch (error: unknown) {
+        ui.error(`Failed to list skills: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -78,8 +79,8 @@ export function registerSkillCommand(program: Command): void {
         const skillManager = new SkillManager(configManager);
 
         await skillManager.removeSkill(skillName);
-      } catch (error: any) {
-        ui.error(`Failed to remove skill: ${error.message}`);
+      } catch (error: unknown) {
+        ui.error(`Failed to remove skill: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -93,8 +94,8 @@ export function registerSkillCommand(program: Command): void {
         const skillManager = new SkillManager(configManager);
 
         await skillManager.updateSkills(registryId);
-      } catch (error: any) {
-        ui.error(`Failed to update skills: ${error.message}`);
+      } catch (error: unknown) {
+        ui.error(`Failed to update skills: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -129,8 +130,8 @@ export function registerSkillCommand(program: Command): void {
         });
 
         ui.text(`\nInstall with: ai-devkit skill add <registry> [skill-name]`, { breakline: true });
-      } catch (error: any) {
-        ui.error(`Failed to search skills: ${error.message}`);
+      } catch (error: unknown) {
+        ui.error(`Failed to search skills: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });
@@ -145,8 +146,8 @@ export function registerSkillCommand(program: Command): void {
         const skillManager = new SkillManager(configManager);
 
         await skillManager.rebuildIndex(options.output);
-      } catch (error: any) {
-        ui.error(`Failed to rebuild index: ${error.message}`);
+      } catch (error: unknown) {
+        ui.error(`Failed to rebuild index: ${getErrorMessage(error)}`);
         process.exit(1);
       }
     });

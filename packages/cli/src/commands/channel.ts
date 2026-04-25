@@ -22,6 +22,7 @@ import {
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
 import { ui } from '../util/terminal-ui';
+import { getErrorMessage } from '../util/text';
 import { createLogger, enableDebug } from '../util/debug';
 
 const debug = createLogger('channel');
@@ -98,9 +99,10 @@ function setupInputHandler(
         try {
             await TtyWriter.send(terminalLocation, msg.text);
             debug(`Sent message to agent terminal (length: ${msg.text?.length ?? 0})`);
-        } catch (error: any) {
-            ui.error(`Failed to send to agent: ${error.message}`);
-            await telegram.sendMessage(msg.chatId, `Failed to send to agent: ${error.message}`);
+        } catch (error: unknown) {
+            const message = getErrorMessage(error);
+            ui.error(`Failed to send to agent: ${message}`);
+            await telegram.sendMessage(msg.chatId, `Failed to send to agent: ${message}`);
         }
     });
 }
@@ -214,7 +216,7 @@ export function registerChannelCommand(program: Command): void {
                     const me = await bot.telegram.getMe();
                     botUsername = me.username;
                     spinner.succeed(`Connected to bot @${botUsername}`);
-                } catch (error: any) {
+                } catch (error: unknown) {
                     spinner.fail('Invalid bot token. Please check and try again.');
                     return;
                 }
@@ -234,8 +236,8 @@ export function registerChannelCommand(program: Command): void {
                 ui.info(`Bot: @${botUsername}`);
                 ui.info('Run "ai-devkit channel start --agent <name>" to start the bridge.');
 
-            } catch (error: any) {
-                ui.error(`Failed to connect channel: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to connect channel: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });
@@ -272,8 +274,8 @@ export function registerChannelCommand(program: Command): void {
                     rows,
                 });
 
-            } catch (error: any) {
-                ui.error(`Failed to list channels: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to list channels: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });
@@ -303,8 +305,8 @@ export function registerChannelCommand(program: Command): void {
                 await configStore.removeChannel(type);
                 ui.success(`${type} channel disconnected.`);
 
-            } catch (error: any) {
-                ui.error(`Failed to disconnect channel: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to disconnect channel: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });
@@ -387,9 +389,10 @@ export function registerChannelCommand(program: Command): void {
 
                 // Keep process running
                 await new Promise(() => {});
-            } catch (error: any) {
-                debug(`Error caught: ${error.stack ?? error.message}`);
-                ui.error(`Failed to start channel bridge: ${error.message}`);
+            } catch (error: unknown) {
+                const message = getErrorMessage(error);
+                debug(`Error caught: ${error instanceof Error ? error.stack : message}`);
+                ui.error(`Failed to start channel bridge: ${message}`);
                 process.exit(1);
             }
         });

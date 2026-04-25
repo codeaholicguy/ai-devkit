@@ -15,6 +15,7 @@ import {
     type AgentType,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui';
+import { getErrorMessage } from '../util/text';
 
 const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
     [AgentStatus.RUNNING]: { emoji: '🟢', label: 'run' },
@@ -134,8 +135,8 @@ export function registerAgentCommand(program: Command): void {
                     ui.warning(`${waitingCount} agent(s) waiting for input.`);
                 }
 
-            } catch (error: any) {
-                ui.error(`Failed to list agents: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to list agents: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });
@@ -210,8 +211,8 @@ export function registerAgentCommand(program: Command): void {
                     spinner.fail(`Failed to switch focus to ${agent.name}.`);
                 }
 
-            } catch (error: any) {
-                ui.error(`Failed to open agent: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to open agent: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });
@@ -265,8 +266,8 @@ export function registerAgentCommand(program: Command): void {
                 await TtyWriter.send(location, message);
                 ui.success(`Sent message to ${agent.name}.`);
 
-            } catch (error: any) {
-                ui.error(`Failed to send message: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to send message: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });
@@ -397,8 +398,8 @@ export function registerAgentCommand(program: Command): void {
                     ui.info(`Showing last ${displayMessages.length} of ${conversation.length} messages. Use --full to see all.`);
                 }
 
-            } catch (error: any) {
-                ui.error(`Failed to get agent detail: ${error.message}`);
+            } catch (error: unknown) {
+                ui.error(`Failed to get agent detail: ${getErrorMessage(error)}`);
                 process.exit(1);
             }
         });

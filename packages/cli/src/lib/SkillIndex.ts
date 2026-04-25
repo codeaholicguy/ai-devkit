@@ -6,6 +6,7 @@ import { extractSkillDescription } from '../util/skill';
 import { fetchGitHead } from '../util/git';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github';
 import { ui } from '../util/terminal-ui';
+import { getErrorMessage } from '../util/text';
 
 const SEED_INDEX_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/index.json';
 const SKILL_INDEX_PATH = path.join(os.homedir(), '.ai-devkit', 'skills.json');
@@ -59,9 +60,9 @@ export class SkillIndex {
       await fs.writeJson(targetPath, newIndex, { spaces: 2 });
       spinner.succeed(`Skill index rebuilt: ${newIndex.skills.length} skills`);
       ui.info(`Written to: ${targetPath}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       spinner.fail('Failed to rebuild index');
-      throw new Error(`Failed to rebuild skill index: ${error.message}`);
+      throw new Error(`Failed to rebuild skill index: ${getErrorMessage(error)}`);
     }
   }
 
@@ -108,7 +109,7 @@ export class SkillIndex {
       await fs.writeJson(SKILL_INDEX_PATH, newIndex, { spaces: 2 });
       spinner.succeed('Skill index updated');
       return newIndex;
-    } catch (error: any) {
+    } catch (error: unknown) {
       spinner.fail('Failed to build index');
 
       if (!forceRefresh && await fs.pathExists(SKILL_INDEX_PATH)) {
@@ -116,7 +117,7 @@ export class SkillIndex {
         return await fs.readJson(SKILL_INDEX_PATH);
       }
 
-      throw new Error(`Failed to build skill index: ${error.message}`);
+      throw new Error(`Failed to build skill index: ${getErrorMessage(error)}`);
     }
   }
 

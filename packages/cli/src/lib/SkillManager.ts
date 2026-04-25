@@ -420,8 +420,9 @@ export class SkillManager {
       ]);
 
       return selectedSkills;
-    } catch (error: any) {
-      if (error?.name === 'ExitPromptError' || error?.message?.toLowerCase().includes('cancel')) {
+    } catch (error: unknown) {
+      if (error instanceof Error &&
+        (error.name === 'ExitPromptError' || error.message.toLowerCase().includes('cancel'))) {
         throw new Error('Skill selection cancelled.');
       }
 

@@ -1,15 +1,24 @@
-export function truncate(text: string, maxLength: number, replaceText: string = '...'): string {
-    if (maxLength <= 0) {
-        return '';
-    }
+export function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
 
-    if (text.length <= maxLength) {
-        return text;
-    }
+export function truncate(
+  text: string,
+  maxLength: number,
+  replaceText: string = "...",
+): string {
+  if (maxLength <= 0) {
+    return "";
+  }
 
-    if (replaceText.length >= maxLength) {
-        return replaceText.substring(0, maxLength);
-    }
+  if (text.length <= maxLength) {
+    return text;
+  }
 
-    return `${text.substring(0, maxLength - replaceText.length)}${replaceText}`;
+  if (replaceText.length >= maxLength) {
+    return replaceText.substring(0, maxLength);
+  }
+
+  return `${text.substring(0, maxLength - replaceText.length)}${replaceText}`;
 }

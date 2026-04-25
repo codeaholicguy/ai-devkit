@@ -5,6 +5,7 @@ import { ConfigManager } from './Config';
 import { GlobalConfigManager } from './GlobalConfig';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../util/git';
 import { ui } from '../util/terminal-ui';
+import { getErrorMessage } from '../util/text';
 
 export const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
 export const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');
@@ -50,8 +51,8 @@ export class SkillRegistry {
     try {
       const defaultRegistry = await this.fetchDefaultRegistry();
       defaultRegistries = defaultRegistry.registries || {};
-    } catch (error: any) {
-      ui.warning(`Failed to fetch default registry: ${error.message}`);
+    } catch (error: unknown) {
+      ui.warning(`Failed to fetch default registry: ${getErrorMessage(error)}`);
       defaultRegistries = {};
     }
 
@@ -99,9 +100,9 @@ export class SkillRegistry {
 
     try {
       return await this.cloneRepositoryToCache(registryId, gitUrl);
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (await fs.pathExists(cachedPath)) {
-        ui.warning(`Failed to refresh ${registryId}: ${error.message}. Using cached registry contents.`);
+        ui.warning(`Failed to refresh ${registryId}: ${getErrorMessage(error)}. Using cached registry contents.`);
         return cachedPath;
       }
 
@@ -194,12 +195,12 @@ export class SkillRegistry {
         status: 'success',
         message: 'Updated successfully',
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       return {
         registryId,
         status: 'error',
-        message: error.message,
-        error,
+        message: getErrorMessage(error),
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
