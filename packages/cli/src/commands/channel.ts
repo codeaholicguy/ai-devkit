@@ -99,6 +99,23 @@ function setupInputHandler(
     });
 }
 
+const SYSTEM_TAGS = [
+    'command-name',
+    'command-message',
+    'command-args',
+    'local-command-stdout',
+    'system-reminder',
+    'user-prompt-submit-hook',
+];
+
+function stripSystemTags(content: string): string {
+    let result = content;
+    for (const tag of SYSTEM_TAGS) {
+        result = result.replace(new RegExp(`<${tag}[^>]*>[\\s\\S]*?<\\/${tag}>`, 'g'), '');
+    }
+    return result.trim();
+}
+
 function startOutputPolling(
     telegram: TelegramAdapter,
     agentAdapter: AgentAdapter,
@@ -130,8 +147,10 @@ function startOutputPolling(
 
             for (const msg of newMessages) {
                 if (msg.role !== 'user' && msg.content) {
-                    await telegram.sendMessage(chatIdRef.value, msg.content);
-                    debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${msg.content.length})`);
+                    const cleaned = stripSystemTags(msg.content);
+                    if (!cleaned) continue;
+                    await telegram.sendMessage(chatIdRef.value, cleaned);
+                    debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${cleaned.length})`);
                 }
             }
         } catch {
