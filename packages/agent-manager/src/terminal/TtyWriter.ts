@@ -2,19 +2,9 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import type { TerminalLocation } from './TerminalFocusManager';
 import { TerminalType } from './TerminalFocusManager';
+import { escapeAppleScript } from '../utils/applescript';
 
 const execFileAsync = promisify(execFile);
-
-/**
- * Escape a string for safe use inside an AppleScript double-quoted string.
- * Backslashes, double quotes, and newlines must be escaped.
- */
-function escapeAppleScript(text: string): string {
-    return text
-        .replace(/\\/g, '\\\\')
-        .replace(/"/g, '\\"')
-        .replace(/\r\n|\r|\n/g, '\\n');
-}
 
 export class TtyWriter {
     /**

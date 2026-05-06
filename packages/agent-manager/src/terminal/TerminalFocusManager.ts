@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { getProcessTty } from '../utils/process';
+import { escapeAppleScript } from '../utils/applescript';
 
 const execFileAsync = promisify(execFile);
 
@@ -15,10 +16,6 @@ export interface TerminalLocation {
     type: TerminalType;
     identifier: string; // e.g., "session:window.pane" for tmux, or TTY for others
     tty: string;        // e.g., "/dev/ttys030"
-}
-
-function escapeAppleScript(text: string): string {
-    return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
 export class TerminalFocusManager {
