@@ -1,12 +1,12 @@
 /**
  * Session File Utilities
  *
- * Shell command wrappers for discovering session files and their birth times.
- * Uses `stat` to get exact epoch-second birth timestamps without reading file contents.
+ * Utilities for discovering session files and their birth times.
+ * Uses Node.js fs APIs to get birth timestamps without reading file contents.
  */
 
+import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
 
 /**
  * Represents a session file with its birth time metadata.
@@ -29,63 +29,50 @@ export interface SessionFile {
 }
 
 /**
- * Get birth times for .jsonl session files across multiple directories in a single shell call.
+ * Get birth times for .jsonl session files across multiple directories.
  *
- * Combines all directory globs into one `stat` command to avoid per-directory exec overhead.
- * Returns empty array if no directories have .jsonl files or command fails.
+ * Enumerates each directory with readdirSync and stats each .jsonl file
+ * to get its birth time. No shell commands are used.
+ * Returns empty array if no directories have .jsonl files or reads fail.
  * resolvedCwd is left empty — the adapter must set it.
  */
 export function batchGetSessionFileBirthtimes(dirs: string[]): SessionFile[] {
     if (dirs.length === 0) return [];
 
-    try {
-        const isMacOS = process.platform === 'darwin';
-        const globs = dirs.map((d) => `"${d}"/*.jsonl`).join(' ');
-        // || true prevents non-zero exit when some globs have no .jsonl matches
-        const command = isMacOS
-            ? `stat -f '%B %N' ${globs} 2>/dev/null || true`
-            : `stat --format='%W %n' ${globs} 2>/dev/null || true`;
-
-        const output = execSync(command, { encoding: 'utf-8' });
-
-        return parseStatOutput(output);
-    } catch {
-        return [];
-    }
-}
-
-/**
- * Parse stat output lines into SessionFile entries.
- */
-function parseStatOutput(output: string): SessionFile[] {
     const results: SessionFile[] = [];
 
-    for (const rawLine of output.trim().split('\n')) {
-        const line = rawLine.trim();
-        if (!line) continue;
+    for (const dir of dirs) {
+        let entries: string[];
+        try {
+            entries = fs.readdirSync(dir);
+        } catch {
+            continue;
+        }
 
-        // Format: "<epoch_seconds> <filepath>"
-        const spaceIdx = line.indexOf(' ');
-        if (spaceIdx === -1) continue;
+        for (const entry of entries) {
+            if (!entry.endsWith('.jsonl')) continue;
 
-        const epochStr = line.slice(0, spaceIdx);
-        const filePath = line.slice(spaceIdx + 1).trim();
+            const filePath = path.join(dir, entry);
 
-        const epochSeconds = parseInt(epochStr, 10);
-        if (!Number.isFinite(epochSeconds) || epochSeconds <= 0) continue;
+            let birthtimeMs: number;
+            try {
+                birthtimeMs = fs.statSync(filePath).birthtimeMs;
+            } catch {
+                continue;
+            }
 
-        const fileName = path.basename(filePath);
-        if (!fileName.endsWith('.jsonl')) continue;
+            if (!Number.isFinite(birthtimeMs) || birthtimeMs <= 0) continue;
 
-        const sessionId = fileName.replace(/\.jsonl$/, '');
+            const sessionId = entry.replace(/\.jsonl$/, '');
 
-        results.push({
-            sessionId,
-            filePath,
-            projectDir: path.dirname(filePath),
-            birthtimeMs: epochSeconds * 1000,
-            resolvedCwd: '',
-        });
+            results.push({
+                sessionId,
+                filePath,
+                projectDir: dir,
+                birthtimeMs,
+                resolvedCwd: '',
+            });
+        }
     }
 
     return results;

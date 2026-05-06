@@ -3,25 +3,31 @@
  */
 
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { execSync } from 'child_process';
+import * as fs from 'fs';
 import { batchGetSessionFileBirthtimes } from '../../utils/session';
 
-jest.mock('child_process', () => ({
-    execSync: jest.fn(),
+jest.mock('fs', () => ({
+    readdirSync: jest.fn(),
+    statSync: jest.fn(),
 }));
 
-const mockedExecSync = execSync as jest.MockedFunction<typeof execSync>;
+const mockedReaddirSync = fs.readdirSync as jest.MockedFunction<typeof fs.readdirSync>;
+const mockedStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
 
 describe('batchGetSessionFileBirthtimes', () => {
     beforeEach(() => {
-        mockedExecSync.mockReset();
+        mockedReaddirSync.mockReset();
+        mockedStatSync.mockReset();
     });
 
-    it('should parse stat output correctly', () => {
-        mockedExecSync.mockReturnValue(
-            '1710800324 /home/.claude/projects/my-app/abc123.jsonl\n' +
-            '1710800500 /home/.claude/projects/my-app/def456.jsonl\n',
-        );
+    it('should parse session files correctly', () => {
+        mockedReaddirSync.mockReturnValue([
+            'abc123.jsonl',
+            'def456.jsonl',
+        ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 1710800324000 } as fs.Stats)
+            .mockReturnValueOnce({ birthtimeMs: 1710800500000 } as fs.Stats);
 
         const results = batchGetSessionFileBirthtimes(['/home/.claude/projects/my-app']);
 
@@ -39,49 +45,57 @@ describe('batchGetSessionFileBirthtimes', () => {
 
     it('should return empty array for empty dirs list', () => {
         expect(batchGetSessionFileBirthtimes([])).toEqual([]);
-        expect(mockedExecSync).not.toHaveBeenCalled();
+        expect(mockedReaddirSync).not.toHaveBeenCalled();
     });
 
-    it('should return empty array on command failure', () => {
-        mockedExecSync.mockImplementation(() => {
-            throw new Error('Command failed');
+    it('should return empty array on readdir failure', () => {
+        mockedReaddirSync.mockImplementation(() => {
+            throw new Error('ENOENT');
         });
 
         expect(batchGetSessionFileBirthtimes(['/some/dir'])).toEqual([]);
     });
 
-    it('should skip lines with invalid epoch (0 or negative)', () => {
-        mockedExecSync.mockReturnValue(
-            '0 /dir/bad.jsonl\n' +
-            '-1 /dir/negative.jsonl\n' +
-            '1710800324 /dir/good.jsonl\n',
-        );
+    it('should skip files with invalid birthtime (0 or negative)', () => {
+        mockedReaddirSync.mockReturnValue([
+            'bad.jsonl',
+            'negative.jsonl',
+            'good.jsonl',
+        ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 0 } as fs.Stats)
+            .mockReturnValueOnce({ birthtimeMs: -1 } as fs.Stats)
+            .mockReturnValueOnce({ birthtimeMs: 1710800324000 } as fs.Stats);
 
         const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results).toHaveLength(1);
         expect(results[0].sessionId).toBe('good');
     });
 
-    it('should skip non-jsonl files in output', () => {
-        mockedExecSync.mockReturnValue(
-            '1710800324 /dir/sessions-index.json\n' +
-            '1710800500 /dir/abc123.jsonl\n',
-        );
+    it('should skip non-jsonl files', () => {
+        mockedReaddirSync.mockReturnValue([
+            'sessions-index.json',
+            'abc123.jsonl',
+        ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 1710800500000 } as fs.Stats);
 
         const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results).toHaveLength(1);
         expect(results[0].sessionId).toBe('abc123');
     });
 
-    it('should handle empty output', () => {
-        mockedExecSync.mockReturnValue('');
+    it('should handle empty directory', () => {
+        mockedReaddirSync.mockReturnValue([] as unknown as ReturnType<typeof fs.readdirSync>);
         expect(batchGetSessionFileBirthtimes(['/dir'])).toEqual([]);
     });
 
     it('should handle UUID session IDs', () => {
-        mockedExecSync.mockReturnValue(
-            '1710800324 /dir/068e7b1f-cff5-4c94-bf69-b9acd32d765c.jsonl\n',
-        );
+        mockedReaddirSync.mockReturnValue([
+            '068e7b1f-cff5-4c94-bf69-b9acd32d765c.jsonl',
+        ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 1710800324000 } as fs.Stats);
 
         const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results).toHaveLength(1);
@@ -89,29 +103,51 @@ describe('batchGetSessionFileBirthtimes', () => {
     });
 
     it('should leave resolvedCwd empty', () => {
-        mockedExecSync.mockReturnValue('1710800324 /dir/abc.jsonl\n');
+        mockedReaddirSync.mockReturnValue([
+            'abc.jsonl',
+        ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 1710800324000 } as fs.Stats);
 
         const results = batchGetSessionFileBirthtimes(['/dir']);
         expect(results[0].resolvedCwd).toBe('');
     });
 
-    it('should combine multiple directories into a single stat call', () => {
-        mockedExecSync.mockReturnValue(
-            '1710800324 /projects/app-a/sess1.jsonl\n' +
-            '1710800400 /projects/app-b/sess2.jsonl\n' +
-            '1710800500 /projects/app-a/sess3.jsonl\n',
-        );
+    it('should enumerate multiple directories', () => {
+        mockedReaddirSync
+            .mockReturnValueOnce([
+                'sess1.jsonl',
+                'sess3.jsonl',
+            ] as unknown as ReturnType<typeof fs.readdirSync>)
+            .mockReturnValueOnce([
+                'sess2.jsonl',
+            ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 1710800324000 } as fs.Stats)
+            .mockReturnValueOnce({ birthtimeMs: 1710800500000 } as fs.Stats)
+            .mockReturnValueOnce({ birthtimeMs: 1710800400000 } as fs.Stats);
 
         const results = batchGetSessionFileBirthtimes(['/projects/app-a', '/projects/app-b']);
 
-        expect(mockedExecSync).toHaveBeenCalledTimes(1);
-        const cmd = mockedExecSync.mock.calls[0][0] as string;
-        expect(cmd).toContain('"/projects/app-a"/*.jsonl');
-        expect(cmd).toContain('"/projects/app-b"/*.jsonl');
+        expect(mockedReaddirSync).toHaveBeenCalledTimes(2);
 
         expect(results).toHaveLength(3);
         expect(results[0].projectDir).toBe('/projects/app-a');
-        expect(results[1].projectDir).toBe('/projects/app-b');
-        expect(results[2].projectDir).toBe('/projects/app-a');
+        expect(results[1].projectDir).toBe('/projects/app-a');
+        expect(results[2].projectDir).toBe('/projects/app-b');
+    });
+
+    it('should skip files where statSync fails', () => {
+        mockedReaddirSync.mockReturnValue([
+            'good.jsonl',
+            'gone.jsonl',
+        ] as unknown as ReturnType<typeof fs.readdirSync>);
+        mockedStatSync
+            .mockReturnValueOnce({ birthtimeMs: 1710800324000 } as fs.Stats)
+            .mockImplementationOnce(() => { throw new Error('ENOENT'); });
+
+        const results = batchGetSessionFileBirthtimes(['/dir']);
+        expect(results).toHaveLength(1);
+        expect(results[0].sessionId).toBe('good');
     });
 });
