@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Review"
+  short_description: "Review code for security vulnerabilities before merge"
+  default_prompt: "Use $security-review to audit this code for security vulnerabilities — scan against OWASP Top 10 and project-specific risks, classify findings by severity, and propose a remediation plan. Wait for approval before changing code."
