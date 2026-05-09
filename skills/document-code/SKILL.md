@@ -1,9 +1,9 @@
 ---
-name: capture-knowledge
-description: AI DevKit · Capture structured knowledge about a code entry point and save it to the knowledge docs. Use when users ask to document, understand, or map code for a module, file, folder, function, or API.
+name: document-code
+description: AI DevKit · Document a code entry point with structured analysis, dependency mapping, and saved knowledge docs. Use when users ask to document, understand, or map code for a module, file, folder, function, or API.
 ---
 
-# Knowledge Capture Assistant
+# Code Documentation Assistant
 
 Build structured understanding of code entry points with an analysis-first workflow.
 

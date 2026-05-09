@@ -1,12 +1,12 @@
 ---
 title: Understanding Existing Code with AI DevKit
-description: Learn how to analyze and document existing codebases using AI DevKit's capture-knowledge command
+description: Learn how to analyze and document existing codebases using AI DevKit's document-code command
 order: 4
 ---
 
-## What is Knowledge Capture?
+## What is Document Code?
 
-When joining a new project or working with unfamiliar code, understanding how everything fits together can be overwhelming. The `/capture-knowledge` command analyzes your codebase from any entry point and generates comprehensive documentation with visual diagrams—helping you understand complex systems in minutes instead of hours.
+When joining a new project or working with unfamiliar code, understanding how everything fits together can be overwhelming. The `/document-code` command analyzes your codebase from any entry point and generates comprehensive documentation with visual diagrams—helping you understand complex systems in minutes instead of hours.
 
 **Common scenarios:**
 - You just joined a team and need to understand the authentication system
@@ -15,24 +15,24 @@ When joining a new project or working with unfamiliar code, understanding how ev
 
 ## Prerequisites
 
-Before using `/capture-knowledge`, ensure you have:
+Before using `/document-code`, ensure you have:
 - Initialized AI DevKit in your project (`ai-devkit init`)
 - An AI editor with slash command support (Cursor, Claude Code, etc.)
 
 ## Using the Command
 
-> **Note:** The `/capture-knowledge` command is a **slash command** — type it directly in your AI editor's chat window, not in the terminal.
+> **Note:** The `/document-code` command is a **slash command** — type it directly in your AI editor's chat window, not in the terminal.
 
 ### In Cursor or Similar Editors
 
 ```
-/capture-knowledge <entry-point>
+/document-code <entry-point>
 ```
 
 ### In Claude Code
 
 ```
-Use the capture-knowledge command to analyze <entry-point>
+Use the document-code command to analyze <entry-point>
 ```
 
 ## Entry Point Types
@@ -42,7 +42,7 @@ You can analyze code starting from different types of entry points:
 ### Files
 
 ```
-/capture-knowledge src/api/users.ts
+/document-code src/api/users.ts
 ```
 
 Analyzes a specific file and its dependencies.
@@ -50,7 +50,7 @@ Analyzes a specific file and its dependencies.
 ### Folders
 
 ```
-/capture-knowledge src/services/
+/document-code src/services/
 ```
 
 Analyzes an entire module or directory structure.
@@ -58,7 +58,7 @@ Analyzes an entire module or directory structure.
 ### Functions
 
 ```
-/capture-knowledge calculateTotalPrice
+/document-code calculateTotalPrice
 ```
 
 Analyzes a specific function and its call chain.
@@ -66,7 +66,7 @@ Analyzes a specific function and its call chain.
 ### API Endpoints
 
 ```
-/capture-knowledge POST:/api/users
+/document-code POST:/api/users
 ```
 
 Analyzes complete API request/response flow.
@@ -97,7 +97,7 @@ Analyzes complete API request/response flow.
 
 ## Example Output
 
-When you run `/capture-knowledge src/services/auth/`, the AI generates documentation like this:
+When you run `/document-code src/services/auth/`, the AI generates documentation like this:
 
 **docs/ai/knowledge/auth-service.md:**
 

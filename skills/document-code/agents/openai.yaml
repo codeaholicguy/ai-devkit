@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Documentation Assistant"
+  short_description: "Document code entry points with structured analysis"
+  default_prompt: "Use $document-code to analyze this code entry point, map dependencies, and create docs/ai/implementation/knowledge-<name>.md after validation is complete."

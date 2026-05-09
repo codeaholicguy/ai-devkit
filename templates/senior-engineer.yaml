@@ -14,7 +14,7 @@ skills:
   - registry: codeaholicguy/ai-devkit
     skill: debug
   - registry: codeaholicguy/ai-devkit
-    skill: capture-knowledge
+    skill: document-code
   - registry: codeaholicguy/ai-devkit
     skill: memory
   - registry: codeaholicguy/ai-devkit

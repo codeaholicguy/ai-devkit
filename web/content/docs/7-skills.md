@@ -24,7 +24,7 @@ AI DevKit ships with a core set of skills in its default registry:
 | Skill | Purpose |
 |---|---|
 | `agent-orchestration` | Coordinate running AI agents and manage multi-agent workflows |
-| `capture-knowledge` | Capture structured knowledge about code entry points into documentation |
+| `document-code` | Document code entry points with structured analysis and dependency mapping |
 | `dev-lifecycle` | Run a structured SDLC workflow from requirements to code review |
 | `debug` | Follow a disciplined debugging and RCA process before implementing fixes |
 | `memory` | Use AI DevKit memory operations via CLI patterns when needed |

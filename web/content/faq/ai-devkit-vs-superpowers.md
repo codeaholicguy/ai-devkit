@@ -15,7 +15,7 @@ These tools take different paths to fix that.
 | **Install** | `npm install -g ai-devkit` | Agent-specific setup guide (see official repository) |
 | **Approach** | Infrastructure focused: tools, memory, and project scaffolding | Behavior focused: process instructions injected into agent prompts |
 | **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
-| **Skills** | Built-in core skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `capture-knowledge`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
+| **Skills** | Built-in core skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
 | **Agents supported** | 11+ (Cursor, Claude Code, Codex, Copilot, Gemini CLI, OpenCode, Antigravity, Windsurf, and more) | 4 (Claude Code, Cursor, Codex, OpenCode) |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
 | **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
@@ -49,7 +49,7 @@ Follow the official setup guide for your agent at https://github.com/obra/superp
 
 ### AI DevKit
 
-AI DevKit is a **CLI toolkit** that you install globally and initialize per project. It scaffolds documentation, provides slash commands for each development phase, includes built-in skills like `dev-lifecycle`, `debug`, `simplify-implementation`, and `capture-knowledge`, and adds persistent local memory.
+AI DevKit is a **CLI toolkit** that you install globally and initialize per project. It scaffolds documentation, provides slash commands for each development phase, includes built-in skills like `dev-lifecycle`, `debug`, `simplify-implementation`, and `document-code`, and adds persistent local memory.
 
 ```bash
 npm install -g ai-devkit
@@ -78,13 +78,13 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 ### Workflow Enforcement
 
-**AI DevKit** provides structure but remains flexible. Built-in skills like `dev-lifecycle` and `debug` encourage consistency, while `simplify-implementation` and `capture-knowledge` keep solutions practical and reusable. You can still use commands in the order that fits your project. The docs structure is guidance, not a hard gate.
+**AI DevKit** provides structure but remains flexible. Built-in skills like `dev-lifecycle` and `debug` encourage consistency, while `simplify-implementation` and `document-code` keep solutions practical and reusable. You can still use commands in the order that fits your project. The docs structure is guidance, not a hard gate.
 
 **Superpowers** enforces strict process discipline. In its documented methodology, test-first development is treated as mandatory.
 
 ### Skills and Extensibility
 
-**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `capture-knowledge`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
+**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
 
 **Superpowers** comes with 14 built-in skills that form one cohesive methodology. There is a `writing-skills` skill for contributing new skills, but the system is more monolithic, with skills designed to work together in one workflow.
 
@@ -110,7 +110,7 @@ AI DevKit's preferred scaling pattern is to maximize context quality with one ag
 - Persistent memory across sessions without repeating yourself
 - Support for a wide range of AI coding environments
 - Flexibility to adopt structured practices gradually
-- Built-in skills for lifecycle, debugging, simplification, and knowledge capture
+- Built-in skills for lifecycle, debugging, simplification, and code documentation
 - A community skill ecosystem to extend capabilities
 - Simple installation via npm
 

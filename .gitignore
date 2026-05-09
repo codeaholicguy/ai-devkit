@@ -12,4 +12,5 @@ coverage/
 .cursor/
 .gemini/
 .codex/
+.github/prompts/
 .worktrees/

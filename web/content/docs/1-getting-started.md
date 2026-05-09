@@ -90,7 +90,7 @@ AI DevKit installs **slash commands** into your AI editor. These are special pro
 | `/check-implementation` | Compare code with design documents |
 | `/writing-test` | Generate comprehensive test cases |
 | `/code-review` | Perform pre-commit code reviews |
-| `/capture-knowledge` | Document and understand existing code |
+| `/document-code` | Document and understand existing code |
 | `/debug` | Systematic debugging with structured analysis |
 | `/update-planning` | Sync planning docs with implementation progress |
 | `/remember` | Remember your important guidelines, rules, and best practices |
