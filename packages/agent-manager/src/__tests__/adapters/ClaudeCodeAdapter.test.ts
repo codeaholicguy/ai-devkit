@@ -289,6 +289,76 @@ describe('ClaudeCodeAdapter', () => {
             });
         });
 
+        it('should match via --resume <uuid> in command line and skip PID-file/legacy', async () => {
+            const sessionId = '0555f803-7eca-4fc6-a1e0-34dbf86b33b2';
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 41920,
+                    command: `claude --resume ${sessionId}`,
+                    cwd: '/project/resumed',
+                    tty: 'ttys001',
+                    startTime: new Date(),
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-resume-'));
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-resumed');
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(jsonlPath, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/resumed', message: { content: 'resumed conversation' } }),
+                JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }),
+            ].join('\n'));
+
+            (adapter as any).projectsDir = projectsDir;
+            (adapter as any).sessionsDir = path.join(tmpDir, 'sessions'); // empty — no PID file
+
+            const agents = await adapter.detectAgents();
+
+            // Legacy matching helpers must NOT have been consulted — resume match was authoritative
+            expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'claude',
+                pid: 41920,
+                sessionId,
+                projectPath: '/project/resumed',
+            });
+            expect(agents[0].summary).toContain('resumed conversation');
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should fall through when --resume points to a JSONL that does not exist', async () => {
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 41921,
+                    command: 'claude --resume aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+                    cwd: '/project/missing',
+                    tty: 'ttys001',
+                    startTime: new Date(),
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            // No projects dir, no PID file → both matchers fail → process-only
+            (adapter as any).projectsDir = '/nonexistent';
+            (adapter as any).sessionsDir = '/nonexistent';
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].sessionId).toBe('pid-41921');
+            expect(agents[0].status).toBe(AgentStatus.IDLE);
+        });
+
         it('should use PID file for direct match and skip legacy matching for that process', async () => {
             const startTime = new Date();
             const processes: ProcessInfo[] = [

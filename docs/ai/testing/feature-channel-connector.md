@@ -22,16 +22,18 @@ All files            |     100 |      100 |     100 |     100 |
  ChannelManager.ts   |     100 |      100 |     100 |     100 |
  ConfigStore.ts      |     100 |      100 |     100 |     100 |
  TelegramAdapter.ts  |     100 |      100 |     100 |     100 |
+ utils/telegramHtml.ts |   100 |      100 |     100 |     100 |
 ---------------------|---------|----------|---------|---------|
 ```
 
-**34 tests, all passing.**
+**54 tests, all passing.**
 
 ## Test Files
 
 - `packages/channel-connector/src/__tests__/ChannelManager.test.ts` (8 tests)
 - `packages/channel-connector/src/__tests__/ConfigStore.test.ts` (12 tests)
-- `packages/channel-connector/src/__tests__/adapters/TelegramAdapter.test.ts` (14 tests)
+- `packages/channel-connector/src/__tests__/adapters/TelegramAdapter.test.ts` (20 tests)
+- `packages/channel-connector/src/__tests__/utils/telegramHtml.test.ts` (14 tests)
 
 ## Unit Tests
 
@@ -59,7 +61,7 @@ All files            |     100 |      100 |     100 |     100 |
 - [x] getChannel() returns entry
 - [x] getChannel() returns undefined for non-existent channel
 
-### TelegramAdapter (14 tests)
+### TelegramAdapter (20 tests)
 - [x] Returns type "telegram"
 - [x] Starts telegraf bot with correct token
 - [x] Stops bot cleanly
@@ -71,12 +73,43 @@ All files            |     100 |      100 |     100 |     100 |
 - [x] isHealthy() returns true after start
 - [x] isHealthy() returns false before start
 - [x] isHealthy() returns false after stop
-- [x] sendMessage() sends text to specified chatId
-- [x] sendMessage() chunks messages exceeding 4096 chars at newline boundaries
-- [x] sendMessage() handles messages with no newlines (hard split at 4096)
+- [x] sendMessage() sends plain text with parse_mode HTML
+- [x] sendMessage() renders markdown to Telegram HTML (`**bold**`, `*italic*`, `` `code` ``)
+- [x] sendMessage() chunks messages exceeding 4096 chars
+- [x] sendMessage() hard-splits at 4096 when no newlines
+- [x] sendMessage() prefers paragraph (`\n\n`) boundaries over single `\n`
+- [x] sendMessage() retries chunk as plain text on Telegram parse-entities rejection
+- [x] sendMessage() detects parse-entities marker on `message` field too
+- [x] sendMessage() decodes HTML entities (`&lt;`, `&amp;`, etc.) when falling back
+- [x] sendMessage() propagates non-parse-entities errors without retry
 
-### CLI Channel Commands
-CLI channel commands are integration-tested via manual E2E testing (requires running agent and Telegram bot).
+### markdownToTelegramHtml (14 tests)
+- [x] Renders bold, italic, strikethrough
+- [x] Renders inline code and fenced code with language hint
+- [x] Renders links and converts headings to bold
+- [x] Renders images as alt-text links
+- [x] Falls back to URL when image has no alt text
+- [x] Renders unordered lists with `•` bullets (no `<ul>`)
+- [x] Renders ordered lists with numeric prefixes (no `<ol>`)
+- [x] Renders tables as ASCII inside `<pre>`
+- [x] Uses `<blockquote>` for quoted text
+- [x] HTML-escapes special chars in plain text
+- [x] HTML-escapes special chars inside code
+- [x] Strips raw HTML blocks
+- [x] Renders horizontal rule as `———`
+- [x] Passes plain text through unchanged
+
+### CLI Channel Commands — `startOutputPolling` (8 tests)
+- [x] Seeds `lastMessageCount` from initial getConversation so existing messages are not re-sent
+- [x] Skips ticks when no chat is authorized yet
+- [x] Skips ticks when agent has no `sessionFilePath`
+- [x] Sends new assistant messages to Telegram with the authorized chatId
+- [x] Skips messages with role "user" (already delivered to terminal)
+- [x] Skips messages with empty/missing content
+- [x] Does not crash when `getConversation` throws (agent terminated) — loop continues, next tick recovers
+- [x] Logs `ui.error` when `sendMessage` throws but keeps loop alive; failed message is not retried (lastMessageCount advanced) and subsequent messages still flow
+
+Test file: `packages/cli/src/__tests__/commands/channel.test.ts`. Uses jest fake timers + mocked `terminal-ui`, `agentAdapter`, and `telegram` adapter.
 
 ## Manual Testing
 

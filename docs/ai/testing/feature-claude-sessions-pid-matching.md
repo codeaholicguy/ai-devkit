@@ -14,6 +14,15 @@ description: Define testing approach, test cases, and quality assurance
 
 ## Unit Tests
 
+### `tryResumeMatching()`
+
+Authoritative match for processes started with `claude --resume <uuid>`. Runs **before** PID-file matching to bypass heuristics that fail when the JSONL predates the process.
+
+- [x] Process command contains `--resume <uuid>` + JSONL exists at `<projectDir>/<uuid>.jsonl` → process in `direct`, with `sessionId` set from the regex capture and `resolvedCwd` from `proc.cwd`
+- [x] Process command contains `--resume <uuid>` but JSONL does not exist → process falls through to PID-file matching, then legacy, ultimately yielding a process-only `AgentInfo` (status IDLE, sessionId `pid-<pid>`)
+- [ ] **Gap**: `--resume=<uuid>` (equals-sign syntax) — current regex requires whitespace; not handled. Decide: broaden regex or assert fall-through behavior in a test.
+- [ ] **Gap**: `claude --continue` (resume most-recent without UUID) — not handled because we can't infer the session ID.
+
 ### `tryPidFileMatching()`
 
 - [x] PID file present + JSONL exists + `startedAt` within 60 s of `proc.startTime` → process in `direct` with correct `sessionId` and `resolvedCwd`
@@ -33,6 +42,7 @@ description: Define testing approach, test cases, and quality assurance
 - [x] Direct match produces `AgentInfo` with correct `sessionId`
 - [x] Direct-matched JSONL becomes unreadable after existence check → process falls back to IDLE
 - [x] Legacy-matched JSONL becomes unreadable after match → process falls back to IDLE
+- [x] Resume match short-circuits PID-file and legacy matchers when `--resume <uuid>` resolves to an existing JSONL
 
 ## Test Data
 

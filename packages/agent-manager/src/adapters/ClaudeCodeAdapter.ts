@@ -81,10 +81,17 @@ export class ClaudeCodeAdapter implements AgentAdapter {
             return [];
         }
 
-        // Step 1: try authoritative PID-file matching for every process
-        const { direct, fallback } = this.tryPidFileMatching(processes);
+        // Step 1: extract `--resume <id>` from command line — authoritative for
+        // resumed sessions where the JSONL predates the process and PID-file/
+        // birthtime heuristics can't match it.
+        const { direct: resumeDirect, fallback: noResume } = this.tryResumeMatching(processes);
 
-        // Step 2: run legacy CWD+birthtime matching only for processes without a PID file
+        // Step 2: try authoritative PID-file matching for the rest
+        const { direct: pidDirect, fallback } = this.tryPidFileMatching(noResume);
+
+        const direct = [...resumeDirect, ...pidDirect];
+
+        // Step 3: run legacy CWD+birthtime matching only for processes without a PID file
         const legacySessions = this.discoverSessions(fallback);
         const legacyMatches =
             fallback.length > 0 && legacySessions.length > 0
@@ -98,7 +105,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         const agents: AgentInfo[] = [];
 
-        // Build agents from direct (PID-file) matches
+        // Build agents from direct (resume + PID-file) matches
         for (const { process: proc, sessionFile } of direct) {
             const sessionData = this.parser.readSession(sessionFile.filePath, sessionFile.resolvedCwd);
             if (sessionData) {
@@ -165,6 +172,55 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         }
 
         return files;
+    }
+
+    /**
+     * Match processes via `claude --resume <uuid>` in their command line.
+     * This works for resumed sessions, where the JSONL was created earlier
+     * (so its birthtime is far from the process startTime and the legacy
+     * matcher can't pair them) and the PID file may also be misaligned.
+     */
+    private tryResumeMatching(processes: ProcessInfo[]): {
+        direct: DirectMatch[];
+        fallback: ProcessInfo[];
+    } {
+        const direct: DirectMatch[] = [];
+        const fallback: ProcessInfo[] = [];
+
+        for (const proc of processes) {
+            const sessionId = this.extractResumeSessionId(proc.command);
+            if (!sessionId || !proc.cwd) {
+                fallback.push(proc);
+                continue;
+            }
+
+            const projectDir = this.getProjectDir(proc.cwd);
+            const jsonlPath = path.join(projectDir, `${sessionId}.jsonl`);
+
+            const stat = safeStat(jsonlPath);
+            if (!stat) {
+                fallback.push(proc);
+                continue;
+            }
+
+            direct.push({
+                process: proc,
+                sessionFile: {
+                    sessionId,
+                    filePath: jsonlPath,
+                    projectDir,
+                    birthtimeMs: stat.birthtimeMs,
+                    resolvedCwd: proc.cwd,
+                },
+            });
+        }
+
+        return { direct, fallback };
+    }
+
+    private extractResumeSessionId(command: string): string | null {
+        const match = command.match(/--resume\s+([0-9a-f-]{36})/i);
+        return match?.[1] ?? null;
     }
 
     /**
