@@ -99,7 +99,7 @@ function setupInputHandler(
     });
 }
 
-function startOutputPolling(
+export function startOutputPolling(
     telegram: TelegramAdapter,
     agentAdapter: AgentAdapter,
     agent: AgentInfo,
@@ -107,35 +107,73 @@ function startOutputPolling(
 ): NodeJS.Timeout {
     let lastMessageCount = 0;
 
+    debug(`startOutputPolling: sessionFilePath=${agent.sessionFilePath ?? 'null'}`);
+
     if (agent.sessionFilePath) {
         try {
             const existing = agentAdapter.getConversation(agent.sessionFilePath);
             lastMessageCount = existing.length;
-        } catch {
-            // Session file might not exist yet
+            debug(`Initial conversation length: ${lastMessageCount}`);
+        } catch (error: unknown) {
+            debug(`Initial getConversation threw: ${getErrorMessage(error)}`);
         }
     }
 
-    return setInterval(async () => {
-        if (!chatIdRef.value || !agent.sessionFilePath) return;
+    let tickCount = 0;
+    let lastReportedLength = lastMessageCount;
 
+    return setInterval(async () => {
+        tickCount += 1;
+
+        if (!chatIdRef.value) {
+            if (tickCount % 15 === 1) {
+                debug(`poll skip: no authorized chat yet (tick ${tickCount})`);
+            }
+            return;
+        }
+        if (!agent.sessionFilePath) {
+            if (tickCount % 15 === 1) {
+                debug(`poll skip: agent has no sessionFilePath (tick ${tickCount})`);
+            }
+            return;
+        }
+
+        let newMessages;
         try {
             const conversation = agentAdapter.getConversation(agent.sessionFilePath);
-            const newMessages = conversation.slice(lastMessageCount);
+            newMessages = conversation.slice(lastMessageCount);
+            if (conversation.length !== lastReportedLength) {
+                debug(`Conversation length changed: ${lastReportedLength} -> ${conversation.length} (lastMessageCount=${lastMessageCount}, new=${newMessages.length})`);
+                lastReportedLength = conversation.length;
+            }
             lastMessageCount = conversation.length;
+        } catch (error: unknown) {
+            debug(`getConversation threw: ${getErrorMessage(error)}`);
+            return;
+        }
 
-            if (newMessages.length > 0) {
-                debug(`Polled ${newMessages.length} new message(s) from agent conversation`);
+        if (newMessages.length > 0) {
+            debug(`Polled ${newMessages.length} new message(s) from agent conversation`);
+        }
+
+        for (const msg of newMessages) {
+            const contentType = typeof msg.content;
+            const contentLen = msg.content ? String(msg.content).length : 0;
+            debug(`message: role=${msg.role}, contentType=${contentType}, length=${contentLen}`);
+
+            if (msg.role === 'user' || !msg.content) {
+                debug(`skipping message (role=${msg.role}, hasContent=${Boolean(msg.content)})`);
+                continue;
             }
 
-            for (const msg of newMessages) {
-                if (msg.role !== 'user' && msg.content) {
-                    await telegram.sendMessage(chatIdRef.value, msg.content);
-                    debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${msg.content.length})`);
-                }
+            try {
+                await telegram.sendMessage(chatIdRef.value, msg.content);
+                debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${contentLen})`);
+            } catch (error: unknown) {
+                const message = getErrorMessage(error);
+                ui.error(`Failed to send agent response to Telegram: ${message}`);
+                debug(`sendMessage failed: ${message}`);
             }
-        } catch {
-            // Agent may have terminated — check later
         }
     }, AGENT_POLL_INTERVAL_MS);
 }
