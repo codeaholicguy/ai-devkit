@@ -1,5 +1,5 @@
 ---
-description: Pre-push code review against design docs.
+description: AI DevKit · Pre-push code review against design docs.
 ---
 
 Perform a **holistic** local code review **before** pushing changes. Go beyond the diff — review how changes integrate with the broader codebase.

@@ -1,5 +1,5 @@
 ---
-description: Store reusable guidance in the knowledge memory service.
+description: AI DevKit · Store reusable guidance in the knowledge memory service.
 ---
 
 Help me store it in the knowledge memory service.

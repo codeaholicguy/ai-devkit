@@ -1,5 +1,5 @@
 ---
-description: Review feature requirements for completeness.
+description: AI DevKit · Review feature requirements for completeness.
 ---
 
 Review `{{docsDir}}/requirements/feature-{name}.md` and the project-level template `{{docsDir}}/requirements/README.md` to ensure structure and content alignment.
