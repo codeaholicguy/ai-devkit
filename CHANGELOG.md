@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Sessions Command** - New `ai-devkit agent sessions` command to list historical agent sessions (#79).
+- **Security Review Skill** - Added new `security-review` skill for security-focused review workflows.
+- **Playwright CLI Skill** - Added Playwright CLI entry to the skills registry.
+- **Google Skills Repository** - Added Google skills repository to `registry.json`.
+
+### Changed
+
+- **Strip Claude Code Tag** - `agent-manager` now strips the Claude Code tag from session output.
+- **Dev Lifecycle Execute Phase** - Improved the dev-lifecycle skill's execute phase guidance.
+- **Branding Updates** - Updated branding across CLI command templates, command files, and skills.
+
+### Fixed
+
+- **AppleScript Escape Utility** - Added an AppleScript escape utility in `agent-manager` to handle quoting safely.
+- **Native FS Session Finding** - Switched `agent-manager` session finding to use native `fs` instead of shelling out via `exec`.
+
 ## [0.27.0] - 2026-04-25
 
 ### Fixed
