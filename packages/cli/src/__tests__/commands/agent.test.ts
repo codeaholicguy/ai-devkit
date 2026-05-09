@@ -7,6 +7,7 @@ import { ui } from '../../util/terminal-ui';
 const mockManager: any = {
   registerAdapter: jest.fn(),
   listAgents: jest.fn(),
+  listSessions: jest.fn(),
   resolveAgent: jest.fn(),
 };
 
@@ -316,5 +317,151 @@ Waiting on user input`,
 
     expect(ui.error).toHaveBeenCalledWith('Cannot find terminal for agent "repo-a" (PID: 10).');
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
+  });
+
+  describe('sessions', () => {
+    function makeSession(overrides: Record<string, unknown> = {}) {
+      return {
+        type: 'claude',
+        sessionId: 'sess-1',
+        cwd: '/repo',
+        firstUserMessage: 'hello',
+        lastActive: new Date('2025-01-01T00:00:00Z'),
+        startedAt: new Date('2025-01-01T00:00:00Z'),
+        sessionFilePath: '/tmp/sess-1.jsonl',
+        ...overrides,
+      };
+    }
+
+    it('passes process.cwd() as the default cwd filter', async () => {
+      mockManager.listSessions.mockResolvedValue([]);
+      const cwd = process.cwd();
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions']);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd, type: undefined });
+    });
+
+    it('clears the cwd filter when --all is set', async () => {
+      mockManager.listSessions.mockResolvedValue([]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all']);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: undefined });
+    });
+
+    it('forwards --type to the manager', async () => {
+      mockManager.listSessions.mockResolvedValue([]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all', '--type', 'codex']);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: 'codex' });
+    });
+
+    it('emits JSON with ISO date strings for --json', async () => {
+      const session = makeSession();
+      mockManager.listSessions.mockResolvedValue([session]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all', '--json']);
+
+      const printed = (logSpy.mock.calls[0]?.[0] ?? '') as string;
+      const parsed = JSON.parse(printed);
+      expect(parsed).toEqual([
+        {
+          type: 'claude',
+          sessionId: 'sess-1',
+          cwd: '/repo',
+          firstUserMessage: 'hello',
+          lastActive: '2025-01-01T00:00:00.000Z',
+          startedAt: '2025-01-01T00:00:00.000Z',
+          sessionFilePath: '/tmp/sess-1.jsonl',
+        },
+      ]);
+    });
+
+    it('renders the table with the documented column order', async () => {
+      const session = makeSession({ firstUserMessage: 'real first prompt' });
+      mockManager.listSessions.mockResolvedValue([session]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all']);
+
+      expect(ui.table).toHaveBeenCalledTimes(1);
+      const tableArg = (ui.table as jest.Mock).mock.calls[0][0] as {
+        headers: string[];
+        rows: string[][];
+      };
+      expect(tableArg.headers).toEqual([
+        'Type',
+        'Session ID',
+        'CWD',
+        'First Message',
+        'Last Active',
+      ]);
+      expect(tableArg.rows).toHaveLength(1);
+      const [, idCell, , firstMsgCell] = tableArg.rows[0];
+      expect(idCell).toBe('sess-1');
+      expect(firstMsgCell).toBe('real first prompt');
+    });
+
+    it('shows the --all hint when default-cwd lookup is empty', async () => {
+      mockManager.listSessions.mockResolvedValue([]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions']);
+
+      const infoCalls = (ui.info as jest.Mock).mock.calls.map((c: unknown[]) => c[0]);
+      expect(infoCalls.some((m: unknown) => typeof m === 'string' && m.includes('--all'))).toBe(true);
+    });
+
+    it('substitutes "(no message yet)" placeholder in the table for empty firstUserMessage', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession({ firstUserMessage: '' })]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all']);
+
+      const tableArg = (ui.table as jest.Mock).mock.calls[0][0] as { rows: string[][] };
+      expect(tableArg.rows[0][3]).toBe('(no message yet)');
+    });
+
+    it('keeps empty firstUserMessage raw in --json output', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession({ firstUserMessage: '' })]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all', '--json']);
+
+      const parsed = JSON.parse((logSpy.mock.calls[0]?.[0] ?? '') as string) as Array<{
+        firstUserMessage: string;
+      }>;
+      expect(parsed[0].firstUserMessage).toBe('');
+    });
+
+    it('applies --limit by slicing after merge', async () => {
+      const sessions = [
+        makeSession({ sessionId: 's1' }),
+        makeSession({ sessionId: 's2' }),
+        makeSession({ sessionId: 's3' }),
+      ];
+      mockManager.listSessions.mockResolvedValue(sessions);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all', '--limit', '2', '--json']);
+
+      const parsed = JSON.parse((logSpy.mock.calls[0]?.[0] ?? '') as string) as Array<{ sessionId: string }>;
+      expect(parsed.map((s) => s.sessionId)).toEqual(['s1', 's2']);
+    });
   });
 });
