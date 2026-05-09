@@ -347,9 +347,9 @@ export class ClaudeSessionParser {
         if (!content) return undefined;
 
         if (typeof content === 'string') {
-            const trimmed = content.trim();
-            if (role === 'user' && isNoiseMessage(trimmed)) return undefined;
-            return trimmed || undefined;
+            const cleaned = stripHarnessTags(content);
+            if (role === 'user' && isNoiseMessage(cleaned)) return undefined;
+            return cleaned || undefined;
         }
 
         if (!Array.isArray(content)) return undefined;
@@ -358,8 +358,10 @@ export class ClaudeSessionParser {
 
         for (const block of content) {
             if (block.type === 'text' && block.text?.trim()) {
-                if (role === 'user' && isNoiseMessage(block.text.trim())) continue;
-                parts.push(block.text.trim());
+                const cleaned = stripHarnessTags(block.text);
+                if (!cleaned) continue;
+                if (role === 'user' && isNoiseMessage(cleaned)) continue;
+                parts.push(cleaned);
             } else if (block.type === 'tool_use' && verbose) {
                 const inputSummary = block.input?.file_path || block.input?.pattern || block.input?.command || '';
                 parts.push(`[Tool: ${block.name}]${inputSummary ? ' ' + inputSummary : ''}`);
@@ -372,6 +374,51 @@ export class ClaudeSessionParser {
 
         return parts.length > 0 ? parts.join('\n') : undefined;
     }
+}
+
+/**
+ * Tags whose entire block (including content) should be dropped — they are
+ * harness-injected prompt context (system reminders, hook output, command
+ * stdout), not meaningful conversation content.
+ */
+const HARNESS_DROP_TAGS = [
+    'system-reminder',
+    'local-command-stdout',
+    'local-command-stderr',
+    'user-prompt-submit-hook',
+    'command-stdout',
+    'command-stderr',
+    'bash-input',
+    'bash-stdout',
+    'bash-stderr',
+    'command-message',
+] as const;
+
+const HARNESS_DROP_RE = new RegExp(
+    `<(${HARNESS_DROP_TAGS.join('|')})>[\\s\\S]*?</\\1>`,
+    'g',
+);
+
+const COMMAND_INVOCATION_RE =
+    /<command-name>([^<]+)<\/command-name>(?:\s*<command-args>([\s\S]*?)<\/command-args>)?/g;
+
+/**
+ * Remove harness-injected XML blocks from message text and collapse
+ * <command-name>/<command-args> pairs into a "/name args" shorthand.
+ *
+ * Returns the cleaned, trimmed text. Returns an empty string if nothing
+ * survives stripping.
+ */
+function stripHarnessTags(text: string): string {
+    let out = text.replace(HARNESS_DROP_RE, '');
+
+    out = out.replace(COMMAND_INVOCATION_RE, (_match, rawName: string, rawArgs?: string) => {
+        const name = rawName.trim();
+        const args = rawArgs?.trim();
+        return args ? `${name} ${args}` : name;
+    });
+
+    return out.replace(/\n{3,}/g, '\n\n').trim();
 }
 
 /** Check if a message is noise (not a meaningful user intent). */
