@@ -9,7 +9,7 @@
     "antigravity"
   ],
   "createdAt": "2025-12-28T13:35:45.251Z",
-  "updatedAt": "2026-05-09T15:33:23.704Z",
+  "updatedAt": "2026-05-09T16:24:22.226Z",
   "phases": [
     "requirements",
     "design",
@@ -41,10 +41,6 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "tdd"
-    },
-    {
-      "registry": "codeaholicguy/ai-devkit",
-      "name": "refactor"
     },
     {
       "registry": "codeaholicguy/ai-devkit",
