@@ -22,7 +22,7 @@ The feature adds a new `agent sessions` subcommand to `packages/cli` that delega
 2. **CLI calls `AgentManager.listSessions({ cwd, type })`** with the computed options.
 3. **`AgentManager`** fans out via `Promise.all` to every registered adapter, but skips adapters whose `type` doesn't match `opts.type` when set. Per-adapter exceptions are caught and logged to stderr; the listing continues. Results are merged and sorted by `lastActive` descending. Returned unfiltered beyond `cwd`/`type`.
 4. **Each adapter applies `opts.cwd`** at the disk layer:
-   - `ClaudeCodeAdapter` — encode cwd → read just `~/.claude/projects/<encoded>/*.jsonl`; if undefined, read every subdir.
+   - `ClaudeCodeAdapter` — always walks every `~/.claude/projects/*` subdir; parses each `*.jsonl` and filters by `session.lastCwd === opts.cwd` when set. (We can't shortcut by encoding `opts.cwd`: Claude Code stores files under the *launch* directory's encoded name, not the recorded `cwd` — they diverge in worktrees.)
    - `CodexAdapter` — walk every `~/.codex/sessions/YYYY/MM/DD/` dir, parse `session_meta` first line for cwd, keep matches if filter set.
    - `GeminiCliAdapter` — walk every `~/.gemini/tmp/<shortId>/chats/session-*.json`, use `directories[0]` as cwd, keep matches if filter set.
    - Each returns `SessionSummary[]`.
@@ -122,7 +122,18 @@ export interface ListSessionsOptions {
 ### Per-tool extensions
 
 - `ClaudeSession` (in `ClaudeSessionParser.ts`) gains `firstUserMessage?: string`. Captured during the same line iteration that already walks the JSONL, reusing the existing `extractUserMessageText` noise filter (skips tool_result blocks, `[Request interrupted]` notices, expanded skill markers, etc.).
-- Codex and Gemini parsers in their respective adapters gain a similar field, captured during their existing single-pass parse and applying the same kind of noise filtering each parser already does for `lastUserMessage` / summary extraction.
+- `CodexAdapter.listSessions` parses inline (does not reuse `parseSession`, which extracts the *last* message for live status). It walks events in order and grabs the first `payload.type === 'user_message'` with non-empty `payload.message`.
+- `GeminiCliAdapter.listSessions` reuses the adapter's existing `messageText` helper (already used by `getConversation`) to extract content, and walks the messages array forward to grab the first `type === 'user'` entry.
+
+### Shared file-system helpers
+
+`packages/agent-manager/src/utils/session.ts` exports three small fs wrappers used by the new `listSessions` paths in all three adapters:
+
+- `isDirectory(p)` — `fs.statSync(p).isDirectory()` with try/catch.
+- `safeReaddir(dir)` — `fs.readdirSync(dir)` with try/catch returning `[]`.
+- `listJsonl(dir)` — `safeReaddir` filtered to `*.jsonl`.
+
+Factored out after the initial adapter implementations had drifted into duplicated copies of the same try/catch boilerplate.
 
 ## API Design
 
@@ -171,9 +182,10 @@ Default table columns:
 
 **Claude Code (`ClaudeCodeAdapter.listSessions`)**
 
-- If `opts.cwd` set: derive `~/.claude/projects/<encoded-cwd>/`, list `*.jsonl` in that one directory.
-- If `opts.cwd` unset (`--all`): `readdirSync('~/.claude/projects')`, then list `*.jsonl` in each subdir; reverse the encoding (`-` → `/`) to recover the cwd.
-- For each file, call `ClaudeSessionParser.readSession(filePath, decodedCwd)` (extended to also return `firstUserMessage`).
+- Always walk every subdir of `~/.claude/projects/`. We can't take an encoded-dir shortcut for the cwd-scoped path because Claude Code indexes session files by the *launch* directory's encoded name, while the recorded `cwd` field inside the session can change (e.g. when the user `cd`'s into a worktree). The two diverge in real-world setups.
+- For each `*.jsonl` file, call `ClaudeSessionParser.readSession(filePath, decodedDirAsFallback)` (extended to also return `firstUserMessage`). The decoded dir name is best-effort (`-` → `/`, lossy for paths containing `-`); session content's `lastCwd` overrides it when present.
+- Drop sessions whose JSONL had no parseable conversation entries (guards against garbage files).
+- If `opts.cwd` is set, drop sessions where the resolved cwd doesn't match (strict equality).
 - Map to `SessionSummary`.
 
 **Codex (`CodexAdapter.listSessions`)**
@@ -225,7 +237,8 @@ It's the dominant use case ("resume something I was working on here") and matche
 - Target: <2s for ~200 sessions in default-cwd scope on a developer laptop. Treated as a guideline; concrete budget set after a measured baseline.
 - Adapter scans run in parallel via `Promise.all`.
 - File parsing within an adapter is sequential in v1 (synchronous fs calls match existing code style); a `Promise.all` over file reads is a low-effort follow-up if needed.
-- For `--all` Claude listing, we read every JSONL in `~/.claude/projects/**`. If this grows expensive, the next step is to cap by mtime first (fast `stat`), then read full content only for the top-N.
+- ClaudeCodeAdapter always reads every JSONL in `~/.claude/projects/**` (even with `opts.cwd` set), because the worktree case requires reading session content to authoritatively resolve cwd. If this grows expensive, the next step is to cap by mtime first (fast `stat`), then read full content only for the top-N.
+- CodexAdapter walks every `YYYY/MM/DD` dir under `~/.codex/sessions/`. No date-window pre-filter in v1; revisit if measured.
 
 ### Security
 

@@ -18,7 +18,8 @@ description: Where the code lives, key design choices that survived (and didn't)
 | Gemini listing | `packages/agent-manager/src/adapters/GeminiCliAdapter.ts` | New `listSessions` walks every `~/.gemini/tmp/<shortId>/chats/session-*.json`, uses `directories[0]` as cwd, reuses `messageText` to extract first user message. |
 | Parser extension | `packages/agent-manager/src/utils/ClaudeSessionParser.ts` | `ClaudeSession.firstUserMessage?: string` added; captured during the existing single-pass loop next to `lastUserMessage`. |
 | Shared fs helpers | `packages/agent-manager/src/utils/session.ts` | New exports `isDirectory`, `safeReaddir`, `listJsonl` — generic fs wrappers used by all three adapters' `listSessions` implementations (factored out after the initial impl had duplicated copies). |
-| CLI command | `packages/cli/src/commands/agent.ts` | New `agent sessions` subcommand. Helpers `resolveListSessionsOptions`, `parseLimit`, `formatFirstMessage`, `toJsonSession` exported for unit testing. |
+| CLI command | `packages/cli/src/commands/agent.ts` | New `agent sessions` subcommand. Imports its helpers from `util/sessions.ts`. |
+| CLI session helpers | `packages/cli/src/util/sessions.ts` (new) | `resolveListSessionsOptions`, `parseLimit`, `formatFirstMessage`, `toJsonSession`. `formatFirstMessage` reuses `truncate(text, maxLength, replaceText)` from `util/text.ts`. Tested at 100% coverage in `__tests__/util/sessions.test.ts`. |
 
 ## Layering Rule (as built)
 
