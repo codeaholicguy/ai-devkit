@@ -1,9 +1,11 @@
 import { Telegraf } from 'telegraf';
 import type { ChannelAdapter } from './ChannelAdapter';
+import { markdownToTelegramHtml } from '../utils/telegramHtml';
 import type { IncomingMessage } from '../types';
 
 export const TELEGRAM_CHANNEL_TYPE = 'telegram';
 export const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
+const TELEGRAM_PARSE_MODE = 'HTML' as const;
 
 export interface TelegramAdapterOptions {
     botToken: string;
@@ -53,13 +55,23 @@ export class TelegramAdapter implements ChannelAdapter {
     }
 
     /**
-     * Send a message to a chat. Automatically chunks messages exceeding
-     * Telegram's 4096-char limit, preferring newline boundaries.
+     * Input is treated as markdown and rendered as Telegram-compatible HTML.
+     * Long messages are chunked at paragraph boundaries when possible; very
+     * long single blocks (e.g. a `<pre>` over 4096 chars) may still split
+     * mid-tag and produce a partial render in the second chunk.
      */
     async sendMessage(chatId: string, text: string): Promise<void> {
-        const chunks = chunkMessage(text, TELEGRAM_MAX_MESSAGE_LENGTH);
+        const html = markdownToTelegramHtml(text);
+        const chunks = chunkMessage(html, TELEGRAM_MAX_MESSAGE_LENGTH);
         for (const chunk of chunks) {
-            await this.bot.telegram.sendMessage(chatId, chunk);
+            try {
+                await this.bot.telegram.sendMessage(chatId, chunk, { parse_mode: TELEGRAM_PARSE_MODE });
+            } catch (error) {
+                if (!isParseEntitiesError(error)) throw error;
+                // Telegram rejected the rendered HTML — fall back to plain text
+                // so the user still gets the content (just unformatted).
+                await this.bot.telegram.sendMessage(chatId, htmlToPlainText(chunk));
+            }
         }
     }
 
@@ -72,15 +84,27 @@ export class TelegramAdapter implements ChannelAdapter {
     }
 }
 
+function isParseEntitiesError(error: unknown): boolean {
+    if (!error || typeof error !== 'object') return false;
+    const description = (error as { description?: string }).description;
+    const message = (error as { message?: string }).message;
+    return ((description ?? '') + (message ?? '')).includes("can't parse entities");
+}
+
+function htmlToPlainText(html: string): string {
+    return html
+        .replace(/<[^>]+>/g, '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&amp;/g, '&');
+}
+
 /**
- * Split text into chunks of maxLen or fewer characters,
- * preferring to split at newline boundaries.
+ * Split text into chunks of maxLen or fewer characters. Prefers paragraph
+ * boundaries (\n\n), then single newlines (\n), then hard-splits at maxLen.
  */
 function chunkMessage(text: string, maxLen: number): string[] {
-    if (text.length <= maxLen) {
-        return [text];
-    }
-
     const chunks: string[] = [];
     let remaining = text;
 
@@ -90,15 +114,15 @@ function chunkMessage(text: string, maxLen: number): string[] {
             break;
         }
 
-        // Find the last newline within the limit
-        const searchArea = remaining.slice(0, maxLen);
-        const lastNewline = searchArea.lastIndexOf('\n');
+        const lastParagraph = remaining.lastIndexOf('\n\n', maxLen - 2);
+        const lastNewline = remaining.lastIndexOf('\n', maxLen - 1);
 
         let splitAt: number;
-        if (lastNewline > 0) {
-            splitAt = lastNewline + 1; // include the newline in the current chunk
+        if (lastParagraph > 0) {
+            splitAt = lastParagraph + 2;
+        } else if (lastNewline > 0) {
+            splitAt = lastNewline + 1;
         } else {
-            // No newline found — hard split at maxLen
             splitAt = maxLen;
         }
 

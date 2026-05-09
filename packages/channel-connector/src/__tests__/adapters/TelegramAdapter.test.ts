@@ -131,26 +131,41 @@ describe('TelegramAdapter', () => {
     });
 
     describe('sendMessage', () => {
-        it('should send text to the specified chat', async () => {
+        it('should send plain text with parse_mode HTML', async () => {
             const bot = getMockBot();
             await adapter.sendMessage('12345', 'hello from bot');
 
-            expect(bot.telegram.sendMessage).toHaveBeenCalledWith('12345', 'hello from bot');
+            expect(bot.telegram.sendMessage).toHaveBeenCalledWith(
+                '12345',
+                'hello from bot',
+                { parse_mode: 'HTML' }
+            );
         });
 
-        it('should chunk messages exceeding 4096 chars at newline boundaries', async () => {
+        it('should render markdown as Telegram HTML', async () => {
             const bot = getMockBot();
-            // Create a message with lines that total > 4096 chars
+            await adapter.sendMessage('12345', '**bold** and *italic* and `code`');
+
+            const sent = bot.telegram.sendMessage.mock.calls[0][1];
+            expect(sent).toContain('<b>bold</b>');
+            expect(sent).toContain('<i>italic</i>');
+            expect(sent).toContain('<code>code</code>');
+            expect(bot.telegram.sendMessage.mock.calls[0][2]).toEqual({
+                parse_mode: 'HTML',
+            });
+        });
+
+        it('should chunk messages exceeding 4096 chars', async () => {
+            const bot = getMockBot();
             const line = 'A'.repeat(100) + '\n';
-            const longMessage = line.repeat(50); // 50 * 101 = 5050 chars
+            const longMessage = line.repeat(50); // 5050 chars
 
             await adapter.sendMessage('12345', longMessage);
 
-            // Should have been called multiple times (chunked)
             expect(bot.telegram.sendMessage.mock.calls.length).toBeGreaterThan(1);
-            // Each chunk should be <= 4096 chars
             for (const call of bot.telegram.sendMessage.mock.calls) {
                 expect(call[1].length).toBeLessThanOrEqual(4096);
+                expect(call[2]).toEqual({ parse_mode: 'HTML' });
             }
         });
 
@@ -165,10 +180,91 @@ describe('TelegramAdapter', () => {
             expect(bot.telegram.sendMessage.mock.calls[1][1].length).toBe(904);
         });
 
+        it('should prefer paragraph (\\n\\n) over single \\n when chunking', async () => {
+            const bot = getMockBot();
+            // 4 paragraphs of ~1500 chars each, total > 4096
+            const paragraph = 'A'.repeat(1500);
+            const message = `${paragraph}\n\n${paragraph}\n\n${paragraph}\n\n${paragraph}`;
+
+            await adapter.sendMessage('12345', message);
+
+            // First chunk should end at a \n\n boundary, not mid-paragraph
+            const firstChunk = bot.telegram.sendMessage.mock.calls[0][1];
+            expect(firstChunk.endsWith('\n\n')).toBe(true);
+        });
+
         it('should send short messages in a single call', async () => {
             const bot = getMockBot();
             await adapter.sendMessage('12345', 'short message');
 
+            expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(1);
+        });
+
+        it('should retry as plain text when Telegram rejects HTML with parse-entities error', async () => {
+            const bot = getMockBot();
+            const parseError = Object.assign(new Error('400: Bad Request'), {
+                description: "Bad Request: can't parse entities: Unsupported start tag \"foo\"",
+            });
+            bot.telegram.sendMessage
+                .mockRejectedValueOnce(parseError)
+                .mockResolvedValueOnce(undefined);
+
+            await adapter.sendMessage('12345', '**hello**');
+
+            expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(2);
+
+            // First call: rendered HTML with parse_mode
+            const [, htmlChunk, htmlOpts] = bot.telegram.sendMessage.mock.calls[0];
+            expect(htmlChunk).toContain('<b>hello</b>');
+            expect(htmlOpts).toEqual({ parse_mode: 'HTML' });
+
+            // Second call: same content, plain text (tags stripped, no parse_mode)
+            const [, plainChunk, plainOpts] = bot.telegram.sendMessage.mock.calls[1];
+            expect(plainChunk).toBe('hello');
+            expect(plainOpts).toBeUndefined();
+        });
+
+        it('should detect parse-entities error from "message" field too', async () => {
+            const bot = getMockBot();
+            // Some error shapes carry the marker on `message` rather than `description`
+            const parseError = new Error("can't parse entities");
+            bot.telegram.sendMessage
+                .mockRejectedValueOnce(parseError)
+                .mockResolvedValueOnce(undefined);
+
+            await adapter.sendMessage('12345', '**hi**');
+
+            expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(2);
+        });
+
+        it('should decode HTML entities when falling back to plain text', async () => {
+            const bot = getMockBot();
+            const parseError = Object.assign(new Error('400'), {
+                description: "Bad Request: can't parse entities",
+            });
+            bot.telegram.sendMessage
+                .mockRejectedValueOnce(parseError)
+                .mockResolvedValueOnce(undefined);
+
+            // Source has chars that escapeHtml encodes; fallback should decode them
+            await adapter.sendMessage('12345', 'a < b && c > d');
+
+            const [, plainChunk] = bot.telegram.sendMessage.mock.calls[1];
+            expect(plainChunk).toContain('a < b && c > d');
+            expect(plainChunk).not.toContain('&lt;');
+            expect(plainChunk).not.toContain('&amp;');
+        });
+
+        it('should propagate non-parse-entities errors without falling back', async () => {
+            const bot = getMockBot();
+            const otherError = Object.assign(new Error('403'), {
+                description: 'Forbidden: bot was blocked by the user',
+            });
+            bot.telegram.sendMessage.mockRejectedValueOnce(otherError);
+
+            await expect(adapter.sendMessage('12345', 'hi')).rejects.toBe(otherError);
+
+            // Only the HTML attempt should have happened — no fallback retry
             expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(1);
         });
     });

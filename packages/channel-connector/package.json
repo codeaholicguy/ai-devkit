@@ -31,6 +31,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "marked": "^15.0.12",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
