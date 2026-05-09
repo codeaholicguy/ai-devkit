@@ -36,7 +36,7 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
     "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git"
   },
   "skills": [
-    { "registry": "codeaholicguy/ai-devkit", "name": "debug" },
+    { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug" },
     { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
   ],
   "mcpServers": {
@@ -169,7 +169,7 @@ List of installed skills. Duplicates are automatically deduplicated.
 
 ```json
 "skills": [
-  { "registry": "codeaholicguy/ai-devkit", "name": "debug" },
+  { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug" },
   { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
 ]
 ```

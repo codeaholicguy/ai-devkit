@@ -112,7 +112,7 @@ paths:
   docs: docs/ai
 skills:
   - registry: codeaholicguy/ai-devkit
-    skill: debug
+    skill: structured-debug
   - registry: codeaholicguy/ai-devkit
     skill: dev-lifecycle
 ```

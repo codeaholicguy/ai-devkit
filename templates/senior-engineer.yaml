@@ -12,7 +12,7 @@ skills:
   - registry: codeaholicguy/ai-devkit
     skill: dev-lifecycle
   - registry: codeaholicguy/ai-devkit
-    skill: debug
+    skill: structured-debug
   - registry: codeaholicguy/ai-devkit
     skill: document-code
   - registry: codeaholicguy/ai-devkit
