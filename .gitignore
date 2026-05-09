@@ -6,10 +6,10 @@ dist/
 *.tsbuildinfo
 coverage/
 .nx
-.agent/skills/
+.agent/
 .agents/
-.claude/settings.local.json
-.claude/skills/
-.cursor/skills/
-
+.claude/
+.cursor/
+.gemini/
+.codex/
 .worktrees/
