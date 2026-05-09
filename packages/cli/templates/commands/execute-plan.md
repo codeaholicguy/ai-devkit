@@ -8,6 +8,8 @@ Help me work through a feature plan one task at a time.
 2. **Use Memory for Context** — Search for prior implementation notes/patterns before starting: `npx ai-devkit@latest memory search --query "<feature implementation plan>"`.
 3. **Load & Present Plan** — Read the planning doc and parse task lists (headings + checkboxes). Present an ordered task queue grouped by section, with status: `todo`, `in-progress`, `done`, `blocked`.
 4. **Interactive Task Execution** — For each task in order: display context and full bullet text, reference relevant design/requirements docs, offer to outline sub-steps before starting, prompt for status update (`done`, `in-progress`, `blocked`, `skipped`) with short notes after work, and if blocked record blocker and move to a "Blocked" list.
+   - **Reuse before writing** — grep for existing utilities/functions before adding new ones. Reuse only if it fits cleanly; don't force-fit a near-match (a small duplicate beats a wrong abstraction).
+   - **Breaking changes** — if all callers live in this repo and can be updated atomically, modify in place and update callers in the same change. If callers are external, public, or cross-service, add a new function and deprecate the old one (parallel change) rather than mutating the existing signature.
 5. **Update Planning Doc** — After each completed or status-changed task, run `/update-planning` to keep `{{docsDir}}/planning/feature-{name}.md` accurate.
 6. **Store Reusable Knowledge** — Save reusable implementation guidance/decisions with `npx ai-devkit@latest memory store ...`.
 7. **Session Summary** — Produce a summary: Completed, In Progress (with next steps), Blocked (with blockers), Skipped/Deferred, and New Tasks.

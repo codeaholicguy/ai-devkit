@@ -6,10 +6,10 @@ Final pre-push **holistic** review. Go beyond the diff — review how changes in
 2. **Verify design alignment** — summarize architectural intent, check implementation matches.
 3. **Holistic codebase review** — for each modified file, grep exported names (functions, types, constants) to trace callers and dependents. Read only relevant sections (signatures, call sites, type defs) — skip files with no shared interface. Then check:
    - **Consistency**: scan 1–2 similar modules for pattern alignment.
-   - **Duplication**: search for existing utilities the new code could reuse or now duplicates.
+   - **Duplication**: search for existing utilities the new code could reuse or now duplicates. Flag near-matches honestly — don't push a forced reuse if the fit is awkward (wrong abstraction is worse than a small duplicate).
    - **Contract integrity**: verify type signatures, API contracts, config/DB schemas remain consistent at integration boundaries.
    - **Dependency health**: check for circular dependencies or version conflicts from new imports.
-   - **Breaking changes**: public APIs, CLI flags, env vars, or config keys changed in ways that break existing consumers.
+   - **Breaking changes**: public APIs, CLI flags, env vars, or config keys changed in ways that break existing consumers. For public/external APIs, recommend parallel change (add new, deprecate old) over in-place mutation. For in-repo-only callers, in-place modification with all callers updated in the same change is fine.
    - **Rollback safety**: can this be safely reverted? Flag irreversible migrations or one-way data/state changes.
 4. **File-by-file review** — correctness, logic/edge cases, redundancy, security, performance, error handling, test coverage.
 5. **Cross-cutting** — naming conventions, documentation updates, missing tests, config/migration changes.

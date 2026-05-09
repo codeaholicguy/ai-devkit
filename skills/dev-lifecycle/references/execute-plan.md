@@ -6,6 +6,8 @@ Work through `docs/ai/planning/feature-{name}.md` one task at a time.
 2. **Load plan** — parse task lists (checkboxes), build ordered queue by section.
 3. **Present task queue** with status: `todo`, `in-progress`, `done`, `blocked`.
 4. **For each task**: show context, suggest relevant docs, offer to outline sub-steps from design doc. Apply the `tdd` skill — write a failing test before production code, then make it pass. If blocked, record blocker and defer.
+   - **Reuse before writing** — grep for existing utilities/functions before adding new ones. Reuse only if it fits cleanly; don't force-fit a near-match (a small duplicate beats a wrong abstraction).
+   - **Breaking changes** — if all callers live in this repo and can be updated atomically, modify in place and update callers in the same change. If callers are external, public, or cross-service, add a new function and deprecate the old one (parallel change) rather than mutating the existing signature.
 5. **Inline tracking** — generate markdown snippet after each status change (lightweight; full reconciliation in Phase 5).
 6. **After each section**, ask if new tasks were discovered.
 7. **Session summary** — completed, in-progress, blocked, skipped, new tasks.
