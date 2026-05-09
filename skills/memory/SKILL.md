@@ -1,6 +1,6 @@
 ---
 name: memory
-description: Use AI DevKit memory via CLI commands. Search before non-trivial work, store verified reusable knowledge, update stale entries, and avoid saving transcripts, secrets, or one-off task progress.
+description: AI DevKit · Use the memory CLI as a durable knowledge layer. Search before non-trivial work, store verified reusable knowledge, update stale entries, and avoid saving transcripts, secrets, or one-off task progress.
 ---
 
 # AI DevKit Memory CLI

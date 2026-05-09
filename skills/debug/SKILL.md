@@ -1,6 +1,6 @@
 ---
 name: debug
-description: Guide structured debugging before code changes by clarifying expected behavior, reproducing issues, identifying likely root causes, and agreeing on a fix plan with validation steps. Use when users ask to debug bugs, investigate regressions, triage incidents, diagnose failing behavior, handle failing tests, analyze production incidents, investigate error spikes, or run root cause analysis (RCA).
+description: AI DevKit · Guide structured debugging before code changes by clarifying expected behavior, reproducing issues, identifying likely root causes, and agreeing on a fix plan with validation steps. Use when users ask to debug bugs, investigate regressions, triage incidents, diagnose failing behavior, handle failing tests, analyze production incidents, investigate error spikes, or run root cause analysis (RCA).
 ---
 
 # Local Debugging Assistant

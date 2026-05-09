@@ -1,6 +1,6 @@
 ---
 name: dev-lifecycle
-description: Structured SDLC workflow with 8 phases — requirements, design review, planning, implementation, testing, and code review. Use when the user wants to build a feature end-to-end, or run any individual phase (new requirement, review requirements, review design, execute plan, update planning, check implementation, write tests, code review).
+description: AI DevKit · Structured SDLC workflow with 8 phases — requirements, design review, planning, implementation, testing, and code review. Use when the user wants to build a feature end-to-end, or run any individual phase (new requirement, review requirements, review design, execute plan, update planning, check implementation, write tests, code review).
 ---
 
 # Dev Lifecycle

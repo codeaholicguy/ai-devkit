@@ -1,6 +1,6 @@
 ---
 name: security-review
-description: Review code, skills, and prompts for security vulnerabilities — OWASP Top 10, prompt injection, business logic flaws, and insecure defaults. Use when reviewing PRs, auditing modules, reviewing AI skills/prompts, or preparing for release.
+description: AI DevKit · Review code, skills, and prompts for security vulnerabilities — OWASP Top 10, prompt injection, business logic flaws, and insecure defaults. Use when reviewing PRs, auditing modules, reviewing AI skills/prompts, or preparing for release.
 ---
 
 # Security Review

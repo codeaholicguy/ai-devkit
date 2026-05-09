@@ -1,6 +1,6 @@
 ---
 name: technical-writer
-description: Review and improve documentation for novice users. Use when users ask to review docs, improve documentation, audit README files, evaluate API docs, review guides, or improve technical writing.
+description: AI DevKit · Review and improve documentation for novice users. Use when users ask to review docs, improve documentation, audit README files, evaluate API docs, review guides, or improve technical writing.
 ---
 
 # Technical Writer Review

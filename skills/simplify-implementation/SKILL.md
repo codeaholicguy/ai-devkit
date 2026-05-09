@@ -1,6 +1,6 @@
 ---
 name: simplify-implementation
-description: Analyze and simplify existing implementations to reduce complexity, improve maintainability, and enhance scalability. Use when users ask to simplify code, reduce complexity, refactor for readability, clean up implementations, improve maintainability, reduce technical debt, or make code easier to understand.
+description: AI DevKit · Analyze and simplify existing implementations to reduce complexity, improve maintainability, and enhance scalability. Use when users ask to simplify code, reduce complexity, refactor for readability, clean up implementations, improve maintainability, reduce technical debt, or make code easier to understand.
 ---
 
 # Simplify Implementation Assistant

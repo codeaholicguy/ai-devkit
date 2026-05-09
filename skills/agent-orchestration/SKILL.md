@@ -1,6 +1,6 @@
 ---
 name: agent-orchestration
-description: Proactively orchestrate running AI agents — scan statuses, assess progress, send next instructions, and coordinate multi-agent workflows. Use when users ask to manage agents, orchestrate work across agents, or check on agent progress.
+description: AI DevKit · Proactively orchestrate running AI agents — scan statuses, assess progress, send next instructions, and coordinate multi-agent workflows. Use when users ask to manage agents, orchestrate work across agents, or check on agent progress.
 ---
 
 # Agent Orchestration
