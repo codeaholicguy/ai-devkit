@@ -1,5 +1,5 @@
 ---
-description: Compare implementation with design and requirements docs to ensure alignment.
+description: AI DevKit · Compare implementation with design and requirements docs to ensure alignment.
 ---
 
 Compare the current implementation with the design in `docs/ai/design/` and requirements in `docs/ai/requirements/`.

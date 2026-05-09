@@ -1,5 +1,5 @@
 ---
-description: Review feature design for completeness.
+description: AI DevKit · Review feature design for completeness.
 ---
 
 Review the design documentation in `docs/ai/design/feature-{name}.md` (and the project-level README if relevant).

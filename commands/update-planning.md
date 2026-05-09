@@ -1,5 +1,5 @@
 ---
-description: Update planning docs to reflect implementation progress.
+description: AI DevKit · Update planning docs to reflect implementation progress.
 ---
 
 Help me reconcile current implementation progress with the planning documentation.

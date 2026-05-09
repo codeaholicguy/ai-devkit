@@ -1,5 +1,5 @@
 ---
-description: Add tests for a new feature.
+description: AI DevKit · Add tests for a new feature.
 ---
 
 Review `docs/ai/testing/feature-{name}.md` and ensure it mirrors the base template before writing tests.

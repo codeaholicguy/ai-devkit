@@ -1,5 +1,5 @@
 ---
-description: Execute a feature plan task by task.
+description: AI DevKit · Execute a feature plan task by task.
 ---
 
 Help me work through a feature plan one task at a time.

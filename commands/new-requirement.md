@@ -1,5 +1,5 @@
 ---
-description: Scaffold feature documentation from requirements through planning.
+description: AI DevKit · Scaffold feature documentation from requirements through planning.
 ---
 
 Guide me through adding a new feature, from requirements documentation to implementation readiness.
