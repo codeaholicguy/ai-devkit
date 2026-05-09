@@ -760,6 +760,139 @@ describe('GeminiCliAdapter', () => {
             expect(adapter.getConversation(sessionPath)).toEqual([]);
         });
     });
+
+    describe('listSessions', () => {
+        it('returns empty when ~/.gemini/tmp does not exist', async () => {
+            // tmpHome has no .gemini dir by default
+            const result = await adapter.listSessions();
+            expect(result).toEqual([]);
+        });
+
+        it('walks every shortId/chats dir and returns sessions', async () => {
+            writeSession(tmpHome, 'aaa', 'session-1', {
+                sessionId: 's-1',
+                projectHash: hashProjectRoot('/repo-a'),
+                startTime: '2025-01-01T00:00:00Z',
+                lastUpdated: '2025-01-01T00:01:00Z',
+                directories: ['/repo-a'],
+                messages: [
+                    { type: 'user', timestamp: '2025-01-01T00:00:00Z', content: [{ text: 'hello a' }] },
+                ],
+            });
+            writeSession(tmpHome, 'bbb', 'session-2', {
+                sessionId: 's-2',
+                projectHash: hashProjectRoot('/repo-b'),
+                startTime: '2025-01-02T00:00:00Z',
+                lastUpdated: '2025-01-02T00:01:00Z',
+                directories: ['/repo-b'],
+                messages: [
+                    { type: 'user', timestamp: '2025-01-02T00:00:00Z', content: [{ text: 'hello b' }] },
+                ],
+            });
+
+            const result = await adapter.listSessions();
+
+            expect(result).toHaveLength(2);
+            const byId = Object.fromEntries(result.map((r) => [r.sessionId, r]));
+            expect(byId['s-1']).toMatchObject({
+                type: 'gemini_cli',
+                cwd: '/repo-a',
+                firstUserMessage: 'hello a',
+            });
+            expect(byId['s-2']).toMatchObject({
+                type: 'gemini_cli',
+                cwd: '/repo-b',
+                firstUserMessage: 'hello b',
+            });
+        });
+
+        it('applies strict-equality cwd filter against directories[0]', async () => {
+            writeSession(tmpHome, 'aaa', 'session-keep', {
+                sessionId: 'keep',
+                projectHash: hashProjectRoot('/repo'),
+                startTime: '2025-01-01T00:00:00Z',
+                directories: ['/repo'],
+                messages: [{ type: 'user', timestamp: '2025-01-01T00:00:00Z', content: 'yes' }],
+            });
+            writeSession(tmpHome, 'bbb', 'session-drop', {
+                sessionId: 'drop',
+                projectHash: hashProjectRoot('/other'),
+                startTime: '2025-01-01T00:00:00Z',
+                directories: ['/other'],
+                messages: [{ type: 'user', timestamp: '2025-01-01T00:00:00Z', content: 'no' }],
+            });
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].sessionId).toBe('keep');
+        });
+
+        it('skips malformed JSON files', async () => {
+            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', 'aaa', 'chats');
+            fs.mkdirSync(chatsDir, { recursive: true });
+            fs.writeFileSync(path.join(chatsDir, 'session-bad.json'), '{ not json');
+            writeSession(tmpHome, 'aaa', 'session-good', {
+                sessionId: 'good',
+                projectHash: hashProjectRoot('/repo'),
+                startTime: '2025-01-01T00:00:00Z',
+                directories: ['/repo'],
+                messages: [{ type: 'user', timestamp: '2025-01-01T00:00:00Z', content: 'ok' }],
+            });
+
+            const result = await adapter.listSessions();
+            expect(result).toHaveLength(1);
+            expect(result[0].sessionId).toBe('good');
+        });
+
+        it('skips files missing sessionId', async () => {
+            writeSession(tmpHome, 'aaa', 'session-no-id', {
+                projectHash: hashProjectRoot('/repo'),
+                startTime: '2025-01-01T00:00:00Z',
+                directories: ['/repo'],
+                messages: [],
+            });
+
+            const result = await adapter.listSessions();
+            expect(result).toEqual([]);
+        });
+
+        it('captures the first user-typed message as firstUserMessage', async () => {
+            writeSession(tmpHome, 'aaa', 'session-x', {
+                sessionId: 's',
+                projectHash: hashProjectRoot('/repo'),
+                startTime: '2025-01-01T00:00:00Z',
+                directories: ['/repo'],
+                messages: [
+                    { type: 'gemini', timestamp: '2025-01-01T00:00:00Z', content: 'preamble' },
+                    { type: 'user', timestamp: '2025-01-01T00:00:01Z', content: [{ text: 'first user' }] },
+                    { type: 'user', timestamp: '2025-01-01T00:00:02Z', content: 'second user' },
+                ],
+            });
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('first user');
+        });
+
+        it('returns empty firstUserMessage when no user message exists', async () => {
+            writeSession(tmpHome, 'aaa', 'session-x', {
+                sessionId: 's',
+                projectHash: hashProjectRoot('/repo'),
+                startTime: '2025-01-01T00:00:00Z',
+                directories: ['/repo'],
+                messages: [
+                    { type: 'gemini', timestamp: '2025-01-01T00:00:00Z', content: 'agent only' },
+                ],
+            });
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('');
+        });
+    });
 });
 
 /**

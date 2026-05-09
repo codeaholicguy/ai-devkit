@@ -13,9 +13,17 @@
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AgentAdapter, AgentInfo, ProcessInfo, ConversationMessage } from './AgentAdapter';
+import type {
+    AgentAdapter,
+    AgentInfo,
+    ProcessInfo,
+    ConversationMessage,
+    SessionSummary,
+    ListSessionsOptions,
+} from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
+import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session';
 import type { SessionFile } from '../utils/session';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
 
@@ -441,12 +449,8 @@ export class GeminiCliAdapter implements AgentAdapter {
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
         const verbose = options?.verbose ?? false;
 
-        let content: string;
-        try {
-            content = fs.readFileSync(sessionFilePath, 'utf-8');
-        } catch {
-            return [];
-        }
+        const content = safeReadFile(sessionFilePath);
+        if (content === undefined) return [];
 
         let parsed: GeminiSessionFile;
         try {
@@ -484,5 +488,96 @@ export class GeminiCliAdapter implements AgentAdapter {
         }
 
         return messages;
+    }
+
+    async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
+        if (!isDirectory(this.geminiTmpDir)) return [];
+
+        const summaries: SessionSummary[] = [];
+
+        for (const shortId of safeReaddir(this.geminiTmpDir)) {
+            const chatsDir = path.join(
+                this.geminiTmpDir,
+                shortId,
+                GeminiCliAdapter.CHATS_DIR_NAME,
+            );
+            if (!isDirectory(chatsDir)) continue;
+
+            for (const fileName of safeReaddir(chatsDir)) {
+                if (
+                    !fileName.startsWith(GeminiCliAdapter.SESSION_FILE_PREFIX) ||
+                    !fileName.endsWith('.json')
+                ) {
+                    continue;
+                }
+
+                const filePath = path.join(chatsDir, fileName);
+                const summary = this.fileToSessionSummary(filePath);
+                if (!summary) continue;
+                if (opts?.cwd !== undefined && summary.cwd !== opts.cwd) continue;
+                summaries.push(summary);
+            }
+        }
+
+        return summaries;
+    }
+
+    /**
+     * Read a Gemini session JSON file and produce a {@link SessionSummary}.
+     * Returns null when the file is unreadable, the JSON doesn't parse,
+     * or the body lacks a sessionId.
+     */
+    private fileToSessionSummary(filePath: string): SessionSummary | null {
+        const content = safeReadFile(filePath);
+        if (content === undefined) return null;
+
+        let parsed: GeminiSessionFile;
+        try {
+            parsed = JSON.parse(content);
+        } catch {
+            return null;
+        }
+
+        if (!parsed.sessionId) return null;
+
+        const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
+        const firstUserMessage = this.extractFirstUserMessage(messages);
+
+        const cwd =
+            Array.isArray(parsed.directories) && parsed.directories.length > 0
+                ? parsed.directories[0]
+                : '';
+
+        const stat = safeStat(filePath);
+
+        const lastEntryTimestamp = this.parseTimestamp(
+            messages.length > 0 ? messages[messages.length - 1]?.timestamp : undefined,
+        );
+        const lastActive =
+            this.parseTimestamp(parsed.lastUpdated) ||
+            lastEntryTimestamp ||
+            stat?.mtime ||
+            new Date();
+        const startedAt =
+            this.parseTimestamp(parsed.startTime) || stat?.birthtime || stat?.mtime || lastActive;
+
+        return {
+            type: 'gemini_cli',
+            sessionId: parsed.sessionId,
+            cwd,
+            firstUserMessage,
+            lastActive,
+            startedAt,
+            sessionFilePath: filePath,
+        };
+    }
+
+    private extractFirstUserMessage(messages: GeminiMessageEntry[]): string {
+        for (const entry of messages) {
+            if (entry?.type !== 'user') continue;
+            const text = this.messageText(entry).trim();
+            if (text) return text;
+        }
+        return '';
     }
 }

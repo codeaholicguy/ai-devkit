@@ -19,9 +19,13 @@ jest.mock('../../utils/process', () => ({
     enrichProcesses: jest.fn(),
 }));
 
-jest.mock('../../utils/session', () => ({
-    batchGetSessionFileBirthtimes: jest.fn(),
-}));
+jest.mock('../../utils/session', () => {
+    const actual = jest.requireActual('../../utils/session') as typeof import('../../utils/session');
+    return {
+        ...actual,
+        batchGetSessionFileBirthtimes: jest.fn(),
+    };
+});
 
 jest.mock('../../utils/matching', () => ({
     matchProcessesToSessions: jest.fn(),
@@ -628,6 +632,122 @@ describe('CodexAdapter', () => {
             const messages = adapter.getConversation(filePath);
             expect(messages).toHaveLength(1);
             expect(messages[0].content).toBe('Response');
+        });
+    });
+
+    describe('listSessions', () => {
+        let tmpDir: string;
+        let sessionsDir: string;
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-list-'));
+            sessionsDir = path.join(tmpDir, 'sessions');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            (adapter as any).codexSessionsDir = sessionsDir;
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        function writeCodexSession(dateDir: string, sessionId: string, lines: object[]): string {
+            fs.mkdirSync(dateDir, { recursive: true });
+            const filePath = path.join(dateDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
+            return filePath;
+        }
+
+        it('returns empty when sessions dir does not exist', async () => {
+            fs.rmSync(sessionsDir, { recursive: true, force: true });
+            const result = await adapter.listSessions();
+            expect(result).toEqual([]);
+        });
+
+        it('walks every YYYY/MM/DD dir and returns all sessions', async () => {
+            const dayA = path.join(sessionsDir, '2025', '01', '01');
+            const dayB = path.join(sessionsDir, '2025', '02', '03');
+            writeCodexSession(dayA, 'sess-a', [
+                { type: 'session_meta', payload: { id: 'sess-a', cwd: '/repo-a', timestamp: '2025-01-01T00:00:00Z' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:01Z', payload: { type: 'user_message', message: 'msg-a' } },
+            ]);
+            writeCodexSession(dayB, 'sess-b', [
+                { type: 'session_meta', payload: { id: 'sess-b', cwd: '/repo-b', timestamp: '2025-02-03T00:00:00Z' } },
+                { type: 'event', timestamp: '2025-02-03T00:00:01Z', payload: { type: 'user_message', message: 'msg-b' } },
+            ]);
+
+            const result = await adapter.listSessions();
+
+            expect(result).toHaveLength(2);
+            const byId = Object.fromEntries(result.map((r) => [r.sessionId, r]));
+            expect(byId['sess-a']).toMatchObject({
+                type: 'codex',
+                cwd: '/repo-a',
+                firstUserMessage: 'msg-a',
+            });
+            expect(byId['sess-b']).toMatchObject({
+                type: 'codex',
+                cwd: '/repo-b',
+                firstUserMessage: 'msg-b',
+            });
+        });
+
+        it('applies strict-equality cwd filter against session_meta cwd', async () => {
+            const day = path.join(sessionsDir, '2025', '01', '01');
+            writeCodexSession(day, 'keep', [
+                { type: 'session_meta', payload: { id: 'keep', cwd: '/repo', timestamp: '2025-01-01T00:00:00Z' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:01Z', payload: { type: 'user_message', message: 'yes' } },
+            ]);
+            writeCodexSession(day, 'drop', [
+                { type: 'session_meta', payload: { id: 'drop', cwd: '/other', timestamp: '2025-01-01T00:01:00Z' } },
+                { type: 'event', timestamp: '2025-01-01T00:01:01Z', payload: { type: 'user_message', message: 'no' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].sessionId).toBe('keep');
+        });
+
+        it('skips files without a session_meta first line', async () => {
+            const day = path.join(sessionsDir, '2025', '01', '01');
+            writeCodexSession(day, 'bad', [
+                { type: 'event', timestamp: '2025-01-01T00:00:00Z', payload: { type: 'user_message', message: 'orphan' } },
+            ]);
+            writeCodexSession(day, 'good', [
+                { type: 'session_meta', payload: { id: 'good', cwd: '/repo', timestamp: '2025-01-01T00:00:00Z' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:01Z', payload: { type: 'user_message', message: 'ok' } },
+            ]);
+
+            const result = await adapter.listSessions();
+            expect(result).toHaveLength(1);
+            expect(result[0].sessionId).toBe('good');
+        });
+
+        it('captures the first user_message as firstUserMessage', async () => {
+            const day = path.join(sessionsDir, '2025', '01', '01');
+            writeCodexSession(day, 's', [
+                { type: 'session_meta', payload: { id: 's', cwd: '/repo', timestamp: '2025-01-01T00:00:00Z' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:01Z', payload: { type: 'agent_message', message: 'preamble' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:02Z', payload: { type: 'user_message', message: 'first user' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:03Z', payload: { type: 'user_message', message: 'second user' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('first user');
+        });
+
+        it('returns empty firstUserMessage when no user_message exists', async () => {
+            const day = path.join(sessionsDir, '2025', '01', '01');
+            writeCodexSession(day, 's', [
+                { type: 'session_meta', payload: { id: 's', cwd: '/repo', timestamp: '2025-01-01T00:00:00Z' } },
+                { type: 'event', timestamp: '2025-01-01T00:00:01Z', payload: { type: 'agent_message', message: 'agent only' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('');
         });
     });
 });

@@ -29,6 +29,60 @@ export interface SessionFile {
 }
 
 /**
+ * Check whether a path exists and is a directory.
+ * Returns false on any error (missing path, permission denied, broken symlink, etc.).
+ */
+export function isDirectory(p: string): boolean {
+    return safeStat(p)?.isDirectory() ?? false;
+}
+
+/**
+ * `fs.statSync` that swallows errors and returns `undefined` on failure.
+ * Callers can pull whichever fields they need (mtime, birthtime, ...).
+ */
+export function safeStat(filePath: string): fs.Stats | undefined {
+    try {
+        return fs.statSync(filePath);
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * `fs.readFileSync` (utf-8) that swallows errors and returns `undefined`
+ * on failure. Use when an unreadable file should be skipped rather than
+ * raised.
+ */
+export function safeReadFile(filePath: string): string | undefined {
+    try {
+        return fs.readFileSync(filePath, 'utf-8');
+    } catch {
+        return undefined;
+    }
+}
+
+/**
+ * `fs.readdirSync` that swallows errors and returns `[]` on failure.
+ * Useful when walking optional/transient directories where missing or
+ * unreadable entries should be skipped silently.
+ */
+export function safeReaddir(dir: string): string[] {
+    try {
+        return fs.readdirSync(dir);
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * List entries in a directory that end with `.jsonl`. Returns `[]` on
+ * read errors. The result preserves directory order (no sorting).
+ */
+export function listJsonl(dir: string): string[] {
+    return safeReaddir(dir).filter((name) => name.endsWith('.jsonl'));
+}
+
+/**
  * Get birth times for .jsonl session files across multiple directories.
  *
  * Enumerates each directory with readdirSync and stats each .jsonl file

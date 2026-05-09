@@ -47,6 +47,8 @@ export interface ClaudeSession {
     lastEntryType?: string;
     isInterrupted: boolean;
     lastUserMessage?: string;
+    /** First meaningful user prompt in the session (post noise filter) */
+    firstUserMessage?: string;
 }
 
 /** Entry types that are metadata, not conversation state. */
@@ -91,6 +93,7 @@ export class ClaudeSessionParser {
         let lastCwd: string | undefined;
         let isInterrupted = false;
         let lastUserMessage: string | undefined;
+        let firstUserMessage: string | undefined;
 
         for (const line of allLines) {
             try {
@@ -125,6 +128,9 @@ export class ClaudeSessionParser {
                         const text = this.extractUserMessageText(msgContent);
                         if (text) {
                             lastUserMessage = text;
+                            if (!firstUserMessage) {
+                                firstUserMessage = text;
+                            }
                         }
                     } else {
                         isInterrupted = false;
@@ -144,6 +150,7 @@ export class ClaudeSessionParser {
             lastEntryType,
             isInterrupted,
             lastUserMessage,
+            firstUserMessage,
         };
     }
 

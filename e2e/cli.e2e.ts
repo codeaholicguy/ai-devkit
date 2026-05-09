@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, readFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { run, createTempProject, cleanupTempProject, writeConfigFile } from './helpers';
 
@@ -427,5 +428,216 @@ describe('Node.js compatibility', () => {
     // CLI should work on this Node version
     const result = run('--version');
     expect(result.exitCode).toBe(0);
+  });
+});
+
+describe('agent sessions command', () => {
+  interface ClaudeJsonlEntry {
+    type: string;
+    timestamp?: string;
+    cwd?: string;
+    message?: { content?: string };
+  }
+
+  interface CodexLine {
+    type: string;
+    timestamp?: string;
+    payload?: { id?: string; cwd?: string; timestamp?: string; type?: string; message?: string };
+  }
+
+  function writeClaudeSession(home: string, recordedCwd: string, sessionId: string, firstUserMessage: string): string {
+    return writeClaudeSessionInLaunchDir(home, recordedCwd, recordedCwd, sessionId, firstUserMessage);
+  }
+
+  /**
+   * Write a Claude session under one launch dir's encoded path while the
+   * session content records a different cwd. Lets us simulate the worktree
+   * case (user cd'd into a subdir/worktree after launching Claude) by
+   * passing different launch and recorded cwds.
+   */
+  function writeClaudeSessionInLaunchDir(
+    home: string,
+    launchCwd: string,
+    recordedCwd: string,
+    sessionId: string,
+    firstUserMessage: string,
+  ): string {
+    const encoded = launchCwd.replace(/\//g, '-');
+    const projectDir = join(home, '.claude', 'projects', encoded);
+    mkdirSync(projectDir, { recursive: true });
+    const filePath = join(projectDir, `${sessionId}.jsonl`);
+    const entries: ClaudeJsonlEntry[] = [
+      {
+        type: 'user',
+        timestamp: '2025-01-01T00:00:00Z',
+        cwd: recordedCwd,
+        message: { content: firstUserMessage },
+      },
+    ];
+    writeFileSync(filePath, entries.map((e) => JSON.stringify(e)).join('\n'));
+    return filePath;
+  }
+
+  function writeCodexSession(home: string, cwd: string, sessionId: string, firstUserMessage: string): string {
+    const dayDir = join(home, '.codex', 'sessions', '2025', '01', '01');
+    mkdirSync(dayDir, { recursive: true });
+    const filePath = join(dayDir, `${sessionId}.jsonl`);
+    const lines: CodexLine[] = [
+      { type: 'session_meta', payload: { id: sessionId, cwd, timestamp: '2025-01-01T00:00:00Z' } },
+      {
+        type: 'event',
+        timestamp: '2025-01-01T00:00:01Z',
+        payload: { type: 'user_message', message: firstUserMessage },
+      },
+    ];
+    writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
+    return filePath;
+  }
+
+  let home: string;
+
+  beforeEach(() => {
+    home = mkdtempSync(join(tmpdir(), 'ai-devkit-sessions-e2e-'));
+  });
+
+  afterEach(() => {
+    rmSync(home, { recursive: true, force: true });
+  });
+
+  it('lists the sessions subcommand in agent --help', () => {
+    const result = run('agent --help', { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('sessions');
+  });
+
+  it('shows the --all hint when default-cwd lookup is empty', () => {
+    const projectDir = createTempProject();
+    try {
+      const result = run('agent sessions', { cwd: projectDir, env: { HOME: home } });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('--all');
+    } finally {
+      cleanupTempProject(projectDir);
+    }
+  });
+
+  it('finds a Claude session recorded for the current cwd', () => {
+    const projectDir = createTempProject();
+    // macOS symlinks /var → /private/var; the spawned CLI's process.cwd()
+    // returns the canonical path. Use realpath here so the recorded cwd in
+    // the fake session matches what the CLI computes from process.cwd().
+    const canonical = realpathSync(projectDir);
+    try {
+      writeClaudeSession(home, canonical, 'claude-here', 'hello from project');
+
+      const result = run('agent sessions --json', { cwd: projectDir, env: { HOME: home } });
+      expect(result.exitCode).toBe(0);
+
+      const sessions = JSON.parse(result.stdout) as Array<{
+        type: string;
+        sessionId: string;
+        cwd: string;
+        firstUserMessage: string;
+      }>;
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0]).toMatchObject({
+        type: 'claude',
+        sessionId: 'claude-here',
+        cwd: canonical,
+        firstUserMessage: 'hello from project',
+      });
+    } finally {
+      cleanupTempProject(projectDir);
+    }
+  });
+
+  it('finds a session whose recorded cwd lives in a different launch dir (worktree case)', () => {
+    const launchCwd = '/repo';
+    const worktreeCwd = '/repo/.worktrees/feature';
+    writeClaudeSessionInLaunchDir(home, launchCwd, worktreeCwd, 'wt-session', 'in worktree');
+
+    const result = run(`agent sessions --cwd "${worktreeCwd}" --json`, { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+
+    const sessions = JSON.parse(result.stdout) as Array<{ sessionId: string; cwd: string }>;
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]).toMatchObject({ sessionId: 'wt-session', cwd: worktreeCwd });
+  });
+
+  it('lists sessions across every cwd with --all', () => {
+    writeClaudeSession(home, '/repo-a', 'claude-a', 'a');
+    writeClaudeSession(home, '/repo-b', 'claude-b', 'b');
+    writeCodexSession(home, '/repo-codex', 'codex-1', 'codex hi');
+
+    const result = run('agent sessions --all --json', { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+
+    const sessions = JSON.parse(result.stdout) as Array<{ type: string; sessionId: string }>;
+    expect(sessions).toHaveLength(3);
+    expect(sessions.map((s) => s.sessionId).sort()).toEqual(['claude-a', 'claude-b', 'codex-1']);
+  });
+
+  it('filters to one tool with --type', () => {
+    writeClaudeSession(home, '/repo-claude', 'claude-1', 'c');
+    writeCodexSession(home, '/repo-codex', 'codex-1', 'cx');
+
+    const result = run('agent sessions --all --type codex --json', { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+
+    const sessions = JSON.parse(result.stdout) as Array<{ type: string; sessionId: string }>;
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].type).toBe('codex');
+    expect(sessions[0].sessionId).toBe('codex-1');
+  });
+
+  it('rejects an invalid --type with a clear error', () => {
+    const result = run('agent sessions --all --type wrong', { env: { HOME: home } });
+    expect(result.exitCode).not.toBe(0);
+    expect(result.stderr + result.stdout).toMatch(/Invalid --type "wrong"/);
+  });
+
+  it('caps rows with --limit', () => {
+    writeClaudeSession(home, '/r1', 's1', 'one');
+    writeClaudeSession(home, '/r2', 's2', 'two');
+    writeClaudeSession(home, '/r3', 's3', 'three');
+
+    const result = run('agent sessions --all --limit 2 --json', { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+
+    const sessions = JSON.parse(result.stdout) as Array<{ sessionId: string }>;
+    expect(sessions).toHaveLength(2);
+  });
+
+  it('treats --limit 0 as unlimited', () => {
+    for (let i = 0; i < 3; i++) {
+      writeClaudeSession(home, `/r${i}`, `s${i}`, `msg-${i}`);
+    }
+
+    const result = run('agent sessions --all --limit 0 --json', { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+
+    const sessions = JSON.parse(result.stdout) as Array<unknown>;
+    expect(sessions).toHaveLength(3);
+  });
+
+  it('emits a JSON schema with expected fields and ISO date strings', () => {
+    writeClaudeSession(home, '/repo', 'claude-z', 'hello');
+
+    const result = run('agent sessions --all --json', { env: { HOME: home } });
+    expect(result.exitCode).toBe(0);
+
+    const sessions = JSON.parse(result.stdout);
+    expect(Array.isArray(sessions)).toBe(true);
+    expect(sessions[0]).toEqual(
+      expect.objectContaining({
+        type: 'claude',
+        sessionId: 'claude-z',
+        cwd: '/repo',
+        firstUserMessage: 'hello',
+        sessionFilePath: expect.any(String),
+      }),
+    );
+    expect(sessions[0].lastActive).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(sessions[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
 });

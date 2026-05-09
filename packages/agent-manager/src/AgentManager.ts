@@ -5,7 +5,12 @@
  * Manages adapter registration and aggregates results from all adapters.
  */
 
-import type { AgentAdapter, AgentInfo } from './adapters/AgentAdapter';
+import type {
+    AgentAdapter,
+    AgentInfo,
+    SessionSummary,
+    ListSessionsOptions,
+} from './adapters/AgentAdapter';
 import { AgentStatus } from './adapters/AgentAdapter';
 
 /**
@@ -142,11 +147,58 @@ export class AgentManager {
     }
 
     /**
+     * List historical sessions across every registered adapter.
+     *
+     * When `opts.type` is set, adapters whose `type` doesn't match are
+     * skipped without being called. The remaining adapters' results are
+     * merged and sorted by `lastActive` descending. Adapter failures are
+     * caught (one-line stderr warning) so one broken adapter doesn't hide
+     * the others.
+     *
+     * @param opts Filter options computed by the CLI; the manager passes
+     *   them through to each adapter unchanged.
+     */
+    async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
+        const targetAdapters = Array.from(this.adapters.values()).filter(
+            (adapter) => opts?.type === undefined || adapter.type === opts.type,
+        );
+
+        const errors: Array<{ type: string; error: Error }> = [];
+
+        const results = await Promise.all(
+            targetAdapters.map(async (adapter) => {
+                try {
+                    return await adapter.listSessions(opts);
+                } catch (error) {
+                    const err = error instanceof Error ? error : new Error(String(error));
+                    errors.push({ type: adapter.type, error: err });
+                    return [];
+                }
+            }),
+        );
+
+        if (errors.length > 0) {
+            console.error(`Warning: ${errors.length} adapter(s) failed to list sessions:`);
+            for (const { type, error } of errors) {
+                console.error(`  - ${type}: ${error.message}`);
+            }
+        }
+
+        const merged: SessionSummary[] = [];
+        for (const list of results) {
+            merged.push(...list);
+        }
+
+        merged.sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime());
+        return merged;
+    }
+
+    /**
      * Sort agents by status priority
-     * 
+     *
      * Priority order: waiting > running > idle > unknown
      * This ensures agents that need attention appear first.
-     * 
+     *
      * @param agents Array of agents to sort
      * @returns Sorted array of agents
      */
