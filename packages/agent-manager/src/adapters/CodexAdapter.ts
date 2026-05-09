@@ -12,10 +12,17 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AgentAdapter, AgentInfo, ProcessInfo, ConversationMessage } from './AgentAdapter';
+import type {
+    AgentAdapter,
+    AgentInfo,
+    ProcessInfo,
+    ConversationMessage,
+    SessionSummary,
+    ListSessionsOptions,
+} from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
-import { batchGetSessionFileBirthtimes } from '../utils/session';
+import { batchGetSessionFileBirthtimes, isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session';
 import type { SessionFile } from '../utils/session';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
 
@@ -326,12 +333,8 @@ export class CodexAdapter implements AgentAdapter {
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
         const verbose = options?.verbose ?? false;
 
-        let content: string;
-        try {
-            content = fs.readFileSync(sessionFilePath, 'utf-8');
-        } catch {
-            return [];
-        }
+        const content = safeReadFile(sessionFilePath);
+        if (content === undefined) return [];
 
         const lines = content.trim().split('\n');
         const messages: ConversationMessage[] = [];
@@ -371,5 +374,120 @@ export class CodexAdapter implements AgentAdapter {
         }
 
         return messages;
+    }
+
+    async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
+        if (!isDirectory(this.codexSessionsDir)) return [];
+
+        const files = this.collectAllSessionFiles();
+        const summaries: SessionSummary[] = [];
+
+        for (const filePath of files) {
+            const summary = this.fileToSessionSummary(filePath);
+            if (!summary) continue;
+            if (opts?.cwd !== undefined && summary.cwd !== opts.cwd) continue;
+            summaries.push(summary);
+        }
+
+        return summaries;
+    }
+
+    /**
+     * Walk every YYYY/MM/DD directory under `codexSessionsDir` and return
+     * absolute paths of `.jsonl` files. Tolerates malformed layouts
+     * (skips entries that aren't directories at the expected depth).
+     */
+    private collectAllSessionFiles(): string[] {
+        const out: string[] = [];
+
+        for (const yearEntry of safeReaddir(this.codexSessionsDir)) {
+            const yearDir = path.join(this.codexSessionsDir, yearEntry);
+            if (!isDirectory(yearDir)) continue;
+
+            for (const monthEntry of safeReaddir(yearDir)) {
+                const monthDir = path.join(yearDir, monthEntry);
+                if (!isDirectory(monthDir)) continue;
+
+                for (const dayEntry of safeReaddir(monthDir)) {
+                    const dayDir = path.join(monthDir, dayEntry);
+                    if (!isDirectory(dayDir)) continue;
+
+                    for (const fileEntry of safeReaddir(dayDir)) {
+                        if (!fileEntry.endsWith('.jsonl')) continue;
+                        out.push(path.join(dayDir, fileEntry));
+                    }
+                }
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * Read a Codex session JSONL file and produce a {@link SessionSummary}.
+     * Returns null when the file is unreadable, has no `session_meta`, or
+     * lacks a session id.
+     */
+    private fileToSessionSummary(filePath: string): SessionSummary | null {
+        const content = safeReadFile(filePath);
+        if (content === undefined) return null;
+
+        const allLines = content.trim().split('\n');
+        if (!allLines[0]) return null;
+
+        let metaEntry: CodexEventEntry;
+        try {
+            metaEntry = JSON.parse(allLines[0]);
+        } catch {
+            return null;
+        }
+
+        if (metaEntry.type !== 'session_meta' || !metaEntry.payload?.id) {
+            return null;
+        }
+
+        let firstUserMessage = '';
+        let lastTimestamp: Date | null = null;
+
+        for (let i = 1; i < allLines.length; i++) {
+            let entry: CodexEventEntry;
+            try {
+                entry = JSON.parse(allLines[i]);
+            } catch {
+                continue;
+            }
+
+            const ts = this.parseTimestamp(entry.timestamp);
+            if (ts) lastTimestamp = ts;
+
+            if (
+                !firstUserMessage &&
+                entry.payload?.type === 'user_message' &&
+                typeof entry.payload.message === 'string' &&
+                entry.payload.message.trim().length > 0
+            ) {
+                firstUserMessage = entry.payload.message.trim();
+            }
+        }
+
+        const stat = safeStat(filePath);
+
+        const startedAt =
+            this.parseTimestamp(metaEntry.payload.timestamp) ||
+            lastTimestamp ||
+            stat?.birthtime ||
+            stat?.mtime ||
+            new Date();
+        const lastActive = lastTimestamp || startedAt;
+
+        return {
+            type: 'codex',
+            sessionId: metaEntry.payload.id,
+            cwd: metaEntry.payload.cwd || '',
+            firstUserMessage,
+            lastActive,
+            startedAt,
+            sessionFilePath: filePath,
+        };
     }
 }

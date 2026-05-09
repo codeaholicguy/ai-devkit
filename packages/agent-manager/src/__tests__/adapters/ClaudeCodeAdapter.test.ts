@@ -18,9 +18,13 @@ jest.mock('../../utils/process', () => ({
     enrichProcesses: jest.fn(),
 }));
 
-jest.mock('../../utils/session', () => ({
-    batchGetSessionFileBirthtimes: jest.fn(),
-}));
+jest.mock('../../utils/session', () => {
+    const actual = jest.requireActual('../../utils/session') as typeof import('../../utils/session');
+    return {
+        ...actual,
+        batchGetSessionFileBirthtimes: jest.fn(),
+    };
+});
 
 jest.mock('../../utils/matching', () => ({
     matchProcessesToSessions: jest.fn(),
@@ -1286,6 +1290,158 @@ describe('ClaudeCodeAdapter', () => {
             const messages = adapter.getConversation(filePath);
             expect(messages).toHaveLength(1);
             expect(messages[0].content).toBe('Real question');
+        });
+    });
+
+    describe('listSessions', () => {
+        let tmpDir: string;
+        let projectsDir: string;
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-list-'));
+            projectsDir = path.join(tmpDir, 'projects');
+            fs.mkdirSync(projectsDir, { recursive: true });
+            (adapter as any).projectsDir = projectsDir;
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        function writeSession(projectDir: string, sessionId: string, lines: object[]): string {
+            fs.mkdirSync(projectDir, { recursive: true });
+            const filePath = path.join(projectDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(filePath, lines.map((l) => JSON.stringify(l)).join('\n'));
+            return filePath;
+        }
+
+        it('returns empty when projects dir does not exist', async () => {
+            fs.rmSync(projectsDir, { recursive: true, force: true });
+            const result = await adapter.listSessions();
+            expect(result).toEqual([]);
+        });
+
+        it('returns sessions from a single cwd-scoped project dir', async () => {
+            const cwd = '/Users/test/proj';
+            const projDir = path.join(projectsDir, '-Users-test-proj');
+            const filePath = writeSession(projDir, 'sess-1', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd, message: { content: 'first prompt' } },
+                { type: 'assistant', timestamp: '2025-01-01T00:01:00Z' },
+            ]);
+
+            const result = await adapter.listSessions({ cwd });
+
+            expect(result).toHaveLength(1);
+            expect(result[0]).toMatchObject({
+                type: 'claude',
+                sessionId: 'sess-1',
+                cwd,
+                firstUserMessage: 'first prompt',
+                sessionFilePath: filePath,
+            });
+            expect(result[0].lastActive).toBeInstanceOf(Date);
+            expect(result[0].startedAt).toBeInstanceOf(Date);
+        });
+
+        it('lists sessions from all project dirs when no cwd filter', async () => {
+            const cwdA = '/Users/test/proj-a';
+            const cwdB = '/Users/test/proj-b';
+            writeSession(path.join(projectsDir, '-Users-test-proj-a'), 'a', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd: cwdA, message: { content: 'msg-a' } },
+            ]);
+            writeSession(path.join(projectsDir, '-Users-test-proj-b'), 'b', [
+                { type: 'user', timestamp: '2025-01-02T00:00:00Z', cwd: cwdB, message: { content: 'msg-b' } },
+            ]);
+
+            const result = await adapter.listSessions();
+
+            expect(result).toHaveLength(2);
+            expect(result.map((r) => r.sessionId).sort()).toEqual(['a', 'b']);
+            const cwds = result.map((r) => r.cwd).sort();
+            expect(cwds).toEqual([cwdA, cwdB]);
+        });
+
+        it('drops sessions whose recorded cwd does not match opts.cwd (strict equality)', async () => {
+            const cwdReal = '/Users/test/foo';
+            const cwdRequested = '/Users/test/foo/sub';
+            writeSession(path.join(projectsDir, '-Users-test-foo'), 's', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd: cwdReal, message: { content: 'hi' } },
+            ]);
+
+            // Encoded dir for the requested cwd doesn't exist → return []
+            const result = await adapter.listSessions({ cwd: cwdRequested });
+            expect(result).toEqual([]);
+        });
+
+        it('drops sessions whose recorded cwd disagrees with the encoded dir', async () => {
+            // Edge case: encoded dir lookup matches, but session content
+            // records a different cwd. Strict-equality filter must reject.
+            const requested = '/Users/test/proj';
+            const projDir = path.join(projectsDir, '-Users-test-proj');
+            writeSession(projDir, 's', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd: '/different/path', message: { content: 'mismatch' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: requested });
+            expect(result).toEqual([]);
+        });
+
+        it('finds sessions whose recorded cwd lives in a different encoded dir (worktree case)', async () => {
+            // Real-world case: Claude Code is launched in /repo, then chdirs into
+            // /repo/.worktrees/feature. The session file is stored under the
+            // ENCODED launch dir, but its content records the worktree path.
+            // listSessions({ cwd: worktree }) must still find it.
+            const launchDir = path.join(projectsDir, '-repo');
+            const worktreeCwd = '/repo/.worktrees/feature';
+            writeSession(launchDir, 'wt', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd: worktreeCwd, message: { content: 'in worktree' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: worktreeCwd });
+            expect(result).toHaveLength(1);
+            expect(result[0]).toMatchObject({
+                sessionId: 'wt',
+                cwd: worktreeCwd,
+                firstUserMessage: 'in worktree',
+            });
+        });
+
+        it('skips malformed session files', async () => {
+            const cwd = '/Users/test/p';
+            const projDir = path.join(projectsDir, '-Users-test-p');
+            fs.mkdirSync(projDir, { recursive: true });
+            fs.writeFileSync(path.join(projDir, 'bad.jsonl'), 'not valid json');
+            writeSession(projDir, 'good', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd, message: { content: 'ok' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd });
+            expect(result).toHaveLength(1);
+            expect(result[0].sessionId).toBe('good');
+        });
+
+        it('captures first user message after filtering noise', async () => {
+            const cwd = '/Users/test/q';
+            writeSession(path.join(projectsDir, '-Users-test-q'), 's', [
+                { type: 'user', timestamp: '2025-01-01T00:00:00Z', cwd, message: { content: 'Tool loaded.' } },
+                { type: 'user', timestamp: '2025-01-01T00:00:01Z', cwd, message: { content: 'real first prompt' } },
+                { type: 'user', timestamp: '2025-01-01T00:00:02Z', cwd, message: { content: 'second prompt' } },
+            ]);
+
+            const result = await adapter.listSessions({ cwd });
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('real first prompt');
+        });
+
+        it('returns empty firstUserMessage when no user message exists', async () => {
+            const cwd = '/Users/test/empty';
+            writeSession(path.join(projectsDir, '-Users-test-empty'), 's', [
+                { type: 'assistant', timestamp: '2025-01-01T00:00:00Z' },
+            ]);
+
+            const result = await adapter.listSessions({ cwd });
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('');
         });
     });
 });

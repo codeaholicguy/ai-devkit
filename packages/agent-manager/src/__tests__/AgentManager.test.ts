@@ -4,15 +4,25 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { AgentManager } from '../AgentManager';
-import type { AgentAdapter, AgentInfo, AgentType, ConversationMessage } from '../adapters/AgentAdapter';
+import type {
+    AgentAdapter,
+    AgentInfo,
+    AgentType,
+    ConversationMessage,
+    SessionSummary,
+} from '../adapters/AgentAdapter';
 import { AgentStatus } from '../adapters/AgentAdapter';
 
 // Mock adapter for testing
 class MockAdapter implements AgentAdapter {
+    public lastListSessionsOpts: unknown = undefined;
+
     constructor(
         public readonly type: AgentType,
         private mockAgents: AgentInfo[] = [],
-        private shouldFail: boolean = false
+        private shouldFail: boolean = false,
+        private mockSessions: SessionSummary[] = [],
+        private shouldFailListSessions: boolean = false,
     ) { }
 
     async detectAgents(): Promise<AgentInfo[]> {
@@ -30,12 +40,28 @@ class MockAdapter implements AgentAdapter {
         return [];
     }
 
+    async listSessions(opts?: unknown): Promise<SessionSummary[]> {
+        this.lastListSessionsOpts = opts;
+        if (this.shouldFailListSessions) {
+            throw new Error(`Mock adapter ${this.type} listSessions failed`);
+        }
+        return this.mockSessions;
+    }
+
     setAgents(agents: AgentInfo[]): void {
         this.mockAgents = agents;
     }
 
     setFail(shouldFail: boolean): void {
         this.shouldFail = shouldFail;
+    }
+
+    setSessions(sessions: SessionSummary[]): void {
+        this.mockSessions = sessions;
+    }
+
+    setFailListSessions(shouldFail: boolean): void {
+        this.shouldFailListSessions = shouldFail;
     }
 }
 
@@ -223,6 +249,112 @@ describe('AgentManager', () => {
 
             expect(manager.getAdapterCount()).toBe(0);
             expect(manager.getAdapters()).toEqual([]);
+        });
+    });
+
+    describe('listSessions', () => {
+        function createMockSession(overrides: Partial<SessionSummary> = {}): SessionSummary {
+            return {
+                type: 'claude',
+                sessionId: 'session-1',
+                cwd: '/repo',
+                firstUserMessage: 'hello',
+                lastActive: new Date('2025-01-01T00:00:00Z'),
+                startedAt: new Date('2025-01-01T00:00:00Z'),
+                sessionFilePath: '/tmp/session-1.jsonl',
+                ...overrides,
+            };
+        }
+
+        it('returns empty array when no adapters are registered', async () => {
+            const result = await manager.listSessions();
+            expect(result).toEqual([]);
+        });
+
+        it('merges sessions from every registered adapter', async () => {
+            const claudeSession = createMockSession({ type: 'claude', sessionId: 'c1' });
+            const codexSession = createMockSession({ type: 'codex', sessionId: 'cx1' });
+            manager.registerAdapter(new MockAdapter('claude', [], false, [claudeSession]));
+            manager.registerAdapter(new MockAdapter('codex', [], false, [codexSession]));
+
+            const result = await manager.listSessions();
+
+            expect(result).toHaveLength(2);
+            expect(result.map((s) => s.sessionId).sort()).toEqual(['c1', 'cx1']);
+        });
+
+        it('sorts merged sessions by lastActive descending', async () => {
+            const older = createMockSession({
+                sessionId: 'older',
+                lastActive: new Date('2025-01-01T00:00:00Z'),
+            });
+            const newer = createMockSession({
+                type: 'codex',
+                sessionId: 'newer',
+                lastActive: new Date('2025-06-01T00:00:00Z'),
+            });
+            manager.registerAdapter(new MockAdapter('claude', [], false, [older]));
+            manager.registerAdapter(new MockAdapter('codex', [], false, [newer]));
+
+            const result = await manager.listSessions();
+
+            expect(result.map((s) => s.sessionId)).toEqual(['newer', 'older']);
+        });
+
+        it('skips adapters whose type does not match opts.type', async () => {
+            const claudeAdapter = new MockAdapter(
+                'claude',
+                [],
+                false,
+                [createMockSession({ type: 'claude', sessionId: 'c1' })],
+            );
+            const codexAdapter = new MockAdapter(
+                'codex',
+                [],
+                false,
+                [createMockSession({ type: 'codex', sessionId: 'cx1' })],
+            );
+            manager.registerAdapter(claudeAdapter);
+            manager.registerAdapter(codexAdapter);
+
+            const result = await manager.listSessions({ type: 'claude' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].sessionId).toBe('c1');
+            // Codex adapter must not have been called
+            expect(codexAdapter.lastListSessionsOpts).toBeUndefined();
+            expect(claudeAdapter.lastListSessionsOpts).toEqual({ type: 'claude' });
+        });
+
+        it('tolerates an adapter that throws and still returns the others', async () => {
+            const goodSession = createMockSession({ sessionId: 'good' });
+            manager.registerAdapter(new MockAdapter('claude', [], false, [goodSession]));
+            manager.registerAdapter(
+                new MockAdapter('codex', [], false, [], true /* failListSessions */),
+            );
+
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+            try {
+                const result = await manager.listSessions();
+                expect(result).toHaveLength(1);
+                expect(result[0].sessionId).toBe('good');
+                expect(consoleErrorSpy).toHaveBeenCalled();
+            } finally {
+                consoleErrorSpy.mockRestore();
+            }
+        });
+
+        it('passes the same opts to every called adapter', async () => {
+            const a = new MockAdapter('claude', [], false, []);
+            const b = new MockAdapter('codex', [], false, []);
+            manager.registerAdapter(a);
+            manager.registerAdapter(b);
+
+            await manager.listSessions({ cwd: '/Users/test/proj' });
+
+            expect(a.lastListSessionsOpts).toEqual({ cwd: '/Users/test/proj' });
+            expect(b.lastListSessionsOpts).toEqual({ cwd: '/Users/test/proj' });
         });
     });
 

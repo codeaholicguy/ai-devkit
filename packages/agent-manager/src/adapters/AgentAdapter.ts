@@ -82,6 +82,70 @@ export interface ConversationMessage {
 }
 
 /**
+ * A historical session discovered on disk (running or not).
+ *
+ * Used by `listSessions` to surface enough context for a user to identify
+ * a session and resume it via the originating tool's resume command.
+ */
+export interface SessionSummary {
+    /** Tool that produced this session */
+    type: AgentType;
+
+    /**
+     * ID accepted by the tool's resume command. Adapters MUST pass this
+     * through verbatim — no normalization, no encoding/decoding — so it
+     * round-trips into `claude --resume <id>` (and equivalents).
+     */
+    sessionId: string;
+
+    /** Working directory the session was started in (best-known value) */
+    cwd: string;
+
+    /**
+     * Trimmed first user message; empty string if none. Adapters apply
+     * the same noise-filter their existing parsers use (skip tool_result
+     * blocks, request-interruption notices, system-injected skill
+     * content). The CLI table renderer substitutes a placeholder for
+     * empty values; JSON output keeps the empty string raw.
+     */
+    firstUserMessage: string;
+
+    /** Last activity timestamp (from session content; falls back to file mtime) */
+    lastActive: Date;
+
+    /** Session start time (from session content; falls back to file birthtime/mtime) */
+    startedAt: Date;
+
+    /** Absolute path to the session file on disk (debug/diagnostics) */
+    sessionFilePath: string;
+}
+
+/**
+ * Filters passed by the CLI to {@link AgentAdapter.listSessions}.
+ *
+ * The CLI is the source of truth for filter defaults and semantics
+ * (e.g. cwd defaults to process.cwd(); --all clears it). Adapters apply
+ * the values they receive — they don't invent defaults.
+ */
+export interface ListSessionsOptions {
+    /**
+     * Filter to sessions whose recorded cwd matches this path using strict
+     * equality (no prefix/ancestor matching in v1). Undefined = no cwd
+     * filter.
+     */
+    cwd?: string;
+
+    /**
+     * Filter to a single tool. Enforced by `AgentManager.listSessions`,
+     * which skips adapters whose `type` doesn't match. Adapters MAY
+     * ignore this field — by the time their `listSessions` runs, the
+     * type filter is already satisfied. Undefined = include every
+     * registered adapter.
+     */
+    type?: AgentType;
+}
+
+/**
  * Agent Adapter Interface
  *
  * Implementations must provide detection logic for a specific agent type.
@@ -110,4 +174,16 @@ export interface AgentAdapter {
      * @returns Array of conversation messages
      */
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[];
+
+    /**
+     * Enumerate historical sessions for this tool from disk.
+     *
+     * Applies `opts.cwd` as a strict-equality filter when set. Returns
+     * {@link SessionSummary} entries unsorted; sorting and global filters
+     * are handled by `AgentManager` and the CLI.
+     *
+     * @param opts Filter options computed by the CLI
+     * @returns Array of sessions discovered on disk
+     */
+    listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]>;
 }

@@ -1,9 +1,16 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { AgentAdapter, AgentInfo, ProcessInfo, ConversationMessage } from './AgentAdapter';
+import type {
+    AgentAdapter,
+    AgentInfo,
+    ProcessInfo,
+    ConversationMessage,
+    SessionSummary,
+    ListSessionsOptions,
+} from './AgentAdapter';
 import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
-import { batchGetSessionFileBirthtimes } from '../utils/session';
+import { batchGetSessionFileBirthtimes, isDirectory, listJsonl, safeReaddir, safeStat } from '../utils/session';
 import type { SessionFile } from '../utils/session';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
 import { ClaudeSessionParser } from '../utils/ClaudeSessionParser';
@@ -264,5 +271,72 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
         return this.parser.getConversation(sessionFilePath, options);
+    }
+
+    async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
+        const filterCwd = opts?.cwd;
+        const candidates = this.discoverSessionFiles();
+        const summaries: SessionSummary[] = [];
+
+        for (const { filePath, defaultCwd } of candidates) {
+            const session = this.parser.readSession(filePath, defaultCwd);
+            if (!session) continue;
+
+            // Drop sessions whose JSONL had no parseable conversation entries.
+            // readSession is permissive (returns a shell record even when every
+            // line fails to parse); listSessions needs at least one real entry
+            // so we don't surface garbage files.
+            if (!session.lastEntryType) continue;
+
+            const recordedCwd = session.lastCwd || defaultCwd;
+            if (filterCwd !== undefined && recordedCwd !== filterCwd) continue;
+
+            const stat = safeStat(filePath);
+
+            summaries.push({
+                type: 'claude',
+                sessionId: session.sessionId,
+                cwd: recordedCwd,
+                firstUserMessage: session.firstUserMessage || '',
+                lastActive: session.lastActive ?? stat?.mtime ?? new Date(),
+                startedAt: session.sessionStart ?? stat?.birthtime ?? stat?.mtime ?? new Date(),
+                sessionFilePath: filePath,
+            });
+        }
+
+        return summaries;
+    }
+
+    /**
+     * Discover candidate session files for {@link listSessions}.
+     *
+     * Always walks every subdirectory of `projectsDir`. We can't use the
+     * encoded-dir shortcut for the cwd-scoped path because Claude Code
+     * indexes session files by where the *process was launched*, not by
+     * the recorded `cwd` field inside the session — these diverge in
+     * worktrees and similar setups. The cwd filter is applied later
+     * against `session.lastCwd` so callers see exactly the sessions whose
+     * recorded cwd matches.
+     */
+    private discoverSessionFiles(): Array<{ filePath: string; defaultCwd: string }> {
+        const out: Array<{ filePath: string; defaultCwd: string }> = [];
+
+        if (!isDirectory(this.projectsDir)) return out;
+
+        for (const dirName of safeReaddir(this.projectsDir)) {
+            const projectDir = path.join(this.projectsDir, dirName);
+            if (!isDirectory(projectDir)) continue;
+
+            // Best-effort decode for the rare case session content has no
+            // recorded cwd: '-Users-foo-bar' → '/Users/foo/bar'. Lossy for
+            // paths containing '-'; session content's lastCwd overrides
+            // this when available.
+            const decoded = dirName.replace(/-/g, '/');
+            for (const name of listJsonl(projectDir)) {
+                out.push({ filePath: path.join(projectDir, name), defaultCwd: decoded });
+            }
+        }
+
+        return out;
     }
 }
