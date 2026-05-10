@@ -50,6 +50,8 @@ interface InitOptions {
   template?: string;
   docsDir?: string;
   builtIn?: boolean;
+  yes?: boolean;
+  overwrite?: boolean;
 }
 
 function normalizeEnvironmentOption(
@@ -79,7 +81,7 @@ async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean
     return true;
   }
 
-  if (!isInteractiveTerminal()) {
+  if (options.yes || !isInteractiveTerminal()) {
     ui.info(
       `Skipping built-in skills (non-interactive environment). Pass --built-in to install them from ${BUILTIN_SKILL_REGISTRY}.`
     );
@@ -167,19 +169,25 @@ export async function initCommand(options: InitOptions) {
 
   ensureGitRepository();
 
-  if (await configManager.exists() && !hasTemplate) {
-    const { shouldContinue } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'shouldContinue',
-        message: 'AI DevKit is already initialized. Do you want to reconfigure?',
-        default: false
-      }
-    ]);
+  const nonInteractive = Boolean(options.yes);
 
-    if (!shouldContinue) {
-      ui.warning('Initialization cancelled.');
-      return;
+  if (await configManager.exists() && !hasTemplate) {
+    if (nonInteractive) {
+      ui.warning('AI DevKit is already initialized. Reconfiguring (--yes).');
+    } else {
+      const { shouldContinue } = await inquirer.prompt([
+        {
+          type: 'confirm',
+          name: 'shouldContinue',
+          message: 'AI DevKit is already initialized. Do you want to reconfigure?',
+          default: false
+        }
+      ]);
+
+      if (!shouldContinue) {
+        ui.warning('Initialization cancelled.');
+        return;
+      }
     }
   } else if (await configManager.exists() && hasTemplate) {
     ui.warning('AI DevKit is already initialized. Reconfiguring from template.');
@@ -190,6 +198,11 @@ export async function initCommand(options: InitOptions) {
     selectedEnvironments = templateConfig.environments;
   }
   if (selectedEnvironments.length === 0) {
+    if (nonInteractive) {
+      ui.error('Non-interactive mode requires --environment <env> (or a template that declares environments).');
+      process.exitCode = 1;
+      return;
+    }
     ui.info('AI Environment Setup');
     selectedEnvironments = await environmentSelector.selectEnvironments();
   }
@@ -217,6 +230,13 @@ export async function initCommand(options: InitOptions) {
     ui.warning(`The following environments are already set up: ${existingEnvironments.join(', ')}`);
     if (hasTemplate) {
       ui.warning('Template mode enabled: proceeding with overwrite of selected environments.');
+    } else if (nonInteractive) {
+      if (options.overwrite) {
+        ui.warning('Overwriting existing environments (--yes --overwrite).');
+      } else {
+        ui.warning('Skipping overwrite of existing environments (--yes without --overwrite).');
+        shouldProceedWithSetup = false;
+      }
     } else {
       shouldProceedWithSetup = await environmentSelector.confirmOverride(existingEnvironments);
     }
@@ -232,6 +252,10 @@ export async function initCommand(options: InitOptions) {
     selectedPhases = await phaseSelector.selectPhases(options.all, options.phases);
   } else if (templateConfig?.phases?.length) {
     selectedPhases = templateConfig.phases;
+  } else if (nonInteractive) {
+    ui.error('Non-interactive mode requires --all or --phases (or a template that declares phases).');
+    process.exitCode = 1;
+    return;
   } else {
     selectedPhases = await phaseSelector.selectPhases();
   }
@@ -287,6 +311,8 @@ export async function initCommand(options: InitOptions) {
     if (exists) {
       if (hasTemplate) {
         ui.warning(`${PHASE_DISPLAY_NAMES[phase]} already exists. Overwriting in template mode.`);
+      } else if (nonInteractive) {
+        shouldCopy = Boolean(options.overwrite);
       } else {
         const { overwrite } = await inquirer.prompt([
           {

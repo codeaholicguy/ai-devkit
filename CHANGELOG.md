@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Non-interactive `init`** - `ai-devkit init` now accepts `-y, --yes` to run without prompts (required for agent/CI contexts where stdin is not a TTY). Without a template, `--yes` requires `-e <env>` and one of `-a`/`-p`, otherwise it exits non-zero with a clear message instead of hanging on a checkbox prompt.
+- **`init --overwrite` flag** - When combined with `--yes`, `--overwrite` overwrites existing environments and phase files; the default under `--yes` is to skip them, matching the `install --overwrite` convention.
+
+### Changed
+
+- **Dev Lifecycle Bootstrap** - The `dev-lifecycle` skill's prerequisite step now invokes `ai-devkit init -a -e claude --built-in --yes` so agents (e.g., OpenCode in a fresh worktree) cannot block on interactive prompts when `.ai-devkit.json` is missing.
+
 ## [0.28.0] - 2026-05-09
 
 ### Added

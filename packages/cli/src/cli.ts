@@ -29,6 +29,8 @@ program
   .option('-t, --template <path>', 'Initialize from template file (.yaml, .yml, .json)')
   .option('-d, --docs-dir <path>', 'Custom directory for AI documentation (default: docs/ai)')
   .option('--built-in', 'Install AI DevKit built-in skills without prompting (useful for CI/non-interactive runs)')
+  .option('-y, --yes', 'Run non-interactively. Without -t, requires -e <env> and one of -a/-p. Existing files are kept unless --overwrite is also passed.')
+  .option('--overwrite', 'With --yes, overwrite existing environments and phase files instead of skipping them')
   .action(initCommand);
 
 program

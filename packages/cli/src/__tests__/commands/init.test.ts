@@ -345,4 +345,116 @@ describe('init command', () => {
       expect(builtinCalls.length).toBeGreaterThan(0);
     });
   });
+
+  describe('non-interactive (--yes)', () => {
+    it('exits 1 with a clear error when --yes is passed without -e (and no template)', async () => {
+      await initCommand({ yes: true, all: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(mockUi.error).toHaveBeenCalledWith(
+        expect.stringMatching(/Non-interactive mode requires --environment/)
+      );
+      expect(mockEnvironmentSelector.selectEnvironments).not.toHaveBeenCalled();
+      expect(mockConfigManager.create).not.toHaveBeenCalled();
+    });
+
+    it('exits 1 with a clear error when --yes is passed without -a/-p (and no template)', async () => {
+      await initCommand({ yes: true, environment: 'claude' });
+
+      expect(process.exitCode).toBe(1);
+      expect(mockUi.error).toHaveBeenCalledWith(
+        expect.stringMatching(/Non-interactive mode requires --all or --phases/)
+      );
+      expect(mockPhaseSelector.selectPhases).not.toHaveBeenCalled();
+      expect(mockConfigManager.create).not.toHaveBeenCalled();
+    });
+
+    it('does not prompt to reconfigure when --yes is set and config already exists', async () => {
+      mockConfigManager.exists.mockResolvedValue(true);
+
+      await initCommand({ yes: true, all: true, environment: 'claude' });
+
+      const reconfigurePrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'shouldContinue');
+      });
+      expect(reconfigurePrompts).toHaveLength(0);
+      expect(process.exitCode).not.toBe(1);
+    });
+
+    it('skips overwriting existing environments under --yes without --overwrite', async () => {
+      mockTemplateManager.checkEnvironmentExists.mockResolvedValue(true);
+
+      await initCommand({ yes: true, all: true, environment: 'claude' });
+
+      expect(mockEnvironmentSelector.confirmOverride).not.toHaveBeenCalled();
+      expect(mockTemplateManager.setupMultipleEnvironments).not.toHaveBeenCalled();
+      expect(mockUi.warning).toHaveBeenCalledWith(
+        expect.stringMatching(/Skipping overwrite of existing environments/)
+      );
+    });
+
+    it('overwrites existing environments under --yes when --overwrite is passed', async () => {
+      mockTemplateManager.checkEnvironmentExists.mockResolvedValue(true);
+
+      await initCommand({ yes: true, overwrite: true, all: true, environment: 'claude' });
+
+      expect(mockEnvironmentSelector.confirmOverride).not.toHaveBeenCalled();
+      expect(mockTemplateManager.setupMultipleEnvironments).toHaveBeenCalled();
+      expect(mockUi.warning).toHaveBeenCalledWith(
+        expect.stringMatching(/Overwriting existing environments/)
+      );
+    });
+
+    it('skips existing phase files under --yes without --overwrite (no prompt)', async () => {
+      mockTemplateManager.fileExists.mockResolvedValue(true);
+
+      await initCommand({ yes: true, all: true, environment: 'claude' });
+
+      const overwritePrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'overwrite');
+      });
+      expect(overwritePrompts).toHaveLength(0);
+      expect(mockTemplateManager.copyPhaseTemplate).not.toHaveBeenCalled();
+      expect(mockUi.warning).toHaveBeenCalledWith(expect.stringMatching(/Skipped .* phase/));
+    });
+
+    it('overwrites existing phase files under --yes --overwrite (no prompt)', async () => {
+      mockTemplateManager.fileExists.mockResolvedValue(true);
+
+      await initCommand({ yes: true, overwrite: true, all: true, environment: 'claude' });
+
+      const overwritePrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'overwrite');
+      });
+      expect(overwritePrompts).toHaveLength(0);
+      expect(mockTemplateManager.copyPhaseTemplate).toHaveBeenCalled();
+    });
+
+    it('skips the built-in skills install under --yes without --built-in (TTY attached)', async () => {
+      mockIsInteractiveTerminal.mockReturnValue(true);
+
+      await initCommand({ yes: true, all: true, environment: 'claude' });
+
+      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
+        const questions = call[0];
+        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
+      });
+      expect(builtinPrompts).toHaveLength(0);
+      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+    });
+
+    it('installs built-in skills under --yes when --built-in is also passed', async () => {
+      mockIsInteractiveTerminal.mockReturnValue(true);
+
+      await initCommand({ yes: true, builtIn: true, all: true, environment: 'claude' });
+
+      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
+        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
+      );
+      expect(builtinCalls.length).toBeGreaterThan(0);
+    });
+  });
 });
