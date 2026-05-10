@@ -13,7 +13,7 @@ Before starting any phase, run `npx ai-devkit@latest lint` to verify the base `d
 
 If working on a specific feature, also run `npx ai-devkit@latest lint --feature <name>` to validate feature-scoped docs.
 
-If lint fails because project docs are not initialized, run `npx ai-devkit@latest init`, then rerun lint. Do not proceed until checks pass.
+If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes` (non-interactive — required when running inside an agent so init does not block on prompts), then rerun lint. Do not proceed until checks pass.
 
 For a **new feature start** (Phase 1 or `/new-requirement`), apply the shared worktree setup in [references/worktree-setup.md](references/worktree-setup.md) before phase work. This setup is worktree-first by default and includes explicit no-worktree fallback, context verification, and dependency bootstrap.
 
