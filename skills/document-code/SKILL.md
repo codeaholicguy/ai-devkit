@@ -35,8 +35,32 @@ Build structured understanding of code entry points with an analysis-first workf
 
 5. Create Documentation
 - Normalize name to kebab-case (`calculateTotalPrice` → `calculate-total-price`).
-- Create `docs/ai/implementation/knowledge-{name}.md` using the Output Template.
+- Create `docs/ai/implementation/knowledge-{name}.md` using the Output Template — this is the source of truth.
 - Include mermaid diagrams when they clarify flows or relationships.
+
+6. Offer HTML Artifact
+- After the markdown is written, ask the user once: "Also generate an HTML artifact for easier scanning? (y/N)".
+- If yes, generate sibling `docs/ai/implementation/knowledge-{name}.html` per the HTML Artifact spec. Regenerate from the markdown on subsequent runs; never hand-edit.
+- If no or no response, stop here — markdown alone is a complete result.
+
+## HTML Artifact
+
+Generated only when the user opts in at step 6. A self-contained HTML file optimized for scanning, not reference reading. Complements the markdown — does not replace it.
+
+Constraints:
+- Single file. Inline CSS. No build step. Only external asset allowed is mermaid via CDN (`https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js`).
+- Card-based grid layout, not a long scroll. The reader should capture structure at a glance.
+- Responsive down to laptop width. Print-friendly.
+- No interactivity beyond collapsible deep-dives and mermaid pan/zoom.
+
+Section mapping (from the Output Template):
+- Overview → hero card: title, one-line purpose, language/type badges.
+- Implementation Details → grid of sectioned cards with short bullets, not prose.
+- Dependencies → graph card (mermaid) plus a categorized list (imports, calls, services, external).
+- Visual Diagrams → full-width rendered mermaid blocks.
+- Additional Insights → callout boxes, color-coded by kind (info, warning, risk).
+- Next Steps → checklist card.
+- Metadata → compact footer (date, depth, files touched).
 
 ## Red Flags and Rationalizations
 
@@ -48,8 +72,9 @@ Build structured understanding of code entry points with an analysis-first workf
 
 ## Validation
 - Documentation covers all Output Template sections.
+- If an HTML artifact was generated, it opens standalone in a browser, renders mermaid, and reflects the markdown content (no drift).
 - Summarize key insights, open questions, and related areas for deeper dives.
-- Confirm file path and remind to commit.
+- Confirm file path(s) and remind to commit.
 
 ## Output Template
 - Overview
