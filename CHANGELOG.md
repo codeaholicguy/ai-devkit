@@ -11,10 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Non-interactive `init`** - `ai-devkit init` now accepts `-y, --yes` to run without prompts (required for agent/CI contexts where stdin is not a TTY). Without a template, `--yes` requires `-e <env>` and one of `-a`/`-p`, otherwise it exits non-zero with a clear message instead of hanging on a checkbox prompt.
 - **`init --overwrite` flag** - When combined with `--yes`, `--overwrite` overwrites existing environments and phase files; the default under `--yes` is to skip them, matching the `install --overwrite` convention.
+- **Telegram Markdown Rendering** - `channel-connector`'s Telegram adapter now renders Markdown to Telegram-flavored HTML with an automatic plain-text fallback when Telegram rejects the formatted payload.
+- **Channel Polling Diagnostics** - The `channel` command now surfaces polling-loop errors and emits diagnostic logs to help debug long-running channel sessions.
 
 ### Changed
 
 - **Dev Lifecycle Bootstrap** - The `dev-lifecycle` skill's prerequisite step now invokes `ai-devkit init -a -e claude --built-in --yes` so agents (e.g., OpenCode in a fresh worktree) cannot block on interactive prompts when `.ai-devkit.json` is missing.
+- **Renamed `debug` Skill to `structured-debug`** - The `debug` skill has been renamed to `structured-debug` across the registry, templates, and docs to clarify its purpose.
+- **Renamed `capture-knowledge` Skill to `document-code`** - The `capture-knowledge` skill has been renamed to `document-code` across the registry, templates, and docs to better reflect its purpose.
+- **Built-in Skills Updated** - Updated the CLI's built-in skill list to reflect the `structured-debug` and `document-code` renames.
+
+### Fixed
+
+- **Resumed Claude Session Matching** - `agent-manager` now matches resumed Claude Code sessions by parsing the `--resume <uuid>` argument, fixing detection of sessions started via `claude --resume`.
 
 ## [0.28.0] - 2026-05-09
 
