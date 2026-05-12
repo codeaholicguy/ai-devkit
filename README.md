@@ -24,7 +24,7 @@ This launches an interactive setup wizard that configures your project for AI-as
 | [GitHub Copilot](https://code.visualstudio.com/) | ✅ Supported | ❌ Not Ready |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ Supported | ✅ Ready |
 | [Cursor](https://cursor.sh/) | ✅ Supported | ❌ Not Ready |
-| [opencode](https://opencode.ai/) | ✅ Supported | ❌ Not Ready |
+| [opencode](https://opencode.ai/) | ✅ Supported | 🚧 Testing |
 | [Antigravity](https://antigravity.google/) | ✅ Supported | ❌ Not Ready |
 | [Codex CLI](https://github.com/openai/codex) | ✅ Supported | ✅ Ready |
 | [Windsurf](https://windsurf.com/) | 🚧 Testing | ❌ Not Ready |
