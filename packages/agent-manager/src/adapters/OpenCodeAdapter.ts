@@ -4,12 +4,11 @@
  * Detects running OpenCode agents by:
  * 1. Finding running opencode processes via shared listAgentProcesses()
  * 2. Enriching with CWD and start times via shared enrichProcesses()
- * 3. Querying OpenCode's SQLite DB (~/.local/share/opencode/opencode.db)
- *    to find the session matching each process's CWD
- * 4. Reading session metadata (lastActive, summary, status) from the DB
+ * 3. Querying OpenCode's SQLite DB (~/.local/share/opencode/opencode.db) to
+ *    find the session matching each process's CWD and read status from message.time.completed
  *
- * Session reference encoding: sessionFilePath uses "<dbPath>::<sessionId>"
- * so getConversation() can open the right DB row without extra parameters.
+ * sessionFilePath encodes "<dbPath>::<sessionId>" so getConversation() can open the right
+ * DB row without extending the AgentAdapter interface.
  */
 
 import * as fs from 'fs';
@@ -26,8 +25,6 @@ import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
 import { generateAgentName } from '../utils/matching';
 
-// Imported dynamically so tests can mock it before the module is required.
-// require('better-sqlite3') returns the Database constructor directly.
 type Database = import('better-sqlite3').Database;
 
 const SESSION_REF_SEP = '::';
@@ -51,8 +48,9 @@ interface OpenCodeSession {
 interface OpenCodeSessionStats {
     lastRole: string | null;
     lastTimeUpdated: number;
-    lastPartType: string | null;
-    lastToolStatus: string | null;
+    /** OpenCode writes `time.completed` on the assistant message only when the turn finishes. */
+    lastAssistantCompleted: boolean;
+    lastAssistantErrored: boolean;
     summary: string;
 }
 
@@ -60,8 +58,6 @@ export class OpenCodeAdapter implements AgentAdapter {
     readonly type = 'opencode' as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
-    /** If the last part was updated this recently, the agent is mid-turn emitting parts. */
-    private static readonly MID_TURN_FRESHNESS_SEC = 5;
 
     private readonly dbPath: string;
     private db: Database | null = null;
@@ -223,29 +219,41 @@ export class OpenCodeAdapter implements AgentAdapter {
 
     private getSessionStats(db: Database, sessionId: string): OpenCodeSessionStats {
         const empty: OpenCodeSessionStats = {
-            lastRole: null, lastTimeUpdated: 0, lastPartType: null, lastToolStatus: null, summary: '',
+            lastRole: null,
+            lastTimeUpdated: 0,
+            lastAssistantCompleted: false,
+            lastAssistantErrored: false,
+            summary: '',
         };
 
         try {
-            // Last part: gives us the most recent role, time, type, and (if tool) state.status
-            const last = db.prepare<[string], {
-                role: string;
-                timeUpdated: number;
-                partType: string | null;
-                toolStatus: string | null;
-            }>(`
-                SELECT json_extract(m.data, '$.role') AS role,
-                       p.time_updated AS timeUpdated,
-                       json_extract(p.data, '$.type') AS partType,
-                       json_extract(p.data, '$.state.status') AS toolStatus
-                FROM part p
-                JOIN message m ON p.message_id = m.id
-                WHERE p.session_id = ?
-                ORDER BY p.time_updated DESC
+            // Order by time_created — time_updated can lag when OpenCode appends
+            // metadata (e.g. summary diffs) to user messages after a turn finishes.
+            const last = db.prepare<[string], { role: string; timeUpdated: number }>(`
+                SELECT json_extract(data, '$.role') AS role,
+                       time_updated AS timeUpdated
+                FROM message
+                WHERE session_id = ?
+                ORDER BY time_created DESC
                 LIMIT 1
             `).get(sessionId);
 
-            // First user text part: becomes the summary
+            const heartbeat = db.prepare<[string], { maxUpdated: number }>(`
+                SELECT MAX(time_updated) AS maxUpdated FROM message WHERE session_id = ?
+            `).get(sessionId);
+
+            const lastAssistant = db.prepare<[string], {
+                completed: number | null;
+                errored: number | null;
+            }>(`
+                SELECT json_extract(data, '$.time.completed') AS completed,
+                       json_extract(data, '$.time.error') AS errored
+                FROM message
+                WHERE session_id = ? AND json_extract(data, '$.role') = 'assistant'
+                ORDER BY time_created DESC
+                LIMIT 1
+            `).get(sessionId);
+
             const first = db.prepare<[string], { text: string }>(`
                 SELECT json_extract(p.data, '$.text') AS text
                 FROM part p
@@ -260,9 +268,9 @@ export class OpenCodeAdapter implements AgentAdapter {
 
             return {
                 lastRole: last?.role ?? null,
-                lastTimeUpdated: last?.timeUpdated ?? 0,
-                lastPartType: last?.partType ?? null,
-                lastToolStatus: last?.toolStatus ?? null,
+                lastTimeUpdated: heartbeat?.maxUpdated ?? last?.timeUpdated ?? 0,
+                lastAssistantCompleted: lastAssistant?.completed != null,
+                lastAssistantErrored: lastAssistant?.errored != null,
                 summary: first?.text?.trim() ?? '',
             };
         } catch {
@@ -306,21 +314,11 @@ export class OpenCodeAdapter implements AgentAdapter {
     }
 
     private determineStatus(stats: OpenCodeSessionStats, lastActive: Date): AgentStatus {
-        const ageSec = (Date.now() - lastActive.getTime()) / 1000;
+        const ageMin = (Date.now() - lastActive.getTime()) / 60000;
+        if (ageMin > OpenCodeAdapter.IDLE_THRESHOLD_MINUTES) return AgentStatus.IDLE;
 
-        if (ageSec > OpenCodeAdapter.IDLE_THRESHOLD_MINUTES * 60) return AgentStatus.IDLE;
-
-        // A tool actively running means the agent is working, regardless of role.
-        if (stats.lastPartType === 'tool' && stats.lastToolStatus === 'running') {
-            return AgentStatus.RUNNING;
-        }
-
-        // Recently updated → agent is mid-turn emitting parts (text, reasoning, tool transitions).
-        if (ageSec < OpenCodeAdapter.MID_TURN_FRESHNESS_SEC) return AgentStatus.RUNNING;
-
-        // Assistant turn finished and has been quiet long enough → waiting for next user input.
+        if (stats.lastRole === 'assistant' && !stats.lastAssistantCompleted) return AgentStatus.RUNNING;
         if (stats.lastRole === 'assistant') return AgentStatus.WAITING;
-
         return AgentStatus.RUNNING;
     }
 

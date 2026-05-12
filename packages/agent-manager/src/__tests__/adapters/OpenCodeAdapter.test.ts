@@ -25,18 +25,10 @@ const mockedListAgentProcesses = listAgentProcesses as jest.MockedFunction<typeo
 const mockedEnrichProcesses = enrichProcesses as jest.MockedFunction<typeof enrichProcesses>;
 const mockedGenerateAgentName = generateAgentName as jest.MockedFunction<typeof generateAgentName>;
 
-// ---------------------------------------------------------------------------
-// SQLite mock helpers
-// ---------------------------------------------------------------------------
-
 function makeDb(queries: {
     session?: Array<{ id: string; directory: string; time_created: number }>;
-    lastPart?: {
-        role: string;
-        timeUpdated: number;
-        partType?: string | null;
-        toolStatus?: string | null;
-    } | null;
+    lastMessage?: { role: string; timeUpdated: number } | null;
+    lastAssistant?: { completed: number | null; errored: number | null } | null;
     firstUserText?: { text: string } | null;
     parts?: Array<{ role: string; partData: string; timeCreated: number }>;
 }) {
@@ -56,18 +48,23 @@ function makeDb(queries: {
             };
         }
 
-        if (normalized.includes('order by p.time_updated desc')) {
+        if (normalized.includes('max(time_updated)')) {
             return {
-                get: () => queries.lastPart === undefined
+                get: () => ({ maxUpdated: queries.lastMessage?.timeUpdated ?? 0 }),
+            };
+        }
+
+        if (normalized.includes('from message') && !normalized.includes("'$.time.completed'") && !normalized.includes('order by p.time_created')) {
+            return {
+                get: () => queries.lastMessage ?? undefined,
+            };
+        }
+
+        if (normalized.includes("'$.time.completed'")) {
+            return {
+                get: () => queries.lastAssistant === undefined
                     ? undefined
-                    : queries.lastPart
-                        ? {
-                            role: queries.lastPart.role,
-                            timeUpdated: queries.lastPart.timeUpdated,
-                            partType: queries.lastPart.partType ?? null,
-                            toolStatus: queries.lastPart.toolStatus ?? null,
-                        }
-                        : undefined,
+                    : queries.lastAssistant ?? undefined,
             };
         }
 
@@ -95,10 +92,6 @@ function makeDbConstructor(db: ReturnType<typeof makeDb>) {
     return jest.fn().mockReturnValue(db);
 }
 
-// ---------------------------------------------------------------------------
-// Test setup
-// ---------------------------------------------------------------------------
-
 describe('OpenCodeAdapter', () => {
     let adapter: OpenCodeAdapter;
     let tmpDir: string;
@@ -117,7 +110,6 @@ describe('OpenCodeAdapter', () => {
             return `${folder}-${pid}`;
         });
 
-        // Point dbPath to a temp location by default (not existing)
         tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'opencode-test-'));
         dbPath = path.join(tmpDir, 'opencode.db');
         (adapter as any).dbPath = dbPath;
@@ -129,15 +121,11 @@ describe('OpenCodeAdapter', () => {
         jest.restoreAllMocks();
     });
 
-    // -------------------------------------------------------------------------
-
     describe('type', () => {
         it('exposes opencode type', () => {
             expect(adapter.type).toBe('opencode');
         });
     });
-
-    // -------------------------------------------------------------------------
 
     describe('canHandle', () => {
         it('returns true for opencode command', () => {
@@ -166,8 +154,6 @@ describe('OpenCodeAdapter', () => {
         });
     });
 
-    // -------------------------------------------------------------------------
-
     describe('detectAgents', () => {
         it('returns empty list when no opencode processes running', async () => {
             mockedListAgentProcesses.mockReturnValue([]);
@@ -184,7 +170,6 @@ describe('OpenCodeAdapter', () => {
             ];
             mockedListAgentProcesses.mockReturnValue(procs);
             mockedEnrichProcesses.mockReturnValue(procs);
-            // dbPath does not exist → openDb returns null
 
             const agents = await adapter.detectAgents();
 
@@ -209,7 +194,6 @@ describe('OpenCodeAdapter', () => {
             fs.writeFileSync(dbPath, ''); // file exists but empty → sqlite throws
             const db = makeDb({ session: [] }); // no matching session
             jest.mock('better-sqlite3', () => makeDbConstructor(db));
-            // Inject db directly to bypass fs.existsSync + require
             (adapter as any).db = db;
 
             const agents = await adapter.detectAgents();
@@ -222,7 +206,7 @@ describe('OpenCodeAdapter', () => {
             });
         });
 
-        it('returns waiting agent when assistant turn finished and quiet past freshness window', async () => {
+        it('returns waiting when assistant turn has time.completed set', async () => {
             const now = Date.now();
             const procs: ProcessInfo[] = [
                 { pid: 200, command: 'opencode', cwd: '/my-project', tty: 'ttys002' },
@@ -232,8 +216,8 @@ describe('OpenCodeAdapter', () => {
 
             const db = makeDb({
                 session: [{ id: 'sess-001', directory: '/my-project', time_created: now - 60000 }],
-                // 30s ago, beyond MID_TURN_FRESHNESS_SEC (5s) → assistant turn is done
-                lastPart: { role: 'assistant', timeUpdated: now - 30_000, partType: 'text' },
+                lastMessage: { role: 'assistant', timeUpdated: now - 60_000 },
+                lastAssistant: { completed: now - 30_000, errored: null },
                 firstUserText: { text: 'Refactor the auth module' },
             });
             (adapter as any).db = db;
@@ -249,7 +233,7 @@ describe('OpenCodeAdapter', () => {
             });
         });
 
-        it('returns running when assistant tool is actively executing', async () => {
+        it('returns running when assistant turn has no time.completed (in-progress, any age)', async () => {
             const now = Date.now();
             const procs: ProcessInfo[] = [
                 { pid: 250, command: 'opencode', cwd: '/proj', tty: 'ttys004' },
@@ -257,29 +241,23 @@ describe('OpenCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(procs);
             mockedEnrichProcesses.mockReturnValue(procs);
 
-            // Tool has been running for 2 minutes; assistant role; tool state 'running'
-            const db = makeDb({
+                        const db = makeDb({
                 session: [{ id: 'sess-tool', directory: '/proj', time_created: now - 180_000 }],
-                lastPart: {
-                    role: 'assistant',
-                    timeUpdated: now - 120_000,
-                    partType: 'tool',
-                    toolStatus: 'running',
-                },
+                lastMessage: { role: 'assistant', timeUpdated: now - 120_000 },
+                lastAssistant: { completed: null, errored: null },
                 firstUserText: { text: 'Run the build' },
             });
             (adapter as any).db = db;
 
             const agents = await adapter.detectAgents();
 
-            // Must be RUNNING — would previously have been WAITING (the bug)
             expect(agents[0]).toMatchObject({
                 status: AgentStatus.RUNNING,
                 sessionId: 'sess-tool',
             });
         });
 
-        it('returns running when assistant part was updated within freshness window', async () => {
+        it('returns running between steps (the bug fix) — no time.completed even during quiet moment', async () => {
             const now = Date.now();
             const procs: ProcessInfo[] = [
                 { pid: 260, command: 'opencode', cwd: '/proj-b', tty: 'ttys005' },
@@ -287,10 +265,10 @@ describe('OpenCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(procs);
             mockedEnrichProcesses.mockReturnValue(procs);
 
-            // 2 seconds ago, within MID_TURN_FRESHNESS_SEC → still mid-turn
-            const db = makeDb({
+                        const db = makeDb({
                 session: [{ id: 'sess-mid', directory: '/proj-b', time_created: now - 60_000 }],
-                lastPart: { role: 'assistant', timeUpdated: now - 2000, partType: 'text' },
+                lastMessage: { role: 'assistant', timeUpdated: now - 45_000 },
+                lastAssistant: { completed: null, errored: null },
                 firstUserText: null,
             });
             (adapter as any).db = db;
@@ -299,7 +277,31 @@ describe('OpenCodeAdapter', () => {
             expect(agents[0].status).toBe(AgentStatus.RUNNING);
         });
 
-        it('returns running agent when last role is user', async () => {
+        it('returns waiting even when latest user message was metadata-updated after assistant completion', async () => {
+            // Regression: OpenCode updates user.message.time_updated when appending
+            // summary diffs after a turn finishes. Ordering by time_created (not
+            // time_updated) keeps the assistant message correctly identified as latest.
+            const now = Date.now();
+            const procs: ProcessInfo[] = [
+                { pid: 270, command: 'opencode', cwd: '/proj-c', tty: 'ttys006' },
+            ];
+            mockedListAgentProcesses.mockReturnValue(procs);
+            mockedEnrichProcesses.mockReturnValue(procs);
+
+            // makeDb returns lastMessage from the time_created-ordered query — supply the assistant.
+            const db = makeDb({
+                session: [{ id: 'sess-meta', directory: '/proj-c', time_created: now - 120_000 }],
+                lastMessage: { role: 'assistant', timeUpdated: now - 30_000 },
+                lastAssistant: { completed: now - 30_000, errored: null },
+                firstUserText: null,
+            });
+            (adapter as any).db = db;
+
+            const agents = await adapter.detectAgents();
+            expect(agents[0].status).toBe(AgentStatus.WAITING);
+        });
+
+        it('returns running agent when last role is user (no assistant message yet)', async () => {
             const now = Date.now();
             const procs: ProcessInfo[] = [
                 { pid: 300, command: 'opencode', cwd: '/work', tty: 'ttys003' },
@@ -309,8 +311,8 @@ describe('OpenCodeAdapter', () => {
 
             const db = makeDb({
                 session: [{ id: 'sess-002', directory: '/work', time_created: now - 30000 }],
-                // User just sent a message, 30s ago → past freshness, role user → RUNNING
-                lastPart: { role: 'user', timeUpdated: now - 30_000, partType: 'text' },
+                lastMessage: { role: 'user', timeUpdated: now - 30_000 },
+                lastAssistant: null,
                 firstUserText: { text: 'Add unit tests' },
             });
             (adapter as any).db = db;
@@ -334,7 +336,8 @@ describe('OpenCodeAdapter', () => {
 
             const db = makeDb({
                 session: [{ id: 'sess-003', directory: '/old-work', time_created: staleTime }],
-                lastPart: { role: 'assistant', timeUpdated: staleTime },
+                lastMessage: { role: 'assistant', timeUpdated: staleTime },
+                lastAssistant: { completed: staleTime, errored: null },
                 firstUserText: null,
             });
             (adapter as any).db = db;
@@ -347,8 +350,6 @@ describe('OpenCodeAdapter', () => {
             });
         });
     });
-
-    // -------------------------------------------------------------------------
 
     describe('getConversation', () => {
         it('returns empty array for invalid session ref', () => {
@@ -403,14 +404,11 @@ describe('OpenCodeAdapter', () => {
         });
 
         it('returns empty array when DB cannot be opened', () => {
-            // db is null, dbPath does not exist
-            (adapter as any).db = null;
+                        (adapter as any).db = null;
             const messages = adapter.getConversation(`${dbPath}::sess-z`);
             expect(messages).toEqual([]);
         });
     });
-
-    // -------------------------------------------------------------------------
 
     describe('listSessions', () => {
         it('returns empty array when DB does not exist', async () => {
@@ -425,7 +423,8 @@ describe('OpenCodeAdapter', () => {
                     { id: 'sess-a', directory: '/proj-a', time_created: now - 3000 },
                     { id: 'sess-b', directory: '/proj-b', time_created: now - 6000 },
                 ],
-                lastPart: null,
+                lastMessage: null,
+                lastAssistant: null,
                 firstUserText: { text: 'Build the feature' },
             });
             (adapter as any).db = db;
@@ -445,7 +444,8 @@ describe('OpenCodeAdapter', () => {
                     { id: 'sess-a', directory: '/proj-a', time_created: now - 3000 },
                     { id: 'sess-b', directory: '/proj-b', time_created: now - 6000 },
                 ],
-                lastPart: null,
+                lastMessage: null,
+                lastAssistant: null,
                 firstUserText: null,
             });
             (adapter as any).db = db;
@@ -460,7 +460,8 @@ describe('OpenCodeAdapter', () => {
             const timeCreated = Date.now() - 120000;
             const db = makeDb({
                 session: [{ id: 'sess-c', directory: '/repo', time_created: timeCreated }],
-                lastPart: null,
+                lastMessage: null,
+                lastAssistant: null,
                 firstUserText: null,
             });
             (adapter as any).db = db;
