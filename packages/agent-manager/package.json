@@ -26,7 +26,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^12.6.2"
+  },
   "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
     "@types/jest": "^30.0.0",
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^6.19.1",

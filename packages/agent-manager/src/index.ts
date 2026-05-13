@@ -3,6 +3,7 @@ export { AgentManager } from './AgentManager';
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter';
 export { CodexAdapter } from './adapters/CodexAdapter';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter';
+export { OpenCodeAdapter } from './adapters/OpenCodeAdapter';
 export { AgentStatus } from './adapters/AgentAdapter';
 export type {
     AgentAdapter,

@@ -7,6 +7,7 @@ import {
     ClaudeCodeAdapter,
     CodexAdapter,
     GeminiCliAdapter,
+    OpenCodeAdapter,
     AgentStatus,
     TerminalFocusManager,
     TtyWriter,
@@ -52,6 +53,7 @@ const TYPE_LABELS: Record<AgentType, string> = {
     claude: 'Claude Code',
     codex: 'Codex',
     gemini_cli: 'Gemini CLI',
+    opencode: 'OpenCode',
     other: 'Other',
 };
 
@@ -78,6 +80,7 @@ function createAgentManager(): AgentManager {
     manager.registerAdapter(new ClaudeCodeAdapter());
     manager.registerAdapter(new CodexAdapter());
     manager.registerAdapter(new GeminiCliAdapter());
+    manager.registerAdapter(new OpenCodeAdapter());
     return manager;
 }
 
