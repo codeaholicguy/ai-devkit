@@ -286,11 +286,18 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     /**
      * Derive the Claude Code project directory for a given CWD.
      *
-     * Claude Code encodes paths by replacing '/' with '-':
-     * /Users/foo/bar → ~/.claude/projects/-Users-foo-bar/
+     * Claude Code encodes paths by replacing every non-alphanumeric
+     * character with '-', so '/', '_', '.', spaces, etc. all collapse:
+     *   /Users/foo/bar          → -Users-foo-bar
+     *   /Users/foo/my_project   → -Users-foo-my-project
+     *   /Users/foo/.worktrees/x → -Users-foo--worktrees-x
+     *
+     * The encoding is lossy — multiple real paths can collide on the
+     * same encoded dir. Callers that need to disambiguate must read the
+     * `cwd` field inside each session JSONL.
      */
     private getProjectDir(cwd: string): string {
-        const encoded = cwd.replace(/\//g, '-');
+        const encoded = cwd.replace(/[^a-zA-Z0-9]/g, '-');
         return path.join(this.projectsDir, encoded);
     }
 

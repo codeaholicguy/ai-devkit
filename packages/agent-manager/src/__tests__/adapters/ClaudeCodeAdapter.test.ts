@@ -914,7 +914,7 @@ describe('ClaudeCodeAdapter', () => {
             };
 
             const writeJsonl = (cwd: string, sessionId: string) => {
-                const encoded = cwd.replace(/\//g, '-');
+                const encoded = cwd.replace(/[^a-zA-Z0-9]/g, '-');
                 const projDir = path.join(projectsDir, encoded);
                 fs.mkdirSync(projDir, { recursive: true });
                 const filePath = path.join(projDir, `${sessionId}.jsonl`);
@@ -1046,6 +1046,44 @@ describe('ClaudeCodeAdapter', () => {
                 // startTime undefined → stale check skipped → direct match
                 expect(direct).toHaveLength(1);
                 expect(fallback).toHaveLength(0);
+            });
+        });
+
+        describe('getProjectDir', () => {
+            const encode = (cwd: string) => (adapter as any).getProjectDir(cwd) as string;
+
+            it('should replace path separators with hyphens', () => {
+                const expected = path.join((adapter as any).projectsDir, '-Users-foo-bar');
+                expect(encode('/Users/foo/bar')).toBe(expected);
+            });
+
+            it('should encode underscores as hyphens (matches Claude Code CLI)', () => {
+                const expected = path.join((adapter as any).projectsDir, '-Users-foo-my-project');
+                expect(encode('/Users/foo/my_project')).toBe(expected);
+            });
+
+            it('should encode dots as hyphens', () => {
+                const expected = path.join((adapter as any).projectsDir, '-Users-foo--worktrees-x');
+                expect(encode('/Users/foo/.worktrees/x')).toBe(expected);
+            });
+
+            it('should collide paths that differ only in non-alphanumeric chars', () => {
+                // The encoding is intentionally lossy — callers must
+                // disambiguate via session JSONL contents, not dir name.
+                expect(encode('/a/b_c')).toBe(encode('/a/b-c'));
+                expect(encode('/a/b_c')).toBe(encode('/a/b.c'));
+            });
+
+            it('should resolve to a real session dir when cwd contains underscores', () => {
+                const cwd = '/Users/foo/my_project';
+                const projectsDir = (adapter as any).projectsDir as string;
+                const expectedDir = path.join(projectsDir, '-Users-foo-my-project');
+                fs.mkdirSync(expectedDir, { recursive: true });
+                const sessionFile = path.join(expectedDir, 'session-underscore.jsonl');
+                fs.writeFileSync(sessionFile, '');
+
+                expect(encode(cwd)).toBe(expectedDir);
+                expect(fs.existsSync(path.join(encode(cwd), 'session-underscore.jsonl'))).toBe(true);
             });
         });
 
