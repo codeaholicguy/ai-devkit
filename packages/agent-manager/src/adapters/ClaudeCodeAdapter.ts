@@ -28,14 +28,29 @@ interface PidFileEntry {
     startedAt: number;
     kind: string;
     entrypoint: string;
+    /**
+     * Authoritative live status published by the Claude Code process
+     * (e.g., 'running', 'waiting', 'idle'). Preferred over JSONL-derived
+     * status because trailing entries like 'permission-mode' / 'ai-title'
+     * can mask the real conversational state.
+     */
+    status?: string;
+    /** Short description of what the agent is waiting on (e.g., "approve Read"). */
+    waitingFor?: string;
 }
 
 /**
  * A process directly matched to a session via PID file (authoritative path).
+ *
+ * When the matching PID file also exposes live status/waitingFor metadata,
+ * those values are carried here so `mapSessionToAgent` can prefer them
+ * over the JSONL-derived heuristic.
  */
 interface DirectMatch {
     process: ProcessInfo;
     sessionFile: SessionFile;
+    pidStatus?: AgentStatus;
+    waitingFor?: string;
 }
 
 /** Maximum allowed delta (ms) between process start time and PID file startedAt. */
@@ -106,10 +121,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         const agents: AgentInfo[] = [];
 
         // Build agents from direct (resume + PID-file) matches
-        for (const { process: proc, sessionFile } of direct) {
+        for (const match of direct) {
+            const { process: proc, sessionFile } = match;
             const sessionData = this.parser.readSession(sessionFile.filePath, sessionFile.resolvedCwd);
             if (sessionData) {
-                agents.push(this.mapSessionToAgent(sessionData, proc, sessionFile));
+                agents.push(this.mapSessionToAgent(sessionData, proc, sessionFile, {
+                    pidStatus: match.pidStatus,
+                    waitingFor: match.waitingFor,
+                }));
             } else {
                 matchedPids.delete(proc.pid);
             }
@@ -203,6 +222,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                 continue;
             }
 
+            // Best-effort: the PID file (if present for this proc) is the
+            // authoritative source of live status. We still match the session
+            // via --resume, but we read the PID file alongside to capture
+            // status/waitingFor.
+            const pidEntry = this.readMatchingPidFile(proc.pid, proc.startTime);
+
             direct.push({
                 process: proc,
                 sessionFile: {
@@ -212,6 +237,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
                     birthtimeMs: stat.birthtimeMs,
                     resolvedCwd: proc.cwd,
                 },
+                pidStatus: this.mapPidStatus(pidEntry?.status),
+                waitingFor: pidEntry?.waitingFor,
             });
         }
 
@@ -221,6 +248,54 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     private extractResumeSessionId(command: string): string | null {
         const match = command.match(/--resume\s+([0-9a-f-]{36})/i);
         return match?.[1] ?? null;
+    }
+
+    /**
+     * Read and parse ~/.claude/sessions/<pid>.json, returning null on any
+     * I/O / parse failure or when the file is stale relative to the live
+     * process.
+     *
+     * "Stale" means the PID file's startedAt diverges from the process's
+     * start time by more than {@link PID_FILE_STALENESS_MS} — typically
+     * a previous Claude Code process recycled the same PID without cleanup.
+     */
+    private readMatchingPidFile(pid: number, procStartTime?: Date): PidFileEntry | null {
+        const pidFilePath = path.join(this.sessionsDir, `${pid}.json`);
+        try {
+            const entry = JSON.parse(
+                fs.readFileSync(pidFilePath, 'utf-8'),
+            ) as PidFileEntry;
+
+            if (procStartTime) {
+                const deltaMs = Math.abs(procStartTime.getTime() - entry.startedAt);
+                if (deltaMs > PID_FILE_STALENESS_MS) {
+                    return null;
+                }
+            }
+
+            return entry;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * Map the PID file's live status string to {@link AgentStatus}.
+     *
+     * Returns undefined for missing / unrecognized values so the caller
+     * can fall back to JSONL-derived heuristics.
+     */
+    private mapPidStatus(status: string | undefined): AgentStatus | undefined {
+        switch (status) {
+            case 'running':
+                return AgentStatus.RUNNING;
+            case 'waiting':
+                return AgentStatus.WAITING;
+            case 'idle':
+                return AgentStatus.IDLE;
+            default:
+                return undefined;
+        }
     }
 
     /**
@@ -241,43 +316,32 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         const fallback: ProcessInfo[] = [];
 
         for (const proc of processes) {
-            const pidFilePath = path.join(this.sessionsDir, `${proc.pid}.json`);
-            try {
-                const entry = JSON.parse(
-                    fs.readFileSync(pidFilePath, 'utf-8'),
-                ) as PidFileEntry;
-
-                // Stale-file guard: reject PID files from a previous process with the same PID
-                if (proc.startTime) {
-                    const deltaMs = Math.abs(proc.startTime.getTime() - entry.startedAt);
-                    if (deltaMs > PID_FILE_STALENESS_MS) {
-                        fallback.push(proc);
-                        continue;
-                    }
-                }
-
-                const projectDir = this.getProjectDir(entry.cwd);
-                const jsonlPath = path.join(projectDir, `${entry.sessionId}.jsonl`);
-
-                if (!fs.existsSync(jsonlPath)) {
-                    fallback.push(proc);
-                    continue;
-                }
-
-                direct.push({
-                    process: proc,
-                    sessionFile: {
-                        sessionId: entry.sessionId,
-                        filePath: jsonlPath,
-                        projectDir,
-                        birthtimeMs: entry.startedAt,
-                        resolvedCwd: entry.cwd,
-                    },
-                });
-            } catch {
-                // PID file absent, unreadable, or malformed — fall back per-process
+            const entry = this.readMatchingPidFile(proc.pid, proc.startTime);
+            if (!entry) {
                 fallback.push(proc);
+                continue;
             }
+
+            const projectDir = this.getProjectDir(entry.cwd);
+            const jsonlPath = path.join(projectDir, `${entry.sessionId}.jsonl`);
+
+            if (!fs.existsSync(jsonlPath)) {
+                fallback.push(proc);
+                continue;
+            }
+
+            direct.push({
+                process: proc,
+                sessionFile: {
+                    sessionId: entry.sessionId,
+                    filePath: jsonlPath,
+                    projectDir,
+                    birthtimeMs: entry.startedAt,
+                    resolvedCwd: entry.cwd,
+                },
+                pidStatus: this.mapPidStatus(entry.status),
+                waitingFor: entry.waitingFor,
+            });
         }
 
         return { direct, fallback };
@@ -305,12 +369,22 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         session: ClaudeSession,
         processInfo: ProcessInfo,
         sessionFile: SessionFile,
+        liveInfo?: { pidStatus?: AgentStatus; waitingFor?: string },
     ): AgentInfo {
+        // Live PID-file status is authoritative when present — JSONL-derived
+        // status mis-classifies sessions whose latest entry is a UI-state
+        // event like `permission-mode` or `ai-title`.
+        const status = liveInfo?.pidStatus ?? this.parser.determineStatus(session);
+        const baseSummary = session.lastUserMessage || 'Session started';
+        const summary = status === AgentStatus.WAITING && liveInfo?.waitingFor
+            ? `${baseSummary} — waiting for ${liveInfo.waitingFor}`
+            : baseSummary;
+
         return {
             name: generateAgentName(processInfo.cwd, processInfo.pid),
             type: this.type,
-            status: this.parser.determineStatus(session),
-            summary: session.lastUserMessage || 'Session started',
+            status,
+            summary,
             pid: processInfo.pid,
             projectPath: sessionFile.resolvedCwd || processInfo.cwd || '',
             sessionId: sessionFile.sessionId,

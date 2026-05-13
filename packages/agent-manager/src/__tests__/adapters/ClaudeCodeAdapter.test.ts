@@ -408,6 +408,194 @@ describe('ClaudeCodeAdapter', () => {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         });
 
+        it('should prefer PID-file live status over JSONL-derived status and surface waitingFor in summary', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 55050, command: 'claude', cwd: '/project/wait', tty: 'ttys001', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-wait-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-wait');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const sessionId = 'wait-session';
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            // JSONL trails with permission-mode → parser would resolve to UNKNOWN.
+            // PID file's live status must win.
+            fs.writeFileSync(jsonlPath, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/wait', message: { content: '/reddit-commenter' } }),
+                JSON.stringify({ type: 'permission-mode', timestamp: new Date().toISOString(), permissionMode: 'default' }),
+            ].join('\n'));
+
+            fs.writeFileSync(
+                path.join(sessionsDir, '55050.json'),
+                JSON.stringify({
+                    pid: 55050, sessionId, cwd: '/project/wait',
+                    startedAt: startTime.getTime(),
+                    kind: 'interactive', entrypoint: 'cli',
+                    status: 'waiting', waitingFor: 'approve Read',
+                }),
+            );
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].status).toBe(AgentStatus.WAITING);
+            expect(agents[0].summary).toContain('/reddit-commenter');
+            expect(agents[0].summary).toContain('waiting for approve Read');
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should resolve PID-file status: "idle" to AgentStatus.IDLE even when JSONL would say UNKNOWN', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 55051, command: 'claude', cwd: '/project/idle', tty: 'ttys001', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-idle-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-idle');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const sessionId = 'idle-session';
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(jsonlPath, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/idle', message: { content: 'hello' } }),
+                JSON.stringify({ type: 'permission-mode', timestamp: new Date().toISOString(), permissionMode: 'default' }),
+            ].join('\n'));
+
+            fs.writeFileSync(
+                path.join(sessionsDir, '55051.json'),
+                JSON.stringify({
+                    pid: 55051, sessionId, cwd: '/project/idle',
+                    startedAt: startTime.getTime(),
+                    kind: 'interactive', entrypoint: 'cli',
+                    status: 'idle',
+                }),
+            );
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].status).toBe(AgentStatus.IDLE);
+            // No waitingFor in PID file → summary is just the last user message
+            expect(agents[0].summary).toBe('hello');
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should fall back to JSONL-derived status when PID-file status is missing or unrecognized', async () => {
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                { pid: 55052, command: 'claude', cwd: '/project/legacy', tty: 'ttys001', startTime },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-nostat-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-legacy');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const sessionId = 'legacy-session';
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            // Last entry is assistant → JSONL parser yields WAITING.
+            fs.writeFileSync(jsonlPath, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/legacy', message: { content: 'do the thing' } }),
+                JSON.stringify({ type: 'assistant', timestamp: new Date().toISOString() }),
+            ].join('\n'));
+
+            // PID file with unrecognized status string — adapter must ignore it and use parser
+            fs.writeFileSync(
+                path.join(sessionsDir, '55052.json'),
+                JSON.stringify({
+                    pid: 55052, sessionId, cwd: '/project/legacy',
+                    startedAt: startTime.getTime(),
+                    kind: 'interactive', entrypoint: 'cli',
+                    status: 'fantastical-future-state',
+                }),
+            );
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].status).toBe(AgentStatus.WAITING);
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should pick up live status from PID file even when matched via --resume', async () => {
+            const sessionId = 'aaaaaaaa-1111-2222-3333-444444444444';
+            const startTime = new Date();
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 55053,
+                    command: `claude --resume ${sessionId}`,
+                    cwd: '/project/resume-wait',
+                    tty: 'ttys001',
+                    startTime,
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-resume-wait-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const projectsDir = path.join(tmpDir, 'projects');
+            const projDir = path.join(projectsDir, '-project-resume-wait');
+            fs.mkdirSync(sessionsDir, { recursive: true });
+            fs.mkdirSync(projDir, { recursive: true });
+
+            const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(jsonlPath, [
+                JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/resume-wait', message: { content: 'resumed work' } }),
+                JSON.stringify({ type: 'permission-mode', timestamp: new Date().toISOString(), permissionMode: 'default' }),
+            ].join('\n'));
+
+            fs.writeFileSync(
+                path.join(sessionsDir, '55053.json'),
+                JSON.stringify({
+                    pid: 55053, sessionId, cwd: '/project/resume-wait',
+                    startedAt: startTime.getTime(),
+                    kind: 'interactive', entrypoint: 'cli',
+                    status: 'waiting', waitingFor: 'approve Bash',
+                }),
+            );
+
+            (adapter as any).sessionsDir = sessionsDir;
+            (adapter as any).projectsDir = projectsDir;
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].status).toBe(AgentStatus.WAITING);
+            expect(agents[0].summary).toContain('resumed work');
+            expect(agents[0].summary).toContain('waiting for approve Bash');
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
         it('should fall back to process-only when direct-matched JSONL becomes unreadable', async () => {
             const startTime = new Date();
             const processes: ProcessInfo[] = [
