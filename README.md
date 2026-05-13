@@ -1,5 +1,7 @@
 # AI DevKit
 
+> 🌐 **English** | [中文](./README-zh.md)
+
 **The toolkit for AI-assisted software development.**
 
 AI DevKit helps AI coding agents work more effectively with your codebase. It provides structured workflows, persistent memory, and reusable skills — so agents follow the same engineering standards as senior developers.
