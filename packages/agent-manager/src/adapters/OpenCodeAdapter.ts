@@ -13,6 +13,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import Database from 'better-sqlite3';
 import type {
     AgentAdapter,
     AgentInfo,
@@ -24,8 +25,6 @@ import type {
 import { AgentStatus } from './AgentAdapter';
 import { listAgentProcesses, enrichProcesses } from '../utils/process';
 import { generateAgentName } from '../utils/matching';
-
-type Database = import('better-sqlite3').Database;
 
 const SESSION_REF_SEP = '::';
 
@@ -60,10 +59,21 @@ export class OpenCodeAdapter implements AgentAdapter {
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
 
     private readonly dbPath: string;
-    private db: Database | null = null;
+    private db: Database.Database | null = null;
 
     constructor() {
         this.dbPath = OpenCodeAdapter.resolveDbPath();
+        const cleanup = (): void => this.close();
+        process.once('exit', cleanup);
+        process.once('SIGINT', cleanup);
+        process.once('SIGTERM', cleanup);
+    }
+
+    close(): void {
+        if (this.db) {
+            try { this.db.close(); } catch { /* ignore */ }
+            this.db = null;
+        }
     }
 
     private static resolveDbPath(): string {
@@ -111,12 +121,7 @@ export class OpenCodeAdapter implements AgentAdapter {
         const ref = decodeSessionRef(sessionFilePath);
         if (!ref) return [];
 
-        let db: Database | null;
-        if (ref.dbPath === this.dbPath) {
-            db = this.openDb();
-        } else {
-            db = this.openDbAt(ref.dbPath);
-        }
+        const db = this.openDb();
         if (!db) return [];
 
         try {
@@ -155,7 +160,7 @@ export class OpenCodeAdapter implements AgentAdapter {
 
             return messages;
         } catch {
-            this.resetDb();
+            this.close();
             return [];
         }
     }
@@ -195,12 +200,12 @@ export class OpenCodeAdapter implements AgentAdapter {
 
             return summaries;
         } catch {
-            this.resetDb();
+            this.close();
             return [];
         }
     }
 
-    private findSessionForDirectory(db: Database, directory: string): OpenCodeSession | null {
+    private findSessionForDirectory(db: Database.Database, directory: string): OpenCodeSession | null {
         try {
             const row = db.prepare<[string], { id: string; directory: string; time_created: number }>(`
                 SELECT id, directory, time_created
@@ -217,7 +222,7 @@ export class OpenCodeAdapter implements AgentAdapter {
         }
     }
 
-    private getSessionStats(db: Database, sessionId: string): OpenCodeSessionStats {
+    private getSessionStats(db: Database.Database, sessionId: string): OpenCodeSessionStats {
         const empty: OpenCodeSessionStats = {
             lastRole: null,
             lastTimeUpdated: 0,
@@ -322,29 +327,14 @@ export class OpenCodeAdapter implements AgentAdapter {
         return AgentStatus.RUNNING;
     }
 
-    private openDb(): Database | null {
+    private openDb(): Database.Database | null {
         if (this.db) return this.db;
-        this.db = this.openDbAt(this.dbPath);
-        return this.db;
-    }
-
-    private openDbAt(dbPath: string): Database | null {
-        if (!fs.existsSync(dbPath)) return null;
+        if (!fs.existsSync(this.dbPath)) return null;
         try {
-            // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-            const Ctor = require('better-sqlite3') as any;
-            const db = new Ctor(dbPath, { readonly: true }) as Database;
-            if (dbPath === this.dbPath) this.db = db;
-            return db;
+            this.db = new Database(this.dbPath, { readonly: true });
+            return this.db;
         } catch {
             return null;
-        }
-    }
-
-    private resetDb(): void {
-        if (this.db) {
-            try { this.db.close(); } catch { /* ignore */ }
-            this.db = null;
         }
     }
 }
