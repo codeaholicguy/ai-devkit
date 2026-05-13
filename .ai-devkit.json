@@ -9,7 +9,7 @@
     "antigravity"
   ],
   "createdAt": "2025-12-28T13:35:45.251Z",
-  "updatedAt": "2026-05-09T16:24:22.226Z",
+  "updatedAt": "2026-05-13T14:32:19.150Z",
   "phases": [
     "requirements",
     "design",
@@ -49,6 +49,10 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "document-code"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "security-review"
     }
   ]
 }
