@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **OpenCode Agent Adapter** - Added `OpenCodeAdapter` to `agent-manager` so `ai-devkit agent` commands can discover, inspect, and control running OpenCode sessions (#82).
-- **HTML Artifact in `document-code` Skill** - The `document-code` skill now offers an HTML artifact alongside its markdown output (ff9d3bb).
+- **OpenCode Agent Adapter** - Added `OpenCodeAdapter` to `agent-manager` so `ai-devkit agent` commands can discover, inspect, and control running OpenCode sessions.
+- **HTML Artifact in `document-code` Skill** - The `document-code` skill now offers an HTML artifact alongside its markdown output.
 
 ### Fixed
 
-- **Claude Code PID-File Live Status** - `agent-manager` now prefers the PID-file live status when resolving Claude Code agent state, improving accuracy of `agent list` output (f4e189d).
-- **Claude Code Lossy Project Dir Encoding** - `agent-manager` now matches Claude Code's lossy project directory encoding when resolving session paths, fixing session discovery for paths that Claude Code re-encodes (a98e7ac).
+- **Claude Code PID-File Live Status** - `agent-manager` now prefers the PID-file live status when resolving Claude Code agent state, improving accuracy of `agent list` output.
+- **Claude Code Lossy Project Dir Encoding** - `agent-manager` now matches Claude Code's lossy project directory encoding when resolving session paths, fixing session discovery for paths that Claude Code re-encodes.
 
 ## [0.29.0] - 2026-05-11
 
