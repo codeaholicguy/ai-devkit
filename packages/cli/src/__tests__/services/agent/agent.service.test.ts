@@ -1,6 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { AgentStatus, type AgentInfo, type ConversationMessage } from '@ai-devkit/agent-manager';
-import { waitForAgentResponse } from '../../../services/agent-send/waitForAgentResponse';
+import { waitForAgentResponse } from '../../../services/agent/agent.service';
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
   return {

@@ -19,9 +19,9 @@ description: Technical implementation notes for adding --wait to agent send
 Likely files:
 
 - `packages/cli/src/commands/agent.ts`: add `--wait` option and connect command flow.
-- `packages/cli/src/services/agent-send/waitForAgentResponse.ts`: new wait helper.
+- `packages/cli/src/services/agent/agent.service.ts`: new agent service with the wait helper.
 - `packages/cli/src/__tests__/commands/agent.test.ts`: command-level regression tests.
-- `packages/cli/src/__tests__/services/agent-send/waitForAgentResponse.test.ts`: helper-level tests if helper is extracted.
+- `packages/cli/src/__tests__/services/agent/agent.service.test.ts`: helper-level tests for the agent service.
 
 ## Implementation Notes
 

@@ -80,8 +80,8 @@ npx ai-devkit lint --feature agent-send-wait
 Phase 7 verification results:
 
 - `npm run test -- --runInBand` from `packages/cli`: passed, 33 suites and 513 tests.
-- `npm run test -- --runInBand src/__tests__/commands/agent.test.ts src/__tests__/services/agent-send/waitForAgentResponse.test.ts` from `packages/cli`: passed, 38 tests.
-- `npm run test -- --runInBand --coverage --coverageThreshold='{}' --collectCoverageFrom='src/services/agent-send/waitForAgentResponse.ts' src/__tests__/services/agent-send/waitForAgentResponse.test.ts` from `packages/cli`: passed, 100% statements/branches/functions/lines for the new wait helper.
+- `npm run test -- --runInBand src/__tests__/commands/agent.test.ts src/__tests__/services/agent/agent.service.test.ts` from `packages/cli`: passed, 38 tests.
+- `npm run test -- --runInBand --coverage --coverageThreshold='{}' --collectCoverageFrom='src/services/agent/agent.service.ts' src/__tests__/services/agent/agent.service.test.ts` from `packages/cli`: passed, 100% statements/branches/functions/lines for the new wait helper.
 - Regression check: with the `IDLE` completion fix temporarily reverted, `stops when the agent becomes idle after assistant output` failed with the original timeout.
 - `npm run build`: passed.
 - `npm run lint --workspace packages/cli`: passed with 0 errors and 4 pre-existing warnings outside this feature.

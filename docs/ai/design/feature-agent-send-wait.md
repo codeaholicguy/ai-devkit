@@ -128,7 +128,7 @@ File: `packages/cli/src/commands/agent.ts`
 
 ### Wait helper
 
-Preferred location: `packages/cli/src/services/agent-send/waitForAgentResponse.ts`
+Preferred location: `packages/cli/src/services/agent/agent.service.ts`
 
 Responsibilities:
 

@@ -68,7 +68,7 @@ jest.mock('../../util/terminal-ui', () => ({
   },
 }));
 
-jest.mock('../../services/agent-send/waitForAgentResponse', () => ({
+jest.mock('../../services/agent/agent.service', () => ({
   waitForAgentResponse: (...args: any[]) => mockWaitForAgentResponse(...args),
 }));
 

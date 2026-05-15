@@ -23,7 +23,7 @@ import {
     resolveListSessionsOptions,
     toJsonSession,
 } from '../util/sessions';
-import { waitForAgentResponse } from '../services/agent-send/waitForAgentResponse';
+import { waitForAgentResponse } from '../services/agent/agent.service';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;

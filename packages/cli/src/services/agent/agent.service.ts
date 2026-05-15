@@ -6,6 +6,7 @@ import {
   type AgentType,
   type ConversationMessage,
 } from '@ai-devkit/agent-manager';
+import { sleep } from '../../util/time';
 
 export interface AgentSendWaitTarget {
   id: string;
@@ -40,11 +41,6 @@ export interface WaitForAgentResponseParams {
   options: AgentSendWaitOptions;
   onAssistantMessage: (message: ConversationMessage) => void;
   onStatus?: (message: string) => void;
-}
-
-function sleep(ms: number): Promise<void> {
-  if (ms <= 0) return Promise.resolve();
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function findSameAgent(target: AgentSendWaitTarget, agents: AgentInfo[]): AgentInfo | undefined {
