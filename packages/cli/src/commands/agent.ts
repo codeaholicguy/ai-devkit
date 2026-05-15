@@ -4,6 +4,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import {
     AgentManager,
+    type AgentAdapter,
     ClaudeCodeAdapter,
     CodexAdapter,
     GeminiCliAdapter,
@@ -22,6 +23,12 @@ import {
     resolveListSessionsOptions,
     toJsonSession,
 } from '../util/sessions';
+import { waitForAgentResponse } from '../services/agent/agent.service';
+
+const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
+const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
+// eslint-disable-next-line no-control-regex
+const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
 
 const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
     [AgentStatus.RUNNING]: { emoji: '🟢', label: 'run' },
@@ -82,6 +89,31 @@ function createAgentManager(): AgentManager {
     manager.registerAdapter(new GeminiCliAdapter());
     manager.registerAdapter(new OpenCodeAdapter());
     return manager;
+}
+
+function writeWaitStatus(message: string): void {
+    process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
+}
+
+function prepareWaitMode(manager: AgentManager, agent: AgentInfo): {
+    adapter: AgentAdapter;
+    sessionFilePath: string;
+    initialMessageCount: number;
+} {
+    if (!agent.sessionFilePath) {
+        throw new Error(`No session file found for agent "${agent.name}"; cannot wait for response.`);
+    }
+
+    const adapter = manager.getAdapter(agent.type);
+    if (!adapter) {
+        throw new Error(`Unsupported agent type: ${agent.type}`);
+    }
+
+    return {
+        adapter,
+        sessionFilePath: agent.sessionFilePath,
+        initialMessageCount: adapter.getConversation(agent.sessionFilePath, { verbose: false }).length,
+    };
 }
 
 export function registerAgentCommand(program: Command): void {
@@ -262,6 +294,7 @@ export function registerAgentCommand(program: Command): void {
         .command('send <message>')
         .description('Send a message to a running agent')
         .requiredOption('--id <identifier>', 'Agent name or partial match')
+        .option('--wait', 'Wait for and print the agent response')
         .action(withErrorHandler('send message', async (message, options) => {
             const manager = createAgentManager();
 
@@ -289,19 +322,59 @@ export function registerAgentCommand(program: Command): void {
 
             const agent = resolved as AgentInfo;
 
-            if (agent.status !== AgentStatus.WAITING) {
-                ui.warning(`Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`);
+            if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
+                const warning = `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`;
+                if (options.wait) {
+                    writeWaitStatus(warning);
+                } else {
+                    ui.warning(warning);
+                }
             }
+
+            const waitContext = options.wait ? prepareWaitMode(manager, agent) : undefined;
 
             const focusManager = new TerminalFocusManager();
             const location = await focusManager.findTerminal(agent.pid);
             if (!location) {
+                if (options.wait) {
+                    throw new Error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
+                }
                 ui.error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
                 return;
             }
 
             await TtyWriter.send(location, message);
-            ui.success(`Sent message to ${agent.name}.`);
+
+            if (!options.wait) {
+                ui.success(`Sent message to ${agent.name}.`);
+                return;
+            }
+
+            if (!waitContext) {
+                throw new Error('Wait mode was not prepared.');
+            }
+
+            await waitForAgentResponse({
+                manager,
+                adapter: waitContext.adapter,
+                target: {
+                    id: options.id,
+                    name: agent.name,
+                    type: agent.type,
+                    pid: agent.pid,
+                    sessionId: agent.sessionId,
+                    sessionFilePath: waitContext.sessionFilePath,
+                },
+                initialMessageCount: waitContext.initialMessageCount,
+                options: {
+                    pollIntervalMs: AGENT_SEND_WAIT_POLL_INTERVAL_MS,
+                    maxWaitMs: AGENT_SEND_WAIT_MAX_WAIT_MS,
+                },
+                onAssistantMessage: (msg) => {
+                    process.stdout.write(`${msg.content}\n`);
+                },
+                onStatus: writeWaitStatus,
+            });
         }));
 
     agentCommand

@@ -9,6 +9,11 @@ const mockManager: any = {
   listAgents: jest.fn(),
   listSessions: jest.fn(),
   resolveAgent: jest.fn(),
+  getAdapter: jest.fn(),
+};
+
+const mockAgentAdapter: any = {
+  getConversation: jest.fn(),
 };
 
 const mockFocusManager: any = {
@@ -25,6 +30,7 @@ const mockSpinner: any = {
 const mockPrompt: any = jest.fn();
 
 const mockTtyWriterSend = jest.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
+const mockWaitForAgentResponse = jest.fn<(...args: any[]) => Promise<any>>();
 
 jest.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: jest.fn(() => mockManager),
@@ -62,11 +68,19 @@ jest.mock('../../util/terminal-ui', () => ({
   },
 }));
 
+jest.mock('../../services/agent/agent.service', () => ({
+  waitForAgentResponse: (...args: any[]) => mockWaitForAgentResponse(...args),
+}));
+
 describe('agent command', () => {
   let logSpy: ReturnType<typeof jest.spyOn>;
+  let stdoutSpy: ReturnType<typeof jest.spyOn>;
+  let stderrSpy: ReturnType<typeof jest.spyOn>;
   beforeEach(() => {
     jest.clearAllMocks();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
     jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
   });
 
@@ -246,6 +260,138 @@ Waiting on user input`,
     expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
   });
 
+  it('sends message with --wait, seeds transcript before delivery, and prints assistant output only to stdout', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    const historical = [{ role: 'assistant', content: 'old response' }];
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue(historical);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+    mockWaitForAgentResponse.mockImplementation(async (params) => {
+      params.onAssistantMessage({ role: 'assistant', content: 'new response' });
+      return {
+        agentName: 'repo-a',
+        agentType: 'claude',
+        pid: 10,
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+        messages: [{ role: 'assistant', content: 'new response' }],
+        finalStatus: AgentStatus.WAITING,
+        elapsedMs: 10,
+      };
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait']);
+
+    expect(mockManager.getAdapter).toHaveBeenCalledWith('claude');
+    expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith('/tmp/session.jsonl', { verbose: false });
+    expect(mockAgentAdapter.getConversation.mock.invocationCallOrder[0])
+      .toBeLessThan(mockTtyWriterSend.mock.invocationCallOrder[0]);
+    expect(mockWaitForAgentResponse).toHaveBeenCalledWith(expect.objectContaining({
+      manager: mockManager,
+      adapter: mockAgentAdapter,
+      initialMessageCount: 1,
+      target: expect.objectContaining({
+        id: 'repo-a',
+        name: 'repo-a',
+        type: 'claude',
+        pid: 10,
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+      }),
+    }));
+    expect(stdoutSpy).toHaveBeenCalledWith('new response\n');
+    expect(ui.success).not.toHaveBeenCalled();
+    expect(stderrSpy).not.toHaveBeenCalled();
+  });
+
+  it('fails and does not send when --wait target has no session file', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'repo-a', '--wait']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: No session file found for agent "repo-a"; cannot wait for response.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+    expect(mockWaitForAgentResponse).not.toHaveBeenCalled();
+  });
+
+  it('fails and does not send when --wait target has no adapter', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'repo-a', '--wait']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: Unsupported agent type: claude');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+    expect(mockWaitForAgentResponse).not.toHaveBeenCalled();
+  });
+
+  it('fails when --wait terminal cannot be found', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockFocusManager.findTerminal.mockResolvedValue(null);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'repo-a', '--wait']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: Cannot find terminal for agent "repo-a" (PID: 10).');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+  });
+
   it('shows error when send target agent is not found', async () => {
     mockManager.listAgents.mockResolvedValue([
       { name: 'repo-a', status: AgentStatus.RUNNING, summary: 'A', lastActive: new Date(), pid: 1 },
@@ -298,6 +444,111 @@ Waiting on user input`,
     );
     expect(mockTtyWriterSend).toHaveBeenCalled();
     expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('does not warn when agent is idle and still sends', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.IDLE,
+      summary: 'Idle',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a']);
+
+    expect(ui.warning).not.toHaveBeenCalled();
+    expect(mockTtyWriterSend).toHaveBeenCalled();
+    expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('writes busy-agent warning to stderr in --wait mode', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.RUNNING,
+      summary: 'Running',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+    mockWaitForAgentResponse.mockResolvedValue({
+      agentName: 'repo-a',
+      agentType: 'claude',
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+      messages: [],
+      finalStatus: AgentStatus.WAITING,
+      elapsedMs: 10,
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait']);
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      'Agent "repo-a" is not waiting for input (status: running). Sending anyway.\n'
+    );
+    expect(ui.warning).not.toHaveBeenCalled();
+    expect(mockTtyWriterSend).toHaveBeenCalledWith(location, 'continue');
+  });
+
+  it('sanitizes wait-mode status messages before writing to stderr', async () => {
+    const agent = {
+      name: '\x1b[31mrepo-a\x1b[0m',
+      type: 'claude',
+      status: AgentStatus.RUNNING,
+      summary: 'Running',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+    mockWaitForAgentResponse.mockImplementation(async (params) => {
+      params.onStatus('Status for \x1b[31mrepo-a\x1b[0m');
+      return {
+        agentName: agent.name,
+        agentType: 'claude',
+        pid: 10,
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+        messages: [],
+        finalStatus: AgentStatus.WAITING,
+        elapsedMs: 10,
+      };
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait']);
+
+    expect(stderrSpy).toHaveBeenCalledWith(
+      'Agent "repo-a" is not waiting for input (status: running). Sending anyway.\n'
+    );
+    expect(stderrSpy).toHaveBeenCalledWith('Status for repo-a\n');
   });
 
   it('shows error when terminal cannot be found', async () => {
