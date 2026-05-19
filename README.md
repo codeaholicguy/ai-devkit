@@ -4,12 +4,23 @@
 
 **Your AI coding agent is fast, eager, and reckless. Make it work like a senior engineer instead.**
 
-- **Plans before it codes** — `/new-requirement` generates a phased doc; the agent stops before writing code
-- **Refuses to fake "done"** — the `verify` skill blocks completion claims without fresh test/build output
-- **Remembers what you taught it** — `@ai-devkit/memory` MCP server, searchable across sessions and projects
-- **Reviews its own work** — `/code-review` audits the diff against the design doc before push
+AI DevKit turns one-off AI coding chats into a repeatable software delivery workflow: requirements, design, planning, implementation, tests, verification, memory, and review.
 
-One config. Eleven coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, opencode, Antigravity, Amp, Windsurf, Kilo Code, Roo Code.
+- **Stops prompt-and-pray coding** — `/new-requirement` makes the agent clarify the problem before touching code
+- **Blocks fake "done" claims** — `verify` requires fresh test/build output before completion claims
+- **Keeps project knowledge alive** — `@ai-devkit/memory` stores decisions, conventions, and fixes across sessions
+- **Catches drift before push** — `/code-review` audits the diff against the design and requirements docs
+
+One config. All coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, opencode, Antigravity, Amp, Windsurf, Kilo Code, Roo Code.
+
+Run `npx ai-devkit@latest init` and your agent gets:
+
+| What you need | What AI DevKit installs |
+|---------------|-------------------------|
+| A plan before code | `/new-requirement`, `/review-design`, and `/execute-plan` |
+| Evidence before "done" | `verify` gates tied to fresh test/build output |
+| Memory across sessions | Local SQLite memory exposed through MCP and CLI |
+| Same behavior across agents | Generated config for the coding tools your team uses |
 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![npm downloads](https://img.shields.io/npm/dt/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
@@ -25,13 +36,24 @@ Developers who use AI coding agents daily and are tired of:
 - "I've successfully implemented the feature" with a red build
 - the agent diving into code without a plan and producing the wrong thing
 
+Before AI DevKit, your agent is a capable but inconsistent chatbot. After AI DevKit, it has a workflow, memory, verification gates, and reusable skills that travel with your repo.
+
+| Without AI DevKit | With AI DevKit |
+|-------------------|----------------|
+| You repeat project rules in every chat | The agent searches project memory and docs first |
+| The agent jumps from prompt to code | The agent moves through requirements, design, and plan |
+| "Done" means the agent stopped editing | "Done" requires fresh verification output |
+| Each agent needs separate hand-maintained rules | One config reconciles commands, skills, and MCP setup |
+
 ## Start in 30 seconds
 
 ```bash
 npx ai-devkit@latest init
 ```
 
-One wizard. Picks your agents, scaffolds a structured workflow, and installs eight built-in skills that change how the agent behaves. Here's what lands in your repo:
+One wizard. Pick your agents, install the workflow, and give them the same operating model. It writes project-local files you can review and commit. Re-run it whenever your agent list or workflow changes.
+
+Here's what lands in your repo:
 
 ```
 your-project/
@@ -48,7 +70,7 @@ your-project/
     └── testing/                 # phase 5 — coverage strategy
 ```
 
-### Or get the full senior-engineer stack
+### Or get the full engineering workflow stack
 
 Save [`templates/senior-engineer.yaml`](./templates/senior-engineer.yaml) locally and run:
 
@@ -56,7 +78,7 @@ Save [`templates/senior-engineer.yaml`](./templates/senior-engineer.yaml) locall
 ai-devkit init --template ./senior-engineer.yaml
 ```
 
-The eight built-in skills plus: `frontend-design`, `webapp-testing`, `doc-coauthoring` (Anthropic), `react-best-practices`, `composition-patterns`, `web-design-guidelines`, `next-best-practices` (Vercel), `supabase-postgres-best-practices` (Supabase). Sixteen skills, three agents (Claude Code, Cursor, Codex), one command.
+Bundles the eight built-in skills with curated additions from Anthropic, Vercel, and others — TDD, frontend design, webapp testing, doc co-authoring, React best practices, security review, and more.
 
 ## A feature, end-to-end
 
@@ -86,20 +108,20 @@ Agent:  Audits the diff against the design doc — scope creep,
         before you push.
 ```
 
-## The skills behind it
+## What changes in the agent
 
-The flow above is powered by eight built-in skills, each addressing one failure mode:
+The flow above is powered by eight built-in skills, each addressing a failure mode developers see in real AI coding sessions:
 
-| Skill | What it changes |
-|-------|-----------------|
-| `dev-lifecycle` | Phased workflow with checkpoints, so the agent plans before it codes |
-| `verify` | Blocks completion claims without fresh test/build evidence |
-| `memory` | FTS5-indexed knowledge base the agent searches before non-trivial work — persists across sessions and projects |
-| `tdd` | Test-first discipline for new behavior |
-| `structured-debug` | Reproduce → hypothesize → fix → verify, instead of guess-and-patch |
-| `document-code` | Maps a module's entry points, dependencies, and behavior |
-| `simplify-implementation` | Reduces complexity before code ships |
-| `technical-writer` | Audits docs for novice-user clarity |
+| Failure mode | AI DevKit behavior |
+|--------------|--------------------|
+| Agent starts coding too early | `dev-lifecycle` forces requirements, design, planning, implementation, tests, and review |
+| Agent says "done" without proof | `verify` blocks completion claims without fresh test/build evidence |
+| Agent forgets project decisions | `memory` gives it a local, searchable knowledge base across sessions and projects |
+| New behavior ships without tests | `tdd` pushes test-first implementation |
+| Debugging becomes guess-and-patch | `structured-debug` makes it reproduce, hypothesize, fix, and verify |
+| Existing code is opaque | `document-code` maps entry points, dependencies, and behavior |
+| Implementation gets bloated | `simplify-implementation` reduces complexity before code ships |
+| Documentation is hard to follow | `technical-writer` audits docs for novice-user clarity |
 
 Need more? `ai-devkit skill add <registry> <skill>` pulls from 30+ publishers — Anthropic, Vercel, Supabase, Microsoft, Google.
 
@@ -141,9 +163,16 @@ ai-devkit channel start telegram
 
 Useful for long-running tasks, scheduled work, or checking on an agent from your phone at lunch.
 
-## How is this different from `CLAUDE.md` or `.cursor/rules`?
+## How is this different from `CLAUDE.md`, `.cursor/rules`, or `AGENTS.md`?
 
-Those are static instructions the agent re-reads each turn. AI DevKit gives the agent a **runtime**: a phased workflow with checkpoints, skills loaded on demand, a searchable memory the agent maintains itself, and a control surface that works the same across agents. One config, every tool.
+Those files are static instructions the agent re-reads. AI DevKit gives the agent a **workflow layer**: phase docs, slash commands, skills loaded on demand, local searchable memory, verification gates, and a control surface that works across agents. The rules still matter, but AI DevKit makes them operational.
+
+| Static rules files | AI DevKit |
+|--------------------|-----------|
+| Tell the agent what you prefer | Installs commands that drive the next step |
+| Depend on the agent remembering every rule | Stores and searches reusable project knowledge |
+| Cannot prove a task is complete | Requires fresh command output before completion claims |
+| Are different for each agent | Generates the right files for each supported agent |
 
 ## What this isn't
 
