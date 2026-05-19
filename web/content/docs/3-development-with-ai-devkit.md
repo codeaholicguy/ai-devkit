@@ -1,20 +1,20 @@
 ---
 title: Development with AI DevKit
-description: Learn how to use AI DevKit commands for structured development workflows
+description: Learn how to use AI DevKit commands so coding agents plan before code, verify work, and review changes before push.
 slug: development-with-ai-devkit
 order: 3
 ---
 
-AI DevKit provides a structured workflow that takes you from idea to deployed feature. Instead of jumping straight into code, you'll create documentation at each phase—this gives your AI assistant the context it needs to help you effectively.
+AI DevKit provides a repeatable engineering workflow that takes you from idea to reviewed feature. Instead of letting the agent jump straight into code, you create durable context at each phase so it can plan, implement, verify, and review with a clear source of truth.
 
-## Why Structured Development?
+## Why a Repeatable Workflow?
 
 When you work with AI assistants without structure, you often:
 - Lose context between sessions
 - Repeat yourself explaining requirements
 - End up with inconsistent code and documentation
 
-AI DevKit solves this by creating documentation as you go. Each document becomes context for the next phase, so your AI assistant always knows what you're building and why.
+AI DevKit solves this by creating workflow docs as you go. Each document becomes context for the next phase, so your AI assistant knows what you're building, why it matters, and what evidence is required before claiming completion.
 
 ## The Development Lifecycle
 
@@ -35,6 +35,7 @@ The `/new-requirement` command is your entry point for any new feature. It guide
 | **Planning** | Break work into actionable tasks |
 | **Implementation** | Code with step-by-step guidance |
 | **Testing** | Generate comprehensive test coverage |
+| **Review** | Check drift, missing tests, and edge cases before push |
 
 **Documentation created:**
 

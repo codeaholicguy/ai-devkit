@@ -1,13 +1,13 @@
 ---
 title: Dev Lifecycle Skill
-description: Make your agent work like a senior software engineer with a structured development workflow
+description: Make your agent plan before code, verify work, and review changes with a repeatable engineering workflow.
 slug: dev-lifecycle-skill
 order: 11
 ---
 
 The `dev-lifecycle` skill helps agents like Claude Code and Codex work more like a senior software engineer. Instead of jumping straight into code, it pushes the agent through a disciplined workflow: understand the problem, review requirements, validate design, execute a plan, verify the implementation, write tests, and finish with code review.
 
-This is what makes the skill useful: it keeps development simple for you while making the agent more structured. You describe the feature. The skill handles the workflow.
+This is what makes the skill useful: it keeps development simple for you while making the agent more disciplined. You describe the feature. The skill handles the workflow.
 
 ## Why This Skill Matters
 

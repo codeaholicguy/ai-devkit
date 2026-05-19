@@ -1,6 +1,6 @@
 ---
 title: AI DevKit vs Spec Kit
-description: A practical comparison of AI DevKit and GitHub Spec Kit for structured AI-assisted software development.
+description: A practical comparison of AI DevKit and GitHub Spec Kit for making AI coding agents follow a repeatable engineering workflow.
 ---
 
 Both **AI DevKit** and **Spec Kit** solve the same core problem: AI coding agents are powerful, but they need structure. Without a clear process, results become inconsistent, context is lost between sessions, and important engineering steps get skipped.
@@ -9,16 +9,16 @@ These tools take different paths to fix that.
 
 The main difference is what each tool focuses on:
 
-- **AI DevKit** focuses on project scaffolding, reusable workflows, skills, and persistent knowledge memory.
+- **AI DevKit** focuses on one config for many agents, reusable workflows, skills, verification, and persistent knowledge memory.
 - **Spec Kit** focuses on spec-driven execution using a strict command pipeline (`/speckit.constitution` -> `/speckit.specify` -> `/speckit.plan` -> `/speckit.tasks` -> `/speckit.implement`).
 
 ## Quick Comparison
 
 | | AI DevKit | Spec Kit |
 |---|---|---|
-| **Type** | CLI toolkit with memory and skills | Spec-driven development toolkit |
+| **Type** | Workflow layer for AI coding agents with memory and skills | Spec-driven development toolkit |
 | **Install** | `npm install -g ai-devkit` | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` |
-| **Approach** | Focuses on setup and team workflow: tools, memory, and project templates | Focuses on a spec workflow: constitution, spec, plan, tasks, and implementation flow |
+| **Approach** | Focuses on one config across agents: workflow commands, memory, verification, and skills | Focuses on a spec workflow: constitution, spec, plan, tasks, and implementation flow |
 | **Memory** | Built-in local memory service for storing/searching project knowledge | No dedicated built-in memory store; relies on specs/artifacts and repository history |
 | **Skills** | Built-in workflow skills plus installable skills from registries | No central installable skill system; focuses on a command-driven spec workflow |
 | **Commands** | Common flow: `/new-requirement` -> `/review-design` -> `/execute-plan` -> `/writing-test` -> `/code-review` | `/speckit.constitution`, `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement` |
@@ -26,13 +26,13 @@ The main difference is what each tool focuses on:
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Spec and plan files created by the Spec Kit workflow |
 | **Execution model** | Single agent per feature with persistent memory | Step-by-step flow where each command creates input for the next step |
 | **License** | MIT | MIT |
-| **Best for** | Teams that want a durable workflow system plus memory and reusable skills across projects | Teams that want a spec-driven method with tighter process sequencing |
+| **Best for** | Teams that want one repeatable workflow across coding agents, plus memory and reusable skills | Teams that want a spec-driven method with tighter process sequencing |
 
 > Note: Supported agents and commands can change over time. Verify current support in each project's repository.
 
 ## Quick Decision Guide
 
-- Choose **AI DevKit** if you want a reusable workflow system for AI work: project docs setup, step-by-step commands, memory, and skill management.
+- Choose **AI DevKit** if you want one repeatable workflow across AI coding agents: planning, memory, verification, skills, and review.
 - Choose **Spec Kit** if you want to standardize on a spec-first pipeline and keep delivery anchored to one standard spec workflow.
 - Use both if you want Spec Kit's strict spec workflow and AI DevKit's memory and team consistency.
 
@@ -69,14 +69,14 @@ Use your tool name for `<agent>` (for example `claude`, `codex`, `cursor`).
 
 ### AI DevKit
 
-AI DevKit is a **CLI toolkit** that you install globally and initialize per project. It creates a docs structure, provides slash commands for each development phase, includes built-in skills, and adds persistent local memory.
+AI DevKit is a **workflow layer for AI coding agents** that you install globally and initialize per project. It creates a docs structure, provides slash commands for each development phase, includes built-in skills, adds persistent local memory, and makes agents verify work before claiming completion.
 
 ```bash
 npm install -g ai-devkit
 ai-devkit init
 ```
 
-After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, testing, deployment, and monitoring. Your AI agent uses commands like `/new-requirement`, `/execute-plan`, and `/code-review` to move through a structured workflow.
+After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses commands like `/new-requirement`, `/execute-plan`, and `/code-review` to plan before code and review before push.
 
 A key benefit is **saved project memory**. Teams can store and retrieve decisions, patterns, and conventions so agents can reuse prior context across sessions.
 
@@ -124,7 +124,7 @@ The approach is intentionally opinionated: make requirements explicit before imp
 
 ### Choose AI DevKit if you want:
 
-- A lightweight CLI toolkit that works with your existing workflow
+- A workflow layer that works with the AI coding tools you already use
 - Persistent memory across sessions without repeating yourself
 - Support for a wide range of AI coding environments
 - Flexibility to adopt structured practices gradually
@@ -145,14 +145,14 @@ AI DevKit and Spec Kit are not mutually exclusive. AI DevKit can provide the **w
 
 ## Getting Started with AI DevKit
 
-Ready to add structure to your AI-assisted development? Install AI DevKit and initialize your project:
+Ready to make your AI coding agent follow a repeatable engineering workflow? Install AI DevKit and initialize your project:
 
 ```bash
 npm install -g ai-devkit
 ai-devkit init
 ```
 
-Then use commands like `/new-requirement` to start building with a structured workflow, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
+Then use `/new-requirement` so the agent clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
 
 ## Sources
 

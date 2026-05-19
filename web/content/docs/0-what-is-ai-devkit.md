@@ -1,22 +1,23 @@
 ---
 title: What is AI DevKit?
-description: An overview of AI DevKit, the open-source toolkit for structured, consistent AI-assisted software development.
+description: An overview of AI DevKit, the open-source workflow layer that makes AI coding agents follow your engineering process.
 slug: what-is-ai-devkit
 order: 0
 ---
 
-AI DevKit is an open-source toolkit that brings structure and consistency to AI-assisted software development. It works alongside AI coding assistants like Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, and others, giving them the context, workflows, and memory they need to help you build software more effectively.
+AI DevKit is an open-source workflow layer for AI coding agents. It works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, and others, giving them the process, memory, skills, and verification gates they need to behave less like one-off chatbots and more like disciplined engineering partners.
 
-AI DevKit is intentionally feature-rich: it combines workflow orchestration, documentation scaffolding, memory, skills, linting, and agent operations in one toolkit. The long-term direction is to become the **operating system for AI-driven development**.
+The purpose is simple: make AI-assisted development reliable. AI DevKit combines workflow orchestration, local memory, skills, verification, review, linting, and agent operations in one toolkit. The long-term direction is to become the **operating system for AI-driven development**.
 
 ## The Problem
 
 AI coding assistants are powerful, but using them day-to-day often feels inconsistent:
 
-- **Context is lost between sessions.** Your AI forgets past decisions, coding standards, and project conventions every time you start a new conversation.
-- **Workflows are ad hoc.** There's no standard way to move from requirements through design, implementation, and testing with AI assistance.
+- **Agents start coding too early.** Requirements and design decisions stay vague until the implementation is already wrong.
+- **"Done" is not evidence.** The agent can claim success without fresh test or build output.
+- **Context is lost between sessions.** Past decisions, coding standards, and project conventions disappear when a new chat starts.
 - **Instructions are repeated constantly.** You re-explain the same rules, preferences, and patterns in every session.
-- **Knowledge stays siloed.** Lessons learned during development aren't captured in a way your AI assistant can reuse later.
+- **Every agent has a different config surface.** Teams rewrite the same workflow for `CLAUDE.md`, Cursor rules, Codex instructions, and other tools.
 
 ## Platform Direction
 
@@ -27,15 +28,15 @@ AI DevKit is evolving toward an operating system model for AI-driven development
 - **Composable capabilities** via built-in and community skills
 - **Operational controls** like lint checks, worktree workflows, and agent management
 
-This means teams can run consistent workflows regardless of which AI coding assistant they use.
+This means teams can run the same workflow regardless of which AI coding assistant they use: one config, all agents.
 
 ## How AI DevKit Helps
 
 AI DevKit addresses these gaps with four core capabilities:
 
-### Structured Development Workflows
+### Repeatable Engineering Workflow
 
-AI DevKit provides a complete set of slash commands that guide you and your AI through each phase of software development:
+AI DevKit provides slash commands that make your AI agent plan before code and review before push:
 
 - **Requirements** - Define what you're building and why
 - **Design** - Architect solutions with diagrams and technical decisions
@@ -44,7 +45,7 @@ AI DevKit provides a complete set of slash commands that guide you and your AI t
 - **Testing** - Generate tests and validate your code
 - **Code Review** - Review changes before committing
 
-These workflows generate documentation in a `docs/ai/` directory inside your project, so your AI always has up-to-date project context.
+These workflows generate documentation in a `docs/ai/` directory inside your project, so your AI has durable context and a clear handoff between phases.
 
 ### Long-Term Memory
 
@@ -75,19 +76,20 @@ Here's what working with AI DevKit looks like in practice:
 3. Your AI walks you through defining requirements, designing a solution, and planning tasks
 4. Type `/execute-plan` to implement the feature step-by-step
 5. Use `/writing-test` to generate tests, then `/code-review` before committing
+6. Require verification output before the agent claims the work is complete
 
 Each step produces documentation in `docs/ai/` that gives your AI full context for the next step.
 
 ## How It Works
 
-1. **Initialize** - Run `ai-devkit init` to set up your project with documentation templates and environment-specific configurations.
-2. **Develop** - Use slash commands like `/new-requirement` and `/execute-plan` inside your AI editor to work through structured workflows.
+1. **Initialize** - Run `ai-devkit init` to set up your project with workflow docs and environment-specific agent configuration.
+2. **Develop** - Use slash commands like `/new-requirement` and `/execute-plan` inside your AI editor so the agent follows the workflow instead of improvising in chat.
 3. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
 4. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
 
 ## Who Is It For?
 
-- **Individual developers** who want more consistent and productive AI-assisted workflows
+- **Individual developers** who want AI agents to plan before code and verify before done
 - **Teams** that need shared coding standards and conventions enforced across AI sessions
 - **Open-source maintainers** who want contributors' AI assistants to follow project guidelines automatically
 

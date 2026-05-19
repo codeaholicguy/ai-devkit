@@ -20,7 +20,7 @@ These environments are fully supported with stable integrations.
 ### [Cursor](https://cursor.com/)
 **What AI DevKit provides:**
 - `AGENTS.md` — Agent instructions for [Cursor](https://cursor.com/docs/context/rules)
-- `.cursor/commands/` — Custom [slash commands](https://cursor.com/docs/context/commands) for structured development workflows
+- `.cursor/commands/` — Custom [slash commands](https://cursor.com/docs/context/commands) for the AI DevKit engineering workflow
 - `.cursor/rules/` — [Editor rules](https://cursor.com/docs/context/rules) for consistent coding standards
 
 ### [Claude Code](https://www.claude.com/product/claude-code)
