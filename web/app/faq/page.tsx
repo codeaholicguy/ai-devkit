@@ -8,19 +8,19 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   title: "FAQ | AI DevKit",
   description:
-    "Browse AI DevKit FAQ topics covering AI coding assistants, workflows, and development best practices.",
+    "Browse AI DevKit FAQ topics about making AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and review.",
   keywords: [
     "AI DevKit FAQ",
     "AI coding assistant",
     "AI development tools",
-    "structured workflows",
+    "repeatable engineering workflow",
     "commands",
     "memory",
   ],
   openGraph: {
     title: "AI DevKit FAQ",
     description:
-      "Browse AI DevKit FAQ topics covering AI coding assistants, workflows, and development best practices.",
+      "Browse AI DevKit FAQ topics about workflow, memory, verification, skills, and multi-agent setup.",
     url: `${siteUrl}/faq`,
     siteName: "AI DevKit",
     locale: "en_US",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "AI DevKit FAQ",
     description:
-      "Browse AI DevKit FAQ topics covering AI coding assistants, workflows, and development best practices.",
+      "Browse AI DevKit FAQ topics about workflow, memory, verification, skills, and multi-agent setup.",
   },
   alternates: {
     canonical: `${siteUrl}/faq`,
@@ -45,8 +45,9 @@ export default function FaqIndexPage() {
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold mb-4">FAQ</h1>
         <p className="text-xl text-gray-600 mb-12">
-          Explore AI DevKit topics focused on AI coding assistants, workflows,
-          and tools.
+          Explore how AI DevKit makes AI coding agents plan before code,
+          remember project decisions, verify work, and review changes before
+          you push.
         </p>
 
         {faqPages.length > 0 && (

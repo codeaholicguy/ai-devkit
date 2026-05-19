@@ -8,11 +8,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
 export const metadata: Metadata = {
   title: 'Documentation',
   description:
-    'Complete documentation for AI DevKit - Learn how to set up structured AI-assisted development workflows, use slash commands, configure memory, and extend capabilities with skills.',
+    'Set up AI DevKit so your coding agent plans before code, remembers project decisions, verifies work, and reviews changes before you push.',
   keywords: [
     'AI DevKit documentation',
     'AI coding assistant setup',
-    'structured development workflows',
+    'AI agent workflow layer',
     'slash commands',
     'skills',
     'AI development tools',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'AI DevKit Documentation',
     description:
-      'Complete documentation for AI DevKit - structured AI-assisted development workflows, commands, and skills.',
+      'Set up workflow commands, memory, verification, and skills for AI coding agents.',
     url: `${siteUrl}/docs`,
     siteName: 'AI DevKit',
     locale: 'en_US',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AI DevKit Documentation',
     description:
-      'Complete documentation for AI DevKit - structured AI-assisted development workflows, commands, and skills.',
+      'Set up workflow commands, memory, verification, and skills for AI coding agents.',
   },
   alternates: {
     canonical: `${siteUrl}/docs`,
@@ -52,7 +52,7 @@ export default function DocsPage() {
         <h1 className="text-4xl font-bold mb-8">Documentation</h1>
 
         <p className="text-xl text-gray-600 mb-12">
-          Everything you need to know about using AI DevKit for AI-assisted structured software development.
+          Set up the workflow layer that makes your AI agent plan before code, remember project decisions, verify work, and review changes before you push.
         </p>
 
         {docs.length === 0 ? (
@@ -108,4 +108,3 @@ export default function DocsPage() {
     </div>
   );
 }
-

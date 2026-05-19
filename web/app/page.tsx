@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import GitHubButton from "@/components/GitHubButton";
 
 export default function Home() {
@@ -17,13 +18,13 @@ export default function Home() {
       <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20 md:py-32">
         <div className="text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            Structured AI-Assisted
-            <br />
-            Development
+            <span className="block">Make AI Coding Agents</span>
+            <span className="block">Follow Your Process</span>
           </h1>
           <p className="text-xl md:text-2xl text-gray-600 mb-8 max-w-3xl mx-auto">
-            A CLI toolkit that brings structure to AI-assisted software development with phase templates,
-            systematic planning, and comprehensive documentation workflows.
+            AI DevKit installs the workflow layer your agent is missing:
+            requirements, design, planning, implementation, tests, verification,
+            memory, and review across the coding tools you already use.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link
@@ -44,31 +45,31 @@ export default function Home() {
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white p-8 rounded-lg border border-gray-200">
-              <h3 className="text-xl font-bold mb-3">Documentation-First</h3>
+              <h3 className="text-xl font-bold mb-3">Plans Before Code</h3>
               <p className="text-gray-600 leading-relaxed">
-                Start with clear requirements, design decisions, and implementation plans.
-                Keep your project knowledge organized and accessible.
+                Start with requirements, design decisions, and task plans before
+                your agent edits files.
               </p>
             </div>
             <div className="bg-white p-8 rounded-lg border border-gray-200">
-              <h3 className="text-xl font-bold mb-3">Phase-Based Workflow</h3>
+              <h3 className="text-xl font-bold mb-3">Verification Gates</h3>
               <p className="text-gray-600 leading-relaxed">
-                Move systematically through requirements, design, planning, implementation,
-                and testing. No step gets skipped.
+                Require fresh test or build evidence before the agent can claim
+                implementation work is complete.
               </p>
             </div>
             <div className="bg-white p-8 rounded-lg border border-gray-200">
-              <h3 className="text-xl font-bold mb-3">AI-Friendly Context</h3>
+              <h3 className="text-xl font-bold mb-3">Durable Context</h3>
               <p className="text-gray-600 leading-relaxed">
-                Organize project knowledge so AI assistants provide better guidance.
-                Amplify human capabilities with structured context.
+                Keep decisions, conventions, and implementation notes available
+                through docs and local memory.
               </p>
             </div>
             <div className="bg-white p-8 rounded-lg border border-gray-200">
-              <h3 className="text-xl font-bold mb-3">Memory</h3>
+              <h3 className="text-xl font-bold mb-3">One Setup, Many Agents</h3>
               <p className="text-gray-600 leading-relaxed">
-                Store actionable insights, coding patterns, and project guidelines.
-                Once stored, this knowledge is available to your AI agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
+                Configure Claude Code, Cursor, Codex, Gemini CLI, and other
+                agents from one project config.
               </p>
             </div>
           </div>
@@ -91,9 +92,11 @@ export default function Home() {
                   className="flex flex-shrink-0 items-center justify-center px-6 py-4 transition-transform"
                   aria-hidden={index >= agents.length}
                 >
-                  <img
+                  <Image
                     src={agent.logo}
                     alt={`${agent.name} logo`}
+                    width={140}
+                    height={40}
                     className="agent-logo h-10 w-auto max-w-[140px] object-contain"
                     loading="lazy"
                   />
@@ -102,7 +105,7 @@ export default function Home() {
             </div>
           </div>
           <p className="text-center text-gray-600 mt-6">
-            Use AI DevKit from your favorite agent and keep workflows consistent across teams.
+            One config keeps the same workflow, memory, and skills across the coding agents your team already uses.
           </p>
         </div>
       </section>
@@ -127,8 +130,8 @@ export default function Home() {
                 <code>npx ai-devkit@latest init</code>
               </pre>
               <p className="text-gray-600 mt-6">
-                This creates a <code>docs/ai/</code> directory with phase templates for
-                requirements, design, planning, implementation, testing, deployment, and monitoring.
+                This creates a <code>docs/ai/</code> workflow, installs agent commands,
+                and wires skills such as memory and verification where supported.
               </p>
               <p className="text-gray-600 mt-6">
                 In Cursor or Claude Code, type <code>/new-requirement</code> to get started.
@@ -150,10 +153,10 @@ export default function Home() {
       <section className="bg-black text-white py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">
-            Ready to structure your development?
+            Ready to make your agent less reckless?
           </h2>
           <p className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto">
-            Join developers who are building better software with AI assistance and structured workflows.
+            Add planning, memory, verification, and review to the AI coding tools you already use.
           </p>
           <Link
             href="/docs"

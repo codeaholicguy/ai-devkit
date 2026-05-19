@@ -19,21 +19,21 @@ function buildTitle(tool: string): string {
 }
 
 function buildDescription(tool: string): string {
-  return `Set up AI DevKit for ${tool} with structured workflows, commands, and memory to keep AI-assisted development consistent.`;
+  return `Set up AI DevKit for ${tool} with planning, memory, verification, skills, and review so agents follow the same workflow.`;
 }
 
 function buildSeoContent(tool: string, baseContent: string): string {
   const intro = [
     "",
-    `Learn how to set up AI DevKit for **${tool}** so your team can rely on consistent AI-assisted workflows.`,
+    `Learn how to set up AI DevKit for **${tool}** so your team can rely on the same repeatable engineering workflow across AI coding agents.`,
     "",
-    `AI DevKit adds structured phases, reusable commands, and memory to ${tool} so every project follows the same playbook.`,
+    `AI DevKit adds planning, reusable commands, memory, verification, skills, and review to ${tool} so every project follows the same playbook.`,
     "",
     "## What you'll configure",
     "",
     "- Project initialization and environment selection",
     "- AI editor files like rules, agents, and commands",
-    "- Memory and skills for repeatable workflows",
+    "- Memory, verification, and skills for repeatable workflows",
     "",
   ].join("\n");
 
@@ -41,7 +41,7 @@ function buildSeoContent(tool: string, baseContent: string): string {
     "",
     "## Next steps",
     "",
-    `Once AI DevKit is set up in ${tool}, follow the getting started guide and run your first workflow command.`,
+    `Once AI DevKit is set up in ${tool}, follow the getting started guide and run \`/new-requirement\` so the agent plans before editing code.`,
   ].join("\n");
 
   return `${intro}${baseContent}${outro}`;
@@ -79,7 +79,7 @@ export async function generateMetadata({
       "AI DevKit",
       "AI coding assistant",
       "setup guide",
-      "structured workflows",
+      "repeatable engineering workflow",
       "commands",
       "memory",
     ],
@@ -113,7 +113,7 @@ export default async function SetupToolPage({ params }: SetupPageProps) {
   const baseDoc = getDocPage(baseDocSlug);
   const baseContent =
     baseDoc?.content ||
-    "AI DevKit provides structured workflows, reusable commands, and memory to improve AI-assisted development.";
+    "AI DevKit makes AI coding agents follow a repeatable engineering workflow with planning, memory, verification, skills, and review.";
 
   const content = buildSeoContent(entry.tool, baseContent);
   const pageUrl = `${siteUrl}/faq/getting-started/${entry.slug}`;

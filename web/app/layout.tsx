@@ -11,31 +11,31 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AI DevKit - Structured AI-Assisted Development",
+    default: "AI DevKit - Make AI Coding Agents Follow Your Process",
     template: "%s | AI DevKit",
   },
   description:
-    "A CLI toolkit for AI-assisted software development with phase templates and structured workflows. Improve your development process with requirements, design, planning, and testing documentation.",
+    "AI DevKit makes AI coding agents follow a repeatable engineering workflow with requirements, design, planning, tests, verification, memory, and review.",
   keywords: [
     "AI",
     "development",
     "CLI",
-    "templates",
-    "documentation",
-    "structured development",
+    "AI agent workflow",
+    "verification",
+    "memory",
     "AI-assisted coding",
     "software engineering",
     "project management",
-    "development workflow",
+    "repeatable engineering workflow",
     "specs driven development",
   ],
   authors: [{ name: "AI DevKit Team" }],
   creator: "AI DevKit",
   publisher: "AI DevKit",
   openGraph: {
-    title: "AI DevKit - Structured AI-Assisted Development",
+    title: "AI DevKit - Make AI Coding Agents Follow Your Process",
     description:
-      "A CLI toolkit for AI-assisted software development with phase templates and structured workflows.",
+      "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup.",
     url: siteUrl,
     siteName: "AI DevKit",
     locale: "en_US",
@@ -43,9 +43,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI DevKit - Structured AI-Assisted Development",
+    title: "AI DevKit - Make AI Coding Agents Follow Your Process",
     description:
-      "A CLI toolkit for AI-assisted software development with phase templates and structured workflows.",
+      "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup.",
   },
   robots: {
     index: true,
@@ -81,7 +81,7 @@ export default function RootLayout({
         applicationCategory: "DeveloperApplication",
         operatingSystem: "macOS, Linux, Windows",
         description:
-          "A CLI toolkit for AI-assisted software development with phase templates, structured workflows, skills, and memory.",
+          "A workflow layer for AI coding agents with requirements, design, planning, tests, verification, memory, skills, and review.",
         url: siteUrl,
         downloadUrl: "https://www.npmjs.com/package/ai-devkit",
         softwareHelp: `${siteUrl}/docs`,

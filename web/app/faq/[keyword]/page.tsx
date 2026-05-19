@@ -18,7 +18,7 @@ interface SeoPageProps {
 function buildSeoContent(keyword: string, baseContent: string): string {
   const intro = [
     "",
-    `If you're researching **${keyword}**, AI DevKit helps you standardize workflows with commands, documentation, and memory so your team can ship with AI assistants reliably.`,
+    `If you're researching **${keyword}**, AI DevKit helps your AI coding agents follow a repeatable engineering workflow with planning, memory, verification, skills, and review.`,
     "",
   ].join("\n");
 
@@ -26,14 +26,14 @@ function buildSeoContent(keyword: string, baseContent: string): string {
     "",
     `## ${keyword} with AI DevKit`,
     "",
-    `Use AI DevKit to organize requirements, design, planning, implementation, and testing so ${keyword} stays consistent across features and teams.`,
+    `Use AI DevKit to keep ${keyword} consistent across features and teams: one config, all agents, same workflow.`,
   ].join("\n");
 
   return `${intro}${baseContent}${outro}`;
 }
 
 function buildDescription(keyword: string): string {
-  return `Explore ${keyword} with AI DevKit. Structured workflows, commands, and memory that help teams build consistently with AI coding assistants.`;
+  return `Explore ${keyword} with AI DevKit. Planning, memory, verification, skills, and review for AI coding agents.`;
 }
 
 export async function generateStaticParams() {
@@ -61,7 +61,7 @@ export async function generateMetadata({
         "AI DevKit FAQ",
         "AI coding tools comparison",
         "AI development tools",
-        "structured workflows",
+        "repeatable engineering workflow",
       ],
       openGraph: {
         title: faqPage.metadata.title,
@@ -103,7 +103,7 @@ export async function generateMetadata({
       "AI DevKit",
       "AI coding assistant",
       "AI development tools",
-      "structured workflows",
+      "repeatable engineering workflow",
       "coding assistant",
     ],
     openGraph: {
@@ -177,7 +177,7 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
   const baseDoc = getDocPage(baseDocSlug);
   const baseContent =
     baseDoc?.content ||
-    "AI DevKit provides structured workflows, reusable commands, and memory to improve AI-assisted development.";
+    "AI DevKit makes AI coding agents follow a repeatable engineering workflow with planning, memory, verification, skills, and review.";
 
   const content = buildSeoContent(entry.keyword, baseContent);
   const pageUrl = `${siteUrl}/faq/${entry.slug}`;

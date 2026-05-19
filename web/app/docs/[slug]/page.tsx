@@ -45,8 +45,8 @@ export async function generateMetadata({
       doc.metadata.title,
       "AI DevKit",
       "documentation",
-      "AI-assisted development",
-      "structured workflows",
+      "AI coding agents",
+      "repeatable engineering workflow",
       "coding assistant",
     ],
     openGraph: {
