@@ -1,7 +1,7 @@
 {
   "name": "@ai-devkit/memory",
   "version": "0.10.0",
-  "description": "Lightweight MCP-based memory service for AI agents - store and retrieve actionable knowledge",
+  "description": "Local MCP memory for AI coding agents to reuse project decisions, conventions, and fixes across sessions",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
