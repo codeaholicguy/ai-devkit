@@ -25,6 +25,9 @@ Unit tests for both the core `TtyWriter` module and the CLI command integration.
 
 ### CLI `agent send` Tests (`cli`)
 - Sends message successfully to a resolved agent
+- Reads multi-line prompt content from stdin when `--stdin` is set
+- Reads piped stdin implicitly when no message argument is provided
+- Rejects message argument plus `--stdin`
 - Errors when no agent matches the given ID
 - Handles ambiguous agent match (multiple matches)
 - Warns when agent is not in waiting state but still sends
@@ -33,8 +36,8 @@ Unit tests for both the core `TtyWriter` module and the CLI command integration.
 ## Coverage Results
 
 - **agent-manager**: 63 tests, all passing (9 TtyWriter-specific)
-- **cli**: 361 tests, all passing (5 agent send-specific)
+- **cli**: focused `agent.test.ts` passing with 32 tests, including stdin-specific coverage
 
 ## Coverage Target
 
-100% line coverage for `TtyWriter.ts` and the `send` command handler.
+100% line coverage for `TtyWriter.ts` and focused coverage for the `send` command handler paths touched by stdin input.

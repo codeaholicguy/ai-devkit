@@ -18,6 +18,7 @@ Most users should use the CLI:
 ```bash
 ai-devkit agent list
 ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
+npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
 ```
 
 Use this package directly only when building custom tooling around AI DevKit's agent detection and control surface.

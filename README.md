@@ -155,7 +155,10 @@ AI DevKit also ships an agent control plane — drive sessions from the CLI, sup
 ai-devkit agent list
 
 # Send a prompt to a running session and wait for the response
-ai-devkit agent send <session-id> "run the tests and report back" --wait
+ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
+
+# Pipe multi-line output into a running session
+npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
 
 # Pipe a session through Telegram — operate your agent from your phone
 ai-devkit channel start telegram

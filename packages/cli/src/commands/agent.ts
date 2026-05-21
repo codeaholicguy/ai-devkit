@@ -95,6 +95,50 @@ function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
 }
 
+function readStdin(): Promise<string> {
+    return new Promise((resolve, reject) => {
+        let input = '';
+
+        const cleanup = () => {
+            process.stdin.off('data', onData);
+            process.stdin.off('end', onEnd);
+            process.stdin.off('error', onError);
+        };
+        const onData = (chunk: Buffer | string) => {
+            input += chunk.toString();
+        };
+        const onEnd = () => {
+            cleanup();
+            resolve(input);
+        };
+        const onError = (error: Error) => {
+            cleanup();
+            reject(error);
+        };
+
+        process.stdin.setEncoding('utf8');
+        process.stdin.on('data', onData);
+        process.stdin.once('end', onEnd);
+        process.stdin.once('error', onError);
+    });
+}
+
+async function resolveSendMessage(message: string | undefined, options: { stdin?: boolean }): Promise<string> {
+    if (message !== undefined && options.stdin) {
+        throw new Error('Use either a message argument or --stdin, not both.');
+    }
+
+    if (options.stdin || (message === undefined && !process.stdin.isTTY)) {
+        return readStdin();
+    }
+
+    if (message === undefined) {
+        throw new Error('Message is required unless --stdin is used or stdin is piped.');
+    }
+
+    return message;
+}
+
 function prepareWaitMode(manager: AgentManager, agent: AgentInfo): {
     adapter: AgentAdapter;
     sessionFilePath: string;
@@ -312,12 +356,14 @@ export function registerAgentCommand(program: Command): void {
         }));
 
     agentCommand
-        .command('send <message>')
+        .command('send [message]')
         .description('Send a message to a running agent')
         .requiredOption('--id <identifier>', 'Agent name or partial match')
+        .option('--stdin', 'Read the message from stdin')
         .option('--wait', 'Wait for and print the agent response')
         .option('-j, --json', 'Output wait result as JSON')
         .action(withErrorHandler('send message', async (message, options) => {
+            const prompt = await resolveSendMessage(message, options);
             const manager = createAgentManager();
 
             const agents = await manager.listAgents();
@@ -365,7 +411,7 @@ export function registerAgentCommand(program: Command): void {
                 return;
             }
 
-            await TtyWriter.send(location, message);
+            await TtyWriter.send(location, prompt);
 
             if (!options.wait) {
                 ui.success(`Sent message to ${agent.name}.`);
@@ -400,7 +446,7 @@ export function registerAgentCommand(program: Command): void {
             });
 
             if (options.json) {
-                console.log(JSON.stringify(toAgentSendWaitJson(waitResult, agent, message, options.id), null, 2));
+                console.log(JSON.stringify(toAgentSendWaitJson(waitResult, agent, prompt, options.id), null, 2));
             }
         }));
 

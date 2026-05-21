@@ -14,6 +14,7 @@ description: Implementation notes for the agent send feature
 | `packages/agent-manager/src/terminal/index.ts` | Export TtyWriter |
 | `packages/agent-manager/src/index.ts` | Package export |
 | `packages/cli/src/commands/agent.ts` | CLI `agent send` subcommand |
+| `packages/cli/src/__tests__/commands/agent.test.ts` | CLI command coverage, including stdin prompt input |
 
 ## Implementation Notes
 
@@ -24,3 +25,7 @@ description: Implementation notes for the agent send feature
 - **Security**: All subprocesses use `execFile` (no shell), preventing injection from message content (single quotes, backticks, etc.). AppleScript strings escaped for `\` and `"`.
 - Agent resolution reuses existing `AgentManager.resolveAgent()` method
 - Terminal detection reuses existing `TerminalFocusManager.findTerminal()` from the `agent open` command
+- `agent send [message] --id <identifier> [--stdin]` resolves the prompt before agent lookup so invalid prompt-source combinations fail before any terminal delivery.
+- `--stdin` reads the full stdin stream as UTF-8 and preserves embedded and trailing newlines.
+- If no message argument is provided and stdin is not a TTY, stdin is read implicitly for pipeline ergonomics.
+- A message argument combined with `--stdin` is rejected to avoid ambiguous prompt sources.

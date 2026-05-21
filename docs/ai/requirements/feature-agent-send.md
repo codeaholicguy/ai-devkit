@@ -22,6 +22,7 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 - Allow users to send text input to a running agent's terminal via CLI
 - Support identifying target agents via `--id` flag (name, slug, or partial match)
 - Auto-submit the message via the terminal emulator's native input mechanism (tmux send-keys, AppleScript write text / keystroke)
+- Allow scripts to pipe multi-line prompt text into `agent send` without flattening or truncating the content
 
 **Non-goals:**
 - Interactive/bidirectional communication with agents
@@ -40,15 +41,22 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 3. **As a developer scripting agent workflows**, I want to pipe commands to agents programmatically.
    - `ai-devkit agent send "/commit" --id ai-devkit`
 
-4. **Edge cases:**
+4. **As a developer debugging failures**, I want to pipe command output into an agent as a multi-line prompt.
+   - `npm test 2>&1 | ai-devkit agent send --id ai-devkit`
+   - `npm test 2>&1 | ai-devkit agent send --id ai-devkit --stdin`
+
+5. **Edge cases:**
    - Agent is not in waiting state (warn but still allow send)
    - Agent ID matches multiple agents (error with disambiguation list)
    - Agent's terminal type is unsupported (clear error message)
    - Agent not found (clear error message)
+   - Both a message argument and `--stdin` are provided (error, do not send)
 
 ## Success Criteria
 
 - `ai-devkit agent send "<message>" --id <identifier>` delivers the message as keyboard input to the agent's terminal and submits it
+- `command | ai-devkit agent send --id <identifier>` reads the complete stdin stream and sends it as the prompt
+- `command | ai-devkit agent send --id <identifier> --stdin` reads the complete stdin stream and sends it as the prompt
 - The command resolves agents by name, slug, or partial match via `--id`
 - Clear error messages for: agent not found, ambiguous match, unsupported terminal type, terminal not found
 - Works in tmux, iTerm2, and Terminal.app environments
@@ -62,6 +70,7 @@ The existing `agent list` command shows waiting agents, and `agent open` can foc
 - **Security**: All subprocess calls use `execFile` (no shell) to prevent command injection
 - **Assumes**: The agent process has a valid TTY and runs in a supported terminal emulator
 - **Depends on**: Existing `AgentManager`, `AgentAdapter`, `TerminalFocusManager`, and process detection infrastructure
+- **Stdin behavior**: stdin content is preserved exactly, including embedded newlines and trailing newline characters.
 
 ## Questions & Open Items
 

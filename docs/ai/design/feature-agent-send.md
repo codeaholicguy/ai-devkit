@@ -10,13 +10,15 @@ description: Technical design for sending messages to running AI agents
 
 ```mermaid
 graph TD
-    CLI["CLI: agent send &lt;msg&gt; --id &lt;id&gt;"]
+    CLI["CLI: agent send [msg] --id &lt;id&gt; [--stdin]"]
+    Input["resolveSendMessage()"]
     AM[AgentManager]
     Resolve["resolveAgent()"]
     Find["TerminalFocusManager.findTerminal(pid)"]
     Writer["TtyWriter.send(location, message)"]
 
-    CLI --> AM
+    CLI --> Input
+    Input -->|positional message or stdin| AM
     AM --> Resolve
     Resolve -->|matched agent| Find
     Find -->|TerminalLocation| Writer
@@ -26,12 +28,13 @@ graph TD
 ```
 
 The flow is:
-1. CLI parses `--id` flag and message argument
-2. `AgentManager.listAgents()` detects all running agents
-3. `AgentManager.resolveAgent(id, agents)` finds the target
-4. If agent status is not `waiting`, print a warning but continue
-5. `TerminalFocusManager.findTerminal(pid)` identifies the terminal emulator and session
-6. `TtyWriter.send(location, message)` dispatches to the correct send mechanism
+1. CLI parses `--id`, optional message argument, and optional `--stdin`
+2. `resolveSendMessage()` chooses the positional message, explicit stdin, or implicit piped stdin
+3. `AgentManager.listAgents()` detects all running agents
+4. `AgentManager.resolveAgent(id, agents)` finds the target
+5. If agent status is not `waiting`, print a warning but continue
+6. `TerminalFocusManager.findTerminal(pid)` identifies the terminal emulator and session
+7. `TtyWriter.send(location, message)` dispatches to the correct send mechanism
 
 ## Data Models
 
@@ -44,11 +47,14 @@ No new data models needed. Reuses existing:
 ### CLI Interface
 
 ```
-ai-devkit agent send <message> --id <identifier>
+ai-devkit agent send [message] --id <identifier> [--stdin]
 ```
 
-- `<message>`: Required positional argument. The text to send.
+- `[message]`: Optional positional argument. The text to send.
 - `--id <identifier>`: Required flag. Agent name, slug, or partial match string.
+- `--stdin`: Read the full prompt from stdin. This is mutually exclusive with `[message]`.
+
+If `[message]` is omitted and stdin is not a TTY, the command reads stdin implicitly so shell pipelines can use `agent send` directly.
 
 ### Module: TtyWriter
 
@@ -105,6 +111,8 @@ export class TtyWriter {
 |----------|--------|-----------|
 | Delivery mechanism | Terminal-native input injection | Writing to `/dev/ttysXXX` only outputs to terminal display, doesn't inject input. Must go through the terminal emulator. |
 | Agent identification | `--id` flag only | Explicit, avoids confusion with positional args |
+| Stdin input | `--stdin` plus implicit piped stdin when no message is provided | Supports clear explicit usage and ergonomic shell pipelines such as `npm test 2>&1 \| agent send --id repo`. |
+| Message conflict | Error when `[message]` and `--stdin` are both supplied | Avoids accidentally mixing two prompt sources. |
 | tmux send | `tmux send-keys` + `Enter` | Standard tmux API for injecting keystrokes into a pane |
 | iTerm2 send | AppleScript `write text` | Writes to session as typed input, auto-appends newline |
 | Terminal.app send | System Events `keystroke` + `key code 36` | `do script` runs a new shell command (wrong). `keystroke` types into the foreground process and `key code 36` sends Return. |

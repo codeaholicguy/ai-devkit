@@ -11,6 +11,7 @@ description: Task breakdown for implementing the agent send command
 - [x] Milestone 1: TtyWriter core module in agent-manager
 - [x] Milestone 2: CLI `agent send` subcommand
 - [x] Milestone 3: Tests and validation
+- [x] Milestone 4: Stdin support for scripted multi-line prompts
 
 ## Task Breakdown
 
@@ -57,12 +58,28 @@ description: Task breakdown for implementing the agent send command
   - Test non-waiting agent warning
   - Test terminal not found for agent
 
+### Phase 4: Stdin Prompt Input
+
+- [x] Task 4.1: Add stdin source resolution to `agent send`
+  - Change command signature to accept an optional message argument
+  - Add `--stdin` to read the full prompt from stdin
+  - Read piped stdin implicitly when no message argument is provided and stdin is not a TTY
+  - Preserve multi-line content exactly
+  - Reject conflicting message argument plus `--stdin`
+
+- [x] Task 4.2: Add CLI unit coverage for stdin behavior
+  - Explicit `--stdin` sends multi-line stdin content
+  - Piped stdin without a message argument sends stdin content
+  - Message argument plus `--stdin` fails before terminal delivery
+
 ## Dependencies
 
 - Task 1.2 depends on Task 1.1
 - Task 2.1 depends on Task 1.2
 - Task 3.1 depends on Task 1.1
 - Task 3.2 depends on Task 2.1
+- Task 4.1 depends on Task 2.1
+- Task 4.2 depends on Task 4.1
 
 ## Risks & Mitigation
 
@@ -72,3 +89,4 @@ description: Task breakdown for implementing the agent send command
 | Terminal.app keystroke steals focus | Medium | Low | Documented as known limitation; brief focus steal is acceptable |
 | Command injection via message content | Low | High | All subprocesses use `execFile` (no shell); AppleScript strings escaped for `\` and `"` |
 | Agent has no TTY (background process) | Low | Medium | Check for valid TTY before attempting terminal lookup |
+| Stdin read hangs in interactive shells | Low | Medium | Only read implicitly when stdin is not a TTY; explicit `--stdin` opts into waiting for EOF |

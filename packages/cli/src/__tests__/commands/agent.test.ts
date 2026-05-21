@@ -31,6 +31,7 @@ const mockPrompt: any = jest.fn();
 
 const mockTtyWriterSend = jest.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockWaitForAgentResponse = jest.fn<(...args: any[]) => Promise<any>>();
+let restoreStdin: (() => void) | undefined;
 
 jest.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: jest.fn(() => mockManager),
@@ -77,12 +78,37 @@ describe('agent command', () => {
   let stdoutSpy: ReturnType<typeof jest.spyOn>;
   let stderrSpy: ReturnType<typeof jest.spyOn>;
   beforeEach(() => {
+    restoreStdin?.();
+    restoreStdin = undefined;
     jest.clearAllMocks();
     logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
     stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
     stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
     jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
   });
+
+  function mockReadableStdin(input: string): void {
+    const originalIsTTY = process.stdin.isTTY;
+    const setEncodingSpy = jest.spyOn(process.stdin, 'setEncoding').mockReturnValue(process.stdin);
+
+    Object.defineProperty(process.stdin, 'isTTY', {
+      configurable: true,
+      value: false,
+    });
+
+    process.nextTick(() => {
+      process.stdin.emit('data', input);
+      process.stdin.emit('end');
+    });
+
+    restoreStdin = () => {
+      setEncodingSpy.mockRestore();
+      Object.defineProperty(process.stdin, 'isTTY', {
+        configurable: true,
+        value: originalIsTTY,
+      });
+    };
+  }
 
   it('outputs JSON for list --json', async () => {
     const now = new Date('2026-02-26T10:00:00.000Z');
@@ -258,6 +284,64 @@ Waiting on user input`,
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
     expect(mockTtyWriterSend).toHaveBeenCalledWith(location, 'continue');
     expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('reads a multi-line message from stdin when --stdin is set', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockReadableStdin('line 1\nline 2\n');
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', '--id', 'repo-a', '--stdin']);
+
+    expect(mockTtyWriterSend).toHaveBeenCalledWith(location, 'line 1\nline 2\n');
+    expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('reads from piped stdin when no message argument is provided', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockReadableStdin('npm test output\nfailed assertion\n');
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', '--id', 'repo-a']);
+
+    expect(mockTtyWriterSend).toHaveBeenCalledWith(location, 'npm test output\nfailed assertion\n');
+    expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('fails when both a message argument and --stdin are provided', async () => {
+    mockReadableStdin('stdin text\n');
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'hello', '--id', 'repo-a', '--stdin']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: Use either a message argument or --stdin, not both.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
 
   it('sends message with --wait, seeds transcript before delivery, and prints assistant output only to stdout', async () => {
