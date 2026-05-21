@@ -116,6 +116,27 @@ function prepareWaitMode(manager: AgentManager, agent: AgentInfo): {
     };
 }
 
+function toAgentSendWaitJson(result: Awaited<ReturnType<typeof waitForAgentResponse>>, agent: AgentInfo, prompt: string, targetId: string): object {
+    return {
+        target: {
+            id: targetId,
+            name: agent.name,
+            type: agent.type,
+            pid: agent.pid,
+            status: agent.status,
+            summary: agent.summary,
+            projectPath: agent.projectPath,
+            sessionId: agent.sessionId,
+            sessionFilePath: result.sessionFilePath,
+            lastActive: agent.lastActive,
+        },
+        prompt,
+        responseMessages: result.messages,
+        elapsedMs: result.elapsedMs,
+        finalStatus: result.finalStatus,
+    };
+}
+
 export function registerAgentCommand(program: Command): void {
     const agentCommand = program
         .command('agent')
@@ -295,6 +316,7 @@ export function registerAgentCommand(program: Command): void {
         .description('Send a message to a running agent')
         .requiredOption('--id <identifier>', 'Agent name or partial match')
         .option('--wait', 'Wait for and print the agent response')
+        .option('-j, --json', 'Output wait result as JSON')
         .action(withErrorHandler('send message', async (message, options) => {
             const manager = createAgentManager();
 
@@ -354,7 +376,7 @@ export function registerAgentCommand(program: Command): void {
                 throw new Error('Wait mode was not prepared.');
             }
 
-            await waitForAgentResponse({
+            const waitResult = await waitForAgentResponse({
                 manager,
                 adapter: waitContext.adapter,
                 target: {
@@ -371,10 +393,15 @@ export function registerAgentCommand(program: Command): void {
                     maxWaitMs: AGENT_SEND_WAIT_MAX_WAIT_MS,
                 },
                 onAssistantMessage: (msg) => {
+                    if (options.json) return;
                     process.stdout.write(`${msg.content}\n`);
                 },
                 onStatus: writeWaitStatus,
             });
+
+            if (options.json) {
+                console.log(JSON.stringify(toAgentSendWaitJson(waitResult, agent, message, options.id), null, 2));
+            }
         }));
 
     agentCommand

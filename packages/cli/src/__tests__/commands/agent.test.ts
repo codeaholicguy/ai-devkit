@@ -319,6 +319,71 @@ Waiting on user input`,
     expect(stderrSpy).not.toHaveBeenCalled();
   });
 
+  it('outputs structured JSON for send --wait --json without streaming assistant messages', async () => {
+    const lastActive = new Date('2026-05-14T00:00:00.000Z');
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      projectPath: '/repo',
+      lastActive,
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    const messages = [
+      { role: 'assistant', content: 'first response', timestamp: '2026-05-14T00:00:01.000Z' },
+      { role: 'assistant', content: 'second response', timestamp: '2026-05-14T00:00:02.000Z' },
+    ];
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+    mockWaitForAgentResponse.mockImplementation(async (params) => {
+      params.onAssistantMessage(messages[0]);
+      params.onAssistantMessage(messages[1]);
+      return {
+        agentName: 'repo-a',
+        agentType: 'claude',
+        pid: 10,
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+        messages,
+        finalStatus: AgentStatus.WAITING,
+        elapsedMs: 42,
+      };
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait', '--json']);
+
+    expect(stdoutSpy).not.toHaveBeenCalled();
+    const output = JSON.parse((logSpy.mock.calls[0]?.[0] ?? '') as string);
+    expect(output).toEqual({
+      target: {
+        id: 'repo-a',
+        name: 'repo-a',
+        type: 'claude',
+        pid: 10,
+        status: AgentStatus.WAITING,
+        summary: 'Waiting',
+        projectPath: '/repo',
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+        lastActive: '2026-05-14T00:00:00.000Z',
+      },
+      prompt: 'continue',
+      responseMessages: messages,
+      elapsedMs: 42,
+      finalStatus: AgentStatus.WAITING,
+    });
+  });
+
   it('fails and does not send when --wait target has no session file', async () => {
     const agent = {
       name: 'repo-a',
