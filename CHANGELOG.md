@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `ai-devkit agent send --wait` now supports `--stdin` and piped input, allowing automation scripts to pass prompts without a positional message argument.
+- `ai-devkit agent send --wait` now supports `--timeout <milliseconds>` to configure the maximum wait time for an agent response.
+- `ai-devkit agent send --wait --json` now emits structured JSON with target metadata, the prompt, captured response messages, elapsed time, and final status.
+- Added documentation and FAQ content for automating programmatic agent calls with `agent send --wait`.
+
+### Changed
+
+- Refreshed README, package descriptions, and web documentation copy to better explain AI DevKit workflows, supported agents, memory, channels, and agent-manager usage.
+
 ## [0.31.0] - 2026-05-16
 
 ### Added
