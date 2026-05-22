@@ -1,7 +1,7 @@
 {
   "name": "ai-devkit",
-  "version": "0.31.0",
-  "description": "Structured AI-assisted development with phase workflows, persistent memory, and reusable skills",
+  "version": "0.32.0",
+  "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "author": {
     "name": "Hoang Nguyen",
     "email": "hoang@codeaholicguy.com"
