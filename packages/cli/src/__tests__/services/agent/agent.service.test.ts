@@ -366,4 +366,81 @@ describe('waitForAgentResponse', () => {
       onAssistantMessage: jest.fn(),
     })).rejects.toThrow('Timed out waiting for agent "repo-a" after 0ms.');
   });
+
+  it('does not sleep past the remaining timeout', async () => {
+    jest.useFakeTimers();
+    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+    let assertionError: unknown;
+
+    try {
+      const running = makeAgent({ status: AgentStatus.RUNNING });
+      const manager = {
+        listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
+      };
+      const adapter = {
+        getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([]),
+      };
+
+      const promise = waitForAgentResponse({
+        manager,
+        adapter,
+        target: {
+          id: 'repo-a',
+          name: 'repo-a',
+          type: 'claude',
+          pid: 10,
+          sessionId: 'session-1',
+          sessionFilePath: '/tmp/session.jsonl',
+        },
+        initialMessageCount: 0,
+        options: { pollIntervalMs: 25, maxWaitMs: 10 },
+        onAssistantMessage: jest.fn(),
+      });
+
+      await Promise.resolve();
+      await Promise.resolve();
+
+      try {
+        expect(setTimeoutSpy.mock.calls[0]?.[1]).toBe(10);
+      } catch (error) {
+        assertionError = error;
+      }
+
+      jest.advanceTimersByTime(25);
+      await expect(promise).rejects.toThrow('Timed out waiting for agent "repo-a" after 10ms.');
+
+      if (assertionError) {
+        throw assertionError;
+      }
+    } finally {
+      setTimeoutSpy.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+
+  it('uses the configured timeout label in timeout errors', async () => {
+    const running = makeAgent({ status: AgentStatus.RUNNING });
+    const manager = {
+      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
+    };
+    const adapter = {
+      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([]),
+    };
+
+    await expect(waitForAgentResponse({
+      manager,
+      adapter,
+      target: {
+        id: 'repo-a',
+        name: 'repo-a',
+        type: 'claude',
+        pid: 10,
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+      },
+      initialMessageCount: 0,
+      options: { pollIntervalMs: 0, maxWaitMs: 0, timeoutLabel: '1500ms' },
+      onAssistantMessage: jest.fn(),
+    })).rejects.toThrow('Timed out waiting for agent "repo-a" after 1500ms.');
+  });
 });

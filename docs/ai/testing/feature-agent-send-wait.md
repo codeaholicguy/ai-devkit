@@ -29,6 +29,8 @@ description: Testing strategy for adding --wait to agent send
 - [x] Reports a stderr status message when the agent finishes without assistant text.
 - [x] Waits for the configured poll interval before polling again.
 - [x] Fails after the defensive max wait duration.
+- [x] Caps polling sleep to the remaining timeout.
+- [x] Uses the configured timeout label in timeout errors.
 
 ### `agent send` command
 
@@ -41,6 +43,9 @@ description: Testing strategy for adding --wait to agent send
 - [x] `--wait` keeps assistant response text on stdout.
 - [x] `--wait` sends busy-agent warnings to stderr.
 - [x] `--wait` sanitizes status messages before writing to stderr.
+- [x] `--wait --timeout <milliseconds>` passes the parsed timeout to the wait helper.
+- [x] Timeout failures exit non-zero with a clear error.
+- [x] Invalid timeout usage fails before resolving or sending to an agent.
 - [x] Delivery failure does not enter wait mode.
 - [x] Not-found and ambiguous agent behavior remains unchanged.
 
@@ -59,6 +64,8 @@ Manual E2E after implementation:
 - [ ] Run `npx ai-devkit agent send "say pong" --id <target> --wait`.
 - [ ] Confirm stdout contains only the new assistant response.
 - [ ] Confirm the command exits after Claude Code returns to the prompt.
+- [ ] Run `npx ai-devkit agent send "sleep longer than timeout" --id <target> --wait --timeout 1000`.
+- [ ] Confirm the command exits non-zero and reports a timeout on stderr.
 - [ ] Run existing `npx ai-devkit agent send "continue" --id <target>` without `--wait` and confirm it remains fire-and-forget.
 
 ## Test Data
@@ -86,6 +93,14 @@ Phase 7 verification results:
 - `npm run build`: passed.
 - `npm run lint --workspace packages/cli`: passed with 0 errors and 4 pre-existing warnings outside this feature.
 - `npx ai-devkit lint --feature agent-send-wait`: passed via the local built CLI in this workspace.
+
+Phase 5 verification adds:
+
+- `npx jest packages/cli/src/__tests__/commands/agent.test.ts --runInBand --testNamePattern "timeout duration|reaches the timeout"` from `packages/cli`: passed, 2 tests.
+- `npx jest packages/cli/src/__tests__/services/agent/agent.service.test.ts --runInBand --testNamePattern "timeout label"` from `packages/cli`: passed, 1 test.
+- `npx jest packages/cli/src/__tests__/commands/agent.test.ts packages/cli/src/__tests__/services/agent/agent.service.test.ts --runInBand` from `packages/cli`: passed, 47 tests.
+- `npx jest packages/cli/src/__tests__/commands/agent.test.ts --runInBand --testNamePattern "timeout"` from `packages/cli`: passed, 4 tests.
+- `npx jest packages/cli/src/__tests__/services/agent/agent.service.test.ts --runInBand --testNamePattern "timeout|sleep past"` from `packages/cli`: passed, 3 tests.
 
 ## Manual Testing
 

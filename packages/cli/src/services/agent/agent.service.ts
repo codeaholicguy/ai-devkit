@@ -20,6 +20,7 @@ export interface AgentSendWaitTarget {
 export interface AgentSendWaitOptions {
   pollIntervalMs: number;
   maxWaitMs: number;
+  timeoutLabel?: string;
 }
 
 export interface AgentSendWaitResult {
@@ -115,8 +116,10 @@ export async function waitForAgentResponse(params: WaitForAgentResponseParams): 
       };
     }
 
-    await sleep(options.pollIntervalMs);
+    const elapsedMs = Date.now() - startedAt;
+    const remainingMs = options.maxWaitMs - elapsedMs;
+    await sleep(Math.min(options.pollIntervalMs, remainingMs));
   }
 
-  throw new Error(`Timed out waiting for agent "${target.name}" after ${options.maxWaitMs}ms.`);
+  throw new Error(`Timed out waiting for agent "${target.name}" after ${options.timeoutLabel ?? `${options.maxWaitMs}ms`}.`);
 }

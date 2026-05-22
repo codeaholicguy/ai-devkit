@@ -403,6 +403,97 @@ Waiting on user input`,
     expect(stderrSpy).not.toHaveBeenCalled();
   });
 
+  it('uses the provided timeout duration for send --wait', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+    mockWaitForAgentResponse.mockResolvedValue({
+      agentName: 'repo-a',
+      agentType: 'claude',
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+      messages: [],
+      finalStatus: AgentStatus.WAITING,
+      elapsedMs: 1500,
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait', '--timeout', '1500']);
+
+    expect(mockWaitForAgentResponse).toHaveBeenCalledWith(expect.objectContaining({
+      options: expect.objectContaining({
+        pollIntervalMs: expect.any(Number),
+        maxWaitMs: 1500,
+      }),
+    }));
+  });
+
+  it('exits non-zero with a clear error when send --wait reaches the timeout', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
+    };
+    const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockFocusManager.findTerminal.mockResolvedValue(location);
+    mockTtyWriterSend.mockResolvedValue(undefined);
+    mockWaitForAgentResponse.mockRejectedValue(new Error('Timed out waiting for agent "repo-a" after 1500ms.'));
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait', '--timeout', '1500']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: Timed out waiting for agent "repo-a" after 1500ms.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('fails before sending when --timeout is used without --wait', async () => {
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--timeout', '30000']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: Use --timeout only with --wait.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockManager.listAgents).not.toHaveBeenCalled();
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+  });
+
+  it('fails before sending when --timeout is invalid', async () => {
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait', '--timeout', '1.5s']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to send message: Invalid --timeout. Expected positive integer milliseconds. Example: 30000.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockManager.listAgents).not.toHaveBeenCalled();
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+  });
+
   it('outputs structured JSON for send --wait --json without streaming assistant messages', async () => {
     const lastActive = new Date('2026-05-14T00:00:00.000Z');
     const agent = {

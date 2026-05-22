@@ -12,6 +12,7 @@ description: Task breakdown for adding --wait to agent send
 - [x] Milestone 2: Wait helper and response output
 - [x] Milestone 3: Failure handling and tests
 - [x] Milestone 4: Documentation and verification
+- [x] Milestone 5: Configurable wait timeout
 
 ## Task Breakdown
 
@@ -46,9 +47,20 @@ description: Task breakdown for adding --wait to agent send
 - [x] Task 4.4: Add tests for target termination and defensive timeout.
 - [x] Task 4.5: Update user-facing docs/help text if command documentation exists.
 
+### Phase 5: Configurable timeout
+
+- [x] Task 5.1: Add `--timeout <milliseconds>` to `agent send`.
+- [x] Task 5.2: Validate that `--timeout` is only used with `--wait`.
+- [x] Task 5.3: Parse positive integer millisecond values into wait-helper milliseconds.
+- [x] Task 5.4: Preserve the user-facing millisecond timeout in timeout errors.
+- [x] Task 5.5: Add command and service tests for configurable timeout behavior.
+- [x] Task 5.6: Cap wait-loop sleeps to the remaining timeout.
+
 ## Progress Summary
 
 Phase 4 implementation completed the first backlog item for `agent send --wait`. The CLI now seeds transcript length before sending, validates wait-mode transcript support, resolves the target adapter, suppresses the normal success line in wait mode, writes assistant response text to stdout, and uses a dedicated wait helper to poll transcript/status until the original agent returns to `waiting`, returns to `idle` after new assistant output, disappears, or reaches the fixed 10-minute safety cap. Phase 6 review tightened the wait loop so it does not complete on `waiting` status until a transcript read succeeds, completes on `idle` only after response output, treats initial idle agents as safe to send without a busy warning, and sanitizes wait-mode stderr status messages. Focused command and wait-helper tests cover historical transcript seeding, assistant-only output, missing session files, target termination, transient transcript read errors, session-ID target fallback, no-response status reporting, sanitized stderr status output, idle-after-response completion, idle-before-output timeout, and defensive timeout.
+
+Phase 5 added `--timeout <milliseconds>` for wait mode. The command now rejects timeout usage without `--wait`, accepts positive integer millisecond values, passes the parsed millisecond value to the wait helper, reports timeout failures with an `ms` label, and caps each poll sleep to the remaining timeout so scripts get a clear non-zero failure without oversleeping the requested cap.
 
 ## Dependencies
 
@@ -78,8 +90,8 @@ Estimated total: 2-3 engineering days.
 - **Risk:** Transcript parsing can throw while the agent is writing.
   **Mitigation:** Treat occasional read errors as transient during the wait loop.
 
-- **Risk:** Command can hang without configurable timeout.
-  **Mitigation:** Add a fixed defensive cap in item 1; implement user-facing `--timeout` as the next backlog item.
+- **Risk:** Command can hang longer than a script expects.
+  **Mitigation:** Keep the default defensive cap and allow scripts to set `--timeout <milliseconds>`.
 
 ## Resources Needed
 

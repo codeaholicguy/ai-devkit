@@ -22,6 +22,8 @@ Primary goals:
 - After sending, poll the target agent transcript and print new assistant output produced after the send.
 - Exit after the target agent is ready for user input again.
 - Avoid replaying historical conversation messages.
+- Let users override the default wait cap with `--timeout <milliseconds>`.
+- Exit non-zero with a clear timeout error when the agent does not finish before the configured timeout.
 - Preserve current fire-and-forget behavior when `--wait` is not provided.
 
 Secondary goals:
@@ -29,12 +31,12 @@ Secondary goals:
 - Reuse existing agent transcript parsing via `AgentAdapter.getConversation()`.
 - Reuse existing status detection via `AgentManager.listAgents()`.
 - Keep the implementation agent-type aware through existing adapters, with Claude Code as the primary target.
-- Structure the implementation so later backlog items can add timeout, JSON output, stdin prompts, and `agent ask`.
+- Structure the implementation so later backlog items can add stdin prompts and `agent ask`.
 
 Non-goals:
 
 - Do not add `agent ask`.
-- Do not add `--timeout`, `--json`, `--stdin`, `--stream`, or queueing in this feature.
+- Do not add `--stream`, queueing, or `agent ask` in this feature.
 - Do not start or manage Claude Code sessions automatically.
 - Do not use Claude Agent SDK / `claude -p`.
 - Do not capture terminal screen output directly.
@@ -55,6 +57,12 @@ Primary workflow:
 4. CLI prints new assistant messages generated after the send.
 5. CLI exits when the agent status returns to waiting.
 
+Timeout workflow:
+
+1. User runs `npx ai-devkit agent send "summarize current git diff" --id ai-devkit --wait --timeout 30000`.
+2. CLI uses 30,000 milliseconds as the maximum wait duration.
+3. If the agent does not return to a completed status before 30,000 milliseconds, the command exits non-zero and reports `Timed out waiting for agent "<name>" after 30000ms.`.
+
 Edge cases:
 
 - Target agent has no `sessionFilePath`: send succeeds, but wait mode fails with a clear message because transcript polling is unavailable.
@@ -64,6 +72,8 @@ Edge cases:
 - Transcript parsing throws temporarily: command keeps polling for a bounded default period or until agent state proves failure.
 - Agent produces no assistant messages before becoming waiting: command exits successfully with no assistant output and a status note on stderr.
 - Agent is not waiting before send: existing warning remains; wait mode still works by seeding transcript before send.
+- Timeout duration is malformed or non-positive: command exits non-zero before sending with a clear validation error.
+- Timeout is provided without `--wait`: command exits non-zero before sending because timeout only applies to wait mode.
 
 ## Success Criteria
 
@@ -73,7 +83,9 @@ Edge cases:
 - Historical transcript messages are not printed in wait mode.
 - The command exits when the agent returns to `AgentStatus.WAITING`.
 - The command also exits when Claude Code reports `AgentStatus.IDLE` after new assistant output has been printed for the current send.
-- Unit tests cover transcript seeding, output filtering, missing transcript path, agent termination, and unchanged non-wait behavior.
+- `agent send <message> --id <agent> --wait --timeout <milliseconds>` passes the configured millisecond timeout to the wait helper.
+- Timeout errors include the configured millisecond timeout and exit non-zero.
+- Unit tests cover transcript seeding, output filtering, missing transcript path, agent termination, configurable timeout, and unchanged non-wait behavior.
 
 ## Constraints & Assumptions
 
@@ -82,11 +94,12 @@ Edge cases:
 - Waiting is transcript-based, not terminal-screen-based.
 - Agent status is detected by re-running `AgentManager.listAgents()` and resolving the same target.
 - Polling should use conservative intervals similar to the existing channel connector polling loop.
-- The first implementation uses a fixed 10-minute safety cap to avoid hanging forever. A configurable `--timeout` flag is a separate backlog item.
+- The default wait cap remains 10 minutes when `--timeout` is omitted.
+- Timeout values are positive integers interpreted as milliseconds.
 
 ## Resolved Decisions
 
-- **Default maximum wait:** Use a fixed 10-minute safety cap until the dedicated `--timeout` backlog item is implemented.
+- **Default maximum wait:** Use a 10-minute safety cap unless the user passes `--timeout <milliseconds>`.
 - **Output streams:** Write assistant response content to stdout. Write status, progress, warnings, and errors to stderr through existing UI/error helpers where practical.
 - **Default message filtering:** Print assistant text content only. Do not include user messages, tool calls, tool results, or verbose transcript details by default.
 

@@ -24,6 +24,7 @@ import {
     toJsonSession,
 } from '../util/sessions';
 import { waitForAgentResponse } from '../services/agent/agent.service';
+import { parseMilliseconds } from '../util/time';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
@@ -93,6 +94,15 @@ function createAgentManager(): AgentManager {
 
 function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
+}
+
+function parseSendWaitTimeout(value: string | undefined): { maxWaitMs: number; label?: string } {
+    try {
+        const parsed = parseMilliseconds(value, AGENT_SEND_WAIT_MAX_WAIT_MS);
+        return { maxWaitMs: parsed.milliseconds, label: parsed.label };
+    } catch (error) {
+        throw new Error(`Invalid --timeout. ${(error as Error).message} Example: 30000.`);
+    }
 }
 
 function readStdin(): Promise<string> {
@@ -361,8 +371,13 @@ export function registerAgentCommand(program: Command): void {
         .requiredOption('--id <identifier>', 'Agent name or partial match')
         .option('--stdin', 'Read the message from stdin')
         .option('--wait', 'Wait for and print the agent response')
+        .option('--timeout <milliseconds>', 'Maximum time to wait with --wait, in milliseconds')
         .option('-j, --json', 'Output wait result as JSON')
         .action(withErrorHandler('send message', async (message, options) => {
+            if (options.timeout !== undefined && !options.wait) {
+                throw new Error('Use --timeout only with --wait.');
+            }
+            const waitTimeout = parseSendWaitTimeout(options.timeout);
             const prompt = await resolveSendMessage(message, options);
             const manager = createAgentManager();
 
@@ -436,7 +451,8 @@ export function registerAgentCommand(program: Command): void {
                 initialMessageCount: waitContext.initialMessageCount,
                 options: {
                     pollIntervalMs: AGENT_SEND_WAIT_POLL_INTERVAL_MS,
-                    maxWaitMs: AGENT_SEND_WAIT_MAX_WAIT_MS,
+                    maxWaitMs: waitTimeout.maxWaitMs,
+                    timeoutLabel: waitTimeout.label,
                 },
                 onAssistantMessage: (msg) => {
                     if (options.json) return;
