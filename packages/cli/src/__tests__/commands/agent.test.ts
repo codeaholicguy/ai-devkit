@@ -956,4 +956,99 @@ Waiting on user input`,
       expect(parsed.map((s) => s.sessionId)).toEqual(['s1', 's2']);
     });
   });
+
+  describe('session detail', () => {
+    function makeSession(overrides: Record<string, unknown> = {}) {
+      return {
+        type: 'claude',
+        sessionId: 'sess-1',
+        cwd: '/repo',
+        firstUserMessage: 'hello',
+        lastActive: new Date('2025-01-01T01:00:00Z'),
+        startedAt: new Date('2025-01-01T00:00:00Z'),
+        sessionFilePath: '/tmp/sess-1.jsonl',
+        ...overrides,
+      };
+    }
+
+    it('finds a historical session by id and renders detail without requiring a running agent', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession()]);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([
+        { role: 'user', content: 'first', timestamp: '2025-01-01T00:00:00.000Z' },
+        { role: 'assistant', content: 'second', timestamp: '2025-01-01T00:00:01.000Z' },
+      ]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'session', 'detail', '--id', 'sess-1']);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined });
+      expect(mockManager.listAgents).not.toHaveBeenCalled();
+      expect(mockManager.getAdapter).toHaveBeenCalledWith('claude');
+      expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith('/tmp/sess-1.jsonl', { verbose: undefined });
+      expect(ui.text).toHaveBeenCalledWith('Session Detail', { breakline: true });
+    });
+
+    it('emits JSON for a historical session detail and honors --tail', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession()]);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([
+        { role: 'user', content: 'one', timestamp: '2025-01-01T00:00:00.000Z' },
+        { role: 'assistant', content: 'two', timestamp: '2025-01-01T00:00:01.000Z' },
+      ]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'session', 'detail', '--id', 'sess-1', '--tail', '1', '--json']);
+
+      const parsed = JSON.parse((logSpy.mock.calls[0]?.[0] ?? '') as string);
+      expect(parsed).toEqual({
+        sessionId: 'sess-1',
+        cwd: '/repo',
+        startTime: '2025-01-01T00:00:00.000Z',
+        lastActive: '2025-01-01T01:00:00.000Z',
+        type: 'claude',
+        sessionFilePath: '/tmp/sess-1.jsonl',
+        conversation: [
+          { role: 'assistant', content: 'two', timestamp: '2025-01-01T00:00:01.000Z' },
+        ],
+      });
+    });
+
+    it('shows a clear error when the session id is not found', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession()]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'session', 'detail', '--id', 'missing']);
+
+      expect(ui.error).toHaveBeenCalledWith('No session found matching "missing".');
+      expect(mockManager.getAdapter).not.toHaveBeenCalled();
+    });
+
+    it('forwards --type when resolving a historical session', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession({ type: 'codex' })]);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'session', 'detail', '--id', 'sess-1', '--type', 'codex']);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: 'codex' });
+    });
+
+    it('accepts opencode as a historical session detail type filter', async () => {
+      mockManager.listSessions.mockResolvedValue([makeSession({ type: 'opencode' })]);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'session', 'detail', '--id', 'sess-1', '--type', 'opencode']);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: 'opencode' });
+    });
+  });
 });

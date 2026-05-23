@@ -14,6 +14,8 @@ import {
     TtyWriter,
     type AgentInfo,
     type AgentType,
+    type ConversationMessage,
+    type SessionSummary,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui';
 import { withErrorHandler } from '../util/errors';
@@ -81,6 +83,59 @@ function formatCwd(projectPath?: string): string {
 function formatWorkOn(summary?: string): string {
     const firstLine = (summary ?? '').split(/\r?\n/, 1)[0] || '';
     return firstLine || 'No active task';
+}
+
+function resolveTailCount(raw: string | undefined, fallback = 20): number {
+    const parsed = parseInt(raw ?? String(fallback), 10);
+    return Number.isNaN(parsed) || parsed < 1 ? fallback : parsed;
+}
+
+function selectConversationMessages(
+    conversation: ConversationMessage[],
+    options: { full?: boolean; tail?: string },
+): { displayMessages: ConversationMessage[]; isTruncated: boolean } {
+    const tailCount = options.full ? conversation.length : resolveTailCount(options.tail);
+    const displayMessages = conversation.slice(-tailCount);
+    return {
+        displayMessages,
+        isTruncated: displayMessages.length < conversation.length,
+    };
+}
+
+function renderConversationDetail(displayMessages: ConversationMessage[], totalMessages: number, isTruncated: boolean): void {
+    const label = isTruncated
+        ? `Conversation (last ${displayMessages.length} of ${totalMessages} messages)`
+        : `Conversation (${displayMessages.length} messages)`;
+    ui.text(label, { breakline: false });
+    ui.text(chalk.dim('─'.repeat(40)));
+
+    for (const msg of displayMessages) {
+        const time = msg.timestamp
+            ? chalk.dim(`[${new Date(msg.timestamp).toLocaleTimeString()}]`)
+            : '';
+        const roleColor = msg.role === 'user'
+            ? chalk.green
+            : msg.role === 'assistant'
+                ? chalk.cyan
+                : chalk.yellow;
+        ui.text(`${time} ${roleColor(msg.role + ':')}`);
+        const lines = msg.content.split('\n');
+        for (const line of lines) {
+            ui.text(`  ${line}`);
+        }
+        ui.breakline();
+    }
+
+    if (isTruncated) {
+        ui.info(`Showing last ${displayMessages.length} of ${totalMessages} messages. Use --full to see all.`);
+    }
+}
+
+function findSessionById(sessions: SessionSummary[], sessionId: string): SessionSummary | undefined | SessionSummary[] {
+    const matches = sessions.filter((session) => session.sessionId === sessionId);
+    if (matches.length === 0) return undefined;
+    if (matches.length === 1) return matches[0];
+    return matches;
 }
 
 function createAgentManager(): AgentManager {
@@ -252,10 +307,10 @@ export function registerAgentCommand(program: Command): void {
 
     agentCommand
         .command('sessions')
-        .description('List historical Claude/Codex/Gemini sessions for resume')
+        .description('List historical Claude/Codex/Gemini/OpenCode sessions for resume')
         .option('--all', 'Include sessions from every cwd (default: only current cwd)')
         .option('--cwd <path>', 'Override the cwd filter (implies non-default scope)')
-        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli')
+        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli, opencode')
         .option('--limit <n>', 'Max rows to print (default: 50; 0 = no limit)', '50')
         .option('-j, --json', 'Output as JSON')
         .action(withErrorHandler('list sessions', async (options) => {
@@ -298,6 +353,77 @@ export function registerAgentCommand(program: Command): void {
                     (text) => chalk.dim(text),
                 ],
             });
+        }));
+
+    const sessionCommand = agentCommand
+        .command('session')
+        .description('Manage historical AI agent sessions');
+
+    sessionCommand
+        .command('detail')
+        .description('Show detailed information about a historical session')
+        .requiredOption('--id <sessionId>', 'Session ID (as shown in agent sessions)')
+        .option('-j, --json', 'Output as JSON')
+        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli, opencode')
+        .option('--full', 'Show entire conversation history')
+        .option('--tail <n>', 'Show last N messages (default: 20)', '20')
+        .option('--verbose', 'Include tool call/result details')
+        .action(withErrorHandler('get session detail', async (options) => {
+            const manager = createAgentManager();
+            const listOptions = resolveListSessionsOptions({ all: true, type: options.type }).adapterOptions;
+            const sessions = await manager.listSessions(listOptions);
+            const resolved = findSessionById(sessions, options.id);
+
+            if (!resolved) {
+                ui.error(`No session found matching "${options.id}".`);
+                return;
+            }
+
+            if (Array.isArray(resolved)) {
+                ui.error(`Multiple sessions match "${options.id}":`);
+                resolved.forEach((session) => {
+                    ui.text(`  - ${formatType(session.type)} ${formatCwd(session.cwd)}`);
+                });
+                ui.info('Use --type to choose the intended session source.');
+                return;
+            }
+
+            const session = resolved;
+            const adapter = manager.getAdapter(session.type);
+            if (!adapter) {
+                ui.error(`Unsupported agent type: ${session.type}`);
+                return;
+            }
+
+            const conversation = adapter.getConversation(session.sessionFilePath, {
+                verbose: options.verbose,
+            });
+            const { displayMessages, isTruncated } = selectConversationMessages(conversation, options);
+
+            if (options.json) {
+                const output = {
+                    sessionId: session.sessionId,
+                    cwd: session.cwd,
+                    startTime: session.startedAt,
+                    lastActive: session.lastActive,
+                    type: session.type,
+                    sessionFilePath: session.sessionFilePath,
+                    conversation: displayMessages,
+                };
+                console.log(JSON.stringify(output, null, 2));
+                return;
+            }
+
+            ui.text('Session Detail', { breakline: true });
+            ui.text(chalk.dim('─'.repeat(40)));
+            ui.text(`  ${chalk.bold('Session ID:')}  ${session.sessionId}`);
+            ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(session.cwd)}`);
+            ui.text(`  ${chalk.bold('Start Time:')}  ${session.startedAt.toLocaleString()}`);
+            ui.text(`  ${chalk.bold('Last Active:')} ${formatRelativeTime(session.lastActive)}`);
+            ui.text(`  ${chalk.bold('Type:')}        ${formatType(session.type)}`);
+            ui.text(`  ${chalk.bold('File:')}        ${session.sessionFilePath}`);
+            ui.breakline();
+            renderConversationDetail(displayMessages, conversation.length, isTruncated);
         }));
 
     agentCommand
@@ -515,9 +641,7 @@ export function registerAgentCommand(program: Command): void {
                 verbose: options.verbose,
             });
 
-            const tailCount = options.full ? conversation.length : parseInt(options.tail, 10) || 20;
-            const displayMessages = conversation.slice(-tailCount);
-            const isTruncated = displayMessages.length < conversation.length;
+            const { displayMessages, isTruncated } = selectConversationMessages(conversation, options);
 
             const startTime = conversation.length > 0 && conversation[0].timestamp
                 ? new Date(conversation[0].timestamp)
@@ -547,31 +671,6 @@ export function registerAgentCommand(program: Command): void {
             ui.text(`  ${chalk.bold('Status:')}      ${formatStatus(agent.status)}`);
             ui.text(`  ${chalk.bold('Type:')}        ${formatType(agent.type)}`);
             ui.breakline();
-            const label = isTruncated
-                ? `Conversation (last ${displayMessages.length} of ${conversation.length} messages)`
-                : `Conversation (${displayMessages.length} messages)`;
-            ui.text(label, { breakline: false });
-            ui.text(chalk.dim('─'.repeat(40)));
-
-            for (const msg of displayMessages) {
-                const time = msg.timestamp
-                    ? chalk.dim(`[${new Date(msg.timestamp).toLocaleTimeString()}]`)
-                    : '';
-                const roleColor = msg.role === 'user'
-                    ? chalk.green
-                    : msg.role === 'assistant'
-                        ? chalk.cyan
-                        : chalk.yellow;
-                ui.text(`${time} ${roleColor(msg.role + ':')}`);
-                const lines = msg.content.split('\n');
-                for (const line of lines) {
-                    ui.text(`  ${line}`);
-                }
-                ui.breakline();
-            }
-
-            if (isTruncated) {
-                ui.info(`Showing last ${displayMessages.length} of ${conversation.length} messages. Use --full to see all.`);
-            }
+            renderConversationDetail(displayMessages, conversation.length, isTruncated);
         }));
 }
