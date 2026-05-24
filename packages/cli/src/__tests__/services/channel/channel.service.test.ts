@@ -7,6 +7,8 @@ describe('ChannelService', () => {
     let tmpDir: string;
     let registryPath: string;
     let alivePids: Set<number>;
+    let spawned: Array<{ command: string; args: string[]; options: { cwd: string; detached: true; stdio: ['ignore', number, number] }; unref: jest.Mock }>;
+    let killed: Array<{ pid: number; signal: NodeJS.Signals }>;
     let service: ChannelService;
 
     const personalEntry = {
@@ -23,7 +25,20 @@ describe('ChannelService', () => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'channel-service-test-'));
         registryPath = path.join(tmpDir, 'channel-bridges.json');
         alivePids = new Set();
-        service = new ChannelService(registryPath, pid => alivePids.has(pid));
+        spawned = [];
+        killed = [];
+        service = new ChannelService(
+            registryPath,
+            pid => alivePids.has(pid),
+            (command: string, args: string[], options: { cwd: string; detached: true; stdio: ['ignore', number, number] }) => {
+                const child = { pid: 300, unref: jest.fn() };
+                spawned.push({ command, args, options, unref: child.unref });
+                return child;
+            },
+            (pid: number, signal: NodeJS.Signals) => {
+                killed.push({ pid, signal });
+            },
+        );
     });
 
     afterEach(() => {
@@ -164,5 +179,136 @@ describe('ChannelService', () => {
         await service.unregisterBridge('personal');
 
         expect(await service.getLiveBridgeByChannel('personal')).toBeUndefined();
+    });
+
+    it('starts a daemon bridge by spawning a detached child and recording its pid', async () => {
+        const bridge = await service.startDaemonBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            command: 'node',
+            args: ['dist/channel-daemon.js', '--channel', 'personal', '--agent', 'codex-main'],
+            cwd: '/tmp/project',
+        });
+        alivePids.add(300);
+
+        expect(spawned).toEqual([expect.objectContaining({
+            command: 'node',
+            args: ['dist/channel-daemon.js', '--channel', 'personal', '--agent', 'codex-main'],
+            options: {
+                cwd: '/tmp/project',
+                detached: true,
+                stdio: ['ignore', expect.any(Number), expect.any(Number)],
+            },
+        })]);
+        expect(bridge).toEqual(expect.objectContaining({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 0,
+            bridgePid: 300,
+            logPath: path.join(tmpDir, 'channel-logs', 'personal.log'),
+        }));
+        expect(spawned[0].options.stdio[1]).toBe(spawned[0].options.stdio[2]);
+        expect(fs.readFileSync(path.join(tmpDir, 'channel-logs', 'personal.log'), 'utf-8')).toContain(
+            '[command] node dist/channel-daemon.js --channel personal --agent codex-main',
+        );
+        expect(await service.getLiveBridgeByChannel('personal')).toEqual(expect.objectContaining({
+            channelName: 'personal',
+            bridgePid: 300,
+            logPath: path.join(tmpDir, 'channel-logs', 'personal.log'),
+        }));
+    });
+
+    it('refuses to start a daemon when the channel already has a live bridge', async () => {
+        alivePids.add(200);
+        await service.registerBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 100,
+            bridgePid: 200,
+            startedAt: '2026-05-23T00:00:00.000Z',
+        });
+
+        await expect(service.startDaemonBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            command: 'node',
+            args: ['dist/cli.js'],
+            cwd: '/tmp/project',
+        })).rejects.toThrow('Channel "personal" bridge is already running (PID: 200).');
+        expect(spawned).toEqual([]);
+    });
+
+    it('prunes stale state before starting a daemon bridge', async () => {
+        await service.registerBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 100,
+            bridgePid: 200,
+            startedAt: '2026-05-23T00:00:00.000Z',
+        });
+
+        await service.startDaemonBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            command: 'node',
+            args: ['dist/cli.js'],
+            cwd: '/tmp/project',
+        });
+
+        alivePids.add(300);
+        expect(await service.getLiveBridgeByChannel('personal')).toEqual(expect.objectContaining({
+            bridgePid: 300,
+        }));
+    });
+
+    it('stops the only live bridge when no channel name is provided', async () => {
+        alivePids.add(200);
+        await service.registerBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 100,
+            bridgePid: 200,
+            startedAt: '2026-05-23T00:00:00.000Z',
+        });
+
+        const result = await service.stopBridge();
+
+        expect(result).toEqual({
+            stopped: true,
+            bridge: expect.objectContaining({ channelName: 'personal', bridgePid: 200 }),
+        });
+        expect(killed).toEqual([{ pid: 200, signal: 'SIGTERM' }]);
+        expect(await service.getLiveBridgeByChannel('personal')).toBeUndefined();
+    });
+
+    it('requires a channel name when multiple live bridges exist', async () => {
+        alivePids.add(200);
+        alivePids.add(201);
+        await service.registerBridge({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 100,
+            bridgePid: 200,
+            startedAt: '2026-05-23T00:00:00.000Z',
+        });
+        await service.registerBridge({
+            channelName: 'work',
+            channelType: 'telegram',
+            agentName: 'claude-review',
+            agentPid: 101,
+            bridgePid: 201,
+            startedAt: '2026-05-23T00:01:00.000Z',
+        });
+
+        await expect(service.stopBridge()).rejects.toThrow('Multiple channel bridges are running. Specify one: personal, work');
+        expect(killed).toEqual([]);
     });
 });

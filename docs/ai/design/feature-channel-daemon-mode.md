@@ -8,7 +8,7 @@ description: CLI daemon lifecycle design for ai-devkit channel bridges
 
 ## Architecture Overview
 
-`channel start --daemon` is implemented as a CLI process wrapper around an internal bridge runner. The parent CLI validates arguments, checks bridge state, spawns a detached child process, records metadata in the existing bridge registry, and exits. The child runs `channel-daemon.js`, which calls `runChannelBridge()` directly instead of re-entering Commander.
+`channel start --daemon` is implemented as a CLI process wrapper around an internal bridge runner. The parent CLI validates arguments, checks bridge state, spawns a detached child process, records metadata in the existing bridge registry, and exits. The child runs `channel-daemon.js`, which calls `runChannelBridge()` directly instead of re-entering Commander. Daemon stdout and stderr are appended to a per-channel log file and the parent prints that path after startup.
 
 ```mermaid
 graph TD
@@ -16,6 +16,7 @@ graph TD
     START --> STATE[ChannelService bridge registry]
     START -->|no live daemon| SPAWN[Detached child process]
     SPAWN --> CHILD[channel-daemon.js]
+    SPAWN --> LOG[(~/.ai-devkit/channel-logs/name.log)]
     CHILD --> BRIDGE[runChannelBridge]
     BRIDGE --> TELEGRAM[Telegram adapter]
     BRIDGE --> AGENT[Agent manager]
@@ -37,10 +38,11 @@ interface ChannelBridgeProcess {
   agentPid: number;
   bridgePid: number;
   startedAt: string;
+  logPath?: string;
 }
 ```
 
-State is stored in the existing `~/.ai-devkit/channel-bridges.json` registry with restrictive permissions when possible. Daemon parent processes initially record `agentPid: 0`; `runChannelBridge()` overwrites the entry with the resolved agent PID after it finishes startup.
+State is stored in the existing `~/.ai-devkit/channel-bridges.json` registry with restrictive permissions when possible. Daemon parent processes initially record `agentPid: 0`; `runChannelBridge()` overwrites the entry with the resolved agent PID after it finishes startup. Daemon logs are stored separately at `~/.ai-devkit/channel-logs/<channel>.log`.
 
 ## API Design
 
@@ -83,6 +85,7 @@ Spawn a detached Node process that runs a dedicated internal daemon entrypoint. 
 ## Non-Functional Requirements
 
 - Daemon start should return quickly after spawning and recording state.
+- Daemon start and status should print the log path so users can inspect background failures.
 - Stop should prefer graceful shutdown with `SIGTERM`.
 - Stale state should not block future daemon starts.
 - Foreground behavior must remain backward compatible.

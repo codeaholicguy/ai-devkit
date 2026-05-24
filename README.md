@@ -161,7 +161,7 @@ ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
 npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
 
 # Pipe a session through Telegram — operate your agent from your phone
-ai-devkit channel start telegram
+ai-devkit channel start telegram --agent <agent-name> --daemon
 ```
 
 Useful for long-running tasks, scheduled work, or checking on an agent from your phone at lunch.

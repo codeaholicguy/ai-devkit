@@ -16,6 +16,7 @@ description: Test coverage plan for channel daemon start and stop
 
 ### ChannelService
 - [x] Starts a daemon by spawning a detached child process and writing state.
+- [x] Redirects daemon stdout and stderr to the per-channel log file.
 - [x] Refuses to start when recorded daemon PID is alive.
 - [x] Removes stale state when recorded PID is not alive.
 - [x] Stops a running bridge with `SIGTERM` and clears state.
@@ -27,6 +28,8 @@ description: Test coverage plan for channel daemon start and stop
 - [x] Daemon start launches `channel-daemon.js` instead of using a hidden CLI child option.
 - [x] Dev-mode daemon start launches `channel-daemon.ts` through `ts-node`.
 - [x] `channel stop` delegates to daemon stop and prints useful output.
+- [x] `channel start --daemon` prints the daemon log path.
+- [x] `channel status` shows the daemon log path for a running bridge.
 
 ## Integration Tests
 
@@ -49,9 +52,8 @@ description: Test coverage plan for channel daemon start and stop
 - Run `npx ai-devkit@latest lint --feature channel-daemon-mode`.
 
 Targeted evidence:
-- `npx jest src/__tests__/services/channel/channel.service.test.ts --runInBand`: 17 passed.
-- `npx jest src/__tests__/commands/channel.test.ts --runInBand`: 17 passed.
-- `npm run test --workspace packages/cli -- --runInBand`: 35 suites passed, 558 tests passed.
+- `npx jest src/__tests__/commands/channel.test.ts src/__tests__/services/channel/channel.service.test.ts --runInBand`: 35 passed.
+- `npm run test --workspace packages/cli -- --runInBand`: 35 suites passed, 559 tests passed.
 - `npm run build`: 4 projects built successfully.
 
 ## Manual Testing
