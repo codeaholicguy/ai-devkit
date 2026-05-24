@@ -21,8 +21,8 @@ Expected touch points:
 - `packages/channel-connector/src/__tests__/ConfigStore.test.ts`
 - `packages/cli/src/commands/channel.ts`
 - `packages/cli/src/__tests__/commands/channel.test.ts`
-- `packages/cli/src/util/channel-bridges.ts`
-- `packages/cli/src/__tests__/util/channel-bridges.test.ts`
+- `packages/cli/src/services/channel/channel.service.ts`
+- `packages/cli/src/__tests__/services/channel/channel.service.test.ts`
 
 ## Implementation Notes
 
@@ -48,12 +48,23 @@ Expected touch points:
 - Register running process metadata under channel name.
 - Initialize `activeChatId` from the selected channel entry's `authorizedChatId` when present.
 - Persist the first accepted chat ID back to the same channel entry when no authorization exists.
-- Use a dedicated channel bridge registry file to report running status and prune stale bridge PIDs.
+- Use a dedicated channel bridge metadata file to report running status and prune stale bridge PIDs.
+
+## Implemented Behavior
+
+- `channel connect telegram --name <name>` stores a named Telegram channel.
+- `channel connect telegram` creates or updates the default `telegram` channel.
+- Duplicate Telegram bot tokens are rejected across different channel names.
+- `channel list` includes authorization and bridge running state.
+- `channel disconnect <name>` removes a named channel.
+- `channel start [name] --agent <agent>` starts the selected channel; omitting `name` is allowed only when exactly one Telegram channel is configured.
+- `channel status [name]` reports configured channel details plus live bridge metadata.
+- `channel stop <name>` remains out of scope.
 
 ## Integration Points
 
 - `ConfigStore` persists named channel entries in `~/.ai-devkit/channels.json`.
-- `ChannelBridgeRegistry` persists active foreground bridge metadata in `~/.ai-devkit/channel-bridges.json`.
+- `ChannelService` owns channel naming, duplicate-token validation, live bridge lookup, bridge registration/removal, and active foreground bridge metadata persistence in `~/.ai-devkit/channel-bridges.json`.
 - CLI resolves agents through `@ai-devkit/agent-manager`.
 - Telegram adapter continues to own Bot API long polling and message sending.
 
@@ -76,3 +87,11 @@ Expected touch points:
 - Keep config permissions at `0600`.
 - Scope authorized chat IDs to the channel instance.
 - Do not write transcript content into bridge process metadata.
+
+## Verification Evidence
+
+- `packages/cli`: `npm test -- --runTestsByPath src/__tests__/commands/channel.test.ts src/__tests__/services/channel/channel.service.test.ts` passed with 25 tests.
+- `packages/cli`: `npm test -- --coverage --runTestsByPath src/__tests__/services/channel/channel.service.test.ts --collectCoverageFrom=src/services/channel/channel.service.ts --coverageThreshold='{}'` reported `channel.service.ts` at 92.85% statements, 83.33% branches, 93.33% functions, 92.3% lines.
+- `packages/cli`: `npm run build` passed.
+- `packages/cli`: `npm run lint` passed with 0 errors and 4 pre-existing warnings outside touched files.
+- `packages/channel-connector`: `npm test -- --runTestsByPath src/__tests__/ConfigStore.test.ts` passed with 13 tests.

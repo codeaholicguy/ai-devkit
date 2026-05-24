@@ -15,27 +15,27 @@ description: Test plan for named Telegram channel instances and concurrent bridg
 ## Unit Tests
 
 ### ConfigStore
-- [ ] Save two Telegram entries with different names and tokens.
-- [ ] Preserve separate `authorizedChatId` values for each channel entry.
-- [ ] Remove one channel without changing the other.
-- [ ] Reject invalid channel names if validation is implemented in ConfigStore.
+- [x] Save two Telegram entries with different names and tokens.
+- [x] Preserve separate `authorizedChatId` values for each channel entry.
+- [x] Remove one channel without changing the other.
+- [x] Reject invalid channel names in `ChannelService`; `ConfigStore` remains a persistence-only API.
 
 ### CLI Channel Command
-- [ ] `connect telegram --name personal` stores a `personal` channel entry.
-- [ ] `connect telegram` without `--name` creates or updates the default `telegram` entry.
-- [ ] Duplicate Telegram bot tokens are rejected without printing the token.
-- [ ] `list` shows multiple configured Telegram entries.
-- [ ] `disconnect personal` removes only `personal`.
-- [ ] `start --agent <agent>` works with only the default `telegram` channel.
-- [ ] `start --agent <agent>` fails with a clear ambiguity error when multiple Telegram channels exist.
-- [ ] `start personal --agent <agent>` starts the selected channel.
+- [x] `connect telegram --name personal` stores a `personal` channel entry.
+- [x] `connect telegram` without `--name` creates or updates the default `telegram` entry.
+- [x] Duplicate Telegram bot tokens are rejected without printing the token.
+- [x] `list` shows multiple configured Telegram entries.
+- [x] `disconnect personal` removes only `personal`.
+- [x] `start --agent <agent>` works with one configured Telegram channel.
+- [x] `start --agent <agent>` fails with a clear ambiguity error when multiple Telegram channels exist.
+- [x] `start personal --agent <agent>` starts the selected channel.
 
 ### Channel Bridge Registry
-- [ ] Running bridge metadata includes `channelName`.
-- [ ] Multiple bridge metadata entries can exist concurrently.
-- [ ] Looking up status by channel name returns the correct bridge.
-- [ ] Stale bridge PIDs are pruned before status/start decisions.
-- [ ] Shutdown cleanup removes only the current channel metadata.
+- [x] Running bridge metadata includes `channelName`.
+- [x] Multiple bridge metadata entries can exist concurrently.
+- [x] Looking up status by channel name returns the correct bridge.
+- [x] Stale bridge PIDs are pruned before status/start decisions.
+- [x] Shutdown cleanup removes only the current channel metadata.
 
 ## Integration Tests
 
@@ -65,6 +65,12 @@ description: Test plan for named Telegram channel instances and concurrent bridg
 - Run focused package tests after implementation.
 - Run root test suite if command runtime remains reasonable.
 - Run `npx ai-devkit@latest lint --feature multi-telegram-channels` before phase transitions.
+
+### Latest Evidence
+
+- `packages/cli`: `npm test -- --runTestsByPath src/__tests__/commands/channel.test.ts src/__tests__/services/channel/channel.service.test.ts` passed with 25 tests.
+- `packages/cli`: focused coverage for `src/services/channel/channel.service.ts` reported 92.85% statements, 83.33% branches, 93.33% functions, 92.3% lines. The remaining uncovered lines are the default PID checker; tests inject PID liveness to avoid probing real process IDs.
+- `packages/channel-connector`: `npm test -- --runTestsByPath src/__tests__/ConfigStore.test.ts` passed with 13 tests.
 
 ## Manual Testing
 

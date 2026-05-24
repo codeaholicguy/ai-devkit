@@ -20,7 +20,7 @@ graph TD
     subgraph CLI["ai-devkit channel start <name> --agent <agent>"]
         S1["Bridge process: personal -> agent A"]
         S2["Bridge process: work -> agent B"]
-        PM["ChannelBridgeRegistry"]
+        PM["ChannelService"]
     end
 
     subgraph Connector["@ai-devkit/channel-connector"]
@@ -81,7 +81,7 @@ Compatibility rule: if an existing config has only `channels.telegram`, it is tr
 
 ### Bridge Process Metadata
 
-Add a dedicated CLI bridge registry for channel bridge processes. Do not overload agent session utilities, because they describe historical agent sessions rather than currently running channel bridge processes.
+Store a small runtime file for channel bridge processes. Do not overload agent session utilities, because they describe historical agent sessions rather than currently running channel bridge processes.
 
 ```typescript
 interface ChannelBridgeProcess {
@@ -153,21 +153,23 @@ Implementation should validate names before saving and avoid special-casing chan
 
 CLI should reject duplicate Telegram bot tokens across different channel names before saving a channel. The check compares the target token against every other configured Telegram channel, excluding the channel being updated.
 
-### ChannelBridgeRegistry
+### Channel Service
 
-Create a focused CLI utility for foreground bridge process metadata:
+Create a focused CLI service boundary for channel rules and foreground bridge process metadata. `ChannelService` owns the runtime bridge file directly; no separate bridge registry abstraction is needed until daemon support creates real pressure for one.
 
 ```typescript
-class ChannelBridgeRegistry {
-  list(): Promise<ChannelBridgeProcess[]>;
-  get(channelName: string): Promise<ChannelBridgeProcess | undefined>;
-  save(process: ChannelBridgeProcess): Promise<void>;
-  remove(channelName: string): Promise<void>;
-  pruneStale(): Promise<ChannelBridgeProcess[]>;
+class ChannelService {
+  resolveConnectChannelName(name?: string): string;
+  assertUniqueTelegramToken(config: ChannelConfig, targetName: string, botToken: string): void;
+  resolveStartChannelName(config: ChannelConfig, name?: string): string;
+  getLiveBridges(): Promise<ChannelBridgeProcess[]>;
+  getLiveBridgeByChannel(channelName: string): Promise<ChannelBridgeProcess | undefined>;
+  registerBridge(process: ChannelBridgeProcess): Promise<void>;
+  unregisterBridge(channelName: string): Promise<void>;
 }
 ```
 
-`pruneStale()` checks whether `bridgePid` is still alive and removes stale entries. This lets `channel status` distinguish configured channels from actively running bridge processes without introducing daemon lifecycle management.
+The service checks whether `bridgePid` is still alive and removes stale entries. This lets `channel status` distinguish configured channels from actively running bridge processes without introducing daemon lifecycle management. The bridge file is intentionally platform-neutral: `channelType` can be `telegram`, `slack`, `discord`, or another adapter type in the future, while platform-specific secrets stay in `channels.json`.
 
 ### Runtime Routing
 
@@ -204,8 +206,9 @@ On bridge start, `activeChatId` is initialized from the selected channel entry's
 - Start bridge contexts using the selected channel config.
 - Register or report running bridge process status per channel name.
 
-### `packages/cli/src/util/channel-bridges.ts`
-- Add a dedicated bridge registry for `~/.ai-devkit/channel-bridges.json`.
+### `packages/cli/src/services/channel/`
+- Add `channel.service.ts` for channel naming, duplicate-token validation, bridge lookup, and command-facing channel rules.
+- Store foreground bridge metadata in `~/.ai-devkit/channel-bridges.json` from `ChannelService`.
 - Track active foreground bridge processes by channel name.
 - Prune stale bridge PIDs before reporting status or starting a bridge.
 - Keep existing agent session utilities unchanged.
@@ -224,8 +227,8 @@ On bridge start, `activeChatId` is initialized from the selected channel entry's
 4. **Reject duplicate Telegram tokens**
    - Reason: concurrent long polling for the same Telegram bot token can conflict and route messages unpredictably.
 
-5. **Use a dedicated channel bridge registry**
-   - Reason: `channel status` needs active bridge visibility, but agent session utilities are for agent conversation history and should remain separate.
+5. **Use a channel service boundary**
+   - Reason: channel behavior now includes naming rules, duplicate-token policy, runtime bridge metadata, and future daemon integration. Keeping this behind `ChannelService` avoids putting business rules in Commander actions or generic utilities.
 
 6. **Persist authorized chat ID per channel**
    - Reason: each Telegram bot should keep its own authorization scope across restarts, and one channel's first user must not affect another channel.
@@ -239,13 +242,13 @@ On bridge start, `activeChatId` is initialized from the selected channel entry's
 - Never print bot tokens.
 - Store config file with mode `0600`.
 - Keep authorized chat ID scoped per channel name.
-- Store bridge registry without bot tokens.
+- Store bridge metadata without bot tokens.
 - Do not persist agent transcript content in channel process metadata.
 
 ### Reliability
 - Failure in one bridge process must not stop other bridge processes.
 - Starting an already-running channel name should fail clearly.
-- Stale bridge registry entries should be pruned before status/start decisions.
+- Stale bridge metadata entries should be pruned before status/start decisions.
 - SIGINT/SIGTERM cleanup should unregister only the current channel bridge process.
 - Managed `channel stop <name>` behavior is out of scope until daemon support exists.
 
