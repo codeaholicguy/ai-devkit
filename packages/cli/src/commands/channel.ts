@@ -428,9 +428,6 @@ export function registerChannelCommand(program: Command): void {
             ui.info('Send a message to your Telegram bot to start chatting.');
             ui.info('Press Ctrl+C to stop.\n');
 
-            debug('Calling manager.startAll()');
-            await manager.startAll();
-            debug('ChannelManager started successfully');
             await channelService.registerBridge({
                 channelName,
                 channelType: TELEGRAM_CHANNEL_TYPE,
@@ -439,6 +436,16 @@ export function registerChannelCommand(program: Command): void {
                 bridgePid: process.pid,
                 startedAt: new Date().toISOString(),
             });
+            debug(`Registered channel bridge entry: ${channelName}`);
+
+            try {
+                debug('Calling manager.startAll()');
+                await manager.startAll();
+                debug('ChannelManager started successfully');
+            } catch (error) {
+                await channelService.unregisterBridge(channelName);
+                throw error;
+            }
 
             await new Promise(() => {});
         }));

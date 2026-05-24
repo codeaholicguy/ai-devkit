@@ -19,6 +19,27 @@ const mockSpinner = {
     succeed: jest.fn(),
     fail: jest.fn(),
 };
+const mockChannelManager = {
+    registerAdapter: jest.fn(),
+    startAll: jest.fn<() => Promise<void>>(),
+    stopAll: jest.fn<() => Promise<void>>(),
+};
+const mockAgentAdapter = {
+    getConversation: jest.fn(),
+};
+const mockAgentManager = {
+    registerAdapter: jest.fn(),
+    listAgents: jest.fn<() => Promise<unknown[]>>(),
+    resolveAgent: jest.fn<(agentName: string, agents: unknown[]) => unknown>(),
+    getAdapter: jest.fn<(agentType: string) => unknown>(),
+};
+const mockTerminalFocusManager = {
+    findTerminal: jest.fn<(pid: number) => Promise<unknown>>(),
+};
+const mockTelegramAdapter = {
+    onMessage: jest.fn(),
+    sendMessage: jest.fn<() => Promise<void>>(),
+};
 const mockChannelService = {
     resolveConnectChannelName: jest.fn((name?: string) => name ?? 'telegram'),
     resolveStartChannelName: jest.fn((config: any, name?: string) => name ?? Object.keys(config.channels)[0]),
@@ -30,15 +51,25 @@ const mockChannelService = {
 };
 
 jest.mock('@ai-devkit/channel-connector', () => ({
-    ChannelManager: jest.fn(() => ({
-        registerAdapter: jest.fn(),
-        startAll: jest.fn(),
-        stopAll: jest.fn(),
-    })),
+    ChannelManager: jest.fn(() => mockChannelManager),
     ConfigStore: jest.fn(() => mockConfigStore),
-    TelegramAdapter: jest.fn(),
+    TelegramAdapter: jest.fn(() => mockTelegramAdapter),
     TELEGRAM_CHANNEL_TYPE: 'telegram',
 }), { virtual: true });
+
+jest.mock('@ai-devkit/agent-manager', () => ({
+    AgentStatus: {
+        RUNNING: 'running',
+    },
+    AgentManager: jest.fn(() => mockAgentManager),
+    ClaudeCodeAdapter: jest.fn(),
+    CodexAdapter: jest.fn(),
+    GeminiCliAdapter: jest.fn(),
+    TerminalFocusManager: jest.fn(() => mockTerminalFocusManager),
+    TtyWriter: {
+        send: jest.fn(),
+    },
+}));
 
 jest.mock('inquirer', () => ({
     __esModule: true,
@@ -361,6 +392,17 @@ describe('channel command', () => {
         mockSpinner.start.mockReset();
         mockSpinner.succeed.mockReset();
         mockSpinner.fail.mockReset();
+        mockChannelManager.registerAdapter.mockReset();
+        mockChannelManager.startAll.mockReset();
+        mockChannelManager.stopAll.mockReset();
+        mockAgentManager.registerAdapter.mockReset();
+        mockAgentManager.listAgents.mockReset();
+        mockAgentManager.resolveAgent.mockReset();
+        mockAgentManager.getAdapter.mockReset();
+        mockTerminalFocusManager.findTerminal.mockReset();
+        mockAgentAdapter.getConversation.mockReset();
+        mockTelegramAdapter.onMessage.mockReset();
+        mockTelegramAdapter.sendMessage.mockReset();
         mockPrompt.mockReset();
         jest.clearAllMocks();
     });
@@ -470,5 +512,46 @@ describe('channel command', () => {
 
         expect(ui.error).toHaveBeenCalledWith('No channel configured with name "missing".');
         expect(ui.info).toHaveBeenCalledWith('Available channels: personal, work');
+    });
+
+    it('records the bridge before starting the channel manager', async () => {
+        jest.useFakeTimers();
+        mockConfigStore.getConfig.mockResolvedValue({
+            channels: {
+                personal: personalEntry,
+            },
+        });
+        const agent = makeAgent({ name: 'codex-main', type: 'codex', pid: 4321 });
+        mockAgentManager.listAgents.mockResolvedValue([agent]);
+        mockAgentManager.resolveAgent.mockReturnValue(agent);
+        mockAgentManager.getAdapter.mockReturnValue(mockAgentAdapter);
+        mockTerminalFocusManager.findTerminal.mockResolvedValue({
+            app: 'Terminal',
+            windowIndex: 1,
+            tabIndex: 1,
+        });
+        mockAgentAdapter.getConversation.mockReturnValue([]);
+        mockChannelManager.startAll.mockResolvedValue(undefined);
+
+        const program = new Command();
+        registerChannelCommand(program);
+        void program.parseAsync(['node', 'test', 'channel', 'start', 'personal', '--agent', 'codex-main']);
+
+        for (let i = 0; i < 10 && mockChannelManager.startAll.mock.calls.length === 0; i += 1) {
+            await Promise.resolve();
+        }
+
+        expect(mockChannelService.registerBridge).toHaveBeenCalledWith(expect.objectContaining({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 4321,
+            bridgePid: process.pid,
+        }));
+        expect(mockChannelService.registerBridge.mock.invocationCallOrder[0])
+            .toBeLessThan(mockChannelManager.startAll.mock.invocationCallOrder[0]);
+
+        jest.clearAllTimers();
+        jest.useRealTimers();
     });
 });
