@@ -25,6 +25,7 @@ import { ui } from '../util/terminal-ui';
 import { withErrorHandler } from '../util/errors';
 import { getErrorMessage } from '../util/text';
 import { createLogger, enableDebug } from '../util/debug';
+import { ChannelService } from '../services/channel/channel.service';
 
 const debug = createLogger('channel');
 const AGENT_POLL_INTERVAL_MS = 2000;
@@ -73,12 +74,14 @@ function setupInputHandler(
     telegram: TelegramAdapter,
     terminalLocation: TerminalLocation,
     chatIdRef: { value: string | null },
+    onAuthorize?: (chatId: string) => Promise<void>,
 ): void {
     telegram.onMessage(async (msg) => {
         debug(`Received message from chat ID: ${msg.chatId}, text length: ${msg.text?.length ?? 0}`);
 
         if (!chatIdRef.value) {
             chatIdRef.value = msg.chatId;
+            await onAuthorize?.(msg.chatId);
             ui.info(`Authorized Telegram user (chat ID: ${msg.chatId})`);
         }
 
@@ -178,7 +181,12 @@ export function startOutputPolling(
     }, AGENT_POLL_INTERVAL_MS);
 }
 
-function setupGracefulShutdown(manager: ChannelManager, pollInterval: NodeJS.Timeout): void {
+function setupGracefulShutdown(
+    manager: ChannelManager,
+    pollInterval: NodeJS.Timeout,
+    channelService: ChannelService,
+    channelName: string,
+): void {
     const shutdown = async () => {
         debug('Shutdown signal received');
         ui.info('\nShutting down...');
@@ -186,6 +194,8 @@ function setupGracefulShutdown(manager: ChannelManager, pollInterval: NodeJS.Tim
         debug('Output polling stopped');
         await manager.stopAll();
         debug('ChannelManager stopped');
+        await channelService.unregisterBridge(channelName);
+        debug(`Removed channel bridge entry: ${channelName}`);
         ui.success('Channel bridge stopped.');
         process.exit(0);
     };
@@ -195,6 +205,7 @@ function setupGracefulShutdown(manager: ChannelManager, pollInterval: NodeJS.Tim
 }
 
 export function registerChannelCommand(program: Command): void {
+    const channelService = new ChannelService();
     const channelCommand = program
         .command('channel')
         .description('Connect agents with messaging channels');
@@ -202,23 +213,16 @@ export function registerChannelCommand(program: Command): void {
     channelCommand
         .command('connect <type>')
         .description('Connect a messaging channel (e.g., telegram)')
-        .action(withErrorHandler('connect channel', async (type: string) => {
+        .option('--name <name>', 'Channel instance name')
+        .action(withErrorHandler('connect channel', async (type: string, options: { name?: string }) => {
             if (type !== TELEGRAM_CHANNEL_TYPE) {
                 ui.error(`Unsupported channel type: ${type}. Supported: ${TELEGRAM_CHANNEL_TYPE}`);
                 return;
             }
 
+            const channelName = channelService.resolveConnectChannelName(options.name);
             const configStore = new ConfigStore();
-            const existing = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
-            if (existing) {
-                const { overwrite } = await inquirer.prompt([{
-                    type: 'confirm',
-                    name: 'overwrite',
-                    message: 'Telegram is already configured. Overwrite?',
-                    default: false,
-                }]);
-                if (!overwrite) return;
-            }
+            const existing = await configStore.getChannel(channelName);
 
             ui.info('To connect Telegram, you need a bot token from @BotFather.');
             ui.info('Open Telegram, search for @BotFather, and create a new bot.\n');
@@ -248,20 +252,27 @@ export function registerChannelCommand(program: Command): void {
                 return;
             }
 
+            const trimmedBotToken = botToken.trim();
+            const config = await configStore.getConfig();
+            channelService.assertUniqueTelegramToken(config, channelName, trimmedBotToken);
+
             const entry: ChannelEntry = {
                 type: TELEGRAM_CHANNEL_TYPE,
                 enabled: true,
-                createdAt: new Date().toISOString(),
+                createdAt: existing?.createdAt ?? new Date().toISOString(),
                 config: {
-                    botToken: botToken.trim(),
+                    botToken: trimmedBotToken,
                     botUsername,
+                    authorizedChatId: (existing?.config as TelegramConfig | undefined)?.botToken === trimmedBotToken
+                        ? (existing?.config as TelegramConfig).authorizedChatId
+                        : undefined,
                 } as TelegramConfig,
             };
 
-            await configStore.saveChannel(TELEGRAM_CHANNEL_TYPE, entry);
-            ui.success('Telegram channel configured successfully!');
+            await configStore.saveChannel(channelName, entry);
+            ui.success(`Telegram channel "${channelName}" configured successfully!`);
             ui.info(`Bot: @${botUsername}`);
-            ui.info('Run "ai-devkit channel start --agent <name>" to start the bridge.');
+            ui.info(`Run "ai-devkit channel start ${channelName} --agent <name>" to start the bridge.`);
         }));
 
     channelCommand
@@ -271,6 +282,8 @@ export function registerChannelCommand(program: Command): void {
             const configStore = new ConfigStore();
             const config = await configStore.getConfig();
             const channels = Object.entries(config.channels);
+            const liveBridges = await channelService.getLiveBridges();
+            const liveByChannel = new Map(liveBridges.map(bridge => [bridge.channelName, bridge]));
 
             if (channels.length === 0) {
                 ui.info('No channels configured. Run "ai-devkit channel connect telegram" to set up.');
@@ -286,64 +299,77 @@ export function registerChannelCommand(program: Command): void {
                     entry.type,
                     entry.enabled ? chalk.green('enabled') : chalk.dim('disabled'),
                     telegramConfig.botUsername ? `@${telegramConfig.botUsername}` : '-',
+                    telegramConfig.authorizedChatId ? 'yes' : 'no',
+                    liveByChannel.has(name) ? chalk.green('running') : chalk.dim('stopped'),
                     entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '-',
                 ];
             });
 
             ui.table({
-                headers: ['Name', 'Type', 'Status', 'Bot', 'Created'],
+                headers: ['Name', 'Type', 'Status', 'Bot', 'Authorized', 'Bridge', 'Created'],
                 rows,
             });
         }));
 
     channelCommand
-        .command('disconnect <type>')
+        .command('disconnect <name>')
         .description('Remove a channel configuration')
-        .action(withErrorHandler('disconnect channel', async (type: string) => {
+        .action(withErrorHandler('disconnect channel', async (name: string) => {
+            const channelName = channelService.resolveConnectChannelName(name);
             const configStore = new ConfigStore();
-            const existing = await configStore.getChannel(type);
+            const existing = await configStore.getChannel(channelName);
 
             if (!existing) {
-                ui.info(`No ${type} channel configured.`);
+                ui.info(`No channel configured with name "${channelName}".`);
                 return;
             }
 
             const { confirm } = await inquirer.prompt([{
                 type: 'confirm',
                 name: 'confirm',
-                message: `Remove ${type} channel configuration?`,
+                message: `Remove "${channelName}" channel configuration?`,
                 default: false,
             }]);
 
             if (!confirm) return;
 
-            await configStore.removeChannel(type);
-            ui.success(`${type} channel disconnected.`);
+            await configStore.removeChannel(channelName);
+            ui.success(`${channelName} channel disconnected.`);
         }));
 
     channelCommand
-        .command('start')
+        .command('start [name]')
         .description('Start the channel bridge to a running agent')
         .requiredOption('--agent <name>', 'Name of the agent to bridge')
         .option('--debug', 'Enable debug logging')
-        .action(withErrorHandler('start channel bridge', async (options) => {
+        .action(withErrorHandler('start channel bridge', async (name: string | undefined, options) => {
             if (options.debug) {
                 enableDebug();
             }
 
-            debug(`Starting channel bridge: agent=${options.agent}`);
-
             const configStore = new ConfigStore();
             debug('Loading channel configuration from ConfigStore');
-            const channelEntry = await configStore.getChannel(TELEGRAM_CHANNEL_TYPE);
+            const config = await configStore.getConfig();
+            const channelName = channelService.resolveStartChannelName(config, name);
+            debug(`Starting channel bridge: channel=${channelName}, agent=${options.agent}`);
+            const channelEntry = config.channels[channelName];
+            const runningBridge = await channelService.getLiveBridgeByChannel(channelName);
 
             if (!channelEntry) {
-                ui.error('No Telegram channel configured. Run "ai-devkit channel connect telegram" first.');
+                ui.error(`No channel configured with name "${channelName}".`);
+                const availableChannels = Object.keys(config.channels);
+                if (availableChannels.length > 0) {
+                    ui.info(`Available channels: ${availableChannels.join(', ')}`);
+                }
+                return;
+            }
+            if (runningBridge) {
+                ui.error(`Channel "${channelName}" bridge is already running (PID: ${runningBridge.bridgePid}).`);
                 return;
             }
 
             const telegramConfig = channelEntry.config as TelegramConfig;
-            debug(`Telegram channel found: bot=@${telegramConfig.botUsername}`);
+            debug(`Telegram channel "${channelName}" found: bot=@${telegramConfig.botUsername}`);
 
             debug(`Resolving agent: "${options.agent}"`);
             const agentManager = createAgentManager();
@@ -373,47 +399,84 @@ export function registerChannelCommand(program: Command): void {
             debug(`Terminal found: ${JSON.stringify(terminalLocation)}`);
 
             const telegram = new TelegramAdapter({ botToken: telegramConfig.botToken });
-            const chatIdRef = { value: null as string | null };
+            const chatIdRef = {
+                value: telegramConfig.authorizedChatId !== undefined
+                    ? String(telegramConfig.authorizedChatId)
+                    : null,
+            };
 
-            setupInputHandler(telegram, terminalLocation, chatIdRef);
+            setupInputHandler(telegram, terminalLocation, chatIdRef, async (chatId) => {
+                const latest = await configStore.getChannel(channelName);
+                if (!latest) return;
+                const latestTelegramConfig = latest.config as TelegramConfig;
+                await configStore.saveChannel(channelName, {
+                    ...latest,
+                    config: {
+                        ...latestTelegramConfig,
+                        authorizedChatId: Number(chatId),
+                    },
+                });
+            });
             debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
             const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
 
             const manager = new ChannelManager();
             manager.registerAdapter(telegram);
-            setupGracefulShutdown(manager, pollInterval);
+            setupGracefulShutdown(manager, pollInterval, channelService, channelName);
 
-            ui.success(`Bridge started: Telegram @${telegramConfig.botUsername} <-> Agent "${agent.name}" (PID: ${agent.pid})`);
+            ui.success(`Bridge started: ${channelName} (@${telegramConfig.botUsername}) <-> Agent "${agent.name}" (PID: ${agent.pid})`);
             ui.info('Send a message to your Telegram bot to start chatting.');
             ui.info('Press Ctrl+C to stop.\n');
 
-            debug('Calling manager.startAll()');
-            await manager.startAll();
-            debug('ChannelManager started successfully');
+            await channelService.registerBridge({
+                channelName,
+                channelType: TELEGRAM_CHANNEL_TYPE,
+                agentName: agent.name,
+                agentPid: agent.pid,
+                bridgePid: process.pid,
+                startedAt: new Date().toISOString(),
+            });
+            debug(`Registered channel bridge entry: ${channelName}`);
+
+            try {
+                debug('Calling manager.startAll()');
+                await manager.startAll();
+                debug('ChannelManager started successfully');
+            } catch (error) {
+                await channelService.unregisterBridge(channelName);
+                throw error;
+            }
 
             await new Promise(() => {});
         }));
 
     channelCommand
-        .command('status')
+        .command('status [name]')
         .description('Show channel bridge status')
-        .action(async () => {
+        .action(withErrorHandler('channel status', async (name: string | undefined) => {
             const configStore = new ConfigStore();
             const config = await configStore.getConfig();
-            const channels = Object.entries(config.channels);
+            const channelFilter = name ? channelService.resolveConnectChannelName(name) : undefined;
+            const channels = Object.entries(config.channels)
+                .filter(([channelName]) => !channelFilter || channelName === channelFilter);
+            const liveBridges = await channelService.getLiveBridges();
+            const liveByChannel = new Map(liveBridges.map(bridge => [bridge.channelName, bridge]));
 
             if (channels.length === 0) {
-                ui.info('No channels configured.');
+                ui.info(channelFilter ? `No channel configured with name "${channelFilter}".` : 'No channels configured.');
                 return;
             }
 
             for (const [name, entry] of channels) {
                 const telegramConfig = entry.config as TelegramConfig;
+                const bridge = liveByChannel.get(name);
                 ui.text(`${chalk.bold(name)} (${entry.type})`);
                 ui.text(`  Enabled: ${entry.enabled ? chalk.green('yes') : chalk.red('no')}`);
                 ui.text(`  Bot: @${telegramConfig.botUsername || 'unknown'}`);
+                ui.text(`  Authorized: ${telegramConfig.authorizedChatId ? 'yes' : 'no'}`);
+                ui.text(`  Bridge: ${bridge ? chalk.green(`running (PID: ${bridge.bridgePid}, agent: ${bridge.agentName})`) : chalk.dim('stopped')}`);
                 ui.text(`  Configured: ${entry.createdAt || 'unknown'}`);
                 ui.breakline();
             }
-        });
+        }));
 }
