@@ -94,6 +94,37 @@ describe('ConfigStore', () => {
             const config = await store.getConfig();
             expect(Object.keys(config.channels)).toEqual(['telegram', 'slack']);
         });
+
+        it('should preserve separate Telegram configs by channel name', async () => {
+            await store.saveChannel('personal', {
+                ...sampleEntry,
+                config: {
+                    botToken: 'personal-token',
+                    botUsername: 'personal_bot',
+                    authorizedChatId: 111,
+                },
+            });
+            await store.saveChannel('work', {
+                ...sampleEntry,
+                config: {
+                    botToken: 'work-token',
+                    botUsername: 'work_bot',
+                    authorizedChatId: 222,
+                },
+            });
+
+            const config = await store.getConfig();
+            expect(config.channels.personal.config).toEqual({
+                botToken: 'personal-token',
+                botUsername: 'personal_bot',
+                authorizedChatId: 111,
+            });
+            expect(config.channels.work.config).toEqual({
+                botToken: 'work-token',
+                botUsername: 'work_bot',
+                authorizedChatId: 222,
+            });
+        });
     });
 
     describe('removeChannel', () => {
