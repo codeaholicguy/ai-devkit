@@ -48,6 +48,8 @@ const mockChannelService = {
     getLiveBridgeByChannel: jest.fn<(channelName: string) => Promise<unknown>>(),
     registerBridge: jest.fn<(entry: unknown) => Promise<void>>(),
     unregisterBridge: jest.fn<(channelName: string) => Promise<void>>(),
+    startDaemonBridge: jest.fn<(entry: unknown) => Promise<unknown>>(),
+    stopBridge: jest.fn<(channelName?: string) => Promise<unknown>>(),
 };
 
 jest.mock('@ai-devkit/channel-connector', () => ({
@@ -69,7 +71,7 @@ jest.mock('@ai-devkit/agent-manager', () => ({
     TtyWriter: {
         send: jest.fn(),
     },
-}));
+}), { virtual: true });
 
 jest.mock('inquirer', () => ({
     __esModule: true,
@@ -107,8 +109,11 @@ jest.mock('../../services/channel/channel.service', () => ({
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const {
     registerChannelCommand,
-    startOutputPolling,
 } = require('../../commands/channel');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const {
+    startOutputPolling,
+} = require('../../services/channel/channel-runner');
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -164,10 +169,31 @@ describe('startOutputPolling', () => {
         mockChannelService.getLiveBridgeByChannel.mockClear();
         mockChannelService.registerBridge.mockClear();
         mockChannelService.unregisterBridge.mockClear();
+        mockChannelService.startDaemonBridge.mockClear();
+        mockChannelService.stopBridge.mockClear();
         mockChannelService.resolveConnectChannelName.mockImplementation((name?: string) => name ?? 'telegram');
         mockChannelService.resolveStartChannelName.mockImplementation((config: any, name?: string) => name ?? Object.keys(config.channels)[0]);
         mockChannelService.getLiveBridges.mockResolvedValue([]);
         mockChannelService.getLiveBridgeByChannel.mockResolvedValue(undefined);
+        mockChannelService.startDaemonBridge.mockResolvedValue({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 0,
+            bridgePid: 9876,
+            startedAt: '2026-05-24T00:00:00.000Z',
+        });
+        mockChannelService.stopBridge.mockResolvedValue({
+            stopped: true,
+            bridge: {
+                channelName: 'personal',
+                channelType: 'telegram',
+                agentName: 'codex-main',
+                agentPid: 4321,
+                bridgePid: 9876,
+                startedAt: '2026-05-24T00:00:00.000Z',
+            },
+        });
         mockGetMe.mockResolvedValue({ username: 'test_bot' });
         jest.clearAllMocks();
     });
@@ -383,10 +409,32 @@ describe('channel command', () => {
         mockChannelService.getLiveBridgeByChannel.mockClear();
         mockChannelService.registerBridge.mockClear();
         mockChannelService.unregisterBridge.mockClear();
+        mockChannelService.startDaemonBridge.mockClear();
+        mockChannelService.stopBridge.mockClear();
         mockChannelService.resolveConnectChannelName.mockImplementation((name?: string) => name ?? 'telegram');
         mockChannelService.resolveStartChannelName.mockImplementation((config: any, name?: string) => name ?? Object.keys(config.channels)[0]);
         mockChannelService.getLiveBridges.mockResolvedValue([]);
         mockChannelService.getLiveBridgeByChannel.mockResolvedValue(undefined);
+        mockChannelService.startDaemonBridge.mockResolvedValue({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 0,
+            bridgePid: 9876,
+            logPath: '/tmp/channel-logs/personal.log',
+            startedAt: '2026-05-24T00:00:00.000Z',
+        });
+        mockChannelService.stopBridge.mockResolvedValue({
+            stopped: true,
+            bridge: {
+                channelName: 'personal',
+                channelType: 'telegram',
+                agentName: 'codex-main',
+                agentPid: 4321,
+                bridgePid: 9876,
+                startedAt: '2026-05-24T00:00:00.000Z',
+            },
+        });
         mockGetMe.mockReset();
         mockGetMe.mockResolvedValue({ username: 'test_bot' });
         mockSpinner.start.mockReset();
@@ -521,6 +569,7 @@ describe('channel command', () => {
                 personal: personalEntry,
             },
         });
+        mockConfigStore.getChannel.mockResolvedValue(personalEntry);
         const agent = makeAgent({ name: 'codex-main', type: 'codex', pid: 4321 });
         mockAgentManager.listAgents.mockResolvedValue([agent]);
         mockAgentManager.resolveAgent.mockReturnValue(agent);
@@ -553,5 +602,75 @@ describe('channel command', () => {
 
         jest.clearAllTimers();
         jest.useRealTimers();
+    });
+
+    it('starts a daemon bridge without resolving the agent in the parent process', async () => {
+        mockConfigStore.getConfig.mockResolvedValue({
+            channels: {
+                personal: personalEntry,
+            },
+        });
+
+        const program = new Command();
+        registerChannelCommand(program);
+        await program.parseAsync(['node', 'test', 'channel', 'start', 'personal', '--agent', 'codex-main', '--daemon']);
+
+        expect(mockChannelService.startDaemonBridge).toHaveBeenCalledWith(expect.objectContaining({
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            command: process.execPath,
+            args: expect.arrayContaining(['--channel', 'personal', '--agent', 'codex-main']),
+            cwd: process.cwd(),
+        }));
+        const daemonInput = mockChannelService.startDaemonBridge.mock.calls[0][0] as { args: string[] };
+        expect(daemonInput.args[0]).toEqual(expect.stringContaining('ts-node'));
+        expect(daemonInput.args[1]).toEqual(expect.stringContaining('channel-daemon.ts'));
+        expect(mockAgentManager.listAgents).not.toHaveBeenCalled();
+        expect(ui.success).toHaveBeenCalledWith('Channel bridge daemon started for "personal" (PID: 9876).');
+        expect(ui.info).toHaveBeenCalledWith('Logs: /tmp/channel-logs/personal.log');
+    });
+
+    it('shows the daemon log path in channel status', async () => {
+        mockConfigStore.getConfig.mockResolvedValue({
+            channels: {
+                personal: personalEntry,
+            },
+        });
+        mockChannelService.getLiveBridges.mockResolvedValue([{
+            channelName: 'personal',
+            channelType: 'telegram',
+            agentName: 'codex-main',
+            agentPid: 4321,
+            bridgePid: 9876,
+            logPath: '/tmp/channel-logs/personal.log',
+            startedAt: '2026-05-24T00:00:00.000Z',
+        }]);
+
+        const program = new Command();
+        registerChannelCommand(program);
+        await program.parseAsync(['node', 'test', 'channel', 'status', 'personal']);
+
+        expect(ui.text).toHaveBeenCalledWith('  Logs: /tmp/channel-logs/personal.log');
+    });
+
+    it('stops a running channel bridge', async () => {
+        const program = new Command();
+        registerChannelCommand(program);
+        await program.parseAsync(['node', 'test', 'channel', 'stop', 'personal']);
+
+        expect(mockChannelService.stopBridge).toHaveBeenCalledWith('personal');
+        expect(ui.success).toHaveBeenCalledWith('Channel bridge stopped: personal (PID: 9876).');
+    });
+
+    it('reports when no channel bridge is running during stop', async () => {
+        mockChannelService.stopBridge.mockResolvedValue({ stopped: false });
+
+        const program = new Command();
+        registerChannelCommand(program);
+        await program.parseAsync(['node', 'test', 'channel', 'stop']);
+
+        expect(mockChannelService.stopBridge).toHaveBeenCalledWith(undefined);
+        expect(ui.info).toHaveBeenCalledWith('No running channel bridge found.');
     });
 });
