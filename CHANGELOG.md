@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `ai-devkit agent session detail` now shows detailed historical session information and conversation history, with `--json`, `--type`, `--full`, `--tail`, and `--verbose` options.
+- `ai-devkit channel connect telegram --name <name>` now supports multiple named Telegram channel configurations, including duplicate-token protection and persisted authorized chat IDs.
+- `ai-devkit channel start <name> --agent <name> --daemon` can run channel bridges in the background, with bridge process tracking, log paths, status reporting, and `ai-devkit channel stop [name]` support.
+
+### Changed
+
+- `ai-devkit channel list` and `ai-devkit channel status` now show authorization and live bridge state for configured channels.
+
 ## [0.32.0] - 2026-05-22
 
 ### Added
