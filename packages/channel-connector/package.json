@@ -3,7 +3,7 @@
   "nx": {
     "name": "channel-connector"
   },
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Generic messaging bridge for connecting to external communication platforms",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

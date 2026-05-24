@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,9 +27,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@ai-devkit/agent-manager": "0.13.0",
-    "@ai-devkit/channel-connector": "0.5.0",
-    "@ai-devkit/memory": "0.10.0",
+    "@ai-devkit/agent-manager": "0.14.0",
+    "@ai-devkit/channel-connector": "0.6.0",
+    "@ai-devkit/memory": "0.11.0",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "debug": "^4.4.3",
