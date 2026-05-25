@@ -281,6 +281,94 @@ This is the prompt content.`;
     });
   });
 
+  describe('copyFeatureDocTemplates', () => {
+    it('copies configured phase templates to date-prefixed feature docs after preflighting targets', async () => {
+      (mockFs.pathExists as any).mockReset();
+      (mockFs.pathExists as any).mockImplementation(async (targetPath: string) =>
+        targetPath.includes(path.join('templates', 'phases'))
+      );
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.copy as any).mockResolvedValue(undefined);
+
+      const result = await templateManager.copyFeatureDocTemplates('docs-init-feature-command', {
+        date: '2026-05-25',
+        phases: ['requirements', 'deployment']
+      });
+
+      expect(mockFs.pathExists).toHaveBeenCalledTimes(4);
+      expect(mockFs.copy).toHaveBeenCalledTimes(2);
+      expect(result).toEqual([
+        {
+          phase: 'requirements',
+          path: path.join('/test/target', 'docs', 'ai', 'requirements', '2026-05-25-feature-docs-init-feature-command.md'),
+          relativePath: path.join('docs', 'ai', 'requirements', '2026-05-25-feature-docs-init-feature-command.md')
+        },
+        {
+          phase: 'deployment',
+          path: path.join('/test/target', 'docs', 'ai', 'deployment', '2026-05-25-feature-docs-init-feature-command.md'),
+          relativePath: path.join('docs', 'ai', 'deployment', '2026-05-25-feature-docs-init-feature-command.md')
+        }
+      ]);
+      expect(mockFs.copy).toHaveBeenCalledWith(
+        path.join(templateManager['templatesDir'], 'phases', 'requirements.md'),
+        path.join('/test/target', 'docs', 'ai', 'requirements', '2026-05-25-feature-docs-init-feature-command.md')
+      );
+    });
+
+    it('uses a custom docsDir when creating feature docs', async () => {
+      const customManager = new TemplateManager({ targetDir: '/test/target', docsDir: '.ai-docs' });
+      (mockFs.pathExists as any).mockReset();
+      (mockFs.pathExists as any).mockImplementation(async (targetPath: string) =>
+        targetPath.includes(path.join('templates', 'phases'))
+      );
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.copy as any).mockResolvedValue(undefined);
+
+      const result = await customManager.copyFeatureDocTemplates('sample', {
+        date: '2026-05-25',
+        phases: ['requirements']
+      });
+
+      expect(result[0].relativePath).toBe(path.join('.ai-docs', 'requirements', '2026-05-25-feature-sample.md'));
+      expect(mockFs.ensureDir).toHaveBeenCalledWith(path.join('/test/target', '.ai-docs', 'requirements'));
+    });
+
+    it('fails before copying any files when target conflicts exist', async () => {
+      (mockFs.pathExists as any).mockReset();
+      (mockFs.copy as any).mockReset();
+      (mockFs.pathExists as any).mockImplementation(async (targetPath: string) =>
+        targetPath.includes(path.join('templates', 'phases')) ||
+        targetPath.endsWith(path.join('requirements', '2026-05-25-feature-sample.md'))
+      );
+
+      await expect(
+        templateManager.copyFeatureDocTemplates('sample', {
+          date: '2026-05-25',
+          phases: ['requirements', 'design']
+        })
+      ).rejects.toThrow('Feature docs already exist: docs/ai/requirements/2026-05-25-feature-sample.md');
+
+      expect(mockFs.copy).not.toHaveBeenCalled();
+    });
+
+    it('fails before copying any files when a configured phase template is missing', async () => {
+      (mockFs.pathExists as any).mockReset();
+      (mockFs.copy as any).mockReset();
+      (mockFs.pathExists as any).mockImplementation(async (targetPath: string) =>
+        !targetPath.endsWith(path.join('templates', 'phases', 'deployment.md'))
+      );
+
+      await expect(
+        templateManager.copyFeatureDocTemplates('sample', {
+          date: '2026-05-25',
+          phases: ['requirements', 'deployment']
+        })
+      ).rejects.toThrow('Phase templates not found: phases/deployment.md');
+
+      expect(mockFs.copy).not.toHaveBeenCalled();
+    });
+  });
+
   describe('fileExists', () => {
     it('should return true when phase file exists', async () => {
       const phase: Phase = 'design';

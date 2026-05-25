@@ -40,5 +40,6 @@ export interface FeatureTarget {
 export interface LintDependencies {
   cwd: () => string;
   existsSync: (targetPath: string) => boolean;
+  readdirSync?: (targetPath: string) => string[];
   execFileSync: GitExecFileSync;
 }

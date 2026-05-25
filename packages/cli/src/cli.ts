@@ -10,6 +10,7 @@ import { registerMemoryCommand } from './commands/memory';
 import { registerSkillCommand } from './commands/skill';
 import { registerAgentCommand } from './commands/agent';
 import { registerChannelCommand } from './commands/channel';
+import { registerDocsCommand } from './commands/docs';
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { version } = require('../package.json') as { version: string };
 
@@ -62,5 +63,6 @@ registerMemoryCommand(program);
 registerSkillCommand(program);
 registerAgentCommand(program);
 registerChannelCommand(program);
+registerDocsCommand(program);
 
 program.parse();

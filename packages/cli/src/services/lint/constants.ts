@@ -1,4 +1,6 @@
-export const LIFECYCLE_PHASES = ['requirements', 'design', 'planning', 'implementation', 'testing'] as const;
+import { DEFAULT_PHASES } from '../../types';
+
+export const LIFECYCLE_PHASES = DEFAULT_PHASES;
 export const FEATURE_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const LINT_LEVEL = {

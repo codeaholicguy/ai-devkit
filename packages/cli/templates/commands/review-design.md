@@ -2,7 +2,7 @@
 description: AI DevKit · Review feature design for completeness.
 ---
 
-Review the design documentation in `{{docsDir}}/design/feature-{name}.md` (and the project-level README if relevant).
+Review design using the latest matching `{{docsDir}}/design/YYYY-MM-DD-feature-{name}.md`. If none exists, use `{{docsDir}}/design/feature-{name}.md`. Check the project-level README if relevant.
 
 1. **Use Memory for Context** — Search memory for prior architecture constraints/patterns: `npx ai-devkit@latest memory search --query "<feature design architecture>"`.
 2. Summarize:

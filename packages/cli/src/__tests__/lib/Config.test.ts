@@ -302,6 +302,42 @@ describe('ConfigManager', () => {
     });
   });
 
+  describe('getPhases', () => {
+    it('should return configured phases when config exists', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: [],
+        phases: ['requirements', 'deployment'],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.getPhases();
+
+      expect(result).toEqual(['requirements', 'deployment']);
+    });
+
+    it('should return default lifecycle phases when config has no phases', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.getPhases();
+
+      expect(result).toEqual(['requirements', 'design', 'planning', 'implementation', 'testing']);
+    });
+  });
+
   describe('setDocsDir', () => {
     it('should update docsDir in config', async () => {
       const config: DevKitConfig = {

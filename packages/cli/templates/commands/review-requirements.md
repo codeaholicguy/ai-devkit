@@ -2,7 +2,7 @@
 description: AI DevKit · Review feature requirements for completeness.
 ---
 
-Review `{{docsDir}}/requirements/feature-{name}.md` and the project-level template `{{docsDir}}/requirements/README.md` to ensure structure and content alignment.
+Review requirements using the latest matching `{{docsDir}}/requirements/YYYY-MM-DD-feature-{name}.md`. If none exists, use `{{docsDir}}/requirements/feature-{name}.md`. Check `{{docsDir}}/requirements/README.md` for structure.
 
 1. **Use Memory for Context** — Search memory for related requirements/domain decisions before starting: `npx ai-devkit@latest memory search --query "<feature requirements>"`.
 2. Summarize:

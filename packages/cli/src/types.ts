@@ -80,6 +80,14 @@ export const AVAILABLE_PHASES: Phase[] = [
   'monitoring'
 ];
 
+export const DEFAULT_PHASES: Phase[] = [
+  'requirements',
+  'design',
+  'planning',
+  'implementation',
+  'testing'
+];
+
 export const PHASE_DISPLAY_NAMES: Record<Phase, string> = {
   requirements: 'Requirements & Problem Understanding',
   design: 'System Design & Architecture',

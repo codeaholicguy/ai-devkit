@@ -1,6 +1,6 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR } from '../types';
+import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types';
 import { filterStringRecord } from '../util/config';
 import { ConfigNotFoundError } from '../util/errors';
 import packageJson from '../../package.json';
@@ -85,6 +85,12 @@ export class ConfigManager {
   async getDocsDir(): Promise<string> {
     const config = await this.read();
     return config?.paths?.docs || DEFAULT_DOCS_DIR;
+  }
+
+  async getPhases(): Promise<Phase[]> {
+    const config = await this.read();
+    const phases = Array.isArray(config?.phases) ? config.phases : [];
+    return phases.length > 0 ? phases : [...DEFAULT_PHASES];
   }
 
   async getMemoryDbPath(): Promise<string | undefined> {

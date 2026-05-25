@@ -6,7 +6,8 @@ import { LintCheckResult, LintOptions, LintReport, runLintChecks } from '../serv
 export async function lintCommand(options: LintOptions): Promise<void> {
   const configManager = new ConfigManager();
   const docsDir = await configManager.getDocsDir();
-  const report = runLintChecks(options, docsDir);
+  const phases = await configManager.getPhases();
+  const report = runLintChecks(options, docsDir, phases);
   renderLintReport(report, options);
   process.exitCode = report.exitCode;
 }

@@ -11,6 +11,18 @@ export interface TemplateManagerOptions {
   docsDir?: string;
 }
 
+export interface FeatureDocTemplateOptions {
+  date: string;
+  phases: Phase[];
+  docsDir?: string;
+}
+
+export interface FeatureDoc {
+  phase: Phase;
+  path: string;
+  relativePath: string;
+}
+
 export class TemplateManager {
   private templatesDir: string;
   private targetDir: string;
@@ -31,6 +43,60 @@ export class TemplateManager {
     await fs.copy(sourceFile, targetFile);
 
     return targetFile;
+  }
+
+  async copyFeatureDocTemplates(
+    featureName: string,
+    options: FeatureDocTemplateOptions
+  ): Promise<FeatureDoc[]> {
+    const docsDir = options.docsDir ?? this.docsDir;
+    const docs = options.phases.map((phase) => {
+      const fileName = `${options.date}-feature-${featureName}.md`;
+      const relativePath = path.join(docsDir, phase, fileName);
+
+      return {
+        phase,
+        sourceFile: path.join(this.templatesDir, "phases", `${phase}.md`),
+        targetDir: path.join(this.targetDir, docsDir, phase),
+        targetFile: path.join(this.targetDir, relativePath),
+        relativePath
+      };
+    });
+
+    const missingTemplates: string[] = [];
+    for (const doc of docs) {
+      if (!await fs.pathExists(doc.sourceFile)) {
+        missingTemplates.push(path.join("phases", `${doc.phase}.md`));
+      }
+    }
+
+    if (missingTemplates.length > 0) {
+      throw new Error(`Phase templates not found: ${missingTemplates.join(', ')}`);
+    }
+
+    const existingFiles: string[] = [];
+    for (const doc of docs) {
+      if (await fs.pathExists(doc.targetFile)) {
+        existingFiles.push(doc.relativePath);
+      }
+    }
+
+    if (existingFiles.length > 0) {
+      throw new Error(`Feature docs already exist: ${existingFiles.join(', ')}`);
+    }
+
+    const created: FeatureDoc[] = [];
+    for (const doc of docs) {
+      await fs.ensureDir(doc.targetDir);
+      await fs.copy(doc.sourceFile, doc.targetFile);
+      created.push({
+        phase: doc.phase,
+        path: doc.targetFile,
+        relativePath: doc.relativePath
+      });
+    }
+
+    return created;
   }
 
   async fileExists(phase: Phase): Promise<boolean> {

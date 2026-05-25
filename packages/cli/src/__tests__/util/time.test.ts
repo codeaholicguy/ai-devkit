@@ -1,7 +1,14 @@
 import { describe, expect, it } from '@jest/globals';
-import { parseMilliseconds } from '../../util/time';
+import { formatLocalDate, parseMilliseconds } from '../../util/time';
 
 describe('time util', () => {
+    describe('formatLocalDate', () => {
+        it('formats local dates as YYYY-MM-DD with zero-padded month and day', () => {
+            expect(formatLocalDate(new Date(2026, 0, 5, 23, 30))).toBe('2026-01-05');
+            expect(formatLocalDate(new Date(2026, 10, 15, 0, 30))).toBe('2026-11-15');
+        });
+    });
+
     describe('parseMilliseconds', () => {
         it('returns the default when the value is omitted', () => {
             expect(parseMilliseconds(undefined, 600000)).toEqual({ milliseconds: 600000 });

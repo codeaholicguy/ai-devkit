@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
-import { DEFAULT_DOCS_DIR } from '../../types';
+import { DEFAULT_DOCS_DIR, DEFAULT_PHASES, Phase } from '../../types';
 import { LINT_LEVEL } from './constants';
 import { runBaseDocsRules } from './rules/base-docs.rule';
 import { runFeatureDocsRules } from './rules/feature-docs.rule';
@@ -11,6 +11,7 @@ import { FeatureTarget, LintCheckResult, LintDependencies, LintOptions, LintRepo
 const defaultDependencies: LintDependencies = {
   cwd: () => process.cwd(),
   existsSync: (targetPath: string) => fs.existsSync(targetPath),
+  readdirSync: (targetPath: string) => fs.readdirSync(targetPath),
   execFileSync: (file: string, args: readonly string[], options?: { cwd?: string; stdio?: 'ignore' | 'pipe'; encoding?: BufferEncoding }) =>
     execFileSync(file, args, options)
 };
@@ -21,28 +22,32 @@ export type { LintOptions, LintLevel, LintCheckResult, LintReport, LintDependenc
 export function runLintChecks(
   options: LintOptions,
   docsDir: string = DEFAULT_DOCS_DIR,
+  phasesOrDependencies: readonly Phase[] | Partial<LintDependencies> = DEFAULT_PHASES,
   dependencies: Partial<LintDependencies> = {}
 ): LintReport {
+  const phases = Array.isArray(phasesOrDependencies) ? phasesOrDependencies : DEFAULT_PHASES;
+  const providedDependencies = Array.isArray(phasesOrDependencies) ? dependencies : phasesOrDependencies;
   const deps: LintDependencies = {
     ...defaultDependencies,
-    ...dependencies
+    ...providedDependencies
   };
 
   const cwd = deps.cwd();
   const checks: LintCheckResult[] = [];
 
-  checks.push(...runBaseDocsRules(cwd, docsDir, deps));
+  checks.push(...runBaseDocsRules(cwd, docsDir, phases, deps));
 
   if (!options.feature) {
     return finalizeReport(cwd, checks);
   }
 
-  return runFeatureChecks(cwd, docsDir, checks, options.feature, deps);
+  return runFeatureChecks(cwd, docsDir, phases, checks, options.feature, deps);
 }
 
 function runFeatureChecks(
   cwd: string,
   docsDir: string,
+  phases: readonly Phase[],
   checks: LintCheckResult[],
   rawFeature: string,
   deps: LintDependencies
@@ -53,7 +58,7 @@ function runFeatureChecks(
     return finalizeReport(cwd, checks, featureValidation.target);
   }
 
-  checks.push(...runFeatureDocsRules(cwd, docsDir, featureValidation.target.normalizedName, deps));
+  checks.push(...runFeatureDocsRules(cwd, docsDir, phases, featureValidation.target.normalizedName, deps));
   checks.push(...runGitWorktreeRules(cwd, featureValidation.target.branchName, deps));
 
   return finalizeReport(cwd, checks, featureValidation.target);

@@ -5,7 +5,8 @@ import { LintReport, runLintChecks } from '../../services/lint/lint.service';
 
 jest.mock('../../lib/Config', () => ({
   ConfigManager: jest.fn(() => ({
-    getDocsDir: jest.fn<() => Promise<string>>().mockResolvedValue('docs/ai')
+    getDocsDir: jest.fn<() => Promise<string>>().mockResolvedValue('docs/ai'),
+    getPhases: jest.fn<() => Promise<string[]>>().mockResolvedValue(['requirements', 'design'])
   }))
 }));
 
@@ -52,7 +53,11 @@ describe('lint command', () => {
 
     await lintCommand({ feature: 'lint-command', json: true });
 
-    expect(mockedRunLintChecks).toHaveBeenCalledWith({ feature: 'lint-command', json: true }, 'docs/ai');
+    expect(mockedRunLintChecks).toHaveBeenCalledWith(
+      { feature: 'lint-command', json: true },
+      'docs/ai',
+      ['requirements', 'design']
+    );
     expect(mockedUi.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
     expect(process.exitCode).toBe(0);
   });

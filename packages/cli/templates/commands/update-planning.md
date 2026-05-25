@@ -4,7 +4,7 @@ description: AI DevKit · Update planning docs to reflect implementation progres
 
 Help me reconcile current implementation progress with the planning documentation.
 
-1. **Gather Context** — If not already provided, ask for: feature/branch name and brief status, tasks completed since last update, new tasks discovered, current blockers or risks, and planning doc path (default `{{docsDir}}/planning/feature-{name}.md`).
+1. **Gather Context** — If not already provided, ask for: feature/branch name and brief status, tasks completed since last update, new tasks discovered, blockers/risks, and planning doc path (default: latest matching `{{docsDir}}/planning/YYYY-MM-DD-feature-{name}.md`; fallback `{{docsDir}}/planning/feature-{name}.md`).
 2. **Use Memory for Context** — Search memory for prior decisions that affect priorities/scope: `npx ai-devkit@latest memory search --query "<feature planning updates>"`.
 3. **Review & Reconcile** — Summarize existing milestones, task breakdowns, and dependencies from the planning doc. For each planned task: mark status (done / in progress / blocked / not started), note scope changes, record blockers, identify skipped or added tasks.
 4. **Produce Updated Task List** — Generate an updated checklist grouped by: Done, In Progress, Blocked, Newly Discovered Work — with short notes per task.
