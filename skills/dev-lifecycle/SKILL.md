@@ -64,7 +64,11 @@ Not every phase moves forward. When a phase reveals problems, loop back:
 
 ## Doc Convention
 
-Feature docs: `docs/ai/{phase}/feature-{name}.md` (copy from `README.md` template in each directory, preserve frontmatter). Keep `<name>` aligned with the worktree/branch name `feature-<name>`.
+New features: run `npx ai-devkit@latest docs init-feature <name>` and fill the returned paths. The command uses configured phases and creates `docs/ai/{phase}/YYYY-MM-DD-feature-{name}.md` with the current local date.
+
+Existing features: use the latest matching `docs/ai/{phase}/YYYY-MM-DD-feature-{name}.md`. If none exists, use `docs/ai/{phase}/feature-{name}.md`. Keep `<name>` aligned with branch/worktree `feature-<name>`.
+
+Older CLI fallback: copy each configured phase `README.md` to `docs/ai/{phase}/feature-{name}.md`, preserving frontmatter.
 
 Phases: `requirements/`, `design/`, `planning/`, `implementation/`, `testing/`.
 

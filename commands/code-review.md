@@ -4,7 +4,7 @@ description: AI DevKit · Pre-push code review against design docs.
 
 Perform a **holistic** local code review **before** pushing changes. Go beyond the diff — review how changes integrate with the broader codebase.
 
-1. **Gather Context** — If not already provided, ask for: feature/branch description, relevant design doc(s) (e.g., `docs/ai/design/feature-{name}.md`), known constraints or risky areas, and which tests have been run. Run `git status` and `git diff --stat` to identify modified files.
+1. **Gather Context** — If not already provided, ask for: feature/branch description, relevant design doc(s), known constraints or risky areas, and tests run. Prefer latest matching `docs/ai/design/YYYY-MM-DD-feature-{name}.md`; if none exists, use `docs/ai/design/feature-{name}.md`. Run `git status` and `git diff --stat` to identify modified files.
 2. **Use Memory for Context** — Search memory for project review standards and recurring pitfalls: `npx ai-devkit@latest memory search --query "code review checklist project conventions"`.
 3. **Understand Design Alignment** — For each design doc, summarize architectural intent and critical constraints.
 4. **Holistic Codebase Review** — For each modified file, use targeted grep/glob on exported names (functions, types, constants) to trace callers and dependents. Read only relevant sections (signatures, call sites, type defs) — skip files with no shared interface. Then check:

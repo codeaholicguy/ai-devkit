@@ -1,6 +1,6 @@
 # Phase 5: Update Planning
 
-Reconcile `docs/ai/planning/feature-{name}.md` with actual progress after completing any task.
+Reconcile the latest matching `docs/ai/planning/YYYY-MM-DD-feature-{name}.md`. If none exists, use `docs/ai/planning/feature-{name}.md`. Update it after completing any task.
 
 If continuing from Phase 4, carry forward existing context. Otherwise ask for feature name, completed tasks, new tasks, blockers, planning doc path.
 

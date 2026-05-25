@@ -1,6 +1,6 @@
 # Phase 2: Review Requirements
 
-Review `docs/ai/requirements/feature-{name}.md` against the `README.md` template.
+Review requirements using the latest matching `docs/ai/requirements/YYYY-MM-DD-feature-{name}.md`. If none exists, use `docs/ai/requirements/feature-{name}.md`. Check it against the `README.md` template.
 
 1. **Search memory** for relevant conventions or past patterns.
 2. **Review** each section: problem statement, goals/non-goals, success criteria, user stories, constraints, open questions, template compliance.

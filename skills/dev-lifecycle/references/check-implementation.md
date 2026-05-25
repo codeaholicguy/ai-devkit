@@ -1,6 +1,6 @@
 # Phase 6: Check Implementation
 
-Compare implementation against `docs/ai/design/feature-{name}.md` and `docs/ai/requirements/feature-{name}.md`.
+Compare implementation against the latest matching `docs/ai/{design,requirements}/YYYY-MM-DD-feature-{name}.md` docs. If none exist, use legacy `feature-{name}.md` docs.
 
 1. **Gather context** — feature description, modified files, relevant design/requirements docs, constraints.
 2. **Summarize design** — key decisions, components, interfaces, data flows.

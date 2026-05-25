@@ -6,7 +6,7 @@
    - Default: create and use `feature-<name>` worktree
    - Optional fallback: no-worktree only when user explicitly requests it
    - Required guards: context verification + dependency bootstrap
-4. **Create docs** by copying `README.md` from each `docs/ai/` subdirectory → `docs/ai/{phase}/feature-{name}.md` (requirements, design, planning, implementation, testing). Preserve frontmatter.
+4. **Initialize docs** by running `npx ai-devkit@latest docs init-feature <name>` from the active worktree/repository and filling the returned paths. It uses configured phases. If unavailable, copy each configured phase `README.md` to `docs/ai/{phase}/feature-{name}.md`, preserving frontmatter.
 5. **Fill requirements doc** — problem statement, goals/non-goals, user stories, success criteria, constraints, open questions.
 6. **Fill design doc** — architecture (mermaid diagram), data models, APIs, components, design decisions, security/performance.
 7. **Fill planning doc** — task breakdown, dependencies, effort estimates, implementation order, risks.

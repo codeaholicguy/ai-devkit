@@ -1,6 +1,6 @@
 # Phase 4: Execute Plan
 
-Work through `docs/ai/planning/feature-{name}.md` one task at a time.
+Work through the latest matching `docs/ai/planning/YYYY-MM-DD-feature-{name}.md`. If none exists, use `docs/ai/planning/feature-{name}.md`. Execute one task at a time.
 
 1. **Gather context** — feature name, planning doc path, supporting docs (design, requirements), current branch/diff.
 2. **Load plan** — parse task lists (checkboxes), build ordered queue by section.
