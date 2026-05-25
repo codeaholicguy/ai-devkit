@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Added `ai-devkit docs init-feature <name>` to initialize date-prefixed feature docs for configured phases using the current local date, with optional `--json` output for agents and scripts.
+- Added lint support for date-prefixed feature docs while preserving compatibility with legacy `feature-{name}.md` docs.
+
+### Changed
+
+- Updated lifecycle command templates and the `dev-lifecycle` skill to initialize feature docs through `docs init-feature` and reference latest matching `YYYY-MM-DD-feature-{name}.md` docs.
+
 ## [0.33.0] - 2026-05-24
 
 ### Added
