@@ -5,10 +5,9 @@ Review design using the latest matching `docs/ai/design/YYYY-MM-DD-feature-{name
 1. **Search memory** for relevant architecture patterns or past decisions.
 2. **Cross-check against requirements** — read the latest matching `docs/ai/requirements/YYYY-MM-DD-feature-{name}.md`; if none exists, use `docs/ai/requirements/feature-{name}.md`. Verify every goal, user story, and constraint has corresponding design coverage. Flag uncovered requirements.
 3. **Review completeness** — architecture (mermaid diagram), components, technology choices, data models, API contracts, design trade-offs, non-functional requirements.
-4. **Clarify and explore (loop until converged)**:
-   - **Ask clarification questions** for every gap or misalignment between requirements and design. Do not just list issues — actively ask specific questions. Example: "Requirements mention offline support but design has no caching — should we add one?"
-   - **Brainstorm and explore options** — For key architecture decisions, trade-offs, or areas with multiple viable approaches, proactively brainstorm alternatives. Present options with pros/cons and trade-offs. Don't just accept the first approach — challenge assumptions and surface creative alternatives.
-   - **Repeat** — Clarifying answers may reveal new trade-offs worth exploring, and brainstorming may surface new questions. Continue looping until the user is satisfied with the chosen approach and no open questions remain.
+4. **Clarify and explore** using the Early-Phase Clarification Contract:
+   - Resolve every gap, misalignment, open question, hidden assumption, or unresolved trade-off between requirements and design. Example: "Requirements mention offline support but design has no caching — should we add one?"
+   - Brainstorm alternatives for key architecture decisions and trade-offs; challenge assumptions before accepting the first approach.
 5. **Update** the design doc with clarified decisions and chosen options.
 6. **Store** clarified architecture decisions in memory.
 7. **Summarize** requirements coverage, completeness assessment, updates made, remaining gaps.

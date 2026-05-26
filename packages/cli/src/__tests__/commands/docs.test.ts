@@ -85,6 +85,8 @@ describe('docs command', () => {
   });
 
   it('prints JSON output when requested', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date(2026, 4, 25, 10, 30));
     const program = new Command();
     registerDocsCommand(program);
 
