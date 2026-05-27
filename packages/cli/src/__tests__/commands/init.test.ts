@@ -1,96 +1,101 @@
-import { jest } from '@jest/globals';
 
-const mockConfigManager: any = {
-  exists: jest.fn(),
-  read: jest.fn(),
-  create: jest.fn(),
-  setEnvironments: jest.fn(),
-  addPhase: jest.fn()
-};
 
-const mockTemplateManager: any = {
-  checkEnvironmentExists: jest.fn(),
-  setupMultipleEnvironments: jest.fn(),
-  fileExists: jest.fn(),
-  copyPhaseTemplate: jest.fn()
-};
+const {
+  mockConfigManager,
+  mockTemplateManager,
+  mockEnvironmentSelector,
+  mockPhaseSelector,
+  mockSkillManager,
+  mockUi,
+  mockPrompt,
+  mockLoadInitTemplate,
+  mockExecFileSync,
+  mockIsInteractiveTerminal,
+} = vi.hoisted(() => ({
+  mockConfigManager: {
+    exists: vi.fn(),
+    read: vi.fn(),
+    create: vi.fn(),
+    setEnvironments: vi.fn(),
+    addPhase: vi.fn(),
+  } as any,
+  mockTemplateManager: {
+    checkEnvironmentExists: vi.fn(),
+    setupMultipleEnvironments: vi.fn(),
+    fileExists: vi.fn(),
+    copyPhaseTemplate: vi.fn(),
+  } as any,
+  mockEnvironmentSelector: {
+    selectEnvironments: vi.fn(),
+    confirmOverride: vi.fn(),
+    displaySelectionSummary: vi.fn(),
+  } as any,
+  mockPhaseSelector: {
+    selectPhases: vi.fn(),
+    displaySelectionSummary: vi.fn(),
+  } as any,
+  mockSkillManager: { addSkill: vi.fn() } as any,
+  mockUi: {
+    warning: vi.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+    text: vi.fn(),
+  } as any,
+  mockPrompt: vi.fn() as any,
+  mockLoadInitTemplate: vi.fn() as any,
+  mockExecFileSync: vi.fn() as any,
+  mockIsInteractiveTerminal: vi.fn() as any,
+}));
 
-const mockEnvironmentSelector: any = {
-  selectEnvironments: jest.fn(),
-  confirmOverride: jest.fn(),
-  displaySelectionSummary: jest.fn()
-};
-
-const mockPhaseSelector: any = {
-  selectPhases: jest.fn(),
-  displaySelectionSummary: jest.fn()
-};
-
-const mockSkillManager: any = {
-  addSkill: jest.fn()
-};
-
-const mockUi: any = {
-  warning: jest.fn(),
-  error: jest.fn(),
-  success: jest.fn(),
-  info: jest.fn(),
-  text: jest.fn()
-};
-
-const mockPrompt: any = jest.fn();
-const mockLoadInitTemplate: any = jest.fn();
-const mockExecFileSync: any = jest.fn();
-const mockIsInteractiveTerminal: any = jest.fn();
-
-jest.mock('child_process', () => ({
+vi.mock('child_process', () => ({
   execFileSync: (...args: unknown[]) => mockExecFileSync(...args)
 }));
 
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
   __esModule: true,
   default: {
     prompt: (...args: unknown[]) => mockPrompt(...args)
   }
 }));
 
-jest.mock('../../lib/Config', () => ({
-  ConfigManager: jest.fn(() => mockConfigManager)
+vi.mock('../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(() => mockConfigManager)
 }));
 
-jest.mock('../../lib/TemplateManager', () => ({
-  TemplateManager: jest.fn(() => mockTemplateManager)
+vi.mock('../../lib/TemplateManager.js', () => ({
+  TemplateManager: vi.fn(() => mockTemplateManager)
 }));
 
-jest.mock('../../lib/EnvironmentSelector', () => ({
-  EnvironmentSelector: jest.fn(() => mockEnvironmentSelector)
+vi.mock('../../lib/EnvironmentSelector.js', () => ({
+  EnvironmentSelector: vi.fn(() => mockEnvironmentSelector)
 }));
 
-jest.mock('../../lib/PhaseSelector', () => ({
-  PhaseSelector: jest.fn(() => mockPhaseSelector)
+vi.mock('../../lib/PhaseSelector.js', () => ({
+  PhaseSelector: vi.fn(() => mockPhaseSelector)
 }));
 
-jest.mock('../../lib/SkillManager', () => ({
-  SkillManager: jest.fn(() => mockSkillManager)
+vi.mock('../../lib/SkillManager.js', () => ({
+  SkillManager: vi.fn(() => mockSkillManager)
 }));
 
-jest.mock('../../lib/InitTemplate', () => ({
+vi.mock('../../lib/InitTemplate.js', () => ({
   loadInitTemplate: (...args: unknown[]) => mockLoadInitTemplate(...args)
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: mockUi
 }));
 
-jest.mock('../../util/terminal', () => ({
+vi.mock('../../util/terminal.js', () => ({
   isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args)
 }));
 
-import { initCommand } from '../../commands/init';
+import { initCommand } from '../../commands/init.js';
 
 describe('init command', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.exitCode = undefined;
 
     mockExecFileSync.mockReturnValue(undefined);

@@ -1,21 +1,21 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
 import inquirer from 'inquirer';
-import { ConfigManager } from './Config';
-import { GlobalConfigManager } from './GlobalConfig';
-import { EnvironmentSelector } from './EnvironmentSelector';
-import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry';
-import { SkillIndex } from './SkillIndex';
-import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env';
-import { ensureGitInstalled } from '../util/git';
-import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill';
-import { isInteractiveTerminal } from '../util/terminal';
-import { ui } from '../util/terminal-ui';
-import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors';
+import { ConfigManager } from './Config.js';
+import { GlobalConfigManager } from './GlobalConfig.js';
+import { EnvironmentSelector } from './EnvironmentSelector.js';
+import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
+import { SkillIndex } from './SkillIndex.js';
+import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
+import { ensureGitInstalled } from '../util/git.js';
+import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill.js';
+import { isInteractiveTerminal } from '../util/terminal.js';
+import { ui } from '../util/terminal-ui.js';
+import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors.js';
 
-import type { UpdateSummary } from './SkillRegistry';
-import type { SkillEntry } from './SkillIndex';
+import type { UpdateSummary } from './SkillRegistry.js';
+import type { SkillEntry } from './SkillIndex.js';
 
 interface InstalledSkill {
   name: string;

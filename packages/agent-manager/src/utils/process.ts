@@ -7,7 +7,7 @@
 
 import * as path from 'path';
 import { execFileSync } from 'child_process';
-import type { ProcessInfo } from '../adapters/AgentAdapter';
+import type { ProcessInfo } from '../adapters/AgentAdapter.js';
 
 /**
  * List running processes matching an agent executable name.

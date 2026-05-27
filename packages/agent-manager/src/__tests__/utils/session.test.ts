@@ -2,17 +2,18 @@
  * Tests for utils/session.ts
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import * as fs from 'fs';
-import { batchGetSessionFileBirthtimes } from '../../utils/session';
+import type { MockedFunction } from 'vitest';
 
-jest.mock('fs', () => ({
-    readdirSync: jest.fn(),
-    statSync: jest.fn(),
+import * as fs from 'fs';
+import { batchGetSessionFileBirthtimes } from '../../utils/session.js';
+
+vi.mock('fs', () => ({
+    readdirSync: vi.fn(),
+    statSync: vi.fn(),
 }));
 
-const mockedReaddirSync = fs.readdirSync as jest.MockedFunction<typeof fs.readdirSync>;
-const mockedStatSync = fs.statSync as jest.MockedFunction<typeof fs.statSync>;
+const mockedReaddirSync = fs.readdirSync as MockedFunction<typeof fs.readdirSync>;
+const mockedStatSync = fs.statSync as MockedFunction<typeof fs.statSync>;
 
 describe('batchGetSessionFileBirthtimes', () => {
     beforeEach(() => {

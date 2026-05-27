@@ -1,18 +1,19 @@
-import * as fs from 'fs-extra';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { CodexMcpGenerator } from '../../../../services/install/mcp/CodexMcpGenerator';
-import { McpServerDefinition } from '../../../../types';
+import { CodexMcpGenerator } from '../../../../services/install/mcp/CodexMcpGenerator.js';
+import { McpServerDefinition } from '../../../../types.js';
 
-jest.mock('fs-extra');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../../../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
 
-const mockFs = fs as jest.Mocked<typeof fs>;
+const mockFs = fs as Mocked<typeof fs>;
 
 describe('CodexMcpGenerator', () => {
   let generator: CodexMcpGenerator;
   const projectRoot = '/project';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     generator = new CodexMcpGenerator();
   });
 

@@ -1,8 +1,8 @@
 import inquirer from 'inquirer';
-import { ConfigManager } from '../lib/Config';
-import { TemplateManager } from '../lib/TemplateManager';
-import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
-import { ui } from '../util/terminal-ui';
+import { ConfigManager } from '../lib/Config.js';
+import { TemplateManager } from '../lib/TemplateManager.js';
+import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types.js';
+import { ui } from '../util/terminal-ui.js';
 
 export async function phaseCommand(phaseName?: string) {
   const configManager = new ConfigManager();

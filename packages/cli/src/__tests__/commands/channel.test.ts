@@ -1,119 +1,114 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+
+import type { Mocked, Mock } from 'vitest';
 import { Command } from 'commander';
 import type { AgentAdapter, AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import { AgentStatus } from '@ai-devkit/agent-manager';
 import type { TelegramAdapter } from '@ai-devkit/channel-connector';
-import { ui } from '../../util/terminal-ui';
+import { ui } from '../../util/terminal-ui.js';
 
 const mockConfigStore = {
-    getConfig: jest.fn<() => Promise<unknown>>(),
-    getChannel: jest.fn<(name: string) => Promise<unknown>>(),
-    saveChannel: jest.fn<(name: string, entry: unknown) => Promise<void>>(),
-    removeChannel: jest.fn<(name: string) => Promise<void>>(),
+    getConfig: vi.fn<() => Promise<unknown>>(),
+    getChannel: vi.fn<(name: string) => Promise<unknown>>(),
+    saveChannel: vi.fn<(name: string, entry: unknown) => Promise<void>>(),
+    removeChannel: vi.fn<(name: string) => Promise<void>>(),
 };
 
-const mockPrompt = jest.fn<(...args: unknown[]) => Promise<unknown>>();
-const mockGetMe = jest.fn<() => Promise<{ username: string }>>();
+const mockPrompt = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockGetMe = vi.fn<() => Promise<{ username: string }>>();
 const mockSpinner = {
-    start: jest.fn(),
-    succeed: jest.fn(),
-    fail: jest.fn(),
+    start: vi.fn(),
+    succeed: vi.fn(),
+    fail: vi.fn(),
 };
 const mockChannelManager = {
-    registerAdapter: jest.fn(),
-    startAll: jest.fn<() => Promise<void>>(),
-    stopAll: jest.fn<() => Promise<void>>(),
+    registerAdapter: vi.fn(),
+    startAll: vi.fn<() => Promise<void>>(),
+    stopAll: vi.fn<() => Promise<void>>(),
 };
 const mockAgentAdapter = {
-    getConversation: jest.fn(),
+    getConversation: vi.fn(),
 };
 const mockAgentManager = {
-    registerAdapter: jest.fn(),
-    listAgents: jest.fn<() => Promise<unknown[]>>(),
-    resolveAgent: jest.fn<(agentName: string, agents: unknown[]) => unknown>(),
-    getAdapter: jest.fn<(agentType: string) => unknown>(),
+    registerAdapter: vi.fn(),
+    listAgents: vi.fn<() => Promise<unknown[]>>(),
+    resolveAgent: vi.fn<(agentName: string, agents: unknown[]) => unknown>(),
+    getAdapter: vi.fn<(agentType: string) => unknown>(),
 };
 const mockTerminalFocusManager = {
-    findTerminal: jest.fn<(pid: number) => Promise<unknown>>(),
+    findTerminal: vi.fn<(pid: number) => Promise<unknown>>(),
 };
 const mockTelegramAdapter = {
-    onMessage: jest.fn(),
-    sendMessage: jest.fn<() => Promise<void>>(),
+    onMessage: vi.fn(),
+    sendMessage: vi.fn<() => Promise<void>>(),
 };
 const mockChannelService = {
-    resolveConnectChannelName: jest.fn((name?: string) => name ?? 'telegram'),
-    resolveStartChannelName: jest.fn((config: any, name?: string) => name ?? Object.keys(config.channels)[0]),
-    assertUniqueTelegramToken: jest.fn(),
-    getLiveBridges: jest.fn<() => Promise<unknown[]>>(),
-    getLiveBridgeByChannel: jest.fn<(channelName: string) => Promise<unknown>>(),
-    registerBridge: jest.fn<(entry: unknown) => Promise<void>>(),
-    unregisterBridge: jest.fn<(channelName: string) => Promise<void>>(),
-    startDaemonBridge: jest.fn<(entry: unknown) => Promise<unknown>>(),
-    stopBridge: jest.fn<(channelName?: string) => Promise<unknown>>(),
+    resolveConnectChannelName: vi.fn((name?: string) => name ?? 'telegram'),
+    resolveStartChannelName: vi.fn((config: any, name?: string) => name ?? Object.keys(config.channels)[0]),
+    assertUniqueTelegramToken: vi.fn(),
+    getLiveBridges: vi.fn<() => Promise<unknown[]>>(),
+    getLiveBridgeByChannel: vi.fn<(channelName: string) => Promise<unknown>>(),
+    registerBridge: vi.fn<(entry: unknown) => Promise<void>>(),
+    unregisterBridge: vi.fn<(channelName: string) => Promise<void>>(),
+    startDaemonBridge: vi.fn<(entry: unknown) => Promise<unknown>>(),
+    stopBridge: vi.fn<(channelName?: string) => Promise<unknown>>(),
 };
 
-jest.mock('@ai-devkit/channel-connector', () => ({
-    ChannelManager: jest.fn(() => mockChannelManager),
-    ConfigStore: jest.fn(() => mockConfigStore),
-    TelegramAdapter: jest.fn(() => mockTelegramAdapter),
+vi.mock('@ai-devkit/channel-connector', () => ({
+    ChannelManager: vi.fn(() => mockChannelManager),
+    ConfigStore: vi.fn(() => mockConfigStore),
+    TelegramAdapter: vi.fn(() => mockTelegramAdapter),
     TELEGRAM_CHANNEL_TYPE: 'telegram',
 }), { virtual: true });
 
-jest.mock('@ai-devkit/agent-manager', () => ({
+vi.mock('@ai-devkit/agent-manager', () => ({
     AgentStatus: {
         RUNNING: 'running',
     },
-    AgentManager: jest.fn(() => mockAgentManager),
-    ClaudeCodeAdapter: jest.fn(),
-    CodexAdapter: jest.fn(),
-    GeminiCliAdapter: jest.fn(),
-    TerminalFocusManager: jest.fn(() => mockTerminalFocusManager),
+    AgentManager: vi.fn(() => mockAgentManager),
+    ClaudeCodeAdapter: vi.fn(),
+    CodexAdapter: vi.fn(),
+    GeminiCliAdapter: vi.fn(),
+    TerminalFocusManager: vi.fn(() => mockTerminalFocusManager),
     TtyWriter: {
-        send: jest.fn(),
+        send: vi.fn(),
     },
 }), { virtual: true });
 
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
     __esModule: true,
     default: {
         prompt: (...args: unknown[]) => mockPrompt(...args),
     },
 }));
 
-jest.mock('telegraf', () => ({
-    Telegraf: jest.fn(() => ({
+vi.mock('telegraf', () => ({
+    Telegraf: vi.fn(() => ({
         telegram: {
             getMe: mockGetMe,
         },
     })),
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
     ui: {
-        text: jest.fn(),
-        table: jest.fn(),
-        info: jest.fn(),
-        success: jest.fn(),
-        warning: jest.fn(),
-        error: jest.fn(),
-        breakline: jest.fn(),
-        spinner: jest.fn(() => mockSpinner),
+        text: vi.fn(),
+        table: vi.fn(),
+        info: vi.fn(),
+        success: vi.fn(),
+        warning: vi.fn(),
+        error: vi.fn(),
+        breakline: vi.fn(),
+        spinner: vi.fn(() => mockSpinner),
     },
 }));
 
-jest.mock('../../services/channel/channel.service', () => ({
-    ChannelService: jest.fn(() => mockChannelService),
+vi.mock('../../services/channel/channel.service.js', () => ({
+    ChannelService: vi.fn(() => mockChannelService),
 }));
 
-// Imported AFTER mocks so the module under test picks up the mocked ui
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const {
-    registerChannelCommand,
-} = require('../../commands/channel');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const {
-    startOutputPolling,
-} = require('../../services/channel/channel-runner');
+// Imports are placed after vi.mock; Vitest hoists vi.mock so mocks apply
+import { registerChannelCommand } from '../../commands/channel.js';
+import { startOutputPolling } from '../../services/channel/channel-runner.js';
 
 const POLL_INTERVAL_MS = 2000;
 
@@ -142,15 +137,15 @@ function makeMessage(overrides: Partial<ConversationMessage> = {}): Conversation
 }
 
 describe('startOutputPolling', () => {
-    let agentAdapter: jest.Mocked<Pick<AgentAdapter, 'getConversation'>>;
-    let telegram: { sendMessage: jest.Mock<(chatId: string, text: string) => Promise<void>> };
+    let agentAdapter: Mocked<Pick<AgentAdapter, 'getConversation'>>;
+    let telegram: { sendMessage: Mock<(chatId: string, text: string) => Promise<void>> };
     let chatIdRef: { value: string | null };
     let interval: NodeJS.Timeout | null;
 
     beforeEach(() => {
-        jest.useFakeTimers();
-        agentAdapter = { getConversation: jest.fn() };
-        telegram = { sendMessage: jest.fn(() => Promise.resolve()) };
+        vi.useFakeTimers();
+        agentAdapter = { getConversation: vi.fn() };
+        telegram = { sendMessage: vi.fn(() => Promise.resolve()) };
         chatIdRef = { value: null };
         interval = null;
         mockConfigStore.getConfig.mockReset();
@@ -195,12 +190,12 @@ describe('startOutputPolling', () => {
             },
         });
         mockGetMe.mockResolvedValue({ username: 'test_bot' });
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {
         if (interval) clearInterval(interval);
-        jest.useRealTimers();
+        vi.useRealTimers();
     });
 
     it('seeds lastMessageCount from initial getConversation so existing messages are not re-sent', async () => {
@@ -218,7 +213,7 @@ describe('startOutputPolling', () => {
 
         // Tick: getConversation returns same single message → no new messages
         agentAdapter.getConversation.mockReturnValueOnce(existing);
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).not.toHaveBeenCalled();
     });
@@ -232,7 +227,7 @@ describe('startOutputPolling', () => {
             { value: null },
         );
 
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3);
 
         // Only the initial seed call — no per-tick getConversation since we early-return
         expect(agentAdapter.getConversation).toHaveBeenCalledTimes(1);
@@ -248,7 +243,7 @@ describe('startOutputPolling', () => {
             { value: '419354621' },
         );
 
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS * 3);
 
         // Initial seed is gated by sessionFilePath too, so getConversation never called
         expect(agentAdapter.getConversation).not.toHaveBeenCalled();
@@ -270,7 +265,7 @@ describe('startOutputPolling', () => {
             makeMessage({ role: 'assistant', content: 'reply B' }),
         ]);
 
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).toHaveBeenCalledTimes(2);
         expect(telegram.sendMessage).toHaveBeenCalledWith('419354621', 'reply A');
@@ -292,7 +287,7 @@ describe('startOutputPolling', () => {
             makeMessage({ role: 'assistant', content: 'outbound' }),
         ]);
 
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
         expect(telegram.sendMessage).toHaveBeenCalledWith('419354621', 'outbound');
@@ -314,7 +309,7 @@ describe('startOutputPolling', () => {
             makeMessage({ role: 'assistant', content: 'has content' }),
         ]);
 
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
         expect(telegram.sendMessage).toHaveBeenCalledWith('419354621', 'has content');
@@ -334,7 +329,7 @@ describe('startOutputPolling', () => {
         agentAdapter.getConversation.mockImplementationOnce(() => {
             throw new Error('ENOENT: no such file');
         });
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).not.toHaveBeenCalled();
         expect(ui.error).not.toHaveBeenCalled(); // getConversation throws stay silent
@@ -343,7 +338,7 @@ describe('startOutputPolling', () => {
         agentAdapter.getConversation.mockReturnValueOnce([
             makeMessage({ content: 'recovered' }),
         ]);
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
         expect(telegram.sendMessage).toHaveBeenCalledWith('419354621', 'recovered');
@@ -367,7 +362,7 @@ describe('startOutputPolling', () => {
         ];
         agentAdapter.getConversation.mockReturnValueOnce(initialBatch);
 
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage).toHaveBeenCalledTimes(2);
         expect(ui.error).toHaveBeenCalledWith(
@@ -380,7 +375,7 @@ describe('startOutputPolling', () => {
             ...initialBatch,
             makeMessage({ content: 'next-tick reply' }),
         ]);
-        await jest.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
+        await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
         expect(telegram.sendMessage.mock.calls.some(c => c[1] === 'next-tick reply')).toBe(true);
     });
@@ -452,7 +447,7 @@ describe('channel command', () => {
         mockTelegramAdapter.onMessage.mockReset();
         mockTelegramAdapter.sendMessage.mockReset();
         mockPrompt.mockReset();
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     it('connects a named Telegram channel', async () => {
@@ -563,7 +558,7 @@ describe('channel command', () => {
     });
 
     it('records the bridge before starting the channel manager', async () => {
-        jest.useFakeTimers();
+        vi.useFakeTimers();
         mockConfigStore.getConfig.mockResolvedValue({
             channels: {
                 personal: personalEntry,
@@ -600,8 +595,8 @@ describe('channel command', () => {
         expect(mockChannelService.registerBridge.mock.invocationCallOrder[0])
             .toBeLessThan(mockChannelManager.startAll.mock.invocationCallOrder[0]);
 
-        jest.clearAllTimers();
-        jest.useRealTimers();
+        vi.clearAllTimers();
+        vi.useRealTimers();
     });
 
     it('starts a daemon bridge without resolving the agent in the parent process', async () => {
@@ -624,8 +619,9 @@ describe('channel command', () => {
             cwd: process.cwd(),
         }));
         const daemonInput = mockChannelService.startDaemonBridge.mock.calls[0][0] as { args: string[] };
-        expect(daemonInput.args[0]).toEqual(expect.stringContaining('ts-node'));
-        expect(daemonInput.args[1]).toEqual(expect.stringContaining('channel-daemon.ts'));
+        expect(daemonInput.args).toContain('--loader');
+        expect(daemonInput.args).toContain('ts-node/esm');
+        expect(daemonInput.args).toEqual(expect.arrayContaining([expect.stringContaining('channel-daemon.ts')]));
         expect(mockAgentManager.listAgents).not.toHaveBeenCalled();
         expect(ui.success).toHaveBeenCalledWith('Channel bridge daemon started for "personal" (PID: 9876).');
         expect(ui.info).toHaveBeenCalledWith('Logs: /tmp/channel-logs/personal.log');

@@ -1,6 +1,6 @@
-import { DEFAULT_PHASES } from '../../../types';
-import { LintCheckResult, LintDependencies } from '../types';
-import { runPhaseDocRules } from './phase-docs.rule';
+import { DEFAULT_PHASES } from '../../../types.js';
+import { LintCheckResult, LintDependencies } from '../types.js';
+import { runPhaseDocRules } from './phase-docs.rule.js';
 
 function isPhaseList(value: readonly string[] | LintDependencies): value is readonly string[] {
   return Array.isArray(value);

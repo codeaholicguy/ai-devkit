@@ -1,4 +1,4 @@
-import { validateInstallConfig } from '../../util/config';
+import { validateInstallConfig } from '../../util/config.js';
 
 describe('config util', () => {
   it('validates and normalizes valid install config', () => {

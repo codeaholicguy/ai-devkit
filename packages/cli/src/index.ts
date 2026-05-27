@@ -1,4 +1,4 @@
-export { ConfigManager } from './lib/Config';
-export { TemplateManager } from './lib/TemplateManager';
-export * from './types';
+export { ConfigManager } from './lib/Config.js';
+export { TemplateManager } from './lib/TemplateManager.js';
+export * from './types.js';
 

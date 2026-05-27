@@ -1,5 +1,5 @@
-import { LintCheckResult } from '../types';
-import { LINT_LEVEL } from '../constants';
+import { LintCheckResult } from '../types.js';
+import { LINT_LEVEL } from '../constants.js';
 
 export function createOkCheck(
   id: string,

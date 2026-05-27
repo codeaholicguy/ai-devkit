@@ -1,13 +1,14 @@
+import type { Mock } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ChannelService } from '../../../services/channel/channel.service';
+import { ChannelService } from '../../../services/channel/channel.service.js';
 
 describe('ChannelService', () => {
     let tmpDir: string;
     let registryPath: string;
     let alivePids: Set<number>;
-    let spawned: Array<{ command: string; args: string[]; options: { cwd: string; detached: true; stdio: ['ignore', number, number] }; unref: jest.Mock }>;
+    let spawned: Array<{ command: string; args: string[]; options: { cwd: string; detached: true; stdio: ['ignore', number, number] }; unref: Mock }>;
     let killed: Array<{ pid: number; signal: NodeJS.Signals }>;
     let service: ChannelService;
 
@@ -31,7 +32,7 @@ describe('ChannelService', () => {
             registryPath,
             pid => alivePids.has(pid),
             (command: string, args: string[], options: { cwd: string; detached: true; stdio: ['ignore', number, number] }) => {
-                const child = { pid: 300, unref: jest.fn() };
+                const child = { pid: 300, unref: vi.fn() };
                 spawned.push({ command, args, options, unref: child.unref });
                 return child;
             },

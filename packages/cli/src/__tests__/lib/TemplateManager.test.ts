@@ -1,31 +1,33 @@
-import * as fs from 'fs-extra';
+import type { MockedFunction, Mocked } from 'vitest';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { TemplateManager } from '../../lib/TemplateManager';
-import { EnvironmentDefinition, Phase, EnvironmentCode } from '../../types';
+import { TemplateManager } from '../../lib/TemplateManager.js';
+import * as envModule from '../../util/env.js';
+import { EnvironmentDefinition, Phase, EnvironmentCode } from '../../types.js';
 
-jest.mock('fs-extra');
-jest.mock('../../util/env');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
+vi.mock('../../util/env.js');
 
-jest.mock('../../util/terminal-ui', () => ({
-  ui: { warning: jest.fn(), error: jest.fn(), info: jest.fn(), text: jest.fn() },
+vi.mock('../../util/terminal-ui.js', () => ({
+  ui: { warning: vi.fn(), error: vi.fn(), info: vi.fn(), text: vi.fn() },
 }));
-import { ui as mockUi } from '../../util/terminal-ui';
+import { ui as mockUi } from '../../util/terminal-ui.js';
 
 describe('TemplateManager', () => {
   let templateManager: TemplateManager;
-  let mockFs: jest.Mocked<typeof fs>;
-  let mockGetEnvironment: jest.MockedFunction<any>;
+  let mockFs: Mocked<typeof fs>;
+  let mockGetEnvironment: MockedFunction<any>;
 
   beforeEach(() => {
-    mockFs = fs as jest.Mocked<typeof fs>;
-    mockGetEnvironment = require('../../util/env').getEnvironment as jest.MockedFunction<any>;
+    mockFs = fs as Mocked<typeof fs>;
+    mockGetEnvironment = envModule.getEnvironment as MockedFunction<any>;
     templateManager = new TemplateManager({ targetDir: '/test/target' });
 
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('setupSingleEnvironment', () => {
@@ -433,7 +435,7 @@ This is the prompt content.`;
         .mockReturnValueOnce(geminiEnv);
 
       // Mock setupSingleEnvironment
-      const mockSetupSingleEnvironment = jest.fn();
+      const mockSetupSingleEnvironment = vi.fn();
       mockSetupSingleEnvironment
         .mockResolvedValueOnce(['/path/to/cursor/file1', '/path/to/cursor/file2'])
         .mockResolvedValueOnce(['/path/to/gemini/file1']);
@@ -474,7 +476,7 @@ This is the prompt content.`;
         .mockReturnValueOnce(undefined) // invalid environment
         .mockReturnValueOnce(geminiEnv);
 
-      const mockSetupSingleEnvironment = jest.fn();
+      const mockSetupSingleEnvironment = vi.fn();
       mockSetupSingleEnvironment
         .mockResolvedValueOnce(['/path/to/cursor/file1'])
         .mockResolvedValueOnce(['/path/to/gemini/file1']);
@@ -501,7 +503,7 @@ This is the prompt content.`;
 
       mockGetEnvironment.mockReturnValue(cursorEnv);
 
-      const mockSetupSingleEnvironment = jest.fn().mockRejectedValue(new Error('Setup failed'));
+      const mockSetupSingleEnvironment = vi.fn().mockRejectedValue(new Error('Setup failed'));
       (templateManager as any).setupSingleEnvironment = mockSetupSingleEnvironment;
 
       await expect(templateManager.setupMultipleEnvironments(envCodes)).rejects.toThrow('Setup failed');
@@ -724,11 +726,11 @@ description: Test
 
   describe('copyCommandsToGlobal', () => {
     const mockOs = {
-      homedir: jest.fn()
+      homedir: vi.fn()
     };
 
     beforeEach(() => {
-      jest.doMock('os', () => mockOs);
+      vi.doMock('os', () => mockOs);
       mockOs.homedir.mockReturnValue('/home/testuser');
     });
 

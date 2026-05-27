@@ -1,8 +1,8 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import YAML from 'yaml';
-import { AVAILABLE_PHASES, EnvironmentCode, MCP_TRANSPORTS, McpServerDefinition, McpTransport, Phase } from '../types';
-import { isValidEnvironmentCode } from '../util/env';
+import { AVAILABLE_PHASES, EnvironmentCode, MCP_TRANSPORTS, McpServerDefinition, McpTransport, Phase } from '../types.js';
+import { isValidEnvironmentCode } from '../util/env.js';
 
 export interface InitTemplateSkill {
   registry: string;

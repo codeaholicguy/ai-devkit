@@ -4,19 +4,21 @@
     "name": "channel-connector"
   },
   "version": "0.6.0",
+  "type": "module",
   "description": "Generic messaging bridge for connecting to external communication platforms",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.js"
     }
   },
   "scripts": {
     "build": "tsc",
-    "test": "jest",
-    "test:coverage": "jest --coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
@@ -35,14 +37,13 @@
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
     "@typescript-eslint/parser": "^6.19.1",
+    "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^8.56.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.4.5",
-    "typescript": "^5.3.3"
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=20.20.0"

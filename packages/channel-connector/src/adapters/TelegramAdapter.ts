@@ -1,7 +1,7 @@
 import { Telegraf } from 'telegraf';
-import type { ChannelAdapter } from './ChannelAdapter';
-import { markdownToTelegramHtml } from '../utils/telegramHtml';
-import type { IncomingMessage } from '../types';
+import type { ChannelAdapter } from './ChannelAdapter.js';
+import { markdownToTelegramHtml } from '../utils/telegramHtml.js';
+import type { IncomingMessage } from '../types.js';
 
 export const TELEGRAM_CHANNEL_TYPE = 'telegram';
 export const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;

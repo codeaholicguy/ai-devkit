@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
+import { initializeSchema } from './schema.js';
 
 /**
  * Default database path: ~/.ai-devkit/memory.db
@@ -82,11 +83,7 @@ export function getDatabase(options?: DatabaseOptions): DatabaseConnection {
         instance = new DatabaseConnection(options);
     }
 
-    // Auto-run migrations on first access
     if (!schemaInitialized) {
-        // Lazy import to avoid circular dependency
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const { initializeSchema } = require('./schema');
         initializeSchema(instance);
         schemaInitialized = true;
     }

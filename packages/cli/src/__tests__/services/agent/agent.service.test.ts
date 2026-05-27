@@ -1,6 +1,6 @@
-import { describe, expect, it, jest } from '@jest/globals';
+
 import { AgentStatus, type AgentInfo, type ConversationMessage } from '@ai-devkit/agent-manager';
-import { waitForAgentResponse } from '../../../services/agent/agent.service';
+import { waitForAgentResponse } from '../../../services/agent/agent.service.js';
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
   return {
@@ -39,12 +39,12 @@ describe('waitForAgentResponse', () => {
       makeMessage({ role: 'assistant', content: 'new response' }),
     ];
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>()
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>()
         .mockResolvedValueOnce([running])
         .mockResolvedValueOnce([waiting]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue(conversation),
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue(conversation),
     };
     const emitted: ConversationMessage[] = [];
 
@@ -71,10 +71,10 @@ describe('waitForAgentResponse', () => {
 
   it('fails when the target agent disappears while waiting', async () => {
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([]),
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([]),
     };
 
     await expect(waitForAgentResponse({
@@ -90,7 +90,7 @@ describe('waitForAgentResponse', () => {
       },
       initialMessageCount: 0,
       options: { pollIntervalMs: 0, maxWaitMs: 1000 },
-      onAssistantMessage: jest.fn(),
+      onAssistantMessage: vi.fn(),
     })).rejects.toThrow('Agent "repo-a" is no longer running.');
   });
 
@@ -101,10 +101,10 @@ describe('waitForAgentResponse', () => {
       status: AgentStatus.WAITING,
     });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([waiting]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([waiting]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([
         makeMessage({ role: 'assistant', content: 'session response' }),
       ]),
     };
@@ -134,12 +134,12 @@ describe('waitForAgentResponse', () => {
     const running = makeAgent({ status: AgentStatus.RUNNING });
     const waiting = makeAgent({ status: AgentStatus.WAITING });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>()
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>()
         .mockResolvedValueOnce([running])
         .mockResolvedValueOnce([waiting]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>()
+      getConversation: vi.fn<() => ConversationMessage[]>()
         .mockImplementationOnce(() => {
           throw new Error('partial write');
         })
@@ -170,10 +170,10 @@ describe('waitForAgentResponse', () => {
   it('does not finish on waiting status until transcript read succeeds', async () => {
     const waiting = makeAgent({ status: AgentStatus.WAITING });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([waiting]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([waiting]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>()
+      getConversation: vi.fn<() => ConversationMessage[]>()
         .mockImplementationOnce(() => {
           throw new Error('partial write');
         })
@@ -205,10 +205,10 @@ describe('waitForAgentResponse', () => {
   it('stops when the agent becomes idle after assistant output', async () => {
     const idle = makeAgent({ status: AgentStatus.IDLE });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([idle]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([idle]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([
         makeMessage({ role: 'assistant', content: 'idle response' }),
       ]),
     };
@@ -237,10 +237,10 @@ describe('waitForAgentResponse', () => {
   it('does not stop on idle status before assistant output', async () => {
     const idle = makeAgent({ status: AgentStatus.IDLE });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([idle]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([idle]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([
         makeMessage({ role: 'user', content: 'new prompt' }),
       ]),
     };
@@ -258,21 +258,21 @@ describe('waitForAgentResponse', () => {
       },
       initialMessageCount: 0,
       options: { pollIntervalMs: 1, maxWaitMs: 5 },
-      onAssistantMessage: jest.fn(),
+      onAssistantMessage: vi.fn(),
     })).rejects.toThrow('Timed out waiting for agent "repo-a" after 5ms.');
   });
 
   it('reports status when the agent finishes without assistant text', async () => {
     const waiting = makeAgent({ status: AgentStatus.WAITING });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([waiting]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([waiting]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([
         makeMessage({ role: 'user', content: 'new prompt' }),
       ]),
     };
-    const onStatus = jest.fn<(message: string) => void>();
+    const onStatus = vi.fn<(message: string) => void>();
 
     const result = await waitForAgentResponse({
       manager,
@@ -287,7 +287,7 @@ describe('waitForAgentResponse', () => {
       },
       initialMessageCount: 0,
       options: { pollIntervalMs: 0, maxWaitMs: 1000 },
-      onAssistantMessage: jest.fn(),
+      onAssistantMessage: vi.fn(),
       onStatus,
     });
 
@@ -296,17 +296,17 @@ describe('waitForAgentResponse', () => {
   });
 
   it('waits for the configured poll interval before polling again', async () => {
-    jest.useFakeTimers();
+    vi.useFakeTimers();
     try {
       const running = makeAgent({ status: AgentStatus.RUNNING });
       const waiting = makeAgent({ status: AgentStatus.WAITING });
       const manager = {
-        listAgents: jest.fn<() => Promise<AgentInfo[]>>()
+        listAgents: vi.fn<() => Promise<AgentInfo[]>>()
           .mockResolvedValueOnce([running])
           .mockResolvedValueOnce([waiting]),
       };
       const adapter = {
-        getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([
+        getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([
           makeMessage({ role: 'assistant', content: 'delayed response' }),
         ]),
       };
@@ -324,30 +324,30 @@ describe('waitForAgentResponse', () => {
         },
         initialMessageCount: 0,
         options: { pollIntervalMs: 25, maxWaitMs: 1000 },
-        onAssistantMessage: jest.fn(),
+        onAssistantMessage: vi.fn(),
       });
 
       await Promise.resolve();
       await Promise.resolve();
       expect(manager.listAgents).toHaveBeenCalledTimes(1);
 
-      jest.advanceTimersByTime(25);
+      vi.advanceTimersByTime(25);
       const result = await promise;
 
       expect(result.finalStatus).toBe(AgentStatus.WAITING);
       expect(manager.listAgents).toHaveBeenCalledTimes(2);
     } finally {
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 
   it('fails after the defensive timeout is reached', async () => {
     const running = makeAgent({ status: AgentStatus.RUNNING });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([]),
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([]),
     };
 
     await expect(waitForAgentResponse({
@@ -363,22 +363,22 @@ describe('waitForAgentResponse', () => {
       },
       initialMessageCount: 0,
       options: { pollIntervalMs: 0, maxWaitMs: 0 },
-      onAssistantMessage: jest.fn(),
+      onAssistantMessage: vi.fn(),
     })).rejects.toThrow('Timed out waiting for agent "repo-a" after 0ms.');
   });
 
   it('does not sleep past the remaining timeout', async () => {
-    jest.useFakeTimers();
-    const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+    vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(global, 'setTimeout');
     let assertionError: unknown;
 
     try {
       const running = makeAgent({ status: AgentStatus.RUNNING });
       const manager = {
-        listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
+        listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
       };
       const adapter = {
-        getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([]),
+        getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([]),
       };
 
       const promise = waitForAgentResponse({
@@ -394,7 +394,7 @@ describe('waitForAgentResponse', () => {
         },
         initialMessageCount: 0,
         options: { pollIntervalMs: 25, maxWaitMs: 10 },
-        onAssistantMessage: jest.fn(),
+        onAssistantMessage: vi.fn(),
       });
 
       await Promise.resolve();
@@ -406,7 +406,7 @@ describe('waitForAgentResponse', () => {
         assertionError = error;
       }
 
-      jest.advanceTimersByTime(25);
+      vi.advanceTimersByTime(25);
       await expect(promise).rejects.toThrow('Timed out waiting for agent "repo-a" after 10ms.');
 
       if (assertionError) {
@@ -414,17 +414,17 @@ describe('waitForAgentResponse', () => {
       }
     } finally {
       setTimeoutSpy.mockRestore();
-      jest.useRealTimers();
+      vi.useRealTimers();
     }
   });
 
   it('uses the configured timeout label in timeout errors', async () => {
     const running = makeAgent({ status: AgentStatus.RUNNING });
     const manager = {
-      listAgents: jest.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
+      listAgents: vi.fn<() => Promise<AgentInfo[]>>().mockResolvedValue([running]),
     };
     const adapter = {
-      getConversation: jest.fn<() => ConversationMessage[]>().mockReturnValue([]),
+      getConversation: vi.fn<() => ConversationMessage[]>().mockReturnValue([]),
     };
 
     await expect(waitForAgentResponse({
@@ -440,7 +440,7 @@ describe('waitForAgentResponse', () => {
       },
       initialMessageCount: 0,
       options: { pollIntervalMs: 0, maxWaitMs: 0, timeoutLabel: '1500ms' },
-      onAssistantMessage: jest.fn(),
+      onAssistantMessage: vi.fn(),
     })).rejects.toThrow('Timed out waiting for agent "repo-a" after 1500ms.');
   });
 });

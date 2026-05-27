@@ -67,8 +67,8 @@ export function withErrorHandler<T extends unknown[]>(
     try {
       await fn(...args);
     } catch (error: unknown) {
-      const { ui } = await import('./terminal-ui');
-      const { getErrorMessage } = await import('./text');
+      const { ui } = await import('./terminal-ui.js');
+      const { getErrorMessage } = await import('./text.js');
       ui.error(`Failed to ${label}: ${getErrorMessage(error)}`);
       process.exit(1);
     }

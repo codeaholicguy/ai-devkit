@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ConfigSkill, EnvironmentCode, McpServerDefinition, Phase, AVAILABLE_PHASES } from '../types';
-import { isValidEnvironmentCode } from './env';
+import { ConfigSkill, EnvironmentCode, McpServerDefinition, Phase, AVAILABLE_PHASES } from '../types.js';
+import { isValidEnvironmentCode } from './env.js';
 
 export interface InstallConfigData {
   environments: EnvironmentCode[];

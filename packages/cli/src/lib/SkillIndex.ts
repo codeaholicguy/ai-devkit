@@ -1,12 +1,12 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import { SkillRegistry } from './SkillRegistry';
-import { extractSkillDescription } from '../util/skill';
-import { fetchGitHead } from '../util/git';
-import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github';
-import { ui } from '../util/terminal-ui';
-import { getErrorMessage } from '../util/text';
+import { SkillRegistry } from './SkillRegistry.js';
+import { extractSkillDescription } from '../util/skill.js';
+import { fetchGitHead } from '../util/git.js';
+import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github.js';
+import { ui } from '../util/terminal-ui.js';
+import { getErrorMessage } from '../util/text.js';
 
 const SEED_INDEX_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/index.json';
 const SKILL_INDEX_PATH = path.join(os.homedir(), '.ai-devkit', 'skills.json');

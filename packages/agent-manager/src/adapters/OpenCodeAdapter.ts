@@ -21,10 +21,10 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
-} from './AgentAdapter';
-import { AgentStatus } from './AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../utils/process';
-import { generateAgentName } from '../utils/matching';
+} from './AgentAdapter.js';
+import { AgentStatus } from './AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { generateAgentName } from '../utils/matching.js';
 
 const SESSION_REF_SEP = '::';
 

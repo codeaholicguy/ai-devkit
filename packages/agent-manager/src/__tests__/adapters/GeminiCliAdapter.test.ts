@@ -2,30 +2,32 @@
  * Tests for GeminiCliAdapter
  */
 
+import type { MockedFunction } from 'vitest';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { beforeEach, afterEach, describe, expect, it, jest } from '@jest/globals';
-import { GeminiCliAdapter } from '../../adapters/GeminiCliAdapter';
-import type { ProcessInfo } from '../../adapters/AgentAdapter';
-import { AgentStatus } from '../../adapters/AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process';
-import { matchProcessesToSessions, generateAgentName } from '../../utils/matching';
 
-jest.mock('../../utils/process', () => ({
-    listAgentProcesses: jest.fn(),
-    enrichProcesses: jest.fn(),
+import { GeminiCliAdapter } from '../../adapters/GeminiCliAdapter.js';
+import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
+import { AgentStatus } from '../../adapters/AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
+import * as crypto from 'crypto';
+
+vi.mock('../../utils/process.js', () => ({
+    listAgentProcesses: vi.fn(),
+    enrichProcesses: vi.fn(),
 }));
 
-jest.mock('../../utils/matching', () => ({
-    matchProcessesToSessions: jest.fn(),
-    generateAgentName: jest.fn(),
+vi.mock('../../utils/matching.js', () => ({
+    matchProcessesToSessions: vi.fn(),
+    generateAgentName: vi.fn(),
 }));
 
-const mockedListAgentProcesses = listAgentProcesses as jest.MockedFunction<typeof listAgentProcesses>;
-const mockedEnrichProcesses = enrichProcesses as jest.MockedFunction<typeof enrichProcesses>;
-const mockedMatchProcessesToSessions = matchProcessesToSessions as jest.MockedFunction<typeof matchProcessesToSessions>;
-const mockedGenerateAgentName = generateAgentName as jest.MockedFunction<typeof generateAgentName>;
+const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
+const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
+const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 describe('GeminiCliAdapter', () => {
     let adapter: GeminiCliAdapter;
@@ -918,6 +920,5 @@ function writeSession(
  */
 function hashProjectRoot(projectRoot: string): string {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const crypto = require('crypto');
     return crypto.createHash('sha256').update(projectRoot).digest('hex');
 }

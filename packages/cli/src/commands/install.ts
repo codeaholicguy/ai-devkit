@@ -1,10 +1,10 @@
 import {
   getInstallExitCode,
   reconcileAndInstall
-} from '../services/install/install.service';
-import { loadConfigFile } from '../services/config/config.service';
-import { validateInstallConfig } from '../util/config';
-import { ui } from '../util/terminal-ui';
+} from '../services/install/install.service.js';
+import { loadConfigFile } from '../services/config/config.service.js';
+import { validateInstallConfig } from '../util/config.js';
+import { ui } from '../util/terminal-ui.js';
 
 interface InstallCommandOptions {
   config?: string;

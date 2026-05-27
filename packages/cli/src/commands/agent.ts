@@ -17,16 +17,16 @@ import {
     type ConversationMessage,
     type SessionSummary,
 } from '@ai-devkit/agent-manager';
-import { ui } from '../util/terminal-ui';
-import { withErrorHandler } from '../util/errors';
+import { ui } from '../util/terminal-ui.js';
+import { withErrorHandler } from '../util/errors.js';
 import {
     formatFirstMessage,
     parseLimit,
     resolveListSessionsOptions,
     toJsonSession,
-} from '../util/sessions';
-import { waitForAgentResponse } from '../services/agent/agent.service';
-import { parseMilliseconds } from '../util/time';
+} from '../util/sessions.js';
+import { waitForAgentResponse } from '../services/agent/agent.service.js';
+import { parseMilliseconds } from '../util/time.js';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;

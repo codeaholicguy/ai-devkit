@@ -1,43 +1,44 @@
+import type { MockedFunction } from 'vitest';
 import { Command } from 'commander';
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { registerMemoryCommand } from '../../commands/memory';
-import { memorySearchCommand, memoryStoreCommand, memoryUpdateCommand } from '@ai-devkit/memory';
-import { ui } from '../../util/terminal-ui';
 
-const mockGetMemoryDbPath = jest.fn<() => Promise<string | undefined>>();
+import { registerMemoryCommand } from '../../commands/memory.js';
+import { memorySearchCommand, memoryStoreCommand, memoryUpdateCommand } from '@ai-devkit/memory';
+import { ui } from '../../util/terminal-ui.js';
+
+const mockGetMemoryDbPath = vi.fn<() => Promise<string | undefined>>();
 const mockConfigManager = {
   getMemoryDbPath: mockGetMemoryDbPath
 };
 
-jest.mock('@ai-devkit/memory', () => ({
-  memoryStoreCommand: jest.fn(),
-  memorySearchCommand: jest.fn(),
-  memoryUpdateCommand: jest.fn()
+vi.mock('@ai-devkit/memory', () => ({
+  memoryStoreCommand: vi.fn(),
+  memorySearchCommand: vi.fn(),
+  memoryUpdateCommand: vi.fn()
 }), { virtual: true });
 
-jest.mock('../../lib/Config', () => ({
-  ConfigManager: jest.fn(() => mockConfigManager)
+vi.mock('../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(() => mockConfigManager)
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: {
-    error: jest.fn(),
-    warning: jest.fn(),
-    table: jest.fn()
+    error: vi.fn(),
+    warning: vi.fn(),
+    table: vi.fn()
   },
 }));
 
 describe('memory command', () => {
-  const mockedMemorySearchCommand = memorySearchCommand as jest.MockedFunction<typeof memorySearchCommand>;
-  const mockedMemoryStoreCommand = memoryStoreCommand as jest.MockedFunction<typeof memoryStoreCommand>;
-  const mockedMemoryUpdateCommand = memoryUpdateCommand as jest.MockedFunction<typeof memoryUpdateCommand>;
-  const mockedUi = jest.mocked(ui);
-  let consoleLogSpy: ReturnType<typeof jest.spyOn>;
+  const mockedMemorySearchCommand = memorySearchCommand as MockedFunction<typeof memorySearchCommand>;
+  const mockedMemoryStoreCommand = memoryStoreCommand as MockedFunction<typeof memoryStoreCommand>;
+  const mockedMemoryUpdateCommand = memoryUpdateCommand as MockedFunction<typeof memoryUpdateCommand>;
+  const mockedUi = vi.mocked(ui);
+  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockGetMemoryDbPath.mockResolvedValue(undefined);
-    consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
+    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
   it('prints JSON for memory store', async () => {
@@ -101,7 +102,7 @@ describe('memory command', () => {
     mockedMemoryStoreCommand.mockImplementation(() => {
       throw new Error('store failed');
     });
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new Error('process.exit');
     }) as never);
 
@@ -161,7 +162,7 @@ describe('memory command', () => {
     mockedMemoryUpdateCommand.mockImplementation(() => {
       throw new Error('update failed');
     });
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new Error('process.exit');
     }) as never);
 
@@ -300,7 +301,7 @@ describe('memory command', () => {
     mockedMemorySearchCommand.mockImplementation(() => {
       throw new Error('search failed');
     });
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
       throw new Error('process.exit');
     }) as never);
 

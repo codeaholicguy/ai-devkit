@@ -1,9 +1,9 @@
 import { v4 as uuidv4 } from 'uuid';
-import { getDatabase } from '../database';
-import { validateStoreInput } from '../services/validator';
-import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../services/normalizer';
-import { DuplicateError, StorageError } from '../utils/errors';
-import type { StoreKnowledgeInput, StoreKnowledgeResult, KnowledgeRow } from '../types';
+import { getDatabase } from '../database/index.js';
+import { validateStoreInput } from '../services/validator.js';
+import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../services/normalizer.js';
+import { DuplicateError, StorageError } from '../utils/errors.js';
+import type { StoreKnowledgeInput, StoreKnowledgeResult, KnowledgeRow } from '../types/index.js';
 
 export function storeKnowledge(input: StoreKnowledgeInput): StoreKnowledgeResult {
     validateStoreInput(input);

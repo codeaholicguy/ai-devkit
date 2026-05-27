@@ -1,7 +1,7 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { EnvironmentCode, McpServerDefinition } from '../../../types';
-import { BaseMcpGenerator } from './BaseMcpGenerator';
+import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
+import { BaseMcpGenerator } from './BaseMcpGenerator.js';
 
 interface ClaudeMcpConfig {
   mcpServers?: Record<string, Record<string, unknown>>;

@@ -1,6 +1,6 @@
 import * as path from 'path';
-import { LintCheckResult, LintDependencies } from '../types';
-import { createMissingCheck, createOkCheck } from './check-factories';
+import { LintCheckResult, LintDependencies } from '../types.js';
+import { createMissingCheck, createOkCheck } from './check-factories.js';
 
 interface PhaseDocRuleParams {
   cwd: string;

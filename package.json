@@ -11,7 +11,7 @@
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test --watch",
     "test:coverage": "nx run-many -t test --coverage",
-    "test:e2e": "jest --config e2e/jest.config.js"
+    "test:e2e": "vitest run --config e2e/vitest.config.ts"
   },
   "workspaces": [
     "apps/*",

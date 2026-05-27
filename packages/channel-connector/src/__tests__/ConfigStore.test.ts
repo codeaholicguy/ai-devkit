@@ -1,8 +1,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { ConfigStore } from '../ConfigStore';
-import type { ChannelEntry } from '../types';
+import { ConfigStore } from '../ConfigStore.js';
+import type { ChannelEntry } from '../types.js';
 
 describe('ConfigStore', () => {
     let tmpDir: string;

@@ -1,10 +1,10 @@
 import inquirer from 'inquirer';
 import * as path from 'path';
-import { TemplateManager } from '../lib/TemplateManager';
-import { EnvironmentSelector } from '../lib/EnvironmentSelector';
-import { EnvironmentCode } from '../types';
-import { getEnvironmentDisplayName, getEnvironment } from '../util/env';
-import { ui } from '../util/terminal-ui';
+import { TemplateManager } from '../lib/TemplateManager.js';
+import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';
+import { EnvironmentCode } from '../types.js';
+import { getEnvironmentDisplayName, getEnvironment } from '../util/env.js';
+import { ui } from '../util/terminal-ui.js';
 
 interface SetupOptions {
     global?: boolean;

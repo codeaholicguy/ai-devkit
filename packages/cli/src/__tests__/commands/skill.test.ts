@@ -1,41 +1,41 @@
 import { Command } from 'commander';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
-import { registerSkillCommand } from '../../commands/skill';
-import { ui } from '../../util/terminal-ui';
 
-const mockAddSkill = jest.fn();
+import { registerSkillCommand } from '../../commands/skill.js';
+import { ui } from '../../util/terminal-ui.js';
 
-jest.mock('../../lib/Config', () => ({
-  ConfigManager: jest.fn(),
+const mockAddSkill = vi.fn();
+
+vi.mock('../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(),
 }));
 
-jest.mock('../../lib/SkillManager', () => ({
-  SkillManager: jest.fn(() => ({
+vi.mock('../../lib/SkillManager.js', () => ({
+  SkillManager: vi.fn(() => ({
     addSkill: (...args: unknown[]) => mockAddSkill(...args),
-    listSkills: jest.fn(),
-    removeSkill: jest.fn(),
-    updateSkills: jest.fn(),
-    findSkills: jest.fn(),
-    rebuildIndex: jest.fn(),
+    listSkills: vi.fn(),
+    removeSkill: vi.fn(),
+    updateSkills: vi.fn(),
+    findSkills: vi.fn(),
+    rebuildIndex: vi.fn(),
   })),
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: {
-    error: jest.fn(),
-    warning: jest.fn(),
-    info: jest.fn(),
-    text: jest.fn(),
-    table: jest.fn(),
+    error: vi.fn(),
+    warning: vi.fn(),
+    info: vi.fn(),
+    text: vi.fn(),
+    table: vi.fn(),
   },
 }));
 
 describe('skill command', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockAddSkill.mockImplementation(async () => undefined);
-    jest.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
-    jest.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
+    vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
+    vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
   });
 
   it('parses skill add with registry only and forwards undefined skill name', async () => {

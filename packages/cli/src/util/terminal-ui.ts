@@ -15,7 +15,7 @@ const sanitize = (message: string): string => {
  * 
  * @example
  * ```typescript
- * import { ui } from '../util/terminal-ui';
+ * import { ui } from '../util/terminal-ui.js';
  * 
  * // Display messages
  * ui.info('Initializing project...');

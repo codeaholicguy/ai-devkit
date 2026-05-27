@@ -1,5 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
-import { formatLocalDate, parseMilliseconds } from '../../util/time';
+
+import { formatLocalDate, parseMilliseconds } from '../../util/time.js';
 
 describe('time util', () => {
     describe('formatLocalDate', () => {

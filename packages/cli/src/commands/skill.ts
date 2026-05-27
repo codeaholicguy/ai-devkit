@@ -1,10 +1,10 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { ConfigManager } from '../lib/Config';
-import { SkillManager } from '../lib/SkillManager';
-import { ui } from '../util/terminal-ui';
-import { withErrorHandler } from '../util/errors';
-import { truncate, getErrorMessage } from '../util/text';
+import { ConfigManager } from '../lib/Config.js';
+import { SkillManager } from '../lib/SkillManager.js';
+import { ui } from '../util/terminal-ui.js';
+import { withErrorHandler } from '../util/errors.js';
+import { truncate, getErrorMessage } from '../util/text.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program

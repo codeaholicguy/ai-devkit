@@ -1,12 +1,12 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import { ConfigManager } from './Config';
-import { GlobalConfigManager } from './GlobalConfig';
-import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../util/git';
-import { ui } from '../util/terminal-ui';
-import { getErrorMessage } from '../util/text';
-import { CliError, NotFoundError } from '../util/errors';
+import { ConfigManager } from './Config.js';
+import { GlobalConfigManager } from './GlobalConfig.js';
+import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../util/git.js';
+import { ui } from '../util/terminal-ui.js';
+import { getErrorMessage } from '../util/text.js';
+import { CliError, NotFoundError } from '../util/errors.js';
 
 export const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
 export const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');

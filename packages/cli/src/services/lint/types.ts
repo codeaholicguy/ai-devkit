@@ -1,5 +1,5 @@
-import { GitExecFileSync } from '../../util/git';
-import { LINT_LEVEL } from './constants';
+import { GitExecFileSync } from '../../util/git.js';
+import { LINT_LEVEL } from './constants.js';
 
 export interface LintOptions {
   feature?: string;

@@ -1,8 +1,8 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import type { TerminalLocation } from './TerminalFocusManager';
-import { TerminalType } from './TerminalFocusManager';
-import { escapeAppleScript } from '../utils/applescript';
+import type { TerminalLocation } from './TerminalFocusManager.js';
+import { TerminalType } from './TerminalFocusManager.js';
+import { escapeAppleScript } from '../utils/applescript.js';
 
 const execFileAsync = promisify(execFile);
 

@@ -1,13 +1,14 @@
-import * as fs from 'fs-extra';
-import { loadConfigFile } from '../../../services/config/config.service';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
+import { loadConfigFile } from '../../../services/config/config.service.js';
 
-jest.mock('fs-extra');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
 
 describe('config service', () => {
-  const mockedFs = fs as jest.Mocked<typeof fs>;
+  const mockedFs = fs as Mocked<typeof fs>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('loads config file from disk', async () => {

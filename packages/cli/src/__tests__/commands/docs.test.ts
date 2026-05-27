@@ -1,22 +1,22 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 import { Command } from 'commander';
-import { registerDocsCommand } from '../../commands/docs';
-import { ui } from '../../util/terminal-ui';
+import { registerDocsCommand } from '../../commands/docs.js';
+import { ui } from '../../util/terminal-ui.js';
 
-const mockGetDocsDir = jest.fn<() => Promise<string>>();
-const mockGetPhases = jest.fn<() => Promise<string[]>>();
-const mockCopyFeatureDocTemplates = jest.fn<(...args: unknown[]) => Promise<any>>();
-const mockTemplateManagerConstructor = jest.fn();
+const mockGetDocsDir = vi.fn<() => Promise<string>>();
+const mockGetPhases = vi.fn<() => Promise<string[]>>();
+const mockCopyFeatureDocTemplates = vi.fn<(...args: unknown[]) => Promise<any>>();
+const mockTemplateManagerConstructor = vi.fn();
 
-jest.mock('../../lib/Config', () => ({
-  ConfigManager: jest.fn(() => ({
+vi.mock('../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(() => ({
     getDocsDir: mockGetDocsDir,
     getPhases: mockGetPhases
   }))
 }));
 
-jest.mock('../../lib/TemplateManager', () => ({
-  TemplateManager: jest.fn((...args: unknown[]) => {
+vi.mock('../../lib/TemplateManager.js', () => ({
+  TemplateManager: vi.fn((...args: unknown[]) => {
     mockTemplateManagerConstructor(...args);
     return {
       copyFeatureDocTemplates: (...copyArgs: unknown[]) => mockCopyFeatureDocTemplates(...copyArgs)
@@ -24,19 +24,19 @@ jest.mock('../../lib/TemplateManager', () => ({
   })
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: {
-    error: jest.fn(),
-    success: jest.fn(),
-    text: jest.fn()
+    error: vi.fn(),
+    success: vi.fn(),
+    text: vi.fn()
   }
 }));
 
 describe('docs command', () => {
-  const mockedUi = jest.mocked(ui);
+  const mockedUi = vi.mocked(ui);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.exitCode = undefined;
     mockGetDocsDir.mockResolvedValue('docs/ai');
     mockGetPhases.mockResolvedValue(['requirements', 'design']);
@@ -50,13 +50,13 @@ describe('docs command', () => {
   });
 
   afterEach(() => {
-    jest.useRealTimers();
+    vi.useRealTimers();
     process.exitCode = undefined;
   });
 
   it('registers docs init-feature and creates docs using config docsDir', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 4, 25, 10, 30));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 25, 10, 30));
     const program = new Command();
     registerDocsCommand(program);
 
@@ -71,8 +71,8 @@ describe('docs command', () => {
   });
 
   it('uses the current local date', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 4, 25, 10, 30));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 25, 10, 30));
     const program = new Command();
     registerDocsCommand(program);
 
@@ -85,8 +85,8 @@ describe('docs command', () => {
   });
 
   it('prints JSON output when requested', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 4, 25, 10, 30));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 25, 10, 30));
     const program = new Command();
     registerDocsCommand(program);
 
@@ -118,8 +118,8 @@ describe('docs command', () => {
   });
 
   it('surfaces copy errors and sets a non-zero exit code', async () => {
-    jest.useFakeTimers();
-    jest.setSystemTime(new Date(2026, 4, 25, 10, 30));
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 4, 25, 10, 30));
     mockCopyFeatureDocTemplates.mockRejectedValue(new Error('Feature docs already exist'));
     const program = new Command();
     registerDocsCommand(program);

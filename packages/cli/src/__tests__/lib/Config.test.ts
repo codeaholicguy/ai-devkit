@@ -1,23 +1,52 @@
-import * as fs from 'fs-extra';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { ConfigManager } from '../../lib/Config';
-import { DevKitConfig } from '../../types';
+import { ConfigManager } from '../../lib/Config.js';
+import { DevKitConfig } from '../../types.js';
 
-jest.mock('fs-extra');
-jest.mock('path');
-jest.mock('../../../package.json', () => ({
-  version: '1.0.0'
+vi.mock('fs-extra', () => {
+  const m = {
+    pathExists: vi.fn(), readJson: vi.fn(), writeJson: vi.fn(),
+    readFile: vi.fn(), writeFile: vi.fn(), ensureDir: vi.fn(),
+    ensureFile: vi.fn(), readdir: vi.fn(), stat: vi.fn(),
+    copy: vi.fn(), copyFile: vi.fn(), remove: vi.fn(),
+    move: vi.fn(), outputFile: vi.fn(), outputJson: vi.fn(),
+    emptyDir: vi.fn(),
+  };
+  return { ...m, default: m };
+});
+vi.mock('path', () => {
+  const m = {
+    join: vi.fn(),
+    dirname: vi.fn(),
+    resolve: vi.fn(),
+    isAbsolute: vi.fn(),
+    basename: vi.fn(),
+    extname: vi.fn(),
+    sep: '/',
+    delimiter: ':',
+    parse: vi.fn(),
+    format: vi.fn(),
+    normalize: vi.fn(),
+    relative: vi.fn(),
+    posix: {} as any,
+    win32: {} as any,
+  };
+  return { ...m, default: m };
+});
+vi.mock('../../../package.json', () => ({
+  default: { version: '1.0.0' },
 }));
 
 describe('ConfigManager', () => {
   let configManager: ConfigManager;
-  let mockFs: jest.Mocked<typeof fs>;
-  let mockPath: jest.Mocked<typeof path>;
+  let mockFs: Mocked<typeof fs>;
+  let mockPath: Mocked<typeof path>;
 
   beforeEach(() => {
     configManager = new ConfigManager('/test/dir');
-    mockFs = fs as jest.Mocked<typeof fs>;
-    mockPath = path as jest.Mocked<typeof path>;
+    mockFs = fs as Mocked<typeof fs>;
+    mockPath = path as Mocked<typeof path>;
     mockPath.join.mockImplementation((...args) => args.join('/'));
     mockPath.dirname.mockImplementation((input: string) => input.split('/').slice(0, -1).join('/') || '/');
     mockPath.resolve.mockImplementation((...args) => args.join('/').replace(/\/+/g, '/'));
@@ -25,7 +54,7 @@ describe('ConfigManager', () => {
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('constructor', () => {

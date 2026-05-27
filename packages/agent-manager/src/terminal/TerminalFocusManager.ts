@@ -1,7 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { getProcessTty } from '../utils/process';
-import { escapeAppleScript } from '../utils/applescript';
+import { getProcessTty } from '../utils/process.js';
+import { escapeAppleScript } from '../utils/applescript.js';
 
 const execFileAsync = promisify(execFile);
 

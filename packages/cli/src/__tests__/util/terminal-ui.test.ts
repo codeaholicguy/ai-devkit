@@ -1,38 +1,43 @@
-import { ui } from '../../util/terminal-ui';
+import type { MockInstance } from 'vitest';
+import ora from 'ora';
+import chalk from 'chalk';
+import { ui } from '../../util/terminal-ui.js';
 
-jest.mock('chalk', () => ({
-    blue: (text: string) => `[BLUE]${text}[/BLUE]`,
-    green: (text: string) => `[GREEN]${text}[/GREEN]`,
-    yellow: (text: string) => `[YELLOW]${text}[/YELLOW]`,
-    red: (text: string) => `[RED]${text}[/RED]`,
-    cyan: (text: string) => `[CYAN]${text}[/CYAN]`,
-    dim: (text: string) => `[DIM]${text}[/DIM]`,
-    bold: (text: string) => `[BOLD]${text}[/BOLD]`,
+vi.mock('chalk', () => ({
+    default: {
+        blue: (text: string) => `[BLUE]${text}[/BLUE]`,
+        green: (text: string) => `[GREEN]${text}[/GREEN]`,
+        yellow: (text: string) => `[YELLOW]${text}[/YELLOW]`,
+        red: (text: string) => `[RED]${text}[/RED]`,
+        cyan: (text: string) => `[CYAN]${text}[/CYAN]`,
+        dim: (text: string) => `[DIM]${text}[/DIM]`,
+        bold: (text: string) => `[BOLD]${text}[/BOLD]`,
+    },
 }));
 
 const mockOraInstance = {
-    start: jest.fn().mockReturnThis(),
-    succeed: jest.fn().mockReturnThis(),
-    fail: jest.fn().mockReturnThis(),
-    warn: jest.fn().mockReturnThis(),
-    stop: jest.fn().mockReturnThis(),
+    start: vi.fn().mockReturnThis(),
+    succeed: vi.fn().mockReturnThis(),
+    fail: vi.fn().mockReturnThis(),
+    warn: vi.fn().mockReturnThis(),
+    stop: vi.fn().mockReturnThis(),
     text: '',
     isSpinning: false,
 };
 
-jest.mock('ora', () => {
-    return jest.fn(() => mockOraInstance);
-});
+vi.mock('ora', () => ({
+    default: vi.fn(() => mockOraInstance),
+}));
 
 describe('TerminalUI', () => {
-    let consoleLogSpy: jest.SpyInstance;
-    let consoleErrorSpy: jest.SpyInstance;
+    let consoleLogSpy: MockInstance;
+    let consoleErrorSpy: MockInstance;
 
     beforeEach(() => {
-        consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
-        consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+        consoleLogSpy = vi.spyOn(console, 'log').mockImplementation();
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation();
 
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     afterEach(() => {
@@ -142,7 +147,7 @@ describe('TerminalUI', () => {
 
     describe('spinner()', () => {
         it('should create ora spinner with correct options', () => {
-            const ora = require('ora');
+            
 
             const spinner = ui.spinner('Loading...');
 
@@ -154,7 +159,7 @@ describe('TerminalUI', () => {
         });
 
         it('should sanitize text in spinner', () => {
-            const ora = require('ora');
+            
 
             ui.spinner('Loading \x1b[31mwith color\x1b[0m...');
 
@@ -178,14 +183,16 @@ describe('TerminalUI', () => {
     describe('table()', () => {
         beforeEach(() => {
             // Need to mock chalk for table tests
-            jest.mock('chalk', () => ({
-                blue: (text: string) => `[BLUE]${text}[/BLUE]`,
-                green: (text: string) => `[GREEN]${text}[/GREEN]`,
-                yellow: (text: string) => `[YELLOW]${text}[/YELLOW]`,
-                red: (text: string) => `[RED]${text}[/RED]`,
-                cyan: (text: string) => `[CYAN]${text}[/CYAN]`,
-                dim: (text: string) => `[DIM]${text}[/DIM]`,
-                bold: (text: string) => `[BOLD]${text}[/BOLD]`,
+            vi.doMock('chalk', () => ({
+                default: {
+                    blue: (text: string) => `[BLUE]${text}[/BLUE]`,
+                    green: (text: string) => `[GREEN]${text}[/GREEN]`,
+                    yellow: (text: string) => `[YELLOW]${text}[/YELLOW]`,
+                    red: (text: string) => `[RED]${text}[/RED]`,
+                    cyan: (text: string) => `[CYAN]${text}[/CYAN]`,
+                    dim: (text: string) => `[DIM]${text}[/DIM]`,
+                    bold: (text: string) => `[BOLD]${text}[/BOLD]`,
+                },
             }));
         });
 
@@ -204,7 +211,7 @@ describe('TerminalUI', () => {
         });
 
         it('should apply column styles when provided', () => {
-            const chalk = require('chalk');
+            
 
             ui.table({
                 headers: ['Name', 'Type'],

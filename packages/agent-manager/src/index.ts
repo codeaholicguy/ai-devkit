@@ -1,10 +1,10 @@
-export { AgentManager } from './AgentManager';
+export { AgentManager } from './AgentManager.js';
 
-export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter';
-export { CodexAdapter } from './adapters/CodexAdapter';
-export { GeminiCliAdapter } from './adapters/GeminiCliAdapter';
-export { OpenCodeAdapter } from './adapters/OpenCodeAdapter';
-export { AgentStatus } from './adapters/AgentAdapter';
+export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
+export { CodexAdapter } from './adapters/CodexAdapter.js';
+export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
+export { OpenCodeAdapter } from './adapters/OpenCodeAdapter.js';
+export { AgentStatus } from './adapters/AgentAdapter.js';
 export type {
     AgentAdapter,
     AgentType,
@@ -13,10 +13,10 @@ export type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
-} from './adapters/AgentAdapter';
+} from './adapters/AgentAdapter.js';
 
-export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusManager';
-export type { TerminalLocation } from './terminal/TerminalFocusManager';
-export { TtyWriter } from './terminal/TtyWriter';
+export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusManager.js';
+export type { TerminalLocation } from './terminal/TerminalFocusManager.js';
+export { TtyWriter } from './terminal/TtyWriter.js';
 
-export { getProcessTty } from './utils/process';
+export { getProcessTty } from './utils/process.js';

@@ -1,10 +1,10 @@
 import inquirer from 'inquirer';
-import { EnvironmentCode, McpServerDefinition } from '../../../types';
-import { hasMcpSupport } from '../../../util/env';
-import { isInteractiveTerminal } from '../../../util/terminal';
-import { McpAgentGenerator, McpInstallReport, McpMergePlan } from './types';
-import { ClaudeCodeMcpGenerator } from './ClaudeCodeMcpGenerator';
-import { CodexMcpGenerator } from './CodexMcpGenerator';
+import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
+import { hasMcpSupport } from '../../../util/env.js';
+import { isInteractiveTerminal } from '../../../util/terminal.js';
+import { McpAgentGenerator, McpInstallReport, McpMergePlan } from './types.js';
+import { ClaudeCodeMcpGenerator } from './ClaudeCodeMcpGenerator.js';
+import { CodexMcpGenerator } from './CodexMcpGenerator.js';
 
 export interface McpInstallOptions {
   overwrite?: boolean;

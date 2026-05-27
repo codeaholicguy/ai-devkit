@@ -1,9 +1,9 @@
 import { execFile, execFileSync } from 'child_process';
 import { promisify } from 'util';
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { GitError } from './errors';
-import { ui } from './terminal-ui';
+import { GitError } from './errors.js';
+import { ui } from './terminal-ui.js';
 
 const execFileAsync = promisify(execFile);
 export type GitExecFileSync = (

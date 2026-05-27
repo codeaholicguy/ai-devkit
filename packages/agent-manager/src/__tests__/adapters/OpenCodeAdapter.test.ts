@@ -2,28 +2,30 @@
  * Tests for OpenCodeAdapter
  */
 
+import type { MockedFunction } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { beforeEach, afterEach, describe, expect, it, jest } from '@jest/globals';
-import { OpenCodeAdapter } from '../../adapters/OpenCodeAdapter';
-import type { ProcessInfo } from '../../adapters/AgentAdapter';
-import { AgentStatus } from '../../adapters/AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process';
-import { generateAgentName } from '../../utils/matching';
 
-jest.mock('../../utils/process', () => ({
-    listAgentProcesses: jest.fn(),
-    enrichProcesses: jest.fn(),
+import { OpenCodeAdapter } from '../../adapters/OpenCodeAdapter.js';
+import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
+import { AgentStatus } from '../../adapters/AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { generateAgentName } from '../../utils/matching.js';
+import * as os from 'os';
+
+vi.mock('../../utils/process.js', () => ({
+    listAgentProcesses: vi.fn(),
+    enrichProcesses: vi.fn(),
 }));
 
-jest.mock('../../utils/matching', () => ({
-    generateAgentName: jest.fn(),
-    matchProcessesToSessions: jest.fn(),
+vi.mock('../../utils/matching.js', () => ({
+    generateAgentName: vi.fn(),
+    matchProcessesToSessions: vi.fn(),
 }));
 
-const mockedListAgentProcesses = listAgentProcesses as jest.MockedFunction<typeof listAgentProcesses>;
-const mockedEnrichProcesses = enrichProcesses as jest.MockedFunction<typeof enrichProcesses>;
-const mockedGenerateAgentName = generateAgentName as jest.MockedFunction<typeof generateAgentName>;
+const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
+const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 function makeDb(queries: {
     session?: Array<{ id: string; directory: string; time_created: number }>;
@@ -85,11 +87,11 @@ function makeDb(queries: {
         return { all: () => [], get: () => undefined };
     };
 
-    return { prepare: prepareImpl, close: jest.fn() };
+    return { prepare: prepareImpl, close: vi.fn() };
 }
 
 function makeDbConstructor(db: ReturnType<typeof makeDb>) {
-    return jest.fn().mockReturnValue(db);
+    return vi.fn().mockReturnValue(db);
 }
 
 describe('OpenCodeAdapter', () => {
@@ -110,7 +112,7 @@ describe('OpenCodeAdapter', () => {
             return `${folder}-${pid}`;
         });
 
-        tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'opencode-test-'));
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'opencode-test-'));
         dbPath = path.join(tmpDir, 'opencode.db');
         (adapter as any).dbPath = dbPath;
         (adapter as any).db = null;
@@ -118,7 +120,7 @@ describe('OpenCodeAdapter', () => {
 
     afterEach(() => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
-        jest.restoreAllMocks();
+        vi.restoreAllMocks();
     });
 
     describe('type', () => {
@@ -193,7 +195,7 @@ describe('OpenCodeAdapter', () => {
 
             fs.writeFileSync(dbPath, ''); // file exists but empty → sqlite throws
             const db = makeDb({ session: [] }); // no matching session
-            jest.mock('better-sqlite3', () => makeDbConstructor(db));
+            vi.doMock('better-sqlite3', () => makeDbConstructor(db));
             (adapter as any).db = db;
 
             const agents = await adapter.detectAgents();

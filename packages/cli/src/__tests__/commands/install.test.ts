@@ -1,41 +1,48 @@
-import { jest } from '@jest/globals';
 
-const mockLoadAndValidateInstallConfig: any = jest.fn();
-const mockLoadConfigFile: any = jest.fn();
-const mockReconcileAndInstall: any = jest.fn();
-const mockGetInstallExitCode: any = jest.fn();
 
-const mockUi: any = {
-  warning: jest.fn(),
-  error: jest.fn(),
-  success: jest.fn(),
-  info: jest.fn(),
-  text: jest.fn(),
-  summary: jest.fn()
-};
+const {
+  mockLoadAndValidateInstallConfig,
+  mockLoadConfigFile,
+  mockReconcileAndInstall,
+  mockGetInstallExitCode,
+  mockUi,
+} = vi.hoisted(() => ({
+  mockLoadAndValidateInstallConfig: vi.fn() as any,
+  mockLoadConfigFile: vi.fn() as any,
+  mockReconcileAndInstall: vi.fn() as any,
+  mockGetInstallExitCode: vi.fn() as any,
+  mockUi: {
+    warning: vi.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+    text: vi.fn(),
+    summary: vi.fn(),
+  } as any,
+}));
 
-jest.mock('../../services/install/install.service', () => ({
+vi.mock('../../services/install/install.service.js', () => ({
   reconcileAndInstall: (...args: unknown[]) => mockReconcileAndInstall(...args),
   getInstallExitCode: (...args: unknown[]) => mockGetInstallExitCode(...args)
 }));
 
-jest.mock('../../services/config/config.service', () => ({
+vi.mock('../../services/config/config.service.js', () => ({
   loadConfigFile: (...args: unknown[]) => mockLoadConfigFile(...args)
 }));
 
-jest.mock('../../util/config', () => ({
+vi.mock('../../util/config.js', () => ({
   validateInstallConfig: (...args: unknown[]) => mockLoadAndValidateInstallConfig(...args)
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: mockUi
 }));
 
-import { installCommand } from '../../commands/install';
+import { installCommand } from '../../commands/install.js';
 
 describe('install command', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.exitCode = undefined;
 
     mockGetInstallExitCode.mockReturnValue(0);

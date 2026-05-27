@@ -1,9 +1,9 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types';
-import { filterStringRecord } from '../util/config';
-import { ConfigNotFoundError } from '../util/errors';
-import packageJson from '../../package.json';
+import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types.js';
+import { filterStringRecord } from '../util/config.js';
+import { ConfigNotFoundError } from '../util/errors.js';
+import packageJson from '../../package.json' with { type: 'json' };
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
 

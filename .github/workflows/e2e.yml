@@ -37,4 +37,4 @@ jobs:
         run: npm run build
 
       - name: Run E2E tests
-        run: npx jest --config e2e/jest.config.js --verbose
+        run: npx vitest run --config e2e/vitest.config.ts --reporter=verbose

@@ -1,4 +1,4 @@
-import { EnvironmentCode, McpServerDefinition } from '../../../types';
+import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
 
 export interface McpMergePlan {
   agentType: EnvironmentCode;

@@ -1,5 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
-import { normalizeFeatureName, runLintChecks } from '../../../services/lint/lint.service';
+
+import { normalizeFeatureName, runLintChecks } from '../../../services/lint/lint.service.js';
 
 describe('lint service', () => {
   it('normalizes feature names with optional feature- prefix', () => {

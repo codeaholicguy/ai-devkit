@@ -1,6 +1,7 @@
 {
   "name": "ai-devkit",
   "version": "0.34.0",
+  "type": "module",
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,11 +10,11 @@
   },
   "scripts": {
     "build": "tsc && cp -R templates dist/templates",
-    "dev": "ts-node src/cli.ts",
+    "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
     "lint": "eslint src --ext .ts",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -30,13 +31,13 @@
     "@ai-devkit/agent-manager": "0.14.0",
     "@ai-devkit/channel-connector": "0.6.0",
     "@ai-devkit/memory": "0.11.0",
-    "chalk": "^4.1.2",
+    "chalk": "^5.6.0",
     "commander": "^11.1.0",
     "debug": "^4.4.3",
     "fs-extra": "^11.2.0",
     "gray-matter": "^4.0.3",
-    "inquirer": "^8.2.6",
-    "ora": "^5.4.1",
+    "inquirer": "^9.3.0",
+    "ora": "^9.0.0",
     "smol-toml": "^1.6.1",
     "yaml": "^2.3.4",
     "zod": "^3.25.76"
@@ -44,16 +45,15 @@
   "devDependencies": {
     "@types/debug": "^4.1.13",
     "@types/fs-extra": "^11.0.4",
-    "@types/inquirer": "^8.2.10",
-    "@types/jest": "^30.0.0",
+    "@types/inquirer": "^9.0.0",
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^6.19.1",
     "@typescript-eslint/parser": "^6.19.1",
+    "@vitest/coverage-v8": "^2.1.0",
     "eslint": "^8.56.0",
-    "jest": "^29.7.0",
-    "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0"
   },
   "engines": {
     "node": ">=20.20.0"

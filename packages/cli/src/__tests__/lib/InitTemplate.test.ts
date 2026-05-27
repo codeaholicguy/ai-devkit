@@ -1,18 +1,19 @@
-import * as fs from 'fs-extra';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { loadInitTemplate } from '../../lib/InitTemplate';
+import { loadInitTemplate } from '../../lib/InitTemplate.js';
 
-jest.mock('fs-extra');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
 
 describe('InitTemplate', () => {
-  const mockFs = fs as jest.Mocked<typeof fs>;
+  const mockFs = fs as Mocked<typeof fs>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('loads YAML template from relative path', async () => {
-    const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue('/repo');
+    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/repo');
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(`
 version: 1
