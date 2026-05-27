@@ -94,7 +94,7 @@ export class ConfigManager {
   }
 
   async getMemoryDbPath(): Promise<string | undefined> {
-    const config = await this.read() as any;
+    const config = await this.read();
     const configuredPath = config?.memory?.path;
 
     if (typeof configuredPath !== 'string') {

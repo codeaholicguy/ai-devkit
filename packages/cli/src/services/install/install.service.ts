@@ -5,6 +5,7 @@ import { SkillManager } from '../../lib/SkillManager.js';
 import { TemplateManager } from '../../lib/TemplateManager.js';
 import { InstallConfigData } from '../../util/config.js';
 import { installMcpServers, McpInstallReport } from './mcp/index.js';
+import type { DevKitConfig } from '../../types.js';
 
 export interface InstallRunOptions {
   overwrite?: boolean;
@@ -130,7 +131,7 @@ export async function reconcileAndInstall(
     }
   }
 
-  const updates: Record<string, unknown> = {};
+  const updates: Partial<DevKitConfig> = {};
   if (successfulEnvironments.length > 0) {
     updates.environments = successfulEnvironments;
   }
@@ -146,7 +147,7 @@ export async function reconcileAndInstall(
   if (config.mcpServers && Object.keys(config.mcpServers).length > 0) {
     updates.mcpServers = config.mcpServers;
   }
-  await configManager.update(updates as any);
+  await configManager.update(updates);
 
   return report;
 }

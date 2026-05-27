@@ -13,6 +13,7 @@ import { validateRegistryId, validateSkillName, extractSkillDescription, isValid
 import { isInteractiveTerminal } from '../util/terminal.js';
 import { ui } from '../util/terminal-ui.js';
 import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors.js';
+import type { EnvironmentCode } from '../types.js';
 
 import type { UpdateSummary } from './SkillRegistry.js';
 import type { SkillEntry } from './SkillIndex.js';
@@ -258,7 +259,7 @@ export class SkillManager {
     const capableEnvironments: string[] = [];
 
     for (const env of environments) {
-      const skillPath = isGlobal ? getGlobalSkillPath(env as any) : getSkillPath(env as any);
+      const skillPath = isGlobal ? getGlobalSkillPath(env as EnvironmentCode) : getSkillPath(env as EnvironmentCode);
       if (skillPath) {
         targets.push(skillPath);
         capableEnvironments.push(env);

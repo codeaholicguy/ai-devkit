@@ -20,3 +20,5 @@ export type { TerminalLocation } from './terminal/TerminalFocusManager.js';
 export { TtyWriter } from './terminal/TtyWriter.js';
 
 export { getProcessTty } from './utils/process.js';
+export type { AgentSortKey } from './utils/sortAgents.js';
+export type { ListAgentsOptions } from './AgentManager.js';
