@@ -13,7 +13,7 @@ vi.mock('child_process', async () => {
     };
 });
 
-const mockedExecFile = execFile as unknown as jest.Mock;
+const mockedExecFile = execFile as unknown as Mock;
 
 function mockExecFileSuccess(stdout = '') {
     mockedExecFile.mockImplementation((...args: unknown[]) => {

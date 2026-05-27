@@ -1,4 +1,4 @@
-import type { MockedFunction, Mocked, Mock } from 'vitest';
+import type { MockedFunction, Mocked } from 'vitest';
 import fs from 'fs-extra';
 import * as path from 'path';
 import { TemplateManager } from '../../lib/TemplateManager.js';

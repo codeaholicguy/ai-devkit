@@ -2,7 +2,6 @@
  * Tests for AgentManager
  */
 
-import type { Mock } from 'vitest';
 
 import { AgentManager } from '../AgentManager.js';
 import type {
