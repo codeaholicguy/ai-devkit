@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "tsc && cp -R templates dist/templates",
-    "dev": "node --import 'ts-node/register/esm' src/cli.ts",
+    "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",

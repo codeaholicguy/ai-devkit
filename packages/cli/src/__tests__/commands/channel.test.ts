@@ -619,9 +619,9 @@ describe('channel command', () => {
             cwd: process.cwd(),
         }));
         const daemonInput = mockChannelService.startDaemonBridge.mock.calls[0][0] as { args: string[] };
-        expect(daemonInput.args[0]).toBe('--import');
-        expect(daemonInput.args[1]).toEqual(expect.stringContaining('ts-node'));
-        expect(daemonInput.args[2]).toEqual(expect.stringContaining('channel-daemon.ts'));
+        expect(daemonInput.args).toContain('--loader');
+        expect(daemonInput.args).toContain('ts-node/esm');
+        expect(daemonInput.args).toEqual(expect.arrayContaining([expect.stringContaining('channel-daemon.ts')]));
         expect(mockAgentManager.listAgents).not.toHaveBeenCalled();
         expect(ui.success).toHaveBeenCalledWith('Channel bridge daemon started for "personal" (PID: 9876).');
         expect(ui.info).toHaveBeenCalledWith('Logs: /tmp/channel-logs/personal.log');

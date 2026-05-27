@@ -25,8 +25,9 @@ function resolveDaemonLaunch(): { command: string; args: string[] } {
         return {
             command: process.execPath,
             args: [
-                '--import',
-                'ts-node/register/esm',
+                '--no-warnings',
+                '--loader',
+                'ts-node/esm',
                 path.resolve(__dirname, '..', 'channel-daemon.ts'),
             ],
         };
