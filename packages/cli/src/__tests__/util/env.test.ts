@@ -13,8 +13,8 @@ import {
   getSkillPath,
   getGlobalSkillPath,
   getSkillCapableEnvironments
-} from '../../util/env';
-import { EnvironmentCode } from '../../types';
+} from '../../util/env.js';
+import { EnvironmentCode } from '../../types.js';
 
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {

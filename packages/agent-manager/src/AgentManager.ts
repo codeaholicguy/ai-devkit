@@ -10,8 +10,8 @@ import type {
     AgentInfo,
     SessionSummary,
     ListSessionsOptions,
-} from './adapters/AgentAdapter';
-import { AgentStatus } from './adapters/AgentAdapter';
+} from './adapters/AgentAdapter.js';
+import { AgentStatus } from './adapters/AgentAdapter.js';
 
 /**
  * Agent Manager Class

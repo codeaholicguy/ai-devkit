@@ -2,41 +2,43 @@
  * Tests for CodexAdapter
  */
 
+import type { MockedFunction } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { beforeEach, afterEach, describe, expect, it, jest } from '@jest/globals';
-import { CodexAdapter } from '../../adapters/CodexAdapter';
-import type { ProcessInfo } from '../../adapters/AgentAdapter';
-import { AgentStatus } from '../../adapters/AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process';
-import { batchGetSessionFileBirthtimes } from '../../utils/session';
-import type { SessionFile } from '../../utils/session';
-import { matchProcessesToSessions, generateAgentName } from '../../utils/matching';
-import type { MatchResult } from '../../utils/matching';
 
-jest.mock('../../utils/process', () => ({
-    listAgentProcesses: jest.fn(),
-    enrichProcesses: jest.fn(),
+import { CodexAdapter } from '../../adapters/CodexAdapter.js';
+import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
+import { AgentStatus } from '../../adapters/AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { batchGetSessionFileBirthtimes } from '../../utils/session.js';
+import type { SessionFile } from '../../utils/session.js';
+import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
+import type { MatchResult } from '../../utils/matching.js';
+import * as os from 'os';
+
+vi.mock('../../utils/process.js', () => ({
+    listAgentProcesses: vi.fn(),
+    enrichProcesses: vi.fn(),
 }));
 
-jest.mock('../../utils/session', () => {
-    const actual = jest.requireActual('../../utils/session') as typeof import('../../utils/session');
+vi.mock('../../utils/session.js', async () => {
+    const actual = await vi.importActual('../../utils/session') as typeof import('../../utils/session');
     return {
         ...actual,
-        batchGetSessionFileBirthtimes: jest.fn(),
+        batchGetSessionFileBirthtimes: vi.fn(),
     };
 });
 
-jest.mock('../../utils/matching', () => ({
-    matchProcessesToSessions: jest.fn(),
-    generateAgentName: jest.fn(),
+vi.mock('../../utils/matching.js', () => ({
+    matchProcessesToSessions: vi.fn(),
+    generateAgentName: vi.fn(),
 }));
 
-const mockedListAgentProcesses = listAgentProcesses as jest.MockedFunction<typeof listAgentProcesses>;
-const mockedEnrichProcesses = enrichProcesses as jest.MockedFunction<typeof enrichProcesses>;
-const mockedBatchGetSessionFileBirthtimes = batchGetSessionFileBirthtimes as jest.MockedFunction<typeof batchGetSessionFileBirthtimes>;
-const mockedMatchProcessesToSessions = matchProcessesToSessions as jest.MockedFunction<typeof matchProcessesToSessions>;
-const mockedGenerateAgentName = generateAgentName as jest.MockedFunction<typeof generateAgentName>;
+const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
+const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedBatchGetSessionFileBirthtimes = batchGetSessionFileBirthtimes as MockedFunction<typeof batchGetSessionFileBirthtimes>;
+const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
+const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 describe('CodexAdapter', () => {
     let adapter: CodexAdapter;
@@ -136,7 +138,7 @@ describe('CodexAdapter', () => {
             mockedEnrichProcesses.mockReturnValue(processes);
 
             // Set up sessions dir with date directory
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-test-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const dateDir = path.join(sessionsDir, '2026', '03', '18');
             fs.mkdirSync(dateDir, { recursive: true });
@@ -195,7 +197,7 @@ describe('CodexAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-test-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const now = new Date();
             const dateDir = path.join(
@@ -251,7 +253,7 @@ describe('CodexAdapter', () => {
         let tmpDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-test-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
         });
 
         afterEach(() => {
@@ -399,7 +401,7 @@ describe('CodexAdapter', () => {
             let tmpDir: string;
 
             beforeEach(() => {
-                tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-test-'));
+                tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
             });
 
             afterEach(() => {
@@ -524,7 +526,7 @@ describe('CodexAdapter', () => {
         let tmpDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-conv-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-conv-'));
         });
 
         afterEach(() => {
@@ -640,7 +642,7 @@ describe('CodexAdapter', () => {
         let sessionsDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'codex-list-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-list-'));
             sessionsDir = path.join(tmpDir, 'sessions');
             fs.mkdirSync(sessionsDir, { recursive: true });
             (adapter as any).codexSessionsDir = sessionsDir;

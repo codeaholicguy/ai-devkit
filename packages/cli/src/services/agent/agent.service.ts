@@ -6,7 +6,7 @@ import {
   type AgentType,
   type ConversationMessage,
 } from '@ai-devkit/agent-manager';
-import { sleep } from '../../util/time';
+import { sleep } from '../../util/time.js';
 
 export interface AgentSendWaitTarget {
   id: string;

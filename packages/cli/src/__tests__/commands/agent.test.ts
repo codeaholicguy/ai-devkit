@@ -1,45 +1,46 @@
+import type { Mock } from 'vitest';
 import { Command } from 'commander';
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+
 import { AgentManager, AgentStatus, TerminalFocusManager } from '@ai-devkit/agent-manager';
-import { registerAgentCommand } from '../../commands/agent';
-import { ui } from '../../util/terminal-ui';
+import { registerAgentCommand } from '../../commands/agent.js';
+import { ui } from '../../util/terminal-ui.js';
 
 const mockManager: any = {
-  registerAdapter: jest.fn(),
-  listAgents: jest.fn(),
-  listSessions: jest.fn(),
-  resolveAgent: jest.fn(),
-  getAdapter: jest.fn(),
+  registerAdapter: vi.fn(),
+  listAgents: vi.fn(),
+  listSessions: vi.fn(),
+  resolveAgent: vi.fn(),
+  getAdapter: vi.fn(),
 };
 
 const mockAgentAdapter: any = {
-  getConversation: jest.fn(),
+  getConversation: vi.fn(),
 };
 
 const mockFocusManager: any = {
-  findTerminal: jest.fn(),
-  focusTerminal: jest.fn(),
+  findTerminal: vi.fn(),
+  focusTerminal: vi.fn(),
 };
 
 const mockSpinner: any = {
-  start: jest.fn(),
-  succeed: jest.fn(),
-  fail: jest.fn(),
+  start: vi.fn(),
+  succeed: vi.fn(),
+  fail: vi.fn(),
 };
 
-const mockPrompt: any = jest.fn();
+const mockPrompt: any = vi.fn();
 
-const mockTtyWriterSend = jest.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
-const mockWaitForAgentResponse = jest.fn<(...args: any[]) => Promise<any>>();
+const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
+const mockWaitForAgentResponse = vi.fn<(...args: any[]) => Promise<any>>();
 let restoreStdin: (() => void) | undefined;
 
-jest.mock('@ai-devkit/agent-manager', () => ({
-  AgentManager: jest.fn(() => mockManager),
-  ClaudeCodeAdapter: jest.fn(),
-  CodexAdapter: jest.fn(),
-  GeminiCliAdapter: jest.fn(),
-  OpenCodeAdapter: jest.fn(),
-  TerminalFocusManager: jest.fn(() => mockFocusManager),
+vi.mock('@ai-devkit/agent-manager', () => ({
+  AgentManager: vi.fn(() => mockManager),
+  ClaudeCodeAdapter: vi.fn(),
+  CodexAdapter: vi.fn(),
+  GeminiCliAdapter: vi.fn(),
+  OpenCodeAdapter: vi.fn(),
+  TerminalFocusManager: vi.fn(() => mockFocusManager),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
     RUNNING: 'running',
@@ -49,47 +50,47 @@ jest.mock('@ai-devkit/agent-manager', () => ({
   },
 }), { virtual: true });
 
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
   __esModule: true,
   default: {
     prompt: (...args: unknown[]) => mockPrompt(...args),
   },
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: {
-    text: jest.fn(),
-    table: jest.fn(),
-    info: jest.fn(),
-    success: jest.fn(),
-    warning: jest.fn(),
-    error: jest.fn(),
-    breakline: jest.fn(),
-    spinner: jest.fn(() => mockSpinner),
+    text: vi.fn(),
+    table: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    breakline: vi.fn(),
+    spinner: vi.fn(() => mockSpinner),
   },
 }));
 
-jest.mock('../../services/agent/agent.service', () => ({
+vi.mock('../../services/agent/agent.service.js', () => ({
   waitForAgentResponse: (...args: any[]) => mockWaitForAgentResponse(...args),
 }));
 
 describe('agent command', () => {
-  let logSpy: ReturnType<typeof jest.spyOn>;
-  let stdoutSpy: ReturnType<typeof jest.spyOn>;
-  let stderrSpy: ReturnType<typeof jest.spyOn>;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+  let stdoutSpy: ReturnType<typeof vi.spyOn>;
+  let stderrSpy: ReturnType<typeof vi.spyOn>;
   beforeEach(() => {
     restoreStdin?.();
     restoreStdin = undefined;
-    jest.clearAllMocks();
-    logSpy = jest.spyOn(console, 'log').mockImplementation(() => undefined);
-    stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation(() => true);
-    stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
-    jest.spyOn(process, 'exit').mockImplementation((() => {}) as any);
+    vi.clearAllMocks();
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    vi.spyOn(process, 'exit').mockImplementation((() => {}) as any);
   });
 
   function mockReadableStdin(input: string): void {
     const originalIsTTY = process.stdin.isTTY;
-    const setEncodingSpy = jest.spyOn(process.stdin, 'setEncoding').mockReturnValue(process.stdin);
+    const setEncodingSpy = vi.spyOn(process.stdin, 'setEncoding').mockReturnValue(process.stdin);
 
     Object.defineProperty(process.stdin, 'isTTY', {
       configurable: true,
@@ -144,7 +145,7 @@ describe('agent command', () => {
   });
 
   it('renders table and waiting summary for list', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
     mockManager.listAgents.mockResolvedValue([
       {
         name: 'repo-a',
@@ -179,7 +180,7 @@ describe('agent command', () => {
   });
 
   it('formats all agent types with human-friendly labels', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
     mockManager.listAgents.mockResolvedValue([
       { name: 'a', type: 'claude', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 1 },
       { name: 'b', type: 'codex', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 2 },
@@ -199,7 +200,7 @@ describe('agent command', () => {
   });
 
   it('truncates working-on text to first line', async () => {
-    jest.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
+    vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-02-26T10:00:00.000Z').getTime());
     mockManager.listAgents.mockResolvedValue([
       {
         name: 'repo-a',
@@ -888,7 +889,7 @@ Waiting on user input`,
       await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all']);
 
       expect(ui.table).toHaveBeenCalledTimes(1);
-      const tableArg = (ui.table as jest.Mock).mock.calls[0][0] as {
+      const tableArg = (ui.table as Mock).mock.calls[0][0] as {
         headers: string[];
         rows: string[][];
       };
@@ -912,7 +913,7 @@ Waiting on user input`,
       registerAgentCommand(program);
       await program.parseAsync(['node', 'test', 'agent', 'sessions']);
 
-      const infoCalls = (ui.info as jest.Mock).mock.calls.map((c: unknown[]) => c[0]);
+      const infoCalls = (ui.info as Mock).mock.calls.map((c: unknown[]) => c[0]);
       expect(infoCalls.some((m: unknown) => typeof m === 'string' && m.includes('--all'))).toBe(true);
     });
 
@@ -923,7 +924,7 @@ Waiting on user input`,
       registerAgentCommand(program);
       await program.parseAsync(['node', 'test', 'agent', 'sessions', '--all']);
 
-      const tableArg = (ui.table as jest.Mock).mock.calls[0][0] as { rows: string[][] };
+      const tableArg = (ui.table as Mock).mock.calls[0][0] as { rows: string[][] };
       expect(tableArg.rows[0][3]).toBe('(no message yet)');
     });
 

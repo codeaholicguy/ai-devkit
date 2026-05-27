@@ -1,12 +1,12 @@
 import * as fs from 'fs';
 import { execFileSync } from 'child_process';
-import { DEFAULT_DOCS_DIR, DEFAULT_PHASES, Phase } from '../../types';
-import { LINT_LEVEL } from './constants';
-import { runBaseDocsRules } from './rules/base-docs.rule';
-import { runFeatureDocsRules } from './rules/feature-docs.rule';
-import { validateFeatureNameRule, normalizeFeatureName } from './rules/feature-name.rule';
-import { runGitWorktreeRules } from './rules/git-worktree.rule';
-import { FeatureTarget, LintCheckResult, LintDependencies, LintOptions, LintReport } from './types';
+import { DEFAULT_DOCS_DIR, DEFAULT_PHASES, Phase } from '../../types.js';
+import { LINT_LEVEL } from './constants.js';
+import { runBaseDocsRules } from './rules/base-docs.rule.js';
+import { runFeatureDocsRules } from './rules/feature-docs.rule.js';
+import { validateFeatureNameRule, normalizeFeatureName } from './rules/feature-name.rule.js';
+import { runGitWorktreeRules } from './rules/git-worktree.rule.js';
+import { FeatureTarget, LintCheckResult, LintDependencies, LintOptions, LintReport } from './types.js';
 
 const defaultDependencies: LintDependencies = {
   cwd: () => process.cwd(),
@@ -17,7 +17,7 @@ const defaultDependencies: LintDependencies = {
 };
 
 export { normalizeFeatureName };
-export type { LintOptions, LintLevel, LintCheckResult, LintReport, LintDependencies } from './types';
+export type { LintOptions, LintLevel, LintCheckResult, LintReport, LintDependencies } from './types.js';
 
 export function runLintChecks(
   options: LintOptions,

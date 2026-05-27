@@ -1,9 +1,9 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
-import { GlobalDevKitConfig } from '../types';
-import { filterStringRecord } from '../util/config';
-import { ui } from '../util/terminal-ui';
+import { GlobalDevKitConfig } from '../types.js';
+import { filterStringRecord } from '../util/config.js';
+import { ui } from '../util/terminal-ui.js';
 
 export class GlobalConfigManager {
   async exists(): Promise<boolean> {

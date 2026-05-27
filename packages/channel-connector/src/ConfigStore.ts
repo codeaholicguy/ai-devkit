@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import type { ChannelConfig, ChannelEntry } from './types';
+import type { ChannelConfig, ChannelEntry } from './types.js';
 
 const DEFAULT_CONFIG_PATH = path.join(os.homedir(), '.ai-devkit', 'channels.json');
 const DEFAULT_CONFIG: ChannelConfig = { channels: {} };

@@ -1,14 +1,15 @@
-import { ChannelManager } from '../ChannelManager';
-import type { ChannelAdapter } from '../adapters/ChannelAdapter';
+import type { Mocked } from 'vitest';
+import { ChannelManager } from '../ChannelManager.js';
+import type { ChannelAdapter } from '../adapters/ChannelAdapter.js';
 
-function createMockAdapter(type: string): jest.Mocked<ChannelAdapter> {
+function createMockAdapter(type: string): Mocked<ChannelAdapter> {
     return {
         type,
-        start: jest.fn().mockResolvedValue(undefined),
-        stop: jest.fn().mockResolvedValue(undefined),
-        sendMessage: jest.fn().mockResolvedValue(undefined),
-        onMessage: jest.fn(),
-        isHealthy: jest.fn().mockResolvedValue(true),
+        start: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
+        sendMessage: vi.fn().mockResolvedValue(undefined),
+        onMessage: vi.fn(),
+        isHealthy: vi.fn().mockResolvedValue(true),
     };
 }
 

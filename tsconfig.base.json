@@ -1,10 +1,10 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": [
-      "ES2020"
+      "ES2022"
     ],
     "strict": true,
     "esModuleInterop": true,
@@ -13,6 +13,6 @@
     "resolveJsonModule": true,
     "declaration": true,
     "declarationMap": true,
-    "sourceMap": true,
+    "sourceMap": true
   }
 }

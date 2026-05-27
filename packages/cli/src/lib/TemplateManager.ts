@@ -1,10 +1,13 @@
-import * as fs from "fs-extra";
+import fs from "fs-extra";
 import * as path from "path";
 import * as os from "os";
+import { fileURLToPath } from "url";
 import matter from "gray-matter";
-import { Phase, EnvironmentCode, EnvironmentDefinition, DEFAULT_DOCS_DIR } from "../types";
-import { ui } from "../util/terminal-ui";
-import { getEnvironment } from "../util/env";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { Phase, EnvironmentCode, EnvironmentDefinition, DEFAULT_DOCS_DIR } from "../types.js";
+import { ui } from "../util/terminal-ui.js";
+import { getEnvironment } from "../util/env.js";
 
 export interface TemplateManagerOptions {
   targetDir?: string;

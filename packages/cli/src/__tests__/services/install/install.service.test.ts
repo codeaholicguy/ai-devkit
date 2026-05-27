@@ -1,50 +1,50 @@
-import { jest } from '@jest/globals';
 
-const mockPrompt: any = jest.fn();
+
+const mockPrompt: any = vi.fn();
 
 const mockConfigManager: any = {
-  read: jest.fn(),
-  create: jest.fn(),
-  update: jest.fn(),
-  addPhase: jest.fn(),
-  getDocsDir: jest.fn()
+  read: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  addPhase: vi.fn(),
+  getDocsDir: vi.fn()
 };
 
 const mockTemplateManager: any = {
-  checkEnvironmentExists: jest.fn(),
-  fileExists: jest.fn(),
-  setupMultipleEnvironments: jest.fn(),
-  copyPhaseTemplate: jest.fn()
+  checkEnvironmentExists: vi.fn(),
+  fileExists: vi.fn(),
+  setupMultipleEnvironments: vi.fn(),
+  copyPhaseTemplate: vi.fn()
 };
 
 const mockSkillManager: any = {
-  addSkill: jest.fn()
+  addSkill: vi.fn()
 };
 
-jest.mock('inquirer', () => ({
+vi.mock('inquirer', () => ({
   __esModule: true,
   default: {
     prompt: (...args: unknown[]) => mockPrompt(...args)
   }
 }));
 
-jest.mock('../../../lib/Config', () => ({
-  ConfigManager: jest.fn(() => mockConfigManager)
+vi.mock('../../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(() => mockConfigManager)
 }));
 
-jest.mock('../../../lib/TemplateManager', () => ({
-  TemplateManager: jest.fn(() => mockTemplateManager)
+vi.mock('../../../lib/TemplateManager.js', () => ({
+  TemplateManager: vi.fn(() => mockTemplateManager)
 }));
 
-jest.mock('../../../lib/EnvironmentSelector', () => ({
-  EnvironmentSelector: jest.fn()
+vi.mock('../../../lib/EnvironmentSelector.js', () => ({
+  EnvironmentSelector: vi.fn()
 }));
 
-jest.mock('../../../lib/SkillManager', () => ({
-  SkillManager: jest.fn(() => mockSkillManager)
+vi.mock('../../../lib/SkillManager.js', () => ({
+  SkillManager: vi.fn(() => mockSkillManager)
 }));
 
-import { getInstallExitCode, reconcileAndInstall } from '../../../services/install/install.service';
+import { getInstallExitCode, reconcileAndInstall } from '../../../services/install/install.service.js';
 
 describe('install service', () => {
   const installConfig = {
@@ -56,7 +56,7 @@ describe('install service', () => {
   };
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     mockConfigManager.read.mockResolvedValue({
       environments: [],

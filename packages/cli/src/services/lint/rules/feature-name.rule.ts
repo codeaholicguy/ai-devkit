@@ -1,6 +1,6 @@
-import { FEATURE_NAME_PATTERN } from '../constants';
-import { FeatureTarget, LintCheckResult } from '../types';
-import { createMissingCheck } from './check-factories';
+import { FEATURE_NAME_PATTERN } from '../constants.js';
+import { FeatureTarget, LintCheckResult } from '../types.js';
+import { createMissingCheck } from './check-factories.js';
 
 export function normalizeFeatureName(input: string): string {
   const trimmed = input.trim();

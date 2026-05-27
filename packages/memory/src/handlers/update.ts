@@ -1,8 +1,8 @@
-import { getDatabase } from '../database';
-import { validateUpdateInput } from '../services/validator';
-import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../services/normalizer';
-import { DuplicateError, NotFoundError, StorageError } from '../utils/errors';
-import type { UpdateKnowledgeInput, UpdateKnowledgeResult, KnowledgeRow } from '../types';
+import { getDatabase } from '../database/index.js';
+import { validateUpdateInput } from '../services/validator.js';
+import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../services/normalizer.js';
+import { DuplicateError, NotFoundError, StorageError } from '../utils/errors.js';
+import type { UpdateKnowledgeInput, UpdateKnowledgeResult, KnowledgeRow } from '../types/index.js';
 
 export function updateKnowledge(input: UpdateKnowledgeInput): UpdateKnowledgeResult {
     validateUpdateInput(input);

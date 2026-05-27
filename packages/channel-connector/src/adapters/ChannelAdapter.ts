@@ -1,4 +1,4 @@
-import type { IncomingMessage } from '../types';
+import type { IncomingMessage } from '../types.js';
 
 /**
  * Interface for messaging platform adapters.

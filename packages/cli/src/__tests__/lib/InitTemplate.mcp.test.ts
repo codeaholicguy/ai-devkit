@@ -1,13 +1,14 @@
-import * as fs from 'fs-extra';
-import { loadInitTemplate } from '../../lib/InitTemplate';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
+import { loadInitTemplate } from '../../lib/InitTemplate.js';
 
-jest.mock('fs-extra');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
 
 describe('InitTemplate mcpServers validation', () => {
-  const mockFs = fs as jest.Mocked<typeof fs>;
+  const mockFs = fs as Mocked<typeof fs>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('accepts valid mcpServers with stdio transport', async () => {

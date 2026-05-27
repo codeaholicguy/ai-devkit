@@ -17,10 +17,10 @@ import {
     TELEGRAM_CHANNEL_TYPE,
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
-import { ui } from '../../util/terminal-ui';
-import { getErrorMessage } from '../../util/text';
-import { createLogger } from '../../util/debug';
-import { ChannelService } from './channel.service';
+import { ui } from '../../util/terminal-ui.js';
+import { getErrorMessage } from '../../util/text.js';
+import { createLogger } from '../../util/debug.js';
+import { ChannelService } from './channel.service.js';
 
 const debug = createLogger('channel');
 const AGENT_POLL_INTERVAL_MS = 2000;

@@ -1,5 +1,5 @@
-import { describe, expect, it } from '@jest/globals';
-import { normalizeFeatureName, validateFeatureNameRule } from '../../../../services/lint/rules/feature-name.rule';
+
+import { normalizeFeatureName, validateFeatureNameRule } from '../../../../services/lint/rules/feature-name.rule.js';
 
 describe('feature name rule', () => {
   it('normalizes optional feature- prefix', () => {

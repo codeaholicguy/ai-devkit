@@ -1,6 +1,6 @@
-import { EnvironmentCode, McpServerDefinition } from '../../../types';
-import { McpAgentGenerator, McpMergePlan } from './types';
-import { deepEqual } from '../../../util/object';
+import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
+import { McpAgentGenerator, McpMergePlan } from './types.js';
+import { deepEqual } from '../../../util/object.js';
 
 /**
  * Base class for per-agent MCP config generators.

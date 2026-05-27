@@ -1,5 +1,5 @@
-import { describe, it, expect } from '@jest/globals';
-import { truncate } from '../../util/text';
+
+import { truncate } from '../../util/text.js';
 
 describe('text util', () => {
     describe('truncate', () => {

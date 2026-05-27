@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { enableDebug } from './util/debug';
-import { getErrorMessage } from './util/text';
-import { ui } from './util/terminal-ui';
-import { runChannelBridge } from './services/channel/channel-runner';
+import { enableDebug } from './util/debug.js';
+import { getErrorMessage } from './util/text.js';
+import { ui } from './util/terminal-ui.js';
+import { runChannelBridge } from './services/channel/channel-runner.js';
 
 interface DaemonArgs {
     channelName?: string;

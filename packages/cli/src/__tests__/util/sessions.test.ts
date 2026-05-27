@@ -1,10 +1,10 @@
-import { describe, it, expect, afterEach } from '@jest/globals';
+
 import {
     formatFirstMessage,
     parseLimit,
     resolveListSessionsOptions,
     toJsonSession,
-} from '../../util/sessions';
+} from '../../util/sessions.js';
 
 describe('sessions util', () => {
     describe('resolveListSessionsOptions', () => {

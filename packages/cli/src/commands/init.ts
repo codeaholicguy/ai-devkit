@@ -1,16 +1,16 @@
 import { execFileSync } from 'child_process';
 import inquirer from 'inquirer';
-import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants';
-import { ConfigManager } from '../lib/Config';
-import { TemplateManager } from '../lib/TemplateManager';
-import { EnvironmentSelector } from '../lib/EnvironmentSelector';
-import { PhaseSelector } from '../lib/PhaseSelector';
-import { SkillManager } from '../lib/SkillManager';
-import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate';
-import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types';
-import { isValidEnvironmentCode } from '../util/env';
-import { isInteractiveTerminal } from '../util/terminal';
-import { ui } from '../util/terminal-ui';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
+import { ConfigManager } from '../lib/Config.js';
+import { TemplateManager } from '../lib/TemplateManager.js';
+import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';
+import { PhaseSelector } from '../lib/PhaseSelector.js';
+import { SkillManager } from '../lib/SkillManager.js';
+import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate.js';
+import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types.js';
+import { isValidEnvironmentCode } from '../util/env.js';
+import { isInteractiveTerminal } from '../util/terminal.js';
+import { ui } from '../util/terminal-ui.js';
 
 function isGitAvailable(): boolean {
   try {

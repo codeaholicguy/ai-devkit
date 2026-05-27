@@ -1,6 +1,6 @@
-import * as fs from 'fs-extra';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { ConfigNotFoundError, ValidationError } from '../../util/errors';
+import { ConfigNotFoundError, ValidationError } from '../../util/errors.js';
 
 export interface LoadedConfigFile {
   configPath: string;

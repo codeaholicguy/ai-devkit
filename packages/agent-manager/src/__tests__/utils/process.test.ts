@@ -2,20 +2,21 @@
  * Tests for new functions in utils/process.ts
  */
 
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
+import type { MockedFunction } from 'vitest';
+
 import { execFileSync } from 'child_process';
 import {
     listAgentProcesses,
     batchGetProcessCwds,
     batchGetProcessStartTimes,
     enrichProcesses,
-} from '../../utils/process';
+} from '../../utils/process.js';
 
-jest.mock('child_process', () => ({
-    execFileSync: jest.fn(),
+vi.mock('child_process', () => ({
+    execFileSync: vi.fn(),
 }));
 
-const mockedExecFileSync = execFileSync as jest.MockedFunction<typeof execFileSync>;
+const mockedExecFileSync = execFileSync as MockedFunction<typeof execFileSync>;
 
 describe('listAgentProcesses', () => {
     beforeEach(() => {

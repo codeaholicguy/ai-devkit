@@ -3,7 +3,7 @@ import type {
     ListSessionsOptions,
     SessionSummary,
 } from '@ai-devkit/agent-manager';
-import { truncate } from './text';
+import { truncate } from './text.js';
 
 const FIRST_MESSAGE_MAX_WIDTH = 80;
 const FIRST_MESSAGE_PLACEHOLDER = '(no message yet)';

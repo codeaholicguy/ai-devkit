@@ -1,10 +1,10 @@
 import inquirer from 'inquirer';
-import { ConfigManager } from '../../lib/Config';
-import { EnvironmentSelector } from '../../lib/EnvironmentSelector';
-import { SkillManager } from '../../lib/SkillManager';
-import { TemplateManager } from '../../lib/TemplateManager';
-import { InstallConfigData } from '../../util/config';
-import { installMcpServers, McpInstallReport } from './mcp';
+import { ConfigManager } from '../../lib/Config.js';
+import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
+import { SkillManager } from '../../lib/SkillManager.js';
+import { TemplateManager } from '../../lib/TemplateManager.js';
+import { InstallConfigData } from '../../util/config.js';
+import { installMcpServers, McpInstallReport } from './mcp/index.js';
 
 export interface InstallRunOptions {
   overwrite?: boolean;

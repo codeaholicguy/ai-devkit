@@ -1,5 +1,5 @@
 import * as path from 'path';
-import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
@@ -10,21 +10,23 @@ import {
     type ChannelEntry,
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
-import { ui } from '../util/terminal-ui';
-import { withErrorHandler } from '../util/errors';
-import { createLogger, enableDebug } from '../util/debug';
-import { ChannelService } from '../services/channel/channel.service';
-import { runChannelBridge } from '../services/channel/channel-runner';
+import { ui } from '../util/terminal-ui.js';
+import { withErrorHandler } from '../util/errors.js';
+import { createLogger, enableDebug } from '../util/debug.js';
+import { ChannelService } from '../services/channel/channel.service.js';
+import { runChannelBridge } from '../services/channel/channel-runner.js';
 
 const debug = createLogger('channel');
-const nodeRequire = createRequire(__filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function resolveDaemonLaunch(): { command: string; args: string[] } {
     if (path.extname(__filename) === '.ts') {
         return {
             command: process.execPath,
             args: [
-                nodeRequire.resolve('ts-node/dist/bin.js'),
+                '--import',
+                'ts-node/register/esm',
                 path.resolve(__dirname, '..', 'channel-daemon.ts'),
             ],
         };

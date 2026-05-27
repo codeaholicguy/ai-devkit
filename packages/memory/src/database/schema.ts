@@ -1,6 +1,9 @@
 import { readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
-import type { DatabaseConnection } from './connection';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+import type { DatabaseConnection } from './connection.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export function getSchemaVersion(db: DatabaseConnection): number {
     const result = db.instance.pragma('user_version') as { user_version: number }[];

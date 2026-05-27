@@ -3,11 +3,11 @@
  * harness-injected XML tags from conversation content.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ClaudeSessionParser } from '../../utils/ClaudeSessionParser';
+import { ClaudeSessionParser } from '../../utils/ClaudeSessionParser.js';
 
 interface JsonlEntry {
     type: 'user' | 'assistant' | 'system';

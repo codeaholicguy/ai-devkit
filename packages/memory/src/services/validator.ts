@@ -1,5 +1,5 @@
-import { ValidationError } from '../utils/errors';
-import type { StoreKnowledgeInput, UpdateKnowledgeInput } from '../types';
+import { ValidationError } from '../utils/errors.js';
+import type { StoreKnowledgeInput, UpdateKnowledgeInput } from '../types/index.js';
 
 const TITLE_MIN_LENGTH = 10;
 const TITLE_MAX_LENGTH = 100;

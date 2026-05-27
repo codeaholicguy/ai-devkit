@@ -1,6 +1,6 @@
-import { describe, expect, it } from '@jest/globals';
-import { runGitWorktreeRules } from '../../../../services/lint/rules/git-worktree.rule';
-import { LintDependencies } from '../../../../services/lint/types';
+
+import { runGitWorktreeRules } from '../../../../services/lint/rules/git-worktree.rule.js';
+import { LintDependencies } from '../../../../services/lint/types.js';
 
 describe('git worktree rule', () => {
   it('returns required failure when not in git repo', () => {

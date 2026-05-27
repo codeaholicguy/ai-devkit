@@ -1,6 +1,6 @@
-import { describe, expect, it } from '@jest/globals';
-import { runBaseDocsRules } from '../../../../services/lint/rules/base-docs.rule';
-import { LintDependencies } from '../../../../services/lint/types';
+
+import { runBaseDocsRules } from '../../../../services/lint/rules/base-docs.rule.js';
+import { LintDependencies } from '../../../../services/lint/types.js';
 
 describe('base docs rule', () => {
   it('returns ok checks when all base docs exist', () => {

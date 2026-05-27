@@ -6,7 +6,7 @@ const APP_NAME = 'ai-devkit';
  * Create a namespaced debug logger.
  *
  * Usage:
- *   import { createLogger } from '../util/debug';
+ *   import { createLogger } from '../util/debug.js';
  *   const debug = createLogger('channel');
  *   debug('message');  // prints: ai-devkit:channel message
  *

@@ -1,18 +1,19 @@
-import { TelegramAdapter } from '../../adapters/TelegramAdapter';
-import type { IncomingMessage } from '../../types';
+import * as telegrafModule from 'telegraf';
+import { TelegramAdapter } from '../../adapters/TelegramAdapter.js';
+import type { IncomingMessage } from '../../types.js';
 
 // Mock telegraf
-jest.mock('telegraf', () => {
+vi.mock('telegraf', () => {
     const handlers: Record<string, (...args: any[]) => any> = {};
     const mockBot = {
-        launch: jest.fn().mockResolvedValue(undefined),
-        stop: jest.fn().mockResolvedValue(undefined),
-        on: jest.fn((event: string, handler: (...args: any[]) => any) => {
+        launch: vi.fn().mockResolvedValue(undefined),
+        stop: vi.fn().mockResolvedValue(undefined),
+        on: vi.fn((event: string, handler: (...args: any[]) => any) => {
             handlers[event] = handler;
         }),
         telegram: {
-            sendMessage: jest.fn().mockResolvedValue(undefined),
-            getMe: jest.fn().mockResolvedValue({ username: 'test_bot' }),
+            sendMessage: vi.fn().mockResolvedValue(undefined),
+            getMe: vi.fn().mockResolvedValue({ username: 'test_bot' }),
         },
         _handlers: handlers,
         _triggerText: async (chatId: number, userId: number, text: string) => {
@@ -23,7 +24,7 @@ jest.mock('telegraf', () => {
                     text,
                     date: Math.floor(Date.now() / 1000),
                 },
-                reply: jest.fn().mockResolvedValue(undefined),
+                reply: vi.fn().mockResolvedValue(undefined),
             };
             if (handlers['text']) {
                 await handlers['text'](ctx);
@@ -32,21 +33,20 @@ jest.mock('telegraf', () => {
         },
     };
     return {
-        Telegraf: jest.fn(() => mockBot),
+        Telegraf: vi.fn(() => mockBot),
         __mockBot: mockBot,
     };
 });
 
 function getMockBot() {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    return require('telegraf').__mockBot;
+    return (telegrafModule as unknown as { __mockBot: ReturnType<typeof vi.fn>['mock'] & Record<string, unknown> }).__mockBot;
 }
 
 describe('TelegramAdapter', () => {
     let adapter: TelegramAdapter;
 
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
         adapter = new TelegramAdapter({ botToken: 'test-token-123' });
     });
 
@@ -86,7 +86,7 @@ describe('TelegramAdapter', () => {
         });
 
         it('should handle non-Error thrown by handler', async () => {
-            const handler = jest.fn().mockRejectedValue('string error');
+            const handler = vi.fn().mockRejectedValue('string error');
             adapter.onMessage(handler);
             await adapter.start();
 
@@ -99,7 +99,7 @@ describe('TelegramAdapter', () => {
         });
 
         it('should call handler with IncomingMessage on incoming text', async () => {
-            const handler = jest.fn().mockResolvedValue(undefined);
+            const handler = vi.fn().mockResolvedValue(undefined);
             adapter.onMessage(handler);
             await adapter.start();
 
@@ -116,7 +116,7 @@ describe('TelegramAdapter', () => {
         });
 
         it('should handle handler errors gracefully', async () => {
-            const handler = jest.fn().mockRejectedValue(new Error('handler failed'));
+            const handler = vi.fn().mockRejectedValue(new Error('handler failed'));
             adapter.onMessage(handler);
             await adapter.start();
 

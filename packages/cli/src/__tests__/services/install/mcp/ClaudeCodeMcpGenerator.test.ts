@@ -1,18 +1,19 @@
-import * as fs from 'fs-extra';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
 import * as path from 'path';
-import { ClaudeCodeMcpGenerator } from '../../../../services/install/mcp/ClaudeCodeMcpGenerator';
-import { McpServerDefinition } from '../../../../types';
+import { ClaudeCodeMcpGenerator } from '../../../../services/install/mcp/ClaudeCodeMcpGenerator.js';
+import { McpServerDefinition } from '../../../../types.js';
 
-jest.mock('fs-extra');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../../../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
 
-const mockFs = fs as jest.Mocked<typeof fs>;
+const mockFs = fs as Mocked<typeof fs>;
 
 describe('ClaudeCodeMcpGenerator', () => {
   let generator: ClaudeCodeMcpGenerator;
   const projectRoot = '/project';
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     generator = new ClaudeCodeMcpGenerator();
   });
 

@@ -1,26 +1,30 @@
-import { PhaseSelector } from '../../lib/PhaseSelector';
-import { AVAILABLE_PHASES } from '../../types';
+import type { MockedFunction } from 'vitest';
+import inquirer from 'inquirer';
+import { PhaseSelector } from '../../lib/PhaseSelector.js';
+import { AVAILABLE_PHASES } from '../../types.js';
 
-jest.mock('inquirer');
-
-jest.mock('../../util/terminal-ui', () => ({
-  ui: { warning: jest.fn(), text: jest.fn(), breakline: jest.fn() },
+vi.mock('inquirer', () => ({
+  default: { prompt: vi.fn() },
 }));
-import { ui as mockUi } from '../../util/terminal-ui';
+
+vi.mock('../../util/terminal-ui.js', () => ({
+  ui: { warning: vi.fn(), text: vi.fn(), breakline: vi.fn() },
+}));
+import { ui as mockUi } from '../../util/terminal-ui.js';
 
 describe('PhaseSelector', () => {
   let selector: PhaseSelector;
-  let mockPrompt: jest.MockedFunction<any>;
+  let mockPrompt: MockedFunction<any>;
 
   beforeEach(() => {
     selector = new PhaseSelector();
-    const inquirer = require('inquirer');
-    mockPrompt = jest.fn();
+    
+    mockPrompt = vi.fn();
     inquirer.prompt = mockPrompt;
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('selectPhases', () => {

@@ -1,4 +1,4 @@
-import type { ChannelAdapter } from './adapters/ChannelAdapter';
+import type { ChannelAdapter } from './adapters/ChannelAdapter.js';
 
 /**
  * Central registry for channel adapters.

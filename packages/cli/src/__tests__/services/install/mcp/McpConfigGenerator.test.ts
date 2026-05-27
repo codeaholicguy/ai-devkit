@@ -1,36 +1,38 @@
-import { McpServerDefinition, EnvironmentCode } from '../../../../types';
+import { McpServerDefinition, EnvironmentCode } from '../../../../types.js';
 
-const mockPrompt = jest.fn();
-jest.mock('inquirer', () => ({ prompt: (...args: unknown[]) => mockPrompt(...args) }));
+const { mockPrompt } = vi.hoisted(() => ({ mockPrompt: vi.fn() }));
+vi.mock('inquirer', () => ({
+  default: { prompt: (...args: unknown[]) => mockPrompt(...args) },
+}));
 
-const mockHasMcpSupport = jest.fn();
-jest.mock('../../../../util/env', () => ({
+const mockHasMcpSupport = vi.fn();
+vi.mock('../../../../util/env.js', () => ({
   hasMcpSupport: (...args: unknown[]) => mockHasMcpSupport(...args),
 }));
 
-const mockIsInteractiveTerminal = jest.fn();
-jest.mock('../../../../util/terminal', () => ({
+const mockIsInteractiveTerminal = vi.fn();
+vi.mock('../../../../util/terminal.js', () => ({
   isInteractiveTerminal: () => mockIsInteractiveTerminal(),
 }));
 
-const mockPlan = jest.fn();
-const mockApply = jest.fn();
-jest.mock('../../../../services/install/mcp/ClaudeCodeMcpGenerator', () => ({
-  ClaudeCodeMcpGenerator: jest.fn().mockImplementation(() => ({
+const mockPlan = vi.fn();
+const mockApply = vi.fn();
+vi.mock('../../../../services/install/mcp/ClaudeCodeMcpGenerator.js', () => ({
+  ClaudeCodeMcpGenerator: vi.fn().mockImplementation(() => ({
     agentType: 'claude' as EnvironmentCode,
     plan: (...args: unknown[]) => mockPlan(...args),
     apply: (...args: unknown[]) => mockApply(...args),
   })),
 }));
-jest.mock('../../../../services/install/mcp/CodexMcpGenerator', () => ({
-  CodexMcpGenerator: jest.fn().mockImplementation(() => ({
+vi.mock('../../../../services/install/mcp/CodexMcpGenerator.js', () => ({
+  CodexMcpGenerator: vi.fn().mockImplementation(() => ({
     agentType: 'codex' as EnvironmentCode,
     plan: (...args: unknown[]) => mockPlan(...args),
     apply: (...args: unknown[]) => mockApply(...args),
   })),
 }));
 
-import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator';
+import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';
 
 const servers: Record<string, McpServerDefinition> = {
   memory: { transport: 'stdio', command: 'npx', args: ['-y', '@ai-devkit/memory'] },
@@ -38,7 +40,7 @@ const servers: Record<string, McpServerDefinition> = {
 
 describe('McpConfigGenerator (orchestrator)', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockHasMcpSupport.mockReturnValue(true);
     mockIsInteractiveTerminal.mockReturnValue(true);
   });

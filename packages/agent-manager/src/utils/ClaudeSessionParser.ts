@@ -1,7 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import type { ConversationMessage } from '../adapters/AgentAdapter';
-import { AgentStatus } from '../adapters/AgentAdapter';
+import type { ConversationMessage } from '../adapters/AgentAdapter.js';
+import { AgentStatus } from '../adapters/AgentAdapter.js';
 
 /**
  * Content block within a Claude Code JSONL message entry.

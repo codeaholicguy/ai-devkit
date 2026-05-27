@@ -1,5 +1,5 @@
 import matter from 'gray-matter';
-import { ValidationError } from './errors';
+import { ValidationError } from './errors.js';
 
 /**
  * Validates registry ID format

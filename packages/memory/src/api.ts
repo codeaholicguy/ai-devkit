@@ -1,8 +1,8 @@
-import { storeKnowledge } from './handlers/store';
-import { searchKnowledge } from './handlers/search';
-import { updateKnowledge } from './handlers/update';
-import { closeDatabase, getDatabase } from './database';
-import type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult } from './types';
+import { storeKnowledge } from './handlers/store.js';
+import { searchKnowledge } from './handlers/search.js';
+import { updateKnowledge } from './handlers/update.js';
+import { closeDatabase, getDatabase } from './database/index.js';
+import type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult } from './types/index.js';
 
 export { storeKnowledge, searchKnowledge, updateKnowledge };
 export type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult };

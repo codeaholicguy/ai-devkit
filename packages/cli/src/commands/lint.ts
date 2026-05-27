@@ -1,7 +1,7 @@
-import { ConfigManager } from '../lib/Config';
-import { ui } from '../util/terminal-ui';
-import { LINT_STATUS_LABEL } from '../services/lint/constants';
-import { LintCheckResult, LintOptions, LintReport, runLintChecks } from '../services/lint/lint.service';
+import { ConfigManager } from '../lib/Config.js';
+import { ui } from '../util/terminal-ui.js';
+import { LINT_STATUS_LABEL } from '../services/lint/constants.js';
+import { LintCheckResult, LintOptions, LintReport, runLintChecks } from '../services/lint/lint.service.js';
 
 export async function lintCommand(options: LintOptions): Promise<void> {
   const configManager = new ConfigManager();

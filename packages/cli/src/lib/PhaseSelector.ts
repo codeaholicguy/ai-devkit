@@ -1,6 +1,6 @@
 import inquirer from 'inquirer';
-import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types';
-import { ui } from '../util/terminal-ui';
+import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types.js';
+import { ui } from '../util/terminal-ui.js';
 
 export class PhaseSelector {
   async selectPhases(all?: boolean, phases?: string): Promise<Phase[]> {

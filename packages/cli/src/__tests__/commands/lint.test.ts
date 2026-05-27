@@ -1,39 +1,40 @@
-import { describe, expect, it, beforeEach, afterEach, jest } from '@jest/globals';
-import { ui } from '../../util/terminal-ui';
-import { lintCommand, renderLintReport } from '../../commands/lint';
-import { LintReport, runLintChecks } from '../../services/lint/lint.service';
 
-jest.mock('../../lib/Config', () => ({
-  ConfigManager: jest.fn(() => ({
-    getDocsDir: jest.fn<() => Promise<string>>().mockResolvedValue('docs/ai'),
-    getPhases: jest.fn<() => Promise<string[]>>().mockResolvedValue(['requirements', 'design'])
+import type { MockedFunction } from 'vitest';
+import { ui } from '../../util/terminal-ui.js';
+import { lintCommand, renderLintReport } from '../../commands/lint.js';
+import { LintReport, runLintChecks } from '../../services/lint/lint.service.js';
+
+vi.mock('../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(() => ({
+    getDocsDir: vi.fn<() => Promise<string>>().mockResolvedValue('docs/ai'),
+    getPhases: vi.fn<() => Promise<string[]>>().mockResolvedValue(['requirements', 'design'])
   }))
 }));
 
-jest.mock('../../services/lint/lint.service', () => ({
-  runLintChecks: jest.fn()
+vi.mock('../../services/lint/lint.service.js', () => ({
+  runLintChecks: vi.fn()
 }));
 
-jest.mock('../../util/terminal-ui', () => ({
+vi.mock('../../util/terminal-ui.js', () => ({
   ui: {
-    text: jest.fn(),
-    breakline: jest.fn(),
-    info: jest.fn(),
-    success: jest.fn(),
-    warning: jest.fn(),
-    error: jest.fn(),
-    spinner: jest.fn(),
-    table: jest.fn(),
-    summary: jest.fn()
+    text: vi.fn(),
+    breakline: vi.fn(),
+    info: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    error: vi.fn(),
+    spinner: vi.fn(),
+    table: vi.fn(),
+    summary: vi.fn()
   }
 }));
 
 describe('lint command', () => {
-  const mockedRunLintChecks = runLintChecks as jest.MockedFunction<typeof runLintChecks>;
-  const mockedUi = jest.mocked(ui);
+  const mockedRunLintChecks = runLintChecks as MockedFunction<typeof runLintChecks>;
+  const mockedUi = vi.mocked(ui);
 
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     process.exitCode = undefined;
   });
 

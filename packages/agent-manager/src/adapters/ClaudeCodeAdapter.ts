@@ -7,14 +7,14 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
-} from './AgentAdapter';
-import { AgentStatus } from './AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../utils/process';
-import { batchGetSessionFileBirthtimes, isDirectory, listJsonl, safeReaddir, safeStat } from '../utils/session';
-import type { SessionFile } from '../utils/session';
-import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
-import { ClaudeSessionParser } from '../utils/ClaudeSessionParser';
-import type { ClaudeSession } from '../utils/ClaudeSessionParser';
+} from './AgentAdapter.js';
+import { AgentStatus } from './AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { batchGetSessionFileBirthtimes, isDirectory, listJsonl, safeReaddir, safeStat } from '../utils/session.js';
+import type { SessionFile } from '../utils/session.js';
+import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
+import { ClaudeSessionParser } from '../utils/ClaudeSessionParser.js';
+import type { ClaudeSession } from '../utils/ClaudeSessionParser.js';
 
 /**
  * Entry in ~/.claude/sessions/<pid>.json written by Claude Code.

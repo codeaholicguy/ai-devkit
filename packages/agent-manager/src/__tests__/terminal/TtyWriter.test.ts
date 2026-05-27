@@ -1,14 +1,15 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { TtyWriter } from '../../terminal/TtyWriter';
-import { TerminalType } from '../../terminal/TerminalFocusManager';
-import type { TerminalLocation } from '../../terminal/TerminalFocusManager';
+import type { Mock } from 'vitest';
+
+import { TtyWriter } from '../../terminal/TtyWriter.js';
+import { TerminalType } from '../../terminal/TerminalFocusManager.js';
+import type { TerminalLocation } from '../../terminal/TerminalFocusManager.js';
 import { execFile } from 'child_process';
 
-jest.mock('child_process', () => {
-    const actual = jest.requireActual<typeof import('child_process')>('child_process');
+vi.mock('child_process', async () => {
+    const actual = await vi.importActual<typeof import('child_process')>('child_process');
     return {
         ...actual,
-        execFile: jest.fn(),
+        execFile: vi.fn(),
     };
 });
 
@@ -30,7 +31,7 @@ function mockExecFileError(message: string) {
 
 describe('TtyWriter', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        vi.clearAllMocks();
     });
 
     describe('tmux', () => {

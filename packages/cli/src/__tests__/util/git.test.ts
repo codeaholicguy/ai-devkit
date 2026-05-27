@@ -1,22 +1,30 @@
+import type { MockedFunction, Mocked } from 'vitest';
 import { execFile } from 'child_process';
-import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../util/git';
+import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../util/git.js';
 
-jest.mock('child_process');
-jest.mock('fs-extra');
+vi.mock('child_process', () => ({
+  execFile: vi.fn(),
+  execFileSync: vi.fn(),
+  exec: vi.fn(),
+  execSync: vi.fn(),
+  spawn: vi.fn(),
+  spawnSync: vi.fn(),
+}));
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
 
-const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
+const mockedExecFile = execFile as MockedFunction<typeof execFile>;
 
-import * as fs from 'fs-extra';
-const mockedFs = fs as jest.Mocked<typeof fs>;
+import fs from 'fs-extra';
+const mockedFs = fs as Mocked<typeof fs>;
 
 describe('Git Utilities', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(console, 'log').mockImplementation(() => { });
+    vi.clearAllMocks();
+    vi.spyOn(console, 'log').mockImplementation(() => { });
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe('ensureGitInstalled', () => {

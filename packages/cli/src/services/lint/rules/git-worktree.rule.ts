@@ -2,9 +2,9 @@ import {
   getWorktreePathsForBranchSync,
   isInsideGitWorkTreeSync,
   localBranchExistsSync
-} from '../../../util/git';
-import { LintCheckResult, LintDependencies } from '../types';
-import { createMissingCheck, createOkCheck, createWarnCheck } from './check-factories';
+} from '../../../util/git.js';
+import { LintCheckResult, LintDependencies } from '../types.js';
+import { createMissingCheck, createOkCheck, createWarnCheck } from './check-factories.js';
 
 export function runGitWorktreeRules(
   cwd: string,

@@ -1,5 +1,5 @@
 import createDebug from 'debug';
-import { createLogger, enableDebug } from '../../util/debug';
+import { createLogger, enableDebug } from '../../util/debug.js';
 
 describe('debug utility', () => {
     afterEach(() => {
@@ -22,7 +22,7 @@ describe('debug utility', () => {
         });
 
         it('should not output when debug is not enabled', () => {
-            const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation();
+            const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation();
             const logger = createLogger('channel');
 
             logger('test message');
@@ -33,7 +33,7 @@ describe('debug utility', () => {
 
         it('should output when debug is enabled for its namespace', () => {
             createDebug.enable('ai-devkit:channel');
-            const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation();
+            const stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation();
             const logger = createLogger('channel');
 
             logger('test message');

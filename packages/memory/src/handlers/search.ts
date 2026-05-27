@@ -1,8 +1,8 @@
-import { getDatabase } from '../database';
-import { buildFtsQuery, buildSearchQuery, buildSimpleQuery } from '../services/search';
-import { rankResults } from '../services/ranker';
-import { ValidationError } from '../utils/errors';
-import type { SearchKnowledgeInput, SearchKnowledgeResult } from '../types';
+import { getDatabase } from '../database/index.js';
+import { buildFtsQuery, buildSearchQuery, buildSimpleQuery } from '../services/search.js';
+import { rankResults } from '../services/ranker.js';
+import { ValidationError } from '../utils/errors.js';
+import type { SearchKnowledgeInput, SearchKnowledgeResult } from '../types/index.js';
 
 const DEFAULT_LIMIT = 5;
 const MAX_LIMIT = 20;

@@ -20,12 +20,12 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
-} from './AgentAdapter';
-import { AgentStatus } from './AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../utils/process';
-import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session';
-import type { SessionFile } from '../utils/session';
-import { matchProcessesToSessions, generateAgentName } from '../utils/matching';
+} from './AgentAdapter.js';
+import { AgentStatus } from './AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
+import type { SessionFile } from '../utils/session.js';
+import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
 
 /**
  * A single Gemini CLI message content part. Mirrors the `{text?: string}`

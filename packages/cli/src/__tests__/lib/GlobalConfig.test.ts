@@ -1,36 +1,37 @@
-import * as fs from 'fs-extra';
+import type { Mocked } from 'vitest';
+import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
-import { GlobalConfigManager } from '../../lib/GlobalConfig';
+import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
 
-jest.mock('fs-extra');
-jest.mock('os');
-jest.mock('path');
+vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
+vi.mock('os');
+vi.mock('path');
 
-jest.mock('../../util/terminal-ui', () => ({
-  ui: { warning: jest.fn(), info: jest.fn(), error: jest.fn(), text: jest.fn() },
+vi.mock('../../util/terminal-ui.js', () => ({
+  ui: { warning: vi.fn(), info: vi.fn(), error: vi.fn(), text: vi.fn() },
 }));
-import { ui as mockUi } from '../../util/terminal-ui';
+import { ui as mockUi } from '../../util/terminal-ui.js';
 
 describe('GlobalConfigManager', () => {
   let configManager: GlobalConfigManager;
-  let mockFs: jest.Mocked<typeof fs>;
-  let mockOs: jest.Mocked<typeof os>;
-  let mockPath: jest.Mocked<typeof path>;
+  let mockFs: Mocked<typeof fs>;
+  let mockOs: Mocked<typeof os>;
+  let mockPath: Mocked<typeof path>;
 
   beforeEach(() => {
     configManager = new GlobalConfigManager();
-    mockFs = fs as jest.Mocked<typeof fs>;
-    mockOs = os as jest.Mocked<typeof os>;
-    mockPath = path as jest.Mocked<typeof path>;
+    mockFs = fs as Mocked<typeof fs>;
+    mockOs = os as Mocked<typeof os>;
+    mockPath = path as Mocked<typeof path>;
 
     mockOs.homedir.mockReturnValue('/home/test');
     mockPath.join.mockImplementation((...args) => args.join('/'));
-    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
   afterEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('read', () => {

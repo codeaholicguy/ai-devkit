@@ -2,40 +2,42 @@
  * Tests for ClaudeCodeAdapter
  */
 
+import type { Mock, MockedFunction } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { ClaudeCodeAdapter } from '../../adapters/ClaudeCodeAdapter';
-import type { ProcessInfo } from '../../adapters/AgentAdapter';
-import { AgentStatus } from '../../adapters/AgentAdapter';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process';
-import { batchGetSessionFileBirthtimes } from '../../utils/session';
-import type { SessionFile } from '../../utils/session';
-import { matchProcessesToSessions, generateAgentName } from '../../utils/matching';
-import type { MatchResult } from '../../utils/matching';
-jest.mock('../../utils/process', () => ({
-    listAgentProcesses: jest.fn(),
-    enrichProcesses: jest.fn(),
+
+import { ClaudeCodeAdapter } from '../../adapters/ClaudeCodeAdapter.js';
+import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
+import { AgentStatus } from '../../adapters/AgentAdapter.js';
+import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { batchGetSessionFileBirthtimes } from '../../utils/session.js';
+import type { SessionFile } from '../../utils/session.js';
+import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
+import type { MatchResult } from '../../utils/matching.js';
+import * as os from 'os';
+vi.mock('../../utils/process.js', () => ({
+    listAgentProcesses: vi.fn(),
+    enrichProcesses: vi.fn(),
 }));
 
-jest.mock('../../utils/session', () => {
-    const actual = jest.requireActual('../../utils/session') as typeof import('../../utils/session');
+vi.mock('../../utils/session.js', async () => {
+    const actual = await vi.importActual('../../utils/session') as typeof import('../../utils/session');
     return {
         ...actual,
-        batchGetSessionFileBirthtimes: jest.fn(),
+        batchGetSessionFileBirthtimes: vi.fn(),
     };
 });
 
-jest.mock('../../utils/matching', () => ({
-    matchProcessesToSessions: jest.fn(),
-    generateAgentName: jest.fn(),
+vi.mock('../../utils/matching.js', () => ({
+    matchProcessesToSessions: vi.fn(),
+    generateAgentName: vi.fn(),
 }));
 
-const mockedListAgentProcesses = listAgentProcesses as jest.MockedFunction<typeof listAgentProcesses>;
-const mockedEnrichProcesses = enrichProcesses as jest.MockedFunction<typeof enrichProcesses>;
-const mockedBatchGetSessionFileBirthtimes = batchGetSessionFileBirthtimes as jest.MockedFunction<typeof batchGetSessionFileBirthtimes>;
-const mockedMatchProcessesToSessions = matchProcessesToSessions as jest.MockedFunction<typeof matchProcessesToSessions>;
-const mockedGenerateAgentName = generateAgentName as jest.MockedFunction<typeof generateAgentName>;
+const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
+const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedBatchGetSessionFileBirthtimes = batchGetSessionFileBirthtimes as MockedFunction<typeof batchGetSessionFileBirthtimes>;
+const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
+const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 describe('ClaudeCodeAdapter', () => {
     let adapter: ClaudeCodeAdapter;
 
@@ -163,7 +165,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedEnrichProcesses.mockReturnValue(processes);
 
             // Set up projects dir with encoded directory name
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-test-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-test-'));
             const projectsDir = path.join(tmpDir, 'projects');
             // Claude encodes /Users/test/my-project → -Users-test-my-project
             const projDir = path.join(projectsDir, '-Users-test-my-project');
@@ -222,7 +224,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedEnrichProcesses.mockReturnValue(processes);
 
             // Set up projects dir with encoded directory names
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-test-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-test-'));
             const projectsDir = path.join(tmpDir, 'projects');
             // /project-a → -project-a, /project-b → -project-b
             const projDirA = path.join(projectsDir, '-project-a');
@@ -303,7 +305,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-resume-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-resume-'));
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-resumed');
             fs.mkdirSync(projDir, { recursive: true });
@@ -367,7 +369,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-test-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pid-test-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-direct');
@@ -416,7 +418,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-wait-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pid-wait-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-wait');
@@ -463,7 +465,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-idle-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pid-idle-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-idle');
@@ -508,7 +510,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-pid-nostat-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-pid-nostat-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-legacy');
@@ -560,7 +562,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-resume-wait-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-resume-wait-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-resume-wait');
@@ -604,7 +606,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-gone-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-gone-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-gone');
@@ -623,7 +625,7 @@ describe('ClaudeCodeAdapter', () => {
             (adapter as any).projectsDir = projectsDir;
 
             // Simulate JSONL disappearing between existence check and read
-            jest.spyOn((adapter as any).parser, 'readSession').mockReturnValueOnce(null);
+            vi.spyOn((adapter as any).parser, 'readSession').mockReturnValueOnce(null);
 
             const agents = await adapter.detectAgents();
 
@@ -633,7 +635,7 @@ describe('ClaudeCodeAdapter', () => {
             expect(agents[0].status).toBe(AgentStatus.IDLE);
 
             fs.rmSync(tmpDir, { recursive: true, force: true });
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
 
         it('should fall back to process-only when legacy-matched JSONL becomes unreadable', async () => {
@@ -644,7 +646,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-lgone-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-lgone-'));
             const projectsDir = path.join(tmpDir, 'projects');
             const projDir = path.join(projectsDir, '-project-legacy-gone');
             fs.mkdirSync(projDir, { recursive: true });
@@ -670,7 +672,7 @@ describe('ClaudeCodeAdapter', () => {
             ]);
 
             // Simulate JSONL disappearing between match and read
-            jest.spyOn((adapter as any).parser, 'readSession').mockReturnValueOnce(null);
+            vi.spyOn((adapter as any).parser, 'readSession').mockReturnValueOnce(null);
 
             const agents = await adapter.detectAgents();
 
@@ -679,7 +681,7 @@ describe('ClaudeCodeAdapter', () => {
             expect(agents[0].status).toBe(AgentStatus.IDLE);
 
             fs.rmSync(tmpDir, { recursive: true, force: true });
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
         });
 
         it('should mix direct PID-file matches and legacy matches across processes', async () => {
@@ -691,7 +693,7 @@ describe('ClaudeCodeAdapter', () => {
             mockedListAgentProcesses.mockReturnValue(processes);
             mockedEnrichProcesses.mockReturnValue(processes);
 
-            const tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-mix-test-'));
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-mix-test-'));
             const sessionsDir = path.join(tmpDir, 'sessions');
             const projectsDir = path.join(tmpDir, 'projects');
             const projAlpha = path.join(projectsDir, '-project-alpha');
@@ -756,7 +758,7 @@ describe('ClaudeCodeAdapter', () => {
         let tmpDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-test-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-test-'));
         });
 
         afterEach(() => {
@@ -1071,7 +1073,7 @@ describe('ClaudeCodeAdapter', () => {
         let tmpDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-test-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-test-'));
         });
 
         afterEach(() => {
@@ -1419,7 +1421,7 @@ describe('ClaudeCodeAdapter', () => {
         let tmpDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-conv-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-conv-'));
         });
 
         afterEach(() => {
@@ -1594,7 +1596,7 @@ describe('ClaudeCodeAdapter', () => {
         let projectsDir: string;
 
         beforeEach(() => {
-            tmpDir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'claude-list-'));
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'claude-list-'));
             projectsDir = path.join(tmpDir, 'projects');
             fs.mkdirSync(projectsDir, { recursive: true });
             (adapter as any).projectsDir = projectsDir;

@@ -4,11 +4,11 @@ import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { storeKnowledge } from './handlers/store';
-import { searchKnowledge } from './handlers/search';
-import { updateKnowledge } from './handlers/update';
-import { KnowledgeMemoryError } from './utils/errors';
-import type { StoreKnowledgeInput, SearchKnowledgeInput, UpdateKnowledgeInput } from './types';
+import { storeKnowledge } from './handlers/store.js';
+import { searchKnowledge } from './handlers/search.js';
+import { updateKnowledge } from './handlers/update.js';
+import { KnowledgeMemoryError } from './utils/errors.js';
+import type { StoreKnowledgeInput, SearchKnowledgeInput, UpdateKnowledgeInput } from './types/index.js';
 
 const SERVER_NAME = 'ai-devkit-memory';
 const SERVER_VERSION = '0.1.0';

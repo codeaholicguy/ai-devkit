@@ -2,16 +2,17 @@
  * Tests for AgentManager
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
-import { AgentManager } from '../AgentManager';
+import type { Mock } from 'vitest';
+
+import { AgentManager } from '../AgentManager.js';
 import type {
     AgentAdapter,
     AgentInfo,
     AgentType,
     ConversationMessage,
     SessionSummary,
-} from '../adapters/AgentAdapter';
-import { AgentStatus } from '../adapters/AgentAdapter';
+} from '../adapters/AgentAdapter.js';
+import { AgentStatus } from '../adapters/AgentAdapter.js';
 
 // Mock adapter for testing
 class MockAdapter implements AgentAdapter {
@@ -333,7 +334,7 @@ describe('AgentManager', () => {
                 new MockAdapter('codex', [], false, [], true /* failListSessions */),
             );
 
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+            const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
             try {
                 const result = await manager.listSessions();

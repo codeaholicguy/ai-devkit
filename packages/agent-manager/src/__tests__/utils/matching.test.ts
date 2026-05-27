@@ -2,10 +2,10 @@
  * Tests for utils/matching.ts
  */
 
-import { describe, it, expect } from '@jest/globals';
-import { matchProcessesToSessions, generateAgentName } from '../../utils/matching';
-import type { ProcessInfo } from '../../adapters/AgentAdapter';
-import type { SessionFile } from '../../utils/session';
+
+import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
+import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
+import type { SessionFile } from '../../utils/session.js';
 
 function makeProcess(overrides: Partial<ProcessInfo> & { pid: number }): ProcessInfo {
     return {

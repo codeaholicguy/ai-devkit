@@ -1,2 +1,2 @@
-export { installMcpServers, McpInstallOptions } from './McpConfigGenerator';
-export { McpInstallReport } from './types';
+export { installMcpServers, McpInstallOptions } from './McpConfigGenerator.js';
+export { McpInstallReport } from './types.js';

@@ -1,67 +1,109 @@
-import * as fs from "fs-extra";
+import type { MockedClass, Mocked, Mock } from 'vitest';
+import fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
-import { SkillManager } from "../../lib/SkillManager";
-import { ConfigManager } from "../../lib/Config";
-import { EnvironmentSelector } from "../../lib/EnvironmentSelector";
-import { GlobalConfigManager } from "../../lib/GlobalConfig";
-import * as gitUtil from "../../util/git";
-import * as skillUtil from "../../util/skill";
+import { SkillManager } from "../../lib/SkillManager.js";
+import { ConfigManager } from "../../lib/Config.js";
+import { EnvironmentSelector } from "../../lib/EnvironmentSelector.js";
+import { GlobalConfigManager } from "../../lib/GlobalConfig.js";
+import * as gitUtil from "../../util/git.js";
+import * as skillUtil from "../../util/skill.js";
 
-jest.mock("fs-extra", () => ({
-  pathExists: jest.fn(),
-  ensureDir: jest.fn(),
-  symlink: jest.fn(),
-  copy: jest.fn(),
-  remove: jest.fn(),
-  readdir: jest.fn(),
-  realpath: jest.fn(),
-  readJson: jest.fn(),
-  writeJson: jest.fn(),
-}));
-jest.mock("../../lib/Config");
-jest.mock("../../lib/EnvironmentSelector");
-jest.mock("../../lib/GlobalConfig");
-jest.mock("../../util/git");
-jest.mock("../../util/skill");
-const mockIsInteractiveTerminal = jest.fn().mockReturnValue(true);
-jest.mock("../../util/terminal", () => ({
-  isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args),
-}));
-const mockPrompt = jest.fn();
-jest.mock("inquirer", () => ({
-  __esModule: true,
+vi.mock("fs-extra", () => ({
   default: {
-    prompt: (...args: unknown[]) => mockPrompt(...args),
+    pathExists: vi.fn(),
+    ensureDir: vi.fn(),
+    symlink: vi.fn(),
+    copy: vi.fn(),
+    remove: vi.fn(),
+    readdir: vi.fn(),
+    realpath: vi.fn(),
+    readJson: vi.fn(),
+    writeJson: vi.fn(),
   },
 }));
-jest.mock("ora", () => {
-  return jest.fn(() => ({
-    start: jest.fn().mockReturnThis(),
-    succeed: jest.fn().mockReturnThis(),
-    fail: jest.fn().mockReturnThis(),
-    warn: jest.fn().mockReturnThis(),
-    stop: jest.fn().mockReturnThis(),
+vi.mock("../../lib/Config.js", () => ({
+  ConfigManager: vi.fn(() => ({
+    addSkill: vi.fn(),
+    create: vi.fn(),
+    getSkillRegistries: vi.fn(),
+    read: vi.fn(),
+    removeSkill: vi.fn(),
+    update: vi.fn(),
+  })),
+}));
+vi.mock("../../lib/EnvironmentSelector.js", () => ({
+  EnvironmentSelector: vi.fn(() => ({
+    selectEnvironments: vi.fn(),
+    selectGlobalEnvironments: vi.fn(),
+    selectSkillEnvironments: vi.fn(),
+    selectGlobalSkillEnvironments: vi.fn(),
+    confirmOverride: vi.fn(),
+    displaySelectionSummary: vi.fn(),
+  })),
+}));
+vi.mock("../../lib/GlobalConfig.js", () => ({
+  GlobalConfigManager: vi.fn(() => ({
+    getSkillRegistries: vi.fn(),
+  })),
+}));
+vi.mock("../../util/git.js", () => ({
+  ensureGitInstalled: vi.fn(),
+  cloneRepository: vi.fn(),
+  pullRepository: vi.fn(),
+  isGitRepository: vi.fn(),
+  fetchGitHead: vi.fn(),
+  isInsideGitWorkTreeSync: vi.fn(),
+  localBranchExistsSync: vi.fn(),
+  getWorktreePathsForBranchSync: vi.fn(),
+}));
+vi.mock("../../util/skill.js", () => ({
+  validateRegistryId: vi.fn(),
+  validateSkillName: vi.fn(),
+  isValidSkillName: vi.fn(),
+  extractSkillDescription: vi.fn(),
+}));
+vi.mock("../../util/terminal.js", () => ({
+  isInteractiveTerminal: vi.fn(() => true),
+}));
+vi.mock("inquirer", () => ({
+  default: {
+    prompt: vi.fn(),
+  },
+}));
+
+vi.mock("ora", () => ({
+  default: vi.fn(() => ({
+    start: vi.fn().mockReturnThis(),
+    succeed: vi.fn().mockReturnThis(),
+    fail: vi.fn().mockReturnThis(),
+    warn: vi.fn().mockReturnThis(),
+    stop: vi.fn().mockReturnThis(),
     text: '',
     isSpinning: false,
-  }));
-});
+  })),
+}));
 
-const mockedFs = fs as jest.Mocked<typeof fs>;
-const MockedConfigManager = ConfigManager as jest.MockedClass<
+import { isInteractiveTerminal } from "../../util/terminal.js";
+import inquirer from "inquirer";
+const mockIsInteractiveTerminal = isInteractiveTerminal as Mock;
+const mockPrompt = inquirer.prompt as unknown as Mock;
+
+const mockedFs = fs as Mocked<typeof fs>;
+const MockedConfigManager = ConfigManager as MockedClass<
   typeof ConfigManager
 >;
-const MockedEnvironmentSelector = EnvironmentSelector as jest.MockedClass<
+const MockedEnvironmentSelector = EnvironmentSelector as MockedClass<
   typeof EnvironmentSelector
 >;
-const MockedGlobalConfigManager = GlobalConfigManager as jest.MockedClass<
+const MockedGlobalConfigManager = GlobalConfigManager as MockedClass<
   typeof GlobalConfigManager
 >;
-const mockedGitUtil = gitUtil as jest.Mocked<typeof gitUtil>;
-const mockedSkillUtil = skillUtil as jest.Mocked<typeof skillUtil>;
+const mockedGitUtil = gitUtil as Mocked<typeof gitUtil>;
+const mockedSkillUtil = skillUtil as Mocked<typeof skillUtil>;
 
 function mockFetch(response: any) {
-  global.fetch = jest.fn().mockResolvedValue({
+  global.fetch = vi.fn().mockResolvedValue({
     ok: true,
     json: () => Promise.resolve(response)
   });
@@ -71,19 +113,19 @@ function mockFetch(response: any) {
 
 describe("SkillManager", () => {
   let skillManager: SkillManager;
-  let mockConfigManager: jest.Mocked<ConfigManager>;
-  let mockEnvironmentSelector: jest.Mocked<EnvironmentSelector>;
-  let mockGlobalConfigManager: jest.Mocked<GlobalConfigManager>;
+  let mockConfigManager: Mocked<ConfigManager>;
+  let mockEnvironmentSelector: Mocked<EnvironmentSelector>;
+  let mockGlobalConfigManager: Mocked<GlobalConfigManager>;
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    jest.spyOn(console, "log").mockImplementation(() => { });
+    vi.clearAllMocks();
+    vi.spyOn(console, "log").mockImplementation(() => { });
 
-    mockConfigManager = new MockedConfigManager() as jest.Mocked<ConfigManager>;
+    mockConfigManager = new MockedConfigManager() as Mocked<ConfigManager>;
     mockEnvironmentSelector =
-      new MockedEnvironmentSelector() as jest.Mocked<EnvironmentSelector>;
+      new MockedEnvironmentSelector() as Mocked<EnvironmentSelector>;
     mockGlobalConfigManager =
-      new MockedGlobalConfigManager() as jest.Mocked<GlobalConfigManager>;
+      new MockedGlobalConfigManager() as Mocked<GlobalConfigManager>;
 
     mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
     mockConfigManager.getSkillRegistries.mockResolvedValue({});
@@ -102,7 +144,7 @@ describe("SkillManager", () => {
   });
 
   afterEach(() => {
-    jest.restoreAllMocks();
+    vi.restoreAllMocks();
   });
 
   describe("addSkill", () => {
@@ -166,7 +208,7 @@ describe("SkillManager", () => {
 
         return Promise.resolve(false);
       });
-      (mockedFs.readFile as any) = jest.fn().mockImplementation((filePath: string) => {
+      (mockedFs.readFile as any) = vi.fn().mockImplementation((filePath: string) => {
         const matchedSkill = skillNames.find(skillName =>
           filePath.endsWith(`${skillName}${path.sep}SKILL.md`),
         );
@@ -255,7 +297,7 @@ describe("SkillManager", () => {
 
     it("should fetch registry using fetch API", async () => {
       const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({ registries: { [mockRegistryId]: mockGitUrl } })
       });
@@ -271,7 +313,7 @@ describe("SkillManager", () => {
 
     it("should throw error if registry ID not found", async () => {
       const originalFetch = global.fetch;
-      global.fetch = jest.fn().mockResolvedValue({
+      global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         json: () => Promise.resolve({
           registries: {
@@ -383,8 +425,8 @@ describe("SkillManager", () => {
 
     it("should read custom registries from global config", async () => {
       const customGitUrl = "https://github.com/custom/skills.git";
-      const { GlobalConfigManager: RealGlobalConfigManager } = jest.requireActual(
-        "../../lib/GlobalConfig",
+      const { GlobalConfigManager: RealGlobalConfigManager } = await vi.importActual<typeof import("../../lib/GlobalConfig.js")>(
+        "../../lib/GlobalConfig.js",
       );
       const realGlobalConfigManager = new RealGlobalConfigManager();
 
@@ -775,8 +817,8 @@ describe("SkillManager", () => {
         },
       ] as any);
 
-      const os = require("os");
-      const pathModule = require("path");
+      
+      const pathModule = path;
       const skillCacheDir = pathModule.join(os.homedir(), ".ai-devkit", "skills");
 
       (mockedFs.realpath as any).mockImplementation((skillPath: any) =>
@@ -987,7 +1029,7 @@ describe("SkillManager", () => {
   describe("updateSkills", () => {
 
     beforeEach(() => {
-      jest.spyOn(console, "log").mockImplementation(() => { });
+      vi.spyOn(console, "log").mockImplementation(() => { });
       mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
     });
 

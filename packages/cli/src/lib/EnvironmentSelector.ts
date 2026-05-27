@@ -1,12 +1,12 @@
 import inquirer from "inquirer";
-import { EnvironmentCode, EnvironmentDefinition } from "../types";
+import { EnvironmentCode, EnvironmentDefinition } from "../types.js";
 import {
   getAllEnvironments,
   getEnvironmentDisplayName,
   getGlobalCapableEnvironments,
   getSkillCapableEnvironments,
-} from "../util/env";
-import { ui } from "../util/terminal-ui";
+} from "../util/env.js";
+import { ui } from "../util/terminal-ui.js";
 
 export class EnvironmentSelector {
   private async selectFromEnvironments(

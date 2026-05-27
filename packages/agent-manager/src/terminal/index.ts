@@ -1,4 +1,4 @@
-export { TerminalFocusManager } from './TerminalFocusManager';
-export { TerminalType } from './TerminalFocusManager';
-export type { TerminalLocation } from './TerminalFocusManager';
-export { TtyWriter } from './TtyWriter';
+export { TerminalFocusManager } from './TerminalFocusManager.js';
+export { TerminalType } from './TerminalFocusManager.js';
+export type { TerminalLocation } from './TerminalFocusManager.js';
+export { TtyWriter } from './TtyWriter.js';

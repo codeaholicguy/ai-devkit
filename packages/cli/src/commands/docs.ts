@@ -1,9 +1,9 @@
 import { Command } from 'commander';
-import { ConfigManager } from '../lib/Config';
-import { FeatureDoc, TemplateManager } from '../lib/TemplateManager';
-import { formatLocalDate } from '../util/time';
-import { ui } from '../util/terminal-ui';
-import { normalizeFeatureName, validateFeatureNameRule } from '../services/lint/rules/feature-name.rule';
+import { ConfigManager } from '../lib/Config.js';
+import { FeatureDoc, TemplateManager } from '../lib/TemplateManager.js';
+import { formatLocalDate } from '../util/time.js';
+import { ui } from '../util/terminal-ui.js';
+import { normalizeFeatureName, validateFeatureNameRule } from '../services/lint/rules/feature-name.rule.js';
 
 interface InitFeatureOptions {
   json?: boolean;

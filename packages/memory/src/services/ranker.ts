@@ -1,4 +1,4 @@
-import type { SearchResultItem } from '../types';
+import type { SearchResultItem } from '../types/index.js';
 
 interface RawSearchResult {
     id: string;

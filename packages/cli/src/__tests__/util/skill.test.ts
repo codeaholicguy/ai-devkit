@@ -1,4 +1,4 @@
-import { validateRegistryId, validateSkillName, isValidSkillName } from '../../util/skill';
+import { validateRegistryId, validateSkillName, isValidSkillName } from '../../util/skill.js';
 
 describe('Skill Validation Utilities', () => {
   describe('validateRegistryId', () => {

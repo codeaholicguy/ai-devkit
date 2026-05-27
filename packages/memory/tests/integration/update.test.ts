@@ -237,14 +237,14 @@ describe('update handler', () => {
 
             // Mock Date to return a future timestamp to avoid same-millisecond flakiness
             const futureDate = new Date(Date.now() + 1000);
-            jest.spyOn(global, 'Date').mockImplementation(() => futureDate as unknown as Date);
+            vi.spyOn(global, 'Date').mockImplementation(() => futureDate as unknown as Date);
 
             updateKnowledgeDirect(db, {
                 id: stored.id,
                 tags: ['refreshed'],
             });
 
-            jest.restoreAllMocks();
+            vi.restoreAllMocks();
 
             const rowAfter = db.queryOne<KnowledgeRow>('SELECT * FROM knowledge WHERE id = ?', [stored.id]);
             expect(rowAfter?.updated_at).not.toBe(rowBefore?.updated_at);
