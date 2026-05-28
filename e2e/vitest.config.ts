@@ -5,6 +5,7 @@ export default defineConfig({
         globals: true,
         environment: 'node',
         include: ['**/*.e2e.ts'],
+        exclude: ['.worktrees/**'],
         testTimeout: 30000,
     },
 });
