@@ -1,7 +1,9 @@
 import os from 'os';
+import { createElement } from 'react';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { render } from 'ink';
 import {
     AgentManager,
     type AgentAdapter,
@@ -27,6 +29,7 @@ import {
 } from '../util/sessions.js';
 import { waitForAgentResponse } from '../services/agent/agent.service.js';
 import { parseMilliseconds } from '../util/time.js';
+import { ConsoleApp } from '../tui/console/ConsoleApp.js';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
@@ -672,5 +675,21 @@ export function registerAgentCommand(program: Command): void {
             ui.text(`  ${chalk.bold('Type:')}        ${formatType(agent.type)}`);
             ui.breakline();
             renderConversationDetail(displayMessages, conversation.length, isTruncated);
+        }));
+
+    agentCommand
+        .command('console')
+        .description('Interactive multi-agent console (open, message, monitor)')
+        .action(withErrorHandler('agent console', async () => {
+            if (!process.stdout.isTTY) {
+                ui.error('agent console requires an interactive terminal (TTY).');
+                process.exit(1);
+            }
+            const manager = createAgentManager();
+            const { waitUntilExit } = render(
+                createElement(ConsoleApp, { manager }),
+                { alternateScreen: true, exitOnCtrlC: true },
+            );
+            await waitUntilExit();
         }));
 }

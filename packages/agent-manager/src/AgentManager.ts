@@ -11,7 +11,15 @@ import type {
     SessionSummary,
     ListSessionsOptions,
 } from './adapters/AgentAdapter.js';
-import { AgentStatus } from './adapters/AgentAdapter.js';
+import { sortAgents, type AgentSortKey } from './utils/sortAgents.js';
+
+export interface ListAgentsOptions {
+    /**
+     * Sort key for the returned list. Defaults to `status`, which orders
+     * waiting → running → idle → unknown, then by name for stability.
+     */
+    sortBy?: AgentSortKey;
+}
 
 /**
  * Agent Manager Class
@@ -108,7 +116,7 @@ export class AgentManager {
      * });
      * ```
      */
-    async listAgents(): Promise<AgentInfo[]> {
+    async listAgents(options?: ListAgentsOptions): Promise<AgentInfo[]> {
         const allAgents: AgentInfo[] = [];
         const errors: Array<{ type: string; error: Error }> = [];
 
@@ -142,8 +150,8 @@ export class AgentManager {
             });
         }
 
-        // Sort by status priority (waiting first, then running, then idle)
-        return this.sortAgentsByStatus(allAgents);
+        const sortKey: AgentSortKey = options?.sortBy ?? 'status';
+        return sortAgents(allAgents, sortKey);
     }
 
     /**
@@ -193,29 +201,6 @@ export class AgentManager {
         return merged;
     }
 
-    /**
-     * Sort agents by status priority
-     *
-     * Priority order: waiting > running > idle > unknown
-     * This ensures agents that need attention appear first.
-     *
-     * @param agents Array of agents to sort
-     * @returns Sorted array of agents
-     */
-    private sortAgentsByStatus(agents: AgentInfo[]): AgentInfo[] {
-        const statusPriority: Record<AgentStatus, number> = {
-            [AgentStatus.WAITING]: 0,
-            [AgentStatus.RUNNING]: 1,
-            [AgentStatus.IDLE]: 2,
-            [AgentStatus.UNKNOWN]: 3,
-        };
-
-        return agents.sort((a, b) => {
-            const priorityA = statusPriority[a.status] ?? 999;
-            const priorityB = statusPriority[b.status] ?? 999;
-            return priorityA - priorityB;
-        });
-    }
 
     /**
      * Get count of registered adapters
