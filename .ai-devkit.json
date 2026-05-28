@@ -9,7 +9,7 @@
     "antigravity"
   ],
   "createdAt": "2025-12-28T13:35:45.251Z",
-  "updatedAt": "2026-05-13T14:32:19.150Z",
+  "updatedAt": "2026-05-28T06:26:09.553Z",
   "phases": [
     "requirements",
     "design",
@@ -53,6 +53,10 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "security-review"
+    },
+    {
+      "registry": "vercel-labs/agent-skills",
+      "name": "react-best-practices"
     }
   ]
 }
