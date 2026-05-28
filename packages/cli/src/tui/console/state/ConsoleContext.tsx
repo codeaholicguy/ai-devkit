@@ -2,32 +2,32 @@ import React, { createContext, useContext, useMemo } from 'react';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import { useAgentList, type UseAgentListResult } from '../hooks/useAgentList.js';
 
-interface WatchContextValue extends UseAgentListResult {
+interface ConsoleContextValue extends UseAgentListResult {
     manager: AgentManager;
     inputFocused: boolean;
 }
 
-const WatchContext = createContext<WatchContextValue | null>(null);
+const ConsoleContext = createContext<ConsoleContextValue | null>(null);
 
-export const useWatchContext = (): WatchContextValue => {
-    const ctx = useContext(WatchContext);
-    if (!ctx) throw new Error('useWatchContext must be used inside <WatchProvider>');
+export const useConsoleContext = (): ConsoleContextValue => {
+    const ctx = useContext(ConsoleContext);
+    if (!ctx) throw new Error('useConsoleContext must be used inside <ConsoleProvider>');
     return ctx;
 };
 
-interface WatchProviderProps {
+interface ConsoleProviderProps {
     manager: AgentManager;
     inputFocused: boolean;
     children: React.ReactNode;
 }
 
-export const WatchProvider: React.FC<WatchProviderProps> = ({ manager, inputFocused, children }) => {
+export const ConsoleProvider: React.FC<ConsoleProviderProps> = ({ manager, inputFocused, children }) => {
     // Pause list poll while user is composing a message: removes a source of
     // re-renders that compete with the controlled TextInput.
     const list = useAgentList(manager, undefined, inputFocused);
-    const value = useMemo<WatchContextValue>(
+    const value = useMemo<ConsoleContextValue>(
         () => ({ ...list, manager, inputFocused }),
         [list, manager, inputFocused],
     );
-    return <WatchContext.Provider value={value}>{children}</WatchContext.Provider>;
+    return <ConsoleContext.Provider value={value}>{children}</ConsoleContext.Provider>;
 };

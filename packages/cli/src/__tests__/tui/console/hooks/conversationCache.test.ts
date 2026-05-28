@@ -4,7 +4,7 @@ import {
     conversationCache,
     CACHE_MAX,
     messagesEqual,
-} from '../../../../tui/watch/hooks/useAgentConversation.js';
+} from '../../../../tui/console/hooks/useAgentConversation.js';
 import type { ConversationMessage } from '@ai-devkit/agent-manager';
 
 const msg = (role: ConversationMessage['role'], content: string, timestamp?: string): ConversationMessage =>

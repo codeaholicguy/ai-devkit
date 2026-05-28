@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
-// computeLayout is a pure function exported from WatchApp — import only the function,
+// computeLayout is a pure function exported from ConsoleApp — import only the function,
 // not the React component tree, to avoid JSX in the test environment.
-import { computeLayout } from '../../../tui/watch/WatchApp.js';
+import { computeLayout } from '../../../tui/console/ConsoleApp.js';
 
-// Constants mirrored from WatchApp.tsx for assertions
+// Constants mirrored from ConsoleApp.tsx for assertions
 const LIST_PANE_WIDTH = 48;
 const MIN_CONTENT_HEIGHT = 12;
 const INPUT_BOX_CHROME_ROWS = 2;

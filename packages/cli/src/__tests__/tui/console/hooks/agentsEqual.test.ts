@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { agentsEqual } from '../../../../tui/watch/hooks/useAgentList.js';
+import { agentsEqual } from '../../../../tui/console/hooks/useAgentList.js';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { AgentStatus } from '@ai-devkit/agent-manager';
 

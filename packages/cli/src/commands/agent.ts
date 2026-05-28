@@ -29,7 +29,7 @@ import {
 } from '../util/sessions.js';
 import { waitForAgentResponse } from '../services/agent/agent.service.js';
 import { parseMilliseconds } from '../util/time.js';
-import { WatchApp } from '../tui/watch/WatchApp.js';
+import { ConsoleApp } from '../tui/console/ConsoleApp.js';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
@@ -687,7 +687,7 @@ export function registerAgentCommand(program: Command): void {
             }
             const manager = createAgentManager();
             const { waitUntilExit } = render(
-                createElement(WatchApp, { manager }),
+                createElement(ConsoleApp, { manager }),
                 { alternateScreen: true, exitOnCtrlC: true },
             );
             await waitUntilExit();

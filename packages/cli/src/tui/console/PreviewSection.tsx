@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Box } from 'ink';
 import { PreviewPane } from './PreviewPane.js';
-import { useWatchContext } from './state/WatchContext.js';
+import { useConsoleContext } from './state/ConsoleContext.js';
 import { useAgentConversation } from './hooks/useAgentConversation.js';
 
 interface PreviewSectionProps {
@@ -10,7 +10,7 @@ interface PreviewSectionProps {
 }
 
 const PreviewSectionInner: React.FC<PreviewSectionProps> = ({ selectedName, height }) => {
-    const { agents, manager, inputFocused } = useWatchContext();
+    const { agents, manager, inputFocused } = useConsoleContext();
     const selectedAgent = useMemo(
         () => agents.find(a => a.name === selectedName) ?? null,
         [agents, selectedName],

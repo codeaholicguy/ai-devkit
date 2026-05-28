@@ -7,7 +7,7 @@ vi.mock('child_process', () => ({
 }));
 
 import { spawn } from 'child_process';
-import { runAction } from '../../../../tui/watch/actions/runAction.js';
+import { runAction } from '../../../../tui/console/actions/runAction.js';
 
 function makeChild(exitCode: number | null, stderr = '') {
     const child = new EventEmitter() as EventEmitter & {

@@ -1,9 +1,9 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import { useWatchContext } from './state/WatchContext.js';
+import { useConsoleContext } from './state/ConsoleContext.js';
 
 const HeaderBarInner: React.FC = () => {
-    const { agents, isLoading } = useWatchContext();
+    const { agents, isLoading } = useConsoleContext();
     const totalLabel = isLoading && agents.length === 0 ? 'scanning…' : `${agents.length} agent${agents.length === 1 ? '' : 's'}`;
     return (
         <Box paddingX={1}>

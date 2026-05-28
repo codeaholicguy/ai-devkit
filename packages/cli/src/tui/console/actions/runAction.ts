@@ -1,5 +1,5 @@
 import { spawn } from 'child_process';
-import type { WatchAction } from './types.js';
+import type { ConsoleAction } from './types.js';
 
 export interface ActionResult {
     exitCode: number | null;
@@ -10,7 +10,7 @@ function resolveCliEntry(): { command: string; baseArgs: string[] } {
     return { command: process.execPath, baseArgs: [...process.execArgv, process.argv[1]] };
 }
 
-export async function runAction(action: WatchAction): Promise<ActionResult> {
+export async function runAction(action: ConsoleAction): Promise<ActionResult> {
     const { command, baseArgs } = resolveCliEntry();
     const argv = (() => {
         switch (action.type) {

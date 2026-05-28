@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
-import { WatchProvider, useWatchContext } from './state/WatchContext.js';
+import { ConsoleProvider, useConsoleContext } from './state/ConsoleContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { AgentListPane } from './AgentListPane.js';
 import { PreviewSection } from './PreviewSection.js';
@@ -10,7 +10,7 @@ import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
 
-interface WatchAppProps {
+interface ConsoleAppProps {
     manager: AgentManager;
     initialSelection?: string | null;
 }
@@ -43,7 +43,7 @@ export function computeLayout(cols: number, rows: number, inputLines: number, na
     };
 }
 
-const WatchAppShell: React.FC<{
+const ConsoleAppShell: React.FC<{
     initialSelection: string | null;
     setInputFocused: (v: boolean) => void;
 }> = ({ initialSelection, setInputFocused }) => {
@@ -69,7 +69,7 @@ const WatchAppShell: React.FC<{
 
     const selectedNameRef = useRef(selectedName);
     selectedNameRef.current = selectedName;
-    const { agents, error, lastUpdated, isLoading } = useWatchContext();
+    const { agents, error, lastUpdated, isLoading } = useConsoleContext();
     const agentsRef = useRef(agents);
     agentsRef.current = agents;
 
@@ -200,17 +200,17 @@ const WatchAppShell: React.FC<{
     );
 };
 
-export const WatchApp: React.FC<WatchAppProps> = ({
+export const ConsoleApp: React.FC<ConsoleAppProps> = ({
     manager,
     initialSelection = null,
 }) => {
     const [inputFocused, setInputFocused] = useState(false);
     return (
-        <WatchProvider manager={manager} inputFocused={inputFocused}>
-            <WatchAppShell
+        <ConsoleProvider manager={manager} inputFocused={inputFocused}>
+            <ConsoleAppShell
                 initialSelection={initialSelection}
                 setInputFocused={setInputFocused}
             />
-        </WatchProvider>
+        </ConsoleProvider>
     );
 };
