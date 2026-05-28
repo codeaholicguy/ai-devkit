@@ -11,30 +11,30 @@ description: Define the technical architecture, components, and data models
 ```mermaid
 graph TD
     CLI["agent console (commands/agent.ts)"]
-    CLI --> WatchApp
+    CLI --> ConsoleApp
 
-    WatchApp --> WatchProvider
-    WatchProvider --> useAgentList
+    ConsoleApp --> ConsoleProvider
+    ConsoleProvider --> useAgentList
     useAgentList --> AgentManager
 
-    WatchApp --> WatchAppShell
-    WatchAppShell --> HeaderBar
-    WatchAppShell --> AgentListPane
-    WatchAppShell --> PreviewSection
-    WatchAppShell --> StatusFooter
-    WatchAppShell --> ChatInput
+    ConsoleApp --> ConsoleAppShell
+    ConsoleAppShell --> HeaderBar
+    ConsoleAppShell --> AgentListPane
+    ConsoleAppShell --> PreviewSection
+    ConsoleAppShell --> StatusFooter
+    ConsoleAppShell --> ChatInput
 
     PreviewSection --> useAgentConversation
     useAgentConversation --> conversationCache["LRU cache (module-level)"]
     useAgentConversation --> AgentAdapter["AgentAdapter.getConversation()"]
 
-    WatchAppShell --> runAction
+    ConsoleAppShell --> runAction
     runAction -->|subprocess| CLIAgentOpen["agent open <name>"]
     runAction -->|subprocess| CLIAgentSend["agent send <msg> --id <name>"]
 ```
 
 **Key architectural decisions:**
-- All keyboard handling (`useInput`) centralised in `WatchAppShell` (non-memo) — Ink 7 + React 19 silently drops `useInput` inside `React.memo` components
+- All keyboard handling (`useInput`) centralised in `ConsoleAppShell` (non-memo) — Ink 7 + React 19 silently drops `useInput` inside `React.memo` components
 - Actions dispatch via `spawn()` re-invoking the CLI with `stdio: pipe` so the TUI never yields the terminal
 - Context value stabilised with `useMemo` so quiet polls don't re-render all consumers
 
@@ -50,7 +50,7 @@ graph TD
 { role: 'user' | 'assistant' | 'system', content: string, timestamp?: string }
 ```
 
-**WatchContextValue**
+**ConsoleContextValue**
 ```typescript
 { agents, error, lastUpdated, isLoading, manager, inputFocused }
 ```
@@ -64,8 +64,8 @@ graph TD
 
 | Component | File | Responsibility |
 |-----------|------|----------------|
-| `WatchApp` | `WatchApp.tsx` | Context provider wrapper |
-| `WatchAppShell` | `WatchApp.tsx` | All state, keyboard handling, layout math |
+| `ConsoleApp` | `ConsoleApp.tsx` | Context provider wrapper |
+| `ConsoleAppShell` | `ConsoleApp.tsx` | All state, keyboard handling, layout math |
 | `HeaderBar` | `HeaderBar.tsx` | Agent count + app label |
 | `AgentListPane` | `AgentListPane.tsx` | 2-line agent rows with status/name/type/summary |
 | `PreviewSection` | `PreviewSection.tsx` | Runs `useAgentConversation`, wraps `PreviewPane` |
@@ -73,12 +73,12 @@ graph TD
 | `StatusFooter` | `StatusFooter.tsx` | Status counts + updated time + keybinding hints |
 | `ChatInput` | `ChatInput.tsx` | Controlled text input for sending messages |
 | `FormatStatus` | `render/formatStatus.tsx` | Status glyph + label |
-| `WatchProvider` | `state/WatchContext.tsx` | Provides agent list via context |
+| `ConsoleProvider` | `state/ConsoleContext.tsx` | Provides agent list via context |
 | `useAgentList` | `hooks/useAgentList.ts` | Polls `manager.listAgents()` every 3s |
 | `useAgentConversation` | `hooks/useAgentConversation.ts` | Polls conversation with debounce + LRU cache |
 | `useTerminalSize` | `hooks/useTerminalSize.ts` | Debounced terminal resize listener |
 | `runAction` | `actions/runAction.ts` | Spawns CLI subprocess for open/send |
-| `computeLayout` | `WatchApp.tsx` | Pure function: cols/rows → layout dimensions |
+| `computeLayout` | `ConsoleApp.tsx` | Pure function: cols/rows → layout dimensions |
 
 ## Layout Design
 
@@ -106,7 +106,7 @@ graph TD
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Keyboard handler location | Single non-memo `WatchAppShell` | Ink 7 + React 19: `useInput` silently fails in `React.memo` |
+| Keyboard handler location | Single non-memo `ConsoleAppShell` | Ink 7 + React 19: `useInput` silently fails in `React.memo` |
 | Action execution | Subprocess re-invoking CLI | TUI stays alive; no terminal handoff complexity |
 | Conversation data | Sync `statSync` + JSONL parse | Session files are local; async adds race complexity without benefit |
 | Cache | Module-level LRU Map (max 50) | Survives selection changes; evicts old entries; no library needed |
