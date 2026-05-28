@@ -25,8 +25,3 @@ const FormatStatusInner: React.FC<FormatStatusProps> = ({ status }) => {
 };
 
 export const FormatStatus = React.memo(FormatStatusInner);
-
-export function statusDisplayWidth(): number {
-    // glyph (1) + space (1) + longest label ("idle"/"wait"/"run"/"unk" = 4)
-    return 6;
-}

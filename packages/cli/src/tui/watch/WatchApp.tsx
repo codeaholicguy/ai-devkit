@@ -3,18 +3,16 @@ import { Box, useApp, useInput } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import { WatchProvider, useWatchContext } from './state/WatchContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
-import { ListSection } from './ListSection.js';
+import { AgentListPane } from './AgentListPane.js';
 import { PreviewSection } from './PreviewSection.js';
-import { FooterSection } from './FooterSection.js';
+import { StatusFooter } from './StatusFooter.js';
 import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
-import type { WatchAction } from './actions/types.js';
+import { runAction } from './actions/runAction.js';
 
 interface WatchAppProps {
     manager: AgentManager;
     initialSelection?: string | null;
-    onIntent?: (action: WatchAction) => void;
-    transientMessage?: { kind: 'info' | 'error'; text: string } | null;
 }
 
 const NARROW_THRESHOLD_COLS = 120;
@@ -26,17 +24,35 @@ const INPUT_BOX_CHROME_ROWS = 2;
 
 type Focus = 'list' | 'input';
 
+export function computeLayout(cols: number, rows: number, inputLines: number, narrow: boolean) {
+    const inputBoxHeight = inputLines + INPUT_BOX_CHROME_ROWS;
+    const totalHeight = Math.max(
+        MIN_CONTENT_HEIGHT + inputBoxHeight + FOOTER_HEIGHT + HEADER_HEIGHT,
+        rows - 1,
+    );
+    const contentHeight = Math.max(MIN_CONTENT_HEIGHT, totalHeight - FOOTER_HEIGHT - HEADER_HEIGHT);
+    const listPaneWidth = narrow ? cols - 2 : LIST_PANE_WIDTH;
+    const rightColWidth = Math.max(20, cols - listPaneWidth - 1);
+    return {
+        inputBoxHeight,
+        contentHeight,
+        previewHeight: contentHeight - inputBoxHeight,
+        listPaneWidth,
+        rightColWidth,
+        inputInnerWidth: Math.max(4, rightColWidth - 4),
+    };
+}
+
 const WatchAppShell: React.FC<{
     initialSelection: string | null;
-    onIntent?: (action: WatchAction) => void;
-    transientMessage: { kind: 'info' | 'error'; text: string } | null;
     setInputFocused: (v: boolean) => void;
-}> = ({ initialSelection, onIntent, transientMessage, setInputFocused }) => {
+}> = ({ initialSelection, setInputFocused }) => {
     const { exit } = useApp();
     const [selectedName, setSelectedName] = useState<string | null>(initialSelection);
     const [focus, setFocus] = useState<Focus>('list');
     const [inputLines, setInputLines] = useState(1);
     const [inputValue, setInputValue] = useState('');
+    const [transient, setTransient] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
     const inputFocused = focus === 'input';
 
     useEffect(() => {
@@ -45,13 +61,15 @@ const WatchAppShell: React.FC<{
 
     useEffect(() => { setInputFocused(inputFocused); }, [inputFocused, setInputFocused]);
 
-    const onIntentRef = useRef(onIntent);
-    onIntentRef.current = onIntent;
-    const exitRef = useRef(exit);
-    exitRef.current = exit;
+    useEffect(() => {
+        if (!transient) return;
+        const t = setTimeout(() => setTransient(null), 4000);
+        return () => clearTimeout(t);
+    }, [transient]);
+
     const selectedNameRef = useRef(selectedName);
     selectedNameRef.current = selectedName;
-    const { agents } = useWatchContext();
+    const { agents, error, lastUpdated, isLoading } = useWatchContext();
     const agentsRef = useRef(agents);
     agentsRef.current = agents;
 
@@ -59,19 +77,20 @@ const WatchAppShell: React.FC<{
         setFocus('list');
         const name = selectedNameRef.current;
         const agent = name ? agentsRef.current.find(a => a.name === name) : null;
-        const intent = onIntentRef.current;
-        if (agent && intent) {
-            intent({ type: 'send', agentName: agent.name, message: text });
-            exitRef.current();
-        }
+        if (!agent) return;
+        void runAction({ type: 'send', agentName: agent.name, message: text }).then(result => {
+            if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
+                setTransient({ kind: 'error', text: result.error ?? `send exited ${result.exitCode}` });
+            } else {
+                setTransient({ kind: 'info', text: `Message sent to ${agent.name}` });
+            }
+        });
     }, []);
 
     const handleInputCancel = useCallback(() => {
         setFocus('list');
     }, []);
 
-    // All keyboard handling lives here — useInput inside React.memo components
-    // does not fire reliably in Ink 7 + React 19.
     useInput((input, key) => {
         if (focus === 'input') {
             if (key.escape) {
@@ -81,75 +100,67 @@ const WatchAppShell: React.FC<{
             return;
         }
 
-        if (input === 'q') {
-            exit();
-            return;
-        }
+        if (input === 'q') { exit(); return; }
+
         if (input === 'o') {
             const name = selectedNameRef.current;
             const agent = name ? agentsRef.current.find(a => a.name === name) : null;
-            if (agent && onIntent) {
-                onIntent({ type: 'open', agentName: agent.name });
-                exit();
-            }
+            if (!agent) return;
+            void runAction({ type: 'open', agentName: agent.name }).then(result => {
+                if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
+                    setTransient({ kind: 'error', text: result.error ?? `open exited ${result.exitCode}` });
+                }
+            });
             return;
         }
+
         if (input === 'i' || input === 'm') {
-            const name = selectedNameRef.current;
-            if (name) setFocus('input');
+            if (selectedNameRef.current) setFocus('input');
             return;
         }
+
         if (key.downArrow || input === 'j') {
             const list = agentsRef.current;
-            if (list.length === 0) return;
+            if (!list.length) return;
             const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
             setSelectedName(list[(idx + 1) % list.length].name);
             return;
         }
+
         if (key.upArrow || input === 'k') {
             const list = agentsRef.current;
-            if (list.length === 0) return;
+            if (!list.length) return;
             const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
             setSelectedName(list[(idx - 1 + list.length) % list.length].name);
             return;
         }
     });
 
-    const [, forceTick] = useState(0);
-    useEffect(() => {
-        if (!transientMessage) return;
-        const handle = setTimeout(() => forceTick(t => t + 1), 4000);
-        return () => clearTimeout(handle);
-    }, [transientMessage]);
-
     const { cols, rows } = useTerminalSize();
     const narrow = cols < NARROW_THRESHOLD_COLS;
-    const inputBoxHeight = inputLines + INPUT_BOX_CHROME_ROWS;
-    const totalHeight = Math.max(
-        MIN_CONTENT_HEIGHT + inputBoxHeight + FOOTER_HEIGHT + HEADER_HEIGHT,
-        rows - 1,
-    );
-    const contentHeight = Math.max(MIN_CONTENT_HEIGHT, totalHeight - FOOTER_HEIGHT - HEADER_HEIGHT);
-    const previewHeight = contentHeight - inputBoxHeight;
-    const listHeight = contentHeight;
-
-    const listPaneWidth = narrow ? cols - 2 : LIST_PANE_WIDTH;
-    // marginLeft(1) + border(2) accounted for; right col fills the rest exactly.
-    const rightColWidth = Math.max(20, cols - listPaneWidth - 1);
-    const inputInnerWidth = Math.max(4, rightColWidth - 4);
+    const { inputBoxHeight, contentHeight, previewHeight, listPaneWidth, rightColWidth, inputInnerWidth } = computeLayout(cols, rows, inputLines, narrow);
 
     return (
         <Box flexDirection="column">
             <HeaderBar />
             <Box flexDirection="row">
                 <Box flexShrink={0}>
-                    <ListSection
-                        selectedName={selectedName}
-                        onSelect={setSelectedName}
-                        focused={focus === 'list'}
+                    <Box
                         width={listPaneWidth}
-                        height={listHeight}
-                    />
+                        height={contentHeight}
+                        borderStyle="round"
+                        borderColor={focus === 'list' ? 'cyan' : 'gray'}
+                        paddingX={1}
+                        flexDirection="column"
+                    >
+                        <AgentListPane
+                            agents={agents}
+                            selectedName={selectedName}
+                            onSelect={setSelectedName}
+                            width={listPaneWidth - 4}
+                            error={error}
+                        />
+                    </Box>
                 </Box>
                 {!narrow && (
                     <Box flexDirection="column" width={rightColWidth} flexShrink={0} marginLeft={1}>
@@ -178,10 +189,12 @@ const WatchAppShell: React.FC<{
                     </Box>
                 )}
             </Box>
-            <FooterSection
-                selectedName={selectedName}
+            <StatusFooter
+                agents={agents}
+                lastUpdated={lastUpdated}
+                isLoading={isLoading}
                 narrowNote={narrow ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview` : null}
-                transient={transientMessage}
+                transient={transient}
             />
         </Box>
     );
@@ -190,16 +203,12 @@ const WatchAppShell: React.FC<{
 export const WatchApp: React.FC<WatchAppProps> = ({
     manager,
     initialSelection = null,
-    onIntent,
-    transientMessage = null,
 }) => {
     const [inputFocused, setInputFocused] = useState(false);
     return (
         <WatchProvider manager={manager} inputFocused={inputFocused}>
             <WatchAppShell
                 initialSelection={initialSelection}
-                onIntent={onIntent}
-                transientMessage={transientMessage}
                 setInputFocused={setInputFocused}
             />
         </WatchProvider>

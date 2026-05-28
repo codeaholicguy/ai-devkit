@@ -2,6 +2,8 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
+import { formatRelative } from './render/formatRelative.js';
+import { AGENT_TYPE_LABEL_DISPLAY } from './render/agentTypeLabel.js';
 
 interface PreviewPaneProps {
     agent: AgentInfo | null;
@@ -17,12 +19,6 @@ const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow
     system: 'yellow',
 };
 
-const TYPE_LABEL: Record<string, string> = {
-    claude: 'Claude',
-    codex: 'Codex',
-    gemini_cli: 'Gemini',
-    opencode: 'OpenCode',
-};
 
 function formatTime(ts: string | undefined): string {
     if (!ts) return '';
@@ -31,20 +27,6 @@ function formatTime(ts: string | undefined): string {
     } catch {
         return '';
     }
-}
-
-function formatRelative(date: Date | string | undefined): string {
-    if (!date) return '—';
-    const d = typeof date === 'string' ? new Date(date) : date;
-    const diffMs = Date.now() - d.getTime();
-    const sec = Math.max(0, Math.floor(diffMs / 1000));
-    if (sec < 5) return 'now';
-    if (sec < 60) return `${sec}s ago`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    return `${Math.floor(hr / 24)}d ago`;
 }
 
 function shortPath(p: string): string {
@@ -59,7 +41,7 @@ const MetadataHeader: React.FC<{ agent: AgentInfo }> = ({ agent }) => (
         <Text dimColor> · </Text>
         <Text color="cyan">{agent.name}</Text>
         <Text dimColor> · </Text>
-        <Text dimColor>{TYPE_LABEL[agent.type] ?? agent.type}</Text>
+        <Text dimColor>{AGENT_TYPE_LABEL_DISPLAY[agent.type] ?? agent.type}</Text>
         <Text dimColor> · </Text>
         <Text dimColor>{formatRelative(agent.lastActive)}</Text>
         <Text dimColor> · </Text>
@@ -112,12 +94,14 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
             const time = formatTime(msg.timestamp);
             rendered.unshift(
                 <Box key={i} flexDirection="column" marginBottom={1}>
-                    <Text>
+                    <Box flexDirection="row">
                         {time ? <Text dimColor>[{time}] </Text> : null}
                         <Text color={ROLE_COLOR[msg.role]} bold>{msg.role}:</Text>
-                    </Text>
+                    </Box>
                     {trimmed.map((line: string, idx: number) => (
-                        <Text key={idx}>  {line}</Text>
+                        <Box key={idx}>
+                            <Text>  {line}</Text>
+                        </Box>
                     ))}
                 </Box>,
             );

@@ -10,7 +10,7 @@ export interface UseAgentListResult {
 
 export const LIST_POLL_INTERVAL_MS = 3000;
 
-function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {
+export function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
         const x = a[i];
@@ -22,8 +22,8 @@ function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {
             || x.summary !== y.summary
             || x.sessionFilePath !== y.sessionFilePath
         ) return false;
-        const tx = x.lastActive instanceof Date ? x.lastActive.getTime() : new Date(x.lastActive).getTime();
-        const ty = y.lastActive instanceof Date ? y.lastActive.getTime() : new Date(y.lastActive).getTime();
+        const tx = x.lastActive instanceof Date ? x.lastActive.getTime() : Date.parse(x.lastActive as string);
+        const ty = y.lastActive instanceof Date ? y.lastActive.getTime() : Date.parse(y.lastActive as string);
         if (tx !== ty) return false;
     }
     return true;
@@ -49,13 +49,14 @@ export function useAgentList(
 
     useEffect(() => {
         mountedRef.current = true;
+        inFlightRef.current = false;
 
         const fetchOnce = async (): Promise<void> => {
             if (inFlightRef.current) return;
             inFlightRef.current = true;
             const token = ++runTokenRef.current;
             try {
-                const next = await manager.listAgents({ sortBy: 'name' });
+                const next = await manager.listAgents({ sortBy: 'status' });
                 if (!mountedRef.current || token !== runTokenRef.current) return;
                 setState(prev => {
                     const isFirst = prev.lastUpdated === null;

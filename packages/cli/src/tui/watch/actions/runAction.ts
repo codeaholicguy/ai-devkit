@@ -7,9 +7,6 @@ export interface ActionResult {
 }
 
 function resolveCliEntry(): { command: string; baseArgs: string[] } {
-    // Re-invoke the exact same process (works in both dev/ts-node and prod/compiled).
-    // process.execArgv carries loader flags (e.g. --loader ts-node/esm).
-    // process.argv[1] is the entry script (src/cli.ts in dev, dist/cli.js in prod).
     return { command: process.execPath, baseArgs: [...process.execArgv, process.argv[1]] };
 }
 
@@ -25,12 +22,14 @@ export async function runAction(action: WatchAction): Promise<ActionResult> {
     })();
 
     return new Promise<ActionResult>((resolve) => {
-        const child = spawn(command, argv, { stdio: 'inherit' });
-        child.once('error', (err) => {
-            resolve({ exitCode: null, error: err.message });
-        });
+        // Use pipe so the subprocess never takes over the TUI's terminal.
+        const child = spawn(command, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
+        const stderrChunks: Buffer[] = [];
+        child.stderr?.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
+        child.once('error', (err) => resolve({ exitCode: null, error: err.message }));
         child.once('exit', (code) => {
-            resolve({ exitCode: code });
+            const stderr = Buffer.concat(stderrChunks).toString().trim();
+            resolve({ exitCode: code, error: code !== 0 && stderr ? stderr : undefined });
         });
     });
 }

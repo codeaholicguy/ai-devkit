@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { FormatStatus } from './render/formatStatus.js';
+import { AGENT_TYPE_LABEL } from './render/agentTypeLabel.js';
 
 interface AgentListPaneProps {
     agents: AgentInfo[];
@@ -9,7 +10,6 @@ interface AgentListPaneProps {
     onSelect: (name: string | null) => void;
     width?: number;
     error?: string | null;
-    focused?: boolean;
 }
 
 function clip(s: string | undefined, max: number): string {
@@ -24,10 +24,10 @@ function shortPath(p: string): string {
     return home && p.startsWith(home) ? '~' + p.slice(home.length) : p;
 }
 
-// Fixed column widths inside each row (excluding outer marker).
-const MARKER_W = 2;  // "▶ " or "  "
-const STATUS_W = 7;  // "● run  " — glyph(1) + space(1) + label(4) + trailing space(1)
-const ROW_CHROME = MARKER_W + STATUS_W;
+const MARKER_W = 2;
+const STATUS_W = 7;
+const TYPE_W = 9; // space(1) + label up to 8 chars ("opencode")
+const ROW_CHROME = MARKER_W + STATUS_W + TYPE_W;
 
 interface AgentRowProps {
     agent: AgentInfo;
@@ -37,19 +37,13 @@ interface AgentRowProps {
 
 const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth }) => {
     const nameW = Math.max(4, innerWidth - ROW_CHROME);
-    const summaryW = Math.max(4, innerWidth - MARKER_W);  // summary indented by marker only
-
-    const rawSummary = agent.summary?.trim()
-        ? agent.summary
-        : shortPath(agent.projectPath);
-    const summary = clip(rawSummary, summaryW);
-    const name = clip(agent.name, nameW);
-
+    const summaryW = Math.max(4, innerWidth - MARKER_W);
+    const rawSummary = agent.summary?.trim() ? agent.summary : shortPath(agent.projectPath);
     const accent = isSelected ? 'cyan' : undefined;
+    const typeLabel = AGENT_TYPE_LABEL[agent.type] ?? agent.type;
 
     return (
         <Box flexDirection="column" width={innerWidth}>
-            {/* Line 1: marker · status · name */}
             <Box flexDirection="row" width={innerWidth}>
                 <Box width={MARKER_W} flexShrink={0}>
                     <Text color={accent}>{isSelected ? '▶ ' : '  '}</Text>
@@ -58,14 +52,16 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth }) =>
                     <FormatStatus status={agent.status} />
                 </Box>
                 <Box width={nameW} flexShrink={0} overflow="hidden">
-                    <Text color={accent} bold={isSelected}>{name}</Text>
+                    <Text color={accent} bold={isSelected}>{clip(agent.name, nameW)}</Text>
+                </Box>
+                <Box width={TYPE_W} flexShrink={0}>
+                    <Text dimColor> {typeLabel}</Text>
                 </Box>
             </Box>
-            {/* Line 2: summary / project path, indented under status */}
             <Box flexDirection="row" width={innerWidth}>
                 <Box width={MARKER_W} flexShrink={0} />
                 <Box width={summaryW} flexShrink={0} overflow="hidden">
-                    <Text dimColor>{summary}</Text>
+                    <Text dimColor>{clip(rawSummary, summaryW)}</Text>
                 </Box>
             </Box>
         </Box>
@@ -108,18 +104,26 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
         );
     }
 
+    const divider = '─'.repeat(innerWidth);
+
     return (
         <Box flexDirection="column" width={innerWidth}>
             <Box width={innerWidth} marginBottom={1}>
                 <Text bold>AGENTS </Text><Text dimColor>({agents.length})</Text>
             </Box>
-            {agents.map((agent) => (
-                <AgentRow
-                    key={agent.name}
-                    agent={agent}
-                    isSelected={agent.name === selectedName}
-                    innerWidth={innerWidth}
-                />
+            {agents.map((agent, i) => (
+                <React.Fragment key={agent.name}>
+                    {i > 0 && (
+                        <Box width={innerWidth}>
+                            <Text dimColor>{divider}</Text>
+                        </Box>
+                    )}
+                    <AgentRow
+                        agent={agent}
+                        isSelected={agent.name === selectedName}
+                        innerWidth={innerWidth}
+                    />
+                </React.Fragment>
             ))}
         </Box>
     );

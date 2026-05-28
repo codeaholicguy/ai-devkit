@@ -26,7 +26,7 @@ interface Params {
     paused?: boolean;
 }
 
-function messagesEqual(a: ConversationMessage[], b: ConversationMessage[]): boolean {
+export function messagesEqual(a: ConversationMessage[], b: ConversationMessage[]): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
         if (a[i].role !== b[i].role) return false;
@@ -43,6 +43,23 @@ const EMPTY_STATE: UseAgentConversationResult = {
     isLoading: false,
 };
 
+interface CacheEntry {
+    mtime: number;
+    messages: ConversationMessage[];
+}
+
+export const CACHE_MAX = 50;
+// Module-level LRU cache: re-inserting a key moves it to most-recent position.
+export const conversationCache = new Map<string, CacheEntry>();
+
+export function cacheSet(key: string, entry: CacheEntry): void {
+    conversationCache.delete(key);
+    if (conversationCache.size >= CACHE_MAX) {
+        conversationCache.delete(conversationCache.keys().next().value!);
+    }
+    conversationCache.set(key, entry);
+}
+
 export function useAgentConversation({
     manager,
     agent,
@@ -54,20 +71,22 @@ export function useAgentConversation({
 
     const runTokenRef = useRef(0);
     const mountedRef = useRef(true);
-    const lastMtimeRef = useRef<number | null>(null);
 
     useEffect(() => {
         mountedRef.current = true;
 
         if (!agent) {
             setState(prev => prev === EMPTY_STATE ? prev : EMPTY_STATE);
-            lastMtimeRef.current = null;
             return () => { mountedRef.current = false; };
         }
 
-        // Selection change → fresh state, single render.
-        setState({ messages: [], error: null, lastUpdated: null, isLoading: true });
-        lastMtimeRef.current = null;
+        // If we have a cached result for this agent, show it immediately while
+        // the debounced fetch confirms whether the file has changed.
+        const cached = agent.sessionFilePath ? conversationCache.get(agent.sessionFilePath) : undefined;
+        setState(cached
+            ? { messages: cached.messages, error: null, lastUpdated: new Date(), isLoading: false }
+            : { messages: [], error: null, lastUpdated: null, isLoading: true },
+        );
 
         const fetchOnce = (): void => {
             const token = ++runTokenRef.current;
@@ -106,12 +125,16 @@ export function useAgentConversation({
                 } catch {
                     mtime = null;
                 }
-                // mtime didn't change → no need to re-parse. Skip state update.
-                if (mtime !== null && lastMtimeRef.current === mtime) {
+
+                const cached = conversationCache.get(agent.sessionFilePath);
+                if (mtime !== null && cached && cached.mtime === mtime) {
+                    // File unchanged — serve from cache, no JSONL parse needed.
                     if (token !== runTokenRef.current || !mountedRef.current) return;
-                    setState(prev => prev.isLoading || prev.error
-                        ? { ...prev, isLoading: false, error: null }
-                        : prev);
+                    setState(prev => {
+                        const changed = !messagesEqual(prev.messages, cached.messages);
+                        if (!changed && prev.error === null && !prev.isLoading && prev.lastUpdated !== null) return prev;
+                        return { messages: changed ? cached.messages : prev.messages, error: null, lastUpdated: new Date(), isLoading: false };
+                    });
                     return;
                 }
 
@@ -121,7 +144,9 @@ export function useAgentConversation({
                 const sliced = tail > 0 && conversation.length > tail
                     ? conversation.slice(-tail)
                     : conversation;
-                lastMtimeRef.current = mtime;
+                if (mtime !== null) {
+                    cacheSet(agent.sessionFilePath, { mtime, messages: sliced });
+                }
                 setState(prev => {
                     const changed = !messagesEqual(prev.messages, sliced);
                     if (!changed && prev.error === null && !prev.isLoading && prev.lastUpdated !== null) {

@@ -30,7 +30,6 @@ import {
 import { waitForAgentResponse } from '../services/agent/agent.service.js';
 import { parseMilliseconds } from '../util/time.js';
 import { WatchApp } from '../tui/watch/WatchApp.js';
-import { runAction } from '../tui/watch/actions/runAction.js';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
@@ -679,47 +678,18 @@ export function registerAgentCommand(program: Command): void {
         }));
 
     agentCommand
-        .command('watch')
-        .description('Live multi-agent monitor (interactive TUI)')
-        .action(withErrorHandler('agent watch', async () => {
+        .command('console')
+        .description('Interactive multi-agent console (open, message, monitor)')
+        .action(withErrorHandler('agent console', async () => {
             if (!process.stdout.isTTY) {
-                ui.error('agent watch requires an interactive terminal (TTY).');
+                ui.error('agent console requires an interactive terminal (TTY).');
                 process.exit(1);
             }
             const manager = createAgentManager();
-
-            let lastSelection: string | null = null;
-            let pendingAction: { type: 'open' | 'send'; agentName: string; message?: string } | null = null;
-            let transient: { kind: 'info' | 'error'; text: string } | null = null;
-
-            // Loop: render TUI → user triggers action → TUI exits with pendingAction →
-            // run action (stdio inherit) → re-enter TUI with preserved selection.
-            // Ink 7 manages alt-screen and stdin lifecycle via alternateScreen: true.
-            // eslint-disable-next-line no-constant-condition
-            while (true) {
-                pendingAction = null;
-                const onIntent = (intent: { type: 'open' | 'send'; agentName: string; message?: string }) => {
-                    pendingAction = intent;
-                    lastSelection = intent.agentName;
-                };
-                const { waitUntilExit } = render(
-                    createElement(WatchApp, {
-                        manager,
-                        initialSelection: lastSelection,
-                        onIntent,
-                        transientMessage: transient,
-                    }),
-                    { alternateScreen: true, exitOnCtrlC: true },
-                );
-                await waitUntilExit();
-                transient = null;
-                if (!pendingAction) break;
-                const result = await runAction(pendingAction);
-                if (result.error) {
-                    transient = { kind: 'error', text: `action failed: ${result.error}` };
-                } else if (result.exitCode !== 0 && result.exitCode !== null) {
-                    transient = { kind: 'error', text: `action exited ${result.exitCode}` };
-                }
-            }
+            const { waitUntilExit } = render(
+                createElement(WatchApp, { manager }),
+                { alternateScreen: true, exitOnCtrlC: true },
+            );
+            await waitUntilExit();
         }));
 }

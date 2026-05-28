@@ -1,4 +1,4 @@
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useMemo } from 'react';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import { useAgentList, type UseAgentListResult } from '../hooks/useAgentList.js';
 
@@ -25,6 +25,9 @@ export const WatchProvider: React.FC<WatchProviderProps> = ({ manager, inputFocu
     // Pause list poll while user is composing a message: removes a source of
     // re-renders that compete with the controlled TextInput.
     const list = useAgentList(manager, undefined, inputFocused);
-    const value: WatchContextValue = { ...list, manager, inputFocused };
+    const value = useMemo<WatchContextValue>(
+        () => ({ ...list, manager, inputFocused }),
+        [list, manager, inputFocused],
+    );
     return <WatchContext.Provider value={value}>{children}</WatchContext.Provider>;
 };

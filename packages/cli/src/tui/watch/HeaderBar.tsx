@@ -9,7 +9,7 @@ const HeaderBarInner: React.FC = () => {
         <Box paddingX={1}>
             <Text bold color="cyan">ai-devkit</Text>
             <Text dimColor> · </Text>
-            <Text>agent watch</Text>
+            <Text>agent console</Text>
             <Text dimColor>   {totalLabel}</Text>
         </Box>
     );

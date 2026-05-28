@@ -1,33 +1,18 @@
 import React from 'react';
 import { Box, Text } from 'ink';
 import { AgentStatus, type AgentInfo } from '@ai-devkit/agent-manager';
+import { formatRelative } from './render/formatRelative.js';
 
 interface StatusFooterProps {
     agents: AgentInfo[];
-    selected: AgentInfo | null;
     lastUpdated: Date | null;
     isLoading: boolean;
     narrowNote: string | null;
     transient: { kind: 'info' | 'error'; text: string } | null;
 }
 
-function formatRelative(date: Date | string | undefined): string {
-    if (!date) return '—';
-    const d = typeof date === 'string' ? new Date(date) : date;
-    const diffMs = Date.now() - d.getTime();
-    const sec = Math.max(0, Math.floor(diffMs / 1000));
-    if (sec < 5) return 'now';
-    if (sec < 60) return `${sec}s ago`;
-    const min = Math.floor(sec / 60);
-    if (min < 60) return `${min}m ago`;
-    const hr = Math.floor(min / 60);
-    if (hr < 24) return `${hr}h ago`;
-    return `${Math.floor(hr / 24)}d ago`;
-}
-
 const StatusFooterInner: React.FC<StatusFooterProps> = ({
     agents,
-    selected,
     lastUpdated,
     isLoading,
     narrowNote,
@@ -55,16 +40,9 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
         <Box flexDirection="column">
             <Box>
                 <Text dimColor>
-                    {summary}{'  ·  '}{updated}{'  ·  '}↑/↓ nav · ⏎ open · i message · q quit
+                    {summary}{'  ·  '}{updated}{'  ·  '}j/k nav · o open · i message · q quit
                 </Text>
             </Box>
-            {selected ? (
-                <Box>
-                    <Text dimColor>
-                        sel: {selected.name} · {selected.projectPath} · {selected.status}
-                    </Text>
-                </Box>
-            ) : null}
             {narrowNote ? (
                 <Box>
                     <Text color="yellow">{narrowNote}</Text>
