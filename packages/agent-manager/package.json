@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/agent-manager",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "type": "module",
   "description": "Standalone agent detection and management utilities for AI DevKit",
   "main": "dist/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/memory",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "type": "module",
   "description": "Local MCP memory for AI coding agents to reuse project decisions, conventions, and fixes across sessions",
   "main": "dist/index.js",
