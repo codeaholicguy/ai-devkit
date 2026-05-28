@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Console** - New `ai-devkit agent console` command that launches a live multi-agent terminal UI (TUI) with an agent list pane, conversation preview, chat input, and status footer for monitoring and interacting with multiple running agents simultaneously (#88).
+
+### Changed
+
+- **ESM Migration** - Converted all packages (`cli`, `agent-manager`, `channel-connector`, `memory`) from CommonJS to ES Modules, migrated the test runner from Jest to Vitest, and upgraded project dependencies (#87).
+- **Dev Lifecycle Clarification Contract** - Tightened the clarification requirements in the `dev-lifecycle` skill's `SKILL.md` and updated `new-requirement`, `review-design`, and `review-requirements` references; improved the `check-status.sh` script.
+
 ## [0.34.0] - 2026-05-25
 
 ### Added
