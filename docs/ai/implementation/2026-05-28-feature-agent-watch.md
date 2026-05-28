@@ -10,9 +10,9 @@ description: Technical implementation notes, patterns, and code guidelines
 
 ```
 packages/cli/src/
-├── commands/agent.ts               # CLI command registration; renders WatchApp
-└── tui/watch/
-    ├── WatchApp.tsx                # WatchProvider + WatchAppShell (all state + keyboard)
+├── commands/agent.ts               # CLI command registration; renders ConsoleApp
+└── tui/console/
+    ├── ConsoleApp.tsx              # ConsoleProvider + ConsoleAppShell (all state + keyboard)
     ├── AgentListPane.tsx           # 2-line agent rows
     ├── PreviewPane.tsx             # Last-N message renderer
     ├── PreviewSection.tsx          # Runs useAgentConversation, wraps PreviewPane
@@ -21,7 +21,7 @@ packages/cli/src/
     ├── HeaderBar.tsx               # App label + agent count
     ├── actions/
     │   ├── runAction.ts            # Subprocess dispatcher
-    │   └── types.ts                # WatchAction discriminated union
+    │   └── types.ts                # ConsoleAction discriminated union
     ├── hooks/
     │   ├── useAgentList.ts         # 3s poll for agent list
     │   ├── useAgentConversation.ts # 3s poll for conversation + LRU cache
@@ -31,13 +31,13 @@ packages/cli/src/
     │   ├── formatRelative.ts       # Shared relative-time formatter
     │   └── agentTypeLabel.ts       # AGENT_TYPE_LABEL / AGENT_TYPE_LABEL_DISPLAY
     └── state/
-        └── WatchContext.tsx        # WatchProvider + useWatchContext
+        └── ConsoleContext.tsx      # ConsoleProvider + useConsoleContext
 ```
 
 ## Key Implementation Notes
 
 ### Ink 7 + React 19 keyboard handling
-`useInput` silently fails inside `React.memo` components. All keyboard handling lives in `WatchAppShell` (non-memo). Refs (`exitRef`, `selectedNameRef`, `agentsRef`) capture current values for use inside `useInput` closures without stale closure bugs.
+`useInput` silently fails inside `React.memo` components. All keyboard handling lives in `ConsoleAppShell` (non-memo). Refs (`selectedNameRef`, `agentsRef`) capture current values for use inside `useInput` closures without stale closure bugs.
 
 ### Layout stability
 Every `<Box>` has explicit `width` + `flexShrink={0}`. Without this, Yoga recalculates and shifts layout on every selection change. `computeLayout()` is a pure function — easy to verify and test independently.
@@ -54,7 +54,7 @@ Both hooks use `setState(prev => prev)` return to skip re-renders on unchanged d
 - `useAgentConversation`: `messagesEqual()` compares role + content + timestamp
 
 ### Context stability
-`WatchContext` wraps the value in `useMemo([list, manager, inputFocused])`. Since `useAgentList` returns `prev` when nothing changed, `list` is a stable reference across quiet polls — the `useMemo` dependency doesn't trigger, so consumers don't re-render.
+`ConsoleContext` wraps the value in `useMemo([list, manager, inputFocused])`. Since `useAgentList` returns `prev` when nothing changed, `list` is a stable reference across quiet polls — the `useMemo` dependency doesn't trigger, so consumers don't re-render.
 
 ## Error Handling
 

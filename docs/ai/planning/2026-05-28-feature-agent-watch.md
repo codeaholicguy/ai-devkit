@@ -10,9 +10,9 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 1: Core Shell & Data Hooks
 - [x] Task 1.1: `useAgentList` hook — polls `manager.listAgents()` every 3s, equality-checks to skip quiet re-renders, guards stale setState with run token
-- [x] Task 1.2: `WatchProvider` / `WatchContext` — provides agent list + manager via context; `useMemo` on value object
+- [x] Task 1.2: `ConsoleProvider` / `ConsoleContext` — provides agent list + manager via context; `useMemo` on value object
 - [x] Task 1.3: `useTerminalSize` — debounced resize listener on `process.stdout`
-- [x] Task 1.4: `WatchApp` shell — `WatchProvider` wrapper + `WatchAppShell` with all keyboard handling via `useInput`
+- [x] Task 1.4: `ConsoleApp` shell — `ConsoleProvider` wrapper + `ConsoleAppShell` with all keyboard handling via `useInput`
 
 ### Phase 2: Agent List Pane
 - [x] Task 2.1: `AgentListPane` — 2-line rows (status+name+type / summary), fixed widths to prevent layout shift, dividers between agents
@@ -25,7 +25,7 @@ description: Break down work into actionable tasks and estimate timeline
 - [x] Task 3.3: `PreviewSection` — reads context + runs `useAgentConversation`, paused during input focus
 
 ### Phase 4: Chat Input & Actions
-- [x] Task 4.1: `ChatInput` — fully controlled (value/onChange lifted to `WatchAppShell`); dynamic line-count reporting for layout
+- [x] Task 4.1: `ChatInput` — fully controlled (value/onChange lifted to `ConsoleAppShell`); dynamic line-count reporting for layout
 - [x] Task 4.2: `runAction` — spawns CLI subprocess (`agent open` / `agent send`) with `stdio: pipe`; resolves via `process.execPath + execArgv + argv[1]`
 - [x] Task 4.3: Transient feedback messages — 4s auto-clear; shown in `StatusFooter`
 
@@ -46,7 +46,7 @@ description: Break down work into actionable tasks and estimate timeline
 
 | Risk | Mitigation |
 |------|-----------|
-| `useInput` silent failure in memo components | All keyboard handling in single non-memo `WatchAppShell` |
+| `useInput` silent failure in memo components | All keyboard handling in single non-memo `ConsoleAppShell` |
 | Layout shift on selection change | Fixed widths + `flexShrink={0}` on all boxes |
 | Unbounded conversation cache | LRU eviction at 50 entries via `cacheSet()` |
 | Subprocess blocking TUI terminal | `stdio: ['ignore', 'pipe', 'pipe']` |

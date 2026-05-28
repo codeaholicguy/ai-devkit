@@ -14,11 +14,11 @@ React components and hooks cannot be tested without `@testing-library/react` or 
 
 | File | Covers | Tests |
 |------|--------|-------|
-| `src/__tests__/tui/watch/computeLayout.test.ts` | `computeLayout()` in `WatchApp.tsx` | 10 |
-| `src/__tests__/tui/watch/render/formatRelative.test.ts` | `render/formatRelative.ts` | 8 |
-| `src/__tests__/tui/watch/hooks/conversationCache.test.ts` | `cacheSet`, `conversationCache`, `messagesEqual` | 11 |
-| `src/__tests__/tui/watch/hooks/agentsEqual.test.ts` | `agentsEqual` in `useAgentList.ts` | 11 |
-| `src/__tests__/tui/watch/actions/runAction.test.ts` | `runAction.ts` | 7 |
+| `src/__tests__/tui/console/computeLayout.test.ts` | `computeLayout()` in `ConsoleApp.tsx` | 10 |
+| `src/__tests__/tui/console/render/formatRelative.test.ts` | `render/formatRelative.ts` | 8 |
+| `src/__tests__/tui/console/hooks/conversationCache.test.ts` | `cacheSet`, `conversationCache`, `messagesEqual` | 11 |
+| `src/__tests__/tui/console/hooks/agentsEqual.test.ts` | `agentsEqual` in `useAgentList.ts` | 11 |
+| `src/__tests__/tui/console/actions/runAction.test.ts` | `runAction.ts` | 7 |
 
 **Total new tests: 47** | **All passing**
 
@@ -70,7 +70,7 @@ React components and hooks cannot be tested without `@testing-library/react` or 
 **Not covered by automated tests** (require ink-testing-library or manual QA):
 - React component rendering: `AgentListPane`, `PreviewPane`, `StatusFooter`, `ChatInput`, `HeaderBar`
 - Hook behaviour: `useAgentList`, `useAgentConversation`, `useTerminalSize`
-- Keyboard navigation: j/k, o, i, q in `WatchAppShell`
+- Keyboard navigation: j/k, o, i, q in `ConsoleAppShell`
 - Narrow/wide layout transition on terminal resize
 
 **Recommended manual QA scenarios:**
