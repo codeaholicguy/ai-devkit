@@ -27,7 +27,7 @@ Current workaround: manually start `claude` or `codex` in a tmux pane, then copy
 
 **Non-goals:**
 - Managing tmux sessions beyond creating them (no `agent stop` in this feature)
-- Supporting agent types that don't have a corresponding adapter (only `claude` and `codex` in scope)
+- Supporting agent types that don't have a corresponding adapter (in scope: `claude`, `codex`, `gemini_cli`, `opencode`)
 - Cross-machine or remote agent launching
 - Modifying how Claude Code or Codex write their session files
 
@@ -59,13 +59,13 @@ Current workaround: manually start `claude` or `codex` in a tmux pane, then copy
 **Technical constraints:**
 - tmux must be installed and available in `PATH`; the command will not install it
 - Agent detection still relies on existing adapter process scanning — the registry only overlays the name, not the detection mechanism
-- Supported `--type` values: `claude`, `codex` (aligned with existing registered adapters); `gemini_cli` and `opencode` are explicitly out of scope for this feature
+- Supported `--type` values: `claude`, `codex`, `gemini_cli`, `opencode` (all four registered adapters). Each type maps to a launch command and a process matcher via `AGENTS` in `@ai-devkit/agent-manager` (e.g. `gemini_cli` → command `gemini`, matched anywhere in the `ps` command line).
 - `--name` must match `/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/` (lowercase alphanumeric + hyphens, 2–64 chars); this is validated at the CLI before any tmux interaction
 
 **Assumptions:**
 - Users are on a Unix-like OS where tmux is available (macOS, Linux)
-- The agent binary (`claude`, `codex`) is in `PATH` inside the tmux session environment; if not, the start command will time out and clean up
-- `~/.config/ai-devkit/` is a writable directory for the registry file
+- The agent binary (`claude`, `codex`, `gemini`, `opencode`) is in `PATH` inside the tmux session environment; if not, the start command will time out and clean up
+- `~/.ai-devkit/` is a writable directory for the registry file
 
 **PID poll timeout behavior:**
 - After sending the agent command to tmux, `agent start` polls for the child process PID for up to 5 seconds (500ms interval)

@@ -17,8 +17,9 @@ description: Break down work into actionable tasks and estimate timeline
 ### Phase 1: Foundation
 
 - [x] T1.1: Implement `AgentRegistry` (`packages/agent-manager/src/utils/AgentRegistry.ts`)
-  - Read/write `~/.config/ai-devkit/agents.json` atomically
-  - `register`, `lookup`, `lookupByPid`, `list`, `remove`, `prune` (kill-0 check per entry)
+  - Read/write `~/.ai-devkit/agents.json` atomically
+  - `register`, `lookup`, `list`, `prune`
+  - `isAlive`: `kill(pid, 0)`
   - Create parent directory if absent
 
 - [x] T1.2: Implement `TmuxManager` (`packages/agent-manager/src/terminal/TmuxManager.ts`)
@@ -26,18 +27,25 @@ description: Break down work into actionable tasks and estimate timeline
   - `sessionExists(name)`: `tmux has-session -t <name>`
   - `createSession(name, cwd)`: `tmux new-session -d -s <name> -c <cwd>`
   - `sendKeys(session, keys)`: `tmux send-keys -t <name> "<keys>" Enter`
-  - `getPaneChildPid(session)`: list pane PID, then `pgrep -P <panePid>` for child
+  - `findAgentPid(session, matches)`: BFS the process tree, return the deepest descendant whose `ps` command line is accepted by the caller-supplied `matches` predicate
+  - `killSession(name)` for cleanup on poll timeout
 
-- [x] T1.3: Export `AgentRegistry` and `TmuxManager` from `packages/agent-manager/src/index.ts`
+- [x] T1.3: Add `AGENTS` registry (`packages/agent-manager/src/utils/agents.ts`)
+  - Per-agent `{ command, matches }` config for the four startable types
+  - `matchArgv0` helper for claude/codex/opencode (npm bin shims)
+  - `matchAnyToken` helper for gemini_cli (Node-script distribution: real binary basename lives in argv[1..])
+
+- [x] T1.4: Export `AgentRegistry`, `TmuxManager`, `AGENTS`, and supporting types from `packages/agent-manager/src/index.ts`
 
 ### Phase 2: Core Feature
 
 - [x] T2.1: Add `agent start` subcommand to `packages/cli/src/commands/agent.ts`
-  - Options: `--type` (required, `claude`|`codex`), `--name` (required, validated), `--cwd` (optional, defaults to `process.cwd()`)
+  - Options: `--type` (required, one of `AGENTS` keys: `claude` | `codex` | `gemini_cli` | `opencode`), `--name` (optional, validated; default: `{folder}-{timestamp}`), `--cwd` (optional, defaults to `process.cwd()`)
   - Validate: tmux available, `--cwd` exists, name format, name not already in registry with live PID
+  - Resolve `agent = AGENTS[type]` for both launch command and process matcher
   - Create tmux session via `TmuxManager`
-  - Send agent command via `TmuxManager.sendKeys`
-  - Poll (up to 5s, 500ms interval) for child PID via `TmuxManager.getPaneChildPid`
+  - Send `agent.command` via `TmuxManager.sendKeys`
+  - Poll (up to 5s, 500ms interval) via `TmuxManager.findAgentPid(name, agent.matches)`
   - Register entry via `AgentRegistry`
   - Print success output with attach command
 
@@ -65,7 +73,8 @@ description: Break down work into actionable tasks and estimate timeline
 
 - T1.1 must complete before T2.1, T2.2, T2.3
 - T1.2 must complete before T2.1
-- T1.3 must complete before T2.1 (CLI imports from agent-manager)
+- T1.3 (AGENTS registry) must complete before T2.1
+- T1.4 (exports) must complete before T2.1 (CLI imports from agent-manager)
 - T2.1, T2.2, T2.3 can be developed in parallel after Phase 1
 - T3.x depend on T2.x being in place
 
@@ -75,20 +84,21 @@ description: Break down work into actionable tasks and estimate timeline
 |---|---|
 | T1.1 AgentRegistry | 2h |
 | T1.2 TmuxManager | 2h |
-| T1.3 Exports | 15m |
+| T1.3 AGENTS registry | 30m |
+| T1.4 Exports | 15m |
 | T2.1 agent start subcommand | 3h |
 | T2.2 listAgents overlay | 1h |
 | T2.3 resolveAgent registry-first | 1h |
 | T3.1 name validation | 30m |
 | T3.2 edge cases | 1.5h |
 | T3.3 createAgentManager wiring | 30m |
-| **Total** | **~12h** |
+| **Total** | **~12.5h** |
 
 ## Risks & Mitigation
 
 | Risk | Likelihood | Mitigation |
 |---|---|---|
-| `getPaneChildPid` is fragile — pgrep may return multiple children | Medium | Take the first result; document that only one agent per pane is supported |
+| `findAgentPid` BFS may pick a transient subprocess | Low | Per-agent matcher in `AGENTS` filters to processes whose `ps` command matches the expected binary; deepest-match rule preserved |
 | tmux session name already used by unrelated session | Low | `sessionExists` check + clear error |
 | Registry PID collision (OS reuses PID) | Low | `startedAt` field in entry; prune if `startedAt` diverges >60s from process start time |
 | Agent binary not in tmux PATH | Low | Timeout + cleanup + error with hint to check PATH |
