@@ -1,4 +1,6 @@
+import fs from 'fs';
 import os from 'os';
+import path from 'path';
 import { createElement } from 'react';
 import { Command } from 'commander';
 import chalk from 'chalk';
@@ -14,6 +16,10 @@ import {
     AgentStatus,
     TerminalFocusManager,
     TtyWriter,
+    AgentRegistry,
+    TmuxManager,
+    AGENTS,
+    type StartableAgentType,
     type AgentInfo,
     type AgentType,
     type ConversationMessage,
@@ -142,13 +148,27 @@ function findSessionById(sessions: SessionSummary[], sessionId: string): Session
 }
 
 function createAgentManager(): AgentManager {
-    const manager = new AgentManager();
+    const manager = new AgentManager(AgentRegistry.default());
     manager.registerAdapter(new ClaudeCodeAdapter());
     manager.registerAdapter(new CodexAdapter());
     manager.registerAdapter(new GeminiCliAdapter());
     manager.registerAdapter(new OpenCodeAdapter());
     return manager;
 }
+
+const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
+
+function generateAgentName(cwd: string): string {
+    const folder = path.basename(cwd)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 50) || 'agent';
+    return `${folder}-${Date.now().toString(36)}`;
+}
+
+const PID_POLL_INTERVAL_MS = 500;
+const PID_POLL_TIMEOUT_MS = 5_000;
 
 function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
@@ -253,6 +273,90 @@ export function registerAgentCommand(program: Command): void {
     const agentCommand = program
         .command('agent')
         .description('Manage AI Agents');
+
+    agentCommand
+        .command('start')
+        .description('Start a new agent in a managed tmux session')
+        .requiredOption('--type <type>', `Agent type: ${Object.keys(AGENTS).join(', ')}`)
+        .option('--name <name>', 'Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})')
+        .option('--cwd <path>', 'Working directory for the agent (default: current directory)')
+        .action(withErrorHandler('start agent', async (options) => {
+            const agentType = options.type as string;
+            const cwd = path.resolve(options.cwd ?? process.cwd());
+            const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
+
+            if (!(agentType in AGENTS)) {
+                ui.error(`Unsupported agent type "${agentType}". Supported: ${Object.keys(AGENTS).join(', ')}.`);
+                process.exit(1);
+            }
+            const agent = AGENTS[agentType as StartableAgentType];
+
+            if (!NAME_REGEX.test(agentName)) {
+                ui.error(
+                    `Invalid name "${agentName}". Use lowercase letters, digits, and hyphens only. ` +
+                    'Must start and end with a letter or digit, 2–64 characters.'
+                );
+                process.exit(1);
+            }
+
+            if (!fs.existsSync(cwd)) {
+                ui.error(`Directory "${cwd}" does not exist.`);
+                process.exit(1);
+            }
+
+            const tmux = new TmuxManager();
+            const registry = AgentRegistry.default();
+
+            if (!await tmux.isAvailable()) {
+                ui.error('tmux is not installed or not in PATH. Install it first (e.g., brew install tmux).');
+                process.exit(1);
+            }
+
+            registry.prune();
+            const existing = registry.lookup(agentName);
+            if (existing) {
+                ui.error(`Agent "${agentName}" is already running (PID ${existing.pid}). Choose a different name.`);
+                process.exit(1);
+            }
+
+            if (await tmux.sessionExists(agentName)) {
+                ui.warning(`tmux session "${agentName}" already exists but has no live registry entry — it will be replaced.`);
+                await tmux.killSession(agentName);
+            }
+
+            await tmux.createSession(agentName, cwd);
+            await tmux.sendKeys(agentName, agent.command);
+
+            const deadline = Date.now() + PID_POLL_TIMEOUT_MS;
+            let agentPid: number | null = null;
+            while (Date.now() < deadline) {
+                agentPid = await tmux.findAgentPid(agentName, agent.matches);
+                if (agentPid !== null) break;
+                await new Promise((r) => setTimeout(r, PID_POLL_INTERVAL_MS));
+            }
+
+            if (agentPid === null) {
+                await tmux.killSession(agentName);
+                ui.error(
+                    `Agent process not found after ${PID_POLL_TIMEOUT_MS / 1000}s. ` +
+                    `Verify that "${agent.command}" is in PATH inside the tmux environment.`
+                );
+                process.exit(1);
+            }
+
+            registry.register({
+                name: agentName,
+                pid: agentPid,
+                type: agentType as AgentType,
+                tmuxSession: agentName,
+                cwd,
+                startedAt: new Date().toISOString(),
+            });
+
+            ui.success(`Agent "${agentName}" started (${agentType}, PID ${agentPid})`);
+            ui.text(`Working directory: ${formatCwd(cwd)}`);
+            ui.text(`Attach: tmux attach -t ${agentName}`);
+        }));
 
     agentCommand
         .command('list')

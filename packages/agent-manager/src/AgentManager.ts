@@ -12,6 +12,7 @@ import type {
     ListSessionsOptions,
 } from './adapters/AgentAdapter.js';
 import { sortAgents, type AgentSortKey } from './utils/sortAgents.js';
+import { AgentRegistry } from './utils/AgentRegistry.js';
 
 export interface ListAgentsOptions {
     /**
@@ -38,6 +39,11 @@ export interface ListAgentsOptions {
  */
 export class AgentManager {
     private adapters: Map<string, AgentAdapter> = new Map();
+    private registry: AgentRegistry;
+
+    constructor(registry: AgentRegistry = AgentRegistry.default()) {
+        this.registry = registry;
+    }
 
     /**
      * Register an adapter for a specific agent type
@@ -150,6 +156,14 @@ export class AgentManager {
             });
         }
 
+        const registryEntries = this.registry.list();
+        for (const agent of allAgents) {
+            const entry = registryEntries.find((e) => e.pid === agent.pid);
+            if (entry) {
+                agent.name = entry.name;
+            }
+        }
+
         const sortKey: AgentSortKey = options?.sortBy ?? 'status';
         return sortAgents(allAgents, sortKey);
     }
@@ -227,6 +241,13 @@ export class AgentManager {
      */
     resolveAgent(input: string, agents: AgentInfo[]): AgentInfo | AgentInfo[] | null {
         if (!input || agents.length === 0) return null;
+
+        // Registry-first: if name is in registry and its PID is in the agent list, return it
+        const registryEntry = this.registry.lookup(input);
+        if (registryEntry) {
+            const registryAgent = agents.find((a) => a.pid === registryEntry.pid);
+            if (registryAgent) return registryAgent;
+        }
 
         const lowerInput = input.toLowerCase();
 

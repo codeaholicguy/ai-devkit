@@ -8,31 +8,31 @@ description: Break down work into actionable tasks and estimate timeline
 
 ## Milestones
 
-- [ ] M1: AgentRegistry and TmuxManager implemented and unit-tested
-- [ ] M2: `agent start` CLI subcommand working end-to-end
-- [ ] M3: `agent list` and `agent send` surface registry names correctly
+- [x] M1: AgentRegistry and TmuxManager implemented and unit-tested
+- [x] M2: `agent start` CLI subcommand working end-to-end
+- [x] M3: `agent list` and `agent send` surface registry names correctly
 
 ## Task Breakdown
 
 ### Phase 1: Foundation
 
-- [ ] T1.1: Implement `AgentRegistry` (`packages/agent-manager/src/utils/AgentRegistry.ts`)
+- [x] T1.1: Implement `AgentRegistry` (`packages/agent-manager/src/utils/AgentRegistry.ts`)
   - Read/write `~/.config/ai-devkit/agents.json` atomically
   - `register`, `lookup`, `lookupByPid`, `list`, `remove`, `prune` (kill-0 check per entry)
   - Create parent directory if absent
 
-- [ ] T1.2: Implement `TmuxManager` (`packages/agent-manager/src/terminal/TmuxManager.ts`)
+- [x] T1.2: Implement `TmuxManager` (`packages/agent-manager/src/terminal/TmuxManager.ts`)
   - `isAvailable()`: `tmux -V` check
   - `sessionExists(name)`: `tmux has-session -t <name>`
   - `createSession(name, cwd)`: `tmux new-session -d -s <name> -c <cwd>`
   - `sendKeys(session, keys)`: `tmux send-keys -t <name> "<keys>" Enter`
   - `getPaneChildPid(session)`: list pane PID, then `pgrep -P <panePid>` for child
 
-- [ ] T1.3: Export `AgentRegistry` and `TmuxManager` from `packages/agent-manager/src/index.ts`
+- [x] T1.3: Export `AgentRegistry` and `TmuxManager` from `packages/agent-manager/src/index.ts`
 
 ### Phase 2: Core Feature
 
-- [ ] T2.1: Add `agent start` subcommand to `packages/cli/src/commands/agent.ts`
+- [x] T2.1: Add `agent start` subcommand to `packages/cli/src/commands/agent.ts`
   - Options: `--type` (required, `claude`|`codex`), `--name` (required, validated), `--cwd` (optional, defaults to `process.cwd()`)
   - Validate: tmux available, `--cwd` exists, name format, name not already in registry with live PID
   - Create tmux session via `TmuxManager`
@@ -41,25 +41,25 @@ description: Break down work into actionable tasks and estimate timeline
   - Register entry via `AgentRegistry`
   - Print success output with attach command
 
-- [ ] T2.2: Modify `AgentManager.listAgents()` to apply registry name overlay
+- [x] T2.2: Modify `AgentManager.listAgents()` to apply registry name overlay
   - Instantiate `AgentRegistry`, call `prune()`, then for each `AgentInfo` match by PID → override `name`
   - `AgentManager` constructor accepts optional `AgentRegistry` (defaults to singleton)
 
-- [ ] T2.3: Modify `AgentManager.resolveAgent()` for registry-first lookup
+- [x] T2.3: Modify `AgentManager.resolveAgent()` for registry-first lookup
   - If `registry.lookup(input)` finds an entry whose PID is in the agent list, return that agent
   - Otherwise fall through to existing exact/partial name match
 
 ### Phase 3: Integration & Polish
 
-- [ ] T3.1: Validate `--name` format in CLI (`/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/`)
+- [x] T3.1: Validate `--name` format in CLI (`/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/`)
   - Reject uppercase, special chars, too-short/long names with a clear error message
 
-- [ ] T3.2: Handle edge cases in `agent start`
+- [x] T3.2: Handle edge cases in `agent start`
   - tmux session name collision (session exists but PID is dead → prune + warn + continue)
   - `--cwd` path that does not exist → exit with error before touching tmux
   - Agent binary not found inside tmux → PID poll times out → clean up tmux session + error
 
-- [ ] T3.3: Update `createAgentManager()` CLI helper to pass a shared `AgentRegistry` instance to `AgentManager`
+- [x] T3.3: Update `createAgentManager()` CLI helper to pass a shared `AgentRegistry` instance to `AgentManager`
 
 ## Dependencies
 

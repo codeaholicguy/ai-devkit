@@ -34,6 +34,14 @@ const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void
 const mockWaitForAgentResponse = vi.fn<(...args: any[]) => Promise<any>>();
 let restoreStdin: (() => void) | undefined;
 
+const mockRegistry: any = {
+  prune: vi.fn(),
+  lookup: vi.fn().mockReturnValue(null),
+  list: vi.fn().mockReturnValue([]),
+  register: vi.fn(),
+  isAlive: vi.fn().mockReturnValue(false),
+};
+
 vi.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: vi.fn(() => mockManager),
   ClaudeCodeAdapter: vi.fn(),
@@ -47,6 +55,23 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     WAITING: 'waiting',
     IDLE: 'idle',
     UNKNOWN: 'unknown',
+  },
+  AgentRegistry: {
+    default: vi.fn(() => mockRegistry),
+  },
+  TmuxManager: vi.fn(() => ({
+    isAvailable: vi.fn().mockResolvedValue(true),
+    sessionExists: vi.fn().mockResolvedValue(false),
+    createSession: vi.fn().mockResolvedValue(undefined),
+    sendKeys: vi.fn().mockResolvedValue(undefined),
+    findAgentPid: vi.fn().mockResolvedValue(12345),
+    killSession: vi.fn().mockResolvedValue(undefined),
+  })),
+  AGENTS: {
+    claude:     { command: 'claude',   matches: () => true },
+    codex:      { command: 'codex',    matches: () => true },
+    gemini_cli: { command: 'gemini',   matches: () => true },
+    opencode:   { command: 'opencode', matches: () => true },
   },
 }), { virtual: true });
 
