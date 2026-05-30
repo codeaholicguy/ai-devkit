@@ -2,7 +2,7 @@
 
 > [English](./README.md) | 中文
 
-**你的 AI 编程智能体很快、很主动，也很容易鲁莽。让它像高级工程师一样工作。**
+**你的 AI 编程智能体团队很快、很主动，也很容易鲁莽。让它们像高级工程师一样工作。**
 
 AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：需求、设计、计划、实现、测试、验证、记忆和代码审查。
 
@@ -10,6 +10,7 @@ AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：
 - **阻止虚假的“完成”声明** — `verify` 要求有最新的测试或构建输出
 - **保留项目知识** — `@ai-devkit/memory` 跨会话保存决策、约定和修复经验
 - **推送前发现偏差** — `/code-review` 按设计和需求文档审查 diff
+- **一个控制台管所有智能体** — `agent console` 是一个实时 TUI 仪表盘，统一管理所有正在运行的智能体，不论来自哪个厂商
 
 一份配置，适配所有编程智能体：Claude Code、Cursor、Codex CLI、Gemini CLI、GitHub Copilot、opencode、Antigravity、Amp、Windsurf、Kilo Code、Roo Code。
 

@@ -2,7 +2,7 @@
 
 > English | [中文](./README-zh.md)
 
-**Your AI coding agent is fast, eager, and reckless. Make it work like a senior engineer instead.**
+**Your team of AI coding agents is fast, eager, and reckless. Make them work like senior engineers instead.**
 
 AI DevKit turns one-off AI coding chats into a repeatable software delivery workflow: requirements, design, planning, implementation, tests, verification, memory, and review.
 
@@ -10,6 +10,7 @@ AI DevKit turns one-off AI coding chats into a repeatable software delivery work
 - **Blocks fake "done" claims** — `verify` requires fresh test/build output before completion claims
 - **Keeps project knowledge alive** — `@ai-devkit/memory` stores decisions, conventions, and fixes across sessions
 - **Catches drift before push** — `/code-review` audits the diff against the design and requirements docs
+- **One console for all of them** — `agent console` is a live TUI dashboard for control all your running agents, no matter the provider
 
 One config. All coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, opencode, Antigravity, Amp, Windsurf, Kilo Code, Roo Code.
 
