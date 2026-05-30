@@ -4,6 +4,8 @@
 
 **你的 AI 编程智能体团队很快、很主动，也很容易鲁莽。让它们像高级工程师一样工作。**
 
+![](agent-console-showcase.gif)
+
 AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：需求、设计、计划、实现、测试、验证、记忆和代码审查。
 
 - **停止 prompt-and-pray 式写代码** — `/new-requirement` 让智能体先澄清问题，再动代码
