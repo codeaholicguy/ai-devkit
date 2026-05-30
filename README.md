@@ -4,6 +4,8 @@
 
 **Your team of AI coding agents is fast, eager, and reckless. Make them work like senior engineers instead.**
 
+![](agent-console-showcase.gif)
+
 AI DevKit turns one-off AI coding chats into a repeatable software delivery workflow: requirements, design, planning, implementation, tests, verification, memory, and review.
 
 - **Stops prompt-and-pray coding** — `/new-requirement` makes the agent clarify the problem before touching code
