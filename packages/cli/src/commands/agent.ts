@@ -355,7 +355,7 @@ export function registerAgentCommand(program: Command): void {
 
             const rows = agents.map(agent => [
                 agent.name,
-                formatCwd(agent.projectPath),
+                agent.projectPath ? path.basename(agent.projectPath) : '',
                 formatType(agent.type),
                 formatStatus(agent.status),
                 formatWorkOn(agent.summary),
@@ -363,7 +363,7 @@ export function registerAgentCommand(program: Command): void {
             ]);
 
             ui.table({
-                headers: ['Agent', 'CWD', 'Type', 'Status', 'Working On', 'Active'],
+                headers: ['Agent', 'Project', 'Type', 'Status', 'Working On', 'Active'],
                 rows: rows,
                 columnStyles: [
                     (text) => chalk.cyan(text),
