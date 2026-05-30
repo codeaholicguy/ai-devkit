@@ -33,7 +33,13 @@ import {
     resolveListSessionsOptions,
     toJsonSession,
 } from '../util/sessions.js';
-import { waitForAgentResponse } from '../services/agent/agent.service.js';
+import {
+    waitForAgentResponse,
+    startAgent,
+    TmuxUnavailableError,
+    AgentNameInUseError,
+    AgentPidPollTimeoutError,
+} from '../services/agent/agent.service.js';
 import { parseMilliseconds } from '../util/time.js';
 import { ConsoleApp } from '../tui/console/ConsoleApp.js';
 
@@ -167,9 +173,6 @@ function generateAgentName(cwd: string): string {
     return `${folder}-${Date.now().toString(36)}`;
 }
 
-const PID_POLL_INTERVAL_MS = 500;
-const PID_POLL_TIMEOUT_MS = 5_000;
-
 function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
 }
@@ -289,8 +292,6 @@ export function registerAgentCommand(program: Command): void {
                 ui.error(`Unsupported agent type "${agentType}". Supported: ${Object.keys(AGENTS).join(', ')}.`);
                 process.exit(1);
             }
-            const agent = AGENTS[agentType as StartableAgentType];
-
             if (!NAME_REGEX.test(agentName)) {
                 ui.error(
                     `Invalid name "${agentName}". Use lowercase letters, digits, and hyphens only. ` +
@@ -298,64 +299,38 @@ export function registerAgentCommand(program: Command): void {
                 );
                 process.exit(1);
             }
-
             if (!fs.existsSync(cwd)) {
                 ui.error(`Directory "${cwd}" does not exist.`);
                 process.exit(1);
             }
 
-            const tmux = new TmuxManager();
-            const registry = AgentRegistry.default();
-
-            if (!await tmux.isAvailable()) {
-                ui.error('tmux is not installed or not in PATH. Install it first (e.g., brew install tmux).');
-                process.exit(1);
-            }
-
-            registry.prune();
-            const existing = registry.lookup(agentName);
-            if (existing) {
-                ui.error(`Agent "${agentName}" is already running (PID ${existing.pid}). Choose a different name.`);
-                process.exit(1);
-            }
-
-            if (await tmux.sessionExists(agentName)) {
-                ui.warning(`tmux session "${agentName}" already exists but has no live registry entry — it will be replaced.`);
-                await tmux.killSession(agentName);
-            }
-
-            await tmux.createSession(agentName, cwd);
-            await tmux.sendKeys(agentName, agent.command);
-
-            const deadline = Date.now() + PID_POLL_TIMEOUT_MS;
-            let agentPid: number | null = null;
-            while (Date.now() < deadline) {
-                agentPid = await tmux.findAgentPid(agentName, agent.matches);
-                if (agentPid !== null) break;
-                await new Promise((r) => setTimeout(r, PID_POLL_INTERVAL_MS));
-            }
-
-            if (agentPid === null) {
-                await tmux.killSession(agentName);
-                ui.error(
-                    `Agent process not found after ${PID_POLL_TIMEOUT_MS / 1000}s. ` +
-                    `Verify that "${agent.command}" is in PATH inside the tmux environment.`
+            try {
+                const entry = await startAgent(
+                    { type: agentType as StartableAgentType, name: agentName, cwd },
+                    {
+                        tmux: new TmuxManager(),
+                        registry: AgentRegistry.default(),
+                        onWarning: (msg) => ui.warning(msg),
+                    },
                 );
+                ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
+                ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
+                ui.text(`Attach: tmux attach -t ${entry.tmuxSession}`);
+            } catch (err) {
+                if (err instanceof TmuxUnavailableError) {
+                    ui.error('tmux is not installed or not in PATH. Install it first (e.g., brew install tmux).');
+                } else if (err instanceof AgentNameInUseError) {
+                    ui.error(`Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`);
+                } else if (err instanceof AgentPidPollTimeoutError) {
+                    ui.error(
+                        `Agent process not found after ${err.timeoutMs / 1000}s. ` +
+                        `Verify that "${err.command}" is in PATH inside the tmux environment.`
+                    );
+                } else {
+                    throw err;
+                }
                 process.exit(1);
             }
-
-            registry.register({
-                name: agentName,
-                pid: agentPid,
-                type: agentType as AgentType,
-                tmuxSession: agentName,
-                cwd,
-                startedAt: new Date().toISOString(),
-            });
-
-            ui.success(`Agent "${agentName}" started (${agentType}, PID ${agentPid})`);
-            ui.text(`Working directory: ${formatCwd(cwd)}`);
-            ui.text(`Attach: tmux attach -t ${agentName}`);
         }));
 
     agentCommand
