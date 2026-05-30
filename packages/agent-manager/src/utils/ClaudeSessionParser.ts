@@ -51,8 +51,23 @@ export interface ClaudeSession {
     firstUserMessage?: string;
 }
 
-/** Entry types that are metadata, not conversation state. */
-const METADATA_ENTRY_TYPES = new Set(['last-prompt', 'file-history-snapshot']);
+/**
+ * Top-level JSONL entry types that represent conversation/agent state.
+ *
+ * Only these types update `lastEntryType` for status determination. All
+ * other types Claude Code emits (`attachment`, `permission-mode`,
+ * `ai-title`, `queued_command`, `tools_changed`, `model_changed`,
+ * `hook_progress`, …) are UI-state events that must not overwrite the
+ * last conversation turn — otherwise polling between writes lands on a
+ * UI-state entry and `determineStatus` falls through to UNKNOWN.
+ */
+const CONVERSATION_ENTRY_TYPES = new Set([
+    'user',
+    'assistant',
+    'system',
+    'progress',
+    'thinking',
+]);
 
 /**
  * Parses Claude Code session JSONL files into structured data.
@@ -110,7 +125,7 @@ export class ClaudeSessionParser {
                     lastCwd = entry.cwd;
                 }
 
-                if (entry.type && !METADATA_ENTRY_TYPES.has(entry.type)) {
+                if (entry.type && CONVERSATION_ENTRY_TYPES.has(entry.type)) {
                     lastEntryType = entry.type;
 
                     if (entry.type === 'user') {
@@ -220,16 +235,12 @@ export class ClaudeSessionParser {
                 continue;
             }
 
-            const entryType = entry.type;
-            if (!entryType || METADATA_ENTRY_TYPES.has(entryType)) continue;
-            if (entryType === 'progress' || entryType === 'thinking') continue;
-
             let role: ConversationMessage['role'];
-            if (entryType === 'user') {
+            if (entry.type === 'user') {
                 role = 'user';
-            } else if (entryType === 'assistant') {
+            } else if (entry.type === 'assistant') {
                 role = 'assistant';
-            } else if (entryType === 'system') {
+            } else if (entry.type === 'system') {
                 role = 'system';
             } else {
                 continue;

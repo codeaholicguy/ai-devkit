@@ -43,7 +43,7 @@ Responsibilities:
   - `slug`: from session JSONL entries
   - `sessionStart`: from first JSONL entry timestamp (supports both top-level `timestamp` and `snapshot.timestamp` for `file-history-snapshot` entries)
   - `lastActive`: latest timestamp in session
-  - `lastEntryType`: type of last non-metadata session entry (excludes `last-prompt`, `file-history-snapshot`; used for status determination)
+  - `lastEntryType`: type of last conversation-meaningful session entry (only `user`, `assistant`, `system`, `progress`, `thinking` update it; UI-state entries like `attachment`, `permission-mode`, `ai-title`, `tools_changed`, etc. are ignored so polling between writes doesn't land on a non-conversation event)
   - `lastUserMessage`: last meaningful user message from session JSONL (with command parsing and noise filtering)
 
 ## API Design
@@ -75,7 +75,7 @@ Responsibilities:
      - `extractUserMessageText()`: extract meaningful text from user messages (string or array content)
      - `parseCommandMessage()`: parse `<command-message>` tags into `/command args` format
      - `isNoiseMessage()`: filter out non-meaningful messages (interruptions, tool loads, continuations)
-     - `isMetadataEntryType()`: skip metadata entry types (`last-prompt`, `file-history-snapshot`) when tracking `lastEntryType`
+     - `CONVERSATION_ENTRY_TYPES` allow-list: only `user`/`assistant`/`system`/`progress`/`thinking` update `lastEntryType`; all other JSONL entry types are ignored
      - `determineStatus()`: status from entry type (no age override)
      - `generateAgentName()`: project basename + disambiguation
 
@@ -84,7 +84,7 @@ Responsibilities:
      - Bounded scanning: collect all `*.jsonl` files with mtime, sort by mtime descending, take top N. No process-day window (Claude sessions aren't organized by date — mtime-based cutoff is sufficient since we already stat files during discovery).
      - `sessionStart`: parsed from first JSONL entry — checks `entry.timestamp` then `entry.snapshot.timestamp` (for `file-history-snapshot` entries common in practice)
      - Summary: extracted from last user message in session JSONL (no history.jsonl dependency). Handles `<command-message>` tags for slash commands, filters skill expansions and noise messages
-     - Status: map Claude entry types (`user`, `assistant`, `progress`, `thinking`, `system`) to `AgentStatus`. Metadata types (`last-prompt`, `file-history-snapshot`) are excluded. No age-based IDLE override
+     - Status: map Claude conversation entry types (`user`, `assistant`, `progress`, `thinking`, `system`) to `AgentStatus`. All other entry types (UI-state events like `attachment`, `permission-mode`, `ai-title`, `tools_changed`, `queued_command`, …, plus legacy metadata `last-prompt`, `file-history-snapshot`) are ignored when computing `lastEntryType`. No age-based IDLE override
      - Name: use slug for disambiguation (Claude sessions have slugs)
 
 2. `packages/agent-manager/src/__tests__/adapters/ClaudeCodeAdapter.test.ts` — update tests

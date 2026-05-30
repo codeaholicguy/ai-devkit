@@ -193,3 +193,74 @@ describe('ClaudeSessionParser.getConversation — harness tag stripping', () => 
         expect(conv[0].content).toBe('before\n\nafter');
     });
 });
+
+describe('ClaudeSessionParser.readSession — UI-state entries ignored for status', () => {
+    let parser: ClaudeSessionParser;
+    const tempFiles: string[] = [];
+
+    beforeEach(() => {
+        parser = new ClaudeSessionParser();
+    });
+
+    afterEach(() => {
+        for (const f of tempFiles) {
+            try {
+                fs.rmSync(path.dirname(f), { recursive: true, force: true });
+            } catch { /* best effort */ }
+        }
+        tempFiles.length = 0;
+    });
+
+    function writeRawSession(lines: object[]): string {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'parser-status-'));
+        const filePath = path.join(dir, 'session.jsonl');
+        fs.writeFileSync(filePath, lines.map(l => JSON.stringify(l)).join('\n'));
+        tempFiles.push(filePath);
+        return filePath;
+    }
+
+    const uiStateTypes = [
+        'attachment',
+        'permission-mode',
+        'ai-title',
+        'queued_command',
+        'tools_changed',
+        'model_changed',
+        'hook_progress',
+    ];
+
+    for (const uiType of uiStateTypes) {
+        it(`keeps lastEntryType from previous conversation turn when trailing entry is ${uiType}`, () => {
+            const file = writeRawSession([
+                { type: 'user', timestamp: '2026-05-30T06:17:57.189Z', message: { content: 'hello' } },
+                { type: uiType, timestamp: '2026-05-30T06:17:57.201Z' },
+            ]);
+
+            const session = parser.readSession(file, '/test');
+            expect(session?.lastEntryType).toBe('user');
+        });
+    }
+
+    it('keeps lastEntryType from a user turn even with multiple trailing UI-state entries', () => {
+        const file = writeRawSession([
+            { type: 'user', timestamp: '2026-05-30T06:17:57.189Z', message: { content: 'hello' } },
+            { type: 'attachment', timestamp: '2026-05-30T06:17:57.200Z', attachment: { type: 'task_reminder', content: [] } },
+            { type: 'permission-mode', timestamp: '2026-05-30T06:17:57.210Z', permissionMode: 'default' },
+            { type: 'ai-title', timestamp: '2026-05-30T06:17:57.220Z' },
+        ]);
+
+        const session = parser.readSession(file, '/test');
+        expect(session?.lastEntryType).toBe('user');
+    });
+
+    it('keeps lastEntryType from assistant turn when followed by UI-state events', () => {
+        const file = writeRawSession([
+            { type: 'user', timestamp: '2026-05-30T06:17:00.000Z', message: { content: 'go' } },
+            { type: 'assistant', timestamp: '2026-05-30T06:17:01.000Z', message: { content: [{ type: 'text', text: 'done' }] } },
+            { type: 'permission-mode', timestamp: '2026-05-30T06:17:02.000Z', permissionMode: 'default' },
+        ]);
+
+        const session = parser.readSession(file, '/test');
+        expect(session?.lastEntryType).toBe('assistant');
+    });
+});

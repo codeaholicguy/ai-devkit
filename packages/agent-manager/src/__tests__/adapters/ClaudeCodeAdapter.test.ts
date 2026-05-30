@@ -427,8 +427,7 @@ describe('ClaudeCodeAdapter', () => {
 
             const sessionId = 'wait-session';
             const jsonlPath = path.join(projDir, `${sessionId}.jsonl`);
-            // JSONL trails with permission-mode → parser would resolve to UNKNOWN.
-            // PID file's live status must win.
+            // PID file's live status must win over JSONL-derived status.
             fs.writeFileSync(jsonlPath, [
                 JSON.stringify({ type: 'user', timestamp: new Date().toISOString(), cwd: '/project/wait', message: { content: '/reddit-commenter' } }),
                 JSON.stringify({ type: 'permission-mode', timestamp: new Date().toISOString(), permissionMode: 'default' }),
