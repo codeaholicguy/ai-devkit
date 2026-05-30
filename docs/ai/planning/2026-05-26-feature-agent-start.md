@@ -100,7 +100,7 @@ description: Break down work into actionable tasks and estimate timeline
 |---|---|---|
 | `findAgentPid` BFS may pick a transient subprocess | Low | Per-agent matcher in `AGENTS` filters to processes whose `ps` command matches the expected binary; deepest-match rule preserved |
 | tmux session name already used by unrelated session | Low | `sessionExists` check + clear error |
-| Registry PID collision (OS reuses PID) | Low | `startedAt` field in entry; prune if `startedAt` diverges >60s from process start time |
+| Registry PID collision (OS reuses PID) | Low | Acceptable for v1: `isAlive` uses `kill(pid, 0)` only. A reused PID belonging to another process would falsely look alive until the user notices; recovery is `tmux kill-session` + `agent start` again |
 | Agent binary not in tmux PATH | Low | Timeout + cleanup + error with hint to check PATH |
 
 ## Resources Needed
