@@ -24,7 +24,8 @@ packages/agent-manager/src/
   index.ts                    ← modified: export new modules + types
 
 packages/cli/src/
-  commands/agent.ts           ← modified: `agent start` subcommand + helpers
+  commands/agent.ts                  ← modified: `agent start` subcommand (parse, validate, format)
+  services/agent/agent.service.ts    ← modified: + `startAgent` orchestration + typed errors
 ```
 
 ## Implementation Notes
@@ -57,13 +58,19 @@ packages/cli/src/
 - `resolveAgent(input, agents)`: registry-first lookup (by exact name match), then falls through to the existing exact / substring matching on `AgentInfo.name`.
 
 ### `agent start` CLI (`commands/agent.ts`)
-1. Resolve `cwd` (default `process.cwd()`), generate default name if `--name` omitted.
-2. Validate: type is a key of `AGENTS`, name matches `NAME_REGEX`, cwd exists, tmux available, registry name not already live.
-3. If the tmux session name exists but the registry has no entry, warn and kill the orphan session before recreating.
+The handler is a thin shell: parse options, default name if `--name` omitted, validate input format (type ∈ `AGENTS`, name matches `NAME_REGEX`, cwd exists), then delegate to the service. Typed errors from the service are mapped to `ui.error(...)` + `process.exit(1)`. Success prints name, type, PID, cwd, and the `tmux attach` hint.
+
+### `startAgent` service (`services/agent/agent.service.ts`)
+Orchestration lives here so it's unit-testable independent of the CLI:
+1. `tmux.isAvailable()` — throws `TmuxUnavailableError`.
+2. `registry.prune()` then `registry.lookup(name)` — throws `AgentNameInUseError(name, pid)` if live.
+3. `tmux.sessionExists(name)` — if true, fire `onWarning(...)` and `tmux.killSession(name)` to replace the orphan.
 4. `tmux.createSession(name, cwd)` → `tmux.sendKeys(name, agent.command)`.
 5. Poll `tmux.findAgentPid(name, agent.matches)` every 500ms for up to 5s.
-6. On success: `registry.register({ name, pid, type, tmuxSession: name, cwd, startedAt })`, print attach instructions.
-7. On timeout: `tmux.killSession(name)`, error out with PATH hint.
+6. On success: `registry.register({ name, pid, type, tmuxSession: name, cwd, startedAt })`, return the entry.
+7. On timeout: `tmux.killSession(name)`, throw `AgentPidPollTimeoutError(name, command, timeoutMs)`.
+
+Lives in the same file as `waitForAgentResponse` because both are orchestration-of-tmux/registry/adapter primitives for the `agent ...` subcommands.
 
 ## Integration Points
 
