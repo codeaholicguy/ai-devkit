@@ -6,76 +6,50 @@ description: Define testing approach, test cases, and quality assurance
 
 # Testing Strategy
 
-## Test Coverage Goals
-**What level of testing do we aim for?**
+## Coverage Goal
 
-- Unit test coverage target (default: 100% of new/changed code)
-- Integration test scope (critical paths + error handling)
-- End-to-end test scenarios (key user journeys)
-- Alignment with requirements/design acceptance criteria
+100% of new code in `AgentRegistry.rename()` and the `agent rename` CLI subcommand. No integration or E2E — the feature is a CLI primitive that mutates a local JSON file.
 
-## Unit Tests
-**What individual components need testing?**
+## Test Plan
 
-### Component/Module 1
-- [ ] Test case 1: [Description] (covers scenario / branch)
-- [ ] Test case 2: [Description] (covers edge case / error handling)
-- [ ] Additional coverage: [Description]
+### `AgentRegistry.rename()` — `packages/agent-manager/src/__tests__/utils/AgentRegistry.test.ts`
 
-### Component/Module 2
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Additional coverage: [Description]
+- [x] Updates the name of an existing entry
+- [x] Preserves all other fields (`tmuxSession`, `cwd`, `pid`, etc.) on the renamed entry
+- [x] Throws `RenameNotFoundError` when current name does not exist
+- [x] Throws `RenameConflictError` when new name is in use by a live entry
+- [x] Succeeds when new name exists only as a stale (dead) entry — pruned, then renamed
+- [x] Writes atomically (no leftover `.tmp` on success)
 
-## Integration Tests
-**How do we test component interactions?**
+### CLI `agent rename` — `packages/cli/src/__tests__/commands/agent.test.ts`
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
-- [ ] API endpoint tests
-- [ ] Integration scenario 3 (failure mode / rollback)
+- [x] Calls `registry.rename` and prints success message
+- [x] Exits with error when new name has invalid format (regex rejected)
+- [x] Prints info and exits 0 when current and new name are the same (no-op)
+- [x] Shows error and exits 1 when agent is not found
+- [x] Shows error and exits 1 when new name is already in use
 
-## End-to-End Tests
-**What user flows need validation?**
+## Mocks & Fixtures
 
-- [ ] User flow 1: [Description]
-- [ ] User flow 2: [Description]
-- [ ] Critical path testing
-- [ ] Regression of adjacent features
+- Registry tests: real `AgentRegistry` instance pointed at a `mkdtempSync` temp file; entries use `process.pid` for "alive" and `999999` for "dead".
+- CLI tests: `mockRegistry` with `rename: vi.fn()` plus `vi.hoisted` block defining `RenameNotFoundError` / `RenameConflictError` so the `vi.mock('@ai-devkit/agent-manager', …)` factory can re-export them.
 
-## Test Data
-**What data do we use for testing?**
+## Test Commands
 
-- Test fixtures and mocks
-- Seed data requirements
-- Test database setup
+```
+npx nx test agent-manager   # 362 tests, includes 5 new rename tests
+npx nx test cli             # 633 tests, includes 5 new CLI tests
+```
 
-## Test Reporting & Coverage
-**How do we verify and communicate test results?**
-
-- Coverage commands and thresholds (`npm run test -- --coverage`)
-- Coverage gaps (files/functions below 100% and rationale)
-- Links to test reports or dashboards
-- Manual testing outcomes and sign-off
+Both suites pass after this feature.
 
 ## Manual Testing
-**What requires human validation?**
 
-- UI/UX testing checklist (include accessibility)
-- Browser/device compatibility
-- Smoke tests after deployment
+- [x] End-to-end smoke against a real registry file (rename + verify `tmuxSession` preserved + both error classes thrown). Script in scratch; not committed.
+- [ ] Live agent: start an agent with `agent start --type claude`, run `agent rename <old> <new>`, verify it appears with the new name in `agent list` and that `agent send --id <new>` / `agent open <new>` resolve.
 
-## Performance Testing
-**How do we validate performance?**
+## Out of Scope
 
-- Load testing scenarios
-- Stress testing approach
-- Performance benchmarks
-
-## Bug Tracking
-**How do we manage issues?**
-
-- Issue tracking process
-- Bug severity levels
-- Regression testing strategy
-
+- Tmux session rename — registry-only by design.
+- Concurrent-writer races on `agents.json` — same single-writer assumption as the rest of `AgentRegistry`.
+- Renaming a dead agent's entry — see follow-up in implementation doc.

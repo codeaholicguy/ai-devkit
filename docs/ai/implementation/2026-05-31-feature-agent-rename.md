@@ -6,60 +6,41 @@ description: Technical implementation notes, patterns, and code guidelines
 
 # Implementation Guide
 
-## Development Setup
-**How do we get started?**
+## Files Changed
 
-- Prerequisites and dependencies
-- Environment setup steps
-- Configuration needed
-
-## Code Structure
-**How is the code organized?**
-
-- Directory structure
-- Module organization
-- Naming conventions
+- `packages/agent-manager/src/utils/AgentRegistry.ts` — added `RenameNotFoundError`, `RenameConflictError`, and `AgentRegistry.rename(currentName, newName)`.
+- `packages/agent-manager/src/index.ts` — re-exported the two new error classes.
+- `packages/agent-manager/src/__tests__/utils/AgentRegistry.test.ts` — 5 new tests covering rename behaviour.
+- `packages/cli/src/commands/agent.ts` — added `agent rename <current-name> <new-name>` subcommand under `registerAgentCommand`.
+- `packages/cli/src/__tests__/commands/agent.test.ts` — 5 new tests for the CLI command (uses `vi.hoisted` to define mock error classes).
 
 ## Implementation Notes
-**Key technical details to remember:**
 
-### Core Features
-- Feature 1: Implementation approach
-- Feature 2: Implementation approach
-- Feature 3: Implementation approach
+### `AgentRegistry.rename()`
 
-### Patterns & Best Practices
-- Design patterns being used
-- Code style guidelines
-- Common utilities/helpers
+1. Read file. If no entry has `name === currentName`, throw `RenameNotFoundError`.
+2. Filter to live entries (PID alive) — this is the prune-before-conflict-check pattern from `startAgent`.
+3. If any live entry has `name === newName`, throw `RenameConflictError`.
+4. Map `liveEntries`, replacing matched entry's `name`. Write atomically via existing `writeFile()` (`.tmp` + `renameSync`).
 
-## Integration Points
-**How do pieces connect?**
+### CLI `agent rename`
 
-- API integration details
-- Database connections
-- Third-party service setup
+- Validates new name against existing `NAME_REGEX` first → exits 1.
+- Same-name short-circuits with `ui.info` and exits 0 (kept out of `AgentRegistry.rename()` to keep that method a pure mutation primitive).
+- Catches `RenameNotFoundError` and `RenameConflictError` via `instanceof` for tailored messages.
+- Action is `async` to satisfy `withErrorHandler`'s `(...args) => Promise<void>` signature.
 
-## Error Handling
-**How do we handle failures?**
+## Deviations from Design
 
-- Error handling strategy
-- Logging approach
-- Retry/fallback mechanisms
+None. Implementation matches design doc 1:1.
 
-## Performance Considerations
-**How do we keep it fast?**
+## Edge Cases Handled
 
-- Optimization strategies
-- Caching approach
-- Query optimization
-- Resource management
+- Invalid format new name → format error before touching registry.
+- `<current> === <new>` → no-op success at CLI layer.
+- Stale (dead) entry with target new name → pruned, rename succeeds.
 
-## Security Notes
-**What security measures are in place?**
+## Follow-ups Left for Later
 
-- Authentication/authorization
-- Input validation
-- Data encryption
-- Secrets management
-
+- Renaming an entry whose process is already dead currently silently removes the stale entry instead of failing with `RenameNotFoundError` (the not-found check uses raw entries, but the write uses live-filtered ones). Outside the documented "live agents" scope — tighten in a follow-up if it becomes a real problem.
+- `idx` in `rename()` is computed but only used in the `< 0` branch; could be replaced with `.some()`. Cosmetic.
