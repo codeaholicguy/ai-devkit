@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Managed Agent Start** - Added `ai-devkit agent start` to launch named agents in managed tmux sessions with `--type`, `--name`, and `--cwd` options, PID polling, stale session cleanup, and registry tracking (#90).
+- **Agent Rename** - Added `ai-devkit agent rename <current-name> <new-name>` to rename live registry entries with validation and conflict handling (#92).
+
+### Changed
+
+- **Agent Registry Synchronization** - Agent discovery now mirrors live Codex and Gemini CLI sessions into the registry so running agents stay available for list/detail/send workflows even when started outside `agent start` (#91).
+- **Agent List Project Column** - Updated `ai-devkit agent list` to show the project name instead of the full working directory for a more compact running-agent table.
+- **Dev Lifecycle Guidance** - Enhanced the `dev-lifecycle` skill's test-planning and implementation-log guidance.
+
+### Fixed
+
+- **Claude Code Status Detection** - Fixed Claude Code sessions being reported with unknown status by improving session parsing for meaningful conversation entries and interrupted requests.
+
 ## [0.35.0] - 2026-05-28
 
 ### Added
