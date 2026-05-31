@@ -1,7 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { AgentRegistry, type RegistryEntry } from '../../utils/AgentRegistry.js';
+import { AgentRegistry, RenameNotFoundError, RenameConflictError, type RegistryEntry } from '../../utils/AgentRegistry.js';
 
 function makeEntry(over: Partial<RegistryEntry> = {}): RegistryEntry {
     return {
@@ -177,6 +177,47 @@ describe('AgentRegistry', () => {
     describe('default()', () => {
         it('returns a singleton instance', () => {
             expect(AgentRegistry.default()).toBe(AgentRegistry.default());
+        });
+    });
+
+    describe('rename', () => {
+        it('updates the name of an existing entry', () => {
+            registry.register(makeEntry({ name: 'old-name', pid: process.pid }));
+            registry.rename('old-name', 'new-name');
+            expect(registry.lookup('new-name')?.name).toBe('new-name');
+            expect(registry.lookup('old-name')).toBeNull();
+        });
+
+        it('preserves all other fields on the renamed entry', () => {
+            registry.register(makeEntry({ name: 'old-name', pid: process.pid, tmuxSession: 'old-name', cwd: '/my/cwd' }));
+            registry.rename('old-name', 'new-name');
+            const entry = registry.lookup('new-name');
+            expect(entry?.tmuxSession).toBe('old-name');
+            expect(entry?.cwd).toBe('/my/cwd');
+            expect(entry?.pid).toBe(process.pid);
+        });
+
+        it('throws RenameNotFoundError when current name does not exist', () => {
+            expect(() => registry.rename('ghost', 'new-name')).toThrow(RenameNotFoundError);
+        });
+
+        it('throws RenameConflictError when new name is already in use by a live entry', () => {
+            registry.register(makeEntry({ name: 'agent-a', pid: process.pid }));
+            registry.register(makeEntry({ name: 'agent-b', pid: process.pid }));
+            expect(() => registry.rename('agent-a', 'agent-b')).toThrow(RenameConflictError);
+        });
+
+        it('succeeds when new name exists only as a stale (dead) entry', () => {
+            registry.register(makeEntry({ name: 'agent-a', pid: process.pid }));
+            registry.register(makeEntry({ name: 'agent-b', pid: 999999 }));
+            expect(() => registry.rename('agent-a', 'agent-b')).not.toThrow();
+            expect(registry.lookup('agent-b')?.pid).toBe(process.pid);
+        });
+
+        it('writes atomically (no leftover .tmp on success)', () => {
+            registry.register(makeEntry({ name: 'old-name', pid: process.pid }));
+            registry.rename('old-name', 'new-name');
+            expect(fs.existsSync(`${regPath}.tmp`)).toBe(false);
         });
     });
 });

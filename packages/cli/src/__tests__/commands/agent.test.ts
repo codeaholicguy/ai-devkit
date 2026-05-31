@@ -40,7 +40,28 @@ const mockRegistry: any = {
   list: vi.fn().mockReturnValue([]),
   register: vi.fn(),
   isAlive: vi.fn().mockReturnValue(false),
+  rename: vi.fn(),
 };
+
+const { RenameNotFoundError, RenameConflictError } = vi.hoisted(() => {
+  class RenameNotFoundError extends Error {
+    agentName: string;
+    constructor(agentName: string) {
+      super(`Agent "${agentName}" not found in registry.`);
+      this.name = 'RenameNotFoundError';
+      this.agentName = agentName;
+    }
+  }
+  class RenameConflictError extends Error {
+    agentName: string;
+    constructor(agentName: string) {
+      super(`Agent "${agentName}" is already in use.`);
+      this.name = 'RenameConflictError';
+      this.agentName = agentName;
+    }
+  }
+  return { RenameNotFoundError, RenameConflictError };
+});
 
 vi.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: vi.fn(() => mockManager),
@@ -73,6 +94,8 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     gemini_cli: { command: 'gemini',   matches: () => true },
     opencode:   { command: 'opencode', matches: () => true },
   },
+  RenameNotFoundError: RenameNotFoundError,
+  RenameConflictError: RenameConflictError,
 }), { virtual: true });
 
 vi.mock('inquirer', () => ({
@@ -1075,6 +1098,60 @@ Waiting on user input`,
       await program.parseAsync(['node', 'test', 'agent', 'session', 'detail', '--id', 'sess-1', '--type', 'opencode']);
 
       expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: 'opencode' });
+    });
+  });
+
+  describe('agent rename', () => {
+    it('calls registry.rename and prints success', async () => {
+      mockRegistry.rename.mockReturnValue(undefined);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'rename', 'old-name', 'new-name']);
+
+      expect(mockRegistry.rename).toHaveBeenCalledWith('old-name', 'new-name');
+      expect(ui.success).toHaveBeenCalledWith('Agent "old-name" renamed to "new-name".');
+    });
+
+    it('exits with error when new name has invalid format', async () => {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'rename', 'old-name', 'INVALID NAME']);
+
+      expect(mockRegistry.rename).not.toHaveBeenCalled();
+      expect(ui.error).toHaveBeenCalled();
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it('prints info and exits 0 when current and new name are the same', async () => {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'rename', 'same-name', 'same-name']);
+
+      expect(mockRegistry.rename).not.toHaveBeenCalled();
+      expect(ui.info).toHaveBeenCalled();
+    });
+
+    it('shows error and exits 1 when agent is not found', async () => {
+      mockRegistry.rename.mockImplementation(() => { throw new RenameNotFoundError('old-name'); });
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'rename', 'old-name', 'new-name']);
+
+      expect(ui.error).toHaveBeenCalledWith('Agent "old-name" not found in registry.');
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it('shows error and exits 1 when new name is already in use', async () => {
+      mockRegistry.rename.mockImplementation(() => { throw new RenameConflictError('new-name'); });
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(['node', 'test', 'agent', 'rename', 'old-name', 'new-name']);
+
+      expect(ui.error).toHaveBeenCalledWith('Agent "new-name" is already in use. Choose a different name.');
+      expect(process.exit).toHaveBeenCalledWith(1);
     });
   });
 });

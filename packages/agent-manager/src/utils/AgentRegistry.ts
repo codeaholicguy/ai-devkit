@@ -3,6 +3,20 @@ import os from 'os';
 import path from 'path';
 import type { AgentType } from '../adapters/AgentAdapter.js';
 
+export class RenameNotFoundError extends Error {
+    constructor(public agentName: string) {
+        super(`Agent "${agentName}" not found in registry.`);
+        this.name = 'RenameNotFoundError';
+    }
+}
+
+export class RenameConflictError extends Error {
+    constructor(public agentName: string) {
+        super(`Agent "${agentName}" is already in use.`);
+        this.name = 'RenameConflictError';
+    }
+}
+
 export interface RegistryEntry {
     name: string;
     type: AgentType;
@@ -95,6 +109,23 @@ export class AgentRegistry {
             }
         }
         this.writeFile(data);
+    }
+
+    rename(currentName: string, newName: string): void {
+        const data = this.readFile();
+        const idx = data.entries.findIndex((e) => e.name === currentName);
+        if (idx < 0) {
+            throw new RenameNotFoundError(currentName);
+        }
+        const liveEntries = data.entries.filter((e) => this.isAlive(e));
+        const conflict = liveEntries.find((e) => e.name === newName);
+        if (conflict) {
+            throw new RenameConflictError(newName);
+        }
+        const pruned = liveEntries.map((e) =>
+            e.name === currentName ? { ...e, name: newName } : e,
+        );
+        this.writeFile({ entries: pruned });
     }
 
     lookup(name: string): RegistryEntry | null {

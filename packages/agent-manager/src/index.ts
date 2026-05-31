@@ -23,7 +23,7 @@ export { getProcessTty } from './utils/process.js';
 export type { AgentSortKey } from './utils/sortAgents.js';
 export type { ListAgentsOptions } from './AgentManager.js';
 
-export { AgentRegistry } from './utils/AgentRegistry.js';
+export { AgentRegistry, RenameNotFoundError, RenameConflictError } from './utils/AgentRegistry.js';
 export type { RegistryEntry } from './utils/AgentRegistry.js';
 export { TmuxManager } from './terminal/TmuxManager.js';
 export { AGENTS } from './utils/agents.js';
