@@ -9,6 +9,7 @@ import * as path from 'path';
 import { CodexAdapter } from '../../adapters/CodexAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
+import { AgentRegistry, type RegistryEntry } from '../../utils/AgentRegistry.js';
 import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
 import { batchGetSessionFileBirthtimes } from '../../utils/session.js';
 import type { SessionFile } from '../../utils/session.js';
@@ -246,6 +247,110 @@ describe('CodexAdapter', () => {
             expect(unmatched?.status).toBe(AgentStatus.RUNNING);
 
             fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+    });
+
+    describe('detectAgents — registry cache short-circuit', () => {
+        let tmpDir: string;
+        let regPath: string;
+        let registry: AgentRegistry;
+        let cachedAdapter: CodexAdapter;
+        let sessionFilePath: string;
+
+        function registerEntry(over: Partial<RegistryEntry> = {}): void {
+            registry.register({
+                name: 'codex-100',
+                type: 'codex',
+                pid: 100,
+                tmuxSession: '',
+                cwd: '/repo-a',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'sess-cached',
+                sessionFilePath,
+                ...over,
+            });
+        }
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-cache-'));
+            regPath = path.join(tmpDir, 'agents.json');
+            registry = new AgentRegistry(regPath);
+            cachedAdapter = new CodexAdapter(registry);
+
+            const recentTs = new Date().toISOString();
+            sessionFilePath = path.join(tmpDir, 'sess-cached.jsonl');
+            fs.writeFileSync(sessionFilePath, [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-cached', timestamp: recentTs, cwd: '/repo-a' } }),
+                JSON.stringify({ type: 'event', timestamp: recentTs, payload: { type: 'token_count', message: 'Hello from cache' } }),
+            ].join('\n'));
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('short-circuits matching when registry has a valid entry', async () => {
+            registerEntry();
+            const processes: ProcessInfo[] = [
+                { pid: 100, command: 'codex', cwd: '/repo-a', tty: 'ttys001', startTime: new Date() },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'codex',
+                pid: 100,
+                sessionId: 'sess-cached',
+                sessionFilePath,
+                summary: 'Hello from cache',
+            });
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+            expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+        });
+
+        it('falls through when no registry entry exists for the pid', async () => {
+            const processes: ProcessInfo[] = [
+                { pid: 100, command: 'codex', cwd: '/repo-a', tty: 'ttys001', startTime: new Date() },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+            (cachedAdapter as any).codexSessionsDir = '/nonexistent';
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents[0].sessionId).toBe('pid-100');
+        });
+
+        it('falls through when registry entry type does not match', async () => {
+            registerEntry({ type: 'claude' });
+            const processes: ProcessInfo[] = [
+                { pid: 100, command: 'codex', cwd: '/repo-a', tty: 'ttys001', startTime: new Date() },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+            (cachedAdapter as any).codexSessionsDir = '/nonexistent';
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents[0].sessionId).toBe('pid-100');
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+        });
+
+        it('falls through when the cached session file no longer exists', async () => {
+            registerEntry({ sessionFilePath: path.join(tmpDir, 'deleted.jsonl') });
+            const processes: ProcessInfo[] = [
+                { pid: 100, command: 'codex', cwd: '/repo-a', tty: 'ttys001', startTime: new Date() },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+            (cachedAdapter as any).codexSessionsDir = '/nonexistent';
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents[0].sessionId).toBe('pid-100');
         });
     });
 

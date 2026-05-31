@@ -196,7 +196,7 @@ describe('agent command', () => {
 
     expect(ui.table).toHaveBeenCalled();
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.headers).toEqual(['Agent', 'CWD', 'Type', 'Status', 'Working On', 'Active']);
+    expect(tableArg.headers).toEqual(['Agent', 'Project', 'Type', 'Status', 'Working On', 'Active']);
     expect(tableArg.rows[0][2]).toBe('Claude Code');
     expect(tableArg.rows[1][2]).toBe('Codex');
     expect(tableArg.rows[0][3]).toContain('wait');

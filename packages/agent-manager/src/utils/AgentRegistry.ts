@@ -10,6 +10,8 @@ export interface RegistryEntry {
     tmuxSession: string;
     cwd: string;
     startedAt: string;  // ISO 8601
+    sessionId: string;
+    sessionFilePath: string;
 }
 
 interface RegistryFile {
@@ -52,6 +54,14 @@ export class AgentRegistry {
         fs.renameSync(tmp, this.filePath);
     }
 
+    private mergeEntry(incoming: RegistryEntry, existing: RegistryEntry | undefined): RegistryEntry {
+        if (!existing) return incoming;
+        return {
+            ...incoming,
+            tmuxSession: incoming.tmuxSession || existing.tmuxSession,
+        };
+    }
+
     isAlive(entry: RegistryEntry): boolean {
         try {
             process.kill(entry.pid, 0);
@@ -70,12 +80,19 @@ export class AgentRegistry {
     }
 
     register(entry: RegistryEntry): void {
+        this.registerBatch([entry]);
+    }
+
+    registerBatch(entries: RegistryEntry[]): void {
+        if (entries.length === 0) return;
         const data = this.readFile();
-        const idx = data.entries.findIndex((e) => e.name === entry.name);
-        if (idx >= 0) {
-            data.entries[idx] = entry;
-        } else {
-            data.entries.push(entry);
+        for (const incoming of entries) {
+            const idx = data.entries.findIndex((e) => e.name === incoming.name);
+            if (idx >= 0) {
+                data.entries[idx] = this.mergeEntry(incoming, data.entries[idx]);
+            } else {
+                data.entries.push(incoming);
+            }
         }
         this.writeFile(data);
     }

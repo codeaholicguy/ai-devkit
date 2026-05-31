@@ -10,6 +10,7 @@ import * as path from 'path';
 import { GeminiCliAdapter } from '../../adapters/GeminiCliAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
+import { AgentRegistry, type RegistryEntry } from '../../utils/AgentRegistry.js';
 import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
 import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
 import * as crypto from 'crypto';
@@ -248,6 +249,116 @@ describe('GeminiCliAdapter', () => {
 
             expect(agents).toHaveLength(1);
             expect(agents[0].sessionId).toBe(`pid-${proc.pid}`);
+        });
+    });
+
+    describe('detectAgents — registry cache short-circuit', () => {
+        let regPath: string;
+        let registry: AgentRegistry;
+        let cachedAdapter: GeminiCliAdapter;
+        let sessionFilePath: string;
+
+        function registerEntry(over: Partial<RegistryEntry> = {}): void {
+            registry.register({
+                name: 'gemini-100',
+                type: 'gemini_cli',
+                pid: 100,
+                tmuxSession: '',
+                cwd: '/repo-a',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 's-cached',
+                sessionFilePath,
+                ...over,
+            });
+        }
+
+        beforeEach(() => {
+            regPath = path.join(tmpHome, 'agents.json');
+            registry = new AgentRegistry(regPath);
+            cachedAdapter = new GeminiCliAdapter(registry);
+
+            const now = new Date().toISOString();
+            sessionFilePath = path.join(tmpHome, 'gemini-session.json');
+            fs.writeFileSync(sessionFilePath, JSON.stringify({
+                sessionId: 's-cached',
+                projectHash: 'h',
+                startTime: now,
+                lastUpdated: now,
+                directories: ['/repo-a'],
+                messages: [
+                    { id: 'm1', timestamp: now, type: 'user', content: 'Hello from gemini cache' },
+                ],
+            }));
+        });
+
+        it('short-circuits matching when registry has a valid entry', async () => {
+            registerEntry();
+            const proc: ProcessInfo = {
+                pid: 100,
+                command: 'node /path/to/gemini --help',
+                cwd: '/repo-a',
+                tty: 'ttys001',
+                startTime: new Date(),
+            };
+            mockedListAgentProcesses.mockReturnValue([proc]);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'gemini_cli',
+                pid: 100,
+                sessionId: 's-cached',
+                summary: 'Hello from gemini cache',
+            });
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+        });
+
+        it('falls through when no registry entry exists for the pid', async () => {
+            const proc: ProcessInfo = {
+                pid: 100,
+                command: 'node /path/to/gemini --help',
+                cwd: '/repo-a',
+                tty: 'ttys001',
+                startTime: new Date(),
+            };
+            mockedListAgentProcesses.mockReturnValue([proc]);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents[0].sessionId).toBe('pid-100');
+        });
+
+        it('falls through when registry entry type does not match', async () => {
+            registerEntry({ type: 'claude' });
+            const proc: ProcessInfo = {
+                pid: 100,
+                command: 'node /path/to/gemini --help',
+                cwd: '/repo-a',
+                tty: 'ttys001',
+                startTime: new Date(),
+            };
+            mockedListAgentProcesses.mockReturnValue([proc]);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents[0].sessionId).toBe('pid-100');
+        });
+
+        it('falls through when the cached session file no longer exists', async () => {
+            registerEntry({ sessionFilePath: path.join(tmpHome, 'deleted.json') });
+            const proc: ProcessInfo = {
+                pid: 100,
+                command: 'node /path/to/gemini --help',
+                cwd: '/repo-a',
+                tty: 'ttys001',
+                startTime: new Date(),
+            };
+            mockedListAgentProcesses.mockReturnValue([proc]);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents[0].sessionId).toBe('pid-100');
         });
     });
 

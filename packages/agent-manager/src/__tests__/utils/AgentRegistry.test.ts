@@ -11,6 +11,8 @@ function makeEntry(over: Partial<RegistryEntry> = {}): RegistryEntry {
         tmuxSession: 'agent1',
         cwd: '/tmp',
         startedAt: '2026-05-30T00:00:00.000Z',
+        sessionId: 'sid-1',
+        sessionFilePath: '/tmp/session.jsonl',
         ...over,
     };
 }
@@ -56,6 +58,57 @@ describe('AgentRegistry', () => {
         it('writes atomically (no leftover .tmp on success)', () => {
             registry.register(makeEntry());
             expect(fs.existsSync(`${regPath}.tmp`)).toBe(false);
+        });
+
+        it('persists session fields', () => {
+            registry.register(makeEntry({ sessionId: 'sid-xyz', sessionFilePath: '/foo/bar.jsonl' }));
+            const saved = registry.list()[0];
+            expect(saved.sessionId).toBe('sid-xyz');
+            expect(saved.sessionFilePath).toBe('/foo/bar.jsonl');
+        });
+
+        it('preserves existing tmuxSession when incoming is empty string', () => {
+            registry.register(makeEntry({ name: 'a', tmuxSession: 'pinned' }));
+            registry.register(makeEntry({ name: 'a', tmuxSession: '', pid: 999 }));
+            const saved = registry.lookup('a');
+            expect(saved?.tmuxSession).toBe('pinned');
+            expect(saved?.pid).toBe(999);
+        });
+
+        it('replaces tmuxSession when incoming is non-empty', () => {
+            registry.register(makeEntry({ name: 'a', tmuxSession: 'old' }));
+            registry.register(makeEntry({ name: 'a', tmuxSession: 'new' }));
+            expect(registry.lookup('a')?.tmuxSession).toBe('new');
+        });
+    });
+
+    describe('registerBatch', () => {
+        it('is a no-op on empty array', () => {
+            registry.registerBatch([]);
+            expect(fs.existsSync(regPath)).toBe(false);
+        });
+
+        it('upserts multiple entries with a single write', () => {
+            const writeSpy = vi.spyOn(fs, 'writeFileSync');
+            registry.registerBatch([
+                makeEntry({ name: 'a' }),
+                makeEntry({ name: 'b' }),
+                makeEntry({ name: 'c' }),
+            ]);
+            expect(writeSpy).toHaveBeenCalledTimes(1);
+            writeSpy.mockRestore();
+            expect(registry.list()).toHaveLength(3);
+        });
+
+        it('applies the tmuxSession merge per entry', () => {
+            registry.register(makeEntry({ name: 'a', tmuxSession: 'pinned' }));
+            registry.registerBatch([
+                makeEntry({ name: 'a', tmuxSession: '', pid: 7 }),
+                makeEntry({ name: 'b', tmuxSession: '' }),
+            ]);
+            expect(registry.lookup('a')?.tmuxSession).toBe('pinned');
+            expect(registry.lookup('a')?.pid).toBe(7);
+            expect(registry.lookup('b')?.tmuxSession).toBe('');
         });
     });
 
