@@ -3,6 +3,9 @@
  */
 
 
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { AgentManager } from '../AgentManager.js';
 import type {
     AgentAdapter,
@@ -12,6 +15,7 @@ import type {
     SessionSummary,
 } from '../adapters/AgentAdapter.js';
 import { AgentStatus } from '../adapters/AgentAdapter.js';
+import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
 
 // Mock adapter for testing
 class MockAdapter implements AgentAdapter {
@@ -237,6 +241,137 @@ describe('AgentManager', () => {
 
             const agents = await manager.listAgents();
             expect(agents).toEqual([]);
+        });
+    });
+
+    describe('listAgents — registry persistence', () => {
+        let tmpDir: string;
+        let regPath: string;
+        let registry: AgentRegistry;
+        let scopedManager: AgentManager;
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-manager-'));
+            regPath = path.join(tmpDir, 'agents.json');
+            registry = new AgentRegistry(regPath);
+            scopedManager = new AgentManager(registry);
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('persists every detected agent to the registry', async () => {
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({
+                    name: 'a',
+                    pid: process.pid,
+                    sessionId: 'sid-a',
+                    sessionFilePath: '/path/a.jsonl',
+                    projectPath: '/cwd/a',
+                }),
+            ]));
+
+            await scopedManager.listAgents();
+
+            const entries = registry.list();
+            expect(entries).toHaveLength(1);
+            expect(entries[0]).toMatchObject({
+                name: 'a',
+                type: 'claude',
+                pid: process.pid,
+                cwd: '/cwd/a',
+                sessionId: 'sid-a',
+                sessionFilePath: '/path/a.jsonl',
+                tmuxSession: '',
+            });
+            expect(entries[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+        });
+
+        it('prunes entries for dead pids', async () => {
+            registry.register({
+                name: 'dead',
+                type: 'claude',
+                pid: 999999,
+                tmuxSession: '',
+                cwd: '/cwd/dead',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'sid-dead',
+                sessionFilePath: '/path/dead.jsonl',
+            });
+
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({ name: 'live', pid: process.pid }),
+            ]));
+
+            await scopedManager.listAgents();
+
+            const entries = registry.list();
+            expect(entries.map((e) => e.name)).toEqual(['live']);
+        });
+
+        it('preserves an existing name (e.g. user-set "merry") across cycles', async () => {
+            registry.register({
+                name: 'merry',
+                type: 'claude',
+                pid: process.pid,
+                tmuxSession: 'merry',
+                cwd: '/cwd/merry',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'sid-merry',
+                sessionFilePath: '/path/merry.jsonl',
+            });
+
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({ name: 'default-name', pid: process.pid }),
+            ]));
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].name).toBe('merry');
+            expect(registry.list()[0].name).toBe('merry');
+            expect(registry.list()[0].tmuxSession).toBe('merry');
+            expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
+        });
+
+        it('writes a fresh startedAt for new entries', async () => {
+            const before = new Date().toISOString();
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({ name: 'new', pid: process.pid }),
+            ]));
+
+            await scopedManager.listAgents();
+
+            const entry = registry.list()[0];
+            expect(entry.startedAt >= before).toBe(true);
+        });
+
+        it('batches the write — a single registerBatch call per listAgents', async () => {
+            const spy = vi.spyOn(registry, 'registerBatch');
+
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({ name: 'a', pid: process.pid }),
+            ]));
+            scopedManager.registerAdapter(new MockAdapter('codex', [
+                createMockAgent({ name: 'b', type: 'codex', pid: process.pid + 1 }),
+            ]));
+
+            await scopedManager.listAgents();
+
+            expect(spy).toHaveBeenCalledTimes(1);
+            expect((spy.mock.calls[0][0] as RegistryEntry[]).map((e) => e.name).sort())
+                .toEqual(['a', 'b']);
+        });
+
+        it('skips registerBatch when no agents detected (still calls prune)', async () => {
+            const writeSpy = vi.spyOn(registry, 'registerBatch');
+            const pruneSpy = vi.spyOn(registry, 'prune');
+
+            scopedManager.registerAdapter(new MockAdapter('claude', []));
+            await scopedManager.listAgents();
+
+            expect(writeSpy).not.toHaveBeenCalled();
+            expect(pruneSpy).toHaveBeenCalledTimes(1);
         });
     });
 

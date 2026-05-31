@@ -12,7 +12,7 @@ import type {
     ListSessionsOptions,
 } from './adapters/AgentAdapter.js';
 import { sortAgents, type AgentSortKey } from './utils/sortAgents.js';
-import { AgentRegistry } from './utils/AgentRegistry.js';
+import { AgentRegistry, type RegistryEntry } from './utils/AgentRegistry.js';
 
 export interface ListAgentsOptions {
     /**
@@ -156,9 +156,15 @@ export class AgentManager {
             });
         }
 
-        const registryEntries = this.registry.list();
+        const preExistingByPid = new Map(this.registry.list().map((e) => [e.pid, e]));
+        const entries = allAgents.map((agent) =>
+            this.toRegistryEntry(agent, preExistingByPid.get(agent.pid)),
+        );
+        if (entries.length > 0) this.registry.registerBatch(entries);
+        this.registry.prune();
+
         for (const agent of allAgents) {
-            const entry = registryEntries.find((e) => e.pid === agent.pid);
+            const entry = preExistingByPid.get(agent.pid);
             if (entry) {
                 agent.name = entry.name;
             }
@@ -166,6 +172,19 @@ export class AgentManager {
 
         const sortKey: AgentSortKey = options?.sortBy ?? 'status';
         return sortAgents(allAgents, sortKey);
+    }
+
+    private toRegistryEntry(agent: AgentInfo, existing?: RegistryEntry): RegistryEntry {
+        return {
+            name: existing?.name ?? agent.name,
+            type: agent.type,
+            pid: agent.pid,
+            tmuxSession: existing?.tmuxSession ?? '',
+            cwd: agent.projectPath,
+            startedAt: existing?.startedAt ?? new Date().toISOString(),
+            sessionId: agent.sessionId,
+            sessionFilePath: agent.sessionFilePath ?? '',
+        };
     }
 
     /**

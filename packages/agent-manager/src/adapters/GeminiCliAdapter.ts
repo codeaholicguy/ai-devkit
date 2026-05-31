@@ -26,6 +26,7 @@ import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
+import { AgentRegistry } from '../utils/AgentRegistry.js';
 
 /**
  * A single Gemini CLI message content part. Mirrors the `{text?: string}`
@@ -87,10 +88,12 @@ export class GeminiCliAdapter implements AgentAdapter {
     private static readonly TMP_DIR_NAME = 'tmp';
 
     private geminiTmpDir: string;
+    private registry: AgentRegistry;
 
-    constructor() {
+    constructor(registry: AgentRegistry = AgentRegistry.default()) {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
         this.geminiTmpDir = path.join(homeDir, '.gemini', GeminiCliAdapter.TMP_DIR_NAME);
+        this.registry = registry;
     }
 
     canHandle(processInfo: ProcessInfo): boolean {
@@ -114,12 +117,15 @@ export class GeminiCliAdapter implements AgentAdapter {
         const processes = nodeProcesses.filter((proc) => this.isGeminiExecutable(proc.command));
         if (processes.length === 0) return [];
 
-        const { sessions, contentCache } = this.discoverSessions(processes);
+        const { cachedAgents, remaining } = this.tryRegistryCache(processes);
+        if (remaining.length === 0) return cachedAgents;
+
+        const { sessions, contentCache } = this.discoverSessions(remaining);
         if (sessions.length === 0) {
-            return processes.map((p) => this.mapProcessOnlyAgent(p));
+            return [...cachedAgents, ...remaining.map((p) => this.mapProcessOnlyAgent(p))];
         }
 
-        const matches = matchProcessesToSessions(processes, sessions);
+        const matches = matchProcessesToSessions(remaining, sessions);
         const matchedPids = new Set(matches.map((m) => m.process.pid));
         const agents: AgentInfo[] = [];
 
@@ -133,13 +139,46 @@ export class GeminiCliAdapter implements AgentAdapter {
             }
         }
 
-        for (const proc of processes) {
+        for (const proc of remaining) {
             if (!matchedPids.has(proc.pid)) {
                 agents.push(this.mapProcessOnlyAgent(proc));
             }
         }
 
-        return agents;
+        return [...cachedAgents, ...agents];
+    }
+
+    private tryRegistryCache(processes: ProcessInfo[]): {
+        cachedAgents: AgentInfo[];
+        remaining: ProcessInfo[];
+    } {
+        const cachedAgents: AgentInfo[] = [];
+        const remaining: ProcessInfo[] = [];
+        const byPid = new Map(this.registry.list().map((e) => [e.pid, e]));
+
+        for (const proc of processes) {
+            const entry = byPid.get(proc.pid);
+            if (
+                !entry ||
+                entry.type !== this.type ||
+                !entry.sessionFilePath ||
+                !fs.existsSync(entry.sessionFilePath)
+            ) {
+                remaining.push(proc);
+                continue;
+            }
+
+            const content = safeReadFile(entry.sessionFilePath);
+            const sessionData = this.parseSession(content, entry.sessionFilePath);
+            if (!sessionData) {
+                remaining.push(proc);
+                continue;
+            }
+
+            cachedAgents.push(this.mapSessionToAgent(sessionData, proc, entry.sessionFilePath));
+        }
+
+        return { cachedAgents, remaining };
     }
 
     /**

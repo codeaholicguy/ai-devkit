@@ -6,60 +6,99 @@ description: Technical implementation notes, patterns, and code guidelines
 
 # Implementation Guide
 
-## Development Setup
-**How do we get started?**
-
-- Prerequisites and dependencies
-- Environment setup steps
-- Configuration needed
-
 ## Code Structure
-**How is the code organized?**
 
-- Directory structure
-- Module organization
-- Naming conventions
+| File | Role |
+|---|---|
+| `packages/agent-manager/src/utils/AgentRegistry.ts` | `RegistryEntry` shape + read/write/upsert/prune/list. Adds `sessionId` + `sessionFilePath` fields, `registerBatch`, `tmuxSession` merge rule. |
+| `packages/agent-manager/src/AgentManager.ts` | Sole writer during `listAgents`. Builds `RegistryEntry[]` via `toRegistryEntry`, calls `registerBatch` once, then `prune` once. |
+| `packages/agent-manager/src/adapters/CodexAdapter.ts` | Optional `registry` constructor arg. `tryRegistryCache` short-circuits the day-bucket walk on a hit. |
+| `packages/agent-manager/src/adapters/GeminiCliAdapter.ts` | Same pattern as Codex; short-circuits the chats-dir walk + per-file reads. |
+| `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts` | Unchanged — `~/.claude/sessions/<pid>.json` is already O(1). |
+| `packages/agent-manager/src/adapters/OpenCodeAdapter.ts` | Unchanged — SQLite lookup is already O(1). |
+| `packages/cli/src/services/agent/agent.service.ts` | `startAgent` writes new entries with `sessionId: ''` / `sessionFilePath: ''`; the next `listAgents` fills them in. |
 
-## Implementation Notes
-**Key technical details to remember:**
+## Key Implementation Notes
 
-### Core Features
-- Feature 1: Implementation approach
-- Feature 2: Implementation approach
-- Feature 3: Implementation approach
+### Single-writer during `listAgents`
 
-### Patterns & Best Practices
-- Design patterns being used
-- Code style guidelines
-- Common utilities/helpers
+Parallel adapter detection (`Promise.all`) reads from the registry but never writes. After aggregation, the manager builds the full `RegistryEntry[]`, calls `registerBatch` once, then `prune` once. This eliminates the read-modify-write race that per-adapter writes would have caused.
 
-## Integration Points
-**How do pieces connect?**
+External callers (`agent.service.startAgent`) may still call `register()` between `listAgents` calls; cross-process safety is provided by atomic `tmp + rename`.
 
-- API integration details
-- Database connections
-- Third-party service setup
+### `toRegistryEntry` preserves identity, refreshes activity
+
+```ts
+toRegistryEntry(agent, existing) → {
+    name:            existing?.name        ?? agent.name,
+    type:            agent.type,
+    pid:             agent.pid,
+    tmuxSession:     existing?.tmuxSession ?? '',
+    cwd:             agent.projectPath,
+    startedAt:       existing?.startedAt   ?? new Date().toISOString(),
+    sessionId:       agent.sessionId,
+    sessionFilePath: agent.sessionFilePath ?? '',
+}
+```
+
+User-set `name`, `tmuxSession`, and `startedAt` survive across cycles. Everything else mirrors the live process.
+
+### Upsert merge rule (`AgentRegistry.mergeEntry`)
+
+Only `tmuxSession` has a merge rule: preserve existing non-empty when incoming is empty. All other fields replace. The rule lives at the registry layer so external `register()` callers also benefit; identity preservation (name / startedAt) lives at the manager layer because only the manager has the "this entry was here before" context.
+
+### Adapter cache short-circuit (Codex / Gemini)
+
+```ts
+private tryRegistryCache(processes) {
+    const byPid = new Map(this.registry.list().map(e => [e.pid, e]));
+    for (const proc of processes) {
+        const entry = byPid.get(proc.pid);
+        if (!entry || entry.type !== this.type ||
+            !entry.sessionFilePath || !fs.existsSync(entry.sessionFilePath)) {
+            remaining.push(proc); continue;
+        }
+        const session = this.parseSession(safeReadFile(entry.sessionFilePath), entry.sessionFilePath);
+        if (!session) { remaining.push(proc); continue; }
+        cachedAgents.push(this.mapSessionToAgent(session, proc, entry.sessionFilePath));
+    }
+    return { cachedAgents, remaining };
+}
+```
+
+Read the registry once per call (one `list()`), build a `Map<pid, entry>`, then loop. Guards fall through cleanly:
+
+- no entry → run normal pipeline
+- wrong type (cross-type pid reuse from a previous run) → run normal pipeline
+- empty `sessionFilePath` → run normal pipeline
+- session file deleted on disk → run normal pipeline
+- parser couldn't read the file → run normal pipeline
+
+### Why Claude and OpenCode don't read the registry
+
+Claude has `~/.claude/sessions/<pid>.json` — a per-pid file that Claude Code writes on startup. Reading it is one `fs.readFileSync` keyed by pid; the registry cache would save ~5–10 ms at best and add a hit-path branch + extra read for `pidStatus`/`waitingFor` parity. OpenCode resolves sessions through SQLite — already O(ms). Neither benefits from caching, so both stay as-is.
+
+Both still get written through to the registry by the manager so the "one entry per live agent" contract holds across all adapter types.
 
 ## Error Handling
-**How do we handle failures?**
 
-- Error handling strategy
-- Logging approach
-- Retry/fallback mechanisms
+- `AgentRegistry.readFile()` swallows any parse / I/O failure and returns `{ entries: [] }`. Cache misses, not crashes.
+- `tryRegistryCache` treats every failure (no entry, missing file, parser returned null) as a fall-through to the existing matching pipeline.
+- `AgentManager.listAgents()` catches per-adapter `detectAgents()` failures (existing behavior) so one broken adapter doesn't poison the whole listing or the registry write.
 
-## Performance Considerations
-**How do we keep it fast?**
+## Performance
 
-- Optimization strategies
-- Caching approach
-- Query optimization
-- Resource management
+| Adapter | Hit-path saving (est.) |
+|---|---|
+| Codex   | 20–100ms (skip day-bucket walk) |
+| Gemini  | 50–300ms (skip chats-dir walk + per-file reads) |
+| Claude  | n/a (PID file already O(1)) |
+| OpenCode| n/a (SQLite already O(1)) |
 
-## Security Notes
-**What security measures are in place?**
+Added cost per `listAgents()`: one atomic file write (~few ms) + one `prune` sweep (~ms).
 
-- Authentication/authorization
-- Input validation
-- Data encryption
-- Secrets management
+## Security
 
+- Registry file lives at `~/.ai-devkit/agents.json` — same path and trust boundary as before.
+- No new data classes persisted; the added `sessionId` and `sessionFilePath` fields point at files already on disk.
+- Atomic `tmp + rename` writes prevent torn files for concurrent readers.

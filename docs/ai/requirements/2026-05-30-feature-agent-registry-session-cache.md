@@ -59,12 +59,11 @@ The registry has not been released, so its on-disk shape can change freely.
 ### Technical
 
 - `RegistryEntry` shape: `{ name, type, pid, tmuxSession, cwd, startedAt, sessionId, sessionFilePath }`. No `processStartedAtMs`, no version field.
-- `lookupByPid(pid: number): RegistryEntry | null` — single argument; no staleness check.
 - `registerBatch(entries: RegistryEntry[]): void` — single read + single write for many entries. `register()` delegates to `registerBatch([entry])`.
 - Upsert key is `name`. `generateAgentName(cwd, pid)` embeds pid, so distinct pids produce distinct names; one-entry-per-pid invariant follows.
 - On upsert, `tmuxSession` is merged: preserve existing non-empty when incoming is empty string. Other fields replace.
 - `AgentManager` is the single writer. After all adapters detect in parallel, `AgentManager.listAgents()` batches the writes and calls `prune()` once.
-- Each adapter's `detectAgents()` accepts an optional `AgentRegistry` and short-circuits via `lookupByPid(proc.pid)` before its discovery walk.
+- Each cache-using adapter's `detectAgents()` accepts an optional `AgentRegistry` and short-circuits by looking up pids in `registry.list()` before its discovery walk.
 - OpenCode does not consult the cache (SQLite lookup is already fast) but its entries are still written through to the registry so the contract holds.
 
 ### Assumptions

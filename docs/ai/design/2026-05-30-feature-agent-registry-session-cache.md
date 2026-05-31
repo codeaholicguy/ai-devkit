@@ -8,7 +8,7 @@ description: Define the technical architecture, components, and data models
 
 ## Architecture Overview
 
-`AgentRegistry` becomes the authoritative record of "what's running." `AgentManager.listAgents()` is the **single writer**: after every adapter detects in parallel, the manager batches all entries to disk and prunes dead pids. Adapters with expensive matching pipelines (Codex, Gemini) read from the registry first (`lookupByPid`) and skip discovery on a hit. Claude and OpenCode already have O(1) authoritative lookups (PID file + SQLite) so they don't consult the cache.
+`AgentRegistry` becomes the authoritative record of "what's running." `AgentManager.listAgents()` is the **single writer**: after every adapter detects in parallel, the manager batches all entries to disk and prunes dead pids. Adapters with expensive matching pipelines (Codex, Gemini) read the registry by pid and skip discovery on a hit. Claude and OpenCode already have O(1) authoritative lookups (PID file + SQLite) so they don't consult the cache.
 
 ```mermaid
 graph TD
@@ -19,8 +19,8 @@ graph TD
     Manager -->|detectAgents parallel| Gemini[GeminiCliAdapter]
     Manager -->|detectAgents parallel| OpenCode[OpenCodeAdapter]
 
-    Codex -->|lookupByPid| Registry[(AgentRegistry<br/>~/.ai-devkit/agents.json)]
-    Gemini -->|lookupByPid| Registry
+    Codex -->|list by pid| Registry[(AgentRegistry<br/>~/.ai-devkit/agents.json)]
+    Gemini -->|list by pid| Registry
 
     Registry -->|hit| HitPath[Parse cached sessionFilePath]
     Registry -->|miss / missing file| MissPath[Existing discovery pipeline]
@@ -37,7 +37,7 @@ graph TD
 
 ### Adapter responsibilities
 
-| Adapter | Reads `lookupByPid` | Writes registry | Notes |
+| Adapter | Reads registry | Writes registry | Notes |
 |---|---|---|---|
 | ClaudeCodeAdapter | no | no — manager writes | `~/.claude/sessions/<pid>.json` lookup is already O(1); no cache benefit |
 | CodexAdapter | yes | no — manager writes | Hit path skips day-bucket walk |
@@ -106,24 +106,17 @@ class AgentRegistry {
     isAlive(entry: RegistryEntry): boolean;
 
     // NEW
-    lookupByPid(pid: number): RegistryEntry | null;
     registerBatch(entries: RegistryEntry[]): void;  // single read + single write
 }
 ```
+
+Adapter cache short-circuits build a `Map<pid, entry>` once from `list()` rather than calling a pid-keyed lookup per process.
 
 ### Upsert semantics (`register` / `registerBatch`)
 
 For each incoming entry, upsert by `name`. All fields replace, except `tmuxSession`: keep existing non-empty value when incoming is empty.
 
 `registerBatch` is the preferred path: one read, in-memory merge for all entries, one atomic write.
-
-### `lookupByPid`
-
-```ts
-lookupByPid(pid: number): RegistryEntry | null {
-    return this.list().find(e => e.pid === pid) ?? null;
-}
-```
 
 ### Per-adapter pattern (Codex / Gemini)
 
@@ -132,9 +125,10 @@ async detectAgents(): Promise<AgentInfo[]> {
     const processes = enrichProcesses(listAgentProcesses(this.executable));
     const cached: Array<{ proc: ProcessInfo; entry: RegistryEntry }> = [];
     const uncached: ProcessInfo[] = [];
+    const byPid = new Map(this.registry.list().map(e => [e.pid, e]));
 
     for (const proc of processes) {
-        const entry = this.registry?.lookupByPid(proc.pid);
+        const entry = byPid.get(proc.pid);
         if (entry && entry.type === this.agentType && fs.existsSync(entry.sessionFilePath)) {
             cached.push({ proc, entry });
         } else {
@@ -195,11 +189,11 @@ private toRegistryEntry(agent: AgentInfo, existing?: RegistryEntry): RegistryEnt
 
 | File | Change |
 |---|---|
-| `packages/agent-manager/src/utils/AgentRegistry.ts` | Add `sessionId` + `sessionFilePath` to `RegistryEntry`; add `lookupByPid` + `registerBatch`; merge rule on upsert |
+| `packages/agent-manager/src/utils/AgentRegistry.ts` | Add `sessionId` + `sessionFilePath` to `RegistryEntry`; add `registerBatch`; merge rule on upsert |
 | `packages/agent-manager/src/AgentManager.ts` | Build `RegistryEntry[]` from `AgentInfo[]` via `toRegistryEntry`, `registerBatch` once, then `prune` |
 | `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts` | No change (PID-file lookup already O(1)) |
-| `packages/agent-manager/src/adapters/CodexAdapter.ts` | Optional `registry` ctor arg; pre-pipeline `lookupByPid` |
-| `packages/agent-manager/src/adapters/GeminiCliAdapter.ts` | Optional `registry` ctor arg; pre-pipeline `lookupByPid` |
+| `packages/agent-manager/src/adapters/CodexAdapter.ts` | Optional `registry` ctor arg; pre-pipeline cache short-circuit via `registry.list()` Map |
+| `packages/agent-manager/src/adapters/GeminiCliAdapter.ts` | Optional `registry` ctor arg; pre-pipeline cache short-circuit via `registry.list()` Map |
 | `packages/agent-manager/src/adapters/OpenCodeAdapter.ts` | No change (manager handles write) |
 
 ## Design Decisions

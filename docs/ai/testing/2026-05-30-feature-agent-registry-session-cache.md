@@ -7,75 +7,71 @@ description: Define testing approach, test cases, and quality assurance
 # Testing Strategy
 
 ## Test Coverage Goals
-**What level of testing do we aim for?**
 
-- Unit test coverage target (default: 100% of new/changed code)
-- Integration test scope (critical paths + error handling)
-- End-to-end test scenarios (key user journeys)
-- Alignment with requirements/design acceptance criteria
+- Unit coverage for every new/changed code path in `AgentRegistry`, `AgentManager`, `CodexAdapter`, `GeminiCliAdapter`.
+- Behavior parity: cache-hit path produces an `AgentInfo` shape equivalent to the miss path.
+- No new tests for `ClaudeCodeAdapter` or `OpenCodeAdapter` — both unchanged.
 
 ## Unit Tests
-**What individual components need testing?**
 
-### Component/Module 1
-- [ ] Test case 1: [Description] (covers scenario / branch)
-- [ ] Test case 2: [Description] (covers edge case / error handling)
-- [ ] Additional coverage: [Description]
+### `AgentRegistry` (`src/__tests__/utils/AgentRegistry.test.ts`)
 
-### Component/Module 2
-- [ ] Test case 1: [Description]
-- [ ] Test case 2: [Description]
-- [ ] Additional coverage: [Description]
+- [x] `register` persists `sessionId` and `sessionFilePath`.
+- [x] `register` preserves existing non-empty `tmuxSession` when incoming is empty.
+- [x] `register` replaces `tmuxSession` when incoming is non-empty.
+- [x] `registerBatch([])` is a no-op (no file created).
+- [x] `registerBatch(N)` performs a single `writeFileSync` call.
+- [x] `registerBatch` applies `tmuxSession` merge per entry.
 
-## Integration Tests
-**How do we test component interactions?**
+### `AgentManager.listAgents` (`src/__tests__/AgentManager.test.ts`)
 
-- [ ] Integration scenario 1
-- [ ] Integration scenario 2
-- [ ] API endpoint tests
-- [ ] Integration scenario 3 (failure mode / rollback)
+- [x] Persists every detected agent to the registry (one entry per pid, correct shape).
+- [x] Prunes entries whose pids are dead within the same `listAgents` call.
+- [x] Preserves an existing name (e.g. user-set `"merry"`) across cycles.
+- [x] Preserves an existing `tmuxSession` and `startedAt` across cycles.
+- [x] Writes a fresh `startedAt` for new entries.
+- [x] Issues exactly one `registerBatch` call per `listAgents` (across all adapters).
+- [x] Skips `registerBatch` when no agents detected but still calls `prune`.
 
-## End-to-End Tests
-**What user flows need validation?**
+### `CodexAdapter.detectAgents` cache short-circuit (`src/__tests__/adapters/CodexAdapter.test.ts`)
 
-- [ ] User flow 1: [Description]
-- [ ] User flow 2: [Description]
-- [ ] Critical path testing
-- [ ] Regression of adjacent features
+- [x] Hit: short-circuits matching when registry has a valid entry; `matchProcessesToSessions` and `batchGetSessionFileBirthtimes` not called.
+- [x] Miss (no entry): falls through to existing pipeline.
+- [x] Type mismatch (`entry.type !== 'codex'`): falls through.
+- [x] Missing session file (`!existsSync(sessionFilePath)`): falls through.
 
-## Test Data
-**What data do we use for testing?**
+### `GeminiCliAdapter.detectAgents` cache short-circuit (`src/__tests__/adapters/GeminiCliAdapter.test.ts`)
 
-- Test fixtures and mocks
-- Seed data requirements
-- Test database setup
+Same four scenarios as Codex.
 
 ## Test Reporting & Coverage
-**How do we verify and communicate test results?**
 
-- Coverage commands and thresholds (`npm run test -- --coverage`)
-- Coverage gaps (files/functions below 100% and rationale)
-- Links to test reports or dashboards
-- Manual testing outcomes and sign-off
+```
+agent-manager: 359/359 passed
+cli:           627/628 passed (1 pre-existing failure unrelated to this feature)
+```
+
+Run with:
+```
+npm test -w packages/agent-manager
+npm test -w packages/cli
+```
 
 ## Manual Testing
-**What requires human validation?**
 
-- UI/UX testing checklist (include accessibility)
-- Browser/device compatibility
-- Smoke tests after deployment
+- [x] Delete `~/.ai-devkit/agents.json`, run `ai-devkit agent list` twice — second call hits the cache, output identical.
+- [x] Kill a running agent process between two list calls — its entry is pruned on the second call.
+- [x] Edit `tmuxSession` for an existing entry by hand in the JSON file, run `ai-devkit agent list` — value preserved (merge rule).
 
-## Performance Testing
-**How do we validate performance?**
+## Performance
 
-- Load testing scenarios
-- Stress testing approach
-- Performance benchmarks
+Cache hit savings (rough, depends on history depth):
 
-## Bug Tracking
-**How do we manage issues?**
+| Adapter | Saving | Why |
+|---|---|---|
+| Codex   | 20–100ms | skip day-bucket walk |
+| Gemini  | 50–300ms | skip chats-dir walk + per-file reads |
+| Claude  | n/a | no short-circuit (PID-file already O(1)) |
+| OpenCode | n/a | no short-circuit (SQLite already fast) |
 
-- Issue tracking process
-- Bug severity levels
-- Regression testing strategy
-
+Overhead per `listAgents`: 1 atomic registry write + 1 `prune` sweep (~few ms).

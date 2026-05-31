@@ -11,10 +11,9 @@ description: Break down work into actionable tasks and estimate timeline
 ### Registry
 
 - [ ] Extend `RegistryEntry` with `sessionId: string` and `sessionFilePath: string`.
-- [ ] Add `AgentRegistry.lookupByPid(pid: number): RegistryEntry | null` — find first entry whose `pid` matches.
 - [ ] Add `AgentRegistry.registerBatch(entries: RegistryEntry[]): void` — single read, in-memory upsert per entry, single atomic write. `register()` delegates to `registerBatch([entry])`.
 - [ ] `tmuxSession` merge rule on upsert: preserve existing non-empty when incoming is empty string; replace all other fields.
-- [ ] Unit tests: `register`/`registerBatch` upsert with new fields, `lookupByPid` hit/miss/missing-file, `tmuxSession` merge, `registerBatch` performs a single write for N entries, `prune` keeps new fields on survivors.
+- [ ] Unit tests: `register`/`registerBatch` upsert with new fields, `tmuxSession` merge, `registerBatch` performs a single write for N entries.
 
 ### Manager (single writer)
 
@@ -59,7 +58,7 @@ description: Break down work into actionable tasks and estimate timeline
 ## Dependencies
 
 - Registry changes land first.
-- Manager + adapter changes can land together (adapters only need `lookupByPid`, which is read-only).
+- Manager + adapter changes can land together (adapters only read from the registry, never write).
 - Adapter changes are independent of each other.
 
 ## Risks

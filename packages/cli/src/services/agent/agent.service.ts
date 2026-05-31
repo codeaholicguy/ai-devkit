@@ -219,6 +219,8 @@ export async function startAgent(
     tmuxSession: opts.name,
     cwd: opts.cwd,
     startedAt: new Date().toISOString(),
+    sessionId: '',
+    sessionFilePath: '',
   };
   registry.register(entry);
   return entry;
