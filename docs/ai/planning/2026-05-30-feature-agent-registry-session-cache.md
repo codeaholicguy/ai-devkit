@@ -10,81 +10,59 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Registry
 
-- [ ] Move `PID_FILE_STALENESS_MS` (60000) to `AgentRegistry.ts` as an exported constant; import in `ClaudeCodeAdapter` to replace the private duplicate.
-- [ ] Extend `RegistryEntry` with `processStartedAtMs: number`, `sessionId: string`, `sessionFilePath: string`.
-- [ ] Add `AgentRegistry.lookupByPid(pid: number, procStartTime: Date): RegistryEntry | null` — scan `entries[]` by pid, apply staleness check internally, return entry or null.
-- [ ] Add `AgentRegistry.registerBatch(entries: RegistryEntry[]): void` — single read, in-memory merge per entry, single atomic write.
-- [ ] Implement `tmuxSession` merge rule in both `register()` and `registerBatch()`: preserve existing non-empty value when incoming is empty string; replace all other fields.
-- [ ] Unit tests for `AgentRegistry`: hit, miss (no entry), miss (stale pid > 60s), prune drops dead pids carrying new fields, `register()`/`registerBatch()` upsert with new fields, `tmuxSession` merge, `registerBatch` performs single write for N entries.
-
-### AgentInfo
-
-- [ ] Add required field `processStartedAtMs: number` to `AgentInfo` in `packages/agent-manager/src/adapters/AgentAdapter.ts`.
-- [ ] Update every `AgentInfo` constructor (across all 4 adapters' mapping functions including process-only fallbacks) to populate `processStartedAtMs` from `proc.startTime!.getTime()`. Where `proc.startTime` is missing, use `Date.now()` as a defensive fallback (logs a warning).
-- [ ] Update any test fixtures that construct `AgentInfo` literals to include the new field.
+- [ ] Extend `RegistryEntry` with `sessionId: string` and `sessionFilePath: string`.
+- [ ] Add `AgentRegistry.lookupByPid(pid: number): RegistryEntry | null` — find first entry whose `pid` matches.
+- [ ] Add `AgentRegistry.registerBatch(entries: RegistryEntry[]): void` — single read, in-memory upsert per entry, single atomic write. `register()` delegates to `registerBatch([entry])`.
+- [ ] `tmuxSession` merge rule on upsert: preserve existing non-empty when incoming is empty string; replace all other fields.
+- [ ] Unit tests: `register`/`registerBatch` upsert with new fields, `lookupByPid` hit/miss/missing-file, `tmuxSession` merge, `registerBatch` performs a single write for N entries, `prune` keeps new fields on survivors.
 
 ### Manager (single writer)
 
-- [ ] In `AgentManager.listAgents()`, after the adapter aggregation loop and before name overlay + sort:
-  - Build `RegistryEntry[]` from `allAgents` via a private `toRegistryEntry(agent)` helper.
-  - Call `this.registry.registerBatch(entries)` once when `entries.length > 0`.
+- [ ] In `AgentManager.listAgents()`, after adapter aggregation and before name overlay + sort:
+  - Build `RegistryEntry[]` from `allAgents` via a private `toRegistryEntry(agent, existing?)` helper that preserves `existing.name`, `existing.tmuxSession`, and `existing.startedAt` when present.
+  - Call `this.registry.registerBatch(entries)` once when entries is non-empty.
   - Call `this.registry.prune()` once.
-- [ ] `toRegistryEntry` helper (in `AgentManager.ts`): maps `AgentInfo` → `RegistryEntry`. `tmuxSession: ''`, `cwd: agent.projectPath`, `startedAt: new Date(agent.processStartedAtMs).toISOString()`, `sessionFilePath: agent.sessionFilePath ?? ''`.
-- [ ] Unit tests: `registerBatch` invoked once per `listAgents()` with all aggregated entries; `prune()` invoked once per `listAgents()`; both run even when one adapter throws; `tmuxSession` preserved across cycles when a prior entry had a non-empty value.
+- [ ] Unit tests: `registerBatch` invoked once per `listAgents()`; `prune()` invoked once per `listAgents()`; `tmuxSession` and `startedAt` preserved across cycles when prior entry had values; new sessions get fresh `startedAt`.
 
 ### Adapter base wiring
 
-- [ ] Add optional `registry: AgentRegistry` constructor arg to Claude/Codex/Gemini adapters, defaulting to `AgentRegistry.default()`. OpenCode does **not** get the arg (no registry interaction).
-- [ ] Confirm CLI / factory call sites work unchanged (default singleton picks up the registry).
+- [ ] Add optional `registry: AgentRegistry` constructor arg to Codex and Gemini adapters, defaulting to `AgentRegistry.default()`. Claude and OpenCode unchanged.
+- [ ] Confirm factory / CLI call sites work unchanged.
 
 ### ClaudeCodeAdapter
 
-- [ ] In `detectAgents()`, partition processes into `cached` (registry hit + `existsSync(sessionFilePath)`) and `uncached`.
-- [ ] For each `cached` proc, read `~/.claude/sessions/<pid>.json` via existing `readMatchingPidFile(pid, startTime)` (single small JSON) so hit path passes `pidStatus`/`waitingFor` into `mapSessionToAgent`.
-- [ ] For each `cached` proc, call `parser.readSession(entry.sessionFilePath, entry.cwd)`; on failure, demote to `uncached`.
-- [ ] Run the existing pipeline (`tryResumeMatching` → `tryPidFileMatching` → legacy) for `uncached` — no changes to that code.
-- [ ] Ensure every `AgentInfo` returned (hit + miss + process-only) populates `processStartedAtMs`.
-- [ ] **No `registry.register` or `registry.registerBatch` calls** — manager handles writes.
-- [ ] Unit tests: cache hit short-circuits matching (mock parser, assert no resume regex / no PID-file legacy walk), cache miss falls through, stale pid forces re-match, missing session file forces re-match, hit-path preserves `pidStatus`/`waitingFor` parity, all returned `AgentInfo` carry non-zero `processStartedAtMs`.
+- [ ] No change. PID-file lookup (`~/.claude/sessions/<pid>.json`) is already O(1) and authoritative.
 
 ### CodexAdapter
 
-- [ ] Same partition pattern. Cached procs skip `discoverSessions` day-bucket walk and parse the cached `sessionFilePath` directly.
-- [ ] Populate `processStartedAtMs` on every returned `AgentInfo`.
-- [ ] **No registry writes.**
-- [ ] Unit tests mirroring Claude's: hit, miss, stale pid, missing file, `processStartedAtMs` populated.
+- [ ] Same partition pattern. Cached procs skip the day-bucket walk.
+- [ ] No registry writes.
+- [ ] Unit tests mirroring Claude's (no PID-file parity test).
 
 ### GeminiCliAdapter
 
 - [ ] Same partition pattern. Cached procs skip the chats-dir walk + per-file reads.
-- [ ] Populate `processStartedAtMs` on every returned `AgentInfo`.
-- [ ] **No registry writes.**
-- [ ] Unit tests mirroring Claude's.
+- [ ] No registry writes.
+- [ ] Unit tests mirroring Claude's (no PID-file parity test).
 
 ### OpenCodeAdapter
 
-- [ ] No registry interaction at all. Just populate `processStartedAtMs` on every returned `AgentInfo`.
-- [ ] Unit test: every `AgentInfo` carries `processStartedAtMs` matching `proc.startTime.getTime()`.
+- [ ] No change.
 
 ### Verification
 
 - [ ] `npm test -w packages/agent-manager` green.
-- [ ] `npx ai-devkit@latest lint --feature agent-registry-session-cache` passes.
 - [ ] Manual: delete `~/.ai-devkit/agents.json`, run `ai-devkit agents ls` twice. Confirm second call has cache entries and identical output. Repeat with Codex and Gemini if those agents are available locally.
-- [ ] Manual sanity: kill an agent process between two `agents ls` calls; confirm its entry disappears after the second call (prune).
+- [ ] Manual: kill an agent between two `agents ls` calls; confirm its entry disappears after the second call (prune).
 - [ ] Manual: set `tmuxSession` on an existing entry by hand; run `agents ls`; confirm value preserved (merge rule).
 
 ## Dependencies
 
-- Registry tasks land first.
-- `AgentInfo.processStartedAtMs` lands before manager + adapter changes (it's a required field; everything that constructs `AgentInfo` needs to populate it).
-- Manager changes can land alongside adapter changes — adapters only need `lookupByPid` (read-only); they don't depend on `registerBatch` directly.
-- Adapter changes are independent of each other — can land in parallel after the registry + `AgentInfo` field land.
+- Registry changes land first.
+- Manager + adapter changes can land together (adapters only need `lookupByPid`, which is read-only).
+- Adapter changes are independent of each other.
 
 ## Risks
 
-- **Risk:** `enrichProcesses` returns a proc without `startTime`. **Mitigation:** Cache lookup skips that proc; existing pipeline runs. `processStartedAtMs` falls back to `Date.now()` with a warning so the field is always populated.
-- **Risk:** Concurrent `ai-devkit agents ls` invocations from different shells race on registry writes. **Mitigation:** Atomic `tmp + rename` (existing). Last-writer-wins is acceptable for a cache — both writers had freshly-detected entries.
-- **Risk:** Hit path drifts from miss path in `AgentInfo` shape (Claude `pidStatus`/`waitingFor`). **Mitigation:** Hit path re-reads `~/.claude/sessions/<pid>.json`; unit test asserts parity.
-- **Risk:** Adding required field `processStartedAtMs` to `AgentInfo` breaks downstream consumers (CLI table renderer, TUI, JSON output). **Mitigation:** Audit consumers; the field is additive (new property, no rename) so most code is unaffected. Mark in PR description.
-- **Risk:** Manager-level `toRegistryEntry` couples manager to `RegistryEntry` shape. **Mitigation:** Acceptable — manager already knows about `AgentRegistry`; the mapping is mechanical and isolated to one helper.
+- **Risk:** Concurrent `ai-devkit agents ls` from different shells race on the write. **Mitigation:** Atomic `tmp + rename`; last-writer-wins acceptable.
+- **Risk:** Pid reuse within the same agent type + same cwd between two listings. **Mitigation:** Accepted (compact intent: "the pid recycle is rare and we can skip for now"). Cross-type reuse is rejected by the `entry.type === this.agentType` guard.

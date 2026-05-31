@@ -8,31 +8,29 @@ description: Define the technical architecture, components, and data models
 
 ## Architecture Overview
 
-`AgentRegistry` becomes the authoritative source for "what's running." `AgentManager.listAgents()` is the **single writer** to the registry: after all adapters finish detecting, the manager converts every `AgentInfo` into a `RegistryEntry`, calls `registerBatch()` once, then `prune()` once. Adapters with expensive matching pipelines (Claude, Codex, Gemini) read from the registry first (`lookupByPid`) to short-circuit session discovery. Adapters never write to the registry.
+`AgentRegistry` becomes the authoritative record of "what's running." `AgentManager.listAgents()` is the **single writer**: after every adapter detects in parallel, the manager batches all entries to disk and prunes dead pids. Adapters with expensive matching pipelines (Codex, Gemini) read from the registry first (`lookupByPid`) and skip discovery on a hit. Claude and OpenCode already have O(1) authoritative lookups (PID file + SQLite) so they don't consult the cache.
 
 ```mermaid
 graph TD
     CLI[CLI / TUI] -->|listAgents| Manager[AgentManager]
 
-    Manager -->|detectAgents (parallel)| Claude[ClaudeCodeAdapter]
-    Manager -->|detectAgents (parallel)| Codex[CodexAdapter]
-    Manager -->|detectAgents (parallel)| Gemini[GeminiCliAdapter]
-    Manager -->|detectAgents (parallel)| OpenCode[OpenCodeAdapter]
+    Manager -->|detectAgents parallel| Claude[ClaudeCodeAdapter]
+    Manager -->|detectAgents parallel| Codex[CodexAdapter]
+    Manager -->|detectAgents parallel| Gemini[GeminiCliAdapter]
+    Manager -->|detectAgents parallel| OpenCode[OpenCodeAdapter]
 
-    Claude -->|lookupByPid (read)| Registry[(AgentRegistry<br/>~/.ai-devkit/agents.json)]
-    Codex -->|lookupByPid (read)| Registry
-    Gemini -->|lookupByPid (read)| Registry
+    Codex -->|lookupByPid| Registry[(AgentRegistry<br/>~/.ai-devkit/agents.json)]
+    Gemini -->|lookupByPid| Registry
 
     Registry -->|hit| HitPath[Parse cached sessionFilePath]
-    Registry -->|miss| MissPath[Existing matching pipeline]
+    Registry -->|miss / missing file| MissPath[Existing discovery pipeline]
 
-    HitPath --> Build[AgentInfo<br/>+ processStartedAtMs]
+    HitPath --> Build[AgentInfo]
     MissPath --> Build
     OpenCode --> Build
 
-    Build --> Aggregate[Manager aggregates AgentInfo from all adapters]
-    Aggregate -->|toRegistryEntry per agent| Convert[RegistryEntry array]
-    Convert -->|registerBatch ONCE| Registry
+    Build --> Aggregate[Manager aggregates AgentInfo]
+    Aggregate -->|registerBatch ONCE| Registry
     Registry -->|prune ONCE| Registry
     Manager -->|name overlay + sort| CLI
 ```
@@ -41,53 +39,35 @@ graph TD
 
 | Adapter | Reads `lookupByPid` | Writes registry | Notes |
 |---|---|---|---|
-| ClaudeCodeAdapter | yes | **no — manager writes** | Hit path re-reads `~/.claude/sessions/<pid>.json` for `pidStatus`/`waitingFor` parity |
-| CodexAdapter | yes | **no — manager writes** | Hit path skips day-bucket walk |
-| GeminiCliAdapter | yes | **no — manager writes** | Hit path skips chats-dir walk + per-file reads |
-| OpenCodeAdapter | no | **no — manager writes** | No short-circuit; populates `AgentInfo.processStartedAtMs` like everyone else |
+| ClaudeCodeAdapter | no | no — manager writes | `~/.claude/sessions/<pid>.json` lookup is already O(1); no cache benefit |
+| CodexAdapter | yes | no — manager writes | Hit path skips day-bucket walk |
+| GeminiCliAdapter | yes | no — manager writes | Hit path skips chats-dir walk + per-file reads |
+| OpenCodeAdapter | no | no — manager writes | SQLite already fast; entry written for contract |
 
-**Single-writer invariant:** Only `AgentManager.listAgents()` writes to `AgentRegistry`. Adapters running in parallel (`Promise.all`) can't race on read-modify-write because they don't write. Their reads from `lookupByPid` use the file as it existed at adapter-start; if a write from a prior `listAgents()` is in flight, atomic `tmp + rename` ensures readers see either the old or new file but never a torn write.
+**Single-writer invariant (within `listAgents`):** during a `listAgents` call, only the manager writes — adapters read only. External callers (e.g. `agent.service.startAgent`) may still call `register()` between `listAgents` calls; atomic `tmp + rename` keeps readers safe from torn writes.
 
 ## Data Models
 
-### `AgentInfo` (modified)
-
-```ts
-export interface AgentInfo {
-    name: string;
-    type: AgentType;
-    status: AgentStatus;
-    summary: string;
-    pid: number;
-    projectPath: string;
-    sessionId: string;
-    lastActive: Date;
-    sessionFilePath?: string;
-    processStartedAtMs: number;  // NEW — required; epoch ms from ProcessInfo.startTime
-}
-```
-
-Every adapter's mapping function (`mapSessionToAgent`, `mapProcessOnlyAgent`, equivalents in Codex/Gemini/OpenCode) populates this from `proc.startTime!.getTime()`. The field is required because the manager needs it to build `RegistryEntry`; an optional field would force a fallback path with no real "no start time" case.
-
-### `RegistryEntry` (modified)
+### `RegistryEntry`
 
 ```ts
 export interface RegistryEntry {
     name: string;
     type: AgentType;
     pid: number;
-    tmuxSession: string;            // existing — empty string when auto-upserted
+    tmuxSession: string;     // empty when auto-upserted
     cwd: string;
-    startedAt: string;              // existing — ISO 8601, user-facing
-    processStartedAtMs: number;     // NEW — epoch ms, matches proc.startTime.getTime()
-    sessionId: string;              // NEW — session identifier (UUID for Claude, file path stem for Codex/Gemini, DB id for OpenCode)
-    sessionFilePath: string;        // NEW — absolute path to session file (or empty string for OpenCode if irrelevant)
+    startedAt: string;       // ISO 8601 — the time the registry first recorded this entry
+    sessionId: string;
+    sessionFilePath: string; // absolute path, empty string for OpenCode
 }
 
 interface RegistryFile {
     entries: RegistryEntry[];
 }
 ```
+
+No `processStartedAtMs`. No staleness check. Pid recycle within the same agent type + same cwd between two `listAgents()` calls is rare enough to defer.
 
 ### On-disk example
 
@@ -101,7 +81,6 @@ interface RegistryFile {
       "tmuxSession": "",
       "cwd": "/Users/hoangnguyen/Codeaholicguy/Code/ai-devkit",
       "startedAt": "2026-05-30T09:14:22.000Z",
-      "processStartedAtMs": 1748597662000,
       "sessionId": "a7c4e2f1-9d3b-4e8a-b1c0-2f8e7d9a5c3b",
       "sessionFilePath": "/Users/hoangnguyen/.claude/projects/-Users-hoangnguyen-Codeaholicguy-Code-ai-devkit/a7c4e2f1-9d3b-4e8a-b1c0-2f8e7d9a5c3b.jsonl"
     }
@@ -109,53 +88,44 @@ interface RegistryFile {
 }
 ```
 
-### Field rationale
+### `AgentInfo`
 
-| Field | Why |
-|---|---|
-| `processStartedAtMs` (number) | Matches `ProcessInfo.startTime.getTime()` and Claude's PID file `startedAt`. Avoids re-parsing ISO string per staleness check. |
-| `startedAt` (ISO string) | Kept for user-facing display (CLI output). |
-| `sessionId` | Per-adapter identifier. Generic enough for UUIDs, paths, and DB ids. |
-| `sessionFilePath` | Cached so hit path skips re-deriving the encoded project-dir path. Empty for OpenCode where the concept doesn't apply. |
-| `tmuxSession` | Required at type level (existing). Auto-upserted entries pass empty string. Future tmux integration can update it via `register()`. |
+Unchanged from current shape. No new fields needed — `AgentManager.toRegistryEntry` builds `RegistryEntry` directly from `AgentInfo` plus the prior `RegistryEntry` (for preserving `name` and `startedAt`).
 
 ## API Design
 
-### `AgentRegistry` — additions
+### `AgentRegistry`
 
 ```ts
 class AgentRegistry {
-    // existing — unchanged signatures, modified upsert semantics (see below)
-    register(entry: RegistryEntry): void;
+    // existing
+    register(entry: RegistryEntry): void;     // delegates to registerBatch([entry])
     lookup(name: string): RegistryEntry | null;
     list(): RegistryEntry[];
     prune(): void;
     isAlive(entry: RegistryEntry): boolean;
 
     // NEW
-    lookupByPid(pid: number, procStartTime: Date): RegistryEntry | null;
+    lookupByPid(pid: number): RegistryEntry | null;
     registerBatch(entries: RegistryEntry[]): void;  // single read + single write
 }
 ```
 
-### `register()` / `registerBatch()` upsert semantics
+### Upsert semantics (`register` / `registerBatch`)
 
-For each incoming entry, upsert by `name`. If an existing entry exists:
+For each incoming entry, upsert by `name`. All fields replace, except `tmuxSession`: keep existing non-empty value when incoming is empty.
 
-- All fields **replace**, except:
-- `tmuxSession` is preserved when existing is non-empty and incoming is empty string. This protects user-set or future-tmux-integration values from being clobbered by adapter auto-upserts that don't have tmux context.
+`registerBatch` is the preferred path: one read, in-memory merge for all entries, one atomic write.
 
-`registerBatch` is the preferred path for adapter integration: one read of the registry file, apply the merge for each entry in memory, one atomic write. Avoids O(N) writes per `detectAgents()`.
+### `lookupByPid`
 
-### `lookupByPid` contract
+```ts
+lookupByPid(pid: number): RegistryEntry | null {
+    return this.list().find(e => e.pid === pid) ?? null;
+}
+```
 
-1. Scan `entries[]` for a match on `pid`.
-2. If found, check `Math.abs(procStartTime.getTime() - entry.processStartedAtMs) <= PID_FILE_STALENESS_MS` (60s).
-3. Return entry on pass, `null` on fail.
-
-Staleness check is internal — callers cannot accidentally skip it.
-
-### Per-adapter pattern (Claude / Codex / Gemini) — read-only
+### Per-adapter pattern (Codex / Gemini)
 
 ```ts
 async detectAgents(): Promise<AgentInfo[]> {
@@ -164,9 +134,8 @@ async detectAgents(): Promise<AgentInfo[]> {
     const uncached: ProcessInfo[] = [];
 
     for (const proc of processes) {
-        if (!proc.startTime) { uncached.push(proc); continue; }
-        const entry = this.registry.lookupByPid(proc.pid, proc.startTime);
-        if (entry && fs.existsSync(entry.sessionFilePath)) {
+        const entry = this.registry?.lookupByPid(proc.pid);
+        if (entry && entry.type === this.agentType && fs.existsSync(entry.sessionFilePath)) {
             cached.push({ proc, entry });
         } else {
             uncached.push(proc);
@@ -175,163 +144,114 @@ async detectAgents(): Promise<AgentInfo[]> {
 
     const agents: AgentInfo[] = [];
 
-    // Cache hit: parse the known session file directly
     for (const { proc, entry } of cached) {
         const session = this.parser.readSession(entry.sessionFilePath, /*…*/);
         if (!session) { uncached.push(proc); continue; }
         agents.push(this.buildAgentInfoFromHit(proc, entry, session));
     }
 
-    // Cache miss: existing pipeline
     for (const proc of uncached) {
         const match = this.matchProcess(proc);
-        if (!match) { agents.push(this.processOnlyAgent(proc)); continue; }
-        agents.push(this.buildAgentInfoFromMatch(proc, match));
+        agents.push(match ? this.buildAgentInfoFromMatch(proc, match) : this.processOnlyAgent(proc));
     }
 
     return agents;
 }
 ```
 
-Every `AgentInfo` produced above carries `processStartedAtMs` (populated by `buildAgentInfoFromHit` / `buildAgentInfoFromMatch` / `processOnlyAgent` from `proc.startTime!.getTime()`). No `registry.register` calls inside the adapter.
+`entry.type === this.agentType` guards against pid reuse across agent types between runs (cheap, no extra IO). Pid reuse within the same type is the accepted trade-off.
 
 ### `AgentManager.listAgents()` — single writer
 
 ```ts
 async listAgents(options?): Promise<AgentInfo[]> {
-    // Existing: run adapters in parallel, aggregate AgentInfo[]
     const allAgents = await this.runAdaptersInParallel();
 
-    // NEW: persist cache + prune
-    const entries = allAgents.map(toRegistryEntry);
+    const existingByName = new Map(this.registry.list().map(e => [e.name, e]));
+    const entries = allAgents.map(a => this.toRegistryEntry(a, existingByName.get(a.name)));
     if (entries.length > 0) this.registry.registerBatch(entries);
     this.registry.prune();
 
-    // Existing: name overlay + sort
     return this.applyNameOverlayAndSort(allAgents, options);
 }
 
-function toRegistryEntry(agent: AgentInfo): RegistryEntry {
+private toRegistryEntry(agent: AgentInfo, existing?: RegistryEntry): RegistryEntry {
     return {
-        name: agent.name,
+        name: existing?.name ?? agent.name,
         type: agent.type,
         pid: agent.pid,
-        tmuxSession: '',                       // merge rule in registerBatch preserves existing non-empty
+        tmuxSession: existing?.tmuxSession ?? '',
         cwd: agent.projectPath,
-        startedAt: new Date(agent.processStartedAtMs).toISOString(),
-        processStartedAtMs: agent.processStartedAtMs,
+        startedAt: existing?.startedAt ?? new Date().toISOString(),
         sessionId: agent.sessionId,
         sessionFilePath: agent.sessionFilePath ?? '',
     };
 }
 ```
 
-**Ordering:** `registerBatch` before `prune`. `registerBatch` writes the fresh entries for live agents; `prune` then walks all entries (fresh + leftover from previous runs) and removes any whose pid is dead. Live agents we just registered survive prune trivially.
-
-### Claude hit-path parity note
-
-Claude's miss path reads `~/.claude/sessions/<pid>.json` for `pidStatus`/`waitingFor` (authoritative live status). Hit path must do the same to keep `AgentInfo.status` consistent:
-
-```ts
-const pidEntry = this.readMatchingPidFile(proc.pid, proc.startTime); // 1 file read
-// pass pidStatus + waitingFor into mapSessionToAgent
-```
-
-This is a single small JSON read; preserves correctness without re-running the full matching pipeline.
+**Ordering:** `registerBatch` before `prune`. Fresh entries are written first; `prune` then removes any leftover entries whose pid is dead.
 
 ## Component Breakdown
 
-### Modified files
-
 | File | Change |
 |---|---|
-| `packages/agent-manager/src/adapters/AgentAdapter.ts` | Add `processStartedAtMs: number` to `AgentInfo` |
-| `packages/agent-manager/src/utils/AgentRegistry.ts` | Extend `RegistryEntry` with 3 fields; add `lookupByPid` + `registerBatch`; export `PID_FILE_STALENESS_MS`; merge rule in upsert |
-| `packages/agent-manager/src/AgentManager.ts` | After adapter aggregation, build `RegistryEntry[]` from `AgentInfo[]` via `toRegistryEntry`, call `registerBatch` once, then `prune` |
-| `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts` | Constructor takes optional `registry`. Pre-pipeline cache check via `lookupByPid`. Hit-path PID-file re-read. Populate `processStartedAtMs` on every `AgentInfo`. **No `register` calls** |
-| `packages/agent-manager/src/adapters/CodexAdapter.ts` | Constructor takes optional `registry`. Pre-pipeline cache check. Populate `processStartedAtMs`. No `register` calls |
-| `packages/agent-manager/src/adapters/GeminiCliAdapter.ts` | Constructor takes optional `registry`. Pre-pipeline cache check. Populate `processStartedAtMs`. No `register` calls |
-| `packages/agent-manager/src/adapters/OpenCodeAdapter.ts` | Populate `processStartedAtMs` on every `AgentInfo`. No registry interaction (manager handles write) |
-
-### New / extracted utility
-
-`PID_FILE_STALENESS_MS` moves from a private constant in `ClaudeCodeAdapter.ts` to an exported constant in `AgentRegistry.ts` (or a shared `constants.ts`). Single source of truth.
-
-### Unchanged
-
-- `Parser.readSession`, `matchProcessesToSessions`, `enrichProcesses`, `listAgentProcesses`.
-- Existing `register/lookup/list/prune` signatures and semantics.
-- Other utilities and tests not directly exercising the modified paths.
+| `packages/agent-manager/src/utils/AgentRegistry.ts` | Add `sessionId` + `sessionFilePath` to `RegistryEntry`; add `lookupByPid` + `registerBatch`; merge rule on upsert |
+| `packages/agent-manager/src/AgentManager.ts` | Build `RegistryEntry[]` from `AgentInfo[]` via `toRegistryEntry`, `registerBatch` once, then `prune` |
+| `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts` | No change (PID-file lookup already O(1)) |
+| `packages/agent-manager/src/adapters/CodexAdapter.ts` | Optional `registry` ctor arg; pre-pipeline `lookupByPid` |
+| `packages/agent-manager/src/adapters/GeminiCliAdapter.ts` | Optional `registry` ctor arg; pre-pipeline `lookupByPid` |
+| `packages/agent-manager/src/adapters/OpenCodeAdapter.ts` | No change (manager handles write) |
 
 ## Design Decisions
 
-### 1. Cache match only, never content
+### 1. Cache match only, not content
 
-`summary`, `status`, `lastActive` mutate every prompt. The cache stores only (pid → sessionId, sessionFilePath); content is always re-derived.
+`summary`, `status`, `lastActive` are re-derived every call. Registry stores only the (pid → session) mapping plus identity fields.
 
-### 2. Merge cache into `RegistryEntry`, not a separate section
+### 2. Manager is the single writer during `listAgents`
 
-Per earlier alignment ("keep it simple"). The named-vs-auto distinction collapses: every detected proc upserts. `list()` returning all entries is fine because `prune()` bounds the file by live processes, and existing consumers tolerate the larger set.
+Adapters run in parallel. Per-adapter `register()` calls during detection would race read-modify-write. Centralizing the write to the manager removes the race. Out-of-band writes from other flows (e.g. `agent start`) are allowed — they happen outside `listAgents` and are serialized at the OS level by atomic `tmp + rename`.
 
-### 3. Manager is the single writer (revised)
+### 3. No `processStartedAtMs`, no staleness check
 
-Original plan was adapter-level `register()` calls. That races: adapters run in `Promise.all`, each adapter's read-modify-write cycle can clobber another adapter's just-written entries. Manager-level write means one read-modify-write per `listAgents()` — no race.
+Compact intent: "the pid recycle is rare and we can skip for now." Type guard in adapter (`entry.type === this.agentType`) handles cross-type pid reuse; intra-type reuse is accepted.
 
-Trade-off: `AgentInfo` gains `processStartedAtMs` so manager can build `RegistryEntry` without `ProcessInfo`. Minor: the field is intrinsically part of the runtime model anyway.
+### 4. Name-keyed registry
 
-### 4. `lookupByPid` requires `procStartTime`
+`generateAgentName(cwd, pid)` embeds pid → distinct pids produce distinct names → one entry per live pid follows.
 
-Optional invites accidentally skipping the staleness check. Required by signature.
+### 5. Batched writes via `registerBatch`
 
-### 5. No `lookupBySessionId`
+One read, one atomic write per `listAgents()` call.
 
-YAGNI. No v1 caller. Add when there's one.
+### 6. `tmuxSession` merge on upsert
 
-### 6. OpenCode appears in the registry but doesn't read or write directly
+Adapter auto-upsert passes empty string. Preserve any non-empty value already on disk (set by future tmux integration or explicit user `register()`).
 
-Manager writes for every adapter uniformly. OpenCode's `AgentInfo` flows through `toRegistryEntry` exactly like Claude/Codex/Gemini. OpenCode skips the `lookupByPid` short-circuit because SQLite is already O(ms) — no benefit.
+### 7. OpenCode and Claude in the registry, no short-circuit
 
-### 7. Hit-path PID-file re-read (Claude only)
-
-Single small JSON read preserves `pidStatus`/`waitingFor` parity with miss path. Cheaper than the full match pipeline; correctness > perf at the margin.
-
-### 8. Name-keyed register (unchanged)
-
-`generateAgentName(cwd, pid)` embeds pid → distinct pids produce distinct names → one entry per live pid follows automatically. No need to rekey `register()` by pid.
-
-### 9. Batched writes via `registerBatch`
-
-Per-entry `register()` would cause O(total agents) atomic file writes per `listAgents()` (~20–50ms cumulative). `registerBatch` reads once, merges all entries in memory, writes once. Combined with decision 3 (manager is single writer), total writes per `listAgents()` is exactly one.
-
-### 10. `tmuxSession` merge on upsert
-
-Auto-upsert from adapters always passes `tmuxSession: ""`. A naive replace would clobber values set by future tmux integration or explicit user registration. Merge rule: keep existing non-empty `tmuxSession` when incoming is empty. All other fields replace, since auto-upsert is the source of truth for live process metadata.
+Both already have O(1) authoritative lookups (Claude PID file, OpenCode SQLite). Entries still written by manager to keep the contract uniform.
 
 ## Non-Functional Requirements
 
 ### Performance
 
-| Adapter | Hit-path savings (est.) | Net effect |
-|---|---|---|
-| Claude | 5–10ms (PID-file already cheap) | ~wash; correctness benefit |
-| Codex | 20–100ms (skip day-bucket walk) | clear win |
-| Gemini | 50–300ms (skip chats-dir walk + per-file reads) | biggest win |
-| OpenCode | n/a (no short-circuit) | unchanged |
+| Adapter | Hit-path savings (est.) |
+|---|---|
+| Claude | n/a (no short-circuit; PID-file already O(1)) |
+| Codex | 20–100ms (skip day-bucket walk) |
+| Gemini | 50–300ms (skip chats-dir walk + per-file reads) |
+| OpenCode | n/a |
 
-Per-call overhead added: 1 atomic write (~2–5ms) + 1 `prune()` sweep (~ms).
+Added per call: 1 atomic write + 1 `prune` sweep.
 
 ### Reliability
 
-- Atomic `tmp + rename` writes (existing). No new failure modes.
-- Stale entries never leak: staleness check enforced inside `lookupByPid`; `existsSync` check at call site for the file path.
-- `prune()` runs every `listAgents()` — registry can't grow unboundedly.
-
-### Security
-
-- No new data persisted beyond what was already on disk.
-- File path stays in `~/.ai-devkit/agents.json`. Same trust boundary.
+- Atomic `tmp + rename` writes.
+- `existsSync` guard at hit-path call site forces fall-through if the session file was deleted.
+- `prune()` keeps the file bounded by live processes.
 
 ### Testability
 
-- `AgentRegistry` already takes `filePath` constructor arg — tests use tmp file.
-- Adapters get a `registry` constructor arg (default `AgentRegistry.default()`) so unit tests inject a controlled instance.
+- `AgentRegistry` accepts a file path in the constructor — tests use tmp files.
+- Adapters accept a `registry` constructor arg (default `AgentRegistry.default()`).
