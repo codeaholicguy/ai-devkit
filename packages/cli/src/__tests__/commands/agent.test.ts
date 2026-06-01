@@ -32,6 +32,7 @@ const mockPrompt: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockWaitForAgentResponse = vi.fn<(...args: any[]) => Promise<any>>();
+const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
 let restoreStdin: (() => void) | undefined;
 
 const mockRegistry: any = {
@@ -120,6 +121,7 @@ vi.mock('../../util/terminal-ui.js', () => ({
 
 vi.mock('../../services/agent/agent.service.js', () => ({
   waitForAgentResponse: (...args: any[]) => mockWaitForAgentResponse(...args),
+  killAgent: (...args: any[]) => mockKillAgent(...args),
 }));
 
 describe('agent command', () => {
@@ -309,6 +311,67 @@ Waiting on user input`,
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
     expect(mockFocusManager.focusTerminal).toHaveBeenCalled();
     expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
+  });
+
+  it('kills a resolved agent and reports tmux cleanup', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'claude',
+      status: AgentStatus.RUNNING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockKillAgent.mockResolvedValue({
+      agentName: 'repo-a',
+      pid: 10,
+      tmuxSession: 'repo-a',
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'kill', 'repo-a']);
+
+    expect(mockManager.resolveAgent).toHaveBeenCalledWith('repo-a', [agent]);
+    expect(mockKillAgent).toHaveBeenCalledWith(agent, expect.objectContaining({
+      tmux: expect.any(Object),
+      registry: mockRegistry,
+    }));
+    expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
+  });
+
+  it('does not kill when target is ambiguous', async () => {
+    const agents = [
+      { name: 'repo-a', status: AgentStatus.RUNNING, summary: 'A', lastActive: new Date(), pid: 10 },
+      { name: 'repo-b', status: AgentStatus.WAITING, summary: 'B', lastActive: new Date(), pid: 11 },
+    ];
+    mockManager.listAgents.mockResolvedValue(agents);
+    mockManager.resolveAgent.mockReturnValue(agents);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'kill', 'repo']);
+
+    expect(ui.error).toHaveBeenCalledWith('Multiple agents match "repo":');
+    expect(mockKillAgent).not.toHaveBeenCalled();
+  });
+
+  it('does not kill when target is not found', async () => {
+    const agents = [
+      { name: 'repo-a', status: AgentStatus.RUNNING, summary: 'A', lastActive: new Date(), pid: 10 },
+    ];
+    mockManager.listAgents.mockResolvedValue(agents);
+    mockManager.resolveAgent.mockReturnValue(null);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'kill', 'missing']);
+
+    expect(ui.error).toHaveBeenCalledWith('No agent found matching "missing".');
+    expect(ui.info).toHaveBeenCalledWith('Available agents:');
+    expect(mockKillAgent).not.toHaveBeenCalled();
   });
 
   it('sends message to a resolved agent', async () => {

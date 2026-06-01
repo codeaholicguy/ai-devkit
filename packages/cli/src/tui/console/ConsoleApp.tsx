@@ -4,6 +4,7 @@ import type { AgentManager } from '@ai-devkit/agent-manager';
 import { ConsoleProvider, useConsoleContext } from './state/ConsoleContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { useStartAgentPane } from './hooks/useStartAgentPane.js';
+import { useKillAgentAction } from './hooks/useKillAgentAction.js';
 import { AgentListPane } from './AgentListPane.js';
 import { PreviewSection } from './PreviewSection.js';
 import { StatusFooter } from './StatusFooter.js';
@@ -11,6 +12,7 @@ import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
 import { StartAgentPane } from './StartAgentPane.js';
+import { KillConfirmDialog } from './KillConfirmDialog.js';
 
 interface ConsoleAppProps {
     manager: AgentManager;
@@ -27,6 +29,15 @@ const INPUT_BOX_CHROME_ROWS = 2;
 type Focus = 'list' | 'input';
 type RightPaneMode = { type: 'preview' } | { type: 'start-agent' };
 type Transient = { kind: 'info' | 'error'; text: string };
+
+export function computeCenteredDialog(cols: number, rows: number) {
+    const width = Math.min(56, Math.max(24, cols - 6));
+    return {
+        width,
+        left: Math.max(0, Math.floor((cols - width) / 2)),
+        top: Math.max(1, Math.floor(rows / 2) - 3),
+    };
+}
 
 export function computeLayout(cols: number, rows: number, inputLines: number, narrow: boolean) {
     const inputBoxHeight = inputLines + INPUT_BOX_CHROME_ROWS;
@@ -79,6 +90,16 @@ const ConsoleAppShell: React.FC<{
     const agentsRef = useRef(agents);
     agentsRef.current = agents;
 
+    useEffect(() => {
+        if (!agents.length) {
+            setSelectedName(null);
+            return;
+        }
+        if (!selectedName || !agents.some(agent => agent.name === selectedName)) {
+            setSelectedName(agents[0].name);
+        }
+    }, [agents, selectedName]);
+
     const getSelectedAgent = useCallback(() => {
         const name = selectedNameRef.current;
         return name ? agentsRef.current.find(agent => agent.name === name) ?? null : null;
@@ -98,6 +119,12 @@ const ConsoleAppShell: React.FC<{
         setTransient,
     });
 
+    const {
+        pendingKillName,
+        openKillConfirm,
+        handleKillInput,
+    } = useKillAgentAction({ setTransient });
+
     const handleInputSubmit = useCallback((text: string) => {
         setFocus('list');
         const agent = getSelectedAgent();
@@ -116,6 +143,8 @@ const ConsoleAppShell: React.FC<{
     }, []);
 
     useInput((input, key) => {
+        if (handleKillInput(input, key)) return;
+
         if (startPaneActive) return;
 
         if (focus === 'input') {
@@ -127,6 +156,12 @@ const ConsoleAppShell: React.FC<{
         }
 
         if (input === 'q') { exit(); return; }
+
+        if (input === 'K') {
+            const agent = getSelectedAgent();
+            if (agent) openKillConfirm(agent.name);
+            return;
+        }
 
         if (input === 'o') {
             const agent = getSelectedAgent();
@@ -169,6 +204,7 @@ const ConsoleAppShell: React.FC<{
     const { cols, rows } = useTerminalSize();
     const narrow = cols < NARROW_THRESHOLD_COLS;
     const { inputBoxHeight, contentHeight, previewHeight, listPaneWidth, rightColWidth, inputInnerWidth } = computeLayout(cols, rows, inputLines, narrow);
+    const dialog = computeCenteredDialog(cols, rows);
     const startPane = (
         <StartAgentPane
             initialName={startDefaults.name}
@@ -238,6 +274,11 @@ const ConsoleAppShell: React.FC<{
                     </Box>
                 )}
             </Box>
+            {pendingKillName ? (
+                <Box position="absolute" top={dialog.top} left={dialog.left}>
+                    <KillConfirmDialog agentName={pendingKillName} width={dialog.width} />
+                </Box>
+            ) : null}
             <StatusFooter
                 agents={agents}
                 lastUpdated={lastUpdated}

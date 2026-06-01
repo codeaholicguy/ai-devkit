@@ -38,6 +38,7 @@ import {
 import {
     waitForAgentResponse,
     startAgent,
+    killAgent,
     TmuxUnavailableError,
     AgentNameInUseError,
     AgentPidPollTimeoutError,
@@ -666,6 +667,42 @@ export function registerAgentCommand(program: Command): void {
             if (options.json) {
                 console.log(JSON.stringify(toAgentSendWaitJson(waitResult, agent, prompt, options.id), null, 2));
             }
+        }));
+
+    agentCommand
+        .command('kill <name>')
+        .description('Stop a running agent and clean up its managed tmux session')
+        .action(withErrorHandler('kill agent', async (name: string) => {
+            const manager = createAgentManager();
+            const agents = await manager.listAgents();
+            if (agents.length === 0) {
+                ui.error('No running agents found.');
+                return;
+            }
+
+            const resolved = manager.resolveAgent(name, agents);
+
+            if (!resolved) {
+                ui.error(`No agent found matching "${name}".`);
+                ui.info('Available agents:');
+                agents.forEach(a => ui.text(`  - ${a.name}`));
+                return;
+            }
+
+            if (Array.isArray(resolved)) {
+                ui.error(`Multiple agents match "${name}":`);
+                resolved.forEach(a => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
+                ui.info('Please use a more specific name.');
+                return;
+            }
+
+            const result = await killAgent(resolved, {
+                tmux: new TmuxManager(),
+                registry: AgentRegistry.default(),
+            });
+
+            const suffix = result.tmuxSession ? ` and tmux session "${result.tmuxSession}"` : '';
+            ui.success(`Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`);
         }));
 
     agentCommand

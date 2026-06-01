@@ -10,6 +10,7 @@ import {
 import {
   waitForAgentResponse,
   startAgent,
+  killAgent,
   AgentNameInUseError,
   AgentPidPollTimeoutError,
   TmuxUnavailableError,
@@ -488,6 +489,96 @@ const startOpts = {
   pollIntervalMs: 1,
   pollTimeoutMs: 50,
 };
+
+describe('killAgent', () => {
+  it('sends SIGTERM to the agent PID', async () => {
+    const tmux = makeTmux();
+    const registry = makeRegistry();
+    const killProcess = vi.fn();
+
+    const result = await killAgent(makeAgent({ name: 'repo-a', pid: 123 }), {
+      tmux,
+      registry,
+      killProcess,
+    });
+
+    expect(killProcess).toHaveBeenCalledWith(123, 'SIGTERM');
+    expect(tmux.killSession).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      agentName: 'repo-a',
+      pid: 123,
+      tmuxSession: null,
+    });
+  });
+
+  it('kills the registry tmux session when present', async () => {
+    const tmux = makeTmux();
+    const registry = makeRegistry({
+      lookup: vi.fn().mockReturnValue({
+        name: 'repo-a',
+        type: 'claude',
+        pid: 123,
+        tmuxSession: 'repo-a',
+        cwd: '/repo',
+        startedAt: '2026-06-01T00:00:00.000Z',
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+      } satisfies RegistryEntry),
+    } as Partial<AgentRegistry>);
+    const killProcess = vi.fn();
+
+    const result = await killAgent(makeAgent({ name: 'repo-a', pid: 123 }), {
+      tmux,
+      registry,
+      killProcess,
+    });
+
+    expect(killProcess).toHaveBeenCalledWith(123, 'SIGTERM');
+    expect(tmux.killSession).toHaveBeenCalledWith('repo-a');
+    expect(result.tmuxSession).toBe('repo-a');
+  });
+
+  it('still kills tmux session when the process is already gone', async () => {
+    const tmux = makeTmux();
+    const registry = makeRegistry({
+      lookup: vi.fn().mockReturnValue({
+        name: 'repo-a',
+        type: 'claude',
+        pid: 123,
+        tmuxSession: 'repo-a',
+        cwd: '/repo',
+        startedAt: '2026-06-01T00:00:00.000Z',
+        sessionId: 'session-1',
+        sessionFilePath: '/tmp/session.jsonl',
+      } satisfies RegistryEntry),
+    } as Partial<AgentRegistry>);
+    const error = Object.assign(new Error('gone'), { code: 'ESRCH' });
+    const killProcess = vi.fn(() => { throw error; });
+
+    await killAgent(makeAgent({ name: 'repo-a', pid: 123 }), {
+      tmux,
+      registry,
+      killProcess,
+    });
+
+    expect(tmux.killSession).toHaveBeenCalledWith('repo-a');
+  });
+
+  it('rethrows unexpected process kill errors', async () => {
+    const tmux = makeTmux();
+    const registry = makeRegistry();
+    const error = Object.assign(new Error('permission denied'), { code: 'EPERM' });
+    const killProcess = vi.fn(() => { throw error; });
+
+    await expect(killAgent(makeAgent({ name: 'repo-a', pid: 123 }), {
+      tmux,
+      registry,
+      killProcess,
+    })).rejects.toThrow('permission denied');
+
+    expect(tmux.killSession).not.toHaveBeenCalled();
+  });
+});
 
 describe('startAgent', () => {
   it('happy path: creates session, sends command, polls, registers, returns entry', async () => {
