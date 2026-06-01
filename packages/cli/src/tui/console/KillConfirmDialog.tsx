@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Text } from 'ink';
+import { Text } from 'ink';
+import { KeyHints, Panel, TUI_COLORS } from '../design-system/index.js';
 
 interface KillConfirmDialogProps {
     agentName: string;
@@ -7,16 +8,15 @@ interface KillConfirmDialogProps {
 }
 
 export const KillConfirmDialog: React.FC<KillConfirmDialogProps> = ({ agentName, width }) => (
-    <Box
-        borderStyle="round"
-        borderColor="red"
+    <Panel
+        tone="danger"
         backgroundColor="black"
         width={width}
         paddingX={2}
         paddingY={1}
         flexDirection="column"
     >
-        <Text color="red">Kill agent "{agentName}"?</Text>
-        <Text dimColor>Enter/y confirm · Esc/n cancel</Text>
-    </Box>
+        <Text color={TUI_COLORS.danger}>Kill agent "{agentName}"?</Text>
+        <KeyHints hints={['Enter/y confirm', 'Esc/n cancel']} />
+    </Panel>
 );

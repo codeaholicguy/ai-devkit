@@ -2,6 +2,7 @@ import { memo, useEffect, useRef } from 'react';
 import type { FC } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
+import { TUI_COLORS } from '../design-system/index.js';
 
 interface ChatInputProps {
     focused: boolean;
@@ -68,7 +69,7 @@ const ChatInputInner: FC<ChatInputProps> = ({
 
     return (
         <Box>
-            <Text color="cyan" bold>{'> '}</Text>
+            <Text color={TUI_COLORS.accent} bold>{'> '}</Text>
             <TextInput
                 value={value}
                 onChange={onChange}

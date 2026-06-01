@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { AgentStatus, type AgentInfo } from '@ai-devkit/agent-manager';
 import { formatRelative } from './render/formatRelative.js';
+import { TUI_COLORS, formatKeyHints } from '../design-system/index.js';
 
 interface StatusFooterProps {
     agents: AgentInfo[];
@@ -40,17 +41,17 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
         <Box flexDirection="column">
             <Box>
                 <Text dimColor>
-                    {summary}{'  ·  '}{updated}{'  ·  '}j/k nav · s start · o open · i message · K kill · q quit
+                    {summary}{'  ·  '}{updated}{'  ·  '}{formatKeyHints(['j/k nav', 's start', 'o open', 'i message', 'K kill', 'q quit'])}
                 </Text>
             </Box>
             {narrowNote ? (
                 <Box>
-                    <Text color="yellow">{narrowNote}</Text>
+                    <Text color={TUI_COLORS.warning}>{narrowNote}</Text>
                 </Box>
             ) : null}
             {transient ? (
                 <Box>
-                    <Text color={transient.kind === 'error' ? 'red' : 'cyan'}>{transient.text}</Text>
+                    <Text color={transient.kind === 'error' ? TUI_COLORS.danger : TUI_COLORS.accent}>{transient.text}</Text>
                 </Box>
             ) : null}
         </Box>

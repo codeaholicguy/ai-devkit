@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text } from 'ink';
 import { AgentStatus } from '@ai-devkit/agent-manager';
+import { TUI_STATUS_LABELS } from '../../design-system/index.js';
 
 interface StatusGlyph {
     glyph: string;
@@ -9,10 +10,10 @@ interface StatusGlyph {
 }
 
 const STATUS_DISPLAY: Record<AgentStatus, StatusGlyph> = {
-    [AgentStatus.RUNNING]: { glyph: '●', label: 'run', color: 'green' },
-    [AgentStatus.WAITING]: { glyph: '◐', label: 'wait', color: 'yellow' },
-    [AgentStatus.IDLE]: { glyph: '○', label: 'idle', color: 'gray' },
-    [AgentStatus.UNKNOWN]: { glyph: '?', label: 'unk', color: 'red' },
+    [AgentStatus.RUNNING]: TUI_STATUS_LABELS.running,
+    [AgentStatus.WAITING]: TUI_STATUS_LABELS.waiting,
+    [AgentStatus.IDLE]: TUI_STATUS_LABELS.idle,
+    [AgentStatus.UNKNOWN]: TUI_STATUS_LABELS.unknown,
 };
 
 export interface FormatStatusProps {

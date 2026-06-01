@@ -3,6 +3,7 @@ import { Box, Text } from 'ink';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { FormatStatus } from './render/formatStatus.js';
 import { AGENT_TYPE_LABEL } from './render/agentTypeLabel.js';
+import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
 
 interface AgentListPaneProps {
     agents: AgentInfo[];
@@ -40,7 +41,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth }) =>
     const nameW = Math.max(4, innerWidth - ROW_CHROME);
     const summaryW = Math.max(4, innerWidth - MARKER_W);
     const rawSummary = agent.summary?.trim() ? agent.summary : shortPath(agent.projectPath);
-    const accent = isSelected ? 'cyan' : undefined;
+    const accent = isSelected ? TUI_COLORS.accent : undefined;
     const typeLabel = AGENT_TYPE_LABEL[agent.type] ?? agent.type;
 
     return (
@@ -112,8 +113,8 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     if (error && agents.length === 0) {
         return (
             <Box flexDirection="column" width={innerWidth}>
-                <Text bold>AGENTS</Text>
-                <Text color="red">{clip(error, innerWidth)}</Text>
+                <SectionTitle>AGENTS</SectionTitle>
+                <Text color={TUI_COLORS.danger}>{clip(error, innerWidth)}</Text>
             </Box>
         );
     }
@@ -121,7 +122,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     if (agents.length === 0) {
         return (
             <Box flexDirection="column" width={innerWidth}>
-                <Text bold>AGENTS</Text>
+                <SectionTitle>AGENTS</SectionTitle>
                 <Text dimColor>No running agents.</Text>
             </Box>
         );
@@ -136,7 +137,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     return (
         <Box flexDirection="column" width={innerWidth}>
             <Box width={innerWidth} marginBottom={1}>
-                <Text bold>AGENTS </Text>
+                <SectionTitle>AGENTS </SectionTitle>
                 <Text dimColor>({agents.length})</Text>
                 {hasAbove && <Text dimColor> ↑</Text>}
                 {hasMore && <Text dimColor> ↓</Text>}

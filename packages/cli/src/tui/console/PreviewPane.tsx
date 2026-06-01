@@ -4,6 +4,7 @@ import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
 import { formatRelative } from './render/formatRelative.js';
 import { AGENT_TYPE_LABEL_DISPLAY } from './render/agentTypeLabel.js';
+import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
 
 interface PreviewPaneProps {
     agent: AgentInfo | null;
@@ -14,9 +15,9 @@ interface PreviewPaneProps {
 }
 
 const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow'> = {
-    user: 'green',
-    assistant: 'cyan',
-    system: 'yellow',
+    user: TUI_COLORS.success,
+    assistant: TUI_COLORS.accent,
+    system: TUI_COLORS.warning,
 };
 
 
@@ -37,9 +38,9 @@ function shortPath(p: string): string {
 
 const MetadataHeader: React.FC<{ agent: AgentInfo }> = ({ agent }) => (
     <Box>
-        <Text bold>PREVIEW</Text>
+        <SectionTitle>PREVIEW</SectionTitle>
         <Text dimColor> · </Text>
-        <Text color="cyan">{agent.name}</Text>
+        <Text color={TUI_COLORS.accent}>{agent.name}</Text>
         <Text dimColor> · </Text>
         <Text dimColor>{AGENT_TYPE_LABEL_DISPLAY[agent.type] ?? agent.type}</Text>
         <Text dimColor> · </Text>
@@ -59,7 +60,7 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     if (!agent) {
         return (
             <Box flexDirection="column">
-                <Text bold>PREVIEW</Text>
+                <SectionTitle>PREVIEW</SectionTitle>
                 <Text dimColor>No agent selected.</Text>
             </Box>
         );
@@ -74,7 +75,7 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
             : error.kind === 'no-adapter'
                 ? `Unsupported agent type: ${agent.type}.`
                 : `Could not read session file: ${error.message}`;
-        body = <Text color="red">{detail}</Text>;
+        body = <Text color={TUI_COLORS.danger}>{detail}</Text>;
     } else if (isLoading && messages.length === 0) {
         body = <Text dimColor>loading…</Text>;
     } else if (messages.length === 0) {

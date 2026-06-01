@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { Box } from 'ink';
 import { PreviewPane } from './PreviewPane.js';
 import { useConsoleContext } from './state/ConsoleContext.js';
 import { useAgentConversation } from './hooks/useAgentConversation.js';
+import { Panel } from '../design-system/index.js';
 
 interface PreviewSectionProps {
     selectedName: string | null;
@@ -22,10 +22,8 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({ selectedName, heig
     });
 
     return (
-        <Box
+        <Panel
             height={height}
-            borderStyle="round"
-            borderColor="gray"
             paddingX={1}
             flexDirection="column"
             flexShrink={0}
@@ -37,7 +35,7 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({ selectedName, heig
                 isLoading={isLoading}
                 maxLines={Math.max(4, height - 2)}
             />
-        </Box>
+        </Panel>
     );
 };
 

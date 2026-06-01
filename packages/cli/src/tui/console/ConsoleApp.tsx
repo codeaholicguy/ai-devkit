@@ -13,6 +13,7 @@ import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
 import { StartAgentPane } from './StartAgentPane.js';
 import { KillConfirmDialog } from './KillConfirmDialog.js';
+import { Panel } from '../design-system/index.js';
 
 interface ConsoleAppProps {
     manager: AgentManager;
@@ -224,11 +225,10 @@ const ConsoleAppShell: React.FC<{
             <Box flexDirection="row">
                 <Box flexShrink={0}>
                     {narrow && startPaneActive ? startPane : (
-                        <Box
+                        <Panel
                             width={listPaneWidth}
                             height={contentHeight}
-                            borderStyle="round"
-                            borderColor={focus === 'list' ? 'cyan' : 'gray'}
+                            focused={focus === 'list'}
                             paddingX={1}
                             flexDirection="column"
                         >
@@ -240,7 +240,7 @@ const ConsoleAppShell: React.FC<{
                                 height={contentHeight - 2}
                                 error={error}
                             />
-                        </Box>
+                        </Panel>
                     )}
                 </Box>
                 {!narrow && (
@@ -251,10 +251,9 @@ const ConsoleAppShell: React.FC<{
                                     selectedName={selectedName}
                                     height={previewHeight}
                                 />
-                                <Box
+                                <Panel
                                     height={inputBoxHeight}
-                                    borderStyle="round"
-                                    borderColor={inputFocused ? 'cyan' : 'gray'}
+                                    focused={inputFocused}
                                     paddingX={1}
                                     flexDirection="column"
                                     flexShrink={0}
@@ -268,7 +267,7 @@ const ConsoleAppShell: React.FC<{
                                         innerWidth={inputInnerWidth}
                                         onLineCountChange={setInputLines}
                                     />
-                                </Box>
+                                </Panel>
                             </>
                         )}
                     </Box>

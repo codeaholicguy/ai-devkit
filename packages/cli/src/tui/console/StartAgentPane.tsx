@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
 import type { StartableAgentType } from '@ai-devkit/agent-manager';
+import { KeyHints, Panel, SectionTitle, TUI_COLORS } from '../design-system/index.js';
 
 export const STARTABLE_AGENT_TYPES: StartableAgentType[] = ['claude', 'codex', 'gemini_cli', 'opencode'];
 
@@ -120,26 +121,25 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     const innerWidth = Math.max(24, width - 4);
 
     return (
-        <Box
+        <Panel
             width={width}
             height={height}
-            borderStyle="round"
-            borderColor="cyan"
+            focused
             paddingX={1}
             flexDirection="column"
             flexShrink={0}
         >
             <Box>
-                <Text bold>START AN AGENT</Text>
-                {isSubmitting ? <Text color="cyan"> starting...</Text> : null}
+                <SectionTitle>START AN AGENT</SectionTitle>
+                {isSubmitting ? <Text color={TUI_COLORS.accent}> starting...</Text> : null}
             </Box>
 
             <Box marginTop={1}>
-                <Text color={focus === 'type' ? 'cyan' : undefined}>Type: </Text>
+                <Text color={focus === 'type' ? TUI_COLORS.accent : undefined}>Type: </Text>
                 {STARTABLE_AGENT_TYPES.map((agentType) => (
                     <Text
                         key={agentType}
-                        color={agentType === type ? 'cyan' : undefined}
+                        color={agentType === type ? TUI_COLORS.accent : undefined}
                         inverse={focus === 'type' && agentType === type}
                     >
                         {` ${agentType} `}
@@ -148,7 +148,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
             </Box>
 
             <Box marginTop={1} width={innerWidth}>
-                <Text color={focus === 'cwd' ? 'cyan' : undefined}>Cwd: </Text>
+                <Text color={focus === 'cwd' ? TUI_COLORS.accent : undefined}>Cwd: </Text>
                 {focus === 'cwd' ? (
                     <TextInput value={cwd} onChange={setCwd} onSubmit={() => setFocus('name')} />
                 ) : (
@@ -157,7 +157,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
             </Box>
 
             <Box marginTop={1} width={innerWidth}>
-                <Text color={focus === 'name' ? 'cyan' : undefined}>Name: </Text>
+                <Text color={focus === 'name' ? TUI_COLORS.accent : undefined}>Name: </Text>
                 {focus === 'name' ? (
                     <TextInput value={name} onChange={setName} onSubmit={() => setFocus('submit')} />
                 ) : (
@@ -167,20 +167,21 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
 
             {error ? (
                 <Box marginTop={1}>
-                    <Text color="red">{trimStartAgentError(error, width)}</Text>
+                    <Text color={TUI_COLORS.danger}>{trimStartAgentError(error, width)}</Text>
                 </Box>
             ) : null}
 
             <Box marginTop={1}>
-                <Text inverse={focus === 'submit'} color={focus === 'submit' ? 'cyan' : undefined}>
+                <Text inverse={focus === 'submit'} color={focus === 'submit' ? TUI_COLORS.accent : undefined}>
                     {isSubmitting ? ' Starting ' : ' Start '}
                 </Text>
                 <Text>  </Text>
-                <Text inverse={focus === 'cancel'} color={focus === 'cancel' ? 'cyan' : undefined}>
+                <Text inverse={focus === 'cancel'} color={focus === 'cancel' ? TUI_COLORS.accent : undefined}>
                     {' Cancel '}
                 </Text>
-                <Text dimColor>  tab move · esc back</Text>
+                <Text>  </Text>
+                <KeyHints hints={['tab move', 'esc back']} />
             </Box>
-        </Box>
+        </Panel>
     );
 };
