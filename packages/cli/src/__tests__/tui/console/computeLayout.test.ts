@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 // computeLayout is a pure function exported from ConsoleApp — import only the function,
 // not the React component tree, to avoid JSX in the test environment.
-import { computeLayout } from '../../../tui/console/ConsoleApp.js';
+import { computeCenteredDialog, computeLayout } from '../../../tui/console/ConsoleApp.js';
 
 // Constants mirrored from ConsoleApp.tsx for assertions
 const LIST_PANE_WIDTH = 48;
@@ -71,5 +71,21 @@ describe('computeLayout', () => {
             // rightColWidth=20, 20-4=16; but if clamped rightCol is exactly 20, inner is 16
             expect(layout.inputInnerWidth).toBeGreaterThanOrEqual(4);
         });
+    });
+});
+
+describe('computeCenteredDialog', () => {
+    it('centers the dialog and caps width on wide terminals', () => {
+        const dialog = computeCenteredDialog(160, 40);
+        expect(dialog.width).toBe(56);
+        expect(dialog.left).toBe(52);
+        expect(dialog.top).toBe(17);
+    });
+
+    it('keeps the dialog usable on narrow terminals', () => {
+        const dialog = computeCenteredDialog(28, 10);
+        expect(dialog.width).toBe(24);
+        expect(dialog.left).toBe(2);
+        expect(dialog.top).toBe(2);
     });
 });

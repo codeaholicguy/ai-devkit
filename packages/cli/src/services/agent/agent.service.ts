@@ -147,6 +147,18 @@ export interface StartAgentDeps {
   onWarning?: (message: string) => void;
 }
 
+export interface KillAgentDeps {
+  tmux: Pick<TmuxManager, 'killSession'>;
+  registry: Pick<AgentRegistry, 'lookup'>;
+  killProcess?: (pid: number, signal: NodeJS.Signals) => void;
+}
+
+export interface KillAgentResult {
+  agentName: string;
+  pid: number;
+  tmuxSession: string | null;
+}
+
 export class TmuxUnavailableError extends Error {
   constructor() {
     super('tmux is not installed or not in PATH.');
@@ -166,6 +178,40 @@ export class AgentPidPollTimeoutError extends Error {
     super(`Agent process not found after ${timeoutMs / 1000}s.`);
     this.name = 'AgentPidPollTimeoutError';
   }
+}
+
+function isProcessAlreadyGone(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'ESRCH';
+}
+
+export async function killAgent(
+  agent: Pick<AgentInfo, 'name' | 'pid'>,
+  deps: KillAgentDeps,
+): Promise<KillAgentResult> {
+  const killProcess = deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
+  const registryEntry = deps.registry.lookup(agent.name);
+  const tmuxSession = registryEntry?.tmuxSession || null;
+
+  try {
+    killProcess(agent.pid, 'SIGTERM');
+  } catch (error) {
+    if (!isProcessAlreadyGone(error)) {
+      throw error;
+    }
+  }
+
+  if (tmuxSession) {
+    await deps.tmux.killSession(tmuxSession);
+  }
+
+  return {
+    agentName: agent.name,
+    pid: agent.pid,
+    tmuxSession,
+  };
 }
 
 /**

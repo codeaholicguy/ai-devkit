@@ -10,6 +10,7 @@ export const KillConfirmDialog: React.FC<KillConfirmDialogProps> = ({ agentName,
     <Box
         borderStyle="round"
         borderColor="red"
+        backgroundColor="black"
         width={width}
         paddingX={2}
         paddingY={1}

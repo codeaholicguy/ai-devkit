@@ -92,6 +92,13 @@ describe('runAction', () => {
         ]));
     });
 
+    it('passes correct argv for kill action', async () => {
+        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
+        await runAction({ type: 'kill', agentName: 'my-agent' });
+        const [, argv] = vi.mocked(spawn).mock.calls[0];
+        expect(argv).toEqual(expect.arrayContaining(['agent', 'kill', 'my-agent']));
+    });
+
     it('spawns with stdio pipe to avoid seizing the TUI terminal', async () => {
         vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
         await runAction({ type: 'start', agentType: 'claude', name: 'x', cwd: '/tmp/project' });
