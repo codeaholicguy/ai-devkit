@@ -158,6 +158,7 @@ const ConsoleAppShell: React.FC<{
                             selectedName={selectedName}
                             onSelect={setSelectedName}
                             width={listPaneWidth - 4}
+                            height={contentHeight - 2}
                             error={error}
                         />
                     </Box>
