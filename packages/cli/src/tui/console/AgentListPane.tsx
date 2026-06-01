@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { FormatStatus } from './render/formatStatus.js';
@@ -9,6 +9,7 @@ interface AgentListPaneProps {
     selectedName: string | null;
     onSelect: (name: string | null) => void;
     width?: number;
+    height?: number;
     error?: string | null;
 }
 
@@ -68,13 +69,22 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth }) =>
     );
 };
 
+// Header = 2 lines (title + marginBottom={1}). Each agent = 2 content lines + 1 divider line.
+// For N agents: total = 2 + 3N - 1 = 1 + 3N. So maxVisible = floor((height - 1) / 3).
+function computeMaxVisible(height: number): number {
+    return Math.max(1, Math.floor((height - 1) / 3));
+}
+
 const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     agents,
     selectedName,
     onSelect,
     width,
+    height,
     error,
 }) => {
+    const [scrollOffset, setScrollOffset] = useState(0);
+
     useEffect(() => {
         if (agents.length === 0) {
             if (selectedName !== null) onSelect(null);
@@ -83,6 +93,19 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
         const exists = agents.some(a => a.name === selectedName);
         if (!exists) onSelect(agents[0].name);
     }, [agents, selectedName, onSelect]);
+
+    // Keep selected agent in view
+    useEffect(() => {
+        if (!height || agents.length === 0) return;
+        const maxVisible = computeMaxVisible(height);
+        const idx = agents.findIndex(a => a.name === selectedName);
+        if (idx < 0) return;
+        setScrollOffset(prev => {
+            if (idx < prev) return idx;
+            if (idx >= prev + maxVisible) return idx - maxVisible + 1;
+            return prev;
+        });
+    }, [selectedName, agents, height]);
 
     const innerWidth = Math.max(16, width ?? 44);
 
@@ -105,13 +128,20 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     }
 
     const divider = '─'.repeat(innerWidth);
+    const maxVisible = height ? computeMaxVisible(height) : agents.length;
+    const visibleAgents = agents.slice(scrollOffset, scrollOffset + maxVisible);
+    const hasMore = scrollOffset + maxVisible < agents.length;
+    const hasAbove = scrollOffset > 0;
 
     return (
         <Box flexDirection="column" width={innerWidth}>
             <Box width={innerWidth} marginBottom={1}>
-                <Text bold>AGENTS </Text><Text dimColor>({agents.length})</Text>
+                <Text bold>AGENTS </Text>
+                <Text dimColor>({agents.length})</Text>
+                {hasAbove && <Text dimColor> ↑</Text>}
+                {hasMore && <Text dimColor> ↓</Text>}
             </Box>
-            {agents.map((agent, i) => (
+            {visibleAgents.map((agent, i) => (
                 <React.Fragment key={agent.name}>
                     {i > 0 && (
                         <Box width={innerWidth}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentInfo, AgentManager } from '@ai-devkit/agent-manager';
 
 export interface UseAgentListResult {
@@ -6,7 +6,10 @@ export interface UseAgentListResult {
     error: string | null;
     lastUpdated: Date | null;
     isLoading: boolean;
+    refresh: () => Promise<void>;
 }
+
+type AgentListState = Omit<UseAgentListResult, 'refresh'>;
 
 export const LIST_POLL_INTERVAL_MS = 3000;
 
@@ -36,7 +39,7 @@ export function useAgentList(
 ): UseAgentListResult {
     // Single state object so multiple updates within one fetch produce
     // exactly one render (React 17 doesn't batch async setState).
-    const [state, setState] = useState<UseAgentListResult>({
+    const [state, setState] = useState<AgentListState>({
         agents: [],
         error: null,
         lastUpdated: null,
@@ -47,54 +50,54 @@ export function useAgentList(
     const inFlightRef = useRef(false);
     const mountedRef = useRef(true);
 
+    const refresh = useCallback(async (): Promise<void> => {
+        if (inFlightRef.current) return;
+        inFlightRef.current = true;
+        const token = ++runTokenRef.current;
+        try {
+            const next = await manager.listAgents({ sortBy: 'status' });
+            if (!mountedRef.current || token !== runTokenRef.current) return;
+            setState(prev => {
+                const isFirst = prev.lastUpdated === null;
+                const changed = !agentsEqual(prev.agents, next);
+                // Quiet poll: nothing changed, no error to clear, not first
+                // load. Skip state update entirely → zero re-renders.
+                if (!changed && prev.error === null && !prev.isLoading && !isFirst) {
+                    return prev;
+                }
+                return {
+                    agents: changed ? next : prev.agents,
+                    error: null,
+                    lastUpdated: new Date(),
+                    isLoading: false,
+                };
+            });
+        } catch (err) {
+            if (!mountedRef.current || token !== runTokenRef.current) return;
+            const message = err instanceof Error ? err.message : String(err);
+            setState(prev => prev.error === message && !prev.isLoading
+                ? prev
+                : { ...prev, error: message, isLoading: false });
+        } finally {
+            inFlightRef.current = false;
+        }
+    }, [manager]);
+
     useEffect(() => {
         mountedRef.current = true;
         inFlightRef.current = false;
 
-        const fetchOnce = async (): Promise<void> => {
-            if (inFlightRef.current) return;
-            inFlightRef.current = true;
-            const token = ++runTokenRef.current;
-            try {
-                const next = await manager.listAgents({ sortBy: 'status' });
-                if (!mountedRef.current || token !== runTokenRef.current) return;
-                setState(prev => {
-                    const isFirst = prev.lastUpdated === null;
-                    const changed = !agentsEqual(prev.agents, next);
-                    // Quiet poll: nothing changed, no error to clear, not first
-                    // load. Skip state update entirely → zero re-renders.
-                    if (!changed && prev.error === null && !prev.isLoading && !isFirst) {
-                        return prev;
-                    }
-                    return {
-                        agents: changed ? next : prev.agents,
-                        error: null,
-                        lastUpdated: new Date(),
-                        isLoading: false,
-                    };
-                });
-            } catch (err) {
-                if (!mountedRef.current || token !== runTokenRef.current) return;
-                const message = err instanceof Error ? err.message : String(err);
-                setState(prev => prev.error === message && !prev.isLoading
-                    ? prev
-                    : { ...prev, error: message, isLoading: false });
-            } finally {
-                inFlightRef.current = false;
-            }
-        };
-
         if (paused) {
             return () => { mountedRef.current = false; };
         }
-        void fetchOnce();
-        const handle = setInterval(() => { void fetchOnce(); }, intervalMs);
+        void refresh();
+        const handle = setInterval(() => { void refresh(); }, intervalMs);
 
         return () => {
             mountedRef.current = false;
             clearInterval(handle);
         };
-    }, [manager, intervalMs, paused]);
+    }, [intervalMs, paused, refresh]);
 
-    return state;
+    return { ...state, refresh };
 }
