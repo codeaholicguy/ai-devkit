@@ -30,8 +30,9 @@ description: Test plan for confirmed kill support in agent console
 - [ ] Pressing lowercase `k` navigates up.
 - [ ] Pressing uppercase `K` opens confirmation for the selected agent.
 - [x] Confirmation renders as an overlay without changing computed pane dimensions.
-- [ ] `Esc`/`n` cancels the pending kill.
-- [ ] `Enter`/`y` confirms and dispatches the kill action.
+- [x] `Esc`/`n` maps to cancel while kill confirmation is pending.
+- [x] `Enter`/`y` maps to confirm while kill confirmation is pending.
+- [ ] Full live Ink key handling (`k`, `K`, cancel, confirm) is manually smoke-tested in a TTY.
 
 ## Integration Tests
 
@@ -55,7 +56,14 @@ description: Test plan for confirmed kill support in agent console
 
 ## Verification Results
 
-- `npx vitest run src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts src/__tests__/tui/console/actions/runAction.test.ts src/__tests__/tui/console/computeLayout.test.ts`: exit 0, 90 tests passed.
+- `npx vitest run src/__tests__/tui/console/hooks/useKillAgentAction.test.ts src/__tests__/tui/console/actions/runAction.test.ts src/__tests__/tui/console/computeLayout.test.ts src/__tests__/commands/agent.test.ts src/__tests__/services/agent/agent.service.test.ts`: exit 0, 97 tests passed.
+- `npx vitest run src/__tests__/tui/console/hooks/useKillAgentAction.test.ts src/__tests__/tui/console/actions/runAction.test.ts src/__tests__/services/agent/agent.service.test.ts --coverage --coverage.include=src/tui/console/hooks/useKillAgentAction.ts --coverage.include=src/tui/console/actions/runAction.ts --coverage.include=src/services/agent/agent.service.ts`: exit 0, 36 tests passed, touched-module coverage 84.58% statements / 94.73% branches / 92.85% functions / 84.58% lines.
 - `npm run build` in `packages/agent-manager`: exit 0.
 - `npm run build` in `packages/cli`: exit 0.
 - `npm run lint` in `packages/cli`: exit 0.
+
+## Coverage Notes
+
+- Full CLI coverage with a focused test subset exits non-zero because Vitest includes the entire CLI source tree and enforces global 60% thresholds against unrelated unexecuted modules.
+- Scoped coverage for touched kill/action/service modules exits zero.
+- The package does not currently include an Ink or React hook test renderer; full keypress behavior remains covered by manual TTY smoke testing.
