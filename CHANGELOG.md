@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Console Start** - Added an in-console start-agent workspace to `ai-devkit agent console`, allowing users to press `s`, choose an agent type, edit the generated name and working directory, start the agent through `agent start`, and refresh the agent list without leaving the TUI (#93).
+- **Agent Console Kill** - Added `agent kill <name>` and uppercase `K` support in `ai-devkit agent console` with a confirmation dialog, process termination, managed tmux session cleanup, and refreshed console state after successful kills (#94).
+
 ## [0.36.0] - 2026-05-31
 
 ### Added
