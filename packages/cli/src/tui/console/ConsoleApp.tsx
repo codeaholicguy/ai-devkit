@@ -3,12 +3,14 @@ import { Box, useApp, useInput } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import { ConsoleProvider, useConsoleContext } from './state/ConsoleContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
+import { useStartAgentPane } from './hooks/useStartAgentPane.js';
 import { AgentListPane } from './AgentListPane.js';
 import { PreviewSection } from './PreviewSection.js';
 import { StatusFooter } from './StatusFooter.js';
 import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
+import { StartAgentPane } from './StartAgentPane.js';
 
 interface ConsoleAppProps {
     manager: AgentManager;
@@ -23,6 +25,8 @@ const MIN_CONTENT_HEIGHT = 12;
 const INPUT_BOX_CHROME_ROWS = 2;
 
 type Focus = 'list' | 'input';
+type RightPaneMode = { type: 'preview' } | { type: 'start-agent' };
+type Transient = { kind: 'info' | 'error'; text: string };
 
 export function computeLayout(cols: number, rows: number, inputLines: number, narrow: boolean) {
     const inputBoxHeight = inputLines + INPUT_BOX_CHROME_ROWS;
@@ -52,8 +56,10 @@ const ConsoleAppShell: React.FC<{
     const [focus, setFocus] = useState<Focus>('list');
     const [inputLines, setInputLines] = useState(1);
     const [inputValue, setInputValue] = useState('');
-    const [transient, setTransient] = useState<{ kind: 'info' | 'error'; text: string } | null>(null);
-    const inputFocused = focus === 'input';
+    const [transient, setTransient] = useState<Transient | null>(null);
+    const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
+    const startPaneActive = rightPaneMode.type === 'start-agent';
+    const inputFocused = focus === 'input' && !startPaneActive;
 
     useEffect(() => {
         if (!inputFocused) setInputLines(1);
@@ -69,14 +75,32 @@ const ConsoleAppShell: React.FC<{
 
     const selectedNameRef = useRef(selectedName);
     selectedNameRef.current = selectedName;
-    const { agents, error, lastUpdated, isLoading } = useConsoleContext();
+    const { agents, error, lastUpdated, isLoading, refresh } = useConsoleContext();
     const agentsRef = useRef(agents);
     agentsRef.current = agents;
 
+    const getSelectedAgent = useCallback(() => {
+        const name = selectedNameRef.current;
+        return name ? agentsRef.current.find(agent => agent.name === name) ?? null : null;
+    }, []);
+
+    const {
+        startDefaults,
+        startPaneError,
+        isStartingAgent,
+        openStartPane,
+        handleStartCancel,
+        handleStartSubmit,
+    } = useStartAgentPane({
+        refresh,
+        setFocus,
+        setRightPaneMode,
+        setTransient,
+    });
+
     const handleInputSubmit = useCallback((text: string) => {
         setFocus('list');
-        const name = selectedNameRef.current;
-        const agent = name ? agentsRef.current.find(a => a.name === name) : null;
+        const agent = getSelectedAgent();
         if (!agent) return;
         void runAction({ type: 'send', agentName: agent.name, message: text }).then(result => {
             if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
@@ -85,13 +109,15 @@ const ConsoleAppShell: React.FC<{
                 setTransient({ kind: 'info', text: `Message sent to ${agent.name}` });
             }
         });
-    }, []);
+    }, [getSelectedAgent]);
 
     const handleInputCancel = useCallback(() => {
         setFocus('list');
     }, []);
 
     useInput((input, key) => {
+        if (startPaneActive) return;
+
         if (focus === 'input') {
             if (key.escape) {
                 setInputValue('');
@@ -103,14 +129,18 @@ const ConsoleAppShell: React.FC<{
         if (input === 'q') { exit(); return; }
 
         if (input === 'o') {
-            const name = selectedNameRef.current;
-            const agent = name ? agentsRef.current.find(a => a.name === name) : null;
+            const agent = getSelectedAgent();
             if (!agent) return;
             void runAction({ type: 'open', agentName: agent.name }).then(result => {
                 if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
                     setTransient({ kind: 'error', text: result.error ?? `open exited ${result.exitCode}` });
                 }
             });
+            return;
+        }
+
+        if (input === 's') {
+            openStartPane();
             return;
         }
 
@@ -139,54 +169,72 @@ const ConsoleAppShell: React.FC<{
     const { cols, rows } = useTerminalSize();
     const narrow = cols < NARROW_THRESHOLD_COLS;
     const { inputBoxHeight, contentHeight, previewHeight, listPaneWidth, rightColWidth, inputInnerWidth } = computeLayout(cols, rows, inputLines, narrow);
+    const startPane = (
+        <StartAgentPane
+            initialName={startDefaults.name}
+            initialCwd={startDefaults.cwd}
+            onSubmit={handleStartSubmit}
+            onCancel={handleStartCancel}
+            error={startPaneError}
+            isSubmitting={isStartingAgent}
+            width={narrow ? listPaneWidth : rightColWidth}
+            height={contentHeight}
+        />
+    );
 
     return (
-        <Box flexDirection="column">
+        <Box flexDirection="column" width={cols}>
             <HeaderBar />
             <Box flexDirection="row">
                 <Box flexShrink={0}>
-                    <Box
-                        width={listPaneWidth}
-                        height={contentHeight}
-                        borderStyle="round"
-                        borderColor={focus === 'list' ? 'cyan' : 'gray'}
-                        paddingX={1}
-                        flexDirection="column"
-                    >
-                        <AgentListPane
-                            agents={agents}
-                            selectedName={selectedName}
-                            onSelect={setSelectedName}
-                            width={listPaneWidth - 4}
-                            height={contentHeight - 2}
-                            error={error}
-                        />
-                    </Box>
+                    {narrow && startPaneActive ? startPane : (
+                        <Box
+                            width={listPaneWidth}
+                            height={contentHeight}
+                            borderStyle="round"
+                            borderColor={focus === 'list' ? 'cyan' : 'gray'}
+                            paddingX={1}
+                            flexDirection="column"
+                        >
+                            <AgentListPane
+                                agents={agents}
+                                selectedName={selectedName}
+                                onSelect={setSelectedName}
+                                width={listPaneWidth - 4}
+                                height={contentHeight - 2}
+                                error={error}
+                            />
+                        </Box>
+                    )}
                 </Box>
                 {!narrow && (
                     <Box flexDirection="column" width={rightColWidth} flexShrink={0} marginLeft={1}>
-                        <PreviewSection
-                            selectedName={selectedName}
-                            height={previewHeight}
-                        />
-                        <Box
-                            height={inputBoxHeight}
-                            borderStyle="round"
-                            borderColor={inputFocused ? 'cyan' : 'gray'}
-                            paddingX={1}
-                            flexDirection="column"
-                            flexShrink={0}
-                        >
-                            <ChatInput
-                                focused={inputFocused}
-                                value={inputValue}
-                                onChange={setInputValue}
-                                onSubmit={handleInputSubmit}
-                                onCancel={handleInputCancel}
-                                innerWidth={inputInnerWidth}
-                                onLineCountChange={setInputLines}
-                            />
-                        </Box>
+                        {startPaneActive ? startPane : (
+                            <>
+                                <PreviewSection
+                                    selectedName={selectedName}
+                                    height={previewHeight}
+                                />
+                                <Box
+                                    height={inputBoxHeight}
+                                    borderStyle="round"
+                                    borderColor={inputFocused ? 'cyan' : 'gray'}
+                                    paddingX={1}
+                                    flexDirection="column"
+                                    flexShrink={0}
+                                >
+                                    <ChatInput
+                                        focused={inputFocused}
+                                        value={inputValue}
+                                        onChange={setInputValue}
+                                        onSubmit={handleInputSubmit}
+                                        onCancel={handleInputCancel}
+                                        innerWidth={inputInnerWidth}
+                                        onLineCountChange={setInputLines}
+                                    />
+                                </Box>
+                            </>
+                        )}
                     </Box>
                 )}
             </Box>
@@ -194,7 +242,11 @@ const ConsoleAppShell: React.FC<{
                 agents={agents}
                 lastUpdated={lastUpdated}
                 isLoading={isLoading}
-                narrowNote={narrow ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview` : null}
+                narrowNote={
+                    narrow && !startPaneActive
+                        ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview`
+                        : null
+                }
                 transient={transient}
             />
         </Box>

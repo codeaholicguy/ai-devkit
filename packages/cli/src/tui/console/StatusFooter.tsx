@@ -40,7 +40,7 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
         <Box flexDirection="column">
             <Box>
                 <Text dimColor>
-                    {summary}{'  ·  '}{updated}{'  ·  '}j/k nav · o open · i message · q quit
+                    {summary}{'  ·  '}{updated}{'  ·  '}j/k nav · s start · o open · i message · q quit
                 </Text>
             </Box>
             {narrowNote ? (

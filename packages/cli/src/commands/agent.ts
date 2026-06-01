@@ -44,6 +44,7 @@ import {
 } from '../services/agent/agent.service.js';
 import { parseMilliseconds } from '../util/time.js';
 import { ConsoleApp } from '../tui/console/ConsoleApp.js';
+import { generateAgentName } from '../util/agent.js';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
@@ -165,15 +166,6 @@ function createAgentManager(): AgentManager {
 }
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
-
-function generateAgentName(cwd: string): string {
-    const folder = path.basename(cwd)
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 50) || 'agent';
-    return `${folder}-${Date.now().toString(36)}`;
-}
 
 function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);

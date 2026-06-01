@@ -76,9 +76,25 @@ describe('runAction', () => {
         expect(argv).toEqual(expect.arrayContaining(['agent', 'send', 'hello world', '--id', 'my-agent']));
     });
 
+    it('passes correct argv for start action', async () => {
+        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
+        await runAction({ type: 'start', agentType: 'codex', name: 'my-agent', cwd: '/tmp/project' });
+        const [, argv] = vi.mocked(spawn).mock.calls[0];
+        expect(argv).toEqual(expect.arrayContaining([
+            'agent',
+            'start',
+            '--type',
+            'codex',
+            '--name',
+            'my-agent',
+            '--cwd',
+            '/tmp/project',
+        ]));
+    });
+
     it('spawns with stdio pipe to avoid seizing the TUI terminal', async () => {
         vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'open', agentName: 'x' });
+        await runAction({ type: 'start', agentType: 'claude', name: 'x', cwd: '/tmp/project' });
         const [, , opts] = vi.mocked(spawn).mock.calls[0];
         expect(opts?.stdio).toEqual(['ignore', 'pipe', 'pipe']);
     });

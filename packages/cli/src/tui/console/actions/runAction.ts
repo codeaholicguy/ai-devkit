@@ -18,6 +18,8 @@ export async function runAction(action: ConsoleAction): Promise<ActionResult> {
                 return [...baseArgs, 'agent', 'open', action.agentName];
             case 'send':
                 return [...baseArgs, 'agent', 'send', action.message, '--id', action.agentName];
+            case 'start':
+                return [...baseArgs, 'agent', 'start', '--type', action.agentType, '--name', action.name, '--cwd', action.cwd];
         }
     })();
 
