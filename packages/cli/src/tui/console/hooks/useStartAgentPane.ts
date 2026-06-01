@@ -2,17 +2,15 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from 'react
 import type { StartableAgentType } from '@ai-devkit/agent-manager';
 import { runAction } from '../actions/runAction.js';
 import { generateAgentName } from '../../../util/agent.js';
+import type { ConsoleFocus, RightPaneMode, TransientMessage } from '../types.js';
 
-type Focus = 'list' | 'input';
-type RightPaneMode = { type: 'preview' } | { type: 'start-agent' };
-type Transient = { kind: 'info' | 'error'; text: string };
 type StartDefaults = { name: string; cwd: string };
 
 interface UseStartAgentPaneOptions {
     refresh: () => Promise<void>;
-    setFocus: Dispatch<SetStateAction<Focus>>;
+    setFocus: Dispatch<SetStateAction<ConsoleFocus>>;
     setRightPaneMode: Dispatch<SetStateAction<RightPaneMode>>;
-    setTransient: Dispatch<SetStateAction<Transient | null>>;
+    setTransient: Dispatch<SetStateAction<TransientMessage | null>>;
 }
 
 interface StartAgentValues {

@@ -52,6 +52,14 @@ describe('computeLayout', () => {
         });
     });
 
+    describe('replacement pane height', () => {
+        it('uses the full content height so replacement panes include the chat input area', () => {
+            const layout = computeLayout(160, 40, 1, false);
+            expect(layout.contentHeight).toBe(layout.previewHeight + layout.inputBoxHeight);
+            expect(layout.contentHeight).toBeGreaterThan(layout.previewHeight);
+        });
+    });
+
     describe('inputBoxHeight', () => {
         it('is inputLines + INPUT_BOX_CHROME_ROWS', () => {
             expect(computeLayout(160, 40, 1, false).inputBoxHeight).toBe(1 + INPUT_BOX_CHROME_ROWS);

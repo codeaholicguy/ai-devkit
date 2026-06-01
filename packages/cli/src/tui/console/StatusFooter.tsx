@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Text } from 'ink';
 import { AgentStatus, type AgentInfo } from '@ai-devkit/agent-manager';
 import { formatRelative } from './render/formatRelative.js';
+import { getConsoleHotkeyHints } from './HelpPane.js';
 import { TUI_COLORS, formatKeyHints } from '../design-system/index.js';
 
 interface StatusFooterProps {
@@ -41,7 +42,7 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
         <Box flexDirection="column">
             <Box>
                 <Text dimColor>
-                    {summary}{'  ·  '}{updated}{'  ·  '}{formatKeyHints(['j/k nav', 's start', 'o open', 'i message', 'K kill', 'q quit'])}
+                    {summary}{'  ·  '}{updated}{'  ·  '}{formatKeyHints(getConsoleHotkeyHints())}
                 </Text>
             </Box>
             {narrowNote ? (

@@ -1,7 +1,6 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
 import { runAction } from '../actions/runAction.js';
-
-type Transient = { kind: 'info' | 'error'; text: string };
+import type { TransientMessage } from '../types.js';
 
 interface ConsoleInputKey {
     escape?: boolean;
@@ -9,7 +8,7 @@ interface ConsoleInputKey {
 }
 
 interface UseKillAgentActionOptions {
-    setTransient: Dispatch<SetStateAction<Transient | null>>;
+    setTransient: Dispatch<SetStateAction<TransientMessage | null>>;
 }
 
 export type KillInputDecision = 'none' | 'cancel' | 'confirm' | 'consume';

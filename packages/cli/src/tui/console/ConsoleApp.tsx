@@ -12,7 +12,9 @@ import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
 import { StartAgentPane } from './StartAgentPane.js';
+import { HelpPane } from './HelpPane.js';
 import { KillConfirmDialog } from './KillConfirmDialog.js';
+import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
 import { Panel } from '../design-system/index.js';
 
 interface ConsoleAppProps {
@@ -26,10 +28,6 @@ const FOOTER_HEIGHT = 2;
 const HEADER_HEIGHT = 1;
 const MIN_CONTENT_HEIGHT = 12;
 const INPUT_BOX_CHROME_ROWS = 2;
-
-type Focus = 'list' | 'input';
-type RightPaneMode = { type: 'preview' } | { type: 'start-agent' };
-type Transient = { kind: 'info' | 'error'; text: string };
 
 export function computeCenteredDialog(cols: number, rows: number) {
     const width = Math.min(56, Math.max(24, cols - 6));
@@ -65,13 +63,14 @@ const ConsoleAppShell: React.FC<{
 }> = ({ initialSelection, setInputFocused }) => {
     const { exit } = useApp();
     const [selectedName, setSelectedName] = useState<string | null>(initialSelection);
-    const [focus, setFocus] = useState<Focus>('list');
+    const [focus, setFocus] = useState<ConsoleFocus>('list');
     const [inputLines, setInputLines] = useState(1);
     const [inputValue, setInputValue] = useState('');
-    const [transient, setTransient] = useState<Transient | null>(null);
+    const [transient, setTransient] = useState<TransientMessage | null>(null);
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
     const startPaneActive = rightPaneMode.type === 'start-agent';
-    const inputFocused = focus === 'input' && !startPaneActive;
+    const helpPaneActive = rightPaneMode.type === 'help';
+    const inputFocused = focus === 'input' && !startPaneActive && !helpPaneActive;
 
     useEffect(() => {
         if (!inputFocused) setInputLines(1);
@@ -180,6 +179,11 @@ const ConsoleAppShell: React.FC<{
             return;
         }
 
+        if (input === 'h') {
+            setRightPaneMode(current => current.type === 'help' ? { type: 'preview' } : { type: 'help' });
+            return;
+        }
+
         if (input === 'i' || input === 'm') {
             if (selectedNameRef.current) setFocus('input');
             return;
@@ -204,7 +208,8 @@ const ConsoleAppShell: React.FC<{
 
     const { cols, rows } = useTerminalSize();
     const narrow = cols < NARROW_THRESHOLD_COLS;
-    const { inputBoxHeight, contentHeight, previewHeight, listPaneWidth, rightColWidth, inputInnerWidth } = computeLayout(cols, rows, inputLines, narrow);
+    const layout = computeLayout(cols, rows, inputLines, narrow);
+    const { inputBoxHeight, contentHeight, previewHeight, listPaneWidth, rightColWidth, inputInnerWidth } = layout;
     const dialog = computeCenteredDialog(cols, rows);
     const startPane = (
         <StartAgentPane
@@ -218,58 +223,69 @@ const ConsoleAppShell: React.FC<{
             height={contentHeight}
         />
     );
+    const helpPane = (
+        <HelpPane
+            width={narrow ? listPaneWidth : rightColWidth}
+            height={contentHeight}
+        />
+    );
+    let replacementPane: React.ReactNode = null;
+    if (startPaneActive) replacementPane = startPane;
+    if (helpPaneActive) replacementPane = helpPane;
+    const listPane = (
+        <Panel
+            width={listPaneWidth}
+            height={contentHeight}
+            focused={focus === 'list'}
+            paddingX={1}
+            flexDirection="column"
+        >
+            <AgentListPane
+                agents={agents}
+                selectedName={selectedName}
+                onSelect={setSelectedName}
+                width={listPaneWidth - 4}
+                height={contentHeight - 2}
+                error={error}
+            />
+        </Panel>
+    );
+    const previewAndInputPane = (
+        <>
+            <PreviewSection
+                selectedName={selectedName}
+                height={previewHeight}
+            />
+            <Panel
+                height={inputBoxHeight}
+                focused={inputFocused}
+                paddingX={1}
+                flexDirection="column"
+                flexShrink={0}
+            >
+                <ChatInput
+                    focused={inputFocused}
+                    value={inputValue}
+                    onChange={setInputValue}
+                    onSubmit={handleInputSubmit}
+                    onCancel={handleInputCancel}
+                    innerWidth={inputInnerWidth}
+                    onLineCountChange={setInputLines}
+                />
+            </Panel>
+        </>
+    );
 
     return (
         <Box flexDirection="column" width={cols}>
             <HeaderBar />
             <Box flexDirection="row">
                 <Box flexShrink={0}>
-                    {narrow && startPaneActive ? startPane : (
-                        <Panel
-                            width={listPaneWidth}
-                            height={contentHeight}
-                            focused={focus === 'list'}
-                            paddingX={1}
-                            flexDirection="column"
-                        >
-                            <AgentListPane
-                                agents={agents}
-                                selectedName={selectedName}
-                                onSelect={setSelectedName}
-                                width={listPaneWidth - 4}
-                                height={contentHeight - 2}
-                                error={error}
-                            />
-                        </Panel>
-                    )}
+                    {narrow && replacementPane ? replacementPane : listPane}
                 </Box>
                 {!narrow && (
                     <Box flexDirection="column" width={rightColWidth} flexShrink={0} marginLeft={1}>
-                        {startPaneActive ? startPane : (
-                            <>
-                                <PreviewSection
-                                    selectedName={selectedName}
-                                    height={previewHeight}
-                                />
-                                <Panel
-                                    height={inputBoxHeight}
-                                    focused={inputFocused}
-                                    paddingX={1}
-                                    flexDirection="column"
-                                    flexShrink={0}
-                                >
-                                    <ChatInput
-                                        focused={inputFocused}
-                                        value={inputValue}
-                                        onChange={setInputValue}
-                                        onSubmit={handleInputSubmit}
-                                        onCancel={handleInputCancel}
-                                        innerWidth={inputInnerWidth}
-                                        onLineCountChange={setInputLines}
-                                    />
-                                </Panel>
-                            </>
-                        )}
+                        {replacementPane ?? previewAndInputPane}
                     </Box>
                 )}
             </Box>
@@ -283,7 +299,7 @@ const ConsoleAppShell: React.FC<{
                 lastUpdated={lastUpdated}
                 isLoading={isLoading}
                 narrowNote={
-                    narrow && !startPaneActive
+                    narrow && !startPaneActive && !helpPaneActive
                         ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview`
                         : null
                 }
