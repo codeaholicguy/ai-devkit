@@ -12,6 +12,19 @@ interface UseKillAgentActionOptions {
     setTransient: Dispatch<SetStateAction<Transient | null>>;
 }
 
+export type KillInputDecision = 'none' | 'cancel' | 'confirm' | 'consume';
+
+export function getKillInputDecision(
+    pendingKillName: string | null,
+    input: string,
+    key: ConsoleInputKey,
+): KillInputDecision {
+    if (!pendingKillName) return 'none';
+    if (key.escape || input === 'n') return 'cancel';
+    if (key.return || input === 'y') return 'confirm';
+    return 'consume';
+}
+
 export function useKillAgentAction({ setTransient }: UseKillAgentActionOptions) {
     const [pendingKillName, setPendingKillName] = useState<string | null>(null);
 
@@ -37,16 +50,18 @@ export function useKillAgentAction({ setTransient }: UseKillAgentActionOptions) 
     }, [pendingKillName, setTransient]);
 
     const handleKillInput = useCallback((input: string, key: ConsoleInputKey): boolean => {
-        if (!pendingKillName) return false;
-        if (key.escape || input === 'n') {
-            cancelKill();
-            return true;
+        switch (getKillInputDecision(pendingKillName, input, key)) {
+            case 'none':
+                return false;
+            case 'cancel':
+                cancelKill();
+                return true;
+            case 'confirm':
+                confirmPendingKill();
+                return true;
+            case 'consume':
+                return true;
         }
-        if (key.return || input === 'y') {
-            confirmPendingKill();
-            return true;
-        }
-        return true;
     }, [cancelKill, confirmPendingKill, pendingKillName]);
 
     return {
