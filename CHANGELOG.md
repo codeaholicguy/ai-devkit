@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Agent Console Help Pane** - Added a help pane to `ai-devkit agent console` with context-aware keyboard shortcuts and layout support for toggling help while preserving existing console workflows.
+- **TUI Design System** - Added shared TUI design-system components and tokens for panels, section titles, key hints, spacing, borders, and colors, and updated the agent console to use them consistently.
+- **CLI Startup Benchmark** - Added a CLI startup benchmark utility, benchmark tests, and maintainer documentation for validating top-level command startup performance.
+
+### Changed
+
+- **CLI Startup Performance** - Optimized `ai-devkit` startup by handling version/help output through a lightweight command manifest and lazy-loading Commander plus selected command modules only when needed (#96).
+
 ## [0.37.0] - 2026-06-01
 
 ### Added
