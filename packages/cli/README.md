@@ -93,6 +93,10 @@ ai-devkit skill add <skill-registry> [skill-name]
 ai-devkit memory store
 ```
 
+## Development
+
+Maintainer notes for the CLI runtime layout, adding top-level commands, and startup benchmarking live in [DEVELOPMENT.md](./DEVELOPMENT.md).
+
 Template example:
 
 ```yaml
