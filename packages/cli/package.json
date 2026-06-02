@@ -10,7 +10,6 @@
   },
   "scripts": {
     "build": "tsc && cp -R templates dist/templates",
-    "benchmark:startup": "node dist/util/cli-benchmark.js",
     "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
