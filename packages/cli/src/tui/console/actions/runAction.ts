@@ -22,6 +22,8 @@ export async function runAction(action: ConsoleAction): Promise<ActionResult> {
                 return [...baseArgs, 'agent', 'start', '--type', action.agentType, '--name', action.name, '--cwd', action.cwd];
             case 'kill':
                 return [...baseArgs, 'agent', 'kill', action.agentName];
+            case 'rename':
+                return [...baseArgs, 'agent', 'rename', action.currentName, action.newName];
         }
     })();
 

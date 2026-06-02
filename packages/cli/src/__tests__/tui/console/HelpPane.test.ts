@@ -7,6 +7,7 @@ describe('HelpPane helpers', () => {
             { key: 'j / Down', action: 'Select next agent' },
             { key: 'k / Up', action: 'Select previous agent' },
             { key: 's', action: 'Start a new agent' },
+            { key: 'r', action: 'Rename selected agent' },
             { key: 'o', action: 'Open selected agent terminal' },
             { key: 'i / m', action: 'Message selected agent' },
             { key: 'K', action: 'Kill selected agent' },
@@ -17,5 +18,9 @@ describe('HelpPane helpers', () => {
 
     it('uses the same h help shortcut in footer hints', () => {
         expect(getConsoleHotkeyHints()).toContain('h help');
+    });
+
+    it('includes rename in footer hints', () => {
+        expect(getConsoleHotkeyHints()).toContain('r rename');
     });
 });

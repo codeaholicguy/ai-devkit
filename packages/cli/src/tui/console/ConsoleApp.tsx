@@ -4,6 +4,7 @@ import type { AgentManager } from '@ai-devkit/agent-manager';
 import { ConsoleProvider, useConsoleContext } from './state/ConsoleContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { useStartAgentPane } from './hooks/useStartAgentPane.js';
+import { useRenameAgentPane } from './hooks/useRenameAgentPane.js';
 import { useKillAgentAction } from './hooks/useKillAgentAction.js';
 import { AgentListPane } from './AgentListPane.js';
 import { PreviewSection } from './PreviewSection.js';
@@ -12,6 +13,7 @@ import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
 import { StartAgentPane } from './StartAgentPane.js';
+import { RenameAgentPane } from './RenameAgentPane.js';
 import { HelpPane } from './HelpPane.js';
 import { KillConfirmDialog } from './KillConfirmDialog.js';
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
@@ -69,8 +71,9 @@ const ConsoleAppShell: React.FC<{
     const [transient, setTransient] = useState<TransientMessage | null>(null);
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
     const startPaneActive = rightPaneMode.type === 'start-agent';
+    const renamePaneActive = rightPaneMode.type === 'rename-agent';
     const helpPaneActive = rightPaneMode.type === 'help';
-    const inputFocused = focus === 'input' && !startPaneActive && !helpPaneActive;
+    const inputFocused = focus === 'input' && !startPaneActive && !renamePaneActive && !helpPaneActive;
 
     useEffect(() => {
         if (!inputFocused) setInputLines(1);
@@ -125,6 +128,18 @@ const ConsoleAppShell: React.FC<{
         handleKillInput,
     } = useKillAgentAction({ setTransient });
 
+    const {
+        renamePaneError,
+        isRenamingAgent,
+        openRenamePane,
+        handleRenameCancel,
+        handleRenameSubmit,
+    } = useRenameAgentPane({
+        setFocus,
+        setRightPaneMode,
+        setTransient,
+    });
+
     const handleInputSubmit = useCallback((text: string) => {
         setFocus('list');
         const agent = getSelectedAgent();
@@ -145,7 +160,7 @@ const ConsoleAppShell: React.FC<{
     useInput((input, key) => {
         if (handleKillInput(input, key)) return;
 
-        if (startPaneActive) return;
+        if (startPaneActive || renamePaneActive) return;
 
         if (focus === 'input') {
             if (key.escape) {
@@ -176,6 +191,12 @@ const ConsoleAppShell: React.FC<{
 
         if (input === 's') {
             openStartPane();
+            return;
+        }
+
+        if (input === 'r') {
+            const agent = getSelectedAgent();
+            if (agent) openRenamePane(agent.name);
             return;
         }
 
@@ -229,8 +250,21 @@ const ConsoleAppShell: React.FC<{
             height={contentHeight}
         />
     );
+    const renamePane = renamePaneActive ? (
+        <RenameAgentPane
+            currentName={rightPaneMode.agentName}
+            initialName={rightPaneMode.agentName}
+            onSubmit={(values) => handleRenameSubmit(rightPaneMode.agentName, values)}
+            onCancel={handleRenameCancel}
+            error={renamePaneError}
+            isSubmitting={isRenamingAgent}
+            width={narrow ? listPaneWidth : rightColWidth}
+            height={contentHeight}
+        />
+    ) : null;
     let replacementPane: React.ReactNode = null;
     if (startPaneActive) replacementPane = startPane;
+    if (renamePaneActive) replacementPane = renamePane;
     if (helpPaneActive) replacementPane = helpPane;
     const listPane = (
         <Panel
@@ -299,7 +333,7 @@ const ConsoleAppShell: React.FC<{
                 lastUpdated={lastUpdated}
                 isLoading={isLoading}
                 narrowNote={
-                    narrow && !startPaneActive && !helpPaneActive
+                    narrow && !startPaneActive && !renamePaneActive && !helpPaneActive
                         ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview`
                         : null
                 }

@@ -99,6 +99,13 @@ describe('runAction', () => {
         expect(argv).toEqual(expect.arrayContaining(['agent', 'kill', 'my-agent']));
     });
 
+    it('passes correct argv for rename action', async () => {
+        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
+        await runAction({ type: 'rename', currentName: 'old-agent', newName: 'new-agent' });
+        const [, argv] = vi.mocked(spawn).mock.calls[0];
+        expect(argv).toEqual(expect.arrayContaining(['agent', 'rename', 'old-agent', 'new-agent']));
+    });
+
     it('spawns with stdio pipe to avoid seizing the TUI terminal', async () => {
         vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
         await runAction({ type: 'start', agentType: 'claude', name: 'x', cwd: '/tmp/project' });
