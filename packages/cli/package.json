@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "type": "module",
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "main": "dist/index.js",
