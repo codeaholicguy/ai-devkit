@@ -15,7 +15,8 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly",
+    "dev": "swc src -d dist --strip-leading-paths --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
@@ -38,6 +39,8 @@
     "uuid": "14.0.0"
   },
   "devDependencies": {
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.10.0",
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^8.60.1",
     "@typescript-eslint/parser": "^8.60.1",
