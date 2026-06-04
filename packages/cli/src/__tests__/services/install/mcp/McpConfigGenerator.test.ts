@@ -18,18 +18,18 @@ vi.mock('../../../../util/terminal.js', () => ({
 const mockPlan = vi.fn();
 const mockApply = vi.fn();
 vi.mock('../../../../services/install/mcp/ClaudeCodeMcpGenerator.js', () => ({
-  ClaudeCodeMcpGenerator: vi.fn().mockImplementation(() => ({
+  ClaudeCodeMcpGenerator: vi.fn().mockImplementation(function () { return {
     agentType: 'claude' as EnvironmentCode,
     plan: (...args: unknown[]) => mockPlan(...args),
     apply: (...args: unknown[]) => mockApply(...args),
-  })),
+  }; }),
 }));
 vi.mock('../../../../services/install/mcp/CodexMcpGenerator.js', () => ({
-  CodexMcpGenerator: vi.fn().mockImplementation(() => ({
+  CodexMcpGenerator: vi.fn().mockImplementation(function () { return {
     agentType: 'codex' as EnvironmentCode,
     plan: (...args: unknown[]) => mockPlan(...args),
     apply: (...args: unknown[]) => mockApply(...args),
-  })),
+  }; }),
 }));
 
 import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';

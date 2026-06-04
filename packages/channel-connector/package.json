@@ -34,16 +34,17 @@
   "license": "MIT",
   "dependencies": {
     "marked": "^15.0.12",
-    "telegraf": "^4.16.3"
+    "telegraf": "^4.16.3",
+    "uuid": "14.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.5",
-    "@typescript-eslint/eslint-plugin": "^6.19.1",
-    "@typescript-eslint/parser": "^6.19.1",
-    "@vitest/coverage-v8": "^2.1.0",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
+    "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^8.56.0",
     "typescript": "^5.5.0",
-    "vitest": "^2.1.0"
+    "vitest": "^4.1.8"
   },
   "engines": {
     "node": ">=20.20.0"

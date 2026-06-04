@@ -10,14 +10,14 @@ vi.mock('../../lib/Config.js', () => ({
 }));
 
 vi.mock('../../lib/SkillManager.js', () => ({
-  SkillManager: vi.fn(() => ({
+  SkillManager: vi.fn(function () { return {
     addSkill: (...args: unknown[]) => mockAddSkill(...args),
     listSkills: vi.fn(),
     removeSkill: vi.fn(),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
     rebuildIndex: vi.fn(),
-  })),
+  }; }),
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({

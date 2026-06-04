@@ -60,23 +60,23 @@ vi.mock('inquirer', () => ({
 }));
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(() => mockConfigManager)
+  ConfigManager: vi.fn(function () { return mockConfigManager; })
 }));
 
 vi.mock('../../lib/TemplateManager.js', () => ({
-  TemplateManager: vi.fn(() => mockTemplateManager)
+  TemplateManager: vi.fn(function () { return mockTemplateManager; })
 }));
 
 vi.mock('../../lib/EnvironmentSelector.js', () => ({
-  EnvironmentSelector: vi.fn(() => mockEnvironmentSelector)
+  EnvironmentSelector: vi.fn(function () { return mockEnvironmentSelector; })
 }));
 
 vi.mock('../../lib/PhaseSelector.js', () => ({
-  PhaseSelector: vi.fn(() => mockPhaseSelector)
+  PhaseSelector: vi.fn(function () { return mockPhaseSelector; })
 }));
 
 vi.mock('../../lib/SkillManager.js', () => ({
-  SkillManager: vi.fn(() => mockSkillManager)
+  SkillManager: vi.fn(function () { return mockSkillManager; })
 }));
 
 vi.mock('../../lib/InitTemplate.js', () => ({

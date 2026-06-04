@@ -23,29 +23,29 @@ vi.mock("fs-extra", () => ({
   },
 }));
 vi.mock("../../lib/Config.js", () => ({
-  ConfigManager: vi.fn(() => ({
+  ConfigManager: vi.fn(function () { return {
     addSkill: vi.fn(),
     create: vi.fn(),
     getSkillRegistries: vi.fn(),
     read: vi.fn(),
     removeSkill: vi.fn(),
     update: vi.fn(),
-  })),
+  }; }),
 }));
 vi.mock("../../lib/EnvironmentSelector.js", () => ({
-  EnvironmentSelector: vi.fn(() => ({
+  EnvironmentSelector: vi.fn(function () { return {
     selectEnvironments: vi.fn(),
     selectGlobalEnvironments: vi.fn(),
     selectSkillEnvironments: vi.fn(),
     selectGlobalSkillEnvironments: vi.fn(),
     confirmOverride: vi.fn(),
     displaySelectionSummary: vi.fn(),
-  })),
+  }; }),
 }));
 vi.mock("../../lib/GlobalConfig.js", () => ({
-  GlobalConfigManager: vi.fn(() => ({
+  GlobalConfigManager: vi.fn(function () { return {
     getSkillRegistries: vi.fn(),
-  })),
+  }; }),
 }));
 vi.mock("../../util/git.js", () => ({
   ensureGitInstalled: vi.fn(),
@@ -73,7 +73,7 @@ vi.mock("inquirer", () => ({
 }));
 
 vi.mock("ora", () => ({
-  default: vi.fn(() => ({
+  default: vi.fn(function () { return {
     start: vi.fn().mockReturnThis(),
     succeed: vi.fn().mockReturnThis(),
     fail: vi.fn().mockReturnThis(),
@@ -81,7 +81,7 @@ vi.mock("ora", () => ({
     stop: vi.fn().mockReturnThis(),
     text: '',
     isSpinning: false,
-  })),
+  }; }),
 }));
 
 import { isInteractiveTerminal } from "../../util/terminal.js";

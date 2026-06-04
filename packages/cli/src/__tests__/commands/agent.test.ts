@@ -65,12 +65,12 @@ const { RenameNotFoundError, RenameConflictError } = vi.hoisted(() => {
 });
 
 vi.mock('@ai-devkit/agent-manager', () => ({
-  AgentManager: vi.fn(() => mockManager),
+  AgentManager: vi.fn(function () { return mockManager; }),
   ClaudeCodeAdapter: vi.fn(),
   CodexAdapter: vi.fn(),
   GeminiCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
-  TerminalFocusManager: vi.fn(() => mockFocusManager),
+  TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
     RUNNING: 'running',
@@ -79,16 +79,16 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     UNKNOWN: 'unknown',
   },
   AgentRegistry: {
-    default: vi.fn(() => mockRegistry),
+    default: vi.fn(function () { return mockRegistry; }),
   },
-  TmuxManager: vi.fn(() => ({
+  TmuxManager: vi.fn(function () { return {
     isAvailable: vi.fn().mockResolvedValue(true),
     sessionExists: vi.fn().mockResolvedValue(false),
     createSession: vi.fn().mockResolvedValue(undefined),
     sendKeys: vi.fn().mockResolvedValue(undefined),
     findAgentPid: vi.fn().mockResolvedValue(12345),
     killSession: vi.fn().mockResolvedValue(undefined),
-  })),
+  }; }),
   AGENTS: {
     claude:     { command: 'claude',   matches: () => true },
     codex:      { command: 'codex',    matches: () => true },

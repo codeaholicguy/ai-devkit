@@ -237,7 +237,7 @@ describe('update handler', () => {
 
             // Mock Date to return a future timestamp to avoid same-millisecond flakiness
             const futureDate = new Date(Date.now() + 1000);
-            vi.spyOn(global, 'Date').mockImplementation(() => futureDate as unknown as Date);
+            vi.spyOn(global, 'Date').mockImplementation(function () { return futureDate as unknown as Date; });
 
             updateKnowledgeDirect(db, {
                 id: stored.id,

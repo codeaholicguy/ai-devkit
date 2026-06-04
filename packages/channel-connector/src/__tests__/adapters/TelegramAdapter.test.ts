@@ -33,7 +33,7 @@ vi.mock('telegraf', () => {
         },
     };
     return {
-        Telegraf: vi.fn(() => mockBot),
+        Telegraf: vi.fn(function () { return mockBot; }),
         __mockBot: mockBot,
     };
 });

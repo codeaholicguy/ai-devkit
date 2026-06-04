@@ -9,14 +9,14 @@ const mockCopyFeatureDocTemplates = vi.fn<(...args: unknown[]) => Promise<any>>(
 const mockTemplateManagerConstructor = vi.fn();
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(() => ({
+  ConfigManager: vi.fn(function () { return {
     getDocsDir: mockGetDocsDir,
     getPhases: mockGetPhases
-  }))
+  }; })
 }));
 
 vi.mock('../../lib/TemplateManager.js', () => ({
-  TemplateManager: vi.fn((...args: unknown[]) => {
+  TemplateManager: vi.fn(function (...args: unknown[]) {
     mockTemplateManagerConstructor(...args);
     return {
       copyFeatureDocTemplates: (...copyArgs: unknown[]) => mockCopyFeatureDocTemplates(...copyArgs)

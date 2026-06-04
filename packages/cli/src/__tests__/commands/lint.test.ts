@@ -5,10 +5,10 @@ import { lintCommand, renderLintReport } from '../../commands/lint.js';
 import { LintReport, runLintChecks } from '../../services/lint/lint.service.js';
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(() => ({
+  ConfigManager: vi.fn(function () { return {
     getDocsDir: vi.fn<() => Promise<string>>().mockResolvedValue('docs/ai'),
     getPhases: vi.fn<() => Promise<string[]>>().mockResolvedValue(['requirements', 'design'])
-  }))
+  }; })
 }));
 
 vi.mock('../../services/lint/lint.service.js', () => ({

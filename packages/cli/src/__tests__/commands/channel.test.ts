@@ -54,9 +54,9 @@ const mockChannelService = {
 };
 
 vi.mock('@ai-devkit/channel-connector', () => ({
-    ChannelManager: vi.fn(() => mockChannelManager),
-    ConfigStore: vi.fn(() => mockConfigStore),
-    TelegramAdapter: vi.fn(() => mockTelegramAdapter),
+    ChannelManager: vi.fn(function () { return mockChannelManager; }),
+    ConfigStore: vi.fn(function () { return mockConfigStore; }),
+    TelegramAdapter: vi.fn(function () { return mockTelegramAdapter; }),
     TELEGRAM_CHANNEL_TYPE: 'telegram',
 }), { virtual: true });
 
@@ -64,11 +64,11 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     AgentStatus: {
         RUNNING: 'running',
     },
-    AgentManager: vi.fn(() => mockAgentManager),
+    AgentManager: vi.fn(function () { return mockAgentManager; }),
     ClaudeCodeAdapter: vi.fn(),
     CodexAdapter: vi.fn(),
     GeminiCliAdapter: vi.fn(),
-    TerminalFocusManager: vi.fn(() => mockTerminalFocusManager),
+    TerminalFocusManager: vi.fn(function () { return mockTerminalFocusManager; }),
     TtyWriter: {
         send: vi.fn(),
     },
@@ -82,11 +82,11 @@ vi.mock('inquirer', () => ({
 }));
 
 vi.mock('telegraf', () => ({
-    Telegraf: vi.fn(() => ({
+    Telegraf: vi.fn(function () { return {
         telegram: {
             getMe: mockGetMe,
         },
-    })),
+    }; }),
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({
@@ -103,7 +103,7 @@ vi.mock('../../util/terminal-ui.js', () => ({
 }));
 
 vi.mock('../../services/channel/channel.service.js', () => ({
-    ChannelService: vi.fn(() => mockChannelService),
+    ChannelService: vi.fn(function () { return mockChannelService; }),
 }));
 
 // Imports are placed after vi.mock; Vitest hoists vi.mock so mocks apply

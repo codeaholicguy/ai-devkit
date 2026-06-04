@@ -17,7 +17,7 @@ vi.mock('@ai-devkit/memory', () => ({
 }), { virtual: true });
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(() => mockConfigManager)
+  ConfigManager: vi.fn(function () { return mockConfigManager; })
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({
