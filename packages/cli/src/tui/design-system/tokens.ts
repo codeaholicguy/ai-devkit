@@ -15,10 +15,11 @@ export const TUI_STATUS_LABELS = {
     unknown: { glyph: '?', label: 'unk', color: TUI_COLORS.danger },
 } as const;
 
-export type PanelTone = 'default' | 'danger';
+export type PanelTone = 'default' | 'danger' | 'success';
 
 export function getPanelBorderColor(focused: boolean, tone: PanelTone = 'default'): string {
     if (tone === 'danger') return TUI_COLORS.danger;
+    if (tone === 'success') return TUI_COLORS.success;
     return focused ? TUI_COLORS.accent : TUI_COLORS.border;
 }
 

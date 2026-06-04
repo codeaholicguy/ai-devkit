@@ -24,6 +24,10 @@ export async function runAction(action: ConsoleAction): Promise<ActionResult> {
                 return [...baseArgs, 'agent', 'kill', action.agentName];
             case 'rename':
                 return [...baseArgs, 'agent', 'rename', action.currentName, action.newName];
+            case 'channel-start':
+                return [...baseArgs, 'channel', 'start', action.channelName, '--agent', action.agentName, '--daemon'];
+            case 'channel-stop':
+                return [...baseArgs, 'channel', 'stop', action.channelName];
         }
     })();
 

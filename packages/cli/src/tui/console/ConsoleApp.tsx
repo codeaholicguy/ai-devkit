@@ -6,6 +6,7 @@ import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { useStartAgentPane } from './hooks/useStartAgentPane.js';
 import { useRenameAgentPane } from './hooks/useRenameAgentPane.js';
 import { useKillAgentAction } from './hooks/useKillAgentAction.js';
+import { useChannelActions } from './hooks/useChannelActions.js';
 import { AgentListPane } from './AgentListPane.js';
 import { PreviewSection } from './PreviewSection.js';
 import { StatusFooter } from './StatusFooter.js';
@@ -14,6 +15,7 @@ import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
 import { StartAgentPane } from './StartAgentPane.js';
 import { RenameAgentPane } from './RenameAgentPane.js';
+import { ChannelSelectPane } from './ChannelSelectPane.js';
 import { HelpPane } from './HelpPane.js';
 import { KillConfirmDialog } from './KillConfirmDialog.js';
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
@@ -72,8 +74,9 @@ const ConsoleAppShell: React.FC<{
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
     const startPaneActive = rightPaneMode.type === 'start-agent';
     const renamePaneActive = rightPaneMode.type === 'rename-agent';
+    const channelSelectPaneActive = rightPaneMode.type === 'channel-select';
     const helpPaneActive = rightPaneMode.type === 'help';
-    const inputFocused = focus === 'input' && !startPaneActive && !renamePaneActive && !helpPaneActive;
+    const inputFocused = focus === 'input' && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !helpPaneActive;
 
     useEffect(() => {
         if (!inputFocused) setInputLines(1);
@@ -89,7 +92,17 @@ const ConsoleAppShell: React.FC<{
 
     const selectedNameRef = useRef(selectedName);
     selectedNameRef.current = selectedName;
-    const { agents, error, lastUpdated, isLoading, refresh } = useConsoleContext();
+    const {
+        agents,
+        error,
+        lastUpdated,
+        isLoading,
+        refresh,
+        channelStatuses,
+        configuredChannels,
+        refreshConfiguredChannels,
+        refreshChannels,
+    } = useConsoleContext();
     const agentsRef = useRef(agents);
     agentsRef.current = agents;
 
@@ -140,6 +153,18 @@ const ConsoleAppShell: React.FC<{
         setTransient,
     });
 
+    const {
+        openChannelSelect,
+        startChannel,
+        stopAgentChannel,
+    } = useChannelActions({
+        channelStatuses,
+        refreshChannels,
+        refreshConfiguredChannels,
+        setRightPaneMode,
+        setTransient,
+    });
+
     const handleInputSubmit = useCallback((text: string) => {
         setFocus('list');
         const agent = getSelectedAgent();
@@ -160,7 +185,7 @@ const ConsoleAppShell: React.FC<{
     useInput((input, key) => {
         if (handleKillInput(input, key)) return;
 
-        if (startPaneActive || renamePaneActive) return;
+        if (startPaneActive || renamePaneActive || channelSelectPaneActive) return;
 
         if (focus === 'input') {
             if (key.escape) {
@@ -186,6 +211,16 @@ const ConsoleAppShell: React.FC<{
                     setTransient({ kind: 'error', text: result.error ?? `open exited ${result.exitCode}` });
                 }
             });
+            return;
+        }
+
+        if (input === 'c') {
+            openChannelSelect(getSelectedAgent());
+            return;
+        }
+
+        if (input === 'C') {
+            stopAgentChannel(getSelectedAgent());
             return;
         }
 
@@ -262,9 +297,20 @@ const ConsoleAppShell: React.FC<{
             height={contentHeight}
         />
     ) : null;
+    const channelSelectPane = channelSelectPaneActive ? (
+        <ChannelSelectPane
+            agentName={rightPaneMode.agentName}
+            channels={configuredChannels}
+            onSubmit={(channelName) => startChannel(channelName, rightPaneMode.agentName)}
+            onCancel={() => setRightPaneMode({ type: 'preview' })}
+            width={narrow ? listPaneWidth : rightColWidth}
+            height={contentHeight}
+        />
+    ) : null;
     let replacementPane: React.ReactNode = null;
     if (startPaneActive) replacementPane = startPane;
     if (renamePaneActive) replacementPane = renamePane;
+    if (channelSelectPaneActive) replacementPane = channelSelectPane;
     if (helpPaneActive) replacementPane = helpPane;
     const listPane = (
         <Panel
@@ -281,6 +327,7 @@ const ConsoleAppShell: React.FC<{
                 width={listPaneWidth - 4}
                 height={contentHeight - 2}
                 error={error}
+                channelStatuses={channelStatuses}
             />
         </Panel>
     );
@@ -333,7 +380,7 @@ const ConsoleAppShell: React.FC<{
                 lastUpdated={lastUpdated}
                 isLoading={isLoading}
                 narrowNote={
-                    narrow && !startPaneActive && !renamePaneActive && !helpPaneActive
+                    narrow && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !helpPaneActive
                         ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview`
                         : null
                 }

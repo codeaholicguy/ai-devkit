@@ -106,6 +106,27 @@ describe('runAction', () => {
         expect(argv).toEqual(expect.arrayContaining(['agent', 'rename', 'old-agent', 'new-agent']));
     });
 
+    it('passes correct argv for channel start action with selected channel name', async () => {
+        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
+        await runAction({ type: 'channel-start', channelName: 'work-telegram', agentName: 'my-agent' });
+        const [, argv] = vi.mocked(spawn).mock.calls[0];
+        expect(argv).toEqual(expect.arrayContaining([
+            'channel',
+            'start',
+            'work-telegram',
+            '--agent',
+            'my-agent',
+            '--daemon',
+        ]));
+    });
+
+    it('passes correct argv for channel stop action with selected channel name', async () => {
+        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
+        await runAction({ type: 'channel-stop', channelName: 'work-telegram' });
+        const [, argv] = vi.mocked(spawn).mock.calls[0];
+        expect(argv).toEqual(expect.arrayContaining(['channel', 'stop', 'work-telegram']));
+    });
+
     it('spawns with stdio pipe to avoid seizing the TUI terminal', async () => {
         vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
         await runAction({ type: 'start', agentType: 'claude', name: 'x', cwd: '/tmp/project' });
