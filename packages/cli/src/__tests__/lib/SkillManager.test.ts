@@ -66,10 +66,8 @@ vi.mock("../../util/skill.js", () => ({
 vi.mock("../../util/terminal.js", () => ({
   isInteractiveTerminal: vi.fn(() => true),
 }));
-vi.mock("inquirer", () => ({
-  default: {
-    prompt: vi.fn(),
-  },
+vi.mock("@inquirer/prompts", () => ({
+  checkbox: vi.fn(),
 }));
 
 vi.mock("ora", () => ({
@@ -85,9 +83,9 @@ vi.mock("ora", () => ({
 }));
 
 import { isInteractiveTerminal } from "../../util/terminal.js";
-import inquirer from "inquirer";
+import { checkbox } from "@inquirer/prompts";
 const mockIsInteractiveTerminal = isInteractiveTerminal as Mock;
-const mockPrompt = inquirer.prompt as unknown as Mock;
+const mockCheckbox = checkbox as unknown as Mock;
 
 const mockedFs = fs as Mocked<typeof fs>;
 const MockedConfigManager = ConfigManager as MockedClass<
@@ -638,13 +636,13 @@ describe("SkillManager", () => {
 
     it("should prompt for multiple skill selection when skill name is omitted", async () => {
       configureRegistrySkills(["frontend-design", "debug"]);
-      mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
+      mockCheckbox.mockResolvedValue(["debug", "frontend-design"]);
 
       mockIsInteractiveTerminal.mockReturnValue(true);
 
       await skillManager.addSkill(mockRegistryId, undefined as any);
 
-      expect(mockPrompt).toHaveBeenCalled();
+      expect(mockCheckbox).toHaveBeenCalled();
       expect(mockedSkillUtil.validateSkillName).toHaveBeenCalledWith("debug");
       expect(mockedSkillUtil.validateSkillName).toHaveBeenCalledWith("frontend-design");
       expect(mockConfigManager.addSkill).toHaveBeenNthCalledWith(1, {
@@ -665,19 +663,19 @@ describe("SkillManager", () => {
         skillManager.addSkill(mockRegistryId, undefined as any),
       ).rejects.toThrow('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
 
-      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(mockCheckbox).not.toHaveBeenCalled();
     });
 
     it("should use cached registry contents for multi-selection when pull fails", async () => {
       configureRegistrySkills(["debug", "frontend-design"]);
       mockedGitUtil.pullRepository.mockRejectedValue(new Error('network down'));
-      mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
+      mockCheckbox.mockResolvedValue(["debug", "frontend-design"]);
 
       mockIsInteractiveTerminal.mockReturnValue(true);
 
       await skillManager.addSkill(mockRegistryId, undefined as any);
 
-      expect(mockPrompt).toHaveBeenCalled();
+      expect(mockCheckbox).toHaveBeenCalled();
       expect(mockConfigManager.addSkill).toHaveBeenCalledTimes(2);
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining("⚠"),
@@ -687,7 +685,9 @@ describe("SkillManager", () => {
 
     it("should stop without installing when skill selection is cancelled", async () => {
       configureRegistrySkills(["debug"]);
-      mockPrompt.mockRejectedValue(new Error('User cancelled'));
+      const error = new Error('User cancelled');
+      error.name = 'ExitPromptError';
+      mockCheckbox.mockRejectedValue(error);
 
       mockIsInteractiveTerminal.mockReturnValue(true);
 
@@ -719,12 +719,12 @@ describe("SkillManager", () => {
         skillManager.addSkill(mockRegistryId, undefined as any),
       ).rejects.toThrow(`No valid skills found in ${mockRegistryId}.`);
 
-      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(mockCheckbox).not.toHaveBeenCalled();
     });
 
     it("should support global installation after interactive multi-selection", async () => {
       configureRegistrySkills(["debug", "frontend-design"]);
-      mockPrompt.mockResolvedValue({ selectedSkills: ["debug", "frontend-design"] });
+      mockCheckbox.mockResolvedValue(["debug", "frontend-design"]);
       (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
         if (checkPath === path.join(os.homedir(), ".claude", "skills", "debug")) {
           return Promise.resolve(false);

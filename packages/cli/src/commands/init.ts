@@ -1,5 +1,4 @@
 import { execFileSync } from 'child_process';
-import inquirer from 'inquirer';
 import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
 import { ConfigManager } from '../lib/Config.js';
 import { TemplateManager } from '../lib/TemplateManager.js';
@@ -11,6 +10,7 @@ import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '.
 import { isValidEnvironmentCode } from '../util/env.js';
 import { isInteractiveTerminal } from '../util/terminal.js';
 import { ui } from '../util/terminal-ui.js';
+import { confirm } from '@inquirer/prompts';
 
 function isGitAvailable(): boolean {
   try {
@@ -88,14 +88,10 @@ async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean
     return false;
   }
 
-  const { installBuiltinSkills } = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'installBuiltinSkills',
-      message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
-      default: true
-    }
-  ]);
+  const installBuiltinSkills = await confirm({
+    message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
+    default: true
+  });
 
   return Boolean(installBuiltinSkills);
 }
@@ -175,14 +171,10 @@ export async function initCommand(options: InitOptions) {
     if (nonInteractive) {
       ui.warning('AI DevKit is already initialized. Reconfiguring (--yes).');
     } else {
-      const { shouldContinue } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'shouldContinue',
-          message: 'AI DevKit is already initialized. Do you want to reconfigure?',
-          default: false
-        }
-      ]);
+      const shouldContinue = await confirm({
+        message: 'AI DevKit is already initialized. Do you want to reconfigure?',
+        default: false
+      });
 
       if (!shouldContinue) {
         ui.warning('Initialization cancelled.');
@@ -314,14 +306,10 @@ export async function initCommand(options: InitOptions) {
       } else if (nonInteractive) {
         shouldCopy = Boolean(options.overwrite);
       } else {
-        const { overwrite } = await inquirer.prompt([
-          {
-            type: 'confirm',
-            name: 'overwrite',
-            message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
-            default: false
-          }
-        ]);
+        const overwrite = await confirm({
+          message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
+          default: false
+        });
         shouldCopy = overwrite;
       }
     }

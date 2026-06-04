@@ -1,6 +1,6 @@
 
 
-const mockPrompt: any = vi.fn();
+const mockConfirm: any = vi.fn();
 
 const mockConfigManager: any = {
   read: vi.fn(),
@@ -21,11 +21,8 @@ const mockSkillManager: any = {
   addSkill: vi.fn()
 };
 
-vi.mock('inquirer', () => ({
-  __esModule: true,
-  default: {
-    prompt: (...args: unknown[]) => mockPrompt(...args)
-  }
+vi.mock('@inquirer/prompts', () => ({
+  confirm: (...args: unknown[]) => mockConfirm(...args)
 }));
 
 vi.mock('../../../lib/Config.js', () => ({
@@ -76,7 +73,7 @@ describe('install service', () => {
     mockTemplateManager.copyPhaseTemplate.mockResolvedValue('docs/ai/requirements/README.md');
 
     mockSkillManager.addSkill.mockResolvedValue(undefined);
-    mockPrompt.mockResolvedValue({ overwrite: false });
+    mockConfirm.mockResolvedValue(false);
   });
 
   it('installs all sections on happy path', async () => {
@@ -100,11 +97,11 @@ describe('install service', () => {
     mockTemplateManager.fileExists
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(true);
-    mockPrompt.mockResolvedValue({ overwrite: false });
+    mockConfirm.mockResolvedValue(false);
 
     const report = await reconcileAndInstall(installConfig, {});
 
-    expect(mockPrompt).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
     expect(report.environments.skipped).toBe(1);
     expect(report.phases.skipped).toBe(1);
     expect(report.skills.installed).toBe(1);
@@ -120,11 +117,11 @@ describe('install service', () => {
     mockTemplateManager.fileExists
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(true);
-    mockPrompt.mockResolvedValue({ overwrite: true });
+    mockConfirm.mockResolvedValue(true);
 
     const report = await reconcileAndInstall(installConfig, {});
 
-    expect(mockPrompt).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
     expect(report.environments.installed).toBe(1);
     expect(report.phases.installed).toBe(1);
   });
@@ -139,7 +136,7 @@ describe('install service', () => {
 
     const report = await reconcileAndInstall(installConfig, { overwrite: true });
 
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockConfirm).not.toHaveBeenCalled();
     expect(report.environments.installed).toBe(1);
     expect(report.phases.installed).toBe(1);
   });

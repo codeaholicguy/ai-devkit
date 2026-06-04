@@ -1,3 +1,6 @@
+import { ui } from './terminal-ui.js';
+import { getErrorMessage } from './text.js';
+
 /**
  * Base error for the ai-devkit CLI.
  * All typed CLI errors extend this class, enabling programmatic
@@ -55,6 +58,21 @@ export class GitError extends CliError {
   }
 }
 
+export function isPromptCancelled(error: unknown): boolean {
+  return error instanceof Error && error.name === 'ExitPromptError';
+}
+
+export async function handleCliError(label: string, error: unknown): Promise<void> {
+  if (isPromptCancelled(error)) {
+    ui.warning('Cancelled.');
+    process.exit(130);
+    return;
+  }
+
+  ui.error(`Failed to ${label}: ${getErrorMessage(error)}`);
+  process.exit(1);
+}
+
 /**
  * Wraps a CLI command action with consistent error handling.
  * Catches errors, prints them via ui.error, and exits with code 1.
@@ -67,10 +85,7 @@ export function withErrorHandler<T extends unknown[]>(
     try {
       await fn(...args);
     } catch (error: unknown) {
-      const { ui } = await import('./terminal-ui.js');
-      const { getErrorMessage } = await import('./text.js');
-      ui.error(`Failed to ${label}: ${getErrorMessage(error)}`);
-      process.exit(1);
+      await handleCliError(label, error);
     }
   };
 }

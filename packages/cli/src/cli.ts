@@ -11,6 +11,7 @@ import { registerSkillCommand } from './commands/skill.js';
 import { registerAgentCommand } from './commands/agent.js';
 import { registerChannelCommand } from './commands/channel.js';
 import { registerDocsCommand } from './commands/docs.js';
+import { handleCliError } from './util/errors.js';
 import pkg from '../package.json' with { type: 'json' };
 const { version } = pkg as { version: string };
 
@@ -65,4 +66,8 @@ registerAgentCommand(program);
 registerChannelCommand(program);
 registerDocsCommand(program);
 
-program.parse();
+try {
+  await program.parseAsync();
+} catch (error) {
+  await handleCliError('run command', error);
+}

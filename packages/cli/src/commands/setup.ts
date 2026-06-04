@@ -1,10 +1,10 @@
-import inquirer from 'inquirer';
 import * as path from 'path';
 import { TemplateManager } from '../lib/TemplateManager.js';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';
 import { EnvironmentCode } from '../types.js';
 import { getEnvironmentDisplayName, getEnvironment } from '../util/env.js';
 import { ui } from '../util/terminal-ui.js';
+import { confirm } from '@inquirer/prompts';
 
 interface SetupOptions {
     global?: boolean;
@@ -62,14 +62,10 @@ async function processGlobalEnvironment(
     const commandsExist = await templateManager.checkGlobalCommandsExist(envCode);
 
     if (commandsExist) {
-        const { shouldOverwrite } = await inquirer.prompt([
-            {
-                type: 'confirm',
-                name: 'shouldOverwrite',
-                message: `Global commands already exist for ${envName}. Overwrite?`,
-                default: false
-            }
-        ]);
+        const shouldOverwrite = await confirm({
+            message: `Global commands already exist for ${envName}. Overwrite?`,
+            default: false
+        });
 
         if (!shouldOverwrite) {
             ui.warning(`Skipped ${envName} (files already exist)`);

@@ -28,7 +28,7 @@ const mockSpinner: any = {
   fail: vi.fn(),
 };
 
-const mockPrompt: any = vi.fn();
+const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockWaitForAgentResponse = vi.fn<(...args: any[]) => Promise<any>>();
@@ -99,11 +99,8 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   RenameConflictError: RenameConflictError,
 }), { virtual: true });
 
-vi.mock('inquirer', () => ({
-  __esModule: true,
-  default: {
-    prompt: (...args: unknown[]) => mockPrompt(...args),
-  },
+vi.mock('@inquirer/prompts', () => ({
+  select: (...args: unknown[]) => mockSelect(...args),
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({
@@ -300,7 +297,7 @@ Waiting on user input`,
     mockManager.resolveAgent.mockReturnValue(agent);
     mockFocusManager.findTerminal.mockResolvedValue({ type: 'tmux', identifier: '1:1' });
     mockFocusManager.focusTerminal.mockResolvedValue(true);
-    mockPrompt.mockResolvedValue({ selectedAgent: agent });
+    mockSelect.mockResolvedValue(agent);
 
     const program = new Command();
     registerAgentCommand(program);

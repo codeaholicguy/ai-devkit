@@ -31,6 +31,7 @@
     "@ai-devkit/agent-manager": "0.16.0",
     "@ai-devkit/channel-connector": "0.7.0",
     "@ai-devkit/memory": "0.12.0",
+    "@inquirer/prompts": "^8.5.2",
     "chalk": "^5.6.0",
     "commander": "^11.1.0",
     "debug": "^4.4.3",
@@ -38,7 +39,6 @@
     "gray-matter": "^4.0.3",
     "ink": "^7.0.4",
     "ink-text-input": "^6.0.0",
-    "inquirer": "^9.3.0",
     "ora": "^9.0.0",
     "react": "^19.2.0",
     "smol-toml": "^1.6.1",
@@ -49,7 +49,6 @@
   "devDependencies": {
     "@types/debug": "^4.1.13",
     "@types/fs-extra": "^11.0.4",
-    "@types/inquirer": "^9.0.0",
     "@types/node": "^20.11.5",
     "@types/react": "^19.2.0",
     "@typescript-eslint/eslint-plugin": "^8.60.1",

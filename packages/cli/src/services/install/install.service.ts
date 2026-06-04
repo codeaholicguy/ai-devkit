@@ -1,4 +1,3 @@
-import inquirer from 'inquirer';
 import { ConfigManager } from '../../lib/Config.js';
 import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
 import { SkillManager } from '../../lib/SkillManager.js';
@@ -6,6 +5,7 @@ import { TemplateManager } from '../../lib/TemplateManager.js';
 import { InstallConfigData } from '../../util/config.js';
 import { installMcpServers, McpInstallReport } from './mcp/index.js';
 import type { DevKitConfig } from '../../types.js';
+import { confirm } from '@inquirer/prompts';
 
 export interface InstallRunOptions {
   overwrite?: boolean;
@@ -194,14 +194,8 @@ async function resolveOverwritePolicy(
     return true;
   }
 
-  const answer = await inquirer.prompt([
-    {
-      type: 'confirm',
-      name: 'overwrite',
-      message: 'Existing install artifacts were found. Overwrite them?',
-      default: false
-    }
-  ]);
-
-  return Boolean(answer.overwrite);
+  return confirm({
+    message: 'Existing install artifacts were found. Overwrite them?',
+    default: false
+  });
 }

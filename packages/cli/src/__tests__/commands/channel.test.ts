@@ -13,7 +13,8 @@ const mockConfigStore = {
     removeChannel: vi.fn<(name: string) => Promise<void>>(),
 };
 
-const mockPrompt = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockConfirm = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockPassword = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockGetMe = vi.fn<() => Promise<{ username: string }>>();
 const mockSpinner = {
     start: vi.fn(),
@@ -74,11 +75,9 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     },
 }), { virtual: true });
 
-vi.mock('inquirer', () => ({
-    __esModule: true,
-    default: {
-        prompt: (...args: unknown[]) => mockPrompt(...args),
-    },
+vi.mock('@inquirer/prompts', () => ({
+    confirm: (...args: unknown[]) => mockConfirm(...args),
+    password: (...args: unknown[]) => mockPassword(...args),
 }));
 
 vi.mock('telegraf', () => ({
@@ -152,7 +151,8 @@ describe('startOutputPolling', () => {
         mockConfigStore.getChannel.mockReset();
         mockConfigStore.saveChannel.mockReset();
         mockConfigStore.removeChannel.mockReset();
-        mockPrompt.mockReset();
+        mockConfirm.mockReset();
+        mockPassword.mockReset();
         mockGetMe.mockReset();
         mockSpinner.start.mockReset();
         mockSpinner.succeed.mockReset();
@@ -446,12 +446,13 @@ describe('channel command', () => {
         mockAgentAdapter.getConversation.mockReset();
         mockTelegramAdapter.onMessage.mockReset();
         mockTelegramAdapter.sendMessage.mockReset();
-        mockPrompt.mockReset();
+        mockConfirm.mockReset();
+        mockPassword.mockReset();
         vi.clearAllMocks();
     });
 
     it('connects a named Telegram channel', async () => {
-        mockPrompt.mockResolvedValue({ botToken: '123:abc' });
+        mockPassword.mockResolvedValue('123:abc');
         mockConfigStore.getChannel.mockResolvedValue(undefined);
         mockConfigStore.getConfig.mockResolvedValue({ channels: {} });
         mockChannelService.resolveConnectChannelName.mockReturnValue('personal');
@@ -475,7 +476,7 @@ describe('channel command', () => {
     });
 
     it('connects the default Telegram channel when --name is omitted', async () => {
-        mockPrompt.mockResolvedValue({ botToken: '123:abc' });
+        mockPassword.mockResolvedValue('123:abc');
         mockConfigStore.getChannel.mockResolvedValue(undefined);
         mockConfigStore.getConfig.mockResolvedValue({ channels: {} });
 
@@ -523,7 +524,7 @@ describe('channel command', () => {
 
     it('disconnects a named channel', async () => {
         mockConfigStore.getChannel.mockResolvedValue(personalEntry);
-        mockPrompt.mockResolvedValue({ confirm: true });
+        mockConfirm.mockResolvedValue(true);
 
         const program = new Command();
         registerChannelCommand(program);

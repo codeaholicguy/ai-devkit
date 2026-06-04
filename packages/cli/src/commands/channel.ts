@@ -2,7 +2,6 @@ import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { Telegraf } from 'telegraf';
 import {
     TELEGRAM_CHANNEL_TYPE,
@@ -13,6 +12,7 @@ import {
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { createLogger, enableDebug } from '../util/debug.js';
+import { confirm, password } from '@inquirer/prompts';
 import { ChannelService } from '../services/channel/channel.service.js';
 import { runChannelBridge } from '../services/channel/channel-runner.js';
 
@@ -62,16 +62,14 @@ export function registerChannelCommand(program: Command): void {
             ui.info('To connect Telegram, you need a bot token from @BotFather.');
             ui.info('Open Telegram, search for @BotFather, and create a new bot.\n');
 
-            const { botToken } = await inquirer.prompt([{
-                type: 'password',
-                name: 'botToken',
+            const botToken = await password({
                 message: 'Enter your Telegram bot token:',
                 validate: (input: string) => {
                     if (!input.trim()) return 'Bot token is required';
                     if (!input.includes(':')) return 'Invalid token format (expected number:hash)';
                     return true;
                 },
-            }]);
+            });
 
             const spinner = ui.spinner('Validating bot token...');
             spinner.start();
@@ -159,14 +157,12 @@ export function registerChannelCommand(program: Command): void {
                 return;
             }
 
-            const { confirm } = await inquirer.prompt([{
-                type: 'confirm',
-                name: 'confirm',
+            const shouldRemove = await confirm({
                 message: `Remove "${channelName}" channel configuration?`,
                 default: false,
-            }]);
+            });
 
-            if (!confirm) return;
+            if (!shouldRemove) return;
 
             await configStore.removeChannel(channelName);
             ui.success(`${channelName} channel disconnected.`);

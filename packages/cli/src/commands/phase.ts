@@ -1,8 +1,8 @@
-import inquirer from 'inquirer';
 import { ConfigManager } from '../lib/Config.js';
 import { TemplateManager } from '../lib/TemplateManager.js';
 import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types.js';
 import { ui } from '../util/terminal-ui.js';
+import { confirm, select } from '@inquirer/prompts';
 
 export async function phaseCommand(phaseName?: string) {
   const configManager = new ConfigManager();
@@ -27,31 +27,23 @@ export async function phaseCommand(phaseName?: string) {
 
     if (availableToAdd.length === 0) {
       ui.warning('All phases are already initialized.');
-      const { shouldReinitialize } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'shouldReinitialize',
-          message: 'Would you like to reinitialize a phase?',
-          default: false
-        }
-      ]);
+      const shouldReinitialize = await confirm({
+        message: 'Would you like to reinitialize a phase?',
+        default: false
+      });
 
       if (!shouldReinitialize) {
         return;
       }
     }
 
-    const { selectedPhase } = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'selectedPhase',
-        message: 'Which phase would you like to add?',
-        choices: AVAILABLE_PHASES.map(p => ({
-          name: PHASE_DISPLAY_NAMES[p],
-          value: p
-        }))
-      }
-    ]);
+    const selectedPhase = await select({
+      message: 'Which phase would you like to add?',
+      choices: AVAILABLE_PHASES.map(p => ({
+        name: PHASE_DISPLAY_NAMES[p],
+        value: p
+      }))
+    });
     phase = selectedPhase;
   }
 
@@ -59,14 +51,10 @@ export async function phaseCommand(phaseName?: string) {
   let shouldCopy = true;
 
   if (exists) {
-    const { overwrite } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'overwrite',
-        message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
-        default: false
-      }
-    ]);
+    const overwrite = await confirm({
+      message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
+      default: false
+    });
     shouldCopy = overwrite;
   }
 

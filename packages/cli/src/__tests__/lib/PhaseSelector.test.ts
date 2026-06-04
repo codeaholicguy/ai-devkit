@@ -1,10 +1,10 @@
 import type { MockedFunction } from 'vitest';
-import inquirer from 'inquirer';
+import { checkbox } from '@inquirer/prompts';
 import { PhaseSelector } from '../../lib/PhaseSelector.js';
 import { AVAILABLE_PHASES } from '../../types.js';
 
-vi.mock('inquirer', () => ({
-  default: { prompt: vi.fn() },
+vi.mock('@inquirer/prompts', () => ({
+  checkbox: vi.fn(),
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({
@@ -14,13 +14,12 @@ import { ui as mockUi } from '../../util/terminal-ui.js';
 
 describe('PhaseSelector', () => {
   let selector: PhaseSelector;
-  let mockPrompt: MockedFunction<any>;
+  let mockCheckbox: MockedFunction<any>;
 
   beforeEach(() => {
     selector = new PhaseSelector();
     
-    mockPrompt = vi.fn();
-    inquirer.prompt = mockPrompt;
+    mockCheckbox = checkbox as MockedFunction<any>;
   });
 
   afterEach(() => {
@@ -31,13 +30,13 @@ describe('PhaseSelector', () => {
     it('should return all phases when all=true', async () => {
       const result = await selector.selectPhases(true);
       expect(result).toEqual(AVAILABLE_PHASES);
-      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(mockCheckbox).not.toHaveBeenCalled();
     });
 
     it('should parse phases string correctly', async () => {
       const result = await selector.selectPhases(false, 'requirements,design');
       expect(result).toEqual(['requirements', 'design']);
-      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(mockCheckbox).not.toHaveBeenCalled();
     });
 
     it('should trim whitespace from phase names', async () => {
@@ -46,16 +45,16 @@ describe('PhaseSelector', () => {
     });
 
     it('should prompt user when no options provided', async () => {
-      mockPrompt.mockResolvedValue({ phases: ['requirements', 'design'] });
+      mockCheckbox.mockResolvedValue(['requirements', 'design']);
 
       const result = await selector.selectPhases();
 
-      expect(mockPrompt).toHaveBeenCalledTimes(1);
+      expect(mockCheckbox).toHaveBeenCalledTimes(1);
       expect(result).toEqual(['requirements', 'design']);
     });
 
     it('should return empty array when no phases selected', async () => {
-      mockPrompt.mockResolvedValue({ phases: [] });
+      mockCheckbox.mockResolvedValue([]);
 
       const result = await selector.selectPhases();
 
@@ -63,7 +62,7 @@ describe('PhaseSelector', () => {
     });
 
     it('should handle prompt rejection', async () => {
-      mockPrompt.mockRejectedValue(new Error('User cancelled'));
+      mockCheckbox.mockRejectedValue(new Error('User cancelled'));
 
       await expect(selector.selectPhases()).rejects.toThrow('User cancelled');
     });

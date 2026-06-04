@@ -1,7 +1,6 @@
 import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import inquirer from 'inquirer';
 import { ConfigManager } from './Config.js';
 import { GlobalConfigManager } from './GlobalConfig.js';
 import { EnvironmentSelector } from './EnvironmentSelector.js';
@@ -13,6 +12,7 @@ import { validateRegistryId, validateSkillName, extractSkillDescription, isValid
 import { isInteractiveTerminal } from '../util/terminal.js';
 import { ui } from '../util/terminal-ui.js';
 import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors.js';
+import { checkbox } from '@inquirer/prompts';
 import type { EnvironmentCode } from '../types.js';
 
 import type { UpdateSummary } from './SkillRegistry.js';
@@ -410,20 +410,14 @@ export class SkillManager {
 
   private async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string[]> {
     try {
-      const { selectedSkills } = await inquirer.prompt([
-        {
-          type: 'checkbox',
-          name: 'selectedSkills',
-          message: 'Select skill(s) to install',
-          choices: skills.map(skill => ({
-            name: skill.description ? `${skill.name} - ${skill.description}` : skill.name,
-            value: skill.name,
-          })),
-          validate: (value: string[]) => value.length > 0 || 'Select at least one skill.',
-        },
-      ]);
-
-      return selectedSkills;
+      return await checkbox({
+        message: 'Select skill(s) to install',
+        choices: skills.map(skill => ({
+          name: skill.description ? `${skill.name} - ${skill.description}` : skill.name,
+          value: skill.name,
+        })),
+        required: true,
+      });
     } catch (error: unknown) {
       if (error instanceof Error &&
         (error.name === 'ExitPromptError' || error.message.toLowerCase().includes('cancel'))) {

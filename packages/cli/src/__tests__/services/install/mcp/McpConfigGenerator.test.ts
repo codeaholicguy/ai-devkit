@@ -1,8 +1,12 @@
 import { McpServerDefinition, EnvironmentCode } from '../../../../types.js';
 
-const { mockPrompt } = vi.hoisted(() => ({ mockPrompt: vi.fn() }));
-vi.mock('inquirer', () => ({
-  default: { prompt: (...args: unknown[]) => mockPrompt(...args) },
+const { mockConfirm, mockSelect } = vi.hoisted(() => ({
+  mockConfirm: vi.fn(),
+  mockSelect: vi.fn(),
+}));
+vi.mock('@inquirer/prompts', () => ({
+  confirm: (...args: unknown[]) => mockConfirm(...args),
+  select: (...args: unknown[]) => mockSelect(...args),
 }));
 
 const mockHasMcpSupport = vi.fn();
@@ -97,10 +101,10 @@ describe('McpConfigGenerator (orchestrator)', () => {
       skippedServers: [],
       resolvedConflicts: [],
     });
-    mockPrompt.mockResolvedValue({ action: 'overwrite' });
+    mockSelect.mockResolvedValue('overwrite');
 
     const report = await installMcpServers(servers, ['claude'], '/project');
-    expect(mockPrompt).toHaveBeenCalled();
+    expect(mockSelect).toHaveBeenCalled();
     expect(report.installed).toBe(1);
     expect(report.conflicts).toBe(0);
   });
@@ -113,7 +117,7 @@ describe('McpConfigGenerator (orchestrator)', () => {
       skippedServers: [],
       resolvedConflicts: [],
     });
-    mockPrompt.mockResolvedValue({ action: 'skip' });
+    mockSelect.mockResolvedValue('skip');
 
     const report = await installMcpServers(servers, ['claude'], '/project');
     expect(report.conflicts).toBe(1);
@@ -132,7 +136,8 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['claude'], '/project');
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(mockConfirm).not.toHaveBeenCalled();
     expect(report.conflicts).toBe(1);
     expect(report.installed).toBe(0);
   });
@@ -148,7 +153,8 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['claude'], '/project', { overwrite: true });
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(mockConfirm).not.toHaveBeenCalled();
     expect(report.installed).toBe(1);
     expect(report.conflicts).toBe(0);
   });
@@ -163,7 +169,8 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['claude'], '/project', { overwrite: true });
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(mockConfirm).not.toHaveBeenCalled();
     expect(report.installed).toBe(1);
   });
 
@@ -183,13 +190,12 @@ describe('McpConfigGenerator (orchestrator)', () => {
       skippedServers: [],
       resolvedConflicts: [],
     });
-    // First prompt: choose per server, second prompt: confirm overwrite
-    mockPrompt
-      .mockResolvedValueOnce({ action: 'choose' })
-      .mockResolvedValueOnce({ overwrite: true });
+    mockSelect.mockResolvedValueOnce('choose');
+    mockConfirm.mockResolvedValueOnce(true);
 
     const report = await installMcpServers(servers, ['claude'], '/project');
-    expect(mockPrompt).toHaveBeenCalledTimes(2);
+    expect(mockSelect).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
     expect(report.installed).toBe(1);
   });
 
@@ -201,9 +207,8 @@ describe('McpConfigGenerator (orchestrator)', () => {
       skippedServers: [],
       resolvedConflicts: [],
     });
-    mockPrompt
-      .mockResolvedValueOnce({ action: 'choose' })
-      .mockResolvedValueOnce({ overwrite: false });
+    mockSelect.mockResolvedValueOnce('choose');
+    mockConfirm.mockResolvedValueOnce(false);
 
     const report = await installMcpServers(servers, ['claude'], '/project');
     expect(report.conflicts).toBe(1);

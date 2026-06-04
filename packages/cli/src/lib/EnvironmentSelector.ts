@@ -1,4 +1,3 @@
-import inquirer from "inquirer";
 import { EnvironmentCode, EnvironmentDefinition } from "../types.js";
 import {
   getAllEnvironments,
@@ -7,6 +6,7 @@ import {
   getSkillCapableEnvironments,
 } from "../util/env.js";
 import { ui } from "../util/terminal-ui.js";
+import { checkbox, confirm } from '@inquirer/prompts';
 
 export class EnvironmentSelector {
   private async selectFromEnvironments(
@@ -25,23 +25,12 @@ export class EnvironmentSelector {
       short: env.name,
     }));
 
-    const answers = await inquirer.prompt([
-      {
-        type: "checkbox",
-        name: "environments",
-        message,
-        choices,
-        pageSize: 10,
-        validate: (input: EnvironmentCode[]) => {
-          if (input.length === 0) {
-            return "Please select at least one environment.";
-          }
-          return true;
-        },
-      },
-    ]);
-
-    return answers.environments;
+    return checkbox({
+      message,
+      choices,
+      pageSize: 10,
+      required: true,
+    });
   }
 
   async selectEnvironments(): Promise<EnvironmentCode[]> {
@@ -59,16 +48,10 @@ export class EnvironmentSelector {
 
     const conflictNames = conflicts.map((id) => getEnvironmentDisplayName(id));
 
-    const answers = await inquirer.prompt([
-      {
-        type: "confirm",
-        name: "proceed",
-        message: `The following environments are already set up and will be overwritten:\n  ${conflictNames.join(", ")}\n\nDo you want to continue?`,
-        default: false,
-      },
-    ]);
-
-    return answers.proceed;
+    return confirm({
+      message: `The following environments are already set up and will be overwritten:\n  ${conflictNames.join(", ")}\n\nDo you want to continue?`,
+      default: false,
+    });
   }
 
   displaySelectionSummary(selected: EnvironmentCode[]): void {

@@ -1,10 +1,11 @@
 import type { MockedFunction } from 'vitest';
-import inquirer from 'inquirer';
+import { checkbox, confirm } from '@inquirer/prompts';
 import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
 import { getAllEnvironments } from '../../util/env.js';
 
-vi.mock('inquirer', () => ({
-  default: { prompt: vi.fn() },
+vi.mock('@inquirer/prompts', () => ({
+  checkbox: vi.fn(),
+  confirm: vi.fn(),
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({
@@ -14,13 +15,14 @@ import { ui as mockUi } from '../../util/terminal-ui.js';
 
 describe('EnvironmentSelector', () => {
   let selector: EnvironmentSelector;
-  let mockPrompt: MockedFunction<any>;
+  let mockCheckbox: MockedFunction<any>;
+  let mockConfirm: MockedFunction<any>;
 
   beforeEach(() => {
     selector = new EnvironmentSelector();
     
-    mockPrompt = vi.fn();
-    inquirer.prompt = mockPrompt;
+    mockCheckbox = checkbox as MockedFunction<any>;
+    mockConfirm = confirm as MockedFunction<any>;
   });
 
   afterEach(() => {
@@ -30,28 +32,27 @@ describe('EnvironmentSelector', () => {
   describe('selectEnvironments', () => {
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
-      mockPrompt.mockResolvedValue({ environments: ['cursor', 'claude'] });
+      mockCheckbox.mockResolvedValue(['cursor', 'claude']);
 
       await selector.selectEnvironments();
 
-      expect(mockPrompt).toHaveBeenCalledWith([
+      expect(mockCheckbox).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'checkbox',
-          name: 'environments',
           message: 'Select AI environments to set up (use space to select, enter to confirm):',
           choices: environments.map(env => ({
             name: env.name,
             value: env.code,
             short: env.name
           })),
-          validate: expect.any(Function)
+          pageSize: 10,
+          required: true
         })
-      ]);
+      );
     });
 
     it('should return selected environments', async () => {
       const selectedEnvs = ['cursor', 'claude'];
-      mockPrompt.mockResolvedValue({ environments: selectedEnvs });
+      mockCheckbox.mockResolvedValue(selectedEnvs);
 
       const result = await selector.selectEnvironments();
 
@@ -59,21 +60,19 @@ describe('EnvironmentSelector', () => {
     });
 
     it('should validate that at least one environment is selected', async () => {
-      mockPrompt.mockResolvedValue({ environments: [] });
+      mockCheckbox.mockResolvedValue([]);
 
       const result = await selector.selectEnvironments();
 
       expect(result).toEqual([]);
 
-      const callArgs = mockPrompt.mock.calls[0][0];
-      const validateFn = callArgs[0].validate;
-
-      expect(validateFn([])).toBe('Please select at least one environment.');
-      expect(validateFn(['cursor'])).toBe(true);
+      expect(mockCheckbox).toHaveBeenCalledWith(
+        expect.objectContaining({ required: true })
+      );
     });
 
     it('should handle prompt rejection', async () => {
-      mockPrompt.mockRejectedValue(new Error('User cancelled'));
+      mockCheckbox.mockRejectedValue(new Error('User cancelled'));
 
       await expect(selector.selectEnvironments()).rejects.toThrow('User cancelled');
     });
@@ -83,27 +82,26 @@ describe('EnvironmentSelector', () => {
     it('should return true immediately for empty conflicts', async () => {
       const result = await selector.confirmOverride([]);
       expect(result).toBe(true);
-      expect(mockPrompt).not.toHaveBeenCalled();
+      expect(mockCheckbox).not.toHaveBeenCalled();
+      expect(mockConfirm).not.toHaveBeenCalled();
     });
 
     it('should prompt user for confirmation with conflict details', async () => {
-      mockPrompt.mockResolvedValue({ proceed: true });
+      mockConfirm.mockResolvedValue(true);
 
       const result = await selector.confirmOverride(['cursor', 'claude']);
 
       expect(result).toBe(true);
-      expect(mockPrompt).toHaveBeenCalledWith([
+      expect(mockConfirm).toHaveBeenCalledWith(
         {
-          type: 'confirm',
-          name: 'proceed',
           message: 'The following environments are already set up and will be overwritten:\n  Cursor, Claude Code\n\nDo you want to continue?',
           default: false
         }
-      ]);
+      );
     });
 
     it('should return false when user declines', async () => {
-      mockPrompt.mockResolvedValue({ proceed: false });
+      mockConfirm.mockResolvedValue(false);
 
       const result = await selector.confirmOverride(['cursor']);
 
@@ -111,12 +109,12 @@ describe('EnvironmentSelector', () => {
     });
 
     it('should handle single environment conflict', async () => {
-      mockPrompt.mockResolvedValue({ proceed: true });
+      mockConfirm.mockResolvedValue(true);
 
       const result = await selector.confirmOverride(['cursor']);
 
       expect(result).toBe(true);
-      const message = mockPrompt.mock.calls[0][0][0].message;
+      const message = mockConfirm.mock.calls[0][0].message;
       expect(message).toContain('Cursor');
     });
   });
@@ -149,27 +147,26 @@ describe('EnvironmentSelector', () => {
 
   describe('selectGlobalEnvironments', () => {
     it('should create choices only from global-capable environments', async () => {
-      mockPrompt.mockResolvedValue({ environments: ['antigravity'] });
+      mockCheckbox.mockResolvedValue(['antigravity']);
 
       await selector.selectGlobalEnvironments();
 
-      expect(mockPrompt).toHaveBeenCalledWith([
+      expect(mockCheckbox).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'checkbox',
-          name: 'environments',
           message: 'Select AI environments for global setup (use space to select, enter to confirm):',
           choices: expect.arrayContaining([
             expect.objectContaining({ value: 'antigravity' }),
             expect.objectContaining({ value: 'codex' })
           ]),
-          validate: expect.any(Function)
+          pageSize: 10,
+          required: true
         })
-      ]);
+      );
     });
 
     it('should return selected global environments', async () => {
       const selectedEnvs = ['antigravity', 'codex'];
-      mockPrompt.mockResolvedValue({ environments: selectedEnvs });
+      mockCheckbox.mockResolvedValue(selectedEnvs);
 
       const result = await selector.selectGlobalEnvironments();
 
@@ -177,26 +174,23 @@ describe('EnvironmentSelector', () => {
     });
 
     it('should validate that at least one environment is selected', async () => {
-      mockPrompt.mockResolvedValue({ environments: [] });
+      mockCheckbox.mockResolvedValue([]);
 
       const result = await selector.selectGlobalEnvironments();
 
       expect(result).toEqual([]);
 
-      const callArgs = mockPrompt.mock.calls[0][0];
-      const validateFn = callArgs[0].validate;
-
-      expect(validateFn([])).toBe('Please select at least one environment.');
-      expect(validateFn(['antigravity'])).toBe(true);
+      expect(mockCheckbox).toHaveBeenCalledWith(
+        expect.objectContaining({ required: true })
+      );
     });
 
     it('should not include non-global environments in choices', async () => {
-      mockPrompt.mockResolvedValue({ environments: ['antigravity'] });
+      mockCheckbox.mockResolvedValue(['antigravity']);
 
       await selector.selectGlobalEnvironments();
 
-      const callArgs = mockPrompt.mock.calls[0][0];
-      const choices = callArgs[0].choices;
+      const choices = mockCheckbox.mock.calls[0][0].choices;
       const choiceValues = choices.map((c: any) => c.value);
 
       // Should only have Antigravity and Codex
@@ -208,12 +202,11 @@ describe('EnvironmentSelector', () => {
     });
 
     it('should show exactly 2 choices (Antigravity and Codex)', async () => {
-      mockPrompt.mockResolvedValue({ environments: [] });
+      mockCheckbox.mockResolvedValue([]);
 
       await selector.selectGlobalEnvironments();
 
-      const callArgs = mockPrompt.mock.calls[0][0];
-      const choices = callArgs[0].choices;
+      const choices = mockCheckbox.mock.calls[0][0].choices;
 
       expect(choices).toHaveLength(2);
     });
@@ -221,14 +214,12 @@ describe('EnvironmentSelector', () => {
 
   describe('selectGlobalSkillEnvironments', () => {
     it('should create choices from global-skill-capable environments', async () => {
-      mockPrompt.mockResolvedValue({ environments: ['claude'] });
+      mockCheckbox.mockResolvedValue(['claude']);
 
       await selector.selectGlobalSkillEnvironments();
 
-      expect(mockPrompt).toHaveBeenCalledWith([
+      expect(mockCheckbox).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'checkbox',
-          name: 'environments',
           message: 'Select AI environments for global skill installation (use space to select, enter to confirm):',
           choices: expect.arrayContaining([
             expect.objectContaining({ value: 'cursor' }),
@@ -238,14 +229,15 @@ describe('EnvironmentSelector', () => {
             expect.objectContaining({ value: 'opencode' }),
             expect.objectContaining({ value: 'antigravity' })
           ]),
-          validate: expect.any(Function)
+          pageSize: 10,
+          required: true
         })
-      ]);
+      );
     });
 
     it('should return selected global-skill environments', async () => {
       const selectedEnvs = ['claude', 'codex'];
-      mockPrompt.mockResolvedValue({ environments: selectedEnvs });
+      mockCheckbox.mockResolvedValue(selectedEnvs);
 
       const result = await selector.selectGlobalSkillEnvironments();
 

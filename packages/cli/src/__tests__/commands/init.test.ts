@@ -7,7 +7,7 @@ const {
   mockPhaseSelector,
   mockSkillManager,
   mockUi,
-  mockPrompt,
+  mockConfirm,
   mockLoadInitTemplate,
   mockExecFileSync,
   mockIsInteractiveTerminal,
@@ -42,7 +42,7 @@ const {
     info: vi.fn(),
     text: vi.fn(),
   } as any,
-  mockPrompt: vi.fn() as any,
+  mockConfirm: vi.fn() as any,
   mockLoadInitTemplate: vi.fn() as any,
   mockExecFileSync: vi.fn() as any,
   mockIsInteractiveTerminal: vi.fn() as any,
@@ -52,11 +52,8 @@ vi.mock('child_process', () => ({
   execFileSync: (...args: unknown[]) => mockExecFileSync(...args)
 }));
 
-vi.mock('inquirer', () => ({
-  __esModule: true,
-  default: {
-    prompt: (...args: unknown[]) => mockPrompt(...args)
-  }
+vi.mock('@inquirer/prompts', () => ({
+  confirm: (...args: unknown[]) => mockConfirm(...args)
 }));
 
 vi.mock('../../lib/Config.js', () => ({
@@ -93,13 +90,19 @@ vi.mock('../../util/terminal.js', () => ({
 
 import { initCommand } from '../../commands/init.js';
 
+function confirmCallsMatching(pattern: RegExp): any[] {
+  return mockConfirm.mock.calls.filter(([config]: any[]) =>
+    pattern.test(config?.message ?? '')
+  );
+}
+
 describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.exitCode = undefined;
 
     mockExecFileSync.mockReturnValue(undefined);
-    mockPrompt.mockResolvedValue({});
+    mockConfirm.mockResolvedValue(false);
 
     mockConfigManager.exists.mockResolvedValue(false);
     mockConfigManager.read.mockResolvedValue(null);
@@ -142,7 +145,7 @@ describe('init command', () => {
     expect(mockLoadInitTemplate).toHaveBeenCalledWith('./init.yaml');
     expect(mockEnvironmentSelector.selectEnvironments).not.toHaveBeenCalled();
     expect(mockPhaseSelector.selectPhases).not.toHaveBeenCalled();
-    expect(mockPrompt).not.toHaveBeenCalled();
+    expect(mockConfirm).not.toHaveBeenCalled();
 
     expect(mockConfigManager.setEnvironments).toHaveBeenCalledWith(['codex']);
     expect(mockTemplateManager.copyPhaseTemplate).toHaveBeenCalledTimes(2);
@@ -189,11 +192,11 @@ describe('init command', () => {
 
   it('keeps existing interactive reconfigure prompt when no template is provided', async () => {
     mockConfigManager.exists.mockResolvedValue(true);
-    mockPrompt.mockResolvedValueOnce({ shouldContinue: false });
+    mockConfirm.mockResolvedValueOnce(false);
 
     await initCommand({});
 
-    expect(mockPrompt).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).toHaveBeenCalledTimes(1);
     expect(mockLoadInitTemplate).not.toHaveBeenCalled();
     expect(mockUi.warning).toHaveBeenCalledWith('Initialization cancelled.');
   });
@@ -219,10 +222,7 @@ describe('init command', () => {
 
       expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(1);
       expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'debug');
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
 
@@ -235,17 +235,14 @@ describe('init command', () => {
       await initCommand({ template: './init.yaml', builtIn: true });
 
       expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
   });
 
   describe('built-in skills prompt (interactive init without template)', () => {
     it('installs built-in AI DevKit skills when user confirms the prompt', async () => {
-      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: true });
+      mockConfirm.mockResolvedValueOnce(true);
 
       await initCommand({});
 
@@ -253,24 +250,20 @@ describe('init command', () => {
         (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
       );
       expect(builtinCalls.length).toBeGreaterThan(0);
-      expect(mockPrompt).toHaveBeenCalledWith([
+      expect(mockConfirm).toHaveBeenCalledWith(
         expect.objectContaining({
-          type: 'confirm',
-          name: 'installBuiltinSkills',
+          message: expect.stringContaining('Install AI DevKit built-in skills'),
           default: true
         })
-      ]);
+      );
     });
 
     it('skips installing built-in skills when user declines the prompt', async () => {
-      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: false });
+      mockConfirm.mockResolvedValueOnce(false);
 
       await initCommand({});
 
-      const builtinPromptCalls = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPromptCalls = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPromptCalls.length).toBe(1);
       expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
     });
@@ -283,16 +276,12 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml' });
 
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        if (!Array.isArray(questions)) return false;
-        return questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
 
     it('continues init when built-in skill install fails', async () => {
-      mockPrompt.mockResolvedValueOnce({ installBuiltinSkills: true });
+      mockConfirm.mockResolvedValueOnce(true);
       mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
 
       await expect(initCommand({})).resolves.toBeUndefined();
@@ -307,10 +296,7 @@ describe('init command', () => {
 
       await initCommand({});
 
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
       expect(mockUi.info).toHaveBeenCalledWith(
@@ -323,10 +309,7 @@ describe('init command', () => {
 
       await initCommand({ builtIn: true });
 
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
         (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
@@ -339,10 +322,7 @@ describe('init command', () => {
 
       await initCommand({ builtIn: true });
 
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
         (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
@@ -379,10 +359,7 @@ describe('init command', () => {
 
       await initCommand({ yes: true, all: true, environment: 'claude' });
 
-      const reconfigurePrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'shouldContinue');
-      });
+      const reconfigurePrompts = confirmCallsMatching(/already initialized.*reconfigure/);
       expect(reconfigurePrompts).toHaveLength(0);
       expect(process.exitCode).not.toBe(1);
     });
@@ -416,10 +393,7 @@ describe('init command', () => {
 
       await initCommand({ yes: true, all: true, environment: 'claude' });
 
-      const overwritePrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'overwrite');
-      });
+      const overwritePrompts = confirmCallsMatching(/already exists\. Overwrite\?/);
       expect(overwritePrompts).toHaveLength(0);
       expect(mockTemplateManager.copyPhaseTemplate).not.toHaveBeenCalled();
       expect(mockUi.warning).toHaveBeenCalledWith(expect.stringMatching(/Skipped .* phase/));
@@ -430,10 +404,7 @@ describe('init command', () => {
 
       await initCommand({ yes: true, overwrite: true, all: true, environment: 'claude' });
 
-      const overwritePrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'overwrite');
-      });
+      const overwritePrompts = confirmCallsMatching(/already exists\. Overwrite\?/);
       expect(overwritePrompts).toHaveLength(0);
       expect(mockTemplateManager.copyPhaseTemplate).toHaveBeenCalled();
     });
@@ -443,10 +414,7 @@ describe('init command', () => {
 
       await initCommand({ yes: true, all: true, environment: 'claude' });
 
-      const builtinPrompts = mockPrompt.mock.calls.filter((call: any[]) => {
-        const questions = call[0];
-        return Array.isArray(questions) && questions.some((q: any) => q?.name === 'installBuiltinSkills');
-      });
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
     });

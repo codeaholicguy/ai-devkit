@@ -1,6 +1,6 @@
-import inquirer from 'inquirer';
 import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types.js';
 import { ui } from '../util/terminal-ui.js';
+import { checkbox } from '@inquirer/prompts';
 
 export class PhaseSelector {
   async selectPhases(all?: boolean, phases?: string): Promise<Phase[]> {
@@ -23,20 +23,14 @@ export class PhaseSelector {
   }
 
   private async promptPhaseSelection(): Promise<Phase[]> {
-    const answers = await inquirer.prompt([
-      {
-        type: 'checkbox',
-        name: 'phases',
-        message: 'Which phases do you want to initialize? (or use --all flag)',
-        choices: AVAILABLE_PHASES.map(phase => ({
-          name: PHASE_DISPLAY_NAMES[phase],
-          value: phase,
-          checked: true
-        }))
-      }
-    ]);
-
-    return answers.phases;
+    return checkbox({
+      message: 'Which phases do you want to initialize? (or use --all flag)',
+      choices: AVAILABLE_PHASES.map(phase => ({
+        name: PHASE_DISPLAY_NAMES[phase],
+        value: phase,
+        checked: true
+      }))
+    });
   }
 
   private parsePhaseString(phases: string): Phase[] {

@@ -1,4 +1,3 @@
-import inquirer from 'inquirer';
 import {
     AgentManager,
     ClaudeCodeAdapter,
@@ -20,6 +19,7 @@ import {
 import { ui } from '../../util/terminal-ui.js';
 import { getErrorMessage } from '../../util/text.js';
 import { createLogger } from '../../util/debug.js';
+import { select } from '@inquirer/prompts';
 import { ChannelService } from './channel.service.js';
 
 const debug = createLogger('channel');
@@ -57,15 +57,13 @@ async function resolveTargetAgent(agentManager: AgentManager, agentName: string)
     }
 
     if (Array.isArray(resolved)) {
-        const { selectedAgent } = await inquirer.prompt([{
-            type: 'list',
-            name: 'selectedAgent',
+        const selectedAgent = await select({
             message: 'Multiple agents match. Select one:',
             choices: resolved.map(a => ({
                 name: `${a.name} (PID: ${a.pid})`,
                 value: a,
             })),
-        }]);
+        });
         return selectedAgent;
     }
 

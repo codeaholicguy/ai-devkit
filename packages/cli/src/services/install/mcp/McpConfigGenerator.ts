@@ -1,10 +1,10 @@
-import inquirer from 'inquirer';
 import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
 import { hasMcpSupport } from '../../../util/env.js';
 import { isInteractiveTerminal } from '../../../util/terminal.js';
 import { McpAgentGenerator, McpInstallReport, McpMergePlan } from './types.js';
 import { ClaudeCodeMcpGenerator } from './ClaudeCodeMcpGenerator.js';
 import { CodexMcpGenerator } from './CodexMcpGenerator.js';
+import { confirm, select } from '@inquirer/prompts';
 
 export interface McpInstallOptions {
   overwrite?: boolean;
@@ -77,18 +77,14 @@ function resolveConflicts(
 }
 
 async function promptConflicts(plan: McpMergePlan): Promise<string[]> {
-  const { action } = await inquirer.prompt([
-    {
-      type: 'list',
-      name: 'action',
-      message: `MCP config for ${plan.agentType}: ${plan.conflictServers.length} server(s) already exist with different config (${plan.conflictServers.join(', ')}). What would you like to do?`,
-      choices: [
-        { name: 'Skip all conflicts', value: 'skip' },
-        { name: 'Overwrite all conflicts', value: 'overwrite' },
-        { name: 'Choose per server', value: 'choose' },
-      ],
-    },
-  ]);
+  const action = await select({
+    message: `MCP config for ${plan.agentType}: ${plan.conflictServers.length} server(s) already exist with different config (${plan.conflictServers.join(', ')}). What would you like to do?`,
+    choices: [
+      { name: 'Skip all conflicts', value: 'skip' },
+      { name: 'Overwrite all conflicts', value: 'overwrite' },
+      { name: 'Choose per server', value: 'choose' },
+    ],
+  });
 
   if (action === 'skip') return [];
   if (action === 'overwrite') return [...plan.conflictServers];
@@ -96,14 +92,10 @@ async function promptConflicts(plan: McpMergePlan): Promise<string[]> {
   // Per-server choice
   const resolved: string[] = [];
   for (const name of plan.conflictServers) {
-    const { overwrite } = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'overwrite',
-        message: `  Overwrite "${name}" in ${plan.agentType} config?`,
-        default: false,
-      },
-    ]);
+    const overwrite = await confirm({
+      message: `  Overwrite "${name}" in ${plan.agentType} config?`,
+      default: false,
+    });
     if (overwrite) {
       resolved.push(name);
     }

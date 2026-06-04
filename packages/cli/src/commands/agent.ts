@@ -4,7 +4,6 @@ import path from 'path';
 import { createElement } from 'react';
 import { Command } from 'commander';
 import chalk from 'chalk';
-import inquirer from 'inquirer';
 import { render } from 'ink';
 import {
     AgentManager,
@@ -46,6 +45,7 @@ import {
 import { parseMilliseconds } from '../util/time.js';
 import { ConsoleApp } from '../tui/console/ConsoleApp.js';
 import { generateAgentName } from '../util/agent.js';
+import { select } from '@inquirer/prompts';
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
@@ -530,17 +530,13 @@ export function registerAgentCommand(program: Command): void {
             if (Array.isArray(resolved)) {
                 ui.warning(`Multiple agents match "${name}":`);
 
-                const { selectedAgent } = await inquirer.prompt([
-                    {
-                        type: 'list',
-                        name: 'selectedAgent',
-                        message: 'Select an agent to open:',
-                        choices: resolved.map(a => ({
-                            name: `${a.name} (${formatStatus(a.status)}) - ${a.summary}`,
-                            value: a
-                        }))
-                    }
-                ]);
+                const selectedAgent = await select({
+                    message: 'Select an agent to open:',
+                    choices: resolved.map(a => ({
+                        name: `${a.name} (${formatStatus(a.status)}) - ${a.summary}`,
+                        value: a
+                    }))
+                });
                 targetAgent = selectedAgent;
             }
 
