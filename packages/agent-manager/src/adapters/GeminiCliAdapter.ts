@@ -118,11 +118,14 @@ export class GeminiCliAdapter implements AgentAdapter {
         if (processes.length === 0) return [];
 
         const { cachedAgents, remaining } = this.tryRegistryCache(processes);
-        if (remaining.length === 0) return cachedAgents;
+        if (remaining.length === 0) return this.deduplicateSessionAgents(cachedAgents);
 
         const { sessions, contentCache } = this.discoverSessions(remaining);
         if (sessions.length === 0) {
-            return [...cachedAgents, ...remaining.map((p) => this.mapProcessOnlyAgent(p))];
+            return this.deduplicateSessionAgents([
+                ...cachedAgents,
+                ...remaining.map((p) => this.mapProcessOnlyAgent(p)),
+            ]);
         }
 
         const matches = matchProcessesToSessions(remaining, sessions);
@@ -145,7 +148,43 @@ export class GeminiCliAdapter implements AgentAdapter {
             }
         }
 
-        return [...cachedAgents, ...agents];
+        return this.deduplicateSessionAgents([...cachedAgents, ...agents]);
+    }
+
+    private deduplicateSessionAgents(agents: AgentInfo[]): AgentInfo[] {
+        const bySession = new Map<string, AgentInfo>();
+        const result: AgentInfo[] = [];
+
+        for (const agent of agents) {
+            const sessionKey = this.sessionDeduplicationKey(agent);
+            if (!sessionKey) {
+                result.push(agent);
+                continue;
+            }
+
+            const existing = bySession.get(sessionKey);
+            if (!existing) {
+                bySession.set(sessionKey, agent);
+                result.push(agent);
+                continue;
+            }
+
+            if (agent.pid > existing.pid) {
+                bySession.set(sessionKey, agent);
+                const index = result.indexOf(existing);
+                if (index >= 0) result[index] = agent;
+            }
+        }
+
+        return result;
+    }
+
+    private sessionDeduplicationKey(agent: AgentInfo): string | null {
+        if (agent.sessionFilePath) return `file:${agent.sessionFilePath}`;
+        if (agent.sessionId && !agent.sessionId.startsWith('pid-')) {
+            return `session:${agent.sessionId}`;
+        }
+        return null;
     }
 
     private tryRegistryCache(processes: ProcessInfo[]): {

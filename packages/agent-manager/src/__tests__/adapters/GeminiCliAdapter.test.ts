@@ -38,7 +38,7 @@ describe('GeminiCliAdapter', () => {
         tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-adapter-test-'));
         process.env.HOME = tmpHome;
 
-        adapter = new GeminiCliAdapter();
+        adapter = new GeminiCliAdapter(new AgentRegistry(path.join(tmpHome, 'agents.json')));
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
         mockedMatchProcessesToSessions.mockReset();
@@ -212,6 +212,79 @@ describe('GeminiCliAdapter', () => {
                 sessionFilePath: sessionPath,
             });
             expect(agents[0].summary).toContain('hello gemini');
+        });
+
+        it('should collapse Gemini wrapper and child processes matched to the same session', async () => {
+            const cwd = '/repo/project-a';
+            const projectHash = hashProjectRoot(cwd);
+            const shortId = 'abc123';
+            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', shortId, 'chats');
+            fs.mkdirSync(chatsDir, { recursive: true });
+            const sessionPath = path.join(chatsDir, 'session-2026-04-18T00-00-session1.json');
+            const sessionStart = new Date('2026-04-18T00:00:00Z').toISOString();
+            fs.writeFileSync(
+                sessionPath,
+                JSON.stringify({
+                    sessionId: 'session1',
+                    projectHash,
+                    startTime: sessionStart,
+                    lastUpdated: sessionStart,
+                    kind: 'main',
+                    directories: [cwd],
+                    messages: [
+                        { id: 'm1', timestamp: sessionStart, type: 'user', content: 'hello gemini' },
+                    ],
+                }),
+            );
+
+            const wrapperProc: ProcessInfo = {
+                pid: 88394,
+                command: 'node /Users/foo/.nvm/versions/node/v23.9.0/bin/gemini',
+                cwd,
+                tty: 'ttys015',
+                startTime: new Date('2026-04-18T00:00:00Z'),
+            };
+            const childProc: ProcessInfo = {
+                pid: 88460,
+                command: '/Users/foo/.nvm/versions/node/v24.13.1/bin/node /Users/foo/.nvm/versions/node/v23.9.0/bin/gemini',
+                cwd,
+                tty: 'ttys015',
+                startTime: new Date('2026-04-18T00:00:01Z'),
+            };
+            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+            mockedMatchProcessesToSessions.mockReturnValue([
+                {
+                    process: wrapperProc,
+                    session: {
+                        sessionId: 'session1',
+                        filePath: sessionPath,
+                        projectDir: chatsDir,
+                        birthtimeMs: Date.now(),
+                        resolvedCwd: cwd,
+                    },
+                    deltaMs: 0,
+                },
+                {
+                    process: childProc,
+                    session: {
+                        sessionId: 'session1',
+                        filePath: sessionPath,
+                        projectDir: chatsDir,
+                        birthtimeMs: Date.now(),
+                        resolvedCwd: cwd,
+                    },
+                    deltaMs: 0,
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                pid: 88460,
+                sessionId: 'session1',
+                sessionFilePath: sessionPath,
+            });
         });
 
         it('should not match sessions from other projects', async () => {
