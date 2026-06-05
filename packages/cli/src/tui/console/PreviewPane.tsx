@@ -5,6 +5,8 @@ import type { ConversationFetchError } from './hooks/useAgentConversation.js';
 import { formatRelative } from './render/formatRelative.js';
 import { AGENT_TYPE_LABEL_DISPLAY } from './render/agentTypeLabel.js';
 import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
+import type { AgentChannelStatus } from './types.js';
+import type { PanelTone } from '../design-system/tokens.js';
 
 interface PreviewPaneProps {
     agent: AgentInfo | null;
@@ -12,6 +14,7 @@ interface PreviewPaneProps {
     error: ConversationFetchError | null;
     isLoading: boolean;
     maxLines?: number;
+    channelStatus?: AgentChannelStatus;
 }
 
 const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow'> = {
@@ -36,7 +39,15 @@ function shortPath(p: string): string {
     return p;
 }
 
-const MetadataHeader: React.FC<{ agent: AgentInfo }> = ({ agent }) => (
+export function getPreviewPanelTone(channelStatus: AgentChannelStatus | undefined): PanelTone {
+    return channelStatus ? 'success' : 'default';
+}
+
+export function getPreviewChannelStatusText(channelStatus: AgentChannelStatus | undefined): string | null {
+    return channelStatus ? `Connected: ${channelStatus.channelName}` : null;
+}
+
+const MetadataHeader: React.FC<{ agent: AgentInfo; channelStatus?: AgentChannelStatus }> = ({ agent, channelStatus }) => (
     <Box>
         <SectionTitle>PREVIEW</SectionTitle>
         <Text dimColor> · </Text>
@@ -47,6 +58,12 @@ const MetadataHeader: React.FC<{ agent: AgentInfo }> = ({ agent }) => (
         <Text dimColor>{formatRelative(agent.lastActive)}</Text>
         <Text dimColor> · </Text>
         <Text dimColor>{shortPath(agent.projectPath)}</Text>
+        {channelStatus ? (
+            <>
+                <Text dimColor> · </Text>
+                <Text color={TUI_COLORS.success}>{getPreviewChannelStatusText(channelStatus)}</Text>
+            </>
+        ) : null}
     </Box>
 );
 
@@ -56,6 +73,7 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     error,
     isLoading,
     maxLines = 22,
+    channelStatus,
 }) => {
     if (!agent) {
         return (
@@ -114,7 +132,7 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
 
     return (
         <Box flexDirection="column">
-            <MetadataHeader agent={agent} />
+            <MetadataHeader agent={agent} channelStatus={channelStatus} />
             <Box flexDirection="column" flexGrow={1}>
                 {body}
             </Box>

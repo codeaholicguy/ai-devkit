@@ -4,6 +4,7 @@ import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { FormatStatus } from './render/formatStatus.js';
 import { AGENT_TYPE_LABEL } from './render/agentTypeLabel.js';
 import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
+import type { AgentChannelStatusMap, AgentChannelStatus } from './types.js';
 
 interface AgentListPaneProps {
     agents: AgentInfo[];
@@ -12,6 +13,7 @@ interface AgentListPaneProps {
     width?: number;
     height?: number;
     error?: string | null;
+    channelStatuses?: AgentChannelStatusMap;
 }
 
 function clip(s: string | undefined, max: number): string {
@@ -29,15 +31,23 @@ function shortPath(p: string): string {
 const MARKER_W = 2;
 const STATUS_W = 7;
 const TYPE_W = 9; // space(1) + label up to 8 chars ("opencode")
-const ROW_CHROME = MARKER_W + STATUS_W + TYPE_W;
+const CHANNEL_MARKER = 'remote';
+const CHANNEL_MARKER_EMPTY = ' '.repeat(CHANNEL_MARKER.length);
+const CHANNEL_W = CHANNEL_MARKER.length + 1;
+const ROW_CHROME = MARKER_W + STATUS_W + TYPE_W + CHANNEL_W;
 
 interface AgentRowProps {
     agent: AgentInfo;
     isSelected: boolean;
     innerWidth: number;
+    channelStatus?: AgentChannelStatus;
 }
 
-const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth }) => {
+export function getAgentChannelMarker(channelStatus: AgentChannelStatus | undefined): string {
+    return channelStatus ? CHANNEL_MARKER : CHANNEL_MARKER_EMPTY;
+}
+
+const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth, channelStatus }) => {
     const nameW = Math.max(4, innerWidth - ROW_CHROME);
     const summaryW = Math.max(4, innerWidth - MARKER_W);
     const rawSummary = agent.summary?.trim() ? agent.summary : shortPath(agent.projectPath);
@@ -58,6 +68,9 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth }) =>
                 </Box>
                 <Box width={TYPE_W} flexShrink={0}>
                     <Text dimColor> {typeLabel}</Text>
+                </Box>
+                <Box width={CHANNEL_W} flexShrink={0}>
+                    <Text color={channelStatus ? TUI_COLORS.success : undefined}>{getAgentChannelMarker(channelStatus)}</Text>
                 </Box>
             </Box>
             <Box flexDirection="row" width={innerWidth}>
@@ -83,6 +96,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     width,
     height,
     error,
+    channelStatuses = {},
 }) => {
     const [scrollOffset, setScrollOffset] = useState(0);
 
@@ -153,6 +167,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
                         agent={agent}
                         isSelected={agent.name === selectedName}
                         innerWidth={innerWidth}
+                        channelStatus={channelStatuses[agent.name]}
                     />
                 </React.Fragment>
             ))}

@@ -8,6 +8,8 @@ describe('HelpPane helpers', () => {
             { key: 'k / Up', action: 'Select previous agent' },
             { key: 's', action: 'Start a new agent' },
             { key: 'r', action: 'Rename selected agent' },
+            { key: 'c', action: 'Start Telegram channel for selected agent' },
+            { key: 'C', action: 'Stop Telegram channel' },
             { key: 'o', action: 'Open selected agent terminal' },
             { key: 'i / m', action: 'Message selected agent' },
             { key: 'K', action: 'Kill selected agent' },
@@ -22,5 +24,10 @@ describe('HelpPane helpers', () => {
 
     it('includes rename in footer hints', () => {
         expect(getConsoleHotkeyHints()).toContain('r rename');
+    });
+
+    it('includes channel controls in footer hints', () => {
+        expect(getConsoleHotkeyHints()).toContain('c channel');
+        expect(getConsoleHotkeyHints()).toContain('C stop');
     });
 });
