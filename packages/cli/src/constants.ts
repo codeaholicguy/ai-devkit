@@ -11,6 +11,7 @@ export const BUILTIN_SKILL_REGISTRY = 'codeaholicguy/ai-devkit';
  * from here rather than hard-coding names locally.
  */
 export const BUILTIN_SKILL_NAMES = [
+  'agent-communication',
   'dev-lifecycle',
   'structured-debug',
   'document-code',
