@@ -10,6 +10,8 @@ order: 9
 
 The `agent` command allows AI DevKit to detect, list, and interact with other AI agents running on your system. It acts as a central hub to find where your AI coding assistants are working and quickly switch context to them.
 
+For an interactive terminal UI that combines listing, previewing, messaging, starting, renaming, killing, and channel controls, see [Agent Console](/docs/13-agent-console).
+
 ## Prerequisites
 
 To use the `agent open` command, your environment must meet these requirements:
