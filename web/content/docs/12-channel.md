@@ -39,13 +39,16 @@ Configure a messaging channel by providing your bot token.
 
 ```bash
 ai-devkit channel connect telegram
+ai-devkit channel connect telegram --name personal
 ```
 
 You will be prompted to enter your Telegram bot token. AI DevKit validates the token by calling the Telegram API, then stores the configuration locally.
 
 > **Note**: Channel configuration is stored in `~/.ai-devkit/config.json`. The bot token is saved in plaintext — do not commit this file to version control.
 
-If a Telegram channel is already configured, you will be asked whether to overwrite it.
+By default, the channel is named `telegram`. Use `--name <name>` when you want multiple Telegram bot connections, such as `personal` and `team`. Channel names must use lowercase letters, numbers, and hyphens.
+
+If you reuse the same channel name, AI DevKit updates that channel. A Telegram bot token can only be configured for one channel name.
 
 ### List Channels
 
@@ -57,9 +60,9 @@ ai-devkit channel list
 
 **Table output includes:**
 
-| Name | Type | Status | Bot | Created |
-|------|------|--------|-----|---------|
-| `telegram` | `telegram` | enabled | `@my_bot` | 4/21/2026 |
+| Name | Type | Status | Bot | Authorized | Bridge | Created |
+|------|------|--------|-----|------------|--------|---------|
+| `telegram` | `telegram` | enabled | `@my_bot` | yes | running | 4/21/2026 |
 
 ### Start the Bridge
 
@@ -67,6 +70,7 @@ Start the channel bridge between Telegram and a running agent.
 
 ```bash
 ai-devkit channel start --agent <name>
+ai-devkit channel start <channel-name> --agent <name>
 ```
 
 **Options:**
@@ -74,16 +78,28 @@ ai-devkit channel start --agent <name>
 | Option | Description |
 |--------|-------------|
 | `--agent <name>` | **(Required)** Name of the running agent to bridge |
+| `--daemon` | Start the bridge in the background |
 | `--debug` | Enable debug logging for troubleshooting |
 
 Debug output is printed to the same terminal where the bridge is running. It includes timestamps for message polling, Telegram delivery, and terminal writes. Look for lines prefixed with `channel` to trace message flow.
 
-Once started, send a message to your Telegram bot to begin interacting with the agent. Press `Ctrl+C` to stop the bridge.
+If you have one Telegram channel configured, the channel name is optional. If you have multiple Telegram channels, specify which one to start.
+
+Foreground bridges keep running in the current terminal. Press `Ctrl+C` to stop a foreground bridge.
+
+Daemon bridges run in the background and return control to your shell. Use `channel stop` to stop a daemon bridge.
 
 **Example:**
 
 ```bash
+# Start the only configured Telegram channel in the foreground
 ai-devkit channel start --agent my-project
+
+# Start a named channel in the foreground
+ai-devkit channel start personal --agent my-project
+
+# Start a named channel in the background
+ai-devkit channel start personal --agent my-project --daemon
 ```
 
 ```
@@ -92,12 +108,32 @@ ai-devkit channel start --agent my-project
 ℹ Press Ctrl+C to stop.
 ```
 
+For daemon mode, AI DevKit prints the bridge PID and log path:
+
+```
+✔ Channel bridge daemon started for "personal" (PID: 12345).
+ℹ Logs: ~/.ai-devkit/channel-logs/personal.log
+ℹ Run "ai-devkit channel stop personal" to stop it.
+```
+
+### Stop the Bridge
+
+Stop a running daemon bridge.
+
+```bash
+ai-devkit channel stop
+ai-devkit channel stop <channel-name>
+```
+
+If exactly one bridge is running, the channel name is optional. If multiple bridges are running, specify the channel name.
+
 ### Show Channel Status
 
 Display details about configured channels.
 
 ```bash
 ai-devkit channel status
+ai-devkit channel status <channel-name>
 ```
 
 **Example output:**
@@ -106,6 +142,9 @@ ai-devkit channel status
 telegram (telegram)
   Enabled: yes
   Bot: @my_bot
+  Authorized: yes
+  Bridge: running (PID: 12345, agent: my-project)
+  Logs: ~/.ai-devkit/channel-logs/telegram.log
   Configured: 2026-04-21T10:30:00.000Z
 ```
 
@@ -120,6 +159,22 @@ ai-devkit channel disconnect telegram
 ```
 
 You will be asked to confirm before the configuration is removed.
+
+## Using Channels From Agent Console
+
+After configuring a Telegram channel, you can start and stop channel bridges from the interactive agent console. For the full console workflow, see [Agent Console](/docs/13-agent-console).
+
+```bash
+ai-devkit agent console
+```
+
+Select an agent, press `c`, choose a configured channel, then press `Enter`. The console starts the bridge in the background. Press `C` on the selected agent to stop its running channel bridge.
+
+If no channels are configured, the console shows:
+
+```
+No channels configured. Run channel connect first.
+```
 
 ## Walkthrough
 
@@ -149,6 +204,10 @@ Here is a step-by-step guide to set up a Telegram bridge. For full option detail
    ```bash
    ai-devkit channel start --agent my-project
    ```
+   To keep the bridge running in the background, use:
+   ```bash
+   ai-devkit channel start telegram --agent my-project --daemon
+   ```
 
 5. **Chat from Telegram**
    Open your bot in Telegram and send a message (e.g., "What files are in this project?"). You should see:
@@ -169,7 +228,21 @@ The agent must be running in a supported terminal (tmux, iTerm2, or Apple Termin
 Run `ai-devkit channel connect telegram` first to set up your bot token.
 
 ### Agent process exits while bridge is running
-The bridge continues running but stops receiving new agent responses. You will not see an error — messages from Telegram are still sent to the terminal, but there is no agent to process them. Stop the bridge with `Ctrl+C` and restart after relaunching your agent.
+The bridge continues running but stops receiving new agent responses. You will not see an error — messages from Telegram are still sent to the terminal, but there is no agent to process them. Stop the foreground bridge with `Ctrl+C`, or stop a daemon bridge with `ai-devkit channel stop <channel-name>`, then restart after relaunching your agent.
+
+### "Multiple Telegram channels configured"
+Specify which channel to start:
+
+```bash
+ai-devkit channel start personal --agent my-project
+```
+
+### "Multiple channel bridges are running"
+Specify which bridge to stop:
+
+```bash
+ai-devkit channel stop personal
+```
 
 ### Messages not appearing in Telegram
 - Ensure you are the first user to message the bot (only the first user is authorized).
