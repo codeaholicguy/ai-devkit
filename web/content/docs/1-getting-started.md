@@ -1,10 +1,12 @@
 ---
 title: Getting Started
-description: Quick start guide for AI DevKit
+description: Set up AI DevKit for agentic coding with Claude Code, Codex, Cursor, OpenCode, and other AI coding agents.
 order: 1
 ---
 
 **AI DevKit** is a workflow layer for AI coding assistants like Cursor, Claude Code, Codex, Antigravity, OpenCode, GitHub Copilot, and more. It gives them requirements, design, planning, implementation, testing, verification, memory, and review so they follow your engineering process instead of improvising in chat.
+
+Use it when you want agentic coding to follow a clear software development lifecycle instead of a one-off prompt: initialize the project once, then give every supported AI coding agent the same workflow, memory, skills, and verification gates.
 
 The direction of AI DevKit is to become the **operating system for AI-driven development**: one standard layer for workflows, memory, skills, and execution across agents.
 

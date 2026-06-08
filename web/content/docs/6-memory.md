@@ -1,13 +1,13 @@
 ---
 title: Memory
-description: Give your AI agents long-term memory to prevent repeating mistakes and enforce coding standards.
+description: Give AI coding agents local long-term memory with MCP, CLI commands, and project-scoped knowledge storage.
 slug: memory
 order: 6
 ---
 
 Imagine if your AI assistant never made the same mistake twice. 
 
-The **Memory** service allows you to store actionable insights, coding patterns, and project guidelines. Once stored, this knowledge is available to your AI agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
+The **Memory** service allows you to store actionable insights, coding patterns, and project guidelines. Once stored, this knowledge is available to your AI coding agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
 
 ## Prerequisites
 

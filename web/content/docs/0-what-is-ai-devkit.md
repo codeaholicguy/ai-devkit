@@ -7,7 +7,7 @@ order: 0
 
 AI DevKit is an open-source workflow layer for AI coding agents. It works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, and others, giving them the process, memory, skills, and verification gates they need to behave less like one-off chatbots and more like disciplined engineering partners.
 
-The purpose is simple: make AI-assisted development reliable. AI DevKit combines workflow orchestration, local memory, skills, verification, review, linting, and agent operations in one toolkit. The long-term direction is to become the **operating system for AI-driven development**.
+The purpose is simple: make AI-assisted development reliable. AI DevKit combines workflow orchestration, local memory, skills, verification, review, linting, and agent operations in one toolkit. It gives teams a practical foundation for agentic coding: durable requirements, design docs, memory, skills, verification, and review across the full software development lifecycle. The long-term direction is to become the **operating system for AI-driven development**.
 
 ## The Problem
 
@@ -28,7 +28,7 @@ AI DevKit is evolving toward an operating system model for AI-driven development
 - **Composable capabilities** via built-in and community skills
 - **Operational controls** like lint checks, worktree workflows, and agent management
 
-This means teams can run the same workflow regardless of which AI coding assistant they use: one config, all agents.
+As teams move from single assistant chats to multi-agent workflows, AI DevKit keeps the process, memory, and verification rules consistent across every agent. This means teams can run the same workflow regardless of which AI coding assistant they use: one config, all agents.
 
 ## How AI DevKit Helps
 

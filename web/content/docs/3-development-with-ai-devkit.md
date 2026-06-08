@@ -1,11 +1,13 @@
 ---
 title: Development with AI DevKit
-description: Learn how to use AI DevKit commands so coding agents plan before code, verify work, and review changes before push.
+description: Run an agentic software development workflow where AI coding agents plan, implement, test, verify, and review before push.
 slug: development-with-ai-devkit
 order: 3
 ---
 
 AI DevKit provides a repeatable engineering workflow that takes you from idea to reviewed feature. Instead of letting the agent jump straight into code, you create durable context at each phase so it can plan, implement, verify, and review with a clear source of truth.
+
+This is the practical core of agentic software development in AI DevKit: humans keep ownership of requirements and quality, while AI coding agents follow the same SDLC checkpoints every time.
 
 ## Why a Repeatable Workflow?
 

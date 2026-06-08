@@ -1,11 +1,13 @@
 ---
 title: Agent Setup
-description: Use `ai-devkit install` to apply or reconcile AI agent setup from your project configuration.
+description: Configure AI DevKit once and generate repeatable setup for Claude Code, Codex, Cursor, MCP servers, skills, and workflow docs.
 slug: agent-setup
 order: 10
 ---
 
 AI DevKit provides two commands for agent setup: `ai-devkit init` creates your project configuration (`.ai-devkit.json`), and `ai-devkit install` applies it to your workspace. Together they give you repeatable setup, easy onboarding, and consistent agent files after configuration changes.
+
+For teams adopting AI coding agents across multiple tools, this setup becomes the shared foundation for agentic coding: one config that generates workflow docs, skills, MCP server files, and environment-specific instructions.
 
 Before running these commands:
 - Install AI DevKit (`npm install -g ai-devkit`) or use `npx ai-devkit@latest ...`

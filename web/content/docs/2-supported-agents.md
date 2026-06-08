@@ -1,10 +1,10 @@
 ---
 title: Supported AI Agents & Environments
-description: Environments supported by AI DevKit
+description: Compare supported AI coding agents and environments, including Claude Code, Codex, Cursor, Gemini CLI, OpenCode, and GitHub Copilot.
 order: 2
 ---
 
-AI DevKit works with a variety of AI coding assistants. This page lists all supported environments and explains what AI DevKit provides for each one.
+AI DevKit works with a variety of AI coding assistants and terminal AI coding agents. This page lists all supported environments and explains what AI DevKit provides for each one, so teams can keep agentic software development workflows consistent across tools.
 
 ## Status Legend
 

@@ -1,6 +1,6 @@
 ---
 title: Vision
-description: The vision and purpose behind AI DevKit
+description: AI DevKit's vision for reliable agentic software development: one workflow layer for memory, skills, verification, and multi-agent coding.
 slug: vision
 order: 2
 ---
@@ -40,6 +40,6 @@ A toolkit that enables developers to:
 
 ## Looking Forward
 
-We envision a future where AI coding agents plan before code, remember project decisions, verify work with fresh evidence, and review changes before you push. One config. All agents. Same workflow.
+We envision a future where AI coding agents plan before code, remember project decisions, verify work with fresh evidence, and review changes before you push. The goal is not a fully autonomous software factory; it is a disciplined agentic software development loop where humans keep ownership and agents follow the same engineering standards every time. One config. All agents. Same workflow.
 
 AI DevKit is our contribution to that future.

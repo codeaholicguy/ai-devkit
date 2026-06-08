@@ -1,11 +1,11 @@
 ---
 title: Skills
-description: Extend your AI agents with reusable, community-driven skills from skill registries.
+description: Install reusable skills that teach AI coding agents team workflows, coding standards, testing patterns, and domain-specific practices.
 slug: skills
 order: 8
 ---
 
-**Skills** are packaged capabilities that extend what your AI agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, or security best practices.
+**Skills** are packaged capabilities that extend what your AI coding agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, security best practices, or multi-agent workflow patterns.
 
 > **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, Codex, OpenCode, or Antigravity).
 
