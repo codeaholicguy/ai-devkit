@@ -8,7 +8,7 @@
 /**
  * Type of AI agent
  */
-export type AgentType = 'claude' | 'gemini_cli' | 'codex' | 'opencode' | 'other';
+export type AgentType = 'claude' | 'gemini_cli' | 'codex' | 'opencode' | 'copilot' | 'other';
 
 /**
  * Current status of an agent

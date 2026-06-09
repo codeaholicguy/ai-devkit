@@ -2,6 +2,7 @@ import {
     AgentManager,
     ClaudeCodeAdapter,
     CodexAdapter,
+    CopilotAdapter,
     GeminiCliAdapter,
     TerminalFocusManager,
     TtyWriter,
@@ -36,6 +37,7 @@ function createAgentManager(): AgentManager {
     const manager = new AgentManager();
     manager.registerAdapter(new ClaudeCodeAdapter());
     manager.registerAdapter(new CodexAdapter());
+    manager.registerAdapter(new CopilotAdapter());
     manager.registerAdapter(new GeminiCliAdapter());
     return manager;
 }
