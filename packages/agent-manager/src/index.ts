@@ -2,6 +2,7 @@ export { AgentManager } from './AgentManager.js';
 
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './adapters/CodexAdapter.js';
+export { CopilotAdapter } from './adapters/CopilotAdapter.js';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
 export { OpenCodeAdapter } from './adapters/OpenCodeAdapter.js';
 export { AgentStatus } from './adapters/AgentAdapter.js';

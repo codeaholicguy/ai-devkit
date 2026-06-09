@@ -1,7 +1,7 @@
 import path from 'path';
 import type { AgentType } from '../adapters/AgentAdapter.js';
 
-export type StartableAgentType = Exclude<AgentType, 'other'>;
+export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'gemini_cli' | 'opencode'>;
 
 export interface AgentConfig {
     /** Shell command to launch the agent (sent to tmux via `send-keys`). */

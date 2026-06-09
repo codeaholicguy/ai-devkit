@@ -1,5 +1,6 @@
 export { ClaudeCodeAdapter } from './ClaudeCodeAdapter.js';
 export { CodexAdapter } from './CodexAdapter.js';
+export { CopilotAdapter } from './CopilotAdapter.js';
 export { GeminiCliAdapter } from './GeminiCliAdapter.js';
 export { OpenCodeAdapter } from './OpenCodeAdapter.js';
 export { AgentStatus } from './AgentAdapter.js';

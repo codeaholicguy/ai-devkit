@@ -10,6 +10,7 @@ import {
     type AgentAdapter,
     ClaudeCodeAdapter,
     CodexAdapter,
+    CopilotAdapter,
     GeminiCliAdapter,
     OpenCodeAdapter,
     AgentStatus,
@@ -81,6 +82,7 @@ function formatRelativeTime(timestamp: Date): string {
 const TYPE_LABELS: Record<AgentType, string> = {
     claude: 'Claude Code',
     codex: 'Codex',
+    copilot: 'Copilot',
     gemini_cli: 'Gemini CLI',
     opencode: 'OpenCode',
     other: 'Other',
@@ -161,6 +163,7 @@ function createAgentManager(): AgentManager {
     const manager = new AgentManager(AgentRegistry.default());
     manager.registerAdapter(new ClaudeCodeAdapter());
     manager.registerAdapter(new CodexAdapter());
+    manager.registerAdapter(new CopilotAdapter());
     manager.registerAdapter(new GeminiCliAdapter());
     manager.registerAdapter(new OpenCodeAdapter());
     return manager;

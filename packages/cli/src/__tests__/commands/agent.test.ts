@@ -68,6 +68,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   AgentManager: vi.fn(function () { return mockManager; }),
   ClaudeCodeAdapter: vi.fn(),
   CodexAdapter: vi.fn(),
+  CopilotAdapter: vi.fn(),
   GeminiCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
