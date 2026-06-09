@@ -248,6 +248,100 @@ describe('CodexAdapter', () => {
 
             fs.rmSync(tmpDir, { recursive: true, force: true });
         });
+
+        it('should match resumed sessions by id even when the JSONL predates the process', async () => {
+            const sessionId = '019eabed-4079-7071-9531-b853ddd9914e';
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 88018,
+                    command: `codex resume ${sessionId}`,
+                    cwd: '/repo-a',
+                    tty: 'ttys001',
+                    startTime: new Date('2026-06-10T12:00:00.000Z'),
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-resume-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '06', '09');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const recentTs = new Date().toISOString();
+            const sessionFile = path.join(dateDir, `rollout-2026-06-09T12-28-33-${sessionId}.jsonl`);
+            fs.writeFileSync(sessionFile, [
+                JSON.stringify({ type: 'session_meta', payload: { id: sessionId, timestamp: recentTs, cwd: '/repo-a' } }),
+                JSON.stringify({ type: 'event', timestamp: recentTs, payload: { type: 'agent_message', message: 'resumed codex conversation' } }),
+            ].join('\n'));
+
+            (adapter as any).codexSessionsDir = sessionsDir;
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([]);
+
+            const agents = await adapter.detectAgents();
+
+            expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'codex',
+                pid: 88018,
+                sessionId,
+                projectPath: '/repo-a',
+                sessionFilePath: sessionFile,
+            });
+            expect(agents[0].summary).toBe('resumed codex conversation');
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should fall back to process-only when a resumed session becomes unreadable after direct matching', async () => {
+            const sessionId = '019eabed-4079-7071-9531-b853ddd9914e';
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 88019,
+                    command: `codex resume ${sessionId}`,
+                    cwd: '/repo-a',
+                    tty: 'ttys001',
+                    startTime: new Date('2026-06-10T12:00:00.000Z'),
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-resume-gone-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '06', '09');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const sessionFile = path.join(dateDir, `rollout-2026-06-09T12-28-33-${sessionId}.jsonl`);
+
+            (adapter as any).codexSessionsDir = sessionsDir;
+            const findSpy = vi.spyOn(adapter as any, 'findSessionFileById').mockReturnValue({
+                sessionId,
+                filePath: sessionFile,
+                projectDir: dateDir,
+                birthtimeMs: Date.now(),
+                resolvedCwd: '/repo-a',
+            });
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([]);
+
+            try {
+                const agents = await adapter.detectAgents();
+
+                expect(agents).toHaveLength(1);
+                expect(agents[0]).toMatchObject({
+                    type: 'codex',
+                    pid: 88019,
+                    sessionId: 'pid-88019',
+                    projectPath: '/repo-a',
+                });
+                expect(agents[0].sessionFilePath).toBeUndefined();
+            } finally {
+                findSpy.mockRestore();
+                fs.rmSync(tmpDir, { recursive: true, force: true });
+            }
+        });
     });
 
     describe('detectAgents — registry cache short-circuit', () => {

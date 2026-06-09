@@ -48,6 +48,16 @@ interface CodexSession {
     lastPayloadType?: string;
 }
 
+interface DirectMatch {
+    process: ProcessInfo;
+    sessionFile: SessionFile;
+}
+
+interface DirectMatchResult {
+    agents: AgentInfo[];
+    failedProcesses: ProcessInfo[];
+}
+
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
 
@@ -78,14 +88,24 @@ export class CodexAdapter implements AgentAdapter {
         const { cachedAgents, remaining } = this.tryRegistryCache(processes);
         if (remaining.length === 0) return cachedAgents;
 
-        const { sessions, contentCache } = this.discoverSessions(remaining);
+        const { direct, fallback } = this.tryResumeMatching(remaining);
+        const directResult = this.mapDirectMatches(direct);
+        const { sessions, contentCache } = this.discoverSessions(fallback);
         if (sessions.length === 0) {
-            return [...cachedAgents, ...remaining.map((p) => this.mapProcessOnlyAgent(p))];
+            return [
+                ...cachedAgents,
+                ...directResult.agents,
+                ...directResult.failedProcesses.map((p) => this.mapProcessOnlyAgent(p)),
+                ...fallback.map((p) => this.mapProcessOnlyAgent(p)),
+            ];
         }
 
-        const matches = matchProcessesToSessions(remaining, sessions);
-        const matchedPids = new Set(matches.map((m) => m.process.pid));
-        const agents: AgentInfo[] = [];
+        const matches = matchProcessesToSessions(fallback, sessions);
+        const matchedPids = new Set([
+            ...directResult.agents.map((a) => a.pid),
+            ...matches.map((m) => m.process.pid),
+        ]);
+        const agents: AgentInfo[] = [...directResult.agents];
 
         for (const match of matches) {
             const cachedContent = contentCache.get(match.session.filePath);
@@ -97,10 +117,14 @@ export class CodexAdapter implements AgentAdapter {
             }
         }
 
-        for (const proc of remaining) {
+        for (const proc of fallback) {
             if (!matchedPids.has(proc.pid)) {
                 agents.push(this.mapProcessOnlyAgent(proc));
             }
+        }
+
+        for (const proc of directResult.failedProcesses) {
+            agents.push(this.mapProcessOnlyAgent(proc));
         }
 
         return [...cachedAgents, ...agents];
@@ -137,6 +161,90 @@ export class CodexAdapter implements AgentAdapter {
         }
 
         return { cachedAgents, remaining };
+    }
+
+    /**
+     * Match processes via `codex resume <uuid>` in their command line.
+     * Resumed sessions predate the process, so birth-time proximity cannot
+     * reliably pair them with the running PID.
+     */
+    private tryResumeMatching(processes: ProcessInfo[]): {
+        direct: DirectMatch[];
+        fallback: ProcessInfo[];
+    } {
+        const direct: DirectMatch[] = [];
+        const fallback: ProcessInfo[] = [];
+
+        for (const proc of processes) {
+            const sessionId = this.extractResumeSessionId(proc.command);
+            if (!sessionId) {
+                fallback.push(proc);
+                continue;
+            }
+
+            const sessionFile = this.findSessionFileById(sessionId);
+            if (!sessionFile) {
+                fallback.push(proc);
+                continue;
+            }
+
+            direct.push({ process: proc, sessionFile });
+        }
+
+        return { direct, fallback };
+    }
+
+    private extractResumeSessionId(command: string): string | null {
+        const match = command.match(/(?:^|\s)resume\s+([0-9a-f-]{36})(?:\s|$)/i);
+        return match?.[1] ?? null;
+    }
+
+    private findSessionFileById(sessionId: string): SessionFile | null {
+        for (const filePath of this.collectAllSessionFiles()) {
+            if (!path.basename(filePath).includes(sessionId)) continue;
+
+            const content = safeReadFile(filePath);
+            const firstLine = content?.split('\n')[0]?.trim();
+            if (!firstLine) continue;
+
+            try {
+                const parsed = JSON.parse(firstLine) as CodexEventEntry;
+                if (parsed.type !== 'session_meta' || parsed.payload?.id !== sessionId) {
+                    continue;
+                }
+
+                const stat = safeStat(filePath);
+                if (!stat) continue;
+
+                return {
+                    sessionId,
+                    filePath,
+                    projectDir: path.dirname(filePath),
+                    birthtimeMs: stat.birthtimeMs,
+                    resolvedCwd: parsed.payload.cwd || '',
+                };
+            } catch {
+                continue;
+            }
+        }
+
+        return null;
+    }
+
+    private mapDirectMatches(matches: DirectMatch[]): DirectMatchResult {
+        const agents: AgentInfo[] = [];
+        const failedProcesses: ProcessInfo[] = [];
+
+        for (const match of matches) {
+            const sessionData = this.parseSession(undefined, match.sessionFile.filePath);
+            if (sessionData) {
+                agents.push(this.mapSessionToAgent(sessionData, match.process, match.sessionFile.filePath));
+            } else {
+                failedProcesses.push(match.process);
+            }
+        }
+
+        return { agents, failedProcesses };
     }
 
     /**
