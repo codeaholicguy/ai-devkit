@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [f9bb55c](https://github.com/codeaholicguy/ai-devkit/pull/97) Reverted the CLI startup optimization from #96.
+- [74b3139](https://github.com/codeaholicguy/ai-devkit/commit/74b3139e5bdbb078698986ffb20e40751abd02aa) Added agent rename support inside the agent console.
+- [1884f56](https://github.com/codeaholicguy/ai-devkit/commit/1884f56ac6f41ed8f38211012f49fccab92643f9) Upgraded project dependencies.
+- [fcff530](https://github.com/codeaholicguy/ai-devkit/commit/fcff530e6c786f00b081addb5185aaccce6bd971) Migrated CLI prompts to `@inquirer/prompts`.
+- [ad1ad29](https://github.com/codeaholicguy/ai-devkit/commit/ad1ad29b00877779ff8fb348e347212c04de7161) Migrated package builds to SWC.
+- [c6886f5](https://github.com/codeaholicguy/ai-devkit/commit/c6886f5f4ccb2c3159abdac775aca75b9225459c) Fixed duplicate Gemini wrapper processes in agent discovery.
+- [0038cc5](https://github.com/codeaholicguy/ai-devkit/pull/98) Added channel controls to the agent console.
+- [2314ac9](https://github.com/codeaholicguy/ai-devkit/commit/2314ac9e032361104ef9f579fa1e9976adae0ca2) Added the `agent-communication` skill.
+- [1dfe1fe](https://github.com/codeaholicguy/ai-devkit/commit/1dfe1feca3059f7aa1fbf98ac5ac59a21679974b) Updated documentation for the channel daemon option.
+- [b596aca](https://github.com/codeaholicguy/ai-devkit/commit/b596aca59bf057ee5ce18ba01eb5ad86d03563c9) Added the agent console guide.
+- [9a6d2b0](https://github.com/codeaholicguy/ai-devkit/commit/9a6d2b0c799c2d4bd32843973e3c7c4b59b9a796) Refreshed project documentation.
+- [0e746d8](https://github.com/codeaholicguy/ai-devkit/commit/0e746d8917f574cea877cc0a6ecb744386ed633d) Fixed resumed Codex session matching.
+- [e795edf](https://github.com/codeaholicguy/ai-devkit/pull/100) Added a Copilot adapter to agent manager.
+- [ec2ca1e](https://github.com/codeaholicguy/ai-devkit/commit/ec2ca1eeb0fc1ddf6c19658267edb80e5064d414) Added the changelog skill.
+
 ## [0.38.0] - 2026-06-02
 
 ### Added
