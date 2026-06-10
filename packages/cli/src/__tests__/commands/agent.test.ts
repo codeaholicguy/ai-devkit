@@ -71,6 +71,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   CopilotAdapter: vi.fn(),
   GeminiCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
+  PiAdapter: vi.fn(),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
@@ -178,6 +179,7 @@ describe('agent command', () => {
     await program.parseAsync(['node', 'test', 'agent', 'list', '--json']);
 
     expect(AgentManager).toHaveBeenCalled();
+    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(6);
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(agents, null, 2));
   });
 
@@ -233,7 +235,8 @@ describe('agent command', () => {
       { name: 'a', type: 'claude', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 1 },
       { name: 'b', type: 'codex', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 2 },
       { name: 'c', type: 'gemini_cli', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 3 },
-      { name: 'd', type: 'other', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 4 },
+      { name: 'd', type: 'pi', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 4 },
+      { name: 'e', type: 'other', status: AgentStatus.RUNNING, summary: '', lastActive: new Date('2026-02-26T10:00:00.000Z'), pid: 5 },
     ]);
 
     const program = new Command();
@@ -244,7 +247,8 @@ describe('agent command', () => {
     expect(tableArg.rows[0][2]).toBe('Claude Code');
     expect(tableArg.rows[1][2]).toBe('Codex');
     expect(tableArg.rows[2][2]).toBe('Gemini CLI');
-    expect(tableArg.rows[3][2]).toBe('Other');
+    expect(tableArg.rows[3][2]).toBe('Pi');
+    expect(tableArg.rows[4][2]).toBe('Other');
   });
 
   it('truncates working-on text to first line', async () => {
