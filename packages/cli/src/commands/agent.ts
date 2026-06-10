@@ -13,6 +13,7 @@ import {
     CopilotAdapter,
     GeminiCliAdapter,
     OpenCodeAdapter,
+    PiAdapter,
     AgentStatus,
     TerminalFocusManager,
     TtyWriter,
@@ -85,6 +86,7 @@ const TYPE_LABELS: Record<AgentType, string> = {
     copilot: 'Copilot',
     gemini_cli: 'Gemini CLI',
     opencode: 'OpenCode',
+    pi: 'Pi',
     other: 'Other',
 };
 
@@ -166,6 +168,7 @@ function createAgentManager(): AgentManager {
     manager.registerAdapter(new CopilotAdapter());
     manager.registerAdapter(new GeminiCliAdapter());
     manager.registerAdapter(new OpenCodeAdapter());
+    manager.registerAdapter(new PiAdapter());
     return manager;
 }
 
@@ -390,7 +393,7 @@ export function registerAgentCommand(program: Command): void {
         .description('List historical Claude/Codex/Gemini/OpenCode sessions for resume')
         .option('--all', 'Include sessions from every cwd (default: only current cwd)')
         .option('--cwd <path>', 'Override the cwd filter (implies non-default scope)')
-        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli, opencode')
+        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli, opencode, copilot, pi')
         .option('--limit <n>', 'Max rows to print (default: 50; 0 = no limit)', '50')
         .option('-j, --json', 'Output as JSON')
         .action(withErrorHandler('list sessions', async (options) => {
@@ -444,7 +447,7 @@ export function registerAgentCommand(program: Command): void {
         .description('Show detailed information about a historical session')
         .requiredOption('--id <sessionId>', 'Session ID (as shown in agent sessions)')
         .option('-j, --json', 'Output as JSON')
-        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli, opencode')
+        .option('--type <type>', 'Filter to one of: claude, codex, gemini_cli, opencode, copilot, pi')
         .option('--full', 'Show entire conversation history')
         .option('--tail <n>', 'Show last N messages (default: 20)', '20')
         .option('--verbose', 'Include tool call/result details')

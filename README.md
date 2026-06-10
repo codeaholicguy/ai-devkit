@@ -138,6 +138,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes |
 | [Codex CLI](https://github.com/openai/codex) | yes | yes |
 | [opencode](https://opencode.ai/) | yes | testing |
+| Pi | — | yes |
 | [Cursor](https://cursor.sh/) | yes | — |
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |

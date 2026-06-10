@@ -4,6 +4,7 @@ import {
     CodexAdapter,
     CopilotAdapter,
     GeminiCliAdapter,
+    PiAdapter,
     TerminalFocusManager,
     TtyWriter,
     type AgentAdapter,
@@ -39,6 +40,7 @@ function createAgentManager(): AgentManager {
     manager.registerAdapter(new CodexAdapter());
     manager.registerAdapter(new CopilotAdapter());
     manager.registerAdapter(new GeminiCliAdapter());
+    manager.registerAdapter(new PiAdapter());
     return manager;
 }
 
