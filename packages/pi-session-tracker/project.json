@@ -1,0 +1,7 @@
+{
+  "name": "pi-session-tracker",
+  "root": "packages/pi-session-tracker",
+  "sourceRoot": "packages/pi-session-tracker/extensions",
+  "projectType": "library",
+  "targets": {}
+}

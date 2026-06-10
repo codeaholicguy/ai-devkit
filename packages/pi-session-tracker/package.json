@@ -1,0 +1,24 @@
+{
+  "name": "@ai-devkit/pi-session-tracker",
+  "version": "0.1.0",
+  "description": "Pi extension that tracks active sessions by PID in a shared JSON registry (~/.pi/agent/sessions.json)",
+  "license": "MIT",
+  "keywords": [
+    "pi-package",
+    "ai",
+    "agent",
+    "pi",
+    "session",
+    "pid"
+  ],
+  "files": [
+    "extensions",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "pi": {
+    "extensions": ["./extensions"]
+  }
+}
