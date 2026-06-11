@@ -3,6 +3,11 @@
   "version": "0.1.0",
   "description": "Pi extension that tracks active sessions by PID in a shared JSON registry (~/.pi/agent/sessions.json)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/pi-session-tracker"
+  },
   "keywords": [
     "pi-package",
     "ai",

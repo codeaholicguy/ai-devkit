@@ -42,6 +42,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/memory"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "8.60.1",

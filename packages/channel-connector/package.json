@@ -33,6 +33,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/channel-connector"
+  },
   "dependencies": {
     "marked": "^15.0.12",
     "telegraf": "^4.16.3",

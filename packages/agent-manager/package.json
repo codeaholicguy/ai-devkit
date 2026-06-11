@@ -29,6 +29,11 @@
   ],
   "author": "",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/agent-manager"
+  },
   "dependencies": {
     "better-sqlite3": "^12.6.2",
     "uuid": "14.0.0"
