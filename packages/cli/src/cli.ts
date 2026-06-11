@@ -11,6 +11,9 @@ import { registerSkillCommand } from './commands/skill.js';
 import { registerAgentCommand } from './commands/agent.js';
 import { registerChannelCommand } from './commands/channel.js';
 import { registerDocsCommand } from './commands/docs.js';
+import { registerPluginCommand } from './commands/plugin.js';
+import { registerConfiguredPluginCommands } from './services/plugin/plugin-loader.service.js';
+import { createAiDevkitRuntime } from './services/plugin/runtime.js';
 import { handleCliError } from './util/errors.js';
 import pkg from '../package.json' with { type: 'json' };
 const { version } = pkg as { version: string };
@@ -65,6 +68,9 @@ registerSkillCommand(program);
 registerAgentCommand(program);
 registerChannelCommand(program);
 registerDocsCommand(program);
+registerPluginCommand(program);
+
+await registerConfiguredPluginCommands(program, createAiDevkitRuntime());
 
 try {
   await program.parseAsync();

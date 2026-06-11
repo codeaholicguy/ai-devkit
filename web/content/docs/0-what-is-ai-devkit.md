@@ -26,6 +26,7 @@ AI DevKit is evolving toward an operating system model for AI-driven development
 - **Standard interfaces** for commands, skills, memory, and docs across agents
 - **Stateful development context** through phase docs and long-term memory
 - **Composable capabilities** via built-in and community skills
+- **CLI extensions** through global npm plugins that add optional commands
 - **Operational controls** like lint checks, worktree workflows, and agent management
 
 As teams move from single assistant chats to multi-agent workflows, AI DevKit keeps the process, memory, and verification rules consistent across every agent. This means teams can run the same workflow regardless of which AI coding assistant they use: one config, all agents.
@@ -86,6 +87,7 @@ Each step produces documentation in `docs/ai/` that gives your AI full context f
 2. **Develop** - Use slash commands like `/new-requirement` and `/execute-plan` inside your AI editor so the agent follows the workflow instead of improvising in chat.
 3. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
 4. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
+5. **Add tools** - Install plugins when you want optional CLI commands such as dashboards or heavier integrations.
 
 ## Who Is It For?
 
@@ -99,3 +101,4 @@ Each step produces documentation in `docs/ai/` that gives your AI full context f
 - **[Supported Agents](/docs/2-supported-agents)** - See which AI tools are supported
 - **[Development with AI DevKit](/docs/3-development-with-ai-devkit)** - Learn the full development workflow
 - **[Memory](/docs/6-memory)** - Give your AI long-term memory
+- **[Plugins](/docs/14-plugins)** - Add optional npm-powered CLI commands

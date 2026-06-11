@@ -235,10 +235,14 @@ Every server definition requires a `transport` field set to `stdio`, `http`, or 
 
 ## Global Config (`~/.ai-devkit/.ai-devkit.json`)
 
-The global config file has a smaller scope than the project config. It only supports skill registries:
+The global config file stores settings that apply across projects on your machine.
 
 ```json
 {
+  "plugins": ["@ai-devkit/memory-dashboard"],
+  "memory": {
+    "path": "memory.db"
+  },
   "registries": {
     "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
     "my-org/custom-skills": "https://github.com/my-org/custom-skills.git"
@@ -246,11 +250,39 @@ The global config file has a smaller scope than the project config. It only supp
 }
 ```
 
+### `plugins`
+
+- **Type:** array of npm package names
+- **Optional**
+
+Global AI DevKit plugins enabled for every invocation of the CLI. Use `ai-devkit plugin add` and `ai-devkit plugin remove` to update this field.
+
+Plugin packages are installed under `~/.ai-devkit/npm/node_modules`, not beside the AI DevKit binary. The first plugin system supports npm package names only; local paths, tarballs, git URLs, and version specs are not accepted by `plugin add`.
+
+See [Plugins](/docs/14-plugins) for install commands, troubleshooting, and the plugin authoring contract.
+
+### `memory`
+
+- **Type:** object
+- **Optional**
+
+Global memory settings used by plugin runtime APIs.
+
+| Sub-field | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `path` | `string` | `memory.db` | Path exposed by `runtime.getMemoryDbPath()` for plugins. Absolute paths are used as-is. Relative paths resolve from `~/.ai-devkit`, the directory containing the global config file. |
+
+If `memory.path` is not set in the global config, plugin runtime calls return `~/.ai-devkit/memory.db`.
+
+Project-level `memory.path` still controls `ai-devkit memory *` commands inside a project.
+
+### `registries`
+
 Use the global config when you want the same custom skill registries available in every project on your machine without copying the same registry entries into each repository.
 
 Global registries are merged with any project-level registries. If the same registry ID exists in both, the project-level entry takes priority.
 
-The global config does **not** support `environments`, `phases`, `paths`, `memory`, `skills`, or `mcpServers`.
+The global config does **not** support project fields such as `environments`, `phases`, `paths`, `skills`, or `mcpServers`.
 
 ## Which Commands Use the Config
 
@@ -262,6 +294,9 @@ The global config does **not** support `environments`, `phases`, `paths`, `memor
 | `ai-devkit skill add` | No | Yes (adds skill) | Yes |
 | `ai-devkit skill remove` | No | Yes (removes skill) | Yes |
 | `ai-devkit skill update` | No | Yes | Yes |
+| `ai-devkit plugin add` | Yes (global) | Yes (global) | Yes (global) |
+| `ai-devkit plugin remove` | No | Yes (global) | Yes (global) |
+| `ai-devkit plugin list` | No | No | Yes (global) |
 | `ai-devkit memory *` | No | No | Yes (reads `memory.path`) |
 | `ai-devkit lint` | No | No | Yes |
 
@@ -270,3 +305,4 @@ The global config does **not** support `environments`, `phases`, `paths`, `memor
 - [Agent Setup](/docs/agent-setup) — how `init` and `install` use this config
 - [Skills](/docs/skills) — managing skills and registries
 - [Memory](/docs/memory) — configuring the memory database path
+- [Plugins](/docs/14-plugins) — installing and authoring global npm plugins

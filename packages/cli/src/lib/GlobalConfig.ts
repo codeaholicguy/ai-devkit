@@ -29,7 +29,53 @@ export class GlobalConfigManager {
     return filterStringRecord(config?.registries);
   }
 
+  async getPlugins(): Promise<string[]> {
+    const config = await this.read();
+    return normalizePlugins(config?.plugins);
+  }
+
+  async addPlugin(pluginName: string): Promise<GlobalDevKitConfig> {
+    const config = await this.read() ?? {};
+    const plugins = normalizePlugins(config.plugins);
+
+    if (!plugins.includes(pluginName)) {
+      plugins.push(pluginName);
+    }
+
+    return this.write({
+      ...config,
+      plugins
+    });
+  }
+
+  async removePlugin(pluginName: string): Promise<GlobalDevKitConfig> {
+    const config = await this.read() ?? {};
+    const plugins = normalizePlugins(config.plugins).filter(plugin => plugin !== pluginName);
+
+    return this.write({
+      ...config,
+      plugins
+    });
+  }
+
   private getGlobalConfigPath(): string {
     return path.join(os.homedir(), '.ai-devkit', '.ai-devkit.json');
   }
+
+  private async write(config: GlobalDevKitConfig): Promise<GlobalDevKitConfig> {
+    await fs.ensureDir(path.dirname(this.getGlobalConfigPath()));
+    await fs.writeJson(this.getGlobalConfigPath(), config, { spaces: 2 });
+    return config;
+  }
+}
+
+function normalizePlugins(rawPlugins: unknown): string[] {
+  if (!Array.isArray(rawPlugins)) {
+    return [];
+  }
+
+  return [...new Set(rawPlugins
+    .filter((plugin): plugin is string => typeof plugin === 'string')
+    .map(plugin => plugin.trim())
+    .filter(plugin => plugin.length > 0))];
 }

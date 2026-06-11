@@ -22,6 +22,7 @@ AI DevKit solves these problems by giving your AI assistant:
 - **Custom commands** — Reusable prompts tailored to your project
 - **Long-term memory** — Rules and patterns that persist across sessions
 - **Skills** — Community-contributed capabilities your AI can learn
+- **Plugins** — Optional npm packages that add CLI commands
 - **Verification gates** — Fresh evidence before completion claims
 
 ## Prerequisites
@@ -123,6 +124,7 @@ Here's how a typical workflow might look:
 2. **Read the workflows guide** — [Development with AI DevKit](/docs/3-development-with-ai-devkit)
 3. **Set up memory** — [Give your AI long-term memory](/docs/6-memory)
 4. **Install skills** — [Extend your AI's capabilities](/docs/7-skills)
+5. **Install plugins** — [Add optional CLI commands](/docs/14-plugins)
 
 ## Need Help?
 
