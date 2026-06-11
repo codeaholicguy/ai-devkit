@@ -200,7 +200,7 @@ export class CodexAdapter implements AgentAdapter {
     }
 
     private findSessionFileById(sessionId: string): SessionFile | null {
-        for (const filePath of this.collectAllSessionFiles()) {
+        for (const filePath of this.getCandidateSessionFiles(sessionId)) {
             if (!path.basename(filePath).includes(sessionId)) continue;
 
             const content = safeReadFile(filePath);
@@ -229,6 +229,17 @@ export class CodexAdapter implements AgentAdapter {
         }
 
         return null;
+    }
+
+    private getCandidateSessionFiles(sessionId: string): string[] {
+        // Codex currently writes UUIDv7 session IDs, so the ID can narrow lookup
+        // to the creation-date directory. Fall back for older or changed formats.
+        const sessionDate = this.tryParseUuidV7Date(sessionId);
+        if (!sessionDate) return this.collectAllSessionFiles();
+
+        return this.collectSessionFilesInDateDirs(
+            this.getDateDirsAroundDate(sessionDate, CodexAdapter.PROCESS_START_DAY_WINDOW_DAYS),
+        );
     }
 
     private mapDirectMatches(matches: DirectMatch[]): DirectMatchResult {
@@ -321,11 +332,37 @@ export class CodexAdapter implements AgentAdapter {
         return dirs;
     }
 
+    private getDateDirsAroundDate(date: Date, windowDays: number): string[] {
+        const dirs: string[] = [];
+
+        for (let offset = -windowDays; offset <= windowDays; offset++) {
+            const day = new Date(date.getTime());
+            day.setDate(day.getDate() + offset);
+            const dayDir = path.join(this.codexSessionsDir, this.toSessionDayKey(day));
+            if (isDirectory(dayDir)) {
+                dirs.push(dayDir);
+            }
+        }
+
+        return dirs;
+    }
+
     private toSessionDayKey(date: Date): string {
         const yyyy = String(date.getFullYear()).padStart(4, '0');
         const mm = String(date.getMonth() + 1).padStart(2, '0');
         const dd = String(date.getDate()).padStart(2, '0');
         return path.join(yyyy, mm, dd);
+    }
+
+    private tryParseUuidV7Date(sessionId: string): Date | null {
+        const match = sessionId.match(/^([0-9a-f]{8})-([0-9a-f]{4})-7[0-9a-f]{3}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+        if (!match) return null;
+
+        const timestampMs = Number.parseInt(`${match[1]}${match[2]}`, 16);
+        if (!Number.isSafeInteger(timestampMs) || timestampMs <= 0) return null;
+
+        const date = new Date(timestampMs);
+        return Number.isNaN(date.getTime()) ? null : date;
     }
 
     /**
@@ -564,6 +601,19 @@ export class CodexAdapter implements AgentAdapter {
                         out.push(path.join(dayDir, fileEntry));
                     }
                 }
+            }
+        }
+
+        return out;
+    }
+
+    private collectSessionFilesInDateDirs(dateDirs: string[]): string[] {
+        const out: string[] = [];
+
+        for (const dayDir of dateDirs) {
+            for (const fileEntry of safeReaddir(dayDir)) {
+                if (!fileEntry.endsWith('.jsonl')) continue;
+                out.push(path.join(dayDir, fileEntry));
             }
         }
 

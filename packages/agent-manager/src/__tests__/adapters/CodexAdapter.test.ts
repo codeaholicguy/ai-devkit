@@ -277,22 +277,73 @@ describe('CodexAdapter', () => {
 
             (adapter as any).codexSessionsDir = sessionsDir;
             mockedBatchGetSessionFileBirthtimes.mockReturnValue([]);
+            const collectAllSpy = vi.spyOn(adapter as any, 'collectAllSessionFiles');
 
-            const agents = await adapter.detectAgents();
+            try {
+                const agents = await adapter.detectAgents();
 
-            expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
-            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                type: 'codex',
-                pid: 88018,
-                sessionId,
-                projectPath: '/repo-a',
-                sessionFilePath: sessionFile,
-            });
-            expect(agents[0].summary).toBe('resumed codex conversation');
+                expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+                expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+                expect(collectAllSpy).not.toHaveBeenCalled();
+                expect(agents).toHaveLength(1);
+                expect(agents[0]).toMatchObject({
+                    type: 'codex',
+                    pid: 88018,
+                    sessionId,
+                    projectPath: '/repo-a',
+                    sessionFilePath: sessionFile,
+                });
+                expect(agents[0].summary).toBe('resumed codex conversation');
+            } finally {
+                collectAllSpy.mockRestore();
+                fs.rmSync(tmpDir, { recursive: true, force: true });
+            }
+        });
 
-            fs.rmSync(tmpDir, { recursive: true, force: true });
+        it('should fall back to all session files for non-time-sortable resume ids', async () => {
+            const sessionId = 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee';
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 88020,
+                    command: `codex resume ${sessionId}`,
+                    cwd: '/repo-a',
+                    tty: 'ttys001',
+                    startTime: new Date('2026-06-10T12:00:00.000Z'),
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-resume-v4-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '01', '02');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const recentTs = new Date().toISOString();
+            const sessionFile = path.join(dateDir, `${sessionId}.jsonl`);
+            fs.writeFileSync(sessionFile, [
+                JSON.stringify({ type: 'session_meta', payload: { id: sessionId, timestamp: recentTs, cwd: '/repo-a' } }),
+                JSON.stringify({ type: 'event', timestamp: recentTs, payload: { type: 'agent_message', message: 'legacy id conversation' } }),
+            ].join('\n'));
+
+            (adapter as any).codexSessionsDir = sessionsDir;
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([]);
+            const collectAllSpy = vi.spyOn(adapter as any, 'collectAllSessionFiles');
+
+            try {
+                const agents = await adapter.detectAgents();
+
+                expect(collectAllSpy).toHaveBeenCalledOnce();
+                expect(agents).toHaveLength(1);
+                expect(agents[0]).toMatchObject({
+                    pid: 88020,
+                    sessionId,
+                    sessionFilePath: sessionFile,
+                });
+            } finally {
+                collectAllSpy.mockRestore();
+                fs.rmSync(tmpDir, { recursive: true, force: true });
+            }
         });
 
         it('should fall back to process-only when a resumed session becomes unreadable after direct matching', async () => {
