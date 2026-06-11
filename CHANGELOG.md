@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [f0f72d0](https://github.com/codeaholicguy/ai-devkit/commit/f0f72d0a6b281a977c2630808704bd1e66c659f5) Added the Pi session tracker extension.
+- [57b08bc](https://github.com/codeaholicguy/ai-devkit/pull/101) Added the Pi adapter to agent manager.
+- [69fb18a](https://github.com/codeaholicguy/ai-devkit/commit/69fb18ae36d28b722850f1c9b8bf77a7aed9e281) Optimized Codex resume session lookup.
+- [35d4dee](https://github.com/codeaholicguy/ai-devkit/pull/102) Added the global plugin foundation to the CLI.
+
 ## [0.39.0] - 2024-06-09
 
 - [f9bb55c](https://github.com/codeaholicguy/ai-devkit/pull/97) Reverted the CLI startup optimization from #96.
