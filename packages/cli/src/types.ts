@@ -62,6 +62,10 @@ export interface McpServerDefinition {
 
 export interface GlobalDevKitConfig {
   registries?: Record<string, string>;
+  plugins?: string[];
+  memory?: {
+    path?: string;
+  };
 }
 
 export interface PhaseMetadata {

@@ -222,7 +222,10 @@ No data is sent to the cloud, ensuring your proprietary coding patterns remain p
 
 Because the database is just a local file, you can copy it to another machine and keep using the same memory there.
 
+Plugins can also read the configured memory database path through `runtime.getMemoryDbPath()`. This is useful for plugin dashboards and local tools that need to inspect the same memory database as the CLI.
+
 ## Next Steps
 
 - **[Skills](/docs/7-skills)**: Learn how to create reusable skill templates
+- **[Plugins](/docs/14-plugins)**: Add optional CLI commands that can use the memory runtime
 - **[Getting Started](/docs/1-getting-started)**: New to AI DevKit? [Start here](/docs/1-getting-started)

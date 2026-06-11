@@ -27,6 +27,7 @@ describe('GlobalConfigManager', () => {
 
     mockOs.homedir.mockReturnValue('/home/test');
     mockPath.join.mockImplementation((...args) => args.join('/'));
+    mockPath.dirname.mockImplementation((input: string) => input.split('/').slice(0, -1).join('/') || '/');
     vi.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
@@ -96,6 +97,91 @@ describe('GlobalConfigManager', () => {
       expect(result).toEqual({
         'my-org/skills': 'https://github.com/my-org/skills.git'
       });
+    });
+  });
+
+  describe('getPlugins', () => {
+    it('should return empty list when no config exists', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await configManager.getPlugins();
+
+      expect(result).toEqual([]);
+    });
+
+    it('should return only string plugin entries', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        plugins: ['@ai-devkit/memory-dashboard', 123, '', '  @ai-devkit/agent-office  ']
+      });
+
+      const result = await configManager.getPlugins();
+
+      expect(result).toEqual(['@ai-devkit/memory-dashboard', '@ai-devkit/agent-office']);
+    });
+  });
+
+  describe('addPlugin', () => {
+    it('creates global config and adds the first plugin', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addPlugin('@ai-devkit/memory-dashboard');
+
+      expect(result.plugins).toEqual(['@ai-devkit/memory-dashboard']);
+      expect(mockFs.ensureDir).toHaveBeenCalledWith('/home/test/.ai-devkit');
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        '/home/test/.ai-devkit/.ai-devkit.json',
+        { plugins: ['@ai-devkit/memory-dashboard'] },
+        { spaces: 2 }
+      );
+    });
+
+    it('deduplicates plugin entries when adding an existing plugin', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        registries: { 'owner/repo': 'https://example.com/repo.git' },
+        plugins: ['@ai-devkit/memory-dashboard']
+      });
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addPlugin('@ai-devkit/memory-dashboard');
+
+      expect(result.plugins).toEqual(['@ai-devkit/memory-dashboard']);
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        '/home/test/.ai-devkit/.ai-devkit.json',
+        {
+          registries: { 'owner/repo': 'https://example.com/repo.git' },
+          plugins: ['@ai-devkit/memory-dashboard']
+        },
+        { spaces: 2 }
+      );
+    });
+  });
+
+  describe('removePlugin', () => {
+    it('removes plugin entries while preserving unrelated config', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        registries: { 'owner/repo': 'https://example.com/repo.git' },
+        plugins: ['@ai-devkit/memory-dashboard', '@ai-devkit/agent-office']
+      });
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.removePlugin('@ai-devkit/memory-dashboard');
+
+      expect(result.plugins).toEqual(['@ai-devkit/agent-office']);
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        '/home/test/.ai-devkit/.ai-devkit.json',
+        {
+          registries: { 'owner/repo': 'https://example.com/repo.git' },
+          plugins: ['@ai-devkit/agent-office']
+        },
+        { spaces: 2 }
+      );
     });
   });
 });
