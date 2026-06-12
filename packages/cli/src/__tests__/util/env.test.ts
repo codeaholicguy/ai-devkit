@@ -407,6 +407,11 @@ describe('Environment Utilities', () => {
       expect(hasMcpSupport('kilocode')).toBe(true);
       expect(getMcpConfigPath('kilocode')).toBe('.kilo/kilo.jsonc');
     });
+
+    it('should return MCP config path for opencode', () => {
+      expect(hasMcpSupport('opencode')).toBe(true);
+      expect(getMcpConfigPath('opencode')).toBe('opencode.json');
+    });
   });
 
 });

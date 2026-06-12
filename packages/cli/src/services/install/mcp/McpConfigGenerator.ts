@@ -9,6 +9,7 @@ import { GitHubCopilotMcpGenerator } from './GitHubCopilotMcpGenerator.js';
 import { DevinMcpGenerator } from './DevinMcpGenerator.js';
 import { RooCodeMcpGenerator } from './RooCodeMcpGenerator.js';
 import { KiloCodeMcpGenerator } from './KiloCodeMcpGenerator.js';
+import { OpenCodeMcpGenerator } from './OpenCodeMcpGenerator.js';
 import { confirm, select } from '@inquirer/prompts';
 
 export interface McpInstallOptions {
@@ -23,6 +24,7 @@ const GENERATORS: McpAgentGenerator[] = [
   new DevinMcpGenerator(),
   new RooCodeMcpGenerator(),
   new KiloCodeMcpGenerator(),
+  new OpenCodeMcpGenerator(),
 ];
 
 export async function installMcpServers(

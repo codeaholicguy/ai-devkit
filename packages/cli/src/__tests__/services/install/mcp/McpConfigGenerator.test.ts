@@ -70,6 +70,13 @@ vi.mock('../../../../services/install/mcp/KiloCodeMcpGenerator.js', () => ({
     apply: (...args: unknown[]) => mockApply(...args),
   }; }),
 }));
+vi.mock('../../../../services/install/mcp/OpenCodeMcpGenerator.js', () => ({
+  OpenCodeMcpGenerator: vi.fn().mockImplementation(function () { return {
+    agentType: 'opencode' as EnvironmentCode,
+    plan: (...args: unknown[]) => mockPlan(...args),
+    apply: (...args: unknown[]) => mockApply(...args),
+  }; }),
+}));
 
 import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';
 
@@ -179,6 +186,22 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['kilocode'], '/project');
+
+    expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(report.installed).toBe(1);
+  });
+
+  it('installs MCP servers for OpenCode when OpenCode is configured', async () => {
+    mockPlan.mockResolvedValue({
+      agentType: 'opencode',
+      newServers: ['memory'],
+      conflictServers: [],
+      skippedServers: [],
+      resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(servers, ['opencode'], '/project');
 
     expect(mockPlan).toHaveBeenCalledTimes(1);
     expect(mockApply).toHaveBeenCalledTimes(1);

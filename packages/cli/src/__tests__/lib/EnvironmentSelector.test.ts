@@ -119,6 +119,20 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('kilocode')).toBe('.kilo/kilo.jsonc');
     });
 
+    it('includes OpenCode with project skills, global skills, and MCP', () => {
+      expect(isValidEnvironmentCode('opencode')).toBe(true);
+      expect(getEnvironment('opencode')).toMatchObject({
+        code: 'opencode',
+        name: 'OpenCode',
+        skillPath: '.opencode/skills',
+        globalSkillPath: '.config/opencode/skills',
+        mcpConfigPath: 'opencode.json',
+      });
+      expect(getSkillPath('opencode')).toBe('.opencode/skills');
+      expect(getGlobalSkillPath('opencode')).toBe('.config/opencode/skills');
+      expect(getMcpConfigPath('opencode')).toBe('opencode.json');
+    });
+
     it('includes Pi with project and global skill paths', () => {
       expect(isValidEnvironmentCode('pi')).toBe(true);
       expect(getEnvironment('pi')).toMatchObject({

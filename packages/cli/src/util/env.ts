@@ -52,6 +52,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: 'OpenCode',
     skillPath: '.opencode/skills',
     globalSkillPath: '.config/opencode/skills',
+    mcpConfigPath: 'opencode.json',
   },
   roo: {
     code: 'roo',

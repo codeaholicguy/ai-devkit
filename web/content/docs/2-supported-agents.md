@@ -56,6 +56,7 @@ These environments are fully supported with stable integrations.
 - `AGENTS.md` — OpenCode [custom instructions](https://opencode.ai/docs/rules/)
 - `.opencode/skills/` — Project-level skills
 - `~/.config/opencode/skills/` — Global skills
+- `opencode.json` — Project-level MCP server configuration under the `mcp` key
 
 ### [Antigravity](https://antigravity.google/)
 **What AI DevKit provides:**
