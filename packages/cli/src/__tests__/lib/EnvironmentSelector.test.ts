@@ -37,12 +37,11 @@ describe('EnvironmentSelector', () => {
   });
 
   describe('selectEnvironments', () => {
-    it('includes Junie with project skills, global skills, MCP, context, and command paths', () => {
+    it('includes Junie with project skills, global skills, MCP, command paths', () => {
       expect(isValidEnvironmentCode('junie')).toBe(true);
       expect(getEnvironment('junie')).toMatchObject({
         code: 'junie',
         name: 'Junie',
-        contextFileName: 'AGENTS.md',
         commandPath: '.junie/commands',
         globalCommandPath: '.junie/commands',
         skillPath: '.junie/skills',
@@ -59,7 +58,6 @@ describe('EnvironmentSelector', () => {
       expect(getEnvironment('cline')).toMatchObject({
         code: 'cline',
         name: 'Cline',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cline/commands',
         skillPath: '.cline/skills',
         globalSkillPath: '.cline/skills',
@@ -73,7 +71,6 @@ describe('EnvironmentSelector', () => {
       expect(getEnvironment('github')).toMatchObject({
         code: 'github',
         name: 'GitHub Copilot',
-        contextFileName: 'AGENTS.md',
         commandPath: '.github/prompts',
         skillPath: '.github/skills',
         globalSkillPath: '.copilot/skills',
@@ -84,12 +81,11 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('github')).toBe('.mcp.json');
     });
 
-    it('includes Devin with project skills, global skills, MCP, and AGENTS context', () => {
+    it('includes Devin with project skills, global skills, MCP', () => {
       expect(isValidEnvironmentCode('devin')).toBe(true);
       expect(getEnvironment('devin')).toMatchObject({
         code: 'devin',
         name: 'Devin',
-        contextFileName: 'AGENTS.md',
         commandPath: '.devin/commands',
         skillPath: '.devin/skills',
         globalSkillPath: '.config/devin/skills',

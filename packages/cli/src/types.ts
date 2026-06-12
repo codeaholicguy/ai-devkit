@@ -10,7 +10,6 @@ export type Phase =
 export interface EnvironmentDefinition {
   code: string;
   name: string;
-  contextFileName: string;
   commandPath: string;
   skillPath?: string;
   globalSkillPath?: string;

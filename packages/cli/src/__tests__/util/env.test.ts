@@ -43,7 +43,6 @@ describe('Environment Utilities', () => {
       expect(cursor).toEqual({
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
         skillPath: '.cursor/skills',
         globalSkillPath: '.cursor/skills'
@@ -54,11 +53,10 @@ describe('Environment Utilities', () => {
       Object.values(ENVIRONMENT_DEFINITIONS).forEach(env => {
         expect(env).toHaveProperty('code');
         expect(env).toHaveProperty('name');
-        expect(env).toHaveProperty('contextFileName');
         expect(env).toHaveProperty('commandPath');
+        expect(env).not.toHaveProperty('contextFileName');
         expect(typeof env.code).toBe('string');
         expect(typeof env.name).toBe('string');
-        expect(typeof env.contextFileName).toBe('string');
         expect(typeof env.commandPath).toBe('string');
       });
     });

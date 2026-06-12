@@ -35,7 +35,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
-        contextFileName: '.test-context.md',
         commandPath: '.test',
         isCustomCommandPath: false
       };
@@ -56,7 +55,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
-        contextFileName: '.test-context.md',
         commandPath: '.test',
         isCustomCommandPath: false
       };
@@ -77,7 +75,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
-        contextFileName: '.test-context.md',
         commandPath: '.test',
         isCustomCommandPath: false
       };
@@ -115,7 +112,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
-        contextFileName: '.test-context.md',
         commandPath: '.test',
         isCustomCommandPath: false
       };
@@ -137,7 +133,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
-        contextFileName: '.test-context.md',
         commandPath: '.test',
         isCustomCommandPath: true
       };
@@ -153,7 +148,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: '.cursor.md',
         commandPath: '.cursor',
         isCustomCommandPath: false
       };
@@ -183,7 +177,6 @@ describe('TemplateManager', () => {
       const env: EnvironmentDefinition = {
         code: 'gemini',
         name: 'Gemini',
-        contextFileName: '.gemini.md',
         commandPath: '.gemini',
         isCustomCommandPath: false
       };
@@ -228,7 +221,6 @@ This is the prompt content.`;
       const env: EnvironmentDefinition = {
         code: 'test-env',
         name: 'Test Environment',
-        contextFileName: '.test-context.md',
         commandPath: '.test',
         isCustomCommandPath: false
       };
@@ -419,13 +411,11 @@ This is the prompt content.`;
       const cursorEnv = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
       const geminiEnv = {
         code: 'gemini',
         name: 'Gemini',
-        contextFileName: 'AGENTS.md',
         commandPath: '.gemini/commands',
         isCustomCommandPath: true,
       };
@@ -460,13 +450,11 @@ This is the prompt content.`;
       const cursorEnv = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
       const geminiEnv = {
         code: 'gemini',
         name: 'Gemini',
-        contextFileName: 'AGENTS.md',
         commandPath: '.gemini/commands',
         isCustomCommandPath: true,
       };
@@ -497,7 +485,6 @@ This is the prompt content.`;
       const cursorEnv = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
 
@@ -529,7 +516,6 @@ This is the prompt content.`;
       const env = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
 
@@ -550,7 +536,6 @@ This is the prompt content.`;
       const env = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
 
@@ -568,7 +553,6 @@ This is the prompt content.`;
       const env = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
 
@@ -738,7 +722,6 @@ description: Test
       const envWithoutGlobal = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
         // No globalCommandPath
       };
@@ -762,7 +745,6 @@ description: Test
       const envWithGlobal = {
         code: 'antigravity',
         name: 'Antigravity',
-        contextFileName: 'AGENTS.md',
         commandPath: '.agent/workflows',
         globalCommandPath: '.gemini/antigravity/global_workflows',
       };
@@ -786,7 +768,6 @@ description: Test
       const envWithGlobal = {
         code: 'codex',
         name: 'OpenAI Codex',
-        contextFileName: 'AGENTS.md',
         commandPath: '.codex/commands',
         globalCommandPath: '.codex/prompts',
       };
@@ -809,7 +790,6 @@ description: Test
       const envWithGlobal = {
         code: 'antigravity',
         name: 'Antigravity',
-        contextFileName: 'AGENTS.md',
         commandPath: '.agent/workflows',
         globalCommandPath: '.gemini/antigravity/global_workflows',
       };
@@ -828,7 +808,6 @@ description: Test
       const envWithoutGlobal = {
         code: 'cursor',
         name: 'Cursor',
-        contextFileName: 'AGENTS.md',
         commandPath: '.cursor/commands',
       };
 
@@ -851,7 +830,6 @@ description: Test
       const envWithGlobal = {
         code: 'antigravity',
         name: 'Antigravity',
-        contextFileName: 'AGENTS.md',
         commandPath: '.agent/workflows',
         globalCommandPath: '.gemini/antigravity/global_workflows',
       };
@@ -868,7 +846,6 @@ description: Test
       const envWithGlobal = {
         code: 'antigravity',
         name: 'Antigravity',
-        contextFileName: 'AGENTS.md',
         commandPath: '.agent/workflows',
         globalCommandPath: '.gemini/antigravity/global_workflows',
       };
@@ -886,7 +863,6 @@ description: Test
       const envWithGlobal = {
         code: 'antigravity',
         name: 'Antigravity',
-        contextFileName: 'AGENTS.md',
         commandPath: '.agent/workflows',
         globalCommandPath: '.gemini/antigravity/global_workflows',
       };
@@ -904,7 +880,6 @@ description: Test
       const envWithGlobal = {
         code: 'antigravity',
         name: 'Antigravity',
-        contextFileName: 'AGENTS.md',
         commandPath: '.agent/workflows',
         globalCommandPath: '.gemini/antigravity/global_workflows',
       };
@@ -922,7 +897,6 @@ description: Test
       const envWithGlobal = {
         code: 'codex',
         name: 'OpenAI Codex',
-        contextFileName: 'AGENTS.md',
         commandPath: '.codex/commands',
         globalCommandPath: '.codex/prompts',
       };

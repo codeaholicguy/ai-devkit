@@ -4,7 +4,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   cursor: {
     code: 'cursor',
     name: 'Cursor',
-    contextFileName: 'AGENTS.md',
     commandPath: '.cursor/commands',
     skillPath: '.cursor/skills',
     globalSkillPath: '.cursor/skills',
@@ -12,7 +11,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   claude: {
     code: 'claude',
     name: 'Claude Code',
-    contextFileName: 'CLAUDE.md',
     commandPath: '.claude/commands',
     skillPath: '.claude/skills',
     globalSkillPath: '.claude/skills',
@@ -21,7 +19,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   github: {
     code: 'github',
     name: 'GitHub Copilot',
-    contextFileName: 'AGENTS.md',
     commandPath: '.github/prompts',
     customCommandExtension: '.prompt.md',
     skillPath: '.github/skills',
@@ -31,7 +28,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   gemini: {
     code: 'gemini',
     name: 'Google Gemini',
-    contextFileName: 'GEMINI.md',
     commandPath: '.gemini/commands',
     isCustomCommandPath: true,
     globalSkillPath: '.gemini/skills',
@@ -39,7 +35,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   codex: {
     code: 'codex',
     name: 'OpenAI Codex',
-    contextFileName: 'AGENTS.md',
     commandPath: '.codex/commands',
     globalCommandPath: '.codex/prompts',
     skillPath: '.agents/skills',
@@ -49,19 +44,16 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   windsurf: {
     code: 'windsurf',
     name: 'Windsurf',
-    contextFileName: 'AGENTS.md',
     commandPath: '.windsurf/commands',
   },
   kilocode: {
     code: 'kilocode',
     name: 'KiloCode',
-    contextFileName: 'AGENTS.md',
     commandPath: '.kilocode/commands',
   },
   amp: {
     code: 'amp',
     name: 'AMP',
-    contextFileName: 'AGENTS.md',
     commandPath: '.agents/commands',
     skillPath: '.agents/skills',
     globalSkillPath: '.config/agents/skills',
@@ -69,7 +61,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   opencode: {
     code: 'opencode',
     name: 'OpenCode',
-    contextFileName: 'AGENTS.md',
     commandPath: '.opencode/commands',
     skillPath: '.opencode/skills',
     globalSkillPath: '.config/opencode/skills',
@@ -77,13 +68,11 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   roo: {
     code: 'roo',
     name: 'Roo Code',
-    contextFileName: 'AGENTS.md',
     commandPath: '.roo/commands',
   },
   antigravity: {
     code: 'antigravity',
     name: 'Antigravity',
-    contextFileName: 'AGENTS.md',
     commandPath: '.agent/workflows',
     globalCommandPath: '.gemini/antigravity/global_workflows',
     skillPath: '.agent/skills',
@@ -92,7 +81,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   junie: {
     code: 'junie',
     name: 'Junie',
-    contextFileName: 'AGENTS.md',
     commandPath: '.junie/commands',
     globalCommandPath: '.junie/commands',
     skillPath: '.junie/skills',
@@ -102,7 +90,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   cline: {
     code: 'cline',
     name: 'Cline',
-    contextFileName: 'AGENTS.md',
     commandPath: '.cline/commands',
     skillPath: '.cline/skills',
     globalSkillPath: '.cline/skills',
@@ -110,7 +97,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   devin: {
     code: 'devin',
     name: 'Devin',
-    contextFileName: 'AGENTS.md',
     commandPath: '.devin/commands',
     skillPath: '.devin/skills',
     globalSkillPath: '.config/devin/skills',

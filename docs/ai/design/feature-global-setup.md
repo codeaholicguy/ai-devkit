@@ -37,7 +37,6 @@ graph TD
 export interface EnvironmentDefinition {
   code: string;
   name: string;
-  contextFileName: string;
   commandPath: string;
   description?: string;
   isCustomCommandPath?: boolean;
@@ -51,14 +50,12 @@ export interface EnvironmentDefinition {
 antigravity: {
   code: 'antigravity',
   name: 'Antigravity',
-  contextFileName: 'AGENTS.md',
   commandPath: '.agent/workflows',
   globalCommandPath: '.gemini/antigravity/global_workflows', // NEW
 },
 codex: {
   code: 'codex',
   name: 'OpenAI Codex',
-  contextFileName: 'AGENTS.md',
   commandPath: '.codex/commands',
   globalCommandPath: '.codex/prompts', // NEW
 }
