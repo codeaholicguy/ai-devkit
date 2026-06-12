@@ -261,10 +261,10 @@ describe("SkillManager", () => {
       expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
     });
 
-    it("should throw error when global env does not support skills", async () => {
+    it("should throw error when global env is invalid", async () => {
       await expect(
-        skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["kilocode"] }),
-      ).rejects.toThrow("Global skill installation is not supported for: kilocode");
+        skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["invalid-env"] }),
+      ).rejects.toThrow("Invalid environment codes: invalid-env");
     });
 
     it("should throw error when env is provided without global option", async () => {
@@ -612,14 +612,14 @@ describe("SkillManager", () => {
       ).rejects.toThrow('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
     });
 
-    it("should throw error if no skill-capable environments configured", async () => {
+    it("should throw error if no valid skill-capable environments configured", async () => {
       mockConfigManager.read.mockResolvedValue({
-        environments: ["kilocode"],
+        environments: ["invalid-env"],
       } as any);
 
       await expect(
         skillManager.addSkill(mockRegistryId, mockSkillName),
-      ).rejects.toThrow("Supported: cursor, claude, github, gemini, codex, amp, opencode, roo, antigravity, junie, cline, devin");
+      ).rejects.toThrow("Supported: cursor, claude, github, gemini, codex, kilocode, amp, opencode, roo, antigravity, junie, cline, devin");
     });
 
     it("should call validation functions with correct parameters", async () => {
@@ -1014,9 +1014,9 @@ describe("SkillManager", () => {
       );
     });
 
-    it("should throw error if no skill-capable environments", async () => {
+    it("should throw error if no valid skill-capable environments", async () => {
       mockConfigManager.read.mockResolvedValue({
-        environments: ["kilocode"],
+        environments: ["invalid-env"],
       } as any);
 
       await expect(skillManager.removeSkill(mockSkillName)).rejects.toThrow(

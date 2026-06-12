@@ -75,7 +75,7 @@ ai-devkit install --overwrite
 
 Based on your configured environments, AI DevKit installs or updates files such as:
 - Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.github/skills/` for GitHub Copilot, `.devin/skills/`, and `.agents/skills/` for Codex) refer [Skills](/docs/7-skills) for more on skills
-- MCP server configuration files (`.mcp.json` for Claude Code and GitHub Copilot, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie, `.devin/config.json` for Devin, `.roo/mcp.json` for Roo Code)
+- MCP server configuration files (`.mcp.json` for Claude Code and GitHub Copilot, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie, `.devin/config.json` for Devin, `.roo/mcp.json` for Roo Code, `.kilo/kilo.jsonc` for Kilo Code)
 - Other environment-specific templates defined by AI DevKit
 
 The exact artifacts depend on the environments configured in `.ai-devkit.json`. `ai-devkit install` only manages project-local files generated from that config.
@@ -178,7 +178,7 @@ When using a template with a `skills` section, skills from the template are inst
 
 > **Note:** `mcpServers` generation and install flow require AI DevKit `0.23.0` or later.
 
-MCP configuration is currently generated for **Claude Code** (`.mcp.json`), **GitHub Copilot** (`.mcp.json`), **Codex** (`.codex/config.toml`), **Junie** (`.junie/mcp/mcp.json`), and **Devin** (`.devin/config.json`).
+MCP configuration is currently generated for **Claude Code** (`.mcp.json`), **GitHub Copilot** (`.mcp.json`), **Codex** (`.codex/config.toml`), **Junie** (`.junie/mcp/mcp.json`), **Devin** (`.devin/config.json`), **Roo Code** (`.roo/mcp.json`), and **Kilo Code** (`.kilo/kilo.jsonc`).
 
 If your project uses only environments that do not currently support MCP generation, AI DevKit still saves the `mcpServers` definitions in `.ai-devkit.json`, but no environment-specific MCP config files are created.
 

@@ -90,6 +90,9 @@ These environments are under active development. They work, but you may encounte
 
 **What AI DevKit provides:**
 - `AGENTS.md` — KiloCode configuration for large project handling
+- `.kilo/skills/` — Project-level skills
+- `~/.kilo/skills/` — Global skills
+- `.kilo/kilo.jsonc` — Project-level MCP server configuration under the `mcp` key
 
 ### [AMP](https://ampcode.com/)
 

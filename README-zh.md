@@ -143,7 +143,7 @@ ai-devkit init --template ./senior-engineer.yaml
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |
 | [Amp](https://ampcode.com/) | yes | — |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode) | testing | — |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | — |
 | [Roo Code](https://roocode.com/) | testing | — |
 
 **配置支持** — `ai-devkit init` 写入智能体配置，包括规则、MCP 服务、技能和斜杠命令，让它遵循同一套工作流。

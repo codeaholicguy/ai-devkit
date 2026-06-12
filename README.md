@@ -145,7 +145,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |
 | [Amp](https://ampcode.com/) | yes | — |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode) | testing | — |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | — |
 | [Roo Code](https://roocode.com/) | testing | — |
 
 **Setup** — `ai-devkit init` writes the agent's config (rules, MCP servers, and skills) so it follows the same workflow.

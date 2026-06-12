@@ -249,8 +249,8 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('roo')).toBe('.roo/skills');
     });
 
-    it('should return undefined for environments without skill support', () => {
-      expect(getSkillPath('kilocode')).toBeUndefined();
+    it('should return skill path for kilocode', () => {
+      expect(getSkillPath('kilocode')).toBe('.kilo/skills');
     });
 
     it('should return undefined for invalid environment code', () => {
@@ -291,8 +291,8 @@ describe('Environment Utilities', () => {
       expect(getGlobalSkillPath('devin')).toBe('.config/devin/skills');
     });
 
-    it('should return undefined for environments without global skill support', () => {
-      expect(getGlobalSkillPath('kilocode')).toBeUndefined();
+    it('should return global skill path for kilocode', () => {
+      expect(getGlobalSkillPath('kilocode')).toBe('.kilo/skills');
     });
   });
 
@@ -339,12 +339,12 @@ describe('Environment Utilities', () => {
       expect(roo?.skillPath).toBe('.roo/skills');
     });
 
-    it('should not include environments without skillPath', () => {
+    it('should include kilocode in skill-capable environments', () => {
       const skillEnvs = getSkillCapableEnvironments();
-      const envCodes = skillEnvs.map(env => env.code);
+      const kilocode = skillEnvs.find(env => env.code === 'kilocode');
 
-      // These environments don't have skillPath configured
-      expect(envCodes).not.toContain('kilocode');
+      expect(kilocode).toBeDefined();
+      expect(kilocode?.skillPath).toBe('.kilo/skills');
     });
 
     it('should return environments with skillPath configured', () => {
@@ -357,6 +357,7 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('github');
       expect(envCodes).toContain('gemini');
       expect(envCodes).toContain('codex');
+      expect(envCodes).toContain('kilocode');
       expect(envCodes).toContain('amp');
       expect(envCodes).toContain('opencode');
       expect(envCodes).toContain('roo');
@@ -364,7 +365,7 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('junie');
       expect(envCodes).toContain('cline');
       expect(envCodes).toContain('devin');
-      expect(skillEnvs).toHaveLength(12);
+      expect(skillEnvs).toHaveLength(13);
     });
   });
 
@@ -382,6 +383,11 @@ describe('Environment Utilities', () => {
     it('should return MCP config path for roo', () => {
       expect(hasMcpSupport('roo')).toBe(true);
       expect(getMcpConfigPath('roo')).toBe('.roo/mcp.json');
+    });
+
+    it('should return MCP config path for kilocode', () => {
+      expect(hasMcpSupport('kilocode')).toBe(true);
+      expect(getMcpConfigPath('kilocode')).toBe('.kilo/kilo.jsonc');
     });
   });
 

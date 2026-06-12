@@ -37,6 +37,9 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   kilocode: {
     code: 'kilocode',
     name: 'KiloCode',
+    skillPath: '.kilo/skills',
+    globalSkillPath: '.kilo/skills',
+    mcpConfigPath: '.kilo/kilo.jsonc',
   },
   amp: {
     code: 'amp',

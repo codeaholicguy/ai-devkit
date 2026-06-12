@@ -66,6 +66,8 @@ Skills are currently supported by the following AI coding agents:
 | **Junie**       | `.junie/skills`    | `~/.junie/skills` |
 | **Cline**       | `.cline/skills`    | `~/.cline/skills` |
 | **Devin**       | `.devin/skills`    | `~/.config/devin/skills` |
+| **Kilo Code**   | `.kilo/skills`     | `~/.kilo/skills` |
+| **Roo Code**    | `.roo/skills`      | `~/.roo/skills` |
 
 Project installs are added inside the current repository. Global installs are added under your home directory and are shared across projects.
 
@@ -442,7 +444,7 @@ The skill doesn't exist in the specified registry. Explore the registry reposito
 
 ### "No skill-capable environments configured"
 
-Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, or Devin).
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Kilo Code, or Roo Code).
 
 ### "SKILL.md not found"
 

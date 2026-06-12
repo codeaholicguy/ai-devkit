@@ -105,6 +105,20 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('roo')).toBe('.roo/mcp.json');
     });
 
+    it('includes Kilo Code with project skills, global skills, and MCP', () => {
+      expect(isValidEnvironmentCode('kilocode')).toBe(true);
+      expect(getEnvironment('kilocode')).toMatchObject({
+        code: 'kilocode',
+        name: 'KiloCode',
+        skillPath: '.kilo/skills',
+        globalSkillPath: '.kilo/skills',
+        mcpConfigPath: '.kilo/kilo.jsonc',
+      });
+      expect(getSkillPath('kilocode')).toBe('.kilo/skills');
+      expect(getGlobalSkillPath('kilocode')).toBe('.kilo/skills');
+      expect(getMcpConfigPath('kilocode')).toBe('.kilo/kilo.jsonc');
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);
