@@ -246,6 +246,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('devin')).toBe('.devin/skills');
     });
 
+    it('should return skill path for roo', () => {
+      expect(getSkillPath('roo')).toBe('.roo/skills');
+    });
+
     it('should return undefined for environments without skill support', () => {
       expect(getSkillPath('windsurf')).toBeUndefined();
       expect(getSkillPath('kilocode')).toBeUndefined();
@@ -279,6 +283,10 @@ describe('Environment Utilities', () => {
 
     it('should return global skill path for cline', () => {
       expect(getGlobalSkillPath('cline')).toBe('.cline/skills');
+    });
+
+    it('should return global skill path for roo', () => {
+      expect(getGlobalSkillPath('roo')).toBe('.roo/skills');
     });
 
     it('should return global skill path for devin', () => {
@@ -326,6 +334,14 @@ describe('Environment Utilities', () => {
       expect(gemini?.skillPath).toBe('.gemini/skills');
     });
 
+    it('should include roo in skill-capable environments', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const roo = skillEnvs.find(env => env.code === 'roo');
+
+      expect(roo).toBeDefined();
+      expect(roo?.skillPath).toBe('.roo/skills');
+    });
+
     it('should not include environments without skillPath', () => {
       const skillEnvs = getSkillCapableEnvironments();
       const envCodes = skillEnvs.map(env => env.code);
@@ -333,7 +349,6 @@ describe('Environment Utilities', () => {
       // These environments don't have skillPath configured
       expect(envCodes).not.toContain('windsurf');
       expect(envCodes).not.toContain('kilocode');
-      expect(envCodes).not.toContain('roo');
     });
 
     it('should return environments with skillPath configured', () => {
@@ -348,11 +363,12 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('codex');
       expect(envCodes).toContain('amp');
       expect(envCodes).toContain('opencode');
+      expect(envCodes).toContain('roo');
       expect(envCodes).toContain('antigravity');
       expect(envCodes).toContain('junie');
       expect(envCodes).toContain('cline');
       expect(envCodes).toContain('devin');
-      expect(skillEnvs).toHaveLength(11);
+      expect(skillEnvs).toHaveLength(12);
     });
   });
 
@@ -365,6 +381,11 @@ describe('Environment Utilities', () => {
     it('should return MCP config path for devin', () => {
       expect(hasMcpSupport('devin')).toBe(true);
       expect(getMcpConfigPath('devin')).toBe('.devin/config.json');
+    });
+
+    it('should return MCP config path for roo', () => {
+      expect(hasMcpSupport('roo')).toBe(true);
+      expect(getMcpConfigPath('roo')).toBe('.roo/mcp.json');
     });
   });
 

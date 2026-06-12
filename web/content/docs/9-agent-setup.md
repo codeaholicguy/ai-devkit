@@ -75,7 +75,7 @@ ai-devkit install --overwrite
 
 Based on your configured environments, AI DevKit installs or updates files such as:
 - Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.github/skills/` for GitHub Copilot, `.devin/skills/`, and `.agents/skills/` for Codex) refer [Skills](/docs/7-skills) for more on skills
-- MCP server configuration files (`.mcp.json` for Claude Code and GitHub Copilot, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie, `.devin/config.json` for Devin)
+- MCP server configuration files (`.mcp.json` for Claude Code and GitHub Copilot, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie, `.devin/config.json` for Devin, `.roo/mcp.json` for Roo Code)
 - Other environment-specific templates defined by AI DevKit
 
 The exact artifacts depend on the environments configured in `.ai-devkit.json`. `ai-devkit install` only manages project-local files generated from that config.

@@ -107,6 +107,9 @@ These environments are under active development. They work, but you may encounte
 
 **What AI DevKit provides:**
 - `AGENTS.md` — Roo Code configuration and context
+- `.roo/skills/` — Project-level skills
+- `~/.roo/skills/` — Global skills
+- `.roo/mcp.json` — Project-level MCP server configuration
 
 ## Environment Setup
 

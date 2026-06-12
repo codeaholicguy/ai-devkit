@@ -56,6 +56,13 @@ vi.mock('../../../../services/install/mcp/DevinMcpGenerator.js', () => ({
     apply: (...args: unknown[]) => mockApply(...args),
   }; }),
 }));
+vi.mock('../../../../services/install/mcp/RooCodeMcpGenerator.js', () => ({
+  RooCodeMcpGenerator: vi.fn().mockImplementation(function () { return {
+    agentType: 'roo' as EnvironmentCode,
+    plan: (...args: unknown[]) => mockPlan(...args),
+    apply: (...args: unknown[]) => mockApply(...args),
+  }; }),
+}));
 
 import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';
 
@@ -133,6 +140,22 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['devin'], '/project');
+
+    expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(report.installed).toBe(1);
+  });
+
+  it('installs MCP servers for Roo Code when Roo is configured', async () => {
+    mockPlan.mockResolvedValue({
+      agentType: 'roo',
+      newServers: ['memory'],
+      conflictServers: [],
+      skippedServers: [],
+      resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(servers, ['roo'], '/project');
 
     expect(mockPlan).toHaveBeenCalledTimes(1);
     expect(mockApply).toHaveBeenCalledTimes(1);

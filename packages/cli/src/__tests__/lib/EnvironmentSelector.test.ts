@@ -91,6 +91,20 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('devin')).toBe('.devin/config.json');
     });
 
+    it('includes Roo Code with project skills, global skills, and MCP', () => {
+      expect(isValidEnvironmentCode('roo')).toBe(true);
+      expect(getEnvironment('roo')).toMatchObject({
+        code: 'roo',
+        name: 'Roo Code',
+        skillPath: '.roo/skills',
+        globalSkillPath: '.roo/skills',
+        mcpConfigPath: '.roo/mcp.json',
+      });
+      expect(getSkillPath('roo')).toBe('.roo/skills');
+      expect(getGlobalSkillPath('roo')).toBe('.roo/skills');
+      expect(getMcpConfigPath('roo')).toBe('.roo/mcp.json');
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);

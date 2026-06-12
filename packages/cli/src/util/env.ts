@@ -57,6 +57,9 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   roo: {
     code: 'roo',
     name: 'Roo Code',
+    skillPath: '.roo/skills',
+    globalSkillPath: '.roo/skills',
+    mcpConfigPath: '.roo/mcp.json',
   },
   antigravity: {
     code: 'antigravity',
