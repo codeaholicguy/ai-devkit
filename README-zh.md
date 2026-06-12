@@ -138,7 +138,7 @@ ai-devkit init --template ./senior-engineer.yaml
 | [Cline](https://cline.bot/) | yes | — |
 | [Devin](https://devin.ai/) | yes | — |
 | [opencode](https://opencode.ai/) | yes | testing |
-| [Pi](https://pi.dev) | — | yes |
+| [Pi](https://pi.dev) | yes | yes |
 | [Cursor](https://cursor.sh/) | yes | — |
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |

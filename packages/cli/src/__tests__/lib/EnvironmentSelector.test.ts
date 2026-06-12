@@ -119,6 +119,19 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('kilocode')).toBe('.kilo/kilo.jsonc');
     });
 
+    it('includes Pi with project and global skill paths', () => {
+      expect(isValidEnvironmentCode('pi')).toBe(true);
+      expect(getEnvironment('pi')).toMatchObject({
+        code: 'pi',
+        name: 'Pi',
+        skillPath: '.pi/skills',
+        globalSkillPath: '.pi/agent/skills',
+      });
+      expect(getSkillPath('pi')).toBe('.pi/skills');
+      expect(getGlobalSkillPath('pi')).toBe('.pi/agent/skills');
+      expect(getMcpConfigPath('pi')).toBeUndefined();
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);

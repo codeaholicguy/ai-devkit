@@ -19,7 +19,7 @@ import { EnvironmentCode } from '../../types.js';
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {
     it('should contain all all environment definitions', () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(13);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(14);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cursor');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('claude');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('github');
@@ -33,6 +33,7 @@ describe('Environment Utilities', () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('junie');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cline');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('devin');
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('pi');
     });
 
     it('should have correct structure for cursor environment', () => {
@@ -62,12 +63,12 @@ describe('Environment Utilities', () => {
 
   describe('ALL_ENVIRONMENT_CODES', () => {
     it('should contain all all environment codes', () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(13);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(14);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           'cursor', 'claude', 'github', 'gemini', 'codex',
           'kilocode', 'amp', 'opencode', 'roo', 'antigravity',
-          'junie', 'cline', 'devin'
+          'junie', 'cline', 'devin', 'pi'
         ])
       );
     });
@@ -81,7 +82,7 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironments', () => {
     it('should return all environment definitions', () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(13);
+      expect(environments).toHaveLength(14);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -253,6 +254,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('kilocode')).toBe('.kilo/skills');
     });
 
+    it('should return skill path for pi', () => {
+      expect(getSkillPath('pi')).toBe('.pi/skills');
+    });
+
     it('should return undefined for invalid environment code', () => {
       expect(getSkillPath('invalid' as EnvironmentCode)).toBeUndefined();
     });
@@ -293,6 +298,10 @@ describe('Environment Utilities', () => {
 
     it('should return global skill path for kilocode', () => {
       expect(getGlobalSkillPath('kilocode')).toBe('.kilo/skills');
+    });
+
+    it('should return global skill path for pi', () => {
+      expect(getGlobalSkillPath('pi')).toBe('.pi/agent/skills');
     });
   });
 
@@ -347,6 +356,14 @@ describe('Environment Utilities', () => {
       expect(kilocode?.skillPath).toBe('.kilo/skills');
     });
 
+    it('should include pi in skill-capable environments', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const pi = skillEnvs.find(env => env.code === 'pi');
+
+      expect(pi).toBeDefined();
+      expect(pi?.skillPath).toBe('.pi/skills');
+    });
+
     it('should return environments with skillPath configured', () => {
       const skillEnvs = getSkillCapableEnvironments();
       const envCodes = skillEnvs.map(env => env.code);
@@ -365,7 +382,8 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('junie');
       expect(envCodes).toContain('cline');
       expect(envCodes).toContain('devin');
-      expect(skillEnvs).toHaveLength(13);
+      expect(envCodes).toContain('pi');
+      expect(skillEnvs).toHaveLength(14);
     });
   });
 

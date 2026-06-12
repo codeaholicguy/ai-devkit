@@ -82,6 +82,11 @@ These environments are fully supported with stable integrations.
 - `.devin/config.json` — Project-level MCP server configuration; AI DevKit updates only `mcpServers` and preserves other Devin config
 - `~/.config/devin/skills/` — Global skills
 
+### [Pi](https://pi.dev/)
+**What AI DevKit provides:**
+- `.pi/skills/` — Project-level skills
+- `~/.pi/agent/skills/` — Global skills
+
 ## Experimental Environments
 
 These environments are under active development. They work, but you may encounter issues.

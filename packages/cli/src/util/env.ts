@@ -85,6 +85,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     skillPath: '.devin/skills',
     globalSkillPath: '.config/devin/skills',
     mcpConfigPath: '.devin/config.json',
+  },
+  pi: {
+    code: 'pi',
+    name: 'Pi',
+    skillPath: '.pi/skills',
+    globalSkillPath: '.pi/agent/skills',
   }
 };
 

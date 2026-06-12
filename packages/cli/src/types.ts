@@ -16,7 +16,7 @@ export interface EnvironmentDefinition {
   mcpConfigPath?: string;
 }
 
-export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity' | 'junie' | 'cline' | 'devin';
+export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'codex' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity' | 'junie' | 'cline' | 'devin' | 'pi';
 
 export const DEFAULT_DOCS_DIR = 'docs/ai';
 

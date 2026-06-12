@@ -7,7 +7,7 @@ order: 8
 
 **Skills** are packaged capabilities that extend what your AI coding agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, security best practices, or multi-agent workflow patterns.
 
-> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, or Devin).
+> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
 
 ## How Skills Work
 
@@ -66,6 +66,7 @@ Skills are currently supported by the following AI coding agents:
 | **Junie**       | `.junie/skills`    | `~/.junie/skills` |
 | **Cline**       | `.cline/skills`    | `~/.cline/skills` |
 | **Devin**       | `.devin/skills`    | `~/.config/devin/skills` |
+| **Pi**          | `.pi/skills`       | `~/.pi/agent/skills` |
 | **Kilo Code**   | `.kilo/skills`     | `~/.kilo/skills` |
 | **Roo Code**    | `.roo/skills`      | `~/.roo/skills` |
 
@@ -444,7 +445,7 @@ The skill doesn't exist in the specified registry. Explore the registry reposito
 
 ### "No skill-capable environments configured"
 
-Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Kilo Code, or Roo Code).
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
 
 ### "SKILL.md not found"
 

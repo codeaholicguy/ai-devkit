@@ -82,6 +82,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `junie` | Junie |
 | `cline` | Cline |
 | `devin` | Devin |
+| `pi` | Pi |
 
 ```json
 "environments": ["cursor", "claude"]
