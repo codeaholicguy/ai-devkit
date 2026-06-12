@@ -35,6 +35,13 @@ vi.mock('../../../../services/install/mcp/CodexMcpGenerator.js', () => ({
     apply: (...args: unknown[]) => mockApply(...args),
   }; }),
 }));
+vi.mock('../../../../services/install/mcp/JunieMcpGenerator.js', () => ({
+  JunieMcpGenerator: vi.fn().mockImplementation(function () { return {
+    agentType: 'junie' as EnvironmentCode,
+    plan: (...args: unknown[]) => mockPlan(...args),
+    apply: (...args: unknown[]) => mockApply(...args),
+  }; }),
+}));
 
 import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';
 
@@ -67,6 +74,22 @@ describe('McpConfigGenerator (orchestrator)', () => {
     const report = await installMcpServers(servers, ['claude'], '/project');
     // Only claude generator should run (codex not in environments)
     expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(report.installed).toBe(1);
+  });
+
+  it('installs MCP servers for Junie when Junie is configured', async () => {
+    mockPlan.mockResolvedValue({
+      agentType: 'junie',
+      newServers: ['memory'],
+      conflictServers: [],
+      skippedServers: [],
+      resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(servers, ['junie'], '/project');
+
+    expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(mockApply).toHaveBeenCalledTimes(1);
     expect(report.installed).toBe(1);
   });
 

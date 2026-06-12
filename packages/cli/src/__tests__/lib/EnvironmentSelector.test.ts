@@ -1,7 +1,14 @@
 import type { MockedFunction } from 'vitest';
 import { checkbox, confirm } from '@inquirer/prompts';
 import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
-import { getAllEnvironments } from '../../util/env.js';
+import {
+  getAllEnvironments,
+  getEnvironment,
+  getGlobalSkillPath,
+  getMcpConfigPath,
+  getSkillPath,
+  isValidEnvironmentCode,
+} from '../../util/env.js';
 
 vi.mock('@inquirer/prompts', () => ({
   checkbox: vi.fn(),
@@ -30,6 +37,23 @@ describe('EnvironmentSelector', () => {
   });
 
   describe('selectEnvironments', () => {
+    it('includes Junie with project skills, global skills, MCP, context, and command paths', () => {
+      expect(isValidEnvironmentCode('junie')).toBe(true);
+      expect(getEnvironment('junie')).toMatchObject({
+        code: 'junie',
+        name: 'Junie',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.junie/commands',
+        globalCommandPath: '.junie/commands',
+        skillPath: '.junie/skills',
+        globalSkillPath: '.junie/skills',
+        mcpConfigPath: '.junie/mcp/mcp.json',
+      });
+      expect(getSkillPath('junie')).toBe('.junie/skills');
+      expect(getGlobalSkillPath('junie')).toBe('.junie/skills');
+      expect(getMcpConfigPath('junie')).toBe('.junie/mcp/mcp.json');
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);
@@ -156,7 +180,8 @@ describe('EnvironmentSelector', () => {
           message: 'Select AI environments for global setup (use space to select, enter to confirm):',
           choices: expect.arrayContaining([
             expect.objectContaining({ value: 'antigravity' }),
-            expect.objectContaining({ value: 'codex' })
+            expect.objectContaining({ value: 'codex' }),
+            expect.objectContaining({ value: 'junie' })
           ]),
           pageSize: 10,
           required: true
@@ -196,19 +221,20 @@ describe('EnvironmentSelector', () => {
       // Should only have Antigravity and Codex
       expect(choiceValues).toContain('antigravity');
       expect(choiceValues).toContain('codex');
+      expect(choiceValues).toContain('junie');
       expect(choiceValues).not.toContain('cursor');
       expect(choiceValues).not.toContain('claude');
       expect(choiceValues).not.toContain('github');
     });
 
-    it('should show exactly 2 choices (Antigravity and Codex)', async () => {
+    it('should show exactly 3 choices (Antigravity, Codex, and Junie)', async () => {
       mockCheckbox.mockResolvedValue([]);
 
       await selector.selectGlobalEnvironments();
 
       const choices = mockCheckbox.mock.calls[0][0].choices;
 
-      expect(choices).toHaveLength(2);
+      expect(choices).toHaveLength(3);
     });
   });
 
@@ -227,7 +253,8 @@ describe('EnvironmentSelector', () => {
             expect.objectContaining({ value: 'codex' }),
             expect.objectContaining({ value: 'gemini' }),
             expect.objectContaining({ value: 'opencode' }),
-            expect.objectContaining({ value: 'antigravity' })
+            expect.objectContaining({ value: 'antigravity' }),
+            expect.objectContaining({ value: 'junie' })
           ]),
           pageSize: 10,
           required: true

@@ -19,7 +19,7 @@ import { EnvironmentCode } from '../../types.js';
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {
     it('should contain all all environment definitions', () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(11);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(12);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cursor');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('claude');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('github');
@@ -31,6 +31,7 @@ describe('Environment Utilities', () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('opencode');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('roo');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('antigravity');
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('junie');
     });
 
     it('should have correct structure for cursor environment', () => {
@@ -61,11 +62,12 @@ describe('Environment Utilities', () => {
 
   describe('ALL_ENVIRONMENT_CODES', () => {
     it('should contain all all environment codes', () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(11);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(12);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           'cursor', 'claude', 'github', 'gemini', 'codex',
-          'windsurf', 'kilocode', 'amp', 'opencode', 'roo', 'antigravity'
+          'windsurf', 'kilocode', 'amp', 'opencode', 'roo', 'antigravity',
+          'junie'
         ])
       );
     });
@@ -79,7 +81,7 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironments', () => {
     it('should return all environment definitions', () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(11);
+      expect(environments).toHaveLength(12);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -162,6 +164,7 @@ describe('Environment Utilities', () => {
       expect(isValidEnvironmentCode('claude')).toBe(true);
       expect(isValidEnvironmentCode('roo')).toBe(true);
       expect(isValidEnvironmentCode('antigravity')).toBe(true);
+      expect(isValidEnvironmentCode('junie')).toBe(true);
     });
 
     it('should return false for invalid codes', () => {
@@ -177,6 +180,7 @@ describe('Environment Utilities', () => {
       expect(getEnvironmentDisplayName('claude')).toBe('Claude Code');
       expect(getEnvironmentDisplayName('roo')).toBe('Roo Code');
       expect(getEnvironmentDisplayName('antigravity')).toBe('Antigravity');
+      expect(getEnvironmentDisplayName('junie')).toBe('Junie');
     });
 
     it('should return code itself for invalid codes', () => {
@@ -212,7 +216,7 @@ describe('Environment Utilities', () => {
     it('should return only environments with globalCommandPath defined', () => {
       const globalEnvs = getGlobalCapableEnvironments();
 
-      // Currently only Antigravity and Codex have global support
+      // Currently Antigravity, Codex, and Junie have global support
       expect(globalEnvs.length).toBeGreaterThan(0);
       globalEnvs.forEach(env => {
         expect(env.globalCommandPath).toBeDefined();
@@ -236,6 +240,14 @@ describe('Environment Utilities', () => {
       expect(codex?.globalCommandPath).toBe('.codex/prompts');
     });
 
+    it('should include Junie in global-capable environments', () => {
+      const globalEnvs = getGlobalCapableEnvironments();
+      const junie = globalEnvs.find(env => env.code === 'junie');
+
+      expect(junie).toBeDefined();
+      expect(junie?.globalCommandPath).toBe('.junie/commands');
+    });
+
     it('should not include environments without globalCommandPath', () => {
       const globalEnvs = getGlobalCapableEnvironments();
       const envCodes = globalEnvs.map(env => env.code);
@@ -246,9 +258,9 @@ describe('Environment Utilities', () => {
       expect(envCodes).not.toContain('github');
     });
 
-    it('should return exactly 2 environments (Antigravity and Codex)', () => {
+    it('should return exactly 3 environments (Antigravity, Codex, and Junie)', () => {
       const globalEnvs = getGlobalCapableEnvironments();
-      expect(globalEnvs).toHaveLength(2);
+      expect(globalEnvs).toHaveLength(3);
     });
   });
 
@@ -259,6 +271,10 @@ describe('Environment Utilities', () => {
 
     it('should return true for Codex', () => {
       expect(hasGlobalSupport('codex')).toBe(true);
+    });
+
+    it('should return true for Junie', () => {
+      expect(hasGlobalSupport('junie')).toBe(true);
     });
 
     it('should return false for Cursor (no global support)', () => {
@@ -291,6 +307,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('claude')).toBe('.claude/skills');
     });
 
+    it('should return skill path for junie', () => {
+      expect(getSkillPath('junie')).toBe('.junie/skills');
+    });
+
     it('should return undefined for environments without skill support', () => {
       expect(getSkillPath('windsurf')).toBeUndefined();
       expect(getSkillPath('gemini')).toBeUndefined();
@@ -313,6 +333,10 @@ describe('Environment Utilities', () => {
 
     it('should return global skill path for gemini', () => {
       expect(getGlobalSkillPath('gemini')).toBe('.gemini/skills');
+    });
+
+    it('should return global skill path for junie', () => {
+      expect(getGlobalSkillPath('junie')).toBe('.junie/skills');
     });
 
     it('should return undefined for environments without global skill support', () => {
@@ -371,7 +395,8 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('amp');
       expect(envCodes).toContain('opencode');
       expect(envCodes).toContain('antigravity');
-      expect(skillEnvs).toHaveLength(6);
+      expect(envCodes).toContain('junie');
+      expect(skillEnvs).toHaveLength(7);
     });
   });
 

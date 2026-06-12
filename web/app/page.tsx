@@ -10,6 +10,7 @@ export default function Home() {
     { name: "Antigravity", logo: "/logo/antigravity.png", href: "https://antigravity.ai" },
     { name: "OpenCode", logo: "/logo/opencode.png", href: "https://opencode.ai" },
     { name: "Gemini CLI", logo: "/logo/gemini-cli.png", href: "https://geminicli.com" },
+    { name: "Junie", logo: "/logo/junie.png", href: "https://junie.jetbrains.com" },
   ];
   const scrollingAgents = [...agents, ...agents, ...agents];
 

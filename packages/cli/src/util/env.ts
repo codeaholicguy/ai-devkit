@@ -85,6 +85,16 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     globalCommandPath: '.gemini/antigravity/global_workflows',
     skillPath: '.agent/skills',
     globalSkillPath: '.gemini/antigravity/skills',
+  },
+  junie: {
+    code: 'junie',
+    name: 'Junie',
+    contextFileName: 'AGENTS.md',
+    commandPath: '.junie/commands',
+    globalCommandPath: '.junie/commands',
+    skillPath: '.junie/skills',
+    globalSkillPath: '.junie/skills',
+    mcpConfigPath: '.junie/mcp/mcp.json',
   }
 };
 

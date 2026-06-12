@@ -30,6 +30,12 @@ describe('config util', () => {
     expect(() => validateInstallConfig([], '/tmp/.ai-devkit.json')).toThrow('expected a JSON object at root');
   });
 
+  it('accepts Junie as a supported environment code', () => {
+    const result = validateInstallConfig({ environments: ['junie'] }, '/tmp/.ai-devkit.json');
+
+    expect(result.environments).toEqual(['junie']);
+  });
+
   it('fails on invalid environment code', () => {
     expect(() => validateInstallConfig({ environments: ['bad-env'] }, '/tmp/.ai-devkit.json')).toThrow('environments[0] has unsupported value "bad-env"');
   });

@@ -80,6 +80,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `opencode` | OpenCode |
 | `roo` | Roo |
 | `antigravity` | Antigravity |
+| `junie` | Junie |
 
 ```json
 "environments": ["cursor", "claude"]

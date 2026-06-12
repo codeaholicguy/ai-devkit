@@ -4,6 +4,7 @@ import { isInteractiveTerminal } from '../../../util/terminal.js';
 import { McpAgentGenerator, McpInstallReport, McpMergePlan } from './types.js';
 import { ClaudeCodeMcpGenerator } from './ClaudeCodeMcpGenerator.js';
 import { CodexMcpGenerator } from './CodexMcpGenerator.js';
+import { JunieMcpGenerator } from './JunieMcpGenerator.js';
 import { confirm, select } from '@inquirer/prompts';
 
 export interface McpInstallOptions {
@@ -13,6 +14,7 @@ export interface McpInstallOptions {
 const GENERATORS: McpAgentGenerator[] = [
   new ClaudeCodeMcpGenerator(),
   new CodexMcpGenerator(),
+  new JunieMcpGenerator(),
 ];
 
 export async function installMcpServers(

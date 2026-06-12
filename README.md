@@ -14,7 +14,7 @@ AI DevKit turns one-off AI coding chats into a repeatable software delivery work
 - **Catches drift before push** — `/code-review` audits the diff against the design and requirements docs
 - **One console for all of them** — `agent console` is a live TUI dashboard for control all your running agents, no matter the provider
 
-One config. All coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, opencode, Antigravity, Amp, Windsurf, Kilo Code, Roo Code.
+One config. All coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, Pi, Junie, opencode, Antigravity, Amp, Windsurf, Kilo Code, Roo Code.
 
 Run `npx ai-devkit@latest init` and your agent gets:
 
@@ -137,8 +137,9 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Claude Code](https://www.anthropic.com/claude-code) | yes | yes |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes |
 | [Codex CLI](https://github.com/openai/codex) | yes | yes |
+| [Junie](https://www.jetbrains.com/junie/) | yes | — |
 | [opencode](https://opencode.ai/) | yes | testing |
-| Pi | — | yes |
+| [Pi](https://pi.dev) | — | yes |
 | [Cursor](https://cursor.sh/) | yes | — |
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |

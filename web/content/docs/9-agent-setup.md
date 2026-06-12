@@ -76,7 +76,7 @@ ai-devkit install --overwrite
 Based on your configured environments, AI DevKit installs or updates files such as:
 - Environment command folders (for example `.cursor/commands/`, `.claude/commands/`, `.codex/commands/`)
 - Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.agents/skills/` for Codex, and `.agent/skills/` for Antigravity)
-- MCP server configuration files (`.mcp.json` for Claude Code, `.codex/config.toml` for Codex)
+- MCP server configuration files (`.mcp.json` for Claude Code, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie)
 - Other environment-specific templates defined by AI DevKit
 
 The exact artifacts depend on the environments configured in `.ai-devkit.json`.
@@ -181,7 +181,7 @@ When using a template with a `skills` section, skills from the template are inst
 
 > **Note:** `mcpServers` generation and install flow require AI DevKit `0.23.0` or later.
 
-MCP configuration is currently generated for **Claude Code** (`.mcp.json`) and **Codex** (`.codex/config.toml`).
+MCP configuration is currently generated for **Claude Code** (`.mcp.json`), **Codex** (`.codex/config.toml`), and **Junie** (`.junie/mcp/mcp.json`).
 
 If your project uses only environments that do not currently support MCP generation, AI DevKit still saves the `mcpServers` definitions in `.ai-devkit.json`, but no environment-specific MCP config files are created.
 
