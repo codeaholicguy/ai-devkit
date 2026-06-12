@@ -84,6 +84,22 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('github')).toBe('.mcp.json');
     });
 
+    it('includes Devin with project skills, global skills, MCP, and AGENTS context', () => {
+      expect(isValidEnvironmentCode('devin')).toBe(true);
+      expect(getEnvironment('devin')).toMatchObject({
+        code: 'devin',
+        name: 'Devin',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.devin/commands',
+        skillPath: '.devin/skills',
+        globalSkillPath: '.config/devin/skills',
+        mcpConfigPath: '.devin/config.json',
+      });
+      expect(getSkillPath('devin')).toBe('.devin/skills');
+      expect(getGlobalSkillPath('devin')).toBe('.config/devin/skills');
+      expect(getMcpConfigPath('devin')).toBe('.devin/config.json');
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);
@@ -286,7 +302,8 @@ describe('EnvironmentSelector', () => {
             expect.objectContaining({ value: 'opencode' }),
             expect.objectContaining({ value: 'antigravity' }),
             expect.objectContaining({ value: 'junie' }),
-            expect.objectContaining({ value: 'cline' })
+            expect.objectContaining({ value: 'cline' }),
+            expect.objectContaining({ value: 'devin' })
           ]),
           pageSize: 10,
           required: true

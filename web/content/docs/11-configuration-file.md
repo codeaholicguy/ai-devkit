@@ -82,6 +82,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `antigravity` | Antigravity |
 | `junie` | Junie |
 | `cline` | Cline |
+| `devin` | Devin |
 
 ```json
 "environments": ["cursor", "claude"]

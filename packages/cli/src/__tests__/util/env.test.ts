@@ -21,7 +21,7 @@ import { EnvironmentCode } from '../../types.js';
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {
     it('should contain all all environment definitions', () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(13);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(14);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cursor');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('claude');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('github');
@@ -35,6 +35,7 @@ describe('Environment Utilities', () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('antigravity');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('junie');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cline');
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('devin');
     });
 
     it('should have correct structure for cursor environment', () => {
@@ -65,12 +66,12 @@ describe('Environment Utilities', () => {
 
   describe('ALL_ENVIRONMENT_CODES', () => {
     it('should contain all all environment codes', () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(13);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(14);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           'cursor', 'claude', 'github', 'gemini', 'codex',
           'windsurf', 'kilocode', 'amp', 'opencode', 'roo', 'antigravity',
-          'junie', 'cline'
+          'junie', 'cline', 'devin'
         ])
       );
     });
@@ -84,7 +85,7 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironments', () => {
     it('should return all environment definitions', () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(13);
+      expect(environments).toHaveLength(14);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -169,6 +170,7 @@ describe('Environment Utilities', () => {
       expect(isValidEnvironmentCode('antigravity')).toBe(true);
       expect(isValidEnvironmentCode('junie')).toBe(true);
       expect(isValidEnvironmentCode('cline')).toBe(true);
+      expect(isValidEnvironmentCode('devin')).toBe(true);
     });
 
     it('should return false for invalid codes', () => {
@@ -186,6 +188,7 @@ describe('Environment Utilities', () => {
       expect(getEnvironmentDisplayName('antigravity')).toBe('Antigravity');
       expect(getEnvironmentDisplayName('junie')).toBe('Junie');
       expect(getEnvironmentDisplayName('cline')).toBe('Cline');
+      expect(getEnvironmentDisplayName('devin')).toBe('Devin');
     });
 
     it('should return code itself for invalid codes', () => {
@@ -324,6 +327,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('cline')).toBe('.cline/skills');
     });
 
+    it('should return skill path for devin', () => {
+      expect(getSkillPath('devin')).toBe('.devin/skills');
+    });
+
     it('should return undefined for environments without skill support', () => {
       expect(getSkillPath('windsurf')).toBeUndefined();
       expect(getSkillPath('gemini')).toBeUndefined();
@@ -358,6 +365,10 @@ describe('Environment Utilities', () => {
 
     it('should return global skill path for cline', () => {
       expect(getGlobalSkillPath('cline')).toBe('.cline/skills');
+    });
+
+    it('should return global skill path for devin', () => {
+      expect(getGlobalSkillPath('devin')).toBe('.config/devin/skills');
     });
 
     it('should return undefined for environments without global skill support', () => {
@@ -418,7 +429,8 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('antigravity');
       expect(envCodes).toContain('junie');
       expect(envCodes).toContain('cline');
-      expect(skillEnvs).toHaveLength(9);
+      expect(envCodes).toContain('devin');
+      expect(skillEnvs).toHaveLength(10);
     });
   });
 
@@ -426,6 +438,11 @@ describe('Environment Utilities', () => {
     it('should return MCP config path for github copilot', () => {
       expect(hasMcpSupport('github')).toBe(true);
       expect(getMcpConfigPath('github')).toBe('.mcp.json');
+    });
+
+    it('should return MCP config path for devin', () => {
+      expect(hasMcpSupport('devin')).toBe(true);
+      expect(getMcpConfigPath('devin')).toBe('.devin/config.json');
     });
   });
 

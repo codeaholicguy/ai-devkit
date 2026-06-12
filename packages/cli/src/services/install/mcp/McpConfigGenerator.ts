@@ -6,6 +6,7 @@ import { ClaudeCodeMcpGenerator } from './ClaudeCodeMcpGenerator.js';
 import { CodexMcpGenerator } from './CodexMcpGenerator.js';
 import { JunieMcpGenerator } from './JunieMcpGenerator.js';
 import { GitHubCopilotMcpGenerator } from './GitHubCopilotMcpGenerator.js';
+import { DevinMcpGenerator } from './DevinMcpGenerator.js';
 import { confirm, select } from '@inquirer/prompts';
 
 export interface McpInstallOptions {
@@ -17,6 +18,7 @@ const GENERATORS: McpAgentGenerator[] = [
   new CodexMcpGenerator(),
   new JunieMcpGenerator(),
   new GitHubCopilotMcpGenerator(),
+  new DevinMcpGenerator(),
 ];
 
 export async function installMcpServers(

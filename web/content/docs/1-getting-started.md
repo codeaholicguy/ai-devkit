@@ -4,7 +4,7 @@ description: Set up AI DevKit for agentic coding with Claude Code, Codex, Cursor
 order: 1
 ---
 
-**AI DevKit** is a workflow layer for AI coding assistants like Cursor, Claude Code, Codex, Antigravity, OpenCode, GitHub Copilot, and more. It gives them requirements, design, planning, implementation, testing, verification, memory, and review so they follow your engineering process instead of improvising in chat.
+**AI DevKit** is a workflow layer for AI coding assistants like Cursor, Claude Code, Codex, Devin, Antigravity, OpenCode, GitHub Copilot, and more. It gives them requirements, design, planning, implementation, testing, verification, memory, and review so they follow your engineering process instead of improvising in chat.
 
 Use it when you want agentic coding to follow a clear software development lifecycle instead of a one-off prompt: initialize the project once, then give every supported AI coding agent the same workflow, memory, skills, and verification gates.
 
@@ -30,7 +30,7 @@ AI DevKit solves these problems by giving your AI assistant:
 Before you begin, make sure have:
 - **Node.js** (version 20.20.0 or higher)
 - **npm** or **npx** (comes with Node.js)
-- An AI coding assistant (Cursor, Claude Code, Codex, Antigravity, OpenCode, GitHub Copilot, etc.)
+- An AI coding assistant (Cursor, Claude Code, Codex, Devin, Antigravity, OpenCode, GitHub Copilot, etc.)
 
 ## Installation
 

@@ -42,6 +42,12 @@ describe('config util', () => {
     expect(result.environments).toEqual(['cline']);
   });
 
+  it('accepts Devin as a supported environment code', () => {
+    const result = validateInstallConfig({ environments: ['devin'] }, '/tmp/.ai-devkit.json');
+
+    expect(result.environments).toEqual(['devin']);
+  });
+
   it('fails on invalid environment code', () => {
     expect(() => validateInstallConfig({ environments: ['bad-env'] }, '/tmp/.ai-devkit.json')).toThrow('environments[0] has unsupported value "bad-env"');
   });

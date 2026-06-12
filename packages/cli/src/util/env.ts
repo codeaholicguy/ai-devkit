@@ -106,6 +106,15 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     commandPath: '.cline/commands',
     skillPath: '.cline/skills',
     globalSkillPath: '.cline/skills',
+  },
+  devin: {
+    code: 'devin',
+    name: 'Devin',
+    contextFileName: 'AGENTS.md',
+    commandPath: '.devin/commands',
+    skillPath: '.devin/skills',
+    globalSkillPath: '.config/devin/skills',
+    mcpConfigPath: '.devin/config.json',
   }
 };
 

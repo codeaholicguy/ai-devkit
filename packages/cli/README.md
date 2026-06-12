@@ -10,7 +10,7 @@ Use this package when you want the `ai-devkit` command to install agent commands
 ## Features
 
 - **Workflow layer** — Requirements, design, planning, implementation, testing, verification, and review
-- **AI environment setup** — One-command configuration for Cursor, Claude Code, Codex, Gemini CLI, and other agents
+- **AI environment setup** — One-command configuration for Cursor, Claude Code, Codex, Gemini CLI, Devin, and other agents
 - **Skill management** — Install reusable AI skills that change agent behavior
 - **Persistent memory** — Store project decisions and conventions so agents can reuse them across sessions
 

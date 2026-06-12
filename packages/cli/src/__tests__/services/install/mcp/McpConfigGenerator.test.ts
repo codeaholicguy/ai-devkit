@@ -49,6 +49,13 @@ vi.mock('../../../../services/install/mcp/GitHubCopilotMcpGenerator.js', () => (
     apply: (...args: unknown[]) => mockApply(...args),
   }; }),
 }));
+vi.mock('../../../../services/install/mcp/DevinMcpGenerator.js', () => ({
+  DevinMcpGenerator: vi.fn().mockImplementation(function () { return {
+    agentType: 'devin' as EnvironmentCode,
+    plan: (...args: unknown[]) => mockPlan(...args),
+    apply: (...args: unknown[]) => mockApply(...args),
+  }; }),
+}));
 
 import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';
 
@@ -110,6 +117,22 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['github'], '/project');
+
+    expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(report.installed).toBe(1);
+  });
+
+  it('installs MCP servers for Devin when Devin is configured', async () => {
+    mockPlan.mockResolvedValue({
+      agentType: 'devin',
+      newServers: ['memory'],
+      conflictServers: [],
+      skippedServers: [],
+      resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(servers, ['devin'], '/project');
 
     expect(mockPlan).toHaveBeenCalledTimes(1);
     expect(mockApply).toHaveBeenCalledTimes(1);

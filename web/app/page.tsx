@@ -12,6 +12,7 @@ export default function Home() {
     { name: "Gemini CLI", logo: "/logo/gemini-cli.png", href: "https://geminicli.com" },
     { name: "Junie", logo: "/logo/junie.png", href: "https://junie.jetbrains.com" },
     { name: "Cline", logo: "/logo/cline.png", href: "https://cline.bot" },
+    { name: "Devin", logo: "/logo/devin.png", href: "https://devin.ai" },
   ];
   const scrollingAgents = [...agents, ...agents, ...agents];
 
