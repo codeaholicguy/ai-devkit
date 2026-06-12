@@ -31,6 +31,9 @@ These environments are fully supported with stable integrations.
 ### [GitHub Copilot](https://github.com/features/copilot)
 **What AI DevKit provides:**
 - `.github/prompts/` — GitHub Copilot [custom prompts with VSCode](https://code.visualstudio.com/docs/copilot/customization/prompt-files)
+- `.github/skills/` — Project-level skills
+- `.mcp.json` — Project-level MCP server configuration
+- `~/.copilot/skills/` — Global skills
 
 ### [Google Gemini CLI](https://geminicli.com/)
 **What AI DevKit provides:**

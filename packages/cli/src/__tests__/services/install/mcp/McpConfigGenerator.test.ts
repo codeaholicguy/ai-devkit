@@ -42,6 +42,13 @@ vi.mock('../../../../services/install/mcp/JunieMcpGenerator.js', () => ({
     apply: (...args: unknown[]) => mockApply(...args),
   }; }),
 }));
+vi.mock('../../../../services/install/mcp/GitHubCopilotMcpGenerator.js', () => ({
+  GitHubCopilotMcpGenerator: vi.fn().mockImplementation(function () { return {
+    agentType: 'github' as EnvironmentCode,
+    plan: (...args: unknown[]) => mockPlan(...args),
+    apply: (...args: unknown[]) => mockApply(...args),
+  }; }),
+}));
 
 import { installMcpServers } from '../../../../services/install/mcp/McpConfigGenerator.js';
 
@@ -87,6 +94,22 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['junie'], '/project');
+
+    expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(report.installed).toBe(1);
+  });
+
+  it('installs MCP servers for GitHub Copilot when GitHub is configured', async () => {
+    mockPlan.mockResolvedValue({
+      agentType: 'github',
+      newServers: ['memory'],
+      conflictServers: [],
+      skippedServers: [],
+      resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(servers, ['github'], '/project');
 
     expect(mockPlan).toHaveBeenCalledTimes(1);
     expect(mockApply).toHaveBeenCalledTimes(1);

@@ -24,6 +24,9 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     contextFileName: 'AGENTS.md',
     commandPath: '.github/prompts',
     customCommandExtension: '.prompt.md',
+    skillPath: '.github/skills',
+    globalSkillPath: '.copilot/skills',
+    mcpConfigPath: '.mcp.json',
   },
   gemini: {
     code: 'gemini',

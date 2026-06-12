@@ -69,6 +69,21 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('cline')).toBeUndefined();
     });
 
+    it('includes GitHub Copilot with project skills, global skills, and MCP', () => {
+      expect(getEnvironment('github')).toMatchObject({
+        code: 'github',
+        name: 'GitHub Copilot',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.github/prompts',
+        skillPath: '.github/skills',
+        globalSkillPath: '.copilot/skills',
+        mcpConfigPath: '.mcp.json',
+      });
+      expect(getSkillPath('github')).toBe('.github/skills');
+      expect(getGlobalSkillPath('github')).toBe('.copilot/skills');
+      expect(getMcpConfigPath('github')).toBe('.mcp.json');
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);
@@ -265,6 +280,7 @@ describe('EnvironmentSelector', () => {
           choices: expect.arrayContaining([
             expect.objectContaining({ value: 'cursor' }),
             expect.objectContaining({ value: 'claude' }),
+            expect.objectContaining({ value: 'github' }),
             expect.objectContaining({ value: 'codex' }),
             expect.objectContaining({ value: 'gemini' }),
             expect.objectContaining({ value: 'opencode' }),

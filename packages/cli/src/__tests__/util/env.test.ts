@@ -10,9 +10,11 @@ import {
   validateEnvironmentCodes,
   getGlobalCapableEnvironments,
   hasGlobalSupport,
+  hasMcpSupport,
   getSkillPath,
   getGlobalSkillPath,
-  getSkillCapableEnvironments
+  getSkillCapableEnvironments,
+  getMcpConfigPath
 } from '../../util/env.js';
 import { EnvironmentCode } from '../../types.js';
 
@@ -310,6 +312,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('claude')).toBe('.claude/skills');
     });
 
+    it('should return skill path for github copilot', () => {
+      expect(getSkillPath('github')).toBe('.github/skills');
+    });
+
     it('should return skill path for junie', () => {
       expect(getSkillPath('junie')).toBe('.junie/skills');
     });
@@ -321,7 +327,7 @@ describe('Environment Utilities', () => {
     it('should return undefined for environments without skill support', () => {
       expect(getSkillPath('windsurf')).toBeUndefined();
       expect(getSkillPath('gemini')).toBeUndefined();
-      expect(getSkillPath('github')).toBeUndefined();
+      expect(getSkillPath('kilocode')).toBeUndefined();
     });
 
     it('should return undefined for invalid environment code', () => {
@@ -342,6 +348,10 @@ describe('Environment Utilities', () => {
       expect(getGlobalSkillPath('gemini')).toBe('.gemini/skills');
     });
 
+    it('should return global skill path for github copilot', () => {
+      expect(getGlobalSkillPath('github')).toBe('.copilot/skills');
+    });
+
     it('should return global skill path for junie', () => {
       expect(getGlobalSkillPath('junie')).toBe('.junie/skills');
     });
@@ -352,7 +362,7 @@ describe('Environment Utilities', () => {
 
     it('should return undefined for environments without global skill support', () => {
       expect(getGlobalSkillPath('windsurf')).toBeUndefined();
-      expect(getGlobalSkillPath('github')).toBeUndefined();
+      expect(getGlobalSkillPath('kilocode')).toBeUndefined();
     });
   });
 
@@ -390,7 +400,6 @@ describe('Environment Utilities', () => {
       // These environments don't have skillPath configured
       expect(envCodes).not.toContain('windsurf');
       expect(envCodes).not.toContain('gemini');
-      expect(envCodes).not.toContain('github');
       expect(envCodes).not.toContain('kilocode');
       expect(envCodes).not.toContain('roo');
     });
@@ -402,13 +411,21 @@ describe('Environment Utilities', () => {
       // These environments have skillPath configured
       expect(envCodes).toContain('cursor');
       expect(envCodes).toContain('claude');
+      expect(envCodes).toContain('github');
       expect(envCodes).toContain('codex');
       expect(envCodes).toContain('amp');
       expect(envCodes).toContain('opencode');
       expect(envCodes).toContain('antigravity');
       expect(envCodes).toContain('junie');
       expect(envCodes).toContain('cline');
-      expect(skillEnvs).toHaveLength(8);
+      expect(skillEnvs).toHaveLength(9);
+    });
+  });
+
+  describe('MCP support', () => {
+    it('should return MCP config path for github copilot', () => {
+      expect(hasMcpSupport('github')).toBe(true);
+      expect(getMcpConfigPath('github')).toBe('.mcp.json');
     });
   });
 
