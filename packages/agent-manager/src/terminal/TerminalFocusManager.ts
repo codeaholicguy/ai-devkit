@@ -98,8 +98,8 @@ export class TerminalFocusManager {
 
     private async findITerm2Session(tty: string): Promise<TerminalLocation | null> {
         try {
-            // Check if iTerm2 is running first to avoid launching it
-            await execFileAsync('pgrep', ['-x', 'iTerm2']);
+            // Check if iTerm2 is running first to avoid launching it.
+            if (!await this.isProcessRunning('iTerm2')) return null;
         } catch {
             return null;
         }
@@ -137,7 +137,7 @@ export class TerminalFocusManager {
     private async findTerminalAppWindow(tty: string): Promise<TerminalLocation | null> {
         try {
             // Check if Terminal.app is running
-            await execFileAsync('pgrep', ['-x', 'Terminal']);
+            if (!await this.isProcessRunning('Terminal')) return null;
         } catch {
             return null;
         }
@@ -168,6 +168,14 @@ export class TerminalFocusManager {
             // Terminal.app script failed
         }
         return null;
+    }
+
+    private async isProcessRunning(name: string): Promise<boolean> {
+        const { stdout } = await execFileAsync('ps', ['-Axo', 'comm']);
+        return stdout
+            .split('\n')
+            .map((line) => line.trim())
+            .some((command) => command === name || command.endsWith(`/${name}`));
     }
 
     private async focusTmuxPane(identifier: string): Promise<boolean> {
