@@ -9,7 +9,7 @@ AI DevKit solves common problems with AI-assisted development: context loss betw
 - **Structured Development Workflows**: Phase-based guidance through requirements, design, planning, implementation, testing, and code review
 - **Long-Term Memory**: 100% local SQLite-based knowledge storage for coding standards, patterns, and decisions across sessions
 - **Skills System**: Community-driven plugins that teach AI new capabilities and domain-specific patterns
-- **Multi-Agent Support**: Works with 11+ AI coding environments including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, Windsurf, and more
+- **Multi-Agent Support**: Works with 11+ AI coding environments including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, and more
 
 ## Quick Start
 

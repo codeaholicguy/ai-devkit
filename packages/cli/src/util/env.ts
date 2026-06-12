@@ -34,10 +34,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     globalSkillPath: '.codex/skills',
     mcpConfigPath: '.codex/config.toml',
   },
-  windsurf: {
-    code: 'windsurf',
-    name: 'Windsurf',
-  },
   kilocode: {
     code: 'kilocode',
     name: 'KiloCode',

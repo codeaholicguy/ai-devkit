@@ -16,7 +16,7 @@ These tools take different paths to fix that.
 | **Approach** | One config across agents: workflow skills, memory, and verification | Behavior focused: process instructions injected into agent prompts |
 | **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
 | **Skills** | Built-in core skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
-| **Agents supported** | 11+ (Cursor, Claude Code, Codex, Copilot, Gemini CLI, OpenCode, Antigravity, Windsurf, and more) | 4 (Claude Code, Cursor, Codex, OpenCode) |
+| **Agents supported** | 11+ (Cursor, Claude Code, Codex, Copilot, Gemini CLI, OpenCode, Antigravity, and more) | 4 (Claude Code, Cursor, Codex, OpenCode) |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
 | **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
 | **License** | MIT | MIT |
@@ -90,7 +90,7 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 ### Agent Support
 
-**AI DevKit** supports 11+ AI coding environments, including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, OpenCode, Antigravity, Windsurf, KiloCode, AMP, and Roo Code. Each environment gets tailored configuration.
+**AI DevKit** supports 11+ AI coding environments, including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, OpenCode, Antigravity, KiloCode, AMP, and Roo Code. Each environment gets tailored configuration.
 
 **Superpowers** focuses on 4 platforms: Claude Code, Cursor, Codex, and OpenCode. Each has a dedicated installation method and configuration directory.
 

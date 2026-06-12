@@ -263,8 +263,8 @@ describe("SkillManager", () => {
 
     it("should throw error when global env does not support skills", async () => {
       await expect(
-        skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["windsurf"] }),
-      ).rejects.toThrow("Global skill installation is not supported for: windsurf");
+        skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["kilocode"] }),
+      ).rejects.toThrow("Global skill installation is not supported for: kilocode");
     });
 
     it("should throw error when env is provided without global option", async () => {
@@ -614,7 +614,7 @@ describe("SkillManager", () => {
 
     it("should throw error if no skill-capable environments configured", async () => {
       mockConfigManager.read.mockResolvedValue({
-        environments: ["windsurf", "kilocode"],
+        environments: ["kilocode"],
       } as any);
 
       await expect(
@@ -1016,7 +1016,7 @@ describe("SkillManager", () => {
 
     it("should throw error if no skill-capable environments", async () => {
       mockConfigManager.read.mockResolvedValue({
-        environments: ["windsurf"],
+        environments: ["kilocode"],
       } as any);
 
       await expect(skillManager.removeSkill(mockSkillName)).rejects.toThrow(

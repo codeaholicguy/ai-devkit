@@ -74,7 +74,6 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `github` | GitHub Copilot |
 | `gemini` | Gemini |
 | `codex` | Codex |
-| `windsurf` | Windsurf |
 | `kilocode` | Kilocode |
 | `amp` | Amp |
 | `opencode` | OpenCode |

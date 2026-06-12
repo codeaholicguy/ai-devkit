@@ -86,11 +86,6 @@ These environments are fully supported with stable integrations.
 
 These environments are under active development. They work, but you may encounter issues.
 
-### [Windsurf](https://windsurf.com/)
-
-**What AI DevKit provides:**
-- `AGENTS.md` — Windsurf environment configuration
-
 ### [KiloCode](https://kilocode.ai/)
 
 **What AI DevKit provides:**
