@@ -41,6 +41,7 @@ These environments are fully supported with stable integrations.
 ### [Google Gemini CLI](https://geminicli.com/)
 **What AI DevKit provides:**
 - `GEMINI.md` — [Context file](https://geminicli.com/docs/cli/gemini-md/) for providing instructional context to the Gemini model
+- `.gemini/skills/` — Project-level skills
 - `~/.gemini/skills/` — Global skills
 
 ### [OpenAI Codex](https://chatgpt.com/en-SE/features/codex)

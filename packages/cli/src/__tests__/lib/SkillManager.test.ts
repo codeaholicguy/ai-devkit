@@ -614,12 +614,12 @@ describe("SkillManager", () => {
 
     it("should throw error if no skill-capable environments configured", async () => {
       mockConfigManager.read.mockResolvedValue({
-        environments: ["windsurf", "gemini"],
+        environments: ["windsurf", "kilocode"],
       } as any);
 
       await expect(
         skillManager.addSkill(mockRegistryId, mockSkillName),
-      ).rejects.toThrow("Supported: cursor, claude, github, codex, amp, opencode, antigravity, junie, cline, devin");
+      ).rejects.toThrow("Supported: cursor, claude, github, gemini, codex, amp, opencode, antigravity, junie, cline, devin");
     });
 
     it("should call validation functions with correct parameters", async () => {

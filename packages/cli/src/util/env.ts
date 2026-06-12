@@ -24,6 +24,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   gemini: {
     code: 'gemini',
     name: 'Google Gemini',
+    skillPath: '.gemini/skills',
     globalSkillPath: '.gemini/skills',
   },
   codex: {

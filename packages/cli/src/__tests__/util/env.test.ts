@@ -230,6 +230,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('github')).toBe('.github/skills');
     });
 
+    it('should return skill path for gemini', () => {
+      expect(getSkillPath('gemini')).toBe('.gemini/skills');
+    });
+
     it('should return skill path for junie', () => {
       expect(getSkillPath('junie')).toBe('.junie/skills');
     });
@@ -244,7 +248,6 @@ describe('Environment Utilities', () => {
 
     it('should return undefined for environments without skill support', () => {
       expect(getSkillPath('windsurf')).toBeUndefined();
-      expect(getSkillPath('gemini')).toBeUndefined();
       expect(getSkillPath('kilocode')).toBeUndefined();
     });
 
@@ -315,13 +318,20 @@ describe('Environment Utilities', () => {
       expect(claude?.skillPath).toBe('.claude/skills');
     });
 
+    it('should include gemini in skill-capable environments', () => {
+      const skillEnvs = getSkillCapableEnvironments();
+      const gemini = skillEnvs.find(env => env.code === 'gemini');
+
+      expect(gemini).toBeDefined();
+      expect(gemini?.skillPath).toBe('.gemini/skills');
+    });
+
     it('should not include environments without skillPath', () => {
       const skillEnvs = getSkillCapableEnvironments();
       const envCodes = skillEnvs.map(env => env.code);
 
       // These environments don't have skillPath configured
       expect(envCodes).not.toContain('windsurf');
-      expect(envCodes).not.toContain('gemini');
       expect(envCodes).not.toContain('kilocode');
       expect(envCodes).not.toContain('roo');
     });
@@ -334,6 +344,7 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('cursor');
       expect(envCodes).toContain('claude');
       expect(envCodes).toContain('github');
+      expect(envCodes).toContain('gemini');
       expect(envCodes).toContain('codex');
       expect(envCodes).toContain('amp');
       expect(envCodes).toContain('opencode');
@@ -341,7 +352,7 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('junie');
       expect(envCodes).toContain('cline');
       expect(envCodes).toContain('devin');
-      expect(skillEnvs).toHaveLength(10);
+      expect(skillEnvs).toHaveLength(11);
     });
   });
 
