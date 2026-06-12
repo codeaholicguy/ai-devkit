@@ -19,7 +19,7 @@ When working with AI assistants, you often find yourself:
 
 AI DevKit solves these problems by giving your AI assistant:
 - **Repeatable workflow** — Consistent process from requirements to review
-- **Custom commands** — Reusable prompts tailored to your project
+- **Workflow skills** — Reusable process guidance tailored to AI-assisted development
 - **Long-term memory** — Rules and patterns that persist across sessions
 - **Skills** — Community-contributed capabilities your AI can learn
 - **Plugins** — Optional npm packages that add CLI commands
@@ -57,7 +57,7 @@ ai-devkit init
 You'll be prompted to select which AI environments you use (Cursor, Claude Code, etc.). AI DevKit will then:
 
 1. **Create workflow docs** — A `docs/ai/` directory for requirements, design, planning, implementation, and testing
-2. **Set up AI environment files** — Configuration, commands, skills, and MCP servers where supported
+2. **Set up AI environment files** — Configuration, skills, and MCP servers where supported
 3. **Save your preferences** — Stored in `.ai-devkit.json` for future updates
 
 ## Project Structure
@@ -77,29 +77,24 @@ docs/ai/
 
 This structure gives your AI assistant a clear handoff between phases instead of relying on chat history.
 
-## Using Slash Commands
+## Using Skills
 
-AI DevKit installs **slash commands** into your AI editor. These are special prompts you type directly into your AI assistant's chat (not in your terminal).
+AI DevKit installs **skills** into your AI environment. Skills are reusable capability packs the agent can load when your request matches a workflow or domain.
 
-> **Note:** Slash commands like `/new-requirement` are used inside your AI editor (Cursor, Claude Code, etc.), not in the terminal. Terminal commands start with `ai-devkit`.
+Terminal commands still start with `ai-devkit`; skills are used by the agent inside your coding assistant.
 
-### Core Commands
+### Core Skills
 
-| Command | Purpose |
+| Skill | Purpose |
 |---------|---------|
-| `/new-requirement` | Start a new feature by clarifying requirements before code |
-| `/review-requirements` | Validate completeness of requirements |
-| `/review-design` | Check architecture and generate diagrams |
-| `/execute-plan` | Work through implementation tasks step-by-step |
-| `/check-implementation` | Compare code with design documents |
-| `/writing-test` | Generate comprehensive test cases |
-| `/code-review` | Perform pre-commit code reviews |
-| `/document-code` | Document and understand existing code |
-| `/debug` | Systematic debugging with structured analysis |
-| `/update-planning` | Sync planning docs with implementation progress |
-| `/remember` | Remember your important guidelines, rules, and best practices |
+| `dev-lifecycle` | Run requirements, design, planning, implementation, testing, and review |
+| `tdd` | Add or change behavior test-first |
+| `verify` | Require fresh command output before completion claims |
+| `structured-debug` | Debug issues with reproduction, hypotheses, fixes, and verification |
+| `document-code` | Document and understand existing code |
+| `memory` | Store and retrieve reusable project knowledge |
 
-For detailed usage of each command, see [Development with AI DevKit](/docs/3-development-with-ai-devkit).
+For detailed usage, see [Development with AI DevKit](/docs/3-development-with-ai-devkit).
 
 ## Quick Example
 
@@ -110,7 +105,7 @@ Here's how a typical workflow might look:
    $ ai-devkit init
 
 2. In Cursor/Claude Code:
-   > /new-requirement
+   > Use the dev-lifecycle skill to start requirements for user authentication with OAuth
 
    AI: "What feature would you like to build?"
    You: "Add user authentication with OAuth"
@@ -120,7 +115,7 @@ Here's how a typical workflow might look:
 
 ## Next Steps
 
-1. **Explore your AI editor** — Try `/new-requirement` on a small feature
+1. **Explore your AI editor** — Ask the agent to use `dev-lifecycle` on a small feature
 2. **Read the workflows guide** — [Development with AI DevKit](/docs/3-development-with-ai-devkit)
 3. **Set up memory** — [Give your AI long-term memory](/docs/6-memory)
 4. **Install skills** — [Extend your AI's capabilities](/docs/7-skills)

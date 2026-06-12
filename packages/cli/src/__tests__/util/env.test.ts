@@ -8,8 +8,6 @@ import {
   isValidEnvironmentCode,
   getEnvironmentDisplayName,
   validateEnvironmentCodes,
-  getGlobalCapableEnvironments,
-  hasGlobalSupport,
   hasMcpSupport,
   getSkillPath,
   getGlobalSkillPath,
@@ -43,7 +41,6 @@ describe('Environment Utilities', () => {
       expect(cursor).toEqual({
         code: 'cursor',
         name: 'Cursor',
-        commandPath: '.cursor/commands',
         skillPath: '.cursor/skills',
         globalSkillPath: '.cursor/skills'
       });
@@ -53,11 +50,13 @@ describe('Environment Utilities', () => {
       Object.values(ENVIRONMENT_DEFINITIONS).forEach(env => {
         expect(env).toHaveProperty('code');
         expect(env).toHaveProperty('name');
-        expect(env).toHaveProperty('commandPath');
         expect(env).not.toHaveProperty('contextFileName');
+        expect(env).not.toHaveProperty('commandPath');
+        expect(env).not.toHaveProperty('globalCommandPath');
+        expect(env).not.toHaveProperty('customCommandExtension');
+        expect(env).not.toHaveProperty('isCustomCommandPath');
         expect(typeof env.code).toBe('string');
         expect(typeof env.name).toBe('string');
-        expect(typeof env.commandPath).toBe('string');
       });
     });
   });
@@ -215,92 +214,6 @@ describe('Environment Utilities', () => {
     it('should return empty array for empty input', () => {
       const result = validateEnvironmentCodes([]);
       expect(result).toEqual([]);
-    });
-  });
-
-  describe('getGlobalCapableEnvironments', () => {
-    it('should return only environments with globalCommandPath defined', () => {
-      const globalEnvs = getGlobalCapableEnvironments();
-
-      // Currently Antigravity, Codex, and Junie have global support
-      expect(globalEnvs.length).toBeGreaterThan(0);
-      globalEnvs.forEach(env => {
-        expect(env.globalCommandPath).toBeDefined();
-        expect(typeof env.globalCommandPath).toBe('string');
-      });
-    });
-
-    it('should include Antigravity in global-capable environments', () => {
-      const globalEnvs = getGlobalCapableEnvironments();
-      const antigravity = globalEnvs.find(env => env.code === 'antigravity');
-
-      expect(antigravity).toBeDefined();
-      expect(antigravity?.globalCommandPath).toBe('.gemini/antigravity/global_workflows');
-    });
-
-    it('should include Codex in global-capable environments', () => {
-      const globalEnvs = getGlobalCapableEnvironments();
-      const codex = globalEnvs.find(env => env.code === 'codex');
-
-      expect(codex).toBeDefined();
-      expect(codex?.globalCommandPath).toBe('.codex/prompts');
-    });
-
-    it('should include Junie in global-capable environments', () => {
-      const globalEnvs = getGlobalCapableEnvironments();
-      const junie = globalEnvs.find(env => env.code === 'junie');
-
-      expect(junie).toBeDefined();
-      expect(junie?.globalCommandPath).toBe('.junie/commands');
-    });
-
-    it('should not include environments without globalCommandPath', () => {
-      const globalEnvs = getGlobalCapableEnvironments();
-      const envCodes = globalEnvs.map(env => env.code);
-
-      // Cursor should not be in the list (no global support)
-      expect(envCodes).not.toContain('cursor');
-      expect(envCodes).not.toContain('claude');
-      expect(envCodes).not.toContain('github');
-    });
-
-    it('should return exactly 3 environments (Antigravity, Codex, and Junie)', () => {
-      const globalEnvs = getGlobalCapableEnvironments();
-      expect(globalEnvs).toHaveLength(3);
-    });
-  });
-
-  describe('hasGlobalSupport', () => {
-    it('should return true for Antigravity', () => {
-      expect(hasGlobalSupport('antigravity')).toBe(true);
-    });
-
-    it('should return true for Codex', () => {
-      expect(hasGlobalSupport('codex')).toBe(true);
-    });
-
-    it('should return true for Junie', () => {
-      expect(hasGlobalSupport('junie')).toBe(true);
-    });
-
-    it('should return false for Cursor (no global support)', () => {
-      expect(hasGlobalSupport('cursor')).toBe(false);
-    });
-
-    it('should return false for Claude (no global support)', () => {
-      expect(hasGlobalSupport('claude')).toBe(false);
-    });
-
-    it('should return false for GitHub Copilot (no global support)', () => {
-      expect(hasGlobalSupport('github')).toBe(false);
-    });
-
-    it('should return false for Gemini (no global support)', () => {
-      expect(hasGlobalSupport('gemini')).toBe(false);
-    });
-
-    it('should return false for invalid environment code', () => {
-      expect(hasGlobalSupport('invalid' as EnvironmentCode)).toBe(false);
     });
   });
 

@@ -3,7 +3,6 @@
 import { Command } from 'commander';
 import { initCommand } from './commands/init.js';
 import { phaseCommand } from './commands/phase.js';
-import { setupCommand } from './commands/setup.js';
 import { lintCommand } from './commands/lint.js';
 import { installCommand } from './commands/install.js';
 import { registerMemoryCommand } from './commands/memory.js';
@@ -42,12 +41,6 @@ program
   .command('phase [name]')
   .description('Add a specific phase template (requirements|design|planning|implementation|testing|deployment|monitoring)')
   .action(phaseCommand);
-
-program
-  .command('setup')
-  .description('Set up AI DevKit commands globally')
-  .option('-g, --global', 'Install commands to global environment folders')
-  .action(setupCommand);
 
 program
   .command('lint')

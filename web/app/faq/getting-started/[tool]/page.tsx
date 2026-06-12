@@ -41,7 +41,7 @@ function buildSeoContent(tool: string, baseContent: string): string {
     "",
     "## Next steps",
     "",
-    `Once AI DevKit is set up in ${tool}, follow the getting started guide and run \`/new-requirement\` so the agent plans before editing code.`,
+    `Once AI DevKit is set up in ${tool}, follow the getting started guide and ask the agent to use the \`dev-lifecycle\` skill so it plans before editing code.`,
   ].join("\n");
 
   return `${intro}${baseContent}${outro}`;

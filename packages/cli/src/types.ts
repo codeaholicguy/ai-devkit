@@ -10,13 +10,9 @@ export type Phase =
 export interface EnvironmentDefinition {
   code: string;
   name: string;
-  commandPath: string;
   skillPath?: string;
   globalSkillPath?: string;
   description?: string;
-  isCustomCommandPath?: boolean;
-  customCommandExtension?: string;
-  globalCommandPath?: string;
   mcpConfigPath?: string;
 }
 

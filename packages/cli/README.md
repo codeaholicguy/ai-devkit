@@ -5,7 +5,7 @@ The command-line interface for **AI DevKit** — make AI coding agents follow a 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Use this package when you want the `ai-devkit` command to install agent commands, skills, memory, verification gates, and `docs/ai/` workflow files into a project.
+Use this package when you want the `ai-devkit` command to install agent skills, memory, verification gates, MCP configuration, and `docs/ai/` workflow files into a project.
 
 ## Features
 
@@ -36,7 +36,7 @@ ai-devkit init --template ./ai-devkit.init.yaml
 
 This will:
 1. Create a `.ai-devkit.json` configuration file
-2. Set up your AI coding agent environment, including commands, skills, and MCP servers where supported
+2. Set up your AI coding agent environment, including skills and MCP servers where supported
 3. Generate `docs/ai/` workflow docs for requirements, design, planning, implementation, and testing
 4. Give your agent a repeatable process instead of relying on one-off chat instructions
 
@@ -47,7 +47,6 @@ your-project/
 ├── .ai-devkit.json
 ├── .claude/        # or .cursor/, .codex/, etc. based on selected agents
 │   ├── skills/
-│   ├── commands/
 │   └── settings.json
 └── docs/ai/
     ├── requirements/
@@ -57,7 +56,7 @@ your-project/
     └── testing/
 ```
 
-In your AI editor, start with `/new-requirement` to make the agent clarify the feature before editing code.
+In your AI editor, ask the agent to use the `dev-lifecycle` skill to clarify the feature before editing code.
 
 ## Common Commands
 

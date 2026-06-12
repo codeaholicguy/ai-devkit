@@ -23,7 +23,7 @@ AI coding assistants are powerful, but using them day-to-day often feels inconsi
 
 AI DevKit is evolving toward an operating system model for AI-driven development:
 
-- **Standard interfaces** for commands, skills, memory, and docs across agents
+- **Standard interfaces** for skills, memory, and docs across agents
 - **Stateful development context** through phase docs and long-term memory
 - **Composable capabilities** via built-in and community skills
 - **CLI extensions** through global npm plugins that add optional commands
@@ -37,7 +37,7 @@ AI DevKit addresses these gaps with four core capabilities:
 
 ### Repeatable Engineering Workflow
 
-AI DevKit provides slash commands that make your AI agent plan before code and review before push:
+AI DevKit provides workflow skills that make your AI agent plan before code and review before push:
 
 - **Requirements** - Define what you're building and why
 - **Design** - Architect solutions with diagrams and technical decisions
@@ -66,17 +66,17 @@ The [Memory](/docs/6-memory) service gives your AI assistant persistent, local s
 
 ### Multi-Agent Support
 
-AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, commands, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, and skills carry across all of them.
+AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, skills, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, and skills carry across all of them.
 
 ## A Typical Workflow
 
 Here's what working with AI DevKit looks like in practice:
 
 1. Run `ai-devkit init` in your terminal to set up your project
-2. Open your AI editor and type `/new-requirement`
+2. Open your AI editor and ask the agent to use the `dev-lifecycle` skill to start requirements
 3. Your AI walks you through defining requirements, designing a solution, and planning tasks
-4. Type `/execute-plan` to implement the feature step-by-step
-5. Use `/writing-test` to generate tests, then `/code-review` before committing
+4. Ask it to execute the plan to implement the feature step-by-step
+5. Use the `tdd` and `verify` skills while implementing, then ask for a code review before committing
 6. Require verification output before the agent claims the work is complete
 
 Each step produces documentation in `docs/ai/` that gives your AI full context for the next step.
@@ -84,7 +84,7 @@ Each step produces documentation in `docs/ai/` that gives your AI full context f
 ## How It Works
 
 1. **Initialize** - Run `ai-devkit init` to set up your project with workflow docs and environment-specific agent configuration.
-2. **Develop** - Use slash commands like `/new-requirement` and `/execute-plan` inside your AI editor so the agent follows the workflow instead of improvising in chat.
+2. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
 3. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
 4. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
 5. **Add tools** - Install plugins when you want optional CLI commands such as dashboards or heavier integrations.

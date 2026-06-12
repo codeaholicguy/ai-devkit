@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { run, createTempProject, cleanupTempProject, writeConfigFile } from './helpers';
@@ -19,6 +19,12 @@ describe('CLI basics', () => {
     expect(result.stdout).toContain('memory');
     expect(result.stdout).toContain('skill');
     expect(result.stdout).toContain('phase');
+    expect(result.stdout).not.toContain('setup');
+  });
+
+  it('should not expose removed workflow command setup', () => {
+    const result = run('setup');
+    expect(result.exitCode).not.toBe(0);
   });
 
   it('should exit with error for unknown command', () => {
@@ -78,11 +84,19 @@ describe('init command', () => {
     expect(existsSync(join(projectDir, 'custom', 'docs', 'requirements', 'README.md'))).toBe(true);
   });
 
-  it('should create environment config files', () => {
+  it('should not create workflow slash command directories', () => {
     run('init -e claude --all', { cwd: projectDir });
 
-    // Claude environment creates .claude/commands/ directory
-    expect(existsSync(join(projectDir, '.claude', 'commands'))).toBe(true);
+    expect(existsSync(join(projectDir, '.claude', 'commands'))).toBe(false);
+    expect(existsSync(join(projectDir, '.cursor', 'commands'))).toBe(false);
+    expect(existsSync(join(projectDir, '.codex', 'commands'))).toBe(false);
+  });
+
+  it('should initialize Cursor without workflow slash command directories', () => {
+    run('init -e cursor -p requirements', { cwd: projectDir });
+
+    expect(existsSync(join(projectDir, 'docs', 'ai', 'requirements', 'README.md'))).toBe(true);
+    expect(existsSync(join(projectDir, '.cursor', 'commands'))).toBe(false);
   });
 
   it('should initialize with template file', () => {
@@ -120,6 +134,17 @@ registries:
     expect(config.registries).toEqual({
       'my-org/skills': 'https://github.com/my-org/skills.git'
     });
+  });
+});
+
+describe('CLI build artifacts', () => {
+  it('should not include removed workflow command templates in dist', () => {
+    const commandsDir = join(__dirname, '..', 'packages', 'cli', 'dist', 'templates', 'commands');
+    const commandFiles = existsSync(commandsDir)
+      ? readdirSync(commandsDir).filter((file) => file.endsWith('.md'))
+      : [];
+
+    expect(commandFiles).toEqual([]);
   });
 });
 

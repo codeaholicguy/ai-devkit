@@ -1,8 +1,6 @@
 import fs from "fs-extra";
 import * as path from "path";
-import * as os from "os";
 import { fileURLToPath } from "url";
-import matter from "gray-matter";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { Phase, EnvironmentCode, EnvironmentDefinition, DEFAULT_DOCS_DIR } from "../types.js";
@@ -143,10 +141,11 @@ export class TemplateManager {
       return false;
     }
 
-    const commandDirPath = path.join(this.targetDir, env.commandPath);
-    const commandDirExists = await fs.pathExists(commandDirPath);
+    if (env.code === "cursor") {
+      return fs.pathExists(path.join(this.targetDir, ".cursor", "rules"));
+    }
 
-    return commandDirExists;
+    return false;
   }
 
   private async setupSingleEnvironment(
@@ -155,16 +154,9 @@ export class TemplateManager {
     const copiedFiles: string[] = [];
 
     try {
-      if (!env.isCustomCommandPath) {
-        await this.copyCommands(env, copiedFiles);
-      }
-
       switch (env.code) {
         case "cursor":
           await this.copyCursorSpecificFiles(copiedFiles);
-          break;
-        case "gemini":
-          await this.copyGeminiSpecificFiles(copiedFiles);
           break;
         default:
           break;
@@ -175,40 +167,6 @@ export class TemplateManager {
     }
 
     return copiedFiles;
-  }
-
-  private async copyCommands(
-    env: EnvironmentDefinition,
-    copiedFiles: string[]
-  ): Promise<void> {
-    const commandsSourceDir = path.join(this.templatesDir, "commands");
-    const commandExtension = env.customCommandExtension || ".md";
-    const commandsTargetDir = path.join(this.targetDir, env.commandPath);
-
-    if (await fs.pathExists(commandsSourceDir)) {
-      await fs.ensureDir(commandsTargetDir);
-
-      const commandFiles = await fs.readdir(commandsSourceDir);
-      await Promise.all(
-        commandFiles
-          .filter((file: string) => file.endsWith(".md"))
-          .map(async (file: string) => {
-            const targetFile = file.replace('.md', commandExtension);
-            const content = await fs.readFile(
-              path.join(commandsSourceDir, file),
-              "utf-8"
-            );
-            const replaced = this.replaceDocsDir(content);
-            await fs.writeFile(
-              path.join(commandsTargetDir, targetFile),
-              replaced
-            );
-            copiedFiles.push(path.join(commandsTargetDir, targetFile));
-          })
-      );
-    } else {
-      ui.warning(`Commands directory not found: ${commandsSourceDir}`);
-    }
   }
 
   private async copyCursorSpecificFiles(copiedFiles: string[]): Promise<void> {
@@ -231,112 +189,4 @@ export class TemplateManager {
     }
   }
 
-  private async copyGeminiSpecificFiles(copiedFiles: string[]): Promise<void> {
-    const commandFiles = await fs.readdir(
-      path.join(this.templatesDir, "commands")
-    );
-    const commandTargetDir = path.join(this.targetDir, ".gemini", "commands");
-
-    await fs.ensureDir(commandTargetDir);
-    await Promise.all(
-      commandFiles
-        .filter((file: string) => file.endsWith(".md"))
-        .map(async (file: string) => {
-          const mdContent = await fs.readFile(
-            path.join(this.templatesDir, "commands", file),
-            "utf-8"
-          );
-          const replaced = this.replaceDocsDir(mdContent);
-          const { data, content } = matter(replaced);
-          const description = (data.description as string) || "";
-          const tomlContent = this.generateTomlContent(description, content.trim());
-          const tomlFile = file.replace(".md", ".toml");
-
-          await fs.writeFile(
-            path.join(commandTargetDir, tomlFile),
-            tomlContent
-          );
-          copiedFiles.push(path.join(commandTargetDir, tomlFile));
-        })
-    );
-  }
-
-
-  /**
-   * Generate TOML content for Gemini commands.
-   * Uses triple quotes for multi-line strings.
-   */
-  private generateTomlContent(description: string, prompt: string): string {
-    // Escape any triple quotes in the content
-    const escapedDescription = description.replace(/'''/g, "'''");
-    const escapedPrompt = prompt.replace(/'''/g, "'''");
-
-    return `description='''${escapedDescription}'''
-prompt='''${escapedPrompt}'''
-`;
-  }
-
-  private replaceDocsDir(content: string): string {
-    return content.split('{{docsDir}}').join(this.docsDir);
-  }
-
-  /**
-   * Copy command templates to the global folder for a specific environment.
-   * Global folders are located in the user's home directory.
-   */
-  async copyCommandsToGlobal(envCode: EnvironmentCode): Promise<string[]> {
-    const env = getEnvironment(envCode);
-    if (!env || !env.globalCommandPath) {
-      throw new Error(`Environment '${envCode}' does not support global setup`);
-    }
-
-    const copiedFiles: string[] = [];
-    const homeDir = os.homedir();
-    const globalTargetDir = path.join(homeDir, env.globalCommandPath);
-    const commandsSourceDir = path.join(this.templatesDir, "commands");
-
-    try {
-      await fs.ensureDir(globalTargetDir);
-
-      const commandFiles = await fs.readdir(commandsSourceDir);
-      for (const file of commandFiles) {
-        if (!file.endsWith(".md")) continue;
-
-        const sourceFile = path.join(commandsSourceDir, file);
-        const targetFile = path.join(globalTargetDir, file);
-        const content = await fs.readFile(sourceFile, "utf-8");
-        const replaced = this.replaceDocsDir(content);
-
-        await fs.writeFile(targetFile, replaced);
-        copiedFiles.push(targetFile);
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to copy commands to global folder: ${error.message}`);
-      }
-      throw error;
-    }
-
-    return copiedFiles;
-  }
-
-  /**
-   * Check if any global commands already exist for a specific environment.
-   */
-  async checkGlobalCommandsExist(envCode: EnvironmentCode): Promise<boolean> {
-    const env = getEnvironment(envCode);
-    if (!env || !env.globalCommandPath) {
-      return false;
-    }
-
-    const homeDir = os.homedir();
-    const globalTargetDir = path.join(homeDir, env.globalCommandPath);
-
-    if (!(await fs.pathExists(globalTargetDir))) {
-      return false;
-    }
-
-    const files = await fs.readdir(globalTargetDir);
-    return files.some((file: string) => file.endsWith(".md"));
-  }
 }

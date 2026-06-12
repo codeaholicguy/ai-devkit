@@ -16,7 +16,6 @@ import {
 export const BUILT_IN_COMMAND_NAMES = new Set([
   'init',
   'phase',
-  'setup',
   'lint',
   'install',
   'memory',

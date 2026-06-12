@@ -8,10 +8,10 @@
 
 AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：需求、设计、计划、实现、测试、验证、记忆和代码审查。
 
-- **停止 prompt-and-pray 式写代码** — `/new-requirement` 让智能体先澄清问题，再动代码
+- **停止 prompt-and-pray 式写代码** — `dev-lifecycle` 让智能体先澄清问题，再动代码
 - **阻止虚假的“完成”声明** — `verify` 要求有最新的测试或构建输出
 - **保留项目知识** — `@ai-devkit/memory` 跨会话保存决策、约定和修复经验
-- **推送前发现偏差** — `/code-review` 按设计和需求文档审查 diff
+- **推送前发现偏差** — 代码审查指导按设计和需求文档审查 diff
 - **一个控制台管所有智能体** — `agent console` 是一个实时 TUI 仪表盘，统一管理所有正在运行的智能体，不论来自哪个厂商
 
 一份配置，适配所有编程智能体：Claude Code、Cursor、Codex CLI、Gemini CLI、GitHub Copilot、Pi、Junie、Cline、Devin、opencode、Antigravity、Amp、Windsurf、Kilo Code、Roo Code。
@@ -20,7 +20,7 @@ AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：
 
 | 你需要的能力 | AI DevKit 安装的内容 |
 |-------------|----------------------|
-| 写代码前先有计划 | `/new-requirement`、`/review-design`、`/execute-plan` |
+| 写代码前先有计划 | `dev-lifecycle` 的需求、设计和计划指导 |
 | 说“完成”前先有证据 | 绑定最新测试/构建输出的 `verify` 门禁 |
 | 跨会话记忆 | 通过 MCP 和 CLI 暴露的本地 SQLite 记忆 |
 | 跨智能体一致行为 | 为团队使用的编程工具生成配置 |
@@ -46,7 +46,7 @@ AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：
 | 你在每次聊天里重复项目规则 | 智能体先搜索项目记忆和文档 |
 | 智能体从提示词直接跳到代码 | 智能体先经过需求、设计和计划 |
 | “完成”只是智能体停止编辑 | “完成”需要最新验证输出 |
-| 每个智能体都要手动维护一套规则 | 一份配置协调命令、技能和 MCP 设置 |
+| 每个智能体都要手动维护一套规则 | 一份配置协调技能、工作流文档和 MCP 设置 |
 
 ## 30 秒开始
 
@@ -63,7 +63,6 @@ your-project/
 ├── .ai-devkit.json              # 单一配置源，可以反复运行 init 更新
 ├── .claude/                     # 或 .cursor/、.codex/ 等你选择的智能体目录
 │   ├── skills/                  # dev-lifecycle、verify、memory、tdd 等
-│   ├── commands/                # /new-requirement、/execute-plan、/code-review 等
 │   └── settings.json            # MCP 服务配置，包括 @ai-devkit/memory
 └── docs/ai/
     ├── requirements/            # 阶段 1：要构建什么，为什么构建
@@ -86,24 +85,24 @@ ai-devkit init --template ./senior-engineer.yaml
 ## 一个功能，从头到尾
 
 ```text
-你：    /new-requirement add OAuth login with Google
+你：    使用 dev-lifecycle 技能，为 Google OAuth 登录开始需求澄清
 
 智能体：搜索记忆里已有的认证约定。询问范围、用户、成功标准等
         澄清问题。创建
         docs/ai/{requirements,design,planning}/feature-oauth-login.md
         到功能 worktree。停止，不直接写代码。
 
-你：    /review-design feature-oauth-login
+你：    审查 feature-oauth-login 的设计
 
 智能体：按需求文档审查设计文档。发现缺口，提出修复建议，
         在任何代码写入前处理问题。
 
-你：    /execute-plan feature-oauth-login
+你：    执行 feature-oauth-login 的实现计划
 
 智能体：按 planning 文档逐项执行任务。每完成一项就更新进度。
         `verify` 技能会阻止没有最新测试/构建输出的任务被标记完成。
 
-你：    /code-review
+你：    审查当前 diff
 
 智能体：按设计文档审查 diff，包括范围膨胀、缺失测试、
         需求中提到的边界情况，然后你再推送。

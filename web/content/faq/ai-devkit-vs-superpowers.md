@@ -13,7 +13,7 @@ These tools take different paths to fix that.
 |---|---|---|
 | **Type** | Workflow layer for AI coding agents with memory and skills | Opinionated skills framework |
 | **Install** | `npm install -g ai-devkit` | Agent-specific setup guide (see official repository) |
-| **Approach** | One config across agents: workflow commands, memory, verification, and skills | Behavior focused: process instructions injected into agent prompts |
+| **Approach** | One config across agents: workflow skills, memory, and verification | Behavior focused: process instructions injected into agent prompts |
 | **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
 | **Skills** | Built-in core skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
 | **Agents supported** | 11+ (Cursor, Claude Code, Codex, Copilot, Gemini CLI, OpenCode, Antigravity, Windsurf, and more) | 4 (Claude Code, Cursor, Codex, OpenCode) |
@@ -38,7 +38,7 @@ These tools take different paths to fix that.
 npm install -g ai-devkit
 ai-devkit init
 # then in your AI editor
-/new-requirement
+Use the dev-lifecycle skill to start requirements for <feature>
 ```
 
 ### Superpowers
@@ -49,14 +49,14 @@ Follow the official setup guide for your agent at https://github.com/obra/superp
 
 ### AI DevKit
 
-AI DevKit is a **workflow layer for AI coding agents** that you install globally and initialize per project. It creates workflow docs, provides slash commands for each development phase, includes built-in skills like `dev-lifecycle`, `debug`, `simplify-implementation`, and `document-code`, adds persistent local memory, and makes agents verify work before claiming completion.
+AI DevKit is a **workflow layer for AI coding agents** that you install globally and initialize per project. It creates workflow docs, installs built-in skills like `dev-lifecycle`, `structured-debug`, `simplify-implementation`, and `document-code`, adds persistent local memory, and makes agents verify work before claiming completion.
 
 ```bash
 npm install -g ai-devkit
 ai-devkit init
 ```
 
-After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses commands like `/new-requirement`, `/execute-plan`, and `/code-review` to plan before code and review before push.
+After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses workflow skills such as `dev-lifecycle`, `tdd`, and `verify` to plan before code and review before push.
 
 AI DevKit also provides a **local memory system** backed by SQLite. It stores coding standards, patterns, and decisions. This memory persists across sessions, so your AI agent can recall project-specific knowledge without you repeating it.
 
@@ -78,7 +78,7 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 ### Workflow Enforcement
 
-**AI DevKit** provides a repeatable workflow but remains flexible. Built-in skills like `dev-lifecycle` and `debug` encourage consistency, while `simplify-implementation` and `document-code` keep solutions practical and reusable. You can still use commands in the order that fits your project. The docs structure is guidance, not a hard gate.
+**AI DevKit** provides a repeatable workflow but remains flexible. Built-in skills like `dev-lifecycle` and `structured-debug` encourage consistency, while `simplify-implementation` and `document-code` keep solutions practical and reusable. You can still adapt the workflow to your project. The docs structure is guidance, not a hard gate.
 
 **Superpowers** enforces strict process discipline. In its documented methodology, test-first development is treated as mandatory.
 
@@ -135,7 +135,7 @@ npm install -g ai-devkit
 ai-devkit init
 ```
 
-Then use `/new-requirement` so the agent clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
+Then ask the agent to use `dev-lifecycle` so it clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
 
 ## Sources
 

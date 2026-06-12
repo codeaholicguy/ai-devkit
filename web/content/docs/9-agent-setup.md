@@ -47,7 +47,7 @@ ai-devkit install
 
 After install completes successfully, you should usually see:
 - `.ai-devkit.json` in your project root
-- Environment-specific command or skill folders such as `.cursor/commands/`, `.claude/commands/`, or `.agents/skills/`
+- Environment-specific skill folders such as `.cursor/skills/`, `.claude/skills/`, `.github/skills/`, or `.agents/skills/`
 - MCP config files such as `.mcp.json` or `.codex/config.toml` if your config includes MCP servers for supported environments
 
 After running, you will see a summary like:
@@ -74,14 +74,11 @@ ai-devkit install --overwrite
 ### What `ai-devkit install` Sets Up
 
 Based on your configured environments, AI DevKit installs or updates files such as:
-- Environment command folders (for example `.cursor/commands/`, `.claude/commands/`, `.codex/commands/`)
 - Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.github/skills/` for GitHub Copilot, `.devin/skills/`, and `.agents/skills/` for Codex) refer [Skills](/docs/7-skills) for more on skills
 - MCP server configuration files (`.mcp.json` for Claude Code and GitHub Copilot, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie, `.devin/config.json` for Devin)
 - Other environment-specific templates defined by AI DevKit
 
-The exact artifacts depend on the environments configured in `.ai-devkit.json`.
-
-> **Note:** `ai-devkit install` only manages project-local files generated from `.ai-devkit.json`. Some environments also support separate global setup outside the repository. If you need that, run `ai-devkit setup --global` in addition to this command. If you only want project files committed with your repo, `ai-devkit install` is sufficient.
+The exact artifacts depend on the environments configured in `.ai-devkit.json`. `ai-devkit install` only manages project-local files generated from that config.
 
 ### Team Onboarding
 

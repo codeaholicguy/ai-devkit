@@ -4,14 +4,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   cursor: {
     code: 'cursor',
     name: 'Cursor',
-    commandPath: '.cursor/commands',
     skillPath: '.cursor/skills',
     globalSkillPath: '.cursor/skills',
   },
   claude: {
     code: 'claude',
     name: 'Claude Code',
-    commandPath: '.claude/commands',
     skillPath: '.claude/skills',
     globalSkillPath: '.claude/skills',
     mcpConfigPath: '.mcp.json',
@@ -19,8 +17,6 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   github: {
     code: 'github',
     name: 'GitHub Copilot',
-    commandPath: '.github/prompts',
-    customCommandExtension: '.prompt.md',
     skillPath: '.github/skills',
     globalSkillPath: '.copilot/skills',
     mcpConfigPath: '.mcp.json',
@@ -28,15 +24,11 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   gemini: {
     code: 'gemini',
     name: 'Google Gemini',
-    commandPath: '.gemini/commands',
-    isCustomCommandPath: true,
     globalSkillPath: '.gemini/skills',
   },
   codex: {
     code: 'codex',
     name: 'OpenAI Codex',
-    commandPath: '.codex/commands',
-    globalCommandPath: '.codex/prompts',
     skillPath: '.agents/skills',
     globalSkillPath: '.codex/skills',
     mcpConfigPath: '.codex/config.toml',
@@ -44,45 +36,36 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   windsurf: {
     code: 'windsurf',
     name: 'Windsurf',
-    commandPath: '.windsurf/commands',
   },
   kilocode: {
     code: 'kilocode',
     name: 'KiloCode',
-    commandPath: '.kilocode/commands',
   },
   amp: {
     code: 'amp',
     name: 'AMP',
-    commandPath: '.agents/commands',
     skillPath: '.agents/skills',
     globalSkillPath: '.config/agents/skills',
   },
   opencode: {
     code: 'opencode',
     name: 'OpenCode',
-    commandPath: '.opencode/commands',
     skillPath: '.opencode/skills',
     globalSkillPath: '.config/opencode/skills',
   },
   roo: {
     code: 'roo',
     name: 'Roo Code',
-    commandPath: '.roo/commands',
   },
   antigravity: {
     code: 'antigravity',
     name: 'Antigravity',
-    commandPath: '.agent/workflows',
-    globalCommandPath: '.gemini/antigravity/global_workflows',
     skillPath: '.agent/skills',
     globalSkillPath: '.gemini/antigravity/skills',
   },
   junie: {
     code: 'junie',
     name: 'Junie',
-    commandPath: '.junie/commands',
-    globalCommandPath: '.junie/commands',
     skillPath: '.junie/skills',
     globalSkillPath: '.junie/skills',
     mcpConfigPath: '.junie/mcp/mcp.json',
@@ -90,14 +73,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
   cline: {
     code: 'cline',
     name: 'Cline',
-    commandPath: '.cline/commands',
     skillPath: '.cline/skills',
     globalSkillPath: '.cline/skills',
   },
   devin: {
     code: 'devin',
     name: 'Devin',
-    commandPath: '.devin/commands',
     skillPath: '.devin/skills',
     globalSkillPath: '.config/devin/skills',
     mcpConfigPath: '.devin/config.json',
@@ -148,15 +129,6 @@ export function validateEnvironmentCodes(envCodes: string[]): EnvironmentCode[] 
   }
 
   return validCodes;
-}
-
-export function getGlobalCapableEnvironments(): EnvironmentDefinition[] {
-  return getAllEnvironments().filter(env => env.globalCommandPath !== undefined);
-}
-
-export function hasGlobalSupport(envCode: EnvironmentCode): boolean {
-  const env = getEnvironment(envCode);
-  return env !== undefined && env.globalCommandPath !== undefined;
 }
 
 export function getSkillPath(envCode: EnvironmentCode): string | undefined {

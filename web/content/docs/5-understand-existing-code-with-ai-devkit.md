@@ -6,7 +6,7 @@ order: 4
 
 ## What is Document Code?
 
-When joining a new project or working with unfamiliar code, understanding how everything fits together can be overwhelming. The `/document-code` command analyzes your codebase from any entry point and generates comprehensive documentation with visual diagrams—helping you understand complex systems in minutes instead of hours.
+When joining a new project or working with unfamiliar code, understanding how everything fits together can be overwhelming. The `document-code` skill analyzes your codebase from any entry point and generates comprehensive documentation with visual diagrams—helping you understand complex systems in minutes instead of hours.
 
 **Common scenarios:**
 - You just joined a team and need to understand the authentication system
@@ -15,24 +15,24 @@ When joining a new project or working with unfamiliar code, understanding how ev
 
 ## Prerequisites
 
-Before using `/document-code`, ensure you have:
+Before using `document-code`, ensure you have:
 - Initialized AI DevKit in your project (`ai-devkit init`)
-- An AI editor with slash command support (Cursor, Claude Code, etc.)
+- An AI editor with skill support
 
-## Using the Command
+## Using the Skill
 
-> **Note:** The `/document-code` command is a **slash command** — type it directly in your AI editor's chat window, not in the terminal.
+> **Note:** Use this directly in your AI editor's chat window, not in the terminal.
 
 ### In Cursor or Similar Editors
 
 ```
-/document-code <entry-point>
+Use the document-code skill to analyze <entry-point>
 ```
 
 ### In Claude Code
 
 ```
-Use the document-code command to analyze <entry-point>
+Use the document-code skill to analyze <entry-point>
 ```
 
 ## Entry Point Types
@@ -42,7 +42,7 @@ You can analyze code starting from different types of entry points:
 ### Files
 
 ```
-/document-code src/api/users.ts
+Use the document-code skill to analyze src/api/users.ts
 ```
 
 Analyzes a specific file and its dependencies.
@@ -50,7 +50,7 @@ Analyzes a specific file and its dependencies.
 ### Folders
 
 ```
-/document-code src/services/
+Use the document-code skill to analyze src/services/
 ```
 
 Analyzes an entire module or directory structure.
@@ -58,7 +58,7 @@ Analyzes an entire module or directory structure.
 ### Functions
 
 ```
-/document-code calculateTotalPrice
+Use the document-code skill to analyze calculateTotalPrice
 ```
 
 Analyzes a specific function and its call chain.
@@ -66,7 +66,7 @@ Analyzes a specific function and its call chain.
 ### API Endpoints
 
 ```
-/document-code POST:/api/users
+Use the document-code skill to analyze POST:/api/users
 ```
 
 Analyzes complete API request/response flow.
@@ -97,7 +97,7 @@ Analyzes complete API request/response flow.
 
 ## Example Output
 
-When you run `/document-code src/services/auth/`, the AI generates documentation like this:
+When you ask the agent to document `src/services/auth/`, the AI generates documentation like this:
 
 **docs/ai/knowledge/auth-service.md:**
 
@@ -155,7 +155,7 @@ These files can be committed to version control, making your knowledge base sear
 
 ## Next Steps
 
-- **Debug an issue** — Use [`/debug`](/docs/4-debugging-with-ai-devkit) with your captured knowledge for context
-- **Plan a refactor** — Use your analysis to inform design decisions with `/review-design`
+- **Debug an issue** — Use [structured debugging](/docs/4-debugging-with-ai-devkit) with your captured knowledge for context
+- **Plan a refactor** — Use your analysis to inform design review decisions
 - **Build your knowledge base** — Enable [Memory](/docs/6-memory) to make your captured knowledge searchable
 - **Extend capabilities** — Install [Skills](/docs/7-skills) to add more AI capabilities

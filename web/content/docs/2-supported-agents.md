@@ -20,13 +20,16 @@ These environments are fully supported with stable integrations.
 ### [Cursor](https://cursor.com/)
 **What AI DevKit provides:**
 - `AGENTS.md` — Agent instructions for [Cursor](https://cursor.com/docs/context/rules)
-- `.cursor/commands/` — Custom [slash commands](https://cursor.com/docs/context/commands) for the AI DevKit engineering workflow
+- `.cursor/skills/` — Project-level skills
+- `~/.cursor/skills/` — Global skills
 - `.cursor/rules/` — [Editor rules](https://cursor.com/docs/context/rules) for consistent coding standards
 
 ### [Claude Code](https://www.claude.com/product/claude-code)
 **What AI DevKit provides:**
 - `CLAUDE.md` — Claude Code workspace instructions and context
-- `.claude/commands/` — Custom [slash commands](https://code.claude.com/docs/en/slash-commands)
+- `.claude/skills/` — Project-level skills
+- `~/.claude/skills/` — Global skills
+- `.mcp.json` — Project-level MCP server configuration
 
 ### [GitHub Copilot](https://github.com/features/copilot)
 **What AI DevKit provides:**
@@ -38,53 +41,42 @@ These environments are fully supported with stable integrations.
 ### [Google Gemini CLI](https://geminicli.com/)
 **What AI DevKit provides:**
 - `GEMINI.md` — [Context file](https://geminicli.com/docs/cli/gemini-md/) for providing instructional context to the Gemini model
-- `.gemini/commands/` — Gemini [custom commands](https://geminicli.com/docs/cli/commands/)
+- `~/.gemini/skills/` — Global skills
 
 ### [OpenAI Codex](https://chatgpt.com/en-SE/features/codex)
-> **Note:** `ai-devkit init` and `ai-devkit install` set up Codex project files such as `AGENTS.md` and `.codex/commands/`. If you also want globally available Codex prompts, run `ai-devkit setup --global` to install them to `~/.codex/prompts/`.
->
-> ```bash
-> ai-devkit setup --global
-> ```
-
 **What AI DevKit provides:**
 - `AGENTS.md` — Codex-specific configuration and context
-- `.codex/commands/` — Commands tailored for Codex's code-focused capabilities
+- `.agents/skills/` — Project-level skills
+- `~/.codex/skills/` — Global skills
+- `.codex/config.toml` — Project-level MCP server configuration
 
 ### [OpenCode](https://opencode.ai/)
 **What AI DevKit provides:**
 - `AGENTS.md` — OpenCode [custom instructions](https://opencode.ai/docs/rules/)
-- `.opencode/commands/` — OpenCode [custom commands](https://opencode.ai/docs/commands/)
+- `.opencode/skills/` — Project-level skills
+- `~/.config/opencode/skills/` — Global skills
 
 ### [Antigravity](https://antigravity.google/)
-> **Note:** Antigravity requires global setup.
->
-> ```bash
-> ai-devkit setup --global
-> ```
-
 **What AI DevKit provides:**
-- `.agent/workflows/` — Workflow for [Antigravity](https://codelabs.developers.google.com/getting-started-google-antigravity#8)'s advanced features
+- `.agent/skills/` — Project-level skills
+- `~/.gemini/antigravity/skills/` — Global skills
 
 ### [Junie](https://www.jetbrains.com/junie/)
 **What AI DevKit provides:**
 - `AGENTS.md` — Junie project instructions and context
-- `.junie/commands/` — Project-level custom commands
 - `.junie/skills/` — Project-level skills
 - `.junie/mcp/mcp.json` — Project-level MCP server configuration
-- `~/.junie/commands/` and `~/.junie/skills/` — Global commands and skills
+- `~/.junie/skills/` — Global skills
 
 ### [Cline](https://cline.bot/)
 **What AI DevKit provides:**
 - `AGENTS.md` — Cline project instructions and context
-- `.cline/commands/` — Project-level custom commands
 - `.cline/skills/` — Project-level skills
 - `~/.cline/skills/` — Global skills
 
 ### [Devin](https://devin.ai/)
 **What AI DevKit provides:**
 - `AGENTS.md` — Devin project instructions and context
-- `.devin/commands/` — Project-level custom commands
 - `.devin/skills/` — Project-level skills
 - `.devin/config.json` — Project-level MCP server configuration; AI DevKit updates only `mcpServers` and preserves other Devin config
 - `~/.config/devin/skills/` — Global skills
@@ -97,25 +89,23 @@ These environments are under active development. They work, but you may encounte
 
 **What AI DevKit provides:**
 - `AGENTS.md` — Windsurf environment configuration
-- `.windsurf/commands/` — Commands optimized for Windsurf's interface
 
 ### [KiloCode](https://kilocode.ai/)
 
 **What AI DevKit provides:**
 - `AGENTS.md` — KiloCode configuration for large project handling
-- `.kilocode/commands/` — Commands designed for large-scale development
 
 ### [AMP](https://ampcode.com/)
 
 **What AI DevKit provides:**
 - `AGENTS.md` — AMP configuration for accelerated workflows
-- `.agents/commands/` — Commands optimized for rapid development cycles
+- `.agents/skills/` — Project-level skills
+- `~/.config/agents/skills/` — Global skills
 
 ### [Roo Code](https://roocode.com/)
 
 **What AI DevKit provides:**
 - `AGENTS.md` — Roo Code configuration and context
-- `.roo/commands/` — Commands optimized for Roo's advanced features
 
 ## Environment Setup
 

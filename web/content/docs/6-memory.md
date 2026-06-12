@@ -51,10 +51,10 @@ Once connected, you can talk to your AI naturally:
 **Storing Knowledge:**
 > "We just decided that all API responses must handle BigInt serialization. Please save this rule to memory with the tag #backend."
 
-You can also force your AI agent to store knowledge by using the `/remember` slash command. This command is available if you initialized your project with `ai-devkit init`.
+You can also ask your AI agent to store knowledge directly when the memory skill is available.
 
 **Example:**
-> /remember Always use `BigInt.toString()` before sending API responses containing large numbers.
+> Remember that we always use `BigInt.toString()` before sending API responses containing large numbers.
 
 The AI will prompt you for a title and tags, then save the knowledge to memory.
 

@@ -18,10 +18,10 @@ The main difference is what each tool focuses on:
 |---|---|---|
 | **Type** | Workflow layer for AI coding agents with memory and skills | Spec-driven development toolkit |
 | **Install** | `npm install -g ai-devkit` | `uv tool install specify-cli --from git+https://github.com/github/spec-kit.git` |
-| **Approach** | Focuses on one config across agents: workflow commands, memory, verification, and skills | Focuses on a spec workflow: constitution, spec, plan, tasks, and implementation flow |
+| **Approach** | Focuses on one config across agents: workflow skills, memory, and verification | Focuses on a spec workflow: constitution, spec, plan, tasks, and implementation flow |
 | **Memory** | Built-in local memory service for storing/searching project knowledge | No dedicated built-in memory store; relies on specs/artifacts and repository history |
 | **Skills** | Built-in workflow skills plus installable skills from registries | No central installable skill system; focuses on a command-driven spec workflow |
-| **Commands** | Common flow: `/new-requirement` -> `/review-design` -> `/execute-plan` -> `/writing-test` -> `/code-review` | `/speckit.constitution`, `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement` |
+| **Workflow Entry** | Skill-led flow with `dev-lifecycle`, `tdd`, and `verify` | `/speckit.constitution`, `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, `/speckit.implement` |
 | **Agents supported** | Broad support across many environments (for example Claude Code, Cursor, Codex, Copilot) | Broad support via `specify init --ai ...` and generated slash command packs |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Spec and plan files created by the Spec Kit workflow |
 | **Execution model** | Single agent per feature with persistent memory | Step-by-step flow where each command creates input for the next step |
@@ -44,7 +44,7 @@ The main difference is what each tool focuses on:
 npm install -g ai-devkit
 ai-devkit init
 # open your AI coding tool in this project folder
-/new-requirement
+Use the dev-lifecycle skill to start requirements for <feature>
 ```
 
 ### Spec Kit
@@ -69,14 +69,14 @@ Use your tool name for `<agent>` (for example `claude`, `codex`, `cursor`).
 
 ### AI DevKit
 
-AI DevKit is a **workflow layer for AI coding agents** that you install globally and initialize per project. It creates a docs structure, provides slash commands for each development phase, includes built-in skills, adds persistent local memory, and makes agents verify work before claiming completion.
+AI DevKit is a **workflow layer for AI coding agents** that you install globally and initialize per project. It creates a docs structure, installs workflow skills, adds persistent local memory, and makes agents verify work before claiming completion.
 
 ```bash
 npm install -g ai-devkit
 ai-devkit init
 ```
 
-After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses commands like `/new-requirement`, `/execute-plan`, and `/code-review` to plan before code and review before push.
+After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses workflow skills such as `dev-lifecycle`, `tdd`, and `verify` to plan before code and review before push.
 
 A key benefit is **saved project memory**. Teams can store and retrieve decisions, patterns, and conventions so agents can reuse prior context across sessions.
 
@@ -98,13 +98,13 @@ The approach is intentionally opinionated: make requirements explicit before imp
 
 ### Workflow Enforcement
 
-**AI DevKit** provides structure but remains flexible. Teams can follow lifecycle guidance while adapting command order to project needs.
+**AI DevKit** provides structure but remains flexible. Teams can follow lifecycle guidance while adapting the workflow to project needs.
 
 **Spec Kit** uses a stricter step order. The constitution/spec/plan/tasks/implement pipeline is designed so each phase is completed before the next.
 
 ### Planning and Specification Model
 
-**AI DevKit** supports phase-based planning through project docs and workflow commands, with room for team-specific adaptations.
+**AI DevKit** supports phase-based planning through project docs and workflow skills, with room for team-specific adaptations.
 
 **Spec Kit** standardizes planning around clear spec files and command results, which increases consistency when teams want one standard process.
 
@@ -152,7 +152,7 @@ npm install -g ai-devkit
 ai-devkit init
 ```
 
-Then use `/new-requirement` so the agent clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
+Then ask the agent to use `dev-lifecycle` so it clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
 
 ## Sources
 

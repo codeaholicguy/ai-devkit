@@ -37,13 +37,11 @@ describe('EnvironmentSelector', () => {
   });
 
   describe('selectEnvironments', () => {
-    it('includes Junie with project skills, global skills, MCP, command paths', () => {
+    it('includes Junie with project skills, global skills, and MCP', () => {
       expect(isValidEnvironmentCode('junie')).toBe(true);
       expect(getEnvironment('junie')).toMatchObject({
         code: 'junie',
         name: 'Junie',
-        commandPath: '.junie/commands',
-        globalCommandPath: '.junie/commands',
         skillPath: '.junie/skills',
         globalSkillPath: '.junie/skills',
         mcpConfigPath: '.junie/mcp/mcp.json',
@@ -58,7 +56,6 @@ describe('EnvironmentSelector', () => {
       expect(getEnvironment('cline')).toMatchObject({
         code: 'cline',
         name: 'Cline',
-        commandPath: '.cline/commands',
         skillPath: '.cline/skills',
         globalSkillPath: '.cline/skills',
       });
@@ -71,7 +68,6 @@ describe('EnvironmentSelector', () => {
       expect(getEnvironment('github')).toMatchObject({
         code: 'github',
         name: 'GitHub Copilot',
-        commandPath: '.github/prompts',
         skillPath: '.github/skills',
         globalSkillPath: '.copilot/skills',
         mcpConfigPath: '.mcp.json',
@@ -86,7 +82,6 @@ describe('EnvironmentSelector', () => {
       expect(getEnvironment('devin')).toMatchObject({
         code: 'devin',
         name: 'Devin',
-        commandPath: '.devin/commands',
         skillPath: '.devin/skills',
         globalSkillPath: '.config/devin/skills',
         mcpConfigPath: '.devin/config.json',
@@ -208,75 +203,6 @@ describe('EnvironmentSelector', () => {
       expect(mockUi.text).toHaveBeenCalledWith('\nSelected environments:');
       expect(mockUi.text).toHaveBeenCalledWith('  Cursor');
       expect(mockUi.breakline).toHaveBeenCalled();
-    });
-  });
-
-  describe('selectGlobalEnvironments', () => {
-    it('should create choices only from global-capable environments', async () => {
-      mockCheckbox.mockResolvedValue(['antigravity']);
-
-      await selector.selectGlobalEnvironments();
-
-      expect(mockCheckbox).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: 'Select AI environments for global setup (use space to select, enter to confirm):',
-          choices: expect.arrayContaining([
-            expect.objectContaining({ value: 'antigravity' }),
-            expect.objectContaining({ value: 'codex' }),
-            expect.objectContaining({ value: 'junie' })
-          ]),
-          pageSize: 10,
-          required: true
-        })
-      );
-    });
-
-    it('should return selected global environments', async () => {
-      const selectedEnvs = ['antigravity', 'codex'];
-      mockCheckbox.mockResolvedValue(selectedEnvs);
-
-      const result = await selector.selectGlobalEnvironments();
-
-      expect(result).toEqual(selectedEnvs);
-    });
-
-    it('should validate that at least one environment is selected', async () => {
-      mockCheckbox.mockResolvedValue([]);
-
-      const result = await selector.selectGlobalEnvironments();
-
-      expect(result).toEqual([]);
-
-      expect(mockCheckbox).toHaveBeenCalledWith(
-        expect.objectContaining({ required: true })
-      );
-    });
-
-    it('should not include non-global environments in choices', async () => {
-      mockCheckbox.mockResolvedValue(['antigravity']);
-
-      await selector.selectGlobalEnvironments();
-
-      const choices = mockCheckbox.mock.calls[0][0].choices;
-      const choiceValues = choices.map((c: any) => c.value);
-
-      // Should only have environments with global command support
-      expect(choiceValues).toContain('antigravity');
-      expect(choiceValues).toContain('codex');
-      expect(choiceValues).toContain('junie');
-      expect(choiceValues).not.toContain('cursor');
-      expect(choiceValues).not.toContain('claude');
-      expect(choiceValues).not.toContain('github');
-    });
-
-    it('should show exactly 3 global command choices', async () => {
-      mockCheckbox.mockResolvedValue([]);
-
-      await selector.selectGlobalEnvironments();
-
-      const choices = mockCheckbox.mock.calls[0][0].choices;
-
-      expect(choices).toHaveLength(3);
     });
   });
 

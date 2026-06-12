@@ -20,12 +20,12 @@ AI DevKit solves this by creating workflow docs as you go. Each document becomes
 
 ## The Development Lifecycle
 
-### 1. Start with `/new-requirement`
+### 1. Start with the Dev Lifecycle Skill
 
-The `/new-requirement` command is your entry point for any new feature. It guides you through the complete lifecycle:
+The `dev-lifecycle` skill is your entry point for any new feature. Ask your agent to use it and describe what you want to build:
 
 ```
-/new-requirement
+Use the dev-lifecycle skill to build <feature>
 ```
 
 **What happens:**
@@ -54,7 +54,7 @@ docs/ai/
 
 ## Using the Dev Lifecycle Skill
 
-Instead of manually typing each command, you can use the `dev-lifecycle` skill to guide you through the entire workflow automatically. The skill triggers the next phase for you whenever the current phase is complete, so you do not need to remember which command comes next.
+Use the `dev-lifecycle` skill to guide you through the entire workflow. The skill suggests the next phase whenever the current phase is complete, so you do not need to remember a separate command vocabulary.
 
 If you want the full setup, dependencies, and usage guide, see [Dev Lifecycle Skill](/docs/10-dev-lifecycle-skill).
 
@@ -86,7 +86,7 @@ The skill takes over from there:
 2. Once requirements are clear, it automatically moves to **requirements review**
 3. Then proceeds to **design review**, **planning**, **implementation**, **testing**, and **code review**
 
-You don't need to type `/review-requirements`, `/review-design`, or any other command manually — the skill handles phase transitions for you.
+You do not need separate workflow prompt files — the skill handles phase transitions for you.
 
 ### Automatic phase progression
 
@@ -103,18 +103,18 @@ The key difference from running individual commands: the skill **suggests and tr
 
 If you started a feature in a previous session, the skill can pick up where you left off. It checks your existing documentation to determine which phase you're in and continues from there.
 
-> **When to use the skill vs. individual commands:**
+> **When to use lifecycle vs. focused skills:**
 > - Use the `dev-lifecycle` skill when starting a new feature or continuing end-to-end work — it handles the flow for you
-> - Use individual commands (like `/code-review` or `/writing-test`) when you only need one specific phase
+> - Use focused skills such as `tdd`, `verify`, or `structured-debug` when you only need one specific behavior
 
-## Refinement Commands
+## Focused Workflow Requests
 
-If you're using the `dev-lifecycle` skill, these commands run automatically as part of the workflow. You can also run them individually when you need a specific phase:
+If you're using the `dev-lifecycle` skill, these phases are covered as part of the workflow. You can also ask for a specific phase directly:
 
-### `/review-requirements`
+### Requirements Review
 
 ```
-/review-requirements
+Review the requirements for feature-authentication
 ```
 
 **When to use:** Before starting design, to catch gaps in your requirements.
@@ -124,10 +124,10 @@ If you're using the `dev-lifecycle` skill, these commands run automatically as p
 - Identifies missing acceptance criteria
 - Suggests clarifying questions
 
-### `/review-design`
+### Design Review
 
 ```
-/review-design
+Review the design for feature-authentication
 ```
 
 **When to use:** After design, before implementation, to ensure your architecture is solid.
@@ -137,10 +137,10 @@ If you're using the `dev-lifecycle` skill, these commands run automatically as p
 - Generates Mermaid diagrams for visualization
 - Checks alignment with requirements
 
-### `/execute-plan`
+### Execute Plan
 
 ```
-/execute-plan
+Execute the implementation plan for feature-authentication
 ```
 
 **When to use:** During implementation, to work through tasks systematically.
@@ -151,10 +151,10 @@ If you're using the `dev-lifecycle` skill, these commands run automatically as p
 - Tracks progress and captures notes
 - Prompts documentation updates as you go
 
-### `/update-planning`
+### Update Planning
 
 ```
-/update-planning
+Update the planning docs with current implementation progress
 ```
 
 **When to use:** When implementation drifts from the original plan.
@@ -164,12 +164,12 @@ If you're using the `dev-lifecycle` skill, these commands run automatically as p
 - Updates task status and notes
 - Keeps documentation current
 
-## Quality Commands
+## Quality Requests
 
-### `/code-review`
+### Code Review
 
 ```
-/code-review
+Review the current diff before I commit
 ```
 
 **When to use:** Before committing, to catch issues early.
@@ -180,10 +180,10 @@ If you're using the `dev-lifecycle` skill, these commands run automatically as p
 - Code redundancy and duplication
 - Missing tests and documentation
 
-### `/writing-test`
+### Testing
 
 ```
-/writing-test
+Use TDD to add tests for this change
 ```
 
 **When to use:** After implementation, to ensure coverage.
@@ -196,8 +196,8 @@ If you're using the `dev-lifecycle` skill, these commands run automatically as p
 ## Tips for Success
 
 1. **Don't skip phases** — Each phase builds context for the next. The `dev-lifecycle` skill handles this automatically
-2. **Keep docs updated** — Use `/update-planning` when things change
-3. **Review before committing** — `/code-review` catches issues early
+2. **Keep docs updated** — Ask the agent to update planning when things change
+3. **Review before committing** — Ask for code review before you push
 4. **Be specific** — The more detail you give, the better your AI assistant can help
 
 ## Next Steps

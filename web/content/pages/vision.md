@@ -1,6 +1,6 @@
 ---
 title: Vision
-description: AI DevKit's vision for reliable agentic software development: one workflow layer for memory, skills, verification, and multi-agent coding.
+description: "AI DevKit's vision for reliable agentic software development: one workflow layer for memory, skills, verification, and multi-agent coding."
 slug: vision
 order: 2
 ---

@@ -2,7 +2,6 @@ import { EnvironmentCode, EnvironmentDefinition } from "../types.js";
 import {
   getAllEnvironments,
   getEnvironmentDisplayName,
-  getGlobalCapableEnvironments,
   getSkillCapableEnvironments,
 } from "../util/env.js";
 import { ui } from "../util/terminal-ui.js";
@@ -65,14 +64,6 @@ export class EnvironmentSelector {
       ui.text(`  ${getEnvironmentDisplayName(envCode)}`);
     });
     ui.breakline();
-  }
-
-  async selectGlobalEnvironments(): Promise<EnvironmentCode[]> {
-    return this.selectFromEnvironments(
-      getGlobalCapableEnvironments(),
-      "Select AI environments for global setup (use space to select, enter to confirm):",
-      "No environments support global setup."
-    );
   }
 
   async selectSkillEnvironments(): Promise<EnvironmentCode[]> {

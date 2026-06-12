@@ -4,11 +4,11 @@ description: Learn how to systematically debug issues using AI DevKit's structur
 order: 4
 ---
 
-Debugging with AI assistants often becomes a guessing game—trying random fixes until something works. The `/debug` command changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.
+Debugging with AI assistants often becomes a guessing game—trying random fixes until something works. The `structured-debug` skill changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.
 
-## When to Use `/debug`
+## When to Use Structured Debug
 
-Use this command when:
+Use this skill when:
 - Something isn't working as expected
 - You're facing a bug you can't immediately explain
 - You need to troubleshoot performance or integration issues
@@ -16,10 +16,10 @@ Use this command when:
 
 ## Quick Example
 
-Here's what a `/debug` session looks like:
+Here's what a structured debugging session looks like:
 
 ```
-You: /debug
+You: Use structured-debug to investigate this issue.
 
 AI: What issue are you experiencing?
 
@@ -46,7 +46,7 @@ Recommended fix: Update backend config to match requirements.
 
 ## The 7-Step Debugging Process
 
-The `/debug` command follows a proven methodology:
+The `structured-debug` skill follows a proven methodology:
 
 | Step | Purpose |
 |------|---------|
@@ -106,5 +106,5 @@ The `/debug` command follows a proven methodology:
 ## Next Steps
 
 - **Understand code first** — See [Understanding Existing Code](/docs/5-understand-existing-code-with-ai-devkit)
-- **Prevent bugs** — Use [/code-review](/docs/3-development-with-ai-devkit#code-review) before committing
+- **Prevent bugs** — Ask for a code review before committing
 - **Remember solutions** — Save fixes to [Memory](/docs/6-memory) so you don't repeat mistakes

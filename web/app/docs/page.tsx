@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     'AI DevKit documentation',
     'AI coding assistant setup',
     'AI agent workflow layer',
-    'slash commands',
+    'agent skills',
     'skills',
     'AI development tools',
     'Claude Code',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'AI DevKit Documentation',
     description:
-      'Set up workflow commands, memory, verification, and skills for AI coding agents.',
+      'Set up workflow skills, memory, and verification for AI coding agents.',
     url: `${siteUrl}/docs`,
     siteName: 'AI DevKit',
     locale: 'en_US',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AI DevKit Documentation',
     description:
-      'Set up workflow commands, memory, verification, and skills for AI coding agents.',
+      'Set up workflow skills, memory, and verification for AI coding agents.',
   },
   alternates: {
     canonical: `${siteUrl}/docs`,

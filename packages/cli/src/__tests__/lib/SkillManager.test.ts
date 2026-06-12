@@ -35,7 +35,6 @@ vi.mock("../../lib/Config.js", () => ({
 vi.mock("../../lib/EnvironmentSelector.js", () => ({
   EnvironmentSelector: vi.fn(function () { return {
     selectEnvironments: vi.fn(),
-    selectGlobalEnvironments: vi.fn(),
     selectSkillEnvironments: vi.fn(),
     selectGlobalSkillEnvironments: vi.fn(),
     confirmOverride: vi.fn(),

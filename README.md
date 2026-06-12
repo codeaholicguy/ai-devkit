@@ -8,10 +8,10 @@
 
 AI DevKit turns one-off AI coding chats into a repeatable software delivery workflow: requirements, design, planning, implementation, tests, verification, memory, and review.
 
-- **Stops prompt-and-pray coding** — `/new-requirement` makes the agent clarify the problem before touching code
+- **Stops prompt-and-pray coding** — `dev-lifecycle` makes the agent clarify the problem before touching code
 - **Blocks fake "done" claims** — `verify` requires fresh test/build output before completion claims
 - **Keeps project knowledge alive** — `@ai-devkit/memory` stores decisions, conventions, and fixes across sessions
-- **Catches drift before push** — `/code-review` audits the diff against the design and requirements docs
+- **Catches drift before push** — code review guidance audits the diff against the design and requirements docs
 - **One console for all of them** — `agent console` is a live TUI dashboard for control all your running agents, no matter the provider
 
 One config. All coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, Pi, Junie, Cline, Devin, opencode, Antigravity, Amp, Windsurf, Kilo Code, Roo Code.
@@ -20,7 +20,7 @@ Run `npx ai-devkit@latest init` and your agent gets:
 
 | What you need | What AI DevKit installs |
 |---------------|-------------------------|
-| A plan before code | `/new-requirement`, `/review-design`, and `/execute-plan` |
+| A plan before code | `dev-lifecycle` requirements, design, and planning guidance |
 | Evidence before "done" | `verify` gates tied to fresh test/build output |
 | Memory across sessions | Local SQLite memory exposed through MCP and CLI |
 | Same behavior across agents | Generated config for the coding tools your team uses |
@@ -46,7 +46,7 @@ Before AI DevKit, your agent is a capable but inconsistent chatbot. After AI Dev
 | You repeat project rules in every chat | The agent searches project memory and docs first |
 | The agent jumps from prompt to code | The agent moves through requirements, design, and plan |
 | "Done" means the agent stopped editing | "Done" requires fresh verification output |
-| Each agent needs separate hand-maintained rules | One config reconciles commands, skills, and MCP setup |
+| Each agent needs separate hand-maintained rules | One config reconciles skills, workflow docs, and MCP setup |
 
 ## Start in 30 seconds
 
@@ -63,7 +63,6 @@ your-project/
 ├── .ai-devkit.json              # single source of truth (re-run init anytime)
 ├── .claude/                     # or .cursor/, .codex/, etc. per agent you picked
 │   ├── skills/                  # dev-lifecycle, verify, memory, tdd, ...
-│   ├── commands/                # /new-requirement, /execute-plan, /code-review, ...
 │   └── settings.json            # MCP servers wired up (incl. @ai-devkit/memory)
 └── docs/ai/
     ├── requirements/            # phase 1 — what to build, why
@@ -86,25 +85,25 @@ Bundles the eight built-in skills with curated additions from Anthropic, Vercel,
 ## A feature, end-to-end
 
 ```
-You:    /new-requirement add OAuth login with Google
+You:    Use the dev-lifecycle skill to start requirements for OAuth login with Google
 
 Agent:  Searches memory for prior auth conventions. Asks clarifying
         questions about scope, users, success criteria. Drafts
         docs/ai/{requirements,design,planning}/feature-oauth-login.md
         in a feature worktree. Stops before coding.
 
-You:    /review-design feature-oauth-login
+You:    Ask for a design review of feature-oauth-login
 
 Agent:  Audits the design doc against the requirements. Flags gaps,
         proposes fixes — before any code gets written.
 
-You:    /execute-plan feature-oauth-login
+You:    Ask it to execute the implementation plan
 
 Agent:  Works the planning doc task-by-task. Updates progress after
         each task. The `verify` skill blocks a task from being
         marked done without fresh test/build output.
 
-You:    /code-review
+You:    Ask for a code review
 
 Agent:  Audits the diff against the design doc — scope creep,
         missing tests, edge cases the requirements named —
@@ -150,7 +149,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Kilo Code](https://github.com/Kilo-Org/kilocode) | testing | — |
 | [Roo Code](https://roocode.com/) | testing | — |
 
-**Setup** — `ai-devkit init` writes the agent's config (rules, MCP servers, skills, slash commands) so it follows the same workflow.
+**Setup** — `ai-devkit init` writes the agent's config (rules, MCP servers, and skills) so it follows the same workflow.
 **Remote control** — drive running sessions from `ai-devkit agent send` and route them through external channels.
 
 ## Operate agents like infrastructure
@@ -175,11 +174,11 @@ Useful for long-running tasks, scheduled work, or checking on an agent from your
 
 ## How is this different from `CLAUDE.md`, `.cursor/rules`, or `AGENTS.md`?
 
-Those files are static instructions the agent re-reads. AI DevKit gives the agent a **workflow layer**: phase docs, slash commands, skills loaded on demand, local searchable memory, verification gates, and a control surface that works across agents. The rules still matter, but AI DevKit makes them operational.
+Those files are static instructions the agent re-reads. AI DevKit gives the agent a **workflow layer**: phase docs, skills loaded on demand, local searchable memory, verification gates, and a control surface that works across agents. The rules still matter, but AI DevKit makes them operational.
 
 | Static rules files | AI DevKit |
 |--------------------|-----------|
-| Tell the agent what you prefer | Installs commands that drive the next step |
+| Tell the agent what you prefer | Installs skills that drive the next step |
 | Depend on the agent remembering every rule | Stores and searches reusable project knowledge |
 | Cannot prove a task is complete | Requires fresh command output before completion claims |
 | Are different for each agent | Generates the right files for each supported agent |
