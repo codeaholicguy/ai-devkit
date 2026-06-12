@@ -81,6 +81,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `roo` | Roo |
 | `antigravity` | Antigravity |
 | `junie` | Junie |
+| `cline` | Cline |
 
 ```json
 "environments": ["cursor", "claude"]

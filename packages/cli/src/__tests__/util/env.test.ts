@@ -19,7 +19,7 @@ import { EnvironmentCode } from '../../types.js';
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {
     it('should contain all all environment definitions', () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(12);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(13);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cursor');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('claude');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('github');
@@ -32,6 +32,7 @@ describe('Environment Utilities', () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('roo');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('antigravity');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('junie');
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cline');
     });
 
     it('should have correct structure for cursor environment', () => {
@@ -62,12 +63,12 @@ describe('Environment Utilities', () => {
 
   describe('ALL_ENVIRONMENT_CODES', () => {
     it('should contain all all environment codes', () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(12);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(13);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           'cursor', 'claude', 'github', 'gemini', 'codex',
           'windsurf', 'kilocode', 'amp', 'opencode', 'roo', 'antigravity',
-          'junie'
+          'junie', 'cline'
         ])
       );
     });
@@ -81,7 +82,7 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironments', () => {
     it('should return all environment definitions', () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(12);
+      expect(environments).toHaveLength(13);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -165,6 +166,7 @@ describe('Environment Utilities', () => {
       expect(isValidEnvironmentCode('roo')).toBe(true);
       expect(isValidEnvironmentCode('antigravity')).toBe(true);
       expect(isValidEnvironmentCode('junie')).toBe(true);
+      expect(isValidEnvironmentCode('cline')).toBe(true);
     });
 
     it('should return false for invalid codes', () => {
@@ -181,6 +183,7 @@ describe('Environment Utilities', () => {
       expect(getEnvironmentDisplayName('roo')).toBe('Roo Code');
       expect(getEnvironmentDisplayName('antigravity')).toBe('Antigravity');
       expect(getEnvironmentDisplayName('junie')).toBe('Junie');
+      expect(getEnvironmentDisplayName('cline')).toBe('Cline');
     });
 
     it('should return code itself for invalid codes', () => {
@@ -311,6 +314,10 @@ describe('Environment Utilities', () => {
       expect(getSkillPath('junie')).toBe('.junie/skills');
     });
 
+    it('should return skill path for cline', () => {
+      expect(getSkillPath('cline')).toBe('.cline/skills');
+    });
+
     it('should return undefined for environments without skill support', () => {
       expect(getSkillPath('windsurf')).toBeUndefined();
       expect(getSkillPath('gemini')).toBeUndefined();
@@ -337,6 +344,10 @@ describe('Environment Utilities', () => {
 
     it('should return global skill path for junie', () => {
       expect(getGlobalSkillPath('junie')).toBe('.junie/skills');
+    });
+
+    it('should return global skill path for cline', () => {
+      expect(getGlobalSkillPath('cline')).toBe('.cline/skills');
     });
 
     it('should return undefined for environments without global skill support', () => {
@@ -396,7 +407,8 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('opencode');
       expect(envCodes).toContain('antigravity');
       expect(envCodes).toContain('junie');
-      expect(skillEnvs).toHaveLength(7);
+      expect(envCodes).toContain('cline');
+      expect(skillEnvs).toHaveLength(8);
     });
   });
 

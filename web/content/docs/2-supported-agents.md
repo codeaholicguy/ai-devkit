@@ -1,6 +1,6 @@
 ---
 title: Supported AI Agents & Environments
-description: Compare supported AI coding agents and environments, including Claude Code, Codex, Cursor, Gemini CLI, Junie, OpenCode, and GitHub Copilot.
+description: Compare supported AI coding agents and environments, including Claude Code, Codex, Cursor, Gemini CLI, Junie, Cline, OpenCode, and GitHub Copilot.
 order: 2
 ---
 
@@ -70,6 +70,13 @@ These environments are fully supported with stable integrations.
 - `.junie/skills/` — Project-level skills
 - `.junie/mcp/mcp.json` — Project-level MCP server configuration
 - `~/.junie/commands/` and `~/.junie/skills/` — Global commands and skills
+
+### [Cline](https://cline.bot/)
+**What AI DevKit provides:**
+- `AGENTS.md` — Cline project instructions and context
+- `.cline/commands/` — Project-level custom commands
+- `.cline/skills/` — Project-level skills
+- `~/.cline/skills/` — Global skills
 
 ## Experimental Environments
 

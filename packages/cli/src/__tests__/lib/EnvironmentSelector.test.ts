@@ -54,6 +54,21 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('junie')).toBe('.junie/mcp/mcp.json');
     });
 
+    it('includes Cline with project and global skill paths', () => {
+      expect(isValidEnvironmentCode('cline')).toBe(true);
+      expect(getEnvironment('cline')).toMatchObject({
+        code: 'cline',
+        name: 'Cline',
+        contextFileName: 'AGENTS.md',
+        commandPath: '.cline/commands',
+        skillPath: '.cline/skills',
+        globalSkillPath: '.cline/skills',
+      });
+      expect(getSkillPath('cline')).toBe('.cline/skills');
+      expect(getGlobalSkillPath('cline')).toBe('.cline/skills');
+      expect(getMcpConfigPath('cline')).toBeUndefined();
+    });
+
     it('should create choices from all environments', async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(['cursor', 'claude']);
@@ -218,7 +233,7 @@ describe('EnvironmentSelector', () => {
       const choices = mockCheckbox.mock.calls[0][0].choices;
       const choiceValues = choices.map((c: any) => c.value);
 
-      // Should only have Antigravity and Codex
+      // Should only have environments with global command support
       expect(choiceValues).toContain('antigravity');
       expect(choiceValues).toContain('codex');
       expect(choiceValues).toContain('junie');
@@ -227,7 +242,7 @@ describe('EnvironmentSelector', () => {
       expect(choiceValues).not.toContain('github');
     });
 
-    it('should show exactly 3 choices (Antigravity, Codex, and Junie)', async () => {
+    it('should show exactly 3 global command choices', async () => {
       mockCheckbox.mockResolvedValue([]);
 
       await selector.selectGlobalEnvironments();
@@ -254,7 +269,8 @@ describe('EnvironmentSelector', () => {
             expect.objectContaining({ value: 'gemini' }),
             expect.objectContaining({ value: 'opencode' }),
             expect.objectContaining({ value: 'antigravity' }),
-            expect.objectContaining({ value: 'junie' })
+            expect.objectContaining({ value: 'junie' }),
+            expect.objectContaining({ value: 'cline' })
           ]),
           pageSize: 10,
           required: true

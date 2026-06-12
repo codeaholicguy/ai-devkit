@@ -5,7 +5,7 @@ slug: memory
 order: 6
 ---
 
-Imagine if your AI assistant never made the same mistake twice. 
+Imagine if your AI assistant never made the same mistake twice.
 
 The **Memory** service allows you to store actionable insights, coding patterns, and project guidelines. Once stored, this knowledge is available to your AI coding agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
 
@@ -171,7 +171,7 @@ The memory skill is ideal when:
 - Your AI agent needs detailed command syntax reference
 - You want consistent memory usage patterns across your team
 
-> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, Codex, OpenCode, and Antigravity.
+> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, Codex, OpenCode, Antigravity, and others.
 
 ## Organizing Your Knowledge
 
@@ -204,7 +204,7 @@ ai-devkit memory store \
 
 ## Privacy & Storage
 
-Your memory is **100% local**. 
+Your memory is **100% local**.
 
 By default, Memory stores data in a local SQLite database at `~/.ai-devkit/memory.db`.
 

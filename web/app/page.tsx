@@ -11,6 +11,7 @@ export default function Home() {
     { name: "OpenCode", logo: "/logo/opencode.png", href: "https://opencode.ai" },
     { name: "Gemini CLI", logo: "/logo/gemini-cli.png", href: "https://geminicli.com" },
     { name: "Junie", logo: "/logo/junie.png", href: "https://junie.jetbrains.com" },
+    { name: "Cline", logo: "/logo/cline.png", href: "https://cline.bot" },
   ];
   const scrollingAgents = [...agents, ...agents, ...agents];
 

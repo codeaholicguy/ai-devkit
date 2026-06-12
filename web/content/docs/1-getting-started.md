@@ -111,10 +111,10 @@ Here's how a typical workflow might look:
 
 2. In Cursor/Claude Code:
    > /new-requirement
-   
+
    AI: "What feature would you like to build?"
    You: "Add user authentication with OAuth"
-   
+
    AI guides you through requirements → design → planning → implementation → verification → review
 ```
 

@@ -95,6 +95,14 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     skillPath: '.junie/skills',
     globalSkillPath: '.junie/skills',
     mcpConfigPath: '.junie/mcp/mcp.json',
+  },
+  cline: {
+    code: 'cline',
+    name: 'Cline',
+    contextFileName: 'AGENTS.md',
+    commandPath: '.cline/commands',
+    skillPath: '.cline/skills',
+    globalSkillPath: '.cline/skills',
   }
 };
 

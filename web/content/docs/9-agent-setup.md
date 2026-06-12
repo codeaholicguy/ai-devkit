@@ -75,7 +75,7 @@ ai-devkit install --overwrite
 
 Based on your configured environments, AI DevKit installs or updates files such as:
 - Environment command folders (for example `.cursor/commands/`, `.claude/commands/`, `.codex/commands/`)
-- Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.agents/skills/` for Codex, and `.agent/skills/` for Antigravity)
+- Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.agents/skills/` for Codex) refer [Skills](/docs/7-skills) for more on skills
 - MCP server configuration files (`.mcp.json` for Claude Code, `.codex/config.toml` for Codex, `.junie/mcp/mcp.json` for Junie)
 - Other environment-specific templates defined by AI DevKit
 

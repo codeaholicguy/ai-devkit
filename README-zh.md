@@ -14,7 +14,7 @@ AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：
 - **推送前发现偏差** — `/code-review` 按设计和需求文档审查 diff
 - **一个控制台管所有智能体** — `agent console` 是一个实时 TUI 仪表盘，统一管理所有正在运行的智能体，不论来自哪个厂商
 
-一份配置，适配所有编程智能体：Claude Code、Cursor、Codex CLI、Gemini CLI、GitHub Copilot、opencode、Antigravity、Amp、Windsurf、Kilo Code、Roo Code。
+一份配置，适配所有编程智能体：Claude Code、Cursor、Codex CLI、Gemini CLI、GitHub Copilot、Pi、Junie、Cline、opencode、Antigravity、Amp、Windsurf、Kilo Code、Roo Code。
 
 运行 `npx ai-devkit@latest init` 后，你的智能体会获得：
 
@@ -135,7 +135,10 @@ ai-devkit init --template ./senior-engineer.yaml
 | [Claude Code](https://www.anthropic.com/claude-code) | yes | yes |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes |
 | [Codex CLI](https://github.com/openai/codex) | yes | yes |
+| [Junie](https://www.jetbrains.com/junie/) | yes | — |
+| [Cline](https://cline.bot/) | yes | — |
 | [opencode](https://opencode.ai/) | yes | testing |
+| [Pi](https://pi.dev) | — | yes |
 | [Cursor](https://cursor.sh/) | yes | — |
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |

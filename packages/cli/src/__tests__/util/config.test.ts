@@ -36,6 +36,12 @@ describe('config util', () => {
     expect(result.environments).toEqual(['junie']);
   });
 
+  it('accepts Cline as a supported environment code', () => {
+    const result = validateInstallConfig({ environments: ['cline'] }, '/tmp/.ai-devkit.json');
+
+    expect(result.environments).toEqual(['cline']);
+  });
+
   it('fails on invalid environment code', () => {
     expect(() => validateInstallConfig({ environments: ['bad-env'] }, '/tmp/.ai-devkit.json')).toThrow('environments[0] has unsupported value "bad-env"');
   });

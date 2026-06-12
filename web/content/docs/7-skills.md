@@ -7,7 +7,7 @@ order: 8
 
 **Skills** are packaged capabilities that extend what your AI coding agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, security best practices, or multi-agent workflow patterns.
 
-> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, Codex, OpenCode, or Antigravity).
+> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, Codex, OpenCode, Antigravity, or others).
 
 ## How Skills Work
 
@@ -62,6 +62,8 @@ Skills are currently supported by the following AI coding agents:
 | **Codex**       | `.agents/skills`   | `~/.codex/skills` |
 | **OpenCode**    | `.opencode/skills` | `~/.config/opencode/skills` |
 | **Antigravity** | `.agent/skills`    | `~/.gemini/antigravity/skills` |
+| **Junie**       | `.junie/skills`    | `~/.junie/skills` |
+| **Cline**       | `.cline/skills`    | `~/.cline/skills` |
 
 Project installs are added inside the current repository. Global installs are added under your home directory and are shared across projects.
 
@@ -438,7 +440,7 @@ The skill doesn't exist in the specified registry. Explore the registry reposito
 
 ### "No skill-capable environments configured"
 
-Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, Codex, OpenCode, or Antigravity).
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, Codex, OpenCode, Antigravity, or others).
 
 ### "SKILL.md not found"
 

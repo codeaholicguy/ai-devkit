@@ -6,7 +6,7 @@ import { GlobalConfigManager } from './GlobalConfig.js';
 import { EnvironmentSelector } from './EnvironmentSelector.js';
 import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
 import { SkillIndex } from './SkillIndex.js';
-import { getGlobalSkillPath, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
+import { getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
 import { ensureGitInstalled } from '../util/git.js';
 import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill.js';
 import { isInteractiveTerminal } from '../util/terminal.js';
@@ -270,7 +270,8 @@ export class SkillManager {
       if (isGlobal) {
         throw new ValidationError('No global-skill-capable environments configured.');
       }
-      throw new ValidationError('No skill-capable environments configured. Supported: cursor, claude');
+      const supported = getSkillCapableEnvironments().map(env => env.code).join(', ');
+      throw new ValidationError(`No skill-capable environments configured. Supported: ${supported}`);
     }
 
     return { targets, capableEnvironments };
