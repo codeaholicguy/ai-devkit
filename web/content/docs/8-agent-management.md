@@ -29,8 +29,18 @@ To use the `agent open` command, your environment must meet these requirements:
 
 AI DevKit detects active sessions from the following tools:
 
-- **Claude Code**: Automatically detects running `claude` processes and correlates them with your active projects.
-- **Codex**: Detects running Codex sessions and exposes the same list, open, send, and detail workflows.
+- **[Claude Code](https://www.claude.com/product/claude-code)**: Automatically detects running `claude` processes and correlates them with your active projects.
+- **[Codex](https://chatgpt.com/en-SE/features/codex)**: Detects running Codex sessions and exposes the same list, open, send, and detail workflows.
+- **[Gemini CLI](https://geminicli.com/)**: Detects running Gemini CLI sessions and exposes them through the same agent management commands.
+- **[GitHub Copilot](https://github.com/features/copilot)**: Detects running Copilot coding agent sessions and exposes them through the agent list, detail, and send workflows.
+- **[OpenCode](https://opencode.ai/)**: Detects running OpenCode sessions and exposes them through the same agent management commands.
+- **[Pi](https://pi.dev/)**: Detects Pi sessions. For more accurate Pi integration, install the [`@ai-devkit/pi-session-tracker`](https://pi.dev/packages/@ai-devkit/pi-session-tracker) package inside Pi:
+
+  ```bash
+  pi install npm:@ai-devkit/pi-session-tracker
+  ```
+
+  The tracker gives AI DevKit better session information than process detection alone.
 
 ## Commands
 
