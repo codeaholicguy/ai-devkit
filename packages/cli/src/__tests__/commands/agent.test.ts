@@ -96,6 +96,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     codex:      { command: 'codex',    matches: () => true },
     gemini_cli: { command: 'gemini',   matches: () => true },
     opencode:   { command: 'opencode', matches: () => true },
+    pi:         { command: 'pi',       matches: () => true },
   },
   RenameNotFoundError: RenameNotFoundError,
   RenameConflictError: RenameConflictError,

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import TextInput from 'ink-text-input';
-import type { StartableAgentType } from '@ai-devkit/agent-manager';
+import { AGENTS, type StartableAgentType } from '@ai-devkit/agent-manager';
 import { KeyHints, Panel, SectionTitle, TUI_COLORS } from '../design-system/index.js';
 
-export const STARTABLE_AGENT_TYPES: StartableAgentType[] = ['claude', 'codex', 'gemini_cli', 'opencode'];
+export const STARTABLE_AGENT_TYPES = Object.keys(AGENTS) as StartableAgentType[];
 
 export function nextStartAgentType(type: StartableAgentType): StartableAgentType {
     const index = STARTABLE_AGENT_TYPES.indexOf(type);
