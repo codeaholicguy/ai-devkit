@@ -10,47 +10,42 @@ if [[ $# -lt 1 ]]; then
 fi
 
 FEATURE="$1"
+AI_DEVKIT_BIN="${AI_DEVKIT_BIN:-npx ai-devkit@latest}"
 
 if [[ ! "$FEATURE" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   echo "Error: feature name must contain only letters, digits, hyphens, and underscores"
   exit 1
 fi
 
-DOCS="docs/ai"
-
 exists() { [[ -f "$1" ]]; }
 nonempty() { [[ -f "$1" ]] && [[ -s "$1" ]]; }
 
-latest_doc() {
+LINT_OUTPUT="$($AI_DEVKIT_BIN lint --feature "$FEATURE" 2>/dev/null || true)"
+
+lint_doc() {
   local phase="$1"
-  local dated_pattern="$DOCS/$phase/"????-??-??"-feature-${FEATURE}.md"
-  local legacy="$DOCS/$phase/feature-${FEATURE}.md"
-  local matches=()
-
-  # Let the shell expand the dated pattern when matches exist. With nullglob
-  # enabled, an unmatched pattern contributes no literal value.
-  shopt -s nullglob
-  matches=( $dated_pattern )
-  shopt -u nullglob
-
-  if [[ ${#matches[@]} -gt 0 ]]; then
-    printf '%s\n' "${matches[@]}" | sort | tail -n 1
-    return 0
-  fi
-
-  if exists "$legacy"; then
-    echo "$legacy"
-    return 0
-  fi
-
-  echo "$legacy"
+  awk -v phase="$phase" '
+    /^=== Feature:/ { in_feature = 1; next }
+    /^=== Git:/ { in_feature = 0 }
+    in_feature && $0 ~ "\\]  .*/" phase "/" {
+      sub(/^[^]]*][[:space:]]+/, "", $0)
+      print
+      exit
+    }
+  ' <<< "$LINT_OUTPUT"
 }
 
-REQ="$(latest_doc requirements)"
-DES="$(latest_doc design)"
-PLN="$(latest_doc planning)"
-IMP="$(latest_doc implementation)"
-TST="$(latest_doc testing)"
+REQ="$(lint_doc requirements)"
+DES="$(lint_doc design)"
+PLN="$(lint_doc planning)"
+IMP="$(lint_doc implementation)"
+TST="$(lint_doc testing)"
+
+if [[ -z "$REQ" || -z "$DES" || -z "$PLN" || -z "$IMP" || -z "$TST" ]]; then
+  echo "Error: could not resolve feature docs from 'ai-devkit lint --feature $FEATURE'"
+  echo "Run: $AI_DEVKIT_BIN lint --feature $FEATURE"
+  exit 1
+fi
 
 echo "=== Status: $FEATURE ==="
 
@@ -82,11 +77,11 @@ if ! exists "$REQ"; then
 elif ! exists "$DES"; then
   echo "Phase 1 (New Requirement) — requirements exist but no design doc"
 elif ! exists "$PLN"; then
-  echo "Phase 1 (New Requirement) — design exists but no planning doc"
+  echo "Phase 4 (Create Initial Plan) — design exists but no planning doc"
 elif exists "$PLN" && [[ ${TODO:-0} -gt 0 ]]; then
-  echo "Phase 4 (Execute Plan) — $TODO tasks remaining"
+  echo "Phase 5 (Execute Plan) — $TODO tasks remaining"
 elif exists "$PLN" && [[ ${TODO:-0} -eq 0 ]] && [[ ${TOTAL:-0} -gt 0 ]]; then
-  echo "Phase 6 (Check Implementation) — all tasks done, verify against design"
+  echo "Phase 7 (Check Implementation) — all tasks done, verify against design"
 else
   echo "Phase 2 (Review Requirements) — docs exist, review for completeness"
 fi

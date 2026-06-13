@@ -700,7 +700,56 @@
       "name": "dev-lifecycle",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/dev-lifecycle",
-      "description": "AI DevKit · Structured SDLC workflow with 8 phases — requirements, design review, planning, implementation, testing, and code review. Use when the user wants to build a feature end-to-end, or run any individual phase (new requirement, review requirements, review design, execute plan, update planning, check implementation, write tests, code review).",
+      "description": "AI DevKit · Orchestrator for structured SDLC phase skills. Use when the user wants to run the full lifecycle or choose the next phase across requirements, design, planning, implementation, testing, and review.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-worktree",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-worktree",
+      "description": "AI DevKit · Worktree setup and resume guidance for isolated feature work. Use when starting, resuming, switching, or verifying a feature branch/worktree for lifecycle, debugging, implementation, review, or multi-agent workflows.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-requirements",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-requirements",
+      "description": "AI DevKit · Requirements phase guidance for starting features and reviewing requirements. Use when the user wants to capture a new requirement, clarify product scope, initialize feature docs, review requirements, or run dev-lifecycle phases 1-2.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-design",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-design",
+      "description": "AI DevKit · Design phase guidance for reviewing feature design against requirements. Use when the user wants to validate architecture, review design docs, resolve design trade-offs, or run dev-lifecycle phase 3.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-planning",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-planning",
+      "description": "AI DevKit · Planning phase guidance for creating and reconciling feature task plans. Use when the user wants to create an implementation plan, update planning docs, mark task progress, capture blockers or new tasks, or run dev-lifecycle planning work.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-implementation",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-implementation",
+      "description": "AI DevKit · Implementation phase guidance for executing feature plans and checking implementation against design. Use when the user wants to implement planned tasks, update implementation docs, verify code matches design, or run dev-lifecycle phases 5 and 7.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-testing",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-testing",
+      "description": "AI DevKit · Testing phase guidance for adding and validating feature test coverage. Use when the user wants to write tests, update testing docs, run coverage, close coverage gaps, or run dev-lifecycle phase 8.",
+      "lastIndexed": 1780792114013
+    },
+    {
+      "name": "dev-review",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-review",
+      "description": "AI DevKit · Final code review phase guidance for holistic pre-push review. Use when the user wants code review, final lifecycle review, design alignment checks, integration risk review, or dev-lifecycle phase 9.",
       "lastIndexed": 1780792114013
     },
     {

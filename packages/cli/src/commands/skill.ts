@@ -2,6 +2,7 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config.js';
 import { SkillManager } from '../lib/SkillManager.js';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate, getErrorMessage } from '../util/text.js';
@@ -12,19 +13,39 @@ export function registerSkillCommand(program: Command): void {
     .description('Manage Agent Skills');
 
   skillCommand
-    .command('add <registry-repo> [skill-name]')
+    .command('add [registry-repo] [skill-name]')
     .description('Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills frontend-design)')
+    .option('--built-in', 'Install all AI DevKit built-in skills')
     .option('-g, --global', 'Install skill into configured global skill paths (~/<path>)')
     .option('-e, --env <environment...>', 'Target environment(s) for global install (e.g., --global --env claude)')
-    .action(async (registryRepo: string, skillName: string | undefined, options: { global?: boolean; env?: string[] }) => {
+    .action(async (registryRepo: string | undefined, skillName: string | undefined, options: { builtIn?: boolean; global?: boolean; env?: string[] }) => {
       try {
         const configManager = new ConfigManager();
         const skillManager = new SkillManager(configManager);
-
-        await skillManager.addSkill(registryRepo, skillName, {
+        const installOptions = {
           global: options.global,
           environments: options.env,
-        });
+        };
+
+        if (options.builtIn) {
+          if (registryRepo || skillName) {
+            ui.warning('Ignoring registry and skill arguments because --built-in installs the curated AI DevKit set.');
+          }
+
+          for (const builtInSkill of BUILTIN_SKILL_NAMES) {
+            await skillManager.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions);
+          }
+
+          return;
+        }
+
+        if (!registryRepo) {
+          ui.error('Missing registry. Use: ai-devkit skill add <registry>/<repo> [skill-name] or ai-devkit skill add --built-in');
+          process.exit(1);
+          return;
+        }
+
+        await skillManager.addSkill(registryRepo, skillName, installOptions);
       } catch (error: unknown) {
         const message = getErrorMessage(error);
         if (message === 'Skill selection cancelled.') {

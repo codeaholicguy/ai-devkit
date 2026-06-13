@@ -77,6 +77,41 @@ describe('skill command', () => {
     expect(ui.error).not.toHaveBeenCalled();
   });
 
+  it('installs all built-in skills with skill add --built-in', async () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add', '--built-in']);
+
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'agent-communication', {
+      global: undefined,
+      environments: undefined,
+    });
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-worktree', {
+      global: undefined,
+      environments: undefined,
+    });
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-requirements', {
+      global: undefined,
+      environments: undefined,
+    });
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-review', {
+      global: undefined,
+      environments: undefined,
+    });
+  });
+
+  it('exits when skill add has neither registry nor --built-in', async () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add']);
+
+    expect(ui.error).toHaveBeenCalledWith('Missing registry. Use: ai-devkit skill add <registry>/<repo> [skill-name] or ai-devkit skill add --built-in');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockAddSkill).not.toHaveBeenCalled();
+  });
+
   it('registers the add command with an optional skill-name argument', () => {
     const program = new Command();
     registerSkillCommand(program);
@@ -84,7 +119,7 @@ describe('skill command', () => {
     const skillCommand = program.commands.find(command => command.name() === 'skill');
     const addCommand = skillCommand?.commands.find(command => command.name() === 'add');
 
-    expect(addCommand?.usage()).toContain('<registry-repo>');
+    expect(addCommand?.usage()).toContain('[registry-repo]');
     expect(addCommand?.usage()).toContain('[skill-name]');
   });
 });

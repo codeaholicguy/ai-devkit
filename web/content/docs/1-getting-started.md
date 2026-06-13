@@ -56,13 +56,13 @@ ai-devkit init
 
 You'll be prompted to select which AI environments you use (Cursor, Claude Code, etc.). AI DevKit will then:
 
-1. **Create workflow docs** — A `docs/ai/` directory for requirements, design, planning, implementation, and testing
+1. **Create workflow docs** — A configured AI docs directory, `docs/ai/` by default, for requirements, design, planning, implementation, and testing
 2. **Set up AI environment files** — Configuration, skills, and MCP servers where supported
 3. **Save your preferences** — Stored in `.ai-devkit.json` for future updates
 
 ## Project Structure
 
-After initialization, you'll have workflow docs your agent can use as durable context:
+After initialization, you'll have workflow docs your agent can use as durable context. The default path is `docs/ai/`; projects can customize it in `.ai-devkit.json`.
 
 ```
 docs/ai/
@@ -87,7 +87,8 @@ Terminal commands still start with `ai-devkit`; skills are used by the agent ins
 
 | Skill | Purpose |
 |---------|---------|
-| `dev-lifecycle` | Run requirements, design, planning, implementation, testing, and review |
+| `dev-lifecycle` | Orchestrate worktree setup, requirements, design, planning, implementation, testing, and review |
+| `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, `dev-review` | Run focused lifecycle phases directly |
 | `tdd` | Add or change behavior test-first |
 | `verify` | Require fresh command output before completion claims |
 | `structured-debug` | Debug issues with reproduction, hypotheses, fixes, and verification |

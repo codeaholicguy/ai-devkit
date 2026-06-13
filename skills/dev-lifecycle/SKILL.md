@@ -1,106 +1,93 @@
 ---
 name: dev-lifecycle
-description: AI DevKit · Structured SDLC workflow with 8 phases — requirements, design review, planning, implementation, testing, and code review. Use when the user wants to build a feature end-to-end, or run any individual phase (new requirement, review requirements, review design, execute plan, update planning, check implementation, write tests, code review).
+description: AI DevKit · Orchestrator for structured SDLC phase skills. Use when the user wants to run the full lifecycle or choose the next phase across requirements, design, planning, implementation, testing, and review.
 ---
 
 # Dev Lifecycle
 
-Sequential phases producing docs in `docs/ai/`. Flow: 1→2→3→4→(5 after each task)→6→7→8.
+Coordinate the phase-specific AI DevKit skills instead of running phase details directly.
 
-## Early-Phase Clarification Contract
+Required phase skills:
 
-For Phases 1-3, converge on shared understanding before docs or implementation momentum:
+- `dev-worktree` for feature workspace setup and resume.
+- `dev-requirements` for phases 1-2: new requirement and requirements review.
+- `dev-design` for phase 3: design review.
+- `dev-planning` for phases 4 and 6: initial task planning and updates after implementation tasks.
+- `dev-implementation` for phases 5 and 7: execute plan and check implementation.
+- `dev-testing` for phase 8: write tests and verify coverage.
+- `dev-review` for phase 9: final code review.
 
-1. List every material product, UX, architecture, scope, validation, rollout, contradiction, trade-off, or open question from the request, memory, and existing docs.
-2. Ask until each item is answered, explicitly deferred, or accepted by the user as a named assumption. Do not silently infer material decisions.
-3. Ask one decision at a time; include why it matters, 2-3 viable options when useful, and your recommended answer with brief rationale.
-4. Do not create, update, approve, or transition past requirements/design/planning while material open questions remain.
-5. Restate the shared understanding before updating docs or suggesting the next phase.
+Supporting skills:
 
-## Prerequisite
+- `memory` for reusable project knowledge during clarification.
+- `tdd` for implementation tasks.
+- `verify` before completing implementation, implementation checks, testing claims, and review readiness.
 
-Before starting any phase, run `npx ai-devkit@latest lint` to verify the base `docs/ai/` structure exists and is valid.
+## Startup Validation
 
-If working on a specific feature, also run `npx ai-devkit@latest lint --feature <name>` to validate feature-scoped docs.
+At the beginning of every `dev-lifecycle` run:
 
-If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes` (non-interactive — required when running inside an agent so init does not block on prompts), then rerun lint. Do not proceed until checks pass.
+1. Validate that all required phase skills and supporting skills are available in the active skill list or installed skill directories.
+2. If any required skill is missing, run `npx ai-devkit skill add --built-in` to install all AI DevKit built-in skills. Then re-check availability before continuing.
+3. If installation fails or a required skill is still missing, stop and report the missing skill names and command output summary. Do not run a phase without its skill.
+4. Run `npx ai-devkit@latest lint` to verify the configured AI docs structure.
+5. If working on a specific feature, run `npx ai-devkit@latest lint --feature <name>`.
+6. If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes`, then rerun lint.
 
-For a **new feature start** (Phase 1 or `/new-requirement`), apply the shared worktree setup in [references/worktree-setup.md](references/worktree-setup.md) before phase work. This setup is worktree-first by default and includes explicit no-worktree fallback, context verification, and dependency bootstrap.
+## Plan Before Execution
 
-## Phases
+Before executing any phase:
 
-| # | Phase | Reference | When |
-|---|-------|-----------|------|
-| 1 | New Requirement | [references/new-requirement.md](references/new-requirement.md) | User wants to add a feature |
-| 2 | Review Requirements | [references/review-requirements.md](references/review-requirements.md) | Requirements doc needs validation |
-| 3 | Review Design | [references/review-design.md](references/review-design.md) | Design doc needs validation against requirements |
-| 4 | Execute Plan | [references/execute-plan.md](references/execute-plan.md) | Ready to implement tasks from planning doc |
-| 5 | Update Planning | [references/update-planning.md](references/update-planning.md) | Auto-trigger after completing any task in Phase 4 |
-| 6 | Check Implementation | [references/check-implementation.md](references/check-implementation.md) | Verify code matches design |
-| 7 | Write Tests | [references/writing-test.md](references/writing-test.md) | Add test coverage (100% target) |
-| 8 | Code Review | [references/code-review.md](references/code-review.md) | Final pre-push review |
+1. Identify the target feature, current docs state, branch/worktree context, and likely next phase.
+2. Propose a concise plan that names the phase skill to use, the docs/files to read, commands to run, expected edits, and verification evidence.
+3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution.
+4. After approval, load and follow only the selected phase skill plus any explicitly required supporting skills.
 
-Load only the reference file for the current phase. For Phase 1, also load [references/worktree-setup.md](references/worktree-setup.md).
+## Phase Routing
+
+| Phase | Route to | When |
+|---|---|---|
+| Setup. Workspace | `dev-worktree` | Starting or resuming feature work |
+| 1. New Requirement | `dev-requirements` | User wants to add a feature or start `/new-requirement` |
+| 2. Review Requirements | `dev-requirements` | Requirements doc needs validation |
+| 3. Review Design | `dev-design` | Design doc needs validation against requirements |
+| 4. Create Initial Plan | `dev-planning` | Requirements, design, and testing docs are ready for task breakdown |
+| 5. Execute Plan | `dev-implementation` | Ready to implement tasks from planning doc |
+| 6. Update Planning | `dev-planning` | Auto-trigger after completing any implementation task |
+| 7. Check Implementation | `dev-implementation` | Verify code matches design and docs |
+| 8. Write Tests | `dev-testing` | Add or verify test coverage |
+| 9. Code Review | `dev-review` | Final pre-push review |
+
+Sequential flow: setup -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 after each completed task -> 7 -> 8 -> 9.
 
 ## Resuming Work
 
 If the user wants to continue work on an existing feature:
 
-1. Check branch and worktree state before phase work:
-   - Branch check: `git branch --show-current`
-   - Worktree check: `git worktree list`
-2. Determine target context for `<feature-name>` (all `.worktrees/` paths are relative to the **project root** — the directory containing `.git`):
-   - Prefer worktree `<project-root>/.worktrees/feature-<name>` when it exists.
-   - Otherwise use branch `feature-<name>` in the current repository.
-3. Before switching, explicitly confirm target with the user (branch or worktree path).
-4. After user confirmation, switch to the confirmed context first:
-   - Worktree: run phase commands with `workdir=<project-root>/.worktrees/feature-<name>`.
-   - Branch: checkout `feature-<name>` in current repo.
-5. After switching, run `npx ai-devkit@latest lint --feature <feature-name>` in the active branch/worktree context.
-6. Then run the phase detector using the installed skill directory (same resolution rule as reference docs), not a workspace-relative `skills/...` path:
+1. Use `dev-worktree` to identify and confirm the target branch/worktree.
+2. Run `npx ai-devkit@latest lint --feature <feature-name>` in the active context.
+3. Run the phase detector from the installed `dev-lifecycle` skill directory:
    - Resolve `<skill-dir>` as the directory containing this `SKILL.md`.
-   - Run `<skill-dir>/scripts/check-status.sh <feature-name>` (or `cd <skill-dir> && scripts/check-status.sh <feature-name>`).
-   Use the suggested phase from this script based on doc state and planning progress.
+   - Run `<skill-dir>/scripts/check-status.sh <feature-name>`.
+   - Use the suggested phase when proposing the execution plan.
 
 ## Backward Transitions
 
-Not every phase moves forward. When a phase reveals problems, loop back:
+Not every phase moves forward. When a phase reveals problems, route back:
 
-- Phase 2 finds fundamental gaps → back to **Phase 1** to revise requirements
-- Phase 3 finds requirements gaps → back to **Phase 2**; design doesn't fit → revise design in place
-- Phase 6 finds major deviations → back to **Phase 3** (design wrong) or **Phase 4** (implementation wrong)
-- Phase 7 tests reveal design flaws → back to **Phase 3**
-- Phase 8 finds blocking issues → back to **Phase 4** (fix code) or **Phase 7** (add tests)
-
-## Doc Convention
-
-New features: run `npx ai-devkit@latest docs init-feature <name>` and fill the returned paths. The command uses configured phases and creates `docs/ai/{phase}/YYYY-MM-DD-feature-{name}.md` with the current local date.
-
-Existing features: use the latest matching `docs/ai/{phase}/YYYY-MM-DD-feature-{name}.md`. If none exists, use `docs/ai/{phase}/feature-{name}.md`. Keep `<name>` aligned with branch/worktree `feature-<name>`.
-
-Older CLI fallback: copy each configured phase `README.md` to `docs/ai/{phase}/feature-{name}.md`, preserving frontmatter.
-
-Phases: `requirements/`, `design/`, `planning/`, `implementation/`, `testing/`.
-
-## Memory Integration
-
-In phases with clarification questions (typically 1-3), run these CLI commands (see the `memory` skill for full options):
-
-1. **Before asking** — search first, only ask about uncovered gaps: `npx ai-devkit@latest memory search --query "<topic>"`
-2. **After clarification** — store for future sessions: `npx ai-devkit@latest memory store --title "<title>" --content "<insight>" --tags "<tags>"`
-
-## Red Flags and Rationalizations
-
-| Rationalization | Why It's Wrong | Do Instead |
-|---|---|---|
-| "Skip to coding, requirements are clear" | Ambiguity hides in assumptions | Run Phase 1-3 first |
-| "Design hasn't changed, skip Phase 6" | Code drifts from design during implementation | Check implementation against design |
-| "Tests slow us down, ship first" | Bugs in production are slower | Write tests in Phase 4 and 7 |
-| "Just a small change, no review needed" | Small changes cause big outages | Phase 8 applies to all changes |
+- Requirements review finds fundamental gaps: return to `dev-requirements` Phase 1.
+- Design review finds requirements gaps: return to `dev-requirements` Phase 2.
+- Design review finds design flaws: stay in `dev-design` and revise design.
+- Implementation check finds major deviations: return to `dev-design` if design is wrong, or `dev-implementation` if code is wrong.
+- Testing reveals design flaws: return to `dev-design`.
+- Review finds blocking issues: return to `dev-implementation` or `dev-testing`.
 
 ## Rules
 
-- Read existing `docs/ai/` before changes. Keep diffs minimal.
-- Use mermaid diagrams for architecture visuals.
-- After each phase, summarize output and suggest next phase.
-- Apply the `verify` skill before completing Phase 4 tasks, Phase 6 checks, Phase 7 coverage claims, and Phase 8 review items. No phase transition without fresh evidence.
+- Use `npx ai-devkit@latest lint` and `npx ai-devkit@latest lint --feature <name>` to discover and validate the configured docs directory. Do not assume `docs/ai`; it is only the default.
+- Read existing configured AI docs before changes. Keep diffs minimal.
+- Keep feature names aligned with branch/worktree `feature-<name>`.
+- New feature docs come from `npx ai-devkit@latest docs init-feature <name>`. Use the paths returned by the command as authoritative.
+- Existing feature docs are the paths reported or validated by `npx ai-devkit@latest lint --feature <name>`. If you must infer manually, first resolve the configured docs directory from `.ai-devkit.json` `paths.docs`, falling back to `docs/ai`.
+- After each phase, summarize output and suggest the next phase.
+- Do not claim completion without fresh verification evidence.

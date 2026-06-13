@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Worktree"
+  short_description: "Set up and resume isolated feature worktrees"
+  default_prompt: "Use $dev-worktree to create, resume, or verify the feature workspace before lifecycle work."

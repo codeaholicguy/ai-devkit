@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Planning"
+  short_description: "Create and reconcile feature task plans"
+  default_prompt: "Use $dev-planning to create the implementation plan or update planning docs after implementation work."

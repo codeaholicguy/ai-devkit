@@ -25,8 +25,9 @@ AI DevKit ships with a core set of skills in its default registry:
 |---|---|
 | `agent-orchestration` | Coordinate running AI agents and manage multi-agent workflows |
 | `document-code` | Document code entry points with structured analysis and dependency mapping |
-| `dev-lifecycle` | Run a structured SDLC workflow from requirements to code review |
-| `debug` | Follow a disciplined debugging and RCA process before implementing fixes |
+| `dev-lifecycle` | Orchestrate the SDLC workflow and route to phase skills |
+| `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, `dev-review` | Run focused SDLC phases directly |
+| `structured-debug` | Follow a disciplined debugging and RCA process before implementing fixes |
 | `memory` | Use AI DevKit memory operations via CLI patterns when needed |
 | `simplify-implementation` | Simplify and refactor complex code paths for maintainability |
 | `tdd` | Apply test-driven development by writing a failing test before production code |
@@ -107,18 +108,19 @@ Install one or more skills from a registry.
 **Syntax:**
 
 ```bash
-ai-devkit skill add <registry-repo> [skill-name]
+ai-devkit skill add [registry-repo] [skill-name]
 ```
 
 **Parameters:**
 
-- `<registry-repo>`: The registry identifier (e.g., `anthropics/skills`)
+- `[registry-repo]`: The registry identifier (e.g., `anthropics/skills`). Omit only when using `--built-in`.
 - `[skill-name]`: Optional skill name to install directly (e.g., `frontend-design`)
 
 **Options:**
 
 | Option | Description |
 |--------|-------------|
+| `--built-in` | Install all AI DevKit built-in skills |
 | `-g, --global` | Install the skill into configured global skill paths in your home directory |
 | `-e, --env <environment...>` | Limit a global install to specific environments; only valid with `--global` |
 
@@ -131,6 +133,9 @@ ai-devkit skill add anthropics/skills frontend-design
 # Browse and select one or more skills interactively
 ai-devkit skill add anthropics/skills
 
+# Install all AI DevKit built-in skills
+ai-devkit skill add --built-in
+
 # Install globally for all configured global environments
 ai-devkit skill add anthropics/skills frontend-design --global
 
@@ -141,7 +146,7 @@ ai-devkit skill add anthropics/skills frontend-design --global --env claude code
 This command will:
 
 1. Validate the registry identifier
-2. Fetch the merged registry list
+2. Fetch the merged registry list, or use the built-in AI DevKit registry when `--built-in` is passed
 3. Clone or refresh the cached registry in `~/.ai-devkit/skills/`
 4. Resolve the skill name directly, or prompt you to select one or more skills in interactive terminals
 5. Install the skill into the selected project or global environment paths

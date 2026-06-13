@@ -13,6 +13,13 @@ export const BUILTIN_SKILL_REGISTRY = 'codeaholicguy/ai-devkit';
 export const BUILTIN_SKILL_NAMES = [
   'agent-communication',
   'dev-lifecycle',
+  'dev-worktree',
+  'dev-requirements',
+  'dev-design',
+  'dev-planning',
+  'dev-implementation',
+  'dev-testing',
+  'dev-review',
   'structured-debug',
   'document-code',
   'memory',

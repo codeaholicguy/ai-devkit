@@ -32,6 +32,7 @@ Use the dev-lifecycle skill to build <feature>
 
 | Phase | What You Do |
 |-------|-------------|
+| **Workspace** | Set up or resume the feature worktree |
 | **Requirements** | Define what you're building and why |
 | **Design** | Create architecture and technical specs |
 | **Planning** | Break work into actionable tasks |
@@ -40,6 +41,8 @@ Use the dev-lifecycle skill to build <feature>
 | **Review** | Check drift, missing tests, and edge cases before push |
 
 **Documentation created:**
+
+AI DevKit creates these under your configured docs directory. The default is `docs/ai/`.
 
 ```
 docs/ai/
@@ -54,22 +57,22 @@ docs/ai/
 
 ## Using the Dev Lifecycle Skill
 
-Use the `dev-lifecycle` skill to guide you through the entire workflow. The skill suggests the next phase whenever the current phase is complete, so you do not need to remember a separate command vocabulary.
+Use the `dev-lifecycle` skill to guide you through the entire workflow. The skill validates that the phase skills are installed, proposes the next phase plan, and routes execution to the focused skill for that phase.
 
 If you want the full setup, dependencies, and usage guide, see [Dev Lifecycle Skill](/docs/10-dev-lifecycle-skill).
 
 ### Installing the skill
 
-Install the `dev-lifecycle` skill from the AI DevKit registry:
+Install the built-in AI DevKit skills:
 
 ```bash
-ai-devkit skill add codeaholicguy/ai-devkit dev-lifecycle
+ai-devkit skill add --built-in
 ```
 
 or
 
 ```bash
-npx ai-devkit@latest skill add codeaholicguy/ai-devkit dev-lifecycle
+npx ai-devkit@latest skill add --built-in
 ```
 
 Once installed, the skill is immediately available to your AI agent. For more details on managing skills, see [Skills](/docs/7-skills).
@@ -80,11 +83,12 @@ Tell your AI assistant to use the skill and describe what you want to build. For
 
 > "Use dev-lifecycle skill to build an authentication feature with Google OAuth and email login"
 
-The skill takes over from there:
+The orchestrator takes over from there:
 
 1. It walks you through **requirements gathering** — asking clarifying questions about your feature
-2. Once requirements are clear, it automatically moves to **requirements review**
-3. Then proceeds to **design review**, **planning**, **implementation**, **testing**, and **code review**
+2. It proposes a phase plan before making changes
+3. Once requirements are clear, it routes to **requirements review**
+4. Then proceeds through **design review**, **planning**, **implementation**, **testing**, and **code review**
 
 You do not need separate workflow prompt files — the skill handles phase transitions for you.
 
@@ -105,7 +109,8 @@ If you started a feature in a previous session, the skill can pick up where you 
 
 > **When to use lifecycle vs. focused skills:**
 > - Use the `dev-lifecycle` skill when starting a new feature or continuing end-to-end work — it handles the flow for you
-> - Use focused skills such as `tdd`, `verify`, or `structured-debug` when you only need one specific behavior
+> - Use focused phase skills such as `dev-worktree`, `dev-requirements`, `dev-design`, or `dev-review` when you only need one lifecycle phase
+> - Use focused support skills such as `tdd`, `verify`, or `structured-debug` when you only need one specific behavior
 
 ## Focused Workflow Requests
 
