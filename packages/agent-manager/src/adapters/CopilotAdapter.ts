@@ -19,9 +19,10 @@ import type {
     SessionSummary,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { enrichProcesses, listAgentProcesses } from '../utils/process.js';
+import { enrichProcesses, findWrapperProcess, findWrapperProcessPids, listAgentProcesses } from '../utils/process.js';
 import { generateAgentName } from '../utils/matching.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
+import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
 
 interface CopilotEventEntry {
     type?: string;
@@ -107,10 +108,12 @@ export class CopilotAdapter implements AgentAdapter {
     ]);
 
     private sessionStateDir: string;
+    private registry: AgentRegistry;
 
-    constructor() {
+    constructor(registry: AgentRegistry = AgentRegistry.default()) {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
         this.sessionStateDir = path.join(homeDir, '.copilot', 'session-state');
+        this.registry = registry;
     }
 
     canHandle(processInfo: ProcessInfo): boolean {
@@ -122,6 +125,7 @@ export class CopilotAdapter implements AgentAdapter {
         if (processes.length === 0) return [];
 
         const processByPid = new Map(processes.map((proc) => [proc.pid, proc]));
+        const registryEntriesByPid = new Map(this.registry.list().map((entry) => [entry.pid, entry]));
         const matchedPids = new Set<number>();
         const matchedProcesses: ProcessInfo[] = [];
         const agents: AgentInfo[] = [];
@@ -133,52 +137,36 @@ export class CopilotAdapter implements AgentAdapter {
             const session = this.readSessionDir(lock.sessionDir, lock.sessionId);
             if (!session) continue;
 
-            agents.push(this.mapSessionToAgent(session, proc));
+            const agent = this.mapSessionToAgent(session, proc);
+            this.applyWrapperRegistryName(agent, proc, processes, registryEntriesByPid);
+            agents.push(agent);
             matchedPids.add(proc.pid);
             matchedProcesses.push(proc);
         }
 
-        const wrapperPids = this.findWrapperProcessPids(processes, matchedProcesses);
+        const wrapperPids = findWrapperProcessPids(processes, matchedProcesses);
         for (const proc of processes) {
             if (!matchedPids.has(proc.pid) && !wrapperPids.has(proc.pid)) {
-                agents.push(this.mapProcessOnlyAgent(proc));
+                const agent = this.mapProcessOnlyAgent(proc);
+                this.applyWrapperRegistryName(agent, proc, processes, registryEntriesByPid);
+                agents.push(agent);
             }
         }
 
         return agents;
     }
 
-    private isDuplicateProcess(proc: ProcessInfo, matchedProcesses: ProcessInfo[]): boolean {
-        return matchedProcesses.some((matched) => {
-            if (proc.pid === matched.pid) return true;
-
-            const sameTty = proc.tty !== '' && proc.tty !== '?' && proc.tty === matched.tty;
-            const sameCwd = proc.cwd !== '' && proc.cwd === matched.cwd;
-
-            return sameTty && (sameCwd || proc.cwd === '' || matched.cwd === '');
-        });
-    }
-
-    private findWrapperProcessPids(processes: ProcessInfo[], matchedProcesses: ProcessInfo[]): Set<number> {
-        const wrappers = new Set<number>();
-
-        for (const proc of processes) {
-            for (const child of processes) {
-                if (proc.pid === child.pid) continue;
-                if (child.ppid !== proc.pid) continue;
-                if (!this.isDuplicateProcess(proc, [child])) continue;
-
-                wrappers.add(proc.pid);
-            }
+    private applyWrapperRegistryName(
+        agent: AgentInfo,
+        processInfo: ProcessInfo,
+        processes: ProcessInfo[],
+        registryEntriesByPid: Map<number, RegistryEntry>,
+    ): void {
+        const wrapper = findWrapperProcess(processes, processInfo);
+        const wrapperEntry = wrapper ? registryEntriesByPid.get(wrapper.pid) : undefined;
+        if (wrapperEntry?.type === this.type) {
+            agent.name = wrapperEntry.name;
         }
-
-        for (const proc of processes) {
-            if (this.isDuplicateProcess(proc, matchedProcesses)) {
-                wrappers.add(proc.pid);
-            }
-        }
-
-        return wrappers;
     }
 
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {

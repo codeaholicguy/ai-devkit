@@ -12,11 +12,16 @@ import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
 import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
 import { generateAgentName } from '../../utils/matching.js';
+import { AgentRegistry } from '../../utils/AgentRegistry.js';
 
-vi.mock('../../utils/process.js', () => ({
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-}));
+vi.mock('../../utils/process.js', async (importOriginal) => {
+    const actual = await importOriginal() as typeof import('../../utils/process.js');
+    return {
+        ...actual,
+        listAgentProcesses: vi.fn(),
+        enrichProcesses: vi.fn(),
+    };
+});
 
 vi.mock('../../utils/matching.js', () => ({
     generateAgentName: vi.fn(),
@@ -238,6 +243,37 @@ describe('CopilotAdapter', () => {
             });
         });
 
+        it('carries the managed wrapper name to a process-only child before the session lock exists', async () => {
+            const registry = new AgentRegistry(path.join(tmpDir, 'agents.json'));
+            adapter = new CopilotAdapter(registry);
+            (adapter as any).sessionStateDir = sessionStateDir;
+            const processes: ProcessInfo[] = [
+                { pid: 86800, command: 'copilot', cwd: '/repo', tty: 'ttys001', ppid: 84174 },
+                { pid: 86810, command: '/custom/install/copilot', cwd: '/repo', tty: 'ttys001', ppid: 86800 },
+            ];
+            registry.register({
+                name: 'copilot-started',
+                type: 'copilot',
+                pid: 86800,
+                tmuxSession: 'copilot-started',
+                cwd: '/repo',
+                startedAt: '2026-06-13T19:15:16.211Z',
+                sessionId: 'pid-86800',
+                sessionFilePath: '',
+            });
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                name: 'copilot-started',
+                pid: 86810,
+                sessionId: 'pid-86810',
+            });
+        });
+
         it('does not add duplicate process-only agent for wrapper process in the same terminal', async () => {
             const processes: ProcessInfo[] = [
                 { pid: 14095, command: 'copilot', cwd: '/repo', tty: 'ttys001' },
@@ -257,6 +293,44 @@ describe('CopilotAdapter', () => {
 
             expect(agents).toHaveLength(1);
             expect(agents[0]).toMatchObject({
+                pid: 14096,
+                sessionId: 'sess-wrapper',
+            });
+        });
+
+        it('carries the managed wrapper name to a lock-backed child process', async () => {
+            const registry = new AgentRegistry(path.join(tmpDir, 'agents.json'));
+            adapter = new CopilotAdapter(registry);
+            (adapter as any).sessionStateDir = sessionStateDir;
+            const processes: ProcessInfo[] = [
+                { pid: 14095, command: 'copilot', cwd: '/repo', tty: 'ttys001', ppid: 84174 },
+                { pid: 14096, command: '/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot', cwd: '/repo', tty: 'ttys001', ppid: 14095 },
+            ];
+            registry.register({
+                name: 'copilot-started',
+                type: 'copilot',
+                pid: 14095,
+                tmuxSession: 'copilot-started',
+                cwd: '/repo',
+                startedAt: '2026-06-13T19:15:16.211Z',
+                sessionId: 'pid-14095',
+                sessionFilePath: '',
+            });
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+            writeSession('sess-wrapper', {
+                lockPid: 14096,
+                events: [
+                    sessionStart('sess-wrapper', '/repo', '2026-06-09T09:50:00.000Z'),
+                    { type: 'user.message', data: { content: 'hello' }, timestamp: new Date().toISOString() },
+                ],
+            });
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                name: 'copilot-started',
                 pid: 14096,
                 sessionId: 'sess-wrapper',
             });

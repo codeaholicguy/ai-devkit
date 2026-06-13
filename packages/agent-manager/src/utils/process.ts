@@ -179,6 +179,59 @@ export function enrichProcesses(processes: ProcessInfo[]): ProcessInfo[] {
     return processes;
 }
 
+function isSameTerminalProcess(proc: ProcessInfo, matched: ProcessInfo): boolean {
+    const sameTty = proc.tty !== '' && proc.tty !== '?' && proc.tty === matched.tty;
+    const sameCwd = proc.cwd !== '' && proc.cwd === matched.cwd;
+
+    return sameTty && (sameCwd || proc.cwd === '' || matched.cwd === '');
+}
+
+function matchesProcessIdentity(proc: ProcessInfo, matched: ProcessInfo): boolean {
+    return proc.pid === matched.pid || isSameTerminalProcess(proc, matched);
+}
+
+export function findWrapperProcess(
+    processes: ProcessInfo[],
+    child: ProcessInfo,
+): ProcessInfo | undefined {
+    return processes.find((proc) => (
+        proc.pid !== child.pid &&
+        child.ppid === proc.pid &&
+        matchesProcessIdentity(proc, child)
+    ));
+}
+
+/**
+ * Find parent wrapper processes that should not be reported as separate agents.
+ *
+ * A process is considered a wrapper when it is the parent of another candidate
+ * agent process in the same terminal/worktree, or when it points at the same
+ * terminal/worktree as an already session-matched process.
+ */
+export function findWrapperProcessPids(
+    processes: ProcessInfo[],
+    matchedProcesses: ProcessInfo[] = [],
+): Set<number> {
+    const wrappers = new Set<number>();
+
+    for (const child of processes) {
+        const wrapper = findWrapperProcess(processes, child);
+        if (wrapper) {
+            wrappers.add(wrapper.pid);
+        }
+    }
+
+    for (const proc of processes) {
+        if (matchedProcesses.some((matched) => (
+            proc.pid !== matched.pid && isSameTerminalProcess(proc, matched)
+        ))) {
+            wrappers.add(proc.pid);
+        }
+    }
+
+    return wrappers;
+}
+
 /**
  * Get the TTY device for a specific process
  */

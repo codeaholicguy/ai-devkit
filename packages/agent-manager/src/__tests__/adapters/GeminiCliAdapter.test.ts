@@ -15,10 +15,14 @@ import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
 import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
 import * as crypto from 'crypto';
 
-vi.mock('../../utils/process.js', () => ({
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-}));
+vi.mock('../../utils/process.js', async (importOriginal) => {
+    const actual = await importOriginal() as typeof import('../../utils/process.js');
+    return {
+        ...actual,
+        listAgentProcesses: vi.fn(),
+        enrichProcesses: vi.fn(),
+    };
+});
 
 vi.mock('../../utils/matching.js', () => ({
     matchProcessesToSessions: vi.fn(),
@@ -155,6 +159,77 @@ describe('GeminiCliAdapter', () => {
                 projectPath: '/repo',
                 status: AgentStatus.RUNNING,
                 sessionId: 'pid-1234',
+            });
+        });
+
+        it('should suppress Gemini wrapper process-only agents before a session file exists', async () => {
+            const wrapperProc: ProcessInfo = {
+                pid: 20452,
+                ppid: 17530,
+                command: '/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini',
+                cwd: '/repo',
+                tty: 'ttys007',
+                startTime: new Date('2026-06-13T08:25:21Z'),
+            };
+            const childProc: ProcessInfo = {
+                pid: 21373,
+                ppid: 20452,
+                command: '/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini',
+                cwd: '/repo',
+                tty: 'ttys007',
+                startTime: new Date('2026-06-13T08:25:26Z'),
+            };
+            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                pid: 21373,
+                sessionId: 'pid-21373',
+                summary: 'Gemini CLI process running',
+            });
+        });
+
+        it('should carry the managed wrapper name to a process-only child before a session file exists', async () => {
+            const regPath = path.join(tmpHome, 'agents.json');
+            const registry = new AgentRegistry(regPath);
+            const namedAdapter = new GeminiCliAdapter(registry);
+            const wrapperProc: ProcessInfo = {
+                pid: 35792,
+                ppid: 33068,
+                command: '/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini',
+                cwd: '/repo',
+                tty: 'ttys002',
+                startTime: new Date('2026-06-13T19:15:16Z'),
+            };
+            const childProc: ProcessInfo = {
+                pid: 36514,
+                ppid: 35792,
+                command: '/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini',
+                cwd: '/repo',
+                tty: 'ttys002',
+                startTime: new Date('2026-06-13T19:15:18Z'),
+            };
+            registry.register({
+                name: 'cli-mqcqj469',
+                type: 'gemini_cli',
+                pid: wrapperProc.pid,
+                tmuxSession: 'cli-mqcqj469',
+                cwd: wrapperProc.cwd,
+                startedAt: '2026-06-13T19:15:16.211Z',
+                sessionId: `pid-${wrapperProc.pid}`,
+                sessionFilePath: '',
+            });
+            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+
+            const agents = await namedAdapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                name: 'cli-mqcqj469',
+                pid: childProc.pid,
+                sessionId: `pid-${childProc.pid}`,
             });
         });
 
@@ -432,6 +507,66 @@ describe('GeminiCliAdapter', () => {
             const agents = await cachedAdapter.detectAgents();
 
             expect(agents[0].sessionId).toBe('pid-100');
+        });
+
+        it('carries the managed wrapper name to the detected child process', async () => {
+            const wrapperProc: ProcessInfo = {
+                pid: 20339,
+                ppid: 17570,
+                command: '/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini',
+                cwd: '/repo-a',
+                tty: 'ttys002',
+                startTime: new Date('2026-06-13T19:00:53Z'),
+            };
+            const childProc: ProcessInfo = {
+                pid: 21038,
+                ppid: 20339,
+                command: '/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini',
+                cwd: '/repo-a',
+                tty: 'ttys002',
+                startTime: new Date('2026-06-13T19:00:57Z'),
+            };
+            const now = new Date().toISOString();
+            sessionFilePath = writeSession(tmpHome, 'cli-2', 'session-2026-06-13T19-00-s-cached', {
+                sessionId: 's-cached',
+                projectHash: hashProjectRoot('/repo-a'),
+                startTime: now,
+                lastUpdated: now,
+                directories: ['/repo-a'],
+                messages: [
+                    { id: 'm1', timestamp: now, type: 'user', content: 'Hello from child process' },
+                ],
+            });
+            registerEntry({
+                name: 'cli-mqcq0mg5',
+                pid: wrapperProc.pid,
+                tmuxSession: 'cli-mqcq0mg5',
+                sessionId: 's-cached',
+                sessionFilePath,
+            });
+            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+            mockedMatchProcessesToSessions.mockReturnValue([
+                {
+                    process: childProc,
+                    session: {
+                        sessionId: 's-cached',
+                        filePath: sessionFilePath,
+                        projectDir: path.dirname(sessionFilePath),
+                        birthtimeMs: Date.now(),
+                        resolvedCwd: '/repo-a',
+                    },
+                    deltaMs: 0,
+                },
+            ]);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                name: 'cli-mqcq0mg5',
+                pid: childProc.pid,
+                sessionId: 's-cached',
+            });
         });
     });
 

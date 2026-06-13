@@ -22,11 +22,11 @@ import type {
     ListSessionsOptions,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { listAgentProcesses, enrichProcesses, findWrapperProcess, findWrapperProcessPids } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
-import { AgentRegistry } from '../utils/AgentRegistry.js';
+import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
 
 /**
  * A single Gemini CLI message content part. Mirrors the `{text?: string}`
@@ -117,38 +117,68 @@ export class GeminiCliAdapter implements AgentAdapter {
         const processes = nodeProcesses.filter((proc) => this.isGeminiExecutable(proc.command));
         if (processes.length === 0) return [];
 
-        const { cachedAgents, remaining } = this.tryRegistryCache(processes);
+        const wrapperPids = findWrapperProcessPids(processes);
+        const { cachedAgents, remaining } = this.tryRegistryCache(processes, wrapperPids);
         if (remaining.length === 0) return this.deduplicateSessionAgents(cachedAgents);
 
-        const { sessions, contentCache } = this.discoverSessions(remaining);
+        const candidateProcesses = remaining.filter((proc) => !wrapperPids.has(proc.pid));
+        const registryEntriesByPid = new Map(this.registry.list().map((entry) => [entry.pid, entry]));
+
+        const { sessions, contentCache } = this.discoverSessions(candidateProcesses);
         if (sessions.length === 0) {
+            const processOnlyAgents = candidateProcesses.map((proc) => {
+                const agent = this.mapProcessOnlyAgent(proc);
+                this.applyWrapperRegistryName(agent, proc, processes, registryEntriesByPid);
+                return agent;
+            });
+
             return this.deduplicateSessionAgents([
                 ...cachedAgents,
-                ...remaining.map((p) => this.mapProcessOnlyAgent(p)),
+                ...processOnlyAgents,
             ]);
         }
 
-        const matches = matchProcessesToSessions(remaining, sessions);
+        const matches = matchProcessesToSessions(candidateProcesses, sessions);
         const matchedPids = new Set(matches.map((m) => m.process.pid));
+        const matchedProcesses: ProcessInfo[] = [];
         const agents: AgentInfo[] = [];
 
         for (const match of matches) {
             const cachedContent = contentCache.get(match.session.filePath);
             const sessionData = this.parseSession(cachedContent, match.session.filePath);
             if (sessionData) {
-                agents.push(this.mapSessionToAgent(sessionData, match.process, match.session.filePath));
+                const agent = this.mapSessionToAgent(sessionData, match.process, match.session.filePath);
+                this.applyWrapperRegistryName(agent, match.process, processes, registryEntriesByPid);
+                agents.push(agent);
+                matchedProcesses.push(match.process);
             } else {
                 matchedPids.delete(match.process.pid);
             }
         }
 
-        for (const proc of remaining) {
-            if (!matchedPids.has(proc.pid)) {
-                agents.push(this.mapProcessOnlyAgent(proc));
+        const matchedWrapperPids = findWrapperProcessPids(candidateProcesses, matchedProcesses);
+        for (const proc of candidateProcesses) {
+            if (!matchedPids.has(proc.pid) && !matchedWrapperPids.has(proc.pid)) {
+                const agent = this.mapProcessOnlyAgent(proc);
+                this.applyWrapperRegistryName(agent, proc, processes, registryEntriesByPid);
+                agents.push(agent);
             }
         }
 
         return this.deduplicateSessionAgents([...cachedAgents, ...agents]);
+    }
+
+    private applyWrapperRegistryName(
+        agent: AgentInfo,
+        processInfo: ProcessInfo,
+        processes: ProcessInfo[],
+        registryEntriesByPid: Map<number, RegistryEntry>,
+    ): void {
+        const wrapper = findWrapperProcess(processes, processInfo);
+        const wrapperEntry = wrapper ? registryEntriesByPid.get(wrapper.pid) : undefined;
+        if (wrapperEntry?.type === this.type) {
+            agent.name = wrapperEntry.name;
+        }
     }
 
     private deduplicateSessionAgents(agents: AgentInfo[]): AgentInfo[] {
@@ -187,7 +217,7 @@ export class GeminiCliAdapter implements AgentAdapter {
         return null;
     }
 
-    private tryRegistryCache(processes: ProcessInfo[]): {
+    private tryRegistryCache(processes: ProcessInfo[], wrapperPids: Set<number>): {
         cachedAgents: AgentInfo[];
         remaining: ProcessInfo[];
     } {
@@ -198,6 +228,7 @@ export class GeminiCliAdapter implements AgentAdapter {
         for (const proc of processes) {
             const entry = byPid.get(proc.pid);
             if (
+                wrapperPids.has(proc.pid) ||
                 !entry ||
                 entry.type !== this.type ||
                 !entry.sessionFilePath ||

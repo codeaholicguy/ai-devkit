@@ -10,6 +10,8 @@ import {
     batchGetProcessCwds,
     batchGetProcessStartTimes,
     enrichProcesses,
+    findWrapperProcess,
+    findWrapperProcessPids,
 } from '../../utils/process.js';
 
 vi.mock('child_process', () => ({
@@ -205,5 +207,21 @@ describe('enrichProcesses', () => {
         const enriched = enrichProcesses(processes);
         expect(enriched[0].cwd).toBe('/projects/app');
         expect(enriched[0].startTime).toBeUndefined();
+    });
+});
+
+describe('wrapper process detection', () => {
+    it('finds the parent wrapper process for a child in the same terminal and cwd', () => {
+        const wrapper = { pid: 100, ppid: 1, command: 'node /bin/gemini', cwd: '/repo', tty: 'ttys001' };
+        const child = { pid: 200, ppid: 100, command: 'node --max-old-space-size=8192 /bin/gemini', cwd: '/repo', tty: 'ttys001' };
+
+        expect(findWrapperProcess([wrapper, child], child)).toBe(wrapper);
+        expect(findWrapperProcessPids([wrapper, child])).toEqual(new Set([100]));
+    });
+
+    it('does not mark a matched child process as its own wrapper', () => {
+        const child = { pid: 200, ppid: 100, command: 'node --max-old-space-size=8192 /bin/gemini', cwd: '/repo', tty: 'ttys001' };
+
+        expect(findWrapperProcessPids([child], [child])).toEqual(new Set());
     });
 });

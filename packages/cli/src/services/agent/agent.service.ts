@@ -131,6 +131,7 @@ export async function waitForAgentResponse(params: WaitForAgentResponseParams): 
 
 export const DEFAULT_PID_POLL_INTERVAL_MS = 500;
 export const DEFAULT_PID_POLL_TIMEOUT_MS = 5_000;
+const REQUIRED_STABLE_PID_POLLS = 5;
 
 export interface StartAgentOptions {
   type: StartableAgentType;
@@ -280,10 +281,23 @@ async function pollForPid(
   timeoutMs: number,
 ): Promise<number | null> {
   const deadline = Date.now() + timeoutMs;
+  let candidatePid: number | null = null;
+  let stablePolls = 0;
+
   while (Date.now() < deadline) {
     const pid = await tmux.findAgentPid(session, matches);
-    if (pid !== null) return pid;
+    if (pid !== null) {
+      if (pid === candidatePid) {
+        stablePolls += 1;
+      } else {
+        candidatePid = pid;
+        stablePolls = 1;
+      }
+
+      if (stablePolls >= REQUIRED_STABLE_PID_POLLS) return pid;
+    }
     await new Promise((r) => setTimeout(r, intervalMs));
   }
+
   return null;
 }

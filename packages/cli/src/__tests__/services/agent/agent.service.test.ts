@@ -654,14 +654,56 @@ describe('startAgent', () => {
     const findAgentPid = vi.fn()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(42)
+      .mockResolvedValueOnce(42)
+      .mockResolvedValueOnce(42)
+      .mockResolvedValueOnce(42)
       .mockResolvedValueOnce(42);
     const tmux = makeTmux({ findAgentPid } as Partial<TmuxManager>);
     const registry = makeRegistry();
 
     const entry = await startAgent(startOpts, { tmux, registry });
 
-    expect(findAgentPid).toHaveBeenCalledTimes(3);
+    expect(findAgentPid).toHaveBeenCalledTimes(7);
     expect(entry.pid).toBe(42);
+  });
+
+  it('waits for the launched process PID to stabilize before registering', async () => {
+    const findAgentPid = vi.fn()
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(200)
+      .mockResolvedValueOnce(200)
+      .mockResolvedValueOnce(200)
+      .mockResolvedValueOnce(200)
+      .mockResolvedValueOnce(200);
+    const tmux = makeTmux({ findAgentPid } as Partial<TmuxManager>);
+    const registry = makeRegistry();
+
+    const entry = await startAgent(startOpts, { tmux, registry });
+
+    expect(findAgentPid).toHaveBeenCalledTimes(8);
+    expect(entry.pid).toBe(200);
+    expect(registry.register).toHaveBeenCalledWith(expect.objectContaining({ pid: 200 }));
+  });
+
+  it('treats an unstabilized PID as a poll timeout', async () => {
+    const findAgentPid = vi.fn()
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(100);
+    const tmux = makeTmux({ findAgentPid } as Partial<TmuxManager>);
+    const registry = makeRegistry();
+
+    const err = await startAgent(
+      { ...startOpts, pollTimeoutMs: 3 },
+      { tmux, registry },
+    ).catch((e) => e);
+
+    expect(err).toBeInstanceOf(AgentPidPollTimeoutError);
+    expect(registry.register).not.toHaveBeenCalled();
+    expect(tmux.killSession).toHaveBeenLastCalledWith('agent1');
   });
 
   it('prunes registry before checking for name collision', async () => {
