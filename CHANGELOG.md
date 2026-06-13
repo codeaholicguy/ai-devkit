@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [ab88047](https://github.com/codeaholicguy/ai-devkit/commit/ab88047d6b27d537c2cc644597c1d8f0f97f6ec0) Added package repository metadata.
+- [de3203b](https://github.com/codeaholicguy/ai-devkit/commit/de3203b9dfcf93001e64ba2600455faa1ce65f42) Added Junie CLI support.
+- [807ec44](https://github.com/codeaholicguy/ai-devkit/commit/807ec447325aa5c788dae45ae9cde3786780ae84) Added Cline support.
+- [1520d2f](https://github.com/codeaholicguy/ai-devkit/commit/1520d2ff2535b6b43e732e5ce29384cce8022182) Updated GitHub Copilot support.
+- [aeb8a15](https://github.com/codeaholicguy/ai-devkit/commit/aeb8a15825b65506fb49dc4042f8ad189a7a9244) Added Devin support.
+- [432b32f](https://github.com/codeaholicguy/ai-devkit/commit/432b32f7e160451376baaf37074d018204b9d12b) Removed unused environment context filename metadata.
+- [8c1bf9e](https://github.com/codeaholicguy/ai-devkit/commit/8c1bf9e0a15d47c4171665887b4a1163a938cdf6) Removed workflow slash command support.
+- [39562d2](https://github.com/codeaholicguy/ai-devkit/commit/39562d264f9485b90b48378b2f303ba283124bfe) Added Gemini project skill path support.
+- [aa43342](https://github.com/codeaholicguy/ai-devkit/commit/aa43342ce81bb8cda80c2a18ae0e1146ac2604e1) Added Roo Code skills and MCP support.
+- [672496a](https://github.com/codeaholicguy/ai-devkit/commit/672496a30b968b32d735101bb1fade29fdec66fb) Removed Windsurf environment support.
+- [fbaef04](https://github.com/codeaholicguy/ai-devkit/commit/fbaef046bf2dfbc0c4d725abde354c5285e59f3b) Added Kilo Code skills and MCP support.
+- [ce437db](https://github.com/codeaholicguy/ai-devkit/commit/ce437dba9985423522a3dfaf6085fd626f246050) Added Pi environment skills support.
+- [36e4b29](https://github.com/codeaholicguy/ai-devkit/commit/36e4b29e100a27cbfefb3749fa8433ea2dc3b1fe) Added OpenCode MCP support.
+- [b4bdabd](https://github.com/codeaholicguy/ai-devkit/commit/b4bdabd74b863b61dd41cd4a96d3cc58a2c8c20a) Fixed macOS terminal app process detection in agent manager.
+- [8dc7f98](https://github.com/codeaholicguy/ai-devkit/commit/8dc7f988ccddd409364c1330e4cf46c0a2c6ba9e) Added Pi support to `agent start`.
+- [77c0413](https://github.com/codeaholicguy/ai-devkit/commit/77c04138f2945c19a116ab47acb81aefba65ea9a) Added Copilot support to `agent start`.
+
 ## [0.40.0] - 2024-06-11
 
 - [f0f72d0](https://github.com/codeaholicguy/ai-devkit/commit/f0f72d0a6b281a977c2630808704bd1e66c659f5) Added the Pi session tracker extension.
