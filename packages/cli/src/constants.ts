@@ -24,7 +24,6 @@ export const BUILTIN_SKILL_NAMES = [
   'document-code',
   'memory',
   'simplify-implementation',
-  'technical-writer',
   'verify',
   'tdd'
 ] as const;
