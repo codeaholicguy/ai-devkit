@@ -220,6 +220,24 @@ describe('CopilotAdapter', () => {
             });
         });
 
+        it('suppresses wrapper process-only agents before the session lock exists', async () => {
+            const processes: ProcessInfo[] = [
+                { pid: 86800, command: 'copilot', cwd: '/repo', tty: 'ttys001', ppid: 84174 },
+                { pid: 86810, command: '/custom/install/copilot', cwd: '/repo', tty: 'ttys001', ppid: 86800 },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                pid: 86810,
+                sessionId: 'pid-86810',
+                summary: 'Copilot process running',
+            });
+        });
+
         it('does not add duplicate process-only agent for wrapper process in the same terminal', async () => {
             const processes: ProcessInfo[] = [
                 { pid: 14095, command: 'copilot', cwd: '/repo', tty: 'ttys001' },

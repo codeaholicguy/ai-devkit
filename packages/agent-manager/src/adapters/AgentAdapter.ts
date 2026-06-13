@@ -59,6 +59,9 @@ export interface ProcessInfo {
     /** Process ID */
     pid: number;
 
+    /** Parent process ID, populated by listAgentProcesses when available */
+    ppid?: number;
+
     /** Process command */
     command: string;
 

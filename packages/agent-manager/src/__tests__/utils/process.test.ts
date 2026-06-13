@@ -23,26 +23,28 @@ describe('listAgentProcesses', () => {
         mockedExecFileSync.mockReset();
     });
 
-    it('should parse ps aux | grep output and post-filter by executable name', () => {
+    it('should parse ps output and post-filter by executable name', () => {
         mockedExecFileSync.mockReturnValue(
-            'user  78070  1.0  0.5 485636016 245952 s018  S+   11:18PM   1:55.14 claude\n' +
-            'user  55106  0.1  0.4 485620368  72496 s015  S+    9Mar26   8:06.36 claude\n',
+            '78070     1 s018     claude\n' +
+            '55106 55100 s015     claude\n',
         );
 
         const processes = listAgentProcesses('claude');
         expect(processes).toHaveLength(2);
         expect(processes[0].pid).toBe(78070);
+        expect(processes[0].ppid).toBe(1);
         expect(processes[0].command).toBe('claude');
         expect(processes[0].tty).toBe('s018');
         expect(processes[0].cwd).toBe(''); // not populated yet
         expect(processes[1].pid).toBe(55106);
+        expect(processes[1].ppid).toBe(55100);
     });
 
     it('should filter out non-matching executables', () => {
         mockedExecFileSync.mockReturnValue(
-            'user  100  0.0  0.0 0 0 s001  S  1:00PM  0:00 claude\n' +
-            'user  200  0.0  0.0 0 0 s002  S  1:00PM  0:00 claude-helper --pid 100\n' +
-            'user  300  0.0  0.0 0 0 s003  S  1:00PM  0:00 /usr/bin/claude\n',
+            '100 1 s001 claude\n' +
+            '200 1 s002 claude-helper --pid 100\n' +
+            '300 1 s003 /usr/bin/claude\n',
         );
 
         const processes = listAgentProcesses('claude');
@@ -75,7 +77,11 @@ describe('listAgentProcesses', () => {
     it('should accept valid patterns with dashes and underscores', () => {
         mockedExecFileSync.mockReturnValue('');
         listAgentProcesses('claude-code');
-        expect(mockedExecFileSync).toHaveBeenCalled();
+        expect(mockedExecFileSync).toHaveBeenCalledWith(
+            'ps',
+            ['-axo', 'pid=,ppid=,tty=,command='],
+            { encoding: 'utf-8' },
+        );
 
         mockedExecFileSync.mockReset();
         mockedExecFileSync.mockReturnValue('');

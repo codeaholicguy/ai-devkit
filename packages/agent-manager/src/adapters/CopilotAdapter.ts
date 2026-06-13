@@ -138,8 +138,9 @@ export class CopilotAdapter implements AgentAdapter {
             matchedProcesses.push(proc);
         }
 
+        const wrapperPids = this.findWrapperProcessPids(processes, matchedProcesses);
         for (const proc of processes) {
-            if (!matchedPids.has(proc.pid) && !this.isDuplicateProcess(proc, matchedProcesses)) {
+            if (!matchedPids.has(proc.pid) && !wrapperPids.has(proc.pid)) {
                 agents.push(this.mapProcessOnlyAgent(proc));
             }
         }
@@ -156,6 +157,28 @@ export class CopilotAdapter implements AgentAdapter {
 
             return sameTty && (sameCwd || proc.cwd === '' || matched.cwd === '');
         });
+    }
+
+    private findWrapperProcessPids(processes: ProcessInfo[], matchedProcesses: ProcessInfo[]): Set<number> {
+        const wrappers = new Set<number>();
+
+        for (const proc of processes) {
+            for (const child of processes) {
+                if (proc.pid === child.pid) continue;
+                if (child.ppid !== proc.pid) continue;
+                if (!this.isDuplicateProcess(proc, [child])) continue;
+
+                wrappers.add(proc.pid);
+            }
+        }
+
+        for (const proc of processes) {
+            if (this.isDuplicateProcess(proc, matchedProcesses)) {
+                wrappers.add(proc.pid);
+            }
+        }
+
+        return wrappers;
     }
 
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {

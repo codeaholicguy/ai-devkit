@@ -12,10 +12,10 @@ import type { ProcessInfo } from '../adapters/AgentAdapter.js';
 /**
  * List running processes matching an agent executable name.
  *
- * Uses `ps aux` then filters in JS for exact executable basename match.
+ * Uses `ps -axo` then filters in JS for exact executable basename match.
  * This avoids shell pipelines and string interpolation.
  *
- * Returned ProcessInfo has pid, command, tty populated.
+ * Returned ProcessInfo has pid, ppid, command, tty populated.
  * cwd and startTime are NOT populated — call enrichProcesses() to fill them.
  */
 export function listAgentProcesses(namePattern: string): ProcessInfo[] {
@@ -25,7 +25,7 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
     }
 
     try {
-        const output = execFileSync('ps', ['aux'], { encoding: 'utf-8' });
+        const output = execFileSync('ps', ['-axo', 'pid=,ppid=,tty=,command='], { encoding: 'utf-8' });
 
         const lowerPattern = namePattern.toLowerCase();
         const processes: ProcessInfo[] = [];
@@ -33,14 +33,15 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
         for (const line of output.trim().split('\n')) {
             if (!line.trim()) continue;
 
-            const parts = line.trim().split(/\s+/);
-            if (parts.length < 11) continue;
+            const match = line.match(/^\s*(\d+)\s+(\d+)\s+(\S+)\s+(.+)$/);
+            if (!match) continue;
 
-            const pid = parseInt(parts[1], 10);
-            if (Number.isNaN(pid)) continue;
+            const pid = parseInt(match[1], 10);
+            const ppid = parseInt(match[2], 10);
+            if (Number.isNaN(pid) || Number.isNaN(ppid)) continue;
 
-            const tty = parts[6];
-            const command = parts.slice(10).join(' ');
+            const tty = match[3];
+            const command = match[4];
 
             // Check that the executable basename matches exactly
             const executable = command.trim().split(/\s+/)[0] || '';
@@ -53,6 +54,7 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
 
             processes.push({
                 pid,
+                ppid,
                 command,
                 cwd: '',
                 tty: ttyShort,
