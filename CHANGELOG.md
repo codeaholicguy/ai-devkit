@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.41.0] - 2026-06-13
 
 - [ab88047](https://github.com/codeaholicguy/ai-devkit/commit/ab88047d6b27d537c2cc644597c1d8f0f97f6ec0) Added package repository metadata.
 - [de3203b](https://github.com/codeaholicguy/ai-devkit/commit/de3203b9dfcf93001e64ba2600455faa1ce65f42) Added Junie CLI support.

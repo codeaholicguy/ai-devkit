@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.40.0",
+  "version": "0.41.0",
   "private": true,
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "scripts": {
