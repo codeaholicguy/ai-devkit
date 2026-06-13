@@ -1,4 +1,4 @@
 interface:
   display_name: "Dev Implementation"
-  short_description: "Execute feature tasks and verify implementation"
+  short_description: "AI DevKit · Execute feature tasks and verify implementation"
   default_prompt: "Use $dev-implementation to work through planned tasks and check code against the design."

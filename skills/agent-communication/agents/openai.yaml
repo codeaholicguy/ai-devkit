@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent Communication"
-  short_description: "Message active AI agents through AI DevKit"
+  short_description: "AI DevKit · Message active AI agents"
   default_prompt: "Use $agent-communication to exchange information with another active AI agent through AI DevKit."

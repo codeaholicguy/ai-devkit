@@ -1,4 +1,4 @@
 interface:
   display_name: "Changelog"
-  short_description: "Update CHANGELOG.md Unreleased items from recent commits"
+  short_description: "AI DevKit · Update CHANGELOG.md Unreleased items from recent commits"
   default_prompt: "Use $changelog to update the top Unreleased list in CHANGELOG.md from git commits after the latest release, with one concise linked line per commit."

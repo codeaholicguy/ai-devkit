@@ -1,4 +1,4 @@
 interface:
   display_name: "Dev Requirements"
-  short_description: "Capture and review feature requirements"
+  short_description: "AI DevKit · Capture and review feature requirements"
   default_prompt: "Use $dev-requirements to clarify a feature, initialize AI docs outputs, or review requirements before design."

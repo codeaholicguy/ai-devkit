@@ -1,4 +1,4 @@
 interface:
   display_name: "Memory Assistant"
-  short_description: "Use AI DevKit memory CLI workflows"
+  short_description: "AI DevKit · Use memory CLI workflows"
   default_prompt: "Use $memory to search, store, and update durable knowledge through npx ai-devkit@latest memory commands."

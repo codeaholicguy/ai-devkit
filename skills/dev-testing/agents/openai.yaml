@@ -1,4 +1,4 @@
 interface:
   display_name: "Dev Testing"
-  short_description: "Write and verify feature test coverage"
+  short_description: "AI DevKit · Write and verify feature test coverage"
   default_prompt: "Use $dev-testing to add tests, run coverage, and update the testing doc."

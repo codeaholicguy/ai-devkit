@@ -1,4 +1,4 @@
 interface:
   display_name: "Dev Design"
-  short_description: "Review feature design against requirements"
+  short_description: "AI DevKit · Review feature design against requirements"
   default_prompt: "Use $dev-design to validate architecture, resolve design trade-offs, and update the design doc."

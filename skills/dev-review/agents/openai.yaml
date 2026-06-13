@@ -1,4 +1,4 @@
 interface:
   display_name: "Dev Review"
-  short_description: "Run holistic final code review"
+  short_description: "AI DevKit · Run holistic final code review"
   default_prompt: "Use $dev-review to perform the final lifecycle code review before push or PR."
