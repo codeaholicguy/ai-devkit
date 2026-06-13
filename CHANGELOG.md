@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [b0c3d45](https://github.com/codeaholicguy/ai-devkit/commit/b0c3d45e4fe167801de0764ba3263a3a2b503705) Documented Pi agent integration.
+- [bd40286](https://github.com/codeaholicguy/ai-devkit/commit/bd4028603fd414d885bbf30a2ac2a9cfa104e26c) Fixed duplicate Copilot wrapper agents.
+- [8a943ff](https://github.com/codeaholicguy/ai-devkit/commit/8a943ff133c86a529e581583c2151a238163f913) Fixed wrapper PID handling for Gemini and Copilot agents.
+
 ## [0.41.0] - 2026-06-13
 
 - [ab88047](https://github.com/codeaholicguy/ai-devkit/commit/ab88047d6b27d537c2cc644597c1d8f0f97f6ec0) Added package repository metadata.
