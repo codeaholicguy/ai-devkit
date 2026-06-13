@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [c75d73b](https://github.com/codeaholicguy/ai-devkit/commit/c75d73bb36a5929f6b8c76f36a39e4539536743d) Split `dev-lifecycle` into orchestrated phase-specific skills.
+- [12ba398](https://github.com/codeaholicguy/ai-devkit/commit/12ba398d91185dc88d71b93f6b6cbb69c2d3b81b) Added AI DevKit branding to skill metadata.
+- [2deeb57](https://github.com/codeaholicguy/ai-devkit/commit/2deeb57158538c6b870a736c6638e0de9e6a47db) Updated built-in skill definitions.
+
 ## [0.41.1] - 2026-06-13
 
 - [b0c3d45](https://github.com/codeaholicguy/ai-devkit/commit/b0c3d45e4fe167801de0764ba3263a3a2b503705) Documented Pi agent integration.
