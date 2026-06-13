@@ -1,7 +1,7 @@
 import path from 'path';
 import type { AgentType } from '../adapters/AgentAdapter.js';
 
-export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'gemini_cli' | 'opencode' | 'pi'>;
+export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'copilot' | 'gemini_cli' | 'opencode' | 'pi'>;
 
 export interface AgentConfig {
     /** Shell command to launch the agent (sent to tmux via `send-keys`). */
@@ -18,9 +18,10 @@ export interface AgentConfig {
 export const AGENTS: Record<StartableAgentType, AgentConfig> = {
     claude:     { command: 'claude',   matches: matchArgv0('claude') },
     codex:      { command: 'codex',    matches: matchArgv0('codex') },
+    copilot:    { command: 'copilot',  matches: matchArgv0Name('copilot-cli') },
     gemini_cli: { command: 'gemini',   matches: matchAnyToken('gemini') },
     opencode:   { command: 'opencode', matches: matchArgv0('opencode') },
-    pi:         { command: 'pi',       matches: matchAnyBasename(['pi', 'pi.exe', 'pi.js']) },
+    pi:         { command: 'pi',       matches: matchAnyBasename(['pi']) },
 };
 
 function matchArgv0(name: string): (psCommand: string) => boolean {
@@ -28,6 +29,14 @@ function matchArgv0(name: string): (psCommand: string) => boolean {
     return (psCommand) => {
         const token = psCommand.trim().split(/\s+/)[0];
         return token ? path.basename(token).toLowerCase() === lower : false;
+    };
+}
+
+function matchArgv0Name(name: string): (psCommand: string) => boolean {
+    const lower = name.toLowerCase();
+    return (psCommand) => {
+        const token = psCommand.trim().split(/\s+/)[0];
+        return token ? token.toLowerCase().includes(lower) : false;
     };
 }
 

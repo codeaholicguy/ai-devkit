@@ -94,6 +94,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   AGENTS: {
     claude:     { command: 'claude',   matches: () => true },
     codex:      { command: 'codex',    matches: () => true },
+    copilot:    { command: 'copilot',  matches: () => true },
     gemini_cli: { command: 'gemini',   matches: () => true },
     opencode:   { command: 'opencode', matches: () => true },
     pi:         { command: 'pi',       matches: () => true },

@@ -9,17 +9,20 @@ import {
 
 describe('StartAgentPane helpers', () => {
     it('lists supported agent start types in pane order', () => {
-        expect(STARTABLE_AGENT_TYPES).toEqual(['claude', 'codex', 'gemini_cli', 'opencode', 'pi']);
+        expect(STARTABLE_AGENT_TYPES).toEqual(['claude', 'codex', 'copilot', 'gemini_cli', 'opencode', 'pi']);
     });
 
     it('cycles to the next agent type', () => {
         expect(nextStartAgentType('claude')).toBe('codex');
+        expect(nextStartAgentType('codex')).toBe('copilot');
+        expect(nextStartAgentType('copilot')).toBe('gemini_cli');
         expect(nextStartAgentType('opencode')).toBe('pi');
         expect(nextStartAgentType('pi')).toBe('claude');
     });
 
     it('cycles to the previous agent type', () => {
-        expect(previousStartAgentType('codex')).toBe('claude');
+        expect(previousStartAgentType('copilot')).toBe('codex');
+        expect(previousStartAgentType('gemini_cli')).toBe('copilot');
         expect(previousStartAgentType('pi')).toBe('opencode');
         expect(previousStartAgentType('claude')).toBe('pi');
     });
