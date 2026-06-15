@@ -1,23 +1,32 @@
 # @ai-devkit/memory-dashboard
 
-Local web dashboard for browsing and assessing AI DevKit memory.
+A local web dashboard for browsing AI DevKit memory.
+
+## Usage
+
+After installing the plugin, start the dashboard with:
 
 ```bash
 ai-devkit memory-dashboard
 ```
 
-The MVP is implemented as an AI DevKit plugin package with a `memory-dashboard` command.
+The command prints a local URL. Open it in your browser to search, filter, group, and inspect memory records.
 
-The UI is split across `src/ui/dashboard.html`, `src/ui/tailwind.css`, and `src/ui/app.js`. The build emits Tailwind CSS and copies the UI assets into `dist/ui`. The graph view uses Cytoscape.js with memory, tag, and scope nodes plus Fit/Layout controls.
-
-For local development without installing the plugin into AI DevKit:
+## Development
 
 ```bash
 npm run dev:standalone
 ```
 
-The standalone script reads the same default/configured memory database path as the plugin runtime. Use `--db-path` to point it at a fixture database:
+Use a custom database path when testing with fixture data:
 
 ```bash
 npm run dev:standalone -- --db-path /tmp/memory.db --port 3000
+```
+
+## Build
+
+```bash
+npm run build
+npm test
 ```
