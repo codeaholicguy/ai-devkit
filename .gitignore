@@ -13,4 +13,5 @@ coverage/
 .gemini/
 .codex/
 .github/prompts/
+.github/skills/
 .worktrees/
