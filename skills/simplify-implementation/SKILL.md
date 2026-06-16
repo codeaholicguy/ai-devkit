@@ -11,6 +11,8 @@ Reduce complexity with an analysis-first approach before changing code.
 - Do not modify code until the user approves a simplification plan.
 - Readability over brevity. Some duplication beats the wrong abstraction.
 - Prefer reusing an existing function over introducing a new one — but only if it fits cleanly. Do not force-fit a near-match.
+- Before improving code, ask whether the function, abstraction, dependency, or custom logic needs to exist at all.
+- Prefer platform and standard-library features over custom code or dependencies. Use already-installed dependencies when they cleanly solve the problem; do not add a dependency for logic that is only a few clear lines.
 - For breaking changes: modify in place only when all callers are in-repo and updated in the same change. For public/external APIs, add a new function and deprecate the old one (parallel change).
 
 ## Workflow
@@ -21,6 +23,7 @@ Reduce complexity with an analysis-first approach before changing code.
 
 2. Analyze Complexity
 - Identify sources (nesting, duplication, coupling, over-engineering, magic values).
+- Run an existence check: can this code be deleted, delegated to the standard library, handled by a native platform feature, enforced by the database, or covered by an existing dependency?
 - Assess impact (LOC, dependencies, cognitive load, scalability blockers).
 
 3. Apply Readability Principles
@@ -33,7 +36,7 @@ For each issue, apply a pattern:
 - **Flatten**: Deep nesting → early returns, guard clauses.
 - **Decouple**: Tight coupling → dependency injection, interfaces.
 - **Remove**: Dead code, unused features, excessive abstractions.
-- **Replace**: Complex logic → built-in language/library features.
+- **Replace**: Custom logic → standard-library, native platform, database, or already-installed dependency features.
 - **Defer**: Premature optimization → measure-first approach.
 
 5. Prioritize and Plan
