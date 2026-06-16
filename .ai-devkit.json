@@ -89,6 +89,10 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "dev-review"
+    },
+    {
+      "registry": "vercel-labs/agent-skills",
+      "name": "web-design-guidelines"
     }
   ]
 }
