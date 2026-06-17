@@ -7,7 +7,6 @@ import chalk from 'chalk';
 import { render } from 'ink';
 import {
     AgentManager,
-    type AgentAdapter,
     ClaudeCodeAdapter,
     CodexAdapter,
     CopilotAdapter,
@@ -16,7 +15,6 @@ import {
     PiAdapter,
     AgentStatus,
     TerminalFocusManager,
-    TtyWriter,
     AgentRegistry,
     RenameNotFoundError,
     RenameConflictError,
@@ -37,20 +35,25 @@ import {
     toJsonSession,
 } from '../util/sessions.js';
 import {
-    waitForAgentResponse,
     startAgent,
     killAgent,
+    assertSendTargetOptions,
+    type SendReporter,
+    sendToAgent,
+    sendToAgentGroup,
     TmuxUnavailableError,
     AgentNameInUseError,
     AgentPidPollTimeoutError,
 } from '../services/agent/agent.service.js';
-import { parseMilliseconds } from '../util/time.js';
+import {
+    AgentGroupNotFoundError,
+    createDefaultAgentGroupService,
+} from '../services/agent/agent-group.service.js';
+import { registerAgentGroupCommand } from './agent/group.command.js';
 import { ConsoleApp } from '../tui/console/ConsoleApp.js';
 import { generateAgentName } from '../util/agent.js';
 import { select } from '@inquirer/prompts';
 
-const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
-const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
 
@@ -178,15 +181,6 @@ function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
 }
 
-function parseSendWaitTimeout(value: string | undefined): { maxWaitMs: number; label?: string } {
-    try {
-        const parsed = parseMilliseconds(value, AGENT_SEND_WAIT_MAX_WAIT_MS);
-        return { maxWaitMs: parsed.milliseconds, label: parsed.label };
-    } catch (error) {
-        throw new Error(`Invalid --timeout. ${(error as Error).message} Example: 30000.`);
-    }
-}
-
 function readStdin(): Promise<string> {
     return new Promise((resolve, reject) => {
         let input = '';
@@ -231,45 +225,12 @@ async function resolveSendMessage(message: string | undefined, options: { stdin?
     return message;
 }
 
-function prepareWaitMode(manager: AgentManager, agent: AgentInfo): {
-    adapter: AgentAdapter;
-    sessionFilePath: string;
-    initialMessageCount: number;
-} {
-    if (!agent.sessionFilePath) {
-        throw new Error(`No session file found for agent "${agent.name}"; cannot wait for response.`);
-    }
-
-    const adapter = manager.getAdapter(agent.type);
-    if (!adapter) {
-        throw new Error(`Unsupported agent type: ${agent.type}`);
-    }
-
+function createCommandSendReporter(): SendReporter {
     return {
-        adapter,
-        sessionFilePath: agent.sessionFilePath,
-        initialMessageCount: adapter.getConversation(agent.sessionFilePath, { verbose: false }).length,
-    };
-}
-
-function toAgentSendWaitJson(result: Awaited<ReturnType<typeof waitForAgentResponse>>, agent: AgentInfo, prompt: string, targetId: string): object {
-    return {
-        target: {
-            id: targetId,
-            name: agent.name,
-            type: agent.type,
-            pid: agent.pid,
-            status: agent.status,
-            summary: agent.summary,
-            projectPath: agent.projectPath,
-            sessionId: agent.sessionId,
-            sessionFilePath: result.sessionFilePath,
-            lastActive: agent.lastActive,
-        },
-        prompt,
-        responseMessages: result.messages,
-        elapsedMs: result.elapsedMs,
-        finalStatus: result.finalStatus,
+        info: (text) => text.startsWith('  - ') ? ui.text(text) : ui.info(text),
+        warning: (text) => ui.warning(text),
+        success: (text) => ui.success(text),
+        error: (text) => ui.error(text),
     };
 }
 
@@ -438,6 +399,8 @@ export function registerAgentCommand(program: Command): void {
             });
         }));
 
+    registerAgentGroupCommand(agentCommand);
+
     const sessionCommand = agentCommand
         .command('session')
         .description('Manage historical AI agent sessions');
@@ -573,102 +536,38 @@ export function registerAgentCommand(program: Command): void {
     agentCommand
         .command('send [message]')
         .description('Send a message to a running agent')
-        .requiredOption('--id <identifier>', 'Agent name or partial match')
+        .option('--id <identifier>', 'Agent name or partial match')
+        .option('--group <name>', 'Agent group name')
         .option('--stdin', 'Read the message from stdin')
         .option('--wait', 'Wait for and print the agent response')
         .option('--timeout <milliseconds>', 'Maximum time to wait with --wait, in milliseconds')
         .option('-j, --json', 'Output wait result as JSON')
         .action(withErrorHandler('send message', async (message, options) => {
-            if (options.timeout !== undefined && !options.wait) {
-                throw new Error('Use --timeout only with --wait.');
-            }
-            const waitTimeout = parseSendWaitTimeout(options.timeout);
+            assertSendTargetOptions(options);
             const prompt = await resolveSendMessage(message, options);
             const manager = createAgentManager();
-
-            const agents = await manager.listAgents();
-            if (agents.length === 0) {
-                ui.error('No running agents found.');
-                return;
-            }
-
-            const resolved = manager.resolveAgent(options.id, agents);
-
-            if (!resolved) {
-                ui.error(`No agent found matching "${options.id}".`);
-                ui.info('Available agents:');
-                agents.forEach(a => ui.text(`  - ${a.name}`));
-                return;
-            }
-
-            if (Array.isArray(resolved)) {
-                ui.error(`Multiple agents match "${options.id}":`);
-                resolved.forEach(a => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
-                ui.info('Please use a more specific identifier.');
-                return;
-            }
-
-            const agent = resolved as AgentInfo;
-
-            if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
-                const warning = `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`;
-                if (options.wait) {
-                    writeWaitStatus(warning);
-                } else {
-                    ui.warning(warning);
-                }
-            }
-
-            const waitContext = options.wait ? prepareWaitMode(manager, agent) : undefined;
-
             const focusManager = new TerminalFocusManager();
-            const location = await focusManager.findTerminal(agent.pid);
-            if (!location) {
-                if (options.wait) {
-                    throw new Error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
+
+            if (options.group) {
+                const group = createDefaultAgentGroupService().get(options.group);
+                if (!group) {
+                    throw new AgentGroupNotFoundError(options.group);
                 }
-                ui.error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
+                await sendToAgentGroup({ group, prompt, manager, focusManager });
                 return;
             }
 
-            await TtyWriter.send(location, prompt);
-
-            if (!options.wait) {
-                ui.success(`Sent message to ${agent.name}.`);
-                return;
-            }
-
-            if (!waitContext) {
-                throw new Error('Wait mode was not prepared.');
-            }
-
-            const waitResult = await waitForAgentResponse({
+            await sendToAgent({
+                id: options.id,
+                prompt,
                 manager,
-                adapter: waitContext.adapter,
-                target: {
-                    id: options.id,
-                    name: agent.name,
-                    type: agent.type,
-                    pid: agent.pid,
-                    sessionId: agent.sessionId,
-                    sessionFilePath: waitContext.sessionFilePath,
-                },
-                initialMessageCount: waitContext.initialMessageCount,
-                options: {
-                    pollIntervalMs: AGENT_SEND_WAIT_POLL_INTERVAL_MS,
-                    maxWaitMs: waitTimeout.maxWaitMs,
-                    timeoutLabel: waitTimeout.label,
-                },
-                onAssistantMessage: (msg) => {
-                    if (options.json) return;
-                    process.stdout.write(`${msg.content}\n`);
-                },
-                onStatus: writeWaitStatus,
+                focusManager,
+                wait: options.wait,
+                timeout: options.timeout,
+                json: options.json,
+                reporter: createCommandSendReporter(),
+                writeWaitStatus,
             });
-
-            if (options.json) {
-                console.log(JSON.stringify(toAgentSendWaitJson(waitResult, agent, prompt, options.id), null, 2));
-            }
         }));
 
     agentCommand

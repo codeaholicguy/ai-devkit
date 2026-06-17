@@ -9,6 +9,8 @@ import {
 } from '@ai-devkit/agent-manager';
 import {
   waitForAgentResponse,
+  assertSendTargetOptions,
+  sendToAgentGroup,
   startAgent,
   killAgent,
   AgentNameInUseError,
@@ -585,7 +587,10 @@ describe('startAgent', () => {
     const tmux = makeTmux();
     const registry = makeRegistry();
 
-    const entry = await startAgent(startOpts, { tmux, registry });
+    const entry = await startAgent(
+      { ...startOpts, pollTimeoutMs: 250 },
+      { tmux, registry },
+    );
 
     expect(tmux.createSession).toHaveBeenCalledWith('agent1', '/work');
     expect(tmux.sendKeys).toHaveBeenCalledWith('agent1', 'claude');
@@ -662,7 +667,10 @@ describe('startAgent', () => {
     const tmux = makeTmux({ findAgentPid } as Partial<TmuxManager>);
     const registry = makeRegistry();
 
-    const entry = await startAgent(startOpts, { tmux, registry });
+    const entry = await startAgent(
+      { ...startOpts, pollTimeoutMs: 250 },
+      { tmux, registry },
+    );
 
     expect(findAgentPid).toHaveBeenCalledTimes(7);
     expect(entry.pid).toBe(42);
@@ -718,5 +726,127 @@ describe('startAgent', () => {
 
     await startAgent(startOpts, { tmux, registry });
     expect(order).toEqual(['prune', 'lookup']);
+  });
+});
+
+describe('sendToAgentGroup', () => {
+  const reporter = {
+    info: vi.fn(),
+    warning: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+  };
+  const manager: any = {
+    listAgents: vi.fn(),
+    resolveAgent: vi.fn(),
+  };
+  const focusManager: any = {
+    findTerminal: vi.fn(),
+  };
+  const writer = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+    writer.mockResolvedValue(undefined);
+  });
+
+  it('rejects invalid send target option combinations', () => {
+    expect(() => assertSendTargetOptions({})).toThrow('Use exactly one of --id or --group.');
+    expect(() => assertSendTargetOptions({ id: 'api', group: 'team' })).toThrow('Use exactly one of --id or --group.');
+    expect(() => assertSendTargetOptions({ group: 'team', wait: true })).toThrow('Use --wait only with --id; group wait mode is not supported.');
+    expect(() => assertSendTargetOptions({ group: 'team', json: true })).toThrow('Use --json only with --id --wait; group JSON output is not supported.');
+    expect(() => assertSendTargetOptions({ id: 'api', wait: true, timeout: '1.5s' })).toThrow('Invalid --timeout. Expected positive integer milliseconds. Example: 30000.');
+  });
+
+  it('fails before delivery when group members are missing or ambiguous', async () => {
+    const api = { name: 'api', status: AgentStatus.WAITING, pid: 10 };
+    const workerA = { name: 'worker-a', status: AgentStatus.WAITING, pid: 11 };
+    const workerB = { name: 'worker-b', status: AgentStatus.WAITING, pid: 12 };
+    const agents = [api, workerA, workerB];
+    manager.listAgents.mockResolvedValue(agents);
+    manager.resolveAgent
+      .mockReturnValueOnce(api)
+      .mockReturnValueOnce(null)
+      .mockReturnValueOnce([workerA, workerB]);
+
+    await sendToAgentGroup({
+      group: { name: 'backend-team', members: ['api', 'missing', 'worker'], createdAt: '', updatedAt: '' },
+      prompt: 'hello',
+      manager,
+      focusManager,
+      writer,
+      reporter,
+    });
+
+    expect(reporter.error).toHaveBeenCalledWith('Cannot send to group "backend-team" because some members could not be resolved.');
+    expect(reporter.error).toHaveBeenCalledWith('  - missing: no running agent matched');
+    expect(reporter.error).toHaveBeenCalledWith('  - worker: matched multiple agents (worker-a, worker-b)');
+    expect(focusManager.findTerminal).not.toHaveBeenCalled();
+    expect(writer).not.toHaveBeenCalled();
+    expect(process.exitCode).toBe(1);
+  });
+
+  it('deduplicates targets and sends sequentially', async () => {
+    const api = { name: 'api', status: AgentStatus.WAITING, pid: 10 };
+    const worker = { name: 'worker', status: AgentStatus.IDLE, pid: 11 };
+    const agents = [api, worker];
+    const apiLocation = { type: 'tmux', identifier: 'api' };
+    const workerLocation = { type: 'tmux', identifier: 'worker' };
+    manager.listAgents.mockResolvedValue(agents);
+    manager.resolveAgent
+      .mockReturnValueOnce(api)
+      .mockReturnValueOnce(worker)
+      .mockReturnValueOnce({ ...api });
+    focusManager.findTerminal
+      .mockResolvedValueOnce(apiLocation)
+      .mockResolvedValueOnce(workerLocation);
+
+    await sendToAgentGroup({
+      group: { name: 'backend-team', members: ['api', 'worker', 'api-alias'], createdAt: '', updatedAt: '' },
+      prompt: 'status',
+      manager,
+      focusManager,
+      writer,
+      reporter,
+    });
+
+    expect(reporter.info).toHaveBeenCalledWith('Skipped duplicate target "api" from group member "api-alias".');
+    expect(writer).toHaveBeenNthCalledWith(1, apiLocation, 'status');
+    expect(writer).toHaveBeenNthCalledWith(2, workerLocation, 'status');
+    expect(reporter.success).toHaveBeenCalledWith('Sent message to 2 agent(s) in group "backend-team".');
+  });
+
+  it('continues after one target fails and sets a non-zero exit code', async () => {
+    const api = { name: 'api', status: AgentStatus.RUNNING, pid: 10 };
+    const worker = { name: 'worker', status: AgentStatus.WAITING, pid: 11 };
+    const apiLocation = { type: 'tmux', identifier: 'api' };
+    const workerLocation = { type: 'tmux', identifier: 'worker' };
+    manager.listAgents.mockResolvedValue([api, worker]);
+    manager.resolveAgent
+      .mockReturnValueOnce(api)
+      .mockReturnValueOnce(worker);
+    focusManager.findTerminal
+      .mockResolvedValueOnce(apiLocation)
+      .mockResolvedValueOnce(workerLocation);
+    writer
+      .mockRejectedValueOnce(new Error('send failed'))
+      .mockResolvedValueOnce(undefined);
+
+    await sendToAgentGroup({
+      group: { name: 'backend-team', members: ['api', 'worker'], createdAt: '', updatedAt: '' },
+      prompt: 'hello',
+      manager,
+      focusManager,
+      writer,
+      reporter,
+    });
+
+    expect(reporter.warning).toHaveBeenCalledWith('Agent "api" is not waiting for input (status: running). Sending anyway.');
+    expect(writer).toHaveBeenCalledTimes(2);
+    expect(reporter.error).toHaveBeenCalledWith('Failed to send to api: send failed');
+    expect(reporter.success).toHaveBeenCalledWith('Sent message to worker.');
+    expect(reporter.error).toHaveBeenCalledWith('Sent message to 1 agent(s), failed for 1 agent(s) in group "backend-team".');
+    expect(process.exitCode).toBe(1);
   });
 });
