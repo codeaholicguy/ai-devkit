@@ -215,13 +215,14 @@ export class CodexAdapter implements AgentAdapter {
 
                 const stat = safeStat(filePath);
                 if (!stat) continue;
+                const metaTimestampMs = this.parseMetaTimestampMs(parsed.payload?.timestamp);
 
                 return {
                     sessionId,
                     filePath,
                     projectDir: path.dirname(filePath),
-                    birthtimeMs: stat.birthtimeMs,
-                    resolvedCwd: parsed.payload.cwd || '',
+                    birthtimeMs: metaTimestampMs ?? stat.birthtimeMs,
+                    resolvedCwd: parsed.payload?.cwd || '',
                 };
             } catch {
                 continue;
@@ -290,6 +291,10 @@ export class CodexAdapter implements AgentAdapter {
                     const parsed = JSON.parse(firstLine);
                     if (parsed.type === 'session_meta') {
                         file.resolvedCwd = parsed.payload?.cwd || '';
+                        const metaTimestampMs = this.parseMetaTimestampMs(parsed.payload?.timestamp);
+                        if (metaTimestampMs !== null) {
+                            file.birthtimeMs = metaTimestampMs;
+                        }
                     }
                 }
             } catch {
@@ -466,6 +471,16 @@ export class CodexAdapter implements AgentAdapter {
         if (!value) return null;
         const timestamp = new Date(value);
         return Number.isNaN(timestamp.getTime()) ? null : timestamp;
+    }
+
+    private parseMetaTimestampMs(value?: string): number | null {
+        if (typeof value !== 'string') return null;
+
+        const timestamp = this.parseTimestamp(value);
+        if (!timestamp) return null;
+
+        const timestampMs = timestamp.getTime();
+        return Number.isFinite(timestampMs) ? timestampMs : null;
     }
 
     private determineStatus(session: CodexSession): AgentStatus {
