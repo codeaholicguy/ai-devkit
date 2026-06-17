@@ -118,6 +118,7 @@ describe('memory dashboard command', () => {
 
   it('registers host, port, and open options on the command', async () => {
     const command = new Command('memory-dashboard');
+    const openUrl = vi.fn().mockResolvedValue(undefined);
     const runtime = {
       getMemoryDbPath: vi.fn().mockResolvedValue('/tmp/memory.db'),
       logger: {
@@ -131,6 +132,7 @@ describe('memory dashboard command', () => {
         url: 'http://127.0.0.1:3000',
         close: vi.fn(),
       }),
+      openUrl,
     });
 
     await command.parseAsync(['node', 'memory-dashboard', '--host', '127.0.0.1', '--port', '3000', '--open'], {
@@ -138,6 +140,7 @@ describe('memory dashboard command', () => {
     });
 
     expect(runtime.getMemoryDbPath).toHaveBeenCalledOnce();
+    expect(openUrl).toHaveBeenCalledWith('http://127.0.0.1:3000');
   });
 
   it('includes dashboard options in help output', () => {

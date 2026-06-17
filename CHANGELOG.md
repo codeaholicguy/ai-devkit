@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [676bd04](https://github.com/codeaholicguy/ai-devkit/commit/676bd041aa9e8f4a684b6a1dc5731af866b8abb3) Fixed `dev-lifecycle` startup guidance to list installed skills.
+- [60f9270](https://github.com/codeaholicguy/ai-devkit/commit/60f92701d1e82ac4e95062678ca1ce533e1cb528) Improved the `simplify-implementation` skill guidance.
+- [ad06c60](https://github.com/codeaholicguy/ai-devkit/pull/108) Added the memory dashboard plugin.
+- [34d3552](https://github.com/codeaholicguy/ai-devkit/pull/112) Added CLI support for agent groups.
+- [e734194](https://github.com/codeaholicguy/ai-devkit/pull/111) Fixed Codex session matching by using `session_meta` timestamps.
+
 ## [0.41.2] - 2026-06-14
 
 - [c75d73b](https://github.com/codeaholicguy/ai-devkit/commit/c75d73bb36a5929f6b8c76f36a39e4539536743d) Split `dev-lifecycle` into orchestrated phase-specific skills.
