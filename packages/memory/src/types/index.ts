@@ -61,6 +61,29 @@ export interface SearchKnowledgeResult {
     query: string;
 }
 
+export type ListKnowledgeSort = 'updated-desc' | 'created-desc' | 'title-asc';
+
+export interface ListKnowledgeInput {
+    query?: string;
+    tags?: string[];
+    scope?: string;
+    limit?: number;
+    offset?: number;
+    sort?: ListKnowledgeSort;
+}
+
+export interface ListKnowledgeResult {
+    items: KnowledgeItem[];
+    total: number;
+}
+
+export interface KnowledgeSummaryResult {
+    totalItems: number;
+    scopes: Array<{ scope: string; count: number }>;
+    tags: Array<{ tag: string; count: number }>;
+    recency: Array<{ bucket: string; count: number }>;
+}
+
 export interface KnowledgeRow {
     id: string;
     title: string;

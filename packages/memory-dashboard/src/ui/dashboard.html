@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI DevKit Memory</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body class="min-h-screen overflow-x-hidden bg-slate-50 text-slate-900 antialiased">
+    <a class="skip-link" href="#main-content">Skip To Memory Dashboard</a>
+    <main id="main-content" class="min-h-screen" tabindex="-1">
+      <header class="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-5 py-4 backdrop-blur">
+        <div class="grid gap-4">
+          <div class="header-summary-row grid items-center gap-6">
+            <div class="min-w-0">
+              <h1 class="text-2xl font-semibold tracking-normal text-slate-950 text-balance">AI DevKit Memory</h1>
+            </div>
+            <div id="summary-panel" class="summary-strip" aria-live="polite"></div>
+          </div>
+
+          <div class="dashboard-controls-grid grid items-end gap-3">
+            <label class="grid min-w-0 gap-1 text-xs font-semibold text-slate-700">
+              <span>Search Memory</span>
+              <input id="memory-search" name="query" class="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-medium outline-none transition focus-visible:border-blue-500 focus-visible:ring-2 focus-visible:ring-blue-100" type="search" autocomplete="off" placeholder="Search memory…">
+            </label>
+            <label class="grid gap-1 text-xs font-semibold text-slate-700">
+              <span>Scope</span>
+              <select id="scope-filter" name="scope" class="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-950">
+                <option value="">All scopes</option>
+              </select>
+            </label>
+            <label class="grid gap-1 text-xs font-semibold text-slate-700">
+              <span>Tag</span>
+              <select id="tag-filter" name="tag" class="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-950">
+                <option value="">All tags</option>
+              </select>
+            </label>
+            <label class="grid gap-1 text-xs font-semibold text-slate-700">
+              <span>Group By</span>
+              <select id="group-mode" name="group" class="h-10 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-950">
+                <option value="scope">Scope</option>
+                <option value="tag">Tag</option>
+                <option value="recency">Recency</option>
+              </select>
+            </label>
+          </div>
+        </div>
+      </header>
+
+      <section class="dashboard-grid grid grid-cols-[28rem_minmax(0,1fr)] gap-4 p-4">
+        <section class="memory-panel grid min-w-0 grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden rounded-lg border border-slate-200 bg-white" aria-label="Memory records">
+          <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+            <div>
+              <h2 class="text-base font-semibold text-slate-950">Records</h2>
+            </div>
+          </div>
+          <div id="memory-list" class="memory-list" aria-live="polite"></div>
+          <div id="memory-pagination" class="memory-pagination" aria-live="polite"></div>
+        </section>
+
+        <section class="graph-panel min-w-0" aria-label="Memory graph explorer">
+          <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            <div class="flex flex-col gap-3 border-b border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <h2 class="text-base font-semibold text-slate-950">Relationships</h2>
+                <p id="graph-selected-title" class="truncate text-xs font-medium text-slate-500" aria-live="polite">Select a graph node or memory row</p>
+              </div>
+              <div class="flex shrink-0 gap-2">
+                <button id="graph-zoom-out" class="graph-toolbar-button" type="button" aria-label="Zoom Out">-</button>
+                <button id="graph-zoom-in" class="graph-toolbar-button" type="button" aria-label="Zoom In">+</button>
+                <button id="graph-fit" class="graph-toolbar-button" type="button">Fit</button>
+                <button id="graph-layout" class="graph-toolbar-button" type="button">Layout</button>
+              </div>
+            </div>
+            <div class="graph-workspace grid grid-cols-[minmax(0,1fr)_22rem]">
+              <div id="memory-graph" class="graph-canvas" role="application" aria-label="Interactive Memory Graph" aria-keyshortcuts="+ - 0 f l" tabindex="0"></div>
+              <article id="memory-detail" class="memory-detail-panel"></article>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+    <script type="module" src="/assets/app.js"></script>
+  </body>
+</html>

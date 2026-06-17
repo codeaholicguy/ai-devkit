@@ -1,11 +1,13 @@
 import { storeKnowledge } from './handlers/store.js';
 import { searchKnowledge } from './handlers/search.js';
 import { updateKnowledge } from './handlers/update.js';
+import { listKnowledge } from './handlers/list.js';
+import { getKnowledgeSummary } from './handlers/summary.js';
 import { closeDatabase, getDatabase } from './database/index.js';
-import type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult } from './types/index.js';
+import type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult, ListKnowledgeInput, ListKnowledgeResult, ListKnowledgeSort, KnowledgeSummaryResult, KnowledgeItem } from './types/index.js';
 
-export { storeKnowledge, searchKnowledge, updateKnowledge };
-export type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult };
+export { storeKnowledge, searchKnowledge, updateKnowledge, listKnowledge, getKnowledgeSummary };
+export type { StoreKnowledgeInput, SearchKnowledgeInput, StoreKnowledgeResult, SearchKnowledgeResult, UpdateKnowledgeInput, UpdateKnowledgeResult, ListKnowledgeInput, ListKnowledgeResult, ListKnowledgeSort, KnowledgeSummaryResult, KnowledgeItem };
 
 // CLI command handlers for integration with main ai-devkit CLI
 export interface MemoryStoreOptions {
@@ -30,6 +32,20 @@ export interface MemorySearchOptions {
     tags?: string;
     scope?: string;
     limit?: number;
+    dbPath?: string;
+}
+
+export interface MemoryListOptions {
+    query?: string;
+    tags?: string;
+    scope?: string;
+    limit?: number;
+    offset?: number;
+    sort?: ListKnowledgeSort;
+    dbPath?: string;
+}
+
+export interface MemorySummaryOptions {
     dbPath?: string;
 }
 
@@ -77,6 +93,33 @@ export function memorySearchCommand(options: MemorySearchOptions): SearchKnowled
         };
 
         return searchKnowledge(input);
+    } finally {
+        closeDatabase();
+    }
+}
+
+export function memoryListCommand(options: MemoryListOptions = {}): ListKnowledgeResult {
+    try {
+        getDatabase({ dbPath: options.dbPath });
+        const input: ListKnowledgeInput = {
+            query: options.query,
+            tags: options.tags ? options.tags.split(',').map(t => t.trim()) : undefined,
+            scope: options.scope,
+            limit: options.limit,
+            offset: options.offset,
+            sort: options.sort,
+        };
+
+        return listKnowledge(input);
+    } finally {
+        closeDatabase();
+    }
+}
+
+export function memorySummaryCommand(options: MemorySummaryOptions = {}): KnowledgeSummaryResult {
+    try {
+        getDatabase({ dbPath: options.dbPath });
+        return getKnowledgeSummary();
     } finally {
         closeDatabase();
     }

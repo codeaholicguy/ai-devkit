@@ -1,0 +1,209 @@
+@import "tailwindcss";
+
+@source "./dashboard.html";
+@source "./app.js";
+
+@layer components {
+  .skip-link {
+    background: rgb(15 23 42);
+    border-radius: 0.375rem;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 700;
+    left: 1rem;
+    padding: 0.5rem 0.75rem;
+    position: fixed;
+    top: 1rem;
+    transform: translateY(-150%);
+    transition: transform 150ms ease;
+    z-index: 50;
+  }
+
+  .skip-link:focus-visible {
+    outline: 2px solid rgb(37 99 235);
+    outline-offset: 2px;
+    transform: translateY(0);
+  }
+
+  .graph-canvas {
+    height: calc(100vh - 19rem);
+    min-height: 520px;
+    touch-action: manipulation;
+    width: 100%;
+  }
+
+  .graph-canvas:focus-visible {
+    outline: 2px solid rgb(37 99 235);
+    outline-offset: -2px;
+  }
+
+  .graph-toolbar-button {
+    border-radius: 0.375rem;
+    border: 1px solid rgb(203 213 225);
+    color: rgb(51 65 85);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.5rem 0.75rem;
+    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .graph-toolbar-button:hover {
+    background: rgb(241 245 249);
+  }
+
+  .graph-toolbar-button:focus-visible,
+  .pager-button:focus-visible,
+  .memory-row:focus-visible {
+    border-color: rgb(37 99 235);
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(191 219 254);
+  }
+
+  .memory-row {
+    width: 100%;
+    border-radius: 0.375rem;
+    border: 1px solid rgb(226 232 240);
+    background: rgb(248 250 252);
+    padding: 0.625rem 0.75rem;
+    text-align: left;
+    touch-action: manipulation;
+    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+  }
+
+  .memory-row:hover,
+  .memory-row[aria-selected="true"] {
+    border-color: rgb(37 99 235);
+    background: rgb(239 246 255);
+    box-shadow: 0 0 0 3px rgb(219 234 254);
+  }
+
+  .pager-button {
+    border-radius: 0.375rem;
+    border: 1px solid rgb(203 213 225);
+    color: rgb(51 65 85);
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.5rem 0.75rem;
+    touch-action: manipulation;
+    transition: background-color 150ms ease, color 150ms ease;
+  }
+
+  .pager-button:hover:not(:disabled) {
+    background: rgb(241 245 249);
+  }
+
+  .pager-button:disabled {
+    color: rgb(148 163 184);
+    cursor: not-allowed;
+  }
+
+  .summary-grid {
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .header-summary-row {
+    grid-template-columns: minmax(18rem, 1fr) minmax(24rem, 34rem);
+  }
+
+  .summary-strip {
+    min-width: 0;
+  }
+
+  .summary-stat {
+    border-radius: 0.375rem;
+    border: 1px solid rgb(226 232 240);
+    background: rgb(248 250 252);
+    padding: 0.625rem 0.75rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .dashboard-grid {
+    min-height: calc(100vh - 11rem);
+  }
+
+  .dashboard-controls-grid {
+    grid-template-columns: minmax(28rem, 1fr) minmax(13rem, 16rem) minmax(13rem, 16rem) minmax(10rem, 12rem);
+  }
+
+  .dashboard-controls-grid label {
+    min-width: 0;
+  }
+
+  .dashboard-controls-grid select,
+  .dashboard-controls-grid input {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .memory-list {
+    align-content: start;
+    display: grid;
+    gap: 0.5rem;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0.75rem;
+  }
+
+  .memory-pagination {
+    align-items: center;
+    border-top: 1px solid rgb(226 232 240);
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem;
+  }
+
+  .graph-workspace {
+    min-height: calc(100vh - 19rem);
+  }
+
+  .memory-detail-panel {
+    border-left: 1px solid rgb(226 232 240);
+    height: calc(100vh - 19rem);
+    min-height: 520px;
+    overflow: auto;
+    padding: 1rem;
+  }
+
+  .memory-group-heading {
+    padding: 0.125rem 0.25rem 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: rgb(71 85 105);
+    text-transform: uppercase;
+    text-wrap: balance;
+  }
+
+  .memory-title {
+    display: block;
+    font-weight: 700;
+    color: rgb(15 23 42);
+  }
+
+  .muted,
+  .tag-list {
+    color: rgb(71 85 105);
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+
+  .detail-title {
+    font-size: 1.25rem;
+    font-weight: 750;
+    line-height: 1.2;
+    color: rgb(15 23 42);
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skip-link,
+  .graph-toolbar-button,
+  .memory-row,
+  .pager-button {
+    transition-duration: 0ms;
+  }
+}
