@@ -134,7 +134,7 @@ function readNewAssistantMessages(
   };
 }
 
-export async function waitForResponse(params: WaitForAgentResponseParams): Promise<AgentSendWaitResult> {
+export async function waitForAgentResponse(params: WaitForAgentResponseParams): Promise<AgentSendWaitResult> {
   const { manager, adapter, target, initialMessageCount, options, onAssistantMessage, onStatus } = params;
   const startedAt = Date.now();
   let lastSeenCount = initialMessageCount;
@@ -191,8 +191,6 @@ export async function waitForResponse(params: WaitForAgentResponseParams): Promi
 
   throw new Error(`Timed out waiting for agent "${target.name}" after ${options.timeoutLabel ?? `${options.maxWaitMs}ms`}.`);
 }
-
-export const waitForAgentResponse = waitForResponse;
 
 export async function sendToAgent({
   id,
@@ -261,7 +259,7 @@ export async function sendToAgent({
     throw new Error('Wait mode was not prepared.');
   }
 
-  const waitResult = await waitForResponse({
+  const waitResult = await waitForAgentResponse({
     manager,
     adapter: waitContext.adapter,
     target: {

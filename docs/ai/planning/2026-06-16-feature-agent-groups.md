@@ -115,7 +115,7 @@ Phase 8 testing review: automated unit, command, focused feature coverage, full 
 
 Phase 9 review: final review found one invalid-name boundary gap in `AgentGroupService.get()`. The gap is fixed with service and command regression tests. No blocking review findings remain after re-verification.
 
-Refactor follow-up: group persistence now lives behind `AgentGroupService` in `agent-group.service.ts`, while `agent.service.ts` owns `sendToAgent()`, `waitForResponse()`, and `sendToAgentGroup()`. This keeps `commands/agent.ts` focused on root command wiring, send parsing, prompt resolution, group lookup, and service invocation.
+Refactor follow-up: group persistence now lives behind `AgentGroupService` in `agent-group.service.ts`, while `agent.service.ts` owns `sendToAgent()`, `waitForAgentResponse()`, and `sendToAgentGroup()`. This keeps `commands/agent.ts` focused on root command wiring, send parsing, prompt resolution, group lookup, and service invocation.
 
 Command split follow-up: `agent group` management command registration now lives in `packages/cli/src/commands/agent/group.command.ts`, reducing the root `agent.ts` file and keeping group CRUD command wiring colocated.
 

@@ -58,7 +58,7 @@ description: Implementation progress, decisions, verification, and edge cases fo
 - Resolved live agents are deduplicated by PID when available, falling back to name.
 - Delivery is sequential through `TerminalFocusManager.findTerminal()` and `TtyWriter.send()`.
 - Runtime terminal discovery or send failures are reported per agent; later targets still receive the prompt and the command sets `process.exitCode = 1` if any target fails.
-- Refactor pass consolidated single-agent send, wait-mode response handling, and group fan-out in `agent.service.ts` through `sendToAgent()`, `waitForResponse()`, and `sendToAgentGroup()`. `commands/agent.ts` now handles root command wiring, send parsing, prompt-source resolution, group lookup, and output adapter wiring.
+- Refactor pass consolidated single-agent send, wait-mode response handling, and group fan-out in `agent.service.ts` through `sendToAgent()`, `waitForAgentResponse()`, and `sendToAgentGroup()`. `commands/agent.ts` now handles root command wiring, send parsing, prompt-source resolution, group lookup, and output adapter wiring.
 
 ## Integration Points
 
@@ -105,7 +105,7 @@ description: Implementation progress, decisions, verification, and edge cases fo
 - Phase 9 final lint: `npm --workspace packages/cli run lint` exited 0 with the same 5 pre-existing warnings outside the agent-groups changes.
 - Phase 9 final build: `npm --workspace packages/cli run build` exited 0 and compiled 172 files with SWC before declaration/template output.
 - Phase 9 final feature docs lint: `npx ai-devkit@latest lint --feature agent-groups` exited 0.
-- Refactor follow-up: renamed `agent-group.store.ts` to `agent-group.service.ts`, removed the standalone group-send service split, and consolidated send orchestration into `agent.service.ts` with `sendToAgent()`, `waitForResponse()`, and `sendToAgentGroup()`.
+- Refactor follow-up: renamed `agent-group.store.ts` to `agent-group.service.ts`, removed the standalone group-send service split, and consolidated send orchestration into `agent.service.ts` with `sendToAgent()`, `waitForAgentResponse()`, and `sendToAgentGroup()`.
 - Refactor focused regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent-group.service.test.ts src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts` exited 0 with 113 tests passed.
 - Refactor feature-scoped coverage: `npm --workspace packages/cli exec -- vitest run --coverage --coverage.include=src/services/agent/agent-group.service.ts --coverage.include=src/services/agent/agent.service.ts --run src/__tests__/services/agent/agent-group.service.test.ts src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts` exited 0 with statements 94.75%, branches 88.23%, functions 97.01%, and lines 95.07%.
 - Refactor full CLI regression: `npm --workspace packages/cli test` exited 0 with 67 test files passed and 806 tests passed.
@@ -141,6 +141,8 @@ description: Implementation progress, decisions, verification, and edge cases fo
 - Second review focused regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent.service.test.ts` exited 0 with 29 tests passed.
 - Second review feature regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent-group.service.test.ts src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts` exited 0 with 114 tests passed.
 - Second review full regression: `npm --workspace packages/cli test` exited 0 with 67 test files passed and 807 tests passed.
+- API naming cleanup: removed the `waitForResponse` alias and kept the explicit `waitForAgentResponse()` export.
+- API naming cleanup verification: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent.service.test.ts` exited 0 with 29 tests passed; focused feature tests, full CLI tests, build, lint, and feature docs lint also exited 0.
 
 ## Manual Testing
 

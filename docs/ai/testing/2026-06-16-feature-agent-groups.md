@@ -121,6 +121,11 @@ Group send evidence:
 - Second review polling test fix: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent.service.test.ts`: exit 0, 29 tests passed after widening the remaining timing-sensitive polling test timeout.
 - Second review feature regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent-group.service.test.ts src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts`: exit 0, 114 tests passed.
 - Second review full regression: `npm --workspace packages/cli test`: exit 0, 67 test files passed, 807 tests passed.
+- API naming cleanup focused regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent.service.test.ts`: exit 0, 29 tests passed after removing the `waitForResponse` alias.
+- API naming cleanup feature regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent-group.service.test.ts src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts`: exit 0, 114 tests passed.
+- API naming cleanup full regression: `npm --workspace packages/cli test`: exit 0, 67 test files passed, 807 tests passed.
+- API naming cleanup build: `npm --workspace packages/cli run build`: exit 0, compiled 171 files with SWC before declaration/template output.
+- API naming cleanup lint: `npm --workspace packages/cli run lint`: exit 0, with the same 5 pre-existing warnings outside the agent-groups changes.
 
 ## Integration Tests
 

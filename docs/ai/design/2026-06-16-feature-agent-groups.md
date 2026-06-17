@@ -119,7 +119,7 @@ Send orchestration lives in `packages/cli/src/services/agent/agent.service.ts`:
 ```typescript
 export function assertSendTargetOptions(options: SendTargetOptions): void;
 export async function sendToAgent(options: SendToAgentOptions): Promise<void>;
-export async function waitForResponse(params: WaitForAgentResponseParams): Promise<AgentSendWaitResult>;
+export async function waitForAgentResponse(params: WaitForAgentResponseParams): Promise<AgentSendWaitResult>;
 export async function sendToAgentGroup(options: SendToAgentGroupOptions): Promise<void>;
 ```
 
@@ -159,7 +159,7 @@ Typed errors:
 - Calls `assertSendTargetOptions()` to validate mutually exclusive target and unsupported option combinations before reading live agents or sending.
 - Resolves the group name through `AgentGroupService`.
 - Delegates group fan-out to `sendToAgentGroup()`.
-- Keeps single-target delivery delegated to `sendToAgent()`, which also owns wait-mode response handling through `waitForResponse()`.
+- Keeps single-target delivery delegated to `sendToAgent()`, which also owns wait-mode response handling through `waitForAgentResponse()`.
 
 Resolution phases:
 

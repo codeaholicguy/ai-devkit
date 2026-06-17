@@ -8,7 +8,7 @@ import {
   type TmuxManager,
 } from '@ai-devkit/agent-manager';
 import {
-  waitForResponse,
+  waitForAgentResponse,
   assertSendTargetOptions,
   sendToAgentGroup,
   startAgent,
@@ -17,8 +17,6 @@ import {
   AgentPidPollTimeoutError,
   TmuxUnavailableError,
 } from '../../../services/agent/agent.service.js';
-
-const waitForAgentResponse = waitForResponse;
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
   return {
