@@ -31,7 +31,6 @@ const mockSpinner: any = {
 const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
-const mockWaitForAgentResponse = vi.fn<(...args: any[]) => Promise<any>>();
 const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
 let restoreStdin: (() => void) | undefined;
 
@@ -208,7 +207,6 @@ describe('agent command', () => {
     mockFocusManager.findTerminal.mockReset();
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
-    mockWaitForAgentResponse.mockReset();
     mockKillAgent.mockReset();
     Object.values(mockGroupStore).forEach((method) => method.mockReset());
     mockGroupStore.list.mockReturnValue([]);
@@ -977,7 +975,6 @@ Waiting on user input`,
     expect(ui.error).toHaveBeenCalledWith('Failed to send message: No session file found for agent "repo-a"; cannot wait for response.');
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
-    expect(mockWaitForAgentResponse).not.toHaveBeenCalled();
   });
 
   it('fails and does not send when --wait target has no adapter', async () => {
@@ -1002,7 +999,6 @@ Waiting on user input`,
     expect(ui.error).toHaveBeenCalledWith('Failed to send message: Unsupported agent type: claude');
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
-    expect(mockWaitForAgentResponse).not.toHaveBeenCalled();
   });
 
   it('fails when --wait terminal cannot be found', async () => {

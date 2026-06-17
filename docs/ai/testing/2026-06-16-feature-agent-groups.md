@@ -126,6 +126,11 @@ Group send evidence:
 - API naming cleanup full regression: `npm --workspace packages/cli test`: exit 0, 67 test files passed, 807 tests passed.
 - API naming cleanup build: `npm --workspace packages/cli run build`: exit 0, compiled 171 files with SWC before declaration/template output.
 - API naming cleanup lint: `npm --workspace packages/cli run lint`: exit 0, with the same 5 pre-existing warnings outside the agent-groups changes.
+- Test cleanup command regression: `npm --workspace packages/cli test -- --run src/__tests__/commands/agent.test.ts`: exit 0, 66 tests passed after removing stale wait-response mock scaffolding.
+- Test cleanup feature regression: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent-group.service.test.ts src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts`: exit 0, 114 tests passed.
+- Test cleanup full regression: `npm --workspace packages/cli test`: exit 0, 67 test files passed, 807 tests passed.
+- Test cleanup build: `npm --workspace packages/cli run build`: exit 0, compiled 171 files with SWC before declaration/template output.
+- Test cleanup lint: `npm --workspace packages/cli run lint`: exit 0, with the same 5 pre-existing warnings outside the agent-groups changes.
 
 ## Integration Tests
 

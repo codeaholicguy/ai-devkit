@@ -143,6 +143,8 @@ description: Implementation progress, decisions, verification, and edge cases fo
 - Second review full regression: `npm --workspace packages/cli test` exited 0 with 67 test files passed and 807 tests passed.
 - API naming cleanup: removed the `waitForResponse` alias and kept the explicit `waitForAgentResponse()` export.
 - API naming cleanup verification: `npm --workspace packages/cli test -- --run src/__tests__/services/agent/agent.service.test.ts` exited 0 with 29 tests passed; focused feature tests, full CLI tests, build, lint, and feature docs lint also exited 0.
+- Test cleanup: removed stale `mockWaitForAgentResponse` scaffolding from `agent.test.ts` after send wait behavior moved into the real `sendToAgent()` service path.
+- Test cleanup verification: `npm --workspace packages/cli test -- --run src/__tests__/commands/agent.test.ts` exited 0 with 66 tests passed; focused feature tests, full CLI tests, build, and lint also exited 0.
 
 ## Manual Testing
 
