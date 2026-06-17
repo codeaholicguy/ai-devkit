@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.42.0] - 2026-06-17
 
 - [676bd04](https://github.com/codeaholicguy/ai-devkit/commit/676bd041aa9e8f4a684b6a1dc5731af866b8abb3) Fixed `dev-lifecycle` startup guidance to list installed skills.
 - [60f9270](https://github.com/codeaholicguy/ai-devkit/commit/60f92701d1e82ac4e95062678ca1ce533e1cb528) Improved the `simplify-implementation` skill guidance.
