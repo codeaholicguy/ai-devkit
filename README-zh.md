@@ -2,28 +2,29 @@
 
 > [English](./README.md) | 中文
 
-**你的 AI 编程智能体团队很快、很主动，也很容易鲁莽。让它们像高级工程师一样工作。**
+**AI 编程智能体的控制平面。**
 
 ![](agent-console-showcase.gif)
 
-AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：需求、设计、计划、实现、测试、验证、记忆和代码审查。
+AI DevKit 为 Claude Code、Codex CLI、Gemini CLI、opencode、Pi、Cursor、GitHub Copilot、Devin 等编程智能体提供同一个操作层：一份配置、一个控制台、本地记忆检索、跨智能体通信，以及由 `dev-lifecycle` 带领的可组合工程技能。
 
-- **停止 prompt-and-pray 式写代码** — `dev-lifecycle` 让智能体先澄清问题，再动代码
-- **阻止虚假的“完成”声明** — `verify` 要求有最新的测试或构建输出
-- **保留项目知识** — `@ai-devkit/memory` 跨会话保存决策、约定和修复经验
-- **推送前发现偏差** — 代码审查指导按设计和需求文档审查 diff
-- **一个控制台管所有智能体** — `agent console` 是一个实时 TUI 仪表盘，统一管理所有正在运行的智能体，不论来自哪个厂商
+- **一份配置适配每个智能体** — `.ai-devkit.json` 协调团队使用的编程工具配置
+- **一个控制台查看运行会话** — `agent console` 是实时 TUI 仪表盘，可以跨提供方监督本地智能体
+- **跨智能体通信** — `agent send` 可以把提示词、日志和测试输出发送给运行中的智能体
+- **不膨胀上下文的记忆检索** — `@ai-devkit/memory` 用本地 SQLite 保存决策、约定和修复经验，智能体只在需要时搜索，而不是把所有内容塞进每个提示词
+- **可组合工程技能** — `dev-lifecycle`、`verify`、`tdd`、审查、调试、安全、文档和简化技能组合成可靠工作流
 
-一份配置，适配所有编程智能体：Claude Code、Cursor、Codex CLI、Gemini CLI、GitHub Copilot、Pi、Junie、Cline、Devin、opencode、Antigravity、Amp、Kilo Code、Roo Code。
+未来不是一个 AI 编程助手，而是多个智能体协作。AI DevKit 是让它们可管理的层。
 
-运行 `npx ai-devkit@latest init` 后，你的智能体会获得：
+运行 `npx ai-devkit@latest init` 后，你的项目会获得：
 
 | 你需要的能力 | AI DevKit 安装的内容 |
 |-------------|----------------------|
-| 写代码前先有计划 | `dev-lifecycle` 的需求、设计和计划指导 |
-| 说“完成”前先有证据 | 绑定最新测试/构建输出的 `verify` 门禁 |
-| 跨会话记忆 | 通过 MCP 和 CLI 暴露的本地 SQLite 记忆 |
-| 跨智能体一致行为 | 为团队使用的编程工具生成配置 |
+| 单一配置源 | 为你选择的智能体和工作流生成 `.ai-devkit.json` |
+| 运行中智能体可见 | `agent list`、`agent detail` 和 `agent console` |
+| 可寻址的智能体 | `agent send`、`--stdin`、`--wait`，以及支持场景下的智能体分组 |
+| 基于检索的记忆 | 通过 MCP 和 CLI 暴露的本地 SQLite 记忆，只在有用时搜索 |
+| 可组合的高级工程师式工作流 | `dev-lifecycle` 加上验证、TDD、调试、审查、安全、文档和简化技能 |
 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![npm downloads](https://img.shields.io/npm/dt/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
@@ -32,21 +33,25 @@ AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：
 
 ## 适合谁
 
-适合每天使用 AI 编程智能体，并且厌倦这些问题的开发者：
+适合 AI 编程设置已经从一个助手变成一支小而混乱的智能体团队的开发者：
 
-- 每个项目都要重新维护 `CLAUDE.md` / `.cursor/rules` / `AGENTS.md`
+- 多个终端里跑着不同智能体，却没有统一控制面
+- 每个工具都要单独维护 `CLAUDE.md` / `.cursor/rules` / `AGENTS.md` / MCP 设置
+- 很难把上下文、日志或后续任务发送给运行中的智能体
 - 智能体忘记昨天已经确定的项目约定
 - 构建还是红的，智能体却说“功能已经成功实现”
 - 智能体没有计划就直接改代码，最后实现了错误的东西
 
-没有 AI DevKit 时，你的智能体是一个有能力但不稳定的聊天机器人。有了 AI DevKit，它会带着工作流、记忆、验证门禁和可复用技能随项目一起工作。
+没有 AI DevKit 时，你的智能体强大但分散。有了 AI DevKit，它们会拥有共享配置、控制面、可搜索记忆、通信路径，以及随项目一起工作的可复用技能，同时不会膨胀每个提示词的上下文。
 
 | 没有 AI DevKit | 使用 AI DevKit |
 |----------------|----------------|
-| 你在每次聊天里重复项目规则 | 智能体先搜索项目记忆和文档 |
-| 智能体从提示词直接跳到代码 | 智能体先经过需求、设计和计划 |
+| 你把智能体当作孤立终端标签页管理 | 通过 `ai-devkit agent console` 统一监督 |
+| 你手工维护每个智能体配置 | 一份配置协调智能体文件、技能和 MCP 设置 |
+| 你手动在会话之间复制日志和上下文 | `agent send` 把提示词和 stdin 路由到运行中的智能体 |
+| 你在每次聊天里重复项目规则 | 智能体只在有用时检索相关记忆和文档 |
+| 智能体从提示词直接跳到代码 | `dev-lifecycle` 引导需求、设计、计划、实现、测试和审查 |
 | “完成”只是智能体停止编辑 | “完成”需要最新验证输出 |
-| 每个智能体都要手动维护一套规则 | 一份配置协调技能、工作流文档和 MCP 设置 |
 
 ## 30 秒开始
 
@@ -54,7 +59,7 @@ AI DevKit 把一次性的 AI 编程聊天变成可重复的软件交付流程：
 npx ai-devkit@latest init
 ```
 
-一个向导。选择你的智能体，安装工作流，让它们使用同一套工作模型。它写入的是项目本地文件，你可以审查并提交。智能体列表或工作流变化时，可以重新运行。
+一个向导。选择你的智能体，安装你需要的控制平面组件，让每个工具使用同一套操作模型。它写入的是项目本地文件，你可以审查并提交。智能体列表或工作流变化时，可以重新运行。
 
 初始化后，你的项目会获得：
 
@@ -72,7 +77,61 @@ your-project/
     └── testing/                 # 阶段 5：测试策略
 ```
 
-### 或安装完整工程工作流栈
+## 像基础设施一样操作智能体
+
+AI DevKit 带有智能体控制平面，适合日常多智能体开发：
+
+```bash
+# 列出跨提供方运行中的会话
+ai-devkit agent list
+
+# 打开实时终端 UI
+ai-devkit agent console
+
+# 向运行中的会话发送提示词，并等待响应
+ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
+
+# 把多行输出传给运行中的智能体
+npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
+
+# 向保存好的智能体分组发送提示词
+ai-devkit agent send "review this branch for release risk" --group reviewers
+
+# 通过 Telegram 接入会话，从手机操作智能体
+ai-devkit channel start telegram --agent <agent-name> --daemon
+```
+
+适合长时间任务、多提供方协作、定时检查、审查循环，或从外部渠道远程控制智能体。
+
+## 添加不膨胀上下文的记忆
+
+AI DevKit memory 是用于保存项目决策、编码约定和可复用修复经验的本地 SQLite 知识库。智能体可以在任务需要上下文时检索它，而不是把所有事实都塞进每个提示词。
+
+```bash
+# 保存可复用项目约定
+ai-devkit memory store \
+  --title "API handlers return DTOs" \
+  --content "REST handlers should return response DTOs instead of domain entities." \
+  --tags "api,backend" \
+  --scope "repo:codeaholicguy/ai-devkit"
+
+# 在相关工作前搜索
+ai-devkit memory search --query "API response convention"
+```
+
+## 用技能组合工程工作流
+
+控制平面本身已经有价值。对于更大或风险更高的改动，AI DevKit 还会安装可组合技能，让智能体更像一个工程团队。
+
+`dev-lifecycle` 是锚点技能。它引导智能体经过需求、设计、计划、实现、测试和审查。其他技能可以接入这个流程：
+
+- `memory` 检索相关项目知识，而不是把所有上下文塞进会话
+- `verify` 阻止没有最新测试或构建证据的完成声明
+- `tdd` 在行为变化时推动测试优先实现
+- `structured-debug` 让调试可复现，而不是猜测和乱改
+- `security-review`、`document-code` 和 `simplify-implementation` 在任务需要时增加聚焦审查
+
+### 获取完整工程工作流栈
 
 把 [`templates/senior-engineer.yaml`](./templates/senior-engineer.yaml) 保存到本地，然后运行：
 
@@ -80,7 +139,7 @@ your-project/
 ai-devkit init --template ./senior-engineer.yaml
 ```
 
-它把八个内置技能与来自 Anthropic、Vercel 等来源的精选技能组合在一起，包括 TDD、前端设计、Web 应用测试、文档协作、React 最佳实践、安全审查等。
+它把内置技能与来自 Anthropic、Vercel 等来源的精选技能组合在一起：TDD、前端设计、Web 应用测试、文档协作、React 最佳实践、安全审查等。
 
 ## 一个功能，从头到尾
 
@@ -108,7 +167,7 @@ ai-devkit init --template ./senior-engineer.yaml
         需求中提到的边界情况，然后你再推送。
 ```
 
-## 智能体会发生什么变化
+## 智能体行为会发生什么变化
 
 上面的流程由八个内置技能驱动，每个技能都对应真实 AI 编程会话中的一个失败模式：
 
@@ -125,7 +184,7 @@ ai-devkit init --template ./senior-engineer.yaml
 
 需要更多能力？`ai-devkit skill add <registry> <skill>` 可以从 30+ 发布方拉取技能，包括 Anthropic、Vercel、Supabase、Microsoft、Google。
 
-## 适配所有编程智能体
+## 跨编程智能体工作
 
 一份 `.ai-devkit.json` 配置全部智能体。团队新增智能体时，不需要重写规则。
 
@@ -146,40 +205,25 @@ ai-devkit init --template ./senior-engineer.yaml
 | [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | — |
 | [Roo Code](https://roocode.com/) | testing | — |
 
-**配置支持** — `ai-devkit init` 写入智能体配置，包括规则、MCP 服务、技能和斜杠命令，让它遵循同一套工作流。
+**配置支持** — `ai-devkit init` 写入智能体配置，包括规则、MCP 服务、技能和斜杠命令，让它加入同一个操作层。
 **远程控制** — 通过 `ai-devkit agent send` 驱动运行中的会话，并把它们接入外部渠道。
-
-## 像基础设施一样操作智能体
-
-AI DevKit 还带有智能体控制面，可以从 CLI 驱动会话，并在任何地方监督它：
-
-```bash
-# 列出跨提供方运行中的会话
-ai-devkit agent list
-
-# 向运行中的会话发送提示词，并等待响应
-ai-devkit agent send <session-id> "run the tests and report back" --wait
-
-# 通过 Telegram 接入会话，从手机操作智能体
-ai-devkit channel start telegram
-```
-
-适合长时间任务、计划任务，或在离开电脑时检查智能体进展。
 
 ## 与 `CLAUDE.md`、`.cursor/rules`、`AGENTS.md` 有什么不同？
 
-这些文件是智能体反复读取的静态说明。AI DevKit 提供的是**工作流层**：阶段文档、斜杠命令、按需加载的技能、本地可搜索记忆、验证门禁，以及跨智能体工作的控制面。规则仍然重要，但 AI DevKit 让规则可以被执行。
+这些文件是智能体反复读取的静态说明。AI DevKit 提供的是**操作层**：生成配置、控制台、跨智能体消息、本地可搜索记忆、阶段文档、按需加载的技能和验证门禁。规则仍然重要，但 AI DevKit 让规则可以跨工具执行。
 
 | 静态规则文件 | AI DevKit |
 |--------------|-----------|
-| 告诉智能体你偏好什么 | 安装驱动下一步的命令 |
+| 告诉某个智能体你偏好什么 | 跨支持的智能体协调配置 |
+| 不显示当前有哪些会话在运行 | 列出、检查并控制实时会话 |
+| 无法把工作发送到另一个会话 | 把提示词、stdin 和渠道消息路由到智能体 |
 | 依赖智能体记住每条规则 | 存储并搜索可复用项目知识 |
 | 不能证明任务已经完成 | 要求最新命令输出才能声明完成 |
-| 每个智能体的写法都不同 | 为每个支持的智能体生成正确文件 |
 
 ## 这不是什么
 
 - **不是更聪明的 LLM。** 差的模型仍然差。AI DevKit 提升的是流程下限，不是模型原始能力。
+- **不是 Claude Code、Codex、Cursor、Gemini CLI 或 opencode 的替代品。** AI DevKit 配置、监督并协调你已经在使用的智能体。
 - **不是“帮我自动写完整功能”的魔法按钮。** 你仍然要审查需求文档、接受设计、阅读 diff。工作流让这种审查变得可行，因为你有可以指向的工件，而不是只能翻聊天记录。
 - **不是托管服务。** MIT 许可，本地运行，没有遥测。记忆是你磁盘上的 SQLite 文件。智能体控制面与已经在使用的智能体 SDK 通信。
 

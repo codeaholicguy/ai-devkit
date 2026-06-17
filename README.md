@@ -2,28 +2,29 @@
 
 > English | [中文](./README-zh.md)
 
-**Your team of AI coding agents is fast, eager, and reckless. Make them work like senior engineers instead.**
+**The control plane for AI coding agents.**
 
 ![](agent-console-showcase.gif)
 
-AI DevKit turns one-off AI coding chats into a repeatable software delivery workflow: requirements, design, planning, implementation, tests, verification, memory, and review.
+AI DevKit gives Claude Code, Codex CLI, Gemini CLI, opencode, Pi, Cursor, GitHub Copilot, Devin, and other coding agents one shared operating layer: one config, one console, local memory retrieval, cross-agent communication, and composable engineering skills led by `dev-lifecycle`.
 
-- **Stops prompt-and-pray coding** — `dev-lifecycle` makes the agent clarify the problem before touching code
-- **Blocks fake "done" claims** — `verify` requires fresh test/build output before completion claims
-- **Keeps project knowledge alive** — `@ai-devkit/memory` stores decisions, conventions, and fixes across sessions
-- **Catches drift before push** — code review guidance audits the diff against the design and requirements docs
-- **One console for all of them** — `agent console` is a live TUI dashboard for control all your running agents, no matter the provider
+- **One config for every agent** — `.ai-devkit.json` reconciles setup across the coding tools your team uses
+- **One console for running sessions** — `agent console` is a live TUI dashboard for supervising local agents across providers
+- **Cross-agent communication** — `agent send` lets you route prompts, logs, and test output to running agents
+- **Memory retrieval without context bloat** — `@ai-devkit/memory` stores decisions, conventions, and fixes in local SQLite so agents search when needed instead of carrying everything in every prompt
+- **Composable engineering skills** — `dev-lifecycle`, `verify`, `tdd`, review, debugging, security, docs, and simplification skills combine into reliable workflows
 
-One config. All coding agents: Claude Code, Cursor, Codex CLI, Gemini CLI, GitHub Copilot, Pi, Junie, Cline, Devin, opencode, Antigravity, Amp, Kilo Code, Roo Code.
+The future is many AI coding agents. AI DevKit is the layer that makes them manageable.
 
-Run `npx ai-devkit@latest init` and your agent gets:
+Run `npx ai-devkit@latest init` and your project gets:
 
 | What you need | What AI DevKit installs |
 |---------------|-------------------------|
-| A plan before code | `dev-lifecycle` requirements, design, and planning guidance |
-| Evidence before "done" | `verify` gates tied to fresh test/build output |
-| Memory across sessions | Local SQLite memory exposed through MCP and CLI |
-| Same behavior across agents | Generated config for the coding tools your team uses |
+| One setup source | `.ai-devkit.json` for the agents and workflow you choose |
+| Running-agent visibility | `agent list`, `agent detail`, and `agent console` |
+| Addressable agents | `agent send`, `--stdin`, `--wait`, and agent groups where supported |
+| Retrieval-based memory | Local SQLite memory exposed through MCP and CLI, searched only when useful |
+| Composable senior-engineer workflow | `dev-lifecycle` plus verification, TDD, debugging, review, security, docs, and simplification skills |
 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![npm downloads](https://img.shields.io/npm/dt/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
@@ -32,21 +33,25 @@ Run `npx ai-devkit@latest init` and your agent gets:
 
 ## Who this is for
 
-Developers who use AI coding agents daily and are tired of:
+Developers whose AI coding setup has grown from one assistant into a small, messy team of agents:
 
-- re-rigging `CLAUDE.md` / `.cursor/rules` / `AGENTS.md` for every project
+- multiple terminals with no shared control surface
+- separate `CLAUDE.md` / `.cursor/rules` / `AGENTS.md` / MCP setup per tool
+- no easy way to send context, logs, or follow-up work to a running agent
 - the agent forgetting yesterday's conventions
 - "I've successfully implemented the feature" with a red build
 - the agent diving into code without a plan and producing the wrong thing
 
-Before AI DevKit, your agent is a capable but inconsistent chatbot. After AI DevKit, it has a workflow, memory, verification gates, and reusable skills that travel with your repo.
+Before AI DevKit, your agents are powerful but scattered. After AI DevKit, they have shared setup, a control surface, searchable memory, communication paths, and reusable skills that travel with your repo without bloating every prompt.
 
 | Without AI DevKit | With AI DevKit |
 |-------------------|----------------|
-| You repeat project rules in every chat | The agent searches project memory and docs first |
-| The agent jumps from prompt to code | The agent moves through requirements, design, and plan |
+| You manage agents as isolated terminal tabs | You supervise them from `ai-devkit agent console` |
+| You hand-maintain every agent setup | One config reconciles agent files, skills, and MCP setup |
+| You copy logs and context between sessions | `agent send` routes prompts and stdin to running agents |
+| You repeat project rules in every chat | Agents retrieve relevant memory and docs only when useful |
+| The agent jumps from prompt to code | `dev-lifecycle` guides requirements, design, planning, implementation, testing, and review |
 | "Done" means the agent stopped editing | "Done" requires fresh verification output |
-| Each agent needs separate hand-maintained rules | One config reconciles skills, workflow docs, and MCP setup |
 
 ## Start in 30 seconds
 
@@ -54,7 +59,7 @@ Before AI DevKit, your agent is a capable but inconsistent chatbot. After AI Dev
 npx ai-devkit@latest init
 ```
 
-One wizard. Pick your agents, install the workflow, and give them the same operating model. It writes project-local files you can review and commit. Re-run it whenever your agent list or workflow changes.
+One wizard. Pick your agents, install the control-plane pieces you need, and give every tool the same operating model. It writes project-local files you can review and commit. Re-run it whenever your agent list or workflow changes.
 
 Here's what lands in your repo:
 
@@ -72,7 +77,61 @@ your-project/
     └── testing/                 # phase 5 — coverage strategy
 ```
 
-### Or get the full engineering workflow stack
+## Operate agents like infrastructure
+
+AI DevKit ships a agent control plane for everyday multi-agent work:
+
+```bash
+# List running sessions across providers
+ai-devkit agent list
+
+# Open the live terminal UI
+ai-devkit agent console
+
+# Send a prompt to a running session and wait for the response
+ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
+
+# Pipe multi-line output into a running session
+npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
+
+# Send a prompt to a saved group of agents
+ai-devkit agent send "review this branch for release risk" --group reviewers
+
+# Pipe a session through Telegram — operate your agent from your phone
+ai-devkit channel start telegram --agent <agent-name> --daemon
+```
+
+Use this when work spans long-running agents, multiple providers, scheduled checks, review loops, or remote control from another channel.
+
+## Add memory without bloating context
+
+AI DevKit memory is local SQLite knowledge for project decisions, coding conventions, and reusable fixes. Agents retrieve it when a task needs context instead of carrying every fact in every prompt.
+
+```bash
+# Store a reusable project convention
+ai-devkit memory store \
+  --title "API handlers return DTOs" \
+  --content "REST handlers should return response DTOs instead of domain entities." \
+  --tags "api,backend" \
+  --scope "repo:codeaholicguy/ai-devkit"
+
+# Search before related work
+ai-devkit memory search --query "API response convention"
+```
+
+## Compose engineering workflows with skills
+
+The control plane is useful on its own. For larger or riskier changes, AI DevKit also installs composable skills that make agents behave more like an engineering team.
+
+`dev-lifecycle` is the anchor skill. It guides the agent through requirements, design, planning, implementation, testing, and review. Other skills plug into that flow:
+
+- `memory` retrieves relevant project knowledge without stuffing all context into the session
+- `verify` blocks completion claims without fresh test or build evidence
+- `tdd` pushes test-first implementation when behavior changes
+- `structured-debug` keeps debugging reproducible instead of guess-and-patch
+- `security-review`, `document-code`, and `simplify-implementation` add focused review passes when the task needs them
+
+### Get the full engineering workflow stack
 
 Save [`templates/senior-engineer.yaml`](./templates/senior-engineer.yaml) locally and run:
 
@@ -80,7 +139,7 @@ Save [`templates/senior-engineer.yaml`](./templates/senior-engineer.yaml) locall
 ai-devkit init --template ./senior-engineer.yaml
 ```
 
-Bundles the eight built-in skills with curated additions from Anthropic, Vercel, and others — TDD, frontend design, webapp testing, doc co-authoring, React best practices, security review, and more.
+Bundles the built-in skills with curated additions from Anthropic, Vercel, and others: TDD, frontend design, webapp testing, doc co-authoring, React best practices, security review, and more.
 
 ## A feature, end-to-end
 
@@ -110,7 +169,7 @@ Agent:  Audits the diff against the design doc — scope creep,
         before you push.
 ```
 
-## What changes in the agent
+## What changes in agent behavior
 
 The flow above is powered by eight built-in skills, each addressing a failure mode developers see in real AI coding sessions:
 
@@ -127,7 +186,7 @@ The flow above is powered by eight built-in skills, each addressing a failure mo
 
 Need more? `ai-devkit skill add <registry> <skill>` pulls from 30+ publishers — Anthropic, Vercel, Supabase, Microsoft, Google.
 
-## Works with every coding agent
+## Works across coding agents
 
 One `.ai-devkit.json` configures all of them. Add a new agent to your team without rewriting your rules.
 
@@ -148,44 +207,26 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | — |
 | [Roo Code](https://roocode.com/) | testing | — |
 
-**Setup** — `ai-devkit init` writes the agent's config (rules, MCP servers, and skills) so it follows the same workflow.
+**Setup** — `ai-devkit init` writes the agent's config (rules, MCP servers, and skills) so it joins the same operating layer.
 **Remote control** — drive running sessions from `ai-devkit agent send` and route them through external channels.
-
-## Operate agents like infrastructure
-
-AI DevKit also ships an agent control plane — drive sessions from the CLI, supervise from anywhere:
-
-```bash
-# List running sessions across providers
-ai-devkit agent list
-
-# Send a prompt to a running session and wait for the response
-ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
-
-# Pipe multi-line output into a running session
-npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
-
-# Pipe a session through Telegram — operate your agent from your phone
-ai-devkit channel start telegram --agent <agent-name> --daemon
-```
-
-Useful for long-running tasks, scheduled work, or checking on an agent from your phone at lunch.
 
 ## How is this different from `CLAUDE.md`, `.cursor/rules`, or `AGENTS.md`?
 
-Those files are static instructions the agent re-reads. AI DevKit gives the agent a **workflow layer**: phase docs, skills loaded on demand, local searchable memory, verification gates, and a control surface that works across agents. The rules still matter, but AI DevKit makes them operational.
+Those files are static instructions the agent re-reads. AI DevKit gives agents a **operating layer**: generated setup, a control console, cross-agent messaging, local searchable memory, phase docs, skills loaded on demand, and verification gates. The rules still matter, but AI DevKit makes them operational across tools.
 
 | Static rules files | AI DevKit |
 |--------------------|-----------|
-| Tell the agent what you prefer | Installs skills that drive the next step |
+| Tell one agent what you prefer | Reconciles setup across supported agents |
+| Do not show what is running | Lists, inspects, and controls live sessions |
+| Cannot send work between sessions | Routes prompts, stdin, and channel messages to agents |
 | Depend on the agent remembering every rule | Stores and searches reusable project knowledge |
 | Cannot prove a task is complete | Requires fresh command output before completion claims |
-| Are different for each agent | Generates the right files for each supported agent |
 
 ## What this isn't
 
 - **Not a smarter LLM.** Bad models stay bad — this raises the floor on process, not on raw capability.
-- **Not a magic "write the feature for me" button.** You still review the requirements doc, accept the design, and read the diff. The workflow makes that review *possible* (artifacts to point at) instead of impossible (chat scrollback).
+- **Not a replacement for Claude Code, Codex, Cursor, Gemini CLI, or opencode.** AI DevKit configures, supervises, and coordinates the agents you already use.
+- **Not a magic "write the feature for me" button.** You still review the requirements doc, accept the design, and read the diff. The workflow makes that review possible because you have artifacts to point at instead of only chat scrollback.
 - **Not a hosted service.** MIT-licensed, runs locally, no telemetry. Memory is a SQLite file on your disk. The agent control plane talks to the agent SDKs you already use.
 
 ## Documentation & community
