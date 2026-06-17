@@ -95,6 +95,11 @@ describe('CodexAdapter', () => {
     });
 
     describe('detectAgents', () => {
+        async function useRealSessionMatcher(): Promise<void> {
+            const actualMatching = await vi.importActual<typeof import('../../utils/matching.js')>('../../utils/matching.js');
+            mockedMatchProcessesToSessions.mockImplementation(actualMatching.matchProcessesToSessions);
+        }
+
         it('should return empty list when no codex process is running', async () => {
             mockedListAgentProcesses.mockReturnValue([]);
 
@@ -186,6 +191,163 @@ describe('CodexAdapter', () => {
                 sessionId: 'sess-abc',
                 summary: 'Implement adapter flow',
             });
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should match when session_meta timestamp and file birthtime both align with process start', async () => {
+            await useRealSessionMatcher();
+            const processStart = new Date('2026-03-18T15:00:00.000Z');
+            const sessionTimestamp = '2026-03-18T15:00:05.000Z';
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 101,
+                    command: 'codex',
+                    cwd: '/repo-a',
+                    tty: 'ttys001',
+                    startTime: processStart,
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '03', '18');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const sessionFile = path.join(dateDir, 'sess-aligned.jsonl');
+            fs.writeFileSync(sessionFile, [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-aligned', timestamp: sessionTimestamp, cwd: '/repo-a' } }),
+                JSON.stringify({ type: 'event', timestamp: sessionTimestamp, payload: { type: 'token_count', message: 'Aligned session' } }),
+            ].join('\n'));
+
+            (adapter as any).codexSessionsDir = sessionsDir;
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([
+                {
+                    sessionId: 'sess-aligned',
+                    filePath: sessionFile,
+                    projectDir: dateDir,
+                    birthtimeMs: new Date(sessionTimestamp).getTime(),
+                    resolvedCwd: '',
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                pid: 101,
+                sessionId: 'sess-aligned',
+                summary: 'Aligned session',
+            });
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('should match late-created session files using session_meta timestamp', async () => {
+            await useRealSessionMatcher();
+            const processStart = new Date('2026-03-18T15:00:00.000Z');
+            const sessionTimestamp = '2026-03-18T15:00:10.000Z';
+            const lateBirthtime = new Date('2026-03-18T15:05:30.000Z').getTime();
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 102,
+                    command: 'codex',
+                    cwd: '/repo-a',
+                    tty: 'ttys001',
+                    startTime: processStart,
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '03', '18');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const sessionFile = path.join(dateDir, 'sess-late.jsonl');
+            fs.writeFileSync(sessionFile, [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-late', timestamp: sessionTimestamp, cwd: '/repo-a' } }),
+                JSON.stringify({ type: 'event', timestamp: sessionTimestamp, payload: { type: 'token_count', message: 'Late file session' } }),
+            ].join('\n'));
+
+            (adapter as any).codexSessionsDir = sessionsDir;
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([
+                {
+                    sessionId: 'sess-late',
+                    filePath: sessionFile,
+                    projectDir: dateDir,
+                    birthtimeMs: lateBirthtime,
+                    resolvedCwd: '',
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                pid: 102,
+                sessionId: 'sess-late',
+                summary: 'Late file session',
+            });
+            expect(mockedMatchProcessesToSessions.mock.calls[0][1][0].birthtimeMs).toBe(new Date(sessionTimestamp).getTime());
+
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it.each<[string, string | undefined]>([
+            ['missing', undefined],
+            ['invalid', 'not-a-date'],
+        ])('should fall back to file birthtime when session_meta timestamp is %s', async (_label, metaTimestamp) => {
+            await useRealSessionMatcher();
+            const processStart = new Date('2026-03-18T15:00:00.000Z');
+            const fileBirthtime = new Date('2026-03-18T15:00:20.000Z').getTime();
+            const processes: ProcessInfo[] = [
+                {
+                    pid: 103,
+                    command: 'codex',
+                    cwd: '/repo-a',
+                    tty: 'ttys001',
+                    startTime: processStart,
+                },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-test-'));
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '03', '18');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const payload: { id: string; cwd: string; timestamp?: string } = { id: `sess-${_label}`, cwd: '/repo-a' };
+            if (metaTimestamp !== undefined) {
+                payload.timestamp = metaTimestamp;
+            }
+
+            const sessionFile = path.join(dateDir, `sess-${_label}.jsonl`);
+            fs.writeFileSync(sessionFile, [
+                JSON.stringify({ type: 'session_meta', payload }),
+                JSON.stringify({ type: 'event', timestamp: '2026-03-18T15:00:30.000Z', payload: { type: 'token_count', message: `${_label} timestamp session` } }),
+            ].join('\n'));
+
+            (adapter as any).codexSessionsDir = sessionsDir;
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([
+                {
+                    sessionId: `sess-${_label}`,
+                    filePath: sessionFile,
+                    projectDir: dateDir,
+                    birthtimeMs: fileBirthtime,
+                    resolvedCwd: '',
+                },
+            ]);
+
+            const agents = await adapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0].sessionId).toBe(`sess-${_label}`);
+            expect(mockedMatchProcessesToSessions.mock.calls[0][1][0].birthtimeMs).toBe(fileBirthtime);
 
             fs.rmSync(tmpDir, { recursive: true, force: true });
         });
@@ -601,6 +763,133 @@ describe('CodexAdapter', () => {
 
             const { sessions } = discoverSessions(processes);
             expect(sessions[0].resolvedCwd).toBe('');
+        });
+
+        it('should use session_meta timestamp as the matching birthtime when valid', () => {
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            (adapter as any).codexSessionsDir = sessionsDir;
+            const discoverSessions = (adapter as any).discoverSessions.bind(adapter);
+
+            const dateDir = path.join(sessionsDir, '2026', '03', '18');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const sessionFile = path.join(dateDir, 'sess-meta-time.jsonl');
+            const metaTimestamp = '2026-03-18T15:00:05.000Z';
+            fs.writeFileSync(sessionFile,
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-meta-time', timestamp: metaTimestamp, cwd: '/repo-a' } }),
+            );
+
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([
+                {
+                    sessionId: 'sess-meta-time',
+                    filePath: sessionFile,
+                    projectDir: dateDir,
+                    birthtimeMs: new Date('2026-03-18T15:05:30.000Z').getTime(),
+                    resolvedCwd: '',
+                },
+            ]);
+
+            const { sessions } = discoverSessions([
+                { pid: 1, command: 'codex', cwd: '/repo-a', tty: '', startTime: new Date('2026-03-18T15:00:00Z') },
+            ]);
+
+            expect(sessions[0].resolvedCwd).toBe('/repo-a');
+            expect(sessions[0].birthtimeMs).toBe(new Date(metaTimestamp).getTime());
+        });
+
+        it('should tolerate malformed session_meta and unreadable files', () => {
+            const sessionsDir = path.join(tmpDir, 'sessions');
+            (adapter as any).codexSessionsDir = sessionsDir;
+            const discoverSessions = (adapter as any).discoverSessions.bind(adapter);
+
+            const dateDir = path.join(sessionsDir, '2026', '03', '18');
+            fs.mkdirSync(dateDir, { recursive: true });
+
+            const malformedFile = path.join(dateDir, 'malformed.jsonl');
+            const missingFile = path.join(dateDir, 'missing.jsonl');
+            fs.writeFileSync(malformedFile, '{not valid json');
+
+            mockedBatchGetSessionFileBirthtimes.mockReturnValue([
+                {
+                    sessionId: 'malformed',
+                    filePath: malformedFile,
+                    projectDir: dateDir,
+                    birthtimeMs: 1710800324000,
+                    resolvedCwd: '',
+                },
+                {
+                    sessionId: 'missing',
+                    filePath: missingFile,
+                    projectDir: dateDir,
+                    birthtimeMs: 1710800325000,
+                    resolvedCwd: '',
+                },
+            ]);
+
+            const result = discoverSessions([
+                { pid: 1, command: 'codex', cwd: '/repo', tty: '', startTime: new Date('2026-03-18T15:00:00Z') },
+            ]);
+
+            expect(result.sessions).toHaveLength(2);
+            expect(result.sessions[0].resolvedCwd).toBe('');
+            expect(result.sessions[1].resolvedCwd).toBe('');
+            expect(result.contentCache.has(malformedFile)).toBe(true);
+            expect(result.contentCache.has(missingFile)).toBe(false);
+        });
+    });
+
+    describe('findSessionFileById', () => {
+        let tmpDir: string;
+        let sessionsDir: string;
+        const sessionId = 'aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee';
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-resume-find-'));
+            sessionsDir = path.join(tmpDir, 'sessions');
+            fs.mkdirSync(path.join(sessionsDir, '2026', '03', '18'), { recursive: true });
+            (adapter as any).codexSessionsDir = sessionsDir;
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        function writeResumeSession(timestamp?: string): string {
+            const filePath = path.join(sessionsDir, '2026', '03', '18', `${sessionId}.jsonl`);
+            const payload: { id: string; cwd: string; timestamp?: string } = { id: sessionId, cwd: '/repo-a' };
+            if (timestamp !== undefined) {
+                payload.timestamp = timestamp;
+            }
+            fs.writeFileSync(filePath, JSON.stringify({ type: 'session_meta', payload }));
+            return filePath;
+        }
+
+        it('should return session_meta timestamp as birthtimeMs when valid', () => {
+            const metaTimestamp = '2026-03-18T15:00:05.000Z';
+            writeResumeSession(metaTimestamp);
+            const findSessionFileById = (adapter as any).findSessionFileById.bind(adapter);
+
+            const session = findSessionFileById(sessionId);
+
+            expect(session).toMatchObject({
+                sessionId,
+                resolvedCwd: '/repo-a',
+                birthtimeMs: new Date(metaTimestamp).getTime(),
+            });
+        });
+
+        it.each<[string, string | undefined]>([
+            ['missing', undefined],
+            ['invalid', 'not-a-date'],
+        ])('should fall back to stat birthtimeMs when session_meta timestamp is %s', (_label, metaTimestamp) => {
+            const sessionFile = writeResumeSession(metaTimestamp);
+            const stat = fs.statSync(sessionFile);
+            const findSessionFileById = (adapter as any).findSessionFileById.bind(adapter);
+
+            const session = findSessionFileById(sessionId);
+
+            expect(session).not.toBeNull();
+            expect(session.birthtimeMs).toBe(stat.birthtimeMs);
         });
     });
 
