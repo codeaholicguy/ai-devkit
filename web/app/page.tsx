@@ -84,8 +84,8 @@ export default function Home() {
             </div>
           </div>
 
-          <div id="agent-console-demo" className="console-aura relative scroll-mt-20">
-            <div className="ethereal-panel overflow-hidden rounded-lg border border-[#d5d9e8] bg-[#0c0e17]">
+          <div id="agent-console-demo" className="relative scroll-mt-20">
+            <div className="overflow-hidden">
               <video
                 aria-label="AI DevKit agent console showing multiple local coding agent sessions"
                 autoPlay
@@ -98,9 +98,6 @@ export default function Home() {
                 <source src="/showcase.webm" type="video/webm" />
               </video>
             </div>
-            <p className="mt-3 font-mono text-[11px] font-medium uppercase leading-4 text-[#515367]">
-              One console for the agents already running on your machine
-            </p>
           </div>
         </div>
       </section>
