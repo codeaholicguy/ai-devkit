@@ -4,7 +4,7 @@
 
 **The control plane for AI coding agents.**
 
-![](agent-console-showcase.gif)
+![](agent-console-showcase.jpg)
 
 AI DevKit gives Claude Code, Codex CLI, Gemini CLI, opencode, Pi, Cursor, GitHub Copilot, Devin, and other coding agents one shared operating layer: one config, one console, local memory retrieval, cross-agent communication, and composable engineering skills led by `dev-lifecycle`.
 

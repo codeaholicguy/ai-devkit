@@ -4,7 +4,7 @@
 
 **AI 编程智能体的控制平面。**
 
-![](agent-console-showcase.gif)
+![](agent-console-showcase.jpg)
 
 AI DevKit 为 Claude Code、Codex CLI、Gemini CLI、opencode、Pi、Cursor、GitHub Copilot、Devin 等编程智能体提供同一个操作层：一份配置、一个控制台、本地记忆检索、跨智能体通信，以及由 `dev-lifecycle` 带领的可组合工程技能。
 
