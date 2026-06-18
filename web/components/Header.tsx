@@ -18,12 +18,12 @@ export default function Header() {
   ];
 
   return (
-    <header className="border-b border-gray-200">
-      <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8" aria-label="Main navigation">
+    <header className="border-b border-[#dde3da] bg-white text-[#2e303a]">
+      <nav className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-10" aria-label="Main navigation">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-sm mr-2" />
-            <Link href="/" className="text-xl font-bold no-underline hover:opacity-100">
+            <Image src="/logo.svg" alt="Logo" width={32} height={32} className="rounded-sm mr-2" />
+            <Link href="/" className="text-xl font-semibold no-underline hover:opacity-100">
               AI DevKit
             </Link>
           </div>
@@ -34,7 +34,7 @@ export default function Header() {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className="text-sm font-medium no-underline hover:opacity-70 transition-opacity"
+                  className="text-sm font-medium text-[#515367] no-underline transition-colors hover:text-[#11131c] hover:opacity-100"
                 >
                   {item.name}
                 </Link>
@@ -43,7 +43,7 @@ export default function Header() {
                 href="https://github.com/codeaholicguy/ai-devkit"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium no-underline hover:opacity-70 transition-opacity"
+                className="inline-flex items-center gap-2 text-sm font-medium text-[#515367] no-underline transition-colors hover:text-[#11131c] hover:opacity-100"
               >
                 <svg
                   className="w-4 h-4"
@@ -67,7 +67,7 @@ export default function Header() {
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="inline-flex items-center justify-center p-2 rounded-md hover:bg-gray-100"
+              className="inline-flex items-center justify-center rounded p-2 text-[#2e303a] hover:bg-[#f3f5ff]"
               aria-expanded={mobileMenuOpen}
             >
               <span className="sr-only">Open main menu</span>
@@ -85,12 +85,12 @@ export default function Header() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden py-4 space-y-1 border-t border-gray-200">
+          <div className="space-y-1 border-t border-[#dde3da] py-4 md:hidden">
             {navigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}
-                className="block px-3 py-2 text-base font-medium no-underline hover:bg-gray-100 rounded-md"
+                className="block rounded px-3 py-2 text-base font-medium text-[#515367] no-underline hover:bg-[#f3f5ff] hover:text-[#11131c]"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 {item.name}
@@ -100,7 +100,7 @@ export default function Header() {
               href="https://github.com/codeaholicguy/ai-devkit"
               target="_blank"
               rel="noopener noreferrer"
-              className="block px-3 py-2 text-base font-medium no-underline hover:bg-gray-100 rounded-md"
+              className="block rounded px-3 py-2 text-base font-medium text-[#515367] no-underline hover:bg-[#f3f5ff] hover:text-[#11131c]"
             >
               GitHub
             </a>

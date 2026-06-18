@@ -11,21 +11,24 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AI DevKit - Make AI Coding Agents Follow Your Process",
+    default: "AI DevKit - The Local Control Plane for AI Coding Agents",
     template: "%s | AI DevKit",
   },
   description:
-    "AI DevKit makes AI coding agents follow a repeatable engineering workflow with requirements, design, planning, tests, verification, memory, and review.",
+    "AI DevKit gives Claude Code, Codex, Cursor, Gemini CLI, opencode, Pi, and other coding agents one local operating layer: config, console, memory, communication, and verification.",
   keywords: [
     "AI",
     "development",
     "CLI",
+    "AI agent control plane",
     "AI agent workflow",
+    "agent orchestration",
     "verification",
     "memory",
     "AI-assisted coding",
     "software engineering",
     "project management",
+    "local AI coding agents",
     "repeatable engineering workflow",
     "specs driven development",
   ],
@@ -33,9 +36,9 @@ export const metadata: Metadata = {
   creator: "AI DevKit",
   publisher: "AI DevKit",
   openGraph: {
-    title: "AI DevKit - Make AI Coding Agents Follow Your Process",
+    title: "AI DevKit - The Local Control Plane for AI Coding Agents",
     description:
-      "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup.",
+      "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
     url: siteUrl,
     siteName: "AI DevKit",
     locale: "en_US",
@@ -43,9 +46,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI DevKit - Make AI Coding Agents Follow Your Process",
+    title: "AI DevKit - The Local Control Plane for AI Coding Agents",
     description:
-      "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup.",
+      "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
   },
   robots: {
     index: true,
@@ -81,7 +84,7 @@ export default function RootLayout({
         applicationCategory: "DeveloperApplication",
         operatingSystem: "macOS, Linux, Windows",
         description:
-          "A workflow layer for AI coding agents with requirements, design, planning, tests, verification, memory, skills, and review.",
+          "A local control plane for AI coding agents with one config, one console, shared memory, cross-agent communication, workflow skills, and verification gates.",
         url: siteUrl,
         downloadUrl: "https://www.npmjs.com/package/ai-devkit",
         softwareHelp: `${siteUrl}/docs`,

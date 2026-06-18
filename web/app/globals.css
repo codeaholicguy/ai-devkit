@@ -3,6 +3,16 @@
 @theme {
   --color-white: #ffffff;
   --color-black: #000000;
+  --color-surface: #11131c;
+  --color-surface-container-lowest: #0c0e17;
+  --color-surface-container-low: #191b24;
+  --color-surface-container: #1d1f29;
+  --color-surface-container-high: #282933;
+  --color-surface-container-highest: #32343e;
+  --color-on-surface: #e1e1ef;
+  --color-on-surface-variant: #c1c9bb;
+  --color-primary: #b3f6ab;
+  --color-secondary: #bac3ff;
   --color-gray-50: #fafafa;
   --color-gray-100: #f5f5f5;
   --color-gray-200: #e5e5e5;
@@ -13,14 +23,14 @@
   --color-gray-700: #404040;
   --color-gray-800: #262626;
   --color-gray-900: #171717;
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 }
 
 body {
   background: #ffffff;
-  color: #000000;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  color: #2e303a;
+  font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -52,18 +62,15 @@ a:hover {
 }
 
 code {
-  background: #f5f5f5;
-  color: #000000;
   padding: 0.2em 0.4em;
   border-radius: 3px;
-  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
   font-size: 0.9em;
 }
 
 pre code {
   background: transparent;
   padding: 0;
-  color: inherit;
 }
 
 pre {
@@ -74,8 +81,8 @@ pre {
 }
 
 article pre {
-  background: #000000;
-  color: #ffffff;
+  background: #0c0e17;
+  color: #e1e1ef;
 }
 
 .sr-only {
@@ -102,7 +109,7 @@ article pre {
 }
 
 *:focus-visible {
-  outline: 2px solid #000000;
+  outline: 2px solid #bac3ff;
   outline-offset: 2px;
 }
 
@@ -129,25 +136,25 @@ article table {
   font-size: 0.95rem;
   border-radius: 0.5rem;
   overflow: hidden;
-  border: 1px solid #e5e5e5;
+  border: 1px solid #d5d9e8;
 }
 
 article thead {
-  background: #f5f5f5;
+  background: #f3f5ff;
 }
 
 article th {
   padding: 0.875rem 1rem;
   text-align: left;
   font-weight: 600;
-  color: #171717;
-  border-bottom: 2px solid #e5e5e5;
+  color: #2e303a;
+  border-bottom: 2px solid #d5d9e8;
 }
 
 article td {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e5e5;
-  color: #404040;
+  border-bottom: 1px solid #d5d9e8;
+  color: #515367;
 }
 
 article tbody tr:last-child td {
@@ -155,11 +162,11 @@ article tbody tr:last-child td {
 }
 
 article tbody tr:hover {
-  background: #fafafa;
+  background: #f8faf7;
 }
 
 article td code {
-  background: #f0f0f0;
+  background: #f3f5ff;
   padding: 0.15em 0.4em;
   border-radius: 4px;
   font-size: 0.875em;
@@ -186,4 +193,44 @@ article td code {
 
 .agent-marquee a:hover .agent-logo {
   filter: grayscale(0%);
+}
+
+.operator-grid {
+  background:
+    linear-gradient(rgba(225, 225, 239, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(225, 225, 239, 0.05) 1px, transparent 1px),
+    linear-gradient(135deg, #11131c 0%, #191b24 56%, #11131c 100%);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+
+.ethereal-grid {
+  background:
+    linear-gradient(rgba(45, 64, 157, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 64, 157, 0.055) 1px, transparent 1px),
+    linear-gradient(135deg, #ffffff 0%, #f8faf7 56%, #f3f5ff 100%);
+  background-size: 32px 32px, 32px 32px, auto;
+}
+
+.ethereal-panel {
+  box-shadow: 0 0 20px rgba(186, 195, 255, 0.12);
+  backdrop-filter: blur(16px);
+}
+
+.console-aura::before {
+  background:
+    radial-gradient(circle at 25% 45%, rgba(179, 246, 171, 0.18), transparent 36%),
+    radial-gradient(circle at 72% 38%, rgba(186, 195, 255, 0.24), transparent 42%);
+  content: "";
+  filter: blur(28px);
+  inset: -12%;
+  opacity: 0.7;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-marquee {
+    animation: none;
+  }
 }
