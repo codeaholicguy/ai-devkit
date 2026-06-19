@@ -72,6 +72,10 @@ export default function Home() {
             <p className="mb-5 max-w-2xl text-sm font-medium leading-5 text-[#2e303a]">
               Built for developers already operating more than one coding agent.
             </p>
+            <p className="mb-5 max-w-2xl text-sm leading-5 text-[#515367]">
+              Open source on GitHub and available from npm as{" "}
+              <span className="font-mono">ai-devkit</span>.
+            </p>
 
             <div className="flex flex-col gap-3 sm:items-start">
               <CopyCommandButton command="npx ai-devkit@latest init" />

@@ -11,13 +11,15 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AI DevKit - The Local Control Plane for AI Coding Agents",
+    default: "AI DevKit - Control Plane for AI Coding Agents",
     template: "%s | AI DevKit",
   },
   description:
     "AI DevKit gives Claude Code, Codex, Cursor, Gemini CLI, opencode, Pi, and other coding agents one control plane: config, console, local-first memory, communication, and verification.",
   keywords: [
     "AI",
+    "AI DevKit",
+    "ai-devkit",
     "development",
     "CLI",
     "AI agent control plane",
@@ -36,7 +38,7 @@ export const metadata: Metadata = {
   creator: "AI DevKit",
   publisher: "AI DevKit",
   openGraph: {
-    title: "AI DevKit - The Local Control Plane for AI Coding Agents",
+    title: "AI DevKit - Control Plane for AI Coding Agents",
     description:
       "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
     url: siteUrl,
@@ -46,7 +48,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI DevKit - The Local Control Plane for AI Coding Agents",
+    title: "AI DevKit - Control Plane for AI Coding Agents",
     description:
       "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
   },
@@ -75,12 +77,14 @@ export default function RootLayout({
         "@type": "WebSite",
         "@id": `${siteUrl}/#website`,
         name: "AI DevKit",
+        alternateName: ["ai-devkit"],
         url: siteUrl,
       },
       {
         "@type": "SoftwareApplication",
         "@id": `${siteUrl}/#softwareapplication`,
         name: "AI DevKit",
+        alternateName: ["ai-devkit"],
         applicationCategory: "DeveloperApplication",
         operatingSystem: "macOS, Linux, Windows",
         description:
@@ -94,7 +98,10 @@ export default function RootLayout({
           url: siteUrl,
         },
         isAccessibleForFree: true,
-        sameAs: ["https://github.com/codeaholicguy/ai-devkit"],
+        sameAs: [
+          "https://github.com/codeaholicguy/ai-devkit",
+          "https://www.npmjs.com/package/ai-devkit",
+        ],
       },
     ],
   };
