@@ -10,7 +10,7 @@ export default function Footer() {
           <div>
             <h3 className="text-sm font-bold mb-3">AI DevKit</h3>
             <p className="text-sm text-gray-600 leading-relaxed">
-              A CLI toolkit for AI-assisted software development with phase templates and structured workflows.
+              The control plane for AI coding agents: one config, one console, local-first memory, cross-agent communication, and verification.
             </p>
           </div>
 

@@ -1,21 +1,23 @@
 ---
 title: Supported AI Agents & Environments
-description: Compare supported AI coding agents and environments, including Claude Code, Codex, Cursor, Gemini CLI, Junie, Cline, Devin, OpenCode, and GitHub Copilot.
+description: Compare supported AI coding agents and environments for AI DevKit setup, skills, MCP configuration, and local control-plane workflows.
 order: 2
 ---
 
-AI DevKit works with a variety of AI coding assistants and terminal AI coding agents. This page lists all supported environments and explains what AI DevKit provides for each one, so teams can keep agentic software development workflows consistent across tools.
+AI DevKit works with a variety of AI coding agents and coding environments. This page lists supported environments and explains what AI DevKit installs for each one, so teams can keep setup, skills, memory, and verification consistent across tools.
+
+Support levels here describe setup and environment integration. Agent session discovery, `agent console`, and `agent send` depend on whether the local agent exposes a detectable running session. See [Agent Management](/docs/8-agent-management) and [Agent Console](/docs/13-agent-console) for the operational control-plane commands.
 
 ## Status Legend
 
 | Status | Meaning |
 |--------|---------|
-| **Ready** | Fully supported and tested. Safe for production use. |
+| **Ready** | Stable setup support for generated files, skills, and documented configuration. |
 | **Experimental** | Works but may have issues. We're actively testing and improving support. |
 
 ## Ready Environments
 
-These environments are fully supported with stable integrations.
+These environments have stable setup integrations.
 
 ### [Cursor](https://cursor.com/)
 **What AI DevKit provides:**
@@ -44,16 +46,16 @@ These environments are fully supported with stable integrations.
 - `.gemini/skills/` — Project-level skills
 - `~/.gemini/skills/` — Global skills
 
-### [OpenAI Codex](https://chatgpt.com/en-SE/features/codex)
+### [Codex](https://chatgpt.com/en-SE/features/codex)
 **What AI DevKit provides:**
 - `AGENTS.md` — Codex-specific configuration and context
 - `.agents/skills/` — Project-level skills
 - `~/.codex/skills/` — Global skills
 - `.codex/config.toml` — Project-level MCP server configuration
 
-### [OpenCode](https://opencode.ai/)
+### [opencode](https://opencode.ai/)
 **What AI DevKit provides:**
-- `AGENTS.md` — OpenCode [custom instructions](https://opencode.ai/docs/rules/)
+- `AGENTS.md` — opencode [custom instructions](https://opencode.ai/docs/rules/)
 - `.opencode/skills/` — Project-level skills
 - `~/.config/opencode/skills/` — Global skills
 - `opencode.json` — Project-level MCP server configuration under the `mcp` key

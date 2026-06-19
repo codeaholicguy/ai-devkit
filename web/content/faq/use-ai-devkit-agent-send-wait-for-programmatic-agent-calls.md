@@ -1,6 +1,6 @@
 ---
 title: Use ai-devkit agent send --wait for Programmatic Agent Calls
-description: Use ai-devkit agent send --wait to call an existing interactive Claude Code, Codex, Gemini CLI, or OpenCode session from scripts and automation.
+description: Use ai-devkit agent send --wait to call an existing interactive Claude Code, Codex, Gemini CLI, or opencode session from scripts and automation.
 order: 11
 ---
 
@@ -13,7 +13,7 @@ This is useful when you want the ergonomics of an interactive agent session but 
 Before using this workflow:
 
 - Install AI DevKit and make sure `ai-devkit` is available in your shell.
-- Start Claude Code, Codex, Gemini CLI, or OpenCode in the project you want to control.
+- Start Claude Code, Codex, Gemini CLI, or opencode in the project you want to control.
 - Keep that agent running in a supported terminal session such as tmux, iTerm2, or Apple Terminal.
 - Run `ai-devkit agent list` and confirm the session appears.
 
@@ -62,7 +62,7 @@ That means the agent keeps its current:
 - authentication and permission state
 - terminal session and interactive approvals
 
-This makes it a strong fit for automation that should continue work inside the same Claude Code, Codex, Gemini CLI, or OpenCode session.
+This makes it a strong fit for automation that should continue work inside the same Claude Code, Codex, Gemini CLI, or opencode session.
 
 ## When should I still use claude -p or codex exec?
 
@@ -86,7 +86,7 @@ Current interactive adapters include:
 - Claude Code
 - Codex
 - Gemini CLI
-- OpenCode
+- opencode
 
 Support depends on AI DevKit being able to detect the live process, find its terminal, and read its session transcript.
 
@@ -172,7 +172,7 @@ This is why `agent send --wait` can be a practical bridge between automation and
 
 ### No running agents found
 
-Start Claude Code, Codex, Gemini CLI, or OpenCode first, then run:
+Start Claude Code, Codex, Gemini CLI, or opencode first, then run:
 
 ```bash
 ai-devkit agent list

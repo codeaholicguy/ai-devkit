@@ -19,21 +19,21 @@ function buildTitle(tool: string): string {
 }
 
 function buildDescription(tool: string): string {
-  return `Set up AI DevKit for ${tool} with planning, memory, verification, skills, and review so agents follow the same workflow.`;
+  return `Set up AI DevKit for ${tool} with one local config, console, memory layer, communication path, workflow skills, and verification.`;
 }
 
 function buildSeoContent(tool: string, baseContent: string): string {
   const intro = [
     "",
-    `Learn how to set up AI DevKit for **${tool}** so your team can rely on the same repeatable engineering workflow across AI coding agents.`,
+    `Learn how to set up AI DevKit for **${tool}** so your team can use the same operating model across AI coding agents.`,
     "",
-    `AI DevKit adds planning, reusable commands, memory, verification, skills, and review to ${tool} so every project follows the same playbook.`,
+    `AI DevKit adds project-local setup, memory, communication, workflow skills, and verification to ${tool} so every project follows the same playbook.`,
     "",
     "## What you'll configure",
     "",
     "- Project initialization and environment selection",
     "- AI editor files like rules, agents, and commands",
-    "- Memory, verification, and skills for repeatable workflows",
+    "- Memory, communication, verification, and skills for repeatable workflows",
     "",
   ].join("\n");
 
@@ -79,7 +79,7 @@ export async function generateMetadata({
       "AI DevKit",
       "AI coding assistant",
       "setup guide",
-      "repeatable engineering workflow",
+      "AI agent control plane",
       "commands",
       "memory",
     ],
@@ -113,7 +113,7 @@ export default async function SetupToolPage({ params }: SetupPageProps) {
   const baseDoc = getDocPage(baseDocSlug);
   const baseContent =
     baseDoc?.content ||
-    "AI DevKit makes AI coding agents follow a repeatable engineering workflow with planning, memory, verification, skills, and review.";
+    "AI DevKit gives AI coding agents one control plane with setup, console supervision, local-first memory, communication, workflow skills, and verification.";
 
   const content = buildSeoContent(entry.tool, baseContent);
   const pageUrl = `${siteUrl}/faq/getting-started/${entry.slug}`;

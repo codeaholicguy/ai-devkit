@@ -8,7 +8,7 @@ const rawSetupTools = [
   "Claude Code",
   "Codex",
   "Antigravity",
-  "OpenCode",
+  "opencode",
   "GitHub Copilot",
 ];
 

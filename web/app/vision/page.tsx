@@ -9,10 +9,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   title: "Vision",
   description:
-    "The vision behind AI DevKit: make AI coding agents follow a repeatable engineering workflow with planning, memory, verification, and review.",
+    "The vision behind AI DevKit: turn scattered AI coding agents into one local system for setup, memory, communication, workflow skills, and verification.",
   keywords: [
     "AI DevKit vision",
-    "AI-assisted development",
+    "multi-agent coding",
     "repeatable engineering workflow",
     "development best practices",
     "AI coding philosophy",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Vision - AI DevKit",
     description:
-      "Discover the vision behind AI DevKit: make AI coding agents follow a repeatable engineering workflow.",
+      "Discover the vision behind AI DevKit: one control plane for AI coding agents.",
     url: `${siteUrl}/vision`,
     siteName: "AI DevKit",
     locale: "en_US",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Vision - AI DevKit",
     description:
-      "Discover the vision behind AI DevKit: make AI coding agents follow a repeatable engineering workflow.",
+      "Discover the vision behind AI DevKit: one control plane for AI coding agents.",
   },
   alternates: {
     canonical: `${siteUrl}/vision`,
@@ -56,8 +56,9 @@ export default function VisionPage() {
         <div className="bg-gray-50 p-8 rounded-lg border border-gray-200">
           <h2 className="text-2xl font-bold mb-4">Ready to get started?</h2>
           <p className="text-gray-600 mb-6">
-            See how AI DevKit adds planning, memory, verification, and review
-            to the AI coding tools you already use.
+            See how AI DevKit adds shared setup, a local console, memory,
+            communication, workflow skills, and verification to the AI coding
+            tools you already use.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link

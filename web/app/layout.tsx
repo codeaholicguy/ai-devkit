@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     template: "%s | AI DevKit",
   },
   description:
-    "AI DevKit gives Claude Code, Codex, Cursor, Gemini CLI, opencode, Pi, and other coding agents one local operating layer: config, console, memory, communication, and verification.",
+    "AI DevKit gives Claude Code, Codex, Cursor, Gemini CLI, opencode, Pi, and other coding agents one control plane: config, console, local-first memory, communication, and verification.",
   keywords: [
     "AI",
     "development",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     "memory",
     "AI-assisted coding",
     "software engineering",
-    "project management",
+    "multi-agent coding",
     "local AI coding agents",
     "repeatable engineering workflow",
     "specs driven development",
@@ -84,7 +84,7 @@ export default function RootLayout({
         applicationCategory: "DeveloperApplication",
         operatingSystem: "macOS, Linux, Windows",
         description:
-          "A local control plane for AI coding agents with one config, one console, shared memory, cross-agent communication, workflow skills, and verification gates.",
+          "A control plane for AI coding agents with one config, one console, local-first memory, cross-agent communication, workflow skills, and verification gates.",
         url: siteUrl,
         downloadUrl: "https://www.npmjs.com/package/ai-devkit",
         softwareHelp: `${siteUrl}/docs`,

@@ -1,9 +1,9 @@
 ---
 title: AI DevKit vs Superpowers
-description: A detailed comparison between AI DevKit and Superpowers for making AI coding agents follow a repeatable engineering workflow.
+description: A detailed comparison between AI DevKit and Superpowers for teams standardizing AI coding agents.
 ---
 
-Both **AI DevKit** and **Superpowers** solve the same core problem: AI coding agents are powerful, but they need structure. Without a clear process, results become inconsistent, context is lost between sessions, and important engineering steps get skipped.
+Both **AI DevKit** and **Superpowers** solve an adjacent problem: AI coding agents are powerful, but they need structure. Without a shared operating model, results become inconsistent, context is lost between sessions, and important engineering steps get skipped.
 
 These tools take different paths to fix that.
 
@@ -11,24 +11,24 @@ These tools take different paths to fix that.
 
 | | AI DevKit | Superpowers |
 |---|---|---|
-| **Type** | Workflow layer for AI coding agents with memory and skills | Opinionated skills framework |
+| **Type** | Control plane for AI coding agents with setup, memory, communication, skills, and verification | Opinionated skills framework |
 | **Install** | `npm install -g ai-devkit` | Agent-specific setup guide (see official repository) |
-| **Approach** | One config across agents: workflow skills, memory, and verification | Behavior focused: process instructions injected into agent prompts |
+| **Approach** | One operating model across agents: config, memory, communication, workflow skills, and verification | Behavior focused: process instructions injected into agent prompts |
 | **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
 | **Skills** | Built-in core skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
-| **Agents supported** | 11+ (Cursor, Claude Code, Codex, Copilot, Gemini CLI, OpenCode, Antigravity, and more) | 4 (Claude Code, Cursor, Codex, OpenCode) |
+| **Agents supported** | Broad setup support across Cursor, Claude Code, Codex, Copilot, Gemini CLI, opencode, Antigravity, and others | 4 (Claude Code, Cursor, Codex, opencode) |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
 | **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
 | **License** | MIT | MIT |
-| **Best for** | Teams that want one repeatable workflow across coding agents, plus memory and reusable skills | Teams that want strict, opinionated, multi-agent workflow enforcement |
+| **Best for** | Teams that want one control plane across coding agents, plus memory and reusable skills | Teams that want strict, opinionated workflow enforcement inside a smaller agent set |
 
 > Note: Agent and skill counts can change over time. Check each project's repository for the latest numbers.
 
 ## Quick Decision Guide
 
-- Choose **AI DevKit** if you want one config across agents, persistent local memory, verification, review, and flexible workflows.
-- Choose **Superpowers** if you want strict process gates and sub-agent orchestration.
-- Use both if you want AI DevKit as the infrastructure layer and Superpowers as the behavioral layer.
+- Choose **AI DevKit** if your problem is operating several coding agents with one setup, memory layer, communication path, and verification model.
+- Choose **Superpowers** if your problem is enforcing a stricter agent behavior methodology inside its supported tools.
+- Use both if you want AI DevKit as the control plane and Superpowers as an opinionated behavior layer.
 
 ## First 10 Minutes
 
@@ -36,7 +36,7 @@ These tools take different paths to fix that.
 
 ```bash
 npm install -g ai-devkit
-ai-devkit init
+npx ai-devkit@latest init
 # then in your AI editor
 Use the dev-lifecycle skill to start requirements for <feature>
 ```
@@ -49,11 +49,11 @@ Follow the official setup guide for your agent at https://github.com/obra/superp
 
 ### AI DevKit
 
-AI DevKit is a **workflow layer for AI coding agents** that you install globally and initialize per project. It creates workflow docs, installs built-in skills like `dev-lifecycle`, `structured-debug`, `simplify-implementation`, and `document-code`, adds persistent local memory, and makes agents verify work before claiming completion.
+AI DevKit is a **control plane for AI coding agents** that you install globally and initialize per project. It creates one project-local setup source, installs built-in skills like `dev-lifecycle`, `structured-debug`, `simplify-implementation`, and `document-code`, adds persistent local memory, supports agent operations, and makes agents verify work before claiming completion.
 
 ```bash
 npm install -g ai-devkit
-ai-devkit init
+npx ai-devkit@latest init
 ```
 
 After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses workflow skills such as `dev-lifecycle`, `tdd`, and `verify` to plan before code and review before push.
@@ -90,9 +90,9 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 ### Agent Support
 
-**AI DevKit** supports 11+ AI coding environments, including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, OpenCode, Antigravity, KiloCode, AMP, and Roo Code. Each environment gets tailored configuration.
+**AI DevKit** supports a broad set of AI coding environments, including Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, Antigravity, KiloCode, AMP, and Roo Code. Each environment gets tailored configuration. Operational commands such as session discovery and `agent send` depend on what each local agent exposes.
 
-**Superpowers** focuses on 4 platforms: Claude Code, Cursor, Codex, and OpenCode. Each has a dedicated installation method and configuration directory.
+**Superpowers** focuses on 4 platforms: Claude Code, Cursor, Codex, and opencode. Each has a dedicated installation method and configuration directory.
 
 ### Execution Model
 
@@ -106,7 +106,7 @@ AI DevKit's preferred scaling pattern is to maximize context quality with one ag
 
 ### Choose AI DevKit if you want:
 
-- A workflow layer that works with the AI coding tools you already use
+- A control plane that works with the AI coding tools you already use
 - Persistent memory across sessions without repeating yourself
 - Support for a wide range of AI coding environments
 - Flexibility to adopt structured practices gradually
@@ -124,15 +124,15 @@ AI DevKit's preferred scaling pattern is to maximize context quality with one ag
 
 ### Using Them Together
 
-AI DevKit and Superpowers are not mutually exclusive. AI DevKit can provide the **infrastructure layer** (memory, skill management, scaffolding), while Superpowers can provide the **behavioral layer** (strict process rules and multi-agent orchestration). Teams that want both persistent memory and strict workflow enforcement can combine them.
+AI DevKit and Superpowers are not mutually exclusive. AI DevKit can provide the **operating layer** (agent setup, memory, skill management, communication, and scaffolding), while Superpowers can provide the **behavioral layer** (strict process rules and multi-agent orchestration). Teams that want both persistent memory and strict workflow enforcement can combine them.
 
 ## Getting Started with AI DevKit
 
-Ready to make your AI coding agent follow a repeatable engineering workflow? Install AI DevKit and initialize your project:
+Ready to give your AI coding agents one control plane? Install AI DevKit and initialize your project:
 
 ```bash
 npm install -g ai-devkit
-ai-devkit init
+npx ai-devkit@latest init
 ```
 
 Then ask the agent to use `dev-lifecycle` so it clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.

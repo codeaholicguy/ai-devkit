@@ -6,7 +6,7 @@
 
 ![](agent-console-showcase.jpg)
 
-AI DevKit gives Claude Code, Codex CLI, Gemini CLI, opencode, Pi, Cursor, GitHub Copilot, Devin, and other coding agents one shared operating layer: one config, one console, local memory retrieval, cross-agent communication, and composable engineering skills led by `dev-lifecycle`.
+AI DevKit gives Claude Code, Codex CLI, Gemini CLI, opencode, Pi, Cursor, GitHub Copilot, Devin, and other coding agents one local-first operating layer: one config, one console, local memory retrieval, cross-agent communication, and composable engineering skills led by `dev-lifecycle`.
 
 - **One config for every agent** — `.ai-devkit.json` reconciles setup across the coding tools your team uses
 - **One console for running sessions** — `agent console` is a live TUI dashboard for supervising local agents across providers

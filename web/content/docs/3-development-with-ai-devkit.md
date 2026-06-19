@@ -5,18 +5,18 @@ slug: development-with-ai-devkit
 order: 3
 ---
 
-AI DevKit provides a repeatable engineering workflow that takes you from idea to reviewed feature. Instead of letting the agent jump straight into code, you create durable context at each phase so it can plan, implement, verify, and review with a clear source of truth.
+AI DevKit includes a repeatable engineering workflow inside the larger control plane. Instead of letting an agent jump straight into code, you create durable context at each phase so it can plan, implement, verify, and review with a clear source of truth.
 
-This is the practical core of agentic software development in AI DevKit: humans keep ownership of requirements and quality, while AI coding agents follow the same SDLC checkpoints every time.
+This is the reliability layer of AI DevKit: humans keep ownership of requirements and quality, while AI coding agents follow the same SDLC checkpoints when the work needs more rigor.
 
 ## Why a Repeatable Workflow?
 
-When you work with AI assistants without structure, you often:
+When you work with AI coding agents without structure, you often:
 - Lose context between sessions
 - Repeat yourself explaining requirements
 - End up with inconsistent code and documentation
 
-AI DevKit solves this by creating workflow docs as you go. Each document becomes context for the next phase, so your AI assistant knows what you're building, why it matters, and what evidence is required before claiming completion.
+AI DevKit solves this by creating workflow docs as you go. Each document becomes context for the next phase, so your coding agent knows what you're building, why it matters, and what evidence is required before claiming completion.
 
 ## The Development Lifecycle
 
@@ -79,7 +79,7 @@ Once installed, the skill is immediately available to your AI agent. For more de
 
 ### How to use it
 
-Tell your AI assistant to use the skill and describe what you want to build. For example:
+Tell your coding agent to use the skill and describe what you want to build. For example:
 
 > "Use dev-lifecycle skill to build an authentication feature with Google OAuth and email login"
 
@@ -203,7 +203,7 @@ Use TDD to add tests for this change
 1. **Don't skip phases** — Each phase builds context for the next. The `dev-lifecycle` skill handles this automatically
 2. **Keep docs updated** — Ask the agent to update planning when things change
 3. **Review before committing** — Ask for code review before you push
-4. **Be specific** — The more detail you give, the better your AI assistant can help
+4. **Be specific** — The more detail you give, the better your coding agent can help
 
 ## Next Steps
 

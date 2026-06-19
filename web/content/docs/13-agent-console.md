@@ -2,7 +2,7 @@
 title: Agent Console
 description: Monitor, message, start, rename, kill, and connect running AI agents from one multi-agent terminal UI.
 slug: agent-console
-order: 14
+order: 13
 ---
 
 > ⚠️ **WARNING**
@@ -20,7 +20,7 @@ ai-devkit agent console
 
 - **AI DevKit** installed globally (see [Getting Started](/docs/1-getting-started))
 - **An interactive terminal**: `agent console` requires a TTY
-- **Supported agent tools** installed for the workflows you want to use, such as Claude Code, Codex, Gemini CLI, or OpenCode
+- **Supported agent tools** installed for the workflows you want to use, such as Claude Code, Codex, Gemini CLI, or opencode
 - **tmux** installed if you want to start or kill managed agents from the console
 - **A configured Telegram channel** if you want to start remote channel bridges from the console (see [Channel](/docs/12-channel))
 
@@ -55,7 +55,7 @@ Press `h` inside the console to show the built-in help panel.
 
 ### Monitor Running Agents
 
-Start the console from any terminal to coordinate a local multi-agent software factory:
+Start the console from any terminal to coordinate local multi-agent coding work:
 
 ```bash
 ai-devkit agent console
@@ -86,7 +86,7 @@ Supported start types:
 | `claude` | Claude Code |
 | `codex` | Codex |
 | `gemini_cli` | Gemini CLI |
-| `opencode` | OpenCode |
+| `opencode` | opencode |
 
 Starting an agent from the console uses a managed tmux session. If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 

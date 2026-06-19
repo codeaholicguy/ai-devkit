@@ -46,7 +46,7 @@ export async function generateMetadata({
       "AI DevKit",
       "documentation",
       "AI coding agents",
-      "repeatable engineering workflow",
+      "AI agent control plane",
       "coding assistant",
     ],
     openGraph: {

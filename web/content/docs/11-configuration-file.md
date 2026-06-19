@@ -2,7 +2,7 @@
 title: Configuration File
 description: Complete reference for the .ai-devkit.json configuration file used by AI DevKit.
 slug: configuration-reference
-order: 12
+order: 11
 ---
 
 AI DevKit stores your project settings in a `.ai-devkit.json` file at your project root. This file is created by `ai-devkit init` and read by most other commands.
@@ -76,7 +76,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `codex` | Codex |
 | `kilocode` | Kilocode |
 | `amp` | Amp |
-| `opencode` | OpenCode |
+| `opencode` | opencode |
 | `roo` | Roo |
 | `antigravity` | Antigravity |
 | `junie` | Junie |
@@ -184,7 +184,7 @@ List of installed skills. Duplicates are automatically deduplicated.
 - **Type:** `Record<string, McpServerDefinition>`
 - **Optional**
 
-Defines MCP servers that agents can connect to. Each key is the server name. This page covers the `mcpServers` field structure. For setup flow, generated files, and conflict behavior during install, see [Agent Setup — MCP Servers](/docs/agent-setup#mcp-servers).
+Defines MCP servers that agents can connect to. Each key is the server name. This page covers the `mcpServers` field structure. For setup flow, generated files, and conflict behavior during install, see [Agent Setup — MCP Servers](/docs/9-agent-setup#mcp-servers).
 
 > **Note:** The `mcpServers` field is supported in AI DevKit `0.23.0` or later.
 
@@ -305,7 +305,7 @@ The global config does **not** support project fields such as `environments`, `p
 
 ## Related Pages
 
-- [Agent Setup](/docs/agent-setup) — how `init` and `install` use this config
-- [Skills](/docs/skills) — managing skills and registries
-- [Memory](/docs/memory) — configuring the memory database path
+- [Agent Setup](/docs/9-agent-setup) — how `init` and `install` use this config
+- [Skills](/docs/7-skills) — managing skills and registries
+- [Memory](/docs/6-memory) — configuring the memory database path
 - [Plugins](/docs/14-plugins) — installing and authoring global npm plugins

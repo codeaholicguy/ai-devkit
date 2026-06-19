@@ -2,7 +2,7 @@
 title: Channel
 description: Connect AI agents with messaging channels like Telegram for remote interaction
 slug: channel
-order: 13
+order: 12
 ---
 
 > ⚠️ **WARNING**

@@ -2,13 +2,13 @@
 title: Agent Management
 description: Manage and interact with other AI agents running on your system
 slug: agent-management
-order: 9
+order: 8
 ---
 
-> ⚠️ **WARNING**
-> This feature is currently **experimental**, works on macOS and Linux with ai-devkit from version 0.10.0. Behaviors and commands may change in future versions.
+> **Experimental**
+> This feature currently works on macOS and Linux with ai-devkit from version 0.10.0. Behaviors and commands may change in future versions.
 
-The `agent` command allows AI DevKit to detect, list, and interact with other AI agents running on your system. It acts as a central hub to find where your AI coding assistants are working and quickly switch context to them.
+The `agent` command allows AI DevKit to detect, list, and interact with other AI agents running on your system. It acts as a central hub to find where your AI coding agents are working and quickly switch context to them.
 
 For an interactive terminal UI that combines listing, previewing, messaging, starting, renaming, killing, and channel controls, see [Agent Console](/docs/13-agent-console).
 
@@ -33,7 +33,7 @@ AI DevKit detects active sessions from the following tools:
 - **[Codex](https://chatgpt.com/en-SE/features/codex)**: Detects running Codex sessions and exposes the same list, open, send, and detail workflows.
 - **[Gemini CLI](https://geminicli.com/)**: Detects running Gemini CLI sessions and exposes them through the same agent management commands.
 - **[GitHub Copilot](https://github.com/features/copilot)**: Detects running Copilot coding agent sessions and exposes them through the agent list, detail, and send workflows.
-- **[OpenCode](https://opencode.ai/)**: Detects running OpenCode sessions and exposes them through the same agent management commands.
+- **[opencode](https://opencode.ai/)**: Detects running opencode sessions and exposes them through the same agent management commands.
 - **[Pi](https://pi.dev/)**: Detects Pi sessions. For more accurate Pi integration, install the [`@ai-devkit/pi-session-tracker`](https://pi.dev/packages/@ai-devkit/pi-session-tracker) package inside Pi:
 
   ```bash

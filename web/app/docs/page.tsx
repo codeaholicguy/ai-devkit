@@ -8,11 +8,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
 export const metadata: Metadata = {
   title: 'Documentation',
   description:
-    'Set up AI DevKit so your coding agent plans before code, remembers project decisions, verifies work, and reviews changes before you push.',
+    'Set up AI DevKit as a control plane for coding agents: one config, one console, local-first memory, communication, workflow skills, and verification.',
   keywords: [
     'AI DevKit documentation',
     'AI coding assistant setup',
-    'AI agent workflow layer',
+    'AI agent control plane',
     'agent skills',
     'skills',
     'AI development tools',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'AI DevKit Documentation',
     description:
-      'Set up workflow skills, memory, and verification for AI coding agents.',
+      'Set up one control plane for AI coding agents.',
     url: `${siteUrl}/docs`,
     siteName: 'AI DevKit',
     locale: 'en_US',
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'AI DevKit Documentation',
     description:
-      'Set up workflow skills, memory, and verification for AI coding agents.',
+      'Set up one control plane for AI coding agents.',
   },
   alternates: {
     canonical: `${siteUrl}/docs`,
@@ -52,7 +52,7 @@ export default function DocsPage() {
         <h1 className="text-4xl font-bold mb-8">Documentation</h1>
 
         <p className="text-xl text-gray-600 mb-12">
-          Set up the workflow layer that makes your AI agent plan before code, remember project decisions, verify work, and review changes before you push.
+          Set up the control plane that gives your coding agents one config, one console, local-first memory, communication, workflow skills, and verification.
         </p>
 
         {docs.length === 0 ? (

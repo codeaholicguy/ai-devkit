@@ -19,7 +19,7 @@ const operatingLayer = [
   {
     label: ".ai-devkit.json",
     title: "One setup for the whole agent team",
-    body: "Reconcile Claude Code, Codex, Cursor, Gemini CLI, opencode, Pi, and more from one project-local source of truth.",
+    body: "Reconcile supported coding agents from one project-local source of truth, then re-run setup as your stack changes.",
   },
   {
     label: "agent console",
@@ -64,10 +64,10 @@ export default function Home() {
               Your AI coding agents are a team now. Give them a way to work together.
             </h1>
             <p className="mb-8 max-w-2xl text-base leading-6 text-[#515367] sm:text-[16px]">
-              AI DevKit is the local control plane for Claude Code, Codex,
-              Cursor, Gemini CLI, opencode, and Pi: one shared config, one
-              console, local memory, cross-agent communication, and proof before
-              done.
+              AI DevKit is the control plane for Claude Code, Codex,
+              Cursor, Gemini CLI, opencode, Pi, and other coding agents: one
+              shared config, one console, local-first memory, cross-agent
+              communication, and proof before done.
             </p>
             <p className="mb-5 max-w-2xl text-sm font-medium leading-5 text-[#2e303a]">
               Built for developers already operating more than one coding agent.
@@ -130,7 +130,7 @@ export default function Home() {
             </div>
           </div>
           <p className="mt-4 text-center text-sm leading-5 text-[#515367]">
-            Configure the coding agents you already use. Keep the operating model consistent as your stack changes.
+            Configure supported agents clearly. Keep the operating model consistent as your stack changes.
           </p>
         </div>
       </section>

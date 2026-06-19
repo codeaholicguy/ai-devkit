@@ -2,12 +2,12 @@
 title: Skills
 description: Install reusable skills that teach AI coding agents team workflows, coding standards, testing patterns, and domain-specific practices.
 slug: skills
-order: 8
+order: 7
 ---
 
-**Skills** are packaged capabilities that extend what your AI coding agents can do. Think of them as "plugins" for your AI assistant—each skill teaches your agent a new competency, like frontend design patterns, database optimization, security best practices, or multi-agent workflow patterns.
+**Skills** are reusable instruction packs that extend what your AI coding agents can do. Each skill teaches an agent a specific workflow or domain practice, such as frontend design, database optimization, security review, or multi-agent coordination.
 
-> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
+> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
 
 ## How Skills Work
 
@@ -62,7 +62,7 @@ Skills are currently supported by the following AI coding agents:
 | **Claude Code** | `.claude/skills`   | `~/.claude/skills` |
 | **GitHub Copilot** | `.github/skills` | `~/.copilot/skills` |
 | **Codex**       | `.agents/skills`   | `~/.codex/skills` |
-| **OpenCode**    | `.opencode/skills` | `~/.config/opencode/skills` |
+| **opencode**    | `.opencode/skills` | `~/.config/opencode/skills` |
 | **Antigravity** | `.agent/skills`    | `~/.gemini/antigravity/skills` |
 | **Junie**       | `.junie/skills`    | `~/.junie/skills` |
 | **Cline**       | `.cline/skills`    | `~/.cline/skills` |
@@ -75,7 +75,7 @@ Project installs are added inside the current repository. Global installs are ad
 
 ## Using Installed Skills
 
-Once a skill is installed, your AI agent automatically has access to it. You don't need to do anything special—just ask!
+Once a skill is installed, AI DevKit places it where the selected agent environment can load it. Then ask the agent to use the skill by name.
 
 ### How It Works
 
@@ -450,7 +450,7 @@ The skill doesn't exist in the specified registry. Explore the registry reposito
 
 ### "No skill-capable environments configured"
 
-Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
 
 ### "SKILL.md not found"
 

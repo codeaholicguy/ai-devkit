@@ -1,15 +1,17 @@
 # AI DevKit
 
-> AI DevKit is an open-source CLI toolkit that brings structure and consistency to AI-assisted software development. It works alongside AI coding assistants like Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, and others.
+> AI DevKit is an open-source control plane for AI coding agents. It works alongside Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, Pi, and other tools.
 
-AI DevKit solves common problems with AI-assisted development: context loss between sessions, ad hoc workflows, repeated instructions, and siloed knowledge. It provides structured workflows, long-term memory, a community-driven skills system, and multi-agent support.
+AI DevKit solves common multi-agent coding problems: scattered terminals, duplicated setup files, copy-pasted context, forgotten project decisions, and unverified completion claims. It provides one project-local config, one console, cross-agent communication, local-first SQLite memory, workflow skills, and verification.
 
 ## Core Features
 
-- **Structured Development Workflows**: Phase-based guidance through requirements, design, planning, implementation, testing, and code review
+- **One Local Config**: Project-local setup for supported coding agents from `.ai-devkit.json`
+- **Agent Console and Communication**: Inspect running sessions and send prompts, logs, or stdin to the right agent
 - **Long-Term Memory**: 100% local SQLite-based knowledge storage for coding standards, patterns, and decisions across sessions
+- **Structured Development Workflows**: Phase-based guidance through requirements, design, planning, implementation, testing, and code review
 - **Skills System**: Community-driven plugins that teach AI new capabilities and domain-specific patterns
-- **Multi-Agent Support**: Works with 11+ AI coding environments including Cursor, Claude Code, GitHub Copilot, Gemini CLI, OpenAI Codex, and more
+- **Multi-Agent Support**: Works with a broad set of AI coding environments including Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, and others
 
 ## Quick Start
 
@@ -22,7 +24,7 @@ npm install -g ai-devkit
 Initialize in your project:
 
 ```
-ai-devkit init
+npx ai-devkit@latest init
 ```
 
 ## Key Skills
@@ -37,7 +39,7 @@ ai-devkit init
 
 - [What is AI DevKit?](https://ai-devkit.com/docs/0-what-is-ai-devkit): Overview, problem statement, and how AI DevKit works
 - [Getting Started](https://ai-devkit.com/docs/1-getting-started): Installation, project initialization, and first steps
-- [Supported AI Agents](https://ai-devkit.com/docs/2-supported-agents): Complete reference for all 11+ supported AI coding environments
+- [Supported AI Agents](https://ai-devkit.com/docs/2-supported-agents): Reference for supported AI coding environments and setup capabilities
 - [Development with AI DevKit](https://ai-devkit.com/docs/3-development-with-ai-devkit): Full development lifecycle workflow
 - [Debugging with AI DevKit](https://ai-devkit.com/docs/4-debugging-with-ai-devkit): Structured debugging methodology
 - [Understanding Existing Code](https://ai-devkit.com/docs/5-understand-existing-code-with-ai-devkit): Code analysis and knowledge capture

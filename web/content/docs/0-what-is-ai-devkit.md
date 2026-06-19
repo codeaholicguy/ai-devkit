@@ -1,18 +1,20 @@
 ---
 title: What is AI DevKit?
-description: An overview of AI DevKit, the open-source workflow layer that makes AI coding agents follow your engineering process.
+description: An overview of AI DevKit, the control plane for AI coding agents.
 slug: what-is-ai-devkit
 order: 0
 ---
 
-AI DevKit is an open-source workflow layer for AI coding agents. It works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, and others, giving them the process, memory, skills, and verification gates they need to behave less like one-off chatbots and more like disciplined engineering partners.
+AI DevKit is an open-source control plane for AI coding agents. It works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, opencode, Pi, and other tools, giving them shared setup, local-first memory, skills, communication, and verification gates.
 
-The purpose is simple: make AI-assisted development reliable. AI DevKit combines workflow orchestration, local memory, skills, verification, review, linting, and agent operations in one toolkit. It gives teams a practical foundation for agentic coding: durable requirements, design docs, memory, skills, verification, and review across the full software development lifecycle. The long-term direction is to become the **operating system for AI-driven development**.
+The purpose is simple: make multi-agent coding manageable. AI DevKit combines one project-local config, one console, cross-agent communication, local-first memory, workflow skills, verification, review, and linting in one toolkit. Workflow docs are part of the system, but the bigger product is the operating layer above the agents you already use.
 
 ## The Problem
 
-AI coding assistants are powerful, but using them day-to-day often feels inconsistent:
+AI coding agents are powerful, but using them day-to-day often feels inconsistent:
 
+- **Agents are scattered across terminals.** You have no single view of what is running or where work is happening.
+- **Copy-pasting context becomes the workflow.** Logs, prompts, and follow-up tasks move manually between isolated sessions.
 - **Agents start coding too early.** Requirements and design decisions stay vague until the implementation is already wrong.
 - **"Done" is not evidence.** The agent can claim success without fresh test or build output.
 - **Context is lost between sessions.** Past decisions, coding standards, and project conventions disappear when a new chat starts.
@@ -21,23 +23,33 @@ AI coding assistants are powerful, but using them day-to-day often feels inconsi
 
 ## Platform Direction
 
-AI DevKit is evolving toward an operating system model for AI-driven development:
+AI DevKit is evolving toward an operating layer for AI coding agents:
 
-- **Standard interfaces** for skills, memory, and docs across agents
+- **Standard interfaces** for setup, skills, memory, and docs across agents
+- **Operational controls** for discovering, supervising, and messaging local agent sessions
 - **Stateful development context** through phase docs and long-term memory
 - **Composable capabilities** via built-in and community skills
 - **CLI extensions** through global npm plugins that add optional commands
-- **Operational controls** like lint checks, worktree workflows, and agent management
+- **Verification controls** like lint checks, test evidence, worktree workflows, and code review
 
-As teams move from single assistant chats to multi-agent workflows, AI DevKit keeps the process, memory, and verification rules consistent across every agent. This means teams can run the same workflow regardless of which AI coding assistant they use: one config, all agents.
+As teams move from one assistant to many coding agents, AI DevKit keeps setup, memory, communication, and verification consistent across tools. You choose the agents; AI DevKit gives them one operating model.
 
 ## How AI DevKit Helps
 
-AI DevKit addresses these gaps with four core capabilities:
+AI DevKit addresses these gaps with five core capabilities:
+
+### One Config And Agent Console
+
+AI DevKit gives supported agents one project-local setup source and one local console for running sessions:
+
+- `.ai-devkit.json` stores your selected environments, phases, skills, and setup preferences
+- `ai-devkit agent list` shows detected local agent sessions
+- `ai-devkit agent console` opens a live terminal UI for supervising running agents
+- `ai-devkit agent send` routes prompts, logs, and stdin to a running agent or saved group
 
 ### Repeatable Engineering Workflow
 
-AI DevKit provides workflow skills that make your AI agent plan before code and review before push:
+AI DevKit provides workflow skills that make coding agents plan before code and review before push:
 
 - **Requirements** - Define what you're building and why
 - **Design** - Architect solutions with diagrams and technical decisions
@@ -46,11 +58,11 @@ AI DevKit provides workflow skills that make your AI agent plan before code and 
 - **Testing** - Generate tests and validate your code
 - **Code Review** - Review changes before committing
 
-These workflows generate documentation in a `docs/ai/` directory inside your project, so your AI has durable context and a clear handoff between phases.
+These workflows generate documentation in a `docs/ai/` directory inside your project, so your agents have durable context and a clear handoff between phases.
 
 ### Long-Term Memory
 
-The [Memory](/docs/6-memory) service gives your AI assistant persistent, local storage for coding standards, patterns, and project-specific knowledge. Once stored, this knowledge is automatically available in future sessions, so your AI never makes the same mistake twice.
+The [Memory](/docs/6-memory) service gives your coding agents persistent, local storage for coding standards, patterns, and project-specific knowledge. Once stored, this knowledge is available in future sessions, so agents can reuse prior decisions instead of asking you to repeat them.
 
 - 100% local storage (SQLite), no data leaves your machine
 - Scoped by project, repository, or global
@@ -58,7 +70,7 @@ The [Memory](/docs/6-memory) service gives your AI assistant persistent, local s
 
 ### Skills System
 
-[Skills](/docs/7-skills) are community-driven plugins that teach your AI new capabilities. Install a skill, and your agent immediately gains specialized knowledge, from frontend design patterns to database optimization to security best practices.
+[Skills](/docs/7-skills) are reusable instruction packs that teach coding agents specific workflows or domain practices. Install a skill, and the selected agent environment can load guidance for work such as frontend design, database optimization, security review, or multi-agent coordination.
 
 - Install from community registries with one command
 - Create and share your own skills
@@ -66,34 +78,36 @@ The [Memory](/docs/6-memory) service gives your AI assistant persistent, local s
 
 ### Multi-Agent Support
 
-AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, skills, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, and skills carry across all of them.
+AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, skills, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, skills, and operating model carry across supported environments.
 
 ## A Typical Workflow
 
 Here's what working with AI DevKit looks like in practice:
 
-1. Run `ai-devkit init` in your terminal to set up your project
-2. Open your AI editor and ask the agent to use the `dev-lifecycle` skill to start requirements
-3. Your AI walks you through defining requirements, designing a solution, and planning tasks
-4. Ask it to execute the plan to implement the feature step-by-step
-5. Use the `tdd` and `verify` skills while implementing, then ask for a code review before committing
+1. Run `npx ai-devkit@latest init` in your terminal to set up your project
+2. Open `ai-devkit agent console` to inspect local running agents
+3. Use `ai-devkit agent send` to route prompts, logs, or test output to the right session
+4. Ask an agent to use the `dev-lifecycle` skill to clarify requirements, design, and implementation tasks
+5. Use memory, `tdd`, and `verify` while implementing
 6. Require verification output before the agent claims the work is complete
 
 Each step produces documentation in `docs/ai/` that gives your AI full context for the next step.
 
 ## How It Works
 
-1. **Initialize** - Run `ai-devkit init` to set up your project with workflow docs and environment-specific agent configuration.
-2. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
-3. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
-4. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
-5. **Add tools** - Install plugins when you want optional CLI commands such as dashboards or heavier integrations.
+1. **Initialize** - Run `npx ai-devkit@latest init` to set up your project with workflow docs and environment-specific agent configuration.
+2. **Operate** - Use `agent list`, `agent console`, and `agent send` to supervise and route work across running local agents.
+3. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
+4. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
+5. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
+6. **Add tools** - Install plugins when you want optional CLI commands such as dashboards or heavier integrations.
 
 ## Who Is It For?
 
 - **Individual developers** who want AI agents to plan before code and verify before done
 - **Teams** that need shared coding standards and conventions enforced across AI sessions
-- **Open-source maintainers** who want contributors' AI assistants to follow project guidelines automatically
+- **Open-source maintainers** who want contributors' AI coding agents to follow project guidelines automatically
+- **Developers using multiple coding agents** who want one local setup, console, memory layer, and communication path
 
 ## What's Next?
 

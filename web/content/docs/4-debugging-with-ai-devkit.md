@@ -4,7 +4,7 @@ description: Learn how to systematically debug issues using AI DevKit's structur
 order: 4
 ---
 
-Debugging with AI assistants often becomes a guessing game—trying random fixes until something works. The `structured-debug` skill changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.
+Debugging with AI coding agents often becomes a guessing game: trying random fixes until something works. The `structured-debug` skill changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.
 
 ## When to Use Structured Debug
 

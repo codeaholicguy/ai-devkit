@@ -18,7 +18,7 @@ interface SeoPageProps {
 function buildSeoContent(keyword: string, baseContent: string): string {
   const intro = [
     "",
-    `If you're researching **${keyword}**, AI DevKit helps your AI coding agents follow a repeatable engineering workflow with planning, memory, verification, skills, and review.`,
+    `If you're researching **${keyword}**, AI DevKit gives your AI coding agents one control plane for setup, console supervision, local-first memory, communication, workflow skills, and verification.`,
     "",
   ].join("\n");
 
@@ -26,14 +26,14 @@ function buildSeoContent(keyword: string, baseContent: string): string {
     "",
     `## ${keyword} with AI DevKit`,
     "",
-    `Use AI DevKit to keep ${keyword} consistent across features and teams: one config, all agents, same workflow.`,
+    `Use AI DevKit to keep ${keyword} consistent across features and teams: one config, one local console, shared memory, and the same verification workflow across supported agents.`,
   ].join("\n");
 
   return `${intro}${baseContent}${outro}`;
 }
 
 function buildDescription(keyword: string): string {
-  return `Explore ${keyword} with AI DevKit. Planning, memory, verification, skills, and review for AI coding agents.`;
+  return `Explore ${keyword} with AI DevKit: local setup, console, memory, communication, workflow skills, and verification for AI coding agents.`;
 }
 
 export async function generateStaticParams() {
@@ -61,7 +61,7 @@ export async function generateMetadata({
         "AI DevKit FAQ",
         "AI coding tools comparison",
         "AI development tools",
-        "repeatable engineering workflow",
+        "AI agent control plane",
       ],
       openGraph: {
         title: faqPage.metadata.title,
@@ -103,7 +103,7 @@ export async function generateMetadata({
       "AI DevKit",
       "AI coding assistant",
       "AI development tools",
-      "repeatable engineering workflow",
+      "AI agent control plane",
       "coding assistant",
     ],
     openGraph: {
@@ -177,7 +177,7 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
   const baseDoc = getDocPage(baseDocSlug);
   const baseContent =
     baseDoc?.content ||
-    "AI DevKit makes AI coding agents follow a repeatable engineering workflow with planning, memory, verification, skills, and review.";
+    "AI DevKit gives AI coding agents one control plane with setup, console supervision, local-first memory, communication, workflow skills, and verification.";
 
   const content = buildSeoContent(entry.keyword, baseContent);
   const pageUrl = `${siteUrl}/faq/${entry.slug}`;

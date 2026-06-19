@@ -2,7 +2,7 @@
 title: Dev Lifecycle Skill
 description: Make your agent plan before code, verify work, and review changes with a repeatable engineering workflow.
 slug: dev-lifecycle-skill
-order: 11
+order: 10
 ---
 
 The `dev-lifecycle` skill helps agents like Claude Code and Codex work more like a senior software engineer. Instead of jumping straight into code, it orchestrates focused skills for worktree setup, requirements, design, planning, implementation, testing, and review.

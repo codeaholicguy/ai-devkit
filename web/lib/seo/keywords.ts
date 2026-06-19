@@ -16,6 +16,12 @@ const titleCaseOverrides: Record<string, string> = {
 };
 
 const rawSeoKeywords = [
+  "AI agent control plane",
+  "AI coding agent control plane",
+  "control plane for AI coding agents",
+  "multi agent coding tools",
+  "AI agent orchestration tools",
+  "tools for managing multiple AI coding agents",
   "Working with ai coding agents",
   "AI coding tools for real production systems",
   "AI coding tools for maintainable code",
@@ -67,13 +73,13 @@ const rawSeoKeywords = [
   "Tools for Cursor workflow",
   "Tools for Codex workflow",
   "Tools for Antigravity workflow",
-  "Tools for OpenCode workflow",
+  "Tools for opencode workflow",
   "AI coding agent memory tools",
   "Cursor workflow tools",
   "Claude Code workflow tools",
   "Codex workflow tools",
   "Antigravity workflow tools",
-  "OpenCode workflow tools",
+  "opencode workflow tools",
   "AI agent skill management",
   "memory system for ai coding agents",
   "persistent memory for ai agents",

@@ -8,11 +8,11 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://ai-devkit.com';
 export const metadata: Metadata = {
   title: 'Roadmap',
   description:
-    "The AI DevKit roadmap for making AI coding agents follow the same repeatable engineering workflow across tools.",
+    "The AI DevKit roadmap for building a control plane across AI coding agents, memory, communication, workflows, and verification.",
   keywords: [
     'AI DevKit roadmap',
     'AI DevKit features',
-    'AI agent workflow roadmap',
+    'AI agent control plane roadmap',
     'upcoming features',
     'AI coding tools',
     'product roadmap',
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Roadmap - AI DevKit',
     description:
-      "See what we're building next for AI DevKit: planning, memory, verification, skills, review, and multi-agent workflow support.",
+      "See what we're building next for AI DevKit: agent setup, console, memory, communication, workflow skills, and verification.",
     url: `${siteUrl}/roadmap`,
     siteName: 'AI DevKit',
     locale: 'en_US',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'Roadmap - AI DevKit',
     description:
-      "See what we're building next for AI DevKit: planning, memory, verification, skills, review, and multi-agent workflow support.",
+      "See what we're building next for AI DevKit: agent setup, console, memory, communication, workflow skills, and verification.",
   },
   alternates: {
     canonical: `${siteUrl}/roadmap`,
@@ -69,7 +69,7 @@ export default function RoadmapPage() {
         <h1 className="text-4xl md:text-5xl font-bold mb-4">Roadmap</h1>
 
         <p className="text-xl text-gray-600 mb-12">
-          {`Our roadmap shows what's next for making AI coding agents plan before code, remember project decisions, verify work, and share one workflow across tools.`}
+          {`Our roadmap shows what's next for turning scattered AI coding agents into one local system: setup, console, memory, communication, workflow skills, and verification.`}
         </p>
 
         {roadmapItems.length === 0 ? (

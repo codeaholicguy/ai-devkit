@@ -5,7 +5,7 @@ slug: memory
 order: 6
 ---
 
-Imagine if your AI assistant never made the same mistake twice.
+Imagine if your coding agents could reuse the project decisions you have already made.
 
 The **Memory** service allows you to store actionable insights, coding patterns, and project guidelines. Once stored, this knowledge is available to your AI coding agents (via MCP) and to you directly via the CLI, ensuring consistency across your development workflow.
 
@@ -15,7 +15,7 @@ Before using Memory, ensure you have:
 
 - **Node.js 20.20.0 or higher** installed
 - **AI DevKit CLI** installed: `npm install -g ai-devkit` or use `npx ai-devkit@latest`
-- For MCP usage: A compatible AI assistant (Cursor, Claude Code, etc.)
+- For MCP usage: A compatible AI coding agent or environment (Cursor, Claude Code, etc.)
 
 ## How It Works
 
@@ -171,7 +171,7 @@ The memory skill is ideal when:
 - Your AI agent needs detailed command syntax reference
 - You want consistent memory usage patterns across your team
 
-> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, GitHub Copilot, Codex, OpenCode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, and Roo Code.
+> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, and Roo Code.
 
 ## Organizing Your Knowledge
 

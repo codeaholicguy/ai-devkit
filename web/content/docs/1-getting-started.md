@@ -1,36 +1,40 @@
 ---
 title: Getting Started
-description: Set up AI DevKit for agentic coding with Claude Code, Codex, Cursor, OpenCode, and other AI coding agents.
+description: Set up AI DevKit as a control plane for Claude Code, Codex, Cursor, opencode, and other AI coding agents.
 order: 1
 ---
 
-**AI DevKit** is a workflow layer for AI coding assistants like Cursor, Claude Code, Codex, Devin, Antigravity, OpenCode, GitHub Copilot, and more. It gives them requirements, design, planning, implementation, testing, verification, memory, and review so they follow your engineering process instead of improvising in chat.
+**AI DevKit** is a control plane for AI coding agents. It gives supported tools like Cursor, Claude Code, Codex, Gemini CLI, opencode, Pi, GitHub Copilot, and others one setup model, one console, local-first memory, cross-agent communication, workflow skills, and verification.
 
-Use it when you want agentic coding to follow a clear software development lifecycle instead of a one-off prompt: initialize the project once, then give every supported AI coding agent the same workflow, memory, skills, and verification gates.
+Use it when your AI coding setup has grown from one assistant into multiple agents, terminals, config files, and memory gaps. Initialize the project once, then give every supported coding agent the same operating model.
 
-The direction of AI DevKit is to become the **operating system for AI-driven development**: one standard layer for workflows, memory, skills, and execution across agents.
+Workflow skills are part of AI DevKit, but they are not the whole product. The bigger idea is one operating layer for setup, supervision, communication, local-first memory, and verification across the agents you already use.
 
 ## Why AI DevKit?
 
-When working with AI assistants, you often find yourself:
+When working with AI coding agents, you often find yourself:
+- Managing multiple terminal sessions with no shared control surface
+- Copy-pasting prompts, logs, and test output between agents
 - Repeating the same instructions across sessions
 - Losing context between conversations
-- Struggling to maintain consistency across features
+- Struggling to maintain consistency across tools and features
 
-AI DevKit solves these problems by giving your AI assistant:
-- **Repeatable workflow** — Consistent process from requirements to review
-- **Workflow skills** — Reusable process guidance tailored to AI-assisted development
-- **Long-term memory** — Rules and patterns that persist across sessions
-- **Skills** — Community-contributed capabilities your AI can learn
+AI DevKit solves these problems by giving your coding agents:
+- **One local setup** — `.ai-devkit.json` reconciles supported agent files from one source of truth
+- **Agent console** — See and supervise running local agent sessions
+- **Agent send** — Route prompts, logs, and stdin to the right running agent
+- **Local memory** — Decisions and patterns that persist across sessions
+- **Workflow skills** — Reusable process guidance tailored to multi-agent coding
+- **Skills** — Reusable instruction packs your agents can load for domain-specific work
 - **Plugins** — Optional npm packages that add CLI commands
 - **Verification gates** — Fresh evidence before completion claims
 
 ## Prerequisites
 
-Before you begin, make sure have:
+Before you begin, make sure you have:
 - **Node.js** (version 20.20.0 or higher)
 - **npm** or **npx** (comes with Node.js)
-- An AI coding assistant (Cursor, Claude Code, Codex, Devin, Antigravity, OpenCode, GitHub Copilot, etc.)
+- At least one supported AI coding agent or environment, such as Cursor, Claude Code, Codex, Gemini CLI, opencode, Pi, GitHub Copilot, Devin, or Antigravity
 
 ## Installation
 
@@ -51,7 +55,7 @@ npx ai-devkit@latest init
 Navigate to your project directory and run:
 
 ```bash
-ai-devkit init
+npx ai-devkit@latest init
 ```
 
 You'll be prompted to select which AI environments you use (Cursor, Claude Code, etc.). AI DevKit will then:
@@ -59,6 +63,26 @@ You'll be prompted to select which AI environments you use (Cursor, Claude Code,
 1. **Create workflow docs** — A configured AI docs directory, `docs/ai/` by default, for requirements, design, planning, implementation, and testing
 2. **Set up AI environment files** — Configuration, skills, and MCP servers where supported
 3. **Save your preferences** — Stored in `.ai-devkit.json` for future updates
+
+## First Value Moment
+
+After initialization, open the local agent console:
+
+Start one supported coding agent in this project first, such as Claude Code, Codex, Gemini CLI, or opencode. Then run:
+
+```bash
+ai-devkit agent list
+ai-devkit agent console
+```
+
+Then send one task or log stream to a running agent:
+
+```bash
+ai-devkit agent send "summarize current branch and test status" --id <agent-name>
+npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
+```
+
+This is the core loop: see your agents, send work to the right session, and keep memory and verification available when the task needs them.
 
 ## Project Structure
 
@@ -75,7 +99,7 @@ docs/ai/
 └── monitoring/      # Monitoring and observability
 ```
 
-This structure gives your AI assistant a clear handoff between phases instead of relying on chat history.
+This structure gives your coding agents a clear handoff between phases instead of relying on chat history.
 
 ## Using Skills
 
@@ -103,24 +127,26 @@ Here's how a typical workflow might look:
 
 ```
 1. In your terminal:
-   $ ai-devkit init
+   $ npx ai-devkit@latest init
+   $ ai-devkit agent console
 
-2. In Cursor/Claude Code:
+2. In your AI coding agent:
    > Use the dev-lifecycle skill to start requirements for user authentication with OAuth
 
    AI: "What feature would you like to build?"
    You: "Add user authentication with OAuth"
 
-   AI guides you through requirements → design → planning → implementation → verification → review
+   AI guides you through requirements -> design -> planning -> implementation -> verification -> review
 ```
 
 ## Next Steps
 
 1. **Explore your AI editor** — Ask the agent to use `dev-lifecycle` on a small feature
-2. **Read the workflows guide** — [Development with AI DevKit](/docs/3-development-with-ai-devkit)
-3. **Set up memory** — [Give your AI long-term memory](/docs/6-memory)
-4. **Install skills** — [Extend your AI's capabilities](/docs/7-skills)
-5. **Install plugins** — [Add optional CLI commands](/docs/14-plugins)
+2. **Open the agent console** — [Operate running agents](/docs/13-agent-console)
+3. **Read the workflows guide** — [Development with AI DevKit](/docs/3-development-with-ai-devkit)
+4. **Set up memory** — [Give your AI long-term memory](/docs/6-memory)
+5. **Install skills** — [Extend your AI's capabilities](/docs/7-skills)
+6. **Install plugins** — [Add optional CLI commands](/docs/14-plugins)
 
 ## Need Help?
 
