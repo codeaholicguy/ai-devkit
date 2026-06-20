@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { builtInSkills } from "@/lib/skills/built-in";
 
 interface Skill {
     name: string;
@@ -97,47 +99,142 @@ export default function SkillsPage() {
         }
     }, [selectedSkill, closeModal]);
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "CollectionPage",
+        name: "AI Coding Agent Skills",
+        description:
+            "Browse reusable AI coding agent skills for Claude Code, Codex, Cursor, opencode, Gemini CLI, and other supported coding agents.",
+        url: `${siteUrl}/skills/`,
+        isPartOf: {
+            "@type": "WebSite",
+            name: "AI DevKit",
+            url: siteUrl,
+        },
+        about: [
+            "AI coding agent skills",
+            "Claude Code skills",
+            "Codex skills",
+            "Cursor skills",
+            "opencode skills",
+            "Gemini CLI skills",
+        ],
+        hasPart: builtInSkills.map((skill) => ({
+            "@type": "TechArticle",
+            name: `${skill.title} Skill`,
+            description: skill.summary,
+            url: `${siteUrl}/skills/${skill.name}/`,
+        })),
+    };
+
     return (
         <div className="bg-white min-h-screen">
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+            />
             {/* Header */}
-            <section className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12 md:py-20">
-                <div className="text-center mb-12">
-                    <h1 className="text-4xl md:text-5xl font-bold mb-4">Explore Skills</h1>
+            <section className="mx-auto max-w-7xl px-4 py-10 sm:px-6 md:py-14 lg:px-8">
+                <div className="text-center mb-8">
+                    <h1 className="text-4xl md:text-5xl font-bold mb-4">Browse AI Coding Agent Skills</h1>
                     <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                        Browse and search through{" "}
+                        Find reusable skills for Claude Code, Codex, Cursor, opencode, Gemini CLI, and other
+                        coding agents. Search{" "}
                         {skills.length > 0 ? skills.length.toLocaleString() : "hundreds of"} skills available
-                        for AI DevKit. Click any skill to get the install command.
+                        for AI DevKit, then click any skill to get the install command.
                     </p>
                 </div>
 
+                <section className="mb-10 border-y border-gray-200 py-6">
+                    <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+                        <div>
+                            <h2 className="text-xl font-bold">Built-in AI DevKit skills</h2>
+                            <p className="mt-1 max-w-3xl text-sm text-gray-600">
+                                Start with workflow, debugging, testing, review, memory, documentation, and
+                                multi-agent skills that ship with AI DevKit.
+                            </p>
+                        </div>
+                        <Link href="/docs/7-skills" className="text-sm font-semibold text-black underline">
+                            Learn how skills work
+                        </Link>
+                    </div>
+                    <div className="relative">
+                        <div
+                            className="flex gap-3 overflow-x-auto pb-2 pr-10"
+                            aria-label="Built-in AI DevKit skills"
+                        >
+                            {builtInSkills.map((skill) => {
+                                const isRecommended = skill.name === "dev-lifecycle";
+                                return (
+                                    <Link
+                                        key={skill.name}
+                                        href={`/skills/${skill.name}`}
+                                        className={`group block w-64 flex-none rounded-lg border p-4 no-underline transition-colors hover:border-black focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 ${
+                                            isRecommended
+                                                ? "border-black bg-gray-50"
+                                                : "border-gray-200 bg-white"
+                                        }`}
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <h3 className="min-w-0 text-sm font-semibold leading-5 text-gray-950 group-hover:text-black">
+                                                {skill.title}
+                                            </h3>
+                                            <span className="flex-none text-xs text-gray-500">
+                                                {isRecommended ? "Recommended" : skill.category}
+                                            </span>
+                                        </div>
+                                        <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-600">
+                                            {skill.summary}
+                                        </p>
+                                    </Link>
+                                );
+                            })}
+                        </div>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />
+                    </div>
+                </section>
+
                 {/* Search Input */}
                 <div className="max-w-xl mx-auto mb-12">
+                    <div className="mb-3 text-center">
+                        <h2 className="text-xl font-bold">Search the Registry</h2>
+                        <p className="mt-1 text-sm text-gray-600">
+                            Find skills by name, workflow, registry, or capability.
+                        </p>
+                    </div>
                     <div className="relative">
                         <input
                             type="text"
-                            placeholder="Search skills by name or description..."
+                            name="skill-search"
+                            autoComplete="off"
+                            placeholder="Search skills by name or description…"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full px-5 py-4 text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-shadow"
+                            className="w-full rounded-lg border border-gray-300 px-5 py-4 text-lg transition-shadow focus-visible:border-transparent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                             aria-label="Search skills"
                         />
                         {searchQuery && (
                             <button
                                 onClick={() => setSearchQuery("")}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                                 aria-label="Clear search"
                             >
                                 ✕
                             </button>
                         )}
                     </div>
+                    <p className="mt-3 text-center text-sm text-gray-500">
+                        Works with Claude Code, Codex, Cursor, opencode, Gemini CLI, GitHub Copilot, Cline, Devin,
+                        Kilo Code, and Roo Code.
+                    </p>
                 </div>
 
                 {/* Loading State */}
                 {isLoading && (
                     <div className="text-center py-20">
                         <div className="inline-block w-8 h-8 border-4 border-gray-200 border-t-black rounded-full animate-spin"></div>
-                        <p className="mt-4 text-gray-600">Loading skills...</p>
+                        <p className="mt-4 text-gray-600">Loading skills…</p>
                     </div>
                 )}
 
@@ -147,7 +244,7 @@ export default function SkillsPage() {
                         <p className="text-red-600 mb-4">{error}</p>
                         <button
                             onClick={fetchSkills}
-                            className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors"
+                            className="px-6 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                         >
                             Try Again
                         </button>
@@ -164,7 +261,7 @@ export default function SkillsPage() {
                                 </p>
                                 <button
                                     onClick={() => setSearchQuery("")}
-                                    className="mt-4 text-black underline hover:opacity-70"
+                                    className="mt-4 text-black underline hover:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black"
                                 >
                                     Clear search
                                 </button>
@@ -175,7 +272,7 @@ export default function SkillsPage() {
                                     <button
                                         key={`${skill.registry}-${skill.name}`}
                                         onClick={() => setSelectedSkill(skill)}
-                                        className="text-left p-6 bg-gray-50 border border-gray-200 rounded-lg hover:border-black hover:shadow-md transition-all group"
+                                        className="group rounded-lg border border-gray-200 bg-gray-50 p-6 text-left transition-colors hover:border-black hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 [contain-intrinsic-size:180px] [content-visibility:auto]"
                                     >
                                         <h3 className="text-lg font-semibold mb-2 group-hover:text-black">
                                             {skill.name}
@@ -201,26 +298,31 @@ export default function SkillsPage() {
             {/* Modal */}
             {selectedSkill && (
                 <div
-                    className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+                    className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain bg-black/50 p-4"
                     onClick={closeModal}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="skill-dialog-title"
                 >
                     <div
-                        className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-hidden shadow-2xl"
+                        className="max-h-[90vh] w-full max-w-lg overflow-hidden rounded-lg border border-gray-200 bg-white shadow-xl"
                         onClick={(e) => e.stopPropagation()}
                     >
                         {/* Header */}
                         <div className="relative">
-                            <div className="p-8 pb-6">
+                            <div className="p-6 pb-5">
                                 <div className="flex justify-between items-start gap-4">
                                     <div>
-                                        <h2 className="text-2xl font-bold tracking-tight">{selectedSkill.name}</h2>
+                                        <h2 id="skill-dialog-title" className="text-2xl font-bold tracking-tight">
+                                            {selectedSkill.name}
+                                        </h2>
                                         <span className="inline-flex items-center mt-2 px-3 py-1 bg-gray-100 text-gray-600 text-xs font-mono rounded-full">
                                             {selectedSkill.registry}
                                         </span>
                                     </div>
                                     <button
                                         onClick={closeModal}
-                                        className="w-10 h-10 flex items-center justify-center rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+                                        className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 hover:text-gray-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                                         aria-label="Close modal"
                                     >
                                         <svg
@@ -228,6 +330,7 @@ export default function SkillsPage() {
                                             fill="none"
                                             stroke="currentColor"
                                             viewBox="0 0 24 24"
+                                            aria-hidden="true"
                                         >
                                             <path
                                                 strokeLinecap="round"
@@ -242,7 +345,7 @@ export default function SkillsPage() {
                         </div>
 
                         {/* Content */}
-                        <div className="px-8 pb-8 max-h-[50vh] overflow-y-auto">
+                        <div className="max-h-[50vh] overflow-y-auto px-6 pb-6">
                             <div className="space-y-6">
                                 <div>
                                     <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">
@@ -256,13 +359,14 @@ export default function SkillsPage() {
                                         Install Command
                                     </h3>
                                     <div className="group relative">
-                                        <div className="flex items-stretch rounded-xl overflow-hidden border border-gray-200 bg-gray-50">
+                                        <div className="flex items-stretch overflow-hidden rounded-lg border border-gray-200 bg-gray-50">
                                             <code className="flex-1 px-4 py-4 font-mono text-sm text-gray-800 overflow-x-auto">
                                                 npx ai-devkit@latest skill add {selectedSkill.registry} {selectedSkill.name}
                                             </code>
                                             <button
                                                 onClick={() => handleCopy(selectedSkill.registry + " " + selectedSkill.name)}
-                                                className="px-5 bg-black text-white hover:bg-gray-800 transition-colors text-sm font-medium flex items-center gap-2"
+                                                className="flex items-center gap-2 bg-black px-5 text-sm font-medium text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+                                                aria-live="polite"
                                             >
                                                 {copied ? (
                                                     <>
@@ -271,6 +375,7 @@ export default function SkillsPage() {
                                                             fill="none"
                                                             stroke="currentColor"
                                                             viewBox="0 0 24 24"
+                                                            aria-hidden="true"
                                                         >
                                                             <path
                                                                 strokeLinecap="round"
@@ -288,6 +393,7 @@ export default function SkillsPage() {
                                                             fill="none"
                                                             stroke="currentColor"
                                                             viewBox="0 0 24 24"
+                                                            aria-hidden="true"
                                                         >
                                                             <path
                                                                 strokeLinecap="round"

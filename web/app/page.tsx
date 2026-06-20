@@ -85,6 +85,12 @@ export default function Home() {
               >
                 Explore the docs
               </Link>
+              <Link
+                href="/skills"
+                className="text-sm font-semibold text-[#2a3e9a] no-underline hover:text-[#0c2483] hover:opacity-100"
+              >
+                Browse AI coding agent skills
+              </Link>
             </div>
           </div>
 
@@ -203,6 +209,13 @@ export default function Home() {
               </article>
             ))}
           </div>
+          <p className="mt-6 text-sm leading-5 text-[#515367]">
+            Extend this operating model with{" "}
+            <Link href="/skills" className="font-semibold text-[#2a3e9a] no-underline hover:text-[#0c2483]">
+              reusable AI coding agent skills
+            </Link>{" "}
+            for planning, debugging, memory, verification, documentation, and review.
+          </p>
         </div>
       </section>
 

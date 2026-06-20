@@ -17,6 +17,8 @@ A skill is a folder containing a `SKILL.md` file and optional supporting resourc
 
 Skills are distributed via **Skill Registries**—GitHub repositories that follow a standard structure. The AI DevKit maintains a curated list of registries, so you can easily discover and install skills from the community.
 
+You can also [browse AI coding agent skills](/skills) on the web, including built-in AI DevKit skills and installable community skills from supported registries.
+
 ## Built-in Skills in AI DevKit
 
 AI DevKit ships with a core set of skills in its default registry:
@@ -35,6 +37,8 @@ AI DevKit ships with a core set of skills in its default registry:
 | `verify` | Require fresh terminal evidence before claiming work is complete |
 
 You can install these skills the same way you install community skills.
+
+For more detail on the core workflow skills, see the built-in skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`structured-debug`](/skills/structured-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
 
 ## Quick Start
 

@@ -145,7 +145,7 @@ Here's how a typical workflow might look:
 2. **Open the agent console** — [Operate running agents](/docs/13-agent-console)
 3. **Read the workflows guide** — [Development with AI DevKit](/docs/3-development-with-ai-devkit)
 4. **Set up memory** — [Give your AI long-term memory](/docs/6-memory)
-5. **Install skills** — [Extend your AI's capabilities](/docs/7-skills)
+5. **Install skills** — [Extend your AI's capabilities](/docs/7-skills) or [browse AI coding agent skills](/skills)
 6. **Install plugins** — [Add optional CLI commands](/docs/14-plugins)
 
 ## Need Help?

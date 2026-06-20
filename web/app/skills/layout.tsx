@@ -1,24 +1,35 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title:
-    "AI Agent Skills for a Repeatable Engineering Workflow",
+  title: "Browse AI Coding Agent Skills for Claude Code, Codex, Cursor, and More",
   description:
-    "Browse reusable AI agent skills for planning, memory, verification, debugging, testing, and review. Build agents with reusable behavior instead of rewriting prompts every time.",
+    "Browse reusable AI coding agent skills for Claude Code, Codex, Cursor, opencode, and Gemini CLI. Find AI DevKit built-in skills, install commands, and workflow skills for planning, debugging, testing, review, and memory.",
+  keywords: [
+    "AI coding agent skills",
+    "AI DevKit skills",
+    "Claude Code skills",
+    "Codex skills",
+    "Cursor skills",
+    "opencode skills",
+    "Gemini CLI skills",
+    "agent workflow skills",
+  ],
+  alternates: {
+    canonical: "https://ai-devkit.com/skills/",
+  },
   openGraph: {
-    title:
-      "AI Agent Skills for a Repeatable Engineering Workflow",
+    title: "Browse AI Coding Agent Skills for Claude Code, Codex, Cursor, and More | AI DevKit",
     description:
-      "Browse reusable AI agent skills for planning, memory, verification, debugging, testing, and review. Build agents with reusable behavior instead of rewriting prompts every time.",
-    url: "https://ai-devkit.com/skills",
+      "Browse reusable AI coding agent skills for Claude Code, Codex, Cursor, opencode, and Gemini CLI. Find AI DevKit built-in skills, install commands, and workflow skills for planning, debugging, testing, review, and memory.",
+    url: "https://ai-devkit.com/skills/",
+    siteName: "AI DevKit",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title:
-      "AI Agent Skills for a Repeatable Engineering Workflow",
+    title: "Browse AI Coding Agent Skills for Claude Code, Codex, Cursor, and More | AI DevKit",
     description:
-      "Browse reusable AI agent skills for planning, memory, verification, debugging, testing, and review. Build agents with reusable behavior instead of rewriting prompts every time.",
+      "Browse reusable AI coding agent skills for Claude Code, Codex, Cursor, opencode, and Gemini CLI. Find AI DevKit built-in skills, install commands, and workflow skills for planning, debugging, testing, review, and memory.",
   },
 };
 
