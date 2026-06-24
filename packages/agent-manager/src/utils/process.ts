@@ -9,6 +9,48 @@ import * as path from 'path';
 import { execFileSync } from 'child_process';
 import type { ProcessInfo } from '../adapters/AgentAdapter.js';
 
+type PowerShellJsonRecord = Record<string, unknown>;
+
+function runPowerShell(script: string): string {
+    return execFileSync(
+        'powershell',
+        ['-NoProfile', '-NonInteractive', '-Command', script],
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] },
+    );
+}
+
+function parsePowerShellJson(output: string): PowerShellJsonRecord[] {
+    const trimmed = output.trim();
+    if (!trimmed) return [];
+
+    const parsed: unknown = JSON.parse(trimmed);
+    const rows = Array.isArray(parsed) ? parsed : [parsed];
+
+    return rows.filter((row): row is PowerShellJsonRecord => (
+        row !== null && typeof row === 'object' && !Array.isArray(row)
+    ));
+}
+
+function getNumber(value: unknown): number {
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string' && value.trim()) return Number(value);
+    return NaN;
+}
+
+function getString(value: unknown): string {
+    return typeof value === 'string' ? value : '';
+}
+
+function getWindowsCommandExecutable(command: string): string {
+    const trimmed = command.trim();
+    if (!trimmed) return '';
+
+    const quoted = trimmed.match(/^"([^"]+)"/);
+    if (quoted) return quoted[1];
+
+    return trimmed.split(/\s+/)[0] || '';
+}
+
 /**
  * List running processes matching an agent executable name.
  *
@@ -22,6 +64,42 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
     // Validate pattern contains only safe characters (alphanumeric, dash, underscore)
     if (!namePattern || !/^[a-zA-Z0-9_-]+$/.test(namePattern)) {
         return [];
+    }
+
+    if (process.platform === 'win32') {
+        try {
+            const output = runPowerShell(
+                'Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId,ExecutablePath,CommandLine | ConvertTo-Json -Compress',
+            );
+            const lowerPattern = namePattern.toLowerCase();
+            const processes: ProcessInfo[] = [];
+
+            for (const row of parsePowerShellJson(output)) {
+                const pid = getNumber(row.ProcessId);
+                const ppid = getNumber(row.ParentProcessId);
+                if (!Number.isFinite(pid) || !Number.isFinite(ppid)) continue;
+
+                const executablePath = getString(row.ExecutablePath);
+                const commandLine = getString(row.CommandLine);
+                const executable = executablePath || getWindowsCommandExecutable(commandLine);
+                const base = path.win32.basename(executable).toLowerCase();
+                if (base !== lowerPattern && base !== `${lowerPattern}.exe`) {
+                    continue;
+                }
+
+                processes.push({
+                    pid,
+                    ppid,
+                    command: commandLine || executablePath,
+                    cwd: '',
+                    tty: '?',
+                });
+            }
+
+            return processes;
+        } catch {
+            return [];
+        }
     }
 
     try {
@@ -76,6 +154,7 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
 export function batchGetProcessCwds(pids: number[]): Map<number, string> {
     const result = new Map<number, string>();
     if (pids.length === 0) return result;
+    if (process.platform === 'win32') return result;
 
     try {
         const output = execFileSync(
@@ -124,6 +203,32 @@ export function batchGetProcessCwds(pids: number[]): Map<number, string> {
 export function batchGetProcessStartTimes(pids: number[]): Map<number, Date> {
     const result = new Map<number, Date>();
     if (pids.length === 0) return result;
+
+    if (process.platform === 'win32') {
+        const safePids = pids.filter(pid => Number.isInteger(pid) && pid > 0);
+        if (safePids.length === 0) return result;
+
+        const filter = safePids.map(pid => `ProcessId = ${pid}`).join(' OR ');
+        const script = `Get-CimInstance Win32_Process -Filter "${filter}" | Select-Object ProcessId,@{Name='StartTimeMs';Expression={([DateTimeOffset]$_.CreationDate).ToUnixTimeMilliseconds()}} | ConvertTo-Json -Compress`;
+
+        try {
+            const output = runPowerShell(script);
+            for (const row of parsePowerShellJson(output)) {
+                const pid = getNumber(row.ProcessId);
+                const startTimeMs = getNumber(row.StartTimeMs);
+                if (!Number.isFinite(pid) || !Number.isFinite(startTimeMs)) continue;
+
+                const date = new Date(startTimeMs);
+                if (!Number.isNaN(date.getTime())) {
+                    result.set(pid, date);
+                }
+            }
+        } catch {
+            // Return whatever we have
+        }
+
+        return result;
+    }
 
     try {
         const output = execFileSync(
@@ -236,6 +341,8 @@ export function findWrapperProcessPids(
  * Get the TTY device for a specific process
  */
 export function getProcessTty(pid: number): string {
+    if (process.platform === 'win32') return '?';
+
     try {
         const output = execFileSync(
             'ps', ['-p', String(pid), '-o', 'tty='],

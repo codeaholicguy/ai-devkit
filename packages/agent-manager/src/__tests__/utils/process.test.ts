@@ -12,6 +12,7 @@ import {
     enrichProcesses,
     findWrapperProcess,
     findWrapperProcessPids,
+    getProcessTty,
 } from '../../utils/process.js';
 
 vi.mock('child_process', () => ({
@@ -19,6 +20,22 @@ vi.mock('child_process', () => ({
 }));
 
 const mockedExecFileSync = execFileSync as MockedFunction<typeof execFileSync>;
+const originalPlatform = process.platform;
+
+function setPlatform(platform: NodeJS.Platform): void {
+    Object.defineProperty(process, 'platform', {
+        value: platform,
+        configurable: true,
+    });
+}
+
+beforeEach(() => {
+    setPlatform('darwin');
+});
+
+afterEach(() => {
+    setPlatform(originalPlatform);
+});
 
 describe('listAgentProcesses', () => {
     beforeEach(() => {
@@ -165,6 +182,128 @@ describe('batchGetProcessStartTimes', () => {
     it('should return empty map on failure', () => {
         mockedExecFileSync.mockImplementation(() => { throw new Error('fail'); });
         expect(batchGetProcessStartTimes([78070])).toEqual(new Map());
+    });
+});
+
+describe('process utilities on win32', () => {
+    beforeEach(() => {
+        mockedExecFileSync.mockReset();
+        setPlatform('win32');
+    });
+
+    afterEach(() => {
+        setPlatform(originalPlatform);
+        mockedExecFileSync.mockReset();
+    });
+
+    it('listAgentProcesses parses CIM process rows and filters by executable name', () => {
+        const resumeId = '123e4567-e89b-12d3-a456-426614174000';
+        mockedExecFileSync.mockReturnValue(JSON.stringify([
+            {
+                ProcessId: 100,
+                ParentProcessId: 1,
+                ExecutablePath: 'C:\\Users\\user\\AppData\\Local\\Programs\\Claude\\claude.exe',
+                CommandLine: `C:\\Users\\user\\AppData\\Local\\Programs\\Claude\\claude.exe --resume ${resumeId}`,
+            },
+            {
+                ProcessId: 200,
+                ParentProcessId: 100,
+                ExecutablePath: 'C:\\Program Files\\Claude\\claude.exe',
+                CommandLine: `"C:\\Program Files\\Claude\\claude.exe" --resume ${resumeId}`,
+            },
+            {
+                ProcessId: 300,
+                ParentProcessId: 1,
+                ExecutablePath: 'C:\\Program Files\\nodejs\\node.exe',
+                CommandLine: 'node.exe server.js',
+            },
+        ]));
+
+        const processes = listAgentProcesses('claude');
+
+        expect(processes).toHaveLength(2);
+        expect(processes[0]).toMatchObject({
+            pid: 100,
+            ppid: 1,
+            command: `C:\\Users\\user\\AppData\\Local\\Programs\\Claude\\claude.exe --resume ${resumeId}`,
+            cwd: '',
+            tty: '?',
+        });
+        expect(processes[1]).toMatchObject({
+            pid: 200,
+            ppid: 100,
+            command: `"C:\\Program Files\\Claude\\claude.exe" --resume ${resumeId}`,
+            cwd: '',
+            tty: '?',
+        });
+        expect(mockedExecFileSync).toHaveBeenCalledTimes(1);
+        expect(mockedExecFileSync.mock.calls[0][0]).toBe('powershell');
+    });
+
+    it('listAgentProcesses handles single-object JSON output', () => {
+        mockedExecFileSync.mockReturnValue(JSON.stringify({
+            ProcessId: 100,
+            ParentProcessId: 1,
+            ExecutablePath: 'C:\\Program Files\\Claude\\claude.exe',
+            CommandLine: '"C:\\Program Files\\Claude\\claude.exe" --resume abc',
+        }));
+
+        const processes = listAgentProcesses('claude');
+
+        expect(processes).toHaveLength(1);
+        expect(processes[0]).toMatchObject({
+            pid: 100,
+            ppid: 1,
+            command: '"C:\\Program Files\\Claude\\claude.exe" --resume abc',
+            tty: '?',
+        });
+    });
+
+    it('listAgentProcesses returns an empty array for malformed or empty PowerShell output', () => {
+        mockedExecFileSync.mockReturnValue('{not json');
+        expect(listAgentProcesses('claude')).toEqual([]);
+
+        mockedExecFileSync.mockReset();
+        mockedExecFileSync.mockReturnValue('');
+        expect(listAgentProcesses('claude')).toEqual([]);
+    });
+
+    it('listAgentProcesses rejects invalid name patterns before invoking PowerShell', () => {
+        expect(listAgentProcesses('claude; rm -rf /')).toEqual([]);
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
+    });
+
+    it('batchGetProcessStartTimes parses CIM Unix millisecond output and skips bad rows', () => {
+        const firstTime = Date.UTC(2026, 2, 18, 23, 18, 1);
+        const secondTime = Date.UTC(2026, 2, 9, 21, 41, 42);
+        mockedExecFileSync.mockReturnValue(JSON.stringify([
+            { ProcessId: 78070, StartTimeMs: firstTime },
+            { ProcessId: 'bad', StartTimeMs: secondTime },
+            { ProcessId: 55106, StartTimeMs: String(secondTime) },
+            { ProcessId: 99999, StartTimeMs: 'not-a-date' },
+        ]));
+
+        const times = batchGetProcessStartTimes([78070, 55106, 99999]);
+
+        expect(times.size).toBe(2);
+        expect(times.get(78070)?.getTime()).toBe(firstTime);
+        expect(times.get(55106)?.getTime()).toBe(secondTime);
+        expect(times.has(99999)).toBe(false);
+        expect(mockedExecFileSync).toHaveBeenCalledTimes(1);
+        expect(mockedExecFileSync.mock.calls[0][0]).toBe('powershell');
+        expect((mockedExecFileSync.mock.calls[0][1] as string[])[3]).toContain('ToUnixTimeMilliseconds');
+    });
+
+    it('batchGetProcessCwds returns an empty map without invoking PowerShell', () => {
+        const cwds = batchGetProcessCwds([78070, 55106]);
+
+        expect(cwds).toEqual(new Map());
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
+    });
+
+    it('getProcessTty returns unknown tty without invoking PowerShell', () => {
+        expect(getProcessTty(78070)).toBe('?');
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
     });
 });
 
