@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Management"
+  short_description: "AI DevKit · Start and manage agents"
+  default_prompt: "Use $agent-management to start, inspect, and assign work to AI DevKit agents."
