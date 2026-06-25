@@ -14,9 +14,12 @@ import {
   type StartableAgentType,
   type TmuxManager,
 } from '@ai-devkit/agent-manager';
+import { createLogger } from '../../util/debug.js';
 import { parseMilliseconds, sleep } from '../../util/time.js';
 import { ui } from '../../util/terminal-ui.js';
 import type { AgentGroup } from './agent-group.service.js';
+
+const debug = createLogger('agent');
 
 export interface AgentSendWaitTarget {
   id: string;
@@ -497,7 +500,7 @@ const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
 
 export const DEFAULT_PID_POLL_INTERVAL_MS = 500;
-export const DEFAULT_PID_POLL_TIMEOUT_MS = 5_000;
+export const DEFAULT_PID_POLL_TIMEOUT_MS = 15_000;
 const REQUIRED_STABLE_PID_POLLS = 5;
 
 export interface StartAgentOptions {
@@ -600,13 +603,17 @@ export async function startAgent(
   const intervalMs = opts.pollIntervalMs ?? DEFAULT_PID_POLL_INTERVAL_MS;
   const timeoutMs = opts.pollTimeoutMs ?? DEFAULT_PID_POLL_TIMEOUT_MS;
 
+  debug(`startAgent: type=${opts.type}, name=${opts.name}, cwd=${opts.cwd}, pollTimeoutMs=${timeoutMs}`);
+
   if (!await tmux.isAvailable()) {
+    debug('startAgent: tmux unavailable');
     throw new TmuxUnavailableError();
   }
 
   registry.prune();
   const existing = registry.lookup(opts.name);
   if (existing) {
+    debug(`startAgent: name already in use pid=${existing.pid}`);
     throw new AgentNameInUseError(opts.name, existing.pid);
   }
 
@@ -617,14 +624,18 @@ export async function startAgent(
     await tmux.killSession(opts.name);
   }
 
+  debug(`startAgent: creating tmux session ${opts.name}`);
   await tmux.createSession(opts.name, opts.cwd);
+  debug(`startAgent: sending launch command "${agent.command}"`);
   await tmux.sendKeys(opts.name, agent.command);
 
   const agentPid = await pollForPid(tmux, opts.name, agent.matches, intervalMs, timeoutMs);
   if (agentPid === null) {
+    debug(`startAgent: PID poll timed out after ${timeoutMs}ms`);
     await tmux.killSession(opts.name);
     throw new AgentPidPollTimeoutError(opts.name, agent.command, timeoutMs);
   }
+  debug(`startAgent: detected stable PID ${agentPid}`);
 
   const entry: RegistryEntry = {
     name: opts.name,
@@ -637,6 +648,7 @@ export async function startAgent(
     sessionFilePath: '',
   };
   registry.register(entry);
+  debug(`startAgent: registered ${entry.name}`);
   return entry;
 }
 
@@ -661,6 +673,7 @@ async function pollForPid(
         stablePolls = 1;
       }
 
+      debug(`pollForPid: candidatePid=${pid}, stablePolls=${stablePolls}`);
       if (stablePolls >= REQUIRED_STABLE_PID_POLLS) return pid;
     }
     await new Promise((r) => setTimeout(r, intervalMs));

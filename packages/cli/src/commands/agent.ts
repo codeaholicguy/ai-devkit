@@ -28,6 +28,7 @@ import {
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
+import { enableDebug } from '../util/debug.js';
 import {
     formatFirstMessage,
     parseLimit,
@@ -245,7 +246,11 @@ export function registerAgentCommand(program: Command): void {
         .requiredOption('--type <type>', `Agent type: ${Object.keys(AGENTS).join(', ')}`)
         .option('--name <name>', 'Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})')
         .option('--cwd <path>', 'Working directory for the agent (default: current directory)')
+        .option('--debug', 'Enable debug logging')
         .action(withErrorHandler('start agent', async (options) => {
+            if (options.debug) {
+                enableDebug();
+            }
             const agentType = options.type as string;
             const cwd = path.resolve(options.cwd ?? process.cwd());
             const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);

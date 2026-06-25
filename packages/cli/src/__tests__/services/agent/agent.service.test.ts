@@ -16,6 +16,7 @@ import {
   AgentNameInUseError,
   AgentPidPollTimeoutError,
   TmuxUnavailableError,
+  DEFAULT_PID_POLL_TIMEOUT_MS,
 } from '../../../services/agent/agent.service.js';
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
@@ -491,6 +492,12 @@ const startOpts = {
   pollIntervalMs: 1,
   pollTimeoutMs: 50,
 };
+
+describe('agent start defaults', () => {
+  it('allows slower agent startup before PID polling times out', () => {
+    expect(DEFAULT_PID_POLL_TIMEOUT_MS).toBe(15_000);
+  });
+});
 
 describe('killAgent', () => {
   it('sends SIGTERM to the agent PID', async () => {

@@ -32,6 +32,10 @@ const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
+const { mockEnableDebug, mockDebugLogger } = vi.hoisted(() => ({
+  mockEnableDebug: vi.fn(),
+  mockDebugLogger: vi.fn(),
+}));
 let restoreStdin: (() => void) | undefined;
 
 const mockGroupStore: any = {
@@ -127,6 +131,11 @@ vi.mock('../../util/terminal-ui.js', () => ({
     breakline: vi.fn(),
     spinner: vi.fn(() => mockSpinner),
   },
+}));
+
+vi.mock('../../util/debug.js', () => ({
+  enableDebug: () => mockEnableDebug(),
+  createLogger: () => mockDebugLogger,
 }));
 
 vi.mock('../../services/agent/agent.service.js', async (importOriginal) => {
@@ -261,6 +270,16 @@ describe('agent command', () => {
     expect(AgentManager).toHaveBeenCalled();
     expect(mockManager.registerAdapter).toHaveBeenCalledTimes(6);
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(agents, null, 2));
+  });
+
+  it('enables debug logging when starting an agent with --debug', async () => {
+    const program = new Command();
+    registerAgentCommand(program);
+
+    await program.parseAsync(['node', 'test', 'agent', 'start', '--type', 'claude', '--name', 'agent1', '--debug']);
+
+    expect(mockEnableDebug).toHaveBeenCalledTimes(1);
+    expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (claude, PID 12345)');
   });
 
   it('shows info when no agents are running', async () => {
