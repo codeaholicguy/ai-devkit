@@ -81,6 +81,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   GeminiCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
   PiAdapter: vi.fn(),
+  KiroAdapter: vi.fn(),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
@@ -107,6 +108,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     gemini_cli: { command: 'gemini',   matches: () => true },
     opencode:   { command: 'opencode', matches: () => true },
     pi:         { command: 'pi',       matches: () => true },
+    kiro:       { command: 'kiro-cli', matches: () => true },
   },
   RenameNotFoundError: RenameNotFoundError,
   RenameConflictError: RenameConflictError,
@@ -259,7 +261,7 @@ describe('agent command', () => {
     await program.parseAsync(['node', 'test', 'agent', 'list', '--json']);
 
     expect(AgentManager).toHaveBeenCalled();
-    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(6);
+    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(7);
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(agents, null, 2));
   });
 

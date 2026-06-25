@@ -6,6 +6,7 @@ export { CopilotAdapter } from './adapters/CopilotAdapter.js';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
 export { OpenCodeAdapter } from './adapters/OpenCodeAdapter.js';
 export { PiAdapter } from './adapters/PiAdapter.js';
+export { KiroAdapter } from './adapters/KiroAdapter.js';
 export { AgentStatus } from './adapters/AgentAdapter.js';
 export type {
     AgentAdapter,

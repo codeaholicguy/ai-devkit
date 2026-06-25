@@ -1,7 +1,7 @@
 import path from 'path';
 import type { AgentType } from '../adapters/AgentAdapter.js';
 
-export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'copilot' | 'gemini_cli' | 'opencode' | 'pi'>;
+export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'copilot' | 'gemini_cli' | 'opencode' | 'pi' | 'kiro'>;
 
 export interface AgentConfig {
     /** Shell command to launch the agent (sent to tmux via `send-keys`). */
@@ -22,6 +22,7 @@ export const AGENTS: Record<StartableAgentType, AgentConfig> = {
     gemini_cli: { command: 'gemini',   matches: matchAnyToken('gemini') },
     opencode:   { command: 'opencode', matches: matchArgv0('opencode') },
     pi:         { command: 'pi',       matches: matchAnyBasename(['pi']) },
+    kiro:       { command: 'kiro-cli', matches: matchAnyBasename(['kiro-cli', 'kiro']) },
 };
 
 function matchArgv0(name: string): (psCommand: string) => boolean {
