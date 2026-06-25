@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.42.1] - 2026-06-25
 
 - [8e5e745](https://github.com/codeaholicguy/ai-devkit/commit/8e5e74553ce483fddd5d3150c6464aad957c3930) Fixed Claude agent start timeout handling.
 
