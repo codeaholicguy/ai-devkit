@@ -10,11 +10,11 @@ Use `ai-devkit agent ...`; if unavailable, use `npx ai-devkit@latest agent ...`.
 ## Workflow
 
 1. List agents: `ai-devkit agent list --json`.
-2. Identify self: match the current session id to an agent's `sessionId`.
+2. Identify self: compare your current session id to `sessionId` from `list --json`
 3. Inspect before acting: `ai-devkit agent detail --id <name> --json --tail 20`.
 4. Reuse idle agents when suitable; otherwise start one with `agent start`.
 5. Send self-contained assignments. Track each agent's task and last instruction.
-6. Verify completed work before reporting it done. Use `$agent-orchestration` for continuous supervision loops.
+6. Verify completed work before reporting it done. Use `$agent-communication` for agent-to-agent updates.
 
 ## Commands
 

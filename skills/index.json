@@ -690,10 +690,17 @@
       "lastIndexed": 1782001853269
     },
     {
+      "name": "agent-management",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/agent-management",
+      "description": "AI DevKit · Manage running AI agents with ai-devkit agent commands. Use when an agent needs to identify itself, list agents, start workers, inspect agent detail, assign work, group agents, resume sessions, stop agents, or delegate work to other agents.",
+      "lastIndexed": 1782001853270
+    },
+    {
       "name": "agent-orchestration",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/agent-orchestration",
-      "description": "AI DevKit · Proactively orchestrate running AI agents — scan statuses, assess progress, send next instructions, and coordinate multi-agent workflows. Use when users ask to manage agents, orchestrate work across agents, or check on agent progress.",
+      "description": "AI DevKit · Supervise multi-agent workflows over repeated passes: poll progress, unblock waiting agents, coordinate dependencies, relay outputs, resolve conflicts, and verify completion. Use only for ongoing multi-agent coordination, not one-off list/detail/send/start/kill actions.",
       "lastIndexed": 1782001853271
     },
     {

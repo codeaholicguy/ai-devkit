@@ -87,6 +87,10 @@ describe('skill command', () => {
       global: undefined,
       environments: undefined,
     });
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'agent-management', {
+      global: undefined,
+      environments: undefined,
+    });
     expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-worktree', {
       global: undefined,
       environments: undefined,
