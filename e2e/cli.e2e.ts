@@ -19,12 +19,21 @@ describe('CLI basics', () => {
     expect(result.stdout).toContain('memory');
     expect(result.stdout).toContain('skill');
     expect(result.stdout).toContain('phase');
-    expect(result.stdout).not.toContain('setup');
+    expect(result.stdout).toContain('setup');
   });
 
-  it('should not expose removed workflow command setup', () => {
-    const result = run('setup');
-    expect(result.exitCode).not.toBe(0);
+  it('should run setup against an isolated home directory', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'ai-devkit-setup-e2e-home-'));
+
+    try {
+      const result = run('setup', { env: { HOME: homeDir } });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Setup Summary');
+      expect(result.stdout).toContain('codex-session-hook');
+      expect(result.stdout).toContain('pi-session-tracker');
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+    }
   });
 
   it('should exit with error for unknown command', () => {

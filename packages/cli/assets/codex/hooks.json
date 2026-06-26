@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ~/.codex/hooks/codex-session-mapping.cjs",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
+}

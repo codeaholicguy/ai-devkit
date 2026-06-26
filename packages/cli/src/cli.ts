@@ -11,6 +11,7 @@ import { registerAgentCommand } from './commands/agent.js';
 import { registerChannelCommand } from './commands/channel.js';
 import { registerDocsCommand } from './commands/docs.js';
 import { registerPluginCommand } from './commands/plugin.js';
+import { registerSetupCommand } from './commands/setup.js';
 import { registerConfiguredPluginCommands } from './services/plugin/plugin-loader.service.js';
 import { createAiDevkitRuntime } from './services/plugin/runtime.js';
 import { handleCliError } from './util/errors.js';
@@ -62,6 +63,7 @@ registerAgentCommand(program);
 registerChannelCommand(program);
 registerDocsCommand(program);
 registerPluginCommand(program);
+registerSetupCommand(program);
 
 await registerConfiguredPluginCommands(program, createAiDevkitRuntime());
 

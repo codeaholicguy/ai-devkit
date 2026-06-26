@@ -9,7 +9,7 @@
     "ai-devkit": "dist/cli.js"
   },
   "scripts": {
-    "build": "rm -rf dist && swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates",
+    "build": "rm -rf dist && swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates && cp -R assets dist/assets",
     "dev:build": "swc src -d dist --strip-leading-paths --watch",
     "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
     "lint": "eslint src --ext .ts",
