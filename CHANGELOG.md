@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.43.0] - 2026-06-26
 
 - [997ef2d](https://github.com/codeaholicguy/ai-devkit/commit/997ef2dce2db45acfc18217e5ab352fcdb0122f4) Added the `agent-management` built-in skill.
 - [0b1cc33](https://github.com/codeaholicguy/ai-devkit/pull/116) Added the Codex session mapping hook.
