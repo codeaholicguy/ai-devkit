@@ -4,10 +4,11 @@
  * Detects running Codex agents by:
  * 1. Finding running codex processes via shared listAgentProcesses()
  * 2. Enriching with CWD and start times via shared enrichProcesses()
- * 3. Discovering session files from ~/.codex/sessions/YYYY/MM/DD/ via shared batchGetSessionFileBirthtimes()
- * 4. Setting resolvedCwd from session_meta first line
- * 5. Matching sessions to processes via shared matchProcessesToSessions()
- * 6. Extracting summary from last event entry in session JSONL
+ * 3. Matching exact PID-to-session metadata from ~/.codex/ai-devkit/sessions.json
+ * 4. Discovering session files from ~/.codex/sessions/YYYY/MM/DD/ via shared batchGetSessionFileBirthtimes()
+ * 5. Setting resolvedCwd from session_meta first line
+ * 6. Matching sessions to processes via shared matchProcessesToSessions()
+ * 7. Extracting summary from last event entry in session JSONL
  */
 
 import * as fs from 'fs';
@@ -58,6 +59,16 @@ interface DirectMatchResult {
     failedProcesses: ProcessInfo[];
 }
 
+interface MappingMatch {
+    process: ProcessInfo;
+    filePath: string;
+}
+
+interface MappingMatchResult {
+    agents: AgentInfo[];
+    fallback: ProcessInfo[];
+}
+
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
 
@@ -66,11 +77,13 @@ export class CodexAdapter implements AgentAdapter {
     private static readonly PROCESS_START_DAY_WINDOW_DAYS = 1;
 
     private codexSessionsDir: string;
+    private sessionMappingPath: string;
     private registry: AgentRegistry;
 
     constructor(registry: AgentRegistry = AgentRegistry.default()) {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
         this.codexSessionsDir = path.join(homeDir, '.codex', 'sessions');
+        this.sessionMappingPath = path.join(homeDir, '.codex', 'ai-devkit', 'sessions.json');
         this.registry = registry;
     }
 
@@ -88,12 +101,14 @@ export class CodexAdapter implements AgentAdapter {
         const { cachedAgents, remaining } = this.tryRegistryCache(processes);
         if (remaining.length === 0) return cachedAgents;
 
-        const { direct, fallback } = this.tryResumeMatching(remaining);
+        const mappingResult = this.mapSessionMappingMatches(remaining);
+        const { direct, fallback } = this.tryResumeMatching(mappingResult.fallback);
         const directResult = this.mapDirectMatches(direct);
         const { sessions, contentCache } = this.discoverSessions(fallback);
         if (sessions.length === 0) {
             return [
                 ...cachedAgents,
+                ...mappingResult.agents,
                 ...directResult.agents,
                 ...directResult.failedProcesses.map((p) => this.mapProcessOnlyAgent(p)),
                 ...fallback.map((p) => this.mapProcessOnlyAgent(p)),
@@ -127,7 +142,84 @@ export class CodexAdapter implements AgentAdapter {
             agents.push(this.mapProcessOnlyAgent(proc));
         }
 
-        return [...cachedAgents, ...agents];
+        return [...cachedAgents, ...mappingResult.agents, ...agents];
+    }
+
+    private mapSessionMappingMatches(processes: ProcessInfo[]): MappingMatchResult {
+        const { matches, fallback } = this.matchFromSessionMapping(processes);
+        const agents: AgentInfo[] = [];
+
+        for (const match of matches) {
+            const sessionData = this.parseSession(undefined, match.filePath);
+            if (sessionData) {
+                agents.push(this.mapSessionToAgent(sessionData, match.process, match.filePath));
+            } else {
+                fallback.push(match.process);
+            }
+        }
+
+        return { agents, fallback };
+    }
+
+    private matchFromSessionMapping(processes: ProcessInfo[]): {
+        matches: MappingMatch[];
+        fallback: ProcessInfo[];
+    } {
+        const mapping = this.readSessionMapping();
+        if (mapping.size === 0) return { matches: [], fallback: processes };
+
+        const matches: MappingMatch[] = [];
+        const fallback: ProcessInfo[] = [];
+
+        for (const proc of processes) {
+            const filePath = mapping.get(proc.pid);
+            if (!filePath || !this.isTrustedSessionPath(filePath) || !fs.existsSync(filePath)) {
+                fallback.push(proc);
+                continue;
+            }
+
+            matches.push({ process: proc, filePath });
+        }
+
+        return { matches, fallback };
+    }
+
+    private readSessionMapping(): Map<number, string> {
+        const content = safeReadFile(this.sessionMappingPath);
+        if (content === undefined) return new Map();
+
+        let parsed: unknown;
+        try {
+            parsed = JSON.parse(content);
+        } catch {
+            return new Map();
+        }
+
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return new Map();
+
+        const map = new Map<number, string>();
+        for (const [key, value] of Object.entries(parsed)) {
+            const pid = this.toPid(key);
+            if (pid !== null && typeof value === 'string' && value) {
+                map.set(pid, value);
+            }
+        }
+
+        return map;
+    }
+
+    private toPid(value: unknown): number | null {
+        if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
+        if (typeof value !== 'string' || !/^\d+$/.test(value)) return null;
+
+        const parsed = Number(value);
+        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
+    }
+
+    private isTrustedSessionPath(filePath: string): boolean {
+        const resolvedRoot = path.resolve(this.codexSessionsDir);
+        const resolvedPath = path.resolve(filePath);
+        return resolvedPath === resolvedRoot || resolvedPath.startsWith(`${resolvedRoot}${path.sep}`);
     }
 
     private tryRegistryCache(processes: ProcessInfo[]): {
