@@ -555,6 +555,127 @@ describe('CodexAdapter', () => {
                 fs.rmSync(tmpDir, { recursive: true, force: true });
             }
         });
+
+        it('should map a running Codex process from the hook session mapping', async () => {
+            const originalHome = process.env.HOME;
+            const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-mapping-'));
+            process.env.HOME = tmpHome;
+
+            try {
+                const mappedAdapter = new CodexAdapter(new AgentRegistry(path.join(tmpHome, 'agents.json')));
+                const sessionsDir = path.join(tmpHome, '.codex', 'sessions');
+                const dateDir = path.join(sessionsDir, '2026', '06', '26');
+                const mappingPath = path.join(tmpHome, '.codex', 'ai-devkit', 'sessions.json');
+                const sessionFile = path.join(dateDir, 'rollout-2026-06-26T09-56-12-sess-mapped.jsonl');
+                const recentTs = new Date().toISOString();
+
+                fs.mkdirSync(dateDir, { recursive: true });
+                fs.mkdirSync(path.dirname(mappingPath), { recursive: true });
+                fs.writeFileSync(sessionFile, [
+                    JSON.stringify({ type: 'session_meta', payload: { id: 'sess-mapped', timestamp: recentTs, cwd: '/repo-mapped' } }),
+                    JSON.stringify({ type: 'event', timestamp: recentTs, payload: { type: 'agent_message', message: 'mapped conversation' } }),
+                ].join('\n'));
+                fs.writeFileSync(mappingPath, JSON.stringify({ 5151: sessionFile }));
+
+                const processes: ProcessInfo[] = [
+                    {
+                        pid: 5151,
+                        command: 'codex',
+                        cwd: '/repo-mapped',
+                        tty: 'ttys001',
+                        startTime: new Date('2026-06-26T09:56:12.000Z'),
+                    },
+                ];
+                mockedListAgentProcesses.mockReturnValue(processes);
+                mockedEnrichProcesses.mockReturnValue(processes);
+
+                const agents = await mappedAdapter.detectAgents();
+
+                expect(agents).toHaveLength(1);
+                expect(agents[0]).toMatchObject({
+                    type: 'codex',
+                    pid: 5151,
+                    sessionId: 'sess-mapped',
+                    projectPath: '/repo-mapped',
+                    summary: 'mapped conversation',
+                    sessionFilePath: sessionFile,
+                });
+                expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+                expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+            } finally {
+                process.env.HOME = originalHome;
+                fs.rmSync(tmpHome, { recursive: true, force: true });
+            }
+        });
+
+        it('should fall back to legacy matching when mapped session file cannot be parsed', async () => {
+            const originalHome = process.env.HOME;
+            const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-mapping-fallback-'));
+            process.env.HOME = tmpHome;
+
+            try {
+                const mappedAdapter = new CodexAdapter(new AgentRegistry(path.join(tmpHome, 'agents.json')));
+                const sessionsDir = path.join(tmpHome, '.codex', 'sessions');
+                const dateDir = path.join(sessionsDir, '2026', '06', '26');
+                const mappingPath = path.join(tmpHome, '.codex', 'ai-devkit', 'sessions.json');
+                const badSessionFile = path.join(dateDir, 'bad.jsonl');
+                const fallbackSessionFile = path.join(dateDir, 'fallback.jsonl');
+                const recentTs = new Date().toISOString();
+
+                fs.mkdirSync(dateDir, { recursive: true });
+                fs.mkdirSync(path.dirname(mappingPath), { recursive: true });
+                fs.writeFileSync(badSessionFile, '{not-json');
+                fs.writeFileSync(fallbackSessionFile, [
+                    JSON.stringify({ type: 'session_meta', payload: { id: 'sess-fallback', timestamp: recentTs, cwd: '/repo-fallback' } }),
+                    JSON.stringify({ type: 'event', timestamp: recentTs, payload: { type: 'token_count', message: 'fallback conversation' } }),
+                ].join('\n'));
+                fs.writeFileSync(mappingPath, JSON.stringify({ 6161: badSessionFile }));
+
+                const processes: ProcessInfo[] = [
+                    {
+                        pid: 6161,
+                        command: 'codex',
+                        cwd: '/repo-fallback',
+                        tty: 'ttys001',
+                        startTime: new Date('2026-06-26T09:56:12.000Z'),
+                    },
+                ];
+                const fallbackSession: SessionFile = {
+                    sessionId: 'sess-fallback',
+                    filePath: fallbackSessionFile,
+                    projectDir: dateDir,
+                    birthtimeMs: new Date('2026-06-26T09:56:15.000Z').getTime(),
+                    resolvedCwd: '',
+                };
+                mockedListAgentProcesses.mockReturnValue(processes);
+                mockedEnrichProcesses.mockReturnValue(processes);
+                mockedBatchGetSessionFileBirthtimes.mockReturnValue([fallbackSession]);
+                mockedMatchProcessesToSessions.mockReturnValue([
+                    {
+                        process: processes[0],
+                        session: { ...fallbackSession, resolvedCwd: '/repo-fallback' },
+                        deltaMs: 3000,
+                    },
+                ]);
+
+                const agents = await mappedAdapter.detectAgents();
+
+                expect(agents).toHaveLength(1);
+                expect(agents[0]).toMatchObject({
+                    pid: 6161,
+                    sessionId: 'sess-fallback',
+                    summary: 'fallback conversation',
+                    sessionFilePath: fallbackSessionFile,
+                });
+                expect(mockedMatchProcessesToSessions).toHaveBeenCalledWith(
+                    [processes[0]],
+                    expect.arrayContaining([expect.objectContaining({ filePath: fallbackSessionFile })]),
+                );
+            } finally {
+                process.env.HOME = originalHome;
+                fs.rmSync(tmpHome, { recursive: true, force: true });
+            }
+        });
     });
 
     describe('detectAgents — registry cache short-circuit', () => {
