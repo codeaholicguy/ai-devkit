@@ -7,11 +7,13 @@ describe('setup service', () => {
   let homeDir: string;
   let assetRoot: string;
   let commands: Array<{ command: string; args: string[] }>;
+  let builtInSkillInstalls: string[];
 
   beforeEach(() => {
     homeDir = mkdtempSync(join(tmpdir(), 'ai-devkit-setup-home-'));
     assetRoot = mkdtempSync(join(tmpdir(), 'ai-devkit-setup-assets-'));
     commands = [];
+    builtInSkillInstalls = [];
     writeCodexAssets();
   });
 
@@ -27,10 +29,12 @@ describe('setup service', () => {
 
     expect(report.results).toContainEqual(expect.objectContaining({
       agent: 'codex',
-      step: 'codex-session-hook',
+      step: 'setup',
       status: 'skipped',
+      message: '~/.codex does not exist.',
     }));
     expect(existsSync(join(homeDir, '.codex', 'hooks.json'))).toBe(false);
+    expect(builtInSkillInstalls).toEqual([]);
   });
 
   it('copies the Codex session mapping script and merges the SessionStart hook', async () => {
@@ -101,6 +105,19 @@ describe('setup service', () => {
     }));
   });
 
+  it('installs built-in skills for Codex when ~/.codex exists', async () => {
+    fsMkdir(join(homeDir, '.codex'));
+
+    const report = await createService().run({ agents: ['codex'] });
+
+    expect(builtInSkillInstalls).toEqual(['codex']);
+    expect(report.results).toContainEqual(expect.objectContaining({
+      agent: 'codex',
+      step: 'built-in-skills',
+      status: 'installed',
+    }));
+  });
+
   it('installs the Pi session tracker when ~/.pi exists', async () => {
     fsMkdir(join(homeDir, '.pi'));
     const service = createService();
@@ -115,6 +132,12 @@ describe('setup service', () => {
       step: 'pi-session-tracker',
       status: 'installed',
     }));
+    expect(report.results).toContainEqual(expect.objectContaining({
+      agent: 'pi',
+      step: 'built-in-skills',
+      status: 'installed',
+    }));
+    expect(builtInSkillInstalls).toEqual(['pi']);
   });
 
   it('skips Pi setup when ~/.pi does not exist', async () => {
@@ -125,9 +148,11 @@ describe('setup service', () => {
     expect(commands).toEqual([]);
     expect(report.results).toContainEqual(expect.objectContaining({
       agent: 'pi',
-      step: 'pi-session-tracker',
+      step: 'setup',
       status: 'skipped',
+      message: '~/.pi does not exist.',
     }));
+    expect(builtInSkillInstalls).toEqual([]);
   });
 
   function createService() {
@@ -136,6 +161,9 @@ describe('setup service', () => {
       assetRoot,
       runCommand: async (command, args) => {
         commands.push({ command, args });
+      },
+      installBuiltInSkills: async (agent) => {
+        builtInSkillInstalls.push(agent);
       },
     });
   }

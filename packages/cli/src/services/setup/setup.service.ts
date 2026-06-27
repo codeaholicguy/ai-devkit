@@ -4,6 +4,9 @@ import { homedir } from 'os';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { promisify } from 'util';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../../constants.js';
+import { ConfigManager } from '../../lib/Config.js';
+import { SkillManager } from '../../lib/SkillManager.js';
 import { getErrorMessage } from '../../util/text.js';
 
 const execFileAsync = promisify(execFile);
@@ -31,26 +34,30 @@ export interface SetupRunOptions {
 }
 
 type CommandRunner = (command: string, args: string[]) => Promise<void>;
+type BuiltInSkillInstaller = (agent: SetupAgent) => Promise<void>;
 
 interface SetupServiceDeps {
   homeDir?: string;
   assetRoot?: string;
   runCommand?: CommandRunner;
+  installBuiltInSkills?: BuiltInSkillInstaller;
 }
 
 interface SetupStepContext {
   homeDir: string;
   assetRoot: string;
   runCommand: CommandRunner;
+  installBuiltInSkills: BuiltInSkillInstaller;
 }
 
 interface AgentSetupStep {
   name: string;
-  run(context: SetupStepContext): Promise<SetupStepResult>;
+  run(context: SetupStepContext, agent: SetupAgent): Promise<SetupStepResult>;
 }
 
 interface AgentSetupDefinition {
   agent: SetupAgent;
+  dotFolder: string;
   steps: AgentSetupStep[];
 }
 
@@ -81,6 +88,7 @@ export function createSetupService(deps: SetupServiceDeps = {}): SetupService {
     homeDir: deps.homeDir ?? homedir(),
     assetRoot: deps.assetRoot ?? resolveDefaultAssetRoot(),
     runCommand: deps.runCommand ?? defaultRunCommand,
+    installBuiltInSkills: deps.installBuiltInSkills ?? defaultInstallBuiltInSkills,
   };
 
   return {
@@ -90,9 +98,18 @@ export function createSetupService(deps: SetupServiceDeps = {}): SetupService {
       const results: SetupStepResult[] = [];
 
       for (const definition of selectedDefinitions) {
+        if (!(await fs.pathExists(join(context.homeDir, definition.dotFolder)))) {
+          results.push(skipped(
+            definition.agent,
+            'setup',
+            `~/${definition.dotFolder} does not exist.`,
+          ));
+          continue;
+        }
+
         for (const step of definition.steps) {
           try {
-            results.push(await step.run(context));
+            results.push(await step.run(context, definition.agent));
           } catch (error) {
             results.push(failed(definition.agent, step.name, getErrorMessage(error)));
           }
@@ -117,20 +134,24 @@ function resolveDefaultAssetRoot(): string {
 const setupDefinitions: AgentSetupDefinition[] = [
   {
     agent: 'codex',
-    steps: [{ name: 'codex-session-hook', run: setupCodexSessionHook }],
+    dotFolder: '.codex',
+    steps: [
+      { name: 'codex-session-hook', run: setupCodexSessionHook },
+      { name: 'built-in-skills', run: setupBuiltInSkills },
+    ],
   },
   {
     agent: 'pi',
-    steps: [{ name: 'pi-session-tracker', run: setupPiSessionTracker }],
+    dotFolder: '.pi',
+    steps: [
+      { name: 'pi-session-tracker', run: setupPiSessionTracker },
+      { name: 'built-in-skills', run: setupBuiltInSkills },
+    ],
   },
 ];
 
 async function setupCodexSessionHook(context: SetupStepContext): Promise<SetupStepResult> {
   const codexDir = join(context.homeDir, '.codex');
-
-  if (!(await fs.pathExists(codexDir))) {
-    return skipped('codex', 'codex-session-hook', '~/.codex does not exist.');
-  }
 
   const hooksDir = join(codexDir, 'hooks');
   await fs.ensureDir(hooksDir);
@@ -168,12 +189,16 @@ async function setupCodexSessionHook(context: SetupStepContext): Promise<SetupSt
 }
 
 async function setupPiSessionTracker(context: SetupStepContext): Promise<SetupStepResult> {
-  if (!(await fs.pathExists(join(context.homeDir, '.pi')))) {
-    return skipped('pi', 'pi-session-tracker', '~/.pi does not exist.');
-  }
-
   await context.runCommand('pi', ['install', PI_TRACKER_PACKAGE]);
   return installed('pi', 'pi-session-tracker', 'Installed Pi session tracker plugin.');
+}
+
+async function setupBuiltInSkills(
+  context: SetupStepContext,
+  agent: SetupAgent,
+): Promise<SetupStepResult> {
+  await context.installBuiltInSkills(agent);
+  return installed(agent, 'built-in-skills', `Installed AI DevKit built-in skills for ${agent}.`);
 }
 
 async function readHooksJson(hooksJsonPath: string): Promise<CodexHooksJson> {
@@ -215,6 +240,17 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 async function defaultRunCommand(command: string, args: string[]): Promise<void> {
   await execFileAsync(command, args);
+}
+
+async function defaultInstallBuiltInSkills(agent: SetupAgent): Promise<void> {
+  const skillManager = new SkillManager(new ConfigManager());
+
+  for (const builtInSkill of BUILTIN_SKILL_NAMES) {
+    await skillManager.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, {
+      global: true,
+      environments: [agent],
+    });
+  }
 }
 
 function installed(agent: SetupAgent, step: string, message: string): SetupStepResult {
