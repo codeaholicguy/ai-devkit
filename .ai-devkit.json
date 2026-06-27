@@ -92,6 +92,15 @@
     {
       "registry": "vercel-labs/agent-skills",
       "name": "web-design-guidelines"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-commit"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "dev-pr"
     }
-  ]
+  ],
+  "updatedAt": "2026-06-27T20:33:45.016Z"
 }
