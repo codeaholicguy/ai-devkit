@@ -5,7 +5,6 @@ import { TemplateManager } from '../../lib/TemplateManager.js';
 import { InstallConfigData } from '../../util/config.js';
 import { installMcpServers, McpInstallReport } from './mcp/index.js';
 import type { DevKitConfig } from '../../types.js';
-import { confirm } from '@inquirer/prompts';
 
 export interface InstallRunOptions {
   overwrite?: boolean;
@@ -42,9 +41,6 @@ export async function reconcileAndInstall(
     warnings: []
   };
 
-  const hasConflicts = await hasOverwriteConflicts(templateManager, config);
-  const shouldOverwrite = await resolveOverwritePolicy(options, hasConflicts);
-
   let projectConfig = await configManager.read();
   if (!projectConfig) {
     await configManager.create();
@@ -61,12 +57,6 @@ export async function reconcileAndInstall(
 
   for (const envCode of config.environments) {
     try {
-      const exists = await templateManager.checkEnvironmentExists(envCode);
-      if (exists && !shouldOverwrite) {
-        report.environments.skipped += 1;
-        continue;
-      }
-
       await templateManager.setupMultipleEnvironments([envCode]);
       report.environments.installed += 1;
       successfulEnvironments.push(envCode);
@@ -80,12 +70,6 @@ export async function reconcileAndInstall(
 
   for (const phase of config.phases) {
     try {
-      const exists = await templateManager.fileExists(phase);
-      if (exists && !shouldOverwrite) {
-        report.phases.skipped += 1;
-        continue;
-      }
-
       await templateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
       report.phases.installed += 1;
@@ -161,41 +145,4 @@ export function getInstallExitCode(report: InstallReport, options: InstallRunOpt
   }
 
   return 0;
-}
-
-async function hasOverwriteConflicts(
-  templateManager: TemplateManager,
-  config: InstallConfigData
-): Promise<boolean> {
-  for (const env of config.environments) {
-    if (await templateManager.checkEnvironmentExists(env)) {
-      return true;
-    }
-  }
-
-  for (const phase of config.phases) {
-    if (await templateManager.fileExists(phase)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-async function resolveOverwritePolicy(
-  options: InstallRunOptions,
-  hasConflicts: boolean
-): Promise<boolean> {
-  if (!hasConflicts) {
-    return false;
-  }
-
-  if (options.overwrite) {
-    return true;
-  }
-
-  return confirm({
-    message: 'Existing install artifacts were found. Overwrite them?',
-    default: false
-  });
 }

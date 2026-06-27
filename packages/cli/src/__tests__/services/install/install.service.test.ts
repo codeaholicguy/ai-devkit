@@ -90,7 +90,7 @@ describe('install service', () => {
     expect(report.warnings).toEqual([]);
   });
 
-  it('prompts and skips conflicting artifacts when overwrite is not confirmed', async () => {
+  it('reinstalls existing generated artifacts without prompting for overwrite', async () => {
     mockTemplateManager.checkEnvironmentExists
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(true);
@@ -101,29 +101,17 @@ describe('install service', () => {
 
     const report = await reconcileAndInstall(installConfig, {});
 
-    expect(mockConfirm).toHaveBeenCalledTimes(1);
-    expect(report.environments.skipped).toBe(1);
-    expect(report.phases.skipped).toBe(1);
-    expect(report.skills.installed).toBe(1);
-    expect(mockConfigManager.update).toHaveBeenCalledWith({
-      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
-    });
-  });
-
-  it('overwrites conflicting artifacts when overwrite is confirmed via prompt', async () => {
-    mockTemplateManager.checkEnvironmentExists
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
-    mockTemplateManager.fileExists
-      .mockResolvedValueOnce(true)
-      .mockResolvedValueOnce(true);
-    mockConfirm.mockResolvedValue(true);
-
-    const report = await reconcileAndInstall(installConfig, {});
-
-    expect(mockConfirm).toHaveBeenCalledTimes(1);
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockTemplateManager.checkEnvironmentExists).not.toHaveBeenCalled();
+    expect(mockTemplateManager.fileExists).not.toHaveBeenCalled();
     expect(report.environments.installed).toBe(1);
     expect(report.phases.installed).toBe(1);
+    expect(report.skills.installed).toBe(1);
+    expect(mockConfigManager.update).toHaveBeenCalledWith({
+      environments: ['codex'],
+      phases: ['requirements'],
+      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+    });
   });
 
   it('auto-overwrites and does not prompt when --overwrite is set', async () => {
