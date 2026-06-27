@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev Commit"
+  short_description: "AI DevKit · Commit only intended, verified changes"
+  default_prompt: "Use $dev-commit to review, stage, commit, and report this work safely."

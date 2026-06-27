@@ -711,6 +711,13 @@
       "lastIndexed": 1782001853281
     },
     {
+      "name": "dev-commit",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-commit",
+      "description": "AI DevKit · Safe git commit workflow for AI coding agents. Use when the user asks to commit, prepare a commit, stage changes, create a PR-ready checkpoint, or finish work with a conventional commit while avoiding unrelated user changes.",
+      "lastIndexed": 1782001853290
+    },
+    {
       "name": "dev-design",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/dev-design",
