@@ -94,7 +94,6 @@ describe('ConfigManager', () => {
         environments: ['cursor' as any],
         phases: ['requirements' as any],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -123,7 +122,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: expect.any(String),
-        updatedAt: expect.any(String)
       };
 
       (mockFs.writeJson as any).mockResolvedValue(undefined);
@@ -136,17 +134,17 @@ describe('ConfigManager', () => {
         expectedConfig,
         { spaces: 2 }
       );
+      expect(result).not.toHaveProperty('updatedAt');
     });
   });
 
   describe('update', () => {
-    it('should update existing config and set updatedAt', async () => {
+    it('should update existing config without adding updatedAt', async () => {
       const existingConfig: DevKitConfig = {
         version: '1.0.0',
         environments: ['cursor'],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       const updates = { environments: ['cursor' as any, 'claude' as any] };
@@ -158,8 +156,47 @@ describe('ConfigManager', () => {
       const result = await configManager.update(updates);
 
       expect(result.environments).toEqual(['cursor', 'claude']);
-      expect(result.updatedAt).not.toBe(existingConfig.updatedAt);
       expect(result.createdAt).toBe(existingConfig.createdAt);
+      expect(result).not.toHaveProperty('updatedAt');
+    });
+
+    it('should not rewrite config when updates are unchanged and updatedAt is absent', async () => {
+      const existingConfig: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+        createdAt: '2024-01-01T00:00:00.000Z',
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(existingConfig);
+
+      const result = await configManager.update({
+        environments: ['cursor'],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]
+      });
+
+      expect(result).toEqual(existingConfig);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it('should not rewrite config when only legacy updatedAt is present and updates are unchanged', async () => {
+      const existingConfig = {
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(existingConfig);
+
+      const result = await configManager.update({});
+
+      expect(result).toEqual(existingConfig);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
 
     it('should throw error when config file not found', async () => {
@@ -178,7 +215,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: ['requirements'],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -196,7 +232,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: ['requirements'],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -213,7 +248,6 @@ describe('ConfigManager', () => {
         version: '1.0.0',
         environments: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -233,7 +267,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: ['requirements', 'design'],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -250,7 +283,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: ['requirements'],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -274,7 +306,6 @@ describe('ConfigManager', () => {
         version: '1.0.0',
         environments: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -294,7 +325,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -311,7 +341,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -338,7 +367,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: ['requirements', 'deployment'],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -355,7 +383,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -374,7 +401,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -395,7 +421,6 @@ describe('ConfigManager', () => {
         environments: ['cursor', 'claude'],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -420,7 +445,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -439,7 +463,6 @@ describe('ConfigManager', () => {
         environments: ['cursor'],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -460,7 +483,6 @@ describe('ConfigManager', () => {
         environments: ['cursor', 'claude'],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -477,7 +499,6 @@ describe('ConfigManager', () => {
         environments: ['cursor'],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -497,7 +518,6 @@ describe('ConfigManager', () => {
         phases: [],
         skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -523,7 +543,6 @@ describe('ConfigManager', () => {
         phases: [],
         skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -544,7 +563,6 @@ describe('ConfigManager', () => {
         environments: ['cursor'],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -574,7 +592,6 @@ describe('ConfigManager', () => {
           { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
         ],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -598,7 +615,6 @@ describe('ConfigManager', () => {
           { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
         ],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -620,7 +636,6 @@ describe('ConfigManager', () => {
           { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
         ],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       };
 
       (mockFs.pathExists as any).mockResolvedValue(true);
@@ -655,7 +670,6 @@ describe('ConfigManager', () => {
           'invalid/value': false
         },
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       const registries = await configManager.getSkillRegistries();
@@ -673,7 +687,6 @@ describe('ConfigManager', () => {
         phases: [],
         skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       const registries = await configManager.getSkillRegistries();
@@ -698,7 +711,6 @@ describe('ConfigManager', () => {
         environments: [],
         phases: [],
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       const result = await configManager.getMemoryDbPath();
@@ -714,7 +726,6 @@ describe('ConfigManager', () => {
         phases: [],
         memory: { path: '   ' },
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       await expect(configManager.getMemoryDbPath()).resolves.toBeUndefined();
@@ -725,7 +736,6 @@ describe('ConfigManager', () => {
         phases: [],
         memory: { path: 42 },
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       await expect(configManager.getMemoryDbPath()).resolves.toBeUndefined();
@@ -739,7 +749,6 @@ describe('ConfigManager', () => {
         phases: [],
         memory: { path: '/custom/memory.db' },
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       const result = await configManager.getMemoryDbPath();
@@ -756,7 +765,6 @@ describe('ConfigManager', () => {
         phases: [],
         memory: { path: '.ai-devkit/project-memory.db' },
         createdAt: '2024-01-01T00:00:00.000Z',
-        updatedAt: '2024-01-01T00:00:00.000Z'
       });
 
       const result = await configManager.getMemoryDbPath();

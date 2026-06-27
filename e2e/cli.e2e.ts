@@ -216,8 +216,7 @@ describe('memory commands', () => {
       memory: {
         path: '.ai-devkit/memory.db'
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     });
   });
 
@@ -344,8 +343,7 @@ describe('install command', () => {
       version: '1.0.0',
       environments: ['claude'],
       phases: ['requirements', 'design'],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     });
 
     const result = run('install', { cwd: projectDir });
@@ -368,8 +366,7 @@ describe('install command', () => {
       skills: [
         { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
       ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     });
 
     const result = run('install', { cwd: projectDir });
@@ -407,8 +404,7 @@ describe('skill command', () => {
         skills: [
           { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
         ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date().toISOString()
       });
 
       // Create the skill directory so the remove command finds it
@@ -436,8 +432,7 @@ describe('skill command', () => {
           { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' },
           { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
         ],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
+        createdAt: new Date().toISOString()
       });
 
       const skillDir = join(projectDir, '.claude', 'skills', 'dev-lifecycle');

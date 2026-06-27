@@ -34,8 +34,7 @@ export class ConfigManager {
       version: packageJson.version,
       environments: [],
       phases: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
 
     await fs.writeJson(this.configPath, config, { spaces: 2 });
@@ -50,9 +49,12 @@ export class ConfigManager {
 
     const updated = {
       ...config,
-      ...updates,
-      updatedAt: new Date().toISOString()
+      ...updates
     };
+
+    if (JSON.stringify(updated) === JSON.stringify(config)) {
+      return config;
+    }
 
     await fs.writeJson(this.configPath, updated, { spaces: 2 });
     return updated;
@@ -64,7 +66,7 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
-    const phases = Array.isArray(config.phases) ? config.phases : [];
+    const phases = Array.isArray(config.phases) ? [...config.phases] : [];
     if (!phases.includes(phase)) {
       phases.push(phase);
       return this.update({ phases });
@@ -141,7 +143,7 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
-    const installed = Array.isArray(config.skills) ? config.skills : [];
+    const installed = Array.isArray(config.skills) ? [...config.skills] : [];
 
     const exists = installed.some(
       entry => entry.registry === skill.registry && entry.name === skill.name
