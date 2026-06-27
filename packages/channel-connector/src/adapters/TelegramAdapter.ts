@@ -61,9 +61,17 @@ export class TelegramAdapter implements ChannelAdapter {
      * mid-tag and produce a partial render in the second chunk.
      */
     async sendMessage(chatId: string, text: string): Promise<void> {
-        const html = markdownToTelegramHtml(text);
-        const chunks = chunkMessage(html, TELEGRAM_MAX_MESSAGE_LENGTH);
-        for (const chunk of chunks) {
+        let html: string;
+        try {
+            html = markdownToTelegramHtml(text);
+        } catch {
+            for (const chunk of chunkMessage(text, TELEGRAM_MAX_MESSAGE_LENGTH)) {
+                await this.bot.telegram.sendMessage(chatId, chunk);
+            }
+            return;
+        }
+
+        for (const chunk of chunkMessage(html, TELEGRAM_MAX_MESSAGE_LENGTH)) {
             try {
                 await this.bot.telegram.sendMessage(chatId, chunk, { parse_mode: TELEGRAM_PARSE_MODE });
             } catch (error) {

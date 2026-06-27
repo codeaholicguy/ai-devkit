@@ -1,4 +1,5 @@
 import * as telegrafModule from 'telegraf';
+import * as telegramHtml from '../../utils/telegramHtml.js';
 import { TelegramAdapter } from '../../adapters/TelegramAdapter.js';
 import type { IncomingMessage } from '../../types.js';
 
@@ -253,6 +254,32 @@ describe('TelegramAdapter', () => {
             expect(plainChunk).toContain('a < b && c > d');
             expect(plainChunk).not.toContain('&lt;');
             expect(plainChunk).not.toContain('&amp;');
+        });
+
+        it('should deliver nested lists without throwing', async () => {
+            const bot = getMockBot();
+
+            await adapter.sendMessage('12345', '- agent\n  - Status');
+
+            expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(1);
+            expect(bot.telegram.sendMessage.mock.calls[0][1]).toContain('Status');
+        });
+
+        it('should send plain text when markdown formatting throws', async () => {
+            const bot = getMockBot();
+            const formatter = vi.spyOn(telegramHtml, 'markdownToTelegramHtml')
+                .mockImplementationOnce(() => {
+                    throw new Error('formatter failed');
+                });
+
+            await adapter.sendMessage('12345', '- agent\n  - Status');
+
+            expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(1);
+            expect(bot.telegram.sendMessage.mock.calls[0][0]).toBe('12345');
+            expect(bot.telegram.sendMessage.mock.calls[0][1]).toBe('- agent\n  - Status');
+            expect(bot.telegram.sendMessage.mock.calls[0][2]).toBeUndefined();
+
+            formatter.mockRestore();
         });
 
         it('should propagate non-parse-entities errors without falling back', async () => {
