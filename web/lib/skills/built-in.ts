@@ -289,6 +289,20 @@ export const builtInSkills: BuiltInSkill[] = [
     ],
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
   },
+  {
+    name: "dev-pr",
+    title: "Dev PR",
+    category: "Workflow",
+    summary: "Publish a reviewed feature branch for code review.",
+    description:
+      "Use dev-pr after implementation, testing, and final review are complete. It syncs with the remote base branch, handles rebase conflicts carefully, reruns validation, pushes safely, and opens or updates the host review request.",
+    useCases: [
+      "Rebase a ready feature branch before review",
+      "Push safely after validation",
+      "Open or update a PR, merge request, or equivalent with clear status and risks",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
+  },
 ];
 
 export function getBuiltInSkill(name: string): BuiltInSkill | undefined {

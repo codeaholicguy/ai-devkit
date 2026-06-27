@@ -22,6 +22,7 @@ export const BUILTIN_SKILL_NAMES = [
   'dev-implementation',
   'dev-testing',
   'dev-review',
+  'dev-pr',
   'structured-debug',
   'document-code',
   'memory',

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dev PR"
+  short_description: "AI DevKit · Publish a ready branch for code review"
+  default_prompt: "Use $dev-pr to sync this ready branch, push safely, and open or update the review request."

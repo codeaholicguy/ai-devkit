@@ -760,6 +760,13 @@
       "lastIndexed": 1782001853267
     },
     {
+      "name": "dev-pr",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-pr",
+      "description": "AI DevKit · Publish a ready feature branch for review. Use when the user wants to sync, push, and open or update a code review request on GitHub, GitLab, or another Git host.",
+      "lastIndexed": 1782001853267
+    },
+    {
       "name": "dev-testing",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/dev-testing",
