@@ -40,7 +40,7 @@ const renderer: RendererObject = {
         const startNum = typeof start === 'number' ? start : 1;
         const lines = items.map((item, i) => {
             const marker = ordered ? `${startNum + i}.` : '•';
-            const inner = this.parser.parseInline(item.tokens).trimEnd();
+            const inner = this.parser.parse(item.tokens).trimEnd();
             return `${marker} ${inner}`;
         });
         return `${lines.join('\n')}\n\n`;

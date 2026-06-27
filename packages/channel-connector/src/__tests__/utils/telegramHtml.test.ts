@@ -40,6 +40,14 @@ describe('markdownToTelegramHtml', () => {
         expect(out).not.toContain('<ul>');
     });
 
+    it('renders nested lists without throwing', () => {
+        const out = markdownToTelegramHtml('- agent\n  - Status');
+
+        expect(out).toContain('• agent');
+        expect(out).toContain('• Status');
+        expect(out).not.toContain('<ul>');
+    });
+
     it('renders ordered lists with numbers', () => {
         const out = markdownToTelegramHtml('1. one\n2. two');
         expect(out).toContain('1. one');
