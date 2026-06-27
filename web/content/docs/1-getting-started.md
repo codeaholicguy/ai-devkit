@@ -112,7 +112,7 @@ Terminal commands still start with `ai-devkit`; skills are used by the agent ins
 | Skill | Purpose |
 |---------|---------|
 | `dev-lifecycle` | Orchestrate worktree setup, requirements, design, planning, implementation, testing, and review |
-| `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, `dev-review` | Run focused lifecycle phases directly |
+| `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, `dev-review`, `dev-pr` | Run focused lifecycle and publish-for-review phases directly |
 | `dev-commit` | Commit only intended, verified changes with a conventional message |
 | `tdd` | Add or change behavior test-first |
 | `verify` | Require fresh command output before completion claims |

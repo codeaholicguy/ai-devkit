@@ -107,6 +107,10 @@ describe('skill command', () => {
       global: undefined,
       environments: undefined,
     });
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-pr', {
+      global: undefined,
+      environments: undefined,
+    });
   });
 
   it('exits when skill add has neither registry nor --built-in', async () => {
