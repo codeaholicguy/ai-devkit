@@ -181,7 +181,7 @@ describe('ConfigManager', () => {
       expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
 
-    it('should remove legacy updatedAt when updating config', async () => {
+    it('should not rewrite config when only legacy updatedAt is present and updates are unchanged', async () => {
       const existingConfig = {
         version: '1.0.0',
         environments: ['cursor'],
@@ -192,21 +192,11 @@ describe('ConfigManager', () => {
 
       (mockFs.pathExists as any).mockResolvedValue(true);
       (mockFs.readJson as any).mockResolvedValue(existingConfig);
-      (mockFs.writeJson as any).mockResolvedValue(undefined);
 
       const result = await configManager.update({});
 
-      expect(result).not.toHaveProperty('updatedAt');
-      expect(mockFs.writeJson).toHaveBeenCalledWith(
-        '/test/dir/.ai-devkit.json',
-        {
-          version: '1.0.0',
-          environments: ['cursor'],
-          phases: [],
-          createdAt: '2024-01-01T00:00:00.000Z'
-        },
-        { spaces: 2 }
-      );
+      expect(result).toEqual(existingConfig);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
 
     it('should throw error when config file not found', async () => {

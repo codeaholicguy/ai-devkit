@@ -7,12 +7,6 @@ import packageJson from '../../package.json' with { type: 'json' };
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
 
-function stripLegacyUpdatedAt(config: DevKitConfig): DevKitConfig {
-  const { updatedAt, ...configWithoutUpdatedAt } = config as DevKitConfig & { updatedAt?: string };
-  void updatedAt;
-  return configWithoutUpdatedAt;
-}
-
 export class ConfigManager {
   private configPath: string;
 
@@ -53,16 +47,13 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
-    const currentConfig = stripLegacyUpdatedAt(config);
-    const nextConfig = {
-      ...currentConfig,
+    const updated = {
+      ...config,
       ...updates
     };
 
-    const updated = stripLegacyUpdatedAt(nextConfig);
-
     if (JSON.stringify(updated) === JSON.stringify(config)) {
-      return currentConfig;
+      return config;
     }
 
     await fs.writeJson(this.configPath, updated, { spaces: 2 });
