@@ -27,6 +27,7 @@ AI DevKit ships with a core set of skills in its default registry:
 |---|---|
 | `agent-orchestration` | Coordinate running AI agents and manage multi-agent workflows |
 | `document-code` | Document code entry points with structured analysis and dependency mapping |
+| `dev-commit` | Commit only intended, verified changes with a conventional message |
 | `dev-lifecycle` | Orchestrate the SDLC workflow and route to phase skills |
 | `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, `dev-review` | Run focused SDLC phases directly |
 | `structured-debug` | Follow a disciplined debugging and RCA process before implementing fixes |
