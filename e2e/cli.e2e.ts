@@ -29,8 +29,10 @@ describe('CLI basics', () => {
       const result = run('setup', { env: { HOME: homeDir } });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Setup Summary');
-      expect(result.stdout).toContain('codex-session-hook');
-      expect(result.stdout).toContain('pi-session-tracker');
+      expect(result.stdout).toContain('codex');
+      expect(result.stdout).toContain('~/.codex does not exist.');
+      expect(result.stdout).toContain('pi');
+      expect(result.stdout).toContain('~/.pi does not exist.');
     } finally {
       rmSync(homeDir, { recursive: true, force: true });
     }
