@@ -34,7 +34,6 @@ export interface DevKitConfig {
   skills?: ConfigSkill[];
   mcpServers?: Record<string, McpServerDefinition>;
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface ConfigSkill {

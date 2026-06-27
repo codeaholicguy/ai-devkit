@@ -46,8 +46,7 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
       "args": ["-y", "@ai-devkit/memory"]
     }
   },
-  "createdAt": "2025-12-28T13:35:45.251Z",
-  "updatedAt": "2026-04-18T10:00:00.000Z"
+  "createdAt": "2025-12-28T13:35:45.251Z"
 }
 ```
 
@@ -230,11 +229,11 @@ Every server definition requires a `transport` field set to `stdio`, `http`, or 
 **Set by:** `ai-devkit init --template` or by editing `.ai-devkit.json` directly
 **Read by:** `ai-devkit install`
 
-#### `createdAt` / `updatedAt`
+#### `createdAt`
 
 - **Type:** `string` (ISO 8601 timestamp)
-- **Set automatically** when the config is created or modified.
-- You normally should not edit these fields manually.
+- **Set automatically** when the config is created.
+- You normally should not edit this field manually.
 
 ## Global Config (`~/.ai-devkit/.ai-devkit.json`)
 

@@ -7,10 +7,10 @@ import packageJson from '../../package.json' with { type: 'json' };
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
 
-function withoutUpdatedAt(config: DevKitConfig): Omit<DevKitConfig, 'updatedAt'> {
-  const { updatedAt, ...meaningfulConfig } = config;
+function stripLegacyUpdatedAt(config: DevKitConfig): DevKitConfig {
+  const { updatedAt, ...configWithoutUpdatedAt } = config as DevKitConfig & { updatedAt?: string };
   void updatedAt;
-  return meaningfulConfig;
+  return configWithoutUpdatedAt;
 }
 
 export class ConfigManager {
@@ -40,8 +40,7 @@ export class ConfigManager {
       version: packageJson.version,
       environments: [],
       phases: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      createdAt: new Date().toISOString()
     };
 
     await fs.writeJson(this.configPath, config, { spaces: 2 });
@@ -54,19 +53,17 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
+    const currentConfig = stripLegacyUpdatedAt(config);
     const nextConfig = {
-      ...config,
+      ...currentConfig,
       ...updates
     };
 
-    if (JSON.stringify(withoutUpdatedAt(nextConfig)) === JSON.stringify(withoutUpdatedAt(config))) {
-      return config;
-    }
+    const updated = stripLegacyUpdatedAt(nextConfig);
 
-    const updated = {
-      ...nextConfig,
-      updatedAt: new Date().toISOString()
-    };
+    if (JSON.stringify(updated) === JSON.stringify(config)) {
+      return currentConfig;
+    }
 
     await fs.writeJson(this.configPath, updated, { spaces: 2 });
     return updated;
