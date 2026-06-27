@@ -7,6 +7,12 @@ import packageJson from '../../package.json' with { type: 'json' };
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
 
+function withoutUpdatedAt(config: DevKitConfig): Omit<DevKitConfig, 'updatedAt'> {
+  const { updatedAt, ...meaningfulConfig } = config;
+  void updatedAt;
+  return meaningfulConfig;
+}
+
 export class ConfigManager {
   private configPath: string;
 
@@ -48,9 +54,17 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
-    const updated = {
+    const nextConfig = {
       ...config,
-      ...updates,
+      ...updates
+    };
+
+    if (JSON.stringify(withoutUpdatedAt(nextConfig)) === JSON.stringify(withoutUpdatedAt(config))) {
+      return config;
+    }
+
+    const updated = {
+      ...nextConfig,
       updatedAt: new Date().toISOString()
     };
 
@@ -64,7 +78,7 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
-    const phases = Array.isArray(config.phases) ? config.phases : [];
+    const phases = Array.isArray(config.phases) ? [...config.phases] : [];
     if (!phases.includes(phase)) {
       phases.push(phase);
       return this.update({ phases });
@@ -141,7 +155,7 @@ export class ConfigManager {
       throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
     }
 
-    const installed = Array.isArray(config.skills) ? config.skills : [];
+    const installed = Array.isArray(config.skills) ? [...config.skills] : [];
 
     const exists = installed.some(
       entry => entry.registry === skill.registry && entry.name === skill.name

@@ -162,6 +162,28 @@ describe('ConfigManager', () => {
       expect(result.createdAt).toBe(existingConfig.createdAt);
     });
 
+    it('should not rewrite config or change updatedAt when updates are unchanged', async () => {
+      const existingConfig: DevKitConfig = {
+        version: '1.0.0',
+        environments: ['cursor'],
+        phases: [],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
+        createdAt: '2024-01-01T00:00:00.000Z',
+        updatedAt: '2024-01-01T00:00:00.000Z'
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(existingConfig);
+
+      const result = await configManager.update({
+        environments: ['cursor'],
+        skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]
+      });
+
+      expect(result).toEqual(existingConfig);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
     it('should throw error when config file not found', async () => {
       (mockFs.readJson as any).mockResolvedValue(null);
 
