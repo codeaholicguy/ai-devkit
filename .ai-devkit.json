@@ -100,7 +100,11 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "dev-pr"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "changelog"
     }
   ],
-  "updatedAt": "2026-06-27T20:33:45.016Z"
+  "updatedAt": "2026-06-27T20:37:59.097Z"
 }

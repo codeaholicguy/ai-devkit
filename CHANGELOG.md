@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0] - 2026-06-27
+
+- [f7d1144](https://github.com/codeaholicguy/ai-devkit/pull/117) Fixed Telegram delivery reliability.
+- [e638fdf](https://github.com/codeaholicguy/ai-devkit/pull/118) Removed `updatedAt` from new project config writes.
+- [291ffdf](https://github.com/codeaholicguy/ai-devkit/pull/119) Removed the install artifact overwrite prompt.
+- [76887e6](https://github.com/codeaholicguy/ai-devkit/pull/120) Added the `dev-commit` workflow skill.
+- [05581dd](https://github.com/codeaholicguy/ai-devkit/pull/121) Added the `dev-pr` workflow skill.
+- [e04ae44](https://github.com/codeaholicguy/ai-devkit/commit/e04ae44c2bbf842b58242f0c3e1c5c78bc1ab1d2) Installed built-in skills during agent setup.
+
 ## [0.43.0] - 2026-06-26
 
 - [997ef2d](https://github.com/codeaholicguy/ai-devkit/commit/997ef2dce2db45acfc18217e5ab352fcdb0122f4) Added the `agent-management` built-in skill.
