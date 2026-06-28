@@ -56,9 +56,7 @@ export class TelegramAdapter implements ChannelAdapter {
 
     /**
      * Input is treated as markdown and rendered as Telegram-compatible HTML.
-     * Long messages are chunked at paragraph boundaries when possible; very
-     * long single blocks (e.g. a `<pre>` over 4096 chars) may still split
-     * mid-tag and produce a partial render in the second chunk.
+     * Long messages are chunked at paragraph boundaries when possible.
      */
     async sendMessage(chatId: string, text: string): Promise<void> {
         let html: string;
@@ -71,14 +69,19 @@ export class TelegramAdapter implements ChannelAdapter {
             return;
         }
 
-        for (const chunk of chunkMessage(html, TELEGRAM_MAX_MESSAGE_LENGTH)) {
+        const htmlChunks = chunkTelegramHtml(html, TELEGRAM_MAX_MESSAGE_LENGTH);
+        const fallbackChunks = chunkMessage(text, TELEGRAM_MAX_MESSAGE_LENGTH);
+
+        for (const [index, chunk] of htmlChunks.entries()) {
             try {
                 await this.bot.telegram.sendMessage(chatId, chunk, { parse_mode: TELEGRAM_PARSE_MODE });
             } catch (error) {
                 if (!isParseEntitiesError(error)) throw error;
                 // Telegram rejected the rendered HTML — fall back to plain text
-                // so the user still gets the content (just unformatted).
-                await this.bot.telegram.sendMessage(chatId, htmlToPlainText(chunk));
+                // from the source so escaped code content is not decoded into
+                // HTML-looking Telegram tags.
+                const fallbackChunk = fallbackChunks[index] ?? text;
+                await this.bot.telegram.sendMessage(chatId, fallbackChunk);
             }
         }
     }
@@ -99,13 +102,69 @@ function isParseEntitiesError(error: unknown): boolean {
     return ((description ?? '') + (message ?? '')).includes("can't parse entities");
 }
 
-function htmlToPlainText(html: string): string {
-    return html
-        .replace(/<[^>]+>/g, '')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&amp;/g, '&');
+function chunkTelegramHtml(html: string, maxLen: number): string[] {
+    const chunks: string[] = [];
+    const preCodePattern = /<pre><code([^>]*)>([\s\S]*?)<\/code><\/pre>(\n\n)?/g;
+    let lastIndex = 0;
+
+    for (const match of html.matchAll(preCodePattern)) {
+        const matchIndex = match.index ?? 0;
+        chunks.push(...chunkMessage(html.slice(lastIndex, matchIndex), maxLen));
+
+        const [block, attrs, content, suffix = ''] = match;
+        if (block.length <= maxLen) {
+            chunks.push(block);
+        } else {
+            chunks.push(...chunkPreCodeBlock(attrs, content, suffix, maxLen));
+        }
+
+        lastIndex = matchIndex + block.length;
+    }
+
+    chunks.push(...chunkMessage(html.slice(lastIndex), maxLen));
+    return chunks;
+}
+
+function chunkPreCodeBlock(attrs: string, content: string, suffix: string, maxLen: number): string[] {
+    const open = `<pre><code${attrs}>`;
+    const close = '</code></pre>';
+    const maxContentLen = maxLen - open.length - close.length;
+    if (maxContentLen <= 0) return chunkMessage(`${open}${content}${close}${suffix}`, maxLen);
+
+    const contentChunks = chunkHtmlText(content, maxContentLen);
+    return contentChunks.map((chunk, index) =>
+        `${open}${chunk}${close}${index === contentChunks.length - 1 ? suffix : ''}`
+    );
+}
+
+function chunkHtmlText(text: string, maxLen: number): string[] {
+    const chunks: string[] = [];
+    let remaining = text;
+
+    while (remaining.length > 0) {
+        if (remaining.length <= maxLen) {
+            chunks.push(remaining);
+            break;
+        }
+
+        const newline = remaining.lastIndexOf('\n', maxLen - 1);
+        const splitAt = avoidEntitySplit(remaining, newline > 0 ? newline + 1 : maxLen);
+        chunks.push(remaining.slice(0, splitAt));
+        remaining = remaining.slice(splitAt);
+    }
+
+    return chunks;
+}
+
+function avoidEntitySplit(text: string, splitAt: number): number {
+    const amp = text.lastIndexOf('&', splitAt - 1);
+    const semicolon = text.lastIndexOf(';', splitAt - 1);
+    if (amp <= semicolon) return splitAt;
+
+    const nextSemicolon = text.indexOf(';', amp);
+    if (nextSemicolon >= splitAt && nextSemicolon < text.length) return amp;
+
+    return splitAt;
 }
 
 /**

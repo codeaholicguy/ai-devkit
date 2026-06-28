@@ -219,10 +219,77 @@ describe('TelegramAdapter', () => {
             expect(htmlChunk).toContain('<b>hello</b>');
             expect(htmlOpts).toEqual({ parse_mode: 'HTML' });
 
-            // Second call: same content, plain text (tags stripped, no parse_mode)
+            // Second call: original source text, no parse_mode
             const [, plainChunk, plainOpts] = bot.telegram.sendMessage.mock.calls[1];
-            expect(plainChunk).toBe('hello');
+            expect(plainChunk).toBe('**hello**');
             expect(plainOpts).toBeUndefined();
+        });
+
+        it('should fall back to source text for markdown code that contains HTML-looking tags', async () => {
+            const bot = getMockBot();
+            const parseError = Object.assign(new Error('400'), {
+                description: "Bad Request: can't parse entities",
+            });
+            bot.telegram.sendMessage
+                .mockRejectedValueOnce(parseError)
+                .mockResolvedValueOnce(undefined);
+
+            await adapter.sendMessage('12345', '`<code>x</code>`');
+
+            const [, plainChunk, plainOpts] = bot.telegram.sendMessage.mock.calls[1];
+            expect(plainChunk).toBe('`<code>x</code>`');
+            expect(plainChunk).not.toBe('<code>x</code>');
+            expect(plainOpts).toBeUndefined();
+        });
+
+        it('should fall back to source text chunks for long fenced code with tag-like content', async () => {
+            const bot = getMockBot();
+            const parseError = Object.assign(new Error('400'), {
+                description: "Bad Request: can't parse entities",
+            });
+            bot.telegram.sendMessage
+                .mockRejectedValueOnce(parseError)
+                .mockResolvedValue(undefined);
+            const codeLine = '<code>x</code>\n';
+            const message = `\`\`\`\n${codeLine.repeat(350)}\`\`\``;
+
+            await adapter.sendMessage('12345', message);
+
+            const [, plainChunk, plainOpts] = bot.telegram.sendMessage.mock.calls[1];
+            expect(plainChunk).toContain('```');
+            expect(plainChunk).toContain('<code>x</code>');
+            expect(plainChunk).not.toContain('&lt;code&gt;x&lt;/code&gt;');
+            expect(plainOpts).toBeUndefined();
+        });
+
+        it('should not split rendered fenced code into malformed Telegram HTML chunks', async () => {
+            const bot = getMockBot();
+            bot.telegram.sendMessage.mockImplementation(async (_chatId: string, chunk: string, opts?: { parse_mode?: string }) => {
+                if (opts?.parse_mode === 'HTML') {
+                    const preOpen = (chunk.match(/<pre>/g) ?? []).length;
+                    const preClose = (chunk.match(/<\/pre>/g) ?? []).length;
+                    const codeOpen = (chunk.match(/<code(?:\s[^>]*)?>/g) ?? []).length;
+                    const codeClose = (chunk.match(/<\/code>/g) ?? []).length;
+                    if (preOpen !== preClose || codeOpen !== codeClose) {
+                        throw Object.assign(new Error('400: Bad Request'), {
+                            description: "Bad Request: can't parse entities: Can't find end tag corresponding to start tag \"pre\"",
+                        });
+                    }
+                }
+                return undefined;
+            });
+            const codeLine = 'const value = "<code>x</code>";\n';
+            const message = `\`\`\`ts\n${codeLine.repeat(180)}\`\`\``;
+
+            await adapter.sendMessage('12345', message);
+
+            expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(2);
+            for (const call of bot.telegram.sendMessage.mock.calls) {
+                expect(call[1].length).toBeLessThanOrEqual(4096);
+                expect(call[1]).toMatch(/^<pre><code class="language-ts">/);
+                expect(call[1]).toMatch(/<\/code><\/pre>$/);
+                expect(call[2]).toEqual({ parse_mode: 'HTML' });
+            }
         });
 
         it('should detect parse-entities error from "message" field too', async () => {
@@ -238,7 +305,7 @@ describe('TelegramAdapter', () => {
             expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(2);
         });
 
-        it('should decode HTML entities when falling back to plain text', async () => {
+        it('should keep source text when falling back from escaped HTML', async () => {
             const bot = getMockBot();
             const parseError = Object.assign(new Error('400'), {
                 description: "Bad Request: can't parse entities",
@@ -247,7 +314,6 @@ describe('TelegramAdapter', () => {
                 .mockRejectedValueOnce(parseError)
                 .mockResolvedValueOnce(undefined);
 
-            // Source has chars that escapeHtml encodes; fallback should decode them
             await adapter.sendMessage('12345', 'a < b && c > d');
 
             const [, plainChunk] = bot.telegram.sendMessage.mock.calls[1];
