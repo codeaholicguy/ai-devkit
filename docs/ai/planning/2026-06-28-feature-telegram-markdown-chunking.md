@@ -10,7 +10,7 @@ description: Implementation tasks for semantic Markdown chunking before Telegram
 
 - [x] Milestone 1: Requirements, design, and tests describe Markdown-first chunking.
 - [x] Milestone 2: Adapter chunks Markdown source with marked tokens and sends independently rendered HTML chunks.
-- [ ] Milestone 3: Targeted tests, typecheck, lifecycle lint, review, commit, and PR are complete.
+- [x] Milestone 3: Targeted tests, typecheck, lifecycle lint, review, commit, and PR are complete.
 
 ## Task Breakdown
 
@@ -44,7 +44,7 @@ description: Implementation tasks for semantic Markdown chunking before Telegram
 - [x] Task 3.2: Review implementation against design and update lifecycle docs.
   - Outcome: docs reflect actual files, decisions, deviations, and risks.
   - Validation: lifecycle lint passes.
-- [ ] Task 3.3: Commit, push, and open PR.
+- [x] Task 3.3: Commit, push, and open PR.
   - Outcome: branch `feature-telegram-markdown-chunking` has a PR ready for review.
   - Validation: commit SHA and PR URL reported.
 
@@ -77,4 +77,4 @@ description: Implementation tasks for semantic Markdown chunking before Telegram
 
 ## Progress Summary
 
-Implementation tasks are complete through package verification and local review. Commit, push, and PR creation are blocked by the environment usage limit rejecting escalated commands. Final AI DevKit lifecycle lint after doc updates is also blocked for the same reason.
+Implementation tasks are complete through package verification, local review, commit, push, and PR creation. PR: https://github.com/codeaholicguy/ai-devkit/pull/125.

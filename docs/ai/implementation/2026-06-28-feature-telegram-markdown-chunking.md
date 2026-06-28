@@ -67,10 +67,12 @@ description: Implementation notes for marked-token chunking in TelegramAdapter
 - `npm --workspace @ai-devkit/channel-connector test`: exited 0, 62 tests passed.
 - `npm --workspace @ai-devkit/channel-connector run typecheck`: exited 0.
 - `npm --workspace @ai-devkit/channel-connector run lint`: exited 0.
-- Final rerun of `npx ai-devkit@latest lint --feature telegram-markdown-chunking` after doc reconciliation was blocked by the environment usage limit for escalated commands.
+- Final rerun of `npx ai-devkit@latest lint --feature telegram-markdown-chunking`: exited 0.
+- Commit hook rerun after direct workspace package builds: repo lint exited 0 with existing warnings; repo tests exited 0 with 70 files and 821 tests passed.
+- Post-fetch targeted validation: `npm --workspace @ai-devkit/channel-connector test -- src/__tests__/adapters/TelegramAdapter.test.ts` exited 0, 26 tests passed.
 
 ## Deviations and Follow-ups
 
 - No design deviations.
 - Plain/source fallback remains available if a rendered chunk still cannot fit after semantic splitting.
-- Follow-up: commit, push, and open PR when escalated git/network commands are available.
+- PR opened: https://github.com/codeaholicguy/ai-devkit/pull/125.
