@@ -19,6 +19,7 @@ function mockExecFileSuccess(stdout = '') {
     mockedExecFile.mockImplementation((...args: unknown[]) => {
         const cb = args[args.length - 1] as (err: Error | null, result: { stdout: string }, stderr: string) => void;
         cb(null, { stdout }, '');
+        return { stdin: { end: vi.fn() } };
     });
 }
 
@@ -41,22 +42,36 @@ describe('TtyWriter', () => {
             tty: '/dev/ttys030',
         };
 
-        it('sends message and Enter as separate tmux send-keys calls', async () => {
+        it('pastes message in bracketed paste mode and sends Enter separately', async () => {
             mockExecFileSuccess();
+            const message = 'line 1\nline 2\n';
 
-            await TtyWriter.send(location, 'continue');
+            await TtyWriter.send(location, message);
 
-            expect(mockedExecFile).toHaveBeenCalledWith(
+            const loadArgs = mockedExecFile.mock.calls[0]?.[1] as string[];
+            const bufferName = loadArgs[2];
+            expect(bufferName).toMatch(/^ai-devkit-send-/);
+            expect(mockedExecFile).toHaveBeenNthCalledWith(
+                1,
                 'tmux',
-                ['send-keys', '-t', 'main:0.1', '-l', 'continue'],
+                ['load-buffer', '-b', bufferName, '-'],
                 expect.any(Function),
             );
-            expect(mockedExecFile).toHaveBeenCalledWith(
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith(message);
+            expect(mockedExecFile).toHaveBeenNthCalledWith(
+                2,
+                'tmux',
+                ['paste-buffer', '-t', 'main:0.1', '-b', bufferName, '-p', '-d'],
+                expect.any(Function),
+            );
+            expect(mockedExecFile).toHaveBeenNthCalledWith(
+                3,
                 'tmux',
                 ['send-keys', '-t', 'main:0.1', 'Enter'],
                 expect.any(Function),
             );
-            expect(mockedExecFile).toHaveBeenCalledTimes(2);
+            expect(mockedExecFile).toHaveBeenCalledTimes(3);
         });
 
         it('throws on tmux failure', async () => {

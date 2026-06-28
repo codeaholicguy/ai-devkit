@@ -39,14 +39,31 @@ export class TtyWriter {
     }
 
     private static async sendViaTmux(identifier: string, message: string): Promise<void> {
-        // Send text and Enter as two separate calls so that Enter arrives
-        // outside of bracketed paste mode. When the inner application (e.g.
-        // Claude Code) has bracketed paste enabled, tmux wraps the send-keys
-        // payload in paste brackets — if Enter is included, it gets swallowed
-        // as part of the paste instead of acting as a submit action.
-        await execFileAsync('tmux', ['send-keys', '-t', identifier, '-l', message]);
+        // Paste the message body using tmux bracketed paste, then send Enter as
+        // a separate key so the inner TUI treats it as submission rather than
+        // pasted content.
+        const bufferName = `ai-devkit-send-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await TtyWriter.execFileWithInput('tmux', ['load-buffer', '-b', bufferName, '-'], message);
+        await execFileAsync('tmux', ['paste-buffer', '-t', identifier, '-b', bufferName, '-p', '-d']);
         await new Promise((resolve) => setTimeout(resolve, 150));
         await execFileAsync('tmux', ['send-keys', '-t', identifier, 'Enter']);
+    }
+
+    private static async execFileWithInput(command: string, args: string[], input: string): Promise<void> {
+        await new Promise<void>((resolve, reject) => {
+            const child = execFile(command, args, (error) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                resolve();
+            });
+            if (!child.stdin) {
+                reject(new Error(`Cannot write stdin to ${command}`));
+                return;
+            }
+            child.stdin.end(input);
+        });
     }
 
     /**
