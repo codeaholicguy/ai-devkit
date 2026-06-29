@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- [fb66494](https://github.com/codeaholicguy/ai-devkit/pull/123) Fixed tmux send body delivery by using bracketed paste.
+- [d75ab3b](https://github.com/codeaholicguy/ai-devkit/pull/125) Fixed Telegram markdown delivery by chunking messages before rendering.
+
 ## [0.44.0] - 2026-06-27
 
 - [f7d1144](https://github.com/codeaholicguy/ai-devkit/pull/117) Fixed Telegram delivery reliability.
