@@ -30,3 +30,6 @@ export type { RegistryEntry } from './utils/AgentRegistry.js';
 export { TmuxManager } from './terminal/TmuxManager.js';
 export { AGENTS } from './utils/agents.js';
 export type { AgentConfig, StartableAgentType } from './utils/agents.js';
+
+export type { AgentRequest } from './utils/agent-requests.js';
+export { getAgentRequestPath, readLatestAgentRequest, writeAgentRequest } from './utils/agent-requests.js';

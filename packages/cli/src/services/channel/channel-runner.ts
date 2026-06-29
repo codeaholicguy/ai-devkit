@@ -1,3 +1,4 @@
+import { homedir } from 'os';
 import {
     AgentManager,
     ClaudeCodeAdapter,
@@ -7,8 +8,10 @@ import {
     PiAdapter,
     TerminalFocusManager,
     TtyWriter,
+    readLatestAgentRequest,
     type AgentAdapter,
     type AgentInfo,
+    type ConversationMessage,
     type TerminalLocation,
 } from '@ai-devkit/agent-manager';
 import {
@@ -106,12 +109,31 @@ function setupInputHandler(
     });
 }
 
+function formatPromptMessage(toolName: string, toolInput: Record<string, unknown>): string {
+    if (toolName === 'AskUserQuestion') {
+        const question = typeof toolInput.question === 'string' ? toolInput.question : JSON.stringify(toolInput);
+        const options = Array.isArray(toolInput.options)
+            ? '\n' + (toolInput.options as unknown[]).map((o) => `- ${String(o)}`).join('\n')
+            : '';
+        return `[Question] ${question}${options}`;
+    }
+    const detail = typeof toolInput.command === 'string' ? toolInput.command : JSON.stringify(toolInput);
+    return `[Tool prompt] ${toolName}:\n${detail}`;
+}
+
+export interface OutputPollingOptions {
+    homeDir?: string;
+}
+
 export function startOutputPolling(
     telegram: TelegramAdapter,
     agentAdapter: AgentAdapter,
     agent: AgentInfo,
     chatIdRef: { value: string | null },
+    options: OutputPollingOptions = {},
 ): NodeJS.Timeout {
+    const home = options.homeDir ?? homedir();
+    let lastAgentRequestTimestamp: string | undefined;
     let lastMessageCount = 0;
 
     debug(`startOutputPolling: sessionFilePath=${agent.sessionFilePath ?? 'null'}`);
@@ -123,6 +145,16 @@ export function startOutputPolling(
             debug(`Initial conversation length: ${lastMessageCount}`);
         } catch (error: unknown) {
             debug(`Initial getConversation threw: ${getErrorMessage(error)}`);
+        }
+    }
+
+    // Seed agent-request timestamp so pre-existing entries are not replayed on first tick,
+    // mirroring the lastMessageCount seed above.
+    if (agent.sessionId) {
+        const existingRequest = readLatestAgentRequest(home, agent.sessionId);
+        if (existingRequest) {
+            lastAgentRequestTimestamp = existingRequest.timestamp;
+            debug(`Initial agent-request timestamp seeded: ${lastAgentRequestTimestamp}`);
         }
     }
 
@@ -138,48 +170,63 @@ export function startOutputPolling(
             }
             return;
         }
-        if (!agent.sessionFilePath) {
-            if (tickCount % 15 === 1) {
-                debug(`poll skip: agent has no sessionFilePath (tick ${tickCount})`);
-            }
-            return;
-        }
 
-        let newMessages;
-        try {
-            const conversation = agentAdapter.getConversation(agent.sessionFilePath);
-            newMessages = conversation.slice(lastMessageCount);
-            if (conversation.length !== lastReportedLength) {
-                debug(`Conversation length changed: ${lastReportedLength} -> ${conversation.length} (lastMessageCount=${lastMessageCount}, new=${newMessages.length})`);
-                lastReportedLength = conversation.length;
-            }
-            lastMessageCount = conversation.length;
-        } catch (error: unknown) {
-            debug(`getConversation threw: ${getErrorMessage(error)}`);
-            return;
-        }
-
-        if (newMessages.length > 0) {
-            debug(`Polled ${newMessages.length} new message(s) from agent conversation`);
-        }
-
-        for (const msg of newMessages) {
-            const contentType = typeof msg.content;
-            const contentLen = msg.content ? String(msg.content).length : 0;
-            debug(`message: role=${msg.role}, contentType=${contentType}, length=${contentLen}`);
-
-            if (msg.role === 'user' || !msg.content) {
-                debug(`skipping message (role=${msg.role}, hasContent=${Boolean(msg.content)})`);
-                continue;
-            }
-
+        // JSONL polling — requires a known session file
+        if (agent.sessionFilePath) {
+            let newMessages: ConversationMessage[];
             try {
-                await telegram.sendMessage(chatIdRef.value, msg.content);
-                debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${contentLen})`);
+                const conversation = agentAdapter.getConversation(agent.sessionFilePath);
+                newMessages = conversation.slice(lastMessageCount);
+                if (conversation.length !== lastReportedLength) {
+                    debug(`Conversation length changed: ${lastReportedLength} -> ${conversation.length} (lastMessageCount=${lastMessageCount}, new=${newMessages.length})`);
+                    lastReportedLength = conversation.length;
+                }
+                lastMessageCount = conversation.length;
             } catch (error: unknown) {
-                const message = getErrorMessage(error);
-                ui.error(`Failed to send agent response to Telegram: ${message}`);
-                debug(`sendMessage failed: ${message}`);
+                debug(`getConversation threw: ${getErrorMessage(error)}`);
+                newMessages = [];
+            }
+
+            if (newMessages.length > 0) {
+                debug(`Polled ${newMessages.length} new message(s) from agent conversation`);
+            }
+
+            for (const msg of newMessages) {
+                const contentType = typeof msg.content;
+                const contentLen = msg.content ? String(msg.content).length : 0;
+                debug(`message: role=${msg.role}, contentType=${contentType}, length=${contentLen}`);
+
+                if (msg.role === 'user' || !msg.content) {
+                    debug(`skipping message (role=${msg.role}, hasContent=${Boolean(msg.content)})`);
+                    continue;
+                }
+
+                try {
+                    await telegram.sendMessage(chatIdRef.value, msg.content);
+                    debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${contentLen})`);
+                } catch (error: unknown) {
+                    const message = getErrorMessage(error);
+                    ui.error(`Failed to send agent response to Telegram: ${message}`);
+                    debug(`sendMessage failed: ${message}`);
+                }
+            }
+        } else if (tickCount % 15 === 1) {
+            debug(`poll skip JSONL: agent has no sessionFilePath (tick ${tickCount})`);
+        }
+
+        // Agent requests: forward tool invocations captured by the hook script.
+        // Dedupes by timestamp so each distinct hook write is sent exactly once.
+        if (agent.sessionId) {
+            const agentRequest = readLatestAgentRequest(home, agent.sessionId);
+            if (agentRequest && agentRequest.timestamp !== lastAgentRequestTimestamp) {
+                debug(`New agent request: ${agentRequest.toolName} at ${agentRequest.timestamp}`);
+                lastAgentRequestTimestamp = agentRequest.timestamp;
+                try {
+                    await telegram.sendMessage(chatIdRef.value, formatPromptMessage(agentRequest.toolName, agentRequest.toolInput));
+                    debug(`Sent agent request notification to Telegram`);
+                } catch (error: unknown) {
+                    debug(`sendMessage (agent request) failed: ${getErrorMessage(error)}`);
+                }
             }
         }
     }, AGENT_POLL_INTERVAL_MS);

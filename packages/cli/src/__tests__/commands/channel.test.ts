@@ -75,6 +75,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     TtyWriter: {
         send: vi.fn(),
     },
+    readLatestAgentRequest: vi.fn().mockReturnValue(null),
 }), { virtual: true });
 
 vi.mock('@inquirer/prompts', () => ({

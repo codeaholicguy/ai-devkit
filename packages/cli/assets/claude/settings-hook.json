@@ -1,0 +1,10 @@
+{
+  "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|AskUserQuestion",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "node ~/.claude/hooks/claude-prompt-hook.js",
+      "timeout": 10
+    }
+  ]
+}

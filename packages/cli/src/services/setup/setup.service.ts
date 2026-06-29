@@ -12,8 +12,9 @@ import { getErrorMessage } from '../../util/text.js';
 const execFileAsync = promisify(execFile);
 const CODEX_HOOK_COMMAND = 'node ~/.codex/hooks/codex-session-mapping.cjs';
 const PI_TRACKER_PACKAGE = 'npm:@ai-devkit/pi-session-tracker';
+const CLAUDE_PROMPT_HOOK_COMMAND = 'node ~/.claude/hooks/claude-prompt-hook.js';
 
-export const SUPPORTED_SETUP_AGENTS = ['codex', 'pi'] as const;
+export const SUPPORTED_SETUP_AGENTS = ['codex', 'pi', 'claude'] as const;
 
 export type SetupAgent = typeof SUPPORTED_SETUP_AGENTS[number];
 export type SetupStepStatus = 'installed' | 'skipped' | 'failed';
@@ -148,6 +149,14 @@ const setupDefinitions: AgentSetupDefinition[] = [
       { name: 'built-in-skills', run: setupBuiltInSkills },
     ],
   },
+  {
+    agent: 'claude',
+    dotFolder: '.claude',
+    steps: [
+      { name: 'claude-prompt-hook', run: setupClaudePromptHook },
+      { name: 'built-in-skills', run: setupBuiltInSkills },
+    ],
+  },
 ];
 
 async function setupCodexSessionHook(context: SetupStepContext): Promise<SetupStepResult> {
@@ -191,6 +200,63 @@ async function setupCodexSessionHook(context: SetupStepContext): Promise<SetupSt
 async function setupPiSessionTracker(context: SetupStepContext): Promise<SetupStepResult> {
   await context.runCommand('pi', ['install', PI_TRACKER_PACKAGE]);
   return installed('pi', 'pi-session-tracker', 'Installed Pi session tracker plugin.');
+}
+
+interface ClaudeSettingsJson {
+  hooks?: Record<string, unknown>;
+  [key: string]: unknown;
+}
+
+interface ClaudeHookEntry {
+  matcher?: string;
+  hooks?: Array<{ type?: string; command?: string; timeout?: number }>;
+  [key: string]: unknown;
+}
+
+async function setupClaudePromptHook(context: SetupStepContext): Promise<SetupStepResult> {
+  const claudeDir = join(context.homeDir, '.claude');
+  const hooksDir = join(claudeDir, 'hooks');
+  await fs.ensureDir(hooksDir);
+
+  await fs.copyFile(
+    join(context.assetRoot, 'claude', 'claude-prompt-hook.js'),
+    join(hooksDir, 'claude-prompt-hook.js'),
+  );
+
+  const newEntry = await fs.readJson(
+    join(context.assetRoot, 'claude', 'settings-hook.json'),
+  ) as ClaudeHookEntry;
+
+  const settingsPath = join(claudeDir, 'settings.json');
+  let settings: ClaudeSettingsJson = {};
+  try {
+    settings = await fs.readJson(settingsPath) as ClaudeSettingsJson;
+  } catch {
+    settings = {};
+  }
+
+  if (!isRecord(settings.hooks)) {
+    settings.hooks = {};
+  }
+  const hooksRecord = settings.hooks as Record<string, unknown>;
+  const existingEntries: ClaudeHookEntry[] = Array.isArray(hooksRecord.PreToolUse)
+    ? hooksRecord.PreToolUse as ClaudeHookEntry[]
+    : [];
+
+  const alreadyConfigured = existingEntries.some((entry) =>
+    Array.isArray(entry?.hooks) &&
+    entry.hooks.some((h) => h.command === CLAUDE_PROMPT_HOOK_COMMAND),
+  );
+
+  if (alreadyConfigured) {
+    await fs.writeJson(settingsPath, settings, { spaces: 2 });
+    return skipped('claude', 'claude-prompt-hook', 'Claude PreToolUse hook already configured.');
+  }
+
+  hooksRecord.PreToolUse = [...existingEntries, newEntry];
+  await fs.writeJson(settingsPath, settings, { spaces: 2 });
+
+  return installed('claude', 'claude-prompt-hook', 'Installed Claude PreToolUse prompt hook.');
 }
 
 async function setupBuiltInSkills(
