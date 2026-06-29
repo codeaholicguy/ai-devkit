@@ -28,7 +28,7 @@ import {
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
-import { enableDebug } from '../util/debug.js';
+import { enableDebug, createLogger } from '../util/debug.js';
 import {
     formatFirstMessage,
     parseLimit,
@@ -480,9 +480,19 @@ export function registerAgentCommand(program: Command): void {
     agentCommand
         .command('open <name>')
         .description('Focus a running agent terminal')
-        .action(withErrorHandler('open agent', async (name) => {
+        .option('--debug', 'Trace how the agent terminal is resolved and focused')
+        .action(withErrorHandler('open agent', async (name, options) => {
+            const terminalLogger = options.debug ? createLogger('terminal') : undefined;
+            if (options.debug) {
+                enableDebug();
+            }
             const manager = createAgentManager();
-            const focusManager = new TerminalFocusManager();
+            // When --debug is set, route the focus manager's decision trace to
+            // the ai-devkit:terminal debug logger (enabled above) so users can
+            // see which terminal matched and how focus was attempted.
+            const focusManager = new TerminalFocusManager(
+                terminalLogger ? (message: string) => terminalLogger(message) : undefined,
+            );
 
             const agents = await manager.listAgents();
             if (agents.length === 0) {

@@ -414,6 +414,31 @@ Waiting on user input`,
     expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
   });
 
+  it('enables debug logging and wires a terminal trace when opening with --debug', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue({ type: 'wezterm', identifier: '7' });
+    mockFocusManager.focusTerminal.mockResolvedValue(true);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'open', 'repo-a', '--debug']);
+
+    expect(mockEnableDebug).toHaveBeenCalledTimes(1);
+    // A debug logger callback is passed into TerminalFocusManager so its
+    // matching/focus decision path can be inspected.
+    expect(TerminalFocusManager).toHaveBeenCalledWith(expect.any(Function));
+    expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
+    expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
+  });
+
   it('kills a resolved agent and reports tmux cleanup', async () => {
     const agent = {
       name: 'repo-a',

@@ -6,6 +6,12 @@ import { escapeAppleScript } from '../utils/applescript.js';
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Carriage return byte (0x0d). Sent as a discrete argv element with
+ * `--no-paste` to deliver Enter literally (shell equivalent: $'\x0d').
+ */
+const CARRIAGE_RETURN = '\x0d';
+
 export class TtyWriter {
     /**
      * Send a message as keyboard input to a terminal session.
@@ -26,6 +32,8 @@ export class TtyWriter {
         switch (location.type) {
             case TerminalType.TMUX:
                 return TtyWriter.sendViaTmux(location.identifier, message);
+            case TerminalType.WEZTERM:
+                return TtyWriter.sendViaWezterm(location.identifier, message);
             case TerminalType.ITERM2:
                 return TtyWriter.sendViaITerm2(location.tty, message);
             case TerminalType.TERMINAL_APP:
@@ -33,9 +41,33 @@ export class TtyWriter {
             default:
                 throw new Error(
                     `Cannot send input: unsupported terminal type "${location.type}". ` +
-                    'Supported: tmux, iTerm2, Terminal.app.'
+                    'Supported: tmux, WezTerm, iTerm2, Terminal.app.'
                 );
         }
+    }
+
+    private static async sendViaWezterm(paneId: string, message: string): Promise<void> {
+        // Two explicit CLI calls, mirroring the text-then-Enter convention used
+        // by tmux / iTerm2 / Terminal.app so a bracketed-paste-aware TUI still
+        // sees Enter as a submit.
+        //
+        // Step 1 (text): the message is passed as a positional argv element.
+        // execFile spawns wezterm directly (no shell), so the bytes are
+        // delivered verbatim regardless of shell metacharacters — there is no
+        // injection surface. (Equivalent to how tmux uses `send-keys -l`.)
+        // Step 2 (Enter): a single carriage return (0x0d) passed as a discrete
+        // argv element (the JS char '\x0d') with --no-paste, so the CR is
+        // delivered literally rather than wrapped in paste brackets. The
+        // equivalent shell command is:
+        //   wezterm cli send-text --pane-id <id> --no-paste $'\x0d'
+        // (ANSI-C quoting, note the leading $).
+        await execFileAsync('wezterm', [
+            'cli', 'send-text', '--pane-id', paneId, message,
+        ]);
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await execFileAsync('wezterm', [
+            'cli', 'send-text', '--pane-id', paneId, '--no-paste', CARRIAGE_RETURN,
+        ]);
     }
 
     private static async sendViaTmux(identifier: string, message: string): Promise<void> {
