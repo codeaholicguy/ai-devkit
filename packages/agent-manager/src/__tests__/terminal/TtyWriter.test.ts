@@ -303,4 +303,120 @@ describe('TtyWriter', () => {
                 .rejects.toThrow('Cannot send input: unsupported terminal type');
         });
     });
+
+    describe('sendKey — tmux', () => {
+        const location: TerminalLocation = {
+            type: TerminalType.TMUX,
+            identifier: 'main:0.1',
+            tty: '/dev/ttys030',
+        };
+
+        it('sends key via tmux send-keys directly (no paste buffer, no auto-Enter)', async () => {
+            mockExecFileSuccess();
+
+            await TtyWriter.sendKey(location, '1');
+
+            expect(mockedExecFile).toHaveBeenCalledTimes(1);
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'tmux',
+                ['send-keys', '-t', 'main:0.1', '1'],
+                expect.any(Function),
+            );
+        });
+
+        it('passes through named keys like Enter', async () => {
+            mockExecFileSuccess();
+            await TtyWriter.sendKey(location, 'Enter');
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'tmux',
+                ['send-keys', '-t', 'main:0.1', 'Enter'],
+                expect.any(Function),
+            );
+        });
+    });
+
+    describe('sendKey — WezTerm', () => {
+        const location: TerminalLocation = {
+            type: TerminalType.WEZTERM,
+            identifier: '7',
+            tty: '/dev/ttys030',
+        };
+
+        it('uses wezterm cli send-text --no-paste to deliver a raw key', async () => {
+            mockExecFileSuccess();
+
+            await TtyWriter.sendKey(location, '1');
+
+            expect(mockedExecFile).toHaveBeenCalledTimes(1);
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'wezterm',
+                ['cli', 'send-text', '--pane-id', '7', '--no-paste', '1'],
+                expect.any(Function),
+            );
+        });
+    });
+
+    describe('sendKey — iTerm2', () => {
+        const location: TerminalLocation = {
+            type: TerminalType.ITERM2,
+            identifier: '/dev/ttys030',
+            tty: '/dev/ttys030',
+        };
+
+        it('uses System Events keystroke after activating the iTerm2 session', async () => {
+            mockExecFileSuccess('ok');
+
+            await TtyWriter.sendKey(location, '2');
+
+            const args = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
+            const script = args[1];
+            expect(script).toContain('tell application "iTerm"');
+            expect(script).toContain('tell application "System Events" to keystroke "2"');
+            expect(mockedExecFile).toHaveBeenCalledTimes(1);
+        });
+
+        it('throws when session not found', async () => {
+            mockExecFileSuccess('not_found');
+            await expect(TtyWriter.sendKey(location, '1'))
+                .rejects.toThrow('iTerm2 session not found');
+        });
+    });
+
+    describe('sendKey — Terminal.app', () => {
+        const location: TerminalLocation = {
+            type: TerminalType.TERMINAL_APP,
+            identifier: '/dev/ttys030',
+            tty: '/dev/ttys030',
+        };
+
+        it('uses System Events keystroke after selecting the Terminal.app tab', async () => {
+            mockExecFileSuccess('ok');
+
+            await TtyWriter.sendKey(location, '3');
+
+            const args = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
+            const script = args[1];
+            expect(script).toContain('tell application "Terminal"');
+            expect(script).toContain('tell application "System Events" to keystroke "3"');
+            expect(mockedExecFile).toHaveBeenCalledTimes(1);
+        });
+
+        it('throws when tab not found', async () => {
+            mockExecFileSuccess('not_found');
+            await expect(TtyWriter.sendKey(location, '1'))
+                .rejects.toThrow('Terminal.app tab not found');
+        });
+    });
+
+    describe('sendKey — unsupported terminal', () => {
+        it('throws for unknown terminal type', async () => {
+            const location: TerminalLocation = {
+                type: TerminalType.UNKNOWN,
+                identifier: '',
+                tty: '/dev/ttys030',
+            };
+            await expect(TtyWriter.sendKey(location, '1'))
+                .rejects.toThrow('Cannot send key: unsupported terminal type');
+        });
+    });
 });

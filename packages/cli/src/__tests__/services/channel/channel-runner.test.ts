@@ -5,6 +5,7 @@ import { vi, type Mock } from 'vitest';
 import type { AgentInfo, AgentRequest } from '@ai-devkit/agent-manager';
 import { AgentStatus, writeAgentRequest } from '@ai-devkit/agent-manager';
 import { startOutputPolling } from '../../../services/channel/channel-runner.js';
+import { AskUserQuestionService } from '../../../services/channel/ask-user-question.js';
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
     return {
@@ -167,8 +168,7 @@ describe('startOutputPolling — agent requests', () => {
         expect(calls[1][1]).toContain('[Tool prompt]');
     });
 
-    // Exact fixtures observed from live Telegram test — lock raw output (formatting is a future PR)
-    it('forwards AskUserQuestion single-select questions-array payload as raw [Question] JSON', async () => {
+    it('routes AskUserQuestion single-select payload to inline-keyboard service', async () => {
         const singleSelectInput = {
             questions: [{
                 question: 'What would you like to do next?',
@@ -176,53 +176,89 @@ describe('startOutputPolling — agent requests', () => {
                 options: [
                     { label: 'Continue the bug fix', description: 'Pick up where we left off on fixing the bug' },
                     { label: 'Start something new', description: 'Begin a fresh task or feature' },
-                    { label: 'Review code', description: 'Look over existing code for issues or improvements' },
-                    { label: 'Chat / explore ideas', description: 'Discuss approaches or brainstorm solutions' },
                 ],
                 multiSelect: false,
             }],
         };
-        const telegram = makeTelegram();
-        const interval = startOutputPolling(telegram as never, makeAdapter() as never, makeAgent(), chatIdRef, { homeDir });
+        const telegram = {
+            ...makeTelegram(),
+            sendInlineKeyboard: vi.fn().mockResolvedValue(42),
+            editInlineKeyboard: vi.fn().mockResolvedValue(undefined),
+            answerCallback: vi.fn().mockResolvedValue(undefined),
+        };
+        const askQuestion = new AskUserQuestionService(telegram as never, vi.fn().mockResolvedValue(undefined));
+        const interval = startOutputPolling(telegram as never, makeAdapter() as never, makeAgent(), chatIdRef, {
+            homeDir,
+            askUserQuestionService: askQuestion,
+        });
         writeAgentRequest(homeDir, makeRequest({ toolName: 'AskUserQuestion', toolInput: singleSelectInput }));
         await vi.advanceTimersByTimeAsync(2100);
         clearInterval(interval);
 
-        expect(telegram.sendMessage).toHaveBeenCalledOnce();
-        const [, message] = (telegram.sendMessage as Mock).mock.calls[0];
-        // Raw output: no direct question field → JSON.stringify(toolInput)
-        expect(message).toMatch(/^\[Question\]/);
-        expect(message).toContain('"questions"');
-        expect(message).toContain('What would you like to do next?');
-        expect(message).toContain('Continue the bug fix');
+        expect(telegram.sendInlineKeyboard).toHaveBeenCalledOnce();
+        expect(telegram.sendMessage).not.toHaveBeenCalled();
+        const [chatArg, htmlArg, kbArg] = telegram.sendInlineKeyboard.mock.calls[0];
+        expect(chatArg).toBe('chat-123');
+        expect(htmlArg).toContain('What would you like to do next?');
+        expect(htmlArg).toContain('Continue the bug fix');
+        const kb = kbArg as Array<Array<{ text: string; callbackData: string }>>;
+        expect(kb).toHaveLength(2);
+        expect(kb[0][0].callbackData).toMatch(/^q:[a-z0-9]+:o:0$/);
     });
 
-    it('forwards AskUserQuestion multi-select questions-array payload as raw [Question] JSON', async () => {
+    it('falls back to plain [Question] text for multi-select payloads (deliberately unsupported)', async () => {
         const multiSelectInput = {
             questions: [{
                 question: 'Which programming languages do you work with most?',
-                header: 'Languages',
-                options: [
-                    { label: 'TypeScript', description: 'Typed JavaScript for frontend or backend' },
-                    { label: 'Python', description: 'Scripting, data, or backend services' },
-                    { label: 'Go', description: 'High-performance backend services' },
-                    { label: 'Rust', description: 'Systems programming' },
-                ],
+                options: [{ label: 'TypeScript' }, { label: 'Python' }],
                 multiSelect: true,
             }],
         };
-        const telegram = makeTelegram();
-        const interval = startOutputPolling(telegram as never, makeAdapter() as never, makeAgent(), chatIdRef, { homeDir });
+        const telegram = {
+            ...makeTelegram(),
+            sendInlineKeyboard: vi.fn(),
+            editInlineKeyboard: vi.fn(),
+            answerCallback: vi.fn(),
+        };
+        const askQuestion = new AskUserQuestionService(telegram as never, vi.fn().mockResolvedValue(undefined));
+        const interval = startOutputPolling(telegram as never, makeAdapter() as never, makeAgent(), chatIdRef, {
+            homeDir,
+            askUserQuestionService: askQuestion,
+        });
         writeAgentRequest(homeDir, makeRequest({ toolName: 'AskUserQuestion', toolInput: multiSelectInput }));
         await vi.advanceTimersByTimeAsync(2100);
         clearInterval(interval);
 
+        expect(telegram.sendInlineKeyboard).not.toHaveBeenCalled();
         expect(telegram.sendMessage).toHaveBeenCalledOnce();
         const [, message] = (telegram.sendMessage as Mock).mock.calls[0];
-        expect(message).toMatch(/^\[Question\]/);
-        expect(message).toContain('"questions"');
-        expect(message).toContain('Which programming languages do you work with most?');
-        expect(message).toContain('TypeScript');
+        expect(message).toContain('[Question]');
+    });
+
+    it('falls back to plain [Question] text when AskUserQuestion payload is malformed', async () => {
+        const telegram = {
+            ...makeTelegram(),
+            sendInlineKeyboard: vi.fn(),
+            editInlineKeyboard: vi.fn(),
+            answerCallback: vi.fn(),
+        };
+        const askQuestion = new AskUserQuestionService(telegram as never, vi.fn().mockResolvedValue(undefined));
+        const interval = startOutputPolling(telegram as never, makeAdapter() as never, makeAgent(), chatIdRef, {
+            homeDir,
+            askUserQuestionService: askQuestion,
+        });
+        writeAgentRequest(homeDir, makeRequest({
+            toolName: 'AskUserQuestion',
+            toolInput: { question: 'How should I handle this?' },
+        }));
+        await vi.advanceTimersByTimeAsync(2100);
+        clearInterval(interval);
+
+        expect(telegram.sendInlineKeyboard).not.toHaveBeenCalled();
+        expect(telegram.sendMessage).toHaveBeenCalledOnce();
+        const [, message] = (telegram.sendMessage as Mock).mock.calls[0];
+        expect(message).toContain('[Question]');
+        expect(message).toContain('How should I handle this?');
     });
 
     it('formats AskUserQuestion with direct question field as [Question] text', async () => {

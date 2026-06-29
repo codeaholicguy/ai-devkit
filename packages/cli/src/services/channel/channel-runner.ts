@@ -26,6 +26,7 @@ import { getErrorMessage } from '../../util/text.js';
 import { createLogger } from '../../util/debug.js';
 import { select } from '@inquirer/prompts';
 import { ChannelService } from './channel.service.js';
+import { AskUserQuestionService } from './ask-user-question.js';
 
 const debug = createLogger('channel');
 const AGENT_POLL_INTERVAL_MS = 2000;
@@ -123,6 +124,7 @@ function formatPromptMessage(toolName: string, toolInput: Record<string, unknown
 
 export interface OutputPollingOptions {
     homeDir?: string;
+    askUserQuestionService?: AskUserQuestionService;
 }
 
 export function startOutputPolling(
@@ -132,6 +134,7 @@ export function startOutputPolling(
     chatIdRef: { value: string | null },
     options: OutputPollingOptions = {},
 ): NodeJS.Timeout {
+    const askQuestion = options.askUserQuestionService;
     const home = options.homeDir ?? homedir();
     let lastAgentRequestTimestamp: string | undefined;
     let lastMessageCount = 0;
@@ -222,8 +225,14 @@ export function startOutputPolling(
                 debug(`New agent request: ${agentRequest.toolName} at ${agentRequest.timestamp}`);
                 lastAgentRequestTimestamp = agentRequest.timestamp;
                 try {
-                    await telegram.sendMessage(chatIdRef.value, formatPromptMessage(agentRequest.toolName, agentRequest.toolInput));
-                    debug(`Sent agent request notification to Telegram`);
+                    let handled = false;
+                    if (askQuestion && agentRequest.toolName === 'AskUserQuestion') {
+                        handled = await askQuestion.tryHandle(agentRequest.toolInput, chatIdRef.value);
+                    }
+                    if (!handled) {
+                        await telegram.sendMessage(chatIdRef.value, formatPromptMessage(agentRequest.toolName, agentRequest.toolInput));
+                    }
+                    debug(`Sent agent request notification to Telegram (handled=${handled})`);
                 } catch (error: unknown) {
                     debug(`sendMessage (agent request) failed: ${getErrorMessage(error)}`);
                 }
@@ -321,8 +330,24 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
             },
         });
     });
+    const askUserQuestionService = new AskUserQuestionService(
+        telegram,
+        // AskUserQuestion picker reacts to raw digit keystrokes (1-N), not to
+        // pasted text. Use sendKey to bypass bracketed paste / auto-Enter.
+        (key) => TtyWriter.sendKey(terminalLocation, key),
+    );
+    telegram.onCallback(async (cb) => {
+        if (cb.chatId !== chatIdRef.value) {
+            debug(`callback rejected: chatId=${cb.chatId} not authorized`);
+            return;
+        }
+        await askUserQuestionService.handleCallback(cb);
+    });
+
     debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
-    const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef);
+    const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef, {
+        askUserQuestionService,
+    });
 
     const manager = new ChannelManager();
     manager.registerAdapter(telegram);

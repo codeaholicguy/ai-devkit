@@ -14,6 +14,8 @@ vi.mock('telegraf', () => {
         }),
         telegram: {
             sendMessage: vi.fn().mockResolvedValue(undefined),
+            editMessageReplyMarkup: vi.fn().mockResolvedValue(undefined),
+            answerCbQuery: vi.fn().mockResolvedValue(undefined),
             getMe: vi.fn().mockResolvedValue({ username: 'test_bot' }),
         },
         _handlers: handlers,
@@ -29,6 +31,21 @@ vi.mock('telegraf', () => {
             };
             if (handlers['text']) {
                 await handlers['text'](ctx);
+            }
+            return ctx;
+        },
+        _triggerCallback: async (chatId: number, userId: number, data: string, messageId = 555) => {
+            const ctx = {
+                callbackQuery: {
+                    id: 'cbq-test',
+                    data,
+                    message: { message_id: messageId, chat: { id: chatId } },
+                    from: { id: userId },
+                },
+                answerCbQuery: vi.fn().mockResolvedValue(undefined),
+            };
+            if (handlers['callback_query']) {
+                await handlers['callback_query'](ctx);
             }
             return ctx;
         },
@@ -370,6 +387,88 @@ describe('TelegramAdapter', () => {
 
             // Only the HTML attempt should have happened — no fallback retry
             expect(bot.telegram.sendMessage).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('sendInlineKeyboard', () => {
+        it('sends with parse_mode HTML and inline_keyboard payload, returns message_id', async () => {
+            const bot = getMockBot();
+            (bot.telegram.sendMessage as any).mockResolvedValueOnce({ message_id: 42 });
+
+            const id = await adapter.sendInlineKeyboard('12345', '<b>hi</b>', [
+                [{ text: 'A', callbackData: 'q:1:o:0' }],
+                [{ text: 'B', callbackData: 'q:1:o:1' }],
+            ]);
+
+            expect(id).toBe(42);
+            expect(bot.telegram.sendMessage).toHaveBeenCalledWith('12345', '<b>hi</b>', {
+                parse_mode: 'HTML',
+                reply_markup: {
+                    inline_keyboard: [
+                        [{ text: 'A', callback_data: 'q:1:o:0' }],
+                        [{ text: 'B', callback_data: 'q:1:o:1' }],
+                    ],
+                },
+            });
+        });
+    });
+
+    describe('editInlineKeyboard', () => {
+        it('replaces the keyboard on an existing message', async () => {
+            const bot = getMockBot();
+            await adapter.editInlineKeyboard('12345', 99, [[{ text: '✓ A', callbackData: 'q:1:o:0' }]]);
+            expect(bot.telegram.editMessageReplyMarkup).toHaveBeenCalledWith('12345', 99, undefined, {
+                inline_keyboard: [[{ text: '✓ A', callback_data: 'q:1:o:0' }]],
+            });
+        });
+
+        it('passes undefined reply_markup to remove the keyboard', async () => {
+            const bot = getMockBot();
+            await adapter.editInlineKeyboard('12345', 99, null);
+            expect(bot.telegram.editMessageReplyMarkup).toHaveBeenCalledWith('12345', 99, undefined, undefined);
+        });
+    });
+
+    describe('answerCallback', () => {
+        it('forwards id and optional text to telegraf', async () => {
+            const bot = getMockBot();
+            await adapter.answerCallback('cbq-1', 'thanks');
+            expect(bot.telegram.answerCbQuery).toHaveBeenCalledWith('cbq-1', 'thanks');
+        });
+    });
+
+    describe('onCallback', () => {
+        it('invokes the registered handler with a normalized IncomingCallback', async () => {
+            const handler = vi.fn().mockResolvedValue(undefined);
+            adapter.onCallback(handler);
+            await adapter.start();
+
+            const bot = getMockBot();
+            await (bot as any)._triggerCallback(12345, 67890, 'q:abc:o:1', 777);
+
+            expect(handler).toHaveBeenCalledOnce();
+            const cb = handler.mock.calls[0][0];
+            expect(cb.channelType).toBe('telegram');
+            expect(cb.chatId).toBe('12345');
+            expect(cb.userId).toBe('67890');
+            expect(cb.messageId).toBe(777);
+            expect(cb.callbackData).toBe('q:abc:o:1');
+            expect(cb.callbackQueryId).toBe('cbq-test');
+        });
+
+        it('answers callbacks when no handler is registered', async () => {
+            await adapter.start();
+            const bot = getMockBot();
+            const ctx = await (bot as any)._triggerCallback(12345, 67890, 'q:x:o:0');
+            expect(ctx.answerCbQuery).toHaveBeenCalled();
+        });
+
+        it('answers with error when handler rejects', async () => {
+            adapter.onCallback(vi.fn().mockRejectedValue(new Error('boom')));
+            await adapter.start();
+            const bot = getMockBot();
+            const ctx = await (bot as any)._triggerCallback(12345, 67890, 'q:x:o:0');
+            expect(ctx.answerCbQuery).toHaveBeenCalledWith('Error');
         });
     });
 

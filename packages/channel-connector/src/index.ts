@@ -12,4 +12,8 @@ export type {
     ChannelEntry,
     ChannelType,
     TelegramConfig,
+    InlineKeyboardButton,
+    InlineKeyboard,
+    IncomingCallback,
+    CallbackHandler,
 } from './types.js';

@@ -47,3 +47,34 @@ export interface TelegramConfig {
     botUsername: string;
     authorizedChatId?: number;
 }
+
+/**
+ * A single button in a Telegram-style inline keyboard.
+ */
+export interface InlineKeyboardButton {
+    text: string;
+    callbackData: string;
+}
+
+/**
+ * An inline keyboard layout: rows of buttons.
+ */
+export type InlineKeyboard = InlineKeyboardButton[][];
+
+/**
+ * An inline-keyboard tap delivered as a callback_query.
+ */
+export interface IncomingCallback {
+    channelType: string;
+    chatId: string;
+    userId: string;
+    messageId: number;
+    callbackData: string;
+    callbackQueryId: string;
+    timestamp: Date;
+}
+
+/**
+ * Handler for inline-keyboard taps.
+ */
+export type CallbackHandler = (callback: IncomingCallback) => Promise<void>;

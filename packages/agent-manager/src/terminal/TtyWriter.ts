@@ -46,6 +46,117 @@ export class TtyWriter {
         }
     }
 
+    /**
+     * Send a single raw key (e.g. "1", "Enter", "Up") to the terminal as a
+     * keystroke — bypassing bracketed paste and without auto-appending Enter.
+     *
+     * Use this when the target TUI distinguishes between typed text and raw
+     * keypresses (e.g. an `AskUserQuestion` picker that selects on digit-key
+     * press, not on a pasted digit followed by Enter).
+     *
+     * - tmux: `tmux send-keys -t <id> <key>` — direct keystroke, no paste buffer.
+     * - WezTerm: `wezterm cli send-text --pane-id <id> --no-paste <key>`.
+     * - iTerm2 / Terminal.app: AppleScript via System Events. Requires
+     *   Accessibility permissions.
+     */
+    static async sendKey(location: TerminalLocation, key: string): Promise<void> {
+        switch (location.type) {
+            case TerminalType.TMUX:
+                return TtyWriter.sendKeyViaTmux(location.identifier, key);
+            case TerminalType.WEZTERM:
+                return TtyWriter.sendKeyViaWezterm(location.identifier, key);
+            case TerminalType.ITERM2:
+                return TtyWriter.sendKeyViaITerm2(location.tty, key);
+            case TerminalType.TERMINAL_APP:
+                return TtyWriter.sendKeyViaTerminalApp(location.tty, key);
+            default:
+                throw new Error(
+                    `Cannot send key: unsupported terminal type "${location.type}". ` +
+                    'Supported: tmux, WezTerm, iTerm2, Terminal.app.'
+                );
+        }
+    }
+
+    private static async sendKeyViaTmux(identifier: string, key: string): Promise<void> {
+        // tmux send-keys interprets named keys (Enter, Up, ...) and passes
+        // literals through. No bracketed paste, no auto-Enter.
+        await execFileAsync('tmux', ['send-keys', '-t', identifier, key]);
+    }
+
+    private static async sendKeyViaWezterm(paneId: string, key: string): Promise<void> {
+        // --no-paste delivers the key bytes literally outside bracketed-paste
+        // markers; the TUI sees a raw keystroke. Same convention as
+        // sendViaWezterm's Enter step, just without the preceding paste.
+        await execFileAsync('wezterm', [
+            'cli', 'send-text', '--pane-id', paneId, '--no-paste', key,
+        ]);
+    }
+
+    private static async sendKeyViaITerm2(tty: string, key: string): Promise<void> {
+        // Focus the target session, then press the key via System Events so the
+        // inner TUI sees a raw keystroke (not a bracketed-paste text run).
+        const escaped = escapeAppleScript(key);
+        const script = `
+tell application "iTerm"
+  set targetSession to missing value
+  repeat with w in windows
+    repeat with t in tabs of w
+      repeat with s in sessions of t
+        if tty of s is "${tty}" then
+          set targetSession to s
+          set frontmost of w to true
+          tell t to select
+          tell s to select
+          exit repeat
+        end if
+      end repeat
+      if targetSession is not missing value then exit repeat
+    end repeat
+    if targetSession is not missing value then exit repeat
+  end repeat
+  if targetSession is missing value then return "not_found"
+  activate
+end tell
+tell application "System Events" to keystroke "${escaped}"
+return "ok"`;
+
+        const { stdout } = await execFileAsync('osascript', ['-e', script]);
+        if (stdout.trim() !== 'ok') {
+            throw new Error(`iTerm2 session not found for TTY ${tty}`);
+        }
+    }
+
+    private static async sendKeyViaTerminalApp(tty: string, key: string): Promise<void> {
+        const escaped = escapeAppleScript(key);
+        const script = `
+tell application "Terminal"
+  set targetTab to missing value
+  set targetWindow to missing value
+  repeat with w in windows
+    repeat with i from 1 to count of tabs of w
+      set t to tab i of w
+      if tty of t is "${tty}" then
+        set targetTab to t
+        set targetWindow to w
+        exit repeat
+      end if
+    end repeat
+    if targetTab is not missing value then exit repeat
+  end repeat
+  if targetTab is missing value then return "not_found"
+  set selected of targetTab to true
+  set frontmost of targetWindow to true
+  activate
+end tell
+tell application "System Events" to keystroke "${escaped}"
+return "ok"`;
+
+        const { stdout } = await execFileAsync('osascript', ['-e', script]);
+        if (stdout.trim() !== 'ok') {
+            throw new Error(`Terminal.app tab not found for TTY ${tty}`);
+        }
+    }
+
     private static async sendViaWezterm(paneId: string, message: string): Promise<void> {
         // Two explicit CLI calls, mirroring the text-then-Enter convention used
         // by tmux / iTerm2 / Terminal.app so a bracketed-paste-aware TUI still
