@@ -43,6 +43,13 @@ function getMockBot() {
     return (telegrafModule as unknown as { __mockBot: ReturnType<typeof vi.fn>['mock'] & Record<string, unknown> }).__mockBot;
 }
 
+function expectHtmlChunkWithinLimit(chunk: string): void {
+    expect(chunk.length).toBeLessThanOrEqual(4096);
+    expect(chunk).not.toMatch(/&(?:l|lt|g|gt|a|am|amp|q|qu|quo|quot)$/);
+    expect((chunk.match(/<pre>/g) ?? []).length).toBe((chunk.match(/<\/pre>/g) ?? []).length);
+    expect((chunk.match(/<code(?: class="language-[^"]+")?>/g) ?? []).length).toBe((chunk.match(/<\/code>/g) ?? []).length);
+}
+
 describe('TelegramAdapter', () => {
     let adapter: TelegramAdapter;
 
@@ -170,6 +177,76 @@ describe('TelegramAdapter', () => {
             }
         });
 
+        it('should split long fenced code into independently valid HTML code blocks', async () => {
+            const bot = getMockBot();
+            const codeLine = 'const sample = "<code>tag</code>" && value < limit;\n';
+            const longMessage = `Before\n\n\`\`\`ts\n${codeLine.repeat(100)}\`\`\`\n\nAfter`;
+
+            await adapter.sendMessage('12345', longMessage);
+
+            expect(bot.telegram.sendMessage.mock.calls.length).toBeGreaterThan(1);
+            for (const call of bot.telegram.sendMessage.mock.calls) {
+                const chunk = call[1];
+                expect(call[2]).toEqual({ parse_mode: 'HTML' });
+                expectHtmlChunkWithinLimit(chunk);
+                if (chunk.includes('<pre>')) {
+                    expect(chunk).toContain('<code class="language-ts">');
+                    expect(chunk).toContain('&lt;code&gt;tag&lt;/code&gt;');
+                }
+            }
+        });
+
+        it('should split nested list fenced code without sending partial HTML tags', async () => {
+            const bot = getMockBot();
+            const codeLine = '  return "<code>tag</code>" && input < output;\n';
+            const longMessage = [
+                '- parent item',
+                '  - child item with code',
+                '    ```js',
+                codeLine.repeat(100).trimEnd(),
+                '    ```',
+                '- final item',
+            ].join('\n');
+
+            await adapter.sendMessage('12345', longMessage);
+
+            expect(bot.telegram.sendMessage.mock.calls.length).toBeGreaterThan(1);
+            for (const call of bot.telegram.sendMessage.mock.calls) {
+                const chunk = call[1];
+                expect(call[2]).toEqual({ parse_mode: 'HTML' });
+                expectHtmlChunkWithinLimit(chunk);
+            }
+        });
+
+        it('should split long paragraphs at readable markdown boundaries', async () => {
+            const bot = getMockBot();
+            const sentence = 'This is a long sentence with enough words to make chunking choose sentence boundaries. ';
+            const longMessage = sentence.repeat(80);
+
+            await adapter.sendMessage('12345', longMessage);
+
+            expect(bot.telegram.sendMessage.mock.calls.length).toBeGreaterThan(1);
+            for (const call of bot.telegram.sendMessage.mock.calls) {
+                const chunk = call[1];
+                expect(call[2]).toEqual({ parse_mode: 'HTML' });
+                expectHtmlChunkWithinLimit(chunk);
+                expect(chunk.endsWith('.') || chunk.endsWith('.\n\n') || chunk.endsWith(' ')).toBe(true);
+            }
+        });
+
+        it('should keep emoji chunks within the configured JavaScript string length limit', async () => {
+            const bot = getMockBot();
+            const longMessage = `Status ${'🧪'.repeat(2500)}`;
+
+            await adapter.sendMessage('12345', longMessage);
+
+            expect(bot.telegram.sendMessage.mock.calls.length).toBeGreaterThan(1);
+            for (const call of bot.telegram.sendMessage.mock.calls) {
+                expect(call[1].length).toBeLessThanOrEqual(4096);
+                expect(call[2]).toEqual({ parse_mode: 'HTML' });
+            }
+        });
+
         it('should hard split at 4096 when no newlines available', async () => {
             const bot = getMockBot();
             const longMessage = 'A'.repeat(5000);
@@ -191,7 +268,7 @@ describe('TelegramAdapter', () => {
 
             // First chunk should end at a \n\n boundary, not mid-paragraph
             const firstChunk = bot.telegram.sendMessage.mock.calls[0][1];
-            expect(firstChunk.endsWith('\n\n')).toBe(true);
+            expect(firstChunk).toBe(`${paragraph}\n\n${paragraph}`);
         });
 
         it('should send short messages in a single call', async () => {

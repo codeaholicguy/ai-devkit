@@ -1,4 +1,5 @@
 import { Telegraf } from 'telegraf';
+import { Marked, type Token, type Tokens } from 'marked';
 import type { ChannelAdapter } from './ChannelAdapter.js';
 import { markdownToTelegramHtml } from '../utils/telegramHtml.js';
 import type { IncomingMessage } from '../types.js';
@@ -6,6 +7,12 @@ import type { IncomingMessage } from '../types.js';
 export const TELEGRAM_CHANNEL_TYPE = 'telegram';
 export const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
 const TELEGRAM_PARSE_MODE = 'HTML' as const;
+const markdownLexer = new Marked();
+
+type TelegramMessageChunk = {
+    text: string;
+    html: boolean;
+};
 
 export interface TelegramAdapterOptions {
     botToken: string;
@@ -56,14 +63,13 @@ export class TelegramAdapter implements ChannelAdapter {
 
     /**
      * Input is treated as markdown and rendered as Telegram-compatible HTML.
-     * Long messages are chunked at paragraph boundaries when possible; very
-     * long single blocks (e.g. a `<pre>` over 4096 chars) may still split
-     * mid-tag and produce a partial render in the second chunk.
+     * Long messages are chunked as markdown source before rendering so each
+     * Telegram HTML payload is independently valid.
      */
     async sendMessage(chatId: string, text: string): Promise<void> {
-        let html: string;
+        let chunks: TelegramMessageChunk[];
         try {
-            html = markdownToTelegramHtml(text);
+            chunks = chunkMarkdownForTelegram(text, TELEGRAM_MAX_MESSAGE_LENGTH);
         } catch {
             for (const chunk of chunkMessage(text, TELEGRAM_MAX_MESSAGE_LENGTH)) {
                 await this.bot.telegram.sendMessage(chatId, chunk);
@@ -71,14 +77,19 @@ export class TelegramAdapter implements ChannelAdapter {
             return;
         }
 
-        for (const chunk of chunkMessage(html, TELEGRAM_MAX_MESSAGE_LENGTH)) {
+        for (const chunk of chunks) {
+            if (!chunk.html) {
+                await this.bot.telegram.sendMessage(chatId, chunk.text);
+                continue;
+            }
+
             try {
-                await this.bot.telegram.sendMessage(chatId, chunk, { parse_mode: TELEGRAM_PARSE_MODE });
+                await this.bot.telegram.sendMessage(chatId, chunk.text, { parse_mode: TELEGRAM_PARSE_MODE });
             } catch (error) {
                 if (!isParseEntitiesError(error)) throw error;
                 // Telegram rejected the rendered HTML — fall back to plain text
                 // so the user still gets the content (just unformatted).
-                await this.bot.telegram.sendMessage(chatId, htmlToPlainText(chunk));
+                await this.bot.telegram.sendMessage(chatId, htmlToPlainText(chunk.text));
             }
         }
     }
@@ -106,6 +117,252 @@ function htmlToPlainText(html: string): string {
         .replace(/&gt;/g, '>')
         .replace(/&quot;/g, '"')
         .replace(/&amp;/g, '&');
+}
+
+function chunkMarkdownForTelegram(markdown: string, maxLen: number): TelegramMessageChunk[] {
+    const markdownChunks = splitMarkdownSource(markdown, maxLen);
+    const chunks: TelegramMessageChunk[] = [];
+
+    for (const markdownChunk of markdownChunks) {
+        const html = markdownToTelegramHtml(markdownChunk);
+        if (html.length <= maxLen) {
+            if (html.length > 0) chunks.push({ text: html, html: true });
+            continue;
+        }
+
+        for (const plainChunk of chunkMessage(markdownChunk, maxLen)) {
+            if (plainChunk.length > 0) chunks.push({ text: plainChunk, html: false });
+        }
+    }
+
+    return chunks;
+}
+
+function splitMarkdownSource(markdown: string, maxLen: number, depth = 0): string[] {
+    if (markdown.length === 0) return [];
+    if (renderedLengthFits(markdown, maxLen)) return [markdown];
+    if (depth > 6) return splitPlainMarkdownText(markdown, maxLen);
+
+    const chunks: string[] = [];
+    let current = '';
+    const tokens = markdownLexer.lexer(markdown);
+
+    for (const token of tokens) {
+        const raw = token.raw ?? '';
+        if (raw.length === 0) continue;
+
+        const candidate = current + raw;
+        if (candidate.length > 0 && renderedLengthFits(candidate, maxLen)) {
+            current = candidate;
+            continue;
+        }
+
+        if (current.length > 0) {
+            chunks.push(current);
+            current = '';
+        }
+
+        if (renderedLengthFits(raw, maxLen)) {
+            current = raw;
+        } else {
+            chunks.push(...splitOversizedToken(token, maxLen, depth + 1));
+        }
+    }
+
+    if (current.length > 0) chunks.push(current);
+    return chunks.flatMap((chunk) => renderedLengthFits(chunk, maxLen) ? [chunk] : splitPlainMarkdownText(chunk, maxLen));
+}
+
+function splitOversizedToken(token: Token, maxLen: number, depth: number): string[] {
+    switch (token.type) {
+        case 'code':
+            return splitCodeToken(token as Tokens.Code, maxLen);
+        case 'list':
+            return splitListToken(token as Tokens.List, maxLen, depth);
+        case 'paragraph':
+        case 'text':
+            return splitPlainMarkdownText(token.raw, maxLen);
+        default:
+            if ('tokens' in token && Array.isArray(token.tokens) && token.raw !== undefined) {
+                return splitMarkdownSource(token.raw, maxLen, depth);
+            }
+            return splitPlainMarkdownText(token.raw ?? '', maxLen);
+    }
+}
+
+function splitListToken(token: Tokens.List, maxLen: number, depth: number): string[] {
+    const chunks: string[] = [];
+    let current = '';
+
+    for (const item of token.items) {
+        const raw = item.raw;
+        const candidate = current + raw;
+        if (candidate.length > 0 && renderedLengthFits(candidate, maxLen)) {
+            current = candidate;
+            continue;
+        }
+
+        if (current.length > 0) {
+            chunks.push(current);
+            current = '';
+        }
+
+        if (renderedLengthFits(raw, maxLen)) {
+            current = raw;
+        } else {
+            chunks.push(...splitMarkdownSource(raw, maxLen, depth + 1));
+        }
+    }
+
+    if (current.length > 0) chunks.push(current);
+    return chunks;
+}
+
+function splitCodeToken(token: Tokens.Code, maxLen: number): string[] {
+    const fence = token.raw.startsWith('~~~') ? '~~~' : '```';
+    const lang = token.lang ? token.lang.split(/\s/)[0] : '';
+    const lines = token.text.split('\n');
+    const chunks: string[] = [];
+    let currentLines: string[] = [];
+
+    const renderFence = (codeLines: string[]): string =>
+        `${fence}${lang}\n${codeLines.join('\n')}\n${fence}\n\n`;
+
+    for (const line of lines) {
+        const candidateLines = [...currentLines, line];
+        if (renderedLengthFits(renderFence(candidateLines), maxLen)) {
+            currentLines = candidateLines;
+            continue;
+        }
+
+        if (currentLines.length > 0) {
+            chunks.push(renderFence(currentLines));
+            currentLines = [];
+        }
+
+        if (renderedLengthFits(renderFence([line]), maxLen)) {
+            currentLines = [line];
+        } else {
+            for (const segment of splitCodeLine(line, fence, lang, maxLen)) {
+                chunks.push(renderFence([segment]));
+            }
+        }
+    }
+
+    if (currentLines.length > 0) chunks.push(renderFence(currentLines));
+    return chunks;
+}
+
+function splitCodeLine(line: string, fence: string, lang: string, maxLen: number): string[] {
+    const segments: string[] = [];
+    let current = '';
+    const renderFence = (value: string): string => `${fence}${lang}\n${value}\n${fence}\n\n`;
+
+    for (const char of Array.from(line)) {
+        const candidate = current + char;
+        if (renderedLengthFits(renderFence(candidate), maxLen)) {
+            current = candidate;
+            continue;
+        }
+
+        if (current.length > 0) {
+            segments.push(current);
+            current = '';
+        }
+
+        if (renderedLengthFits(renderFence(char), maxLen)) {
+            current = char;
+        } else {
+            segments.push(char);
+        }
+    }
+
+    if (current.length > 0) segments.push(current);
+    return segments;
+}
+
+function splitPlainMarkdownText(markdown: string, maxLen: number): string[] {
+    if (markdown.length === 0) return [];
+    if (renderedLengthFits(markdown, maxLen)) return [markdown];
+
+    const newlineUnits = markdown.split(/(?<=\n)/u);
+    if (newlineUnits.length > 1) {
+        return packMarkdownUnits(newlineUnits, maxLen, splitPlainMarkdownText);
+    }
+
+    const sentenceUnits = markdown.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/gu);
+    if (sentenceUnits && sentenceUnits.length > 1) {
+        return packMarkdownUnits(sentenceUnits, maxLen, splitPlainMarkdownText);
+    }
+
+    const wordUnits = markdown.match(/\S+\s*/gu);
+    if (wordUnits && wordUnits.length > 1) {
+        return packMarkdownUnits(wordUnits, maxLen, splitPlainMarkdownText);
+    }
+
+    return splitByCodePoint(markdown, maxLen);
+}
+
+function packMarkdownUnits(
+    units: string[],
+    maxLen: number,
+    splitOversized: (unit: string, maxLen: number) => string[],
+): string[] {
+    const chunks: string[] = [];
+    let current = '';
+
+    for (const unit of units) {
+        const candidate = current + unit;
+        if (renderedLengthFits(candidate, maxLen)) {
+            current = candidate;
+            continue;
+        }
+
+        if (current.length > 0) {
+            chunks.push(current);
+            current = '';
+        }
+
+        if (renderedLengthFits(unit, maxLen)) {
+            current = unit;
+        } else {
+            chunks.push(...splitOversized(unit, maxLen));
+        }
+    }
+
+    if (current.length > 0) chunks.push(current);
+    return chunks;
+}
+
+function splitByCodePoint(text: string, maxLen: number): string[] {
+    const chunks: string[] = [];
+    let current = '';
+
+    for (const char of Array.from(text)) {
+        const candidate = current + char;
+        if (renderedLengthFits(candidate, maxLen)) {
+            current = candidate;
+            continue;
+        }
+
+        if (current.length > 0) {
+            chunks.push(current);
+            current = '';
+        }
+
+        if (renderedLengthFits(char, maxLen)) {
+            current = char;
+        } else {
+            chunks.push(char);
+        }
+    }
+
+    if (current.length > 0) chunks.push(current);
+    return chunks;
+}
+
+function renderedLengthFits(markdown: string, maxLen: number): boolean {
+    return markdownToTelegramHtml(markdown).length <= maxLen;
 }
 
 /**
