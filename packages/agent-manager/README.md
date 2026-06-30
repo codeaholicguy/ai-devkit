@@ -10,6 +10,9 @@ This package powers the `ai-devkit agent` commands. Use it when you need the low
 - **Session details** — Inspect agent metadata, working directory, and status
 - **Prompt sending** — Send follow-up instructions to an existing session
 - **Provider adapters** — Shared adapter layer for agent-specific behavior
+- **Terminal control** — Discover, focus, and type into the terminal pane that
+  hosts a running agent. Supported emulators: **tmux**, **WezTerm**, **iTerm2**,
+  and macOS **Terminal.app**. Resolution is automatic from the agent PID's TTY.
 
 ## Typical Use
 

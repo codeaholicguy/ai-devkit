@@ -201,6 +201,96 @@ describe('TtyWriter', () => {
         });
     });
 
+    describe('WezTerm', () => {
+        const location: TerminalLocation = {
+            type: TerminalType.WEZTERM,
+            identifier: '7',
+            tty: '/dev/ttys030',
+        };
+
+        it('sends the message via stdin and Enter as a separate send-text call', async () => {
+            mockExecFileSuccess();
+
+            await TtyWriter.send(location, 'continue');
+
+            // Step 1: message body via stdin, not argv, so prompt contents are
+            // not exposed through process listings.
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'wezterm',
+                ['cli', 'send-text', '--pane-id', '7'],
+                expect.any(Function),
+            );
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith('continue');
+            // Step 2: Enter as a single carriage return (0x0d) with --no-paste,
+            // so the CR is delivered literally (not wrapped in paste brackets).
+            // execFile passes the actual CR byte (JS '\x0d'); the equivalent
+            // shell command is:
+            //   wezterm cli send-text --pane-id <id> --no-paste $'\x0d'
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'wezterm',
+                ['cli', 'send-text', '--pane-id', '7', '--no-paste', '\x0d'],
+                expect.any(Function),
+            );
+            expect(mockedExecFile).toHaveBeenCalledTimes(2);
+        });
+
+        it('passes the Enter byte as the carriage return (0x0d), not newline', async () => {
+            mockExecFileSuccess();
+
+            await TtyWriter.send(location, 'continue');
+
+            // The Enter call is the second invocation; its last argv element is
+            // a single byte equal to char code 13 (0x0d).
+            const enterCall = mockedExecFile.mock.calls[1];
+            const enterArgs = enterCall[1] as string[];
+            const enterByte = enterArgs[enterArgs.length - 1];
+            expect(enterByte).toHaveLength(1);
+            expect(enterByte.charCodeAt(0)).toBe(0x0d);
+            expect(enterArgs).toContain('--no-paste');
+        });
+
+        it('keeps the whole message out of argv and writes it verbatim to stdin', async () => {
+            mockExecFileSuccess();
+            const hostile = 'echo pwned; $(rm -rf /) `whoami` | cat\nline2';
+
+            await TtyWriter.send(location, hostile);
+
+            // The message is written verbatim to stdin, not built into a shell
+            // string or exposed as a process argument.
+            const textCall = mockedExecFile.mock.calls[0];
+            const textArgs = textCall[1] as string[];
+            expect(textArgs).toEqual(
+                ['cli', 'send-text', '--pane-id', '7'],
+            );
+            expect(textCall[2]).toBeTypeOf('function');
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith(hostile);
+        });
+
+        it('uses the pane id from location.identifier', async () => {
+            mockExecFileSuccess();
+            const pane42 = { ...location, identifier: '42' };
+
+            await TtyWriter.send(pane42, 'hi');
+
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'wezterm',
+                ['cli', 'send-text', '--pane-id', '42'],
+                expect.any(Function),
+            );
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith('hi');
+        });
+
+        it('throws when the text send fails', async () => {
+            mockExecFileError('wezterm send-text failed');
+
+            await expect(TtyWriter.send(location, 'hello'))
+                .rejects.toThrow('wezterm send-text failed');
+        });
+    });
+
     describe('unsupported terminal', () => {
         it('throws for unknown terminal type', async () => {
             const location: TerminalLocation = {
