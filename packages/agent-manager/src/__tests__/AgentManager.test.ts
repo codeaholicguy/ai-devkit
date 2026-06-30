@@ -86,9 +86,15 @@ function createMockAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
 
 describe('AgentManager', () => {
     let manager: AgentManager;
+    let tmpDir: string;
 
     beforeEach(() => {
-        manager = new AgentManager();
+        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-manager-'));
+        manager = new AgentManager(new AgentRegistry(path.join(tmpDir, 'agents.json')));
+    });
+
+    afterEach(() => {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
     describe('registerAdapter', () => {
