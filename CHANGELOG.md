@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.45.0] - 2026-06-30
 
 - [172ef94](https://github.com/codeaholicguy/ai-devkit/pull/126) Added Claude PreToolUse forwarding to Telegram for tool invocations.
 - [61a6633](https://github.com/codeaholicguy/ai-devkit/commit/61a6633c985759db812e8bccf77bfc8129253d4a) Updated the Claude Code hook configuration.
