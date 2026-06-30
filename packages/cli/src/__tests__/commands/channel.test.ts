@@ -40,7 +40,11 @@ const mockTerminalFocusManager = {
 };
 const mockTelegramAdapter = {
     onMessage: vi.fn(),
+    onCallback: vi.fn(),
     sendMessage: vi.fn<() => Promise<void>>(),
+    sendInlineKeyboard: vi.fn<() => Promise<number>>(),
+    editInlineKeyboard: vi.fn<() => Promise<void>>(),
+    answerCallback: vi.fn<() => Promise<void>>(),
 };
 const mockChannelService = {
     resolveConnectChannelName: vi.fn((name?: string) => name ?? 'telegram'),
