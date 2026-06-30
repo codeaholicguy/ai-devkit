@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- [172ef94](https://github.com/codeaholicguy/ai-devkit/pull/126) Added Claude PreToolUse forwarding to Telegram for tool invocations.
+- [61a6633](https://github.com/codeaholicguy/ai-devkit/commit/61a6633c985759db812e8bccf77bfc8129253d4a) Updated the Claude Code hook configuration.
+- [7fa1ff](https://github.com/codeaholicguy/ai-devkit/pull/128) Added WezTerm terminal support to agent manager.
+- [70c86c9](https://github.com/codeaholicguy/ai-devkit/pull/127) Rendered Claude AskUserQuestion prompts as Telegram inline keyboards.
+
 ## [0.44.1] - 2026-06-29
 
 - [fb66494](https://github.com/codeaholicguy/ai-devkit/pull/123) Fixed tmux send body delivery by using bracketed paste.
