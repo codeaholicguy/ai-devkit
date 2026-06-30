@@ -48,8 +48,9 @@ graph TD
 **How do components communicate?**
 
 Discovery and control happen via `execFile('wezterm', [...])` (promisified). No
-shell is used; the message bytes are passed as a discrete argv element, so
-there is no string interpolation and no injection surface.
+shell is used, so there is no string interpolation. Prompt text is written to
+`send-text` over stdin instead of argv, keeping message contents out of local
+process listings while preserving shell-injection safety.
 
 - Discover pane: `wezterm cli list --format json`
   - Parse JSON array; find entry whose **`tty_name`** equals the target
@@ -57,7 +58,8 @@ there is no string interpolation and no injection surface.
   - Return `{ type: WEZTERM, identifier: String(pane_id), tty }`.
 - Focus pane: `wezterm cli activate-pane --pane-id <id>` → success on zero exit.
 - Send text: two explicit `wezterm cli send-text --pane-id <id>` calls.
-  - Step 1 (text): the message as a positional argv element (`send-text --pane-id <id> <message>`).
+  - Step 1 (text): `send-text --pane-id <id>` with the message body written to
+    stdin.
   - Step 2 (Enter): a single carriage return byte (0x0d) as an argv element
     with `--no-paste`. The equivalent shell command is
     `wezterm cli send-text --pane-id <id> --no-paste $'\x0d'` (note the
@@ -81,9 +83,8 @@ there is no string interpolation and no injection surface.
     `agent open --debug` command can show the decision path.
 - `src/terminal/TtyWriter.ts`
   - `send`: add `WEZTERM` case → `sendViaWezterm(identifier, message)`.
-  - `sendViaWezterm`: two `execFileAsync` calls — text as an argv element,
-    then a CR byte (0x0d) with `--no-paste` — 150 ms apart; throws a
-    descriptive error on failure.
+  - `sendViaWezterm`: text via stdin, then a CR byte (0x0d) with `--no-paste`
+    — 150 ms apart; throws a descriptive error on failure.
 - `src/terminal/index.ts`: no change (`TerminalType` already re-exported).
 - CLI: no change — it consumes the abstract API only.
 
@@ -112,9 +113,9 @@ there is no string interpolation and no injection surface.
 
 - Performance: one extra short-lived subprocess probe on `findTerminal` only when
   earlier probes miss; same O(processes) cost profile as today.
-- Security: no shell invocation; the message is passed as a discrete argv
-  element to `execFile`, so it is delivered verbatim regardless of shell
-  metacharacters (no injection surface), and Enter is a fixed CR byte.
+- Security: no shell invocation; the message is written through stdin so it is
+  not exposed through process arguments, shell metacharacters remain data, and
+  Enter is a fixed CR byte.
 - Reliability: every WezTerm path is wrapped so a missing binary, a failed JSON
   parse, or a non-running instance returns `null`/`false`/throws-with-context
   instead of crashing the CLI.

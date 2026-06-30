@@ -7,7 +7,7 @@ import { escapeAppleScript } from '../utils/applescript.js';
 const execFileAsync = promisify(execFile);
 
 /**
- * Carriage return byte (0x0d). Sent as a discrete argv element with
+ * Carriage return byte (0x0d). Sent as a fixed discrete argv element with
  * `--no-paste` to deliver Enter literally (shell equivalent: $'\x0d').
  */
 const CARRIAGE_RETURN = '\x0d';
@@ -51,19 +51,18 @@ export class TtyWriter {
         // by tmux / iTerm2 / Terminal.app so a bracketed-paste-aware TUI still
         // sees Enter as a submit.
         //
-        // Step 1 (text): the message is passed as a positional argv element.
-        // execFile spawns wezterm directly (no shell), so the bytes are
-        // delivered verbatim regardless of shell metacharacters — there is no
-        // injection surface. (Equivalent to how tmux uses `send-keys -l`.)
-        // Step 2 (Enter): a single carriage return (0x0d) passed as a discrete
+        // Step 1 (text): write the message to stdin so prompt contents are not
+        // exposed through process arguments. execFile still spawns wezterm
+        // directly (no shell), so shell metacharacters remain inert.
+        // Step 2 (Enter): pass a fixed carriage return (0x0d) as a discrete
         // argv element (the JS char '\x0d') with --no-paste, so the CR is
         // delivered literally rather than wrapped in paste brackets. The
         // equivalent shell command is:
         //   wezterm cli send-text --pane-id <id> --no-paste $'\x0d'
         // (ANSI-C quoting, note the leading $).
-        await execFileAsync('wezterm', [
-            'cli', 'send-text', '--pane-id', paneId, message,
-        ]);
+        await TtyWriter.execFileWithInput('wezterm', [
+            'cli', 'send-text', '--pane-id', paneId,
+        ], message);
         await new Promise((resolve) => setTimeout(resolve, 150));
         await execFileAsync('wezterm', [
             'cli', 'send-text', '--pane-id', paneId, '--no-paste', CARRIAGE_RETURN,

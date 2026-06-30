@@ -208,17 +208,20 @@ describe('TtyWriter', () => {
             tty: '/dev/ttys030',
         };
 
-        it('sends the message and Enter as two explicit send-text calls (no stdin)', async () => {
+        it('sends the message via stdin and Enter as a separate send-text call', async () => {
             mockExecFileSuccess();
 
             await TtyWriter.send(location, 'continue');
 
-            // Step 1: message body as a positional argv element (NOT stdin).
+            // Step 1: message body via stdin, not argv, so prompt contents are
+            // not exposed through process listings.
             expect(mockedExecFile).toHaveBeenCalledWith(
                 'wezterm',
-                ['cli', 'send-text', '--pane-id', '7', 'continue'],
+                ['cli', 'send-text', '--pane-id', '7'],
                 expect.any(Function),
             );
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith('continue');
             // Step 2: Enter as a single carriage return (0x0d) with --no-paste,
             // so the CR is delivered literally (not wrapped in paste brackets).
             // execFile passes the actual CR byte (JS '\x0d'); the equivalent
@@ -247,22 +250,22 @@ describe('TtyWriter', () => {
             expect(enterArgs).toContain('--no-paste');
         });
 
-        it('passes the whole message as a single argv element (no shell injection)', async () => {
+        it('keeps the whole message out of argv and writes it verbatim to stdin', async () => {
             mockExecFileSuccess();
             const hostile = 'echo pwned; $(rm -rf /) `whoami` | cat\nline2';
 
             await TtyWriter.send(location, hostile);
 
-            // The message is passed verbatim as one argv element, not built into
-            // a shell string, so shell metacharacters are inert.
+            // The message is written verbatim to stdin, not built into a shell
+            // string or exposed as a process argument.
             const textCall = mockedExecFile.mock.calls[0];
             const textArgs = textCall[1] as string[];
-            expect(textArgs[textArgs.length - 1]).toBe(hostile);
             expect(textArgs).toEqual(
-                ['cli', 'send-text', '--pane-id', '7', hostile],
+                ['cli', 'send-text', '--pane-id', '7'],
             );
-            // No options object (no stdin) is passed.
             expect(textCall[2]).toBeTypeOf('function');
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith(hostile);
         });
 
         it('uses the pane id from location.identifier', async () => {
@@ -273,9 +276,11 @@ describe('TtyWriter', () => {
 
             expect(mockedExecFile).toHaveBeenCalledWith(
                 'wezterm',
-                ['cli', 'send-text', '--pane-id', '42', 'hi'],
+                ['cli', 'send-text', '--pane-id', '42'],
                 expect.any(Function),
             );
+            expect(mockedExecFile.mock.results[0]?.value.stdin.end)
+                .toHaveBeenCalledWith('hi');
         });
 
         it('throws when the text send fails', async () => {

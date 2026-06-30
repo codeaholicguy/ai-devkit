@@ -45,8 +45,9 @@ description: Technical implementation notes, patterns, and code guidelines
 
 ### Send (`TtyWriter.sendViaWezterm`)
 - Two explicit `wezterm cli send-text --pane-id <id>` calls, 150 ms apart:
-  - Step 1 (text): `['cli', 'send-text', '--pane-id', paneId, message]` — the
-    message as a positional argv element.
+  - Step 1 (text): `['cli', 'send-text', '--pane-id', paneId]` with the message
+    body written to stdin, keeping prompt contents out of local process
+    listings.
   - Step 2 (Enter): `['cli', 'send-text', '--pane-id', paneId, '--no-paste',
     '\x0d']`, where the argv element `'\x0d'` is the JS string holding the
     single carriage-return byte (0x0d). The equivalent shell command is
@@ -59,8 +60,8 @@ description: Technical implementation notes, patterns, and code guidelines
 ### Patterns & Best Practices
 - Shell injection safety without a shell: all wezterm control is via
   `execFile('wezterm', [...argv])`, which spawns the process directly. The
-  message and the Enter CR byte are each a discrete argv element, so their
-  bytes are delivered verbatim regardless of shell metacharacters.
+  message is written through stdin, so shell metacharacters are delivered as
+  data without exposing prompt text through argv.
 - No AppleScript: WezTerm is cross-platform; the CLI is the single integration.
 
 ### Debug trace (`agent open --debug`)
@@ -98,5 +99,5 @@ description: Technical implementation notes, patterns, and code guidelines
 **What security measures are in place?**
 
 - No shell; `paneId` originates from WezTerm's own JSON (numeric) and the
-  message is passed as a discrete argv element to `execFile`, so both are
-  delivered verbatim regardless of shell metacharacters (no injection surface).
+  message is written to `send-text` through stdin, so prompt text is not exposed
+  through process arguments and shell metacharacters remain data.

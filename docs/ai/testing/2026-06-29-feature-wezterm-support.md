@@ -37,16 +37,16 @@ description: Define testing approach, test cases, and quality assurance
 
 ### TtyWriter (send)
 - [x] `send` for a `WEZTERM` location makes two explicit `wezterm cli
-      send-text --pane-id <id>` calls: (1) the message as a positional argv
-      element, then (2) a single carriage return byte (0x0d) as an argv element
+      send-text --pane-id <id>` calls: (1) the message body written through
+      stdin, then (2) a single carriage return byte (0x0d) as an argv element
       with `--no-paste` (shell equivalent: `wezterm cli send-text --pane-id
-      <id> --no-paste $'\x0d'`), ~150 ms apart. No stdin is used.
-- [x] The message — including shell metacharacters / newlines — is passed
-      verbatim as one argv element (no shell, no injection).
+      <id> --no-paste $'\x0d'`), ~150 ms apart.
+- [x] The message — including shell metacharacters / newlines — is written
+      verbatim through stdin and not exposed as a process argument.
 - [x] The Enter byte is exactly char code 0x0d (carriage return), not 0x0a.
-- [ ] First call uses the pane id from `location.identifier`.
-- [ ] Throws a descriptive error when the text send fails (non-zero exit).
-- [ ] Unsupported types still throw the existing "unsupported terminal type".
+- [x] First call uses the pane id from `location.identifier`.
+- [x] Throws a descriptive error when the text send fails (non-zero exit).
+- [x] Unsupported types still throw the existing "unsupported terminal type".
 
 ## Integration Tests
 **How do we test component interactions?**
