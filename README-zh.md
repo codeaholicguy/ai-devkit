@@ -193,6 +193,7 @@ ai-devkit init --template ./senior-engineer.yaml
 | [Claude Code](https://www.anthropic.com/claude-code) | yes | yes |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes |
 | [Codex CLI](https://github.com/openai/codex) | yes | yes |
+| [Grok Build CLI](https://x.ai/cli) | yes | yes |
 | [Junie](https://www.jetbrains.com/junie/) | yes | — |
 | [Cline](https://cline.bot/) | yes | — |
 | [Devin](https://devin.ai/) | yes | — |

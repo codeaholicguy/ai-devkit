@@ -7,7 +7,7 @@ order: 7
 
 **Skills** are reusable instruction packs that extend what your AI coding agents can do. Each skill teaches an agent a specific workflow or domain practice, such as frontend design, database optimization, security review, or multi-agent coordination.
 
-> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
+> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, or Roo Code).
 
 ## How Skills Work
 
@@ -72,6 +72,7 @@ Skills are currently supported by the following AI coding agents:
 | **Junie**       | `.junie/skills`    | `~/.junie/skills` |
 | **Cline**       | `.cline/skills`    | `~/.cline/skills` |
 | **Devin**       | `.devin/skills`    | `~/.config/devin/skills` |
+| **Grok**        | `.grok/skills`     | `~/.grok/skills` |
 | **Pi**          | `.pi/skills`       | `~/.pi/agent/skills` |
 | **Kilo Code**   | `.kilo/skills`     | `~/.kilo/skills` |
 | **Roo Code**    | `.roo/skills`      | `~/.roo/skills` |
@@ -455,7 +456,7 @@ The skill doesn't exist in the specified registry. Explore the registry reposito
 
 ### "No skill-capable environments configured"
 
-Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, or Roo Code).
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, or Roo Code).
 
 ### "SKILL.md not found"
 

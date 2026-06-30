@@ -72,6 +72,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `claude` | Claude Code |
 | `github` | GitHub Copilot |
 | `gemini` | Gemini |
+| `grok` | Grok |
 | `codex` | Codex |
 | `kilocode` | Kilocode |
 | `amp` | Amp |

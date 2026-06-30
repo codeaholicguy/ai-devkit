@@ -171,7 +171,7 @@ The memory skill is ideal when:
 - Your AI agent needs detailed command syntax reference
 - You want consistent memory usage patterns across your team
 
-> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Pi, Kilo Code, and Roo Code.
+> **Tip:** The skill works with all skill-capable AI environments: Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, and Roo Code.
 
 ## Organizing Your Knowledge
 
