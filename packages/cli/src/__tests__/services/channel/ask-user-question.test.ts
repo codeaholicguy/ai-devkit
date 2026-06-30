@@ -49,6 +49,7 @@ describe('parseAskUserQuestionInput', () => {
         expect(parsed).toEqual({
             question: 'Pick one',
             header: 'Next action',
+            multiSelect: false,
             options: [
                 { label: 'A', description: 'first' },
                 { label: 'B', description: undefined },
@@ -56,12 +57,16 @@ describe('parseAskUserQuestionInput', () => {
         });
     });
 
-    it('rejects multi-select payloads (fallback)', () => {
-        expect(parseAskUserQuestionInput({
+    it('parses a multi-select single-question payload with multiSelect=true', () => {
+        const parsed = parseAskUserQuestionInput({
             questions: [{
-                question: 'q', multiSelect: true, options: [{ label: 'A' }],
+                question: 'Pick many',
+                multiSelect: true,
+                options: [{ label: 'A' }, { label: 'B' }],
             }],
-        })).toBeNull();
+        });
+        expect(parsed?.multiSelect).toBe(true);
+        expect(parsed?.options).toHaveLength(2);
     });
 
     it('rejects multi-question payloads (fallback)', () => {
@@ -100,6 +105,7 @@ describe('formatAskUserQuestionBody', () => {
     const spec: QuestionSpec = {
         question: 'Pick',
         header: 'Choose',
+        multiSelect: false,
         options: [
             { label: 'Alpha', description: 'first' },
             { label: 'Beta' },
@@ -112,6 +118,7 @@ describe('formatAskUserQuestionBody', () => {
         expect(out).toContain('Pick');
         expect(out).toContain('<b>1.</b> <b>Alpha</b> — <i>first</i>');
         expect(out).toContain('<b>2.</b> <b>Beta</b>');
+        expect(out).not.toContain('Multi-select');
     });
 
     it('omits header line when header is undefined', () => {
@@ -120,10 +127,16 @@ describe('formatAskUserQuestionBody', () => {
         expect(out.split('\n')[0]).toBe('Pick');
     });
 
+    it('adds reply-in-chat hint for multi-select', () => {
+        const out = formatAskUserQuestionBody({ ...spec, multiSelect: true });
+        expect(out).toContain('Multi-select — tap Skip, and answer in chat.');
+    });
+
     it('html-escapes user-controlled fields', () => {
         const out = formatAskUserQuestionBody({
             question: 'Pick <one>',
             header: '<script>',
+            multiSelect: false,
             options: [{ label: 'A & B', description: '<i>' }],
         });
         expect(out).toContain('Pick &lt;one&gt;');
@@ -136,14 +149,22 @@ describe('formatAskUserQuestionBody', () => {
 describe('buildKeyboard', () => {
     const spec: QuestionSpec = {
         question: 'q',
+        multiSelect: false,
         options: [{ label: 'A' }, { label: 'B' }, { label: 'C' }, { label: 'D' }],
     };
 
-    it('renders one numbered button per option, one row each', () => {
+    it('renders one numbered button per option plus a Skip row (single-select)', () => {
         const kb = buildKeyboard('abc', spec);
-        expect(kb).toHaveLength(4);
+        expect(kb).toHaveLength(5);
         expect(kb[0][0]).toEqual({ text: '1. A', callbackData: 'q:abc:o:0' });
         expect(kb[3][0]).toEqual({ text: '4. D', callbackData: 'q:abc:o:3' });
+        expect(kb[4][0]).toEqual({ text: 'Skip', callbackData: 'q:abc:skip' });
+    });
+
+    it('renders only the Skip row for multi-select', () => {
+        const kb = buildKeyboard('abc', { ...spec, multiSelect: true });
+        expect(kb).toHaveLength(1);
+        expect(kb[0][0]).toEqual({ text: 'Skip', callbackData: 'q:abc:skip' });
     });
 
     it('keeps every callback_data ≤ 64 bytes', () => {
@@ -208,12 +229,16 @@ describe('AskUserQuestionService', () => {
         expect(channel.sendInlineKeyboard).not.toHaveBeenCalled();
     });
 
-    it('returns false on multi-select payload (caller falls back)', async () => {
+    it('handles multi-select payload by rendering a Skip-only keyboard', async () => {
         const handled = await svc.tryHandle({
-            questions: [{ question: 'q', multiSelect: true, options: [{ label: 'A' }] }],
+            questions: [{ question: 'Pick many', multiSelect: true, options: [{ label: 'A' }, { label: 'B' }] }],
         }, 'chat-1');
-        expect(handled).toBe(false);
-        expect(channel.sendInlineKeyboard).not.toHaveBeenCalled();
+        expect(handled).toBe(true);
+        expect(channel.sendInlineKeyboard).toHaveBeenCalledOnce();
+        const [, html, kb] = channel.sendInlineKeyboard.mock.calls[0];
+        expect(html).toContain('Multi-select');
+        expect(kb).toHaveLength(1);
+        expect((kb as Array<Array<{ text: string }>>)[0][0].text).toBe('Skip');
     });
 
     it('returns false on multi-question payload (caller falls back)', async () => {
@@ -246,6 +271,25 @@ describe('AskUserQuestionService', () => {
         await svc.handleCallback(baseCallback('garbage'));
         expect(channel.answerCallback).toHaveBeenCalledWith('cbq-1', undefined);
         expect(sendToAgent).not.toHaveBeenCalled();
+    });
+
+    it('sends Esc byte (\\x1b) and "Skipped" toast when Skip is tapped', async () => {
+        await svc.tryHandle({
+            questions: [{
+                question: 'Pick',
+                multiSelect: false,
+                options: [{ label: 'Alpha' }, { label: 'Beta' }],
+            }],
+        }, 'chat-1');
+        const kb = channel.sendInlineKeyboard.mock.calls[0][2] as Array<Array<{ text: string; callbackData: string }>>;
+        const skipData = kb[kb.length - 1][0].callbackData;
+        expect(skipData).toBe('q:1:skip');
+
+        await svc.handleCallback(baseCallback(skipData));
+
+        expect(sendToAgent).toHaveBeenCalledWith('\x1b');
+        expect(channel.answerCallback).toHaveBeenCalledWith('cbq-1', 'Skipped');
+        expect(channel.editInlineKeyboard).toHaveBeenCalledWith('chat-1', expect.any(Number), null);
     });
 
     it('ignores callbacks with out-of-range option index', async () => {

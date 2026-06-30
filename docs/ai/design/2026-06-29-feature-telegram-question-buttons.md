@@ -25,9 +25,9 @@ graph TD
 | Component | Responsibility |
 |---|---|
 | `channel-runner.ts` | Orchestrate. Route `AskUserQuestion` to the service; register adapter callback handler; inject `TtyWriter.sendKey` as the agent-write callback. |
-| `AskUserQuestionService` (new, in `ask-user-question.ts`) | Parse input, render the keyboard, track an in-memory session per `questionId`, resolve the digit on tap, write to the agent. |
+| `AskUserQuestionService` (new, in `ask-user-question.ts`) | Parse input, render the keyboard (numbered options + Skip for single-select; Skip-only for multi-select), track an in-memory session per `questionId`, resolve the digit or Esc on tap, write to the agent. |
 | `TelegramAdapter` | Adds 4 methods: `sendInlineKeyboard`, `editInlineKeyboard`, `answerCallback`, `onCallback`. |
-| `TtyWriter.sendKey` (new) | Send a single raw keystroke to the agent's terminal, bypassing bracketed paste and auto-Enter. |
+| `TtyWriter.sendKey` (new) | Send a single raw keystroke to the agent's terminal, bypassing bracketed paste and auto-Enter. Translates the Esc byte (`\x1b`) to the backend-native representation. |
 
 ## Data Models
 
@@ -43,6 +43,7 @@ interface QuestionSpec {
     question: string;
     header?: string;
     options: QuestionOption[];
+    multiSelect: boolean;
 }
 
 interface ActiveSession {
@@ -53,8 +54,9 @@ interface ActiveSession {
 }
 
 // callback_data encoding (≤64 bytes):
-//   q:<questionId>:o:<optionIdx>
-// questionId is base36 counter (1-2 chars), optionIdx is decimal — well under 64 bytes.
+//   q:<questionId>:o:<optionIdx>   — option tap (single-select keyboards only)
+//   q:<questionId>:skip            — Skip tap (every keyboard)
+// questionId is a base36 counter (1-2 chars); optionIdx is decimal — both well under 64 bytes.
 ```
 
 ```ts
@@ -141,13 +143,15 @@ export class AskUserQuestionService {
 - `packages/cli/src/services/channel/ask-user-question.ts` (new) — service, parser, formatter, keyboard builder, escape helper.
 - `packages/cli/src/services/channel/channel-runner.ts`:
   - `startOutputPolling` accepts optional `askUserQuestionService`.
-  - Polling loop offers `AskUserQuestion` payloads to the service; on `false` (multi-select / multi-question / malformed) falls back to `formatPromptMessage`.
+  - Polling loop offers `AskUserQuestion` payloads to the service; on `false` (multi-question / malformed) falls back to `formatPromptMessage`.
   - `runChannelBridge` constructs the service with `TtyWriter.sendKey` and registers `telegram.onCallback`.
 
 ## Design Decisions
 
-- **Single-select, single-question only.** Multi-select toggle + Submit and multi-question advance require sequencing keystrokes through the picker with timing assumptions; sending the wrong key at the wrong moment puts garbage in the agent's prompt. Reject those shapes at the parser; let the caller fall back to plain `[Question]` text where the user can free-text reply.
-- **Digit keystroke via `sendKey`, not text via `send`.** The host picker reads stdin in raw mode. `TtyWriter.send` wraps payloads in bracketed paste markers `\e[200~ ... \e[201~`, which the inner TUI routes to the focused text input ("Other"), not to the picker's digit hotkey. `sendKey` sends a raw keystroke that the picker captures and selects+confirms immediately.
+- **Single-question scope.** Multi-question payloads require sequencing keystrokes across pickers with timing assumptions; we reject them at the parser and fall back to plain `[Question]` text where the user can free-text reply.
+- **Multi-select is supported as Skip + chat reply, not toggle/Submit.** Driving multi-select toggles through the picker is just as fragile as multi-question. Instead, render the question and numbered options as a read-only formatted message with a `Skip`-only keyboard, plus a hint asking the user to reply in chat. The existing `onMessage` → `TtyWriter.send` path delivers the typed reply.
+- **Skip on every keyboard.** A `Skip` button is appended to every keyboard. On tap it sends the Esc byte (`\x1b`) via `sendKey`, which translates per backend (tmux `Escape`, AppleScript `key code 53`, wezterm literal byte).
+- **Digit keystroke via `sendKey`, not text via `send`.** The host picker reads stdin in raw mode. `TtyWriter.send` wraps payloads in bracketed paste markers `\e[200~ ... \e[201~`, which the inner TUI routes to the focused text input ("Other"), not to the picker's digit hotkey. `sendKey` sends a raw keystroke that the picker captures and selects+confirms immediately. Free-text replies (for the multi-select chat-reply path) intentionally use `send` so they reach the picker's text-input field.
 - **Process-memory state.** Bridge restart drops in-flight questions; on tap of a stale button we ack with a "Question expired" toast. Acceptable per requirements; avoids file-IO complexity.
 - **`questionId` is a short base36 counter.** Keeps `callback_data` ≤64 bytes and contains no PII.
 - **HTML escaping at the body builder.** Telegraf does not auto-escape; all user-controlled fields go through `escapeHtml` before insertion.

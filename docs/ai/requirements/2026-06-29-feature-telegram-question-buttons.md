@@ -17,23 +17,27 @@ Affected: any user driving a Claude Code agent remotely via the configured Teleg
 **Primary goals**
 - Render single-select, single-question `AskUserQuestion` payloads as a Telegram message with an inline keyboard, one button per option.
 - A tap on any option finalizes the answer and delivers the option's **digit key** (`String(optionIdx + 1)`) to the agent as a raw TTY keystroke — the host picker is a key-driven menu that selects+confirms on digit press.
+- Every keyboard includes a `Skip` button that sends `Esc` (`\x1b`) to dismiss the picker.
+- For **multi-select** single-question payloads (`multiSelect: true`): render the question + numbered options as a read-only formatted message with a `Skip`-only keyboard, plus a hint asking the user to reply in chat. Free-text replies pass through the existing `onMessage` → `TtyWriter.send` path.
 
 **Secondary goals**
 - Use Telegram HTML for the question body so visual hierarchy survives.
 - Keep the existing `[Tool prompt]` plain-text path unchanged for non-AskUserQuestion tools.
 
 **Non-goals (deliberately deferred)**
-- **Multi-select** payloads (`multiSelect: true`). Driving toggle + Submit through the TTY picker is fragile.
-- **Multi-question** payloads (`questions.length > 1`). Same reason — requires sequencing keystrokes with timing assumptions.
+- **Multi-question** payloads (`questions.length > 1`). Reliably sequencing keystrokes across pickers requires timing assumptions about when the next picker opens — fragile. These still fall back to the plain `[Question] <json>` text path.
 - Persisting selection state across bridge restarts.
 - Supporting multiple concurrent Telegram users — the bridge is single-user by design.
+- Driving multi-select toggles/Submit via inline buttons — multi-select uses the free-text reply path instead.
 
-Unsupported shapes fall back to the existing `[Question] <json>` plain-text path; the user can still type a free-text reply.
+Unsupported shapes (multi-question, malformed) fall back to the `[Question] <json>` plain-text path; the user can still type a free-text reply.
 
 ## User Stories & Use Cases
 
 - As a remote user driving an agent over Telegram, I tap a single button to answer a single-select question and the agent immediately proceeds, without me having to type anything.
-- As a remote user, I can still type a free-text reply for an unsupported shape (multi-select / multi-question) instead of tapping a button. Free-text replies pass through the existing `onMessage` path unchanged.
+- As a remote user faced with a multi-select question, I see the question and numbered options as a read-only message with a Skip button, and I type my answer in chat.
+- As a remote user, I can tap `Skip` on any question to send Esc and dismiss the picker.
+- As a remote user, I can still type a free-text reply instead of tapping a button. Free-text replies pass through the existing `onMessage` path unchanged.
 
 ### Edge cases
 
@@ -44,8 +48,10 @@ Unsupported shapes fall back to the existing `[Question] <json>` plain-text path
 ## Success Criteria
 
 - Single-select question round-trip from agent → Telegram → tap → agent receives the digit (e.g. `"1"`) via `TtyWriter.sendKey`. Verified by unit + integration tests.
+- Skip tap on any keyboard → agent receives Esc (`\x1b`) via `TtyWriter.sendKey`, translated to the backend-native form (tmux `Escape`, AppleScript `key code 53`).
+- Multi-select payloads render a Skip-only keyboard with a chat-reply hint; free-text replies still work. Verified by tests.
 - Existing non-AskUserQuestion `[Tool prompt]` output stays byte-identical.
-- Multi-select / multi-question payloads fall back to the plain `[Question]` text path (verified by tests).
+- Multi-question payloads fall back to the plain `[Question]` text path (verified by tests).
 - All `callback_data` payloads ≤64 bytes (Telegram cap).
 - 100% line coverage on new code in `ask-user-question.ts`, the new `TelegramAdapter` methods, and `TtyWriter.sendKey`.
 
@@ -64,6 +70,8 @@ Unsupported shapes fall back to the existing `[Question] <json>` plain-text path
 ## Questions & Open Items
 
 All material questions resolved during requirements gathering:
-- Multi-select / multi-question support → deferred; fall back to plain text.
-- Answer delivery format → digit key, not label.
+- Multi-question support → deferred; fall back to plain text.
+- Multi-select support → Skip-only keyboard + free-text reply path (no Toggle/Submit buttons).
+- Skip button → present on every keyboard; sends Esc keystroke.
+- Answer delivery format → digit key (for option taps), Esc (`\x1b`) (for Skip taps), not labels.
 - Stale callback after restart → ack with "Question expired" toast, no agent write.

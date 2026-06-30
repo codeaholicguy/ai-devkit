@@ -16,6 +16,7 @@ export interface QuestionSpec {
     question: string;
     header?: string;
     options: QuestionOption[];
+    multiSelect: boolean;
 }
 
 interface ActiveSession {
@@ -41,9 +42,10 @@ export type SendToAgent = (message: string) => Promise<void>;
  * Parse a raw `AskUserQuestion` tool input into a normalized question spec.
  *
  * Returns `null` (caller falls back to plain text) when the payload is not a
- * supported shape. We deliberately reject multi-select and multi-question
- * payloads — driving those through the TTY picker reliably is too fragile
- * (see feedback_askuserquestion_scope memory).
+ * supported shape. Multi-question payloads (`questions.length !== 1`) are
+ * rejected because reliably sequencing keystrokes across pickers is fragile;
+ * multi-select is supported as a Skip-or-free-text-reply flow (no numbered
+ * option buttons).
  */
 export function parseAskUserQuestionInput(input: Record<string, unknown>): QuestionSpec | null {
     const raw = input.questions;
@@ -52,7 +54,6 @@ export function parseAskUserQuestionInput(input: Record<string, unknown>): Quest
     if (!q || typeof q !== 'object') return null;
     const qObj = q as Record<string, unknown>;
     if (typeof qObj.question !== 'string') return null;
-    if (qObj.multiSelect === true) return null;
     if (!Array.isArray(qObj.options) || qObj.options.length === 0) return null;
     const options: QuestionOption[] = [];
     for (const opt of qObj.options) {
@@ -68,6 +69,7 @@ export function parseAskUserQuestionInput(input: Record<string, unknown>): Quest
         question: qObj.question,
         header: typeof qObj.header === 'string' ? qObj.header : undefined,
         options,
+        multiSelect: qObj.multiSelect === true,
     };
 }
 
@@ -90,17 +92,28 @@ export function formatAskUserQuestionBody(spec: QuestionSpec): string {
         const desc = opt.description ? ` — <i>${escapeHtml(opt.description)}</i>` : '';
         lines.push(`<b>${idx + 1}.</b> <b>${escapeHtml(opt.label)}</b>${desc}`);
     });
+    if (spec.multiSelect) {
+        lines.push('');
+        lines.push('<i>Multi-select — tap Skip, and answer in chat.</i>');
+    }
     return lines.join('\n');
 }
 
+/** Esc byte — what the `Skip` button delivers to the picker. */
+const SKIP_KEY = '\x1b';
+
 export function buildKeyboard(questionId: string, spec: QuestionSpec): InlineKeyboard {
-    return spec.options.map((opt, idx) => {
-        const key = idx + 1;
-        return [{
-            text: `${key}. ${opt.label}`,
-            callbackData: `q:${questionId}:o:${idx}`,
-        }];
-    });
+    const rows: InlineKeyboard = spec.multiSelect
+        ? []
+        : spec.options.map((opt, idx) => {
+            const key = idx + 1;
+            return [{
+                text: `${key}. ${opt.label}`,
+                callbackData: `q:${questionId}:o:${idx}`,
+            }];
+        });
+    rows.push([{ text: 'Skip', callbackData: `q:${questionId}:skip` }]);
+    return rows;
 }
 
 export class AskUserQuestionService {
@@ -129,9 +142,9 @@ export class AskUserQuestionService {
     }
 
     /**
-     * Handle an inline-keyboard tap. Resolves the option, writes its digit key
-     * (`optionIdx + 1`) to the agent's TTY, and clears the keyboard from the
-     * Telegram message.
+     * Handle an inline-keyboard tap. Resolves the option (digit key) or Skip
+     * (Esc), writes the result to the agent's TTY, and clears the keyboard
+     * from the Telegram message.
      */
     async handleCallback(cb: IncomingCallback): Promise<void> {
         const parsed = parseCallbackData(cb.callbackData);
@@ -152,14 +165,22 @@ export class AskUserQuestionService {
         }
 
         const spec = session.spec;
-        if (parsed.optionIdx >= spec.options.length) {
-            await this.safeAnswerCallback(cb.callbackQueryId);
-            return;
+        let key: string;
+        let toast: string;
+
+        if (parsed.kind === 'skip') {
+            key = SKIP_KEY;
+            toast = 'Skipped';
+        } else {
+            if (parsed.optionIdx >= spec.options.length) {
+                await this.safeAnswerCallback(cb.callbackQueryId);
+                return;
+            }
+            key = String(parsed.optionIdx + 1);
+            toast = spec.options[parsed.optionIdx].label;
         }
 
-        const option = spec.options[parsed.optionIdx];
-        const key = String(parsed.optionIdx + 1);
-        await this.safeAnswerCallback(cb.callbackQueryId, option.label);
+        await this.safeAnswerCallback(cb.callbackQueryId, toast);
         this.sessions.delete(session.questionId);
 
         if (session.messageId !== null) {
@@ -199,16 +220,22 @@ export class AskUserQuestionService {
     }
 }
 
-interface ParsedCallback {
-    questionId: string;
-    optionIdx: number;
-}
+type ParsedCallback =
+    | { kind: 'option'; questionId: string; optionIdx: number }
+    | { kind: 'skip'; questionId: string };
 
 function parseCallbackData(data: string): ParsedCallback | null {
     const parts = data.split(':');
-    if (parts.length !== 4 || parts[0] !== 'q' || parts[2] !== 'o') return null;
-    const optionIdx = Number.parseInt(parts[3], 10);
-    if (!Number.isFinite(optionIdx)) return null;
-    return { questionId: parts[1], optionIdx };
+    if (parts[0] !== 'q' || parts.length < 3) return null;
+    const questionId = parts[1];
+    if (parts.length === 4 && parts[2] === 'o') {
+        const optionIdx = Number.parseInt(parts[3], 10);
+        if (!Number.isFinite(optionIdx)) return null;
+        return { kind: 'option', questionId, optionIdx };
+    }
+    if (parts.length === 3 && parts[2] === 'skip') {
+        return { kind: 'skip', questionId };
+    }
+    return null;
 }
 

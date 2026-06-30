@@ -202,11 +202,14 @@ describe('startOutputPolling — agent requests', () => {
         expect(htmlArg).toContain('What would you like to do next?');
         expect(htmlArg).toContain('Continue the bug fix');
         const kb = kbArg as Array<Array<{ text: string; callbackData: string }>>;
-        expect(kb).toHaveLength(2);
+        // 2 option rows + 1 Skip row
+        expect(kb).toHaveLength(3);
         expect(kb[0][0].callbackData).toMatch(/^q:[a-z0-9]+:o:0$/);
+        expect(kb[2][0].text).toBe('Skip');
+        expect(kb[2][0].callbackData).toMatch(/^q:[a-z0-9]+:skip$/);
     });
 
-    it('falls back to plain [Question] text for multi-select payloads (deliberately unsupported)', async () => {
+    it('routes AskUserQuestion multi-select payload with Skip-only keyboard', async () => {
         const multiSelectInput = {
             questions: [{
                 question: 'Which programming languages do you work with most?',
@@ -216,9 +219,9 @@ describe('startOutputPolling — agent requests', () => {
         };
         const telegram = {
             ...makeTelegram(),
-            sendInlineKeyboard: vi.fn(),
-            editInlineKeyboard: vi.fn(),
-            answerCallback: vi.fn(),
+            sendInlineKeyboard: vi.fn().mockResolvedValue(8),
+            editInlineKeyboard: vi.fn().mockResolvedValue(undefined),
+            answerCallback: vi.fn().mockResolvedValue(undefined),
         };
         const askQuestion = new AskUserQuestionService(telegram as never, vi.fn().mockResolvedValue(undefined));
         const interval = startOutputPolling(telegram as never, makeAdapter() as never, makeAgent(), chatIdRef, {
@@ -229,10 +232,14 @@ describe('startOutputPolling — agent requests', () => {
         await vi.advanceTimersByTimeAsync(2100);
         clearInterval(interval);
 
-        expect(telegram.sendInlineKeyboard).not.toHaveBeenCalled();
-        expect(telegram.sendMessage).toHaveBeenCalledOnce();
-        const [, message] = (telegram.sendMessage as Mock).mock.calls[0];
-        expect(message).toContain('[Question]');
+        expect(telegram.sendMessage).not.toHaveBeenCalled();
+        expect(telegram.sendInlineKeyboard).toHaveBeenCalledOnce();
+        const [, html, kb] = telegram.sendInlineKeyboard.mock.calls[0];
+        expect(html).toContain('Multi-select');
+        const keyboard = kb as Array<Array<{ text: string; callbackData: string }>>;
+        expect(keyboard).toHaveLength(1);
+        expect(keyboard[0][0].text).toBe('Skip');
+        expect(keyboard[0][0].callbackData).toMatch(/^q:[a-z0-9]+:skip$/);
     });
 
     it('falls back to plain [Question] text when AskUserQuestion payload is malformed', async () => {

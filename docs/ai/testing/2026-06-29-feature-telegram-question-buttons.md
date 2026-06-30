@@ -10,13 +10,14 @@ description: Define testing approach, test cases, and quality assurance
 
 - 100% line coverage on new code in `ask-user-question.ts`, the new `TelegramAdapter` methods, and `TtyWriter.sendKey`.
 - All callback paths exercised (option tap, stale, chatId mismatch, malformed data, out-of-range index).
-- Fallback path exercised for every rejected shape (multi-select, multi-question, malformed).
+- Fallback path exercised for every rejected shape (multi-question, malformed).
+- Multi-select is rendered with a Skip-only keyboard + chat-reply hint.
 
 ## Unit Tests
 
 ### `parseAskUserQuestionInput` (ask-user-question.test.ts)
 - [x] Parses a single-select single-question payload.
-- [x] Rejects multi-select payloads (`multiSelect: true`) → returns null.
+- [x] Parses multi-select payloads with `multiSelect: true` carried on the spec.
 - [x] Rejects multi-question payloads (`questions.length !== 1`) → returns null.
 - [x] Returns null when `questions` is missing.
 - [x] Returns null when an option has no `label`.
@@ -28,18 +29,21 @@ description: Define testing approach, test cases, and quality assurance
 ### `formatAskUserQuestionBody`
 - [x] Includes header, question, and numbered options with descriptions.
 - [x] Omits header line when undefined.
+- [x] Adds reply-in-chat hint for multi-select.
 - [x] HTML-escapes user-controlled fields (`question`, `header`, `label`, `description`).
 
 ### `buildKeyboard`
-- [x] Renders one numbered button per option, one row each.
+- [x] Single-select: one numbered button per option plus a final Skip row.
+- [x] Multi-select: Skip-only keyboard (no numbered option rows).
 - [x] Every `callback_data` ≤64 bytes.
 
 ### `AskUserQuestionService`
 - [x] Sends digit key `String(optionIdx + 1)` when option is tapped.
+- [x] Sends Esc byte `\x1b` with "Skipped" toast when Skip is tapped.
 - [x] Removes the keyboard after the tap (calls `editInlineKeyboard(..., null)`).
 - [x] Shows toast with the chosen `label`.
 - [x] Returns `false` on malformed payload (caller falls back to plain text).
-- [x] Returns `false` on multi-select payload.
+- [x] Handles multi-select payload by rendering a Skip-only keyboard.
 - [x] Returns `false` on multi-question payload.
 - [x] Shows "Question expired" toast on unknown `questionId`.
 - [x] Ignores callback with mismatched `chatId`.
@@ -58,15 +62,19 @@ description: Define testing approach, test cases, and quality assurance
 ### `TtyWriter.sendKey` (TtyWriter.test.ts)
 - [x] tmux: invokes `tmux send-keys -t <id> <key>` directly (no paste buffer, no auto-Enter).
 - [x] tmux: passes through named keys (e.g. `Enter`).
-- [x] iTerm2: focuses the target session via AppleScript, then `tell application "System Events" to keystroke "<key>"`.
+- [x] tmux: translates the Esc byte (`\x1b`) to the named `Escape` key.
+- [x] WezTerm: invokes `wezterm cli send-text --pane-id <id> --no-paste <key>`.
+- [x] iTerm2: focuses the target session via AppleScript, then `keystroke "<key>"`.
+- [x] iTerm2: translates Esc byte to AppleScript `key code 53`.
 - [x] iTerm2: throws when session not found.
-- [x] Terminal.app: focuses the target tab via AppleScript, then `tell application "System Events" to keystroke "<key>"`.
+- [x] Terminal.app: focuses the target tab via AppleScript, then `keystroke "<key>"`.
+- [x] Terminal.app: translates Esc byte to AppleScript `key code 53`.
 - [x] Terminal.app: throws when tab not found.
 - [x] Unsupported terminal type throws.
 
 ### channel-runner integration
-- [x] Routes a single-select payload to `AskUserQuestionService.tryHandle` and the adapter receives a `sendInlineKeyboard` call with numbered option buttons.
-- [x] Falls back to plain `[Question]` text for multi-select payloads.
+- [x] Routes a single-select payload to `AskUserQuestionService.tryHandle` and the adapter receives a `sendInlineKeyboard` call with numbered option buttons + Skip row.
+- [x] Routes a multi-select payload with a Skip-only keyboard and the multi-select hint in the body.
 - [x] Falls back to plain `[Question]` text for malformed payloads.
 - [x] Non-AskUserQuestion `[Tool prompt]` formatting byte-identical to existing test.
 
@@ -85,12 +93,14 @@ Out of scope for this feature (would require a live Telegram bot + a real termin
 ## Test Reporting & Coverage
 
 - Command: `npm test` (runs vitest across all 5 workspace projects).
-- Latest run: 1,502 tests pass; exit 0.
+- Latest run: 1,525 tests pass; exit 0.
 
 ## Manual Testing
 
 - [ ] Live Telegram smoke: configure a real bot, trigger a single-select `AskUserQuestion`, tap a button, agent's picker selects and proceeds.
-- [ ] Live Telegram smoke: trigger a multi-select payload — bridge falls back to plain `[Question]` text; user can type a free-text reply.
+- [ ] Live Telegram smoke: trigger a multi-select payload — bridge renders Skip-only keyboard + reply-in-chat hint; typed free-text reaches the agent.
+- [ ] Live Telegram smoke: tap Skip on any keyboard — picker is dismissed (Esc).
+- [ ] Live Telegram smoke: trigger a multi-question payload — bridge falls back to plain `[Question]` text; user types a free-text reply.
 - [ ] Live Telegram smoke: stale callback after bridge restart shows "Question expired".
 
 ## Performance Testing

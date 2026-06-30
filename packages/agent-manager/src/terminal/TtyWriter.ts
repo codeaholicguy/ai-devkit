@@ -12,6 +12,13 @@ const execFileAsync = promisify(execFile);
  */
 const CARRIAGE_RETURN = '\x0d';
 
+/**
+ * Escape byte (0x1b). Recognized by `sendKey` and translated to the
+ * backend-native representation (`Escape` for tmux, `key code 53` for
+ * AppleScript, the literal byte for WezTerm).
+ */
+const ESCAPE_BYTE = '\x1b';
+
 export class TtyWriter {
     /**
      * Send a message as keyboard input to a terminal session.
@@ -78,15 +85,16 @@ export class TtyWriter {
     }
 
     private static async sendKeyViaTmux(identifier: string, key: string): Promise<void> {
-        // tmux send-keys interprets named keys (Enter, Up, ...) and passes
-        // literals through. No bracketed paste, no auto-Enter.
-        await execFileAsync('tmux', ['send-keys', '-t', identifier, key]);
+        // tmux send-keys interprets named keys (Enter, Up, Escape, ...) and
+        // passes literals through. No bracketed paste, no auto-Enter.
+        const arg = key === ESCAPE_BYTE ? 'Escape' : key;
+        await execFileAsync('tmux', ['send-keys', '-t', identifier, arg]);
     }
 
     private static async sendKeyViaWezterm(paneId: string, key: string): Promise<void> {
         // --no-paste delivers the key bytes literally outside bracketed-paste
-        // markers; the TUI sees a raw keystroke. Same convention as
-        // sendViaWezterm's Enter step, just without the preceding paste.
+        // markers; the TUI sees a raw keystroke. For Esc (`\x1b`), wezterm
+        // accepts the byte directly.
         await execFileAsync('wezterm', [
             'cli', 'send-text', '--pane-id', paneId, '--no-paste', key,
         ]);
@@ -95,7 +103,7 @@ export class TtyWriter {
     private static async sendKeyViaITerm2(tty: string, key: string): Promise<void> {
         // Focus the target session, then press the key via System Events so the
         // inner TUI sees a raw keystroke (not a bracketed-paste text run).
-        const escaped = escapeAppleScript(key);
+        const action = appleScriptKeyAction(key);
         const script = `
 tell application "iTerm"
   set targetSession to missing value
@@ -117,7 +125,7 @@ tell application "iTerm"
   if targetSession is missing value then return "not_found"
   activate
 end tell
-tell application "System Events" to keystroke "${escaped}"
+tell application "System Events" to ${action}
 return "ok"`;
 
         const { stdout } = await execFileAsync('osascript', ['-e', script]);
@@ -127,7 +135,7 @@ return "ok"`;
     }
 
     private static async sendKeyViaTerminalApp(tty: string, key: string): Promise<void> {
-        const escaped = escapeAppleScript(key);
+        const action = appleScriptKeyAction(key);
         const script = `
 tell application "Terminal"
   set targetTab to missing value
@@ -148,7 +156,7 @@ tell application "Terminal"
   set frontmost of targetWindow to true
   activate
 end tell
-tell application "System Events" to keystroke "${escaped}"
+tell application "System Events" to ${action}
 return "ok"`;
 
         const { stdout } = await execFileAsync('osascript', ['-e', script]);
@@ -316,4 +324,14 @@ return "ok"`;
             throw new Error(`Terminal.app tab disappeared before Enter could be sent for TTY ${tty}`);
         }
     }
+}
+
+/**
+ * AppleScript `keystroke` only delivers typeable characters; non-typeable
+ * keys (Esc, arrows, F-keys, …) must be sent via `key code <N>`. Add more
+ * mappings here as new special keys are needed.
+ */
+function appleScriptKeyAction(key: string): string {
+    if (key === ESCAPE_BYTE) return 'key code 53';
+    return `keystroke "${escapeAppleScript(key)}"`;
 }

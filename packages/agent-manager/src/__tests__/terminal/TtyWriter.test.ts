@@ -333,6 +333,16 @@ describe('TtyWriter', () => {
                 expect.any(Function),
             );
         });
+
+        it('translates Esc byte (\\x1b) to the named "Escape" key', async () => {
+            mockExecFileSuccess();
+            await TtyWriter.sendKey(location, '\x1b');
+            expect(mockedExecFile).toHaveBeenCalledWith(
+                'tmux',
+                ['send-keys', '-t', 'main:0.1', 'Escape'],
+                expect.any(Function),
+            );
+        });
     });
 
     describe('sendKey — WezTerm', () => {
@@ -375,6 +385,15 @@ describe('TtyWriter', () => {
             expect(mockedExecFile).toHaveBeenCalledTimes(1);
         });
 
+        it('translates Esc byte (\\x1b) to AppleScript `key code 53`', async () => {
+            mockExecFileSuccess('ok');
+            await TtyWriter.sendKey(location, '\x1b');
+            const args = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
+            const script = args[1];
+            expect(script).toContain('tell application "System Events" to key code 53');
+            expect(script).not.toContain('keystroke');
+        });
+
         it('throws when session not found', async () => {
             mockExecFileSuccess('not_found');
             await expect(TtyWriter.sendKey(location, '1'))
@@ -399,6 +418,15 @@ describe('TtyWriter', () => {
             expect(script).toContain('tell application "Terminal"');
             expect(script).toContain('tell application "System Events" to keystroke "3"');
             expect(mockedExecFile).toHaveBeenCalledTimes(1);
+        });
+
+        it('translates Esc byte (\\x1b) to AppleScript `key code 53`', async () => {
+            mockExecFileSuccess('ok');
+            await TtyWriter.sendKey(location, '\x1b');
+            const args = (mockedExecFile.mock.calls[0] as unknown[])[1] as string[];
+            const script = args[1];
+            expect(script).toContain('tell application "System Events" to key code 53');
+            expect(script).not.toContain('keystroke');
         });
 
         it('throws when tab not found', async () => {
