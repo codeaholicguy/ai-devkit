@@ -4,6 +4,7 @@ export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './adapters/CodexAdapter.js';
 export { CopilotAdapter } from './adapters/CopilotAdapter.js';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
+export { GrokCliAdapter } from './adapters/GrokCliAdapter.js';
 export { OpenCodeAdapter } from './adapters/OpenCodeAdapter.js';
 export { PiAdapter } from './adapters/PiAdapter.js';
 export { AgentStatus } from './adapters/AgentAdapter.js';

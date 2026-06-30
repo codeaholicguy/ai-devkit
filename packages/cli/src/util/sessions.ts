@@ -7,7 +7,7 @@ import { truncate } from './text.js';
 
 const FIRST_MESSAGE_MAX_WIDTH = 80;
 const FIRST_MESSAGE_PLACEHOLDER = '(no message yet)';
-const VALID_AGENT_TYPES: AgentType[] = ['claude', 'codex', 'gemini_cli', 'opencode', 'copilot', 'pi'];
+const VALID_AGENT_TYPES: AgentType[] = ['claude', 'codex', 'gemini_cli', 'grok_cli', 'opencode', 'copilot', 'pi'];
 
 export interface ResolvedListSessionsOptions {
     adapterOptions: ListSessionsOptions;

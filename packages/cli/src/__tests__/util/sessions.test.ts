@@ -45,7 +45,7 @@ describe('sessions util', () => {
         });
 
         it('forwards a valid --type', () => {
-            for (const type of ['claude', 'codex', 'gemini_cli', 'opencode', 'copilot', 'pi'] as const) {
+            for (const type of ['claude', 'codex', 'gemini_cli', 'grok_cli', 'opencode', 'copilot', 'pi'] as const) {
                 const result = resolveListSessionsOptions({ all: true, type });
                 expect(result.adapterOptions.type).toBe(type);
             }
@@ -53,7 +53,7 @@ describe('sessions util', () => {
 
         it('throws on an invalid --type', () => {
             expect(() => resolveListSessionsOptions({ all: true, type: 'wrong' })).toThrow(
-                'Invalid --type "wrong". Expected one of: claude, codex, gemini_cli, opencode, copilot, pi.',
+                'Invalid --type "wrong". Expected one of: claude, codex, gemini_cli, grok_cli, opencode, copilot, pi.',
             );
         });
 

@@ -1,7 +1,7 @@
 import path from 'path';
 import type { AgentType } from '../adapters/AgentAdapter.js';
 
-export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'copilot' | 'gemini_cli' | 'opencode' | 'pi'>;
+export type StartableAgentType = Extract<AgentType, 'claude' | 'codex' | 'copilot' | 'gemini_cli' | 'grok_cli' | 'opencode' | 'pi'>;
 
 export interface AgentConfig {
     /** Shell command to launch the agent (sent to tmux via `send-keys`). */
@@ -20,6 +20,7 @@ export const AGENTS: Record<StartableAgentType, AgentConfig> = {
     codex:      { command: 'codex',    matches: matchArgv0('codex') },
     copilot:    { command: 'copilot',  matches: matchArgv0Name('copilot-cli') },
     gemini_cli: { command: 'gemini',   matches: matchAnyToken('gemini') },
+    grok_cli:   { command: 'grok',     matches: matchArgv0('grok') },
     opencode:   { command: 'opencode', matches: matchArgv0('opencode') },
     pi:         { command: 'pi',       matches: matchAnyBasename(['pi']) },
 };
