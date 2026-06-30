@@ -53,6 +53,11 @@ These environments have stable setup integrations.
 - `~/.codex/skills/` — Global skills
 - `.codex/config.toml` — Project-level MCP server configuration
 
+### [Grok Build CLI](https://x.ai/cli)
+**What AI DevKit provides:**
+- `.grok/skills/` — Project-level skills
+- `~/.grok/skills/` — Global skills
+
 ### [opencode](https://opencode.ai/)
 **What AI DevKit provides:**
 - `AGENTS.md` — opencode [custom instructions](https://opencode.ai/docs/rules/)

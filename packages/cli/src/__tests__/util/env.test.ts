@@ -19,11 +19,12 @@ import { EnvironmentCode } from '../../types.js';
 describe('Environment Utilities', () => {
   describe('ENVIRONMENT_DEFINITIONS', () => {
     it('should contain all all environment definitions', () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(14);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(15);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('cursor');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('claude');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('github');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('gemini');
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('grok');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('codex');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('kilocode');
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty('amp');
@@ -63,10 +64,10 @@ describe('Environment Utilities', () => {
 
   describe('ALL_ENVIRONMENT_CODES', () => {
     it('should contain all all environment codes', () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(14);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(15);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
-          'cursor', 'claude', 'github', 'gemini', 'codex',
+          'cursor', 'claude', 'github', 'gemini', 'grok', 'codex',
           'kilocode', 'amp', 'opencode', 'roo', 'antigravity',
           'junie', 'cline', 'devin', 'pi'
         ])
@@ -82,7 +83,7 @@ describe('Environment Utilities', () => {
   describe('getAllEnvironments', () => {
     it('should return all environment definitions', () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(14);
+      expect(environments).toHaveLength(15);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -383,7 +384,7 @@ describe('Environment Utilities', () => {
       expect(envCodes).toContain('cline');
       expect(envCodes).toContain('devin');
       expect(envCodes).toContain('pi');
-      expect(skillEnvs).toHaveLength(14);
+      expect(skillEnvs).toHaveLength(15);
     });
   });
 

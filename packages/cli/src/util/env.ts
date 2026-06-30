@@ -27,6 +27,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     skillPath: '.gemini/skills',
     globalSkillPath: '.gemini/skills',
   },
+  grok: {
+    code: 'grok',
+    name: 'Grok',
+    skillPath: '.grok/skills',
+    globalSkillPath: '.grok/skills',
+  },
   codex: {
     code: 'codex',
     name: 'OpenAI Codex',

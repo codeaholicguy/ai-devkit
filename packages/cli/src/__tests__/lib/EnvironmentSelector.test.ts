@@ -119,6 +119,19 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('kilocode')).toBe('.kilo/kilo.jsonc');
     });
 
+    it('includes Grok with project and global skill paths', () => {
+      expect(isValidEnvironmentCode('grok')).toBe(true);
+      expect(getEnvironment('grok')).toMatchObject({
+        code: 'grok',
+        name: 'Grok',
+        skillPath: '.grok/skills',
+        globalSkillPath: '.grok/skills',
+      });
+      expect(getSkillPath('grok')).toBe('.grok/skills');
+      expect(getGlobalSkillPath('grok')).toBe('.grok/skills');
+      expect(getMcpConfigPath('grok')).toBeUndefined();
+    });
+
     it('includes OpenCode with project skills, global skills, and MCP', () => {
       expect(isValidEnvironmentCode('opencode')).toBe(true);
       expect(getEnvironment('opencode')).toMatchObject({
