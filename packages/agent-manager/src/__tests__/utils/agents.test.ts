@@ -14,4 +14,11 @@ describe('AGENTS', () => {
         expect(AGENTS.pi.matches('/usr/local/bin/pi --model x')).toBe(true);
         expect(AGENTS.pi.matches('node /repo/feature-pi-adapter/script.js')).toBe(false);
     });
+
+    it('includes Grok as a startable agent', () => {
+        expect(AGENTS.grok_cli.command).toBe('grok');
+        expect(AGENTS.grok_cli.matches('grok')).toBe(true);
+        expect(AGENTS.grok_cli.matches('/Users/dev/.grok/bin/grok --always-approve')).toBe(true);
+        expect(AGENTS.grok_cli.matches('node /repo/feature-grok-cli/script.js')).toBe(false);
+    });
 });

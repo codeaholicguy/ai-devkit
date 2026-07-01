@@ -9,7 +9,7 @@ import {
 
 describe('StartAgentPane helpers', () => {
     it('lists supported agent start types in pane order', () => {
-        expect(STARTABLE_AGENT_TYPES).toEqual(['claude', 'codex', 'copilot', 'gemini_cli', 'opencode', 'pi']);
+        expect(STARTABLE_AGENT_TYPES).toEqual(['claude', 'codex', 'copilot', 'gemini_cli', 'grok_cli', 'opencode', 'pi']);
     });
 
     it('cycles to the next agent type', () => {
