@@ -1,0 +1,29 @@
+{
+  "name": "task-manager",
+  "root": "packages/task-manager",
+  "sourceRoot": "packages/task-manager/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/task-manager"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "packages/task-manager"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint",
+        "cwd": "packages/task-manager"
+      }
+    }
+  }
+}
