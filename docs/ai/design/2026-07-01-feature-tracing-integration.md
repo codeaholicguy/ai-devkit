@@ -103,7 +103,6 @@ src/
   TaskTracer.ts        # Semantic → contract mapping (emit + ensureFeatureTask)
   status.ts            # readStatus digest + staleness
   cli-argv.ts          # CLI argv builders for skill integration
-  ActorResolver.ts     # optional explicit-actor helper (no storage dependency)
   in-memory.ts         # InMemoryTaskService (test double; NOT shipped storage)
   index.ts             # public exports
 __tests__/             # vitest unit tests (mapping, digest, argv, in-memory contract)

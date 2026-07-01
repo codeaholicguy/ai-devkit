@@ -14,7 +14,6 @@ description: What shipped in the tracing integration and how skills integrate
 | `src/in-memory.ts` | `InMemoryTaskService` — faithful contract test double (NOT shipped storage). |
 | `src/TaskTracer.ts` | Semantic → contract mapping facade. One method per tracing semantic; each calls exactly one `ITaskService` mutator. |
 | `src/status.ts` | `readStatus` / `digest` — orchestrator routing view with staleness. |
-| `src/ActorResolver.ts` | `resolveActor` — explicit-actor helper (no storage dep). |
 | `src/cli-argv.ts` | Pure argv builders for the upstream `ai-devkit task` CLI. |
 | `src/index.ts` | Public exports. |
 
