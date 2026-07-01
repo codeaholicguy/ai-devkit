@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task Progress"
+  short_description: "AI DevKit · Track lifecycle/debug progress with the task CLI"
+  default_prompt: "Use $task to record phase, progress, next step, blockers, and validation evidence on the feature's durable task via ai-devkit task commands."

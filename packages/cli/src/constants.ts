@@ -26,6 +26,7 @@ export const BUILTIN_SKILL_NAMES = [
   'structured-debug',
   'document-code',
   'memory',
+  'task',
   'simplify-implementation',
   'verify',
   'tdd'
