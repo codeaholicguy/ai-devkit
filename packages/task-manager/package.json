@@ -1,0 +1,63 @@
+{
+  "name": "@ai-devkit/task-manager",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Durable task system for AI DevKit: stable task ids, artifacts, evidence, progress, blockers, lifecycle phase, agent attribution, and append-only event history",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
+    "dev": "swc src -d dist --strip-leading-paths --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/**/*.ts",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ai",
+    "task",
+    "dev-lifecycle",
+    "evidence",
+    "agent",
+    "trace",
+    "ai-devkit"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/task-manager"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.8.1",
+    "@swc/core": "^1.10.0",
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^8.60.1",
+    "@typescript-eslint/parser": "^8.60.1",
+    "@vitest/coverage-v8": "^4.1.8",
+    "eslint": "^8.56.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.8"
+  },
+  "engines": {
+    "node": ">=20.20.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
