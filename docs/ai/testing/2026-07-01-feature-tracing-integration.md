@@ -57,10 +57,19 @@ description: Test coverage approach for the tracing integration
 
 ## Integration tests
 
-Deferred until `@ai-devkit/task-manager` ships: a wiring test injecting the real
-`TaskService` into `TaskTracer` and round-tripping one emit per semantic. The
-in-memory test double already exercises the exact locked semantics, so coverage
-of the mapping is complete today.
+**`tests/integration.task-manager.test.ts`** validates against the SHIPPED
+`@ai-devkit/task-manager` (PR #132):
+- [x] real `TaskService` is assignable to `ITaskService` (compile-time).
+- [x] `ensureFeatureTask` create-on-miss / reuse-on-hit via the real service.
+- [x] each semantic round-trips and persists to real file-backed storage with
+  the exact contract event-type strings.
+- [x] `readStatus` projects a digest from the real service.
+- [x] no new event types produced (contract integrity).
+
+The suite is **guarded**: it skips cleanly (1 passed | 5 skipped) when
+`@ai-devkit/task-manager` is not resolvable, so this branch's standalone CI is
+green before #132 merges, and the suite auto-activates once #132 lands and the
+workspace symlink materializes. Verified both states locally.
 
 ## End-to-end
 
@@ -70,6 +79,8 @@ lands when the skill SKILL.md files are wired (follow-up).
 
 ## Validation (fresh evidence, this session)
 
-- `tsc --noEmit` → exit 0.
-- `vitest run` → 38 passed, exit 0.
+- `tsc --noEmit` (with real task-manager types resolvable) → exit 0.
+- `vitest run` → 44 passed, exit 0 (38 unit + 6 real integration against the
+  shipped `@ai-devkit/task-manager`).
+- Guard confirmed: with the package absent → 1 passed | 5 skipped, exit 0.
 - `swc` build + `tsc --emitDeclarationOnly` → dist + `.d.ts` emitted, exit 0.
