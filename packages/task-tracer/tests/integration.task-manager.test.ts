@@ -158,10 +158,3 @@ describeIntegration('integration: TaskTracer ↔ @ai-devkit/task-manager', () =>
         }
     });
 });
-
-// Always-runs sanity so the file is never a no-op suite.
-describe('integration guard', () => {
-    it('either runs the real suite or skips when @ai-devkit/task-manager is absent', () => {
-        expect(mod === null || mod !== null).toBe(true);
-    });
-});

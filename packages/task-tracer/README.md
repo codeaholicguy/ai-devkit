@@ -76,8 +76,8 @@ No event types are invented. Feature↔Task: **one task per feature default;
 
 `actor` is optional on every call. When omitted, the real `TaskService`
 auto-resolves from `AIDEVKIT_AGENT_*` env / agent-manager registry (null is
-valid). For deterministic attribution in multi-agent contexts, build an explicit
-actor with `resolveActor({ agentId, agentType })`.
+valid). For deterministic attribution in multi-agent contexts, pass an explicit
+`Actor` (e.g. `{ agentId, agentType }`) to the method.
 
 ## CLI argv builders
 

@@ -37,7 +37,7 @@ description: Task breakdown for the tracing integration against the locked Task 
 
 ### Read surface
 - [x] T8: `status.ts` — `readStatus(service, ref, {staleAfterMs?})` digest: taskId/feature/status/phase/phaseEnteredAt/progress/nextStep/openBlockers/lastValidation/updatedAt/attribution/stale
-- [x] T9: `ActorResolver.ts` — build explicit `Actor` from flags/env (no storage dep); used by callers that want deterministic attribution
+- [x] T9: ~~`ActorResolver.ts`~~ — removed in simplify pass (0 callers, 0 tests, 0 consumers; duplicates service env-resolution). Callers pass an explicit `Actor` literal directly.
 
 ### CLI integration
 - [x] T10: `cli-argv.ts` — pure builders returning `string[]`: `buildCreateArgv`, `buildPhaseArgv`, `buildStatusArgv`, `buildProgressArgv`, `buildNextArgv`, `buildBlockerAddArgv`, `buildBlockerResolveArgv`, `buildEvidenceArgv`, `buildArtifactArgv`, `buildAssignArgv`, `buildNoteArgv`, `buildEventArgv`, `buildCloseArgv`, plus `buildShowArgv`/`buildListArgv` for reads

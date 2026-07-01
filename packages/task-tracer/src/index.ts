@@ -50,9 +50,6 @@ export type {
     ReadStatusOptions,
 } from './status.js';
 
-export { resolveActor, readActorEnv } from './ActorResolver.js';
-export type { ActorEnv } from './ActorResolver.js';
-
 export {
     buildCreateArgv,
     buildShowArgv,

@@ -55,7 +55,7 @@ export interface ValidationInput {
     command?: string | null;
     /** Process exit code. */
     exitCode?: number | null;
-    /** Whether the validation passed. Required semantics; defaults to true. */
+    /** Whether the validation passed. Required. */
     passed: boolean;
     /** Inline durable summary text (point at files via artifacts instead). */
     summary?: string | null;
