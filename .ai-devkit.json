@@ -47,6 +47,10 @@
     },
     {
       "registry": "codeaholicguy/ai-devkit",
+      "name": "task"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
       "name": "document-code"
     },
     {
