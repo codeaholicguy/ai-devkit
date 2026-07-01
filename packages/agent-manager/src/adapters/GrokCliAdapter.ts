@@ -145,6 +145,17 @@ export class GrokCliAdapter implements AgentAdapter {
     }
 
     /**
+     * Full paths of the session subdirectories directly under a group dir,
+     * skipping any non-directory entries. Shared by latestSessionDir() and
+     * listSessions() so both enumerate session dirs the same way.
+     */
+    private listSessionDirs(groupDir: string): string[] {
+        return safeReaddir(groupDir)
+            .map((sessionId) => path.join(groupDir, sessionId))
+            .filter((sessionDir) => isDirectory(sessionDir));
+    }
+
+    /**
      * Return the most recently active session subdirectory for a cwd, i.e. the
      * ~/.grok/sessions/<encodeURIComponent(cwd)>/<id>/ whose chat_history.jsonl
      * was written last. Returns null when the group dir or any transcript is
@@ -155,9 +166,7 @@ export class GrokCliAdapter implements AgentAdapter {
         if (!isDirectory(groupDir)) return null;
 
         let best: { dir: string; mtimeMs: number } | null = null;
-        for (const sessionId of safeReaddir(groupDir)) {
-            const sessionDir = path.join(groupDir, sessionId);
-            if (!isDirectory(sessionDir)) continue;
+        for (const sessionDir of this.listSessionDirs(groupDir)) {
             const stat = safeStat(path.join(sessionDir, CHAT_HISTORY_FILE));
             if (!stat) continue;
             if (!best || stat.mtimeMs > best.mtimeMs) {
@@ -212,10 +221,7 @@ export class GrokCliAdapter implements AgentAdapter {
 
             const decodedCwd = this.decodeGroupCwd(groupName, groupDir);
 
-            for (const sessionId of safeReaddir(groupDir)) {
-                const sessionDir = path.join(groupDir, sessionId);
-                if (!isDirectory(sessionDir)) continue;
-
+            for (const sessionDir of this.listSessionDirs(groupDir)) {
                 const session = this.readSession(sessionDir, decodedCwd);
                 if (!session) continue;
 

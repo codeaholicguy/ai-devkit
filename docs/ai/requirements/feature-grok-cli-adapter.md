@@ -31,7 +31,7 @@ Who is affected:
 ### Secondary Goals
 - Reuse shared process/session utilities (`listAgentProcesses`, `enrichProcesses`, `generateAgentName`).
 - Mirror `ClaudeCodeAdapter`'s detection flow; keep session parsing **inline** in the adapter as the other recent adapters do (Gemini/Codex/Copilot/Pi) — "đừng custom quá nhiều".
-- Cover detection, session-directory discovery, ACP conversation extraction, status mapping, and `listSessions` with unit tests built from fixtures matching the real on-disk format.
+- Cover detection, session-directory discovery, `chat_history.jsonl` conversation extraction, status mapping, and `listSessions` with unit tests built from fixtures matching the real on-disk format.
 
 ### Non-Goals
 - The **Grok setup environment** (`ai-devkit init` writing `.grok/skills` etc.) — a separate follow-up, mirroring how Pi's environment landed after its adapter PR.
@@ -71,5 +71,5 @@ Who is affected:
 
 - Resolved (2026-06-30): Issue #107 targets xAI's **official** Grok Build CLI (`x.ai/cli`), not the community `superagent-ai/grok-cli` (SQLite `~/.grok/grok.db`). All schemas were captured from a real `grok 0.2.77` session.
 - Resolved (2026-06-30): cwd encoding is `encodeURIComponent`; a live process's cwd is read from `active_sessions.json`, so encoding is only used to locate the session dir for that cwd.
-- Resolved (2026-06-30): conversation source is `updates.jsonl` (ACP), not `chat_history.jsonl` (raw model messages incl. system prompt).
-- Open: real **assistant** `agent_message_chunk` content was not captured (the test account had no Grok credits → 403). The shape is the ACP standard (mirrors the verified `user_message_chunk`); validate during end-to-end verification once a credited session exists.
+- Resolved (2026-07-01): conversation source is `chat_history.jsonl` (the transcript Grok persists per session), not `summary.json`/`updates.jsonl`. An earlier draft read `updates.jsonl` (ACP); corrected after confirming `chat_history.jsonl` is the authoritative record. The real user prompt is taken from `<user_query>...</user_query>` and context-injection user records are skipped, so the system prompt is not surfaced.
+- Open: real **assistant** content was not captured (the test account had no Grok credits → paywall before a reply). Assistant turns are `{ type: "assistant", content }` records in `chat_history.jsonl`, mirroring the verified user records; validate during end-to-end verification once a credited session exists.
