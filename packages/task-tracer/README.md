@@ -20,25 +20,26 @@ thin mapping from workflow progress semantics to Task events.
                  consumes (async)
   TaskTracer ─────────────────────────► ITaskService (port interface)
        │                                      ▲
-       │                                      │ implements
+       │                                      │ implements (bivariant methods)
        ▼                                      │
-  CLI argv builders                  @ai-devkit/task-manager (TaskService, upcoming)
+  CLI argv builders                  @ai-devkit/task-manager (TaskService — SHIPPED, PR #132)
   (for skills to shell out)          InMemoryTaskService (test double)
 ```
 
 `task-tracer` depends only on `ITaskService` (a verbatim async mirror of the
-locked `TaskService` API). It never writes `~/.ai-devkit/tasks/<id>/`. When
-`@ai-devkit/task-manager` ships its `TaskService`, inject it directly — mapping
-logic is unchanged. An `InMemoryTaskService` test double lets you exercise the
-exact contract today.
+locked `TaskService` API). It never writes `~/.ai-devkit/tasks/<id>/`. The
+shipped `@ai-devkit/task-manager` `TaskService` is assignable to the port
+(declared as methods → bivariant) and is injected directly — **mapping logic
+unchanged**. An `InMemoryTaskService` test double also exercises the exact
+contract semantics for fast, storage-free unit tests.
 
 ## Install / wire
 
 ```ts
 import { TaskTracer, readStatus } from '@ai-devkit/task-tracer';
-import { TaskService } from '@ai-devkit/task-manager'; // when shipped
+import { createTaskService } from '@ai-devkit/task-manager'; // shipped (PR #132)
 
-const service = new TaskService({ store: process.env.AIDEVKIT_TASKS_DIR });
+const service = createTaskService(process.env.AIDEVKIT_TASKS_DIR);
 const tracer = new TaskTracer(service);
 
 const { task, created } = await tracer.ensureFeatureTask({ feature: 'auth', phase: 'design' });
@@ -48,6 +49,9 @@ await tracer.recordValidation(task.taskId, { command: 'nx test', exitCode: 0, pa
 const digest = await readStatus(service, { feature: 'auth' });
 console.log(digest.phase, digest.lastValidation?.stale);
 ```
+
+The end-to-end wiring is proven by `tests/integration.task-manager.test.ts`
+(round-trips every semantic through the real `TaskService` + file-backed store).
 
 ## Semantic → contract mapping
 

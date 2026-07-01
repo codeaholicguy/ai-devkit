@@ -31,17 +31,25 @@ description: What shipped in the tracing integration and how skills integrate
 
 ## Wiring when `@ai-devkit/task-manager` ships
 
+**SHIPPED (PR #132).** The real `TaskService` is assignable to `ITaskService`
+(both declare methods, so parameter variance is bivariant; the only type
+narrowing — real `setPhase(phase: LifecyclePhase)` vs port `string | null`, and
+real `addEvent(type: string)` vs port `TaskEventType` — is compatible under
+method bivariance and was confirmed by `tsc --noEmit` exit 0 with the real types
+resolvable).
+
 ```ts
 import { TaskTracer } from '@ai-devkit/task-tracer';
-import { TaskService } from '@ai-devkit/task-manager'; // implements ITaskService
+import { createTaskService } from '@ai-devkit/task-manager'; // implements ITaskService
 
-const service = new TaskService({ store: process.env.AIDEVKIT_TASKS_DIR });
+const service = createTaskService(process.env.AIDEVKIT_TASKS_DIR);
 const tracer = new TaskTracer(service);
 ```
 
-Zero changes to mapping logic. If the shipped type names diverge from the
-contract, `task-system-feature` will ping before publish (coordination
-commitment). Add an integration test at that point.
+**Zero changes to mapping logic.** Proven end-to-end by
+`tests/integration.task-manager.test.ts`, which round-trips every semantic
+through the real `TaskService` + file-backed store and asserts the exact event
+strings + persisted snapshot. No type-name divergence from the contract.
 
 ## Skill integration guide (applied in a follow-up to SKILL.md files)
 
@@ -77,3 +85,6 @@ builders so the exact verb/flags live in one place.
 - None material. `status.ts` staleness uses `age >= staleAfterMs` (inclusive
   boundary) so a threshold of 0 flags any recorded evidence as stale — recorded
   in the design's tradeoffs as the boundary semantic.
+- Wiring to the shipped `@ai-devkit/task-manager` required no mapping-logic
+  change; the real `TaskService` is assignable to the port via method
+  bivariance. Integration test confirmed.
