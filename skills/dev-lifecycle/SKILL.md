@@ -35,7 +35,6 @@ At the beginning of every `dev-lifecycle` run:
 5. Run `npx ai-devkit@latest lint` to verify the configured AI docs structure.
 6. If working on a specific feature, run `npx ai-devkit@latest lint --feature <name>`.
 7. If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes`, then rerun lint.
-8. If `ai-devkit task --help` succeeds, use `task` for checkpoint tracing. If it fails, continue without task tracing.
 
 ## Plan Before Execution
 
@@ -69,8 +68,7 @@ If the user wants to continue work on an existing feature:
 
 1. Use `dev-worktree` to identify and confirm the target branch/worktree.
 2. Run `npx ai-devkit@latest lint --feature <feature-name>` in the active context.
-3. If task tracing is available, run `ai-devkit task show <feature-name> --json`.
-4. Run the phase detector from the installed `dev-lifecycle` skill directory:
+3. Run the phase detector from the installed `dev-lifecycle` skill directory:
    - Resolve `<skill-dir>` as the directory containing this `SKILL.md`.
    - Run `<skill-dir>/scripts/check-status.sh <feature-name>`.
    - Use the suggested phase when proposing the execution plan.

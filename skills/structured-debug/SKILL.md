@@ -16,12 +16,10 @@ Debug with an evidence-first workflow before changing code.
 - Restate observed vs expected behavior in one concise diff.
 - Confirm scope and measurable success criteria.
 - Before investigating, search for similar past incidents: `npx ai-devkit@latest memory search --query "<observed behavior>" --tags "debug,root-cause"`
-- If `ai-devkit task --help` succeeds, use `task` for optional debug tracing; otherwise continue without task logging.
 
 2. Reproduce
 - Capture minimal reproduction steps.
 - Capture environment fingerprint: runtime, versions, config flags, data sample, and platform.
-- Record repro command results as task `evidence` when tracing is available.
 
 3. Hypothesize and Test
 For each hypothesis, include:
@@ -29,7 +27,6 @@ For each hypothesis, include:
 - Disconfirming evidence if false.
 - Exact test command or check.
 - Prefer one-variable-at-a-time tests.
-- Record the next hypothesis with task `next` when tracing is available.
 
 4. Plan
 - Present fix options with risks and verification steps.
@@ -40,7 +37,12 @@ For each hypothesis, include:
 - Confirm post-fix success using the `verify` skill — including regression verification for bug fixes.
 - Summarize remaining risks and follow-ups.
 - Store root cause and fix for future sessions: `npx ai-devkit@latest memory store --title "<root cause>" --content "<diagnosis and fix>" --tags "debug,root-cause"`
-- Record blockers/resolutions and final evidence with task tracing when available.
+
+## Task Tracing
+
+If `ai-devkit task --help` succeeds, use `$task` optionally: record repro/final
+results as `evidence`, the current hypothesis as `next`, and blockers only when
+they materially affect progress. Never block debugging because task tracing is unavailable.
 
 ## Red Flags and Rationalizations
 
