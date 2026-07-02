@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/task-manager",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "description": "Durable task system for AI DevKit: stable task ids, artifacts, evidence, progress, blockers, lifecycle phase, agent attribution, and append-only event history",
   "main": "dist/index.js",
