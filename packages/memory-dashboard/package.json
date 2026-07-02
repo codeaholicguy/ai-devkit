@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/memory-dashboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "description": "Local web dashboard for browsing and assessing AI DevKit memory",
   "main": "dist/index.js",
@@ -50,7 +50,7 @@
     "directory": "packages/memory-dashboard"
   },
   "dependencies": {
-    "@ai-devkit/memory": "0.15.0",
+    "@ai-devkit/memory": "0.16.0",
     "commander": "^11.1.0",
     "cytoscape": "^3.34.0"
   },
