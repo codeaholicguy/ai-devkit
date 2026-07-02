@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- [941fabf](https://github.com/codeaholicguy/ai-devkit/pull/130) Added Grok environment skills support.
+- [4206681](https://github.com/codeaholicguy/ai-devkit/pull/129) Added the Grok Build CLI adapter.
+- [aa972da](https://github.com/codeaholicguy/ai-devkit/pull/134) Added Antigravity CLI environment support.
+- [fbf4bf7](https://github.com/codeaholicguy/ai-devkit/pull/132) Added the durable task system with append-only event history.
+- [8ecb865](https://github.com/codeaholicguy/ai-devkit/pull/131) Added the built-in task skill for CLI-driven lifecycle/debug progress tracking.
+- [5c69c3a](https://github.com/codeaholicguy/ai-devkit/commit/5c69c3a15ed52cc52935459ada80a4cded1468d9) Updated `better-sqlite3` to 12.11.1.
+
 ## [0.46.0] - 2026-06-30
 
 - [172ef94](https://github.com/codeaholicguy/ai-devkit/pull/126) Added Claude PreToolUse forwarding to Telegram for tool invocations.
