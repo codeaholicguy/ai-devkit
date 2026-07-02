@@ -5,10 +5,6 @@
  * public surface; consumers (CLI, skills) wire up against them directly.
  */
 
-// ---------------------------------------------------------------------------
-// Attribution
-// ---------------------------------------------------------------------------
-
 /**
  * Attribution unit: who emitted an event or who currently owns a task.
  * All fields optional; a completely-unattributed actor is represented as `null`.
@@ -23,10 +19,6 @@ export interface Actor {
     /** Agent session id, if known. */
     sessionId?: string;
 }
-
-// ---------------------------------------------------------------------------
-// Task snapshot (JSON, authoritative for reads)
-// ---------------------------------------------------------------------------
 
 export type TaskStatus = 'open' | 'active' | 'blocked' | 'completed' | 'abandoned';
 
@@ -91,14 +83,12 @@ export interface TaskArtifact {
  * Task snapshot. Persisted as JSON in the `tasks` table; authoritative for reads.
  */
 export interface Task {
-    // identity
     /** Raw UUIDv4; immutable, never reused. */
     taskId: string;
     title: string;
     summary: string | null;
     /** Kebab-case feature key, e.g. "task-system". Nullable for ad-hoc tasks. */
     feature: string | null;
-    // state
     status: TaskStatus;
     phase: LifecyclePhase;
     phaseEnteredAt: string | null; // ISO 8601
@@ -107,14 +97,12 @@ export interface Task {
     blockers: TaskBlocker[];
     evidence: TaskEvidence[];
     artifacts: TaskArtifact[];
-    // ownership / links
     /** Current owner (who owns the task now); per-event emitter is on each event. */
     attribution: Actor | null;
     links: TaskLinks;
     tags: string[];
     /** Free-form tracing extras (kept as primitive values for JSON portability). */
     meta: Record<string, string | number | boolean | null>;
-    // bookkeeping
     createdAt: string; // ISO 8601
     updatedAt: string; // ISO 8601
     createdBy: Actor | null;
@@ -123,10 +111,6 @@ export interface Task {
     /** Cached timestamp of the most recent event (derived). */
     lastEventAt: string | null;
 }
-
-// ---------------------------------------------------------------------------
-// TaskEvent (one row in the `task_events` table — append-only audit trail)
-// ---------------------------------------------------------------------------
 
 /**
  * Closed set of event type strings. Do not change the literal values.
@@ -159,10 +143,6 @@ export interface TaskEvent {
     /** Shape depends on `type`; see the contract for per-type payload schemas. */
     payload: Record<string, unknown>;
 }
-
-// ---------------------------------------------------------------------------
-// Mutating stateful event payloads (strongly typed helpers)
-// ---------------------------------------------------------------------------
 
 export interface TaskCreatedPayload {
     title: string;

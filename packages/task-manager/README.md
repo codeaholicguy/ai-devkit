@@ -14,9 +14,10 @@ Tasks are stored in a single SQLite database at `~/.ai-devkit/tasks.db`:
 
 Uses `better-sqlite3` with WAL + `busy_timeout` (same library and approach as
 `@ai-devkit/memory`). Task/event ids are raw UUIDv4 (`crypto.randomUUID()`), stored as TEXT
-(globally unique, no collision checks). Override the DB path with `--store`,
-`AI_DEVKIT_TASKS_DB`, or the `TaskRepository` / `DatabaseConnection` constructor. `TaskRepository`
-owns task/event persistence over the shared SQLite connection.
+(globally unique, no collision checks). CLI callers can configure `.ai-devkit.json`
+`tasks.path` or override it with `--db-path`; library callers pass an explicit path to
+`createTaskService`, `TaskRepository`, or `DatabaseConnection`. `TaskRepository` owns
+task/event persistence over the shared SQLite connection.
 
 ## Quick start
 
@@ -53,7 +54,8 @@ task).
 
 `ai-devkit task ...` — create, list, show, update, phase, status, progress, next,
 blocker `<id> add <text>|resolve <blockerId>`, evidence, artifact, assign, note, event,
-close. Global flags: `--store`, `--json`, `--agent`, `--agent-type`, `--pid`, `--session`.
+close. The CLI resolves `.ai-devkit.json` `tasks.path` when present. Global flags:
+`--db-path`, `--json`, `--agent`, `--agent-type`, `--pid`, `--session`.
 See the design doc for the full verb/flag table.
 
 ```bash

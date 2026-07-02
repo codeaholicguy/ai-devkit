@@ -72,10 +72,12 @@ Test: `packages/cli/src/__tests__/commands/task.test.ts`.
 ## Integration Points
 **How do pieces connect?**
 
-- CLI → `TaskService` → `TaskRepository` → SQLite (`~/.ai-devkit/tasks.db`).
+- CLI → `ConfigManager.getTasksDbPath()` → `TaskService` → `TaskRepository` → SQLite
+  (`.ai-devkit.json` `tasks.path`, else `~/.ai-devkit/tasks.db`).
 - Skills (`dev-lifecycle`, `verify`, `structured-debug`) emit via `ai-devkit task ...`.
-- Storage default `~/.ai-devkit/tasks.db`; override via `--store`, `AI_DEVKIT_TASKS_DB`, or
-  the `TaskRepository` / `DatabaseConnection` constructor arg.
+- Storage default `~/.ai-devkit/tasks.db`; CLI resolves `.ai-devkit.json` `tasks.path`, and
+  explicit overrides use `--db-path` or the `TaskRepository` / `DatabaseConnection`
+  constructor arg.
 
 ## Error Handling
 **How do we handle failures?**

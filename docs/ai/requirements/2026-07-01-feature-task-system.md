@@ -101,8 +101,8 @@ duplicate ids (negligible with UUIDs), appending to a task whose snapshot was ha
   3. **Event model:** stateful event types mutate the snapshot; a generic `task.custom` event
      type is reserved for tracing/observability and does **not** mutate the snapshot.
   4. **New package** `@ai-devkit/task-manager` mirrors `@ai-devkit/memory`.
-  5. **Default DB path** `~/.ai-devkit/tasks.db`; overridable via the `--store` flag or
-     the `AI_DEVKIT_TASKS_DB` env var.
+  5. **Default DB path** `~/.ai-devkit/tasks.db`; project CLI usage can set
+     `.ai-devkit.json` `tasks.path`, with `--db-path` as an explicit command override.
 
 ## Questions & Open Items
 **What do we still need to clarify?**

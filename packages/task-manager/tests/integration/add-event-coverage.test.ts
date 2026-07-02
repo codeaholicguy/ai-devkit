@@ -26,7 +26,6 @@ function writeRawSnapshot(dbPath: string, taskId: string, rawSnapshot: string): 
     );
 }
 
-/** Append a raw event payload string directly (bypassing JSON encoding). */
 function appendRawEvent(
     dbPath: string,
     taskId: string,
@@ -41,10 +40,6 @@ function appendRawEvent(
     );
 }
 
-/**
- * Coverage-focused tests for the low-level addEvent escape hatch (each stateful
- * type applies a snapshot mutation) and for repository error branches.
- */
 function createRepository(): { repository: TaskRepository; dir: string } {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-evt-'));
     const repository = new TaskRepository(path.join(dir, 'tasks.db'));

@@ -18,17 +18,12 @@ export interface DatabaseOptions {
 /**
  * Resolve the database file path for the CLI/service.
  *
- * Precedence: explicit `dbPath` arg > `AI_DEVKIT_TASKS_DB` env > default. (The
- * `DatabaseConnection` constructor itself does not read the env var — mirroring
- * @ai-devkit/memory — so this helper is the single place that does.)
+ * Precedence: explicit `dbPath` arg > default. Project-aware callers should
+ * resolve configured paths before constructing the service/repository.
  */
 export function resolveDbPath(dbPath?: string): string {
     if (dbPath && dbPath.trim()) {
         return dbPath.trim();
-    }
-    const env = process.env.AI_DEVKIT_TASKS_DB;
-    if (env && env.trim()) {
-        return env.trim();
     }
     return DEFAULT_DB_PATH;
 }

@@ -61,7 +61,7 @@ export { resolveCurrentActor, ATTRIB_ENV } from './actor-resolver.js';
 
 /**
  * Convenience factory: a TaskService backed by a TaskRepository at the resolved
- * DB path (dbPath arg > AI_DEVKIT_TASKS_DB > ~/.ai-devkit/tasks.db).
+ * DB path (dbPath arg > ~/.ai-devkit/tasks.db).
  */
 import { TaskRepository } from './task.repository.js';
 import { TaskService } from './task.service.js';

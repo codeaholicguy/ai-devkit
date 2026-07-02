@@ -23,7 +23,6 @@ export class TaskError extends Error {
     }
 }
 
-/** Thrown when a referenced task id does not exist. */
 export class TaskNotFoundError extends TaskError {
     constructor(taskId: string) {
         super(`Task not found: ${taskId}`, 'TASK_NOT_FOUND', { taskId });
@@ -31,7 +30,6 @@ export class TaskNotFoundError extends TaskError {
     }
 }
 
-/** Thrown when user input or a task field fails validation. */
 export class TaskValidationError extends TaskError {
     constructor(message: string, details?: Record<string, unknown>) {
         super(message, 'TASK_VALIDATION_ERROR', details);
@@ -39,7 +37,6 @@ export class TaskValidationError extends TaskError {
     }
 }
 
-/** Thrown when a task reference resolves to multiple candidates (e.g. ambiguous prefix). */
 export class AmbiguousTaskRefError extends TaskError {
     constructor(ref: string, matches: string[]) {
         super(
@@ -51,7 +48,6 @@ export class AmbiguousTaskRefError extends TaskError {
     }
 }
 
-/** Thrown when a referenced sub-resource (blocker, artifact) does not exist on a task. */
 export class TaskResourceNotFoundError extends TaskError {
     constructor(taskId: string, kind: string, id: string) {
         super(`${kind} "${id}" not found on task ${taskId}`, 'TASK_RESOURCE_NOT_FOUND', { taskId, kind, id });
@@ -59,7 +55,6 @@ export class TaskResourceNotFoundError extends TaskError {
     }
 }
 
-/** Thrown when the underlying persistence (repository) layer fails. */
 export class TaskRepositoryError extends TaskError {
     constructor(message: string, details?: Record<string, unknown>) {
         super(message, 'TASK_REPOSITORY_ERROR', details);
@@ -67,7 +62,6 @@ export class TaskRepositoryError extends TaskError {
     }
 }
 
-/** Thrown when an event type is not part of the closed set or cannot mutate a snapshot. */
 export class UnknownEventTypeError extends TaskError {
     constructor(type: string) {
         super(`Unknown task event type: ${type}`, 'UNKNOWN_EVENT_TYPE', { type });
@@ -75,7 +69,6 @@ export class UnknownEventTypeError extends TaskError {
     }
 }
 
-/** Type guard for the closed TaskEventType union. */
 export function isTaskEventType(type: string): type is TaskEventType {
     return [
         'task.created',

@@ -72,7 +72,6 @@ function writeRawSnapshot(dbPath: string, taskId: string, rawSnapshot: string): 
     );
 }
 
-/** Append a raw event payload string directly (bypassing JSON encoding). */
 function appendRawEvent(
     dbPath: string,
     taskId: string,
@@ -93,7 +92,7 @@ describe('TaskRepository', () => {
     let repository: TaskRepository;
 
     beforeEach(() => {
-        closeDatabase(); // reset the process-wide singleton for a clean DB file
+        closeDatabase();
         dir = fs.mkdtempSync(path.join(os.tmpdir(), 'task-sqlite-'));
         dbPath = path.join(dir, 'tasks.db');
         repository = new TaskRepository(dbPath);
@@ -190,30 +189,21 @@ describe('TaskRepository', () => {
 });
 
 describe('resolveDbPath', () => {
-    const origEnv = { ...process.env };
-
-    afterEach(() => {
-        process.env = { ...origEnv };
-    });
-
     it('uses explicit argument first', () => {
         expect(resolveDbPath('/explicit/tasks.db')).toBe('/explicit/tasks.db');
     });
 
-    it('falls back to AI_DEVKIT_TASKS_DB when no argument', () => {
-        process.env.AI_DEVKIT_TASKS_DB = '/from/env/tasks.db';
-        expect(resolveDbPath()).toBe('/from/env/tasks.db');
+    it('trims explicit arguments', () => {
+        expect(resolveDbPath('  /explicit/tasks.db  ')).toBe('/explicit/tasks.db');
     });
 
     it('falls back to ~/.ai-devkit/tasks.db when nothing is set', () => {
-        delete process.env.AI_DEVKIT_TASKS_DB;
         expect(resolveDbPath()).toBe(path.join(os.homedir(), '.ai-devkit', 'tasks.db'));
         expect(DEFAULT_DB_PATH).toBe(path.join(os.homedir(), '.ai-devkit', 'tasks.db'));
     });
 });
 
 describe('createTaskService', () => {
-    const origEnv = { ...process.env };
     let dir: string;
 
     beforeEach(() => {
@@ -223,15 +213,13 @@ describe('createTaskService', () => {
 
     afterEach(() => {
         closeDatabase();
-        process.env = { ...origEnv };
         fs.rmSync(dir, { recursive: true, force: true });
     });
 
-    it('uses AI_DEVKIT_TASKS_DB when no explicit path is provided', async () => {
-        const dbPath = path.join(dir, 'env-tasks.db');
-        process.env.AI_DEVKIT_TASKS_DB = dbPath;
-        const service = createTaskService();
-        await service.create({ title: 'From env' });
+    it('uses an explicit path when provided', async () => {
+        const dbPath = path.join(dir, 'configured-tasks.db');
+        const service = createTaskService(dbPath);
+        await service.create({ title: 'From explicit path' });
         expect(fs.existsSync(dbPath)).toBe(true);
     });
 });

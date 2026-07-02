@@ -29,8 +29,8 @@ function describeError(error: unknown): string {
  *   - `tasks`        — one row per task snapshot (full Task JSON + indexed cols)
  *   - `task_events`  — append-only event history (one row per event)
  *
- * Default DB path: ~/.ai-devkit/tasks.db (override via the `dbPath` arg or
- * AI_DEVKIT_TASKS_DB; see resolveDbPath). Long-running callers release the shared
+ * Default DB path: ~/.ai-devkit/tasks.db (override via the `dbPath` arg; see
+ * resolveDbPath). Long-running callers release the shared
  * connection with `closeDatabase()`.
  */
 export class TaskRepository {
@@ -40,7 +40,6 @@ export class TaskRepository {
         this.dbPath = dbPath;
     }
 
-    /** Shared connection (opens/initializes the schema on first use). */
     private db(): DatabaseConnection {
         try {
             return getDatabase({ dbPath: this.dbPath });

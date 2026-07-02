@@ -215,8 +215,6 @@ describe('TaskService (integration with TaskRepository)', () => {
             });
             expect(artifactId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
             const updated = await service.get(task.taskId);
-            // Artifacts are references only: no file is copied; the snapshot
-            // just stores the path, which round-trips through the repository.
             expect(updated.artifacts[0]).toMatchObject({ path: '/tmp/build.log', kind: 'log' });
         });
     });
@@ -235,7 +233,6 @@ describe('TaskService (integration with TaskRepository)', () => {
             const task = await service.create({ title: 'T' });
             const before = await service.get(task.taskId);
             const updated = await service.addNote(task.taskId, 'a quick note');
-            // title/phase unchanged; eventCount bumped.
             expect(updated.title).toBe(before.title);
             expect(updated.eventCount).toBe(before.eventCount + 1);
             const events = await readEventsFromDisk(task.taskId);
@@ -291,7 +288,7 @@ describe('TaskService (integration with TaskRepository)', () => {
 
         it('resolves by unique id prefix', async () => {
             const task = await service.create({ title: 'T', feature: 'feat' });
-            const prefix = task.taskId.slice(0, 8); // first hex segment
+            const prefix = task.taskId.slice(0, 8);
             const resolved = await service.resolveTask(prefix);
             expect(resolved?.taskId).toBe(task.taskId);
         });
@@ -303,7 +300,6 @@ describe('TaskService (integration with TaskRepository)', () => {
             const t2 = '00000000-0000-4000-8000-0000000000ab';
             await writeDirectTask(repository, t1);
             await writeDirectTask(repository, t2);
-            // Both match the shared prefix.
             await expect(service.resolveTask('00000000')).rejects.toBeInstanceOf(
                 AmbiguousTaskRefError
             );
@@ -312,7 +308,7 @@ describe('TaskService (integration with TaskRepository)', () => {
         it('resolves by feature key to the latest non-terminal task', async () => {
             const a = await service.create({ title: 'A', feature: 'feat' });
             const b = await service.create({ title: 'B', feature: 'feat' });
-            await service.close(a.taskId, 'completed'); // a is terminal
+            await service.close(a.taskId, 'completed');
             const resolved = await service.resolveTask('feat');
             expect(resolved?.taskId).toBe(b.taskId);
         });
@@ -330,7 +326,6 @@ describe('TaskService (integration with TaskRepository)', () => {
 
             const featTasks = await service.list({ feature: 'feat' });
             expect(featTasks).toHaveLength(2);
-            // Newest first.
             expect(featTasks[0]!.title).toBe('B');
         });
     });

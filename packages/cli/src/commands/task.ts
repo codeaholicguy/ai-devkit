@@ -7,6 +7,7 @@ import {
     isTaskEventType,
 } from '@ai-devkit/task-manager';
 import type { Actor, Task, TaskService, TaskStatus } from '@ai-devkit/task-manager';
+import { ConfigManager } from '../lib/Config.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate } from '../util/text.js';
@@ -36,8 +37,12 @@ function actorFromOptions(opts: AttributionOptions): Actor | undefined {
     return resolveCurrentActor(override) ?? undefined;
 }
 
-function createService(storeFlag?: string): TaskService {
-    return createTaskService(storeFlag);
+async function createService(dbPathFlag?: string): Promise<TaskService> {
+    if (dbPathFlag && dbPathFlag.trim()) {
+        return createTaskService(dbPathFlag);
+    }
+    const configManager = new ConfigManager();
+    return createTaskService(await configManager.getTasksDbPath());
 }
 
 function output(value: unknown, json: boolean): void {
@@ -123,7 +128,7 @@ export function registerTaskCommand(program: Command): void {
 
     const addAttributionFlags = (cmd: Command): Command =>
         cmd
-            .option('--store <db-path>', 'Override the tasks database path (env: AI_DEVKIT_TASKS_DB)')
+            .option('--db-path <path>', 'Override the configured tasks database path')
             .option('--agent <id>', 'Agent id for attribution')
             .option('--agent-type <type>', 'Agent type for attribution (e.g. claude, pi)')
             .option('--pid <pid>', 'Process id for attribution')
@@ -144,7 +149,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--pr <url>', 'Pull request link')
     ).action(
         withErrorHandler('create task', async (opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const created = await service.create({
                 title: opts.title,
                 feature: opts.feature,
@@ -173,7 +178,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--limit <n>', 'Maximum results', '20')
     ).action(
         withErrorHandler('list tasks', async (opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const tasks = await service.list({
                 feature: opts.feature,
                 status: opts.status as TaskStatus | undefined,
@@ -208,7 +213,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--events', 'Include the event history')
     ).action(
         withErrorHandler('show task', async (id: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const taskObj = await service.get(resolved.taskId);
@@ -243,7 +248,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--pr <url>', 'Pull request link')
     ).action(
         withErrorHandler('update task', async (id: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const patch: Record<string, unknown> = {};
@@ -262,7 +267,7 @@ export function registerTaskCommand(program: Command): void {
 
     addAttributionFlags(task.command('phase <id> <phase>').description('Set the lifecycle phase')).action(
         withErrorHandler('set task phase', async (id: string, phase: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const updated = await service.setPhase(resolved.taskId, phase, { actor: actorFromOptions(opts) });
@@ -276,7 +281,7 @@ export function registerTaskCommand(program: Command): void {
             .description(`Set status (${VALID_STATUSES.join('|')})`)
     ).action(
         withErrorHandler('set task status', async (id: string, status: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const updated = await service.setStatus(resolved.taskId, status as TaskStatus, {
@@ -295,7 +300,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--clear', 'Clear progress')
     ).action(
         withErrorHandler('set task progress', async (id: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const progress =
@@ -319,7 +324,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--clear', 'Clear the next step')
     ).action(
         withErrorHandler('set task next step', async (id: string, stepParts: string[] | undefined, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const step = opts.clear === true ? null : (stepParts ?? []).join(' ').trim() || null;
@@ -336,7 +341,7 @@ export function registerTaskCommand(program: Command): void {
             .description('Manage blockers: add <text> | resolve <blockerId>')
     ).action(
         withErrorHandler('manage blocker', async (id: string, action: string, rest: string[] | undefined, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const args = rest ?? [];
@@ -383,7 +388,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--artifact <path>', 'Artifact reference (repeatable)', (val: string, acc: string[]) => [...acc, val], [] as string[])
     ).action(
         withErrorHandler('record evidence', async (id: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             if (!opts.passed && !opts.failed) {
@@ -414,7 +419,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--description <description>', 'Artifact description')
     ).action(
         withErrorHandler('add artifact', async (id: string, artifactPath: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const result = await service.addArtifact(
@@ -436,7 +441,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--session <id>', 'Session id')
     ).action(
         withErrorHandler('assign task', async (id: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const actor = actorFromOptions(opts);
@@ -452,7 +457,7 @@ export function registerTaskCommand(program: Command): void {
 
     addAttributionFlags(task.command('note <id> [text...]').description('Append a note (event-only)')).action(
         withErrorHandler('append note', async (id: string, textParts: string[] | undefined, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const text = (textParts ?? []).join(' ').trim();
@@ -476,7 +481,7 @@ export function registerTaskCommand(program: Command): void {
             .option('--payload <json|@file>', 'JSON payload or @path to a JSON file')
     ).action(
         withErrorHandler('append event', async (id: string, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const type = opts.type ?? 'task.custom';
@@ -505,7 +510,7 @@ export function registerTaskCommand(program: Command): void {
             .description('Close a task (completed|abandoned). Default: completed')
     ).action(
         withErrorHandler('close task', async (id: string, statusArg: string | undefined, opts) => {
-            const service = createService(opts.store);
+            const service = await createService(opts.dbPath);
             const resolved = await resolveOrError(service, id);
             if (!resolved) return;
             const status = (statusArg ?? 'completed') as 'completed' | 'abandoned';

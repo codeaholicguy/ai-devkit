@@ -97,8 +97,15 @@ export class ConfigManager {
 
   async getMemoryDbPath(): Promise<string | undefined> {
     const config = await this.read();
-    const configuredPath = config?.memory?.path;
+    return this.resolveConfiguredPath(config?.memory?.path);
+  }
 
+  async getTasksDbPath(): Promise<string | undefined> {
+    const config = await this.read();
+    return this.resolveConfiguredPath(config?.tasks?.path);
+  }
+
+  private resolveConfiguredPath(configuredPath: unknown): string | undefined {
     if (typeof configuredPath !== 'string') {
       return undefined;
     }

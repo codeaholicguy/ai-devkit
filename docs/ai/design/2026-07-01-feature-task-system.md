@@ -216,9 +216,11 @@ callers to remember ids.
 
 ## CLI (`ai-devkit task ...`)
 
-All commands accept global flags `--store <path>` (override tasks dir), `--json` (machine
-output), and attribution overrides `--agent <id>`, `--agent-type <t>`, `--pid <n>`,
-`--session <s>`. Env: `AI_DEVKIT_TASKS_DB`. `<id>` resolves per `resolveTask` above.
+All commands accept global flags `--db-path <path>` (explicit DB path override), `--json`
+(machine output), and attribution overrides `--agent <id>`, `--agent-type <t>`, `--pid <n>`,
+`--session <s>`. By default, the CLI resolves `.ai-devkit.json` `tasks.path` using
+`ConfigManager`, then falls back to `~/.ai-devkit/tasks.db`. `<id>` resolves per `resolveTask`
+above.
 
 | Command | Flags | Emits |
 |---|---|---|
@@ -282,9 +284,10 @@ Tasks are stored in a single SQLite database at `~/.ai-devkit/tasks.db`:
 
 Task and event ids are raw UUIDv4 strings from Node `crypto.randomUUID()`, stored as TEXT
 (36 chars: `8-4-4-4-12` lowercase hex) — globally unique with no prefix, coordination, or collision
-checks. Override the DB path with `--store`, `AI_DEVKIT_TASKS_DB`, or the `TaskRepository` /
-`DatabaseConnection` constructor. Only `TaskRepository` reads/writes the database; callers use
-`TaskService` or the CLI.
+checks. Project CLI usage can configure `.ai-devkit.json` `tasks.path`; explicit callers can
+override the DB path with `--db-path` or the `TaskRepository` / `DatabaseConnection`
+constructor. Only `TaskRepository` reads/writes the database; callers use `TaskService` or
+the CLI.
 
 ## Design Decisions & Trade-offs
 

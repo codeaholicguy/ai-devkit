@@ -5,6 +5,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import { registerTaskCommand } from '../../commands/task.js';
+import { createTaskService } from '@ai-devkit/task-manager';
 import { ui } from '../../util/terminal-ui.js';
 
 // Mock the task-manager package so the command layer is tested in isolation,
@@ -36,6 +37,11 @@ const EVENT_ID = '33333333-3333-4333-8333-333333333333';
 const BLOCKER_ID = '44444444-4444-4444-8444-444444444444';
 const EVIDENCE_ID = '55555555-5555-4555-8555-555555555555';
 
+const mockGetTasksDbPath = vi.fn<() => Promise<string | undefined>>();
+const mockConfigManager = {
+    getTasksDbPath: mockGetTasksDbPath,
+};
+
 vi.mock('@ai-devkit/task-manager', () => ({
     createTaskService: vi.fn(() => mockTaskService),
     resolveCurrentActor: vi.fn((override?: Record<string, unknown>) =>
@@ -44,6 +50,10 @@ vi.mock('@ai-devkit/task-manager', () => ({
     isTaskEventType: vi.fn((t: string) => t.startsWith('task.')),
     AmbiguousTaskRefError: class AmbiguousTaskRefError extends Error {},
     TaskNotFoundError: class TaskNotFoundError extends Error {},
+}));
+
+vi.mock('../../lib/Config.js', () => ({
+    ConfigManager: vi.fn(function () { return mockConfigManager; }),
 }));
 
 vi.mock('../../util/terminal-ui.js', () => ({
@@ -85,15 +95,50 @@ function sampleTask(overrides: Record<string, unknown> = {}) {
 
 describe('task command', () => {
     const mockedUi = vi.mocked(ui);
+    const mockedCreateTaskService = createTaskService as MockedFunction<typeof createTaskService>;
     let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
+        mockGetTasksDbPath.mockResolvedValue(undefined);
         Object.values(mockTaskService).forEach((fn) => (fn as ReturnType<typeof vi.fn>).mockReset());
         consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     });
 
     describe('create', () => {
+        it('uses the configured task database path', async () => {
+            mockGetTasksDbPath.mockResolvedValue('/repo/.ai-devkit/tasks.db');
+            const task = sampleTask();
+            mockTaskService.create.mockResolvedValue(task);
+
+            const program = new Command();
+            registerTaskCommand(program);
+            await program.parseAsync([
+                'node', 'test', 'task', 'create',
+                '--title', 'Sample task',
+                '--json',
+            ]);
+
+            expect(mockedCreateTaskService).toHaveBeenCalledWith('/repo/.ai-devkit/tasks.db');
+        });
+
+        it('lets --db-path override the configured task database path', async () => {
+            mockGetTasksDbPath.mockResolvedValue('/repo/.ai-devkit/tasks.db');
+            const task = sampleTask();
+            mockTaskService.create.mockResolvedValue(task);
+
+            const program = new Command();
+            registerTaskCommand(program);
+            await program.parseAsync([
+                'node', 'test', 'task', 'create',
+                '--title', 'Sample task',
+                '--db-path', '/tmp/tasks.db',
+                '--json',
+            ]);
+
+            expect(mockedCreateTaskService).toHaveBeenCalledWith('/tmp/tasks.db');
+        });
+
         it('creates a task and prints JSON', async () => {
             const task = sampleTask();
             mockTaskService.create.mockResolvedValue(task);

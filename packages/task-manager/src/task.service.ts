@@ -23,9 +23,7 @@ import {
 import { makeArtifactId, makeBlockerId, makeEvidenceId, makeEventId, makeTaskId, nowIso } from './task.ids.js';
 import { resolveCurrentActor } from './actor-resolver.js';
 
-/** Options accepted by every mutating service method. */
 export interface TaskMutationOptions {
-    /** Override attribution for this mutation; auto-resolved if omitted. */
     actor?: Actor;
 }
 
@@ -126,10 +124,6 @@ function validateFeature(feature: string | null | undefined): string | null {
 export class TaskService {
     constructor(private readonly repository: TaskRepository) {}
 
-    // -------------------------------------------------------------------------
-    // identity / lookup
-    // -------------------------------------------------------------------------
-
     async create(input: TaskCreateInput): Promise<Task> {
         validateTitle(input.title);
         const feature = validateFeature(input.feature ?? null);
@@ -177,7 +171,6 @@ export class TaskService {
             phase: task.phase,
         }, actor);
 
-        // Refresh cached counters (eventCount/lastEventAt) after appending the event.
         return this.refreshCachedCounters(task);
     }
 
@@ -200,13 +193,11 @@ export class TaskService {
             return this.latestNonTerminalByFeature(ref.feature);
         }
 
-        // Direct id match.
         const direct = await this.repository.readTask(ref);
         if (direct) {
             return direct;
         }
 
-        // Unique prefix match.
         const ids = await this.repository.listTaskIds();
         const prefixed = ids.filter((id) => id.startsWith(ref));
         if (prefixed.length === 1) {
@@ -217,7 +208,6 @@ export class TaskService {
             throw new AmbiguousTaskRefError(ref, prefixed);
         }
 
-        // Feature key fallback.
         return this.latestNonTerminalByFeature(ref);
     }
 
@@ -255,10 +245,6 @@ export class TaskService {
         return tasks;
     }
 
-    // -------------------------------------------------------------------------
-    // generic scalar patch
-    // -------------------------------------------------------------------------
-
     async update(taskId: string, patch: TaskUpdatePatch, opts?: TaskMutationOptions): Promise<Task> {
         const task = await this.requireTask(taskId);
         const fields: string[] = [];
@@ -288,10 +274,6 @@ export class TaskService {
         }
         return this.persistAndRecord(task, 'task.updated', { patch, fields }, opts);
     }
-
-    // -------------------------------------------------------------------------
-    // dedicated state setters
-    // -------------------------------------------------------------------------
 
     async setPhase(taskId: string, phase: LifecyclePhase, opts?: TaskMutationOptions): Promise<Task> {
         const task = await this.requireTask(taskId);
@@ -347,10 +329,6 @@ export class TaskService {
         task.nextStep = normalized;
         return this.persistAndRecord(task, 'task.next_step.set', { step: normalized }, opts);
     }
-
-    // -------------------------------------------------------------------------
-    // blockers / evidence / artifacts / attribution
-    // -------------------------------------------------------------------------
 
     async addBlocker(
         taskId: string,
@@ -479,10 +457,6 @@ export class TaskService {
         return this.persistAndRecord(task, 'task.attribution.set', payload, opts);
     }
 
-    // -------------------------------------------------------------------------
-    // notes / lifecycle
-    // -------------------------------------------------------------------------
-
     async addNote(taskId: string, text: string, opts?: TaskMutationOptions): Promise<Task> {
         const trimmed = text?.trim();
         if (!trimmed) {
@@ -508,10 +482,6 @@ export class TaskService {
         return this.persistAndRecord(task, 'task.closed', { status }, opts);
     }
 
-    // -------------------------------------------------------------------------
-    // low-level event escape hatch + event read
-    // -------------------------------------------------------------------------
-
     /**
      * Low-level event append. For a known stateful `type` it applies the matching
      * snapshot mutation then appends; for non-mutating types it appends only.
@@ -535,7 +505,6 @@ export class TaskService {
             await this.repository.writeTask(task);
         }
         const event = await this.appendEventInternal(taskId, type, payload, actor);
-        // Refresh cached counters (eventCount/lastEventAt) after appending the event.
         await this.refreshCachedCounters(task);
         return event;
     }
@@ -551,10 +520,6 @@ export class TaskService {
         }
         return events;
     }
-
-    // -------------------------------------------------------------------------
-    // internals
-    // -------------------------------------------------------------------------
 
     private async requireTask(taskId: string): Promise<Task> {
         const task = await this.repository.readTask(taskId);
@@ -734,7 +699,6 @@ export class TaskService {
             }
             case 'task.note.append':
             case 'task.custom':
-                // Non-mutating types: event-only.
                 return false;
             default:
                 return false;

@@ -33,6 +33,9 @@ Unit + integration coverage in `packages/task-manager/tests/` and a command-laye
 - [x] actor auto-resolution env/override/pid — `actor-resolver.test.ts`
 - [x] error hierarchy + isTaskEventType guard — `errors.test.ts`
 - [x] CLI verbs parse flags, resolve refs, print JSON/table, error on bad input — `task.test.ts` (20 tests)
+- [x] CLI resolves task DB path from `.ai-devkit.json` `tasks.path`; `--db-path` overrides config — `task.test.ts`
+- [x] `ConfigManager.getTasksDbPath()` handles missing, blank, absolute, and relative paths — `Config.test.ts`
+- [x] Task package DB resolution uses only explicit `dbPath` or `~/.ai-devkit/tasks.db` fallback — `task.repository.test.ts`
 
 ### Mocks / Fixtures
 - Command tests mock `@ai-devkit/task-manager` (mirrors memory command test pattern).
@@ -53,6 +56,7 @@ vitest v8; package thresholds statements/branches/functions/lines ≥ 75%.
 - `packages/task-manager/tests/integration/service.test.ts`
 - `packages/task-manager/tests/integration/add-event-coverage.test.ts`
 - `packages/cli/src/__tests__/commands/task.test.ts`
+- `packages/cli/src/__tests__/lib/Config.test.ts`
 
 ## Results
 - `nx test` (whole repo): 890 passing, 0 failing (73 test files).
