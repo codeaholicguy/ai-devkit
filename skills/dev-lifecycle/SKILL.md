@@ -22,6 +22,7 @@ Supporting skills:
 - `memory` for reusable project knowledge during clarification.
 - `tdd` for implementation tasks.
 - `verify` before completing implementation, implementation checks, testing claims, and review readiness.
+- `task` for optional progress tracing when the task plugin is installed.
 
 ## Startup Validation
 
@@ -34,6 +35,7 @@ At the beginning of every `dev-lifecycle` run:
 5. Run `npx ai-devkit@latest lint` to verify the configured AI docs structure.
 6. If working on a specific feature, run `npx ai-devkit@latest lint --feature <name>`.
 7. If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes`, then rerun lint.
+8. If `ai-devkit task --help` succeeds, use `task` for checkpoint tracing. If it fails, continue without task tracing.
 
 ## Plan Before Execution
 
@@ -67,7 +69,8 @@ If the user wants to continue work on an existing feature:
 
 1. Use `dev-worktree` to identify and confirm the target branch/worktree.
 2. Run `npx ai-devkit@latest lint --feature <feature-name>` in the active context.
-3. Run the phase detector from the installed `dev-lifecycle` skill directory:
+3. If task tracing is available, run `ai-devkit task show <feature-name> --json`.
+4. Run the phase detector from the installed `dev-lifecycle` skill directory:
    - Resolve `<skill-dir>` as the directory containing this `SKILL.md`.
    - Run `<skill-dir>/scripts/check-status.sh <feature-name>`.
    - Use the suggested phase when proposing the execution plan.
@@ -92,3 +95,4 @@ Not every phase moves forward. When a phase reveals problems, route back:
 - Existing feature docs are the paths reported or validated by `npx ai-devkit@latest lint --feature <name>`. If you must infer manually, first resolve the configured docs directory from `.ai-devkit.json` `paths.docs`, falling back to `docs/ai`.
 - After each phase, summarize output and suggest the next phase.
 - Do not claim completion without fresh verification evidence.
+- When task tracing is available: create the feature task once, set `phase` on phase transitions, record `progress`/`next` after meaningful task updates, add `evidence` after verification, and `close` at lifecycle end.

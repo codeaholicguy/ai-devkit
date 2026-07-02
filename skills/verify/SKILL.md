@@ -65,3 +65,9 @@ If step 4 passes, the test is wrong. Rewrite it.
 ## Memory Integration
 
 After a failed verification, store the failure pattern: `npx ai-devkit@latest memory store --title "<failure pattern>" --content "<what failed and how to avoid>" --tags "verify,failure-pattern"`
+
+## Task Tracing
+
+If `ai-devkit task --help` succeeds and a task/feature is known, record task
+`evidence` after the report with command, exit code, pass/fail, and concise
+summary. Never block verification because task logging is unavailable.

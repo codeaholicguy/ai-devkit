@@ -6,12 +6,13 @@ description: AI DevKit · Track dev-lifecycle / structured-debug progress on a d
 # Task Progress Tracking
 
 Record development progress on a durable task so any agent or session can answer
-"where are we?" — current phase, progress, next step, blockers, and last
+"where are we?" - current phase, progress, next step, blockers, and last
 validation. The task is the durable unit; this skill drives the `ai-devkit task`
 CLI at checkpoints (the same pattern as the `memory` skill).
 
-Requires the `ai-devkit task` CLI. If `ai-devkit task --help` fails, run
-`npx ai-devkit@latest --version` and use `npx ai-devkit@latest task ...` instead.
+Requires the optional `ai-devkit task` plugin command. First run
+`ai-devkit task --help`. If it fails, task tracing is unavailable; continue the
+user workflow without task logging. Do not fall back to `npx ai-devkit@latest task`.
 
 ## Core idea
 
@@ -22,10 +23,23 @@ Requires the `ai-devkit task` CLI. If `ai-devkit task --help` fails, run
   `<feature>` — no task-id bookkeeping.
 - **Emit at checkpoints, not streaming.** Phase transitions, task toggles, fresh
   evidence, blockers discovered/resolved. A handful of calls per session.
-- **Attribution is automatic.** Omit `--agent`; the CLI records the calling agent
-  from environment. Pass `--agent`/`--agent-type` only for explicit handoff.
+- **Attribution is explicit.** Identify self once, then pass actor flags on
+  mutation commands.
+
+## Identify self
+
+Use `agent-management` when attribution is needed:
+
+1. Run `ai-devkit agent list --json`.
+2. Match the current session id to an agent entry.
+3. Build actor flags:
+   `--agent <name> --agent-type <type> --pid <pid> --session <sessionId>`.
+4. If identity is ambiguous, do not guess. Log without actor flags or skip the
+   trace if attribution is required for the workflow.
 
 ## Canonical commands
+
+Add `<actor-flags>` to mutation commands when self identity is known.
 
 ```bash
 # Create the feature task once (capture taskId from --json if needed)
