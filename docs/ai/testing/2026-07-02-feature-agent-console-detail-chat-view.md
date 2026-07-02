@@ -67,6 +67,11 @@ Latest results:
 - `npx vitest run src/__tests__/tui/console`: 16 files passed, 106 tests passed.
 - `npm run build`: 6 projects built successfully.
 - `npm run lint --workspace packages/cli`: exited 0 with 5 warnings in unrelated existing files.
+- Simplification verification:
+  - `npx vitest run src/__tests__/tui/console/PreviewPane.test.ts src/__tests__/tui/console/focusRouting.test.ts src/__tests__/tui/console/HelpPane.test.ts`: 3 files passed, 18 tests passed.
+  - `npx vitest run src/__tests__/tui/console`: 16 files passed, 106 tests passed.
+  - `npm run lint --workspace packages/cli`: exited 0 with 5 warnings in unrelated existing files.
+  - `npx ai-devkit@latest lint --feature agent-console-detail-chat-view`: passed.
 - Manual PTY smoke:
   - `node packages/cli/dist/cli.js agent list --json` returned 5 agents before and after the PTY run.
   - Narrow PTY run rendered the list-only layout, displayed the expected `resize >=120 cols` warning, accepted `q`, and exited 0.

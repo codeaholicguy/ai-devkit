@@ -32,8 +32,13 @@ function shortPath(p: string): string {
     return p;
 }
 
+export interface PreviewViewportRow {
+    text: string;
+    role: ConversationMessage['role'] | null;
+}
+
 export interface PreviewViewport {
-    lines: string[];
+    rows: PreviewViewportRow[];
     clampedOffset: number;
     maxOffset: number;
     hasAbove: boolean;
@@ -46,24 +51,24 @@ export function buildPreviewViewport(
     requestedOffset: number,
 ): PreviewViewport {
     const budget = Math.max(1, Math.floor(maxLines));
-    const lines = messages.flatMap((msg) => {
+    const rows = messages.flatMap((msg) => {
         const contentLines = msg.content.split('\n');
         const first = contentLines[0] ?? '';
         return [
-            `${msg.role}: ${first}`,
-            ...contentLines.slice(1).map(line => `  ${line}`),
+            { text: `${msg.role}: ${first}`, role: msg.role },
+            ...contentLines.slice(1).map(line => ({ text: `  ${line}`, role: null })),
         ];
     });
-    const maxOffset = Math.max(0, lines.length - budget);
+    const maxOffset = Math.max(0, rows.length - budget);
     const clampedOffset = Math.min(Math.max(0, Math.floor(requestedOffset)), maxOffset);
-    const end = Math.max(0, lines.length - clampedOffset);
+    const end = Math.max(0, rows.length - clampedOffset);
     const start = Math.max(0, end - budget);
     return {
-        lines: lines.slice(start, end),
+        rows: rows.slice(start, end),
         clampedOffset,
         maxOffset,
         hasAbove: start > 0,
-        hasBelow: end < lines.length,
+        hasBelow: end < rows.length,
     };
 }
 
@@ -94,13 +99,6 @@ const MetadataHeader: React.FC<{ agent: AgentInfo; channelStatus?: AgentChannelS
         ) : null}
     </Box>
 );
-
-function getLineColor(line: string): 'green' | 'cyan' | 'yellow' | undefined {
-    if (line.startsWith('user:')) return ROLE_COLOR.user;
-    if (line.startsWith('assistant:')) return ROLE_COLOR.assistant;
-    if (line.startsWith('system:')) return ROLE_COLOR.system;
-    return undefined;
-}
 
 const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     agent,
@@ -153,9 +151,9 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
                         <Text dimColor>{viewport.hasBelow ? ' ↓ newer' : ''}</Text>
                     </Box>
                 ) : null}
-                {viewport?.lines.map((line, idx) => (
+                {viewport?.rows.map((row, idx) => (
                     <Box key={idx}>
-                        <Text color={getLineColor(line)}>{line}</Text>
+                        <Text color={row.role ? ROLE_COLOR[row.role] : undefined}>{row.text}</Text>
                     </Box>
                 ))}
             </>

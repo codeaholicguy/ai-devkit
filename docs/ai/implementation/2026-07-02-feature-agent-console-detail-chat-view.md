@@ -81,6 +81,12 @@ Changed files:
 - `packages/cli/src/__tests__/tui/console/focusRouting.test.ts`: covers list/detail/input key routing.
 - `packages/cli/src/__tests__/tui/console/HelpPane.test.ts`: covers new help/footer shortcut.
 
+Simplification pass:
+
+- `PreviewViewport` now returns typed rows instead of strings, so rendering uses `row.role` directly rather than inferring color from string prefixes.
+- `ConsoleApp` key action handling now uses a `switch` to keep focus, scroll, and selection actions grouped in one dispatch block.
+- `focusRouting.test.ts` now uses a local setup helper to remove repeated default key-routing inputs.
+
 Design deviations:
 
 - None. The implementation follows the reviewed design split: `ConsoleApp` owns requested offset and preview rendering clamps/report valid offsets.
@@ -88,6 +94,7 @@ Design deviations:
 Verification evidence:
 
 - `npx vitest run src/__tests__/tui/console/PreviewPane.test.ts src/__tests__/tui/console/focusRouting.test.ts src/__tests__/tui/console/HelpPane.test.ts` passed: 3 files, 18 tests.
-- `npx vitest run src/__tests__/tui/console` passed after building workspace packages: 16 files, 106 tests.
+- `npx vitest run src/__tests__/tui/console` passed: 16 files, 106 tests.
 - `npm run build` passed for all 6 projects.
 - `npm run lint --workspace packages/cli` exited 0 with 5 pre-existing warnings outside touched files.
+- `npx ai-devkit@latest lint --feature agent-console-detail-chat-view` passed after simplification.

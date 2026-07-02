@@ -262,28 +262,28 @@ const ConsoleAppShell: React.FC<{
             hasSelectedAgent: Boolean(selectedNameRef.current),
             previewVisible,
         });
-        if (keyAction.type === 'focus-detail') {
-            setFocus('detail');
-            return;
-        }
-        if (keyAction.type === 'focus-list') {
-            setFocus('list');
-            return;
-        }
-        if (keyAction.type === 'focus-input') {
-            setFocus('input');
-            return;
-        }
-        if (keyAction.type === 'scroll-detail') {
-            setDetailScrollOffset(prev => Math.max(0, prev + keyAction.delta));
-            return;
-        }
-        if (keyAction.type === 'select-agent') {
-            const list = agentsRef.current;
-            if (!list.length) return;
-            const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
-            setSelectedName(list[(idx + keyAction.delta + list.length) % list.length].name);
-            return;
+        switch (keyAction.type) {
+            case 'focus-detail':
+                setFocus('detail');
+                return;
+            case 'focus-list':
+                setFocus('list');
+                return;
+            case 'focus-input':
+                setFocus('input');
+                return;
+            case 'scroll-detail':
+                setDetailScrollOffset(prev => Math.max(0, prev + keyAction.delta));
+                return;
+            case 'select-agent': {
+                const list = agentsRef.current;
+                if (!list.length) return;
+                const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
+                setSelectedName(list[(idx + keyAction.delta + list.length) % list.length].name);
+                return;
+            }
+            case 'noop':
+                return;
         }
     });
 

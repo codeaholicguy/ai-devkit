@@ -32,10 +32,10 @@ describe('PreviewPane helpers', () => {
         expect(viewport.clampedOffset).toBe(0);
         expect(viewport.hasAbove).toBe(true);
         expect(viewport.hasBelow).toBe(false);
-        expect(viewport.lines).toEqual([
-            '  with detail',
-            'user: second question',
-            'assistant: second answer',
+        expect(viewport.rows).toEqual([
+            { text: '  with detail', role: null },
+            { text: 'user: second question', role: 'user' },
+            { text: 'assistant: second answer', role: 'assistant' },
         ]);
     });
 
@@ -45,10 +45,10 @@ describe('PreviewPane helpers', () => {
         expect(viewport.clampedOffset).toBe(2);
         expect(viewport.hasAbove).toBe(false);
         expect(viewport.hasBelow).toBe(true);
-        expect(viewport.lines).toEqual([
-            'user: first question',
-            'assistant: first answer',
-            '  with detail',
+        expect(viewport.rows).toEqual([
+            { text: 'user: first question', role: 'user' },
+            { text: 'assistant: first answer', role: 'assistant' },
+            { text: '  with detail', role: null },
         ]);
     });
 
