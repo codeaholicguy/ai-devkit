@@ -35,7 +35,7 @@
     "directory": "packages/agent-manager"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "12.11.1",
     "uuid": "14.0.0"
   },
   "devDependencies": {

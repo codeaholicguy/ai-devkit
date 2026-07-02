@@ -51,7 +51,7 @@
     "@modelcontextprotocol/sdk": "^1.0.0",
     "@typescript-eslint/eslint-plugin": "8.60.1",
     "@typescript-eslint/parser": "8.60.1",
-    "better-sqlite3": "^12.6.2",
+    "better-sqlite3": "12.11.1",
     "uuid": "^14.0.0"
   },
   "devDependencies": {

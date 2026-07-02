@@ -51,7 +51,7 @@
     "directory": "packages/task-manager"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2"
+    "better-sqlite3": "12.11.1"
   },
   "devDependencies": {
     "@swc/cli": "^0.8.1",
