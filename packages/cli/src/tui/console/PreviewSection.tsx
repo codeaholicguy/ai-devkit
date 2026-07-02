@@ -8,9 +8,18 @@ import { getPreviewPanelTone } from './PreviewPane.js';
 interface PreviewSectionProps {
     selectedName: string | null;
     height: number;
+    focused?: boolean;
+    scrollOffset?: number;
+    onScrollOffsetClamp?: (offset: number) => void;
 }
 
-const PreviewSectionInner: React.FC<PreviewSectionProps> = ({ selectedName, height }) => {
+const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
+    selectedName,
+    height,
+    focused = false,
+    scrollOffset = 0,
+    onScrollOffsetClamp,
+}) => {
     const { agents, manager, inputFocused, channelStatuses } = useConsoleContext();
     const selectedAgent = useMemo(
         () => agents.find(a => a.name === selectedName) ?? null,
@@ -27,6 +36,7 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({ selectedName, heig
     return (
         <Panel
             height={height}
+            focused={focused}
             paddingX={1}
             flexDirection="column"
             flexShrink={0}
@@ -39,6 +49,8 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({ selectedName, heig
                 isLoading={isLoading}
                 maxLines={Math.max(4, height - 2)}
                 channelStatus={channelStatus}
+                scrollOffset={scrollOffset}
+                onScrollOffsetClamp={onScrollOffsetClamp}
             />
         </Panel>
     );

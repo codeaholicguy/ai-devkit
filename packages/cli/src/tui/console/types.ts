@@ -1,4 +1,4 @@
-export type ConsoleFocus = 'list' | 'input';
+export type ConsoleFocus = 'list' | 'detail' | 'input';
 
 export interface AgentChannelStatus {
     channelName: string;

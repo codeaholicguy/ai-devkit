@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
@@ -15,6 +15,8 @@ interface PreviewPaneProps {
     isLoading: boolean;
     maxLines?: number;
     channelStatus?: AgentChannelStatus;
+    scrollOffset?: number;
+    onScrollOffsetClamp?: (offset: number) => void;
 }
 
 const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow'> = {
@@ -24,19 +26,45 @@ const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow
 };
 
 
-function formatTime(ts: string | undefined): string {
-    if (!ts) return '';
-    try {
-        return new Date(ts).toLocaleTimeString();
-    } catch {
-        return '';
-    }
-}
-
 function shortPath(p: string): string {
     const home = process.env.HOME ?? '';
     if (home && p.startsWith(home)) return '~' + p.slice(home.length);
     return p;
+}
+
+export interface PreviewViewport {
+    lines: string[];
+    clampedOffset: number;
+    maxOffset: number;
+    hasAbove: boolean;
+    hasBelow: boolean;
+}
+
+export function buildPreviewViewport(
+    messages: ConversationMessage[],
+    maxLines: number,
+    requestedOffset: number,
+): PreviewViewport {
+    const budget = Math.max(1, Math.floor(maxLines));
+    const lines = messages.flatMap((msg) => {
+        const contentLines = msg.content.split('\n');
+        const first = contentLines[0] ?? '';
+        return [
+            `${msg.role}: ${first}`,
+            ...contentLines.slice(1).map(line => `  ${line}`),
+        ];
+    });
+    const maxOffset = Math.max(0, lines.length - budget);
+    const clampedOffset = Math.min(Math.max(0, Math.floor(requestedOffset)), maxOffset);
+    const end = Math.max(0, lines.length - clampedOffset);
+    const start = Math.max(0, end - budget);
+    return {
+        lines: lines.slice(start, end),
+        clampedOffset,
+        maxOffset,
+        hasAbove: start > 0,
+        hasBelow: end < lines.length,
+    };
 }
 
 export function getPreviewPanelTone(channelStatus: AgentChannelStatus | undefined): PanelTone {
@@ -67,6 +95,13 @@ const MetadataHeader: React.FC<{ agent: AgentInfo; channelStatus?: AgentChannelS
     </Box>
 );
 
+function getLineColor(line: string): 'green' | 'cyan' | 'yellow' | undefined {
+    if (line.startsWith('user:')) return ROLE_COLOR.user;
+    if (line.startsWith('assistant:')) return ROLE_COLOR.assistant;
+    if (line.startsWith('system:')) return ROLE_COLOR.system;
+    return undefined;
+}
+
 const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     agent,
     messages,
@@ -74,7 +109,19 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     isLoading,
     maxLines = 22,
     channelStatus,
+    scrollOffset = 0,
+    onScrollOffsetClamp,
 }) => {
+    const viewport = messages.length > 0
+        ? buildPreviewViewport(messages, Math.max(4, maxLines), scrollOffset)
+        : null;
+
+    useEffect(() => {
+        if (viewport && viewport.clampedOffset !== scrollOffset) {
+            onScrollOffsetClamp?.(viewport.clampedOffset);
+        }
+    }, [onScrollOffsetClamp, scrollOffset, viewport?.clampedOffset]);
+
     if (!agent) {
         return (
             <Box flexDirection="column">
@@ -83,8 +130,6 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
             </Box>
         );
     }
-
-    const messageBudget = Math.max(4, maxLines);
 
     let body: React.ReactNode;
     if (error) {
@@ -99,35 +144,21 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     } else if (messages.length === 0) {
         body = <Text dimColor>No messages yet.</Text>;
     } else {
-        const rendered: React.ReactNode[] = [];
-        let usedLines = 0;
-        for (let i = messages.length - 1; i >= 0; i--) {
-            const msg = messages[i];
-            const contentLines = msg.content.split('\n');
-            const headerLine = 1;
-            if (usedLines + headerLine > messageBudget) break;
-            const remaining = messageBudget - usedLines - headerLine;
-            const trimmed = contentLines.length > remaining
-                ? [...contentLines.slice(0, Math.max(0, remaining - 1)), `… (${contentLines.length - Math.max(0, remaining - 1)} more lines)`]
-                : contentLines;
-            const time = formatTime(msg.timestamp);
-            rendered.unshift(
-                <Box key={i} flexDirection="column" marginBottom={1}>
-                    <Box flexDirection="row">
-                        {time ? <Text dimColor>[{time}] </Text> : null}
-                        <Text color={ROLE_COLOR[msg.role]} bold>{msg.role}:</Text>
+        body = (
+            <>
+                {viewport && (viewport.hasAbove || viewport.hasBelow) ? (
+                    <Box>
+                        <Text dimColor>{viewport.hasAbove ? '↑ older' : '       '}</Text>
+                        <Text dimColor>{viewport.hasBelow ? ' ↓ newer' : ''}</Text>
                     </Box>
-                    {trimmed.map((line: string, idx: number) => (
-                        <Box key={idx}>
-                            <Text>  {line}</Text>
-                        </Box>
-                    ))}
-                </Box>,
-            );
-            usedLines += headerLine + trimmed.length + 1;
-            if (usedLines >= messageBudget) break;
-        }
-        body = <>{rendered}</>;
+                ) : null}
+                {viewport?.lines.map((line, idx) => (
+                    <Box key={idx}>
+                        <Text color={getLineColor(line)}>{line}</Text>
+                    </Box>
+                ))}
+            </>
+        );
     }
 
     return (
