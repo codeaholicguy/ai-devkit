@@ -619,7 +619,7 @@ describe("SkillManager", () => {
 
       await expect(
         skillManager.addSkill(mockRegistryId, mockSkillName),
-      ).rejects.toThrow("Supported: cursor, claude, github, gemini, grok, codex, kilocode, amp, opencode, roo, antigravity, junie, cline, devin, pi");
+      ).rejects.toThrow("Supported: cursor, claude, github, gemini, grok, codex, kilocode, amp, opencode, roo, antigravity, antigravity-cli, junie, cline, devin, pi");
     });
 
     it("should call validation functions with correct parameters", async () => {

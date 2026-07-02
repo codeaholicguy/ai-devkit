@@ -132,6 +132,19 @@ describe('EnvironmentSelector', () => {
       expect(getMcpConfigPath('grok')).toBeUndefined();
     });
 
+    it('includes Antigravity CLI with the agy project and global skill paths', () => {
+      expect(isValidEnvironmentCode('antigravity-cli')).toBe(true);
+      expect(getEnvironment('antigravity-cli')).toMatchObject({
+        code: 'antigravity-cli',
+        name: 'Antigravity CLI',
+        skillPath: '.agents/skills',
+        globalSkillPath: '.gemini/config/skills',
+      });
+      expect(getSkillPath('antigravity-cli')).toBe('.agents/skills');
+      expect(getGlobalSkillPath('antigravity-cli')).toBe('.gemini/config/skills');
+      expect(getMcpConfigPath('antigravity-cli')).toBeUndefined();
+    });
+
     it('includes OpenCode with project skills, global skills, and MCP', () => {
       expect(isValidEnvironmentCode('opencode')).toBe(true);
       expect(getEnvironment('opencode')).toMatchObject({

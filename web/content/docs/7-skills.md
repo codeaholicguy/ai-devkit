@@ -69,6 +69,7 @@ Skills are currently supported by the following AI coding agents:
 | **Codex**       | `.agents/skills`   | `~/.codex/skills` |
 | **opencode**    | `.opencode/skills` | `~/.config/opencode/skills` |
 | **Antigravity** | `.agent/skills`    | `~/.gemini/antigravity/skills` |
+| **Antigravity CLI** | `.agents/skills` | `~/.gemini/config/skills` |
 | **Junie**       | `.junie/skills`    | `~/.junie/skills` |
 | **Cline**       | `.cline/skills`    | `~/.cline/skills` |
 | **Devin**       | `.devin/skills`    | `~/.config/devin/skills` |
