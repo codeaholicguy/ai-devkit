@@ -774,4 +774,5 @@ describe('ConfigManager', () => {
       expect(result).toBe('/test/dir/.ai-devkit/project-memory.db');
     });
   });
+
 });
