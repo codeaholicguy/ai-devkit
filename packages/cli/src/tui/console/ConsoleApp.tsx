@@ -278,19 +278,11 @@ const ConsoleAppShell: React.FC<{
             setDetailScrollOffset(prev => Math.max(0, prev + keyAction.delta));
             return;
         }
-        if (keyAction.type === 'select-agent' && keyAction.delta > 0) {
+        if (keyAction.type === 'select-agent') {
             const list = agentsRef.current;
             if (!list.length) return;
             const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
-            setSelectedName(list[(idx + 1) % list.length].name);
-            return;
-        }
-
-        if (keyAction.type === 'select-agent' && keyAction.delta < 0) {
-            const list = agentsRef.current;
-            if (!list.length) return;
-            const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
-            setSelectedName(list[(idx - 1 + list.length) % list.length].name);
+            setSelectedName(list[(idx + keyAction.delta + list.length) % list.length].name);
             return;
         }
     });

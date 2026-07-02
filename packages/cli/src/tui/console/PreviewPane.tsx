@@ -115,12 +115,13 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     const viewport = messages.length > 0
         ? buildPreviewViewport(messages, Math.max(4, maxLines), scrollOffset)
         : null;
+    const clampedOffset = viewport?.clampedOffset;
 
     useEffect(() => {
-        if (viewport && viewport.clampedOffset !== scrollOffset) {
-            onScrollOffsetClamp?.(viewport.clampedOffset);
+        if (clampedOffset !== undefined && clampedOffset !== scrollOffset) {
+            onScrollOffsetClamp?.(clampedOffset);
         }
-    }, [onScrollOffsetClamp, scrollOffset, viewport?.clampedOffset]);
+    }, [onScrollOffsetClamp, scrollOffset, clampedOffset]);
 
     if (!agent) {
         return (
