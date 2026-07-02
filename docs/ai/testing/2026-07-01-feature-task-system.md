@@ -63,7 +63,7 @@ vitest v8; package thresholds statements/branches/functions/lines ≥ 75%.
 
 ## Results
 - `nx test task-manager`: 115 passing, 0 failing (8 test files).
-- `nx test cli`: 871 passing, 0 failing (73 test files).
+- `nx test cli`: 870 passing, 0 failing (72 test files).
 - `nx build task-manager`: succeeds.
 - `nx build cli`: succeeds, including dependent package builds.
 - `nx lint task-manager`: 0 errors.
