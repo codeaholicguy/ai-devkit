@@ -8,9 +8,9 @@ description: AI DevKit · Track dev-lifecycle / structured-debug progress on a d
 Record development progress on a durable task: phase, progress, next step,
 blockers, and validation evidence.
 
-Requires the optional `ai-devkit task` plugin command. First run
-`ai-devkit task --help`. If it fails, task tracing is unavailable; continue the
-user workflow without task logging. Do not fall back to `npx ai-devkit@latest task`.
+Requires the optional task command. First try `ai-devkit task --help`; if that
+fails, try `npx ai-devkit@latest task --help`. If both fail, continue the user
+workflow without task logging.
 
 ## Core idea
 
