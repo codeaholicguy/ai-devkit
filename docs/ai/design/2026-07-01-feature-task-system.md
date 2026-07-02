@@ -10,17 +10,17 @@ description: Define the technical architecture, components, and data models
 
 ```mermaid
 graph TD
-  CLI["ai-devkit task CLI"] --> SVC["TaskService"]
-  Skills["dev-lifecycle / verify skills"] -->|CLI or lib| SVC
+  PluginCLI["task plugin command"] --> SVC["TaskService"]
+  Skills["dev-lifecycle / verify skills"] -->|when plugin enabled| SVC
   SVC -->|uses| REPO["TaskRepository"]
   REPO --> SQL["SQLite (~/.ai-devkit/tasks.db)"]
   SQL --> TASKS["tasks table: snapshots"]
   SQL --> EVENTS["task_events table: append-only history"]
 ```
 
-- New package `@ai-devkit/task-manager`, structured like `@ai-devkit/memory` and consumed by
-  the `ai-devkit` CLI the same way memory is.
-- **Layering:** CLI and skills call `TaskService`, which uses `TaskRepository` for
+- New package `@ai-devkit/task-manager`, structured like `@ai-devkit/memory` for the service
+  layer and packaged as an optional AI DevKit plugin for the `task` CLI command.
+- **Layering:** plugin CLI and skills call `TaskService`, which uses `TaskRepository` for
   persistence. Callers never touch the database directly.
 - **SQLite** (via `better-sqlite3`, the same library `@ai-devkit/memory` uses) stores a
   `tasks` table of snapshots and a `task_events` table for the append-only event history.
@@ -214,13 +214,13 @@ function createTaskService(dbPath?: string): TaskService;
 This powers "the current task for this feature" for dev-lifecycle/verify without requiring
 callers to remember ids.
 
-## CLI (`ai-devkit task ...`)
+## Plugin CLI (`ai-devkit task ...`)
 
-All commands accept global flags `--db-path <path>` (explicit DB path override), `--json`
+The `task` command is available after installing and enabling `@ai-devkit/task-manager` as an
+AI DevKit plugin. All commands accept global flags `--db-path <path>` (explicit DB path override), `--json`
 (machine output), and attribution overrides `--agent <id>`, `--agent-type <t>`, `--pid <n>`,
-`--session <s>`. By default, the CLI resolves `.ai-devkit.json` `tasks.path` using
-`ConfigManager`, then falls back to `~/.ai-devkit/tasks.db`. `<id>` resolves per `resolveTask`
-above.
+`--session <s>`. By default, the plugin resolves project `.ai-devkit.json` `tasks.path`, then
+falls back to `~/.ai-devkit/tasks.db`. `<id>` resolves per `resolveTask` above.
 
 | Command | Flags | Emits |
 |---|---|---|
@@ -284,7 +284,8 @@ Tasks are stored in a single SQLite database at `~/.ai-devkit/tasks.db`:
 
 Task and event ids are raw UUIDv4 strings from Node `crypto.randomUUID()`, stored as TEXT
 (36 chars: `8-4-4-4-12` lowercase hex) — globally unique with no prefix, coordination, or collision
-checks. Project CLI usage can configure `.ai-devkit.json` `tasks.path`; explicit callers can
+checks. Project CLI usage can configure `.ai-devkit.json` `tasks.path` once the plugin is
+installed; explicit callers can
 override the DB path with `--db-path` or the `TaskRepository` / `DatabaseConnection`
 constructor. Only `TaskRepository` reads/writes the database; callers use `TaskService` or
 the CLI.

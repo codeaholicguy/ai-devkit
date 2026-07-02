@@ -12,7 +12,9 @@ description: Technical implementation notes, patterns, and code guidelines
 - Node `>=20.20.0`, monorepo with nx + swc + vitest (no new tooling introduced).
 - Work in the `feature-task-system` worktree at `.worktrees/feature-task-system`.
 - `npm ci` bootstraps the workspace; the new package is symlinked under
-  `node_modules/@ai-devkit/task-manager` automatically.
+  `node_modules/@ai-devkit/task-manager` automatically for local development.
+- End users enable the `task` command explicitly with
+  `ai-devkit plugin add @ai-devkit/task-manager`; the core CLI does not import or register it.
 
 ## Code Structure
 **How is the code organized?**
@@ -28,6 +30,7 @@ packages/task-manager/
     actor-resolver.ts   # resolveCurrentActor (env + process), ATTRIB_ENV
     task.repository.ts  # TaskRepository — task/event persistence (SQLite)
     task.service.ts     # TaskService (public consume-only surface)
+    command.ts          # optional AI DevKit plugin command entrypoint
     database/           # connection.ts (WAL/migrations), schema.ts, migrations/001_initial.sql
     index.ts            # public exports (import path @ai-devkit/task-manager)
   tests/
@@ -39,8 +42,10 @@ Structure follows `@ai-devkit/memory`: a `database/` module (connection/schema/m
 with the business module split into `task.repository.ts` (persistence) and `task.service.ts`
 (logic), mirroring memory's split between `database/` and `handlers/`.
 
-CLI: `packages/cli/src/commands/task.ts` registers `ai-devkit task ...`; wired in `cli.ts`.
-Test: `packages/cli/src/__tests__/commands/task.test.ts`.
+Plugin CLI: `packages/task-manager/src/command.ts` registers subcommands on the host-provided
+`task` command. The command is discovered from `package.json` `aiDevkit.commands`, not wired
+into `packages/cli/src/cli.ts`.
+Test: `packages/task-manager/tests/command.test.ts`.
 
 ## Implementation Notes
 **Key technical details to remember:**
@@ -72,10 +77,11 @@ Test: `packages/cli/src/__tests__/commands/task.test.ts`.
 ## Integration Points
 **How do pieces connect?**
 
-- CLI → `ConfigManager.getTasksDbPath()` → `TaskService` → `TaskRepository` → SQLite
-  (`.ai-devkit.json` `tasks.path`, else `~/.ai-devkit/tasks.db`).
-- Skills (`dev-lifecycle`, `verify`, `structured-debug`) emit via `ai-devkit task ...`.
-- Storage default `~/.ai-devkit/tasks.db`; CLI resolves `.ai-devkit.json` `tasks.path`, and
+- Plugin CLI → project `.ai-devkit.json` `tasks.path` → `TaskService` → `TaskRepository` →
+  SQLite (else `~/.ai-devkit/tasks.db`).
+- Skills (`dev-lifecycle`, `verify`, `structured-debug`) can emit via `ai-devkit task ...`
+  when the optional plugin is installed/enabled.
+- Storage default `~/.ai-devkit/tasks.db`; the plugin CLI resolves `.ai-devkit.json` `tasks.path`, and
   explicit overrides use `--db-path` or the `TaskRepository` / `DatabaseConnection`
   constructor arg.
 

@@ -1,15 +1,13 @@
 import type { MockedFunction } from 'vitest';
 import { Command } from 'commander';
 import * as fs from 'fs';
+import { readFile } from 'node:fs/promises';
 import * as os from 'os';
 import * as path from 'path';
 
-import { registerTaskCommand } from '../../commands/task.js';
-import { createTaskService } from '@ai-devkit/task-manager';
-import { ui } from '../../util/terminal-ui.js';
+import { register } from '../src/command.js';
+import { createTaskService } from '../src/index.js';
 
-// Mock the task-manager package so the command layer is tested in isolation,
-// mirroring the memory command test pattern.
 const mockTaskService = {
     create: vi.fn(),
     get: vi.fn(),
@@ -37,12 +35,21 @@ const EVENT_ID = '33333333-3333-4333-8333-333333333333';
 const BLOCKER_ID = '44444444-4444-4444-8444-444444444444';
 const EVIDENCE_ID = '55555555-5555-4555-8555-555555555555';
 
-const mockGetTasksDbPath = vi.fn<() => Promise<string | undefined>>();
-const mockConfigManager = {
-    getTasksDbPath: mockGetTasksDbPath,
+const mockRuntime = {
+    cwd: '/repo',
+    homeDir: '/home/test',
+    logger: {
+        info: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    },
 };
 
-vi.mock('@ai-devkit/task-manager', () => ({
+vi.mock('node:fs/promises', () => ({
+    readFile: vi.fn(async () => JSON.stringify({ tasks: { path: '.ai-devkit/tasks.db' } })),
+}));
+
+vi.mock('../src/index.js', () => ({
     createTaskService: vi.fn(() => mockTaskService),
     resolveCurrentActor: vi.fn((override?: Record<string, unknown>) =>
         override ? { agentId: 'resolved-agent', ...override } : null
@@ -52,19 +59,11 @@ vi.mock('@ai-devkit/task-manager', () => ({
     TaskNotFoundError: class TaskNotFoundError extends Error {},
 }));
 
-vi.mock('../../lib/Config.js', () => ({
-    ConfigManager: vi.fn(function () { return mockConfigManager; }),
-}));
-
-vi.mock('../../util/terminal-ui.js', () => ({
-    ui: {
-        error: vi.fn(),
-        warning: vi.fn(),
-        success: vi.fn(),
-        text: vi.fn(),
-        table: vi.fn(),
-    },
-}));
+function createProgram(): Command {
+    const program = new Command();
+    register(program.command('task'), mockRuntime);
+    return program;
+}
 
 function sampleTask(overrides: Record<string, unknown> = {}) {
     return {
@@ -94,25 +93,22 @@ function sampleTask(overrides: Record<string, unknown> = {}) {
 }
 
 describe('task command', () => {
-    const mockedUi = vi.mocked(ui);
     const mockedCreateTaskService = createTaskService as MockedFunction<typeof createTaskService>;
     let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
-        mockGetTasksDbPath.mockResolvedValue(undefined);
+        vi.mocked(readFile).mockResolvedValue(JSON.stringify({ tasks: { path: '.ai-devkit/tasks.db' } }));
         Object.values(mockTaskService).forEach((fn) => (fn as ReturnType<typeof vi.fn>).mockReset());
         consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     });
 
     describe('create', () => {
         it('uses the configured task database path', async () => {
-            mockGetTasksDbPath.mockResolvedValue('/repo/.ai-devkit/tasks.db');
             const task = sampleTask();
             mockTaskService.create.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'create',
                 '--title', 'Sample task',
@@ -122,13 +118,55 @@ describe('task command', () => {
             expect(mockedCreateTaskService).toHaveBeenCalledWith('/repo/.ai-devkit/tasks.db');
         });
 
+        it('uses the default task database path when project config is missing', async () => {
+            const error = new Error('missing config') as Error & { code: string };
+            error.code = 'ENOENT';
+            vi.mocked(readFile).mockRejectedValue(error);
+            mockTaskService.create.mockResolvedValue(sampleTask());
+
+            const program = createProgram();
+            await program.parseAsync([
+                'node', 'test', 'task', 'create',
+                '--title', 'Sample task',
+                '--json',
+            ]);
+
+            expect(mockedCreateTaskService).toHaveBeenCalledWith('/home/test/.ai-devkit/tasks.db');
+        });
+
+        it('uses the default task database path when tasks.path is blank', async () => {
+            vi.mocked(readFile).mockResolvedValue(JSON.stringify({ tasks: { path: '   ' } }));
+            mockTaskService.create.mockResolvedValue(sampleTask());
+
+            const program = createProgram();
+            await program.parseAsync([
+                'node', 'test', 'task', 'create',
+                '--title', 'Sample task',
+                '--json',
+            ]);
+
+            expect(mockedCreateTaskService).toHaveBeenCalledWith('/home/test/.ai-devkit/tasks.db');
+        });
+
+        it('uses absolute tasks.path from project config as-is', async () => {
+            vi.mocked(readFile).mockResolvedValue(JSON.stringify({ tasks: { path: '/custom/tasks.db' } }));
+            mockTaskService.create.mockResolvedValue(sampleTask());
+
+            const program = createProgram();
+            await program.parseAsync([
+                'node', 'test', 'task', 'create',
+                '--title', 'Sample task',
+                '--json',
+            ]);
+
+            expect(mockedCreateTaskService).toHaveBeenCalledWith('/custom/tasks.db');
+        });
+
         it('lets --db-path override the configured task database path', async () => {
-            mockGetTasksDbPath.mockResolvedValue('/repo/.ai-devkit/tasks.db');
             const task = sampleTask();
             mockTaskService.create.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'create',
                 '--title', 'Sample task',
@@ -143,8 +181,7 @@ describe('task command', () => {
             const task = sampleTask();
             mockTaskService.create.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'create',
                 '--title', 'Sample task',
@@ -160,8 +197,7 @@ describe('task command', () => {
 
         it('parses tags and links', async () => {
             mockTaskService.create.mockResolvedValue(sampleTask());
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'create',
                 '--title', 'T',
@@ -186,31 +222,27 @@ describe('task command', () => {
     describe('list', () => {
         it('renders a table by default', async () => {
             mockTaskService.list.mockResolvedValue([sampleTask(), sampleTask({ taskId: SECOND_TASK_ID, title: 'Other' })]);
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'list']);
 
-            expect(mockedUi.table).toHaveBeenCalled();
-            const args = (mockedUi.table as MockedFunction<typeof ui.table>).mock.calls[0]![0];
-            expect(args.headers).toEqual(['id', 'title', 'status', 'phase', 'feature']);
-            expect(args.rows).toHaveLength(2);
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('id\ttitle\tstatus\tphase\tfeature'));
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(`${TASK_ID}\tSample task\topen`));
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(`${SECOND_TASK_ID}\tOther\topen`));
         });
 
         it('prints JSON with --json', async () => {
             const tasks = [sampleTask()];
             mockTaskService.list.mockResolvedValue(tasks);
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'list', '--json']);
             expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(tasks, null, 2));
         });
 
         it('warns when empty', async () => {
             mockTaskService.list.mockResolvedValue([]);
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'list']);
-            expect(mockedUi.warning).toHaveBeenCalledWith('No tasks found.');
+            expect(mockRuntime.logger.warn).toHaveBeenCalledWith('No tasks found.');
         });
     });
 
@@ -222,8 +254,7 @@ describe('task command', () => {
             const events = [{ eventId: EVENT_ID, type: 'task.created', ts: 't', actor: null, taskId: task.taskId, payload: {} }];
             mockTaskService.getEvents.mockResolvedValue(events);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'show', 'demo', '--events', '--json']);
 
             expect(mockTaskService.resolveTask).toHaveBeenCalledWith('demo');
@@ -234,10 +265,9 @@ describe('task command', () => {
 
         it('prints an error when no task resolves', async () => {
             mockTaskService.resolveTask.mockResolvedValue(null);
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'show', 'missing']);
-            expect(mockedUi.error).toHaveBeenCalledWith('No task found for "missing".');
+            expect(mockRuntime.logger.error).toHaveBeenCalledWith('No task found for "missing".');
         });
     });
 
@@ -247,8 +277,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.setPhase.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'phase', 'demo', 'design', '--json']);
 
             expect(mockTaskService.setPhase).toHaveBeenCalledWith(TASK_ID, 'design', expect.any(Object));
@@ -259,8 +288,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.setProgress.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'progress', 'demo', '--text', 'half', '--percent', '50', '--json']);
 
             expect(mockTaskService.setProgress).toHaveBeenCalledWith(
@@ -275,8 +303,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.setProgress.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'progress', 'demo', '--clear']);
             expect(mockTaskService.setProgress).toHaveBeenCalledWith(
                 task.taskId,
@@ -290,8 +317,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.setNextStep.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'next', 'demo', 'write', 'tests', '--json']);
             expect(mockTaskService.setNextStep).toHaveBeenCalledWith(task.taskId, 'write tests', expect.any(Object));
         });
@@ -303,8 +329,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.addBlocker.mockResolvedValue({ task, blockerId: BLOCKER_ID });
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'blocker', 'demo', 'add', 'waiting', 'on', 'x', '--json']);
             expect(mockTaskService.addBlocker).toHaveBeenCalledWith(
                 task.taskId,
@@ -318,8 +343,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.resolveBlocker.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'blocker', 'demo', 'resolve', BLOCKER_ID, '--json']);
             expect(mockTaskService.resolveBlocker).toHaveBeenCalledWith(task.taskId, BLOCKER_ID, expect.any(Object));
         });
@@ -331,8 +355,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.addEvidence.mockResolvedValue({ task, evidenceId: EVIDENCE_ID });
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'evidence', 'demo',
                 '--command', 'nx test', '--exit-code', '0', '--passed', '--summary', 'green',
@@ -348,10 +371,9 @@ describe('task command', () => {
         it('errors when neither --passed nor --failed is given', async () => {
             const task = sampleTask();
             mockTaskService.resolveTask.mockResolvedValue(task);
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'evidence', 'demo', '--command', 'x']);
-            expect(mockedUi.error).toHaveBeenCalledWith(expect.stringContaining('--passed'));
+            expect(mockRuntime.logger.error).toHaveBeenCalledWith(expect.stringContaining('--passed'));
         });
 
         it('collects repeatable --artifact refs', async () => {
@@ -359,8 +381,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.addEvidence.mockResolvedValue({ task, evidenceId: EVIDENCE_ID });
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'evidence', 'demo', '--passed',
                 '--artifact', '/a.log', '--artifact', '/b.log', '--json',
@@ -379,8 +400,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.addNote.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'note', 'demo', 'quick', 'note', '--json']);
             expect(mockTaskService.addNote).toHaveBeenCalledWith(task.taskId, 'quick note', expect.any(Object));
         });
@@ -393,8 +413,7 @@ describe('task command', () => {
             const event = { eventId: EVENT_ID, taskId: task.taskId, ts: 't', type: 'task.custom', actor: null, payload: { name: 'tick' } };
             mockTaskService.addEvent.mockResolvedValue(event);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync([
                 'node', 'test', 'task', 'event', 'demo',
                 '--payload', '{"name":"tick"}', '--json',
@@ -417,8 +436,7 @@ describe('task command', () => {
             const tmp = path.join(os.tmpdir(), `evt-${Date.now()}.json`);
             fs.writeFileSync(tmp, JSON.stringify({ name: 'from-file' }), 'utf8');
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'event', 'demo', '--payload', `@${tmp}`, '--json']);
             expect(mockTaskService.addEvent).toHaveBeenCalledWith(
                 task.taskId,
@@ -435,8 +453,7 @@ describe('task command', () => {
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.close.mockResolvedValue(task);
 
-            const program = new Command();
-            registerTaskCommand(program);
+            const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'close', 'demo', '--json']);
             expect(mockTaskService.close).toHaveBeenCalledWith(task.taskId, 'completed', expect.any(Object));
         });

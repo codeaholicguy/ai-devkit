@@ -100,11 +100,6 @@ export class ConfigManager {
     return this.resolveConfiguredPath(config?.memory?.path);
   }
 
-  async getTasksDbPath(): Promise<string | undefined> {
-    const config = await this.read();
-    return this.resolveConfiguredPath(config?.tasks?.path);
-  }
-
   private resolveConfiguredPath(configuredPath: unknown): string | undefined {
     if (typeof configuredPath !== 'string') {
       return undefined;

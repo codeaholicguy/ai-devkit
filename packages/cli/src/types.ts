@@ -28,9 +28,6 @@ export interface DevKitConfig {
   memory?: {
     path?: string;
   };
-  tasks?: {
-    path?: string;
-  };
   environments: EnvironmentCode[];
   phases: Phase[];
   registries?: Record<string, string>;
@@ -61,9 +58,6 @@ export interface GlobalDevKitConfig {
   registries?: Record<string, string>;
   plugins?: string[];
   memory?: {
-    path?: string;
-  };
-  tasks?: {
     path?: string;
   };
 }

@@ -100,7 +100,8 @@ duplicate ids (negligible with UUIDs), appending to a task whose snapshot was ha
      writes; WAL + `busy_timeout` for concurrency.
   3. **Event model:** stateful event types mutate the snapshot; a generic `task.custom` event
      type is reserved for tracing/observability and does **not** mutate the snapshot.
-  4. **New package** `@ai-devkit/task-manager` mirrors `@ai-devkit/memory`.
+  4. **New package/plugin** `@ai-devkit/task-manager` mirrors `@ai-devkit/memory` for the
+     library layer and exposes `ai-devkit task ...` through the AI DevKit plugin manifest.
   5. **Default DB path** `~/.ai-devkit/tasks.db`; project CLI usage can set
      `.ai-devkit.json` `tasks.path`, with `--db-path` as an explicit command override.
 

@@ -50,11 +50,17 @@ omitted) and returns the updated `Task` (or `{ task, blockerId/evidenceId/artifa
 `resolveTask` accepts a full id, a unique id prefix, or a feature key (latest non-terminal
 task).
 
-## CLI
+## Plugin CLI
+
+Install and enable the package as an AI DevKit plugin before using the command:
+
+```bash
+ai-devkit plugin add @ai-devkit/task-manager
+```
 
 `ai-devkit task ...` — create, list, show, update, phase, status, progress, next,
 blocker `<id> add <text>|resolve <blockerId>`, evidence, artifact, assign, note, event,
-close. The CLI resolves `.ai-devkit.json` `tasks.path` when present. Global flags:
+close. The plugin resolves `.ai-devkit.json` `tasks.path` when present. Global flags:
 `--db-path`, `--json`, `--agent`, `--agent-type`, `--pid`, `--session`.
 See the design doc for the full verb/flag table.
 

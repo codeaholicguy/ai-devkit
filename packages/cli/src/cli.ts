@@ -6,7 +6,6 @@ import { phaseCommand } from './commands/phase.js';
 import { lintCommand } from './commands/lint.js';
 import { installCommand } from './commands/install.js';
 import { registerMemoryCommand } from './commands/memory.js';
-import { registerTaskCommand } from './commands/task.js';
 import { registerSkillCommand } from './commands/skill.js';
 import { registerAgentCommand } from './commands/agent.js';
 import { registerChannelCommand } from './commands/channel.js';
@@ -59,7 +58,6 @@ program
   .action(installCommand);
 
 registerMemoryCommand(program);
-registerTaskCommand(program);
 registerSkillCommand(program);
 registerAgentCommand(program);
 registerChannelCommand(program);

@@ -11,7 +11,8 @@ description: Break down work into actionable tasks and estimate timeline
 
 - [x] **M1 — Core package + SQLite repository.** `@ai-devkit/task-manager` with types,
       `TaskService`, `TaskRepository`, WAL/migrations, append-only events.
-- [x] **M2 — CLI surface.** `ai-devkit task ...` wired into the CLI; `--json` + attribution.
+- [x] **M2 — Plugin CLI surface.** `ai-devkit task ...` provided by the optional
+      `@ai-devkit/task-manager` plugin; `--json` + attribution.
 - [x] **M3 — Tests, docs, simplify, validate.** Unit + integration coverage, README, simplify
       pass, green build/lint/test, commit, PR.
 
@@ -47,10 +48,11 @@ description: Break down work into actionable tasks and estimate timeline
       via `@ai-devkit/task-manager`.
 
 ### M2: CLI surface
-- [ ] **2.1 Dependency wire.** Add `@ai-devkit/task-manager` to `packages/cli/package.json`
-      deps; register `registerTaskCommand(program)` in `cli.ts`.
-- [ ] **2.2 task command** (`packages/cli/src/commands/task.ts`). All verbs/flags from the
-      design doc; `--json`, `--store`, `--agent*` globals; `<id>` via `resolveTask`.
+- [x] **2.1 Plugin manifest wire.** Add `aiDevkit.commands` to
+      `packages/task-manager/package.json` so the host plugin loader registers `task` only when
+      the package is installed/enabled.
+- [x] **2.2 task command** (`packages/task-manager/src/command.ts`). All verbs/flags from the
+      design doc; `--json`, `--db-path`, `--agent*` globals; `<id>` via `resolveTask`.
 - [ ] **2.3 Output formatting.** `list` table (id/title/status/phase/feature), `show`
       pretty + `--events`, `--json` machine output everywhere.
 
@@ -59,8 +61,8 @@ description: Break down work into actionable tasks and estimate timeline
       service mutation-per-event, resolveTask resolution order, validation errors.
 - [x] **3.2 Integration tests** (`tests/integration/`). TaskRepository round-trip,
       migrations, append-only events, addEvent escape hatch coverage, repository error branches.
-- [x] **3.3 CLI command tests** (`packages/cli/src/__tests__/commands/task.test.ts`) mirroring
-      the memory command test pattern (mocked TaskService).
+- [x] **3.3 Plugin command tests** (`packages/task-manager/tests/command.test.ts`) covering
+      command registration, parsing, output, and DB path resolution with a mocked TaskService.
 - [x] **3.4 README** (`packages/task-manager/README.md`) + a section in root README.
 - [x] **3.5 simplify-implementation pass** on the new code.
 - [x] **3.6 Validate**: `nx test`, `nx build`, `nx lint` green for task-manager + cli + repo.
