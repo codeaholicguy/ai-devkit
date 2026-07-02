@@ -32,12 +32,6 @@ ai-devkit agent kill <name>
 
 Use exact names from `list --json`. Partial matches are convenient but risk sending work to the wrong agent.
 
-## Task Attribution
-
-When `$task` needs actor metadata, identify self from `list --json` and pass:
-`--agent <name> --agent-type <type> --pid <pid> --session <sessionId>`.
-If self identity is ambiguous, do not guess.
-
 ## Assignment Rules
 
 - Do not send instructions to yourself unless intentional.
