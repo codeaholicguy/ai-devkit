@@ -27,14 +27,13 @@ packages/task-manager/
     task.types.ts       # public types: Actor, Task, TaskEvent, TaskEventType union, payloads
     task.errors.ts      # TaskError hierarchy + isTaskEventType guard
     task.ids.ts         # raw UUID id generators (crypto.randomUUID)
-    actor-resolver.ts   # resolveCurrentActor (env + process), ATTRIB_ENV
     task.repository.ts  # TaskRepository — task/event persistence (SQLite)
     task.service.ts     # TaskService (public consume-only surface)
     command.ts          # optional AI DevKit plugin command entrypoint
     database/           # connection.ts (WAL/migrations), schema.ts, migrations/001_initial.sql
     index.ts            # public exports (import path @ai-devkit/task-manager)
   tests/
-    unit/               # task.ids, actor-resolver, task.errors
+    unit/               # task.ids, task.errors
     integration/        # task.repository, service, add-event coverage, repository errors
 ```
 
@@ -71,7 +70,7 @@ Test: `packages/task-manager/tests/command.test.ts`.
 - **Ids are raw UUIDs** (`<uuid>` (raw UUIDv4), …) from Node `crypto.randomUUID()`, generated in
   the service layer (like memory generates ids in its handlers, not in the DB layer). No
   collision checks or central counters are needed.
-- Every mutator accepts `opts?{actor}` and auto-resolves attribution when omitted.
+- Every mutator accepts `opts?{actor}` and stores `null` when caller omits actor metadata.
 - List ordering is `createdAt` desc then `taskId` desc (deterministic for same-second tasks).
 
 ## Integration Points

@@ -29,7 +29,7 @@ Unit, integration, and plugin command coverage live in `packages/task-manager/te
 - [x] TaskRepository round-trip, upsert, append-only events (insertion order), schema init — `task.repository.test.ts`
 - [x] repository error branches wrapped as TaskRepositoryError (corrupt snapshot/payload, invalid path) — `task.repository.test.ts`, `add-event-coverage.test.ts`
 - [x] raw UUID id format + uniqueness — `task.ids.test.ts`
-- [x] actor auto-resolution env/override/pid — `actor-resolver.test.ts`
+- [x] explicit actor metadata is recorded and omitted actor stays `null` — `service.test.ts`, `command.test.ts`
 - [x] error hierarchy + isTaskEventType guard — `errors.test.ts`
 - [x] Plugin CLI verbs parse flags, resolve refs, print JSON/table, error on bad input — `command.test.ts`
 - [x] Plugin CLI resolves task DB path from `.ai-devkit.json` `tasks.path`; `--db-path` overrides config — `command.test.ts`
@@ -52,7 +52,6 @@ vitest v8; package thresholds statements/branches/functions/lines ≥ 75%.
 
 ## Test Files
 - `packages/task-manager/tests/unit/ids.test.ts`
-- `packages/task-manager/tests/unit/actor-resolver.test.ts`
 - `packages/task-manager/tests/unit/errors.test.ts`
 - `packages/task-manager/tests/integration/task.repository.test.ts`
 - `packages/task-manager/tests/integration/service.test.ts`
@@ -62,8 +61,8 @@ vitest v8; package thresholds statements/branches/functions/lines ≥ 75%.
 - `packages/cli/src/__tests__/lib/Config.test.ts`
 
 ## Results
-- `nx test task-manager`: 115 passing, 0 failing (8 test files).
-- `nx test cli`: 870 passing, 0 failing (72 test files).
+- `nx test task-manager`: 110 passing, 0 failing (7 test files).
+- `nx test cli`: 871 passing, 0 failing (72 test files).
 - `nx build task-manager`: succeeds.
 - `nx build cli`: succeeds, including dependent package builds.
 - `nx lint task-manager`: 0 errors.

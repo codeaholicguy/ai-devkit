@@ -121,7 +121,7 @@ interface TaskEvent {
   taskId: string;
   ts: string;            // ISO 8601
   type: TaskEventType;   // see table below
-  actor: Actor | null;   // who emitted this event (auto-resolved if omitted by caller)
+  actor: Actor | null;   // who emitted this event, when provided by the caller
   payload: Record<string, unknown>;  // shape depends on type
 }
 ```
@@ -152,9 +152,9 @@ Stateful types mutate the snapshot **and** append the event. `task.note.append` 
 
 ### `TaskService` (public API consumed by CLI and skills)
 
-All methods async. Every mutator accepts an optional `opts?: { actor?: Actor }` to override
-attribution; if omitted, the service auto-resolves the current agent (see Attribution). Every
-mutator returns the updated `Task` snapshot unless noted.
+All methods async. Every mutator accepts an optional `opts?: { actor?: Actor }`; if omitted,
+the event actor is stored as `null` (see Attribution). Every mutator returns the updated `Task`
+snapshot unless noted.
 
 ```ts
 class TaskService {
@@ -255,11 +255,9 @@ falls back to `~/.ai-devkit/tasks.db`. `<id>` resolves per `resolveTask` above.
 
 - Per-event `actor` records who **emitted** the event; task `attribution` records the **current
   owner** (set via `task.attribution.set` / `task assign`).
-- When `actor` is omitted, the service auto-resolves in order:
-  1. explicit flags/opts (`--agent*`);
-  2. env (`AI_DEVKIT_AGENT_ID`, `AI_DEVKIT_AGENT_TYPE`, `AI_DEVKIT_SESSION_ID`,
-     `AI_DEVKIT_AGENT_PID`);
-  3. `process.pid`.
+- Actor metadata is explicit. Skills and CLI callers may pass `opts.actor` or attribution flags
+  (`--agent`, `--agent-type`, `--pid`, `--session`); when no actor is provided, events store
+  `null`.
 
 ## Feature ↔ Task ↔ Phase
 

@@ -138,7 +138,7 @@ export interface TaskEvent {
     /** ISO 8601 timestamp. */
     ts: string;
     type: TaskEventType;
-    /** Who emitted this event (auto-resolved by the service if the caller omits it). */
+    /** Who emitted this event, when the caller provides actor metadata. */
     actor: Actor | null;
     /** Shape depends on `type`; see the contract for per-type payload schemas. */
     payload: Record<string, unknown>;

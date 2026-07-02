@@ -40,8 +40,8 @@ const events = await service.getEvents(task.taskId);
 
 ## Service API
 
-All methods async. Every mutator accepts `opts?: { actor?: Actor }` (auto-resolved if
-omitted) and returns the updated `Task` (or `{ task, blockerId/evidenceId/artifactId }`).
+All methods async. Every mutator accepts `opts?: { actor?: Actor }`; omitted actor metadata is
+stored as `null`. Mutators return the updated `Task` (or `{ task, blockerId/evidenceId/artifactId }`).
 
 `create`, `get`, `resolveTask(ref)`, `list(filter?)`, `update`, `setPhase`, `setStatus`,
 `setProgress`, `setNextStep`, `addBlocker`, `resolveBlocker`, `addEvidence`, `addArtifact`,
@@ -80,9 +80,8 @@ ai-devkit task show feature-x --events
 
 ## Attribution
 
-Per-event `actor` records who **emitted** an event; `task.attribution` records the **current
-owner**. When `actor` is omitted the service auto-resolves from explicit opts, env
-(`AI_DEVKIT_AGENT_ID/TYPE/SESSION_ID/PID`), and `process.pid`.
+Per-event `actor` records who **emitted** an event when supplied by the caller; `task.attribution`
+records the **current owner**. When `actor` is omitted the event stores `null`.
 
 ## Limitations (MVP)
 

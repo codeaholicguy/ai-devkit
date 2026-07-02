@@ -51,9 +51,6 @@ vi.mock('node:fs/promises', () => ({
 
 vi.mock('../src/index.js', () => ({
     createTaskService: vi.fn(() => mockTaskService),
-    resolveCurrentActor: vi.fn((override?: Record<string, unknown>) =>
-        override ? { agentId: 'resolved-agent', ...override } : null
-    ),
     isTaskEventType: vi.fn((t: string) => t.startsWith('task.')),
     AmbiguousTaskRefError: class AmbiguousTaskRefError extends Error {},
     TaskNotFoundError: class TaskNotFoundError extends Error {},

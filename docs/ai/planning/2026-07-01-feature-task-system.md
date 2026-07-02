@@ -31,9 +31,9 @@ description: Break down work into actionable tasks and estimate timeline
       `TaskValidationError`, `AmbiguousTaskRefError`, `TaskRepositoryError`.
 - [ ] **1.4 IDs + time helpers** (`src/task.ids.ts`). `taskId`/`eventId`/`blockerId`/`evidenceId`/
       `artifactId` generators (raw UUIDv4 via Node `crypto.randomUUID()`).
-- [ ] **1.5 Actor resolver** (`src/actor-resolver.ts`). `resolveCurrentActor()`:
-      flags/env/agent-manager best-effort/null. Pure env+process for MVP (no hard dep on
-      agent-manager to keep package standalone); agent-manager lookup deferred.
+- [ ] **1.5 Explicit actor handling**. Mutators accept caller-supplied actor metadata and store
+      `null` when omitted. Skills provide actor details when they have useful running-agent
+      context.
 - [ ] **1.6 TaskRepository + database layer** (`src/task.repository.ts`,
       `src/database/`). `TaskRepository`: `exists`, `readTask`, `writeTask`,
       `listTaskIds`, `readEvents`, `appendEvent`. (Id generation lives in the service, not the
@@ -41,7 +41,7 @@ description: Break down work into actionable tasks and estimate timeline
       `database/{connection,schema,migrations}` mirrors `@ai-devkit/memory` (WAL, busy_timeout,
       versioned migrations via `user_version`).
 - [ ] **1.7 TaskService** (`src/task.service.ts`). All service methods; delegates to the repository;
-      applies snapshot mutation per event type; auto-resolves actor; `resolveTask`
+      applies snapshot mutation per event type; records explicit actor metadata; `resolveTask`
       (full id → unique prefix → feature→latest non-terminal).
 - [ ] **1.8 Package index** (`src/index.ts`). Export types + `TaskService` + `TaskRepository` +
       CLI option interfaces (`TaskCreateOptions`, etc.) for the CLI layer, so consumers import
@@ -57,7 +57,7 @@ description: Break down work into actionable tasks and estimate timeline
       pretty + `--events`, `--json` machine output everywhere.
 
 ### M3: Tests, docs, simplify, validate
-- [x] **3.1 Unit tests** (`packages/task-manager/tests/unit/`). ids, actor-resolver,
+- [x] **3.1 Unit tests** (`packages/task-manager/tests/unit/`). ids,
       service mutation-per-event, resolveTask resolution order, validation errors.
 - [x] **3.2 Integration tests** (`tests/integration/`). TaskRepository round-trip,
       migrations, append-only events, addEvent escape hatch coverage, repository error branches.

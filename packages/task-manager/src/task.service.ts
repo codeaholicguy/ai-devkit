@@ -21,7 +21,6 @@ import {
     isTaskEventType,
 } from './task.errors.js';
 import { makeArtifactId, makeBlockerId, makeEvidenceId, makeEventId, makeTaskId, nowIso } from './task.ids.js';
-import { resolveCurrentActor } from './actor-resolver.js';
 
 export interface TaskMutationOptions {
     actor?: Actor;
@@ -129,7 +128,7 @@ export class TaskService {
         const feature = validateFeature(input.feature ?? null);
 
         const now = nowIso();
-        const actor = input.actor ?? resolveCurrentActor();
+        const actor = input.actor ?? null;
         const taskId = makeTaskId();
 
         const task: Task = {
@@ -347,7 +346,7 @@ export class TaskService {
             status: 'open',
             raisedAt: nowIso(),
             resolvedAt: null,
-            raisedBy: opts?.actor ?? resolveCurrentActor(),
+            raisedBy: opts?.actor ?? null,
         };
         task.blockers = [...task.blockers, blocker];
         const updated = await this.persistAndRecord(
@@ -398,7 +397,7 @@ export class TaskService {
             summary: input.summary ?? null,
             artifacts: input.artifacts ? [...input.artifacts] : [],
             recordedAt: nowIso(),
-            actor: opts?.actor ?? resolveCurrentActor(),
+            actor: opts?.actor ?? null,
         };
         task.evidence = [...task.evidence, evidence];
         const updated = await this.persistAndRecord(task, 'task.evidence.add', {
@@ -464,7 +463,7 @@ export class TaskService {
         }
         const task = await this.requireTask(taskId);
         // Event-only: no snapshot mutation beyond cached counters.
-        const actor = opts?.actor ?? resolveCurrentActor();
+        const actor = opts?.actor ?? null;
         await this.appendEventInternal(task.taskId, 'task.note.append', { text: trimmed }, actor);
         return this.refreshCachedCounters(task);
     }
@@ -498,9 +497,9 @@ export class TaskService {
             throw new UnknownEventTypeError(type);
         }
         const task = await this.requireTask(taskId);
-        const actor = opts?.actor ?? resolveCurrentActor();
+        const actor = opts?.actor ?? null;
 
-        const mutated = this.applyEventToSnapshot(task, type, payload);
+        const mutated = this.applyEventToSnapshot(task, type, payload, actor);
         if (mutated) {
             await this.repository.writeTask(task);
         }
@@ -544,7 +543,7 @@ export class TaskService {
         payload: Record<string, unknown>,
         opts?: TaskMutationOptions
     ): Promise<Task> {
-        const actor = opts?.actor ?? resolveCurrentActor();
+        const actor = opts?.actor ?? null;
         task.updatedAt = nowIso();
         await this.repository.writeTask(task);
         await this.appendEventInternal(task.taskId, type, payload, actor);
@@ -588,7 +587,8 @@ export class TaskService {
     private applyEventToSnapshot(
         task: Task,
         type: TaskEventType,
-        payload: Record<string, unknown>
+        payload: Record<string, unknown>,
+        actor: Actor | null
     ): boolean {
         switch (type) {
             case 'task.created':
@@ -643,7 +643,7 @@ export class TaskService {
                         status: 'open',
                         raisedAt: nowIso(),
                         resolvedAt: null,
-                        raisedBy: resolveCurrentActor(),
+                        raisedBy: actor,
                     },
                 ];
                 return true;
@@ -666,7 +666,7 @@ export class TaskService {
                         summary: (payload.summary as string | null | undefined) ?? null,
                         artifacts: (payload.artifacts as string[] | undefined) ?? [],
                         recordedAt: nowIso(),
-                        actor: resolveCurrentActor(),
+                        actor,
                     },
                 ];
                 return true;

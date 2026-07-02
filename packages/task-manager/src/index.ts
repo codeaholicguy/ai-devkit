@@ -57,8 +57,6 @@ export {
     isTaskEventType,
 } from './task.errors.js';
 
-export { resolveCurrentActor, ATTRIB_ENV } from './actor-resolver.js';
-
 /**
  * Convenience factory: a TaskService backed by a TaskRepository at the resolved
  * DB path (dbPath arg > ~/.ai-devkit/tasks.db).

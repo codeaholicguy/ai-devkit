@@ -4,7 +4,6 @@ import { readFile } from 'node:fs/promises';
 import * as path from 'node:path';
 import {
     createTaskService,
-    resolveCurrentActor,
     AmbiguousTaskRefError,
     isTaskEventType,
 } from './index.js';
@@ -30,19 +29,13 @@ interface AttributionOptions {
     session?: string;
 }
 
-function buildActorOverride(opts: AttributionOptions): Partial<Actor> | undefined {
-    const override: Partial<Actor> = {};
-    if (opts.agent) override.agentId = opts.agent;
-    if (opts.agentType) override.agentType = opts.agentType;
-    if (opts.pid) override.pid = Number.parseInt(opts.pid, 10);
-    if (opts.session) override.sessionId = opts.session;
-    return Object.keys(override).length > 0 ? override : undefined;
-}
-
 function actorFromOptions(opts: AttributionOptions): Actor | undefined {
-    const override = buildActorOverride(opts);
-    if (!override) return undefined;
-    return resolveCurrentActor(override) ?? undefined;
+    const actor: Actor = {};
+    if (opts.agent) actor.agentId = opts.agent;
+    if (opts.agentType) actor.agentType = opts.agentType;
+    if (opts.pid) actor.pid = Number.parseInt(opts.pid, 10);
+    if (opts.session) actor.sessionId = opts.session;
+    return Object.keys(actor).length > 0 ? actor : undefined;
 }
 
 async function createService(runtime: AiDevkitRuntime, dbPathFlag?: string): Promise<TaskService> {
