@@ -70,6 +70,11 @@ These environments have stable setup integrations.
 - `.agent/skills/` — Project-level skills
 - `~/.gemini/antigravity/skills/` — Global skills
 
+### [Antigravity CLI](https://antigravity.google/)
+**What AI DevKit provides:**
+- `.agents/skills/` — Project-level skills
+- `~/.gemini/config/skills/` — Global skills
+
 ### [Junie](https://www.jetbrains.com/junie/)
 **What AI DevKit provides:**
 - `AGENTS.md` — Junie project instructions and context

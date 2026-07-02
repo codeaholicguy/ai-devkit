@@ -79,6 +79,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `opencode` | opencode |
 | `roo` | Roo |
 | `antigravity` | Antigravity |
+| `antigravity-cli` | Antigravity CLI |
 | `junie` | Junie |
 | `cline` | Cline |
 | `devin` | Devin |
