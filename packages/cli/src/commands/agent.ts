@@ -13,6 +13,7 @@ import {
   GeminiCliAdapter,
   GrokCliAdapter,
   KiroAdapter,
+  AntigravityCliAdapter,
   OpenCodeAdapter,
   PiAdapter,
   ClaudePrintAgentService,
@@ -150,6 +151,7 @@ const TYPE_LABELS: Record<AgentType, string> = {
   gemini_cli: "Gemini CLI",
   grok_cli: "Grok CLI",
   kiro: "Kiro",
+  antigravity_cli: "Antigravity CLI",
   opencode: "OpenCode",
   pi: "Pi",
   other: "Other",
@@ -281,6 +283,7 @@ function createAgentManager(): AgentManager {
   manager.registerAdapter(new GeminiCliAdapter());
   manager.registerAdapter(new GrokCliAdapter());
   manager.registerAdapter(new KiroAdapter());
+  manager.registerAdapter(new AntigravityCliAdapter());
   manager.registerAdapter(new OpenCodeAdapter());
   manager.registerAdapter(new PiAdapter());
   return manager;

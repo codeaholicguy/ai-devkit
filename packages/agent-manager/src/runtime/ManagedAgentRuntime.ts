@@ -260,6 +260,7 @@ function agentRuntimeKind(type: StartableAgentType, provider: AgentRuntimeProvid
     copilot: "copilot",
     gemini_cli: "gemini",
     grok_cli: "grok",
+    antigravity_cli: "agy",
     opencode: "opencode",
     pi: "pi",
     kiro: "kiro",

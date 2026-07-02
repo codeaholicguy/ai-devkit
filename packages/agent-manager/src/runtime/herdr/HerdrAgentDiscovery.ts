@@ -93,6 +93,7 @@ function herdrAgentMatchesType(herdrAgent: string, agentType: AgentType): boolea
     copilot: ["copilot"],
     gemini_cli: ["gemini", "gemini_cli"],
     grok_cli: ["grok", "grok_cli"],
+    antigravity_cli: ["agy", "antigravity", "antigravity_cli"],
     kiro: ["kiro", "kiro_cli", "kiro-cli"],
     opencode: ["opencode"],
     pi: ["pi"],
@@ -120,7 +121,9 @@ async function enrichHerdrAgentPanes(
   );
 }
 
-function extractPaneProcessIds(value: unknown): Pick<HerdrAgentPane, "foregroundPids" | "shellPid"> {
+function extractPaneProcessIds(
+  value: unknown,
+): Pick<HerdrAgentPane, "foregroundPids" | "shellPid"> {
   const processInfo = getObject(value, ["result", "process_info"]);
   if (!processInfo) return {};
 
