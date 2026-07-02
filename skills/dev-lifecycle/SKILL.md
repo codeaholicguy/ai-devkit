@@ -22,6 +22,7 @@ Supporting skills:
 - `memory` for reusable project knowledge during clarification.
 - `tdd` for implementation tasks.
 - `verify` before completing implementation, implementation checks, testing claims, and review readiness.
+- `task` for optional progress tracing when the task plugin is installed.
 
 ## Startup Validation
 
@@ -92,3 +93,4 @@ Not every phase moves forward. When a phase reveals problems, route back:
 - Existing feature docs are the paths reported or validated by `npx ai-devkit@latest lint --feature <name>`. If you must infer manually, first resolve the configured docs directory from `.ai-devkit.json` `paths.docs`, falling back to `docs/ai`.
 - After each phase, summarize output and suggest the next phase.
 - Do not claim completion without fresh verification evidence.
+- When task tracing is available: create the feature task once, set `phase` on phase transitions, record `progress`/`next` after meaningful task updates, add `evidence` after verification, and `close` at lifecycle end.

@@ -38,6 +38,12 @@ For each hypothesis, include:
 - Summarize remaining risks and follow-ups.
 - Store root cause and fix for future sessions: `npx ai-devkit@latest memory store --title "<root cause>" --content "<diagnosis and fix>" --tags "debug,root-cause"`
 
+## Task Tracing
+
+If `ai-devkit task --help` succeeds, use `$task` optionally: record repro/final
+results as `evidence`, the current hypothesis as `next`, and blockers only when
+they materially affect progress. Never block debugging because task tracing is unavailable.
+
 ## Red Flags and Rationalizations
 
 | Rationalization | Why It's Wrong | Do Instead |
