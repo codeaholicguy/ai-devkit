@@ -1,7 +1,18 @@
 
-import { truncate } from '../../util/text.js';
+import { getErrorMessage, truncate } from '../../util/text.js';
 
 describe('text util', () => {
+    describe('getErrorMessage', () => {
+        it('returns Error messages', () => {
+            expect(getErrorMessage(new Error('memory failed'))).toBe('memory failed');
+        });
+
+        it('stringifies non-Error values', () => {
+            expect(getErrorMessage('plain failure')).toBe('plain failure');
+            expect(getErrorMessage(404)).toBe('404');
+        });
+    });
+
     describe('truncate', () => {
         it('returns original text when it is within maxLength', () => {
             expect(truncate('hello', 10)).toBe('hello');

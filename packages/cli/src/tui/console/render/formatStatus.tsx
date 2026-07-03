@@ -20,8 +20,12 @@ export interface FormatStatusProps {
     status: AgentStatus;
 }
 
+export function getStatusDisplay(status: AgentStatus): StatusGlyph {
+    return STATUS_DISPLAY[status] ?? STATUS_DISPLAY[AgentStatus.UNKNOWN];
+}
+
 const FormatStatusInner: React.FC<FormatStatusProps> = ({ status }) => {
-    const { glyph, label, color } = STATUS_DISPLAY[status] ?? STATUS_DISPLAY[AgentStatus.UNKNOWN];
+    const { glyph, label, color } = getStatusDisplay(status);
     return <Text color={color}>{glyph} {label}</Text>;
 };
 
