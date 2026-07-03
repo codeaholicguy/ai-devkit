@@ -26,11 +26,11 @@ async function writeDirectTask(repository: TaskRepository, taskId: string): Prom
         taskId,
         title: 'T',
         summary: null,
-        feature: null,
+        name: null,
         status: 'open',
         phase: null,
         phaseEnteredAt: null,
-        progress: { text: null, percent: null },
+        progress: { text: null },
         nextStep: null,
         blockers: [],
         evidence: [],
@@ -71,10 +71,10 @@ describe('TaskService (integration with TaskRepository)', () => {
 
     describe('create', () => {
         it('creates a task with stable id and task.created event', async () => {
-            const task = await service.create({ title: 'Ship feature X', feature: 'feature-x' });
+            const task = await service.create({ title: 'Ship feature X', name: 'feature-x' });
             expect(task.taskId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
             expect(task.status).toBe('open');
-            expect(task.feature).toBe('feature-x');
+            expect(task.name).toBe('feature-x');
             expect(task.eventCount).toBe(1);
             expect(task.lastEventAt).not.toBeNull();
 
@@ -88,15 +88,15 @@ describe('TaskService (integration with TaskRepository)', () => {
             await expect(service.create({ title: '   ' })).rejects.toBeInstanceOf(TaskValidationError);
         });
 
-        it('rejects invalid feature key', async () => {
-            await expect(service.create({ title: 'T', feature: 'Bad Feature!' })).rejects.toBeInstanceOf(
+        it('rejects invalid task name', async () => {
+            await expect(service.create({ title: 'T', name: 'Bad Feature!' })).rejects.toBeInstanceOf(
                 TaskValidationError
             );
         });
 
-        it('allows null feature for ad-hoc tasks', async () => {
+        it('allows null name for ad-hoc tasks', async () => {
             const task = await service.create({ title: 'Ad-hoc debug' });
-            expect(task.feature).toBeNull();
+            expect(task.name).toBeNull();
         });
 
         it('sets phase and phaseEnteredAt when provided', async () => {
@@ -134,13 +134,10 @@ describe('TaskService (integration with TaskRepository)', () => {
             expect(updated.status).toBe('active');
         });
 
-        it('setProgress validates percent range', async () => {
+        it('setProgress stores text', async () => {
             const task = await service.create({ title: 'T' });
-            await expect(
-                service.setProgress(task.taskId, { percent: 150 })
-            ).rejects.toBeInstanceOf(TaskValidationError);
-            const updated = await service.setProgress(task.taskId, { text: 'halfway', percent: 50 });
-            expect(updated.progress).toEqual({ text: 'halfway', percent: 50 });
+            const updated = await service.setProgress(task.taskId, { text: 'implementation started' });
+            expect(updated.progress).toEqual({ text: 'implementation started' });
         });
 
         it('setNextStep trims and stores; --clear sets null', async () => {
@@ -282,12 +279,12 @@ describe('TaskService (integration with TaskRepository)', () => {
 
     describe('resolveTask', () => {
         it('resolves by full id', async () => {
-            const task = await service.create({ title: 'T', feature: 'feat' });
+            const task = await service.create({ title: 'T', name: 'feat' });
             expect(await service.resolveTask(task.taskId)).not.toBeNull();
         });
 
         it('resolves by unique id prefix', async () => {
-            const task = await service.create({ title: 'T', feature: 'feat' });
+            const task = await service.create({ title: 'T', name: 'feat' });
             const prefix = task.taskId.slice(0, 8);
             const resolved = await service.resolveTask(prefix);
             expect(resolved?.taskId).toBe(task.taskId);
@@ -305,26 +302,26 @@ describe('TaskService (integration with TaskRepository)', () => {
             );
         });
 
-        it('resolves by feature key to the latest non-terminal task', async () => {
-            const a = await service.create({ title: 'A', feature: 'feat' });
-            const b = await service.create({ title: 'B', feature: 'feat' });
+        it('resolves by task name to the latest non-terminal task', async () => {
+            const a = await service.create({ title: 'A', name: 'feat' });
+            const b = await service.create({ title: 'B', name: 'feat' });
             await service.close(a.taskId, 'completed');
             const resolved = await service.resolveTask('feat');
             expect(resolved?.taskId).toBe(b.taskId);
         });
 
         it('returns null when nothing matches', async () => {
-            expect(await service.resolveTask('nonexistent-feature')).toBeNull();
+            expect(await service.resolveTask('nonexistent-name')).toBeNull();
         });
     });
 
     describe('list', () => {
-        it('filters by feature/status/phase and returns newest first', async () => {
-            await service.create({ title: 'A', feature: 'feat', phase: 'design' });
-            await service.create({ title: 'B', feature: 'feat', phase: 'testing' });
-            await service.create({ title: 'C', feature: 'other' });
+        it('filters by name/status/phase and returns newest first', async () => {
+            await service.create({ title: 'A', name: 'feat', phase: 'design' });
+            await service.create({ title: 'B', name: 'feat', phase: 'testing' });
+            await service.create({ title: 'C', name: 'other' });
 
-            const featTasks = await service.list({ feature: 'feat' });
+            const featTasks = await service.list({ name: 'feat' });
             expect(featTasks).toHaveLength(2);
             expect(featTasks[0]!.title).toBe('B');
         });

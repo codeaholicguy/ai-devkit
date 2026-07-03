@@ -40,9 +40,11 @@ For each hypothesis, include:
 
 ## Task Tracing
 
-If `ai-devkit task --help` succeeds, use `$task` optionally: record repro/final
-results as `evidence`, the current hypothesis as `next`, and blockers only when
-they materially affect progress. Never block debugging because task tracing is unavailable.
+If task tracing is usable, choose a short kebab-case debug task name when no
+task name exists, then use `task` optionally: record repro/final results as
+`evidence`, the current hypothesis as `next`, and blockers only when they
+materially affect progress. Never block debugging because task tracing is
+unavailable.
 
 ## Red Flags and Rationalizations
 

@@ -68,6 +68,7 @@ After a failed verification, store the failure pattern: `npx ai-devkit@latest me
 
 ## Task Tracing
 
-If `ai-devkit task --help` succeeds and a task/feature is known, record task
-`evidence` after the report with command, exit code, pass/fail, and concise
-summary. Never block verification because task logging is unavailable.
+If a task name is known and tracing is usable, record `task evidence` after
+the verification report per `task`. If tracing was not probed, run the real read
+probe first. If probe or evidence recording fails, report the failed task command
+and continue verification; never block verification on optional task logging.

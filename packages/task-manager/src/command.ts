@@ -130,10 +130,10 @@ function renderTask(task: Task): string {
     lines.push(`${task.taskId}`);
     lines.push(`  title:   ${task.title}`);
     lines.push(`  status:  ${task.status}   phase: ${task.phase ?? '-'}`);
-    if (task.feature) lines.push(`  feature: ${task.feature}`);
+    if (task.name) lines.push(`  name:    ${task.name}`);
     if (task.summary) lines.push(`  summary: ${task.summary}`);
-    if (task.progress.text || task.progress.percent !== null) {
-        lines.push(`  progress: ${task.progress.text ?? ''}${task.progress.percent !== null ? ` (${task.progress.percent}%)` : ''}`);
+    if (task.progress.text) {
+        lines.push(`  progress: ${task.progress.text}`);
     }
     if (task.nextStep) lines.push(`  next:    ${task.nextStep}`);
     lines.push(`  attribution: ${formatActor(task.attribution)}`);
@@ -179,7 +179,7 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
             .command('create')
             .description('Create a new task')
             .requiredOption('--title <title>', 'Task title')
-            .option('--feature <feature>', 'Kebab-case feature key')
+            .option('--name <name>', 'Kebab-case task name')
             .option('--summary <summary>', 'Short summary')
             .option('--phase <phase>', 'Initial lifecycle phase')
             .option('--tags <tags>', 'Comma-separated tags')
@@ -191,7 +191,7 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
             const service = await createService(runtime, opts.dbPath);
             const created = await service.create({
                 title: opts.title,
-                feature: opts.feature,
+                name: opts.name,
                 summary: opts.summary,
                 phase: opts.phase,
                 tags: opts.tags ? opts.tags.split(',').map((t: string) => t.trim()).filter(Boolean) : undefined,
@@ -211,7 +211,7 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
         command
             .command('list')
             .description('List tasks (newest first)')
-            .option('--feature <feature>', 'Filter by feature key')
+            .option('--name <name>', 'Filter by task name')
             .option('--status <status>', `Filter by status (${VALID_STATUSES.join('|')})`)
             .option('--phase <phase>', 'Filter by phase')
             .option('--limit <n>', 'Maximum results', '20')
@@ -219,7 +219,7 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
         withErrorHandler('list tasks', async (opts) => {
             const service = await createService(runtime, opts.dbPath);
             const tasks = await service.list({
-                feature: opts.feature,
+                name: opts.name,
                 status: opts.status as TaskStatus | undefined,
                 phase: opts.phase,
                 limit: Number.parseInt(opts.limit, 10) || 20,
@@ -233,13 +233,13 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
                 return;
             }
             console.log([
-                ['id', 'title', 'status', 'phase', 'feature'].join('\t'),
+                ['id', 'title', 'status', 'phase', 'name'].join('\t'),
                 ...tasks.map((t) => [
                     t.taskId,
                     truncate(t.title, TITLE_MAX_LENGTH),
                     t.status,
                     t.phase ?? '-',
-                    t.feature ?? '-',
+                    t.name ?? '-',
                 ].join('\t')),
             ].join('\n'));
         })
@@ -248,7 +248,7 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
     addAttributionFlags(
         command
             .command('show <id>')
-            .description('Show a task (resolves id, prefix, or feature)')
+            .description('Show a task (resolves id, prefix, or name)')
             .option('--events', 'Include the event history')
     ).action(
         withErrorHandler('show task', async (id: string, opts) => {
@@ -333,9 +333,8 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
     addAttributionFlags(
         command
             .command('progress <id>')
-            .description('Set progress text/percent')
+            .description('Set progress text')
             .option('--text <text>', 'Progress text')
-            .option('--percent <n>', 'Completion percent (0..100)')
             .option('--clear', 'Clear progress')
     ).action(
         withErrorHandler('set task progress', async (id: string, opts) => {
@@ -344,10 +343,9 @@ export function register(command: Command, runtime: AiDevkitRuntime): void {
             if (!resolved) return;
             const progress =
                 opts.clear === true
-                    ? { text: null, percent: null }
+                    ? { text: null }
                     : {
                           text: opts.text,
-                          percent: opts.percent !== undefined ? Number.parseInt(opts.percent, 10) : undefined,
                       };
             const updated = await service.setProgress(resolved.taskId, progress, {
                 actor: actorFromOptions(opts),
@@ -574,9 +572,28 @@ function withErrorHandler<TArgs extends unknown[]>(
         try {
             await handler(...args);
         } catch (error) {
-            const message = error instanceof Error ? error.message : String(error);
+            const message = formatCommandError(error);
             console.error(`Failed to ${operation}: ${message}`);
             process.exitCode = 1;
         }
     };
+}
+
+function formatCommandError(error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!error || typeof error !== 'object' || !('details' in error)) {
+        return message;
+    }
+
+    const details = (error as { details?: unknown }).details;
+    if (!details || typeof details !== 'object') {
+        return message;
+    }
+
+    const originalError = (details as { originalError?: unknown }).originalError;
+    if (typeof originalError !== 'string' || originalError.trim().length === 0) {
+        return message;
+    }
+
+    return `${message} (${originalError.trim()})`;
 }

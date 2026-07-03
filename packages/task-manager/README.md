@@ -2,7 +2,7 @@
 
 Durable task tracking for AI DevKit development and debugging work.
 
-A task keeps the state an agent needs to resume work later: title, feature key,
+A task keeps the state an agent needs to resume work later: title, task name,
 phase, progress, blockers, evidence, artifacts, owner attribution, linked branch
 or PR, and an append-only event history.
 
@@ -15,12 +15,12 @@ const service = createTaskService(); // Uses ~/.ai-devkit/tasks.db
 
 const task = await service.create({
   title: 'Ship feature X',
-  feature: 'feature-x',
+  name: 'feature-x',
   phase: 'requirements',
 });
 
 await service.setPhase(task.taskId, 'design');
-await service.setProgress(task.taskId, { text: 'halfway', percent: 50 });
+await service.setProgress(task.taskId, { text: 'implementation started' });
 await service.addEvidence(task.taskId, {
   command: 'nx test',
   exitCode: 0,
@@ -41,15 +41,15 @@ ai-devkit plugin add @ai-devkit/task-manager
 Then use `ai-devkit task`:
 
 ```bash
-ai-devkit task create --title "Ship feature X" --feature feature-x --phase requirements --json
+ai-devkit task create --title "Ship feature X" --name feature-x --phase requirements --json
 ai-devkit task phase feature-x design
-ai-devkit task progress feature-x --text "halfway" --percent 50
+ai-devkit task progress feature-x --text "implementation started"
 ai-devkit task evidence feature-x --command "nx test" --exit-code 0 --passed --summary "all green"
 ai-devkit task show feature-x --events
 ```
 
-Task references can be a full task id, a unique id prefix, or a feature key. A
-feature key resolves to the latest non-terminal task for that feature.
+Task references can be a full task id, a unique id prefix, or a task name. A
+task name resolves to the latest non-terminal task with that name.
 
 Common commands:
 

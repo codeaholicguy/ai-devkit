@@ -15,6 +15,7 @@ Run implementation work for configured AI docs features. Before changing docs or
 4. Use the `tdd` skill while executing implementation tasks: write a failing test before production code, then make it pass.
 5. Apply the `verify` skill before completing tasks or making implementation alignment claims.
 6. Keep testing and implementation docs in lockstep with code. Do not defer all doc updates to final verification.
+7. If parent `dev-lifecycle` established usable task tracing, emit phase, progress, next-step, blocker, and evidence events per `task`.
 
 ## Execute Plan
 
@@ -25,12 +26,13 @@ Use for Phase 5.
 3. Parse task lists and build an ordered queue by section.
 4. Present the task queue with status: `todo`, `in-progress`, `done`, `blocked`.
 5. For each task, show context, suggest relevant docs, and outline sub-steps from the design doc when useful.
-6. Reuse before writing: grep for existing utilities/functions before adding new ones. Reuse only if it fits cleanly.
-7. Handle breaking changes carefully: update all in-repo callers atomically; for external/public/cross-service callers, add a new function and deprecate the old one.
-8. Generate a markdown tracking snippet after each status change.
-9. After each task, update the testing doc with completed scenarios, newly discovered scenarios, and invalidated scenarios. Update the implementation doc with changed files, decisions, design deviations, and edge cases handled.
-10. After each section, ask if new tasks were discovered.
-11. Summarize completed, in-progress, blocked, skipped, new tasks, and doc deltas.
+6. If task tracing is available, record current task progress and immediate next action per `task`.
+7. Reuse before writing: grep for existing utilities/functions before adding new ones. Reuse only if it fits cleanly.
+8. Handle breaking changes carefully: update all in-repo callers atomically; for external/public/cross-service callers, add a new function and deprecate the old one.
+9. Generate a markdown tracking snippet after each status change.
+10. After each task, update the testing doc with completed scenarios, newly discovered scenarios, and invalidated scenarios. Update the implementation doc with changed files, decisions, design deviations, and edge cases handled.
+11. After each section, ask if new tasks were discovered.
+12. Summarize completed, in-progress, blocked, skipped, new tasks, task-tracing events emitted or why tracing was unavailable, and doc deltas.
 
 Next: after completing any task, run `dev-planning` Phase 6. When all tasks are done, run Check Implementation, then `dev-testing` and `dev-review`.
 

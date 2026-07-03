@@ -13,6 +13,7 @@ Run testing work for configured AI docs features. Before changing docs or code, 
 2. If working on a named feature, run `npx ai-devkit@latest lint --feature <name>`.
 3. Read the testing doc, requirements, design, implementation notes, and current diff before changes.
 4. Apply the `verify` skill before making coverage or test-pass claims.
+5. If parent `dev-lifecycle` established usable task tracing, emit testing phase, next-action, and evidence events per `task`.
 
 ## Write Tests
 
@@ -24,6 +25,7 @@ Use for Phase 8.
 4. Add unit tests for happy paths, edge cases, and error handling for each module. Highlight missing branches.
 5. Add integration tests for critical cross-component flows, setup/teardown, and boundary/failure cases.
 6. Run coverage tooling, identify gaps, and suggest additional tests if below the target.
-7. Update the selected testing doc with test file links and results.
+7. If task tracing is available, record evidence for each fresh test/coverage command per `task`.
+8. Update the selected testing doc with test file links and results.
 
 Next: `dev-review`. If tests reveal design flaws, return to `dev-design`.

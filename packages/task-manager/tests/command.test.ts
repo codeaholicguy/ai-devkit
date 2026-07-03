@@ -67,11 +67,11 @@ function sampleTask(overrides: Record<string, unknown> = {}) {
         taskId: TASK_ID,
         title: 'Sample task',
         summary: null,
-        feature: 'demo',
+        name: 'demo',
         status: 'open',
         phase: null,
         phaseEnteredAt: null,
-        progress: { text: null, percent: null },
+        progress: { text: null },
         nextStep: null,
         blockers: [],
         evidence: [],
@@ -92,12 +92,15 @@ function sampleTask(overrides: Record<string, unknown> = {}) {
 describe('task command', () => {
     const mockedCreateTaskService = createTaskService as MockedFunction<typeof createTaskService>;
     let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
     beforeEach(() => {
         vi.clearAllMocks();
         vi.mocked(readFile).mockResolvedValue(JSON.stringify({ tasks: { path: '.ai-devkit/tasks.db' } }));
         Object.values(mockTaskService).forEach((fn) => (fn as ReturnType<typeof vi.fn>).mockReset());
         consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+        process.exitCode = undefined;
     });
 
     describe('create', () => {
@@ -182,12 +185,12 @@ describe('task command', () => {
             await program.parseAsync([
                 'node', 'test', 'task', 'create',
                 '--title', 'Sample task',
-                '--feature', 'demo',
+                '--name', 'demo',
                 '--json',
             ]);
 
             expect(mockTaskService.create).toHaveBeenCalledWith(
-                expect.objectContaining({ title: 'Sample task', feature: 'demo' })
+                expect.objectContaining({ title: 'Sample task', name: 'demo' })
             );
             expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(task, null, 2));
         });
@@ -222,7 +225,7 @@ describe('task command', () => {
             const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'list']);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('id\ttitle\tstatus\tphase\tfeature'));
+            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('id\ttitle\tstatus\tphase\tname'));
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(`${TASK_ID}\tSample task\topen`));
             expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining(`${SECOND_TASK_ID}\tOther\topen`));
         });
@@ -240,6 +243,22 @@ describe('task command', () => {
             const program = createProgram();
             await program.parseAsync(['node', 'test', 'task', 'list']);
             expect(mockRuntime.logger.warn).toHaveBeenCalledWith('No tasks found.');
+        });
+
+        it('surfaces repository error details when task storage cannot open', async () => {
+            const error = new Error('Failed to open task database') as Error & { details: Record<string, unknown> };
+            error.details = {
+                originalError: 'better-sqlite3 was compiled against NODE_MODULE_VERSION 147; this Node requires 137',
+            };
+            mockTaskService.list.mockRejectedValue(error);
+
+            const program = createProgram();
+            await program.parseAsync(['node', 'test', 'task', 'list', '--json']);
+
+            expect(consoleErrorSpy).toHaveBeenCalledWith(
+                'Failed to list tasks: Failed to open task database (better-sqlite3 was compiled against NODE_MODULE_VERSION 147; this Node requires 137)'
+            );
+            expect(process.exitCode).toBe(1);
         });
     });
 
@@ -269,7 +288,7 @@ describe('task command', () => {
     });
 
     describe('phase / status / progress / next', () => {
-        it('sets phase by feature key', async () => {
+        it('sets phase by task name', async () => {
             const task = sampleTask({ phase: 'design' });
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.setPhase.mockResolvedValue(task);
@@ -280,17 +299,17 @@ describe('task command', () => {
             expect(mockTaskService.setPhase).toHaveBeenCalledWith(TASK_ID, 'design', expect.any(Object));
         });
 
-        it('sets progress with percent and text', async () => {
+        it('sets progress text', async () => {
             const task = sampleTask();
             mockTaskService.resolveTask.mockResolvedValue(task);
             mockTaskService.setProgress.mockResolvedValue(task);
 
             const program = createProgram();
-            await program.parseAsync(['node', 'test', 'task', 'progress', 'demo', '--text', 'half', '--percent', '50', '--json']);
+            await program.parseAsync(['node', 'test', 'task', 'progress', 'demo', '--text', 'implementation started', '--json']);
 
             expect(mockTaskService.setProgress).toHaveBeenCalledWith(
                 task.taskId,
-                { text: 'half', percent: 50 },
+                { text: 'implementation started' },
                 expect.any(Object)
             );
         });
@@ -304,7 +323,7 @@ describe('task command', () => {
             await program.parseAsync(['node', 'test', 'task', 'progress', 'demo', '--clear']);
             expect(mockTaskService.setProgress).toHaveBeenCalledWith(
                 task.taskId,
-                { text: null, percent: null },
+                { text: null },
                 expect.any(Object)
             );
         });

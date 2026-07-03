@@ -14,6 +14,7 @@ Run final pre-push review for configured AI docs features. Before changing docs 
 3. Check `git status -sb` and `git diff --stat`.
 4. Read feature docs and relevant changed files before findings.
 5. Apply the `verify` skill before claiming readiness.
+6. If parent `dev-lifecycle` established usable task tracing, emit review phase, progress, blocker/finding, next-step, and final evidence/readiness events per `task`.
 
 ## Code Review
 
@@ -31,6 +32,7 @@ Use for Phase 9. Take a holistic review stance: findings first, ordered by sever
 10. Review file by file for correctness, logic, edge cases, redundancy, security, performance, error handling, and test coverage.
 11. Check cross-cutting concerns: naming conventions, documentation updates, missing tests, config/migration changes.
 12. Summarize blocking issues, important follow-ups, and nice-to-haves. Per finding include file, issue, impact severity, and recommendation.
-13. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
+13. If task tracing is available, add blockers and set `blocked` for blocking findings; if review passes with final evidence, close the task per `task`.
+14. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
 
 Done: if the checklist passes, the feature is ready to push and create a PR. If blocking issues remain, return to `dev-implementation` or `dev-testing`.

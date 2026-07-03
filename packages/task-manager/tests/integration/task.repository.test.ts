@@ -27,11 +27,11 @@ function makeTask(overrides: Partial<Task> = {}): Task {
         taskId,
         title: 'Sample task',
         summary: null,
-        feature: 'demo',
+        name: 'demo',
         status: 'open',
         phase: null,
         phaseEnteredAt: null,
-        progress: { text: null, percent: null },
+        progress: { text: null },
         nextStep: null,
         blockers: [],
         evidence: [],
@@ -66,7 +66,7 @@ function makeEvent(taskId: string, overrides: Partial<TaskEvent> = {}): TaskEven
 function writeRawSnapshot(dbPath: string, taskId: string, rawSnapshot: string): void {
     const now = nowIso();
     getDatabase({ dbPath }).execute(
-        `INSERT OR REPLACE INTO tasks (task_id, snapshot, feature, status, phase, created_at, updated_at)
+        `INSERT OR REPLACE INTO tasks (task_id, snapshot, name, status, phase, created_at, updated_at)
          VALUES (?, ?, NULL, 'open', NULL, ?, ?)`,
         [taskId, rawSnapshot, now, now]
     );
@@ -104,7 +104,7 @@ describe('TaskRepository', () => {
     });
 
     it('writes and reads a task snapshot round-trip', async () => {
-        const task = makeTask({ title: 'Hello', feature: 'feat', status: 'active', phase: 'design' });
+        const task = makeTask({ title: 'Hello', name: 'feat', status: 'active', phase: 'design' });
         await repository.writeTask(task);
         const read = await repository.readTask(task.taskId);
         expect(read).toEqual(task);

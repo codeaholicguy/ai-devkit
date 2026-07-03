@@ -17,6 +17,7 @@ Run the requirements phases for configured AI docs features. Before making docs 
 6. Ask one decision at a time, with why it matters, 2-3 viable options when useful, and a recommended answer.
 7. Do not create, update, approve, or transition past requirements while material open questions remain.
 8. Restate the shared understanding before updating docs or suggesting the next phase.
+9. If parent `dev-lifecycle` established usable task tracing, emit requirements phase, clarification/progress, blocker/open-question, and next-step events per `task`.
 
 ## New Requirement
 
@@ -31,7 +32,8 @@ Use for Phase 1 or `/new-requirement`.
 7. Fill requirements doc: problem statement, goals/non-goals, user stories, success criteria, constraints, open questions.
 8. Fill design doc: architecture with mermaid diagram, data models, APIs, components, design decisions, security/performance.
 9. Fill testing doc: derive scenarios from requirements success criteria and design components/edge cases as `- [ ]` checkboxes, plus mocks/fixtures and coverage target.
-10. Use `dev-planning` to create the initial task plan from the requirements, design, and testing docs.
+10. If task tracing is available, record draft progress and next review step per `task`.
+11. Use `dev-planning` to create the initial task plan from the requirements, design, and testing docs.
 
 Next: `dev-requirements` review, then `dev-design`.
 
@@ -47,6 +49,7 @@ Use for Phase 2.
 6. Brainstorm alternatives for key decisions and trade-offs before accepting the first approach.
 7. Update the requirements doc with clarified answers and chosen options.
 8. Store reusable clarifications in memory.
-9. Summarize what was validated, what was updated, and remaining open items.
+9. If task tracing is available, record validation progress, next step, or blockers per `task`.
+10. Summarize what was validated, what was updated, and remaining open items.
 
 Next: `dev-design`. If fundamental gaps remain unresolvable, return to New Requirement.

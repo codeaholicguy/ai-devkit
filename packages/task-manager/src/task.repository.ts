@@ -80,12 +80,12 @@ export class TaskRepository {
         const snapshot = JSON.stringify(task);
         try {
             this.db().execute(
-                `INSERT OR REPLACE INTO tasks (task_id, snapshot, feature, status, phase, created_at, updated_at)
+                `INSERT OR REPLACE INTO tasks (task_id, snapshot, name, status, phase, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
                     task.taskId,
                     snapshot,
-                    task.feature,
+                    task.name,
                     task.status,
                     task.phase,
                     task.createdAt,

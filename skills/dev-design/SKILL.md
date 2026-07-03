@@ -16,6 +16,7 @@ Run the design review phase for configured AI docs features. Before changing doc
 5. Ask one decision at a time, with why it matters, 2-3 viable options when useful, and a recommended answer.
 6. Do not approve or transition past design while material open questions remain.
 7. Use mermaid diagrams for architecture visuals where a diagram clarifies the design.
+8. If parent `dev-lifecycle` established usable task tracing, emit design phase, progress, blocker/open-question, and next-step events per `task`.
 
 ## Review Design
 
@@ -29,6 +30,7 @@ Use for Phase 3.
 6. Brainstorm alternatives for key architecture decisions and trade-offs before accepting the first approach.
 7. Update the design doc with clarified decisions and chosen options.
 8. Store reusable architecture decisions in memory.
-9. Summarize requirements coverage, completeness assessment, updates made, and remaining gaps.
+9. If task tracing is available, record design coverage progress, next step, or blockers per `task`.
+10. Summarize requirements coverage, completeness assessment, updates made, and remaining gaps.
 
 Next: `dev-implementation`. If requirements gaps are found, return to `dev-requirements`. If design is fundamentally wrong, revise design and re-review.

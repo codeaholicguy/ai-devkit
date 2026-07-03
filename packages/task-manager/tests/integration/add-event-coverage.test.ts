@@ -20,7 +20,7 @@ const ARTIFACT_ID = '00000000-0000-4000-8000-000000000005';
 function writeRawSnapshot(dbPath: string, taskId: string, rawSnapshot: string): void {
     const now = nowIso();
     getDatabase({ dbPath }).execute(
-        `INSERT OR REPLACE INTO tasks (task_id, snapshot, feature, status, phase, created_at, updated_at)
+        `INSERT OR REPLACE INTO tasks (task_id, snapshot, name, status, phase, created_at, updated_at)
          VALUES (?, ?, NULL, 'open', NULL, ?, ?)`,
         [taskId, rawSnapshot, now, now]
     );
@@ -87,8 +87,8 @@ describe('addEvent escape hatch — every stateful type', () => {
 
     it('task.progress.set sets progress via addEvent', async () => {
         const task = await service.create({ title: 'T' });
-        await service.addEvent(task.taskId, 'task.progress.set', { text: 'go', percent: 25 });
-        expect((await service.get(task.taskId)).progress).toEqual({ text: 'go', percent: 25 });
+        await service.addEvent(task.taskId, 'task.progress.set', { text: 'go' });
+        expect((await service.get(task.taskId)).progress).toEqual({ text: 'go' });
     });
 
     it('task.next_step.set sets nextStep via addEvent', async () => {
@@ -194,11 +194,11 @@ describe('repository error branches', () => {
             taskId: TASK_ID,
             title: 'T',
             summary: null,
-            feature: null,
+            name: null,
             status: 'open',
             phase: null,
             phaseEnteredAt: null,
-            progress: { text: null, percent: null },
+            progress: { text: null },
             nextStep: null,
             blockers: [],
             evidence: [],
@@ -273,7 +273,7 @@ describe('service edge cases', () => {
 
     it('setProgress clear via null text', async () => {
         const task = await service.create({ title: 'T' });
-        await service.setProgress(task.taskId, { text: 'hi', percent: 10 });
+        await service.setProgress(task.taskId, { text: 'hi' });
         const cleared = await service.setProgress(task.taskId, { text: null });
         expect(cleared.progress.text).toBeNull();
     });

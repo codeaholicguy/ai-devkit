@@ -22,7 +22,7 @@ Supporting skills:
 - `memory` for reusable project knowledge during clarification.
 - `tdd` for implementation tasks.
 - `verify` before completing implementation, implementation checks, testing claims, and review readiness.
-- `task` for optional progress tracing when the task plugin is installed.
+- `task` for optional progress tracing when the task command is usable.
 
 ## Startup Validation
 
@@ -35,15 +35,24 @@ At the beginning of every `dev-lifecycle` run:
 5. Run `npx ai-devkit@latest lint` to verify the configured AI docs structure.
 6. If working on a specific feature, run `npx ai-devkit@latest lint --feature <name>`.
 7. If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes`, then rerun lint.
+8. Probe optional task tracing availability:
+   - With a feature: `npx ai-devkit@latest task list --name <feature-name> --json`
+   - Without a feature: `npx ai-devkit@latest task list --json`
+   - Treat task tracing as available only if the read probe exits 0. If it fails, record task tracing as unavailable with the failed command and reason, then continue without task logging.
+   - Never block lifecycle work only because the task command is missing or unusable.
+9. When working on a specific feature and task tracing is available:
+   - Load and follow `task` before executing a phase.
+   - Initialize or show the task named after the feature, mark active work, and emit phase/progress/next/blocker/evidence events per `task`.
+   - Sequence task mutations; do not batch or parallelize mutations for the same feature.
 
 ## Plan Before Execution
 
 Before executing any phase:
 
 1. Identify the target feature, current docs state, branch/worktree context, and likely next phase.
-2. Propose a concise plan that names the phase skill to use, the docs/files to read, commands to run, expected edits, and verification evidence.
+2. Propose a concise plan that names the phase skill to use, the docs/files to read, commands to run, expected edits, task tracing status and planned task events if tracing is available, and verification evidence.
 3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution.
-4. After approval, load and follow only the selected phase skill plus any explicitly required supporting skills.
+4. After approval, load and follow only the selected phase skill plus any explicitly required supporting skills. If tracing is available, the `task` skill is explicitly required.
 
 ## Phase Routing
 
@@ -93,4 +102,4 @@ Not every phase moves forward. When a phase reveals problems, route back:
 - Existing feature docs are the paths reported or validated by `npx ai-devkit@latest lint --feature <name>`. If you must infer manually, first resolve the configured docs directory from `.ai-devkit.json` `paths.docs`, falling back to `docs/ai`.
 - After each phase, summarize output and suggest the next phase.
 - Do not claim completion without fresh verification evidence.
-- When task tracing is available: create the feature task once, set `phase` on phase transitions, record `progress`/`next` after meaningful task updates, add `evidence` after verification, and `close` at lifecycle end.
+- When task tracing is available, follow `task`: create once, assign actor when known, mark active/blocked, set phase, record progress/next/evidence, and close only after final verification/review. If tracing is unavailable, include failed probe commands in the phase summary without blocking the lifecycle.

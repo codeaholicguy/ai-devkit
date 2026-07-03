@@ -32,8 +32,6 @@ export type LifecyclePhase = string | null;
 export interface TaskProgress {
     /** Free-form progress description. */
     text: string | null;
-    /** Completion percentage in the inclusive range 0..100. */
-    percent: number | null;
 }
 
 export interface TaskLinks {
@@ -87,8 +85,8 @@ export interface Task {
     taskId: string;
     title: string;
     summary: string | null;
-    /** Kebab-case feature key, e.g. "task-system". Nullable for ad-hoc tasks. */
-    feature: string | null;
+    /** Kebab-case task key, e.g. "task-system" or "debug-auth-timeout". */
+    name: string | null;
     status: TaskStatus;
     phase: LifecyclePhase;
     phaseEnteredAt: string | null; // ISO 8601
@@ -146,7 +144,7 @@ export interface TaskEvent {
 
 export interface TaskCreatedPayload {
     title: string;
-    feature?: string | null;
+    name?: string | null;
     summary?: string | null;
     status: TaskStatus;
     phase?: LifecyclePhase;
@@ -169,7 +167,6 @@ export interface TaskStatusSetPayload {
 
 export interface TaskProgressSetPayload {
     text?: string | null;
-    percent?: number | null;
 }
 
 export interface TaskNextStepSetPayload {

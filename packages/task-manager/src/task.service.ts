@@ -8,7 +8,6 @@ import type {
     TaskEventType,
     TaskEvidence,
     TaskLinks,
-    TaskProgress,
     TaskStatus,
 } from './task.types.js';
 import type { TaskRepository } from './task.repository.js';
@@ -28,7 +27,7 @@ export interface TaskMutationOptions {
 
 export interface TaskCreateInput {
     title: string;
-    feature?: string;
+    name?: string;
     summary?: string | null;
     phase?: LifecyclePhase;
     tags?: string[];
@@ -46,7 +45,7 @@ export interface TaskUpdatePatch {
 }
 
 export interface TaskListFilter {
-    feature?: string;
+    name?: string;
     status?: TaskStatus;
     phase?: LifecyclePhase;
     limit?: number;
@@ -57,7 +56,7 @@ export interface TaskEventsFilter {
     limit?: number;
 }
 
-export type TaskRef = string | { feature: string } | { taskId: string };
+export type TaskRef = string | { name: string } | { taskId: string };
 
 const TERMINAL_STATUSES: ReadonlySet<TaskStatus> = new Set<TaskStatus>(['completed', 'abandoned']);
 
@@ -75,19 +74,6 @@ function validateTitle(title: string): void {
     }
 }
 
-function validatePercent(percent: number | null | undefined): number | null {
-    if (percent === null || percent === undefined) {
-        return null;
-    }
-    if (typeof percent !== 'number' || Number.isNaN(percent)) {
-        throw new TaskValidationError('progress.percent must be a number.');
-    }
-    if (percent < 0 || percent > 100) {
-        throw new TaskValidationError('progress.percent must be between 0 and 100 (inclusive).');
-    }
-    return percent;
-}
-
 function validateStatus(status: string): asserts status is TaskStatus {
     const valid: TaskStatus[] = ['open', 'active', 'blocked', 'completed', 'abandoned'];
     if (!valid.includes(status as TaskStatus)) {
@@ -97,14 +83,14 @@ function validateStatus(status: string): asserts status is TaskStatus {
     }
 }
 
-function validateFeature(feature: string | null | undefined): string | null {
-    if (feature === null || feature === undefined || feature === '') {
+function validateName(name: string | null | undefined): string | null {
+    if (name === null || name === undefined || name === '') {
         return null;
     }
-    const trimmed = feature.trim();
+    const trimmed = name.trim();
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmed)) {
         throw new TaskValidationError(
-            `Invalid feature key "${trimmed}". Use kebab-case (lowercase letters, digits, hyphens).`
+            `Invalid task name "${trimmed}". Use kebab-case (lowercase letters, digits, hyphens).`
         );
     }
     return trimmed;
@@ -125,7 +111,7 @@ export class TaskService {
 
     async create(input: TaskCreateInput): Promise<Task> {
         validateTitle(input.title);
-        const feature = validateFeature(input.feature ?? null);
+        const name = validateName(input.name ?? null);
 
         const now = nowIso();
         const actor = input.actor ?? null;
@@ -135,11 +121,11 @@ export class TaskService {
             taskId,
             title: input.title.trim(),
             summary: input.summary?.trim() || null,
-            feature,
+            name,
             status: 'open',
             phase: input.phase ?? null,
             phaseEnteredAt: input.phase ? now : null,
-            progress: { text: null, percent: null },
+            progress: { text: null },
             nextStep: null,
             blockers: [],
             evidence: [],
@@ -164,7 +150,7 @@ export class TaskService {
 
         await this.appendEventInternal(task.taskId, 'task.created', {
             title: task.title,
-            feature: task.feature,
+            name: task.name,
             summary: task.summary,
             status: task.status,
             phase: task.phase,
@@ -181,7 +167,7 @@ export class TaskService {
      * Resolve a task reference. Order:
      *   1. full taskId
      *   2. unique taskId prefix (error if ambiguous)
-     *   3. feature key -> latest non-terminal task with that feature
+     *   3. task name -> latest non-terminal task with that name
      * Returns null if nothing matches.
      */
     async resolveTask(ref: TaskRef): Promise<Task | null> {
@@ -189,7 +175,7 @@ export class TaskService {
             if ('taskId' in ref) {
                 return this.repository.readTask(ref.taskId);
             }
-            return this.latestNonTerminalByFeature(ref.feature);
+            return this.latestNonTerminalByName(ref.name);
         }
 
         const direct = await this.repository.readTask(ref);
@@ -207,7 +193,7 @@ export class TaskService {
             throw new AmbiguousTaskRefError(ref, prefixed);
         }
 
-        return this.latestNonTerminalByFeature(ref);
+        return this.latestNonTerminalByName(ref);
     }
 
     async list(filter: TaskListFilter = {}): Promise<Task[]> {
@@ -218,7 +204,7 @@ export class TaskService {
             if (!task) {
                 continue;
             }
-            if (filter.feature && task.feature !== filter.feature) {
+            if (filter.name && task.name !== filter.name) {
                 continue;
             }
             if (filter.status && task.status !== filter.status) {
@@ -299,24 +285,15 @@ export class TaskService {
 
     async setProgress(
         taskId: string,
-        progress: { text?: string | null; percent?: number | null },
+        progress: { text?: string | null },
         opts?: TaskMutationOptions
     ): Promise<Task> {
         const task = await this.requireTask(taskId);
-        const next: TaskProgress = {
+        const next = {
             text: progress.text === undefined ? task.progress.text : progress.text,
-            percent:
-                progress.percent === undefined
-                    ? task.progress.percent
-                    : validatePercent(progress.percent),
         };
         task.progress = next;
-        return this.persistAndRecord(
-            task,
-            'task.progress.set',
-            { text: next.text, percent: next.percent },
-            opts
-        );
+        return this.persistAndRecord(task, 'task.progress.set', { text: next.text }, opts);
     }
 
     async setNextStep(taskId: string, step: string | null, opts?: TaskMutationOptions): Promise<Task> {
@@ -528,8 +505,8 @@ export class TaskService {
         return task;
     }
 
-    private async latestNonTerminalByFeature(feature: string): Promise<Task | null> {
-        const tasks = await this.list({ feature });
+    private async latestNonTerminalByName(name: string): Promise<Task | null> {
+        const tasks = await this.list({ name });
         return tasks.find((t) => !isTerminal(t)) ?? null;
     }
 
@@ -626,7 +603,6 @@ export class TaskService {
             case 'task.progress.set': {
                 task.progress = {
                     text: (payload.text as string | null | undefined) ?? null,
-                    percent: (payload.percent as number | null | undefined) ?? null,
                 };
                 return true;
             }
