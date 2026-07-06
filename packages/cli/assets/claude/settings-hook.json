@@ -1,5 +1,5 @@
 {
-  "matcher": "Bash|Edit|Write|AskUserQuestion",
+  "matcher": "Bash|Edit|Write|MultiEdit|NotebookEdit|ExitPlanMode|AskUserQuestion",
   "hooks": [
     {
       "type": "command",

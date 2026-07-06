@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
+import { fileURLToPath } from 'url';
 import { createSetupService } from '../../../services/setup/setup.service.js';
 
 describe('setup service', () => {
@@ -305,6 +306,36 @@ describe('setup service — claude agent', () => {
 
     expect(builtInSkillInstalls).toEqual(['claude']);
     expect(existsSync(join(homeDir, '.claude', 'hooks', 'claude-prompt-hook.js'))).toBe(true);
+  });
+
+  it('installs the real settings-hook.json asset with a matcher covering every approval-required tool (regression: #110)', async () => {
+    fsMkdir(join(homeDir, '.claude'));
+
+    // Use the actual shipped asset (not the synthetic fixture below) so this
+    // test fails whenever the real matcher drifts, instead of only checking
+    // a copy that can silently go stale.
+    const realAssetRoot = fileURLToPath(new URL('../../../../assets', import.meta.url));
+    const service = createSetupService({
+      homeDir,
+      assetRoot: realAssetRoot,
+      runCommand: async () => {},
+      installBuiltInSkills: async () => {},
+    });
+
+    await service.run({ agents: ['claude'] });
+
+    const settings = JSON.parse(readFileSync(join(homeDir, '.claude', 'settings.json'), 'utf-8'));
+    const matcher: string = settings.hooks.PreToolUse[0].matcher;
+    const matchedTools = matcher.split('|');
+
+    // Every tool whose invocation surfaces a permission-approval or
+    // selection-question prompt must be captured here, or that prompt is
+    // silently dropped and never reaches Telegram (issue #110). ExitPlanMode
+    // is the plan-mode approval prompt; MultiEdit/NotebookEdit are batch
+    // file-edit approvals.
+    for (const tool of ['Bash', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'ExitPlanMode', 'AskUserQuestion']) {
+      expect(matchedTools).toContain(tool);
+    }
   });
 
   function createService() {
