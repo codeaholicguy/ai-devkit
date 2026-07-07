@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
@@ -45,6 +45,19 @@ export interface PreviewViewport {
     hasBelow: boolean;
 }
 
+export function countPreviewRows(messages: ConversationMessage[]): number {
+    return messages.reduce((total, msg) => total + Math.max(1, msg.content.split('\n').length), 0);
+}
+
+export function adjustPreviewScrollOffsetForAppendedRows(
+    previousRowCount: number,
+    currentRowCount: number,
+    requestedOffset: number,
+): number {
+    if (requestedOffset <= 0 || currentRowCount <= previousRowCount) return requestedOffset;
+    return requestedOffset + currentRowCount - previousRowCount;
+}
+
 export function buildPreviewViewport(
     messages: ConversationMessage[],
     maxLines: number,
@@ -59,16 +72,22 @@ export function buildPreviewViewport(
             ...contentLines.slice(1).map(line => ({ text: `  ${line}`, role: null })),
         ];
     });
-    const maxOffset = Math.max(0, rows.length - budget);
+    const contentBudget = rows.length > budget ? Math.max(1, budget - 1) : budget;
+    const maxOffset = Math.max(0, rows.length - contentBudget);
     const clampedOffset = Math.min(Math.max(0, Math.floor(requestedOffset)), maxOffset);
     const end = Math.max(0, rows.length - clampedOffset);
-    const start = Math.max(0, end - budget);
+    const start = Math.max(0, end - contentBudget);
+    const hasAbove = start > 0;
+    const hasBelow = end < rows.length;
+    const indicator = hasAbove || hasBelow
+        ? [{ text: `${hasAbove ? '↑ older' : '       '}${hasBelow ? ' ↓ newer' : ''}`, role: null }]
+        : [];
     return {
-        rows: rows.slice(start, end),
+        rows: [...indicator, ...rows.slice(start, end)],
         clampedOffset,
         maxOffset,
-        hasAbove: start > 0,
-        hasBelow: end < rows.length,
+        hasAbove,
+        hasBelow,
     };
 }
 
@@ -110,8 +129,15 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     scrollOffset = 0,
     onScrollOffsetClamp,
 }) => {
+    const rowCount = countPreviewRows(messages);
+    const previousRowCountRef = useRef(rowCount);
+    const adjustedScrollOffset = adjustPreviewScrollOffsetForAppendedRows(
+        previousRowCountRef.current,
+        rowCount,
+        scrollOffset,
+    );
     const viewport = messages.length > 0
-        ? buildPreviewViewport(messages, Math.max(4, maxLines), scrollOffset)
+        ? buildPreviewViewport(messages, Math.max(4, maxLines), adjustedScrollOffset)
         : null;
     const clampedOffset = viewport?.clampedOffset;
 
@@ -120,6 +146,10 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
             onScrollOffsetClamp?.(clampedOffset);
         }
     }, [onScrollOffsetClamp, scrollOffset, clampedOffset]);
+
+    useEffect(() => {
+        previousRowCountRef.current = rowCount;
+    }, [rowCount]);
 
     if (!agent) {
         return (
@@ -145,12 +175,6 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     } else {
         body = (
             <>
-                {viewport && (viewport.hasAbove || viewport.hasBelow) ? (
-                    <Box>
-                        <Text dimColor>{viewport.hasAbove ? '↑ older' : '       '}</Text>
-                        <Text dimColor>{viewport.hasBelow ? ' ↓ newer' : ''}</Text>
-                    </Box>
-                ) : null}
                 {viewport?.rows.map((row, idx) => (
                     <Box key={idx}>
                         <Text color={row.role ? ROLE_COLOR[row.role] : undefined}>{row.text}</Text>

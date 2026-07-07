@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+    adjustPreviewScrollOffsetForAppendedRows,
     buildPreviewViewport,
     getPreviewPanelTone,
     getPreviewChannelStatusText,
@@ -32,28 +33,45 @@ describe('PreviewPane helpers', () => {
         expect(viewport.clampedOffset).toBe(0);
         expect(viewport.hasAbove).toBe(true);
         expect(viewport.hasBelow).toBe(false);
+        expect(viewport.rows).toHaveLength(3);
         expect(viewport.rows).toEqual([
-            { text: '  with detail', role: null },
+            { text: '↑ older', role: null },
             { text: 'user: second question', role: 'user' },
             { text: 'assistant: second answer', role: 'assistant' },
         ]);
     });
 
     it('builds a viewport over older conversation content at a positive offset', () => {
-        const viewport = buildPreviewViewport(messages, 3, 2);
+        const viewport = buildPreviewViewport(messages, 3, 3);
 
-        expect(viewport.clampedOffset).toBe(2);
+        expect(viewport.clampedOffset).toBe(3);
         expect(viewport.hasAbove).toBe(false);
         expect(viewport.hasBelow).toBe(true);
+        expect(viewport.rows).toHaveLength(3);
         expect(viewport.rows).toEqual([
+            { text: '        ↓ newer', role: null },
             { text: 'user: first question', role: 'user' },
             { text: 'assistant: first answer', role: 'assistant' },
-            { text: '  with detail', role: null },
         ]);
     });
 
     it('clamps requested offsets to the valid scroll range', () => {
         expect(buildPreviewViewport(messages, 3, -2).clampedOffset).toBe(0);
-        expect(buildPreviewViewport(messages, 3, 99).clampedOffset).toBe(2);
+        expect(buildPreviewViewport(messages, 3, 99).clampedOffset).toBe(3);
+    });
+
+    it('keeps the rendered body inside the viewport budget when overflow affordances are shown', () => {
+        const viewport = buildPreviewViewport(messages, 4, 1);
+
+        expect(viewport.hasAbove).toBe(true);
+        expect(viewport.hasBelow).toBe(true);
+        expect(viewport.rows).toHaveLength(4);
+        expect(viewport.rows[0]).toEqual({ text: '↑ older ↓ newer', role: null });
+    });
+
+    it('adjusts positive scroll offsets by newly appended rendered rows', () => {
+        expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 2)).toBe(4);
+        expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 0)).toBe(0);
+        expect(adjustPreviewScrollOffsetForAppendedRows(7, 5, 2)).toBe(2);
     });
 });
