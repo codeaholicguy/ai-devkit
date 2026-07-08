@@ -17,9 +17,11 @@ import { StartAgentPane } from './StartAgentPane.js';
 import { RenameAgentPane } from './RenameAgentPane.js';
 import { ChannelSelectPane } from './ChannelSelectPane.js';
 import { HelpPane } from './HelpPane.js';
+import { MemoryListPane } from './MemoryListPane.js';
 import { KillConfirmDialog } from './KillConfirmDialog.js';
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
 import { Panel } from '../design-system/index.js';
+import { getNextRightPaneModeForMemoryShortcut } from './rightPaneMode.js';
 
 interface ConsoleAppProps {
     manager: AgentManager;
@@ -75,8 +77,9 @@ const ConsoleAppShell: React.FC<{
     const startPaneActive = rightPaneMode.type === 'start-agent';
     const renamePaneActive = rightPaneMode.type === 'rename-agent';
     const channelSelectPaneActive = rightPaneMode.type === 'channel-select';
+    const memoryListPaneActive = rightPaneMode.type === 'memory-list';
     const helpPaneActive = rightPaneMode.type === 'help';
-    const inputFocused = focus === 'input' && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !helpPaneActive;
+    const inputFocused = focus === 'input' && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !memoryListPaneActive && !helpPaneActive;
 
     useEffect(() => {
         if (!inputFocused) setInputLines(1);
@@ -224,6 +227,11 @@ const ConsoleAppShell: React.FC<{
             return;
         }
 
+        if (input === 'M') {
+            setRightPaneMode(getNextRightPaneModeForMemoryShortcut);
+            return;
+        }
+
         if (input === 's') {
             openStartPane();
             return;
@@ -285,6 +293,12 @@ const ConsoleAppShell: React.FC<{
             height={contentHeight}
         />
     );
+    const memoryListPane = (
+        <MemoryListPane
+            width={narrow ? listPaneWidth : rightColWidth}
+            height={contentHeight}
+        />
+    );
     const renamePane = renamePaneActive ? (
         <RenameAgentPane
             currentName={rightPaneMode.agentName}
@@ -311,6 +325,7 @@ const ConsoleAppShell: React.FC<{
     if (startPaneActive) replacementPane = startPane;
     if (renamePaneActive) replacementPane = renamePane;
     if (channelSelectPaneActive) replacementPane = channelSelectPane;
+    if (memoryListPaneActive) replacementPane = memoryListPane;
     if (helpPaneActive) replacementPane = helpPane;
     const listPane = (
         <Panel
@@ -380,7 +395,7 @@ const ConsoleAppShell: React.FC<{
                 lastUpdated={lastUpdated}
                 isLoading={isLoading}
                 narrowNote={
-                    narrow && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !helpPaneActive
+                    narrow && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !memoryListPaneActive && !helpPaneActive
                         ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview`
                         : null
                 }
