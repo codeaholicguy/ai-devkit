@@ -20,6 +20,7 @@ import { HelpPane } from './HelpPane.js';
 import { MemoryListPane } from './MemoryListPane.js';
 import { KillConfirmDialog } from './KillConfirmDialog.js';
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
+import { resolveConsoleKeyAction } from './consoleKeyRouting.js';
 import { Panel } from '../design-system/index.js';
 import { getNextRightPaneModeForMemoryShortcut } from './rightPaneMode.js';
 
@@ -74,6 +75,7 @@ const ConsoleAppShell: React.FC<{
     const [inputValue, setInputValue] = useState('');
     const [transient, setTransient] = useState<TransientMessage | null>(null);
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
+    const [detailScrollOffset, setDetailScrollOffset] = useState(0);
     const startPaneActive = rightPaneMode.type === 'start-agent';
     const renamePaneActive = rightPaneMode.type === 'rename-agent';
     const channelSelectPaneActive = rightPaneMode.type === 'channel-select';
@@ -118,6 +120,10 @@ const ConsoleAppShell: React.FC<{
             setSelectedName(agents[0].name);
         }
     }, [agents, selectedName]);
+
+    useEffect(() => {
+        setDetailScrollOffset(0);
+    }, [selectedName]);
 
     const getSelectedAgent = useCallback(() => {
         const name = selectedNameRef.current;
@@ -248,25 +254,36 @@ const ConsoleAppShell: React.FC<{
             return;
         }
 
-        if (input === 'i' || input === 'm') {
-            if (selectedNameRef.current) setFocus('input');
-            return;
-        }
-
-        if (key.downArrow || input === 'j') {
-            const list = agentsRef.current;
-            if (!list.length) return;
-            const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
-            setSelectedName(list[(idx + 1) % list.length].name);
-            return;
-        }
-
-        if (key.upArrow || input === 'k') {
-            const list = agentsRef.current;
-            if (!list.length) return;
-            const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
-            setSelectedName(list[(idx - 1 + list.length) % list.length].name);
-            return;
+        const previewVisible = !narrow && rightPaneMode.type === 'preview';
+        const keyAction = resolveConsoleKeyAction({
+            focus,
+            input,
+            key,
+            hasSelectedAgent: Boolean(selectedNameRef.current),
+            previewVisible,
+        });
+        switch (keyAction.type) {
+            case 'focus-detail':
+                setFocus('detail');
+                return;
+            case 'focus-list':
+                setFocus('list');
+                return;
+            case 'focus-input':
+                setFocus('input');
+                return;
+            case 'scroll-detail':
+                setDetailScrollOffset(prev => Math.max(0, prev + keyAction.delta));
+                return;
+            case 'select-agent': {
+                const list = agentsRef.current;
+                if (!list.length) return;
+                const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
+                setSelectedName(list[(idx + keyAction.delta + list.length) % list.length].name);
+                return;
+            }
+            case 'noop':
+                return;
         }
     });
 
@@ -351,6 +368,9 @@ const ConsoleAppShell: React.FC<{
             <PreviewSection
                 selectedName={selectedName}
                 height={previewHeight}
+                focused={focus === 'detail'}
+                scrollOffset={detailScrollOffset}
+                onScrollOffsetClamp={setDetailScrollOffset}
             />
             <Panel
                 height={inputBoxHeight}

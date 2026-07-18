@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
@@ -15,6 +15,8 @@ interface PreviewPaneProps {
     isLoading: boolean;
     maxLines?: number;
     channelStatus?: AgentChannelStatus;
+    scrollOffset?: number;
+    onScrollOffsetClamp?: (offset: number) => void;
 }
 
 const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow'> = {
@@ -24,19 +26,69 @@ const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow
 };
 
 
-function formatTime(ts: string | undefined): string {
-    if (!ts) return '';
-    try {
-        return new Date(ts).toLocaleTimeString();
-    } catch {
-        return '';
-    }
-}
-
 function shortPath(p: string): string {
     const home = process.env.HOME ?? '';
     if (home && p.startsWith(home)) return '~' + p.slice(home.length);
     return p;
+}
+
+export interface PreviewViewportRow {
+    text: string;
+    role: ConversationMessage['role'] | null;
+}
+
+export interface PreviewViewport {
+    rows: PreviewViewportRow[];
+    clampedOffset: number;
+    maxOffset: number;
+    hasAbove: boolean;
+    hasBelow: boolean;
+}
+
+export function countPreviewRows(messages: ConversationMessage[]): number {
+    return messages.reduce((total, msg) => total + Math.max(1, msg.content.split('\n').length), 0);
+}
+
+export function adjustPreviewScrollOffsetForAppendedRows(
+    previousRowCount: number,
+    currentRowCount: number,
+    requestedOffset: number,
+): number {
+    if (requestedOffset <= 0 || currentRowCount <= previousRowCount) return requestedOffset;
+    return requestedOffset + currentRowCount - previousRowCount;
+}
+
+export function buildPreviewViewport(
+    messages: ConversationMessage[],
+    maxLines: number,
+    requestedOffset: number,
+): PreviewViewport {
+    const budget = Math.max(1, Math.floor(maxLines));
+    const rows = messages.flatMap((msg) => {
+        const contentLines = msg.content.split('\n');
+        const first = contentLines[0] ?? '';
+        return [
+            { text: `${msg.role}: ${first}`, role: msg.role },
+            ...contentLines.slice(1).map(line => ({ text: `  ${line}`, role: null })),
+        ];
+    });
+    const contentBudget = rows.length > budget ? Math.max(1, budget - 1) : budget;
+    const maxOffset = Math.max(0, rows.length - contentBudget);
+    const clampedOffset = Math.min(Math.max(0, Math.floor(requestedOffset)), maxOffset);
+    const end = Math.max(0, rows.length - clampedOffset);
+    const start = Math.max(0, end - contentBudget);
+    const hasAbove = start > 0;
+    const hasBelow = end < rows.length;
+    const indicator = hasAbove || hasBelow
+        ? [{ text: `${hasAbove ? '↑ older' : '       '}${hasBelow ? ' ↓ newer' : ''}`, role: null }]
+        : [];
+    return {
+        rows: [...indicator, ...rows.slice(start, end)],
+        clampedOffset,
+        maxOffset,
+        hasAbove,
+        hasBelow,
+    };
 }
 
 export function getPreviewPanelTone(channelStatus: AgentChannelStatus | undefined): PanelTone {
@@ -74,7 +126,31 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     isLoading,
     maxLines = 22,
     channelStatus,
+    scrollOffset = 0,
+    onScrollOffsetClamp,
 }) => {
+    const rowCount = countPreviewRows(messages);
+    const previousRowCountRef = useRef(rowCount);
+    const adjustedScrollOffset = adjustPreviewScrollOffsetForAppendedRows(
+        previousRowCountRef.current,
+        rowCount,
+        scrollOffset,
+    );
+    const viewport = messages.length > 0
+        ? buildPreviewViewport(messages, Math.max(4, maxLines), adjustedScrollOffset)
+        : null;
+    const clampedOffset = viewport?.clampedOffset;
+
+    useEffect(() => {
+        if (clampedOffset !== undefined && clampedOffset !== scrollOffset) {
+            onScrollOffsetClamp?.(clampedOffset);
+        }
+    }, [onScrollOffsetClamp, scrollOffset, clampedOffset]);
+
+    useEffect(() => {
+        previousRowCountRef.current = rowCount;
+    }, [rowCount]);
+
     if (!agent) {
         return (
             <Box flexDirection="column">
@@ -83,8 +159,6 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
             </Box>
         );
     }
-
-    const messageBudget = Math.max(4, maxLines);
 
     let body: React.ReactNode;
     if (error) {
@@ -99,35 +173,15 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     } else if (messages.length === 0) {
         body = <Text dimColor>No messages yet.</Text>;
     } else {
-        const rendered: React.ReactNode[] = [];
-        let usedLines = 0;
-        for (let i = messages.length - 1; i >= 0; i--) {
-            const msg = messages[i];
-            const contentLines = msg.content.split('\n');
-            const headerLine = 1;
-            if (usedLines + headerLine > messageBudget) break;
-            const remaining = messageBudget - usedLines - headerLine;
-            const trimmed = contentLines.length > remaining
-                ? [...contentLines.slice(0, Math.max(0, remaining - 1)), `… (${contentLines.length - Math.max(0, remaining - 1)} more lines)`]
-                : contentLines;
-            const time = formatTime(msg.timestamp);
-            rendered.unshift(
-                <Box key={i} flexDirection="column" marginBottom={1}>
-                    <Box flexDirection="row">
-                        {time ? <Text dimColor>[{time}] </Text> : null}
-                        <Text color={ROLE_COLOR[msg.role]} bold>{msg.role}:</Text>
+        body = (
+            <>
+                {viewport?.rows.map((row, idx) => (
+                    <Box key={idx}>
+                        <Text color={row.role ? ROLE_COLOR[row.role] : undefined}>{row.text}</Text>
                     </Box>
-                    {trimmed.map((line: string, idx: number) => (
-                        <Box key={idx}>
-                            <Text>  {line}</Text>
-                        </Box>
-                    ))}
-                </Box>,
-            );
-            usedLines += headerLine + trimmed.length + 1;
-            if (usedLines >= messageBudget) break;
-        }
-        body = <>{rendered}</>;
+                ))}
+            </>
+        );
     }
 
     return (

@@ -12,6 +12,7 @@ describe('HelpPane helpers', () => {
             { key: 'C', action: 'Stop Telegram channel' },
             { key: 'M', action: 'Show memory list' },
             { key: 'o', action: 'Open selected agent terminal' },
+            { key: 'v', action: 'View selected agent chat' },
             { key: 'i / m', action: 'Message selected agent' },
             { key: 'K', action: 'Kill selected agent' },
             { key: 'h', action: 'Show or hide this help panel' },
@@ -34,5 +35,9 @@ describe('HelpPane helpers', () => {
 
     it('includes memory in footer hints', () => {
         expect(getConsoleHotkeyHints()).toContain('M memory');
+    });
+
+    it('includes the detail view shortcut in footer hints', () => {
+        expect(getConsoleHotkeyHints()).toContain('v view');
     });
 });
