@@ -75,6 +75,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     CopilotAdapter: vi.fn(),
     GeminiCliAdapter: vi.fn(),
     GrokCliAdapter: vi.fn(),
+    AntigravityCliAdapter: vi.fn(),
     PiAdapter: vi.fn(),
     TerminalFocusManager: vi.fn(function () { return mockTerminalFocusManager; }),
     TtyWriter: {
@@ -601,7 +602,7 @@ describe('channel command', () => {
             agentPid: 4321,
             bridgePid: process.pid,
         }));
-        expect(mockAgentManager.registerAdapter).toHaveBeenCalledTimes(6);
+        expect(mockAgentManager.registerAdapter).toHaveBeenCalledTimes(7);
         expect(mockChannelService.registerBridge.mock.invocationCallOrder[0])
             .toBeLessThan(mockChannelManager.startAll.mock.invocationCallOrder[0]);
 

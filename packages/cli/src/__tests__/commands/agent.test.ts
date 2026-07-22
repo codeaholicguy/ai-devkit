@@ -84,6 +84,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   CopilotAdapter: vi.fn(),
   GeminiCliAdapter: vi.fn(),
   GrokCliAdapter: vi.fn(),
+  AntigravityCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
   PiAdapter: vi.fn(),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
@@ -111,6 +112,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     copilot:    { command: 'copilot',  matches: () => true },
     gemini_cli: { command: 'gemini',   matches: () => true },
     grok_cli:   { command: 'grok',     matches: () => true },
+    antigravity_cli: { command: 'agy', matches: () => true },
     opencode:   { command: 'opencode', matches: () => true },
     pi:         { command: 'pi',       matches: () => true },
   },
@@ -270,7 +272,7 @@ describe('agent command', () => {
     await program.parseAsync(['node', 'test', 'agent', 'list', '--json']);
 
     expect(AgentManager).toHaveBeenCalled();
-    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(7);
+    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(8);
     expect(logSpy).toHaveBeenCalledWith(JSON.stringify(agents, null, 2));
   });
 
