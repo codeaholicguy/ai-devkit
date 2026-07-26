@@ -1,6 +1,6 @@
 ---
 name: agent-orchestration
-description: AI DevKit · Supervise multi-agent workflows over repeated passes: poll progress, unblock waiting agents, coordinate dependencies, relay outputs, resolve conflicts, and verify completion. Use only for ongoing multi-agent coordination, not one-off list/detail/send/start/kill actions.
+description: "AI DevKit · Supervise multi-agent workflows over repeated passes: poll progress, unblock waiting agents, coordinate dependencies, relay outputs, resolve conflicts, and verify completion. Use only for ongoing multi-agent coordination, not one-off list/detail/send/start/kill actions."
 ---
 
 # Agent Orchestration
