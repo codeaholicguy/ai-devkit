@@ -28,6 +28,7 @@ export const BUILTIN_SKILL_NAMES = [
   'memory',
   'task',
   'simplify-implementation',
+  'brainstorm',
   'verify',
   'tdd'
 ] as const;
