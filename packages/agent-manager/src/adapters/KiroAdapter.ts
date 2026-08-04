@@ -1,14 +1,10 @@
 /**
  * Kiro Adapter
  *
- * Detects running Kiro agents by:
- * 1. Finding running Kiro processes
- * 2. Matching exact PID-to-session metadata from ~/.kiro/cli/sessions.json
- * 3. Falling back to shared process/session matching over Kiro JSONL session files
- * 4. Parsing Kiro JSONL entries defensively for summary and conversation output
+ * Detects running Kiro agents by matching process IDs from
+ * ~/.kiro/sessions/cli/<session-id>.lock to the sibling metadata and transcript files.
  */
 
-import * as fs from 'fs';
 import * as path from 'path';
 import type {
     AgentAdapter,
@@ -21,47 +17,39 @@ import type {
 import { AgentStatus } from './AgentAdapter.js';
 import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
-import type { SessionFile } from '../utils/session.js';
-import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
-import { AgentRegistry } from '../utils/AgentRegistry.js';
+import { generateAgentName } from '../utils/matching.js';
+
+type KiroRecord = Record<string, unknown>;
+
+interface KiroMetadata {
+    sessionId: string;
+    cwd: string;
+    title: string;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+}
+
+interface KiroLine {
+    kind?: string;
+    timestamp?: string;
+    data?: KiroRecord;
+}
 
 interface KiroSession {
     sessionId: string;
     projectPath: string;
     summary: string;
+    firstUserMessage: string;
     sessionStart: Date;
     lastActive: Date;
-    lastRole?: ConversationMessage['role'];
-}
-
-interface KiroLine {
-    timestamp?: string;
-    role?: string;
-    type?: string;
-    content?: unknown;
-    text?: unknown;
-    message?: unknown;
-    sessionId?: string;
-    session_id?: string;
-    id?: string;
-    cwd?: string;
-    projectPath?: string;
-    project_path?: string;
-    payload?: Record<string, unknown>;
-    data?: Record<string, unknown>;
-    [key: string]: unknown;
-}
-
-type KiroRecord = Record<string, unknown>;
-
-interface TrackerMatch {
-    process: ProcessInfo;
+    lastEventKind?: string;
+    lastAssistantHasToolUse: boolean;
     filePath: string;
 }
 
-interface TrackerAgentResult {
-    agents: AgentInfo[];
-    fallback: ProcessInfo[];
+interface KiroLock {
+    sessionId: string;
+    pid: number;
 }
 
 export class KiroAdapter implements AgentAdapter {
@@ -69,17 +57,11 @@ export class KiroAdapter implements AgentAdapter {
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
 
-    private kiroCliDir: string;
     private kiroSessionsDir: string;
-    private trackerPath: string;
-    private registry: AgentRegistry;
 
-    constructor(registry: AgentRegistry = AgentRegistry.default()) {
+    constructor() {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-        this.kiroCliDir = path.join(homeDir, '.kiro', 'cli');
-        this.kiroSessionsDir = path.join(this.kiroCliDir, 'sessions');
-        this.trackerPath = path.join(this.kiroCliDir, 'sessions.json');
-        this.registry = registry;
+        this.kiroSessionsDir = path.join(homeDir, '.kiro', 'sessions', 'cli');
     }
 
     canHandle(processInfo: ProcessInfo): boolean {
@@ -90,54 +72,19 @@ export class KiroAdapter implements AgentAdapter {
         const processes = enrichProcesses(this.listKiroProcesses());
         if (processes.length === 0) return [];
 
-        const { cachedAgents, remaining } = this.tryRegistryCache(processes);
-        if (remaining.length === 0) return cachedAgents;
-
-        const trackerResult = this.mapTrackerMatches(remaining);
-        const fallbackAgents = this.mapFallbackMatches(trackerResult.fallback);
-
-        return [
-            ...cachedAgents,
-            ...trackerResult.agents,
-            ...fallbackAgents,
-        ];
-    }
-
-    private mapTrackerMatches(processes: ProcessInfo[]): TrackerAgentResult {
-        const { matches: trackerMatches, fallback } = this.matchFromTracker(processes);
+        const processByPid = new Map(processes.map((proc) => [proc.pid, proc]));
+        const matchedPids = new Set<number>();
         const agents: AgentInfo[] = [];
 
-        for (const match of trackerMatches) {
-            const session = this.parseSession(match.filePath, match.process.cwd);
-            if (session) {
-                agents.push(this.mapSessionToAgent(session, match.process, match.filePath));
-            } else {
-                fallback.push(match.process);
-            }
-        }
+        for (const lock of this.discoverActiveLocks()) {
+            const proc = processByPid.get(lock.pid);
+            if (!proc) continue;
 
-        return { agents, fallback };
-    }
+            const session = this.readSession(lock.sessionId, proc.cwd);
+            if (!session) continue;
 
-    private mapFallbackMatches(processes: ProcessInfo[]): AgentInfo[] {
-        if (processes.length === 0) return [];
-
-        const sessions = this.discoverSessions(processes);
-        if (sessions.length === 0) {
-            return processes.map((p) => this.mapProcessOnlyAgent(p));
-        }
-
-        const matches = matchProcessesToSessions(processes, sessions);
-        const matchedPids = new Set(matches.map((m) => m.process.pid));
-        const agents: AgentInfo[] = [];
-
-        for (const match of matches) {
-            const session = this.parseSession(match.session.filePath, match.process.cwd);
-            if (session) {
-                agents.push(this.mapSessionToAgent(session, match.process, match.session.filePath));
-            } else {
-                matchedPids.delete(match.process.pid);
-            }
+            agents.push(this.mapSessionToAgent(session, proc));
+            matchedPids.add(proc.pid);
         }
 
         for (const proc of processes) {
@@ -147,6 +94,38 @@ export class KiroAdapter implements AgentAdapter {
         }
 
         return agents;
+    }
+
+    getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+        return this.entriesToMessages(
+            this.readJsonl(sessionFilePath),
+            options?.verbose ?? false,
+        );
+    }
+
+    async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
+        if (!isDirectory(this.kiroSessionsDir)) return [];
+
+        const summaries: SessionSummary[] = [];
+        for (const entry of safeReaddir(this.kiroSessionsDir)) {
+            if (!entry.endsWith('.jsonl')) continue;
+
+            const sessionId = entry.slice(0, -'.jsonl'.length);
+            const session = this.readSession(sessionId);
+            if (!session) continue;
+            if (opts?.cwd !== undefined && session.projectPath !== opts.cwd) continue;
+
+            summaries.push({
+                type: this.type,
+                sessionId: session.sessionId,
+                cwd: session.projectPath,
+                firstUserMessage: session.firstUserMessage,
+                lastActive: session.lastActive,
+                startedAt: session.sessionStart,
+                sessionFilePath: session.filePath,
+            });
+        }
+        return summaries;
     }
 
     private listKiroProcesses(): ProcessInfo[] {
@@ -163,170 +142,86 @@ export class KiroAdapter implements AgentAdapter {
         return Array.from(byPid.values());
     }
 
-    private tryRegistryCache(processes: ProcessInfo[]): {
-        cachedAgents: AgentInfo[];
-        remaining: ProcessInfo[];
-    } {
-        const cachedAgents: AgentInfo[] = [];
-        const remaining: ProcessInfo[] = [];
-        const byPid = new Map(this.registry.list().map((e) => [e.pid, e]));
-
-        for (const proc of processes) {
-            const entry = byPid.get(proc.pid);
-            if (
-                !entry ||
-                entry.type !== this.type ||
-                !entry.sessionFilePath ||
-                !fs.existsSync(entry.sessionFilePath)
-            ) {
-                remaining.push(proc);
-                continue;
-            }
-
-            const session = this.parseSession(entry.sessionFilePath, proc.cwd);
-            if (!session) {
-                remaining.push(proc);
-                continue;
-            }
-
-            cachedAgents.push(this.mapSessionToAgent(session, proc, entry.sessionFilePath));
-        }
-
-        return { cachedAgents, remaining };
-    }
-
-    private matchFromTracker(processes: ProcessInfo[]): {
-        matches: TrackerMatch[];
-        fallback: ProcessInfo[];
-    } {
-        const tracker = this.readTracker();
-        if (tracker.size === 0) return { matches: [], fallback: processes };
-
-        const matches: TrackerMatch[] = [];
-        const fallback: ProcessInfo[] = [];
-
-        for (const proc of processes) {
-            const filePath = tracker.get(proc.pid);
-            if (!filePath || !this.isTrustedSessionPath(filePath) || !fs.existsSync(filePath)) {
-                fallback.push(proc);
-                continue;
-            }
-            matches.push({ process: proc, filePath });
-        }
-
-        return { matches, fallback };
-    }
-
-    private readTracker(): Map<number, string> {
-        const content = safeReadFile(this.trackerPath);
-        if (content === undefined) return new Map();
-
-        let parsed: unknown;
-        try {
-            parsed = JSON.parse(content);
-        } catch {
-            return new Map();
-        }
-
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return new Map();
-
-        const map = new Map<number, string>();
-        for (const [key, value] of Object.entries(parsed)) {
-            const keyPid = this.toPid(key);
-            if (keyPid !== null && typeof value === 'string' && value) {
-                map.set(keyPid, value);
-            }
-        }
-        return map;
-    }
-
-    private toPid(value: unknown): number | null {
-        if (typeof value === 'number' && Number.isInteger(value) && value > 0) return value;
-        if (typeof value !== 'string' || !/^\d+$/.test(value)) return null;
-        const parsed = Number(value);
-        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
-    }
-
-    private isTrustedSessionPath(filePath: string): boolean {
-        const resolvedRoot = path.resolve(this.kiroSessionsDir);
-        const resolvedPath = path.resolve(filePath);
-        return resolvedPath === resolvedRoot || resolvedPath.startsWith(`${resolvedRoot}${path.sep}`);
-    }
-
-    private discoverSessions(processes: ProcessInfo[] = []): SessionFile[] {
+    private discoverActiveLocks(): KiroLock[] {
         if (!isDirectory(this.kiroSessionsDir)) return [];
 
-        const cwdByProjectDir = this.buildProjectDirCwdMap(processes);
-        const sessions: SessionFile[] = [];
-        for (const filePath of this.collectJsonlFiles(this.kiroSessionsDir)) {
-            const stat = safeStat(filePath);
-            if (!stat) continue;
+        const locks: KiroLock[] = [];
+        for (const entry of safeReaddir(this.kiroSessionsDir)) {
+            if (!entry.endsWith('.lock')) continue;
 
-            const session = this.parseSession(filePath);
-            const sessionId = session?.sessionId || this.sessionIdFromFile(filePath);
-            const projectDir = path.dirname(filePath);
-            sessions.push({
-                sessionId,
-                filePath,
-                projectDir,
-                birthtimeMs: stat.birthtimeMs || stat.mtimeMs,
-                resolvedCwd: session?.projectPath || cwdByProjectDir.get(path.basename(projectDir)) || '',
-            });
-        }
+            const content = safeReadFile(path.join(this.kiroSessionsDir, entry));
+            if (content === undefined) continue;
 
-        return sessions;
-    }
+            try {
+                const parsed = JSON.parse(content) as unknown;
+                const record = this.asRecord(parsed);
+                const pid = this.toPid(record?.pid);
+                if (pid === null) continue;
 
-    private buildProjectDirCwdMap(processes: ProcessInfo[]): Map<string, string> {
-        const map = new Map<string, string>();
-        for (const proc of processes) {
-            if (!proc.cwd) continue;
-            map.set(this.encodeProjectDir(proc.cwd), proc.cwd);
-        }
-        return map;
-    }
-
-    private collectJsonlFiles(dir: string): string[] {
-        const files: string[] = [];
-        for (const entry of safeReaddir(dir)) {
-            const fullPath = path.join(dir, entry);
-            const stat = safeStat(fullPath);
-            if (!stat) continue;
-            if (stat.isDirectory()) {
-                files.push(...this.collectJsonlFiles(fullPath));
-            } else if (stat.isFile() && entry.endsWith('.jsonl')) {
-                files.push(fullPath);
+                locks.push({
+                    sessionId: entry.slice(0, -'.lock'.length),
+                    pid,
+                });
+            } catch {
+                continue;
             }
         }
-        return files;
+        return locks;
     }
 
-    private parseSession(filePath: string, fallbackCwd = ''): KiroSession | null {
-        const entries = this.readJsonl(filePath);
-        if (entries.length === 0) return null;
-        return this.sessionFromEntries(entries, filePath, fallbackCwd);
-    }
-
-    private sessionFromEntries(entries: KiroLine[], filePath: string, fallbackCwd = ''): KiroSession {
+    private readSession(sessionId: string, fallbackCwd = ''): KiroSession | null {
+        const filePath = path.join(this.kiroSessionsDir, `${sessionId}.jsonl`);
         const stat = safeStat(filePath);
-        const timestamps = entries
-            .map((entry) => this.parseTimestamp(this.entryTimestamp(entry)))
-            .filter((value): value is Date => value !== null);
+        if (!stat?.isFile()) return null;
 
-        const sessionStart = timestamps[0] ?? stat?.birthtime ?? stat?.mtime ?? new Date();
-        const lastActive = timestamps[timestamps.length - 1] ?? stat?.mtime ?? sessionStart;
-        const messages = this.entriesToMessages(entries, true);
-        const lastUser = [...messages].reverse().find((msg) => msg.role === 'user');
-        const lastMessage = messages[messages.length - 1];
+        const entries = this.readJsonl(filePath);
+        const metadata = this.readMetadata(sessionId);
+        const messages = this.entriesToMessages(entries, false);
+        const userMessages = messages.filter((message) => message.role === 'user');
+        const timestamps = entries
+            .map((entry) => this.entryDate(entry))
+            .filter((value): value is Date => value !== null);
+        const sessionStart = metadata.createdAt ?? timestamps[0] ?? stat.birthtime ?? stat.mtime;
+        const lastActive = metadata.updatedAt ?? timestamps[timestamps.length - 1] ?? stat.mtime;
+        const lastEntry = entries[entries.length - 1];
 
         return {
-            sessionId: this.sessionIdFromEntries(entries) || this.sessionIdFromFile(filePath),
-            projectPath: this.cwdFromEntries(entries) || fallbackCwd,
-            summary: lastUser?.content ? this.truncate(lastUser.content, 120) : 'Kiro session active',
+            sessionId: metadata.sessionId || sessionId,
+            projectPath: metadata.cwd || fallbackCwd,
+            summary: this.truncate(userMessages.at(-1)?.content || metadata.title || 'Kiro session active', 120),
+            firstUserMessage: userMessages[0]?.content ?? '',
             sessionStart,
             lastActive,
-            lastRole: lastMessage?.role,
+            lastEventKind: lastEntry?.kind,
+            lastAssistantHasToolUse: lastEntry?.kind === 'AssistantMessage' && this.hasContentKind(lastEntry, 'toolUse'),
+            filePath,
         };
+    }
+
+    private readMetadata(sessionId: string): KiroMetadata {
+        const empty: KiroMetadata = {
+            sessionId,
+            cwd: '',
+            title: '',
+            createdAt: null,
+            updatedAt: null,
+        };
+        const content = safeReadFile(path.join(this.kiroSessionsDir, `${sessionId}.json`));
+        if (content === undefined) return empty;
+
+        try {
+            const parsed = this.asRecord(JSON.parse(content));
+            if (!parsed) return empty;
+            return {
+                sessionId: this.firstString(parsed.session_id, parsed.sessionId) ?? sessionId,
+                cwd: this.firstString(parsed.cwd) ?? '',
+                title: this.firstString(parsed.title) ?? '',
+                createdAt: this.parseDate(parsed.created_at ?? parsed.createdAt),
+                updatedAt: this.parseDate(parsed.updated_at ?? parsed.updatedAt),
+            };
+        } catch {
+            return empty;
+        }
     }
 
     private readJsonl(filePath: string): KiroLine[] {
@@ -338,10 +233,8 @@ export class KiroAdapter implements AgentAdapter {
             const trimmed = line.trim();
             if (!trimmed) continue;
             try {
-                const parsed = JSON.parse(trimmed);
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    entries.push(parsed as KiroLine);
-                }
+                const parsed = this.asRecord(JSON.parse(trimmed));
+                if (parsed) entries.push(parsed as KiroLine);
             } catch {
                 continue;
             }
@@ -349,14 +242,35 @@ export class KiroAdapter implements AgentAdapter {
         return entries;
     }
 
-    private entryToMessage(entry: KiroLine, includeSystem: boolean): ConversationMessage | null {
-        const role = this.entryRole(entry);
-        if (!role) return null;
-        if (role === 'system' && !includeSystem) return null;
+    private entriesToMessages(entries: KiroLine[], verbose: boolean): ConversationMessage[] {
+        const messages: ConversationMessage[] = [];
+        for (const entry of entries) {
+            const message = this.entryToMessage(entry, verbose);
+            if (message) messages.push(message);
+        }
+        return messages;
+    }
 
-        const content = this.entryContent(entry).trim();
+    private entryToMessage(entry: KiroLine, verbose: boolean): ConversationMessage | null {
+        let role: ConversationMessage['role'];
+        let content: string;
+
+        if (entry.kind === 'Prompt') {
+            role = 'user';
+            content = this.textContent(entry);
+        } else if (entry.kind === 'AssistantMessage') {
+            role = 'assistant';
+            const parts = [this.textContent(entry)];
+            if (verbose) parts.push(...this.toolUseContent(entry));
+            content = parts.filter(Boolean).join('\n');
+        } else if (entry.kind === 'ToolResults' && verbose) {
+            role = 'system';
+            content = this.toolResultContent(entry).join('\n');
+        } else {
+            return null;
+        }
+
         if (!content) return null;
-
         return {
             role,
             content,
@@ -364,160 +278,73 @@ export class KiroAdapter implements AgentAdapter {
         };
     }
 
-    private entryRole(entry: KiroLine): ConversationMessage['role'] | null {
-        const message = this.messageRecord(entry);
-        const raw = this.firstString(
-            entry.role,
-            message?.role,
-            this.roleLikeType(entry.type),
-            entry.payload?.role,
-            entry.payload?.type,
-            entry.data?.role,
-            entry.data?.type,
-        );
-        if (!raw) return null;
-        const normalized = raw.toLowerCase();
-        if (normalized === 'user' || normalized === 'human') return 'user';
-        if (normalized === 'assistant' || normalized === 'ai' || normalized === 'kiro') return 'assistant';
-        if (normalized === 'system') return 'system';
-        return null;
+    private textContent(entry: KiroLine): string {
+        return this.contentBlocks(entry)
+            .filter((block) => block.kind === 'text')
+            .map((block) => typeof block.data === 'string' ? block.data : '')
+            .filter(Boolean)
+            .join('');
     }
 
-    private entryContent(entry: KiroLine): string {
-        const message = this.messageRecord(entry);
-        const candidates = [
-            entry.content,
-            entry.text,
-            message?.content,
-            message?.text,
-            message?.message,
-            entry.message,
-            entry.payload?.content,
-            entry.payload?.text,
-            entry.payload?.message,
-            entry.data?.content,
-            entry.data?.text,
-            entry.data?.message,
-        ];
-
-        for (const candidate of candidates) {
-            const text = this.contentToString(candidate);
-            if (text) return text;
-        }
-        return '';
+    private toolUseContent(entry: KiroLine): string[] {
+        return this.contentBlocks(entry)
+            .filter((block) => block.kind === 'toolUse')
+            .map((block) => {
+                const data = this.asRecord(block.data);
+                const name = this.firstString(data?.name) ?? 'unknown';
+                const input = this.formatValue(data?.input);
+                return `[Tool: ${name}]${input ? ` ${input}` : ''}`;
+            });
     }
 
-    private contentToString(value: unknown): string {
-        if (typeof value === 'string') return value;
-        if (Array.isArray(value)) {
-            return value.map((item) => this.contentToString(item)).filter(Boolean).join('');
-        }
-        if (!value || typeof value !== 'object') return '';
-
-        const record = value as Record<string, unknown>;
-        return this.contentToString(record.content ?? record.text ?? record.value);
+    private toolResultContent(entry: KiroLine): string[] {
+        return this.contentBlocks(entry)
+            .filter((block) => block.kind === 'toolResult')
+            .map((block) => {
+                const data = this.asRecord(block.data);
+                const prefix = data?.status === 'error' ? '[Tool Error]' : '[Tool Result]';
+                const result = this.formatValue(data?.result ?? data?.results ?? data?.content);
+                return `${prefix}${result ? ` ${result}` : ''}`;
+            });
     }
 
-    private asRecord(value: unknown): KiroRecord | null {
-        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-        return value as KiroRecord;
+    private contentBlocks(entry: KiroLine): Array<{ kind?: string; data?: unknown }> {
+        const content = entry.data?.content;
+        if (!Array.isArray(content)) return [];
+        return content
+            .map((block) => this.asRecord(block))
+            .filter((block): block is KiroRecord => block !== null);
     }
 
-    private messageRecord(entry: KiroLine): KiroRecord | null {
-        return this.asRecord(entry.message);
-    }
-
-    private roleLikeType(value: unknown): string | undefined {
-        if (typeof value !== 'string') return undefined;
-        const normalized = value.toLowerCase();
-        if (['user', 'human', 'assistant', 'ai', 'kiro', 'system'].includes(normalized)) {
-            return value;
-        }
-        return undefined;
+    private hasContentKind(entry: KiroLine, kind: string): boolean {
+        return this.contentBlocks(entry).some((block) => block.kind === kind);
     }
 
     private entryTimestamp(entry: KiroLine): string | undefined {
-        return this.firstString(
-            entry.timestamp,
-            entry.payload?.timestamp,
-            entry.data?.timestamp,
-            entry.createdAt,
-            entry.created_at,
-        );
+        const direct = this.firstString(entry.timestamp);
+        if (direct) return direct;
+
+        const meta = this.asRecord(entry.data?.meta);
+        const parsed = this.parseDate(meta?.timestamp);
+        return parsed?.toISOString();
     }
 
-    private sessionIdFromEntries(entries: KiroLine[]): string | null {
-        for (const entry of entries) {
-            const sessionId = this.firstString(
-                entry.sessionId,
-                entry.session_id,
-                entry.id,
-                entry.payload?.sessionId,
-                entry.payload?.session_id,
-                entry.payload?.id,
-                entry.data?.sessionId,
-                entry.data?.session_id,
-                entry.data?.id,
-            );
-            if (sessionId) return sessionId;
-        }
-        return null;
+    private entryDate(entry: KiroLine): Date | null {
+        return this.parseDate(this.entryTimestamp(entry));
     }
 
-    private cwdFromEntries(entries: KiroLine[]): string {
-        for (const entry of entries) {
-            const cwd = this.firstString(
-                entry.cwd,
-                entry.projectPath,
-                entry.project_path,
-                entry.payload?.cwd,
-                entry.payload?.projectPath,
-                entry.payload?.project_path,
-                entry.data?.cwd,
-                entry.data?.projectPath,
-                entry.data?.project_path,
-            );
-            if (cwd) return cwd;
-        }
-        return '';
-    }
-
-    private sessionIdFromFile(filePath: string): string {
-        const base = path.basename(filePath, '.jsonl');
-        const underscore = base.lastIndexOf('_');
-        return underscore >= 0 ? base.slice(underscore + 1) : base;
-    }
-
-    private encodeProjectDir(cwd: string): string {
-        const normalized = path.resolve(cwd);
-        return `--${normalized.replace(/^\//, '').replace(/\//g, '-')}--`;
-    }
-
-    private firstString(...values: unknown[]): string | undefined {
-        for (const value of values) {
-            if (typeof value === 'string' && value) return value;
-        }
-        return undefined;
-    }
-
-    private parseTimestamp(value?: string): Date | null {
-        if (!value) return null;
-        const timestamp = new Date(value);
-        return Number.isNaN(timestamp.getTime()) ? null : timestamp;
-    }
-
-    private mapSessionToAgent(session: KiroSession, processInfo: ProcessInfo, filePath: string): AgentInfo {
+    private mapSessionToAgent(session: KiroSession, processInfo: ProcessInfo): AgentInfo {
         const projectPath = session.projectPath || processInfo.cwd || '';
         return {
             name: generateAgentName(projectPath, processInfo.pid),
             type: this.type,
             status: this.determineStatus(session),
-            summary: session.summary || 'Kiro session active',
+            summary: session.summary,
             pid: processInfo.pid,
             projectPath,
             sessionId: session.sessionId,
             lastActive: session.lastActive,
-            sessionFilePath: filePath,
+            sessionFilePath: session.filePath,
         };
     }
 
@@ -535,17 +362,12 @@ export class KiroAdapter implements AgentAdapter {
     }
 
     private determineStatus(session: KiroSession): AgentStatus {
-        const diffMs = Date.now() - session.lastActive.getTime();
-        const diffMinutes = diffMs / 60000;
-
+        const diffMinutes = (Date.now() - session.lastActive.getTime()) / 60000;
         if (diffMinutes > KiroAdapter.IDLE_THRESHOLD_MINUTES) return AgentStatus.IDLE;
-        if (session.lastRole === 'assistant') return AgentStatus.WAITING;
+        if (session.lastEventKind === 'AssistantMessage' && !session.lastAssistantHasToolUse) {
+            return AgentStatus.WAITING;
+        }
         return AgentStatus.RUNNING;
-    }
-
-    private truncate(value: string, maxLength: number): string {
-        if (value.length <= maxLength) return value;
-        return `${value.slice(0, maxLength - 3)}...`;
     }
 
     private isKiroExecutable(command: string): boolean {
@@ -556,45 +378,44 @@ export class KiroAdapter implements AgentAdapter {
         return false;
     }
 
-    getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
-        const includeSystem = options?.verbose ?? false;
-        return this.entriesToMessages(this.readJsonl(sessionFilePath), includeSystem);
+    private toPid(value: unknown): number | null {
+        if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) return value;
+        if (typeof value !== 'string' || !/^\d+$/.test(value)) return null;
+        const parsed = Number(value);
+        return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
     }
 
-    private entriesToMessages(entries: KiroLine[], includeSystem: boolean): ConversationMessage[] {
-        return entries
-            .map((entry) => this.entryToMessage(entry, includeSystem))
-            .filter((msg): msg is ConversationMessage => msg !== null);
-    }
-
-    async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
-        if (!isDirectory(this.kiroSessionsDir)) return [];
-
-        const summaries: SessionSummary[] = [];
-        for (const filePath of this.collectJsonlFiles(this.kiroSessionsDir)) {
-            const summary = this.fileToSessionSummary(filePath);
-            if (!summary) continue;
-            if (opts?.cwd !== undefined && summary.cwd !== opts.cwd) continue;
-            summaries.push(summary);
+    private parseDate(value: unknown): Date | null {
+        if (typeof value === 'number') {
+            const date = new Date(value < 1_000_000_000_000 ? value * 1000 : value);
+            return Number.isNaN(date.getTime()) ? null : date;
         }
-        return summaries;
+        if (typeof value !== 'string' || !value) return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
     }
 
-    private fileToSessionSummary(filePath: string): SessionSummary | null {
-        const entries = this.readJsonl(filePath);
-        if (entries.length === 0) return null;
+    private firstString(...values: unknown[]): string | undefined {
+        return values.find((value): value is string => typeof value === 'string' && value.length > 0);
+    }
 
-        const session = this.sessionFromEntries(entries, filePath);
-        const firstUserMessage = this.entriesToMessages(entries, false)
-            .find((msg) => msg.role === 'user')?.content ?? '';
-        return {
-            type: this.type,
-            sessionId: session.sessionId,
-            cwd: session.projectPath,
-            firstUserMessage,
-            lastActive: session.lastActive,
-            startedAt: session.sessionStart,
-            sessionFilePath: filePath,
-        };
+    private asRecord(value: unknown): KiroRecord | null {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+        return value as KiroRecord;
+    }
+
+    private formatValue(value: unknown): string {
+        if (typeof value === 'string') return value;
+        if (value === undefined || value === null) return '';
+        try {
+            return JSON.stringify(value);
+        } catch {
+            return '';
+        }
+    }
+
+    private truncate(value: string, maxLength: number): string {
+        if (value.length <= maxLength) return value;
+        return `${value.slice(0, maxLength - 3)}...`;
     }
 }

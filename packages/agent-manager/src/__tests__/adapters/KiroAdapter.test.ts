@@ -10,9 +10,8 @@ import * as path from 'path';
 import { KiroAdapter } from '../../adapters/KiroAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
-import { AgentRegistry } from '../../utils/AgentRegistry.js';
 import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
-import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
+import { generateAgentName } from '../../utils/matching.js';
 
 vi.mock('../../utils/process.js', () => ({
     listAgentProcesses: vi.fn(),
@@ -20,13 +19,11 @@ vi.mock('../../utils/process.js', () => ({
 }));
 
 vi.mock('../../utils/matching.js', () => ({
-    matchProcessesToSessions: vi.fn(),
     generateAgentName: vi.fn(),
 }));
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
-const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 describe('KiroAdapter', () => {
@@ -37,17 +34,15 @@ describe('KiroAdapter', () => {
     beforeEach(() => {
         tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'kiro-adapter-test-'));
         process.env.HOME = tmpHome;
-        sessionsDir = path.join(tmpHome, '.kiro', 'cli', 'sessions');
+        sessionsDir = path.join(tmpHome, '.kiro', 'sessions', 'cli');
         fs.mkdirSync(sessionsDir, { recursive: true });
 
-        adapter = new KiroAdapter(new AgentRegistry(path.join(tmpHome, 'agents.json')));
+        adapter = new KiroAdapter();
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
-        mockedMatchProcessesToSessions.mockReset();
         mockedGenerateAgentName.mockReset();
 
         mockedEnrichProcesses.mockImplementation((procs) => procs);
-        mockedMatchProcessesToSessions.mockReturnValue([]);
         mockedGenerateAgentName.mockImplementation((cwd: string, pid: number) => {
             const folder = path.basename(cwd) || 'unknown';
             return `${folder} (${pid})`;
@@ -69,18 +64,14 @@ describe('KiroAdapter', () => {
         expect(adapter.canHandle({ pid: 4, command: 'node /repo/feature-kiro-adapter/script.js', cwd: '/repo', tty: 'ttys004' })).toBe(false);
     });
 
-    it('maps a running Kiro process to the tracker session for its PID', async () => {
+    it('maps a running Kiro process through its session lock and metadata', async () => {
         const cwd = '/repo/project-a';
-        const proc = makeProcess({ pid: 101, cwd });
-        const sessionFile = writeKiroSession(cwd, [
-            { type: 'session_meta', timestamp: '2026-06-10T08:58:20.754Z', sessionId: 'sess-101', cwd },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'implement Kiro adapter' },
-            { role: 'assistant', timestamp: new Date().toISOString(), content: 'working on it' },
-        ]);
-        fs.writeFileSync(
-            path.join(tmpHome, '.kiro', 'cli', 'sessions.json'),
-            JSON.stringify({ 101: sessionFile }),
-        );
+        const proc = makeProcess({ pid: 101, cwd: '/process/cwd' });
+        const updatedAt = new Date().toISOString();
+        const sessionFile = writeKiroSession('sess-101', cwd, [
+            prompt('implement Kiro adapter', 1781098057),
+            assistantText('working on it'),
+        ], 101, updatedAt);
         mockedListAgentProcesses.mockReturnValue([proc]);
 
         const agents = await adapter.detectAgents();
@@ -94,286 +85,116 @@ describe('KiroAdapter', () => {
             summary: 'implement Kiro adapter',
             status: AgentStatus.WAITING,
             sessionFilePath: sessionFile,
-        });
-        expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
-    });
-
-    it('truncates long user prompts in detected agent summaries', async () => {
-        const cwd = '/repo/project-long-summary';
-        const proc = makeProcess({ pid: 112, cwd });
-        const longPrompt = 'x'.repeat(140);
-        const sessionFile = writeKiroSession(cwd, [
-            { type: 'session', timestamp: '2026-06-10T08:58:20.754Z', id: 'sess-long', cwd },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: longPrompt },
-        ]);
-        fs.writeFileSync(
-            path.join(tmpHome, '.kiro', 'cli', 'sessions.json'),
-            JSON.stringify({ 112: sessionFile }),
-        );
-        mockedListAgentProcesses.mockReturnValue([proc]);
-
-        const agents = await adapter.detectAgents();
-
-        expect(agents[0].summary).toHaveLength(120);
-        expect(agents[0].summary.endsWith('...')).toBe(true);
-    });
-
-    it('uses the filename session id fallback and reports running when the latest message is from the user', async () => {
-        const cwd = '/repo/project-filename-fallback';
-        const proc = makeProcess({ pid: 113, cwd });
-        const sessionFile = writeKiroSessionWithFileName(cwd, 'plain-session.jsonl', [
-            { role: 'user', timestamp: new Date().toISOString(), content: 'still working' },
-        ]);
-        fs.writeFileSync(
-            path.join(tmpHome, '.kiro', 'cli', 'sessions.json'),
-            JSON.stringify({ 113: sessionFile }),
-        );
-        mockedListAgentProcesses.mockReturnValue([proc]);
-
-        const agents = await adapter.detectAgents();
-
-        expect(agents[0]).toMatchObject({
-            sessionId: 'plain-session',
-            summary: 'still working',
-            status: AgentStatus.RUNNING,
+            lastActive: new Date(updatedAt),
         });
     });
 
-    it('falls back to legacy matching when sessions.json is missing', async () => {
-        const cwd = '/repo/project-b';
-        const proc = makeProcess({ pid: 202, cwd });
-        const sessionFile = writeKiroSession(cwd, [
-            { timestamp: '2026-06-10T08:58:20.754Z', sessionId: 'sess-202' },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'fallback matching please' },
+    it('uses only a lock whose PID belongs to a running Kiro process', async () => {
+        writeKiroSession('ended-session', '/repo/ended', [
+            prompt('old conversation', 1781098057),
         ]);
-        mockedListAgentProcesses.mockReturnValue([proc]);
-        mockedMatchProcessesToSessions.mockReturnValue([
-            {
-                process: proc,
-                session: {
-                    sessionId: 'sess-202',
-                    filePath: sessionFile,
-                    projectDir: path.dirname(sessionFile),
-                    birthtimeMs: Date.now(),
-                    resolvedCwd: cwd,
-                },
-                deltaMs: 0,
-            },
-        ]);
-
-        const agents = await adapter.detectAgents();
-
-        expect(agents).toHaveLength(1);
-        expect(agents[0]).toMatchObject({
-            type: 'kiro',
-            pid: 202,
-            projectPath: cwd,
-            sessionId: 'sess-202',
-            summary: 'fallback matching please',
-        });
-        expect(mockedMatchProcessesToSessions).toHaveBeenCalledWith(
-            [proc],
-            expect.arrayContaining([
-                expect.objectContaining({ filePath: sessionFile, resolvedCwd: cwd }),
-            ]),
-        );
-    });
-
-    it('ignores malformed tracker metadata and still falls back to legacy matching', async () => {
-        const cwd = '/repo/project-c';
-        const proc = makeProcess({ pid: 303, cwd });
-        const sessionFile = writeKiroSession(cwd, [
-            { timestamp: '2026-06-10T08:58:20.754Z', sessionId: 'sess-303', cwd },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'recover from bad tracker' },
-        ]);
-        fs.writeFileSync(path.join(tmpHome, '.kiro', 'cli', 'sessions.json'), '{bad json');
-        mockedListAgentProcesses.mockReturnValue([proc]);
-        mockedMatchProcessesToSessions.mockReturnValue([
-            {
-                process: proc,
-                session: {
-                    sessionId: 'sess-303',
-                    filePath: sessionFile,
-                    projectDir: path.dirname(sessionFile),
-                    birthtimeMs: Date.now(),
-                    resolvedCwd: cwd,
-                },
-                deltaMs: 0,
-            },
-        ]);
-
-        const agents = await adapter.detectAgents();
-
-        expect(agents).toHaveLength(1);
-        expect(agents[0].sessionId).toBe('sess-303');
-    });
-
-    it('falls back to legacy matching when a trusted tracker session is unparseable', async () => {
-        const cwd = '/repo/project-bad-tracker-session';
-        const proc = makeProcess({ pid: 304, cwd });
-        const badSessionFile = writeKiroSessionWithFileName(cwd, 'bad.jsonl', ['{not json']);
-        const fallbackSessionFile = writeKiroSession(cwd, [
-            { timestamp: '2026-06-10T08:58:20.754Z', sessionId: 'sess-304', cwd },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'fallback after bad tracker session' },
-        ]);
-        fs.writeFileSync(
-            path.join(tmpHome, '.kiro', 'cli', 'sessions.json'),
-            JSON.stringify({ 304: badSessionFile }),
-        );
-        mockedListAgentProcesses.mockReturnValue([proc]);
-        mockedMatchProcessesToSessions.mockReturnValue([
-            {
-                process: proc,
-                session: {
-                    sessionId: 'sess-304',
-                    filePath: fallbackSessionFile,
-                    projectDir: path.dirname(fallbackSessionFile),
-                    birthtimeMs: Date.now(),
-                    resolvedCwd: cwd,
-                },
-                deltaMs: 0,
-            },
-        ]);
-
-        const agents = await adapter.detectAgents();
-
-        expect(agents).toHaveLength(1);
-        expect(agents[0]).toMatchObject({
-            sessionId: 'sess-304',
-            summary: 'fallback after bad tracker session',
-            sessionFilePath: fallbackSessionFile,
-        });
-        expect(mockedMatchProcessesToSessions).toHaveBeenCalled();
-    });
-
-    it('does not trust tracker paths outside the Kiro sessions directory', async () => {
-        const cwd = '/repo/project-d';
-        const proc = makeProcess({ pid: 404, cwd });
-        const outside = path.join(tmpHome, 'outside.jsonl');
-        fs.writeFileSync(outside, JSON.stringify({ role: 'user', content: 'nope' }));
-        fs.writeFileSync(
-            path.join(tmpHome, '.kiro', 'cli', 'sessions.json'),
-            JSON.stringify({ 404: outside }),
-        );
+        writeKiroSession('other-process', '/repo/other', [
+            prompt('other conversation', 1781098057),
+        ], 999);
+        const proc = makeProcess({ pid: 202, cwd: '/repo/current' });
         mockedListAgentProcesses.mockReturnValue([proc]);
 
         const agents = await adapter.detectAgents();
 
-        expect(agents).toHaveLength(1);
-        expect(agents[0]).toMatchObject({
-            type: 'kiro',
-            pid: 404,
-            sessionId: 'pid-404',
-            summary: 'Kiro process running',
-        });
+        expect(agents).toEqual([
+            expect.objectContaining({
+                pid: 202,
+                projectPath: '/repo/current',
+                sessionId: 'pid-202',
+                summary: 'Kiro process running',
+            }),
+        ]);
     });
 
-    it('returns a process-only agent when no session can be matched', async () => {
+    it('ignores malformed lock files', async () => {
+        writeKiroSession('bad-lock', '/repo/project', [prompt('hello', 1781098057)]);
+        fs.writeFileSync(path.join(sessionsDir, 'bad-lock.lock'), '{bad json');
+        const proc = makeProcess({ pid: 303, cwd: '/repo/project' });
+        mockedListAgentProcesses.mockReturnValue([proc]);
+
+        const agents = await adapter.detectAgents();
+
+        expect(agents[0]).toMatchObject({ sessionId: 'pid-303' });
+    });
+
+    it('reports running while the latest assistant event invokes a tool', async () => {
+        writeKiroSession('tool-session', '/repo/project', [
+            prompt('inspect the file', Math.floor(Date.now() / 1000)),
+            assistantTool('fs_read', { path: '/repo/project/file.ts' }),
+        ], 404, new Date().toISOString());
+        const proc = makeProcess({ pid: 404, cwd: '/repo/project' });
+        mockedListAgentProcesses.mockReturnValue([proc]);
+
+        const agents = await adapter.detectAgents();
+
+        expect(agents[0].status).toBe(AgentStatus.RUNNING);
+    });
+
+    it('returns a process-only agent when the locked transcript is missing', async () => {
+        fs.writeFileSync(path.join(sessionsDir, 'missing.lock'), JSON.stringify({ pid: 505 }));
         const proc = makeProcess({ pid: 505, cwd: '/repo/project-e' });
         mockedListAgentProcesses.mockReturnValue([proc]);
 
         const agents = await adapter.detectAgents();
 
-        expect(agents).toHaveLength(1);
-        expect(agents[0]).toMatchObject({
-            type: 'kiro',
-            status: AgentStatus.RUNNING,
-            pid: 505,
-            projectPath: '/repo/project-e',
-            sessionId: 'pid-505',
-            summary: 'Kiro process running',
-        });
+        expect(agents).toEqual([
+            expect.objectContaining({
+                type: 'kiro',
+                status: AgentStatus.RUNNING,
+                pid: 505,
+                projectPath: '/repo/project-e',
+                sessionId: 'pid-505',
+                summary: 'Kiro process running',
+            }),
+        ]);
     });
 
-    it('reads user and assistant conversation messages from JSONL', () => {
-        const cwd = '/repo/project-f';
-        const sessionFile = writeKiroSession(cwd, [
-            { role: 'system', timestamp: '2026-06-10T08:58:20.000Z', content: 'hidden' },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'hello kiro' },
-            { type: 'assistant', timestamp: '2026-06-10T08:58:22.000Z', message: { content: 'hello human' } },
+    it('reads real Kiro prompt and assistant message envelopes', () => {
+        const sessionFile = writeKiroSession('conversation', '/repo/project-f', [
+            prompt('hello kiro', 1781098057),
+            assistantText('Hello! How can I help?'),
             '{not json',
         ]);
 
         expect(adapter.getConversation(sessionFile)).toEqual([
-            { role: 'user', content: 'hello kiro', timestamp: '2026-06-10T08:58:21.000Z' },
-            { role: 'assistant', content: 'hello human', timestamp: '2026-06-10T08:58:22.000Z' },
+            { role: 'user', content: 'hello kiro', timestamp: '2026-06-10T13:27:37.000Z' },
+            { role: 'assistant', content: 'Hello! How can I help?', timestamp: undefined },
         ]);
     });
 
-    it('includes system entries only in verbose conversation mode', () => {
-        const cwd = '/repo/project-verbose';
-        const sessionFile = writeKiroSession(cwd, [
-            { role: 'system', timestamp: '2026-06-10T08:58:20.000Z', content: 'model changed' },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'visible' },
+    it('includes Kiro tool use and results only in verbose conversation mode', () => {
+        const sessionFile = writeKiroSession('tools', '/repo/project-tools', [
+            prompt('read package.json', 1781098057),
+            assistantTool('fs_read', { path: 'package.json' }),
+            toolResult('contents', 'success'),
+            assistantText('Done.'),
         ]);
 
         expect(adapter.getConversation(sessionFile)).toEqual([
-            { role: 'user', content: 'visible', timestamp: '2026-06-10T08:58:21.000Z' },
+            { role: 'user', content: 'read package.json', timestamp: '2026-06-10T13:27:37.000Z' },
+            { role: 'assistant', content: 'Done.', timestamp: undefined },
         ]);
         expect(adapter.getConversation(sessionFile, { verbose: true })).toEqual([
-            { role: 'system', content: 'model changed', timestamp: '2026-06-10T08:58:20.000Z' },
-            { role: 'user', content: 'visible', timestamp: '2026-06-10T08:58:21.000Z' },
+            { role: 'user', content: 'read package.json', timestamp: '2026-06-10T13:27:37.000Z' },
+            { role: 'assistant', content: '[Tool: fs_read] {"path":"package.json"}', timestamp: undefined },
+            { role: 'system', content: '[Tool Result] contents', timestamp: undefined },
+            { role: 'assistant', content: 'Done.', timestamp: undefined },
         ]);
     });
 
-    it('reads real Kiro message entries with nested role and text parts', async () => {
-        const cwd = '/repo/project-real';
-        const proc = makeProcess({ pid: 606, cwd });
-        const sessionFile = writeKiroSession(cwd, [
-            { type: 'session', version: 3, id: 'sess-real', timestamp: '2026-06-10T13:27:17.581Z', cwd },
-            { type: 'model_change', id: 'model-1', timestamp: '2026-06-10T13:27:17.655Z', modelId: 'claude-sonnet-4-6' },
-            {
-                type: 'message',
-                id: 'msg-user',
-                timestamp: '2026-06-10T13:27:37.975Z',
-                message: {
-                    role: 'user',
-                    content: [{ type: 'text', text: 'hello' }],
-                    timestamp: 1781098057974,
-                },
-            },
-            {
-                type: 'message',
-                id: 'msg-assistant',
-                timestamp: '2026-06-10T13:27:40.161Z',
-                message: {
-                    role: 'assistant',
-                    content: [{ type: 'text', text: 'Hello! How can I help you today?' }],
-                    provider: 'anthropic',
-                    model: 'claude-sonnet-4-6',
-                    timestamp: 1781098058012,
-                },
-            },
-        ]);
-        fs.writeFileSync(
-            path.join(tmpHome, '.kiro', 'cli', 'sessions.json'),
-            JSON.stringify({ 606: sessionFile }),
-        );
-        mockedListAgentProcesses.mockReturnValue([proc]);
-
-        expect(adapter.getConversation(sessionFile)).toEqual([
-            { role: 'user', content: 'hello', timestamp: '2026-06-10T13:27:37.975Z' },
-            { role: 'assistant', content: 'Hello! How can I help you today?', timestamp: '2026-06-10T13:27:40.161Z' },
-        ]);
-
-        const agents = await adapter.detectAgents();
-        expect(agents[0]).toMatchObject({
-            sessionId: 'sess-real',
-            summary: 'hello',
-            lastActive: new Date('2026-06-10T13:27:40.161Z'),
-        });
-    });
-
-    it('lists historical sessions and applies cwd filtering', async () => {
+    it('lists historical sessions using metadata and applies cwd filtering', async () => {
         const matchingCwd = '/repo/project-g';
-        const otherCwd = '/repo/project-h';
-        const matchingSession = writeKiroSession(matchingCwd, [
-            { timestamp: '2026-06-10T08:58:20.754Z', sessionId: 'sess-g', cwd: matchingCwd },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'first matching message' },
+        const matchingSession = writeKiroSession('sess-g', matchingCwd, [
+            prompt('first matching message', 1781098057),
+            assistantText('response'),
         ]);
-        writeKiroSession(otherCwd, [
-            { timestamp: '2026-06-10T08:58:20.754Z', sessionId: 'sess-h', cwd: otherCwd },
-            { role: 'user', timestamp: '2026-06-10T08:58:21.000Z', content: 'other message' },
+        writeKiroSession('sess-h', '/repo/project-h', [
+            prompt('other message', 1781098057),
         ]);
 
         const sessions = await adapter.listSessions({ cwd: matchingCwd });
@@ -384,6 +205,8 @@ describe('KiroAdapter', () => {
                 sessionId: 'sess-g',
                 cwd: matchingCwd,
                 firstUserMessage: 'first matching message',
+                startedAt: new Date('2026-06-10T13:27:17.000Z'),
+                lastActive: new Date('2026-06-10T13:27:40.000Z'),
                 sessionFilePath: matchingSession,
             }),
         ]);
@@ -392,44 +215,84 @@ describe('KiroAdapter', () => {
     function makeProcess(overrides: Partial<ProcessInfo>): ProcessInfo {
         return {
             pid: 1,
-            command: 'kiro',
+            command: 'kiro-cli chat',
             cwd: '/repo',
             tty: 'ttys001',
-            startTime: new Date('2026-06-10T08:58:20.000Z'),
+            startTime: new Date('2026-06-10T13:27:17.000Z'),
             ...overrides,
         };
     }
 
-    function writeKiroSession(cwd: string, entries: Array<Record<string, unknown> | string>): string {
-        const projectDir = path.join(sessionsDir, encodeProjectDir(cwd));
-        fs.mkdirSync(projectDir, { recursive: true });
-        const sessionId = entries
-            .map((entry) => typeof entry === 'string' ? undefined : entry.sessionId)
-            .find((value): value is string => typeof value === 'string') ?? cryptoRandomSessionId();
-        const filePath = path.join(projectDir, `2026-06-10T08-58-20-754Z_${sessionId}.jsonl`);
+    function writeKiroSession(
+        sessionId: string,
+        cwd: string,
+        entries: Array<Record<string, unknown> | string>,
+        pid?: number,
+        updatedAt = '2026-06-10T13:27:40.000Z',
+    ): string {
+        fs.writeFileSync(path.join(sessionsDir, `${sessionId}.json`), JSON.stringify({
+            session_id: sessionId,
+            cwd,
+            created_at: '2026-06-10T13:27:17.000Z',
+            updated_at: updatedAt,
+            title: 'Session title',
+        }));
+        const filePath = path.join(sessionsDir, `${sessionId}.jsonl`);
         fs.writeFileSync(
             filePath,
             entries.map((entry) => typeof entry === 'string' ? entry : JSON.stringify(entry)).join('\n'),
         );
+        if (pid !== undefined) {
+            fs.writeFileSync(path.join(sessionsDir, `${sessionId}.lock`), JSON.stringify({
+                pid,
+                started_at: '2026-06-10T13:27:17.000Z',
+            }));
+        }
         return filePath;
     }
 
-    function writeKiroSessionWithFileName(cwd: string, fileName: string, entries: Array<Record<string, unknown> | string>): string {
-        const projectDir = path.join(sessionsDir, encodeProjectDir(cwd));
-        fs.mkdirSync(projectDir, { recursive: true });
-        const filePath = path.join(projectDir, fileName);
-        fs.writeFileSync(
-            filePath,
-            entries.map((entry) => typeof entry === 'string' ? entry : JSON.stringify(entry)).join('\n'),
-        );
-        return filePath;
+    function prompt(text: string, timestamp: number): Record<string, unknown> {
+        return {
+            version: 'v1',
+            kind: 'Prompt',
+            data: {
+                content: [{ kind: 'text', data: text }],
+                meta: { timestamp },
+            },
+        };
     }
 
-    function encodeProjectDir(cwd: string): string {
-        return cwd.replace(/\//g, '-').replace(/^-?/, '--') + '--';
+    function assistantText(text: string): Record<string, unknown> {
+        return {
+            version: 'v1',
+            kind: 'AssistantMessage',
+            data: { content: [{ kind: 'text', data: text }] },
+        };
     }
 
-    function cryptoRandomSessionId(): string {
-        return `019eb0c1-06d2-71ed-90ee-${Math.random().toString(16).slice(2, 14).padEnd(12, '0')}`;
+    function assistantTool(name: string, input: Record<string, unknown>): Record<string, unknown> {
+        return {
+            version: 'v1',
+            kind: 'AssistantMessage',
+            data: {
+                content: [{
+                    kind: 'toolUse',
+                    data: { toolUseId: 'tool-1', name, input },
+                }],
+            },
+        };
+    }
+
+    function toolResult(result: string, status: string): Record<string, unknown> {
+        return {
+            version: 'v1',
+            kind: 'ToolResults',
+            data: {
+                content: [{
+                    kind: 'toolResult',
+                    data: { toolUseId: 'tool-1', status, result },
+                }],
+            },
+        };
     }
 });
