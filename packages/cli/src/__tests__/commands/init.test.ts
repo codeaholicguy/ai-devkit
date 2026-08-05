@@ -89,6 +89,7 @@ vi.mock('../../util/terminal.js', () => ({
 }));
 
 import { initCommand } from '../../commands/init.js';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../../constants.js';
 
 function confirmCallsMatching(pattern: RegExp): any[] {
   return mockConfirm.mock.calls.filter(([config]: any[]) =>
@@ -211,7 +212,7 @@ describe('init command', () => {
       expect(mockConfigManager.setEnvironments).not.toHaveBeenCalled();
     });
 
-    it('silently ignores --built-in when the template declares skills', async () => {
+    it('installs template skills and all built-in skills when both options are provided', async () => {
       mockLoadInitTemplate.mockResolvedValue({
         environments: ['codex'],
         phases: ['requirements'],
@@ -220,13 +221,16 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml', builtIn: true });
 
-      expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(1);
-      expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'debug');
+      expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(BUILTIN_SKILL_NAMES.length + 1);
+      expect(mockSkillManager.addSkill).toHaveBeenCalledWith(BUILTIN_SKILL_REGISTRY, 'debug');
+      for (const skill of BUILTIN_SKILL_NAMES) {
+        expect(mockSkillManager.addSkill).toHaveBeenCalledWith(BUILTIN_SKILL_REGISTRY, skill);
+      }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
 
-    it('silently ignores --built-in when the template has no skills declared', async () => {
+    it('installs all built-in skills when the template has no skills declared', async () => {
       mockLoadInitTemplate.mockResolvedValue({
         environments: ['codex'],
         phases: ['requirements']
@@ -234,7 +238,10 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml', builtIn: true });
 
-      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(BUILTIN_SKILL_NAMES.length);
+      for (const skill of BUILTIN_SKILL_NAMES) {
+        expect(mockSkillManager.addSkill).toHaveBeenCalledWith(BUILTIN_SKILL_REGISTRY, skill);
+      }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });

@@ -352,7 +352,9 @@ export async function initCommand(options: InitOptions) {
         ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
       });
     }
-  } else if (!hasTemplate) {
+  }
+
+  if (options.builtIn || !hasTemplate) {
     const shouldInstall = await shouldInstallBuiltinSkills(options);
 
     if (shouldInstall) {
