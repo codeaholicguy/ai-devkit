@@ -41,7 +41,7 @@ export class TmuxManager {
     /**
      * Find the actual agent process PID inside a tmux pane.
      *
-     * Strategy: BFS the process tree, return the deepest descendant whose
+     * Strategy: BFS the process tree, return the deepest process whose
      * `ps` command line is accepted by `matches`. The caller supplies the
      * matcher so this method has no agent-type knowledge.
      *
@@ -51,7 +51,7 @@ export class TmuxManager {
      * - Subprocess case: shell → claude (matches) → MCP server child (doesn't match)
      *   → returns claude, not the subprocess
      *
-     * Returns null when no descendant matches yet (agent still starting); the
+     * Returns null when no process matches yet (agent still starting); the
      * caller's poll loop retries.
      */
     async findAgentPid(session: string, matches: (psCommand: string) => boolean): Promise<number | null> {
@@ -67,11 +67,9 @@ export class TmuxManager {
             if (visited.has(pid)) continue;
             visited.add(pid);
 
-            if (pid !== panePid) {
-                const command = await this.getProcessCommand(pid);
-                if (command && matches(command)) {
-                    deepestMatch = pid;
-                }
+            const command = await this.getProcessCommand(pid);
+            if (command && matches(command)) {
+                deepestMatch = pid;
             }
 
             const children = await this.pgrepChildren(pid);

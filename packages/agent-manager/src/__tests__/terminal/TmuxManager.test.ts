@@ -106,6 +106,16 @@ describe('TmuxManager', () => {
             expect(await tmux.findAgentPid('foo', matchesClaude)).toBeNull();
         });
 
+        it('returns the matching pane PID when the agent replaces the shell', async () => {
+            setExecFileHandler((cmd, args) => {
+                if (cmd === 'tmux' && args[0] === 'list-panes') return '100\n';
+                if (cmd === 'pgrep') return new Error('no children');
+                if (cmd === 'ps' && args[1] === '100') return '/usr/local/bin/claude';
+                return '';
+            });
+            expect(await tmux.findAgentPid('foo', matchesClaude)).toBe(100);
+        });
+
         it('returns the matching descendant when found', async () => {
             // pane 100 → child 200 (claude) — no grandchildren
             setExecFileHandler((cmd, args) => {
