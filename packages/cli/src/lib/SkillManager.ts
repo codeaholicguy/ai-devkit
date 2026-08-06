@@ -35,6 +35,11 @@ interface AddSkillOptions {
   environments?: string[];
 }
 
+interface RemoveSkillOptions {
+  global?: boolean;
+  environments?: string[];
+}
+
 interface RegistrySkillChoice {
   name: string;
   description?: string;
@@ -214,10 +219,23 @@ export class SkillManager {
   /**
    * Remove a skill from the project
    */
-  async removeSkill(skillName: string): Promise<void> {
+  async removeSkill(skillName: string, options: RemoveSkillOptions = {}): Promise<void> {
     ui.info(`Removing skill: ${skillName}`);
     validateSkillName(skillName);
 
+    if (options.environments && options.environments.length > 0 && !options.global) {
+      throw new ValidationError('--env can only be used with --global');
+    }
+
+    if (options.global) {
+      await this.removeGlobalSkill(skillName, options.environments);
+      return;
+    }
+
+    await this.removeProjectSkill(skillName);
+  }
+
+  private async removeProjectSkill(skillName: string): Promise<void> {
     const config = await this.configManager.read();
     if (!config || !config.environments || config.environments.length === 0) {
       throw new ConfigNotFoundError('No .ai-devkit.json found. Run: ai-devkit init');
@@ -243,6 +261,79 @@ export class SkillManager {
       await this.configManager.removeSkill(skillName);
       ui.success(`Successfully removed from ${removedCount} location(s).`);
       ui.info(`Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.`);
+    }
+  }
+
+  private async removeGlobalSkill(skillName: string, envCodes?: string[]): Promise<void> {
+    const environments: EnvironmentCode[] = envCodes && envCodes.length > 0
+      ? validateEnvironmentCodes(envCodes)
+      : getAllEnvironments()
+        .filter(env => env.globalSkillPath !== undefined)
+        .map(env => env.code as EnvironmentCode);
+    const unsupported = environments.filter(env => getGlobalSkillPath(env) === undefined);
+
+    if (unsupported.length > 0) {
+      throw new ValidationError(`Global skill removal is not supported for: ${unsupported.join(', ')}`);
+    }
+
+    const homeDir = path.resolve(os.homedir());
+    const targets = new Map<string, string>();
+
+    for (const environment of environments) {
+      const configuredRoot = getGlobalSkillPath(environment);
+      if (!configuredRoot) {
+        continue;
+      }
+
+      const rootPath = path.resolve(homeDir, configuredRoot);
+      const relativeRoot = path.relative(homeDir, rootPath);
+      if (path.isAbsolute(configuredRoot)
+        || relativeRoot === '..'
+        || relativeRoot.startsWith(`..${path.sep}`)) {
+        throw new ValidationError(`Unsafe global skill root configured for: ${environment}`);
+      }
+
+      const skillPath = path.resolve(rootPath, skillName);
+      if (path.dirname(skillPath) !== rootPath) {
+        throw new ValidationError(`Refusing to remove skill outside configured global skill root: ${environment}`);
+      }
+
+      targets.set(skillPath, configuredRoot);
+    }
+
+    let removedCount = 0;
+    const failures: string[] = [];
+
+    for (const [skillPath, configuredRoot] of targets) {
+      try {
+        await fs.lstat(skillPath);
+      } catch (error: unknown) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+          continue;
+        }
+        failures.push(`${configuredRoot}: ${(error as Error).message}`);
+        continue;
+      }
+
+      try {
+        await fs.remove(skillPath);
+        ui.text(`  → Removed from ~/${configuredRoot}`);
+        removedCount++;
+      } catch (error: unknown) {
+        failures.push(`${configuredRoot}: ${(error as Error).message}`);
+      }
+    }
+
+    if (removedCount === 0 && failures.length === 0) {
+      ui.warning(`Skill "${skillName}" not found in selected global environments. Nothing to remove.`);
+    } else if (removedCount > 0) {
+      ui.success(`Successfully removed from ${removedCount} global location(s).`);
+    }
+
+    ui.info('Note: Cached copy in ~/.ai-devkit/skills/ preserved.');
+
+    if (failures.length > 0) {
+      throw new Error(`Failed to remove skill from ${failures.length} location(s): ${failures.join('; ')}`);
     }
   }
 

@@ -208,31 +208,41 @@ Without `--global`, output and behavior remain project-local. With `--global`, t
 
 ### `ai-devkit skill remove`
 
-Remove a skill from your project.
+Remove a skill from your project or from supported global skill locations.
 
 **Syntax:**
 
 ```bash
 ai-devkit skill remove <skill-name>
+ai-devkit skill remove <skill-name> --global [--env <environment...>]
 ```
 
 **Example:**
 
 ```bash
 ai-devkit skill remove frontend-design
+
+# Remove from every supported global skill location
+ai-devkit skill remove frontend-design --global
+
+# Remove only from selected global environments
+ai-devkit skill remove frontend-design --global --env claude codex
 ```
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | Remove the skill from global skill paths under your home directory |
+| `-e, --env <environment...>` | Limit global removal to specific environments; only valid with `--global` |
+
+Without `--global`, existing project removal behavior is unchanged: AI DevKit reads `.ai-devkit.json`, removes the skill from configured project environments, and updates the project skill metadata after a successful removal. `--env` without `--global` is rejected.
+
+With `--global`, omitting `--env` removes the skill from every environment in the Supported Environments table that declares a global skill path. This is deterministic and does not prompt, including in non-interactive shells. Repeated paths are processed once. Missing skills are reported as nothing to remove and do not cause an error.
+
+Global removal deletes only the named skill entry directly inside known, configured global skill roots under your home directory. Symlinks are removed without following their targets, copied skill directories are removed in place, and `~/.ai-devkit/skills/` is never deleted or modified. If one location fails, AI DevKit continues with the remaining locations and exits with an error summarizing the failed locations.
 
 The cached copy remains in `~/.ai-devkit/skills/` so you can quickly reinstall it in other projects without re-downloading.
 
-This command removes project-installed skills from the current repository. It does not remove skills installed with `ai-devkit skill add --global`.
-
-To remove a globally installed skill, delete it from the matching global skill path for that environment. For example:
-
-```bash
-rm -rf ~/.codex/skills/frontend-design
-```
-
-Use the Supported Environments table above to find the correct global path for your agent.
+Use the Supported Environments table above to see the global path associated with each environment code.
 
 ### `ai-devkit skill update`
 
