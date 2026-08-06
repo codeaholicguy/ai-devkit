@@ -9,7 +9,7 @@ description: Ordered strict-TDD plan for the local Slack Socket Mode connector
 ## Milestones
 
 - [x] Milestone 1: Provider-neutral contracts and Slack-safe delivery foundation
-- [x] Milestone 2: Secure Slack Socket Mode transport, pairing, and interaction support
+- [x] Milestone 2: Slack Socket Mode transport, proof-of-concept DM routing, and interaction support
 - [x] Milestone 3: CLI/daemon integration, documentation, regression coverage, and release readiness
 
 ## Task Breakdown
@@ -20,10 +20,10 @@ description: Ordered strict-TDD plan for the local Slack Socket Mode connector
 - [x] **Task 1.2 — Slack Markdown renderer and semantic chunker.** Outcome: safe independently valid chunks at or below 4,000 characters with code preservation and plain fallback. Dependency: 1.1. Evidence: renderer coverage. Scenarios: renderer/chunker matrix.
 - [x] **Task 1.3 — Rate-limit-aware threaded delivery queue.** Outcome: bounded ordered per-conversation sends with parent/thread continuity and retry metadata. Dependencies: 1.1-1.2. Evidence: fake-timer Web API tests. Scenarios: delivery queue and burst limits.
 
-### Phase 2: Transport, pairing, and questions
+### Phase 2: Transport, DM routing, and questions
 
 - [x] **Task 2.1 — Slack adapter on official SDKs.** Outcome: injectable Socket Mode/Web API clients, event normalization, prompt acknowledgment, filtering, idempotency, health, and lifecycle. Dependencies: Phase 1. Evidence: SDK-mocked adapter tests. Scenarios: adapter events/health.
-- [x] **Task 2.2 — Explicit pairing and allowlist persistence.** Outcome: expiring single-use CSPRNG pairing with exact team/user/DM authorization and no first-speaker takeover. Dependency: 2.1. Evidence: pairing/security unit and integration tests. Scenarios: pairing/authorization.
+- [x] **Task 2.2 — Proof-of-concept DM routing.** Outcome: valid configured-workspace DMs reach the bridge immediately; the first DM becomes the process-local response destination without persisted Slack-user authorization. Dependency: 2.1. Evidence: adapter and runner tests. Scenarios: immediate DM input and active-conversation routing.
 - [x] **Task 2.3 — Provider-neutral structured questions.** Outcome: shared question parsing/state with Telegram compatibility and Slack Block Kit option/Skip actions. Dependencies: 1.1, 2.1-2.2. Evidence: interaction and terminal-key tests. Scenarios: questions and replays.
 
 ### Phase 3: CLI and product integration
@@ -37,8 +37,8 @@ description: Ordered strict-TDD plan for the local Slack Socket Mode connector
 
 - Every production behavior follows red → green → refactor; each task begins with a targeted failing test.
 - Phase 1 creates the stable API used by transport and CLI work.
-- Pairing precedes accepting any agent input.
-- Interaction handling depends on stable authorization and idempotency.
+- Workspace/DM validation precedes accepting agent input.
+- Interaction handling depends on active-question conversation binding and idempotency.
 - CLI integration follows adapter behavior so command tests mock a real contract rather than inventing one.
 - Phase 6 planning reconciliation occurs after every completed task.
 
@@ -48,7 +48,7 @@ description: Ordered strict-TDD plan for the local Slack Socket Mode connector
 |---|---|
 | Provider abstraction grows beyond MVP | Add only capabilities required by Telegram and Slack tests; keep Slack SDK types inside adapter modules. |
 | Slack retry shapes differ across SDK versions | Test public SDK error fields and prefer SDK retry behavior where documented; keep injected sleeper/clients. |
-| First-user takeover | Never auto-authorize; require expiring local pairing code and exact identity tuple. |
+| Any workspace member can reach the local agent | Explicitly accepted for the proof of concept; keep DM-only/workspace validation, document the risk, and restore real authorization before wider release. |
 | Duplicate terminal input | Acknowledge promptly, mark stable IDs before dispatch, bound/persist enough state for bridge lifetime. |
 | Long output hits rate limits | Serialize per conversation, thread chunks, honor retry delay, bound the queue. |
 | Telegram regressions | Preserve defaults and run existing package/CLI suites after each integration task. |
@@ -64,4 +64,4 @@ description: Ordered strict-TDD plan for the local Slack Socket Mode connector
 
 ## Progress Summary
 
-All tasks are complete under TDD: provider contracts, rendering/chunking, queued delivery, official SDK transport, explicit pairing, expiring Slack interactions, dual-token setup validation, generic runner/daemon/status integration, user documentation, and security review. Task tracing is unavailable because `npx ai-devkit@latest task list --name slack-channel-connector --json` returns `unknown command 'task'`. Fresh lint, build, full tests, targeted coverage, and diff checks pass.
+All tasks are complete under TDD: provider contracts, rendering/chunking, queued delivery, official SDK transport, proof-of-concept DM routing, expiring Slack interactions, dual-token setup validation, generic runner/daemon/status integration, user documentation, and security review. Task tracing is unavailable because `npx ai-devkit@latest task list --name slack-channel-connector --json` returns `unknown command 'task'`. Fresh lint, build, full tests, targeted coverage, and diff checks pass.

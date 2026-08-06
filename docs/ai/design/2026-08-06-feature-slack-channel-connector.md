@@ -10,7 +10,7 @@ description: Provider-neutral bridge architecture with a local Slack Socket Mode
 
 ```mermaid
 graph LR
-  U[Paired Slack user] -->|DM message.im / block action| SM[Slack Socket Mode]
+  U[Slack workspace user] -->|DM message.im / block action| SM[Slack Socket Mode]
   SM --> SA[SlackAdapter]
   SA -->|normalized message/action| BR[Provider-neutral ChannelBridge]
   BR -->|TtyWriter| AG[Bound local agent]
@@ -23,7 +23,7 @@ graph LR
   ID[(bounded event IDs)] --> SA
 ```
 
-`channel-connector` remains unaware of agents. It owns provider adapters, normalized transport types, rendering, SDK integration, and local channel configuration. The CLI owns agent discovery, terminal writes, conversation/request polling, authorization policy coordination, and bridge lifecycle.
+`channel-connector` remains unaware of agents. It owns provider adapters, normalized transport types, rendering, SDK integration, and local channel configuration. The CLI owns agent discovery, terminal writes, active-conversation routing, conversation/request polling, and bridge lifecycle.
 
 ## Technology Choices
 
@@ -47,12 +47,10 @@ type ChannelEntry =
 interface SlackConfig {
   appToken: string;
   botToken: string;
-  appId: string;
+  appId?: string;
   botUserId: string;
   workspaceId: string;
   workspaceName?: string;
-  authorizedUserId?: string;
-  authorizedConversationId?: string;
   transport: 'socket-mode';
   audience: 'dm';
 }
@@ -114,18 +112,18 @@ The optional send return/options are backward-compatible at runtime; Telegram ca
 - Start/stop Socket Mode and expose connection health.
 - Acknowledge every recognized envelope before awaiting agent work.
 - Normalize only plain-text `message.im` events.
-- Reject wrong team, bots/self, subtypes, missing IDs, shared-channel contexts, and unauthorized identities.
+- Reject wrong-team, bot/self, subtype, missing-ID, non-DM, and shared-channel events.
 - Maintain a bounded bridge-lifetime event-ID set and mark IDs before handler dispatch.
-- Normalize `block_actions`, acknowledge immediately, and pass authorized action values to the CLI.
+- Normalize `block_actions`, acknowledge immediately, and pass valid workspace actions to the CLI question-session check.
 - Render and enqueue outbound messages.
 
-## Pairing and Authorization
+## Proof-of-Concept DM Routing
 
-1. Setup validates tokens and stores verified app/workspace/bot identity, but no Slack user.
-2. Starting an unpaired bridge generates a CSPRNG pairing code with a ten-minute TTL and prints it only to the local terminal.
-3. The adapter accepts only DM events for the configured workspace. A message matching the active code atomically stores `authorizedUserId` and `authorizedConversationId`; the code is invalidated.
-4. All subsequent messages and interactions must match workspace, user, and conversation. Authorization is rechecked immediately before terminal writes to prevent workflow bypass.
-5. Pairing messages are consumed by the bridge and never sent to the agent.
+1. Setup validates the app token through `apps.connections.open` and the bot token through `auth.test`, then stores the verified workspace/bot identity but no Slack user. Slack does not guarantee `app_id` in bot-token `auth.test` responses, so it is stored only when returned.
+2. The adapter accepts valid DM events from the configured workspace immediately; no pairing code or Slack-user allowlist is used in the proof of concept.
+3. The CLI selects the first DM seen after bridge startup as the active response destination for that process. Its first message is forwarded to the agent.
+4. A message from another DM is rejected for routing consistency and instructs the user to restart the bridge to switch conversations.
+5. This active-DM selection is not persisted and is explicitly not an authorization boundary.
 
 ## Rendering, Chunking, and Delivery
 
@@ -141,9 +139,9 @@ The optional send return/options are backward-compatible at runtime; Telegram ca
 
 - Move question parsing/specification and terminal-key mapping out of the Telegram-specific service.
 - Provider renderers implement question presentation; Slack uses Block Kit section/actions with stable action IDs and short opaque values.
-- Active question state is keyed by an opaque request ID and bound to workspace, conversation, user, agent session, and expiry.
+- Active question state is keyed by an opaque request ID and bound to conversation, message, and expiry.
 - The adapter acknowledges the Slack action before the CLI writes the digit/Escape key.
-- Replays, stale actions, and mismatched identities are acknowledged and ignored.
+- Replays, stale actions, and mismatched conversations are acknowledged and ignored.
 - Non-question agent requests remain notifications. Generic Slack text is delivered as normal terminal input and is never reclassified as approval by message content.
 
 ## CLI and Setup Integration
@@ -151,16 +149,16 @@ The optional send return/options are backward-compatible at runtime; Telegram ca
 - `channel connect <type> --name` dispatches to a provider setup strategy.
 - Slack setup prompts secretly for app and bot tokens, validates with official SDKs, and persists the verified entry.
 - `channel start` resolves a named entry regardless of type; omission retains the legacy exactly-one-Telegram behavior unless exactly one total channel exists.
-- The runner uses an adapter factory and provider-neutral authorization/interaction helpers.
+- The runner uses an adapter factory and provider-neutral routing/interaction helpers.
 - List/status use provider display metadata rather than Telegram casts.
 - Daemon arguments include only channel and agent names; tokens remain in `channels.json`.
 
 ## Security Boundaries
 
-- Trust boundaries: Slack network → official SDK event → adapter validation → CLI authorization → local TTY; agent output → renderer → external Slack API.
+- Trust boundaries: Slack network → official SDK event → workspace/DM validation → active bridge conversation → local TTY; agent output → renderer → external Slack API.
 - Tokens are password inputs, stored only in mode-`0600` config, never interpolated into shell commands or logs.
-- IDs are exact-match allowlisted and treated as opaque Slack identifiers.
-- Pairing codes use `crypto.randomBytes`, expire, are single-use, and use timing-safe comparison.
+- Workspace IDs are exact-match checked and all Slack IDs are treated as opaque identifiers.
+- Proof-of-concept warning: there is no Slack-user authorization. Any workspace member who becomes the active DM can send text to the bound agent terminal.
 - External text is data. It is not executed, used as a path/URL, or automatically converted into privileged Slack mentions.
 - Queue, text, block actions, event IDs, and question sessions have explicit bounds.
 - SDK TLS verification stays enabled.
@@ -177,7 +175,7 @@ The optional send return/options are backward-compatible at runtime; Telegram ca
 
 - Incoming envelope acknowledgment begins synchronously and completes within Slack's three-second expectation.
 - Normal online round trip remains within one existing two-second agent poll plus Slack API latency.
-- Queue defaults are bounded (100 outbound jobs per conversation; 1,000 recent event IDs; ten-minute interaction/pairing TTL).
+- Queue defaults are bounded (100 outbound jobs per conversation; 1,000 recent event IDs; ten-minute interaction TTL).
 - Reconnects are delegated to the official Socket Mode client; `isHealthy` reflects connection lifecycle.
 - All new code is mockable through injected SDK-shaped clients and clocks/sleep functions.
 - No public API removal; Telegram remains fully supported.

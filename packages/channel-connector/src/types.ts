@@ -69,12 +69,10 @@ export interface TelegramConfig {
 export interface SlackConfig {
     appToken: string;
     botToken: string;
-    appId: string;
+    appId?: string;
     botUserId: string;
     workspaceId: string;
     workspaceName?: string;
-    authorizedUserId?: string;
-    authorizedConversationId?: string;
     transport: 'socket-mode';
     audience: 'dm';
 }

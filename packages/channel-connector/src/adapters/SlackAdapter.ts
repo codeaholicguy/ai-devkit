@@ -9,7 +9,6 @@ import type {
     SlackConfig,
 } from '../types.js';
 import { SlackDeliveryQueue } from '../utils/SlackDeliveryQueue.js';
-import { SlackPairingSession } from '../utils/SlackPairingSession.js';
 import { escapeSlackText } from '../utils/slackMarkdown.js';
 
 export const SLACK_CHANNEL_TYPE = 'slack';
@@ -19,7 +18,7 @@ interface SlackAuthClient {
 }
 
 export interface SlackIdentity {
-    appId: string;
+    appId?: string;
     botUserId: string;
     workspaceId: string;
     workspaceName?: string;
@@ -40,11 +39,11 @@ export async function validateSlackCredentials(botToken: string, client?: SlackA
         authTest: () => new WebClient(botToken).auth.test(),
     };
     const identity = await authClient.authTest();
-    if (!identity.ok || !identity.app_id || !identity.user_id || !identity.team_id) {
+    if (!identity.ok || !identity.user_id || !identity.team_id) {
         throw new Error('Slack bot token returned incomplete identity');
     }
     return {
-        appId: identity.app_id,
+        ...(identity.app_id ? { appId: identity.app_id } : {}),
         botUserId: identity.user_id,
         workspaceId: identity.team_id,
         workspaceName: identity.team,
@@ -67,8 +66,6 @@ interface WebClientLike {
 interface SlackAdapterDependencies {
     socketClient?: SocketClientLike;
     webClient?: WebClientLike;
-    pairingSession?: SlackPairingSession;
-    onPaired?: (identity: { userId: string; conversationId: string }) => Promise<void>;
 }
 
 interface SlackEventEnvelope {
@@ -87,8 +84,6 @@ export class SlackAdapter implements InteractiveChannelAdapter {
     private readonly socket: SocketClientLike;
     private readonly web: WebClientLike;
     private readonly delivery: SlackDeliveryQueue;
-    private pairingSession: SlackPairingSession | undefined;
-    private readonly onPaired?: SlackAdapterDependencies['onPaired'];
     private readonly recentEventIds = new Map<string, number>();
     private messageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
     private interactionHandler: ((interaction: IncomingInteraction) => Promise<void>) | null = null;
@@ -101,9 +96,6 @@ export class SlackAdapter implements InteractiveChannelAdapter {
         this.delivery = new SlackDeliveryQueue({
             postMessage: (input) => this.web.chat.postMessage(input),
         });
-        this.pairingSession = dependencies.pairingSession
-            ?? (!config.authorizedUserId || !config.authorizedConversationId ? new SlackPairingSession() : undefined);
-        this.onPaired = dependencies.onPaired;
     }
 
     async start(): Promise<void> {
@@ -177,10 +169,6 @@ export class SlackAdapter implements InteractiveChannelAdapter {
         await this.web.chat.update({ channel: chatId, ts: messageId, blocks: [] });
     }
 
-    getPairingCode(): string | undefined {
-        return this.pairingSession?.isExpired() ? undefined : this.pairingSession?.code;
-    }
-
     private async handleSlackEvent(envelope: SlackEventEnvelope): Promise<void> {
         if (envelope.type !== 'events_api') return;
         await envelope.ack?.();
@@ -188,8 +176,7 @@ export class SlackAdapter implements InteractiveChannelAdapter {
         const event = body?.event;
         const eventId = body?.event_id;
         if (!body || !event || !eventId || !this.messageHandler) return;
-        if (await this.tryPair(body, event)) return;
-        if (!this.isAuthorizedMessage(body, event)) return;
+        if (!this.isValidDirectMessage(body, event)) return;
         if (this.recentEventIds.has(eventId)) return;
         this.rememberEvent(eventId);
 
@@ -210,35 +197,11 @@ export class SlackAdapter implements InteractiveChannelAdapter {
         }
     }
 
-    private async tryPair(body: NonNullable<SlackEventEnvelope['body']>, event: Record<string, unknown>): Promise<boolean> {
-        if (!this.pairingSession) return false;
-        if (body.team_id !== this.config.workspaceId
-            || body.is_ext_shared_channel === true
-            || event.type !== 'message'
-            || event.channel_type !== 'im'
-            || typeof event.channel !== 'string'
-            || typeof event.user !== 'string'
-            || typeof event.text !== 'string'
-            || event.user === this.config.botUserId
-            || event.bot_id !== undefined
-            || event.subtype !== undefined) return true;
-        if (!this.pairingSession.consume(event.text)) return true;
-
-        const identity = { userId: event.user, conversationId: event.channel };
-        await this.onPaired?.(identity);
-        this.config.authorizedUserId = identity.userId;
-        this.config.authorizedConversationId = identity.conversationId;
-        this.pairingSession = undefined;
-        return true;
-    }
-
-    private isAuthorizedMessage(body: NonNullable<SlackEventEnvelope['body']>, event: Record<string, unknown>): boolean {
+    private isValidDirectMessage(body: NonNullable<SlackEventEnvelope['body']>, event: Record<string, unknown>): boolean {
         return body.team_id === this.config.workspaceId
             && body.is_ext_shared_channel !== true
             && event.type === 'message'
             && event.channel_type === 'im'
-            && event.channel === this.config.authorizedConversationId
-            && event.user === this.config.authorizedUserId
             && event.user !== this.config.botUserId
             && typeof event.text === 'string'
             && typeof event.ts === 'string'
@@ -270,8 +233,6 @@ export class SlackAdapter implements InteractiveChannelAdapter {
             || typeof userId !== 'string'
             || typeof chatId !== 'string'
             || workspaceId !== this.config.workspaceId
-            || userId !== this.config.authorizedUserId
-            || chatId !== this.config.authorizedConversationId
             || typeof messageId !== 'string'
             || action.action_id !== 'ai_devkit_question'
             || typeof action.value !== 'string'

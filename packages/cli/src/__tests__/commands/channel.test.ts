@@ -18,6 +18,10 @@ const mockPassword = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockGetMe = vi.fn<() => Promise<{ username: string }>>();
 const mockValidateSlackCredentials = vi.fn();
 const mockValidateSlackAppToken = vi.fn();
+const { mockDebug, mockEnableDebug } = vi.hoisted(() => ({
+    mockDebug: vi.fn(),
+    mockEnableDebug: vi.fn(),
+}));
 const mockSpinner = {
     start: vi.fn(),
     succeed: vi.fn(),
@@ -112,6 +116,11 @@ vi.mock('../../util/terminal-ui.js', () => ({
         breakline: vi.fn(),
         spinner: vi.fn(() => mockSpinner),
     },
+}));
+
+vi.mock('../../util/debug.js', () => ({
+    createLogger: vi.fn(() => mockDebug),
+    enableDebug: mockEnableDebug,
 }));
 
 vi.mock('../../services/channel/channel.service.js', () => ({
@@ -530,6 +539,44 @@ describe('channel command', () => {
             },
         }));
         expect(ui.success).toHaveBeenCalledWith('Slack channel "work-slack" configured successfully!');
+    });
+
+    it('enables debug logging while connecting a Slack channel', async () => {
+        mockPassword.mockResolvedValueOnce('xapp-fake').mockResolvedValueOnce('xoxb-fake');
+        mockConfigStore.getChannel.mockResolvedValue(undefined);
+        mockChannelService.resolveConnectChannelName.mockReturnValue('work-slack');
+        const program = new Command().exitOverride();
+        registerChannelCommand(program);
+
+        await expect(program.parseAsync([
+            'node', 'test', 'channel', 'connect', 'slack', '--name', 'work-slack', '--debug',
+        ])).resolves.toBe(program);
+
+        expect(mockEnableDebug).toHaveBeenCalledOnce();
+    });
+
+    it('debugs the failed Slack validation stage without logging credentials', async () => {
+        const appToken = 'xapp-sensitive-app-token';
+        const botToken = 'xoxb-sensitive-bot-token';
+        mockPassword.mockResolvedValueOnce(appToken).mockResolvedValueOnce(botToken);
+        mockConfigStore.getChannel.mockResolvedValue(undefined);
+        mockChannelService.resolveConnectChannelName.mockReturnValue('work-slack');
+        mockValidateSlackAppToken.mockRejectedValueOnce(new Error(
+            `socket_mode_disabled for ${appToken} and ${botToken}`,
+        ));
+        const program = new Command();
+        registerChannelCommand(program);
+
+        await program.parseAsync([
+            'node', 'test', 'channel', 'connect', 'slack', '--name', 'work-slack', '--debug',
+        ]);
+
+        expect(mockDebug).toHaveBeenCalledWith(
+            'Slack app token validation failed: socket_mode_disabled for [REDACTED] and [REDACTED]',
+        );
+        expect(mockDebug.mock.calls.flat().join(' ')).not.toContain(appToken);
+        expect(mockDebug.mock.calls.flat().join(' ')).not.toContain(botToken);
+        expect(mockConfigStore.saveChannel).not.toHaveBeenCalled();
     });
 
     it('lists named Telegram channels with authorization state', async () => {

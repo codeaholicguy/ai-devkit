@@ -23,7 +23,7 @@ ai-devkit channel start --agent <agent-name>
 
 Use this package directly only when building custom channel integrations or extending AI DevKit's remote-control surface.
 
-Slack uses the official `@slack/socket-mode` and `@slack/web-api` clients. The supported MVP is a user-owned, single-workspace, DM-only Socket Mode app with explicit pairing; public channels, OAuth distribution, files, and multi-workspace routing are not supported.
+Slack uses the official `@slack/socket-mode` and `@slack/web-api` clients. The current proof of concept is a user-owned, single-workspace, DM-only Socket Mode app without Slack-user authorization. Use it only in a disposable/private workspace with a non-sensitive agent session. Public channels, OAuth distribution, files, and multi-workspace routing are not supported.
 
 ## Documentation
 

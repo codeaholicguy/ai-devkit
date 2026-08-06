@@ -23,7 +23,6 @@ import {
     TelegramAdapter,
     SLACK_CHANNEL_TYPE,
     TELEGRAM_CHANNEL_TYPE,
-    type SlackConfig,
 } from '@ai-devkit/channel-connector';
 import { ui } from '../../util/terminal-ui.js';
 import { getErrorMessage } from '../../util/text.js';
@@ -84,7 +83,7 @@ async function resolveTargetAgent(agentManager: AgentManager, agentName: string)
     return resolved as AgentInfo;
 }
 
-function setupInputHandler(
+export function setupInputHandler(
     channel: ChannelAdapter,
     terminalLocation: TerminalLocation,
     chatIdRef: { value: string | null },
@@ -95,13 +94,20 @@ function setupInputHandler(
 
         if (!chatIdRef.value) {
             chatIdRef.value = msg.chatId;
-            await onAuthorize?.(msg.chatId);
-            ui.info(`Authorized Telegram user (chat ID: ${msg.chatId})`);
+            if (onAuthorize) {
+                await onAuthorize(msg.chatId);
+                ui.info(`Authorized Telegram user (chat ID: ${msg.chatId})`);
+            } else {
+                ui.info(`Connected ${channel.type} conversation ${msg.chatId} for this bridge session.`);
+            }
         }
 
         if (msg.chatId !== chatIdRef.value) {
-            debug(`Rejected message from unauthorized chat ID: ${msg.chatId}`);
-            await channel.sendMessage(msg.chatId, 'Unauthorized. Only the configured user is allowed.');
+            const rejection = onAuthorize
+                ? 'Unauthorized. Only the configured user is allowed.'
+                : 'This bridge is already connected to another conversation. Restart it to switch.';
+            debug(`Rejected message from ${onAuthorize ? 'unauthorized' : 'inactive'} chat ID: ${msg.chatId}`);
+            await channel.sendMessage(msg.chatId, rejection);
             return;
         }
 
@@ -175,7 +181,7 @@ export function startOutputPolling(
 
         if (!chatIdRef.value) {
             if (tickCount % 15 === 1) {
-                debug(`poll skip: no authorized chat yet (tick ${tickCount})`);
+                debug(`poll skip: no active chat yet (tick ${tickCount})`);
             }
             return;
         }
@@ -344,24 +350,12 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
         });
     } else if (channelEntry.type === SLACK_CHANNEL_TYPE) {
         const slackConfig = channelEntry.config;
-        chatIdRef.value = slackConfig.authorizedConversationId ?? null;
-        const slack = new SlackAdapter(slackConfig, {
-            onPaired: async ({ userId, conversationId }) => {
-                const latest = await configStore.getChannel(input.channelName);
-                if (!latest || latest.type !== SLACK_CHANNEL_TYPE) return;
-                const config: SlackConfig = { ...latest.config, authorizedUserId: userId, authorizedConversationId: conversationId };
-                await configStore.saveChannel(input.channelName, { ...latest, config });
-                chatIdRef.value = conversationId;
-                ui.success(`Slack user paired for channel "${input.channelName}".`);
-            },
-        });
+        const slack = new SlackAdapter(slackConfig);
         channel = slack;
         setupInputHandler(slack, terminalLocation, chatIdRef);
         const slackQuestions = new SlackQuestionService(slack, (key) => TtyWriter.sendKey(terminalLocation, key));
         askUserQuestionService = slackQuestions;
         slack.onInteraction((interaction) => slackQuestions.handleInteraction(interaction));
-        const pairingCode = slack.getPairingCode();
-        if (pairingCode) ui.info(`DM this pairing code to the Slack app within 10 minutes: ${pairingCode}`);
     } else {
         ui.error(`Unsupported channel type: ${channelEntry.type}`);
         return;

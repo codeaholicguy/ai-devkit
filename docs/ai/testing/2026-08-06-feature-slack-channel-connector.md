@@ -41,33 +41,33 @@ description: Credential-free SDK-mocked validation for Slack transport, security
 ### Slack adapter events and health
 
 - [x] Socket Mode start/stop updates health and registers listeners once.
-- [x] Valid paired `message.im` normalizes all stable IDs and reaches the handler once.
+- [x] A valid configured-workspace `message.im` reaches the handler immediately without pairing.
 - [x] Envelope acknowledgment occurs before slow message/interaction handling.
-- [x] Wrong workspace/user/conversation, bot/self, subtype, missing ID, non-DM, and external/shared events are ignored.
+- [x] Wrong-workspace, bot/self, subtype, missing-ID, non-DM, and external/shared events are ignored.
 - [x] Duplicate event IDs and duplicate interaction IDs are ignored across the bridge-lifetime window.
 - [x] Event-ID storage evicts old entries at its bound.
 - [x] Disconnect/reconnect lifecycle updates health without duplicate delivery.
 
-### Pairing and interactions
+### Proof-of-concept routing and interactions
 
-- [x] Pairing codes are CSPRNG-derived, expire, compare safely, and are single-use.
-- [x] Only a matching DM in the configured workspace stores user/conversation IDs; pairing text never reaches the agent.
-- [x] Pairing persistence failure leaves the runtime unauthorized and listener rejection is isolated.
+- [x] An ordinary configured-workspace DM is delivered immediately without a pairing message.
+- [x] The first DM becomes the process-local output destination and later conversations receive a routing-conflict response.
+- [x] No Slack user or conversation authorization is persisted in `channels.json`.
 - [x] Slack Block Kit questions have bounded opaque values and accessible fallback text.
 - [x] Question fallback text escapes Slack mention/control syntax.
 - [x] Valid option/Skip actions write one digit/Escape and finalize once.
-- [x] Wrong-user, wrong-conversation, expired, malformed, and replayed actions are acknowledged and ignored.
+- [x] Wrong-conversation, expired, malformed, wrong-workspace, and replayed actions are acknowledged and ignored.
 
 ### CLI setup/status
 
-- [x] Slack connect prompts for both secrets, validates identity, rejects incomplete token identity, and saves no config on failure.
+- [x] Slack connect prompts for both secrets, accepts Slack's documented bot identity without `app_id`, rejects responses missing `user_id` or `team_id`, and saves no config on failure.
 - [x] List/status render provider-neutral workspace/bot/authorization data without tokens.
 - [x] Named Slack foreground and daemon starts pass the actual channel type to the registry.
 - [x] Daemon command/log/registry contain no app or bot token.
 
 ## Integration Tests
 
-- [ ] Slack DM → normalized event → allowlist → `TtyWriter` flow.
+- [ ] Slack DM → normalized event → active conversation → `TtyWriter` flow.
 - [ ] Agent assistant/system output → renderer → queue → parent/thread Web API calls.
 - [x] Agent `AskUserQuestion` request → Slack blocks → action → raw terminal key.
 - [x] Existing Telegram message, Markdown, callback, start/status, and daemon suites remain green.
@@ -75,8 +75,8 @@ description: Credential-free SDK-mocked validation for Slack transport, security
 
 ## End-to-End Tests
 
-- [ ] Mocked custom-app setup, pairing, bridge start, message round trip, question action, and graceful stop.
-- [ ] Unpaired/wrong-user attempt remains unable to control the agent.
+- [ ] Mocked custom-app setup, bridge start, immediate DM round trip, question action, and graceful stop.
+- [ ] A second DM receives a routing-conflict response until the bridge restarts.
 - [x] Fresh full repository lint, typecheck/build, and relevant test suites pass.
 
 ## Test Data
@@ -98,7 +98,7 @@ description: Credential-free SDK-mocked validation for Slack transport, security
 
 ## Manual Testing
 
-- [ ] Optional sandbox Slack workspace: create app from documented manifest, install, supply fake-free real tokens locally, pair via DM, start a bridge to a disposable agent, send/receive text and a question, force reconnect, inspect threaded long output, stop/disconnect, and revoke tokens.
+- [ ] Optional sandbox Slack workspace: create app from documented manifest, install, supply fake-free real tokens locally, start a bridge to a disposable agent, send an immediate DM, exchange text and a question, force reconnect, inspect threaded long output, stop/disconnect, and revoke tokens.
 - Not required for automated acceptance because CI and contributors must not possess Slack credentials.
 
 ## Performance and Reliability Testing

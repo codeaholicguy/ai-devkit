@@ -1,7 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { SlackAdapter, validateSlackAppToken, validateSlackCredentials } from '../../adapters/SlackAdapter.js';
 import type { SlackConfig } from '../../types.js';
-import { SlackPairingSession } from '../../utils/SlackPairingSession.js';
 
 class FakeSocketClient extends EventEmitter {
     start = vi.fn().mockResolvedValue(undefined);
@@ -14,8 +13,6 @@ const config: SlackConfig = {
     appId: 'A123',
     botUserId: 'U-BOT',
     workspaceId: 'T123',
-    authorizedUserId: 'U123',
-    authorizedConversationId: 'D123',
     transport: 'socket-mode',
     audience: 'dm',
 };
@@ -46,6 +43,21 @@ describe('SlackAdapter', () => {
         const authTest = vi.fn().mockResolvedValue({ ok: true, app_id: 'A123', user_id: 'U-BOT', team_id: 'T123', team: 'Sandbox' });
         await expect(validateSlackCredentials('xoxb-fake', { authTest })).resolves.toEqual({
             appId: 'A123', botUserId: 'U-BOT', workspaceId: 'T123', workspaceName: 'Sandbox',
+        });
+    });
+
+    it('accepts Slack documented bot identity without an app ID', async () => {
+        const authTest = vi.fn().mockResolvedValue({
+            ok: true,
+            bot_id: 'B123',
+            user_id: 'U-BOT',
+            team_id: 'T123',
+            team: 'Sandbox',
+        });
+        await expect(validateSlackCredentials('xoxb-fake', { authTest })).resolves.toEqual({
+            botUserId: 'U-BOT',
+            workspaceId: 'T123',
+            workspaceName: 'Sandbox',
         });
     });
 
@@ -91,7 +103,7 @@ describe('SlackAdapter', () => {
         expect(await adapter.isHealthy()).toBe(true);
     });
 
-    it('acknowledges before delivering one normalized authorized DM event', async () => {
+    it('acknowledges before delivering one normalized workspace DM event', async () => {
         const socket = new FakeSocketClient();
         const adapter = new SlackAdapter(config, { socketClient: socket, webClient: { chat: { postMessage: vi.fn() } } });
         const order: string[] = [];
@@ -113,8 +125,6 @@ describe('SlackAdapter', () => {
 
     it.each([
         ['wrong workspace', {}, { team_id: 'T999' }],
-        ['wrong user', { user: 'U999' }, {}],
-        ['wrong conversation', { channel: 'D999' }, {}],
         ['bot message', { bot_id: 'B123' }, {}],
         ['self message', { user: 'U-BOT' }, {}],
         ['subtype', { subtype: 'message_changed' }, {}],
@@ -132,46 +142,21 @@ describe('SlackAdapter', () => {
         expect(handler).not.toHaveBeenCalled();
     });
 
-    it('pairs an unconfigured workspace DM without forwarding the code', async () => {
+    it('delivers an ordinary workspace DM immediately without pairing', async () => {
         const socket = new FakeSocketClient();
         const handler = vi.fn();
-        const onPaired = vi.fn().mockResolvedValue(undefined);
-        const unpaired = { ...config, authorizedUserId: undefined, authorizedConversationId: undefined };
-        const adapter = new SlackAdapter(unpaired, {
+        const adapter = new SlackAdapter(config, {
             socketClient: socket,
             webClient: { chat: { postMessage: vi.fn() } },
-            pairingSession: new SlackPairingSession({ code: 'ABCDEF123456' }),
-            onPaired,
         });
         adapter.onMessage(handler);
         await adapter.start();
-        const item = envelope({ text: 'ABCDEF123456' });
-        socket.emit('slack_event', item);
-        await vi.waitFor(() => expect(onPaired).toHaveBeenCalledWith({ userId: 'U123', conversationId: 'D123' }));
-        expect(handler).not.toHaveBeenCalled();
-        expect(adapter.getPairingCode()).toBeUndefined();
-    });
 
-    it('fails closed when the paired identity cannot be persisted', async () => {
-        const socket = new FakeSocketClient();
-        const handler = vi.fn();
-        const unpaired = { ...config, authorizedUserId: undefined, authorizedConversationId: undefined };
-        const adapter = new SlackAdapter(unpaired, {
-            socketClient: socket,
-            webClient: { chat: { postMessage: vi.fn() } },
-            pairingSession: new SlackPairingSession({ code: 'ABCDEF123456' }),
-            onPaired: vi.fn().mockRejectedValue(new Error('disk unavailable')),
-        });
-        adapter.onMessage(handler);
-        await adapter.start();
-        socket.emit('slack_event', envelope({ text: 'ABCDEF123456' }));
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        const ordinary = envelope({ text: 'run tests' });
-        ordinary.body.event_id = 'Ev-after-failed-persist';
-        socket.emit('slack_event', ordinary);
-        await new Promise((resolve) => setTimeout(resolve, 0));
+        socket.emit('slack_event', envelope({ text: 'run tests' }));
 
-        expect(handler).not.toHaveBeenCalled();
+        await vi.waitFor(() => expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+            chatId: 'D123', userId: 'U123', text: 'run tests', workspaceId: 'T123',
+        })));
     });
 
     it('sends an accessible Block Kit question and finalizes its actions', async () => {
@@ -205,7 +190,7 @@ describe('SlackAdapter', () => {
         }));
     });
 
-    it('acknowledges and delivers one authorized block action', async () => {
+    it('acknowledges and delivers one valid workspace block action', async () => {
         const socket = new FakeSocketClient();
         const handler = vi.fn();
         const adapter = new SlackAdapter(config, { socketClient: socket, webClient: { chat: { postMessage: vi.fn() } } });
@@ -241,7 +226,7 @@ describe('SlackAdapter', () => {
         expect(ack).not.toHaveBeenCalled();
     });
 
-    it('acknowledges malformed and unauthorized block actions without delivery', async () => {
+    it('acknowledges malformed and wrong-workspace block actions without delivery', async () => {
         const socket = new FakeSocketClient();
         const handler = vi.fn();
         const adapter = new SlackAdapter(config, { socketClient: socket, webClient: { chat: { postMessage: vi.fn() } } });

@@ -15,7 +15,6 @@ export {
     markdownToSlackMrkdwn,
 } from './utils/slackMarkdown.js';
 export { SlackDeliveryQueue } from './utils/SlackDeliveryQueue.js';
-export { SlackPairingSession } from './utils/SlackPairingSession.js';
 export type { TelegramAdapterOptions } from './adapters/TelegramAdapter.js';
 
 export { isInteractiveChannelAdapter } from './adapters/ChannelAdapter.js';
