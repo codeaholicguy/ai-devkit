@@ -15,6 +15,7 @@ vi.mock("fs-extra", () => ({
     ensureDir: vi.fn(),
     symlink: vi.fn(),
     copy: vi.fn(),
+    lstat: vi.fn(),
     remove: vi.fn(),
     readdir: vi.fn(),
     realpath: vi.fn(),
@@ -996,6 +997,7 @@ describe("SkillManager", () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.remove as any).mockResolvedValue(undefined);
       mockConfigManager.removeSkill.mockResolvedValue({} as any);
+      (mockedFs.lstat as any).mockResolvedValue({ isSymbolicLink: () => false });
     });
 
     it("should validate skill name", async () => {
@@ -1086,6 +1088,85 @@ describe("SkillManager", () => {
       await expect(skillManager.removeSkill(mockSkillName)).rejects.toThrow(
         "No skill-capable environments configured",
       );
+    });
+
+    it("should reject env selection without global removal", async () => {
+      await expect(
+        skillManager.removeSkill(mockSkillName, { environments: ["claude"] }),
+      ).rejects.toThrow("--env can only be used with --global");
+
+      expect(mockConfigManager.read).not.toHaveBeenCalled();
+      expect(mockedFs.remove).not.toHaveBeenCalled();
+    });
+
+    it("should remove only from selected global environments", async () => {
+      await skillManager.removeSkill(mockSkillName, {
+        global: true,
+        environments: ["claude", "codex"],
+      });
+
+      expect(mockedFs.remove).toHaveBeenCalledTimes(2);
+      expect(mockedFs.remove).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".claude", "skills", mockSkillName),
+      );
+      expect(mockedFs.remove).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".codex", "skills", mockSkillName),
+      );
+      expect(mockConfigManager.read).not.toHaveBeenCalled();
+      expect(mockConfigManager.removeSkill).not.toHaveBeenCalled();
+    });
+
+    it("should remove from every configured global skill root when env is omitted", async () => {
+      await skillManager.removeSkill(mockSkillName, { global: true });
+
+      expect(mockedFs.remove).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".claude", "skills", mockSkillName),
+      );
+      expect(mockedFs.remove).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".gemini", "config", "skills", mockSkillName),
+      );
+      expect(mockEnvironmentSelector.selectGlobalSkillEnvironments).not.toHaveBeenCalled();
+    });
+
+    it("should reject invalid global environments before removing anything", async () => {
+      await expect(
+        skillManager.removeSkill(mockSkillName, { global: true, environments: ["invalid-env"] }),
+      ).rejects.toThrow("Invalid environment codes: invalid-env");
+
+      expect(mockedFs.remove).not.toHaveBeenCalled();
+    });
+
+    it("should continue global removal after one target fails and report the failure", async () => {
+      (mockedFs.remove as any)
+        .mockRejectedValueOnce(new Error("permission denied"))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(
+        skillManager.removeSkill(mockSkillName, {
+          global: true,
+          environments: ["claude", "codex"],
+        }),
+      ).rejects.toThrow("Failed to remove skill from 1 location(s)");
+
+      expect(mockedFs.remove).toHaveBeenCalledTimes(2);
+    });
+
+    it("should remove a dangling global symlink without following its target", async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(false);
+      (mockedFs.lstat as any).mockResolvedValue({ isSymbolicLink: () => true });
+
+      await skillManager.removeSkill(mockSkillName, {
+        global: true,
+        environments: ["claude"],
+      });
+
+      expect(mockedFs.lstat).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".claude", "skills", mockSkillName),
+      );
+      expect(mockedFs.remove).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".claude", "skills", mockSkillName),
+      );
+      expect(mockedFs.realpath).not.toHaveBeenCalled();
     });
   });
 

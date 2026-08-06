@@ -118,12 +118,20 @@ export function registerSkillCommand(program: Command): void {
 
   skillCommand
     .command('remove <skill-name>')
-    .description('Remove a skill from the current project')
-    .action(withErrorHandler('remove skill', async (skillName: string) => {
+    .description('Remove a skill from the current project or configured global skill paths')
+    .option('-g, --global', 'Remove skill from configured global skill paths (~/<path>)')
+    .option('-e, --env <environment...>', 'Limit global removal to specific environment(s) (requires --global)')
+    .action(withErrorHandler('remove skill', async (
+      skillName: string,
+      options: { global?: boolean; env?: string[] },
+    ) => {
       const configManager = new ConfigManager();
       const skillManager = new SkillManager(configManager);
 
-      await skillManager.removeSkill(skillName);
+      await skillManager.removeSkill(skillName, {
+        global: options.global,
+        environments: options.env,
+      });
     }));
 
   skillCommand

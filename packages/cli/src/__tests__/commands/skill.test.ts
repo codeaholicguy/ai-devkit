@@ -6,6 +6,7 @@ import { ui } from '../../util/terminal-ui.js';
 const mockAddSkill = vi.fn();
 const mockListGlobalSkills = vi.fn();
 const mockListSkills = vi.fn();
+const mockRemoveSkill = vi.fn();
 
 vi.mock('../../lib/Config.js', () => ({
   ConfigManager: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('../../lib/SkillManager.js', () => ({
     addSkill: (...args: unknown[]) => mockAddSkill(...args),
     listGlobalSkills: (...args: unknown[]) => mockListGlobalSkills(...args),
     listSkills: (...args: unknown[]) => mockListSkills(...args),
-    removeSkill: vi.fn(),
+    removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
     rebuildIndex: vi.fn(),
@@ -39,6 +40,7 @@ describe('skill command', () => {
     mockAddSkill.mockImplementation(async () => undefined);
     mockListGlobalSkills.mockResolvedValue([]);
     mockListSkills.mockResolvedValue([]);
+    mockRemoveSkill.mockImplementation(async () => undefined);
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
   });
@@ -200,5 +202,29 @@ describe('skill command', () => {
     expect(listCommand?.helpInformation()).toContain('--global');
     expect(listCommand?.helpInformation()).toContain('--env <environment...>');
     expect(listCommand?.helpInformation()).toMatch(/requires\s+--global/);
+  });
+
+  it('forwards global removal options to the skill manager', async () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'remove', 'frontend-design', '--global', '--env', 'claude', 'codex']);
+
+    expect(mockRemoveSkill).toHaveBeenCalledWith('frontend-design', {
+      global: true,
+      environments: ['claude', 'codex'],
+    });
+  });
+
+  it('preserves project removal options when global flags are absent', async () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'remove', 'frontend-design']);
+
+    expect(mockRemoveSkill).toHaveBeenCalledWith('frontend-design', {
+      global: undefined,
+      environments: undefined,
+    });
   });
 });
