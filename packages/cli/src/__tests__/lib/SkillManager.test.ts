@@ -921,6 +921,70 @@ describe("SkillManager", () => {
     });
   });
 
+  describe("listGlobalSkills", () => {
+    it("lists valid skills deterministically with environment and path provenance", async () => {
+      const claudeRoot = path.join(os.homedir(), ".claude", "skills");
+      const codexRoot = path.join(os.homedir(), ".codex", "skills");
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) =>
+        Promise.resolve([
+          claudeRoot,
+          codexRoot,
+          path.join(claudeRoot, "zeta", "SKILL.md"),
+          path.join(claudeRoot, "alpha", "SKILL.md"),
+          path.join(claudeRoot, "bad_name", "SKILL.md"),
+          path.join(codexRoot, "alpha", "SKILL.md"),
+        ].includes(checkPath)),
+      );
+      (mockedFs.readdir as any).mockImplementation((root: string) => Promise.resolve(
+        root === claudeRoot
+          ? [
+              { name: "zeta", isDirectory: () => true, isSymbolicLink: () => false },
+              { name: "broken", isDirectory: () => false, isSymbolicLink: () => true },
+              { name: "bad_name", isDirectory: () => true, isSymbolicLink: () => false },
+              { name: "README.md", isDirectory: () => false, isSymbolicLink: () => false },
+              { name: "alpha", isDirectory: () => false, isSymbolicLink: () => true },
+            ]
+          : [{ name: "alpha", isDirectory: () => true, isSymbolicLink: () => false }],
+      ));
+
+      const skills = await skillManager.listGlobalSkills(["codex", "claude"]);
+
+      expect(skills).toEqual([
+        { name: "alpha", environments: ["claude"], path: "~/.claude/skills/alpha" },
+        { name: "alpha", environments: ["codex"], path: "~/.codex/skills/alpha" },
+        { name: "zeta", environments: ["claude"], path: "~/.claude/skills/zeta" },
+      ]);
+      expect(mockConfigManager.read).not.toHaveBeenCalled();
+    });
+
+    it("groups environments that share a duplicate global path", async () => {
+      const sharedRoot = path.join(os.homedir(), ".config", "agents", "skills");
+      (mockedFs.pathExists as any).mockImplementation((checkPath: string) =>
+        Promise.resolve(checkPath === sharedRoot || checkPath === path.join(sharedRoot, "shared", "SKILL.md")),
+      );
+      (mockedFs.readdir as any).mockResolvedValue([
+        { name: "shared", isDirectory: () => true, isSymbolicLink: () => false },
+      ]);
+
+      const skills = await skillManager.listGlobalSkills(["amp", "amp"]);
+
+      expect(mockedFs.pathExists.mock.calls).toEqual([
+        [sharedRoot],
+        [path.join(sharedRoot, "shared", "SKILL.md")],
+      ]);
+      expect(skills).toEqual([
+        { name: "shared", environments: ["amp"], path: "~/.config/agents/skills/shared" },
+      ]);
+      expect(mockedFs.readdir).toHaveBeenCalledTimes(1);
+    });
+
+    it("rejects invalid environment filters", async () => {
+      await expect(skillManager.listGlobalSkills(["invalid-env"])).rejects.toThrow(
+        "Invalid environment codes: invalid-env",
+      );
+    });
+  });
+
   describe("removeSkill", () => {
     const mockSkillName = "frontend-design";
 

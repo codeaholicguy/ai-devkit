@@ -166,13 +166,24 @@ This command will:
 
 ### `ai-devkit skill list`
 
-List all skills installed in your project.
+List skills installed in the current project, or inspect skills installed across known global environment paths.
 
 **Syntax:**
 
 ```bash
 ai-devkit skill list
+
+# List skills across every known global skill path
+ai-devkit skill list --global
+
+# Limit the global scan to selected environments
+ai-devkit skill list --global --env claude codex
 ```
+
+| Option | Description |
+|--------|-------------|
+| `-g, --global` | List skills installed in known global skill paths under your home directory |
+| `-e, --env <environment...>` | Limit global listing to selected environments; only valid with `--global` |
 
 **Example Output:**
 
@@ -193,7 +204,7 @@ The list shows:
 - **Registry**: The source registry where the skill came from
 - **Environments**: Which AI environments have this skill installed
 
-This command lists skills installed in the current project only. It does not show skills installed globally with `ai-devkit skill add --global`.
+Without `--global`, output and behavior remain project-local. With `--global`, the table instead shows each valid skill's environment and `~/...` path provenance. A directory is listed only when it contains `SKILL.md`; missing roots, broken symlinks, non-skill files, and invalid skill directories are ignored. If the same skill is installed at multiple global paths, each path is shown separately. Environments configured with the same global path are grouped on one row. Global listing is read-only and does not require a project configuration or an interactive terminal.
 
 ### `ai-devkit skill remove`
 

@@ -88,6 +88,12 @@ ai-devkit lint --feature lint-command --json
 # Install a skill
 ai-devkit skill add <skill-registry> [skill-name]
 
+# List skills installed across known global environment paths
+ai-devkit skill list --global
+
+# Limit global listing to selected environments
+ai-devkit skill list --global --env claude codex
+
 # Store project knowledge for future agent sessions
 ai-devkit memory store
 ```

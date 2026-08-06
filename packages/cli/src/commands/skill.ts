@@ -59,10 +59,39 @@ export function registerSkillCommand(program: Command): void {
 
   skillCommand
     .command('list')
-    .description('List all installed skills in the current project')
-    .action(withErrorHandler('list skills', async () => {
+    .description('List installed project skills, or global skills with --global')
+    .option('-g, --global', 'List skills in known configured global skill paths')
+    .option('-e, --env <environment...>', 'Limit global listing to environment(s) (requires --global)')
+    .action(withErrorHandler('list skills', async (options: { global?: boolean; env?: string[] }) => {
       const configManager = new ConfigManager();
       const skillManager = new SkillManager(configManager);
+
+      if (options.env && options.env.length > 0 && !options.global) {
+        throw new Error('--env can only be used with --global');
+      }
+
+      if (options.global) {
+        const skills = await skillManager.listGlobalSkills(options.env);
+
+        if (skills.length === 0) {
+          ui.warning('No global skills installed in the selected environments.');
+          ui.info('Install a global skill with: ai-devkit skill add <registry>/<repo> [skill-name] --global');
+          return;
+        }
+
+        ui.text('Globally Installed Skills:', { breakline: true });
+        ui.table({
+          headers: ['Skill Name', 'Environments', 'Path'],
+          rows: skills.map(skill => [
+            skill.name,
+            skill.environments.join(', '),
+            skill.path,
+          ]),
+          columnStyles: [chalk.cyan, chalk.green, chalk.dim],
+        });
+        ui.text(`Total: ${skills.length} skill installation(s)`, { breakline: true });
+        return;
+      }
 
       const skills = await skillManager.listSkills();
 
