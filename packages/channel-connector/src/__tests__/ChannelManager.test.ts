@@ -7,7 +7,7 @@ function createMockAdapter(type: string): Mocked<ChannelAdapter> {
         type,
         start: vi.fn().mockResolvedValue(undefined),
         stop: vi.fn().mockResolvedValue(undefined),
-        sendMessage: vi.fn().mockResolvedValue(undefined),
+        sendMessage: vi.fn().mockResolvedValue({ messageId: '1' }),
         onMessage: vi.fn(),
         isHealthy: vi.fn().mockResolvedValue(true),
     };

@@ -60,5 +60,6 @@ export class ConfigStore {
         const dir = path.dirname(this.configPath);
         fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2), { mode: 0o600 });
+        fs.chmodSync(this.configPath, 0o600);
     }
 }

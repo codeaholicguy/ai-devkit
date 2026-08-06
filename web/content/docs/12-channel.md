@@ -1,6 +1,6 @@
 ---
 title: Channel
-description: Connect AI agents with messaging channels like Telegram for remote interaction
+description: Connect AI agents with Telegram or a private Slack Socket Mode app
 slug: channel
 order: 12
 ---
@@ -14,7 +14,8 @@ The `channel` command lets you bridge a running AI agent to a messaging platform
 
 - **AI DevKit** installed globally (see [Getting Started](/docs/1-getting-started))
 - **A running AI agent** (Claude Code or Codex) detected by AI DevKit (see [Agent Management](/docs/8-agent-management))
-- **A Telegram bot token** from [@BotFather](https://t.me/BotFather)
+- **Telegram:** a bot token from [@BotFather](https://t.me/BotFather), or
+- **Slack:** a custom single-workspace app with Socket Mode, an `xapp-` app token, and an `xoxb-` bot token
 - **Terminal environment**: The agent must be running in **tmux**, **iTerm2**, or **Apple Terminal** (same requirements as `agent open`)
 
 ## How It Works
@@ -40,11 +41,56 @@ Configure a messaging channel by providing your bot token.
 ```bash
 ai-devkit channel connect telegram
 ai-devkit channel connect telegram --name personal
+ai-devkit channel connect slack --name work-slack
 ```
 
 You will be prompted to enter your Telegram bot token. AI DevKit validates the token by calling the Telegram API, then stores the configuration locally.
 
-> **Note**: Channel configuration is stored in `~/.ai-devkit/config.json`. The bot token is saved in plaintext — do not commit this file to version control.
+> **Note**: Channel configuration is stored in `~/.ai-devkit/channels.json` with file mode `0600`. Tokens are local plaintext secrets: never commit, paste into chat, or include this file in support logs.
+
+### Configure a private Slack app
+
+Slack support is a local-first, DM-only Socket Mode integration for one workspace and one paired user. It does not expose an HTTP endpoint and is not a distributable OAuth or Marketplace app.
+
+Create an app from this manifest in the [Slack app dashboard](https://api.slack.com/apps):
+
+```yaml
+_metadata:
+  major_version: 1
+display_information:
+  name: AI DevKit
+features:
+  app_home:
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: AI DevKit
+    always_online: false
+oauth_config:
+  scopes:
+    bot:
+      - chat:write
+      - im:history
+settings:
+  event_subscriptions:
+    bot_events:
+      - message.im
+  interactivity:
+    is_enabled: true
+  socket_mode_enabled: true
+  org_deploy_enabled: false
+  is_hosted: false
+```
+
+Then:
+
+1. Install the app to its development workspace and copy the `xoxb-` bot token.
+2. Under **Basic Information → App-Level Tokens**, create an `xapp-` token with `connections:write`.
+3. Run `ai-devkit channel connect slack --name work-slack`. Both secrets are entered through hidden prompts and validated before storage.
+4. Start the bridge with `ai-devkit channel start work-slack --agent <name>`.
+5. Copy the short-lived pairing code printed only in the local terminal and DM it to the app within ten minutes.
+
+The bridge then accepts only the exact workspace, Slack user, and DM conversation established by pairing. Pairing text is not forwarded to the agent. Public channels, mentions, Slack Connect, files, OAuth, and multi-workspace installs are intentionally unsupported.
 
 By default, the channel is named `telegram`. Use `--name <name>` when you want multiple Telegram bot connections, such as `personal` and `team`. Channel names must use lowercase letters, numbers, and hyphens.
 
@@ -60,8 +106,8 @@ ai-devkit channel list
 
 **Table output includes:**
 
-| Name | Type | Status | Bot | Authorized | Bridge | Created |
-|------|------|--------|-----|------------|--------|---------|
+| Name | Type | Status | Identity | Authorized | Bridge | Created |
+|------|------|--------|----------|------------|--------|---------|
 | `telegram` | `telegram` | enabled | `@my_bot` | yes | running | 4/21/2026 |
 
 ### Start the Bridge
@@ -243,6 +289,22 @@ Specify which bridge to stop:
 ```bash
 ai-devkit channel stop personal
 ```
+
+### Slack pairing expires
+
+Restart an unpaired bridge to generate a new ten-minute code. Codes are single-use and case-sensitive. Pairing is accepted only from a direct message in the configured workspace.
+
+### Slack app cannot connect
+
+- Confirm Socket Mode, interactivity, and App Home messages are enabled.
+- Confirm the app-level token starts with `xapp-` and has `connections:write`.
+- Confirm the installed bot token starts with `xoxb-` and has `chat:write` and `im:history`.
+- Confirm `message.im` is subscribed. Reinstall the app after changing scopes.
+- Re-run `channel connect slack --name <name>` after rotating either token.
+
+### Optional Slack sandbox validation
+
+Use a disposable workspace and agent. Connect and pair, exchange a short message, trigger a single-select agent question, send a response longer than 4,000 characters with fenced code, verify threaded continuation, interrupt the network to observe reconnect health, stop the bridge, disconnect the config, and revoke both tokens. Real Slack credentials are never required by the automated test suite.
 
 ### Messages not appearing in Telegram
 - Ensure you are the first user to message the bot (only the first user is authorized).

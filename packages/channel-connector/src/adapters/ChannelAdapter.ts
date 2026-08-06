@@ -1,4 +1,10 @@
-import type { IncomingMessage } from '../types.js';
+import type {
+    ChannelQuestion,
+    IncomingInteraction,
+    IncomingMessage,
+    SendMessageOptions,
+    SentMessage,
+} from '../types.js';
 
 /**
  * Interface for messaging platform adapters.
@@ -21,7 +27,7 @@ export interface ChannelAdapter {
      * Implementations should handle platform-specific limits
      * (e.g., chunking at 4096 chars for Telegram).
      */
-    sendMessage(chatId: string, text: string): Promise<void>;
+    sendMessage(chatId: string, text: string, options?: SendMessageOptions): Promise<SentMessage | void>;
 
     /**
      * Register a handler for incoming text messages.
@@ -32,4 +38,16 @@ export interface ChannelAdapter {
 
     /** Check if the adapter is connected and healthy */
     isHealthy(): Promise<boolean>;
+}
+
+export interface InteractiveChannelAdapter extends ChannelAdapter {
+    onInteraction(handler: (interaction: IncomingInteraction) => Promise<void>): void;
+    sendQuestion(chatId: string, question: ChannelQuestion): Promise<SentMessage>;
+    finalizeInteraction(chatId: string, messageId: string): Promise<void>;
+}
+
+export function isInteractiveChannelAdapter(adapter: ChannelAdapter): adapter is InteractiveChannelAdapter {
+    return 'onInteraction' in adapter
+        && 'sendQuestion' in adapter
+        && 'finalizeInteraction' in adapter;
 }

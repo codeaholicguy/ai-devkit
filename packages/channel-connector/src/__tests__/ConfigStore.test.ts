@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { ConfigStore } from '../ConfigStore.js';
+import { isSlackEntry } from '../types.js';
 import type { ChannelEntry } from '../types.js';
 
 describe('ConfigStore', () => {
@@ -29,6 +30,22 @@ describe('ConfigStore', () => {
         },
     };
 
+    const slackEntry: ChannelEntry = {
+        type: 'slack',
+        enabled: true,
+        createdAt: '2026-08-06T00:00:00Z',
+        config: {
+            appToken: 'xapp-fake',
+            botToken: 'xoxb-fake',
+            appId: 'A123',
+            botUserId: 'U-BOT',
+            workspaceId: 'T123',
+            workspaceName: 'Sandbox',
+            transport: 'socket-mode',
+            audience: 'dm',
+        },
+    };
+
     describe('constructor', () => {
         it('should use default path when no configPath provided', async () => {
             const defaultStore = new ConfigStore();
@@ -39,6 +56,12 @@ describe('ConfigStore', () => {
     });
 
     describe('getConfig', () => {
+        it('narrows provider configuration from the channel type', () => {
+            expect(isSlackEntry(slackEntry)).toBe(true);
+            if (!isSlackEntry(slackEntry)) throw new Error('expected Slack entry');
+            expect(slackEntry.config.workspaceId).toBe('T123');
+        });
+
         it('should return default empty config when file does not exist', async () => {
             const config = await store.getConfig();
             expect(config).toEqual({ channels: {} });
@@ -87,12 +110,22 @@ describe('ConfigStore', () => {
             expect(mode).toBe('600');
         });
 
+        it('should repair permissive permissions on an existing config file', async () => {
+            fs.writeFileSync(configPath, JSON.stringify({ channels: {} }), { mode: 0o644 });
+            fs.chmodSync(configPath, 0o644);
+
+            await store.saveChannel('slack', slackEntry);
+
+            expect(fs.statSync(configPath).mode & 0o777).toBe(0o600);
+        });
+
         it('should preserve existing channels when adding a new one', async () => {
             await store.saveChannel('telegram', sampleEntry);
-            await store.saveChannel('slack', { ...sampleEntry, type: 'slack' });
+            await store.saveChannel('slack', slackEntry);
 
             const config = await store.getConfig();
             expect(Object.keys(config.channels)).toEqual(['telegram', 'slack']);
+            expect(config.channels.slack).toEqual(slackEntry);
         });
 
         it('should preserve separate Telegram configs by channel name', async () => {
