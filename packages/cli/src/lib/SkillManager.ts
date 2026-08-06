@@ -6,7 +6,7 @@ import { GlobalConfigManager } from './GlobalConfig.js';
 import { EnvironmentSelector } from './EnvironmentSelector.js';
 import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
 import { SkillIndex } from './SkillIndex.js';
-import { getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
+import { getAllEnvironments, getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
 import { ensureGitInstalled } from '../util/git.js';
 import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill.js';
 import { isInteractiveTerminal } from '../util/terminal.js';
@@ -22,6 +22,12 @@ interface InstalledSkill {
   name: string;
   registry: string;
   environments: string[];
+}
+
+interface GlobalInstalledSkill {
+  name: string;
+  environments: string[];
+  path: string;
 }
 
 interface AddSkillOptions {
@@ -145,6 +151,64 @@ export class SkillManager {
     }
 
     return skills;
+  }
+
+  /**
+   * List valid skills installed in known global environment paths.
+   */
+  async listGlobalSkills(envCodes?: string[]): Promise<GlobalInstalledSkill[]> {
+    const selectedCodes = envCodes && envCodes.length > 0
+      ? new Set(validateEnvironmentCodes(envCodes))
+      : undefined;
+    const roots = new Map<string, { path: string; environments: string[] }>();
+
+    for (const environment of getAllEnvironments()) {
+      if (!environment.globalSkillPath || (selectedCodes && !selectedCodes.has(environment.code as EnvironmentCode))) {
+        continue;
+      }
+
+      const fullPath = path.join(os.homedir(), environment.globalSkillPath);
+      const existing = roots.get(fullPath);
+      if (existing) {
+        if (!existing.environments.includes(environment.code)) {
+          existing.environments.push(environment.code);
+        }
+      } else {
+        roots.set(fullPath, {
+          path: environment.globalSkillPath,
+          environments: [environment.code],
+        });
+      }
+    }
+
+    const skills: GlobalInstalledSkill[] = [];
+    for (const [fullPath, root] of roots) {
+      if (!await fs.pathExists(fullPath)) {
+        continue;
+      }
+
+      const entries = await fs.readdir(fullPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if ((!entry.isDirectory() && !entry.isSymbolicLink()) || !isValidSkillName(entry.name)) {
+          continue;
+        }
+
+        const skillPath = path.join(fullPath, entry.name);
+        if (!await fs.pathExists(path.join(skillPath, 'SKILL.md'))) {
+          continue;
+        }
+
+        skills.push({
+          name: entry.name,
+          environments: [...root.environments],
+          path: `~/${path.join(root.path, entry.name).split(path.sep).join('/')}`,
+        });
+      }
+    }
+
+    return skills.sort((left, right) =>
+      left.name.localeCompare(right.name) || left.path.localeCompare(right.path),
+    );
   }
 
   /**
