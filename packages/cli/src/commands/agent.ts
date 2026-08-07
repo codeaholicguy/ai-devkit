@@ -14,6 +14,8 @@ import {
     GrokCliAdapter,
     OpenCodeAdapter,
     PiAdapter,
+    ClaudePrintAgentService,
+    PrintAgentStore,
     AgentStatus,
     TerminalFocusManager,
     AgentRegistry,
@@ -69,6 +71,16 @@ const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
 function formatStatus(status: AgentStatus): string {
     const config = STATUS_DISPLAY[status] || STATUS_DISPLAY[AgentStatus.UNKNOWN];
     return `${config.emoji} ${config.label}`;
+}
+
+function sanitizeProviderOutput(value: string): string {
+    // Strip OSC controls as a unit, then remove remaining terminal control bytes except newline/tab.
+    // eslint-disable-next-line no-control-regex
+    const withoutOsc = value.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '');
+    return Array.from(withoutOsc, (character) => {
+        const code = character.charCodeAt(0);
+        return (code < 32 && code !== 9 && code !== 10) || code === 127 ? '' : character;
+    }).join('');
 }
 
 function formatRelativeTime(timestamp: Date): string {
@@ -179,6 +191,10 @@ function createAgentManager(): AgentManager {
     return manager;
 }
 
+function createPrintAgentService(): ClaudePrintAgentService {
+    return new ClaudePrintAgentService({ store: new PrintAgentStore() });
+}
+
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
 
 function writeWaitStatus(message: string): void {
@@ -247,6 +263,7 @@ export function registerAgentCommand(program: Command): void {
         .command('start')
         .description('Start a new agent in a managed tmux session')
         .requiredOption('--type <type>', `Agent type: ${Object.keys(AGENTS).join(', ')}`)
+        .option('--mode <mode>', 'Agent mode: interactive or print', 'interactive')
         .option('--name <name>', 'Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})')
         .option('--cwd <path>', 'Working directory for the agent (default: current directory)')
         .option('--debug', 'Enable debug logging')
@@ -255,12 +272,19 @@ export function registerAgentCommand(program: Command): void {
                 enableDebug();
             }
             const agentType = options.type as string;
+            const mode = options.mode as string;
             const cwd = path.resolve(options.cwd ?? process.cwd());
             const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
 
             if (!(agentType in AGENTS)) {
                 ui.error(`Unsupported agent type "${agentType}". Supported: ${Object.keys(AGENTS).join(', ')}.`);
                 process.exit(1);
+            }
+            if (!['interactive', 'print'].includes(mode)) {
+                throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, print.`);
+            }
+            if (mode === 'print' && agentType !== 'claude') {
+                throw new Error('Print mode currently supports only --type claude.');
             }
             if (!NAME_REGEX.test(agentName)) {
                 ui.error(
@@ -275,6 +299,13 @@ export function registerAgentCommand(program: Command): void {
             }
 
             try {
+                if (mode === 'print') {
+                    const entry = await createPrintAgentService().create({ name: agentName, cwd });
+                    ui.success(`Print agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
+                    ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
+                    ui.text('State: ready (Claude session not started)');
+                    return;
+                }
                 const entry = await startAgent(
                     { type: agentType as StartableAgentType, name: agentName, cwd },
                     {
@@ -310,27 +341,35 @@ export function registerAgentCommand(program: Command): void {
         .action(withErrorHandler('list agents', async (options) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
+            const printAgents = await createPrintAgentService().store.list();
 
             if (options.json) {
-                console.log(JSON.stringify(agents, null, 2));
+                console.log(JSON.stringify([...agents, ...printAgents], null, 2));
                 return;
             }
 
-            if (agents.length === 0) {
+            if (agents.length === 0 && printAgents.length === 0) {
                 ui.info('No running agents detected.');
                 return;
             }
 
-            ui.text('Running Agents:', { breakline: true });
+            ui.text('Agents:', { breakline: true });
 
-            const rows = agents.map(agent => [
+            const rows = [...agents.map(agent => [
                 agent.name,
                 agent.projectPath ? path.basename(agent.projectPath) : '',
                 formatType(agent.type),
                 formatStatus(agent.status),
                 formatWorkOn(agent.summary),
-                formatRelativeTime(agent.lastActive)
-            ]);
+                formatRelativeTime(agent.lastActive),
+            ]), ...printAgents.map(agent => [
+                agent.name,
+                path.basename(agent.cwd),
+                'Claude Code (print)',
+                agent.state,
+                agent.lastResult?.summary ?? agent.sessionHealth,
+                agent.lastActiveAt ? formatRelativeTime(new Date(agent.lastActiveAt)) : 'never',
+            ])];
 
             ui.table({
                 headers: ['Agent', 'Project', 'Type', 'Status', 'Working On', 'Active'],
@@ -575,6 +614,36 @@ export function registerAgentCommand(program: Command): void {
                 return;
             }
 
+            const printService = createPrintAgentService();
+            const printResolved = await printService.store.resolve(options.id);
+            if (Array.isArray(printResolved)) {
+                throw new Error(`Multiple print agents match "${options.id}".`);
+            }
+            if (printResolved) {
+                if (options.timeout !== undefined) {
+                    throw new Error('--timeout is not supported for synchronous print agents.');
+                }
+                if (options.id !== printResolved.id) {
+                    const liveAgents = await manager.listAgents();
+                    const liveExact = liveAgents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
+                    if (liveExact.length > 0) {
+                        throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the print agent ID.`);
+                    }
+                }
+                const result = await printService.send(options.id, prompt);
+                if (options.json) {
+                    console.log(JSON.stringify({
+                        target: { id: result.agentId, name: result.agentName, provider: 'claude', mode: 'print' },
+                        response: result.result,
+                        exitCode: result.exitCode,
+                        sessionId: result.sessionId,
+                    }, null, 2));
+                } else {
+                    ui.text(sanitizeProviderOutput(result.result));
+                }
+                return;
+            }
+
             await sendToAgent({
                 id: options.id,
                 prompt,
@@ -635,8 +704,31 @@ export function registerAgentCommand(program: Command): void {
         .action(withErrorHandler('get agent detail', async (options) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
-            if (agents.length === 0) {
-                ui.error('No running agents found.');
+            const printResolved = await createPrintAgentService().store.resolve(options.id);
+            if (Array.isArray(printResolved)) {
+                throw new Error(`Multiple print agents match "${options.id}".`);
+            }
+            if (printResolved) {
+                const liveExact = agents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
+                if (options.id !== printResolved.id && liveExact.length > 0) {
+                    throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the print agent ID.`);
+                }
+                if (options.json) {
+                    console.log(JSON.stringify(printResolved, null, 2));
+                    return;
+                }
+                ui.text('Print Agent Detail', { breakline: true });
+                ui.text(chalk.dim('─'.repeat(40)));
+                ui.text(`  ${chalk.bold('Agent ID:')}    ${printResolved.id}`);
+                ui.text(`  ${chalk.bold('Session ID:')}  ${printResolved.providerSessionId}`);
+                ui.text(`  ${chalk.bold('Name:')}        ${printResolved.name}`);
+                ui.text(`  ${chalk.bold('Provider:')}    Claude Code`);
+                ui.text(`  ${chalk.bold('Mode:')}        print`);
+                ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(printResolved.cwd)}`);
+                ui.text(`  ${chalk.bold('State:')}       ${printResolved.state}`);
+                ui.text(`  ${chalk.bold('Session:')}     ${printResolved.sessionHealth}`);
+                ui.text(`  ${chalk.bold('Last Active:')} ${printResolved.lastActiveAt ? formatRelativeTime(new Date(printResolved.lastActiveAt)) : 'never'}`);
+                if (printResolved.lastResult) ui.text(`  ${chalk.bold('Last Result:')} ${printResolved.lastResult.summary}`);
                 return;
             }
 

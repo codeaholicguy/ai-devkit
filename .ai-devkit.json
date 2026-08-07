@@ -108,6 +108,10 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "changelog"
+    },
+    {
+      "registry": "codeaholicguy/ai-devkit",
+      "name": "agent-management"
     }
   ],
   "updatedAt": "2026-06-27T20:37:59.097Z"

@@ -24,6 +24,20 @@ ai-devkit agent send "run the tests and report back" --id <agent-name> --wait
 npm test 2>&1 | ai-devkit agent send --id <agent-name> --stdin
 ```
 
+Claude Code can also be registered as a durable print-mode agent. Registration
+does not launch Claude; each send starts one synchronous process and later sends
+resume the same Claude session:
+
+```bash
+ai-devkit agent start --type claude --mode print --name reviewer --cwd /path/to/project
+ai-devkit agent send "review the current diff" --id reviewer
+```
+
+Print mode inherits Claude Code's settings, permissions, hooks, MCP servers, and
+tool side effects for that working directory. AI DevKit adds no permission bypass
+or automatic retry, and prompts are delivered over stdin rather than command-line
+arguments. `--timeout` is not supported for print agents in this first release.
+
 Use this package directly only when building custom tooling around AI DevKit's agent detection and control surface.
 
 ## Documentation
