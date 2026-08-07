@@ -5,13 +5,18 @@ import chalk from 'chalk';
 import { Telegraf } from 'telegraf';
 import {
     TELEGRAM_CHANNEL_TYPE,
+    SLACK_CHANNEL_TYPE,
+    validateSlackAppToken,
+    validateSlackCredentials,
     ConfigStore,
     type ChannelEntry,
+    type SlackConfig,
     type TelegramConfig,
 } from '@ai-devkit/channel-connector';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { createLogger, enableDebug } from '../util/debug.js';
+import { getErrorMessage } from '../util/text.js';
 import { confirm, password } from '@inquirer/prompts';
 import { ChannelService } from '../services/channel/channel.service.js';
 import { runChannelBridge } from '../services/channel/channel-runner.js';
@@ -39,6 +44,13 @@ function resolveDaemonLaunch(): { command: string; args: string[] } {
     };
 }
 
+function redactSecrets(message: string, secrets: string[]): string {
+    return secrets.reduce(
+        (redacted, secret) => secret ? redacted.split(secret).join('[REDACTED]') : redacted,
+        message,
+    );
+}
+
 export function registerChannelCommand(program: Command): void {
     const channelService = new ChannelService();
     const channelCommand = program
@@ -49,15 +61,61 @@ export function registerChannelCommand(program: Command): void {
         .command('connect <type>')
         .description('Connect a messaging channel (e.g., telegram)')
         .option('--name <name>', 'Channel instance name')
-        .action(withErrorHandler('connect channel', async (type: string, options: { name?: string }) => {
-            if (type !== TELEGRAM_CHANNEL_TYPE) {
-                ui.error(`Unsupported channel type: ${type}. Supported: ${TELEGRAM_CHANNEL_TYPE}`);
+        .option('--debug', 'Enable debug logging')
+        .action(withErrorHandler('connect channel', async (type: string, options: { name?: string; debug?: boolean }) => {
+            if (options.debug) {
+                enableDebug();
+            }
+            if (type !== TELEGRAM_CHANNEL_TYPE && type !== SLACK_CHANNEL_TYPE) {
+                ui.error(`Unsupported channel type: ${type}. Supported: ${TELEGRAM_CHANNEL_TYPE}, ${SLACK_CHANNEL_TYPE}`);
                 return;
             }
 
             const channelName = channelService.resolveConnectChannelName(options.name);
             const configStore = new ConfigStore();
             const existing = await configStore.getChannel(channelName);
+
+            if (type === SLACK_CHANNEL_TYPE) {
+                ui.info('Create a single-workspace Slack app from the AI DevKit Socket Mode manifest.');
+                const appToken = String(await password({
+                    message: 'Enter your Slack app-level token (xapp-…):',
+                    validate: (input: string) => input.trim().startsWith('xapp-') || 'App token must start with xapp-',
+                })).trim();
+                const botToken = String(await password({
+                    message: 'Enter your Slack bot token (xoxb-…):',
+                    validate: (input: string) => input.trim().startsWith('xoxb-') || 'Bot token must start with xoxb-',
+                })).trim();
+                const spinner = ui.spinner('Validating Slack bot identity...');
+                spinner.start();
+                let stage = 'app token validation';
+                try {
+                    await validateSlackAppToken(appToken);
+                    stage = 'bot token validation';
+                    const identity = await validateSlackCredentials(botToken);
+                    const entry: ChannelEntry = {
+                        type: SLACK_CHANNEL_TYPE,
+                        enabled: true,
+                        createdAt: existing?.createdAt ?? new Date().toISOString(),
+                        config: {
+                            appToken,
+                            botToken,
+                            ...identity,
+                            transport: 'socket-mode',
+                            audience: 'dm',
+                        },
+                    };
+                    stage = 'configuration save';
+                    await configStore.saveChannel(channelName, entry);
+                    spinner.succeed(`Connected to Slack workspace ${identity.workspaceName ?? identity.workspaceId}`);
+                    ui.success(`Slack channel "${channelName}" configured successfully!`);
+                    ui.info(`Run "ai-devkit channel start ${channelName} --agent <name>", then DM the Slack app.`);
+                } catch (error: unknown) {
+                    const message = redactSecrets(getErrorMessage(error), [appToken, botToken]);
+                    debug(`Slack ${stage} failed: ${message}`);
+                    spinner.fail('Invalid Slack credentials. Please check and try again.');
+                }
+                return;
+            }
 
             ui.info('To connect Telegram, you need a bot token from @BotFather.');
             ui.info('Open Telegram, search for @BotFather, and create a new bot.\n');
@@ -126,20 +184,25 @@ export function registerChannelCommand(program: Command): void {
             ui.text('Configured Channels:', { breakline: true });
 
             const rows = channels.map(([name, entry]) => {
-                const telegramConfig = entry.config as TelegramConfig;
+                const identity = entry.type === SLACK_CHANNEL_TYPE
+                    ? (entry.config as SlackConfig).workspaceName ?? (entry.config as SlackConfig).workspaceId
+                    : `@${(entry.config as TelegramConfig).botUsername}`;
+                const authorization = entry.type === SLACK_CHANNEL_TYPE
+                    ? 'n/a'
+                    : (entry.config as TelegramConfig).authorizedChatId ? 'yes' : 'no';
                 return [
                     name,
                     entry.type,
                     entry.enabled ? chalk.green('enabled') : chalk.dim('disabled'),
-                    telegramConfig.botUsername ? `@${telegramConfig.botUsername}` : '-',
-                    telegramConfig.authorizedChatId ? 'yes' : 'no',
+                    identity || '-',
+                    authorization,
                     liveByChannel.has(name) ? chalk.green('running') : chalk.dim('stopped'),
                     entry.createdAt ? new Date(entry.createdAt).toLocaleDateString() : '-',
                 ];
             });
 
             ui.table({
-                headers: ['Name', 'Type', 'Status', 'Bot', 'Authorized', 'Bridge', 'Created'],
+                headers: ['Name', 'Type', 'Status', 'Identity', 'Authorized', 'Bridge', 'Created'],
                 rows,
             });
         }));
@@ -211,7 +274,7 @@ export function registerChannelCommand(program: Command): void {
 
                 const bridge = await channelService.startDaemonBridge({
                     channelName,
-                    channelType: TELEGRAM_CHANNEL_TYPE,
+                    channelType: channelEntry.type,
                     agentName: options.agent,
                     command: daemonLaunch.command,
                     args: daemonArgs,
@@ -270,12 +333,17 @@ export function registerChannelCommand(program: Command): void {
             }
 
             for (const [name, entry] of channels) {
-                const telegramConfig = entry.config as TelegramConfig;
                 const bridge = liveByChannel.get(name);
+                const identity = entry.type === SLACK_CHANNEL_TYPE
+                    ? `${(entry.config as SlackConfig).workspaceName ?? (entry.config as SlackConfig).workspaceId} (bot ${(entry.config as SlackConfig).botUserId})`
+                    : `@${(entry.config as TelegramConfig).botUsername || 'unknown'}`;
+                const authorization = entry.type === SLACK_CHANNEL_TYPE
+                    ? 'n/a (POC)'
+                    : (entry.config as TelegramConfig).authorizedChatId ? 'yes' : 'no';
                 ui.text(`${chalk.bold(name)} (${entry.type})`);
                 ui.text(`  Enabled: ${entry.enabled ? chalk.green('yes') : chalk.red('no')}`);
-                ui.text(`  Bot: @${telegramConfig.botUsername || 'unknown'}`);
-                ui.text(`  Authorized: ${telegramConfig.authorizedChatId ? 'yes' : 'no'}`);
+                ui.text(`  Identity: ${identity}`);
+                ui.text(`  Authorized: ${authorization}`);
                 ui.text(`  Bridge: ${bridge ? chalk.green(`running (PID: ${bridge.bridgePid}, agent: ${bridge.agentName})`) : chalk.dim('stopped')}`);
                 if (bridge?.logPath) {
                     ui.text(`  Logs: ${bridge.logPath}`);

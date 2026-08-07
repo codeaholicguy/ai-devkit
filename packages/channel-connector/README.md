@@ -2,7 +2,7 @@
 
 Bridge AI DevKit agent sessions to external messaging channels.
 
-This package powers the `ai-devkit channel` commands. Use it when you need the lower-level connector layer that routes messages between running AI coding agents and channels such as Telegram.
+This package powers the `ai-devkit channel` commands. Use it when you need the lower-level connector layer that routes messages between running AI coding agents and channels such as Telegram and private Slack DMs.
 
 ## What It Provides
 
@@ -17,10 +17,13 @@ Most users should use the CLI:
 
 ```bash
 ai-devkit channel connect telegram
+ai-devkit channel connect slack --name work-slack
 ai-devkit channel start --agent <agent-name>
 ```
 
 Use this package directly only when building custom channel integrations or extending AI DevKit's remote-control surface.
+
+Slack uses the official `@slack/socket-mode` and `@slack/web-api` clients. The current proof of concept is a user-owned, single-workspace, DM-only Socket Mode app without Slack-user authorization. Use it only in a disposable/private workspace with a non-sensitive agent session. Public channels, OAuth distribution, files, and multi-workspace routing are not supported.
 
 ## Documentation
 

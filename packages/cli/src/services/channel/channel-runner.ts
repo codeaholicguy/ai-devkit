@@ -17,10 +17,12 @@ import {
 } from '@ai-devkit/agent-manager';
 import {
     ChannelManager,
+    type ChannelAdapter,
     ConfigStore,
+    SlackAdapter,
     TelegramAdapter,
+    SLACK_CHANNEL_TYPE,
     TELEGRAM_CHANNEL_TYPE,
-    type TelegramConfig,
 } from '@ai-devkit/channel-connector';
 import { ui } from '../../util/terminal-ui.js';
 import { getErrorMessage } from '../../util/text.js';
@@ -28,6 +30,7 @@ import { createLogger } from '../../util/debug.js';
 import { select } from '@inquirer/prompts';
 import { ChannelService } from './channel.service.js';
 import { AskUserQuestionService } from './ask-user-question.js';
+import { SlackQuestionService } from './slack-question.js';
 
 const debug = createLogger('channel');
 const AGENT_POLL_INTERVAL_MS = 2000;
@@ -80,24 +83,31 @@ async function resolveTargetAgent(agentManager: AgentManager, agentName: string)
     return resolved as AgentInfo;
 }
 
-function setupInputHandler(
-    telegram: TelegramAdapter,
+export function setupInputHandler(
+    channel: ChannelAdapter,
     terminalLocation: TerminalLocation,
     chatIdRef: { value: string | null },
     onAuthorize?: (chatId: string) => Promise<void>,
 ): void {
-    telegram.onMessage(async (msg) => {
+    channel.onMessage(async (msg) => {
         debug(`Received message from chat ID: ${msg.chatId}, text length: ${msg.text?.length ?? 0}`);
 
         if (!chatIdRef.value) {
             chatIdRef.value = msg.chatId;
-            await onAuthorize?.(msg.chatId);
-            ui.info(`Authorized Telegram user (chat ID: ${msg.chatId})`);
+            if (onAuthorize) {
+                await onAuthorize(msg.chatId);
+                ui.info(`Authorized Telegram user (chat ID: ${msg.chatId})`);
+            } else {
+                ui.info(`Connected ${channel.type} conversation ${msg.chatId} for this bridge session.`);
+            }
         }
 
         if (msg.chatId !== chatIdRef.value) {
-            debug(`Rejected message from unauthorized chat ID: ${msg.chatId}`);
-            await telegram.sendMessage(msg.chatId, 'Unauthorized. Only the first user is allowed.');
+            const rejection = onAuthorize
+                ? 'Unauthorized. Only the configured user is allowed.'
+                : 'This bridge is already connected to another conversation. Restart it to switch.';
+            debug(`Rejected message from ${onAuthorize ? 'unauthorized' : 'inactive'} chat ID: ${msg.chatId}`);
+            await channel.sendMessage(msg.chatId, rejection);
             return;
         }
 
@@ -107,7 +117,7 @@ function setupInputHandler(
         } catch (error: unknown) {
             const message = getErrorMessage(error);
             ui.error(`Failed to send to agent: ${message}`);
-            await telegram.sendMessage(msg.chatId, `Failed to send to agent: ${message}`);
+            await channel.sendMessage(msg.chatId, `Failed to send to agent: ${message}`);
         }
     });
 }
@@ -126,11 +136,11 @@ function formatPromptMessage(toolName: string, toolInput: Record<string, unknown
 
 export interface OutputPollingOptions {
     homeDir?: string;
-    askUserQuestionService?: AskUserQuestionService;
+    askUserQuestionService?: Pick<AskUserQuestionService, 'tryHandle'>;
 }
 
 export function startOutputPolling(
-    telegram: TelegramAdapter,
+    channel: Pick<ChannelAdapter, 'sendMessage'>,
     agentAdapter: AgentAdapter,
     agent: AgentInfo,
     chatIdRef: { value: string | null },
@@ -171,7 +181,7 @@ export function startOutputPolling(
 
         if (!chatIdRef.value) {
             if (tickCount % 15 === 1) {
-                debug(`poll skip: no authorized chat yet (tick ${tickCount})`);
+                debug(`poll skip: no active chat yet (tick ${tickCount})`);
             }
             return;
         }
@@ -207,7 +217,7 @@ export function startOutputPolling(
                 }
 
                 try {
-                    await telegram.sendMessage(chatIdRef.value, msg.content);
+                    await channel.sendMessage(chatIdRef.value, msg.content);
                     debug(`Sent agent response to Telegram (role: ${msg.role}, length: ${contentLen})`);
                 } catch (error: unknown) {
                     const message = getErrorMessage(error);
@@ -232,7 +242,7 @@ export function startOutputPolling(
                         handled = await askQuestion.tryHandle(agentRequest.toolInput, chatIdRef.value);
                     }
                     if (!handled) {
-                        await telegram.sendMessage(chatIdRef.value, formatPromptMessage(agentRequest.toolName, agentRequest.toolInput));
+                        await channel.sendMessage(chatIdRef.value, formatPromptMessage(agentRequest.toolName, agentRequest.toolInput));
                     }
                     debug(`Sent agent request notification to Telegram (handled=${handled})`);
                 } catch (error: unknown) {
@@ -283,8 +293,7 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
         return;
     }
 
-    const telegramConfig = channelEntry.config as TelegramConfig;
-    debug(`Telegram channel "${input.channelName}" found: bot=@${telegramConfig.botUsername}`);
+    debug(`${channelEntry.type} channel "${input.channelName}" found`);
 
     debug(`Resolving agent: "${input.agentName}"`);
     const agentManager = createAgentManager();
@@ -313,55 +322,61 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
 
     debug(`Terminal found: ${JSON.stringify(terminalLocation)}`);
 
-    const telegram = new TelegramAdapter({ botToken: telegramConfig.botToken });
-    const chatIdRef = {
-        value: telegramConfig.authorizedChatId !== undefined
-            ? String(telegramConfig.authorizedChatId)
-            : null,
-    };
+    let channel: ChannelAdapter;
+    let askUserQuestionService: Pick<AskUserQuestionService, 'tryHandle'> | undefined;
+    const chatIdRef: { value: string | null } = { value: null };
 
-    setupInputHandler(telegram, terminalLocation, chatIdRef, async (chatId) => {
-        const latest = await configStore.getChannel(input.channelName);
-        if (!latest) return;
-        const latestTelegramConfig = latest.config as TelegramConfig;
-        await configStore.saveChannel(input.channelName, {
-            ...latest,
-            config: {
-                ...latestTelegramConfig,
-                authorizedChatId: Number(chatId),
-            },
+    if (channelEntry.type === TELEGRAM_CHANNEL_TYPE) {
+        const telegramConfig = channelEntry.config;
+        const telegram = new TelegramAdapter({ botToken: telegramConfig.botToken });
+        channel = telegram;
+        chatIdRef.value = telegramConfig.authorizedChatId !== undefined ? String(telegramConfig.authorizedChatId) : null;
+        setupInputHandler(telegram, terminalLocation, chatIdRef, async (chatId) => {
+            const latest = await configStore.getChannel(input.channelName);
+            if (!latest || latest.type !== TELEGRAM_CHANNEL_TYPE) return;
+            await configStore.saveChannel(input.channelName, {
+                ...latest,
+                config: { ...latest.config, authorizedChatId: Number(chatId) },
+            });
         });
-    });
-    const askUserQuestionService = new AskUserQuestionService(
-        telegram,
-        // AskUserQuestion picker reacts to raw digit keystrokes (1-N), not to
-        // pasted text. Use sendKey to bypass bracketed paste / auto-Enter.
-        (key) => TtyWriter.sendKey(terminalLocation, key),
-    );
-    telegram.onCallback(async (cb) => {
-        if (cb.chatId !== chatIdRef.value) {
-            debug(`callback rejected: chatId=${cb.chatId} not authorized`);
-            return;
-        }
-        await askUserQuestionService.handleCallback(cb);
-    });
+        const telegramQuestions = new AskUserQuestionService(
+            telegram,
+            (key) => TtyWriter.sendKey(terminalLocation, key),
+        );
+        askUserQuestionService = telegramQuestions;
+        telegram.onCallback(async (cb) => {
+            if (cb.chatId !== chatIdRef.value) return;
+            await telegramQuestions.handleCallback(cb);
+        });
+    } else if (channelEntry.type === SLACK_CHANNEL_TYPE) {
+        const slackConfig = channelEntry.config;
+        const slack = new SlackAdapter(slackConfig);
+        channel = slack;
+        setupInputHandler(slack, terminalLocation, chatIdRef);
+        const slackQuestions = new SlackQuestionService(slack, (key) => TtyWriter.sendKey(terminalLocation, key));
+        askUserQuestionService = slackQuestions;
+        slack.onInteraction((interaction) => slackQuestions.handleInteraction(interaction));
+    } else {
+        ui.error(`Unsupported channel type: ${channelEntry.type}`);
+        return;
+    }
 
     debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
-    const pollInterval = startOutputPolling(telegram, agentAdapter, agent, chatIdRef, {
+    const pollInterval = startOutputPolling(channel, agentAdapter, agent, chatIdRef, {
         askUserQuestionService,
     });
 
     const manager = new ChannelManager();
-    manager.registerAdapter(telegram);
+    manager.registerAdapter(channel);
     setupGracefulShutdown(manager, pollInterval, channelService, input.channelName);
 
-    ui.success(`Bridge started: ${input.channelName} (@${telegramConfig.botUsername}) <-> Agent "${agent.name}" (PID: ${agent.pid})`);
-    ui.info('Send a message to your Telegram bot to start chatting.');
+    ui.success(`Bridge started: ${input.channelName} (${channelEntry.type}) <-> Agent "${agent.name}" (PID: ${agent.pid})`);
+    ui.info(`Send a message to your ${channelEntry.type} app to start chatting.`);
     ui.info('Press Ctrl+C to stop.\n');
 
     await channelService.registerBridge({
         channelName: input.channelName,
-        channelType: TELEGRAM_CHANNEL_TYPE,
+        channelType: channelEntry.type,
         agentName: agent.name,
         agentPid: agent.pid,
         bridgePid: process.pid,

@@ -8,6 +8,9 @@ export interface IncomingMessage {
     userId: string;
     text: string;
     timestamp: Date;
+    messageId?: string;
+    threadId?: string;
+    workspaceId?: string;
     metadata?: Record<string, unknown>;
 }
 
@@ -27,12 +30,27 @@ export interface ChannelConfig {
 /**
  * Configuration entry for a single channel.
  */
-export interface ChannelEntry {
-    type: ChannelType;
+interface BaseChannelEntry {
     enabled: boolean;
     createdAt: string;
+}
+
+export interface TelegramChannelEntry extends BaseChannelEntry {
+    type: 'telegram';
     config: TelegramConfig;
 }
+
+export interface SlackChannelEntry extends BaseChannelEntry {
+    type: 'slack';
+    config: SlackConfig;
+}
+
+export interface OtherChannelEntry extends BaseChannelEntry {
+    type: Exclude<ChannelType, 'telegram' | 'slack'>;
+    config: Record<string, unknown>;
+}
+
+export type ChannelEntry = TelegramChannelEntry | SlackChannelEntry | OtherChannelEntry;
 
 /**
  * Supported channel types.
@@ -47,6 +65,58 @@ export interface TelegramConfig {
     botUsername: string;
     authorizedChatId?: number;
 }
+
+export interface SlackConfig {
+    appToken: string;
+    botToken: string;
+    appId?: string;
+    botUserId: string;
+    workspaceId: string;
+    workspaceName?: string;
+    transport: 'socket-mode';
+    audience: 'dm';
+}
+
+export function isSlackEntry(entry: ChannelEntry): entry is SlackChannelEntry {
+    return entry.type === 'slack';
+}
+
+export interface SendMessageOptions {
+    threadId?: string;
+}
+
+export interface SentMessage {
+    messageId: string;
+    threadId?: string;
+}
+
+export interface ChannelQuestionOption {
+    label: string;
+    description?: string;
+    value: string;
+}
+
+export interface ChannelQuestion {
+    id: string;
+    question: string;
+    header?: string;
+    options: ChannelQuestionOption[];
+    allowSkip: boolean;
+}
+
+export interface IncomingInteraction {
+    channelType: string;
+    chatId: string;
+    userId: string;
+    interactionId: string;
+    messageId: string;
+    actionId: string;
+    value: string;
+    workspaceId?: string;
+    timestamp: Date;
+}
+
+export type InteractionHandler = (interaction: IncomingInteraction) => Promise<void>;
 
 /**
  * A single button in a Telegram-style inline keyboard.

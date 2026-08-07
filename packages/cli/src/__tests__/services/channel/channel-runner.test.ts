@@ -3,8 +3,9 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { vi, type Mock } from 'vitest';
 import type { AgentInfo, AgentRequest } from '@ai-devkit/agent-manager';
-import { AgentStatus, writeAgentRequest } from '@ai-devkit/agent-manager';
-import { startOutputPolling } from '../../../services/channel/channel-runner.js';
+import { AgentStatus, TerminalType, TtyWriter, writeAgentRequest } from '@ai-devkit/agent-manager';
+import type { IncomingMessage } from '@ai-devkit/channel-connector';
+import { setupInputHandler, startOutputPolling } from '../../../services/channel/channel-runner.js';
 import { AskUserQuestionService } from '../../../services/channel/ask-user-question.js';
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
@@ -39,6 +40,63 @@ function makeRequest(overrides: Partial<AgentRequest> = {}): AgentRequest {
         ...overrides,
     };
 }
+
+describe('channel input routing', () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('uses the first Slack DM as the active conversation and rejects a later DM', async () => {
+        let handler: ((message: IncomingMessage) => Promise<void>) | undefined;
+        const channel = {
+            type: 'slack',
+            onMessage: vi.fn((nextHandler) => { handler = nextHandler; }),
+            sendMessage: vi.fn().mockResolvedValue(undefined),
+        };
+        const send = vi.spyOn(TtyWriter, 'send').mockResolvedValue(undefined);
+        const activeChat = { value: null as string | null };
+        setupInputHandler(channel as never, {
+            type: TerminalType.UNKNOWN, identifier: 'test', tty: '/dev/ttys001',
+        }, activeChat);
+
+        const message = (chatId: string, text: string): IncomingMessage => ({
+            channelType: 'slack', chatId, userId: 'U123', text,
+            timestamp: new Date('2026-08-06T00:00:00Z'),
+        });
+        await handler?.(message('D123', 'first'));
+        await handler?.(message('D999', 'second'));
+
+        expect(activeChat.value).toBe('D123');
+        expect(send).toHaveBeenCalledOnce();
+        expect(send).toHaveBeenCalledWith(expect.anything(), 'first');
+        expect(channel.sendMessage).toHaveBeenCalledWith(
+            'D999',
+            'This bridge is already connected to another conversation. Restart it to switch.',
+        );
+    });
+
+    it('keeps the authorization rejection for a different Telegram chat', async () => {
+        let handler: ((message: IncomingMessage) => Promise<void>) | undefined;
+        const channel = {
+            type: 'telegram',
+            onMessage: vi.fn((nextHandler) => { handler = nextHandler; }),
+            sendMessage: vi.fn().mockResolvedValue(undefined),
+        };
+        setupInputHandler(channel as never, {
+            type: TerminalType.UNKNOWN, identifier: 'test', tty: '/dev/ttys001',
+        }, { value: '123' }, vi.fn());
+
+        await handler?.({
+            channelType: 'telegram', chatId: '999', userId: '999', text: 'hello',
+            timestamp: new Date('2026-08-06T00:00:00Z'),
+        });
+
+        expect(channel.sendMessage).toHaveBeenCalledWith(
+            '999',
+            'Unauthorized. Only the configured user is allowed.',
+        );
+    });
+});
 
 describe('startOutputPolling — agent requests', () => {
     let homeDir: string;
