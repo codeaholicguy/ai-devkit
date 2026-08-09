@@ -85,6 +85,12 @@ ai-devkit lint --feature lint-command
 # Emit machine-readable output for CI
 ai-devkit lint --feature lint-command --json
 
+# Report capacity for configured providers (read-only; cached for 300 seconds)
+ai-devkit capacity
+
+# Refresh one provider and emit the stable schema-v1 JSON report
+ai-devkit capacity codex --json --refresh
+
 # Install a skill
 ai-devkit skill add <skill-registry> [skill-name]
 
