@@ -1,18 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { probeClaudeCapacity } from '../../../commands/capacity/providers/claude.js';
+import { probeClaudeCapacity, readClaudeAuthStatus } from '../../../commands/capacity/providers/claude.js';
 import { probePiCapacity } from '../../../commands/capacity/providers/pi.js';
 import { buildUnsupportedCapacity } from '../../../commands/capacity/providers/stub.js';
 
 const checkedAt = '2026-08-09T10:00:00.000Z';
 
 describe('non-Codex capacity adapters', () => {
+  it('reads logged-out Claude JSON even when the CLI exits nonzero', async () => {
+    const execute = async () => {
+      throw Object.assign(new Error('must not leak'), {
+        stdout: JSON.stringify({ loggedIn: false, subscriptionType: null }),
+        stderr: 'credential-bearing stderr must not leak'
+      });
+    };
+
+    await expect(readClaudeAuthStatus(6000, execute)).resolves.toEqual({
+      loggedIn: false, subscriptionType: null
+    });
+  });
+
   it('detects Claude authentication but keeps undocumented live usage guarded off', async () => {
+    let receivedTimeout = 0;
     const result = await probeClaudeCapacity({
       configured: true,
       installed: true,
       checkedAt,
-      authStatus: async () => ({ loggedIn: true, subscriptionType: 'max' })
+      authStatus: async timeoutMs => {
+        receivedTimeout = timeoutMs;
+        return { loggedIn: true, subscriptionType: 'max' };
+      }
     });
+    expect(receivedTimeout).toBe(6000);
 
     expect(result).toMatchObject({
       provider: 'claude', authenticated: true, status: 'supported',

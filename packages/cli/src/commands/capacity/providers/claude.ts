@@ -5,7 +5,7 @@ import type { ProviderCapacity } from '../types.js';
 const execFileAsync = promisify(execFile);
 type UnknownRecord = Record<string, unknown>;
 type ClaudeContext = { configured: boolean; installed: boolean; checkedAt: string };
-type ClaudeOptions = ClaudeContext & { authStatus?: () => Promise<unknown>; timeoutMs?: number };
+type ClaudeOptions = ClaudeContext & { authStatus?: (timeoutMs: number) => Promise<unknown>; timeoutMs?: number };
 
 function record(value: unknown): UnknownRecord | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : null;
@@ -16,11 +16,26 @@ function safePlan(value: unknown): string | null {
   return /(?:account|token|secret|key|oauth)/i.test(value) ? null : value;
 }
 
-async function defaultAuthStatus(timeoutMs: number): Promise<unknown> {
-  const { stdout } = await execFileAsync('claude', ['auth', 'status', '--json'], {
+type AuthStatusExecutor = (timeoutMs: number) => Promise<{ stdout: string }>;
+
+async function executeClaudeAuthStatus(timeoutMs: number): Promise<{ stdout: string }> {
+  const result = await execFileAsync('claude', ['auth', 'status', '--json'], {
     timeout: timeoutMs, maxBuffer: 64 * 1024, encoding: 'utf8'
   });
-  return JSON.parse(stdout);
+  return { stdout: String(result.stdout) };
+}
+
+export async function readClaudeAuthStatus(
+  timeoutMs: number,
+  execute: AuthStatusExecutor = executeClaudeAuthStatus
+): Promise<unknown> {
+  try {
+    return JSON.parse((await execute(timeoutMs)).stdout);
+  } catch (error) {
+    const output = record(error)?.stdout;
+    if (typeof output === 'string' && output.length <= 64 * 1024) return JSON.parse(output);
+    throw new Error('Claude authentication status unavailable');
+  }
 }
 
 function base(context: ClaudeContext): ProviderCapacity {
@@ -40,7 +55,8 @@ export async function probeClaudeCapacity(options: ClaudeOptions): Promise<Provi
     return result;
   }
   try {
-    const raw = await (options.authStatus ?? (() => defaultAuthStatus(options.timeoutMs ?? 3000)))();
+    const timeoutMs = options.timeoutMs ?? 6000;
+    const raw = await (options.authStatus ?? readClaudeAuthStatus)(timeoutMs);
     const auth = record(raw);
     const authenticated = auth?.loggedIn === true || auth?.authenticated === true;
     result.authenticated = authenticated;

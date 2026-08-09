@@ -92,7 +92,7 @@ export async function getCapacityReport(
       checkedAt: now.toISOString()
     };
     try {
-      const results = await withTimeout(dependencies.probe(provider, context), 6000);
+      const results = await withTimeout(dependencies.probe(provider, context), 7000);
       return requested === 'pi' ? results.filter(result => result.provider === 'pi') : results;
     } catch {
       return [failure(provider, context)];
