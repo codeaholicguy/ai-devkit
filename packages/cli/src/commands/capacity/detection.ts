@@ -33,7 +33,11 @@ async function defaultExists(target: string): Promise<boolean> {
 export async function detectConfiguredProviders(options: DetectionOptions = {}): Promise<string[]> {
   const home = options.homeDir ?? homedir();
   const exists = options.exists ?? defaultExists;
-  const providers = await Promise.all(Object.values(ENVIRONMENT_DEFINITIONS).map(async definition => ({
+  const definitions = Object.values(ENVIRONMENT_DEFINITIONS).filter(
+    (definition): definition is typeof definition & { globalSkillPath: string } =>
+      typeof definition.globalSkillPath === 'string'
+  );
+  const providers = await Promise.all(definitions.map(async definition => ({
     provider: PROVIDER_NAMES[definition.code] ?? definition.code,
     configured: await exists(path.join(home, configDirectory(definition.globalSkillPath)))
   })));
