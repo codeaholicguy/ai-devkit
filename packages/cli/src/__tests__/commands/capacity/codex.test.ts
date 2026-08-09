@@ -13,6 +13,12 @@ describe('Codex capacity mapping', () => {
         secondary: { usedPercent: 61, windowDurationMins: 10080, resetsAt: 1786752000 }
       },
       rateLimitsByLimitId: {
+        codex: {
+          limitId: 'codex',
+          limitName: 'Codex',
+          primary: { usedPercent: 20, windowDurationMins: 300, resetsAt: 1786273200 },
+          secondary: { usedPercent: 61, windowDurationMins: 10080, resetsAt: 1786752000 }
+        },
         reviews: {
           limitId: 'reviews',
           limitName: 'Code reviews',
@@ -20,7 +26,7 @@ describe('Codex capacity mapping', () => {
           secondary: null
         }
       },
-      usageLimitResetCredits: { availableCount: 2 }
+      rateLimitResetCredits: { availableCount: 2 }
     }, { configured: true, installed: true, checkedAt: '2026-08-09T10:00:00.000Z' });
 
     expect(result.available).toBe('yes');
@@ -31,6 +37,7 @@ describe('Codex capacity mapping', () => {
       expect.objectContaining({ id: 'reviews:primary', durationMinutes: 1440, scope: 'reviews' })
     ]));
     expect(result.aliases).toEqual({ dailyWindowId: 'reviews:primary', weeklyWindowId: 'codex:secondary' });
+    expect(result.windows).toHaveLength(3);
     expect(result.resetCredits).toEqual({ available: 2 });
   });
 
@@ -55,6 +62,19 @@ describe('Codex capacity mapping', () => {
     expect(JSON.stringify(result)).not.toContain('rate-limit-secret-detail');
   });
 
+  it('never exposes URL-like or account-like provider identifiers', () => {
+    const result = mapCodexRateLimits({
+      rateLimits: {
+        limitId: 'https://private.example/account/123',
+        limitName: 'account_1234567890',
+        primary: { usedPercent: 10, windowDurationMins: 60, resetsAt: null }
+      }
+    }, { configured: true, installed: true, checkedAt: '2026-08-09T10:00:00.000Z' });
+
+    expect(JSON.stringify(result)).not.toMatch(/private\.example|account_1234567890|account\/123/);
+    expect(result.windows[0]).toMatchObject({ id: 'codex:primary', scope: 'codex' });
+  });
+
   it('uses only app-server account methods and never invokes a model turn', async () => {
     const rpc = vi.fn(async () => ({
       rateLimits: {
@@ -76,6 +96,13 @@ describe('Codex capacity mapping', () => {
       'initialized',
       'account/rateLimits/read'
     ]);
+    expect(messages[0]).toEqual({
+      id: 1,
+      method: 'initialize',
+      params: { clientInfo: { name: 'ai-devkit', title: null, version: '1' }, capabilities: null }
+    });
+    expect(messages[1]).toEqual({ method: 'initialized' });
+    expect(messages[2]).toEqual({ id: 2, method: 'account/rateLimits/read' });
     expect(JSON.stringify(messages)).not.toMatch(/model|prompt|turn/i);
     expect(result.available).toBe('yes');
   });

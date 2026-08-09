@@ -31,6 +31,20 @@ function text(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
+function safeIdentifier(value: unknown): string | null {
+  const candidate = text(value);
+  if (!candidate || !/^[a-z][a-z0-9_-]{0,63}$/i.test(candidate)) return null;
+  if (/(?:account|token|secret|key)[_-]?\d{6,}/i.test(candidate)) return null;
+  return candidate;
+}
+
+function safeLabel(value: unknown): string | null {
+  const candidate = text(value);
+  if (!candidate || candidate.length > 80 || !/^[a-z0-9 _-]+$/i.test(candidate)) return null;
+  if (/(?:account|token|secret|key)[_-]?\d{6,}/i.test(candidate)) return null;
+  return candidate;
+}
+
 function resetTime(value: unknown): string | null {
   const seconds = finiteNumber(value);
   if (seconds !== null) return new Date(seconds * 1000).toISOString();
@@ -57,8 +71,8 @@ function windowFrom(value: unknown, id: string, label: string, scope: string | n
 function snapshotWindows(value: unknown, fallbackId: string): CapacityWindow[] {
   const snapshot = record(value);
   if (!snapshot) return [];
-  const scope = text(snapshot.limitId) ?? fallbackId;
-  const name = text(snapshot.limitName) ?? scope;
+  const scope = safeIdentifier(snapshot.limitId) ?? safeIdentifier(fallbackId) ?? 'codex';
+  const name = safeLabel(snapshot.limitName) ?? scope;
   return [
     windowFrom(snapshot.primary, `${scope}:primary`, `${name} primary`, scope),
     windowFrom(snapshot.secondary, `${scope}:secondary`, `${name} secondary`, scope)
@@ -81,10 +95,11 @@ export function mapCodexRateLimits(raw: unknown, context: CodexMappingContext): 
       windows.push(...snapshotWindows(snapshot, id));
     }
   }
+  const normalizedWindows = [...new Map(windows.map(window => [window.id, window])).values()];
   const reached = text(primarySnapshot?.rateLimitReachedType);
-  const resetCredits = record(response.usageLimitResetCredits);
+  const resetCredits = record(response.rateLimitResetCredits) ?? record(response.usageLimitResetCredits);
   const availableCount = finiteNumber(resetCredits?.availableCount);
-  const hasCapacity = windows.some(window => window.remainingPercent !== null);
+  const hasCapacity = normalizedWindows.some(window => window.remainingPercent !== null);
 
   return {
     provider: 'codex',
@@ -97,10 +112,10 @@ export function mapCodexRateLimits(raw: unknown, context: CodexMappingContext): 
     plan: text(primarySnapshot?.planType),
     checkedAt: context.checkedAt,
     source: 'provider-cli',
-    windows,
+    windows: normalizedWindows,
     aliases: {
-      dailyWindowId: aliasFor(windows, 1440, 120),
-      weeklyWindowId: aliasFor(windows, 10080, 720)
+      dailyWindowId: aliasFor(normalizedWindows, 1440, 120),
+      weeklyWindowId: aliasFor(normalizedWindows, 10080, 720)
     },
     resetCredits: { available: availableCount },
     warnings: hasCapacity || reached ? [] : [{
@@ -167,9 +182,11 @@ export async function probeCodexCapacity(options: CodexProbeOptions): Promise<Pr
     };
   }
   const messages: RpcMessage[] = [
-    { id: 1, method: 'initialize', params: { clientInfo: { name: 'ai-devkit', version: '1' } } },
+    { id: 1, method: 'initialize', params: {
+      clientInfo: { name: 'ai-devkit', title: null, version: '1' }, capabilities: null
+    } },
     { method: 'initialized' },
-    { id: 2, method: 'account/rateLimits/read', params: {} }
+    { id: 2, method: 'account/rateLimits/read' }
   ];
   try {
     const rpc = options.rpc ?? (requests => appServerRpc(requests, options.timeoutMs));
