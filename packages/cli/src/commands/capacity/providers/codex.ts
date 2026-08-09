@@ -45,6 +45,11 @@ function safeLabel(value: unknown): string | null {
   return candidate;
 }
 
+function safePlan(value: unknown): string | null {
+  const candidate = safeIdentifier(value);
+  return candidate && !/(?:account|token|secret|key|oauth)/i.test(candidate) ? candidate : null;
+}
+
 function resetTime(value: unknown): string | null {
   const seconds = finiteNumber(value);
   if (seconds !== null) return new Date(seconds * 1000).toISOString();
@@ -109,7 +114,7 @@ export function mapCodexRateLimits(raw: unknown, context: CodexMappingContext): 
     authenticated: true,
     status: reached || hasCapacity ? 'supported' : 'unknown',
     available: reached ? 'no' : hasCapacity ? 'yes' : 'unknown',
-    plan: text(primarySnapshot?.planType),
+    plan: safePlan(primarySnapshot?.planType),
     checkedAt: context.checkedAt,
     source: 'provider-cli',
     windows: normalizedWindows,

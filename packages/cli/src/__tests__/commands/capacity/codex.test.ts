@@ -75,6 +75,15 @@ describe('Codex capacity mapping', () => {
     expect(result.windows[0]).toMatchObject({ id: 'codex:primary', scope: 'codex' });
   });
 
+  it('rejects unexpected plan metadata', () => {
+    const result = mapCodexRateLimits({
+      rateLimits: { planType: 'account_1234567890' }
+    }, { configured: true, installed: true, checkedAt: '2026-08-09T10:00:00.000Z' });
+
+    expect(result.plan).toBeNull();
+    expect(JSON.stringify(result)).not.toContain('account_1234567890');
+  });
+
   it('uses only app-server account methods and never invokes a model turn', async () => {
     const rpc = vi.fn(async () => ({
       rateLimits: {

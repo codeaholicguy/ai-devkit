@@ -33,6 +33,18 @@ describe('non-Codex capacity adapters', () => {
     expect(JSON.stringify(result)).not.toMatch(/oauth-token|secret|response body/);
   });
 
+  it('does not expose unexpected Claude subscription metadata', async () => {
+    const result = await probeClaudeCapacity({
+      configured: true,
+      installed: true,
+      checkedAt,
+      authStatus: async () => ({ loggedIn: true, subscriptionType: 'token_secret_1234567890' })
+    });
+
+    expect(result.plan).toBeNull();
+    expect(JSON.stringify(result)).not.toContain('token_secret_1234567890');
+  });
+
   it('detects Pi and GLM authentication only from provider key names', async () => {
     const results = await probePiCapacity({
       configured: true,
@@ -52,7 +64,11 @@ describe('non-Codex capacity adapters', () => {
       configured: true, installed: false, checkedAt
     })).toMatchObject({
       provider: 'gemini', configured: true, installed: false,
-      authenticated: null, status: 'unsupported', available: 'unknown', source: 'none'
+      agentType: 'gemini_cli', authenticated: null, status: 'unsupported',
+      available: 'unknown', source: 'none'
     });
+    expect(buildUnsupportedCapacity('copilot', {
+      configured: true, installed: true, checkedAt
+    }).agentType).toBe('copilot');
   });
 });

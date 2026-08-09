@@ -3,8 +3,8 @@ import type { ProviderCapacity } from '../types.js';
 type StubContext = { configured: boolean; installed: boolean; checkedAt: string };
 
 const AGENT_TYPES: Record<string, string> = {
-  claude: 'claude', codex: 'codex', copilot: 'github', gemini: 'gemini',
-  glm: 'pi', grok: 'grok', opencode: 'opencode', pi: 'pi'
+  claude: 'claude', codex: 'codex', copilot: 'copilot', gemini: 'gemini_cli',
+  glm: 'pi', grok: 'grok_cli', opencode: 'opencode', pi: 'pi'
 };
 
 export function buildUnsupportedCapacity(

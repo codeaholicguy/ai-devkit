@@ -11,6 +11,11 @@ function record(value: unknown): UnknownRecord | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as UnknownRecord : null;
 }
 
+function safePlan(value: unknown): string | null {
+  if (typeof value !== 'string' || !/^[a-z][a-z0-9_-]{0,31}$/i.test(value)) return null;
+  return /(?:account|token|secret|key|oauth)/i.test(value) ? null : value;
+}
+
 async function defaultAuthStatus(timeoutMs: number): Promise<unknown> {
   const { stdout } = await execFileAsync('claude', ['auth', 'status', '--json'], {
     timeout: timeoutMs, maxBuffer: 64 * 1024, encoding: 'utf8'
@@ -41,7 +46,7 @@ export async function probeClaudeCapacity(options: ClaudeOptions): Promise<Provi
     result.authenticated = authenticated;
     result.status = authenticated ? 'supported' : 'unauthenticated';
     result.source = 'provider-cli';
-    result.plan = typeof auth?.subscriptionType === 'string' ? auth.subscriptionType : null;
+    result.plan = safePlan(auth?.subscriptionType);
     result.warnings.push({
       code: 'live-usage-unavailable',
       message: 'Claude live capacity is unknown because no safe provider-owned usage command is available.'
