@@ -27,12 +27,12 @@ description: Ordered TDD work for durable Codex print agents
 
 ### Phase 2: Codex execution
 
-- [ ] Task 2.1: Drive `CodexCliProbe` and provider error types with failing tests.
+- [x] Task 2.1: Drive `CodexCliProbe` and provider error types with failing tests.
   - Outcome: version/help-only capability validation and sanitized errors.
-- [ ] Task 2.2: Drive `CodexPrintRunner` with fake spawn/fixture tests.
+- [x] Task 2.2: Drive `CodexPrintRunner` with fake spawn/fixture tests.
   - Outcome: exact argv/cwd/stdin handshake; bounded strict JSONL; immediate UUID binding; ordered assistant output.
   - Validation: normal, chunked, unknown, malformed, oversized, truncated, missing, mismatch, stderr, and exit branches.
-- [ ] Task 2.3: Drive `CodexPrintAgentService` orchestration with failing tests.
+- [x] Task 2.3: Drive `CodexPrintAgentService` orchestration with failing tests.
   - Outcome: first/resume lifecycle, correct health degradation, no retry, binding retained after later failure.
 
 ### Phase 3: CLI and integration

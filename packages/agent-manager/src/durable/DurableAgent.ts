@@ -26,13 +26,13 @@ export interface DurableLastResult {
     summary: string;
 }
 
-export interface DurableAgent {
+export type DurableProvider = 'claude' | 'codex';
+
+export interface DurableAgentBase {
     id: string;
     name: string;
-    provider: 'claude';
     mode: typeof AGENT_MODES.DURABLE;
     cwd: string;
-    providerSessionId: string;
     state: DurableAgentState;
     sessionHealth: DurableSessionHealth;
     createdAt: string;
@@ -41,6 +41,18 @@ export interface DurableAgent {
     lastResult: DurableLastResult | null;
     activeRun: DurableActiveRun | null;
 }
+
+export interface ClaudeDurableAgent extends DurableAgentBase {
+    provider: 'claude';
+    providerSessionId: string;
+}
+
+export interface CodexDurableAgent extends DurableAgentBase {
+    provider: 'codex';
+    providerSessionId: string | null;
+}
+
+export type DurableAgent = ClaudeDurableAgent | CodexDurableAgent;
 
 export class DurableAgentError extends Error {
     constructor(
@@ -87,5 +99,21 @@ export class ClaudePrintError extends DurableAgentError {
     constructor(message: string, code = 'CLAUDE_PRINT_FAILED') {
         super(message, code);
         this.name = 'ClaudePrintError';
+    }
+}
+
+export type CodexPrintErrorCode =
+    | 'CODEX_PROTOCOL'
+    | 'CODEX_PROCESS'
+    | 'CODEX_SESSION_MISMATCH'
+    | 'CODEX_UNSUPPORTED'
+    | 'CODEX_RESULT_MISSING'
+    | 'CODEX_CLI_UNSUPPORTED'
+    | 'CODEX_CLI_UNAVAILABLE';
+
+export class CodexPrintError extends DurableAgentError {
+    constructor(message: string, code: CodexPrintErrorCode) {
+        super(message, code);
+        this.name = 'CodexPrintError';
     }
 }

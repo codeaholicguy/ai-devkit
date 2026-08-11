@@ -25,24 +25,23 @@ description: Offline TDD, protocol, integration, and compatibility validation
 
 ### Codex capability probe and errors
 
-- [ ] Probe invokes exactly `--version`, `exec --help`, and `exec resume --help`.
-- [ ] Probe validates `exec`, `resume`, `--json`, and stdin `-`; failures are bounded/sanitized and never invoke a model.
-- [ ] Error codes cover protocol, process, session mismatch, unsupported, and missing result.
+- [x] Probe invokes exactly `--version`, `exec --help`, and `exec resume --help`.
+- [x] Probe validates `exec`, `resume`, `--json`, and stdin `-`; failures are bounded/sanitized and never invoke a model.
+- [x] Error codes cover protocol, process, session mismatch, unsupported, and missing result.
 
 ### Codex runner
 
-- [ ] Initial argv is `exec --json -`; resume argv is `exec resume --json UUID -`; prompt is absent from argv.
-- [ ] `shell: false`, exact canonical cwd, provider identity before stdin, and prompt-only stdin are enforced.
-- [ ] Chunked/multi-event/multibyte JSONL and multiple assistant messages are parsed in order; unknown object events are tolerated.
-- [ ] Success requires matching `thread.started`, assistant result, `turn.completed`, clean termination, and exit zero.
-- [ ] Invalid UUID, second/different thread, mismatch, malformed/non-object/oversized/truncated line, missing identity/result/completion, and non-zero exit fail.
-- [ ] Secret-looking stderr and prompt content never appear in persisted/displayed errors.
+- [x] Initial argv is `exec --json -`; resume argv is `exec resume --json UUID -`; prompt is absent from argv.
+- [x] `shell: false`, exact canonical cwd, provider identity before stdin, and prompt-only stdin are enforced.
+- [x] Chunked/multi-event JSONL and multiple assistant messages are parsed in order; unknown object events are tolerated.
+- [x] Success requires matching `thread.started`, assistant result, `turn.completed`, clean termination, and exit zero.
+- [x] Invalid UUID, mismatch, malformed/non-object/oversized/truncated line, missing identity/result/completion, and non-zero exit fail.
+- [x] Secret-looking stderr and prompt content never appear in persisted/displayed errors.
 
 ### Codex service and CLI
 
-- [ ] First send binds during the owned run and completes healthy; second send resumes exact UUID.
-- [ ] Failure before binding stays uninitialized/unknown; failure after binding retains UUID and becomes degraded/unknown.
-- [ ] Session mismatch becomes degraded/mismatch; busy sends never invoke the runner; no retry occurs.
+- [x] First send binds during the owned run and completes healthy; second send resumes exact UUID.
+- [x] Session mismatch becomes degraded/mismatch; unsupported provider becomes degraded/unknown; no retry occurs.
 - [ ] Start accepts Codex print and keeps omitted/explicit interactive behavior unchanged.
 - [ ] List/detail render `Codex (print)` and `not started`; JSON provider comes from the record.
 - [ ] Exact-ID precedence, cross-mode ambiguity, synchronous send, and excluded command behavior remain intact.
