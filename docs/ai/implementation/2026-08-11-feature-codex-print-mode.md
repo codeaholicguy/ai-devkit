@@ -8,8 +8,8 @@ description: Implementation record, decisions, validation, and deviations
 
 ## Status
 
-- Current task: Task 4.1, coverage and final reconciliation.
-- Completed: Tasks 1.1–3.3 and lifecycle document initialization.
+- Current task: Task 4.4, publish the reviewed branch and open the PR.
+- Completed: Tasks 1.1–4.3.
 - Task tracing: unavailable (`unknown command 'task'`).
 
 ## Development Setup
@@ -46,6 +46,14 @@ TDD red: 14 focused tests failed on absent Codex exports. Green/refactor: those 
 
 TDD red: Codex fixture execution and two CLI routing tests failed before executable/routing support. Green/refactor: agent-manager passed 28 files/518 tests; CLI passed 79 files/932 tests; both typechecks and lints exited 0 (five existing CLI warnings).
 
+### Tasks 4.1–4.3
+
+- Hardened runner callback/process error classification and probe recognition of the standalone stdin dash token.
+- Replaced new version-1 writes with version 2 and added a strict Claude-only version-1 compatibility reader; malformed or version-1 Codex records are rejected.
+- Reviewed all changed files against requirements/design and traced CLI/service/store call sites. No blocking security, compatibility, or integration findings remain.
+
+TDD red/green evidence includes the standalone-dash false-positive probe test, child-process error classification test, and explicit version-1-to-version-2 migration test.
+
 ## Integration Points
 
 - The existing print store remains the single durable mapping and exclusion authority.
@@ -72,4 +80,10 @@ TDD red: Codex fixture execution and two CLI routing tests failed before executa
 
 ## Validation Evidence
 
-Pending implementation. Fresh command evidence will be recorded during TDD and final gates.
+- Base and feature lifecycle lint: passed.
+- Root lint: passed with six existing warnings in unrelated files and no errors.
+- Root build: six projects passed.
+- Root tests: six projects passed; agent-manager 28 files/527 tests and CLI 79 files/932 tests in their fresh coverage runs.
+- Agent-manager coverage: 90.23% statements and 93.4% lines overall; every new Codex module has 100% lines/functions, and `CodexCliProbe` has 100% statements/branches/functions/lines. Runner/service residual branch-only gaps are injected/default process plumbing, not pure parsing logic.
+- CLI coverage: 79 files/932 tests; 71.6% statements, 61.67% branches, 69.77% functions, 72.74% lines overall.
+- Known test-run warning: pre-existing max-listener warnings in agent-manager tests; no new persistent process listeners were added.

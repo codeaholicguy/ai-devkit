@@ -132,7 +132,9 @@ export class CodexPrintRunner {
             throw error;
         }
         child.stdin.end(request.prompt);
-        const { code, signal } = await closed;
+        const { code, signal } = await closed.catch(() => {
+            throw new CodexPrintError('Codex process failed to start or communicate.', 'CODEX_PROCESS');
+        });
         await processing;
 
         if (protocolError) throw protocolError;

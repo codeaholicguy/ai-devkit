@@ -28,11 +28,36 @@ describe('CodexCliProbe', () => {
             .mockResolvedValueOnce({ stdout: 'exec', stderr: '' })
             .mockResolvedValueOnce({ stdout: 'resume', stderr: '' }) });
         await expect(unsupported.validate()).rejects.toMatchObject({ code: 'CODEX_CLI_UNSUPPORTED' });
+        const missingCommands = new Probe({ exec: vi.fn()
+            .mockResolvedValueOnce({ stdout: 'version', stderr: '' })
+            .mockResolvedValueOnce({ stdout: '', stderr: '' })
+            .mockResolvedValueOnce({ stdout: '', stderr: '' }) });
+        await expect(missingCommands.validate()).rejects.toMatchObject({ code: 'CODEX_CLI_UNSUPPORTED' });
 
         const unavailable = new Probe({ exec: vi.fn().mockRejectedValue(new Error(`bad\0${'x'.repeat(1000)}`)) });
         const error = await unavailable.validate().catch((value: Error & { code: string }) => value);
         expect(error.code).toBe('CODEX_CLI_UNAVAILABLE');
         expect(error.message).not.toContain('\0');
         expect(error.message.length).toBeLessThan(600);
+    });
+
+    it('reports an empty version response as unknown', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Probe = api.CodexCliProbe as new (options: unknown) => any;
+        const exec = vi.fn()
+            .mockResolvedValueOnce({ stdout: ' \n', stderr: '' })
+            .mockResolvedValueOnce({ stdout: 'exec --json -', stderr: '' })
+            .mockResolvedValueOnce({ stdout: 'resume --json -', stderr: '' });
+        await expect(new Probe({ exec }).validate()).resolves.toMatchObject({ version: 'unknown' });
+    });
+
+    it('requires a standalone stdin dash rather than accepting flag hyphens', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Probe = api.CodexCliProbe as new (options: unknown) => any;
+        const exec = vi.fn()
+            .mockResolvedValueOnce({ stdout: 'version', stderr: '' })
+            .mockResolvedValueOnce({ stdout: 'exec --json', stderr: '' })
+            .mockResolvedValueOnce({ stdout: 'resume --json', stderr: '' });
+        await expect(new Probe({ exec }).validate()).rejects.toMatchObject({ code: 'CODEX_CLI_UNSUPPORTED' });
     });
 });

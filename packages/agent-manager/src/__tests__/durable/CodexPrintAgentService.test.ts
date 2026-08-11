@@ -6,6 +6,12 @@ const base = {
 };
 
 describe('CodexPrintAgentService', () => {
+    it('constructs default non-billable dependencies without invoking them', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Service = api.CodexPrintAgentService as new () => any;
+        expect(new Service().store).toBeDefined();
+    });
+
     it('validates before provider-aware create and never runs Codex', async () => {
         const api = await import('../../index.js') as Record<string, unknown>;
         expect(api).toHaveProperty('CodexPrintAgentService');
@@ -87,5 +93,18 @@ describe('CodexPrintAgentService', () => {
         await expect(new Service({ repository, probe: { validate: vi.fn() }, runner }).send('reviewer', 'x'))
             .rejects.toMatchObject({ code: 'CODEX_SESSION_MISMATCH' });
         expect(completeRun).toHaveBeenCalledWith('id', 'one', expect.objectContaining({ sessionHealth: 'mismatch' }));
+    });
+
+    it('rejects missing and ambiguous records before acquiring a run', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Service = api.CodexPrintAgentService as new (options: unknown) => any;
+        const store = {
+            list: vi.fn(), create: vi.fn(), resolve: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce([base, base]),
+            acquireRun: vi.fn(), recordProviderProcess: vi.fn(), bindProviderSession: vi.fn(), completeRun: vi.fn(),
+        };
+        const service = new Service({ store, probe: { validate: vi.fn() }, runner: { run: vi.fn() } });
+        await expect(service.send('missing', 'x')).rejects.toMatchObject({ code: 'PRINT_AGENT_NOT_FOUND' });
+        await expect(service.send('ambiguous', 'x')).rejects.toMatchObject({ code: 'CODEX_UNSUPPORTED' });
+        expect(store.acquireRun).not.toHaveBeenCalled();
     });
 });
