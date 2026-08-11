@@ -32,10 +32,10 @@ export class CodexCliProbe {
             const missing = [
                 !execHelp.stdout.includes('exec') && 'exec',
                 !execHelp.stdout.includes('--json') && '--json',
-                !execHelp.stdout.includes('-') && 'stdin -',
+                !hasStdinDash(execHelp.stdout) && 'stdin -',
                 !resumeHelp.stdout.includes('resume') && 'resume',
                 !resumeHelp.stdout.includes('--json') && 'resume --json',
-                !resumeHelp.stdout.includes('-') && 'resume stdin -',
+                !hasStdinDash(resumeHelp.stdout) && 'resume stdin -',
             ].filter((value): value is string => typeof value === 'string');
             if (missing.length > 0) {
                 throw new CodexPrintError(
@@ -52,6 +52,10 @@ export class CodexCliProbe {
             );
         }
     }
+}
+
+function hasStdinDash(help: string): boolean {
+    return /(?:^|\s)-(?:\s|$)/m.test(help);
 }
 
 function sanitize(value: string, max: number): string {

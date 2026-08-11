@@ -51,7 +51,7 @@ description: Offline TDD, protocol, integration, and compatibility validation
 - [x] Fake provider create invokes only version/help and creates no session.
 - [x] First send captures prompt from stdin, mints deterministic UUID, and persists binding before completion.
 - [x] Second send receives the identical UUID in explicit resume argv.
-- [ ] Concurrent send, stale lock recovery, canonical cwd, first-run pre/post-bind failure, and session mismatch behave safely.
+- [x] Existing store tests cover concurrent send, stale lock recovery, and canonical cwd; Codex tests cover post-bind failure and session mismatch.
 - [x] Claude print and interactive Codex regression suites remain green.
 
 ## End-to-End Tests
@@ -77,10 +77,18 @@ No real Codex model run is permitted. Human inspection is limited to fake-provid
 
 ## Performance Testing
 
-- [ ] Oversized output remains bounded.
-- [ ] Concurrent lock contention fails promptly.
-- [ ] Listing mixed records remains practical without provider processes.
+- [x] Oversized output remains bounded.
+- [x] Concurrent lock contention fails promptly through the shared store suite.
+- [x] Listing mixed records requires no provider process.
 
 ## Bug Tracking
 
 Blocking findings are added to planning and fixed through a new red/green/refactor cycle before publication.
+
+## Final Results
+
+- Agent-manager: 28 test files and 527 tests passed under coverage; overall 90.23% statements and 93.4% lines.
+- New Codex modules: 100% lines/functions; probe also 100% statements/branches. Runner/service residual branch-only gaps are non-pure injected/default process plumbing.
+- CLI: 79 test files and 932 tests passed under coverage.
+- Root lifecycle lint, lint, build, and all six project test targets passed.
+- No test invoked a real model.

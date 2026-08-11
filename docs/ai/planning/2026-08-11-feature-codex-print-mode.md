@@ -45,9 +45,9 @@ description: Ordered TDD work for durable Codex print agents
 
 ### Phase 4: Validation and publication
 
-- [ ] Task 4.1: Reconcile implementation/testing docs and reach 100% coverage on new pure logic.
-- [ ] Task 4.2: Run feature/base lifecycle lint, lint, typecheck, build, package/full tests, and coverage.
-- [ ] Task 4.3: Perform design-alignment and holistic code review; fix blocking findings via TDD.
+- [x] Task 4.1: Reconcile implementation/testing docs and reach 100% coverage on new pure logic.
+- [x] Task 4.2: Run feature/base lifecycle lint, lint, typecheck, build, package/full tests, and coverage.
+- [x] Task 4.3: Perform design-alignment and holistic code review; fix blocking findings via TDD.
 - [ ] Task 4.4: Create conventional commits, fetch/rebase `origin/main`, rerun gates, push, and open the requested PR.
 
 ## Dependencies

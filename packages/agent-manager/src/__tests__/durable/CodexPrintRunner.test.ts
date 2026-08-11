@@ -60,6 +60,12 @@ async function runner(fixture: ReturnType<typeof fakeSpawn>, maxLineBytes?: numb
 }
 
 describe('CodexPrintRunner', () => {
+    it('constructs default process dependencies without spawning', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Runner = api.CodexPrintRunner as new () => any;
+        expect(new Runner()).toBeDefined();
+    });
+
     it('binds an initial thread before returning ordered assistant output', async () => {
         const fixture = fakeSpawn(events(), 0, true);
         const instance = await runner(fixture);
@@ -107,6 +113,10 @@ describe('CodexPrintRunner', () => {
         await expect((await runner(oversized, 10)).run({
             agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn(),
         })).rejects.toMatchObject({ code: 'CODEX_PROTOCOL' });
+        const oversizedWithoutNewline = fakeSpawn(['x'.repeat(20)]);
+        await expect((await runner(oversizedWithoutNewline, 10)).run({
+            agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn(),
+        })).rejects.toMatchObject({ code: 'CODEX_PROTOCOL' });
 
         const failed = fakeSpawn(events(), 1);
         failed.child.stderr.end('secret-looking provider diagnostic');
@@ -117,6 +127,62 @@ describe('CodexPrintRunner', () => {
         const missing = fakeSpawn([]);
         missing.child.pid = undefined;
         await expect((await runner(missing)).run({
+            agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn(),
+        })).rejects.toMatchObject({ code: 'CODEX_PROCESS' });
+    });
+
+    it('rejects invalid or duplicate thread identities', async () => {
+        for (const lines of [
+            [JSON.stringify({ type: 'thread.started', thread_id: 'bad' }), ''],
+            [
+                JSON.stringify({ type: 'thread.started', thread_id: SESSION }),
+                JSON.stringify({ type: 'thread.started', thread_id: SESSION }),
+                '',
+            ],
+        ]) {
+            const fixture = fakeSpawn(lines);
+            await expect((await runner(fixture)).run({
+                agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn(),
+            })).rejects.toMatchObject({ code: 'CODEX_PROTOCOL' });
+        }
+    });
+
+    it('classifies callback processing failure and kills when spawn persistence fails', async () => {
+        const callbackFailure = fakeSpawn(events());
+        await expect((await runner(callbackFailure)).run({
+            agent: agent(), prompt: 'x', onSpawn: vi.fn(),
+            onSession: vi.fn().mockRejectedValue(new Error('storage unavailable')),
+        })).rejects.toMatchObject({ code: 'CODEX_PROTOCOL' });
+
+        const spawnFailure = fakeSpawn([]);
+        const failure = new Error('cannot persist process');
+        await expect((await runner(spawnFailure)).run({
+            agent: agent(), prompt: 'x', onSpawn: vi.fn().mockRejectedValue(failure), onSession: vi.fn(),
+        })).rejects.toBe(failure);
+        expect(spawnFailure.child.kill).toHaveBeenCalledOnce();
+    });
+
+    it('rejects an unverifiable positive PID', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const fixture = fakeSpawn([]);
+        const Runner = api.CodexPrintRunner as new (options: unknown) => any;
+        const instance = new Runner({ spawn: fixture.spawn, processInspector: { getIdentity: () => null } });
+        await expect(instance.run({
+            agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn(),
+        })).rejects.toMatchObject({ code: 'CODEX_PROCESS' });
+        expect(fixture.child.kill).toHaveBeenCalledOnce();
+    });
+
+    it('classifies a child spawn error as a process failure', async () => {
+        const fixture = fakeSpawn([]);
+        fixture.child.stdin = new Writable({
+            write(_chunk, _encoding, callback) { callback(); },
+            final(callback) {
+                queueMicrotask(() => fixture.child.emit('error', new Error('spawn failed')));
+                callback();
+            },
+        });
+        await expect((await runner(fixture)).run({
             agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn(),
         })).rejects.toMatchObject({ code: 'CODEX_PROCESS' });
     });
