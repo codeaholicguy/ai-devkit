@@ -2,7 +2,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
 import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
-import { AGENT_MODES, type DurableActiveRun, type DurableAgent, type DurableProvider, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
+import { AGENT_MODES, CodexPrintError, type DurableActiveRun, type DurableAgent, type DurableProvider, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
 import {
     DurableAgentBusyError,
     DurableAgentNameConflictError,
@@ -174,7 +174,7 @@ export class DurableAgentRepository {
                     throw new DurableAgentRepositoryError('Print run ownership changed.');
                 }
                 if (agent.providerSessionId !== null && agent.providerSessionId !== providerSessionId) {
-                    throw new DurableAgentRepositoryError('Durable agent provider session identity does not match.');
+                    throw new CodexPrintError('Durable agent provider session identity does not match.', 'CODEX_SESSION_MISMATCH');
                 }
                 if (agent.providerSessionId === providerSessionId) return;
                 const changed = this.db.execute(`UPDATE durable_agents SET provider_session_id = ?, updated_at = ?
@@ -184,9 +184,10 @@ export class DurableAgentRepository {
                 if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
             });
         } catch (error) {
-            if (error instanceof DurableAgentRepositoryError || error instanceof DurableAgentNotFoundError) throw error;
+            if (error instanceof DurableAgentRepositoryError || error instanceof DurableAgentNotFoundError
+                || error instanceof CodexPrintError) throw error;
             if (/UNIQUE constraint failed: durable_agents\.provider_session_id/i.test((error as Error).message)) {
-                throw new DurableAgentRepositoryError('Provider session is already bound to another durable agent.');
+                throw new CodexPrintError('Provider session is already bound to another durable agent.', 'CODEX_SESSION_MISMATCH');
             }
             throw this.storageError('Failed to bind durable-agent provider session', error);
         }
