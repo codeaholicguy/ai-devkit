@@ -6,6 +6,7 @@ import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCo
 
 interface RepositoryLike {
     create(input: CreateDurableAgentInput): Promise<DurableAgent>;
+    list(): Promise<DurableAgent[]>;
     resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null>;
     acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }>;
     recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void>;

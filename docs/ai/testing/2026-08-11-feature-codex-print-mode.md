@@ -42,22 +42,22 @@ description: Offline TDD, protocol, integration, and compatibility validation
 
 - [x] First send binds during the owned run and completes healthy; second send resumes exact UUID.
 - [x] Session mismatch becomes degraded/mismatch; unsupported provider becomes degraded/unknown; no retry occurs.
-- [ ] Start accepts Codex print and keeps omitted/explicit interactive behavior unchanged.
-- [ ] List/detail render `Codex (print)` and `not started`; JSON provider comes from the record.
-- [ ] Exact-ID precedence, cross-mode ambiguity, synchronous send, and excluded command behavior remain intact.
+- [x] Start accepts Codex print and keeps omitted/explicit interactive behavior unchanged.
+- [x] List/detail render `Codex (print)` and `not started`; JSON provider comes from the record.
+- [x] Exact-ID precedence, cross-mode ambiguity, synchronous send, and excluded command behavior remain intact.
 
 ## Integration Tests
 
-- [ ] Fake provider create invokes only version/help and creates no session.
-- [ ] First send captures prompt from stdin, mints deterministic UUID, and persists binding before completion.
-- [ ] Second send receives the identical UUID in explicit resume argv.
+- [x] Fake provider create invokes only version/help and creates no session.
+- [x] First send captures prompt from stdin, mints deterministic UUID, and persists binding before completion.
+- [x] Second send receives the identical UUID in explicit resume argv.
 - [ ] Concurrent send, stale lock recovery, canonical cwd, first-run pre/post-bind failure, and session mismatch behave safely.
-- [ ] Claude print and interactive Codex regression suites remain green.
+- [x] Claude print and interactive Codex regression suites remain green.
 
 ## End-to-End Tests
 
-- [ ] CLI fake-Codex start → list/detail (`not started`) → first send → second resumed send.
-- [ ] JSON/human output has correct provider/mode and no fake PID, prompt, raw stderr secret, or invented session.
+- [x] Service/CLI-boundary fake-Codex create → first send → second resumed send.
+- [x] JSON/human output has correct provider/mode and no fake PID, prompt, raw stderr secret, or invented session.
 - [ ] Unsupported provider/mode and ambiguous targets exit with actionable errors.
 
 ## Test Data

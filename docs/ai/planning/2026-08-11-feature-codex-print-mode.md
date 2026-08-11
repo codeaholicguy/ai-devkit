@@ -8,9 +8,9 @@ description: Ordered TDD work for durable Codex print agents
 
 ## Milestones
 
-- [ ] Milestone 1: Provider-aware durable model, migration, and session binding.
-- [ ] Milestone 2: Codex probe, runner, service, and deterministic fixture.
-- [ ] Milestone 3: CLI integration and compatibility coverage.
+- [x] Milestone 1: Provider-aware durable model, migration, and session binding.
+- [x] Milestone 2: Codex probe, runner, service, and deterministic fixture.
+- [x] Milestone 3: CLI integration and compatibility coverage.
 - [ ] Milestone 4: Documentation, full validation, review, and PR publication.
 
 ## Task Breakdown
@@ -37,11 +37,11 @@ description: Ordered TDD work for durable Codex print agents
 
 ### Phase 3: CLI and integration
 
-- [ ] Task 3.1: Add provider-aware exports and fake-Codex integration journey.
+- [x] Task 3.1: Add provider-aware exports and fake-Codex integration journey.
   - Outcome: create performs probes only; first send binds; second send resumes same UUID; concurrency/recovery/cwd work offline.
-- [ ] Task 3.2: Drive CLI start/list/detail/send behavior with failing command tests.
+- [x] Task 3.2: Drive CLI start/list/detail/send behavior with failing command tests.
   - Outcome: `--type codex --mode print`, `Codex (print)`, `not started`, record-derived JSON provider, provider-selected send.
-- [ ] Task 3.3: Run Claude-print and interactive-Codex regression tests and inspect excluded command paths.
+- [x] Task 3.3: Run Claude-print and interactive-Codex regression tests and inspect excluded command paths.
 
 ### Phase 4: Validation and publication
 

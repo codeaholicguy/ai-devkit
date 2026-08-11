@@ -8,8 +8,8 @@ description: Implementation record, decisions, validation, and deviations
 
 ## Status
 
-- Current task: Task 3.1, fake-Codex integration fixture.
-- Completed: Tasks 1.1–2.3 and lifecycle document initialization.
+- Current task: Task 4.1, coverage and final reconciliation.
+- Completed: Tasks 1.1–3.3 and lifecycle document initialization.
 - Task tracing: unavailable (`unknown command 'task'`).
 
 ## Development Setup
@@ -36,6 +36,15 @@ This section will be updated after each TDD task with changed files, red/green e
 - Added Codex create/send orchestration with provider-aware create, run-token callbacks, mismatch/unknown health classification, and no retry.
 
 TDD red: 14 focused tests failed on absent Codex exports. Green/refactor: those 14 tests passed; the full agent-manager suite passed 27 files/515 tests; typecheck and lint exited 0.
+
+### Tasks 3.1–3.3
+
+- Added an executable fake Codex CLI with deterministic provider-minted UUID, exact resume validation surface, stdin/cwd/argv capture, chunked results, and configurable protocol/process failures.
+- Added integration proof that creation remains unbound/non-billable, first send binds, second send explicitly resumes, and post-binding failure retains the UUID.
+- Made CLI print startup accept Claude or Codex, select the persisted provider for sends, render `Codex (print)`/`not started`, and derive JSON provider from the record.
+- Preserved the common store resolver, exact-ID precedence, cross-mode ambiguity, synchronous timeout behavior, and interactive command paths.
+
+TDD red: Codex fixture execution and two CLI routing tests failed before executable/routing support. Green/refactor: agent-manager passed 28 files/518 tests; CLI passed 79 files/932 tests; both typechecks and lints exited 0 (five existing CLI warnings).
 
 ## Integration Points
 

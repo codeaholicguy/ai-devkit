@@ -5,6 +5,8 @@ import { AgentManager, AgentStatus, TerminalFocusManager } from '@ai-devkit/agen
 import { registerAgentCommand } from '../../commands/agent.js';
 import { ui } from '../../util/terminal-ui.js';
 
+const SESSION = '22222222-2222-4222-8222-222222222222';
+
 const mockManager: any = {
   registerAdapter: vi.fn(),
   listAgents: vi.fn(),
@@ -19,6 +21,12 @@ const mockDurableRepository: any = {
 };
 
 const mockDurableService: any = {
+  repository: mockDurableRepository,
+  create: vi.fn(),
+  send: vi.fn(),
+};
+
+const mockCodexPrintService: any = {
   repository: mockDurableRepository,
   create: vi.fn(),
   send: vi.fn(),
@@ -100,6 +108,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   PiAdapter: vi.fn(),
   DurableAgentRepository: vi.fn(function () { return mockDurableRepository; }),
   ClaudePrintAgentService: vi.fn(function () { return mockDurableService; }),
+  CodexPrintAgentService: vi.fn(function () { return mockCodexPrintService; }),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
@@ -756,6 +765,41 @@ Waiting on user input`,
     expect(ui.error).toHaveBeenCalledWith('Failed to start agent: Unsupported agent mode "print". Supported: interactive, durable.');
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(mockDurableService.create).not.toHaveBeenCalled();
+  });
+
+  it('starts a durable Codex print agent unbound without tmux', async () => {
+    mockCodexPrintService.create.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'codex',
+      mode: 'durable', cwd: process.cwd(), state: 'ready', providerSessionId: null,
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync([
+      'node', 'test', 'agent', 'start', '--type', 'codex', '--mode', 'durable',
+      '--name', 'reviewer', '--cwd', process.cwd(),
+    ]);
+
+    expect(mockCodexPrintService.create).toHaveBeenCalledWith({ name: 'reviewer', cwd: process.cwd() });
+    expect(ui.text).toHaveBeenCalledWith('State: ready (Codex session not started)');
+  });
+
+  it('selects the persisted Codex provider for send JSON', async () => {
+    const durableAgent = {
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'codex',
+      mode: 'durable', cwd: '/project', state: 'ready', providerSessionId: SESSION,
+    };
+    mockDurableRepository.resolve.mockResolvedValue(durableAgent);
+    mockCodexPrintService.send.mockResolvedValue({
+      agentId: durableAgent.id, agentName: durableAgent.name, result: 'done', exitCode: 0, sessionId: SESSION,
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'review', '--id', durableAgent.id, '--json']);
+
+    expect(mockCodexPrintService.send).toHaveBeenCalledWith(durableAgent.id, 'review');
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe('codex');
   });
 
   it('sends synchronously to an exact durable-agent id without terminal injection', async () => {
