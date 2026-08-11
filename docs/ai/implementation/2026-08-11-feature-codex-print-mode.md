@@ -8,8 +8,8 @@ description: Implementation record, decisions, validation, and deviations
 
 ## Status
 
-- Current task: Task 1.1, provider-aware durable model.
-- Completed: requirements, design, and initial planning review.
+- Current task: Task 3.1, fake-Codex integration fixture.
+- Completed: Tasks 1.1–2.3 and lifecycle document initialization.
 - Task tracing: unavailable (`unknown command 'task'`).
 
 ## Development Setup
@@ -28,6 +28,14 @@ description: Implementation record, decisions, validation, and deviations
 ## Implementation Notes
 
 This section will be updated after each TDD task with changed files, red/green evidence, decisions, deviations, and edge cases. The load-bearing rule is that Codex's provider-minted UUID is persisted during the active first run before terminal success.
+
+### Tasks 2.1–2.3
+
+- Added provider-specific classified errors and a three-command, non-model Codex capability probe.
+- Added safe initial/resume runner argv, process-identity-before-stdin handshake, strict bounded JSONL parsing, immediate async thread binding, ordered assistant messages, and terminal success requirements.
+- Added Codex create/send orchestration with provider-aware create, run-token callbacks, mismatch/unknown health classification, and no retry.
+
+TDD red: 14 focused tests failed on absent Codex exports. Green/refactor: those 14 tests passed; the full agent-manager suite passed 27 files/515 tests; typecheck and lint exited 0.
 
 ## Integration Points
 
