@@ -37,7 +37,20 @@ interface CodexEventEntry {
         id?: string;
         cwd?: string;
         timestamp?: string;
+        role?: string;
+        content?: CodexContent[];
+        item?: CodexItem;
     };
+}
+
+interface CodexContent {
+    type?: string;
+    text?: string;
+}
+
+interface CodexItem {
+    type?: string;
+    content?: string | CodexContent[];
 }
 
 interface CodexSession {
@@ -638,33 +651,75 @@ export class CodexAdapter implements AgentAdapter {
                 continue;
             }
 
-            if (entry.type === 'session_meta') continue;
-
-            const payloadType = entry.payload?.type;
-            if (!payloadType) continue;
-
-            let role: ConversationMessage['role'];
-            if (payloadType === 'user_message') {
-                role = 'user';
-            } else if (payloadType === 'agent_message' || payloadType === 'task_complete') {
-                role = 'assistant';
-            } else if (verbose) {
-                role = 'system';
-            } else {
-                continue;
-            }
-
-            const text = entry.payload?.message?.trim();
-            if (!text) continue;
-
-            messages.push({
-                role,
-                content: text,
-                timestamp: entry.timestamp,
-            });
+            const message = this.toConversationMessage(entry, verbose);
+            if (message) messages.push(message);
         }
 
         return messages;
+    }
+
+    private toConversationMessage(entry: CodexEventEntry, verbose: boolean): ConversationMessage | null {
+        if (entry.type === 'session_meta') return null;
+
+        const payloadType = entry.payload?.type;
+        if (entry.type === 'response_item' && payloadType === 'message') {
+            const role = this.mapCodexRole(entry.payload?.role, verbose);
+            const text = this.extractContentText(entry.payload?.content);
+            if (!role || !text) return null;
+
+            return { role, content: text, timestamp: entry.timestamp };
+        }
+
+        if (entry.type === 'event_msg' && payloadType === 'item_completed') {
+            const item = entry.payload?.item;
+            const role = this.mapCodexItemRole(item?.type, verbose);
+            const text = this.extractContentText(item?.content);
+            if (!role || !text) return null;
+
+            return { role, content: text, timestamp: entry.timestamp };
+        }
+
+        if (!payloadType) return null;
+
+        let role: ConversationMessage['role'];
+        if (payloadType === 'user_message') {
+            role = 'user';
+        } else if (payloadType === 'agent_message' || payloadType === 'task_complete') {
+            role = 'assistant';
+        } else if (verbose) {
+            role = 'system';
+        } else {
+            return null;
+        }
+
+        const text = entry.payload?.message?.trim();
+        if (!text) return null;
+
+        return { role, content: text, timestamp: entry.timestamp };
+    }
+
+    private mapCodexRole(role: string | undefined, verbose: boolean): ConversationMessage['role'] | null {
+        if (role === 'user') return 'user';
+        if (role === 'assistant') return 'assistant';
+        return verbose ? 'system' : null;
+    }
+
+    private mapCodexItemRole(itemType: string | undefined, verbose: boolean): ConversationMessage['role'] | null {
+        if (itemType === 'AgentMessage') return 'assistant';
+        if (itemType === 'UserMessage') return 'user';
+        return verbose ? 'system' : null;
+    }
+
+    private extractContentText(content: string | CodexContent[] | undefined): string {
+        if (typeof content === 'string') return content.trim();
+        if (!Array.isArray(content)) return '';
+
+        return content
+            .map((part) => part.text)
+            .filter((text): text is string => typeof text === 'string' && text.trim().length > 0)
+            .map((text) => text.trim())
+            .join('\n')
+            .trim();
     }
 
     async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {

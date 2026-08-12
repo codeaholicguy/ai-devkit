@@ -1212,6 +1212,57 @@ describe('CodexAdapter', () => {
             expect(messages[1]).toEqual({ role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' });
         });
 
+        it('should parse Codex response_item message records', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:01Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: 'Fix the bug' }],
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:05Z',
+                    payload: {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'I found the issue' }],
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+            expect(messages[0]).toEqual({ role: 'user', content: 'Fix the bug', timestamp: '2026-03-27T10:00:01Z' });
+            expect(messages[1]).toEqual({ role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' });
+        });
+
+        it('should parse completed Codex AgentMessage event records', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                {
+                    type: 'event_msg',
+                    timestamp: '2026-03-27T10:00:05Z',
+                    payload: {
+                        type: 'item_completed',
+                        item: {
+                            type: 'AgentMessage',
+                            content: [{ type: 'Text', text: 'I found the issue' }],
+                        },
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toEqual([
+                { role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' },
+            ]);
+        });
+
         it('should skip session_meta entry', () => {
             const filePath = writeJsonl([
                 { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
