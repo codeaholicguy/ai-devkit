@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [122d8dd](https://github.com/codeaholicguy/ai-devkit/commit/122d8dd69f93e12f5b9ddae51e6c2128f0bce9ea) Simplified the task manager README.
+- [7628b9e](https://github.com/codeaholicguy/ai-devkit/commit/7628b9ecc1e1480d2d041d9d6cdda0506c2f0bd6) Added task names to tracing.
+- [1ed5d9a](https://github.com/codeaholicguy/ai-devkit/pull/136) Added memory list display to the agent console.
+- [4524973](https://github.com/codeaholicguy/ai-devkit/pull/135) Added a focusable scrollable detail/chat pane with the `v` shortcut.
+- [15b09d2](https://github.com/codeaholicguy/ai-devkit/pull/139) Fixed invalid YAML frontmatter in the `agent-orchestration` skill metadata.
+- [5bfd467](https://github.com/codeaholicguy/ai-devkit/commit/5bfd467c29f63dc8d73c0b8c582776a269c1d591) Added the brainstorm skill.
+- [7ee6def](https://github.com/codeaholicguy/ai-devkit/pull/141) Fixed init template composition with built-in skills.
+- [85fb872](https://github.com/codeaholicguy/ai-devkit/pull/140) Fixed agent detection at tmux pane PID.
+- [2126c04](https://github.com/codeaholicguy/ai-devkit/pull/143) Added CLI listing for globally installed skills.
+- [f231c06](https://github.com/codeaholicguy/ai-devkit/pull/142) Added support for removing globally installed skills.
+- [2c01e03](https://github.com/codeaholicguy/ai-devkit/pull/144) Added the Slack Socket Mode channel connector.
+- [72a6c37](https://github.com/codeaholicguy/ai-devkit/pull/146) Added durable Claude print mode for agents.
+
 ## [0.47.0] - 2026-07-02
 
 - [941fabf](https://github.com/codeaholicguy/ai-devkit/pull/130) Added Grok environment skills support.
