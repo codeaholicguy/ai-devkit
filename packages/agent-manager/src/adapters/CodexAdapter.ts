@@ -515,7 +515,7 @@ export class CodexAdapter implements AgentAdapter {
         }
 
         const lastEntry = this.findLastEventEntry(entries);
-        const lastPayloadType = lastEntry?.payload?.type;
+        const lastPayloadType = lastEntry ? this.normalizedPayloadType(lastEntry) : undefined;
 
         const lastActive =
             this.parseTimestamp(lastEntry?.timestamp) ||
@@ -609,13 +609,42 @@ export class CodexAdapter implements AgentAdapter {
 
     private extractSummary(entries: CodexEventEntry[]): string {
         for (let i = entries.length - 1; i >= 0; i--) {
-            const message = entries[i]?.payload?.message;
-            if (typeof message === 'string' && message.trim().length > 0) {
-                return this.truncate(message.trim(), 120);
-            }
+            const message = this.extractEntryText(entries[i]);
+            if (message) return this.truncate(message, 120);
         }
 
         return 'Codex session active';
+    }
+
+    private normalizedPayloadType(entry: CodexEventEntry): string | undefined {
+        const payloadType = entry.payload?.type;
+
+        if (entry.type === 'response_item' && payloadType === 'message') {
+            if (entry.payload?.role === 'assistant') return 'agent_message';
+            if (entry.payload?.role === 'user') return 'user_message';
+            return payloadType;
+        }
+
+        if (entry.type === 'event_msg' && payloadType === 'item_completed') {
+            const itemType = entry.payload?.item?.type;
+            if (itemType === 'AgentMessage') return 'agent_message';
+            if (itemType === 'UserMessage') return 'user_message';
+            return itemType ?? payloadType;
+        }
+
+        return payloadType;
+    }
+
+    private extractEntryText(entry: CodexEventEntry | undefined): string {
+        if (!entry) return '';
+
+        const legacyMessage = entry.payload?.message;
+        if (typeof legacyMessage === 'string' && legacyMessage.trim().length > 0) {
+            return legacyMessage.trim();
+        }
+
+        const conversationMessage = this.toConversationMessage(entry, false);
+        return conversationMessage?.content.trim() ?? '';
     }
 
     private truncate(value: string, maxLength: number): string {
@@ -632,7 +661,8 @@ export class CodexAdapter implements AgentAdapter {
     /**
      * Read the full conversation from a Codex session JSONL file.
      *
-     * Codex entries use payload.type to indicate message role and payload.message for content.
+     * Codex entries use either legacy payload.message fields or current
+     * response_item/event_msg content arrays.
      */
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
         const verbose = options?.verbose ?? false;
