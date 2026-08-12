@@ -1309,6 +1309,64 @@ describe('CodexAdapter', () => {
             ]);
         });
 
+        it('should not duplicate mirrored current Codex message records', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:01Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: 'Fix the bug' }],
+                        internal_chat_message_metadata_passthrough: { turn_id: 'turn-1' },
+                    },
+                },
+                {
+                    type: 'event_msg',
+                    timestamp: '2026-03-27T10:00:01.001Z',
+                    payload: {
+                        type: 'item_completed',
+                        turn_id: 'turn-1',
+                        item: {
+                            type: 'UserMessage',
+                            content: [{ type: 'text', text: 'Fix the bug' }],
+                        },
+                    },
+                },
+                {
+                    type: 'event_msg',
+                    timestamp: '2026-03-27T10:00:05Z',
+                    payload: {
+                        type: 'item_completed',
+                        turn_id: 'turn-1',
+                        item: {
+                            type: 'AgentMessage',
+                            id: 'msg-1',
+                            content: [{ type: 'Text', text: 'I found the issue' }],
+                        },
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:05.005Z',
+                    payload: {
+                        type: 'message',
+                        id: 'msg-1',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'I found the issue' }],
+                        internal_chat_message_metadata_passthrough: { turn_id: 'turn-1' },
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toEqual([
+                { role: 'user', content: 'Fix the bug', timestamp: '2026-03-27T10:00:01Z' },
+                { role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05.005Z' },
+            ]);
+        });
+
         it('should skip session_meta entry', () => {
             const filePath = writeJsonl([
                 { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },

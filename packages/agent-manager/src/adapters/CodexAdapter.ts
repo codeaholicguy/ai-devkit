@@ -40,6 +40,10 @@ interface CodexEventEntry {
         role?: string;
         content?: CodexContent[];
         item?: CodexItem;
+        turn_id?: string;
+        internal_chat_message_metadata_passthrough?: {
+            turn_id?: string;
+        };
     };
 }
 
@@ -671,18 +675,40 @@ export class CodexAdapter implements AgentAdapter {
         if (content === undefined) return [];
 
         const lines = content.trim().split('\n');
+        const entries: CodexEventEntry[] = [];
         const messages: ConversationMessage[] = [];
 
         for (const line of lines) {
-            let entry: CodexEventEntry;
             try {
-                entry = JSON.parse(line);
+                entries.push(JSON.parse(line));
             } catch {
                 continue;
             }
+        }
+
+        const responseItemMirrorKeys = new Set<string>();
+        for (const entry of entries) {
+            if (entry.type !== 'response_item') continue;
 
             const message = this.toConversationMessage(entry, verbose);
-            if (message) messages.push(message);
+            const mirrorKey = message ? this.mirroredMessageKey(entry, message) : null;
+            if (mirrorKey) responseItemMirrorKeys.add(mirrorKey);
+        }
+
+        for (const entry of entries) {
+            const message = this.toConversationMessage(entry, verbose);
+            if (!message) continue;
+
+            const mirrorKey = this.mirroredMessageKey(entry, message);
+            if (
+                entry.type === 'event_msg' &&
+                mirrorKey &&
+                responseItemMirrorKeys.has(mirrorKey)
+            ) {
+                continue;
+            }
+
+            messages.push(message);
         }
 
         return messages;
@@ -738,6 +764,15 @@ export class CodexAdapter implements AgentAdapter {
         if (itemType === 'AgentMessage') return 'assistant';
         if (itemType === 'UserMessage') return 'user';
         return verbose ? 'system' : null;
+    }
+
+    private mirroredMessageKey(entry: CodexEventEntry, message: ConversationMessage): string | null {
+        const turnId =
+            entry.payload?.turn_id ||
+            entry.payload?.internal_chat_message_metadata_passthrough?.turn_id;
+
+        if (!turnId) return null;
+        return `${turnId}\0${message.role}\0${message.content}`;
     }
 
     private extractContentText(content: string | CodexContent[] | undefined): string {
