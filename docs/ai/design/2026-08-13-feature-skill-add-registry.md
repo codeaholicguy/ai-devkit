@@ -36,9 +36,10 @@ The registry ID is a validated map key and the registry URL is an opaque, verbat
 ## API Design
 
 - CLI: `skill add-registry <id> <url> [-g|--global] [-f|--force]`.
-- `ConfigManager.addSkillRegistry(id, url, options?)` returns the resulting `DevKitConfig` and uses the existing `read → merge → update` pattern from `addSkill()`.
-- `GlobalConfigManager.addSkillRegistry(id, url, options?)` returns the resulting `GlobalDevKitConfig` and uses the existing `read → merge → write` pattern from `addPlugin()`, with an existence check that protects malformed files.
-- A shared result or helper may represent `added`, `already registered`, and `updated` if needed for precise UI without duplicating conflict logic. Any extracted pure logic must have 100% branch/function/line coverage.
+- `ConfigManager.addSkillRegistry(id, url, { force }?)` returns the resulting `DevKitConfig` and uses the existing `read → merge → update` pattern from `addSkill()`. The two-argument form is the normal public contract; the optional flag exists only for the CLI's explicit override path.
+- `GlobalConfigManager.addSkillRegistry(id, url, { force }?)` returns the resulting `GlobalDevKitConfig` and uses the existing `read → merge → write` pattern from `addPlugin()`, with an existence check that protects malformed files.
+- Both setters enforce same-scope idempotency and conflict behavior so callers cannot bypass safety. A small shared pure helper computes `added`, `already-registered`, `updated`, or throws a conflict while returning the merge-preserving registry map.
+- The command reads the selected target scope's current registry map before invoking its setter so it can choose precise success copy while the setter remains the authoritative safety boundary. This extra local read is acceptable and performs no network/cache work.
 
 ## Component Breakdown
 
@@ -46,6 +47,7 @@ The registry ID is a validated map key and the registry URL is an opaque, verbat
 - `util/skill.ts`: existing `validateRegistryId()` remains the only input validation.
 - `lib/Config.ts`: merge-preserving project setter backed by `update()`.
 - `lib/GlobalConfig.ts`: merge-preserving global setter and malformed-file protection.
+- `util/skill-registry.ts`: shared pure registry mutation decision; it treats URL as opaque and contains no I/O.
 - Existing command tests mock config/filesystem boundaries; no real network or disk is used.
 
 ## Design Decisions
@@ -57,6 +59,7 @@ The registry ID is a validated map key and the registry URL is an opaque, verbat
 - Reuse `validateRegistryId()` instead of defining a competing identifier grammar.
 - Same target-scope ID/value is idempotent; same ID/different value requires `--force` to make accidental replacement explicit.
 - Never use `read() ?? {}` alone for global mutation: when the file exists but parsing fails, that would erase user data. Check existence and fail clearly when a present file cannot be read.
+- Use a dedicated `CliError` conflict code/message from the shared helper. `--force` changes only conflict resolution; it does not alter validation or I/O behavior.
 
 ### Alternatives considered
 
