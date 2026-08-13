@@ -37,7 +37,24 @@ interface CodexEventEntry {
         id?: string;
         cwd?: string;
         timestamp?: string;
+        role?: string;
+        content?: CodexContent[];
+        item?: CodexItem;
+        turn_id?: string;
+        internal_chat_message_metadata_passthrough?: {
+            turn_id?: string;
+        };
     };
+}
+
+interface CodexContent {
+    type?: string;
+    text?: string;
+}
+
+interface CodexItem {
+    type?: string;
+    content?: string | CodexContent[];
 }
 
 interface CodexSession {
@@ -502,7 +519,7 @@ export class CodexAdapter implements AgentAdapter {
         }
 
         const lastEntry = this.findLastEventEntry(entries);
-        const lastPayloadType = lastEntry?.payload?.type;
+        const lastPayloadType = lastEntry ? this.normalizedPayloadType(lastEntry) : undefined;
 
         const lastActive =
             this.parseTimestamp(lastEntry?.timestamp) ||
@@ -596,13 +613,42 @@ export class CodexAdapter implements AgentAdapter {
 
     private extractSummary(entries: CodexEventEntry[]): string {
         for (let i = entries.length - 1; i >= 0; i--) {
-            const message = entries[i]?.payload?.message;
-            if (typeof message === 'string' && message.trim().length > 0) {
-                return this.truncate(message.trim(), 120);
-            }
+            const message = this.extractEntryText(entries[i]);
+            if (message) return this.truncate(message, 120);
         }
 
         return 'Codex session active';
+    }
+
+    private normalizedPayloadType(entry: CodexEventEntry): string | undefined {
+        const payloadType = entry.payload?.type;
+
+        if (entry.type === 'response_item' && payloadType === 'message') {
+            if (entry.payload?.role === 'assistant') return 'agent_message';
+            if (entry.payload?.role === 'user') return 'user_message';
+            return payloadType;
+        }
+
+        if (entry.type === 'event_msg' && payloadType === 'item_completed') {
+            const itemType = entry.payload?.item?.type;
+            if (itemType === 'AgentMessage') return 'agent_message';
+            if (itemType === 'UserMessage') return 'user_message';
+            return itemType ?? payloadType;
+        }
+
+        return payloadType;
+    }
+
+    private extractEntryText(entry: CodexEventEntry | undefined): string {
+        if (!entry) return '';
+
+        const legacyMessage = entry.payload?.message;
+        if (typeof legacyMessage === 'string' && legacyMessage.trim().length > 0) {
+            return legacyMessage.trim();
+        }
+
+        const conversationMessage = this.toConversationMessage(entry, false);
+        return conversationMessage?.content.trim() ?? '';
     }
 
     private truncate(value: string, maxLength: number): string {
@@ -619,7 +665,8 @@ export class CodexAdapter implements AgentAdapter {
     /**
      * Read the full conversation from a Codex session JSONL file.
      *
-     * Codex entries use payload.type to indicate message role and payload.message for content.
+     * Codex entries use either legacy payload.message fields or current
+     * response_item/event_msg content arrays.
      */
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
         const verbose = options?.verbose ?? false;
@@ -628,43 +675,116 @@ export class CodexAdapter implements AgentAdapter {
         if (content === undefined) return [];
 
         const lines = content.trim().split('\n');
+        const entries: CodexEventEntry[] = [];
         const messages: ConversationMessage[] = [];
 
         for (const line of lines) {
-            let entry: CodexEventEntry;
             try {
-                entry = JSON.parse(line);
+                entries.push(JSON.parse(line));
             } catch {
                 continue;
             }
+        }
 
-            if (entry.type === 'session_meta') continue;
+        const responseItemMirrorKeys = new Set<string>();
+        for (const entry of entries) {
+            if (entry.type !== 'response_item') continue;
 
-            const payloadType = entry.payload?.type;
-            if (!payloadType) continue;
+            const message = this.toConversationMessage(entry, verbose);
+            const mirrorKey = message ? this.mirroredMessageKey(entry, message) : null;
+            if (mirrorKey) responseItemMirrorKeys.add(mirrorKey);
+        }
 
-            let role: ConversationMessage['role'];
-            if (payloadType === 'user_message') {
-                role = 'user';
-            } else if (payloadType === 'agent_message' || payloadType === 'task_complete') {
-                role = 'assistant';
-            } else if (verbose) {
-                role = 'system';
-            } else {
+        for (const entry of entries) {
+            const message = this.toConversationMessage(entry, verbose);
+            if (!message) continue;
+
+            const mirrorKey = this.mirroredMessageKey(entry, message);
+            if (
+                entry.type === 'event_msg' &&
+                mirrorKey &&
+                responseItemMirrorKeys.has(mirrorKey)
+            ) {
                 continue;
             }
 
-            const text = entry.payload?.message?.trim();
-            if (!text) continue;
-
-            messages.push({
-                role,
-                content: text,
-                timestamp: entry.timestamp,
-            });
+            messages.push(message);
         }
 
         return messages;
+    }
+
+    private toConversationMessage(entry: CodexEventEntry, verbose: boolean): ConversationMessage | null {
+        if (entry.type === 'session_meta') return null;
+
+        const payloadType = entry.payload?.type;
+        if (entry.type === 'response_item' && payloadType === 'message') {
+            const role = this.mapCodexRole(entry.payload?.role, verbose);
+            const text = this.extractContentText(entry.payload?.content);
+            if (!role || !text) return null;
+
+            return { role, content: text, timestamp: entry.timestamp };
+        }
+
+        if (entry.type === 'event_msg' && payloadType === 'item_completed') {
+            const item = entry.payload?.item;
+            const role = this.mapCodexItemRole(item?.type, verbose);
+            const text = this.extractContentText(item?.content);
+            if (!role || !text) return null;
+
+            return { role, content: text, timestamp: entry.timestamp };
+        }
+
+        if (!payloadType) return null;
+
+        let role: ConversationMessage['role'];
+        if (payloadType === 'user_message') {
+            role = 'user';
+        } else if (payloadType === 'agent_message' || payloadType === 'task_complete') {
+            role = 'assistant';
+        } else if (verbose) {
+            role = 'system';
+        } else {
+            return null;
+        }
+
+        const text = entry.payload?.message?.trim();
+        if (!text) return null;
+
+        return { role, content: text, timestamp: entry.timestamp };
+    }
+
+    private mapCodexRole(role: string | undefined, verbose: boolean): ConversationMessage['role'] | null {
+        if (role === 'user') return 'user';
+        if (role === 'assistant') return 'assistant';
+        return verbose ? 'system' : null;
+    }
+
+    private mapCodexItemRole(itemType: string | undefined, verbose: boolean): ConversationMessage['role'] | null {
+        if (itemType === 'AgentMessage') return 'assistant';
+        if (itemType === 'UserMessage') return 'user';
+        return verbose ? 'system' : null;
+    }
+
+    private mirroredMessageKey(entry: CodexEventEntry, message: ConversationMessage): string | null {
+        const turnId =
+            entry.payload?.turn_id ||
+            entry.payload?.internal_chat_message_metadata_passthrough?.turn_id;
+
+        if (!turnId) return null;
+        return `${turnId}\0${message.role}\0${message.content}`;
+    }
+
+    private extractContentText(content: string | CodexContent[] | undefined): string {
+        if (typeof content === 'string') return content.trim();
+        if (!Array.isArray(content)) return '';
+
+        return content
+            .map((part) => part.text)
+            .filter((text): text is string => typeof text === 'string' && text.trim().length > 0)
+            .map((text) => text.trim())
+            .join('\n')
+            .trim();
     }
 
     async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {

@@ -1133,6 +1133,52 @@ describe('CodexAdapter', () => {
                 expect(session.summary).toBe('Last message');
             });
 
+            it('should extract summary from current Codex response_item messages', () => {
+                const parseSession = (adapter as any).parseSession.bind(adapter);
+                const filePath = path.join(tmpDir, 'response-item-summary.jsonl');
+                fs.writeFileSync(filePath, [
+                    JSON.stringify({ type: 'session_meta', payload: { id: 'sess-ri', timestamp: '2026-03-18T15:00:00Z', cwd: '/repo' } }),
+                    JSON.stringify({
+                        type: 'response_item',
+                        timestamp: '2026-03-18T15:01:00Z',
+                        payload: {
+                            type: 'message',
+                            role: 'assistant',
+                            content: [{ type: 'output_text', text: 'Parsed from current schema' }],
+                        },
+                    }),
+                ].join('\n'));
+
+                const session = parseSession(undefined, filePath);
+                expect(session.summary).toBe('Parsed from current schema');
+                expect(session.lastPayloadType).toBe('agent_message');
+            });
+
+            it('should treat completed Codex AgentMessage events as waiting for list status', () => {
+                const parseSession = (adapter as any).parseSession.bind(adapter);
+                const determineStatus = (adapter as any).determineStatus.bind(adapter);
+                const filePath = path.join(tmpDir, 'agent-message-status.jsonl');
+                fs.writeFileSync(filePath, [
+                    JSON.stringify({ type: 'session_meta', payload: { id: 'sess-am', timestamp: '2026-03-18T15:00:00Z', cwd: '/repo' } }),
+                    JSON.stringify({
+                        type: 'event_msg',
+                        timestamp: new Date().toISOString(),
+                        payload: {
+                            type: 'item_completed',
+                            item: {
+                                type: 'AgentMessage',
+                                content: [{ type: 'Text', text: 'Waiting for the user now' }],
+                            },
+                        },
+                    }),
+                ].join('\n'));
+
+                const session = parseSession(undefined, filePath);
+                expect(session.summary).toBe('Waiting for the user now');
+                expect(session.lastPayloadType).toBe('agent_message');
+                expect(determineStatus(session)).toBe(AgentStatus.WAITING);
+            });
+
             it('should handle malformed JSON lines gracefully', () => {
                 const parseSession = (adapter as any).parseSession.bind(adapter);
                 const filePath = path.join(tmpDir, 'malformed.jsonl');
@@ -1210,6 +1256,115 @@ describe('CodexAdapter', () => {
             expect(messages).toHaveLength(2);
             expect(messages[0]).toEqual({ role: 'user', content: 'Fix the bug', timestamp: '2026-03-27T10:00:01Z' });
             expect(messages[1]).toEqual({ role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' });
+        });
+
+        it('should parse Codex response_item message records', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:01Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: 'Fix the bug' }],
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:05Z',
+                    payload: {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'I found the issue' }],
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toHaveLength(2);
+            expect(messages[0]).toEqual({ role: 'user', content: 'Fix the bug', timestamp: '2026-03-27T10:00:01Z' });
+            expect(messages[1]).toEqual({ role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' });
+        });
+
+        it('should parse completed Codex AgentMessage event records', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                {
+                    type: 'event_msg',
+                    timestamp: '2026-03-27T10:00:05Z',
+                    payload: {
+                        type: 'item_completed',
+                        item: {
+                            type: 'AgentMessage',
+                            content: [{ type: 'Text', text: 'I found the issue' }],
+                        },
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toEqual([
+                { role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05Z' },
+            ]);
+        });
+
+        it('should not duplicate mirrored current Codex message records', () => {
+            const filePath = writeJsonl([
+                { type: 'session_meta', payload: { id: 'sess-1', cwd: '/repo', timestamp: '2026-03-27T10:00:00Z' } },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:01Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: 'Fix the bug' }],
+                        internal_chat_message_metadata_passthrough: { turn_id: 'turn-1' },
+                    },
+                },
+                {
+                    type: 'event_msg',
+                    timestamp: '2026-03-27T10:00:01.001Z',
+                    payload: {
+                        type: 'item_completed',
+                        turn_id: 'turn-1',
+                        item: {
+                            type: 'UserMessage',
+                            content: [{ type: 'text', text: 'Fix the bug' }],
+                        },
+                    },
+                },
+                {
+                    type: 'event_msg',
+                    timestamp: '2026-03-27T10:00:05Z',
+                    payload: {
+                        type: 'item_completed',
+                        turn_id: 'turn-1',
+                        item: {
+                            type: 'AgentMessage',
+                            id: 'msg-1',
+                            content: [{ type: 'Text', text: 'I found the issue' }],
+                        },
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2026-03-27T10:00:05.005Z',
+                    payload: {
+                        type: 'message',
+                        id: 'msg-1',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'I found the issue' }],
+                        internal_chat_message_metadata_passthrough: { turn_id: 'turn-1' },
+                    },
+                },
+            ]);
+
+            const messages = adapter.getConversation(filePath);
+            expect(messages).toEqual([
+                { role: 'user', content: 'Fix the bug', timestamp: '2026-03-27T10:00:01Z' },
+                { role: 'assistant', content: 'I found the issue', timestamp: '2026-03-27T10:00:05.005Z' },
+            ]);
         });
 
         it('should skip session_meta entry', () => {
