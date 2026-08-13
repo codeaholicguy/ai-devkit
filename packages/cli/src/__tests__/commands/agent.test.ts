@@ -43,8 +43,9 @@ const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
-const { mockEnableDebug, mockDebugLogger } = vi.hoisted(() => ({
+const { mockEnableDebug, mockCreateLogger, mockDebugLogger } = vi.hoisted(() => ({
   mockEnableDebug: vi.fn(),
+  mockCreateLogger: vi.fn(),
   mockDebugLogger: vi.fn(),
 }));
 let restoreStdin: (() => void) | undefined;
@@ -150,7 +151,10 @@ vi.mock('../../util/terminal-ui.js', () => ({
 
 vi.mock('../../util/debug.js', () => ({
   enableDebug: () => mockEnableDebug(),
-  createLogger: () => mockDebugLogger,
+  createLogger: (namespace: string) => {
+    mockCreateLogger(namespace);
+    return mockDebugLogger;
+  },
 }));
 
 vi.mock('../../services/agent/agent.service.js', async (importOriginal) => {
@@ -345,6 +349,129 @@ describe('agent command', () => {
 
     expect(ui.info).toHaveBeenCalledWith('No running agents detected.');
     expect(ui.table).not.toHaveBeenCalled();
+  });
+
+  it('logs parser failures for listed agents with list --debug', async () => {
+    const providerAdapter = {
+      getParserHealth: vi.fn().mockReturnValue([
+        {
+          adapterType: 'codex',
+          sessionFilePath: '/tmp/codex/sessions/2026/08/13/session.jsonl',
+          totalRecords: 4,
+          parsedMessages: 0,
+          parseErrors: 1,
+          healthy: false,
+          warning: 'session has 4 record(s), 1 JSON parse error(s), and 0 parsed messages',
+        },
+      ]),
+    };
+    mockManager.listAgents.mockResolvedValue([
+      {
+        name: 'repo-codex',
+        type: 'codex',
+        status: AgentStatus.RUNNING,
+        summary: 'Working',
+        lastActive: new Date('2026-02-26T10:00:00.000Z'),
+        pid: 123,
+        sessionFilePath: '/tmp/codex/sessions/2026/08/13/session.jsonl',
+      },
+    ]);
+    mockManager.getAdapter.mockImplementation((type: string) => type === 'codex' ? providerAdapter : undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'list', '--debug']);
+
+    expect(mockEnableDebug).toHaveBeenCalledTimes(1);
+    expect(mockCreateLogger).toHaveBeenCalledWith('agent:list');
+    expect(providerAdapter.getParserHealth).toHaveBeenCalledWith(['/tmp/codex/sessions/2026/08/13/session.jsonl']);
+    expect(mockDebugLogger).toHaveBeenCalledWith('listed agents=%d parser failures=%d', 1, 1);
+    expect(mockDebugLogger).toHaveBeenCalledWith(
+      '%s',
+      expect.stringContaining('adapter=codex agent=repo-codex session=session.jsonl records=4 messages=0 parseErrors=1'),
+    );
+    expect(mockDebugLogger).toHaveBeenCalledWith('%s', expect.stringContaining('warning=session has 4 record(s), 1 JSON parse error(s), and 0 parsed messages'));
+    expect(stderrSpy).not.toHaveBeenCalledWith(expect.stringContaining('parser diagnostics'));
+  });
+
+  it('does not warn in normal mode when messages parse', async () => {
+    const providerAdapter = {
+      getParserHealth: vi.fn().mockReturnValue([
+        {
+          adapterType: 'codex',
+          sessionFilePath: '/tmp/current.jsonl',
+          totalRecords: 4,
+          parsedMessages: 2,
+          parseErrors: 1,
+          healthy: true,
+        },
+      ]),
+    };
+    mockManager.listAgents.mockResolvedValue([
+      {
+        name: 'repo-codex',
+        type: 'codex',
+        status: AgentStatus.RUNNING,
+        summary: 'Working',
+        lastActive: new Date('2026-02-26T10:00:00.000Z'),
+        pid: 123,
+        sessionFilePath: '/tmp/current.jsonl',
+      },
+    ]);
+    mockManager.getAdapter.mockImplementation((type: string) => type === 'codex' ? providerAdapter : undefined);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'list']);
+
+    expect(providerAdapter.getParserHealth).toHaveBeenCalledWith(['/tmp/current.jsonl']);
+    expect(stderrSpy).not.toHaveBeenCalledWith(expect.stringContaining('could not be parsed'));
+  });
+
+  it('warns concisely in normal mode for parser failures on listed agents only', async () => {
+    const providerAdapter = {
+      getParserHealth: vi.fn().mockReturnValue([
+        {
+          adapterType: 'codex',
+          sessionFilePath: '/tmp/current.jsonl',
+          totalRecords: 2,
+          parsedMessages: 0,
+          parseErrors: 0,
+          healthy: false,
+          warning: 'session has 2 record(s) but 0 parsed messages',
+        },
+      ]),
+    };
+    mockManager.listAgents.mockResolvedValue([
+      {
+        name: 'repo-codex',
+        type: 'codex',
+        status: AgentStatus.RUNNING,
+        summary: 'Working',
+        lastActive: new Date('2026-02-26T10:00:00.000Z'),
+        pid: 123,
+        sessionFilePath: '/tmp/current.jsonl',
+      },
+      {
+        name: 'repo-claude',
+        type: 'claude',
+        status: AgentStatus.RUNNING,
+        summary: 'Working',
+        lastActive: new Date('2026-02-26T10:00:00.000Z'),
+        pid: 124,
+        sessionFilePath: '/tmp/claude.jsonl',
+      },
+    ]);
+    mockManager.getAdapter.mockImplementation((type: string) => type === 'codex' ? providerAdapter : {});
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'list']);
+
+    expect(mockEnableDebug).not.toHaveBeenCalled();
+    expect(mockCreateLogger).not.toHaveBeenCalled();
+    expect(providerAdapter.getParserHealth).toHaveBeenCalledWith(['/tmp/current.jsonl']);
+    expect(stderrSpy).toHaveBeenCalledWith(expect.stringContaining('Warning: 1 listed agent session(s) could not be parsed.'));
   });
 
   it('renders table and waiting summary for list', async () => {

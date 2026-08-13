@@ -148,6 +148,24 @@ export interface ListSessionsOptions {
     type?: AgentType;
 }
 
+export interface SessionParserHealth {
+    /** Adapter that produced the session file, e.g. codex or claude. */
+    adapterType: AgentType;
+
+    /** Absolute path to the session file inspected by the adapter. */
+    sessionFilePath: string;
+
+    totalRecords: number;
+    parsedMessages: number;
+    parseErrors: number;
+    healthy: boolean;
+    warning?: string;
+}
+
+export interface ParserHealthProvider {
+    getParserHealth(filePaths?: string[]): SessionParserHealth[];
+}
+
 /**
  * Agent Adapter Interface
  *

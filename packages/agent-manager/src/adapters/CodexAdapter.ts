@@ -20,6 +20,8 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    ParserHealthProvider,
+    SessionParserHealth,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
 import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
@@ -86,12 +88,31 @@ interface MappingMatchResult {
     fallback: ProcessInfo[];
 }
 
-export class CodexAdapter implements AgentAdapter {
+interface AnalyzedCodexSession {
+    entries: CodexEventEntry[];
+    metaEntry?: CodexEventEntry;
+    messages: ConversationMessage[];
+    health: SessionParserHealth;
+}
+
+export class CodexAdapter implements AgentAdapter, ParserHealthProvider {
     readonly type = 'codex' as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
     /** Include session files around process start day to recover long-lived processes. */
     private static readonly PROCESS_START_DAY_WINDOW_DAYS = 1;
+    private static readonly KNOWN_RECORD_TYPES = new Set(['session_meta', 'event', 'response_item', 'event_msg']);
+    private static readonly KNOWN_PAYLOAD_TYPES = new Set([
+        'agent_message',
+        'agent_reasoning',
+        'exec_command',
+        'item_completed',
+        'message',
+        'task_complete',
+        'token_count',
+        'turn_aborted',
+        'user_message',
+    ]);
 
     private codexSessionsDir: string;
     private sessionMappingPath: string;
@@ -495,30 +516,13 @@ export class CodexAdapter implements AgentAdapter {
             }
         }
 
-        const allLines = content.trim().split('\n');
-        if (!allLines[0]) return null;
-
-        let metaEntry: CodexEventEntry;
-        try {
-            metaEntry = JSON.parse(allLines[0]);
-        } catch {
+        const analyzed = this.analyzeCodexSessionContent(content, filePath, { includeVerboseMessages: false });
+        const metaEntry = analyzed.metaEntry;
+        if (!metaEntry || metaEntry.type !== 'session_meta' || !metaEntry.payload?.id) {
             return null;
         }
 
-        if (metaEntry.type !== 'session_meta' || !metaEntry.payload?.id) {
-            return null;
-        }
-
-        const entries: CodexEventEntry[] = [];
-        for (const line of allLines) {
-            try {
-                entries.push(JSON.parse(line));
-            } catch {
-                continue;
-            }
-        }
-
-        const lastEntry = this.findLastEventEntry(entries);
+        const lastEntry = this.findLastEventEntry(analyzed.entries);
         const lastPayloadType = lastEntry ? this.normalizedPayloadType(lastEntry) : undefined;
 
         const lastActive =
@@ -532,7 +536,7 @@ export class CodexAdapter implements AgentAdapter {
         return {
             sessionId: metaEntry.payload.id,
             projectPath: metaEntry.payload.cwd || '',
-            summary: this.extractSummary(entries),
+            summary: this.extractSummary(analyzed.entries),
             sessionStart,
             lastActive,
             lastPayloadType,
@@ -674,29 +678,56 @@ export class CodexAdapter implements AgentAdapter {
         const content = safeReadFile(sessionFilePath);
         if (content === undefined) return [];
 
-        const lines = content.trim().split('\n');
+        return this.analyzeCodexSessionContent(content, sessionFilePath, { includeVerboseMessages: verbose }).messages;
+    }
+
+    getParserHealth(filePaths?: string[]): SessionParserHealth[] {
+        const pathsToInspect = filePaths ?? (isDirectory(this.codexSessionsDir) ? this.collectAllSessionFiles() : []);
+
+        return pathsToInspect
+            .map((filePath) => {
+                const content = safeReadFile(filePath);
+                if (content === undefined) return null;
+                return this.analyzeCodexSessionContent(content, filePath, { includeVerboseMessages: false }).health;
+            })
+            .filter((health): health is SessionParserHealth => health !== null);
+    }
+
+    private analyzeCodexSessionContent(
+        content: string,
+        filePath: string,
+        options: { includeVerboseMessages: boolean },
+    ): AnalyzedCodexSession {
+        const lines = content.trim().split('\n').filter((line) => line.trim().length > 0);
         const entries: CodexEventEntry[] = [];
         const messages: ConversationMessage[] = [];
+        let parseErrors = 0;
 
-        for (const line of lines) {
+        for (let index = 0; index < lines.length; index++) {
+            const rawLine = lines[index].trim();
+            let entry: CodexEventEntry;
+
             try {
-                entries.push(JSON.parse(line));
+                entry = JSON.parse(rawLine) as CodexEventEntry;
             } catch {
+                parseErrors += 1;
                 continue;
             }
+
+            entries.push(entry);
         }
 
         const responseItemMirrorKeys = new Set<string>();
         for (const entry of entries) {
             if (entry.type !== 'response_item') continue;
 
-            const message = this.toConversationMessage(entry, verbose);
+            const message = this.toConversationMessage(entry, options.includeVerboseMessages);
             const mirrorKey = message ? this.mirroredMessageKey(entry, message) : null;
             if (mirrorKey) responseItemMirrorKeys.add(mirrorKey);
         }
 
         for (const entry of entries) {
-            const message = this.toConversationMessage(entry, verbose);
+            const message = this.toConversationMessage(entry, options.includeVerboseMessages);
             if (!message) continue;
 
             const mirrorKey = this.mirroredMessageKey(entry, message);
@@ -711,7 +742,27 @@ export class CodexAdapter implements AgentAdapter {
             messages.push(message);
         }
 
-        return messages;
+        const healthy = lines.length === 0 || messages.length > 0;
+        const warning = healthy
+            ? undefined
+            : parseErrors > 0
+                ? `session has ${lines.length} record(s), ${parseErrors} JSON parse error(s), and 0 parsed messages`
+                : `session has ${lines.length} record(s) but 0 parsed messages`;
+
+        return {
+            entries,
+            metaEntry: entries[0],
+            messages,
+            health: {
+                adapterType: this.type,
+                sessionFilePath: filePath,
+                totalRecords: lines.length,
+                parsedMessages: messages.length,
+                parseErrors,
+                healthy,
+                warning,
+            },
+        };
     }
 
     private toConversationMessage(entry: CodexEventEntry, verbose: boolean): ConversationMessage | null {
@@ -856,31 +907,16 @@ export class CodexAdapter implements AgentAdapter {
         const content = safeReadFile(filePath);
         if (content === undefined) return null;
 
-        const allLines = content.trim().split('\n');
-        if (!allLines[0]) return null;
-
-        let metaEntry: CodexEventEntry;
-        try {
-            metaEntry = JSON.parse(allLines[0]);
-        } catch {
-            return null;
-        }
-
-        if (metaEntry.type !== 'session_meta' || !metaEntry.payload?.id) {
+        const analyzed = this.analyzeCodexSessionContent(content, filePath, { includeVerboseMessages: false });
+        const metaEntry = analyzed.metaEntry;
+        if (!metaEntry || metaEntry.type !== 'session_meta' || !metaEntry.payload?.id) {
             return null;
         }
 
         let firstUserMessage = '';
         let lastTimestamp: Date | null = null;
 
-        for (let i = 1; i < allLines.length; i++) {
-            let entry: CodexEventEntry;
-            try {
-                entry = JSON.parse(allLines[i]);
-            } catch {
-                continue;
-            }
-
+        for (const entry of analyzed.entries.slice(1)) {
             const ts = this.parseTimestamp(entry.timestamp);
             if (ts) lastTimestamp = ts;
 
