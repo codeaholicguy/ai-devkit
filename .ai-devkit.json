@@ -112,6 +112,10 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "agent-management"
+    },
+    {
+      "registry": "personal/me",
+      "name": "release-ai-devkit"
     }
   ],
   "updatedAt": "2026-06-27T20:37:59.097Z"
