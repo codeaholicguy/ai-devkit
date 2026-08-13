@@ -1,7 +1,10 @@
-import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import type { AgentType } from '../adapters/AgentAdapter.js';
+import {
+    DatabaseConnection,
+    resolveAgentRegistryDbPath,
+} from '../database/index.js';
 
 export class RenameNotFoundError extends Error {
     constructor(public agentName: string) {
@@ -28,8 +31,16 @@ export interface RegistryEntry {
     sessionFilePath: string;
 }
 
-interface RegistryFile {
-    entries: RegistryEntry[];
+interface RegistryRow {
+    name: string;
+    type: AgentType;
+    pid: number;
+    tmux_session: string;
+    cwd: string;
+    started_at: string;
+    session_id: string;
+    session_file_path: string;
+    updated_at: string;
 }
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
@@ -37,10 +48,10 @@ const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json
 let defaultInstance: AgentRegistry | null = null;
 
 export class AgentRegistry {
-    private filePath: string;
+    private db: DatabaseConnection;
 
     constructor(filePath: string = DEFAULT_REGISTRY_PATH) {
-        this.filePath = filePath;
+        this.db = new DatabaseConnection({ dbPath: resolveAgentRegistryDbPath(filePath) });
     }
 
     static default(): AgentRegistry {
@@ -50,30 +61,77 @@ export class AgentRegistry {
         return defaultInstance;
     }
 
-    private readFile(): RegistryFile {
-        try {
-            const raw = fs.readFileSync(this.filePath, 'utf8');
-            const parsed = JSON.parse(raw) as RegistryFile;
-            return { entries: Array.isArray(parsed.entries) ? parsed.entries : [] };
-        } catch {
-            return { entries: [] };
-        }
-    }
-
-    private writeFile(data: RegistryFile): void {
-        const dir = path.dirname(this.filePath);
-        fs.mkdirSync(dir, { recursive: true });
-        const tmp = `${this.filePath}.tmp`;
-        fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf8');
-        fs.renameSync(tmp, this.filePath);
+    private rowToEntry(row: RegistryRow): RegistryEntry {
+        return {
+            name: row.name,
+            type: row.type,
+            pid: row.pid,
+            tmuxSession: row.tmux_session,
+            cwd: row.cwd,
+            startedAt: row.started_at,
+            sessionId: row.session_id,
+            sessionFilePath: row.session_file_path,
+        };
     }
 
     private mergeEntry(incoming: RegistryEntry, existing: RegistryEntry | undefined): RegistryEntry {
         if (!existing) return incoming;
+        const incomingIsManaged = Boolean(incoming.tmuxSession);
         return {
-            ...incoming,
+            ...existing,
+            name: incomingIsManaged ? incoming.name : existing.name,
             tmuxSession: incoming.tmuxSession || existing.tmuxSession,
+            cwd: incoming.cwd || existing.cwd,
+            startedAt: existing.startedAt || incoming.startedAt,
+            sessionId: incoming.sessionId || existing.sessionId,
+            sessionFilePath: incoming.sessionFilePath || existing.sessionFilePath,
         };
+    }
+
+    private findByIdentity(type: AgentType, pid: number): RegistryEntry | undefined {
+        const row = this.db.queryOne<RegistryRow>(
+            'SELECT * FROM agents WHERE type = ? AND pid = ?',
+            [type, pid],
+        );
+        return row ? this.rowToEntry(row) : undefined;
+    }
+
+    private findByName(name: string): RegistryEntry | undefined {
+        const row = this.db.queryOne<RegistryRow>('SELECT * FROM agents WHERE name = ?', [name]);
+        return row ? this.rowToEntry(row) : undefined;
+    }
+
+    private deleteNameConflict(name: string, type: AgentType, pid: number): void {
+        const conflict = this.findByName(name);
+        if (!conflict) return;
+        if (conflict.type === type && conflict.pid === pid) return;
+        if (!this.isAlive(conflict)) {
+            this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [conflict.type, conflict.pid]);
+        }
+    }
+
+    private insertOrUpdate(entry: RegistryEntry): void {
+        this.db.instance.prepare(`
+            INSERT INTO agents (
+                type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at
+            )
+            VALUES (
+                @type, @pid, @name, @tmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt
+            )
+            ON CONFLICT(type, pid) DO UPDATE SET
+                name = excluded.name,
+                tmux_session = excluded.tmux_session,
+                cwd = excluded.cwd,
+                started_at = agents.started_at,
+                session_id = excluded.session_id,
+                session_file_path = excluded.session_file_path,
+                updated_at = excluded.updated_at
+        `).run({ ...entry, updatedAt: new Date().toISOString() });
+    }
+
+    private save(entry: RegistryEntry): void {
+        this.deleteNameConflict(entry.name, entry.type, entry.pid);
+        this.insertOrUpdate(entry);
     }
 
     isAlive(entry: RegistryEntry): boolean {
@@ -86,11 +144,13 @@ export class AgentRegistry {
     }
 
     prune(): void {
-        const data = this.readFile();
-        const live = data.entries.filter((e) => this.isAlive(e));
-        if (live.length !== data.entries.length) {
-            this.writeFile({ entries: live });
-        }
+        const entries = this.list();
+        const stale = entries.filter((e) => !this.isAlive(e));
+        this.db.transaction(() => {
+            for (const entry of stale) {
+                this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [entry.type, entry.pid]);
+            }
+        });
     }
 
     register(entry: RegistryEntry): void {
@@ -99,41 +159,41 @@ export class AgentRegistry {
 
     registerBatch(entries: RegistryEntry[]): void {
         if (entries.length === 0) return;
-        const data = this.readFile();
-        for (const incoming of entries) {
-            const idx = data.entries.findIndex((e) => e.name === incoming.name);
-            if (idx >= 0) {
-                data.entries[idx] = this.mergeEntry(incoming, data.entries[idx]);
-            } else {
-                data.entries.push(incoming);
+        this.db.transaction(() => {
+            for (const incoming of entries) {
+                const existing = this.findByIdentity(incoming.type, incoming.pid);
+                this.save(this.mergeEntry(incoming, existing));
             }
-        }
-        this.writeFile(data);
+        });
     }
 
     rename(currentName: string, newName: string): void {
-        const data = this.readFile();
-        const idx = data.entries.findIndex((e) => e.name === currentName);
-        if (idx < 0) {
+        const existing = this.findByName(currentName);
+        if (!existing) {
             throw new RenameNotFoundError(currentName);
         }
-        const liveEntries = data.entries.filter((e) => this.isAlive(e));
-        const conflict = liveEntries.find((e) => e.name === newName);
-        if (conflict) {
+        const conflict = this.findByName(newName);
+        if (conflict && this.isAlive(conflict)) {
             throw new RenameConflictError(newName);
         }
-        const pruned = liveEntries.map((e) =>
-            e.name === currentName ? { ...e, name: newName } : e,
-        );
-        this.writeFile({ entries: pruned });
+
+        this.db.transaction(() => {
+            if (conflict) {
+                this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [conflict.type, conflict.pid]);
+            }
+            this.db.execute(
+                'UPDATE agents SET name = ?, updated_at = ? WHERE type = ? AND pid = ?',
+                [newName, new Date().toISOString(), existing.type, existing.pid],
+            );
+        });
     }
 
     lookup(name: string): RegistryEntry | null {
-        const data = this.readFile();
-        return data.entries.find((e) => e.name === name) ?? null;
+        return this.findByName(name) ?? null;
     }
 
     list(): RegistryEntry[] {
-        return this.readFile().entries;
+        const rows = this.db.query<RegistryRow>('SELECT * FROM agents ORDER BY started_at ASC, name ASC');
+        return rows.map((row) => this.rowToEntry(row));
     }
 }

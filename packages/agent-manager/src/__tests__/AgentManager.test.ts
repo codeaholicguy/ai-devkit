@@ -340,6 +340,43 @@ describe('AgentManager', () => {
             expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
         });
 
+        it('preserves a user-managed name when a fallback row was written later for the same pid', async () => {
+            registry.register({
+                name: 'agent-list-debug',
+                type: 'codex',
+                pid: process.pid,
+                tmuxSession: 'agent-list-debug',
+                cwd: '/cwd/debug',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'pid-debug',
+                sessionFilePath: '',
+            });
+            registry.register({
+                name: `ai-devkit-${process.pid}`,
+                type: 'codex',
+                pid: process.pid,
+                tmuxSession: '',
+                cwd: '/cwd/debug',
+                startedAt: '2026-05-31T00:00:00.000Z',
+                sessionId: 'pid-debug',
+                sessionFilePath: '',
+            });
+
+            scopedManager.registerAdapter(new MockAdapter('codex', [
+                createMockAgent({ name: `ai-devkit-${process.pid}`, type: 'codex', pid: process.pid }),
+            ]));
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].name).toBe('agent-list-debug');
+            expect(registry.list()).toHaveLength(1);
+            expect(registry.list()[0]).toMatchObject({
+                name: 'agent-list-debug',
+                pid: process.pid,
+                tmuxSession: 'agent-list-debug',
+            });
+        });
+
         it('writes a fresh startedAt for new entries', async () => {
             const before = new Date().toISOString();
             scopedManager.registerAdapter(new MockAdapter('claude', [
