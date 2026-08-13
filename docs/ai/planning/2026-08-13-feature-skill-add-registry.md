@@ -9,7 +9,7 @@ description: TDD plan for the skill add-registry command and config persistence
 ## Milestones
 
 - [x] Milestone 1: Shared mutation rules and project persistence are covered and green.
-- [ ] Milestone 2: Global persistence is covered, including malformed-config protection.
+- [x] Milestone 2: Global persistence is covered, including malformed-config protection.
 - [ ] Milestone 3: CLI parsing, scope selection, force handling, opaque URLs, and output are covered and green.
 - [ ] Milestone 4: Implementation/design reconciliation, coverage, full regression, and review gates are green.
 
@@ -26,9 +26,9 @@ description: TDD plan for the skill add-registry command and config persistence
 
 ### Task 2: Global setter and malformed-config safety
 
-- [ ] **Red:** Add tests for missing config creation, sibling/unrelated-field preservation, idempotency/no write, conflict, force, and present malformed JSON.
-- [ ] **Green:** Implement `GlobalConfigManager.addSkillRegistry` with an existence/read distinction before any write and reuse shared mutation logic.
-- [ ] **Refactor/validate:** Run `GlobalConfig.test.ts`, CLI lint, and focused coverage.
+- [x] **Red:** Add tests for missing config creation, sibling/unrelated-field preservation, idempotency/no write, conflict, force, and present malformed JSON.
+- [x] **Green:** Implement `GlobalConfigManager.addSkillRegistry` with an existence/read distinction before any write and reuse shared mutation logic.
+- [x] **Refactor/validate:** Run `GlobalConfig.test.ts`, CLI lint, and focused coverage.
 - Outcome: global persistence creates only when absent and never erases a present unreadable file.
 - Dependencies: Task 1 helper, existing `read()`, `exists()`, private `write()`, and global path resolution.
 - Test scenarios: all global-manager scenarios and failure-mode no-write checks.
@@ -75,4 +75,4 @@ Task 1 → Task 2 → Task 3 → Task 4 → Task 5. Phase 6 planning reconciliat
 
 ## Progress Summary
 
-Task 1 is complete with 49 focused tests green and 100% coverage of the shared pure mutation helper. No scope changes or blockers were discovered. The next action is Task 2's failing global persistence and malformed-config tests; external push remains restricted pending explicit remote authorization.
+Tasks 1–2 are complete. Project tests are 49/49 green; global tests are 15/15 green; the shared pure mutation helper remains at 100% coverage. The malformed-global test proves a present unreadable file is not written. No scope changes were discovered. The next action is Task 3's failing CLI tests; external push remains restricted pending explicit remote authorization.

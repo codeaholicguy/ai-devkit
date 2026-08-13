@@ -17,7 +17,7 @@ description: Implementation record for project/global registry persistence and C
 
 - `packages/cli/src/util/skill-registry.ts`: shared pure add/idempotency/conflict/force decision and merge logic.
 - `packages/cli/src/lib/Config.ts`: project setter using the existing config read/update boundary.
-- `packages/cli/src/lib/GlobalConfig.ts`: planned global setter and malformed-file guard.
+- `packages/cli/src/lib/GlobalConfig.ts`: global setter and malformed-file guard.
 - `packages/cli/src/commands/skill.ts`: planned flat CLI command.
 - `packages/cli/src/__tests__/`: mocked-boundary tests; no real user config, network, Git, or cache I/O.
 
@@ -30,9 +30,15 @@ description: Implementation record for project/global registry persistence and C
 - Existing registry entries and unrelated top-level config remain intact.
 - Edge cases covered: missing project config, identical no-write, conflicting no-write, forced replacement, arbitrary URL string.
 
+### Completed: Task 2 — global persistence
+
+- `GlobalConfigManager.addSkillRegistry(id, url, options?)` checks whether the file exists before calling the tolerant `read()` method.
+- A missing file starts from `{}` and is created through the existing private `write()` boundary.
+- A present file that produces `null` from `read()` fails with `GLOBAL_CONFIG_UNREADABLE`; it is never replaced.
+- Valid config preserves unrelated fields and sibling registries, reuses the shared conflict/force rules, and returns without writing for an identical entry.
+
 ### Pending
 
-- Task 2: global setter and malformed-config protection.
 - Task 3: CLI parsing, validation, scope selection, flags, and output.
 - Tasks 4–5: design reconciliation, final coverage/regression, and review.
 
@@ -44,6 +50,7 @@ The setters modify only `registries` in the selected config. Existing `SkillRegi
 
 - Missing project config retains `ConfigNotFoundError` guidance to run `ai-devkit init`.
 - Same-scope conflicts use `REGISTRY_CONFLICT` and direct users to `--force`.
+- Present unreadable global config uses `GLOBAL_CONFIG_UNREADABLE` and includes the protected path.
 - No URL error exists by design.
 
 ## Performance & Security
@@ -55,3 +62,4 @@ The setters modify only `registries` in the selected config. Existing `SkillRegi
 ## Verification Record
 
 - Task 1: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49/49 passed; new helper 100% statements, branches, functions, and lines.
+- Task 2: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15/15 passed.

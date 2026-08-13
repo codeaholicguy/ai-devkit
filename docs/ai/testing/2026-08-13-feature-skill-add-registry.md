@@ -26,11 +26,11 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 ### `GlobalConfigManager.addSkillRegistry`
 
-- [ ] Creates a missing global config and required parent directory.
-- [ ] Merges into existing registries while preserving unrelated fields.
-- [ ] Treats same ID + same URL as idempotent with no write.
-- [ ] Rejects a conflict without force and supports force replacement.
-- [ ] Refuses to overwrite a present malformed global config after read failure.
+- [x] Creates a missing global config and required parent directory.
+- [x] Merges into existing registries while preserving unrelated fields.
+- [x] Treats same ID + same URL as idempotent with no write.
+- [x] Rejects a conflict without force and supports force replacement.
+- [x] Refuses to overwrite a present malformed global config after read failure.
 
 ### `skill add-registry` command
 
@@ -67,6 +67,7 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 - Targeted red/green tests run per implementation task.
 - Task 1 evidence: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49 tests passed; helper coverage 100% statements, branches, functions, and lines.
+- Task 2 evidence: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15 tests passed, including malformed-file no-write and all shared mutation outcomes.
 - CLI coverage: `npm run test:coverage --workspace=packages/cli` (adjust to repository-native invocation if required by scripts).
 - Full regression: root `npm test`, `npm run lint`, and `npm run build`.
 - Record final commands, outcomes, and any justified exclusions in this document.

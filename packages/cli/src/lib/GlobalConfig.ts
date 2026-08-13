@@ -3,6 +3,8 @@ import * as os from 'os';
 import * as path from 'path';
 import { GlobalDevKitConfig } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
+import { CliError } from '../util/errors.js';
+import { AddSkillRegistryOptions, planSkillRegistryAdd } from '../util/skill-registry.js';
 import { ui } from '../util/terminal-ui.js';
 
 export class GlobalConfigManager {
@@ -27,6 +29,30 @@ export class GlobalConfigManager {
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
     return filterStringRecord(config?.registries);
+  }
+
+  async addSkillRegistry(id: string, url: string, options: AddSkillRegistryOptions = {}): Promise<GlobalDevKitConfig> {
+    const configExists = await this.exists();
+    const config = await this.read();
+    if (configExists && !config) {
+      throw new CliError(
+        `Cannot update global config because the existing file could not be read: ${this.getGlobalConfigPath()}`,
+        'GLOBAL_CONFIG_UNREADABLE',
+        { configPath: this.getGlobalConfigPath() },
+      );
+    }
+
+    const existingConfig = config ?? {};
+    const registries = filterStringRecord(existingConfig.registries);
+    const mutation = planSkillRegistryAdd(registries, id, url, options);
+    if (mutation.status === 'already-registered') {
+      return existingConfig;
+    }
+
+    return this.write({
+      ...existingConfig,
+      registries: mutation.registries,
+    });
   }
 
   async getPlugins(): Promise<string[]> {
