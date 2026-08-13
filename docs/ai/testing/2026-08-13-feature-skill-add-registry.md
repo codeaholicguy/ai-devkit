@@ -47,7 +47,7 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 - [x] Validate command-to-project-manager scope selection with mocked filesystem/config.
 - [x] Validate command-to-global-manager scope selection with mocked filesystem/config.
-- [ ] Confirm a persisted project/global entry is already consumed by existing default < global < project merge behavior.
+- [x] Confirm a persisted project/global entry is already consumed by existing default < global < project merge behavior.
 - [x] Confirm all failure modes avoid target writes.
 
 ## End-to-End Tests
@@ -69,13 +69,14 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 - Task 1 evidence: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49 tests passed; helper coverage 100% statements, branches, functions, and lines.
 - Task 2 evidence: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15 tests passed, including malformed-file no-write and all shared mutation outcomes.
 - Task 3 evidence: CLI lint exited 0 (five pre-existing warnings), CLI build exited 0, and the combined command/config suite passed 90/90 with the helper at 100% coverage.
+- Phase 7 evidence: existing downstream precedence test passed 1/1; built CLI help displayed `<id> <url>`, `-g/--global`, and `-f/--force`.
 - CLI coverage: `npm run test:coverage --workspace=packages/cli` (adjust to repository-native invocation if required by scripts).
 - Full regression: root `npm test`, `npm run lint`, and `npm run build`.
 - Record final commands, outcomes, and any justified exclusions in this document.
 
 ## Manual Testing
 
-- [ ] Verify `ai-devkit skill add-registry --help` documents arguments and both flag aliases.
+- [x] Verify `ai-devkit skill add-registry --help` documents arguments and both flag aliases.
 - [ ] Smoke-test project/global command output in isolated temporary homes/directories only.
 - No UI accessibility or browser/device testing applies to this CLI-only feature.
 

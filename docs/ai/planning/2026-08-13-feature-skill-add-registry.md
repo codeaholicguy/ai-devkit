@@ -44,9 +44,9 @@ description: TDD plan for the skill add-registry command and config persistence
 
 ### Task 4: Documentation and implementation reconciliation
 
-- [ ] Update the implementation guide with actual files, behavior, error handling, and validation evidence.
-- [ ] Run lifecycle feature lint and compare code against every requirement/design decision.
-- [ ] Mark Tasks 1–3 and their testing checkboxes from fresh evidence; record any deviations or follow-ups.
+- [x] Update the implementation guide with actual files, behavior, error handling, and validation evidence.
+- [x] Run lifecycle feature lint and compare code against every requirement/design decision.
+- [x] Mark Tasks 1–3 and their testing checkboxes from fresh evidence; record any deviations or follow-ups.
 - Outcome: lifecycle docs accurately describe the merged-ready implementation.
 - Dependencies: Tasks 1–3 complete.
 
@@ -75,4 +75,4 @@ Task 1 → Task 2 → Task 3 → Task 4 → Task 5. Phase 6 planning reconciliat
 
 ## Progress Summary
 
-Tasks 1–3 are complete. The combined focused suite is 90/90 green, the CLI package builds, and the shared pure mutation helper has 100% coverage. The command is the only registry-management command and performs target config reads/writes only. No scope changes were discovered. Next are Task 4 design/implementation reconciliation and Task 5 final testing/review; external push remains restricted pending explicit remote authorization.
+Tasks 1–4 are complete. Phase 7 found no requirement/design deviations: the combined focused suite is 90/90 green, downstream precedence is covered by its existing test, CLI help matches the contract, the package builds, and the shared pure mutation helper has 100% coverage. Next is Task 5 final testing/review; external push remains restricted pending explicit remote authorization.

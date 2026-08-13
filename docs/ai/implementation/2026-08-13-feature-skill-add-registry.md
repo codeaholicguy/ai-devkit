@@ -47,7 +47,7 @@ description: Implementation record for project/global registry persistence and C
 
 ### Pending
 
-- Tasks 4–5: design reconciliation, final coverage/regression, and review.
+- Task 5: final coverage/regression and review.
 
 ## Integration Points
 
@@ -71,3 +71,13 @@ The setters modify only `registries` in the selected config. Existing `SkillRegi
 - Task 1: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49/49 passed; new helper 100% statements, branches, functions, and lines.
 - Task 2: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15/15 passed.
 - Task 3: `npm run lint`, `npm run build`, and the combined command/config coverage run — build/lint green, 90/90 tests passed, helper coverage 100%.
+- Phase 7 alignment: no deviations from the binding requirements or reviewed design. The existing precedence test passed 1/1, and built CLI help matches the command contract.
+
+## Design Alignment
+
+- Scope: only `add-registry` exists; remove/list remain deferred.
+- Pin behavior: command logic consults only the selected writable scope, so a default-identical mapping is still written.
+- URL behavior: no URL parser, normalizer, Git/network check, or cache dependency exists on the add path.
+- Persistence: both setters merge registry maps; global mutation protects present unreadable config.
+- Conflict behavior: identical is a no-write success; different requires force.
+- Downstream behavior: existing default < global < project merging remains unchanged and tested.
