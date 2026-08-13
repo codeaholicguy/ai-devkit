@@ -1,11 +1,14 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config.js';
+import { GlobalConfigManager } from '../lib/GlobalConfig.js';
 import { SkillManager } from '../lib/SkillManager.js';
 import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate, getErrorMessage } from '../util/text.js';
+import { validateRegistryId } from '../util/skill.js';
+import { planSkillRegistryAdd } from '../util/skill-registry.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -56,6 +59,34 @@ export function registerSkillCommand(program: Command): void {
         process.exit(1);
       }
     });
+
+  skillCommand
+    .command('add-registry <id> <url>')
+    .description('Register a third-party skill registry')
+    .option('-g, --global', 'Register in global config (~/.ai-devkit/.ai-devkit.json)')
+    .option('-f, --force', 'Overwrite a conflicting registry URL')
+    .action(withErrorHandler('add registry', async (
+      id: string,
+      url: string,
+      options: { global?: boolean; force?: boolean },
+    ) => {
+      validateRegistryId(id);
+      const configManager = options.global
+        ? new GlobalConfigManager()
+        : new ConfigManager();
+
+      const registries = await configManager.getSkillRegistries();
+      const mutation = planSkillRegistryAdd(registries, id, url, { force: options.force });
+      await configManager.addSkillRegistry(id, url, { force: options.force });
+
+      if (mutation.status === 'already-registered') {
+        ui.info(`Registry "${id}" is already registered.`);
+      } else if (mutation.status === 'updated') {
+        ui.success(`Updated skill registry "${id}".`);
+      } else {
+        ui.success(`Registered skill registry "${id}".`);
+      }
+    }));
 
   skillCommand
     .command('list')

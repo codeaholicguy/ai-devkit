@@ -7,9 +7,23 @@ const mockAddSkill = vi.fn();
 const mockListGlobalSkills = vi.fn();
 const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
+const mockProjectGetSkillRegistries = vi.fn();
+const mockProjectAddSkillRegistry = vi.fn();
+const mockGlobalGetSkillRegistries = vi.fn();
+const mockGlobalAddSkillRegistry = vi.fn();
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(),
+  ConfigManager: vi.fn(function () { return {
+    getSkillRegistries: (...args: unknown[]) => mockProjectGetSkillRegistries(...args),
+    addSkillRegistry: (...args: unknown[]) => mockProjectAddSkillRegistry(...args),
+  }; }),
+}));
+
+vi.mock('../../lib/GlobalConfig.js', () => ({
+  GlobalConfigManager: vi.fn(function () { return {
+    getSkillRegistries: (...args: unknown[]) => mockGlobalGetSkillRegistries(...args),
+    addSkillRegistry: (...args: unknown[]) => mockGlobalAddSkillRegistry(...args),
+  }; }),
 }));
 
 vi.mock('../../lib/SkillManager.js', () => ({
@@ -31,6 +45,7 @@ vi.mock('../../util/terminal-ui.js', () => ({
     info: vi.fn(),
     text: vi.fn(),
     table: vi.fn(),
+    success: vi.fn(),
   },
 }));
 
@@ -41,8 +56,132 @@ describe('skill command', () => {
     mockListGlobalSkills.mockResolvedValue([]);
     mockListSkills.mockResolvedValue([]);
     mockRemoveSkill.mockImplementation(async () => undefined);
+    mockProjectGetSkillRegistries.mockResolvedValue({});
+    mockProjectAddSkillRegistry.mockResolvedValue({});
+    mockGlobalGetSkillRegistries.mockResolvedValue({});
+    mockGlobalAddSkillRegistry.mockResolvedValue({});
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
+  });
+
+  it('adds an opaque registry URL to project config by default', async () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'git@gitlab.com:shopback/skills.git']);
+
+    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+      'shopback/skills',
+      'git@gitlab.com:shopback/skills.git',
+      { force: undefined },
+    );
+    expect(mockGlobalAddSkillRegistry).not.toHaveBeenCalled();
+  });
+
+  it('reports an identical target-scope registry as already registered', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'anthropics/skills': 'same-url' });
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'anthropics/skills', 'same-url']);
+
+    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+      'anthropics/skills',
+      'same-url',
+      { force: undefined },
+    );
+    expect(ui.info).toHaveBeenCalledWith('Registry "anthropics/skills" is already registered.');
+    expect(ui.success).not.toHaveBeenCalled();
+  });
+
+  it.each(['-g', '--global'])('routes %s registry writes to global config', async globalFlag => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'opaque-url', globalFlag]);
+
+    expect(mockGlobalGetSkillRegistries).toHaveBeenCalledOnce();
+    expect(mockGlobalAddSkillRegistry).toHaveBeenCalledWith(
+      'shopback/skills',
+      'opaque-url',
+      { force: undefined },
+    );
+    expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
+  });
+
+  it.each(['-f', '--force'])('forwards %s and reports a forced update', async forceFlag => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'shopback/skills': 'old-url' });
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'new-url', forceFlag]);
+
+    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+      'shopback/skills',
+      'new-url',
+      { force: true },
+    );
+    expect(ui.success).toHaveBeenCalledWith('Updated skill registry "shopback/skills".');
+  });
+
+  it.each([
+    'https://github.com/anthropics/skills.git',
+    'https://github.com/anthropics/skills',
+    'anything the user provides',
+  ])('preserves URL input verbatim: %s', async url => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'anthropics/skills', url]);
+
+    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+      'anthropics/skills',
+      url,
+      { force: undefined },
+    );
+  });
+
+  it.each(['bare-slug', 'owner/nested/repo', 'owner/repo.name'])(
+    'rejects invalid registry ID %s',
+    async id => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync(['node', 'test', 'skill', 'add-registry', id, 'opaque-url']);
+
+      expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('Invalid registry ID format'));
+      expect(process.exit).toHaveBeenCalledWith(1);
+      expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
+      expect(mockGlobalAddSkillRegistry).not.toHaveBeenCalled();
+    }
+  );
+
+  it('rejects a target-scope conflict without calling the setter', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'shopback/skills': 'old-url' });
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'new-url']);
+
+    expect(ui.error).toHaveBeenCalledWith(
+      'Failed to add registry: Registry "shopback/skills" is already registered with a different URL. Use --force to overwrite it.'
+    );
+    expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
+  });
+
+  it('documents add-registry arguments and scope/conflict flags', () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    const skillCommand = program.commands.find(command => command.name() === 'skill');
+    const addRegistryCommand = skillCommand?.commands.find(command => command.name() === 'add-registry');
+
+    expect(addRegistryCommand?.usage()).toContain('<id>');
+    expect(addRegistryCommand?.usage()).toContain('<url>');
+    expect(addRegistryCommand?.helpInformation()).toContain('-g, --global');
+    expect(addRegistryCommand?.helpInformation()).toContain('-f, --force');
+    expect(skillCommand?.commands.some(command => command.name() === 'remove-registry')).toBe(false);
+    expect(skillCommand?.commands.some(command => command.name() === 'list-registries')).toBe(false);
   });
 
   it('parses skill add with registry only and forwards undefined skill name', async () => {

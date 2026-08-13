@@ -100,6 +100,80 @@ describe('GlobalConfigManager', () => {
     });
   });
 
+  describe('addSkillRegistry', () => {
+    it('creates a missing global config with the registry', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addSkillRegistry('new/skills', 'any string');
+
+      expect(result).toEqual({ registries: { 'new/skills': 'any string' } });
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        '/home/test/.ai-devkit/.ai-devkit.json',
+        { registries: { 'new/skills': 'any string' } },
+        { spaces: 2 }
+      );
+    });
+
+    it('refuses to overwrite a present malformed global config', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockRejectedValue(new Error('Invalid JSON'));
+
+      await expect(configManager.addSkillRegistry('new/skills', 'any string')).rejects.toThrow(
+        'Cannot update global config because the existing file could not be read'
+      );
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it('does not rewrite an identically registered global URL', async () => {
+      const config = {
+        plugins: ['@ai-devkit/memory-dashboard'],
+        registries: { 'new/skills': 'any string' },
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkillRegistry('new/skills', 'any string');
+
+      expect(result).toBe(config);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it('rejects a conflicting global URL without force', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        registries: { 'new/skills': 'old-url' },
+      });
+
+      await expect(configManager.addSkillRegistry('new/skills', 'new-url')).rejects.toThrow(
+        'Registry "new/skills" is already registered with a different URL. Use --force to overwrite it.'
+      );
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it('force-overwrites one global URL while preserving other config', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        plugins: ['@ai-devkit/memory-dashboard'],
+        registries: {
+          'new/skills': 'old-url',
+          'sibling/skills': 'keep-me',
+        },
+      });
+
+      const result = await configManager.addSkillRegistry('new/skills', 'new-url', { force: true });
+
+      expect(result).toEqual({
+        plugins: ['@ai-devkit/memory-dashboard'],
+        registries: {
+          'new/skills': 'new-url',
+          'sibling/skills': 'keep-me',
+        },
+      });
+    });
+  });
+
   describe('getPlugins', () => {
     it('should return empty list when no config exists', async () => {
       (mockFs.pathExists as any).mockResolvedValue(false);
