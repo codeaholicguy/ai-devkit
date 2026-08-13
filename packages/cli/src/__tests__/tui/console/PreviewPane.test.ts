@@ -40,28 +40,28 @@ describe('PreviewPane helpers', () => {
         expect(viewport.rows).toHaveLength(3);
         expect(viewport.rows).toEqual([
             { kind: 'indicator', text: '↑ older', role: null },
-            { kind: 'message', text: 'second question', role: 'user' },
-            { kind: 'message', text: 'second answer', role: 'assistant' },
+            { kind: 'header', text: '', role: 'assistant', timestamp: '2026-07-02T10:00:03Z' },
+            { kind: 'content', text: 'second answer', role: 'assistant' },
         ]);
     });
 
     it('builds a viewport over older conversation content at a positive offset', () => {
-        const viewport = buildPreviewViewport(messages, 3, 3);
+        const viewport = buildPreviewViewport(messages, 3, 10);
 
-        expect(viewport.clampedOffset).toBe(3);
+        expect(viewport.clampedOffset).toBe(10);
         expect(viewport.hasAbove).toBe(false);
         expect(viewport.hasBelow).toBe(true);
         expect(viewport.rows).toHaveLength(3);
         expect(viewport.rows).toEqual([
             { kind: 'indicator', text: '        ↓ newer', role: null },
-            { kind: 'message', text: 'first question', role: 'user' },
-            { kind: 'message', text: 'first answer', role: 'assistant' },
+            { kind: 'header', text: '', role: 'user', timestamp: '2026-07-02T10:00:00Z' },
+            { kind: 'content', text: 'first question', role: 'user' },
         ]);
     });
 
     it('clamps requested offsets to the valid scroll range', () => {
         expect(buildPreviewViewport(messages, 3, -2).clampedOffset).toBe(0);
-        expect(buildPreviewViewport(messages, 3, 99).clampedOffset).toBe(3);
+        expect(buildPreviewViewport(messages, 3, 99).clampedOffset).toBe(10);
     });
 
     it('keeps the rendered body inside the viewport budget when overflow affordances are shown', () => {
@@ -70,22 +70,27 @@ describe('PreviewPane helpers', () => {
         expect(viewport.hasAbove).toBe(true);
         expect(viewport.hasBelow).toBe(true);
         expect(viewport.rows).toHaveLength(4);
-        expect(viewport.rows[0]).toEqual({ kind: 'indicator', text: '↑ older ↓ newer', role: null });
+        expect(viewport.rows[0]).toEqual({
+            kind: 'indicator',
+            text: '↑ older · user continued ↓ newer',
+            role: null,
+        });
     });
 
-    it('keeps role metadata separate from multiline message content', () => {
+    it('builds a structured block for multiline message content', () => {
         const viewport = buildPreviewViewport([
             { role: 'assistant', content: 'Summary\n\n- first item', timestamp: '2026-07-02T10:00:00Z' },
-        ], 4, 0);
+        ], 6, 0);
 
         expect(viewport.rows).toEqual([
-            { kind: 'message', text: 'Summary', role: 'assistant' },
-            { kind: 'message', text: '', role: null },
-            { kind: 'message', text: '- first item', role: null },
+            { kind: 'header', text: '', role: 'assistant', timestamp: '2026-07-02T10:00:00Z' },
+            { kind: 'content', text: 'Summary', role: 'assistant' },
+            { kind: 'content', text: '', role: 'assistant' },
+            { kind: 'content', text: '- first item', role: 'assistant' },
         ]);
     });
 
-    it('renders roles in a fixed gutter and message content in a neutral column', () => {
+    it('renders conversation turns using the agent detail format', () => {
         const agent = {
             name: 'preview-test',
             type: 'codex',
@@ -104,9 +109,9 @@ describe('PreviewPane helpers', () => {
             maxLines: 8,
         }), { columns: 80 }));
 
-        expect(output).toContain('user      │ first question');
-        expect(output).toContain('assistant │ first answer\n          │ with detail');
+        expect(output).toContain('user:\n  first question\n\nassistant:\n  first answer\n  with detail');
         expect(output).not.toContain('assistant: first answer');
+        expect(output).not.toContain('assistant │ first answer');
     });
 
     it('adjusts positive scroll offsets by newly appended rendered rows', () => {
