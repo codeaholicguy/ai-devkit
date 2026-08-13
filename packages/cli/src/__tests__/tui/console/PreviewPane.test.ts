@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import React from 'react';
+import { renderToString } from 'ink';
+import { stripVTControlCharacters } from 'node:util';
 import {
     adjustPreviewScrollOffsetForAppendedRows,
     buildPreviewViewport,
     getPreviewPanelTone,
     getPreviewChannelStatusText,
+    PreviewPane,
 } from '../../../tui/console/PreviewPane.js';
-import type { ConversationMessage } from '@ai-devkit/agent-manager';
+import { AgentStatus, type AgentInfo, type ConversationMessage } from '@ai-devkit/agent-manager';
 
 const messages: ConversationMessage[] = [
     { role: 'user', content: 'first question', timestamp: '2026-07-02T10:00:00Z' },
@@ -35,9 +39,9 @@ describe('PreviewPane helpers', () => {
         expect(viewport.hasBelow).toBe(false);
         expect(viewport.rows).toHaveLength(3);
         expect(viewport.rows).toEqual([
-            { text: '↑ older', role: null },
-            { text: 'user: second question', role: 'user' },
-            { text: 'assistant: second answer', role: 'assistant' },
+            { kind: 'indicator', text: '↑ older', role: null },
+            { kind: 'message', text: 'second question', role: 'user' },
+            { kind: 'message', text: 'second answer', role: 'assistant' },
         ]);
     });
 
@@ -49,9 +53,9 @@ describe('PreviewPane helpers', () => {
         expect(viewport.hasBelow).toBe(true);
         expect(viewport.rows).toHaveLength(3);
         expect(viewport.rows).toEqual([
-            { text: '        ↓ newer', role: null },
-            { text: 'user: first question', role: 'user' },
-            { text: 'assistant: first answer', role: 'assistant' },
+            { kind: 'indicator', text: '        ↓ newer', role: null },
+            { kind: 'message', text: 'first question', role: 'user' },
+            { kind: 'message', text: 'first answer', role: 'assistant' },
         ]);
     });
 
@@ -66,7 +70,43 @@ describe('PreviewPane helpers', () => {
         expect(viewport.hasAbove).toBe(true);
         expect(viewport.hasBelow).toBe(true);
         expect(viewport.rows).toHaveLength(4);
-        expect(viewport.rows[0]).toEqual({ text: '↑ older ↓ newer', role: null });
+        expect(viewport.rows[0]).toEqual({ kind: 'indicator', text: '↑ older ↓ newer', role: null });
+    });
+
+    it('keeps role metadata separate from multiline message content', () => {
+        const viewport = buildPreviewViewport([
+            { role: 'assistant', content: 'Summary\n\n- first item', timestamp: '2026-07-02T10:00:00Z' },
+        ], 4, 0);
+
+        expect(viewport.rows).toEqual([
+            { kind: 'message', text: 'Summary', role: 'assistant' },
+            { kind: 'message', text: '', role: null },
+            { kind: 'message', text: '- first item', role: null },
+        ]);
+    });
+
+    it('renders roles in a fixed gutter and message content in a neutral column', () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const output = stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [
+                { role: 'user', content: 'first question' },
+                { role: 'assistant', content: 'first answer\nwith detail' },
+            ],
+            error: null,
+            isLoading: false,
+            maxLines: 8,
+        }), { columns: 80 }));
+
+        expect(output).toContain('user      │ first question');
+        expect(output).toContain('assistant │ first answer\n          │ with detail');
+        expect(output).not.toContain('assistant: first answer');
     });
 
     it('adjusts positive scroll offsets by newly appended rendered rows', () => {

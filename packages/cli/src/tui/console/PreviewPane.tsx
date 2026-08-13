@@ -33,6 +33,7 @@ function shortPath(p: string): string {
 }
 
 export interface PreviewViewportRow {
+    kind: 'message' | 'indicator';
     text: string;
     role: ConversationMessage['role'] | null;
 }
@@ -64,12 +65,12 @@ export function buildPreviewViewport(
     requestedOffset: number,
 ): PreviewViewport {
     const budget = Math.max(1, Math.floor(maxLines));
-    const rows = messages.flatMap((msg) => {
+    const rows = messages.flatMap<PreviewViewportRow>((msg) => {
         const contentLines = msg.content.split('\n');
         const first = contentLines[0] ?? '';
         return [
-            { text: `${msg.role}: ${first}`, role: msg.role },
-            ...contentLines.slice(1).map(line => ({ text: `  ${line}`, role: null })),
+            { kind: 'message', text: first, role: msg.role },
+            ...contentLines.slice(1).map<PreviewViewportRow>(line => ({ kind: 'message', text: line, role: null })),
         ];
     });
     const contentBudget = rows.length > budget ? Math.max(1, budget - 1) : budget;
@@ -79,8 +80,8 @@ export function buildPreviewViewport(
     const start = Math.max(0, end - contentBudget);
     const hasAbove = start > 0;
     const hasBelow = end < rows.length;
-    const indicator = hasAbove || hasBelow
-        ? [{ text: `${hasAbove ? '↑ older' : '       '}${hasBelow ? ' ↓ newer' : ''}`, role: null }]
+    const indicator: PreviewViewportRow[] = hasAbove || hasBelow
+        ? [{ kind: 'indicator', text: `${hasAbove ? '↑ older' : '       '}${hasBelow ? ' ↓ newer' : ''}`, role: null }]
         : [];
     return {
         rows: [...indicator, ...rows.slice(start, end)],
@@ -176,9 +177,23 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
         body = (
             <>
                 {viewport?.rows.map((row, idx) => (
-                    <Box key={idx}>
-                        <Text color={row.role ? ROLE_COLOR[row.role] : undefined}>{row.text}</Text>
-                    </Box>
+                    row.kind === 'indicator' ? (
+                        <Box key={idx}>
+                            <Text dimColor>{row.text}</Text>
+                        </Box>
+                    ) : (
+                        <Box key={idx}>
+                            <Box width={10} flexShrink={0}>
+                                <Text color={row.role ? ROLE_COLOR[row.role] : undefined} bold={row.role !== null}>
+                                    {row.role ?? ''}
+                                </Text>
+                            </Box>
+                            <Text dimColor>│ </Text>
+                            <Box flexGrow={1}>
+                                <Text>{row.text || ' '}</Text>
+                            </Box>
+                        </Box>
+                    )
                 ))}
             </>
         );
