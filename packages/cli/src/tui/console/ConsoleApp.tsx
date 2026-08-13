@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Box, useApp, useInput } from 'ink';
+import { Box, useApp, useInput, type RenderOptions } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import { ConsoleProvider, useConsoleContext } from './state/ConsoleContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
@@ -35,6 +35,13 @@ const FOOTER_HEIGHT = 2;
 const HEADER_HEIGHT = 1;
 const MIN_CONTENT_HEIGHT = 12;
 const INPUT_BOX_CHROME_ROWS = 2;
+
+export const AGENT_CONSOLE_RENDER_OPTIONS: RenderOptions = {
+    alternateScreen: true,
+    exitOnCtrlC: true,
+    incrementalRendering: true,
+    maxFps: 60,
+};
 
 export function computeCenteredDialog(cols: number, rows: number) {
     const width = Math.min(56, Math.max(24, cols - 6));
