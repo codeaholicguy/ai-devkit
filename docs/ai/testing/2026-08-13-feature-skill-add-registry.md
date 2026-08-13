@@ -17,12 +17,12 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 ### `ConfigManager.addSkillRegistry`
 
-- [ ] Adds the first project registry while preserving unrelated config.
-- [ ] Spread-merges a new registry without replacing sibling registry entries.
-- [ ] Treats same ID + same URL as idempotent with no write.
-- [ ] Rejects same ID + different URL without force and leaves config unchanged.
-- [ ] Replaces only the requested value with force.
-- [ ] Reports the established missing-project-config error.
+- [x] Adds the first project registry while preserving unrelated config.
+- [x] Spread-merges a new registry without replacing sibling registry entries.
+- [x] Treats same ID + same URL as idempotent with no write.
+- [x] Rejects same ID + different URL without force and leaves config unchanged.
+- [x] Replaces only the requested value with force.
+- [x] Reports the established missing-project-config error.
 
 ### `GlobalConfigManager.addSkillRegistry`
 
@@ -66,6 +66,7 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 ## Test Reporting & Coverage
 
 - Targeted red/green tests run per implementation task.
+- Task 1 evidence: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49 tests passed; helper coverage 100% statements, branches, functions, and lines.
 - CLI coverage: `npm run test:coverage --workspace=packages/cli` (adjust to repository-native invocation if required by scripts).
 - Full regression: root `npm test`, `npm run lint`, and `npm run build`.
 - Record final commands, outcomes, and any justified exclusions in this document.

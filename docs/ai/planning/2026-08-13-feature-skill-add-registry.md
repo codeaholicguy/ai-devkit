@@ -8,7 +8,7 @@ description: TDD plan for the skill add-registry command and config persistence
 
 ## Milestones
 
-- [ ] Milestone 1: Shared mutation rules and project persistence are covered and green.
+- [x] Milestone 1: Shared mutation rules and project persistence are covered and green.
 - [ ] Milestone 2: Global persistence is covered, including malformed-config protection.
 - [ ] Milestone 3: CLI parsing, scope selection, force handling, opaque URLs, and output are covered and green.
 - [ ] Milestone 4: Implementation/design reconciliation, coverage, full regression, and review gates are green.
@@ -17,9 +17,9 @@ description: TDD plan for the skill add-registry command and config persistence
 
 ### Task 1: Shared mutation logic and project setter
 
-- [ ] **Red:** Add focused tests for a pure registry-mutation helper and `ConfigManager.addSkillRegistry`: first add, sibling preservation, same-value idempotency/no write, conflict/no write, force replacement, and missing project config.
-- [ ] **Green:** Implement the helper and project setter using `read → spread-merge → update` while treating URL as opaque.
-- [ ] **Refactor/validate:** Run the helper and `Config.test.ts` targets plus CLI lint; verify 100% coverage of the helper.
+- [x] **Red:** Add focused tests for a pure registry-mutation helper and `ConfigManager.addSkillRegistry`: first add, sibling preservation, same-value idempotency/no write, conflict/no write, force replacement, and missing project config.
+- [x] **Green:** Implement the helper and project setter using `read → spread-merge → update` while treating URL as opaque.
+- [x] **Refactor/validate:** Run the helper and `Config.test.ts` targets plus CLI lint; verify 100% coverage of the helper.
 - Outcome: project-scope persistence is safe, merge-preserving, idempotent, and force-aware.
 - Dependencies: existing `ConfigManager.update()`, `filterStringRecord`, and CLI error conventions.
 - Test scenarios: all `ConfigManager.addSkillRegistry` scenarios and the shared conflict branches in the testing strategy.
@@ -75,4 +75,4 @@ Task 1 → Task 2 → Task 3 → Task 4 → Task 5. Phase 6 planning reconciliat
 
 ## Progress Summary
 
-Initial plan approved from the binding requirements and reviewed design. No implementation task has started; the next action is Task 1's failing tests.
+Task 1 is complete with 49 focused tests green and 100% coverage of the shared pure mutation helper. No scope changes or blockers were discovered. The next action is Task 2's failing global persistence and malformed-config tests; external push remains restricted pending explicit remote authorization.

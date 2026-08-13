@@ -695,6 +695,102 @@ describe('ConfigManager', () => {
     });
   });
 
+  describe('addSkillRegistry', () => {
+    it('adds a registry while preserving existing registry entries', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        registries: { 'existing/skills': 'existing-url' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkillRegistry('new/skills', 'any string');
+
+      expect(result.registries).toEqual({
+        'existing/skills': 'existing-url',
+        'new/skills': 'any string',
+      });
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        '/test/dir/.ai-devkit.json',
+        expect.objectContaining({
+          registries: {
+            'existing/skills': 'existing-url',
+            'new/skills': 'any string',
+          },
+        }),
+        { spaces: 2 }
+      );
+    });
+
+    it('does not rewrite an identically registered URL', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        registries: { 'new/skills': 'any string' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkillRegistry('new/skills', 'any string');
+
+      expect(result).toBe(config);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it('rejects a different URL for an existing registry without force', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        registries: { 'new/skills': 'old-url' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      await expect(configManager.addSkillRegistry('new/skills', 'new-url')).rejects.toThrow(
+        'Registry "new/skills" is already registered with a different URL. Use --force to overwrite it.'
+      );
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it('overwrites a conflicting URL when force is enabled', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        registries: {
+          'new/skills': 'old-url',
+          'sibling/skills': 'keep-me',
+        },
+        createdAt: '2024-01-01T00:00:00.000Z',
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkillRegistry('new/skills', 'new-url', { force: true });
+
+      expect(result.registries).toEqual({
+        'new/skills': 'new-url',
+        'sibling/skills': 'keep-me',
+      });
+    });
+
+    it('rejects registration when the project config is missing', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      await expect(configManager.addSkillRegistry('new/skills', 'any string')).rejects.toThrow(
+        'Config file not found. Run ai-devkit init first.'
+      );
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getMemoryDbPath', () => {
     it('returns undefined when config does not exist', async () => {
       (mockFs.pathExists as any).mockResolvedValue(false);
