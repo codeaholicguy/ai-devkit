@@ -16,6 +16,8 @@ export type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    ParserHealthProvider,
+    SessionParserHealth,
 } from './adapters/AgentAdapter.js';
 
 export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusManager.js';

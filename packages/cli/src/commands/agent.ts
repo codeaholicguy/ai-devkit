@@ -27,7 +27,9 @@ import {
     type AgentInfo,
     type AgentType,
     type ConversationMessage,
+    type ParserHealthProvider,
     type SessionSummary,
+    type SessionParserHealth,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
@@ -201,6 +203,69 @@ function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
 }
 
+function isParserHealthProvider(value: unknown): value is ParserHealthProvider {
+    return Boolean(
+        value &&
+        typeof value === 'object' &&
+        'getParserHealth' in value &&
+        typeof (value as { getParserHealth?: unknown }).getParserHealth === 'function',
+    );
+}
+
+function reportAgentListParserHealth(manager: AgentManager, agents: AgentInfo[], debug: boolean): void {
+    const health = getListedAgentParserHealth(manager, agents);
+    const failures = health.filter((item) => !item.healthy);
+
+    if (debug) {
+        const logger = createLogger('agent:list');
+        logger('listed agents=%d parser failures=%d', agents.length, failures.length);
+        for (const item of failures) {
+            logger('%s', formatParserHealthDebugLine(item, agents));
+        }
+        return;
+    }
+
+    if (failures.length > 0) {
+        process.stderr.write(
+            `Warning: ${failures.length} listed agent session(s) could not be parsed. Run "ai-devkit agent list --debug" for details.\n`,
+        );
+    }
+}
+
+function getListedAgentParserHealth(manager: AgentManager, agents: AgentInfo[]): SessionParserHealth[] {
+    const byType = new Map<AgentType, string[]>();
+
+    for (const agent of agents) {
+        if (!agent.sessionFilePath) continue;
+        const current = byType.get(agent.type) ?? [];
+        current.push(agent.sessionFilePath);
+        byType.set(agent.type, current);
+    }
+
+    const health: SessionParserHealth[] = [];
+    for (const [type, filePaths] of byType) {
+        const adapter = manager.getAdapter(type);
+        if (!isParserHealthProvider(adapter)) continue;
+        health.push(...adapter.getParserHealth(Array.from(new Set(filePaths))));
+    }
+
+    return health;
+}
+
+function formatParserHealthDebugLine(item: SessionParserHealth, agents: AgentInfo[]): string {
+    const agentName = agents.find((agent) => agent.sessionFilePath === item.sessionFilePath)?.name ?? '<unknown>';
+    const sessionPath = item.sessionFilePath ? path.basename(item.sessionFilePath) : '<none>';
+    return [
+        `adapter=${item.adapterType}`,
+        `agent=${agentName}`,
+        `session=${sessionPath}`,
+        `records=${item.totalRecords}`,
+        `messages=${item.parsedMessages}`,
+        `parseErrors=${item.parseErrors}`,
+        `warning=${item.warning ?? 'parse failed'}`,
+    ].join(' ');
+}
+
 function readStdin(): Promise<string> {
     return new Promise((resolve, reject) => {
         let input = '';
@@ -338,10 +403,15 @@ export function registerAgentCommand(program: Command): void {
         .command('list')
         .description('List all running AI agents')
         .option('-j, --json', 'Output as JSON')
+        .option('--debug', 'Enable debug logging')
         .action(withErrorHandler('list agents', async (options) => {
+            if (options.debug) {
+                enableDebug();
+            }
             const manager = createAgentManager();
             const agents = await manager.listAgents();
             const printAgents = await createPrintAgentService().store.list();
+            reportAgentListParserHealth(manager, agents, Boolean(options.debug));
 
             if (options.json) {
                 console.log(JSON.stringify([...agents, ...printAgents], null, 2));

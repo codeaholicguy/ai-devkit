@@ -1452,6 +1452,88 @@ describe('CodexAdapter', () => {
         });
     });
 
+    describe('getParserHealth', () => {
+        let tmpDir: string;
+        let sessionsDir: string;
+
+        beforeEach(() => {
+            tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-parser-health-'));
+            sessionsDir = path.join(tmpDir, 'sessions');
+            (adapter as any).codexSessionsDir = sessionsDir;
+        });
+
+        afterEach(() => {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        });
+
+        it('reports healthy when messages parse despite non-message records', () => {
+            const day = path.join(sessionsDir, '2026', '08', '13');
+            fs.mkdirSync(day, { recursive: true });
+            const filePath = path.join(day, 'sess-health.jsonl');
+            fs.writeFileSync(filePath, [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-health', cwd: '/repo', timestamp: '2026-08-13T10:00:00Z' } }),
+                JSON.stringify({ type: 'event', timestamp: '2026-08-13T10:00:01Z', payload: { type: 'user_message', message: 'Fix this' } }),
+                '{not json',
+                JSON.stringify({ type: 'mystery_record', timestamp: '2026-08-13T10:00:02Z', payload: { type: 'unknown_payload', message: '???' } }),
+                JSON.stringify({ type: 'event', timestamp: '2026-08-13T10:00:03Z', payload: { type: 'new_tool_payload', message: 'tool data' } }),
+                JSON.stringify({
+                    type: 'response_item',
+                    timestamp: '2026-08-13T10:00:04Z',
+                    payload: {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'Done' }],
+                        internal_chat_message_metadata_passthrough: { turn_id: 'turn-1' },
+                    },
+                }),
+                JSON.stringify({
+                    type: 'event_msg',
+                    timestamp: '2026-08-13T10:00:04.001Z',
+                    payload: {
+                        type: 'item_completed',
+                        turn_id: 'turn-1',
+                        item: {
+                            type: 'AgentMessage',
+                            content: [{ type: 'Text', text: 'Done' }],
+                        },
+                    },
+                }),
+            ].join('\n'));
+
+            const health = adapter.getParserHealth();
+
+            expect(health).toHaveLength(1);
+            expect(health[0]).toMatchObject({
+                adapterType: 'codex',
+                sessionFilePath: filePath,
+                totalRecords: 7,
+                parsedMessages: 2,
+                parseErrors: 1,
+                healthy: true,
+                warning: undefined,
+            });
+        });
+
+        it('flags non-empty session files with zero parsed messages', () => {
+            const day = path.join(sessionsDir, '2026', '08', '13');
+            fs.mkdirSync(day, { recursive: true });
+            fs.writeFileSync(path.join(day, 'sess-empty.jsonl'), [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-empty', cwd: '/repo', timestamp: '2026-08-13T10:00:00Z' } }),
+                JSON.stringify({ type: 'event', timestamp: '2026-08-13T10:00:01Z', payload: { type: 'token_count', input: 10 } }),
+            ].join('\n'));
+
+            const health = adapter.getParserHealth();
+
+            expect(health[0]).toMatchObject({
+                totalRecords: 2,
+                parsedMessages: 0,
+                parseErrors: 0,
+                healthy: false,
+                warning: 'session has 2 record(s) but 0 parsed messages',
+            });
+        });
+    });
+
     describe('listSessions', () => {
         let tmpDir: string;
         let sessionsDir: string;
