@@ -11,7 +11,7 @@ description: TDD plan for the skill add-registry command and config persistence
 - [x] Milestone 1: Shared mutation rules and project persistence are covered and green.
 - [x] Milestone 2: Global persistence is covered, including malformed-config protection.
 - [x] Milestone 3: CLI parsing, scope selection, force handling, opaque URLs, and output are covered and green.
-- [ ] Milestone 4: Implementation/design reconciliation, coverage, full regression, and review gates are green.
+- [x] Milestone 4: Implementation/design reconciliation, coverage, full regression, and review gates are green.
 
 ## Task Breakdown
 
@@ -54,8 +54,8 @@ description: TDD plan for the skill add-registry command and config persistence
 
 - [x] Run focused 100% coverage for all new pure logic and record the report.
 - [x] Run full root lint, test, build, feature lint, and CLI help/smoke validation.
-- [ ] Perform final code review for correctness, security, compatibility, and scope adherence.
-- [ ] Commit final docs/review fixes and prepare the PR body.
+- [x] Perform final code review for correctness, security, compatibility, and scope adherence.
+- [x] Commit final docs/review fixes and prepare the PR body.
 - Outcome: no regression and a merged-ready branch/PR.
 - Dependencies: Task 4 complete.
 
@@ -75,4 +75,4 @@ Task 1 → Task 2 → Task 3 → Task 4 → Task 5. Phase 6 planning reconciliat
 
 ## Progress Summary
 
-Tasks 1–4 are complete. Phase 7 found no requirement/design deviations: the combined focused suite is 90/90 green, downstream precedence is covered by its existing test, CLI help matches the contract, the package builds, and the shared pure mutation helper has 100% coverage. Next is Task 5 final testing/review; external push remains restricted pending explicit remote authorization.
+Tasks 1–5 are complete locally. Phase 9 found no blocking correctness, security, compatibility, integration, or scope issues. The combined focused suite is 90/90 green, downstream precedence is covered by its existing test, CLI help matches the contract, all 954 repository tests pass, all six packages build, and the shared pure mutation helper has 100% coverage. The branch is merged-ready; external push and PR creation remain restricted pending explicit authorization for the configured GitHub remote.

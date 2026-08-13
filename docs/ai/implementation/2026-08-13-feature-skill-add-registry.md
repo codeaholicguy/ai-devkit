@@ -45,9 +45,12 @@ description: Implementation record for project/global registry persistence and C
 - The command reads only the selected target's configured registries to report `registered`, `already registered`, or `updated`, then invokes the authoritative setter.
 - The command imports no `SkillRegistry`, Git, network, index, or cache module. Same-as-default entries are therefore persisted without fetching defaults.
 
-### Pending
+### Completed: Task 5 — testing and review
 
-- Task 5 review and external publication only; all local test/build/lint gates are complete.
+- Full regression, build, lint, focused coverage, CLI help, and lifecycle validation gates passed.
+- Phase 9 reviewed every changed production and test file, traced the new exported methods/helper to callers, compared the manager patterns with existing config mutations, and found no blocking issues.
+- The prepared PR describes the four binding decisions, persistence/conflict behavior, verification evidence, and intentionally deferred registry removal/listing work.
+- External publication is operationally pending explicit authorization for the configured GitHub remote; no implementation work remains.
 
 ## Integration Points
 
@@ -73,6 +76,7 @@ The setters modify only `registries` in the selected config. Existing `SkillRegi
 - Task 3: `npm run lint`, `npm run build`, and the combined command/config coverage run — build/lint green, 90/90 tests passed, helper coverage 100%.
 - Phase 7 alignment: no deviations from the binding requirements or reviewed design. The existing precedence test passed 1/1, and built CLI help matches the command contract.
 - Phase 8: focused suite 90/90 with 100% pure-helper coverage; root lint exited 0, root tests passed 954/954, root build completed all six projects, and feature lint passed.
+- Phase 9: lifecycle lint passed; holistic file-by-file review found no blocking or important findings, no new dependency/cycle risk, no breaking schema change, and safe rollback through removal of the added config entry/command code.
 
 ## Design Alignment
 
