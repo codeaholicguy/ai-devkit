@@ -18,7 +18,7 @@ description: Implementation record for project/global registry persistence and C
 - `packages/cli/src/util/skill-registry.ts`: shared pure add/idempotency/conflict/force decision and merge logic.
 - `packages/cli/src/lib/Config.ts`: project setter using the existing config read/update boundary.
 - `packages/cli/src/lib/GlobalConfig.ts`: global setter and malformed-file guard.
-- `packages/cli/src/commands/skill.ts`: planned flat CLI command.
+- `packages/cli/src/commands/skill.ts`: flat CLI command, validation, scope selection, status output, and flags.
 - `packages/cli/src/__tests__/`: mocked-boundary tests; no real user config, network, Git, or cache I/O.
 
 ## Implementation Notes
@@ -37,9 +37,16 @@ description: Implementation record for project/global registry persistence and C
 - A present file that produces `null` from `read()` fails with `GLOBAL_CONFIG_UNREADABLE`; it is never replaced.
 - Valid config preserves unrelated fields and sibling registries, reuses the shared conflict/force rules, and returns without writing for an identical entry.
 
+### Completed: Task 3 — CLI command
+
+- `skill add-registry <id> <url>` is a flat sibling of existing skill commands; no registry removal/listing command was added.
+- `validateRegistryId()` runs before any manager access. URL is forwarded unchanged.
+- Project scope is the default; `-g/--global` selects `GlobalConfigManager`; `-f/--force` is forwarded to the shared decision and setter.
+- The command reads only the selected target's configured registries to report `registered`, `already registered`, or `updated`, then invokes the authoritative setter.
+- The command imports no `SkillRegistry`, Git, network, index, or cache module. Same-as-default entries are therefore persisted without fetching defaults.
+
 ### Pending
 
-- Task 3: CLI parsing, validation, scope selection, flags, and output.
 - Tasks 4–5: design reconciliation, final coverage/regression, and review.
 
 ## Integration Points
@@ -63,3 +70,4 @@ The setters modify only `registries` in the selected config. Existing `SkillRegi
 
 - Task 1: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49/49 passed; new helper 100% statements, branches, functions, and lines.
 - Task 2: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15/15 passed.
+- Task 3: `npm run lint`, `npm run build`, and the combined command/config coverage run — build/lint green, 90/90 tests passed, helper coverage 100%.

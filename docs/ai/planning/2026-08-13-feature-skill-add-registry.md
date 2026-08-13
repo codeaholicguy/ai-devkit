@@ -10,7 +10,7 @@ description: TDD plan for the skill add-registry command and config persistence
 
 - [x] Milestone 1: Shared mutation rules and project persistence are covered and green.
 - [x] Milestone 2: Global persistence is covered, including malformed-config protection.
-- [ ] Milestone 3: CLI parsing, scope selection, force handling, opaque URLs, and output are covered and green.
+- [x] Milestone 3: CLI parsing, scope selection, force handling, opaque URLs, and output are covered and green.
 - [ ] Milestone 4: Implementation/design reconciliation, coverage, full regression, and review gates are green.
 
 ## Task Breakdown
@@ -35,9 +35,9 @@ description: TDD plan for the skill add-registry command and config persistence
 
 ### Task 3: Flat `skill add-registry` command
 
-- [ ] **Red:** Extend command tests for command shape/help, project/default scope, `-g/--global`, `-f/--force`, ID validation, idempotent/success copy, conflict propagation, opaque URL examples, and absence of registry/cache/Git calls.
-- [ ] **Green:** Register the new sibling command, reuse `validateRegistryId()`, select the manager, inspect only the target scope for output status, invoke the setter, and report success.
-- [ ] **Refactor/validate:** Run command tests, all existing skill command tests, CLI lint, and focused coverage.
+- [x] **Red:** Extend command tests for command shape/help, project/default scope, `-g/--global`, `-f/--force`, ID validation, idempotent/success copy, conflict propagation, opaque URL examples, and absence of registry/cache/Git calls.
+- [x] **Green:** Register the new sibling command, reuse `validateRegistryId()`, select the manager, inspect only the target scope for output status, invoke the setter, and report success.
+- [x] **Refactor/validate:** Run command tests, all existing skill command tests, CLI lint, and focused coverage.
 - Outcome: users can register any URL verbatim in either scope without network/cache work.
 - Dependencies: Tasks 1–2 and existing Commander/UI/error-handler conventions.
 - Test scenarios: all command, integration, help, and adjacent-command regression scenarios in the testing strategy.
@@ -75,4 +75,4 @@ Task 1 → Task 2 → Task 3 → Task 4 → Task 5. Phase 6 planning reconciliat
 
 ## Progress Summary
 
-Tasks 1–2 are complete. Project tests are 49/49 green; global tests are 15/15 green; the shared pure mutation helper remains at 100% coverage. The malformed-global test proves a present unreadable file is not written. No scope changes were discovered. The next action is Task 3's failing CLI tests; external push remains restricted pending explicit remote authorization.
+Tasks 1–3 are complete. The combined focused suite is 90/90 green, the CLI package builds, and the shared pure mutation helper has 100% coverage. The command is the only registry-management command and performs target config reads/writes only. No scope changes were discovered. Next are Task 4 design/implementation reconciliation and Task 5 final testing/review; external push remains restricted pending explicit remote authorization.

@@ -34,21 +34,21 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 ### `skill add-registry` command
 
-- [ ] Registers a valid ID and HTTPS URL in project scope by default.
-- [ ] Routes to global persistence for `-g` and `--global`.
-- [ ] Routes force intent for `-f` and `--force`.
-- [ ] Rejects bare, nested, and dotted registry IDs through `validateRegistryId()`.
-- [ ] Accepts HTTPS without `.git`, SSH/SCP syntax, and arbitrary URL strings verbatim.
-- [ ] Reports `already registered` for idempotent input and a clear conflict error otherwise.
-- [ ] Does not fetch defaults or invoke any cache/Git operation.
-- [ ] Leaves existing `skill add`, `list`, `remove`, `update`, `find`, and `rebuild-index` tests green.
+- [x] Registers a valid ID and HTTPS URL in project scope by default.
+- [x] Routes to global persistence for `-g` and `--global`.
+- [x] Routes force intent for `-f` and `--force`.
+- [x] Rejects bare, nested, and dotted registry IDs through `validateRegistryId()`.
+- [x] Accepts HTTPS without `.git`, SSH/SCP syntax, and arbitrary URL strings verbatim.
+- [x] Reports `already registered` for idempotent input and a clear conflict error otherwise.
+- [x] Does not fetch defaults or invoke any cache/Git operation.
+- [x] Leaves existing `skill add`, `list`, `remove`, `update`, `find`, and `rebuild-index` tests green.
 
 ## Integration Tests
 
-- [ ] Validate command-to-project-manager scope selection with mocked filesystem/config.
-- [ ] Validate command-to-global-manager scope selection with mocked filesystem/config.
+- [x] Validate command-to-project-manager scope selection with mocked filesystem/config.
+- [x] Validate command-to-global-manager scope selection with mocked filesystem/config.
 - [ ] Confirm a persisted project/global entry is already consumed by existing default < global < project merge behavior.
-- [ ] Confirm all failure modes avoid target writes.
+- [x] Confirm all failure modes avoid target writes.
 
 ## End-to-End Tests
 
@@ -68,6 +68,7 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 - Targeted red/green tests run per implementation task.
 - Task 1 evidence: `npx vitest run src/__tests__/lib/Config.test.ts --coverage --coverage.include=src/util/skill-registry.ts` — 49 tests passed; helper coverage 100% statements, branches, functions, and lines.
 - Task 2 evidence: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15 tests passed, including malformed-file no-write and all shared mutation outcomes.
+- Task 3 evidence: CLI lint exited 0 (five pre-existing warnings), CLI build exited 0, and the combined command/config suite passed 90/90 with the helper at 100% coverage.
 - CLI coverage: `npm run test:coverage --workspace=packages/cli` (adjust to repository-native invocation if required by scripts).
 - Full regression: root `npm test`, `npm run lint`, and `npm run build`.
 - Record final commands, outcomes, and any justified exclusions in this document.
