@@ -47,7 +47,7 @@ description: Implementation record for project/global registry persistence and C
 
 ### Pending
 
-- Task 5: final coverage/regression and review.
+- Task 5 review and external publication only; all local test/build/lint gates are complete.
 
 ## Integration Points
 
@@ -72,6 +72,7 @@ The setters modify only `registries` in the selected config. Existing `SkillRegi
 - Task 2: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15/15 passed.
 - Task 3: `npm run lint`, `npm run build`, and the combined command/config coverage run — build/lint green, 90/90 tests passed, helper coverage 100%.
 - Phase 7 alignment: no deviations from the binding requirements or reviewed design. The existing precedence test passed 1/1, and built CLI help matches the command contract.
+- Phase 8: focused suite 90/90 with 100% pure-helper coverage; root lint exited 0, root tests passed 954/954, root build completed all six projects, and feature lint passed.
 
 ## Design Alignment
 

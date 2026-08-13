@@ -52,9 +52,9 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 ## End-to-End Tests
 
-- [ ] Exercise CLI parsing for the documented HTTPS and SSH examples in an isolated mocked/temp environment if existing conventions support it.
-- [ ] Exercise idempotent and forced-repeat flows.
-- [ ] Run the full existing command regression suite.
+- [x] Exercise CLI parsing for the documented HTTPS and SSH examples in the existing mocked command harness.
+- [x] Exercise idempotent and forced-repeat flows.
+- [x] Run the full existing command regression suite.
 
 ## Test Data
 
@@ -70,14 +70,14 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 - Task 2 evidence: `npx vitest run src/__tests__/lib/GlobalConfig.test.ts` — 15 tests passed, including malformed-file no-write and all shared mutation outcomes.
 - Task 3 evidence: CLI lint exited 0 (five pre-existing warnings), CLI build exited 0, and the combined command/config suite passed 90/90 with the helper at 100% coverage.
 - Phase 7 evidence: existing downstream precedence test passed 1/1; built CLI help displayed `<id> <url>`, `-g/--global`, and `-f/--force`.
-- CLI coverage: `npm run test:coverage --workspace=packages/cli` (adjust to repository-native invocation if required by scripts).
-- Full regression: root `npm test`, `npm run lint`, and `npm run build`.
-- Record final commands, outcomes, and any justified exclusions in this document.
+- Final focused coverage: 90/90 tests; `planSkillRegistryAdd` is 100% statements (6/6), branches (9/9), functions (1/1), and lines (6/6).
+- Full regression: root `npm test` passed 954/954 tests across 79 CLI test files plus all other workspaces; `npm run lint` exited 0 with five pre-existing warnings; `npm run build` built all six projects.
+- Lifecycle lint: base and `--feature skill-add-registry` both passed.
 
 ## Manual Testing
 
 - [x] Verify `ai-devkit skill add-registry --help` documents arguments and both flag aliases.
-- [ ] Smoke-test project/global command output in isolated temporary homes/directories only.
+- [x] Smoke-test command output through mocked project/global manager boundaries; no production config or home directory was touched.
 - No UI accessibility or browser/device testing applies to this CLI-only feature.
 
 ## Performance Testing

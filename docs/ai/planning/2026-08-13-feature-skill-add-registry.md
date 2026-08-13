@@ -52,8 +52,8 @@ description: TDD plan for the skill add-registry command and config persistence
 
 ### Task 5: Final testing and review
 
-- [ ] Run focused 100% coverage for all new pure logic and record the report.
-- [ ] Run full root lint, test, build, feature lint, and CLI help/smoke validation.
+- [x] Run focused 100% coverage for all new pure logic and record the report.
+- [x] Run full root lint, test, build, feature lint, and CLI help/smoke validation.
 - [ ] Perform final code review for correctness, security, compatibility, and scope adherence.
 - [ ] Commit final docs/review fixes and prepare the PR body.
 - Outcome: no regression and a merged-ready branch/PR.
