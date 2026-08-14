@@ -255,12 +255,21 @@ describe('AgentManager', () => {
         let regPath: string;
         let registry: AgentRegistry;
         let scopedManager: AgentManager;
+        let nowMs: number;
+        let databaseOperations: string[];
 
         beforeEach(() => {
             tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-manager-'));
             regPath = path.join(tmpDir, 'agents.json');
-            registry = new AgentRegistry(regPath);
+            nowMs = Date.parse('2026-08-14T10:00:00.000Z');
+            databaseOperations = [];
+            registry = new AgentRegistry(regPath, {
+                now: () => new Date(nowMs),
+                pruneIntervalMs: 30_000,
+                onDatabaseOperation: (sql) => databaseOperations.push(sql),
+            });
             scopedManager = new AgentManager(registry);
+            databaseOperations = [];
         });
 
         afterEach(() => {
@@ -406,15 +415,114 @@ describe('AgentManager', () => {
                 .toEqual(['a', 'b']);
         });
 
-        it('skips registerBatch when no agents detected (still calls prune)', async () => {
+        it('performs zero database writes on an unchanged refresh', async () => {
+            const adapter = new MockAdapter('claude', [
+                createMockAgent({
+                    name: 'stable',
+                    pid: process.pid,
+                    projectPath: '/cwd/stable',
+                    sessionId: 'stable-session',
+                    sessionFilePath: '/sessions/stable.jsonl',
+                }),
+            ]);
+            scopedManager.registerAdapter(adapter);
+            await scopedManager.listAgents();
+            databaseOperations = [];
+
+            await scopedManager.listAgents();
+
+            const writes = databaseOperations.filter((sql) => /^\s*(BEGIN|COMMIT|INSERT|UPDATE|DELETE)/i.test(sql));
+            expect(writes).toEqual([]);
+        });
+
+        it('persists changed fields once in one write transaction', async () => {
+            const adapter = new MockAdapter('claude', [
+                createMockAgent({ name: 'changing', pid: process.pid, projectPath: '/cwd/before' }),
+            ]);
+            scopedManager.registerAdapter(adapter);
+            await scopedManager.listAgents();
+            databaseOperations = [];
+            nowMs += 1_000;
+            adapter.setAgents([
+                createMockAgent({ name: 'changing', pid: process.pid, projectPath: '/cwd/after' }),
+            ]);
+
+            await scopedManager.listAgents();
+
+            const upserts = databaseOperations.filter((sql) => /^\s*INSERT INTO agents/i.test(sql));
+            const transactions = databaseOperations.filter((sql) => /^\s*(BEGIN|COMMIT)/i.test(sql));
+            expect(upserts).toHaveLength(1);
+            expect(upserts[0]).toContain("'2026-08-14T10:00:01.000Z'");
+            expect(transactions).toHaveLength(2);
+            expect(registry.lookup('changing')?.cwd).toBe('/cwd/after');
+        });
+
+        it('prunes newly dead entries only when the passive cadence is due', async () => {
+            registry.register({
+                name: 'cadenced',
+                type: 'claude',
+                pid: process.pid,
+                tmuxSession: '',
+                cwd: '/cwd/cadenced',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'sid-cadenced',
+                sessionFilePath: '',
+            });
+            const alive = vi.spyOn(registry, 'isAlive').mockReturnValue(true);
+
+            await scopedManager.listAgents();
+            expect(alive).toHaveBeenCalledTimes(1);
+            alive.mockReturnValue(false);
+            nowMs += 29_999;
+
+            await scopedManager.listAgents();
+            expect(alive).toHaveBeenCalledTimes(1);
+            expect(registry.lookup('cadenced')).not.toBeNull();
+
+            nowMs += 1;
+            await scopedManager.listAgents();
+            expect(alive).toHaveBeenCalledTimes(2);
+            expect(registry.lookup('cadenced')).toBeNull();
+        });
+
+        it('does not inherit a name when the same pid is reused by another agent type', async () => {
+            registry.register({
+                name: 'old-claude',
+                type: 'claude',
+                pid: process.pid,
+                tmuxSession: 'old-claude',
+                cwd: '/cwd/old',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'old-session',
+                sessionFilePath: '',
+            });
+            scopedManager.registerAdapter(new MockAdapter('codex', [
+                createMockAgent({
+                    name: 'new-codex',
+                    type: 'codex',
+                    pid: process.pid,
+                    projectPath: '/cwd/new',
+                    sessionId: 'new-session',
+                }),
+            ]));
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].name).toBe('new-codex');
+            expect(registry.lookup('old-claude')).toBeNull();
+            expect(registry.lookup('new-codex')).toMatchObject({ type: 'codex', pid: process.pid });
+        });
+
+        it('skips registerBatch when no agents are detected and prune is not due', async () => {
             const writeSpy = vi.spyOn(registry, 'registerBatch');
-            const pruneSpy = vi.spyOn(registry, 'prune');
+            const pruneSpy = vi.spyOn(registry, 'pruneIfDue');
 
             scopedManager.registerAdapter(new MockAdapter('claude', []));
             await scopedManager.listAgents();
+            await scopedManager.listAgents();
 
             expect(writeSpy).not.toHaveBeenCalled();
-            expect(pruneSpy).toHaveBeenCalledTimes(1);
+            expect(pruneSpy).toHaveBeenCalledTimes(2);
         });
     });
 

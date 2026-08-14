@@ -27,7 +27,7 @@ export type { AgentSortKey } from './utils/sortAgents.js';
 export type { ListAgentsOptions } from './AgentManager.js';
 
 export { AgentRegistry, RenameNotFoundError, RenameConflictError } from './utils/AgentRegistry.js';
-export type { RegistryEntry } from './utils/AgentRegistry.js';
+export type { AgentRegistryOptions, RegistryEntry } from './utils/AgentRegistry.js';
 export { TmuxManager } from './terminal/TmuxManager.js';
 export { AGENTS } from './utils/agents.js';
 export type { AgentConfig, StartableAgentType } from './utils/agents.js';

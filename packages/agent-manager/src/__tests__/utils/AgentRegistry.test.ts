@@ -118,6 +118,33 @@ describe('AgentRegistry', () => {
             expect(registry.list()).toHaveLength(1);
             expect(registry.lookup('custom-name')?.pid).toBe(process.pid);
         });
+
+        it('cleans up a cross-type row when its pid has been reused', () => {
+            registry.register(makeEntry({ name: 'old-claude', type: 'claude', pid: process.pid }));
+
+            registry.register(makeEntry({
+                name: 'new-codex',
+                type: 'codex',
+                pid: process.pid,
+                tmuxSession: '',
+            }));
+
+            expect(registry.lookup('old-claude')).toBeNull();
+            expect(registry.lookup('new-codex')).toMatchObject({ type: 'codex', pid: process.pid });
+            expect(registry.list()).toHaveLength(1);
+        });
+
+        it('rolls back the whole batch when a live name conflict rejects one entry', () => {
+            registry.register(makeEntry({ name: 'taken', pid: process.pid }));
+
+            expect(() => registry.registerBatch([
+                makeEntry({ name: 'fresh', pid: 999998 }),
+                makeEntry({ name: 'taken', type: 'codex', pid: 999997 }),
+            ])).toThrow(/UNIQUE constraint failed/);
+
+            expect(registry.lookup('fresh')).toBeNull();
+            expect(registry.lookup('taken')?.pid).toBe(process.pid);
+        });
     });
 
     describe('lookup', () => {
@@ -179,6 +206,24 @@ describe('AgentRegistry', () => {
 
         it('does nothing when file is missing', () => {
             expect(() => registry.prune()).not.toThrow();
+        });
+
+        it('keeps forced prune available before the passive cadence is due', () => {
+            let nowMs = Date.parse('2026-08-14T10:00:00.000Z');
+            const clocked = new AgentRegistry(regPath, {
+                now: () => new Date(nowMs),
+                pruneIntervalMs: 30_000,
+            });
+            clocked.register(makeEntry({ name: 'forced', pid: process.pid }));
+            const alive = vi.spyOn(clocked, 'isAlive').mockReturnValue(true);
+            clocked.pruneIfDue();
+            alive.mockReturnValue(false);
+            nowMs += 1;
+
+            clocked.prune();
+
+            expect(alive).toHaveBeenCalledTimes(2);
+            expect(clocked.lookup('forced')).toBeNull();
         });
     });
 

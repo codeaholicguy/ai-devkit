@@ -8,7 +8,7 @@ export const DEFAULT_AGENT_REGISTRY_DB_PATH = join(homedir(), '.ai-devkit', 'age
 
 export interface DatabaseOptions {
     dbPath?: string;
-    verbose?: boolean;
+    verbose?: boolean | ((message: string) => void);
     readonly?: boolean;
 }
 
@@ -27,7 +27,9 @@ export class DatabaseConnection {
 
         this.db = new Database(this.dbPath, {
             readonly: options.readonly ?? false,
-            verbose: options.verbose ? console.log : undefined,
+            verbose: typeof options.verbose === 'function'
+                ? options.verbose
+                : options.verbose ? console.log : undefined,
         });
 
         this.configure();
