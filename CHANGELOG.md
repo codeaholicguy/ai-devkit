@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.50.0] - 2026-08-14
 
 - [ab2a6a3](https://github.com/codeaholicguy/ai-devkit/commit/ab2a6a343133d0df2f6ee5aa0c9e813dd58ae5cc) Added agent modes to CLI agent listings.
 - [3dc4ea6](https://github.com/codeaholicguy/ai-devkit/commit/3dc4ea6d23f77345a78e5a782237d66823d38517) Kept CLI agent list rows on one line.
