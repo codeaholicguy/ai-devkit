@@ -25,7 +25,7 @@ description: Break down work into actionable tasks and estimate timeline
 - [x] Task 3.3: `PreviewSection` — reads context + runs `useAgentConversation`, paused during input focus
 
 ### Phase 4: Chat Input & Actions
-- [x] Task 4.1: `ChatInput` — fully controlled (value/onChange lifted to `ConsoleAppShell`); dynamic line-count reporting for layout
+- [x] Task 4.1: `ChatInput` — locally owns its draft so typing stays within the input subtree; dynamic line-count reporting updates shell layout only when wrapping changes
 - [x] Task 4.2: `runAction` — spawns CLI subprocess (`agent open` / `agent send`) with `stdio: pipe`; resolves via `process.execPath + execArgv + argv[1]`
 - [x] Task 4.3: Transient feedback messages — 4s auto-clear; shown in `StatusFooter`
 

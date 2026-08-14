@@ -17,7 +17,7 @@ packages/cli/src/
     ├── PreviewPane.tsx             # Last-N message renderer
     ├── PreviewSection.tsx          # Runs useAgentConversation, wraps PreviewPane
     ├── StatusFooter.tsx            # Status counts + keybinding hints
-    ├── ChatInput.tsx               # Controlled text input
+    ├── ChatInput.tsx               # Locally controlled message draft
     ├── HeaderBar.tsx               # App label + agent count
     ├── actions/
     │   ├── runAction.ts            # Subprocess dispatcher
@@ -37,7 +37,9 @@ packages/cli/src/
 ## Key Implementation Notes
 
 ### Ink 7 + React 19 keyboard handling
-`useInput` silently fails inside `React.memo` components. All keyboard handling lives in `ConsoleAppShell` (non-memo). Refs (`selectedNameRef`, `agentsRef`) capture current values for use inside `useInput` closures without stale closure bugs.
+`useInput` silently fails inside `React.memo` components. Global keyboard handling lives in `ConsoleAppShell` (non-memo). Refs (`selectedNameRef`, `agentsRef`) capture current values for use inside `useInput` closures without stale closure bugs.
+
+`ChatInput` owns only the controlled `ink-text-input` value. Character edits therefore rerender the input subtree without rerendering `ConsoleAppShell`; focus changes, Escape routing, submission, polling pause, and layout remain shell-owned. Line-count callbacks cross the boundary only when wrapping changes the required height.
 
 ### Layout stability
 Every `<Box>` has explicit `width` + `flexShrink={0}`. Without this, Yoga recalculates and shifts layout on every selection change. `computeLayout()` is a pure function — easy to verify and test independently.

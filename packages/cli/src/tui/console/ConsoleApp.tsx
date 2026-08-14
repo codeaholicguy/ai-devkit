@@ -79,7 +79,6 @@ const ConsoleAppShell: React.FC<{
     const [selectedName, setSelectedName] = useState<string | null>(initialSelection);
     const [focus, setFocus] = useState<ConsoleFocus>('list');
     const [inputLines, setInputLines] = useState(1);
-    const [inputValue, setInputValue] = useState('');
     const [transient, setTransient] = useState<TransientMessage | null>(null);
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
     const [detailScrollOffset, setDetailScrollOffset] = useState(0);
@@ -205,7 +204,6 @@ const ConsoleAppShell: React.FC<{
 
         if (focus === 'input') {
             if (key.escape) {
-                setInputValue('');
                 setFocus('list');
             }
             return;
@@ -388,8 +386,6 @@ const ConsoleAppShell: React.FC<{
             >
                 <ChatInput
                     focused={inputFocused}
-                    value={inputValue}
-                    onChange={setInputValue}
                     onSubmit={handleInputSubmit}
                     onCancel={handleInputCancel}
                     innerWidth={inputInnerWidth}
