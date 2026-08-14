@@ -20,7 +20,7 @@ description: Implementation notes for cached first-frame rendering and live reco
 
 ## Merge Note
 
-Merge before `feature-console-main-thread-responsiveness` when possible. Both branches may touch console list state; retain this branch's synchronous snapshot initializer and atomic live replacement while accepting that branch's scheduling changes.
+The responsiveness changes landed first in `main`. This branch was rebased onto #156–#158; the conflict resolution keeps the split agent/channel contexts and preview memoization, then adds cached-list metadata only to the agent context. Backports should keep that ordering and retain this branch's synchronous snapshot initializer plus atomic live replacement.
 
 ## Validation Evidence
 

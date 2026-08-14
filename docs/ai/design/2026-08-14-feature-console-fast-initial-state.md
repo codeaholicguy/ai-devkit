@@ -33,4 +33,4 @@ The alternative of returning `AgentInfo[]` was rejected because the registry can
 
 ## Merge/Overlap Risk
 
-`feature-console-main-thread-responsiveness` may also edit `useAgentList.ts`, `ConsoleApp.tsx`, or `ConsoleContext.tsx`. Prefer merging this branch first because it adds the snapshot initialization and two state fields while leaving discovery/polling mechanics intact. If the responsiveness branch lands first, resolve overlap by preserving its scheduling/off-main-thread changes and reapplying only the lazy cached initializer plus atomic cache-marker clearing. Do not reintroduce adapter discovery on the render path.
+The responsiveness work landed in `main` first through the preview memoization, input isolation, and split-context changes (#156–#158). This branch was rebased onto that sequence. The resolution preserves its separate agent/channel contexts and adds only `isRefreshing` and `cachedAgentPids` to the agent context, alongside the lazy cached initializer and atomic cache-marker clearing. For backports or alternate merge orders, preserve the responsiveness scheduling/context structure and never reintroduce adapter discovery on the render path.
