@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [ad40b7e](https://github.com/codeaholicguy/ai-devkit/pull/154) Clarified agent console preview formatting and improved rendering performance.
+- [7787f3e](https://github.com/codeaholicguy/ai-devkit/pull/153) Stored the agent registry in SQLite.
+
 ## [0.49.0] - 2026-08-13
 
 - [9593d83](https://github.com/codeaholicguy/ai-devkit/pull/149) Fixed Codex session message parsing in the agent manager.
