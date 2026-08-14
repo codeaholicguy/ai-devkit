@@ -24,7 +24,7 @@ export { TtyWriter } from './terminal/TtyWriter.js';
 
 export { getProcessTty } from './utils/process.js';
 export type { AgentSortKey } from './utils/sortAgents.js';
-export type { ListAgentsOptions } from './AgentManager.js';
+export type { CachedAgentSnapshot, ListAgentsOptions } from './AgentManager.js';
 
 export { AgentRegistry, RenameNotFoundError, RenameConflictError } from './utils/AgentRegistry.js';
 export type { RegistryEntry } from './utils/AgentRegistry.js';

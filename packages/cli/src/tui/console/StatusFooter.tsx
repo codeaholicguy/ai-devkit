@@ -9,6 +9,8 @@ interface StatusFooterProps {
     agents: AgentInfo[];
     lastUpdated: Date | null;
     isLoading: boolean;
+    isRefreshing: boolean;
+    cachedAgentCount: number;
     narrowNote: string | null;
     transient: { kind: 'info' | 'error'; text: string } | null;
 }
@@ -17,6 +19,8 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
     agents,
     lastUpdated,
     isLoading,
+    isRefreshing,
+    cachedAgentCount,
     narrowNote,
     transient,
 }) => {
@@ -34,9 +38,14 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
         `${counts[AgentStatus.IDLE]} idle`,
     ].join(' · ');
 
-    const updated = isLoading && !lastUpdated
-        ? 'loading…'
-        : `updated ${lastUpdated ? formatRelative(lastUpdated) : '—'}`;
+    let updated: string;
+    if (cachedAgentCount > 0) {
+        updated = isRefreshing ? 'cached · refreshing live state…' : 'cached · refresh failed';
+    } else {
+        updated = isLoading && !lastUpdated
+            ? 'loading…'
+            : `updated ${lastUpdated ? formatRelative(lastUpdated) : '—'}`;
+    }
 
     return (
         <Box flexDirection="column">

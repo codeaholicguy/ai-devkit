@@ -14,6 +14,7 @@ interface AgentListPaneProps {
     height?: number;
     error?: string | null;
     channelStatuses?: AgentChannelStatusMap;
+    cachedAgentPids?: ReadonlySet<number>;
 }
 
 function clip(s: string | undefined, max: number): string {
@@ -41,16 +42,19 @@ interface AgentRowProps {
     isSelected: boolean;
     innerWidth: number;
     channelStatus?: AgentChannelStatus;
+    isCached: boolean;
 }
 
 export function getAgentChannelMarker(channelStatus: AgentChannelStatus | undefined): string {
     return channelStatus ? CHANNEL_MARKER : CHANNEL_MARKER_EMPTY;
 }
 
-const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth, channelStatus }) => {
+const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth, channelStatus, isCached }) => {
     const nameW = Math.max(4, innerWidth - ROW_CHROME);
     const summaryW = Math.max(4, innerWidth - MARKER_W);
-    const rawSummary = agent.summary?.trim() ? agent.summary : shortPath(agent.projectPath);
+    const rawSummary = isCached
+        ? `cached · ${shortPath(agent.projectPath)}`
+        : agent.summary?.trim() ? agent.summary : shortPath(agent.projectPath);
     const accent = isSelected ? TUI_COLORS.accent : undefined;
     const typeLabel = AGENT_TYPE_LABEL[agent.type] ?? agent.type;
 
@@ -97,6 +101,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     height,
     error,
     channelStatuses = {},
+    cachedAgentPids = new Set<number>(),
 }) => {
     const [scrollOffset, setScrollOffset] = useState(0);
 
@@ -153,9 +158,11 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
             <Box width={innerWidth} marginBottom={1}>
                 <SectionTitle>AGENTS </SectionTitle>
                 <Text dimColor>({agents.length})</Text>
+                {cachedAgentPids.size > 0 && <Text color={TUI_COLORS.warning}> cached</Text>}
                 {hasAbove && <Text dimColor> ↑</Text>}
                 {hasMore && <Text dimColor> ↓</Text>}
             </Box>
+            {error ? <Text color={TUI_COLORS.danger}>{clip(error, innerWidth)}</Text> : null}
             {visibleAgents.map((agent, i) => (
                 <React.Fragment key={agent.name}>
                     {i > 0 && (
@@ -168,6 +175,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
                         isSelected={agent.name === selectedName}
                         innerWidth={innerWidth}
                         channelStatus={channelStatuses[agent.name]}
+                        isCached={cachedAgentPids.has(agent.pid)}
                     />
                 </React.Fragment>
             ))}

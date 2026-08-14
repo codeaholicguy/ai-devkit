@@ -13,6 +13,8 @@ interface PreviewPaneProps {
     messages: ConversationMessage[];
     error: ConversationFetchError | null;
     isLoading: boolean;
+    isCached?: boolean;
+    isRefreshing?: boolean;
     maxLines?: number;
     channelStatus?: AgentChannelStatus;
     scrollOffset?: number;
@@ -122,7 +124,12 @@ export function getPreviewChannelStatusText(channelStatus: AgentChannelStatus | 
     return channelStatus ? `Connected: ${channelStatus.channelName}` : null;
 }
 
-const MetadataHeader: React.FC<{ agent: AgentInfo; channelStatus?: AgentChannelStatus }> = ({ agent, channelStatus }) => (
+const MetadataHeader: React.FC<{
+    agent: AgentInfo;
+    channelStatus?: AgentChannelStatus;
+    isCached: boolean;
+    isRefreshing: boolean;
+}> = ({ agent, channelStatus, isCached, isRefreshing }) => (
     <Box>
         <SectionTitle>PREVIEW</SectionTitle>
         <Text dimColor> · </Text>
@@ -130,7 +137,11 @@ const MetadataHeader: React.FC<{ agent: AgentInfo; channelStatus?: AgentChannelS
         <Text dimColor> · </Text>
         <Text dimColor>{AGENT_TYPE_LABEL_DISPLAY[agent.type] ?? agent.type}</Text>
         <Text dimColor> · </Text>
-        <Text dimColor>{formatRelative(agent.lastActive)}</Text>
+        <Text dimColor>
+            {isCached
+                ? `cached · ${isRefreshing ? 'refreshing live state' : 'refresh failed'}`
+                : formatRelative(agent.lastActive)}
+        </Text>
         <Text dimColor> · </Text>
         <Text dimColor>{shortPath(agent.projectPath)}</Text>
         {channelStatus ? (
@@ -147,6 +158,8 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     messages,
     error,
     isLoading,
+    isCached = false,
+    isRefreshing = false,
     maxLines = 22,
     channelStatus,
     scrollOffset = 0,
@@ -228,7 +241,12 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
 
     return (
         <Box flexDirection="column">
-            <MetadataHeader agent={agent} channelStatus={channelStatus} />
+            <MetadataHeader
+                agent={agent}
+                channelStatus={channelStatus}
+                isCached={isCached}
+                isRefreshing={isRefreshing}
+            />
             <Box flexDirection="column" flexGrow={1}>
                 {body}
             </Box>

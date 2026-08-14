@@ -23,7 +23,13 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
     scrollOffset = 0,
     onScrollOffsetClamp,
 }) => {
-    const { agents, manager, inputFocused } = useConsoleAgentContext();
+    const {
+        agents,
+        manager,
+        inputFocused,
+        cachedAgentPids,
+        isRefreshing,
+    } = useConsoleAgentContext();
     const { channelStatuses } = useConsoleChannelContext();
     const selectedAgent = useMemo(
         () => agents.find(a => a.name === selectedName) ?? null,
@@ -51,6 +57,8 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
                 messages={messages}
                 error={error}
                 isLoading={isLoading}
+                isCached={selectedAgent ? cachedAgentPids.has(selectedAgent.pid) : false}
+                isRefreshing={isRefreshing}
                 maxLines={Math.max(4, height - 2)}
                 channelStatus={channelStatus}
                 scrollOffset={scrollOffset}

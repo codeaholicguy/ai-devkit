@@ -115,6 +115,27 @@ describe('PreviewPane helpers', () => {
         expect(output).not.toContain('assistant │ first answer');
     });
 
+    it('labels cached preview metadata without presenting registry time as live activity', () => {
+        const agent = {
+            name: 'cached-preview',
+            type: 'claude',
+            status: AgentStatus.UNKNOWN,
+            projectPath: '/tmp/cached',
+            lastActive: new Date('2026-08-14T10:00:00.000Z'),
+        } as AgentInfo;
+        const output = stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [],
+            error: null,
+            isLoading: true,
+            isCached: true,
+            isRefreshing: true,
+        }), { columns: 80 }));
+
+        expect(output).toContain('cached · refreshing live state');
+        expect(output).not.toContain('10:00');
+    });
+
     it('adjusts positive scroll offsets by newly appended rendered rows', () => {
         expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 2)).toBe(4);
         expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 0)).toBe(0);

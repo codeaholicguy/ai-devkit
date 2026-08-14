@@ -169,6 +169,59 @@ describe('AgentManager', () => {
         });
     });
 
+    describe('getCachedAgentSnapshot', () => {
+        it('returns only live cached identities for registered adapter types without discovery', () => {
+            const registry = new AgentRegistry(path.join(tmpDir, 'cached-agents.json'));
+            const scopedManager = new AgentManager(registry);
+            const adapter = new MockAdapter('claude');
+            const detectSpy = vi.spyOn(adapter, 'detectAgents');
+            scopedManager.registerAdapter(adapter);
+            registry.registerBatch([
+                {
+                    name: 'registered-name',
+                    type: 'claude',
+                    pid: process.pid,
+                    tmuxSession: 'registered-name',
+                    cwd: '/repo/cached',
+                    startedAt: '2026-08-14T10:00:00.000Z',
+                    sessionId: 'cached-session',
+                    sessionFilePath: '/sessions/cached.jsonl',
+                },
+                {
+                    name: 'dead-agent',
+                    type: 'claude',
+                    pid: 999999,
+                    tmuxSession: '',
+                    cwd: '/repo/dead',
+                    startedAt: '2026-08-14T09:00:00.000Z',
+                    sessionId: 'dead-session',
+                    sessionFilePath: '',
+                },
+                {
+                    name: 'unsupported-agent',
+                    type: 'codex',
+                    pid: process.pid,
+                    tmuxSession: '',
+                    cwd: '/repo/unsupported',
+                    startedAt: '2026-08-14T08:00:00.000Z',
+                    sessionId: 'unsupported-session',
+                    sessionFilePath: '',
+                },
+            ]);
+
+            expect(scopedManager.getCachedAgentSnapshot()).toEqual([{
+                name: 'registered-name',
+                type: 'claude',
+                pid: process.pid,
+                projectPath: '/repo/cached',
+                startedAt: new Date('2026-08-14T10:00:00.000Z'),
+                sessionId: 'cached-session',
+                sessionFilePath: '/sessions/cached.jsonl',
+            }]);
+            expect(detectSpy).not.toHaveBeenCalled();
+        });
+    });
+
     describe('listAgents', () => {
         it('should return empty array when no adapters registered', async () => {
             const agents = await manager.listAgents();

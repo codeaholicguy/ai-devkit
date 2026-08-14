@@ -23,6 +23,21 @@ export interface ListAgentsOptions {
 }
 
 /**
+ * Registry-backed identity that is safe to show while live adapter discovery
+ * is still in progress. It deliberately omits live-only status and activity
+ * fields.
+ */
+export interface CachedAgentSnapshot {
+    name: string;
+    type: AgentInfo['type'];
+    pid: number;
+    projectPath: string;
+    startedAt: Date;
+    sessionId: string;
+    sessionFilePath?: string;
+}
+
+/**
  * Agent Manager Class
  * 
  * Central manager for detecting AI agents across different types.
@@ -103,6 +118,27 @@ export class AgentManager {
      */
     hasAdapter(type: string): boolean {
         return this.adapters.has(type);
+    }
+
+    /**
+     * Read live registry identities synchronously without invoking adapters.
+     *
+     * Rows are limited to registered adapter types and PIDs that currently
+     * exist. Callers must still treat them as cached: this method does not
+     * claim a live agent status, summary, or last-active timestamp.
+     */
+    getCachedAgentSnapshot(): CachedAgentSnapshot[] {
+        return this.registry.list()
+            .filter(entry => this.adapters.has(entry.type) && this.registry.isAlive(entry))
+            .map(entry => ({
+                name: entry.name,
+                type: entry.type,
+                pid: entry.pid,
+                projectPath: entry.cwd,
+                startedAt: new Date(entry.startedAt),
+                sessionId: entry.sessionId,
+                sessionFilePath: entry.sessionFilePath || undefined,
+            }));
     }
 
     /**

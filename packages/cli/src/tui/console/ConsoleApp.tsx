@@ -112,6 +112,8 @@ const ConsoleAppShell: React.FC<{
         error,
         lastUpdated,
         isLoading,
+        isRefreshing,
+        cachedAgentPids,
         refresh,
     } = useConsoleAgentContext();
     const {
@@ -371,6 +373,7 @@ const ConsoleAppShell: React.FC<{
                 height={contentHeight - 2}
                 error={error}
                 channelStatuses={channelStatuses}
+                cachedAgentPids={cachedAgentPids}
             />
         </Panel>
     );
@@ -423,6 +426,8 @@ const ConsoleAppShell: React.FC<{
                 agents={agents}
                 lastUpdated={lastUpdated}
                 isLoading={isLoading}
+                isRefreshing={isRefreshing}
+                cachedAgentCount={cachedAgentPids.size}
                 narrowNote={
                     narrow && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !memoryListPaneActive && !helpPaneActive
                         ? `resize ≥${NARROW_THRESHOLD_COLS} cols to show preview`
