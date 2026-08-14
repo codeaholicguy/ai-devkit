@@ -2,6 +2,11 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConfigStore, type ChannelConfig, type TelegramConfig } from '@ai-devkit/channel-connector';
 import { ChannelService, type ChannelBridgeProcess } from '../../../services/channel/channel.service.js';
 import type { AgentChannelStatusMap, ConfiguredChannel } from '../types.js';
+import {
+    CONSOLE_POLL_INTERVAL_MS,
+    CONSOLE_POLL_PHASE_MS,
+    schedulePeriodicRefresh,
+} from './pollSchedule.js';
 
 export interface UseChannelStateResult {
     channelStatuses: AgentChannelStatusMap;
@@ -70,7 +75,7 @@ export function configuredChannelsEqual(a: ConfiguredChannel[], b: ConfiguredCha
 export function useChannelState(
     channelService?: ChannelService,
     configStore?: ConfigStore,
-    intervalMs = 3000,
+    intervalMs = CONSOLE_POLL_INTERVAL_MS,
     paused = false,
 ): UseChannelStateResult {
     const serviceRef = useRef<ChannelService>(channelService ?? new ChannelService());
@@ -93,18 +98,33 @@ export function useChannelState(
     useEffect(() => {
         if (paused) return undefined;
 
-        const refreshAll = (): void => {
+        const refreshChannelStatuses = (): void => {
             void refreshChannels().catch(() => {
                 setChannelStatuses(prev => channelStatusesEqual(prev, {}) ? prev : {});
             });
+        };
+        const refreshChannelConfig = (): void => {
             void refreshConfiguredChannels().catch(() => {
                 setConfiguredChannels(prev => configuredChannelsEqual(prev, []) ? prev : []);
             });
         };
 
-        refreshAll();
-        const handle = setInterval(refreshAll, intervalMs);
-        return () => clearInterval(handle);
+        refreshChannelStatuses();
+        refreshChannelConfig();
+        const stopStatusPolling = schedulePeriodicRefresh(
+            refreshChannelStatuses,
+            intervalMs,
+            CONSOLE_POLL_PHASE_MS.channelStatus,
+        );
+        const stopConfigPolling = schedulePeriodicRefresh(
+            refreshChannelConfig,
+            intervalMs,
+            CONSOLE_POLL_PHASE_MS.configuredChannels,
+        );
+        return () => {
+            stopStatusPolling();
+            stopConfigPolling();
+        };
     }, [intervalMs, paused, refreshChannels, refreshConfiguredChannels]);
 
     return {

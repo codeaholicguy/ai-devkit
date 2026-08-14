@@ -1,6 +1,11 @@
 import fs from 'fs';
 import { useEffect, useRef, useState } from 'react';
 import type { AgentInfo, AgentManager, ConversationMessage } from '@ai-devkit/agent-manager';
+import {
+    CONSOLE_POLL_INTERVAL_MS,
+    CONSOLE_POLL_PHASE_MS,
+    schedulePeriodicRefresh,
+} from './pollSchedule.js';
 
 export interface ConversationFetchError {
     kind: 'no-session-file' | 'no-adapter' | 'parse-error' | 'agent-not-found';
@@ -14,7 +19,7 @@ export interface UseAgentConversationResult {
     isLoading: boolean;
 }
 
-export const PREVIEW_POLL_INTERVAL_MS = 3000;
+export const PREVIEW_POLL_INTERVAL_MS = CONSOLE_POLL_INTERVAL_MS;
 export const PREVIEW_TAIL = 20;
 export const SELECTION_DEBOUNCE_MS = 150;
 
@@ -177,11 +182,15 @@ export function useAgentConversation({
             };
         }
 
-        const intervalHandle = setInterval(fetchOnce, intervalMs);
+        const stopPolling = schedulePeriodicRefresh(
+            fetchOnce,
+            intervalMs,
+            CONSOLE_POLL_PHASE_MS.selectedAgentPreview,
+        );
         return () => {
             mountedRef.current = false;
             clearTimeout(debounceHandle);
-            clearInterval(intervalHandle);
+            stopPolling();
         };
     }, [manager, agent?.name, agent?.type, agent?.sessionFilePath, intervalMs, tail, paused]);
 

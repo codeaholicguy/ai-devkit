@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentInfo, AgentManager } from '@ai-devkit/agent-manager';
+import {
+    CONSOLE_POLL_INTERVAL_MS,
+    CONSOLE_POLL_PHASE_MS,
+    schedulePeriodicRefresh,
+} from './pollSchedule.js';
 
 export interface UseAgentListResult {
     agents: AgentInfo[];
@@ -11,7 +16,7 @@ export interface UseAgentListResult {
 
 type AgentListState = Omit<UseAgentListResult, 'refresh'>;
 
-export const LIST_POLL_INTERVAL_MS = 3000;
+export const LIST_POLL_INTERVAL_MS = CONSOLE_POLL_INTERVAL_MS;
 
 export function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {
     if (a.length !== b.length) return false;
@@ -91,11 +96,15 @@ export function useAgentList(
             return () => { mountedRef.current = false; };
         }
         void refresh();
-        const handle = setInterval(() => { void refresh(); }, intervalMs);
+        const stopPolling = schedulePeriodicRefresh(
+            () => { void refresh(); },
+            intervalMs,
+            CONSOLE_POLL_PHASE_MS.agentList,
+        );
 
         return () => {
             mountedRef.current = false;
-            clearInterval(handle);
+            stopPolling();
         };
     }, [intervalMs, paused, refresh]);
 
