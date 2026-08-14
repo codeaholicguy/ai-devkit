@@ -18,6 +18,8 @@ import type {
     AgentInfo,
     ProcessInfo,
     ConversationMessage,
+    ConversationTailOptions,
+    ConversationTailResult,
     SessionSummary,
     ListSessionsOptions,
 } from './AgentAdapter.js';
@@ -27,6 +29,7 @@ import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/sessi
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
 import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
+import { parseJsonFileOffThread } from '../utils/parseJsonFileOffThread.js';
 
 /**
  * A single Gemini CLI message content part. Mirrors the `{text?: string}`
@@ -79,6 +82,14 @@ interface GeminiSession {
     lastMessageType?: string;
 }
 
+interface GeminiConversationCacheEntry {
+    dev: number;
+    ino: number;
+    size: number;
+    mtimeMs: number;
+    messages: ConversationMessage[];
+}
+
 export class GeminiCliAdapter implements AgentAdapter {
     readonly type = 'gemini_cli' as const;
 
@@ -89,6 +100,7 @@ export class GeminiCliAdapter implements AgentAdapter {
 
     private geminiTmpDir: string;
     private registry: AgentRegistry;
+    private readonly conversationCache = new Map<string, GeminiConversationCacheEntry>();
 
     constructor(registry: AgentRegistry = AgentRegistry.default()) {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
@@ -568,6 +580,71 @@ export class GeminiCliAdapter implements AgentAdapter {
             return [];
         }
 
+        return this.conversationMessages(parsed, verbose);
+    }
+
+    async getConversationTail(
+        sessionFilePath: string,
+        options?: ConversationTailOptions,
+    ): Promise<ConversationTailResult> {
+        const verbose = options?.verbose ?? false;
+        const limit = Math.max(0, options?.limit ?? 20);
+        const key = `${sessionFilePath}\0${verbose}\0${limit}`;
+        let stat: fs.Stats;
+        try {
+            stat = await fs.promises.stat(sessionFilePath);
+        } catch {
+            this.conversationCache.delete(key);
+            return this.geminiTailResult([], 0, 0, false, 'missing');
+        }
+
+        const cached = this.conversationCache.get(key);
+        if (
+            cached && cached.dev === stat.dev && cached.ino === stat.ino &&
+            cached.size === stat.size && cached.mtimeMs === stat.mtimeMs
+        ) {
+            this.touchConversationCache(key, cached);
+            return this.geminiTailResult([...cached.messages], 0, 0, true, null);
+        }
+
+        const resetReason = !cached
+            ? 'initial'
+            : cached.dev !== stat.dev || cached.ino !== stat.ino
+                ? 'identity-changed'
+                : stat.size < cached.size ? 'truncated' : null;
+
+        let parsed: GeminiSessionFile;
+        try {
+            parsed = await parseJsonFileOffThread<GeminiSessionFile>(sessionFilePath);
+        } catch {
+            return {
+                ...this.geminiTailResult([], stat.size, 0, false, resetReason),
+                stats: {
+                    ...this.geminiTailResult([], stat.size, 0, false, resetReason).stats,
+                    parseErrors: 1,
+                },
+            };
+        }
+
+        const allMessages = this.conversationMessages(parsed, verbose);
+        const messages = limit > 0 && allMessages.length > limit ? allMessages.slice(-limit) : allMessages;
+        this.touchConversationCache(key, {
+            dev: stat.dev,
+            ino: stat.ino,
+            size: stat.size,
+            mtimeMs: stat.mtimeMs,
+            messages,
+        });
+        return this.geminiTailResult(
+            messages,
+            stat.size,
+            Array.isArray(parsed.messages) ? parsed.messages.length : 0,
+            false,
+            resetReason,
+        );
+    }
+
+    private conversationMessages(parsed: GeminiSessionFile, verbose: boolean): ConversationMessage[] {
         const messages: ConversationMessage[] = [];
         if (!Array.isArray(parsed.messages)) return messages;
 
@@ -597,6 +674,27 @@ export class GeminiCliAdapter implements AgentAdapter {
         }
 
         return messages;
+    }
+
+    private geminiTailResult(
+        messages: ConversationMessage[],
+        bytesRead: number,
+        recordsProcessed: number,
+        cacheHit: boolean,
+        resetReason: ConversationTailResult['stats']['resetReason'],
+    ): ConversationTailResult {
+        return {
+            messages,
+            stats: { bytesRead, recordsProcessed, parseErrors: 0, cacheHit, resetReason },
+        };
+    }
+
+    private touchConversationCache(key: string, entry: GeminiConversationCacheEntry): void {
+        this.conversationCache.delete(key);
+        this.conversationCache.set(key, entry);
+        while (this.conversationCache.size > 50) {
+            this.conversationCache.delete(this.conversationCache.keys().next().value!);
+        }
     }
 
     async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {

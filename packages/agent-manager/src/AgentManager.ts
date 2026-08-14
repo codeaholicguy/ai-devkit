@@ -5,9 +5,13 @@
  * Manages adapter registration and aggregates results from all adapters.
  */
 
+import * as fs from 'node:fs';
 import type {
     AgentAdapter,
     AgentInfo,
+    ConversationMessage,
+    ConversationTailOptions,
+    ConversationTailResult,
     SessionSummary,
     ListSessionsOptions,
 } from './adapters/AgentAdapter.js';
@@ -40,6 +44,15 @@ export interface ListAgentsOptions {
 export class AgentManager {
     private adapters: Map<string, AgentAdapter> = new Map();
     private registry: AgentRegistry;
+    private readonly conversationFallbackCache = new Map<string, {
+        dev: number;
+        ino: number;
+        size: number;
+        mtimeMs: number;
+        messages: ConversationMessage[];
+    }>();
+
+    private static readonly CONVERSATION_CACHE_MAX = 50;
 
     constructor(registry: AgentRegistry = AgentRegistry.default()) {
         this.registry = registry;
@@ -103,6 +116,107 @@ export class AgentManager {
      */
     hasAdapter(type: string): boolean {
         return this.adapters.has(type);
+    }
+
+    /**
+     * Read the newest conversation messages without synchronously parsing in
+     * the caller's stack. Adapters may provide storage-aware incremental
+     * implementations; legacy adapters use a deferred compatibility path.
+     */
+    async getConversationTail(
+        type: string,
+        sessionFilePath: string,
+        options: ConversationTailOptions = {},
+    ): Promise<ConversationTailResult> {
+        const adapter = this.getAdapter(type);
+        if (!adapter) throw new Error(`Unsupported agent type: ${type}`);
+
+        const limit = Math.max(0, options.limit ?? 20);
+        const normalizedOptions = { ...options, limit };
+        if (adapter.getConversationTail) {
+            const result = await adapter.getConversationTail(sessionFilePath, normalizedOptions);
+            return { ...result, messages: this.tailMessages(result.messages, limit) };
+        }
+
+        const cacheKey = `${type}\0${sessionFilePath}\0${options.verbose === true}\0${limit}`;
+        const stat = await this.safeConversationStat(sessionFilePath);
+        const cached = this.conversationFallbackCache.get(cacheKey);
+        if (
+            stat && cached &&
+            cached.dev === stat.dev &&
+            cached.ino === stat.ino &&
+            cached.size === stat.size &&
+            cached.mtimeMs === stat.mtimeMs
+        ) {
+            this.touchConversationCache(cacheKey, cached);
+            return {
+                messages: [...cached.messages],
+                stats: {
+                    bytesRead: 0,
+                    recordsProcessed: 0,
+                    parseErrors: 0,
+                    cacheHit: true,
+                    resetReason: null,
+                },
+            };
+        }
+
+        // Keep legacy synchronous parsing out of the initiating render/effect
+        // stack. Monolithic formats provide an off-thread optimized method;
+        // this bridge remains for incremental-adapter migration compatibility.
+        await new Promise<void>(resolve => setImmediate(resolve));
+        const messages = this.tailMessages(
+            adapter.getConversation(sessionFilePath, { verbose: options.verbose }),
+            limit,
+        );
+
+        if (stat) {
+            this.touchConversationCache(cacheKey, {
+                dev: stat.dev,
+                ino: stat.ino,
+                size: stat.size,
+                mtimeMs: stat.mtimeMs,
+                messages,
+            });
+        }
+
+        return {
+            messages,
+            stats: {
+                bytesRead: stat?.size ?? 0,
+                recordsProcessed: messages.length,
+                parseErrors: 0,
+                cacheHit: false,
+                resetReason: cached
+                    ? (stat && (cached.dev !== stat.dev || cached.ino !== stat.ino)
+                        ? 'identity-changed'
+                        : stat && stat.size < cached.size ? 'truncated' : null)
+                    : 'initial',
+            },
+        };
+    }
+
+    private async safeConversationStat(filePath: string): Promise<fs.Stats | null> {
+        try {
+            return await fs.promises.stat(filePath);
+        } catch {
+            return null;
+        }
+    }
+
+    private tailMessages(messages: ConversationMessage[], limit: number): ConversationMessage[] {
+        return limit > 0 && messages.length > limit ? messages.slice(-limit) : [...messages];
+    }
+
+    private touchConversationCache(
+        key: string,
+        entry: { dev: number; ino: number; size: number; mtimeMs: number; messages: ConversationMessage[] },
+    ): void {
+        this.conversationFallbackCache.delete(key);
+        this.conversationFallbackCache.set(key, entry);
+        while (this.conversationFallbackCache.size > AgentManager.CONVERSATION_CACHE_MAX) {
+            this.conversationFallbackCache.delete(this.conversationFallbackCache.keys().next().value!);
+        }
     }
 
     /**
