@@ -79,6 +79,8 @@ export class AgentRegistry {
         const incomingIsManaged = Boolean(incoming.tmuxSession);
         return {
             ...existing,
+            type: incoming.type,
+            pid: incoming.pid,
             name: incomingIsManaged ? incoming.name : existing.name,
             tmuxSession: incoming.tmuxSession || existing.tmuxSession,
             cwd: incoming.cwd || existing.cwd,
@@ -157,15 +159,39 @@ export class AgentRegistry {
     }
 
     register(entry: RegistryEntry): void {
-        this.registerBatch([entry]);
+        this.db.transaction(() => {
+            const existing = this.findByIdentity(entry.type, entry.pid);
+            this.save(this.mergeEntry(entry, existing));
+        });
     }
 
     registerBatch(entries: RegistryEntry[]): void {
         if (entries.length === 0) return;
         this.db.transaction(() => {
+            const preExistingByName = new Map(this.list().map((entry) => [entry.name, entry]));
             for (const incoming of entries) {
                 const existing = this.findByIdentity(incoming.type, incoming.pid);
-                this.save(this.mergeEntry(incoming, existing));
+                const nameOwner = preExistingByName.get(incoming.name);
+                const transferSource = nameOwner?.type === incoming.type
+                    && nameOwner.pid !== incoming.pid
+                    ? nameOwner
+                    : undefined;
+                const merged = this.mergeEntry(incoming, transferSource ?? existing);
+
+                if (transferSource) {
+                    this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [
+                        transferSource.type,
+                        transferSource.pid,
+                    ]);
+                    if (existing) {
+                        this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [
+                            existing.type,
+                            existing.pid,
+                        ]);
+                    }
+                }
+
+                this.save(merged);
             }
         });
     }

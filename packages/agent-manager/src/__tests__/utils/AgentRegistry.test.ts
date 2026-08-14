@@ -132,6 +132,92 @@ describe('AgentRegistry', () => {
             expect(registry.list()).toHaveLength(1);
             expect(registry.lookup('custom-name')?.pid).toBe(process.pid);
         });
+
+        it('transfers a same-type name from a live wrapper pid to its detected child pid', () => {
+            registry.register(makeEntry({
+                name: 'managed-gemini',
+                type: 'gemini_cli',
+                pid: process.ppid,
+                tmuxSession: 'managed-gemini',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: `pid-${process.ppid}`,
+                sessionFilePath: '',
+            }));
+
+            registry.registerBatch([makeEntry({
+                name: 'managed-gemini',
+                type: 'gemini_cli',
+                pid: process.pid,
+                tmuxSession: '',
+                startedAt: '2026-05-31T00:00:00.000Z',
+                sessionId: 'gemini-session',
+                sessionFilePath: '/tmp/gemini-session.json',
+            })]);
+
+            expect(registry.list()).toEqual([
+                expect.objectContaining({
+                    name: 'managed-gemini',
+                    type: 'gemini_cli',
+                    pid: process.pid,
+                    tmuxSession: 'managed-gemini',
+                    startedAt: '2026-05-30T00:00:00.000Z',
+                    sessionId: 'gemini-session',
+                    sessionFilePath: '/tmp/gemini-session.json',
+                }),
+            ]);
+        });
+
+        it('replaces an existing child fallback when transferring its live wrapper name', () => {
+            registry.register(makeEntry({
+                name: 'managed-gemini',
+                type: 'gemini_cli',
+                pid: process.ppid,
+                tmuxSession: 'managed-gemini',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: `pid-${process.ppid}`,
+                sessionFilePath: '',
+            }));
+            registry.register(makeEntry({
+                name: `ai-devkit-${process.pid}`,
+                type: 'gemini_cli',
+                pid: process.pid,
+                tmuxSession: '',
+                startedAt: '2026-05-31T00:00:00.000Z',
+                sessionId: `pid-${process.pid}`,
+                sessionFilePath: '',
+            }));
+
+            registry.registerBatch([makeEntry({
+                name: 'managed-gemini',
+                type: 'gemini_cli',
+                pid: process.pid,
+                tmuxSession: '',
+                startedAt: '2026-06-01T00:00:00.000Z',
+                sessionId: 'gemini-session',
+                sessionFilePath: '/tmp/gemini-session.json',
+            })]);
+
+            expect(registry.list()).toEqual([
+                expect.objectContaining({
+                    name: 'managed-gemini',
+                    type: 'gemini_cli',
+                    pid: process.pid,
+                    tmuxSession: 'managed-gemini',
+                    startedAt: '2026-05-30T00:00:00.000Z',
+                    sessionId: 'gemini-session',
+                    sessionFilePath: '/tmp/gemini-session.json',
+                }),
+            ]);
+        });
+
+        it('rejects duplicate names introduced within the same batch', () => {
+            expect(() => registry.registerBatch([
+                makeEntry({ name: 'duplicate', pid: process.pid }),
+                makeEntry({ name: 'duplicate', pid: process.ppid }),
+            ])).toThrow(/UNIQUE constraint failed: agents\.name/);
+
+            expect(registry.list()).toEqual([]);
+        });
     });
 
     describe('lookup', () => {
