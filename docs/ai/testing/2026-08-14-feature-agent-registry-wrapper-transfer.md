@@ -18,8 +18,8 @@ description: Regression and integration evidence for wrapper-to-child registry t
 ## Validation
 
 - [x] Focused registry suite: 30 passed.
-- [x] Full agent-manager coverage suite with process access: 513 passed; 89.03% statements, 77.95% branches, 95.94% functions, and 92.3% lines overall.
-- [x] `AgentRegistry.ts` coverage: 98.63% statements and 92.15% branches.
+- [x] Full post-rebase agent-manager coverage suite with process access: 521 passed; 89.03% statements, 78.01% branches, 95.94% functions, and 92.3% lines overall.
+- [x] `AgentRegistry.ts` coverage: 98.64% statements and 92.85% branches.
 - [x] CLI agent service and command tests: 104 passed.
 - [x] Agent-manager typecheck and lint passed.
 - [x] Monorepo build passed for all six projects.
