@@ -8,7 +8,7 @@ description: Implementation log for shared action services
 
 ## Status
 
-Implementation and local validation complete; publication pending.
+Implementation, validation, and publication for review are complete. PR: https://github.com/codeaholicguy/ai-devkit/pull/160
 
 ## Intended Changes
 

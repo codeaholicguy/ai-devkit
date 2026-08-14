@@ -17,7 +17,7 @@ description: TDD task queue for shared console action services
 - [x] Wire immediate `Sending`, `Opening`, and `Stopping channel` feedback and pending guards into console flows.
 - [x] Refactor after green and update implementation/testing documents.
 - [x] Run focused tests, full CLI tests, CLI lint, CLI build, and feature-doc lint.
-- [ ] Review diff, commit conventionally, rebase on `origin/main`, revalidate, push, and open a PR to `main`.
+- [x] Review diff, commit conventionally, rebase on `origin/main`, revalidate, push, and open a PR to `main`.
 
 ## Scope Decision
 
