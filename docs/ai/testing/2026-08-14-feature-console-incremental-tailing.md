@@ -35,7 +35,7 @@ description: Deterministic correctness, regression, and benchmark coverage for a
 - Focused agent-manager feature set: 5 files / 104 tests passed.
 - Hook/cache test: 14 tests passed.
 - Full agent-manager: 27 files / 526 tests passed sequentially with a 30-second allowance for the process-inspection integration.
-- Full CLI: 79 files / 962 tests passed.
+- Full CLI after rebasing onto current `main`: 81 files / 970 tests passed.
 - Agent-manager and CLI lint exited 0; CLI reported five pre-existing warnings outside touched files.
 - Six-project monorepo build and feature-doc lint exited 0.
 - Benchmark append refresh processed exactly 130 bytes / 1 record versus 86,682,730 bytes / 11,747 records on initial load.

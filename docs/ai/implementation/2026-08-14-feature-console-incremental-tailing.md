@@ -65,7 +65,7 @@ Implemented and validated; publication remains.
 
 - Focused new/changed agent-manager tests: 5 files, 104 tests passed.
 - Full agent-manager: 27 files, 526 tests passed sequentially; the default fixed 5-second print-agent integration timeout was exceeded during loaded parallel runs, so the unrelated process-inspection integration was validated separately with a 30-second allowance.
-- Full CLI: 79 files, 962 tests passed.
+- Full CLI after rebasing onto current `main`: 81 files, 970 tests passed.
 - Agent-manager lint: exit 0. CLI lint: exit 0 with five pre-existing unused-catch warnings outside touched files.
 - Monorepo build: all 6 projects passed.
 - Feature lint and `git diff --check`: exit 0.
