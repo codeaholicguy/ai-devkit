@@ -6,9 +6,10 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import { generateAgentName } from '../utils/matching.js';
 
@@ -16,7 +17,7 @@ import { generateAgentName } from '../utils/matching.js';
  * Grok Build CLI Adapter
  *
  * Detects running Grok Build CLI agents by:
- * 1. Finding running `grok` processes via shared listAgentProcesses() — Grok is
+ * 1. Filtering `grok` processes from a shared asynchronous snapshot — Grok is
  *    a native binary at ~/.grok/bin/grok, so argv[0] basename is `grok`.
  * 2. Resolving each live process to its working directory via
  *    ~/.grok/active_sessions.json, which Grok maintains as a list of
@@ -69,6 +70,7 @@ interface GrokSession {
 
 export class GrokCliAdapter implements AgentAdapter {
     readonly type = 'grok_cli' as const;
+    readonly processNames = ['grok'] as const;
 
     private base: string;
     private sessionsDir: string;
@@ -87,13 +89,14 @@ export class GrokCliAdapter implements AgentAdapter {
     }
 
     private isGrokExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
+        const base = executableBasename(command);
         return base === 'grok' || base === 'grok.exe';
     }
 
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(listAgentProcesses('grok'));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) {
             return [];
         }

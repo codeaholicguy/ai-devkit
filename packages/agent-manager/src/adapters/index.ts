@@ -6,4 +6,4 @@ export { GrokCliAdapter } from './GrokCliAdapter.js';
 export { OpenCodeAdapter } from './OpenCodeAdapter.js';
 export { PiAdapter } from './PiAdapter.js';
 export { AgentStatus } from './AgentAdapter.js';
-export type { AgentAdapter, AgentType, AgentInfo, ProcessInfo } from './AgentAdapter.js';
+export type { AgentAdapter, AgentType, AgentInfo, ProcessInfo, AgentDetectionContext } from './AgentAdapter.js';

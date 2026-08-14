@@ -2,8 +2,8 @@
  * Codex Adapter
  *
  * Detects running Codex agents by:
- * 1. Finding running codex processes via shared listAgentProcesses()
- * 2. Enriching with CWD and start times via shared enrichProcesses()
+ * 1. Filtering Codex processes from a shared asynchronous process snapshot
+ * 2. Using snapshot CWD and start-time enrichment
  * 3. Matching exact PID-to-session metadata from ~/.codex/ai-devkit/sessions.json
  * 4. Discovering session files from ~/.codex/sessions/YYYY/MM/DD/ via shared batchGetSessionFileBirthtimes()
  * 5. Setting resolvedCwd from session_meta first line
@@ -20,9 +20,10 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
 import { batchGetSessionFileBirthtimes, isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -88,6 +89,7 @@ interface MappingMatchResult {
 
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
+    readonly processNames = ['codex'] as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
     /** Include session files around process start day to recover long-lived processes. */
@@ -111,8 +113,10 @@ export class CodexAdapter implements AgentAdapter {
     /**
      * Detect running Codex agents
      */
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(listAgentProcesses('codex'));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const { cachedAgents, remaining } = this.tryRegistryCache(processes);
@@ -657,8 +661,7 @@ export class CodexAdapter implements AgentAdapter {
     }
 
     private isCodexExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
+        const base = executableBasename(command);
         return base === 'codex' || base === 'codex.exe';
     }
 

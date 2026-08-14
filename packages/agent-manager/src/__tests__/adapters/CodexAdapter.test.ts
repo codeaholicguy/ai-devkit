@@ -10,17 +10,22 @@ import { CodexAdapter } from '../../adapters/CodexAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
 import { AgentRegistry, type RegistryEntry } from '../../utils/AgentRegistry.js';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
 import { batchGetSessionFileBirthtimes } from '../../utils/session.js';
 import type { SessionFile } from '../../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
 import type { MatchResult } from '../../utils/matching.js';
 import * as os from 'os';
 
-vi.mock('../../utils/process.js', () => ({
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-}));
+vi.mock('../../utils/process.js', async (importOriginal) => {
+    const actual = await importOriginal() as typeof import('../../utils/process.js');
+    return {
+        ...actual,
+        listAgentProcesses: vi.fn(),
+        enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
+    };
+});
 
 vi.mock('../../utils/session.js', async () => {
     const actual = await vi.importActual('../../utils/session') as typeof import('../../utils/session');
@@ -37,6 +42,7 @@ vi.mock('../../utils/matching.js', () => ({
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
 const mockedBatchGetSessionFileBirthtimes = batchGetSessionFileBirthtimes as MockedFunction<typeof batchGetSessionFileBirthtimes>;
 const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
@@ -48,11 +54,16 @@ describe('CodexAdapter', () => {
         adapter = new CodexAdapter();
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
+        mockedCaptureProcessSnapshot.mockReset();
         mockedBatchGetSessionFileBirthtimes.mockReset();
         mockedMatchProcessesToSessions.mockReset();
         mockedGenerateAgentName.mockReset();
         // Default: enrichProcesses returns what it receives
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
+        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
+            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
+        ));
         // Default: generateAgentName returns "folder (pid)"
         mockedGenerateAgentName.mockImplementation((cwd, pid) => {
             const folder = path.basename(cwd) || 'unknown';

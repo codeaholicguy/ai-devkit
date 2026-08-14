@@ -4,7 +4,7 @@
 
 import type { MockedFunction } from 'vitest';
 
-import { execFileSync } from 'child_process';
+import { execFile, execFileSync } from 'child_process';
 import {
     listAgentProcesses,
     batchGetProcessCwds,
@@ -12,13 +12,84 @@ import {
     enrichProcesses,
     findWrapperProcess,
     findWrapperProcessPids,
+    captureProcessSnapshot,
+    filterByProcessNames,
 } from '../../utils/process.js';
 
 vi.mock('child_process', () => ({
+    execFile: vi.fn(),
     execFileSync: vi.fn(),
 }));
 
 const mockedExecFileSync = execFileSync as MockedFunction<typeof execFileSync>;
+const mockedExecFile = execFile as unknown as MockedFunction<(
+    file: string,
+    args: readonly string[],
+    options: object,
+    callback: (error: Error | null, stdout: string, stderr: string) => void,
+) => void>;
+
+describe('captureProcessSnapshot', () => {
+    beforeEach(() => {
+        mockedExecFile.mockReset();
+        mockedExecFileSync.mockReset();
+    });
+
+    it('captures and enriches relevant processes without synchronous scans', async () => {
+        mockedExecFile.mockImplementation((file, args, _options, callback) => {
+            queueMicrotask(() => {
+                if (file === 'ps' && args.includes('-axo')) {
+                    callback(null,
+                        '100 1 s001 /usr/bin/claude --resume abc\n' +
+                        '200 1 s002 C:\\\\tools\\\\node.exe C:\\\\bin\\\\pi.js\n' +
+                        '300 1 s003 /usr/bin/unrelated\n',
+                        '');
+                    return;
+                }
+                if (file === 'lsof') {
+                    callback(null, 'p100\nn/projects/claude\np200\nn/projects/pi\n', '');
+                    return;
+                }
+                if (file === 'ps' && args.some((arg) => arg.includes('lstart='))) {
+                    callback(null,
+                        '100 Wed Mar 18 23:18:01 2026\n' +
+                        '200 Thu Mar 19 10:00:00 2026\n',
+                        '');
+                    return;
+                }
+                callback(new Error(`unexpected command: ${file} ${args.join(' ')}`), '', '');
+            });
+        });
+
+        const snapshot = await captureProcessSnapshot(['claude', 'node']);
+
+        expect(snapshot.map((process) => process.pid)).toEqual([100, 200]);
+        expect(snapshot.map((process) => process.cwd)).toEqual(['/projects/claude', '/projects/pi']);
+        expect(snapshot.map((process) => process.startTime)).toEqual([
+            expect.any(Date),
+            expect.any(Date),
+        ]);
+        expect(mockedExecFileSync).not.toHaveBeenCalled();
+        expect(mockedExecFile.mock.calls.filter(([, args]) => args.includes('-axo'))).toHaveLength(1);
+        for (const [, , options] of mockedExecFile.mock.calls) {
+            expect(options).toMatchObject({ encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+            expect(options).not.toHaveProperty('stdio');
+        }
+    });
+});
+
+describe('filterByProcessNames', () => {
+    it('matches only argv[0] and normalizes Windows paths and executable suffixes', () => {
+        const processes: ProcessInfo[] = [
+            { pid: 1, command: 'C:\\tools\\node.exe C:\\bin\\pi.js', cwd: '', tty: '' },
+            { pid: 2, command: '/usr/local/bin/node /opt/gemini.js', cwd: '', tty: '' },
+            { pid: 3, command: 'codex exec --cd C:\\repos\\node', cwd: '', tty: '' },
+        ];
+
+        expect(filterByProcessNames(processes, ['node'])).toEqual([processes[0], processes[1]]);
+        expect(filterByProcessNames(processes, ['node.exe'])).toEqual([processes[0], processes[1]]);
+    });
+});
 
 describe('listAgentProcesses', () => {
     beforeEach(() => {

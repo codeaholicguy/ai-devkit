@@ -2,8 +2,8 @@
  * Gemini CLI Adapter
  *
  * Detects running Gemini CLI agents by:
- * 1. Finding running gemini processes via shared listAgentProcesses()
- * 2. Enriching with CWD and start times via shared enrichProcesses()
+ * 1. Filtering Gemini Node processes from a shared asynchronous process snapshot
+ * 2. Using snapshot CWD and start-time enrichment
  * 3. Discovering session files from ~/.gemini/tmp/<shortId>/chats/session-*.json
  * 4. Matching sessions to processes via shared matchProcessesToSessions()
  *    using sha256(cwd) === session.projectHash as the resolvedCwd source
@@ -20,9 +20,16 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses, findWrapperProcess, findWrapperProcessPids } from '../utils/process.js';
+import {
+    captureProcessSnapshot,
+    executableBasename,
+    filterByProcessNames,
+    findWrapperProcess,
+    findWrapperProcessPids,
+} from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -81,6 +88,7 @@ interface GeminiSession {
 
 export class GeminiCliAdapter implements AgentAdapter {
     readonly type = 'gemini_cli' as const;
+    readonly processNames = ['node'] as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
     private static readonly SESSION_FILE_PREFIX = 'session-';
@@ -109,12 +117,13 @@ export class GeminiCliAdapter implements AgentAdapter {
      * binary). The primary running process is therefore the Node runtime
      * itself, and `ps aux` lists it as `node /path/to/gemini ...` with
      * argv[0] = `node`. We scan the Node process pool via the shared
-     * helper and keep only those whose command line references the gemini
+     * snapshot and keep only those whose command line references the gemini
      * executable or script via isGeminiExecutable().
      */
-    async detectAgents(): Promise<AgentInfo[]> {
-        const nodeProcesses = enrichProcesses(listAgentProcesses('node'));
-        const processes = nodeProcesses.filter((proc) => this.isGeminiExecutable(proc.command));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const wrapperPids = findWrapperProcessPids(processes);
@@ -541,7 +550,7 @@ export class GeminiCliAdapter implements AgentAdapter {
         // other adapters' argv[0]-only check because the Node-script
         // distribution puts the real gemini path in argv[1..], not argv[0].
         for (const token of command.trim().split(/\s+/)) {
-            const base = path.basename(token).toLowerCase();
+            const base = executableBasename(token);
             if (base === 'gemini' || base === 'gemini.exe' || base === 'gemini.js') {
                 return true;
             }

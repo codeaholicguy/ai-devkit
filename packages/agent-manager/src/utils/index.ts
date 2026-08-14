@@ -1,4 +1,4 @@
-export { listAgentProcesses, batchGetProcessCwds, batchGetProcessStartTimes, enrichProcesses } from './process.js';
+export { listAgentProcesses, batchGetProcessCwds, batchGetProcessStartTimes, enrichProcesses, captureProcessSnapshot } from './process.js';
 export { getProcessTty } from './process.js';
 export { batchGetSessionFileBirthtimes } from './session.js';
 export type { SessionFile } from './session.js';

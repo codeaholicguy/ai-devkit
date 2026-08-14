@@ -11,13 +11,18 @@ import { PiAdapter } from '../../adapters/PiAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
 import { AgentRegistry } from '../../utils/AgentRegistry.js';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
 import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
 
-vi.mock('../../utils/process.js', () => ({
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-}));
+vi.mock('../../utils/process.js', async (importOriginal) => {
+    const actual = await importOriginal() as typeof import('../../utils/process.js');
+    return {
+        ...actual,
+        listAgentProcesses: vi.fn(),
+        enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
+    };
+});
 
 vi.mock('../../utils/matching.js', () => ({
     matchProcessesToSessions: vi.fn(),
@@ -26,6 +31,7 @@ vi.mock('../../utils/matching.js', () => ({
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
 const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
@@ -43,10 +49,15 @@ describe('PiAdapter', () => {
         adapter = new PiAdapter(new AgentRegistry(path.join(tmpHome, 'agents.json')));
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
+        mockedCaptureProcessSnapshot.mockReset();
         mockedMatchProcessesToSessions.mockReset();
         mockedGenerateAgentName.mockReset();
 
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
+        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
+            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
+        ));
         mockedMatchProcessesToSessions.mockReturnValue([]);
         mockedGenerateAgentName.mockImplementation((cwd: string, pid: number) => {
             const folder = path.basename(cwd) || 'unknown';
@@ -67,6 +78,18 @@ describe('PiAdapter', () => {
         expect(adapter.canHandle({ pid: 2, command: '/usr/local/bin/PI --model x', cwd: '/repo', tty: 'ttys002' })).toBe(true);
         expect(adapter.canHandle({ pid: 3, command: 'node /opt/pi/bin/pi.js', cwd: '/repo', tty: 'ttys003' })).toBe(true);
         expect(adapter.canHandle({ pid: 4, command: 'node /repo/feature-pi-adapter/script.js', cwd: '/repo', tty: 'ttys004' })).toBe(false);
+        expect(adapter.canHandle({ pid: 5, command: 'C:\\tools\\node.exe C:\\lib\\pi.js', cwd: '/repo', tty: 'ttys005' })).toBe(true);
+    });
+
+    it('rejects foreign executables from a hand-built snapshot context', async () => {
+        const foreign: ProcessInfo = {
+            pid: 6,
+            command: 'claude --resume /Users/x/repos/pi/session.jsonl',
+            cwd: '/repo',
+            tty: 'ttys006',
+        };
+
+        expect(await adapter.detectAgents({ processes: [foreign] })).toEqual([]);
     });
 
     it('maps a running Pi process to the tracker session for its PID', async () => {

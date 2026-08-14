@@ -59,7 +59,7 @@ export interface ProcessInfo {
     /** Process ID */
     pid: number;
 
-    /** Parent process ID, populated by listAgentProcesses when available */
+    /** Parent process ID, populated by process discovery when available */
     ppid?: number;
 
     /** Process command */
@@ -71,7 +71,7 @@ export interface ProcessInfo {
     /** Terminal TTY (e.g., "ttys030") */
     tty: string;
 
-    /** Process start time, populated by enrichProcesses */
+    /** Process start time, populated by process enrichment */
     startTime?: Date;
 }
 
@@ -148,6 +148,11 @@ export interface ListSessionsOptions {
     type?: AgentType;
 }
 
+export interface AgentDetectionContext {
+    /** One enriched process snapshot shared across this manager refresh. */
+    readonly processes: readonly ProcessInfo[];
+}
+
 /**
  * Agent Adapter Interface
  *
@@ -157,11 +162,14 @@ export interface AgentAdapter {
     /** Type of agent this adapter handles */
     readonly type: AgentType;
 
+    /** Executable basenames required for shared process discovery. */
+    readonly processNames?: readonly string[];
+
     /**
      * Detect running agents of this type
      * @returns List of detected agents
      */
-    detectAgents(): Promise<AgentInfo[]>;
+    detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]>;
 
     /**
      * Check if this adapter can handle the given process
