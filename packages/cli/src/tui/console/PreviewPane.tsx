@@ -25,7 +25,6 @@ const ROLE_COLOR: Record<ConversationMessage['role'], 'green' | 'cyan' | 'yellow
     system: TUI_COLORS.warning,
 };
 
-
 function shortPath(p: string): string {
     const home = process.env.HOME ?? '';
     if (home && p.startsWith(home)) return '~' + p.slice(home.length);
@@ -33,8 +32,10 @@ function shortPath(p: string): string {
 }
 
 export interface PreviewViewportRow {
+    kind: 'header' | 'content' | 'separator' | 'indicator';
     text: string;
     role: ConversationMessage['role'] | null;
+    timestamp?: string;
 }
 
 export interface PreviewViewport {
@@ -46,7 +47,10 @@ export interface PreviewViewport {
 }
 
 export function countPreviewRows(messages: ConversationMessage[]): number {
-    return messages.reduce((total, msg) => total + Math.max(1, msg.content.split('\n').length), 0);
+    return messages.reduce(
+        (total, msg, index) => total + Math.max(1, msg.content.split('\n').length) + 1 + (index > 0 ? 1 : 0),
+        0,
+    );
 }
 
 export function adjustPreviewScrollOffsetForAppendedRows(
@@ -64,12 +68,12 @@ export function buildPreviewViewport(
     requestedOffset: number,
 ): PreviewViewport {
     const budget = Math.max(1, Math.floor(maxLines));
-    const rows = messages.flatMap((msg) => {
+    const rows = messages.flatMap<PreviewViewportRow>((msg, index) => {
         const contentLines = msg.content.split('\n');
-        const first = contentLines[0] ?? '';
         return [
-            { text: `${msg.role}: ${first}`, role: msg.role },
-            ...contentLines.slice(1).map(line => ({ text: `  ${line}`, role: null })),
+            ...(index > 0 ? [{ kind: 'separator' as const, text: '', role: null }] : []),
+            { kind: 'header', text: '', role: msg.role, timestamp: msg.timestamp },
+            ...contentLines.map<PreviewViewportRow>(line => ({ kind: 'content', text: line, role: msg.role })),
         ];
     });
     const contentBudget = rows.length > budget ? Math.max(1, budget - 1) : budget;
@@ -79,8 +83,16 @@ export function buildPreviewViewport(
     const start = Math.max(0, end - contentBudget);
     const hasAbove = start > 0;
     const hasBelow = end < rows.length;
-    const indicator = hasAbove || hasBelow
-        ? [{ text: `${hasAbove ? '↑ older' : '       '}${hasBelow ? ' ↓ newer' : ''}`, role: null }]
+    const firstVisible = rows[start];
+    const continuation = hasAbove && firstVisible?.kind === 'content' && firstVisible.role
+        ? ` · ${firstVisible.role} continued`
+        : '';
+    const indicator: PreviewViewportRow[] = hasAbove || hasBelow
+        ? [{
+            kind: 'indicator',
+            text: `${hasAbove ? '↑ older' : '       '}${continuation}${hasBelow ? ' ↓ newer' : ''}`,
+            role: null,
+        }]
         : [];
     return {
         rows: [...indicator, ...rows.slice(start, end)],
@@ -176,9 +188,27 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
         body = (
             <>
                 {viewport?.rows.map((row, idx) => (
-                    <Box key={idx}>
-                        <Text color={row.role ? ROLE_COLOR[row.role] : undefined}>{row.text}</Text>
-                    </Box>
+                    row.kind === 'indicator' ? (
+                        <Box key={idx}>
+                            <Text dimColor>{row.text}</Text>
+                        </Box>
+                    ) : row.kind === 'header' && row.role ? (
+                        <Box key={idx}>
+                            {row.timestamp ? <Text dimColor>[{new Date(row.timestamp).toLocaleTimeString()}] </Text> : null}
+                            <Text color={ROLE_COLOR[row.role]} bold>{row.role}:</Text>
+                        </Box>
+                    ) : row.kind === 'separator' ? (
+                        <Box key={idx}>
+                            <Text> </Text>
+                        </Box>
+                    ) : (
+                        <Box key={idx}>
+                            <Text>  </Text>
+                            <Box flexGrow={1}>
+                                <Text>{row.text || ' '}</Text>
+                            </Box>
+                        </Box>
+                    )
                 ))}
             </>
         );

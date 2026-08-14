@@ -1,12 +1,26 @@
 import { describe, it, expect } from 'vitest';
-// computeLayout is a pure function exported from ConsoleApp — import only the function,
-// not the React component tree, to avoid JSX in the test environment.
-import { computeCenteredDialog, computeLayout } from '../../../tui/console/ConsoleApp.js';
+// Import pure console configuration helpers without rendering the component tree.
+import {
+    AGENT_CONSOLE_RENDER_OPTIONS,
+    computeCenteredDialog,
+    computeLayout,
+} from '../../../tui/console/ConsoleApp.js';
 
 // Constants mirrored from ConsoleApp.tsx for assertions
 const LIST_PANE_WIDTH = 48;
 const MIN_CONTENT_HEIGHT = 12;
 const INPUT_BOX_CHROME_ROWS = 2;
+
+describe('agent console render options', () => {
+    it('uses incremental 60 FPS rendering for responsive scrolling', () => {
+        expect(AGENT_CONSOLE_RENDER_OPTIONS).toEqual({
+            alternateScreen: true,
+            exitOnCtrlC: true,
+            incrementalRendering: true,
+            maxFps: 60,
+        });
+    });
+});
 
 describe('computeLayout', () => {
     describe('wide mode (narrow=false)', () => {

@@ -54,7 +54,7 @@ import {
     createDefaultAgentGroupService,
 } from '../services/agent/agent-group.service.js';
 import { registerAgentGroupCommand } from './agent/group.command.js';
-import { ConsoleApp } from '../tui/console/ConsoleApp.js';
+import { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp } from '../tui/console/ConsoleApp.js';
 import { generateAgentName } from '../util/agent.js';
 import { select } from '@inquirer/prompts';
 
@@ -842,7 +842,7 @@ export function registerAgentCommand(program: Command): void {
             const manager = createAgentManager();
             const { waitUntilExit } = render(
                 createElement(ConsoleApp, { manager }),
-                { alternateScreen: true, exitOnCtrlC: true },
+                AGENT_CONSOLE_RENDER_OPTIONS,
             );
             await waitUntilExit();
         }));
