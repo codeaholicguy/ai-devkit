@@ -1,10 +1,10 @@
 import React from 'react';
 import { Box, Text } from 'ink';
-import { useConsoleContext } from './state/ConsoleContext.js';
+import { useConsoleAgentContext } from './state/ConsoleContext.js';
 import { TUI_COLORS } from '../design-system/index.js';
 
 const HeaderBarInner: React.FC = () => {
-    const { agents, isLoading } = useConsoleContext();
+    const { agents, isLoading } = useConsoleAgentContext();
     const totalLabel = isLoading && agents.length === 0 ? 'scanning…' : `${agents.length} agent${agents.length === 1 ? '' : 's'}`;
     return (
         <Box paddingX={1}>
