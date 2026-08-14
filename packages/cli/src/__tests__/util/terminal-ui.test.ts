@@ -270,6 +270,29 @@ describe('TerminalUI', () => {
                 expect(call[0]).toBeTruthy();
             });
         });
+
+        it('keeps every rendered line within maxWidth', () => {
+            ui.table({
+                headers: ['Agent', 'Project', 'Type', 'Mode', 'Status', 'Working On', 'Active'],
+                rows: [[
+                    'a-very-long-agent-name',
+                    'a-very-long-project-name',
+                    'Claude Code',
+                    'interactive',
+                    'running',
+                    'Investigating a lengthy parser problem that needs more context',
+                    'just now',
+                ]],
+                maxWidth: 80,
+            });
+
+            const stripMockStyles = (text: string) => text.replace(/\[\/?[A-Z]+\]/g, '');
+            const renderedLines = consoleLogSpy.mock.calls.map((call: any[]) => stripMockStyles(call[0]));
+
+            expect(renderedLines).toHaveLength(3);
+            expect(renderedLines.every((line: string) => line.length <= 80)).toBe(true);
+            expect(renderedLines[2]).toContain('…');
+        });
     });
 
     describe('summary()', () => {

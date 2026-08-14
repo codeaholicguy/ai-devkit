@@ -383,6 +383,7 @@ describe('agent command', () => {
     expect(tableArg.rows[1][3]).toBe('interactive');
     expect(tableArg.rows[0][4]).toContain('wait');
     expect(tableArg.rows[0][6]).toBe('just now');
+    expect(tableArg.maxWidth).toBe(process.stdout.columns ?? 120);
     expect(ui.warning).toHaveBeenCalledWith('1 agent(s) waiting for input.');
   });
 

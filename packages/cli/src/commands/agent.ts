@@ -385,6 +385,7 @@ export function registerAgentCommand(program: Command): void {
             ui.table({
                 headers: ['Agent', 'Project', 'Type', 'Mode', 'Status', 'Working On', 'Active'],
                 rows: rows,
+                maxWidth: process.stdout.columns ?? 120,
                 columnStyles: [
                     (text) => chalk.cyan(text),
                     (text) => chalk.dim(text),

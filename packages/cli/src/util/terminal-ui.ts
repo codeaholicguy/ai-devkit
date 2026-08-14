@@ -1,5 +1,6 @@
 import chalk from 'chalk';
 import ora from 'ora';
+import { truncate } from './text.js';
 
 /**
  * Sanitize message to prevent terminal injection
@@ -8,6 +9,32 @@ import ora from 'ora';
 const sanitize = (message: string): string => {
     // eslint-disable-next-line no-control-regex
     return message.replace(/\x1b\[[0-9;]*m/g, '');
+};
+
+const fitColumnWidths = (naturalWidths: number[], availableWidth: number): number[] => {
+    if (naturalWidths.reduce((sum, width) => sum + width, 0) <= availableWidth) {
+        return [...naturalWidths];
+    }
+
+    let low = 1;
+    let high = Math.max(...naturalWidths);
+    while (low < high) {
+        const candidate = Math.ceil((low + high) / 2);
+        const width = naturalWidths.reduce((sum, value) => sum + Math.min(value, candidate), 0);
+        if (width <= availableWidth) low = candidate;
+        else high = candidate - 1;
+    }
+
+    const fittedWidths = naturalWidths.map(width => Math.min(width, low));
+    let remainingWidth = availableWidth - fittedWidths.reduce((sum, width) => sum + width, 0);
+    for (let i = 0; i < fittedWidths.length && remainingWidth > 0; i += 1) {
+        if (fittedWidths[i] < naturalWidths[i]) {
+            fittedWidths[i] += 1;
+            remainingWidth -= 1;
+        }
+    }
+
+    return fittedWidths;
 };
 
 /**
@@ -115,17 +142,27 @@ export const ui = {
         rows: string[][];
         columnStyles?: Array<(text: string) => string>;
         indent?: string;
+        maxWidth?: number;
     }): void => {
-        const { headers, rows, columnStyles = [], indent = '  ' } = options;
+        const { headers, rows, columnStyles = [], indent = '  ', maxWidth } = options;
 
-        const columnWidths = headers.map((header, i) => {
+        const naturalColumnWidths = headers.map((header, i) => {
             const maxDataWidth = Math.max(...rows.map(row => (row[i] || '').length));
             return Math.max(header.length, maxDataWidth);
         });
+        const columnWidths = maxWidth === undefined
+            ? naturalColumnWidths
+            : fitColumnWidths(
+                naturalColumnWidths,
+                Math.max(
+                    naturalColumnWidths.length,
+                    maxWidth - indent.length - (naturalColumnWidths.length * 2),
+                ),
+            );
 
         const headerRow = headers.map((header, i) => {
             const style = columnStyles[i] || chalk.bold;
-            return style(header.padEnd(columnWidths[i] + 2));
+            return style(truncate(header, columnWidths[i], '…').padEnd(columnWidths[i] + 2));
         }).join('');
         console.log(chalk.dim(indent) + headerRow);
 
@@ -135,7 +172,7 @@ export const ui = {
         rows.forEach(row => {
             const formattedRow = row.map((cell, i) => {
                 const style = columnStyles[i] || ((text: string) => text);
-                return style((cell || '').padEnd(columnWidths[i] + 2));
+                return style(truncate(cell || '', columnWidths[i], '…').padEnd(columnWidths[i] + 2));
             }).join('');
             console.log(indent + formattedRow);
         });
