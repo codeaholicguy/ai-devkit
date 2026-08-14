@@ -27,12 +27,16 @@ description: Define testing approach, test cases, and quality assurance
 - [x] `rename()` updates the name and preserves all other fields.
 - [x] `rename()` reports not-found and live-name conflict errors.
 - [x] `prune()` removes dead PIDs from SQLite.
+- [x] `prune()` preserves custom names and tmux metadata when liveness probing returns `EPERM` or another indeterminate error.
+- [x] `ESRCH` remains the definitive stale-process signal for pruning.
+- [x] Registration and rename name-conflict checks preserve the existing row when its liveness probe returns `EPERM`.
 - [x] Two registry instances can register the same PID without duplicate rows or temp-file failures.
 
 ### AgentManager
 
 - [x] `listAgents()` preserves a user-managed name when adapter detection emits a generated fallback for the same PID.
 - [x] Repeated `listAgents()` calls do not create duplicate registry entries for the same PID.
+- [x] Two `listAgents()` refresh cycles preserve the custom name and `tmuxSession` when process probing returns `EPERM`.
 
 ## Integration Tests
 

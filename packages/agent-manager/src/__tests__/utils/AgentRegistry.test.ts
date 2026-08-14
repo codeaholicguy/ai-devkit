@@ -29,6 +29,7 @@ describe('AgentRegistry', () => {
     });
 
     afterEach(() => {
+        vi.restoreAllMocks();
         fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
@@ -80,6 +81,19 @@ describe('AgentRegistry', () => {
             expect(registry.lookup('custom-name')?.tmuxSession).toBe('custom-name');
             expect(registry.lookup(`ai-devkit-${process.pid}`)).toBeNull();
             expect(registry.list()).toHaveLength(1);
+        });
+
+        it('preserves an existing name conflict when its probe fails with EPERM', () => {
+            registry.register(makeEntry({ name: 'claimed-name', pid: process.pid }));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+            });
+
+            expect(() => registry.register(makeEntry({
+                name: 'claimed-name',
+                pid: process.pid + 1,
+            }))).toThrow();
+            expect(registry.lookup('claimed-name')?.pid).toBe(process.pid);
         });
     });
 
@@ -157,6 +171,30 @@ describe('AgentRegistry', () => {
         it('returns false for a PID that does not exist', () => {
             expect(registry.isAlive(makeEntry({ pid: 999999 }))).toBe(false);
         });
+
+        it('returns true when the process probe is forbidden with EPERM', () => {
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+            });
+
+            expect(registry.isAlive(makeEntry())).toBe(true);
+        });
+
+        it('returns false when the process probe reports ESRCH', () => {
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+            });
+
+            expect(registry.isAlive(makeEntry())).toBe(false);
+        });
+
+        it('returns true when the process probe fails without a definitive error code', () => {
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw new Error('indeterminate probe failure');
+            });
+
+            expect(registry.isAlive(makeEntry())).toBe(true);
+        });
     });
 
     describe('prune', () => {
@@ -175,6 +213,31 @@ describe('AgentRegistry', () => {
             registry.prune();
             const after = registry.list();
             expect(after).toEqual(before);
+        });
+
+        it('preserves entries when liveness probing fails with EPERM', () => {
+            registry.register(makeEntry({ name: 'custom-name', tmuxSession: 'tmux-custom' }));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+            });
+
+            registry.prune();
+
+            expect(registry.lookup('custom-name')).toMatchObject({
+                name: 'custom-name',
+                tmuxSession: 'tmux-custom',
+            });
+        });
+
+        it('removes entries when liveness probing fails with ESRCH', () => {
+            registry.register(makeEntry({ name: 'dead' }));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+            });
+
+            registry.prune();
+
+            expect(registry.lookup('dead')).toBeNull();
         });
 
         it('does nothing when file is missing', () => {
@@ -213,6 +276,17 @@ describe('AgentRegistry', () => {
             registry.register(makeEntry({ name: 'agent-a', pid: process.pid }));
             registry.register(makeEntry({ name: 'agent-b', pid: process.ppid }));
             expect(() => registry.rename('agent-a', 'agent-b')).toThrow(RenameConflictError);
+        });
+
+        it('throws RenameConflictError when the conflicting entry probe fails with EPERM', () => {
+            registry.register(makeEntry({ name: 'agent-a', pid: process.pid }));
+            registry.register(makeEntry({ name: 'agent-b', pid: process.ppid }));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+            });
+
+            expect(() => registry.rename('agent-a', 'agent-b')).toThrow(RenameConflictError);
+            expect(registry.lookup('agent-b')?.pid).toBe(process.ppid);
         });
 
         it('succeeds when new name exists only as a stale (dead) entry', () => {

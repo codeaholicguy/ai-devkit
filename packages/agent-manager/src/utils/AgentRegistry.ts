@@ -138,8 +138,11 @@ export class AgentRegistry {
         try {
             process.kill(entry.pid, 0);
             return true;
-        } catch {
-            return false;
+        } catch (error) {
+            const code = error && typeof error === 'object' && 'code' in error
+                ? error.code
+                : undefined;
+            return code !== 'ESRCH';
         }
     }
 
