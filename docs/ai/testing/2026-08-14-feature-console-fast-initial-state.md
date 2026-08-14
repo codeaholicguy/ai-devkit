@@ -17,7 +17,7 @@ description: Deterministic validation matrix for cached first-frame behavior
 - [x] No-cache startup preserves the existing empty loading state and reconciles to live empty.
 - [x] Cached rows and footer explicitly say cached/refreshing or cached/refresh failed.
 - [x] Cached preview metadata never presents registry start time as live activity.
-- [x] Full agent-manager and CLI suites (504 and 966 tests respectively).
+- [x] Full agent-manager and CLI suites (504 and 974 tests respectively after rebase).
 - [x] Agent-manager and CLI lint/build.
 - [x] Repository docs lint.
 

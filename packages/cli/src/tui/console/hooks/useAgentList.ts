@@ -35,7 +35,9 @@ function cachedAgentToPlaceholder(snapshot: CachedAgentSnapshot): AgentInfo {
 }
 
 function createInitialState(manager: AgentManager): AgentListState {
-    const snapshot = manager.getCachedAgentSnapshot();
+    const snapshot = typeof manager.getCachedAgentSnapshot === 'function'
+        ? manager.getCachedAgentSnapshot()
+        : [];
     const agents = snapshot
         .map(cachedAgentToPlaceholder)
         .sort((left, right) => left.name.localeCompare(right.name));

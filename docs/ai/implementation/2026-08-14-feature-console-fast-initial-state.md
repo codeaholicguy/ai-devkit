@@ -27,7 +27,7 @@ Merge before `feature-console-main-thread-responsiveness` when possible. Both br
 - Focused manager contract: 34/34 tests passed.
 - Focused console stale-while-revalidate/UI: 19/19 tests passed.
 - Full agent-manager: 24 files, 504/504 tests passed (`--maxWorkers=1`; process-identity permission enabled for the existing print integration).
-- Full CLI: 81 files, 966/966 tests passed.
+- Full CLI after rebasing onto the split-context changes: 83 files, 974/974 tests passed.
 - Agent-manager lint, typecheck, and build passed.
 - CLI lint passed with five pre-existing warnings and zero errors; CLI build passed.
 - Feature docs lint passed.
