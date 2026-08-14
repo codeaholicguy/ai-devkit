@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
-import { renderToString } from 'ink';
+import { render, renderToString } from 'ink';
+import { PassThrough } from 'node:stream';
 import { stripVTControlCharacters } from 'node:util';
 import {
     adjustPreviewScrollOffsetForAppendedRows,
@@ -118,5 +119,44 @@ describe('PreviewPane helpers', () => {
         expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 2)).toBe(4);
         expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 0)).toBe(0);
         expect(adjustPreviewScrollOffsetForAppendedRows(7, 5, 2)).toBe(2);
+    });
+
+    it('reuses flattened rows when only the scroll offset changes', async () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        let contentReads = 0;
+        const message = { role: 'assistant', timestamp: '2026-07-02T10:00:00Z' } as ConversationMessage;
+        Object.defineProperty(message, 'content', {
+            get: () => {
+                contentReads += 1;
+                return 'first line\nsecond line\nthird line';
+            },
+        });
+        const stableMessages = [message];
+        const stdout = new PassThrough() as unknown as NodeJS.WriteStream;
+        const preview = (scrollOffset: number) => React.createElement(PreviewPane, {
+            agent,
+            messages: stableMessages,
+            error: null,
+            isLoading: false,
+            maxLines: 4,
+            scrollOffset,
+        });
+        const instance = render(preview(0), { stdout, interactive: false, patchConsole: false });
+        await instance.waitUntilRenderFlush();
+        const readsAfterInitialRender = contentReads;
+        expect(readsAfterInitialRender).toBe(1);
+
+        instance.rerender(preview(1));
+        await instance.waitUntilRenderFlush();
+
+        expect(contentReads).toBe(readsAfterInitialRender);
+        instance.unmount();
+        await instance.waitUntilExit();
     });
 });
