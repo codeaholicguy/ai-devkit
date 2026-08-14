@@ -13,6 +13,7 @@ import type {
     AgentType,
     ConversationMessage,
     SessionSummary,
+    ProcessInfo,
 } from '../adapters/AgentAdapter.js';
 import { AgentStatus } from '../adapters/AgentAdapter.js';
 import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
@@ -170,6 +171,57 @@ describe('AgentManager', () => {
     });
 
     describe('listAgents', () => {
+        it('shares one process snapshot across snapshot-aware adapters', async () => {
+            const processes: ProcessInfo[] = [
+                { pid: 101, command: 'claude', cwd: '/claude', tty: 's001' },
+                { pid: 202, command: 'node /bin/pi', cwd: '/pi', tty: 's002' },
+            ];
+            const captureSnapshot = vi.fn(async () => processes);
+            const createSnapshotAdapter = (type: AgentType, processNames: string[]) => ({
+                type,
+                processNames,
+                detectAgents: vi.fn(async (context?: { processes: readonly ProcessInfo[] }) => {
+                    expect(context?.processes).toBe(processes);
+                    return [];
+                }),
+                canHandle: () => true,
+                getConversation: () => [],
+                listSessions: async () => [],
+            });
+            const claude = createSnapshotAdapter('claude', ['claude']);
+            const pi = createSnapshotAdapter('pi', ['pi', 'node']);
+            const snapshotManager = new AgentManager(
+                new AgentRegistry(path.join(tmpDir, 'snapshot-agents.json')),
+                captureSnapshot,
+            );
+
+            snapshotManager.registerAdapter(claude as AgentAdapter);
+            snapshotManager.registerAdapter(pi as AgentAdapter);
+
+            await snapshotManager.listAgents();
+
+            expect(captureSnapshot).toHaveBeenCalledTimes(1);
+            expect(captureSnapshot).toHaveBeenCalledWith(['claude', 'pi', 'node']);
+            expect(claude.detectAgents).toHaveBeenCalledTimes(1);
+            expect(pi.detectAgents).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not pass a snapshot context to legacy adapters', async () => {
+            const captureSnapshot = vi.fn(async () => []);
+            const legacy = new MockAdapter('claude');
+            const detect = vi.spyOn(legacy, 'detectAgents');
+            const snapshotManager = new AgentManager(
+                new AgentRegistry(path.join(tmpDir, 'legacy-agents.json')),
+                captureSnapshot,
+            );
+            snapshotManager.registerAdapter(legacy);
+
+            await snapshotManager.listAgents();
+
+            expect(captureSnapshot).not.toHaveBeenCalled();
+            expect(detect).toHaveBeenCalledWith();
+        });
+
         it('should return empty array when no adapters registered', async () => {
             const agents = await manager.listAgents();
             expect(agents).toEqual([]);

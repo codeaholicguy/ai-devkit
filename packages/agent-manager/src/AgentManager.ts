@@ -10,9 +10,13 @@ import type {
     AgentInfo,
     SessionSummary,
     ListSessionsOptions,
+    ProcessInfo,
 } from './adapters/AgentAdapter.js';
 import { sortAgents, type AgentSortKey } from './utils/sortAgents.js';
 import { AgentRegistry, type RegistryEntry } from './utils/AgentRegistry.js';
+import { captureProcessSnapshot } from './utils/process.js';
+
+type ProcessSnapshotCapture = (namePatterns: readonly string[]) => Promise<ProcessInfo[]>;
 
 export interface ListAgentsOptions {
     /**
@@ -41,7 +45,10 @@ export class AgentManager {
     private adapters: Map<string, AgentAdapter> = new Map();
     private registry: AgentRegistry;
 
-    constructor(registry: AgentRegistry = AgentRegistry.default()) {
+    constructor(
+        registry: AgentRegistry = AgentRegistry.default(),
+        private readonly captureSnapshot: ProcessSnapshotCapture = captureProcessSnapshot,
+    ) {
         this.registry = registry;
     }
 
@@ -126,10 +133,25 @@ export class AgentManager {
         const allAgents: AgentInfo[] = [];
         const errors: Array<{ type: string; error: Error }> = [];
 
-        // Query all adapters in parallel
-        const adapterPromises = Array.from(this.adapters.values()).map(async (adapter) => {
+        const adapters = Array.from(this.adapters.values());
+        const processNames = Array.from(new Set(adapters.flatMap(
+            (adapter) => adapter.processNames ? [...adapter.processNames] : [],
+        )));
+        let processes: readonly ProcessInfo[] = [];
+        if (processNames.length > 0) {
             try {
-                const agents = await adapter.detectAgents();
+                processes = await this.captureSnapshot(processNames);
+            } catch {
+                processes = [];
+            }
+        }
+
+        // Query all adapters in parallel using the same immutable snapshot.
+        const adapterPromises = adapters.map(async (adapter) => {
+            try {
+                const agents = adapter.processNames
+                    ? await adapter.detectAgents({ processes })
+                    : await adapter.detectAgents();
                 return { type: adapter.type, agents, error: null };
             } catch (error) {
                 // Capture error but don't throw - allow other adapters to continue

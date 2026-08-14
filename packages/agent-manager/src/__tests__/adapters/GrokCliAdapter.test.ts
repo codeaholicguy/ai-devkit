@@ -13,7 +13,7 @@ import * as path from 'path';
 import { GrokCliAdapter } from '../../adapters/GrokCliAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
 import { generateAgentName } from '../../utils/matching.js';
 
 vi.mock('../../utils/process.js', async (importOriginal) => {
@@ -22,6 +22,7 @@ vi.mock('../../utils/process.js', async (importOriginal) => {
         ...actual,
         listAgentProcesses: vi.fn(),
         enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
     };
 });
 
@@ -35,6 +36,7 @@ vi.mock('../../utils/matching.js', async (importOriginal) => {
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 const SESSION_ID = '019f16c3-5d5d-7dc3-85d1-bc629416ca2d';
@@ -64,9 +66,13 @@ describe('GrokCliAdapter', () => {
 
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
+        mockedCaptureProcessSnapshot.mockReset();
         mockedGenerateAgentName.mockReset();
 
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
+            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
+        ));
         mockedGenerateAgentName.mockImplementation((c: string, pid: number) => `${path.basename(c) || 'unknown'}-${pid}`);
     });
 

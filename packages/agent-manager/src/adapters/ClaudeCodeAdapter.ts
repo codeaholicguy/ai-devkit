@@ -7,9 +7,10 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { captureProcessSnapshot } from '../utils/process.js';
 import { batchGetSessionFileBirthtimes, isDirectory, listJsonl, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -60,14 +61,15 @@ const PID_FILE_STALENESS_MS = 60000;
  * Claude Code Adapter
  *
  * Detects Claude Code agents by:
- * 1. Finding running claude processes via shared listAgentProcesses()
- * 2. Enriching with CWD and start times via shared enrichProcesses()
+ * 1. Filtering Claude processes from a shared asynchronous process snapshot
+ * 2. Using snapshot CWD and start-time enrichment
  * 3. Attempting authoritative PID-file matching via ~/.claude/sessions/<pid>.json
  * 4. Falling back to CWD+birthtime heuristic (matchProcessesToSessions) for processes without a PID file
  * 5. Extracting summary from last user message in session JSONL
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
     readonly type = 'claude' as const;
+    readonly processNames = ['claude'] as const;
 
     private projectsDir: string;
     private sessionsDir: string;
@@ -90,8 +92,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         return base === 'claude' || base === 'claude.exe';
     }
 
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(listAgentProcesses('claude'));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const processes = snapshot.filter((process) => this.canHandle(process));
         if (processes.length === 0) {
             return [];
         }

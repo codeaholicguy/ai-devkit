@@ -2,8 +2,8 @@
  * Copilot Adapter
  *
  * Detects running GitHub Copilot CLI agents by:
- * 1. Finding running copilot processes via shared listAgentProcesses()
- * 2. Enriching with CWD and start times via shared enrichProcesses()
+ * 1. Filtering Copilot processes from a shared asynchronous process snapshot
+ * 2. Using snapshot CWD and start-time enrichment
  * 3. Mapping active ~/.copilot/session-state/{sessionId}/inuse.{pid}.lock files to processes
  * 4. Reading events.jsonl as the primary session/conversation source
  * 5. Reading workspace.yaml as a flat fallback metadata source
@@ -17,9 +17,10 @@ import type {
     ListSessionsOptions,
     ProcessInfo,
     SessionSummary,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { enrichProcesses, findWrapperProcess, findWrapperProcessPids, listAgentProcesses } from '../utils/process.js';
+import { captureProcessSnapshot, findWrapperProcess, findWrapperProcessPids } from '../utils/process.js';
 import { generateAgentName } from '../utils/matching.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
@@ -89,6 +90,7 @@ interface CopilotEventSummary {
 
 export class CopilotAdapter implements AgentAdapter {
     readonly type = 'copilot' as const;
+    readonly processNames = ['copilot'] as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
     private static readonly VERBOSE_SYSTEM_EVENTS = new Set([
@@ -120,8 +122,9 @@ export class CopilotAdapter implements AgentAdapter {
         return this.isCopilotExecutable(processInfo.command);
     }
 
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(listAgentProcesses('copilot'));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const processes = snapshot.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const processByPid = new Map(processes.map((proc) => [proc.pid, proc]));

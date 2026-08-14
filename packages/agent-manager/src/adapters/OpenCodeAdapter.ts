@@ -2,8 +2,8 @@
  * OpenCode Adapter
  *
  * Detects running OpenCode agents by:
- * 1. Finding running opencode processes via shared listAgentProcesses()
- * 2. Enriching with CWD and start times via shared enrichProcesses()
+ * 1. Filtering OpenCode processes from a shared asynchronous process snapshot
+ * 2. Using snapshot CWD and start-time enrichment
  * 3. Querying OpenCode's SQLite DB (~/.local/share/opencode/opencode.db) to
  *    find the session matching each process's CWD and read status from message.time.completed
  *
@@ -21,9 +21,10 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { captureProcessSnapshot } from '../utils/process.js';
 import { generateAgentName } from '../utils/matching.js';
 
 const SESSION_REF_SEP = '::';
@@ -55,6 +56,7 @@ interface OpenCodeSessionStats {
 
 export class OpenCodeAdapter implements AgentAdapter {
     readonly type = 'opencode' as const;
+    readonly processNames = ['opencode'] as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
 
@@ -89,8 +91,9 @@ export class OpenCodeAdapter implements AgentAdapter {
         return base === 'opencode' || base === 'opencode.exe';
     }
 
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(listAgentProcesses('opencode'));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const processes = snapshot.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const db = this.openDb();

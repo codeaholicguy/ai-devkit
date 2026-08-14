@@ -10,7 +10,7 @@ import * as path from 'path';
 import { CopilotAdapter } from '../../adapters/CopilotAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
 import { generateAgentName } from '../../utils/matching.js';
 import { AgentRegistry } from '../../utils/AgentRegistry.js';
 
@@ -20,6 +20,7 @@ vi.mock('../../utils/process.js', async (importOriginal) => {
         ...actual,
         listAgentProcesses: vi.fn(),
         enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
     };
 });
 
@@ -29,6 +30,7 @@ vi.mock('../../utils/matching.js', () => ({
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 describe('CopilotAdapter', () => {
@@ -45,8 +47,12 @@ describe('CopilotAdapter', () => {
 
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
+        mockedCaptureProcessSnapshot.mockReset();
         mockedGenerateAgentName.mockReset();
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
+            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
+        ));
         mockedGenerateAgentName.mockImplementation((cwd, pid) => `${path.basename(cwd) || 'unknown'} (${pid})`);
     });
 

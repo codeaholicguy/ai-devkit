@@ -17,9 +17,10 @@ import type {
     ConversationMessage,
     SessionSummary,
     ListSessionsOptions,
+    AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
+import { captureProcessSnapshot } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -66,6 +67,7 @@ interface TrackerAgentResult {
 
 export class PiAdapter implements AgentAdapter {
     readonly type = 'pi' as const;
+    readonly processNames = ['pi', 'node'] as const;
 
     private static readonly IDLE_THRESHOLD_MINUTES = 5;
 
@@ -86,8 +88,9 @@ export class PiAdapter implements AgentAdapter {
         return this.isPiExecutable(processInfo.command);
     }
 
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(this.listPiProcesses());
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const processes = this.listPiProcesses(snapshot);
         if (processes.length === 0) return [];
 
         const { cachedAgents, remaining } = this.tryRegistryCache(processes);
@@ -149,12 +152,9 @@ export class PiAdapter implements AgentAdapter {
         return agents;
     }
 
-    private listPiProcesses(): ProcessInfo[] {
+    private listPiProcesses(snapshot: readonly ProcessInfo[]): ProcessInfo[] {
         const byPid = new Map<number, ProcessInfo>();
-        for (const proc of listAgentProcesses('pi')) {
-            if (this.canHandle(proc)) byPid.set(proc.pid, proc);
-        }
-        for (const proc of listAgentProcesses('node')) {
+        for (const proc of snapshot) {
             if (this.canHandle(proc)) byPid.set(proc.pid, proc);
         }
         return Array.from(byPid.values());
