@@ -12,17 +12,35 @@ import {
 
 export { buildAgentChannelStatuses, buildConfiguredChannels };
 
-interface ConsoleContextValue extends UseAgentListResult, UseChannelStateResult {
+interface ConsoleAgentContextValue extends UseAgentListResult {
     manager: AgentManager;
     inputFocused: boolean;
 }
 
-const ConsoleContext = createContext<ConsoleContextValue | null>(null);
+type ConsoleChannelContextValue = UseChannelStateResult;
 
-export const useConsoleContext = (): ConsoleContextValue => {
-    const ctx = useContext(ConsoleContext);
-    if (!ctx) throw new Error('useConsoleContext must be used inside <ConsoleProvider>');
+const ConsoleAgentContext = createContext<ConsoleAgentContextValue | null>(null);
+const ConsoleChannelContext = createContext<ConsoleChannelContextValue | null>(null);
+
+export const useConsoleAgentContext = (): ConsoleAgentContextValue => {
+    const ctx = useContext(ConsoleAgentContext);
+    if (!ctx) throw new Error('useConsoleAgentContext must be used inside <ConsoleProvider>');
     return ctx;
+};
+
+export const useConsoleChannelContext = (): ConsoleChannelContextValue => {
+    const ctx = useContext(ConsoleChannelContext);
+    if (!ctx) throw new Error('useConsoleChannelContext must be used inside <ConsoleProvider>');
+    return ctx;
+};
+
+export const useConsoleContext = (): ConsoleAgentContextValue & ConsoleChannelContextValue => {
+    const agentContext = useConsoleAgentContext();
+    const channelContext = useConsoleChannelContext();
+    return useMemo(
+        () => ({ ...agentContext, ...channelContext }),
+        [agentContext, channelContext],
+    );
 };
 
 interface ConsoleProviderProps {
@@ -45,14 +63,45 @@ export const ConsoleProvider: React.FC<ConsoleProviderProps> = ({
     const list = useAgentList(manager, undefined, inputFocused);
     const channelState = useChannelState(channelService, configStore, undefined, inputFocused);
 
-    const value = useMemo<ConsoleContextValue>(
+    const agentValue = useMemo<ConsoleAgentContextValue>(
         () => ({
-            ...list,
-            ...channelState,
+            agents: list.agents,
+            error: list.error,
+            lastUpdated: list.lastUpdated,
+            isLoading: list.isLoading,
+            refresh: list.refresh,
             manager,
             inputFocused,
         }),
-        [list, channelState, manager, inputFocused],
+        [
+            list.agents,
+            list.error,
+            list.lastUpdated,
+            list.isLoading,
+            list.refresh,
+            manager,
+            inputFocused,
+        ],
     );
-    return <ConsoleContext.Provider value={value}>{children}</ConsoleContext.Provider>;
+    const channelValue = useMemo<ConsoleChannelContextValue>(
+        () => ({
+            channelStatuses: channelState.channelStatuses,
+            refreshChannels: channelState.refreshChannels,
+            configuredChannels: channelState.configuredChannels,
+            refreshConfiguredChannels: channelState.refreshConfiguredChannels,
+        }),
+        [
+            channelState.channelStatuses,
+            channelState.refreshChannels,
+            channelState.configuredChannels,
+            channelState.refreshConfiguredChannels,
+        ],
+    );
+    return (
+        <ConsoleAgentContext.Provider value={agentValue}>
+            <ConsoleChannelContext.Provider value={channelValue}>
+                {children}
+            </ConsoleChannelContext.Provider>
+        </ConsoleAgentContext.Provider>
+    );
 };

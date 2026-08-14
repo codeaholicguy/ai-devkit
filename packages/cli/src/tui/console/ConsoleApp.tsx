@@ -1,7 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Box, useApp, useInput, type RenderOptions } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
-import { ConsoleProvider, useConsoleContext } from './state/ConsoleContext.js';
+import {
+    ConsoleProvider,
+    useConsoleAgentContext,
+    useConsoleChannelContext,
+} from './state/ConsoleContext.js';
 import { useTerminalSize } from './hooks/useTerminalSize.js';
 import { useStartAgentPane } from './hooks/useStartAgentPane.js';
 import { useRenameAgentPane } from './hooks/useRenameAgentPane.js';
@@ -109,11 +113,13 @@ const ConsoleAppShell: React.FC<{
         lastUpdated,
         isLoading,
         refresh,
+    } = useConsoleAgentContext();
+    const {
         channelStatuses,
         configuredChannels,
         refreshConfiguredChannels,
         refreshChannels,
-    } = useConsoleContext();
+    } = useConsoleChannelContext();
     const agentsRef = useRef(agents);
     agentsRef.current = agents;
 

@@ -1,6 +1,9 @@
 import React, { useMemo } from 'react';
 import { PreviewPane } from './PreviewPane.js';
-import { useConsoleContext } from './state/ConsoleContext.js';
+import {
+    useConsoleAgentContext,
+    useConsoleChannelContext,
+} from './state/ConsoleContext.js';
 import { useAgentConversation } from './hooks/useAgentConversation.js';
 import { Panel } from '../design-system/index.js';
 import { getPreviewPanelTone } from './PreviewPane.js';
@@ -20,7 +23,8 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
     scrollOffset = 0,
     onScrollOffsetClamp,
 }) => {
-    const { agents, manager, inputFocused, channelStatuses } = useConsoleContext();
+    const { agents, manager, inputFocused } = useConsoleAgentContext();
+    const { channelStatuses } = useConsoleChannelContext();
     const selectedAgent = useMemo(
         () => agents.find(a => a.name === selectedName) ?? null,
         [agents, selectedName],
