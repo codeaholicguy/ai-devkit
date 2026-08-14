@@ -8,7 +8,7 @@ description: Test coverage plan, test file locations, and results
 
 ## Scope
 
-React components and hooks cannot be tested without `@testing-library/react` or `ink-testing-library` (not available in this project). Coverage targets all pure TypeScript logic: layout calculation, equality checks, LRU cache, time formatting, and subprocess dispatch.
+React components are tested selectively through Ink's public renderer without adding a separate testing-library dependency. Coverage otherwise targets pure TypeScript logic: layout calculation, equality checks, LRU cache, time formatting, and subprocess dispatch.
 
 ## Test Files
 
@@ -19,8 +19,9 @@ React components and hooks cannot be tested without `@testing-library/react` or 
 | `src/__tests__/tui/console/hooks/conversationCache.test.ts` | `cacheSet`, `conversationCache`, `messagesEqual` | 11 |
 | `src/__tests__/tui/console/hooks/agentsEqual.test.ts` | `agentsEqual` in `useAgentList.ts` | 11 |
 | `src/__tests__/tui/console/actions/runAction.test.ts` | `runAction.ts` | 7 |
+| `src/__tests__/tui/console/ChatInput.test.ts` | Local draft rendering, parent render isolation, submit/cancel clearing, focus clearing, wrapping, cursor editing | 6 |
 
-**Total new tests: 47** | **All passing**
+**Total new tests: 53** | **All passing**
 
 ## What Each Suite Validates
 
@@ -67,8 +68,8 @@ React components and hooks cannot be tested without `@testing-library/react` or 
 
 ## Coverage Notes
 
-**Not covered by automated tests** (require ink-testing-library or manual QA):
-- React component rendering: `AgentListPane`, `PreviewPane`, `StatusFooter`, `ChatInput`, `HeaderBar`
+**Not covered by automated tests** (require broader Ink integration coverage or manual QA):
+- React component rendering: `AgentListPane`, `PreviewPane`, `StatusFooter`, `HeaderBar`
 - Hook behaviour: `useAgentList`, `useAgentConversation`, `useTerminalSize`
 - Keyboard navigation: j/k, o, i, q in `ConsoleAppShell`
 - Narrow/wide layout transition on terminal resize
@@ -83,7 +84,7 @@ React components and hooks cannot be tested without `@testing-library/react` or 
 ## Results
 
 ```
-Test Files  41 passed (41)
-     Tests  621 passed (621)   ← includes 47 new agent-console tests
-  Duration  2.65s
+Test Files  80 passed (80)
+     Tests  965 passed (965)   ← includes 53 agent-console tests from this feature
+  Duration  13.76s
 ```

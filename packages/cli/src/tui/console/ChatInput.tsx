@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import type { FC } from 'react';
 import { Box, Text } from 'ink';
 import TextInput from 'ink-text-input';
@@ -6,8 +6,6 @@ import { TUI_COLORS } from '../design-system/index.js';
 
 interface ChatInputProps {
     focused: boolean;
-    value: string;
-    onChange: (value: string) => void;
     onSubmit: (text: string) => void;
     onCancel: () => void;
     /** Inner width available for text content (after borders + padding + "> "). */
@@ -27,16 +25,19 @@ function computeLines(value: string, usableWidth: number): number {
 
 const ChatInputInner: FC<ChatInputProps> = ({
     focused,
-    value,
-    onChange,
     onSubmit,
     onCancel,
     innerWidth,
     onLineCountChange,
 }) => {
+    const [value, setValue] = useState('');
     const lastLinesRef = useRef(MIN_LINES);
     const onLineCountChangeRef = useRef(onLineCountChange);
     onLineCountChangeRef.current = onLineCountChange;
+
+    useEffect(() => {
+        if (!focused) setValue('');
+    }, [focused]);
 
     useEffect(() => {
         const promptWidth = 2; // "> "
@@ -50,7 +51,7 @@ const ChatInputInner: FC<ChatInputProps> = ({
 
     const handleSubmit = (text: string): void => {
         const trimmed = text.trim();
-        onChange('');
+        setValue('');
         if (trimmed.length === 0) {
             onCancel();
             return;
@@ -72,7 +73,7 @@ const ChatInputInner: FC<ChatInputProps> = ({
             <Text color={TUI_COLORS.accent} bold>{'> '}</Text>
             <TextInput
                 value={value}
-                onChange={onChange}
+                onChange={setValue}
                 onSubmit={handleSubmit}
                 placeholder="type a message · ⏎ send · esc cancel"
             />

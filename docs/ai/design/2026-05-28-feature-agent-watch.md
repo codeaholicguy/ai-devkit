@@ -34,7 +34,8 @@ graph TD
 ```
 
 **Key architectural decisions:**
-- All keyboard handling (`useInput`) centralised in `ConsoleAppShell` (non-memo) — Ink 7 + React 19 silently drops `useInput` inside `React.memo` components
+- Global keyboard handling (`useInput`) centralised in `ConsoleAppShell` (non-memo) — Ink 7 + React 19 silently drops `useInput` inside `React.memo` components
+- Message draft state colocated in `ChatInput`; the shell is notified only when wrapping changes the input height
 - Actions dispatch via `spawn()` re-invoking the CLI with `stdio: pipe` so the TUI never yields the terminal
 - Context value stabilised with `useMemo` so quiet polls don't re-render all consumers
 
@@ -65,13 +66,13 @@ graph TD
 | Component | File | Responsibility |
 |-----------|------|----------------|
 | `ConsoleApp` | `ConsoleApp.tsx` | Context provider wrapper |
-| `ConsoleAppShell` | `ConsoleApp.tsx` | All state, keyboard handling, layout math |
+| `ConsoleAppShell` | `ConsoleApp.tsx` | Shell state, global keyboard handling, layout math |
 | `HeaderBar` | `HeaderBar.tsx` | Agent count + app label |
 | `AgentListPane` | `AgentListPane.tsx` | 2-line agent rows with status/name/type/summary |
 | `PreviewSection` | `PreviewSection.tsx` | Runs `useAgentConversation`, wraps `PreviewPane` |
 | `PreviewPane` | `PreviewPane.tsx` | Renders last N messages with role/timestamp |
 | `StatusFooter` | `StatusFooter.tsx` | Status counts + updated time + keybinding hints |
-| `ChatInput` | `ChatInput.tsx` | Controlled text input for sending messages |
+| `ChatInput` | `ChatInput.tsx` | Locally controlled message draft and submit/cancel behavior |
 | `FormatStatus` | `render/formatStatus.tsx` | Status glyph + label |
 | `ConsoleProvider` | `state/ConsoleContext.tsx` | Provides agent list via context |
 | `useAgentList` | `hooks/useAgentList.ts` | Polls `manager.listAgents()` every 3s |
