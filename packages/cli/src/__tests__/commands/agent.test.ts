@@ -268,7 +268,7 @@ describe('agent command', () => {
     };
   }
 
-  it('outputs JSON for list --json', async () => {
+  it('labels live agents as interactive in list JSON', async () => {
     const now = new Date('2026-02-26T10:00:00.000Z');
     const agents = [
       {
@@ -288,10 +288,12 @@ describe('agent command', () => {
 
     expect(AgentManager).toHaveBeenCalled();
     expect(mockManager.registerAdapter).toHaveBeenCalledTimes(7);
-    expect(logSpy).toHaveBeenCalledWith(JSON.stringify(agents, null, 2));
+    expect(logSpy).toHaveBeenCalledWith(JSON.stringify([
+      { ...agents[0], mode: 'interactive' },
+    ], null, 2));
   });
 
-  it('includes durable print agents in list JSON without a fake pid', async () => {
+  it('labels print agents as durable in list JSON without a fake pid', async () => {
     mockManager.listAgents.mockResolvedValue([]);
     mockPrintStore.list.mockResolvedValue([{
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
@@ -304,7 +306,7 @@ describe('agent command', () => {
     await program.parseAsync(['node', 'test', 'agent', 'list', '--json']);
 
     const output = JSON.parse(logSpy.mock.calls[0][0] as string);
-    expect(output[0]).toMatchObject({ mode: 'print', state: 'ready', sessionHealth: 'uninitialized' });
+    expect(output[0]).toMatchObject({ mode: 'durable', state: 'ready', sessionHealth: 'uninitialized' });
     expect(output[0]).not.toHaveProperty('pid');
   });
 
@@ -374,12 +376,32 @@ describe('agent command', () => {
 
     expect(ui.table).toHaveBeenCalled();
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.headers).toEqual(['Agent', 'Project', 'Type', 'Status', 'Working On', 'Active']);
+    expect(tableArg.headers).toEqual(['Agent', 'Project', 'Type', 'Mode', 'Status', 'Working On', 'Active']);
     expect(tableArg.rows[0][2]).toBe('Claude Code');
     expect(tableArg.rows[1][2]).toBe('Codex');
-    expect(tableArg.rows[0][3]).toContain('wait');
-    expect(tableArg.rows[0][5]).toBe('just now');
+    expect(tableArg.rows[0][3]).toBe('interactive');
+    expect(tableArg.rows[1][3]).toBe('interactive');
+    expect(tableArg.rows[0][4]).toContain('wait');
+    expect(tableArg.rows[0][6]).toBe('just now');
     expect(ui.warning).toHaveBeenCalledWith('1 agent(s) waiting for input.');
+  });
+
+  it('renders print agents as durable without leaking the internal print mode', async () => {
+    mockManager.listAgents.mockResolvedValue([]);
+    mockPrintStore.list.mockResolvedValue([{
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
+      cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
+      sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
+    }]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'list']);
+
+    const tableArg: any = (ui.table as any).mock.calls[0][0];
+    expect(tableArg.rows[0][2]).toBe('Claude Code');
+    expect(tableArg.rows[0][3]).toBe('durable');
+    expect(JSON.stringify(tableArg.rows[0])).not.toContain('print');
   });
 
   it('formats all agent types with human-friendly labels', async () => {
@@ -423,7 +445,7 @@ Waiting on user input`,
     await program.parseAsync(['node', 'test', 'agent', 'list']);
 
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.rows[0][4]).toBe('Investigating parser bug');
+    expect(tableArg.rows[0][5]).toBe('Investigating parser bug');
   });
 
   it('shows available agents when open target is not found', async () => {

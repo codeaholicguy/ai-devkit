@@ -58,6 +58,7 @@ description: Implementation record, decisions, validation, and deviations
 
 - Added create/send orchestration with fail-fast ownership and no retries.
 - Added the narrow CLI integrations for print start, merged list/detail, and synchronous direct send while leaving interactive defaults and excluded commands unchanged.
+- Added a user-facing list mode boundary: live process agents render as `interactive`, while internal print-mode records render as `durable` in both table and JSON output. Internal storage and harness contracts remain `mode: 'print'`.
 - Added deterministic unit/integration fixtures that never invoke a real model.
 - Added crash recovery for old mutation and incomplete run locks and exact cwd/session binding checks.
 - Documented inherited Claude permissions, hooks, MCP/tool side effects, and explicit print-mode timeout rejection.

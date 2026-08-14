@@ -108,6 +108,11 @@ const TYPE_LABELS: Record<AgentType, string> = {
     other: 'Other',
 };
 
+const AGENT_MODES = {
+    INTERACTIVE: 'interactive',
+    DURABLE: 'durable',
+} as const;
+
 function formatType(type: AgentType): string {
     return TYPE_LABELS[type] ?? type;
 }
@@ -344,7 +349,11 @@ export function registerAgentCommand(program: Command): void {
             const printAgents = await createPrintAgentService().store.list();
 
             if (options.json) {
-                console.log(JSON.stringify([...agents, ...printAgents], null, 2));
+                const output = [
+                    ...agents.map(agent => ({ ...agent, mode: AGENT_MODES.INTERACTIVE })),
+                    ...printAgents.map(agent => ({ ...agent, mode: AGENT_MODES.DURABLE })),
+                ];
+                console.log(JSON.stringify(output, null, 2));
                 return;
             }
 
@@ -359,23 +368,26 @@ export function registerAgentCommand(program: Command): void {
                 agent.name,
                 agent.projectPath ? path.basename(agent.projectPath) : '',
                 formatType(agent.type),
+                AGENT_MODES.INTERACTIVE,
                 formatStatus(agent.status),
                 formatWorkOn(agent.summary),
                 formatRelativeTime(agent.lastActive),
             ]), ...printAgents.map(agent => [
                 agent.name,
                 path.basename(agent.cwd),
-                'Claude Code (print)',
+                formatType(agent.provider),
+                AGENT_MODES.DURABLE,
                 agent.state,
                 agent.lastResult?.summary ?? agent.sessionHealth,
                 agent.lastActiveAt ? formatRelativeTime(new Date(agent.lastActiveAt)) : 'never',
             ])];
 
             ui.table({
-                headers: ['Agent', 'Project', 'Type', 'Status', 'Working On', 'Active'],
+                headers: ['Agent', 'Project', 'Type', 'Mode', 'Status', 'Working On', 'Active'],
                 rows: rows,
                 columnStyles: [
                     (text) => chalk.cyan(text),
+                    (text) => chalk.dim(text),
                     (text) => chalk.dim(text),
                     (text) => chalk.dim(text),
                     (text) => {

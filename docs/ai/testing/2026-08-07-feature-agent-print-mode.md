@@ -77,6 +77,7 @@ description: Offline TDD, security, integration, and compatibility validation
 - [ ] `--mode print` accepts Claude only and rejects other provider combinations.
 - [ ] Print start displays stable identity and does not display PID/tmux attach instructions.
 - [ ] List merges live and durable rows without fake PID/session file values.
+- [x] List table and JSON label live agents as `interactive` and internal print-mode agents as `durable`, without leaking `print` in list presentation.
 - [ ] Detail renders provider, mode, cwd, state, health, activity, and last result.
 - [ ] Direct send resolves exact print ID, unique names, and reports cross-mode ambiguity.
 - [ ] Existing live partial resolution remains available when no print exact name matches.
