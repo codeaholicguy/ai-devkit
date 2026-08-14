@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
@@ -46,6 +46,17 @@ export interface PreviewViewport {
     hasBelow: boolean;
 }
 
+export function buildPreviewRows(messages: ConversationMessage[]): PreviewViewportRow[] {
+    return messages.flatMap<PreviewViewportRow>((msg, index) => {
+        const contentLines = msg.content.split('\n');
+        return [
+            ...(index > 0 ? [{ kind: 'separator' as const, text: '', role: null }] : []),
+            { kind: 'header', text: '', role: msg.role, timestamp: msg.timestamp },
+            ...contentLines.map<PreviewViewportRow>(line => ({ kind: 'content', text: line, role: msg.role })),
+        ];
+    });
+}
+
 export function countPreviewRows(messages: ConversationMessage[]): number {
     return messages.reduce(
         (total, msg, index) => total + Math.max(1, msg.content.split('\n').length) + 1 + (index > 0 ? 1 : 0),
@@ -62,20 +73,12 @@ export function adjustPreviewScrollOffsetForAppendedRows(
     return requestedOffset + currentRowCount - previousRowCount;
 }
 
-export function buildPreviewViewport(
-    messages: ConversationMessage[],
+export function buildPreviewViewportFromRows(
+    rows: PreviewViewportRow[],
     maxLines: number,
     requestedOffset: number,
 ): PreviewViewport {
     const budget = Math.max(1, Math.floor(maxLines));
-    const rows = messages.flatMap<PreviewViewportRow>((msg, index) => {
-        const contentLines = msg.content.split('\n');
-        return [
-            ...(index > 0 ? [{ kind: 'separator' as const, text: '', role: null }] : []),
-            { kind: 'header', text: '', role: msg.role, timestamp: msg.timestamp },
-            ...contentLines.map<PreviewViewportRow>(line => ({ kind: 'content', text: line, role: msg.role })),
-        ];
-    });
     const contentBudget = rows.length > budget ? Math.max(1, budget - 1) : budget;
     const maxOffset = Math.max(0, rows.length - contentBudget);
     const clampedOffset = Math.min(Math.max(0, Math.floor(requestedOffset)), maxOffset);
@@ -101,6 +104,14 @@ export function buildPreviewViewport(
         hasAbove,
         hasBelow,
     };
+}
+
+export function buildPreviewViewport(
+    messages: ConversationMessage[],
+    maxLines: number,
+    requestedOffset: number,
+): PreviewViewport {
+    return buildPreviewViewportFromRows(buildPreviewRows(messages), maxLines, requestedOffset);
 }
 
 export function getPreviewPanelTone(channelStatus: AgentChannelStatus | undefined): PanelTone {
@@ -141,15 +152,16 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     scrollOffset = 0,
     onScrollOffsetClamp,
 }) => {
-    const rowCount = countPreviewRows(messages);
+    const rows = useMemo(() => buildPreviewRows(messages), [messages]);
+    const rowCount = rows.length;
     const previousRowCountRef = useRef(rowCount);
     const adjustedScrollOffset = adjustPreviewScrollOffsetForAppendedRows(
         previousRowCountRef.current,
         rowCount,
         scrollOffset,
     );
-    const viewport = messages.length > 0
-        ? buildPreviewViewport(messages, Math.max(4, maxLines), adjustedScrollOffset)
+    const viewport = rows.length > 0
+        ? buildPreviewViewportFromRows(rows, Math.max(4, maxLines), adjustedScrollOffset)
         : null;
     const clampedOffset = viewport?.clampedOffset;
 
