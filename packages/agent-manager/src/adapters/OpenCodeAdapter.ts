@@ -24,7 +24,7 @@ import type {
     AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { captureProcessSnapshot } from '../utils/process.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
 import { generateAgentName } from '../utils/matching.js';
 
 const SESSION_REF_SEP = '::';
@@ -86,14 +86,14 @@ export class OpenCodeAdapter implements AgentAdapter {
     }
 
     canHandle(processInfo: ProcessInfo): boolean {
-        const exe = (processInfo.command.trim().split(/\s+/)[0] || '').toLowerCase();
-        const base = path.basename(exe);
+        const base = executableBasename(processInfo.command);
         return base === 'opencode' || base === 'opencode.exe';
     }
 
     async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
         const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
-        const processes = snapshot.filter((process) => this.canHandle(process));
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const db = this.openDb();

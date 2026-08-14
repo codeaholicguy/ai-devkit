@@ -20,7 +20,13 @@ import type {
     AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { captureProcessSnapshot, findWrapperProcess, findWrapperProcessPids } from '../utils/process.js';
+import {
+    captureProcessSnapshot,
+    executableBasename,
+    filterByProcessNames,
+    findWrapperProcess,
+    findWrapperProcessPids,
+} from '../utils/process.js';
 import { generateAgentName } from '../utils/matching.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import { AgentRegistry, type RegistryEntry } from '../utils/AgentRegistry.js';
@@ -124,7 +130,8 @@ export class CopilotAdapter implements AgentAdapter {
 
     async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
         const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
-        const processes = snapshot.filter((process) => this.canHandle(process));
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const processByPid = new Map(processes.map((proc) => [proc.pid, proc]));
@@ -460,8 +467,7 @@ export class CopilotAdapter implements AgentAdapter {
     }
 
     private isCopilotExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
+        const base = executableBasename(command);
         return base === 'copilot' || base === 'copilot.exe';
     }
 }

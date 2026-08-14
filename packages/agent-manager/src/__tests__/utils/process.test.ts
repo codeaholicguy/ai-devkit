@@ -13,6 +13,7 @@ import {
     findWrapperProcess,
     findWrapperProcessPids,
     captureProcessSnapshot,
+    filterByProcessNames,
 } from '../../utils/process.js';
 
 vi.mock('child_process', () => ({
@@ -70,6 +71,23 @@ describe('captureProcessSnapshot', () => {
         ]);
         expect(mockedExecFileSync).not.toHaveBeenCalled();
         expect(mockedExecFile.mock.calls.filter(([, args]) => args.includes('-axo'))).toHaveLength(1);
+        for (const [, , options] of mockedExecFile.mock.calls) {
+            expect(options).toMatchObject({ encoding: 'utf-8', maxBuffer: 10 * 1024 * 1024 });
+            expect(options).not.toHaveProperty('stdio');
+        }
+    });
+});
+
+describe('filterByProcessNames', () => {
+    it('matches only argv[0] and normalizes Windows paths and executable suffixes', () => {
+        const processes: ProcessInfo[] = [
+            { pid: 1, command: 'C:\\tools\\node.exe C:\\bin\\pi.js', cwd: '', tty: '' },
+            { pid: 2, command: '/usr/local/bin/node /opt/gemini.js', cwd: '', tty: '' },
+            { pid: 3, command: 'codex exec --cd C:\\repos\\node', cwd: '', tty: '' },
+        ];
+
+        expect(filterByProcessNames(processes, ['node'])).toEqual([processes[0], processes[1]]);
+        expect(filterByProcessNames(processes, ['node.exe'])).toEqual([processes[0], processes[1]]);
     });
 });
 

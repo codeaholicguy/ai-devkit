@@ -50,6 +50,7 @@ describe('CopilotAdapter', () => {
         mockedCaptureProcessSnapshot.mockReset();
         mockedGenerateAgentName.mockReset();
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
         mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
             enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
         ));

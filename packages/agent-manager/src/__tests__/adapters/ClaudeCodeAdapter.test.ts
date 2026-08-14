@@ -15,11 +15,15 @@ import type { SessionFile } from '../../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
 import type { MatchResult } from '../../utils/matching.js';
 import * as os from 'os';
-vi.mock('../../utils/process.js', () => ({
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-    captureProcessSnapshot: vi.fn(),
-}));
+vi.mock('../../utils/process.js', async (importOriginal) => {
+    const actual = await importOriginal() as typeof import('../../utils/process.js');
+    return {
+        ...actual,
+        listAgentProcesses: vi.fn(),
+        enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
+    };
+});
 
 vi.mock('../../utils/session.js', async () => {
     const actual = await vi.importActual('../../utils/session') as typeof import('../../utils/session');
@@ -53,6 +57,7 @@ describe('ClaudeCodeAdapter', () => {
         mockedGenerateAgentName.mockReset();
         // Default: enrichProcesses returns what it receives
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
         mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
             enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
         ));

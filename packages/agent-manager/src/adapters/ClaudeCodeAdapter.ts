@@ -10,7 +10,7 @@ import type {
     AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { captureProcessSnapshot } from '../utils/process.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
 import { batchGetSessionFileBirthtimes, isDirectory, listJsonl, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -87,14 +87,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     }
 
     private isClaudeExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
+        const base = executableBasename(command);
         return base === 'claude' || base === 'claude.exe';
     }
 
     async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
         const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
-        const processes = snapshot.filter((process) => this.canHandle(process));
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) {
             return [];
         }

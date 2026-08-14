@@ -27,12 +27,12 @@ None.
 
 ## Alignment Review
 
-The implementation matches the requirements and design: one manager-owned async snapshot, adapter-owned filtering, async direct-call fallback, preserved legacy adapters, unchanged registry/sorting/error boundaries, and no console polling or rendering-option changes.
+The implementation matches the requirements and reviewed design: one manager-owned async union snapshot, manager-owned executable slicing, adapter-owned command matching, async direct-call fallback, preserved legacy adapters, unchanged registry/sorting/error boundaries, and no console polling or rendering-option changes.
 
 ## Changed Files and Decisions
 
-- `utils/process.ts` now exposes callback-based async capture and enrichment while retaining sync compatibility exports.
+- `utils/process.ts` exposes callback-based async capture and enrichment plus shared executable normalization/filtering while retaining sync compatibility exports. Async commands use an explicit 10 MiB buffer and no unsupported `stdio` option.
 - `AgentAdapter` accepts an optional read-only detection context and optional executable hints.
-- `AgentManager` captures one union snapshot and passes the same context to snapshot-aware adapters.
-- All seven built-in adapters filter the shared context and use async standalone capture when called directly.
-- Adapter fixtures retain their existing behavior assertions through a mocked async snapshot boundary.
+- `AgentManager` captures one union snapshot and passes each snapshot-aware adapter only the argv[0] slice declared by its `processNames`.
+- All seven built-in adapters defensively scope provided contexts, preserve their `canHandle` narrowing, support Windows command paths, and use async standalone capture when called directly.
+- Adapter fixtures retain their existing behavior assertions through a compatibility-shim mock of standalone capture; manager-path behavior is tested separately against the real union-and-slice contract.

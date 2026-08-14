@@ -52,6 +52,7 @@ describe('GeminiCliAdapter', () => {
         mockedGenerateAgentName.mockReset();
 
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
         mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
             enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
         ));
@@ -116,6 +117,15 @@ describe('GeminiCliAdapter', () => {
                 tty: 'ttys006',
             })).toBe(true);
         });
+
+        it('should recognize Windows executable and entrypoint paths', () => {
+            expect(adapter.canHandle({
+                pid: 7,
+                command: 'C:\\tools\\node.exe C:\\lib\\gemini.js',
+                cwd: 'C:\\repo',
+                tty: '',
+            })).toBe(true);
+        });
     });
 
     describe('detectAgents', () => {
@@ -150,7 +160,7 @@ describe('GeminiCliAdapter', () => {
         it('should return process-only agents when no session files exist for the process', async () => {
             const proc: ProcessInfo = {
                 pid: 1234,
-                command: 'gemini',
+                command: 'node /usr/local/bin/gemini',
                 cwd: '/repo',
                 tty: 'ttys001',
                 startTime: new Date('2026-04-18T00:00:00Z'),
@@ -263,7 +273,7 @@ describe('GeminiCliAdapter', () => {
 
             const proc: ProcessInfo = {
                 pid: 42,
-                command: 'gemini',
+                command: 'node /usr/local/bin/gemini',
                 cwd,
                 tty: 'ttys001',
                 startTime: new Date('2026-04-18T00:00:00Z'),
@@ -389,7 +399,7 @@ describe('GeminiCliAdapter', () => {
 
             const proc: ProcessInfo = {
                 pid: 7,
-                command: 'gemini',
+                command: 'node /usr/local/bin/gemini',
                 cwd: procCwd,
                 tty: 'ttys001',
                 startTime: new Date(),

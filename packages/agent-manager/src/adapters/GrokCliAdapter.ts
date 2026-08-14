@@ -9,7 +9,7 @@ import type {
     AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { captureProcessSnapshot } from '../utils/process.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import { generateAgentName } from '../utils/matching.js';
 
@@ -89,14 +89,14 @@ export class GrokCliAdapter implements AgentAdapter {
     }
 
     private isGrokExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
+        const base = executableBasename(command);
         return base === 'grok' || base === 'grok.exe';
     }
 
     async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
         const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
-        const processes = snapshot.filter((process) => this.canHandle(process));
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) {
             return [];
         }

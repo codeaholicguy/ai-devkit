@@ -13,11 +13,15 @@ import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../
 import { generateAgentName } from '../../utils/matching.js';
 import * as os from 'os';
 
-vi.mock('../../utils/process.js', () => ({
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-    captureProcessSnapshot: vi.fn(),
-}));
+vi.mock('../../utils/process.js', async (importOriginal) => {
+    const actual = await importOriginal() as typeof import('../../utils/process.js');
+    return {
+        ...actual,
+        listAgentProcesses: vi.fn(),
+        enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
+    };
+});
 
 vi.mock('../../utils/matching.js', () => ({
     generateAgentName: vi.fn(),
@@ -110,6 +114,7 @@ describe('OpenCodeAdapter', () => {
         mockedGenerateAgentName.mockReset();
 
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
         mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
             enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
         ));

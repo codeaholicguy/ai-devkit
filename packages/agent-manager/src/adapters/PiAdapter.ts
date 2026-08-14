@@ -20,7 +20,7 @@ import type {
     AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { captureProcessSnapshot } from '../utils/process.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -90,7 +90,8 @@ export class PiAdapter implements AgentAdapter {
 
     async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
         const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
-        const processes = this.listPiProcesses(snapshot);
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = this.listPiProcesses(relevant);
         if (processes.length === 0) return [];
 
         const { cachedAgents, remaining } = this.tryRegistryCache(processes);
@@ -547,7 +548,7 @@ export class PiAdapter implements AgentAdapter {
 
     private isPiExecutable(command: string): boolean {
         for (const token of command.trim().split(/\s+/)) {
-            const base = path.basename(token).toLowerCase();
+            const base = executableBasename(token);
             if (base === 'pi' || base === 'pi.exe' || base === 'pi.js') return true;
         }
         return false;

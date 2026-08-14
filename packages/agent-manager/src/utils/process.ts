@@ -10,6 +10,34 @@ import * as path from 'path';
 import { execFile, execFileSync } from 'child_process';
 import type { ProcessInfo } from '../adapters/AgentAdapter.js';
 
+const PROCESS_EXEC_MAX_BUFFER = 10 * 1024 * 1024;
+const VALID_EXECUTABLE_NAME = /^[a-zA-Z0-9_-]+$/;
+
+export function executableBasename(command: string): string {
+    const executable = command.trim().split(/\s+/)[0] || '';
+    return path.basename(executable.replace(/\\/g, '/')).toLowerCase();
+}
+
+function normalizeExecutableName(name: string): string {
+    const lower = name.toLowerCase();
+    return lower.endsWith('.exe') ? lower.slice(0, -4) : lower;
+}
+
+function normalizedProcessNames(namePatterns: readonly string[]): Set<string> {
+    return new Set(namePatterns.filter(Boolean).map(normalizeExecutableName));
+}
+
+export function filterByProcessNames(
+    processes: readonly ProcessInfo[],
+    namePatterns: readonly string[],
+): ProcessInfo[] {
+    const names = normalizedProcessNames(namePatterns);
+    if (names.size === 0) return [];
+    return processes.filter((process) => (
+        names.has(normalizeExecutableName(executableBasename(process.command)))
+    ));
+}
+
 /**
  * List running processes matching an agent executable name.
  *
@@ -21,14 +49,14 @@ import type { ProcessInfo } from '../adapters/AgentAdapter.js';
  */
 export function listAgentProcesses(namePattern: string): ProcessInfo[] {
     // Validate pattern contains only safe characters (alphanumeric, dash, underscore)
-    if (!namePattern || !/^[a-zA-Z0-9_-]+$/.test(namePattern)) {
+    if (!namePattern || !VALID_EXECUTABLE_NAME.test(namePattern)) {
         return [];
     }
 
     try {
         const output = execFileSync('ps', ['-axo', 'pid=,ppid=,tty=,command='], { encoding: 'utf-8' });
 
-        const lowerPattern = namePattern.toLowerCase();
+        const names = normalizedProcessNames([namePattern]);
         const processes: ProcessInfo[] = [];
 
         for (const line of output.trim().split('\n')) {
@@ -44,12 +72,7 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
             const tty = match[3];
             const command = match[4];
 
-            // Check that the executable basename matches exactly
-            const executable = command.trim().split(/\s+/)[0] || '';
-            const base = path.basename(executable).toLowerCase();
-            if (base !== lowerPattern && base !== `${lowerPattern}.exe`) {
-                continue;
-            }
+            if (!names.has(normalizeExecutableName(executableBasename(command)))) continue;
 
             const ttyShort = tty.startsWith('/dev/') ? tty.slice(5) : tty;
 
@@ -71,10 +94,9 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
 function execFileText(
     file: string,
     args: readonly string[],
-    options: { stdio?: ['pipe', 'pipe', 'ignore'] } = {},
 ): Promise<string> {
     return new Promise((resolve, reject) => {
-        execFile(file, args, { ...options, encoding: 'utf-8' }, (error, stdout) => {
+        execFile(file, args, { encoding: 'utf-8', maxBuffer: PROCESS_EXEC_MAX_BUFFER }, (error, stdout) => {
             if (error) {
                 reject(error);
                 return;
@@ -82,11 +104,6 @@ function execFileText(
             resolve(stdout);
         });
     });
-}
-
-function executableBasename(command: string): string {
-    const executable = command.trim().split(/\s+/)[0] || '';
-    return path.basename(executable.replace(/\\/g, '/')).toLowerCase();
 }
 
 function parseProcessList(output: string, namePatterns: ReadonlySet<string>): ProcessInfo[] {
@@ -105,7 +122,7 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pr
         const tty = match[3];
         const command = match[4];
         const base = executableBasename(command);
-        const normalizedBase = base.endsWith('.exe') ? base.slice(0, -4) : base;
+        const normalizedBase = normalizeExecutableName(base);
         if (!namePatterns.has(normalizedBase)) continue;
 
         processes.push({
@@ -125,10 +142,7 @@ async function batchGetProcessCwdsAsync(pids: number[]): Promise<Map<number, str
     if (pids.length === 0) return result;
 
     try {
-        const output = await execFileText(
-            'lsof', ['-a', '-d', 'cwd', '-Fn', '-p', pids.join(',')],
-            { stdio: ['pipe', 'pipe', 'ignore'] },
-        );
+        const output = await execFileText('lsof', ['-a', '-d', 'cwd', '-Fn', '-p', pids.join(',')]);
         let currentPid: number | null = null;
         for (const line of output.trim().split('\n')) {
             if (line.startsWith('p')) {
@@ -142,10 +156,7 @@ async function batchGetProcessCwdsAsync(pids: number[]): Promise<Map<number, str
     } catch {
         const entries = await Promise.all(pids.map(async (pid) => {
             try {
-                const output = await execFileText(
-                    'pwdx', [String(pid)],
-                    { stdio: ['pipe', 'pipe', 'ignore'] },
-                );
+                const output = await execFileText('pwdx', [String(pid)]);
                 const match = output.match(/^\d+:\s*(.+)$/);
                 return match ? [pid, match[1].trim()] as const : null;
             } catch {
@@ -183,10 +194,8 @@ async function batchGetProcessStartTimesAsync(pids: number[]): Promise<Map<numbe
  * One base process listing is shared by every requested executable name.
  */
 export async function captureProcessSnapshot(namePatterns: readonly string[]): Promise<ProcessInfo[]> {
-    const names = new Set(
-        namePatterns
-            .filter((name) => Boolean(name) && /^[a-zA-Z0-9_-]+$/.test(name))
-            .map((name) => name.toLowerCase()),
+    const names = normalizedProcessNames(
+        namePatterns.filter((name) => Boolean(name) && VALID_EXECUTABLE_NAME.test(name)),
     );
     if (names.size === 0) return [];
 

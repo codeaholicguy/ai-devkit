@@ -14,7 +14,7 @@ import type {
 } from './adapters/AgentAdapter.js';
 import { sortAgents, type AgentSortKey } from './utils/sortAgents.js';
 import { AgentRegistry, type RegistryEntry } from './utils/AgentRegistry.js';
-import { captureProcessSnapshot } from './utils/process.js';
+import { captureProcessSnapshot, filterByProcessNames } from './utils/process.js';
 
 type ProcessSnapshotCapture = (namePatterns: readonly string[]) => Promise<ProcessInfo[]>;
 
@@ -146,11 +146,13 @@ export class AgentManager {
             }
         }
 
-        // Query all adapters in parallel using the same immutable snapshot.
+        // Query all adapters in parallel using executable-scoped slices of the shared snapshot.
         const adapterPromises = adapters.map(async (adapter) => {
             try {
                 const agents = adapter.processNames
-                    ? await adapter.detectAgents({ processes })
+                    ? await adapter.detectAgents({
+                        processes: filterByProcessNames(processes, adapter.processNames),
+                    })
                     : await adapter.detectAgents();
                 return { type: adapter.type, agents, error: null };
             } catch (error) {

@@ -13,7 +13,8 @@ description: Test-first implementation plan for responsive agent refreshes
 - [x] `done` Add optional adapter discovery context and migrate all built-in adapters.
 - [x] `done` Preserve and test failure, sorting, registry, direct-adapter, and export compatibility.
 - [x] `done` Validate agent-manager and CLI focused/full tests, lint, and builds.
-- [ ] `todo` Commit, rebase on `origin/main`, push, and open a PR without merging.
+- [x] `done` Correct PR review findings: per-adapter snapshot slicing, defensive adapter filtering, async buffer options, and Windows path normalization.
+- [x] `done` Commit and push the review fix to the existing PR without merging.
 
 ## Dependencies
 
@@ -28,4 +29,4 @@ Tests define the public boundary before production changes. Utility implementati
 
 ## Progress Summary
 
-Implementation and validation are complete with no scope changes or blockers. One concurrent root run exposed the existing 5-second print integration timeout under cross-project contention; the full suite passed serially without changing thresholds. Remaining work is publication only: commit, rebase, push, and open the PR.
+The review fix and fresh validation are complete with no blockers. The restricted sandbox could not inspect the current process for one print integration, so the full suite was rerun with process-inspection access and passed. The reviewed implementation is ready on the existing PR branch.

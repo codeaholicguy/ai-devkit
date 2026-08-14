@@ -23,7 +23,13 @@ import type {
     AgentDetectionContext,
 } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { captureProcessSnapshot, findWrapperProcess, findWrapperProcessPids } from '../utils/process.js';
+import {
+    captureProcessSnapshot,
+    executableBasename,
+    filterByProcessNames,
+    findWrapperProcess,
+    findWrapperProcessPids,
+} from '../utils/process.js';
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from '../utils/session.js';
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
@@ -116,7 +122,8 @@ export class GeminiCliAdapter implements AgentAdapter {
      */
     async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
         const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
-        const processes = snapshot.filter((process) => this.canHandle(process));
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
         const wrapperPids = findWrapperProcessPids(processes);
@@ -543,7 +550,7 @@ export class GeminiCliAdapter implements AgentAdapter {
         // other adapters' argv[0]-only check because the Node-script
         // distribution puts the real gemini path in argv[1..], not argv[0].
         for (const token of command.trim().split(/\s+/)) {
-            const base = path.basename(token).toLowerCase();
+            const base = executableBasename(token);
             if (base === 'gemini' || base === 'gemini.exe' || base === 'gemini.js') {
                 return true;
             }
