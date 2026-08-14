@@ -56,6 +56,7 @@ description: Technical implementation notes, patterns, and code guidelines
 - Preserve user-managed names over generated fallback names.
 - Prefer incoming non-empty metadata over empty metadata.
 - Keep storage errors explicit.
+- Treat only an `ESRCH` result from `process.kill(pid, 0)` as definitive process death. `EPERM` and indeterminate probe failures preserve the row so prune, registration conflict cleanup, and rename conflict handling cannot discard live or unknown agents.
 
 ## Integration Points
 

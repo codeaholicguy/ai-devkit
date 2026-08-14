@@ -353,6 +353,7 @@ describe('AgentManager', () => {
         });
 
         afterEach(() => {
+            vi.restoreAllMocks();
             fs.rmSync(tmpDir, { recursive: true, force: true });
         });
 
@@ -427,6 +428,35 @@ describe('AgentManager', () => {
             expect(registry.list()[0].name).toBe('merry');
             expect(registry.list()[0].tmuxSession).toBe('merry');
             expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
+        });
+
+        it('preserves custom name and tmux session across two EPERM refresh cycles', async () => {
+            registry.register({
+                name: 'merry',
+                type: 'claude',
+                pid: process.pid,
+                tmuxSession: 'merry-tmux',
+                cwd: '/cwd/merry',
+                startedAt: '2026-05-30T00:00:00.000Z',
+                sessionId: 'sid-merry',
+                sessionFilePath: '/path/merry.jsonl',
+            });
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({ name: `ai-devkit-${process.pid}`, pid: process.pid }),
+            ]));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
+            });
+
+            const firstRefresh = await scopedManager.listAgents();
+            const secondRefresh = await scopedManager.listAgents();
+
+            expect(firstRefresh[0].name).toBe('merry');
+            expect(secondRefresh[0].name).toBe('merry');
+            expect(registry.lookup('merry')).toMatchObject({
+                name: 'merry',
+                tmuxSession: 'merry-tmux',
+            });
         });
 
         it('preserves a user-managed name when a fallback row was written later for the same pid', async () => {
