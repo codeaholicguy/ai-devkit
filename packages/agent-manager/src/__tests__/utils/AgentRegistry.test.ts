@@ -33,29 +33,28 @@ describe('AgentRegistry', () => {
     });
 
     describe('register', () => {
-        it('creates the file and parent directory if missing', () => {
+        it('creates the SQLite database and parent directory if missing', () => {
             registry.register(makeEntry());
-            expect(fs.existsSync(regPath)).toBe(true);
-            const parsed = JSON.parse(fs.readFileSync(regPath, 'utf8'));
-            expect(parsed.entries).toHaveLength(1);
-            expect(parsed.entries[0].name).toBe('agent1');
+            expect(fs.existsSync(regPath.replace(/\.json$/, '.db'))).toBe(true);
+            expect(registry.list()[0].name).toBe('agent1');
         });
 
         it('appends a new entry when name is unique', () => {
             registry.register(makeEntry({ name: 'a' }));
-            registry.register(makeEntry({ name: 'b' }));
+            registry.register(makeEntry({ name: 'b', pid: process.ppid }));
             expect(registry.list()).toHaveLength(2);
         });
 
-        it('upserts in place when name already exists', () => {
-            registry.register(makeEntry({ name: 'a', pid: 100 }));
-            registry.register(makeEntry({ name: 'a', pid: 200 }));
+        it('upserts in place when type and pid already exist', () => {
+            registry.register(makeEntry({ name: 'a', pid: process.pid }));
+            registry.register(makeEntry({ name: 'fallback', pid: process.pid, tmuxSession: '' }));
             const all = registry.list();
             expect(all).toHaveLength(1);
-            expect(all[0].pid).toBe(200);
+            expect(all[0].pid).toBe(process.pid);
+            expect(all[0].name).toBe('a');
         });
 
-        it('writes atomically (no leftover .tmp on success)', () => {
+        it('does not write through the legacy fixed .tmp path', () => {
             registry.register(makeEntry());
             expect(fs.existsSync(`${regPath}.tmp`)).toBe(false);
         });
@@ -69,16 +68,18 @@ describe('AgentRegistry', () => {
 
         it('preserves existing tmuxSession when incoming is empty string', () => {
             registry.register(makeEntry({ name: 'a', tmuxSession: 'pinned' }));
-            registry.register(makeEntry({ name: 'a', tmuxSession: '', pid: 999 }));
+            registry.register(makeEntry({ name: 'fallback', tmuxSession: '', pid: process.pid }));
             const saved = registry.lookup('a');
             expect(saved?.tmuxSession).toBe('pinned');
-            expect(saved?.pid).toBe(999);
+            expect(saved?.pid).toBe(process.pid);
         });
 
-        it('replaces tmuxSession when incoming is non-empty', () => {
-            registry.register(makeEntry({ name: 'a', tmuxSession: 'old' }));
-            registry.register(makeEntry({ name: 'a', tmuxSession: 'new' }));
-            expect(registry.lookup('a')?.tmuxSession).toBe('new');
+        it('lets a managed start entry replace a generated fallback for the same pid', () => {
+            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, tmuxSession: '' }));
+            registry.register(makeEntry({ name: 'custom-name', tmuxSession: 'custom-name' }));
+            expect(registry.lookup('custom-name')?.tmuxSession).toBe('custom-name');
+            expect(registry.lookup(`ai-devkit-${process.pid}`)).toBeNull();
+            expect(registry.list()).toHaveLength(1);
         });
     });
 
@@ -88,27 +89,34 @@ describe('AgentRegistry', () => {
             expect(fs.existsSync(regPath)).toBe(false);
         });
 
-        it('upserts multiple entries with a single write', () => {
-            const writeSpy = vi.spyOn(fs, 'writeFileSync');
+        it('upserts multiple entries in a single batch', () => {
             registry.registerBatch([
                 makeEntry({ name: 'a' }),
-                makeEntry({ name: 'b' }),
-                makeEntry({ name: 'c' }),
+                makeEntry({ name: 'b', pid: process.pid + 1 }),
+                makeEntry({ name: 'c', pid: process.pid + 2 }),
             ]);
-            expect(writeSpy).toHaveBeenCalledTimes(1);
-            writeSpy.mockRestore();
             expect(registry.list()).toHaveLength(3);
         });
 
         it('applies the tmuxSession merge per entry', () => {
             registry.register(makeEntry({ name: 'a', tmuxSession: 'pinned' }));
             registry.registerBatch([
-                makeEntry({ name: 'a', tmuxSession: '', pid: 7 }),
-                makeEntry({ name: 'b', tmuxSession: '' }),
+                makeEntry({ name: 'fallback', tmuxSession: '', pid: process.pid }),
+                makeEntry({ name: 'b', tmuxSession: '', pid: process.pid + 1 }),
             ]);
             expect(registry.lookup('a')?.tmuxSession).toBe('pinned');
-            expect(registry.lookup('a')?.pid).toBe(7);
+            expect(registry.lookup('a')?.pid).toBe(process.pid);
             expect(registry.lookup('b')?.tmuxSession).toBe('');
+        });
+
+        it('handles concurrent registry instances without duplicate pid rows', () => {
+            const other = new AgentRegistry(regPath);
+            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, tmuxSession: '' }));
+            other.register(makeEntry({ name: 'custom-name', tmuxSession: 'custom-name' }));
+            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, tmuxSession: '' }));
+
+            expect(registry.list()).toHaveLength(1);
+            expect(registry.lookup('custom-name')?.pid).toBe(process.pid);
         });
     });
 
@@ -124,20 +132,20 @@ describe('AgentRegistry', () => {
     });
 
     describe('list', () => {
-        it('returns empty array when file does not exist', () => {
+        it('returns empty array when database does not contain entries', () => {
             expect(registry.list()).toEqual([]);
         });
 
-        it('returns empty array when file is malformed', () => {
+        it('ignores existing legacy agents.json entries', () => {
+            const legacyEntry = makeEntry({ name: 'legacy', tmuxSession: 'legacy' });
             fs.mkdirSync(path.dirname(regPath), { recursive: true });
-            fs.writeFileSync(regPath, 'not json', 'utf8');
-            expect(registry.list()).toEqual([]);
-        });
+            fs.writeFileSync(regPath, JSON.stringify({ entries: [legacyEntry] }), 'utf8');
 
-        it('coerces non-array entries to []', () => {
-            fs.mkdirSync(path.dirname(regPath), { recursive: true });
-            fs.writeFileSync(regPath, JSON.stringify({ entries: 'oops' }), 'utf8');
-            expect(registry.list()).toEqual([]);
+            const legacyRegistry = new AgentRegistry(regPath);
+
+            expect(legacyRegistry.lookup('legacy')).toBeNull();
+            expect(legacyRegistry.list()).toEqual([]);
+            expect(fs.existsSync(regPath.replace(/\.json$/, '.db'))).toBe(true);
         });
     });
 
@@ -163,10 +171,10 @@ describe('AgentRegistry', () => {
 
         it('is a no-op when all entries are alive', () => {
             registry.register(makeEntry({ pid: process.pid }));
-            const before = fs.readFileSync(regPath, 'utf8');
+            const before = registry.list();
             registry.prune();
-            const after = fs.readFileSync(regPath, 'utf8');
-            expect(after).toBe(before);
+            const after = registry.list();
+            expect(after).toEqual(before);
         });
 
         it('does nothing when file is missing', () => {
@@ -203,7 +211,7 @@ describe('AgentRegistry', () => {
 
         it('throws RenameConflictError when new name is already in use by a live entry', () => {
             registry.register(makeEntry({ name: 'agent-a', pid: process.pid }));
-            registry.register(makeEntry({ name: 'agent-b', pid: process.pid }));
+            registry.register(makeEntry({ name: 'agent-b', pid: process.ppid }));
             expect(() => registry.rename('agent-a', 'agent-b')).toThrow(RenameConflictError);
         });
 
@@ -214,7 +222,7 @@ describe('AgentRegistry', () => {
             expect(registry.lookup('agent-b')?.pid).toBe(process.pid);
         });
 
-        it('writes atomically (no leftover .tmp on success)', () => {
+        it('does not create the legacy fixed .tmp path on rename', () => {
             registry.register(makeEntry({ name: 'old-name', pid: process.pid }));
             registry.rename('old-name', 'new-name');
             expect(fs.existsSync(`${regPath}.tmp`)).toBe(false);
