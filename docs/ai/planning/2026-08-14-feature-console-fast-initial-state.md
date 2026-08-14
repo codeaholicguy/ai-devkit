@@ -14,4 +14,4 @@ description: Test-first implementation tasks for cached first-frame rendering
 - [x] Implement cached list/footer representation.
 - [x] Document merge-order and overlap risks with `feature-console-main-thread-responsiveness`.
 - [x] Run focused and full agent-manager/CLI tests, lint, builds, and docs lint.
-- [ ] Review, commit, push, and open a PR targeting `main`.
+- [x] Review, commit, push, and open PR #162 targeting `main`.
