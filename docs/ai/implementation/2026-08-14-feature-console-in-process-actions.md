@@ -31,8 +31,8 @@ Implementation and local validation complete; publication pending.
 - Red: focused action tests failed with seven zero-call assertions against the subprocess runner; pending tests failed because the pending module/mapping did not exist.
 - Green/refactor: `npm test --workspace packages/cli -- src/__tests__/commands/agent.test.ts src/__tests__/commands/channel.test.ts src/__tests__/tui/console/actions/runAction.test.ts src/__tests__/tui/console/actions/pendingAction.test.ts` — 4 files, 114 tests passed.
 - Focused console actions/hooks: 5 files, 33 tests passed.
-- Full CLI: `npm test --workspace packages/cli` — 80 files, 967 tests passed.
+- Full CLI: `npm test --workspace packages/cli` — 82 files, 975 tests passed after rebasing onto `origin/main`.
 - CLI lint: `npm run lint --workspace packages/cli` — exit 0, five existing warnings and no errors.
-- CLI build: `npm run build --workspace packages/cli` — exit 0, 197 files compiled.
+- CLI build: `npm run build --workspace packages/cli` — exit 0, 199 files compiled after rebase.
 - Feature docs: `npx ai-devkit@latest lint --feature console-in-process-actions` — all checks passed.
 - Output isolation: default console services receive a silent reporter; a red-to-green test proves CLI spinners/text cannot write into the Ink terminal.
