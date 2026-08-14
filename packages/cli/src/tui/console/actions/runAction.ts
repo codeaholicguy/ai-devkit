@@ -1,4 +1,12 @@
-import { spawn } from 'child_process';
+import {
+    createAgentActionService,
+    type AgentActionReporter,
+} from '../../../services/agent/agent-action.service.js';
+import {
+    createChannelActionService,
+    type ChannelActionReporter,
+} from '../../../services/channel/channel-action.service.js';
+import type { ApplicationActionResult } from '../../../services/actions/action-result.js';
 import type { ConsoleAction } from './types.js';
 
 export interface ActionResult {
@@ -6,40 +14,93 @@ export interface ActionResult {
     error?: string;
 }
 
-function resolveCliEntry(): { command: string; baseArgs: string[] } {
-    return { command: process.execPath, baseArgs: [...process.execArgv, process.argv[1]] };
+type StartAction = Extract<ConsoleAction, { type: 'start' }>;
+type StartConsoleActionInput = Pick<StartAction, 'agentType' | 'name' | 'cwd'>;
+
+export interface ConsoleActionServices {
+    open(input: { agentName: string }): Promise<ApplicationActionResult>;
+    send(input: { agentName: string; message: string }): Promise<ApplicationActionResult>;
+    start(input: StartConsoleActionInput): Promise<ApplicationActionResult>;
+    kill(input: { agentName: string }): Promise<ApplicationActionResult>;
+    rename(input: { currentName: string; newName: string }): Promise<ApplicationActionResult>;
+    startChannel(input: { channelName: string; agentName: string; daemon: true }): Promise<ApplicationActionResult>;
+    stopChannel(input: { channelName: string }): Promise<ApplicationActionResult>;
 }
 
-export async function runAction(action: ConsoleAction): Promise<ActionResult> {
-    const { command, baseArgs } = resolveCliEntry();
-    const argv = (() => {
+function createDefaultConsoleActionServices(): ConsoleActionServices {
+    const noOutput = () => undefined;
+    const reporter: AgentActionReporter & ChannelActionReporter = {
+        text: noOutput,
+        info: noOutput,
+        success: noOutput,
+        warning: noOutput,
+        error: noOutput,
+        spinner: () => ({ start: noOutput, succeed: noOutput, fail: noOutput }),
+    };
+    const agent = createAgentActionService({ reporter });
+    const channel = createChannelActionService({ reporter });
+    return {
+        open: ({ agentName }) => agent.open({ agentName }),
+        send: ({ agentName, message }) => agent.send({ agentName, message }),
+        start: ({ agentType, name, cwd }) => agent.start({
+            agentType,
+            mode: 'interactive',
+            name,
+            cwd,
+        }),
+        kill: ({ agentName }) => agent.kill({ agentName }),
+        rename: ({ currentName, newName }) => agent.rename({ currentName, newName }),
+        startChannel: ({ channelName, agentName }) => channel.start({
+            channelName,
+            agentName,
+            daemon: true,
+        }),
+        stopChannel: ({ channelName }) => channel.stop({ channelName }),
+    };
+}
+
+function toActionResult(result: ApplicationActionResult): ActionResult {
+    return result.ok
+        ? { exitCode: 0 }
+        : { exitCode: result.cliExitCode ?? 1, error: result.message };
+}
+
+export async function runAction(
+    action: ConsoleAction,
+    services: ConsoleActionServices = createDefaultConsoleActionServices(),
+): Promise<ActionResult> {
+    try {
         switch (action.type) {
             case 'open':
-                return [...baseArgs, 'agent', 'open', action.agentName];
+                return toActionResult(await services.open({ agentName: action.agentName }));
             case 'send':
-                return [...baseArgs, 'agent', 'send', action.message, '--id', action.agentName];
+                return toActionResult(await services.send({ agentName: action.agentName, message: action.message }));
             case 'start':
-                return [...baseArgs, 'agent', 'start', '--type', action.agentType, '--name', action.name, '--cwd', action.cwd];
+                return toActionResult(await services.start({
+                    agentType: action.agentType,
+                    name: action.name,
+                    cwd: action.cwd,
+                }));
             case 'kill':
-                return [...baseArgs, 'agent', 'kill', action.agentName];
+                return toActionResult(await services.kill({ agentName: action.agentName }));
             case 'rename':
-                return [...baseArgs, 'agent', 'rename', action.currentName, action.newName];
+                return toActionResult(await services.rename({
+                    currentName: action.currentName,
+                    newName: action.newName,
+                }));
             case 'channel-start':
-                return [...baseArgs, 'channel', 'start', action.channelName, '--agent', action.agentName, '--daemon'];
+                return toActionResult(await services.startChannel({
+                    channelName: action.channelName,
+                    agentName: action.agentName,
+                    daemon: true,
+                }));
             case 'channel-stop':
-                return [...baseArgs, 'channel', 'stop', action.channelName];
+                return toActionResult(await services.stopChannel({ channelName: action.channelName }));
         }
-    })();
-
-    return new Promise<ActionResult>((resolve) => {
-        // Use pipe so the subprocess never takes over the TUI's terminal.
-        const child = spawn(command, argv, { stdio: ['ignore', 'pipe', 'pipe'] });
-        const stderrChunks: Buffer[] = [];
-        child.stderr?.on('data', (chunk: Buffer) => stderrChunks.push(chunk));
-        child.once('error', (err) => resolve({ exitCode: null, error: err.message }));
-        child.once('exit', (code) => {
-            const stderr = Buffer.concat(stderrChunks).toString().trim();
-            resolve({ exitCode: code, error: code !== 0 && stderr ? stderr : undefined });
-        });
-    });
+    } catch (error) {
+        return {
+            exitCode: null,
+            error: error instanceof Error ? error.message : String(error),
+        };
+    }
 }

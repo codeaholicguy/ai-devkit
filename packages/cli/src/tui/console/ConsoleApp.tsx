@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Box, useApp, useInput, type RenderOptions } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import {
@@ -17,6 +17,7 @@ import { StatusFooter } from './StatusFooter.js';
 import { ChatInput } from './ChatInput.js';
 import { HeaderBar } from './HeaderBar.js';
 import { runAction } from './actions/runAction.js';
+import { createConsoleActionExecutor } from './actions/pendingAction.js';
 import { StartAgentPane } from './StartAgentPane.js';
 import { RenameAgentPane } from './RenameAgentPane.js';
 import { ChannelSelectPane } from './ChannelSelectPane.js';
@@ -84,6 +85,10 @@ const ConsoleAppShell: React.FC<{
     const [focus, setFocus] = useState<ConsoleFocus>('list');
     const [inputLines, setInputLines] = useState(1);
     const [transient, setTransient] = useState<TransientMessage | null>(null);
+    const runConsoleAction = useMemo(() => createConsoleActionExecutor(
+        runAction,
+        (label) => setTransient({ kind: 'info', text: label }),
+    ), []);
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
     const [detailScrollOffset, setDetailScrollOffset] = useState(0);
     const startPaneActive = rightPaneMode.type === 'start-agent';
@@ -150,6 +155,7 @@ const ConsoleAppShell: React.FC<{
         handleStartCancel,
         handleStartSubmit,
     } = useStartAgentPane({
+        runConsoleAction,
         refresh,
         setFocus,
         setRightPaneMode,
@@ -160,7 +166,7 @@ const ConsoleAppShell: React.FC<{
         pendingKillName,
         openKillConfirm,
         handleKillInput,
-    } = useKillAgentAction({ setTransient });
+    } = useKillAgentAction({ runConsoleAction, setTransient });
 
     const {
         renamePaneError,
@@ -169,6 +175,7 @@ const ConsoleAppShell: React.FC<{
         handleRenameCancel,
         handleRenameSubmit,
     } = useRenameAgentPane({
+        runConsoleAction,
         setFocus,
         setRightPaneMode,
         setTransient,
@@ -179,6 +186,7 @@ const ConsoleAppShell: React.FC<{
         startChannel,
         stopAgentChannel,
     } = useChannelActions({
+        runConsoleAction,
         channelStatuses,
         refreshChannels,
         refreshConfiguredChannels,
@@ -190,14 +198,16 @@ const ConsoleAppShell: React.FC<{
         setFocus('list');
         const agent = getSelectedAgent();
         if (!agent) return;
-        void runAction({ type: 'send', agentName: agent.name, message: text }).then(result => {
+        const action = runConsoleAction({ type: 'send', agentName: agent.name, message: text });
+        if (!action) return;
+        void action.then(result => {
             if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
                 setTransient({ kind: 'error', text: result.error ?? `send exited ${result.exitCode}` });
             } else {
                 setTransient({ kind: 'info', text: `Message sent to ${agent.name}` });
             }
         });
-    }, [getSelectedAgent]);
+    }, [getSelectedAgent, runConsoleAction]);
 
     const handleInputCancel = useCallback(() => {
         setFocus('list');
@@ -226,9 +236,13 @@ const ConsoleAppShell: React.FC<{
         if (input === 'o') {
             const agent = getSelectedAgent();
             if (!agent) return;
-            void runAction({ type: 'open', agentName: agent.name }).then(result => {
+            const action = runConsoleAction({ type: 'open', agentName: agent.name });
+            if (!action) return;
+            void action.then(result => {
                 if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
                     setTransient({ kind: 'error', text: result.error ?? `open exited ${result.exitCode}` });
+                } else {
+                    setTransient(null);
                 }
             });
             return;

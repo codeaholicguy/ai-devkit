@@ -1,4 +1,3 @@
-import fs from 'fs';
 import os from 'os';
 import path from 'path';
 import { createElement } from 'react';
@@ -6,24 +5,10 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import { render } from 'ink';
 import {
-    AgentManager,
-    ClaudeCodeAdapter,
-    CodexAdapter,
-    CopilotAdapter,
-    GeminiCliAdapter,
-    GrokCliAdapter,
-    OpenCodeAdapter,
-    PiAdapter,
     ClaudePrintAgentService,
     PrintAgentStore,
     AgentStatus,
-    TerminalFocusManager,
-    AgentRegistry,
-    RenameNotFoundError,
-    RenameConflictError,
-    TmuxManager,
     AGENTS,
-    type StartableAgentType,
     type AgentInfo,
     type AgentType,
     type ConversationMessage,
@@ -31,7 +16,6 @@ import {
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
-import { enableDebug, createLogger } from '../util/debug.js';
 import {
     formatFirstMessage,
     parseLimit,
@@ -39,27 +23,13 @@ import {
     toJsonSession,
 } from '../util/sessions.js';
 import {
-    startAgent,
-    killAgent,
-    assertSendTargetOptions,
-    type SendReporter,
-    sendToAgent,
-    sendToAgentGroup,
-    TmuxUnavailableError,
-    AgentNameInUseError,
-    AgentPidPollTimeoutError,
-} from '../services/agent/agent.service.js';
-import {
-    AgentGroupNotFoundError,
-    createDefaultAgentGroupService,
-} from '../services/agent/agent-group.service.js';
+    createAgentActionService,
+    createAgentManager,
+} from '../services/agent/agent-action.service.js';
+import type { ApplicationActionResult } from '../services/actions/action-result.js';
 import { registerAgentGroupCommand } from './agent/group.command.js';
 import { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp } from '../tui/console/ConsoleApp.js';
 import { generateAgentName } from '../util/agent.js';
-import { select } from '@inquirer/prompts';
-
-// eslint-disable-next-line no-control-regex
-const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
 
 const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
     [AgentStatus.RUNNING]: { emoji: '🟢', label: 'run' },
@@ -71,16 +41,6 @@ const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
 function formatStatus(status: AgentStatus): string {
     const config = STATUS_DISPLAY[status] || STATUS_DISPLAY[AgentStatus.UNKNOWN];
     return `${config.emoji} ${config.label}`;
-}
-
-function sanitizeProviderOutput(value: string): string {
-    // Strip OSC controls as a unit, then remove remaining terminal control bytes except newline/tab.
-    // eslint-disable-next-line no-control-regex
-    const withoutOsc = value.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '');
-    return Array.from(withoutOsc, (character) => {
-        const code = character.charCodeAt(0);
-        return (code < 32 && code !== 9 && code !== 10) || code === 127 ? '' : character;
-    }).join('');
 }
 
 function formatRelativeTime(timestamp: Date): string {
@@ -184,26 +144,8 @@ function findSessionById(sessions: SessionSummary[], sessionId: string): Session
     return matches;
 }
 
-function createAgentManager(): AgentManager {
-    const manager = new AgentManager(AgentRegistry.default());
-    manager.registerAdapter(new ClaudeCodeAdapter());
-    manager.registerAdapter(new CodexAdapter());
-    manager.registerAdapter(new CopilotAdapter());
-    manager.registerAdapter(new GeminiCliAdapter());
-    manager.registerAdapter(new GrokCliAdapter());
-    manager.registerAdapter(new OpenCodeAdapter());
-    manager.registerAdapter(new PiAdapter());
-    return manager;
-}
-
 function createPrintAgentService(): ClaudePrintAgentService {
     return new ClaudePrintAgentService({ store: new PrintAgentStore() });
-}
-
-const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
-
-function writeWaitStatus(message: string): void {
-    process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
 }
 
 function readStdin(): Promise<string> {
@@ -250,13 +192,8 @@ async function resolveSendMessage(message: string | undefined, options: { stdin?
     return message;
 }
 
-function createCommandSendReporter(): SendReporter {
-    return {
-        info: (text) => text.startsWith('  - ') ? ui.text(text) : ui.info(text),
-        warning: (text) => ui.warning(text),
-        success: (text) => ui.success(text),
-        error: (text) => ui.error(text),
-    };
+function applyActionExit(result: ApplicationActionResult): void {
+    if (result.cliExitCode !== undefined) process.exit(result.cliExitCode);
 }
 
 export function registerAgentCommand(program: Command): void {
@@ -273,70 +210,18 @@ export function registerAgentCommand(program: Command): void {
         .option('--cwd <path>', 'Working directory for the agent (default: current directory)')
         .option('--debug', 'Enable debug logging')
         .action(withErrorHandler('start agent', async (options) => {
-            if (options.debug) {
-                enableDebug();
-            }
             const agentType = options.type as string;
             const mode = options.mode as string;
             const cwd = path.resolve(options.cwd ?? process.cwd());
             const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
-
-            if (!(agentType in AGENTS)) {
-                ui.error(`Unsupported agent type "${agentType}". Supported: ${Object.keys(AGENTS).join(', ')}.`);
-                process.exit(1);
-            }
-            if (!['interactive', 'print'].includes(mode)) {
-                throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, print.`);
-            }
-            if (mode === 'print' && agentType !== 'claude') {
-                throw new Error('Print mode currently supports only --type claude.');
-            }
-            if (!NAME_REGEX.test(agentName)) {
-                ui.error(
-                    `Invalid name "${agentName}". Use lowercase letters, digits, and hyphens only. ` +
-                    'Must start and end with a letter or digit, 2–64 characters.'
-                );
-                process.exit(1);
-            }
-            if (!fs.existsSync(cwd)) {
-                ui.error(`Directory "${cwd}" does not exist.`);
-                process.exit(1);
-            }
-
-            try {
-                if (mode === 'print') {
-                    const entry = await createPrintAgentService().create({ name: agentName, cwd });
-                    ui.success(`Print agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
-                    ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-                    ui.text('State: ready (Claude session not started)');
-                    return;
-                }
-                const entry = await startAgent(
-                    { type: agentType as StartableAgentType, name: agentName, cwd },
-                    {
-                        tmux: new TmuxManager(),
-                        registry: AgentRegistry.default(),
-                        onWarning: (msg) => ui.warning(msg),
-                    },
-                );
-                ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
-                ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-                ui.text(`Attach: tmux attach -t ${entry.tmuxSession}`);
-            } catch (err) {
-                if (err instanceof TmuxUnavailableError) {
-                    ui.error('tmux is not installed or not in PATH. Install it first (e.g., brew install tmux).');
-                } else if (err instanceof AgentNameInUseError) {
-                    ui.error(`Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`);
-                } else if (err instanceof AgentPidPollTimeoutError) {
-                    ui.error(
-                        `Agent process not found after ${err.timeoutMs / 1000}s. ` +
-                        `Verify that "${err.command}" is in PATH inside the tmux environment.`
-                    );
-                } else {
-                    throw err;
-                }
-                process.exit(1);
-            }
+            const result = await createAgentActionService().start({
+                agentType,
+                mode,
+                name: agentName,
+                cwd,
+                debug: options.debug,
+            });
+            applyActionExit(result);
         }));
 
     agentCommand
@@ -537,70 +422,8 @@ export function registerAgentCommand(program: Command): void {
         .description('Focus a running agent terminal')
         .option('--debug', 'Trace how the agent terminal is resolved and focused')
         .action(withErrorHandler('open agent', async (name, options) => {
-            const terminalLogger = options.debug ? createLogger('terminal') : undefined;
-            if (options.debug) {
-                enableDebug();
-            }
-            const manager = createAgentManager();
-            // When --debug is set, route the focus manager's decision trace to
-            // the ai-devkit:terminal debug logger (enabled above) so users can
-            // see which terminal matched and how focus was attempted.
-            const focusManager = new TerminalFocusManager(
-                terminalLogger ? (message: string) => terminalLogger(message) : undefined,
-            );
-
-            const agents = await manager.listAgents();
-            if (agents.length === 0) {
-                ui.error('No running agents found.');
-                return;
-            }
-
-            const resolved = manager.resolveAgent(name, agents);
-
-            if (!resolved) {
-                ui.error(`No agent found matching "${name}".`);
-                ui.info('Available agents:');
-                agents.forEach(a => ui.text(`  - ${a.name}`));
-                return;
-            }
-
-            let targetAgent = resolved;
-
-            if (Array.isArray(resolved)) {
-                ui.warning(`Multiple agents match "${name}":`);
-
-                const selectedAgent = await select({
-                    message: 'Select an agent to open:',
-                    choices: resolved.map(a => ({
-                        name: `${a.name} (${formatStatus(a.status)}) - ${a.summary}`,
-                        value: a
-                    }))
-                });
-                targetAgent = selectedAgent;
-            }
-
-            const agent = targetAgent as AgentInfo;
-            if (!agent.pid) {
-                ui.error(`Cannot focus agent "${agent.name}" (No PID found).`);
-                return;
-            }
-
-            const spinner = ui.spinner(`Switching focus to ${agent.name}...`);
-            spinner.start();
-
-            const location = await focusManager.findTerminal(agent.pid);
-            if (!location) {
-                spinner.fail(`Could not find terminal window for agent "${agent.name}" (PID: ${agent.pid}).`);
-                return;
-            }
-
-            const success = await focusManager.focusTerminal(location);
-
-            if (success) {
-                spinner.succeed(`Focused ${agent.name}!`);
-            } else {
-                spinner.fail(`Failed to switch focus to ${agent.name}.`);
-            }
+            const result = await createAgentActionService().open({ agentName: name, debug: options.debug });
+            applyActionExit(result);
         }));
 
     agentCommand
@@ -613,97 +436,24 @@ export function registerAgentCommand(program: Command): void {
         .option('--timeout <milliseconds>', 'Maximum time to wait with --wait, in milliseconds')
         .option('-j, --json', 'Output wait result as JSON')
         .action(withErrorHandler('send message', async (message, options) => {
-            assertSendTargetOptions(options);
             const prompt = await resolveSendMessage(message, options);
-            const manager = createAgentManager();
-            const focusManager = new TerminalFocusManager();
-
-            if (options.group) {
-                const group = createDefaultAgentGroupService().get(options.group);
-                if (!group) {
-                    throw new AgentGroupNotFoundError(options.group);
-                }
-                await sendToAgentGroup({ group, prompt, manager, focusManager });
-                return;
-            }
-
-            const printService = createPrintAgentService();
-            const printResolved = await printService.store.resolve(options.id);
-            if (Array.isArray(printResolved)) {
-                throw new Error(`Multiple print agents match "${options.id}".`);
-            }
-            if (printResolved) {
-                if (options.timeout !== undefined) {
-                    throw new Error('--timeout is not supported for synchronous print agents.');
-                }
-                if (options.id !== printResolved.id) {
-                    const liveAgents = await manager.listAgents();
-                    const liveExact = liveAgents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
-                    if (liveExact.length > 0) {
-                        throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the print agent ID.`);
-                    }
-                }
-                const result = await printService.send(options.id, prompt);
-                if (options.json) {
-                    console.log(JSON.stringify({
-                        target: { id: result.agentId, name: result.agentName, provider: 'claude', mode: 'print' },
-                        response: result.result,
-                        exitCode: result.exitCode,
-                        sessionId: result.sessionId,
-                    }, null, 2));
-                } else {
-                    ui.text(sanitizeProviderOutput(result.result));
-                }
-                return;
-            }
-
-            await sendToAgent({
-                id: options.id,
-                prompt,
-                manager,
-                focusManager,
+            const result = await createAgentActionService().send({
+                agentName: options.id,
+                groupName: options.group,
+                message: prompt,
                 wait: options.wait,
                 timeout: options.timeout,
                 json: options.json,
-                reporter: createCommandSendReporter(),
-                writeWaitStatus,
             });
+            applyActionExit(result);
         }));
 
     agentCommand
         .command('kill <name>')
         .description('Stop a running agent and clean up its managed tmux session')
         .action(withErrorHandler('kill agent', async (name: string) => {
-            const manager = createAgentManager();
-            const agents = await manager.listAgents();
-            if (agents.length === 0) {
-                ui.error('No running agents found.');
-                return;
-            }
-
-            const resolved = manager.resolveAgent(name, agents);
-
-            if (!resolved) {
-                ui.error(`No agent found matching "${name}".`);
-                ui.info('Available agents:');
-                agents.forEach(a => ui.text(`  - ${a.name}`));
-                return;
-            }
-
-            if (Array.isArray(resolved)) {
-                ui.error(`Multiple agents match "${name}":`);
-                resolved.forEach(a => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
-                ui.info('Please use a more specific name.');
-                return;
-            }
-
-            const result = await killAgent(resolved, {
-                tmux: new TmuxManager(),
-                registry: AgentRegistry.default(),
-            });
-
-            const suffix = result.tmuxSession ? ` and tmux session "${result.tmuxSession}"` : '';
-            ui.success(`Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`);
+            const result = await createAgentActionService().kill({ agentName: name });
+            applyActionExit(result);
         }));
 
     agentCommand
@@ -815,33 +565,8 @@ export function registerAgentCommand(program: Command): void {
         .command('rename <current-name> <new-name>')
         .description('Rename an agent in the registry')
         .action(withErrorHandler('rename agent', async (currentName: string, newName: string) => {
-            if (!NAME_REGEX.test(newName)) {
-                ui.error(
-                    `Invalid name "${newName}". Use lowercase letters, digits, and hyphens only. ` +
-                    'Must start and end with a letter or digit, 2–64 characters.'
-                );
-                process.exit(1);
-                return;
-            }
-
-            if (currentName === newName) {
-                ui.info(`Agent "${currentName}" already has that name.`);
-                return;
-            }
-
-            try {
-                AgentRegistry.default().rename(currentName, newName);
-                ui.success(`Agent "${currentName}" renamed to "${newName}".`);
-            } catch (err) {
-                if (err instanceof RenameNotFoundError) {
-                    ui.error(err.message);
-                } else if (err instanceof RenameConflictError) {
-                    ui.error(`Agent "${err.agentName}" is already in use. Choose a different name.`);
-                } else {
-                    throw err;
-                }
-                process.exit(1);
-            }
+            const result = await createAgentActionService().rename({ currentName, newName });
+            applyActionExit(result);
         }));
 
     agentCommand

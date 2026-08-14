@@ -1,5 +1,3 @@
-import * as path from 'path';
-import { fileURLToPath } from 'url';
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { Telegraf } from 'telegraf';
@@ -19,31 +17,9 @@ import { createLogger, enableDebug } from '../util/debug.js';
 import { getErrorMessage } from '../util/text.js';
 import { confirm, password } from '@inquirer/prompts';
 import { ChannelService } from '../services/channel/channel.service.js';
-import { runChannelBridge } from '../services/channel/channel-runner.js';
+import { createChannelActionService } from '../services/channel/channel-action.service.js';
 
 const debug = createLogger('channel');
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-function resolveDaemonLaunch(): { command: string; args: string[] } {
-    if (path.extname(__filename) === '.ts') {
-        return {
-            command: process.execPath,
-            args: [
-                '--no-warnings',
-                '--loader',
-                'ts-node/esm',
-                path.resolve(__dirname, '..', 'channel-daemon.ts'),
-            ],
-        };
-    }
-
-    return {
-        command: process.execPath,
-        args: [path.resolve(__dirname, '..', 'channel-daemon.js')],
-    };
-}
-
 function redactSecrets(message: string, secrets: string[]): string {
     return secrets.reduce(
         (redacted, secret) => secret ? redacted.split(secret).join('[REDACTED]') : redacted,
@@ -238,67 +214,11 @@ export function registerChannelCommand(program: Command): void {
         .option('--daemon', 'Start the channel bridge in the background')
         .option('--debug', 'Enable debug logging')
         .action(withErrorHandler('start channel bridge', async (name: string | undefined, options) => {
-            if (options.debug) {
-                enableDebug();
-            }
-
-            const configStore = new ConfigStore();
-            debug('Loading channel configuration from ConfigStore');
-            const config = await configStore.getConfig();
-            const channelName = channelService.resolveStartChannelName(config, name);
-            debug(`Starting channel bridge: channel=${channelName}, agent=${options.agent}`);
-            const channelEntry = config.channels[channelName];
-            const runningBridge = await channelService.getLiveBridgeByChannel(channelName);
-
-            if (!channelEntry) {
-                ui.error(`No channel configured with name "${channelName}".`);
-                const availableChannels = Object.keys(config.channels);
-                if (availableChannels.length > 0) {
-                    ui.info(`Available channels: ${availableChannels.join(', ')}`);
-                }
-                return;
-            }
-
-            if (options.daemon) {
-                const daemonLaunch = resolveDaemonLaunch();
-                const daemonArgs = [
-                    ...daemonLaunch.args,
-                    '--channel',
-                    channelName,
-                    '--agent',
-                    options.agent,
-                ];
-                if (options.debug) {
-                    daemonArgs.push('--debug');
-                }
-
-                const bridge = await channelService.startDaemonBridge({
-                    channelName,
-                    channelType: channelEntry.type,
-                    agentName: options.agent,
-                    command: daemonLaunch.command,
-                    args: daemonArgs,
-                    cwd: process.cwd(),
-                });
-
-                ui.success(`Channel bridge daemon started for "${channelName}" (PID: ${bridge.bridgePid}).`);
-                if (bridge.logPath) {
-                    ui.info(`Logs: ${bridge.logPath}`);
-                }
-                ui.info(`Run "ai-devkit channel stop ${channelName}" to stop it.`);
-                return;
-            }
-
-            if (runningBridge) {
-                ui.error(`Channel "${channelName}" bridge is already running (PID: ${runningBridge.bridgePid}).`);
-                return;
-            }
-
-            await runChannelBridge({
-                channelName,
+            await createChannelActionService({ channelService }).start({
+                channelName: name,
                 agentName: options.agent,
-                configStore,
-                channelService,
+                daemon: Boolean(options.daemon),
+                debug: options.debug,
             });
         }));
 
@@ -306,13 +226,7 @@ export function registerChannelCommand(program: Command): void {
         .command('stop [name]')
         .description('Stop a running channel bridge')
         .action(withErrorHandler('stop channel bridge', async (name: string | undefined) => {
-            const result = await channelService.stopBridge(name);
-            if (!result.stopped || !result.bridge) {
-                ui.info('No running channel bridge found.');
-                return;
-            }
-
-            ui.success(`Channel bridge stopped: ${result.bridge.channelName} (PID: ${result.bridge.bridgePid}).`);
+            await createChannelActionService({ channelService }).stop({ channelName: name });
         }));
 
     channelCommand

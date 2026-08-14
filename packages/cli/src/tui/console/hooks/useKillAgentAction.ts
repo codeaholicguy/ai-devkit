@@ -1,5 +1,5 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
-import { runAction } from '../actions/runAction.js';
+import type { RunConsoleAction } from '../actions/pendingAction.js';
 import type { TransientMessage } from '../types.js';
 
 interface ConsoleInputKey {
@@ -8,6 +8,7 @@ interface ConsoleInputKey {
 }
 
 interface UseKillAgentActionOptions {
+    runConsoleAction: RunConsoleAction;
     setTransient: Dispatch<SetStateAction<TransientMessage | null>>;
 }
 
@@ -24,7 +25,7 @@ export function getKillInputDecision(
     return 'consume';
 }
 
-export function useKillAgentAction({ setTransient }: UseKillAgentActionOptions) {
+export function useKillAgentAction({ runConsoleAction, setTransient }: UseKillAgentActionOptions) {
     const [pendingKillName, setPendingKillName] = useState<string | null>(null);
 
     const openKillConfirm = useCallback((agentName: string) => {
@@ -39,14 +40,16 @@ export function useKillAgentAction({ setTransient }: UseKillAgentActionOptions) 
         if (!pendingKillName) return;
         const agentName = pendingKillName;
         setPendingKillName(null);
-        void runAction({ type: 'kill', agentName }).then(result => {
+        const action = runConsoleAction({ type: 'kill', agentName });
+        if (!action) return;
+        void action.then(result => {
             if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
                 setTransient({ kind: 'error', text: result.error ?? `kill exited ${result.exitCode}` });
             } else {
                 setTransient({ kind: 'info', text: `Killed ${agentName}` });
             }
         });
-    }, [pendingKillName, setTransient]);
+    }, [pendingKillName, runConsoleAction, setTransient]);
 
     const handleKillInput = useCallback((input: string, key: ConsoleInputKey): boolean => {
         switch (getKillInputDecision(pendingKillName, input, key)) {

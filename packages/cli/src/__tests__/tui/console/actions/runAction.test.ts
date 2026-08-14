@@ -1,136 +1,131 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { EventEmitter } from 'events';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock child_process before importing runAction
-vi.mock('child_process', () => ({
-    spawn: vi.fn(),
+const { mockCreateAgentActionService, mockCreateChannelActionService } = vi.hoisted(() => ({
+    mockCreateAgentActionService: vi.fn(() => ({})),
+    mockCreateChannelActionService: vi.fn(() => ({})),
 }));
 
-import { spawn } from 'child_process';
-import { runAction } from '../../../../tui/console/actions/runAction.js';
+vi.mock('../../../../services/agent/agent-action.service.js', () => ({
+    createAgentActionService: mockCreateAgentActionService,
+}));
+vi.mock('../../../../services/channel/channel-action.service.js', () => ({
+    createChannelActionService: mockCreateChannelActionService,
+}));
 
-function makeChild(exitCode: number | null, stderr = '') {
-    const child = new EventEmitter() as EventEmitter & {
-        stderr: EventEmitter;
-        once: (event: string, cb: (...args: unknown[]) => void) => typeof child;
+import {
+    runAction,
+    type ConsoleActionServices,
+} from '../../../../tui/console/actions/runAction.js';
+
+function createServices(): ConsoleActionServices {
+    return {
+        open: vi.fn().mockResolvedValue({ ok: true }),
+        send: vi.fn().mockResolvedValue({ ok: true }),
+        start: vi.fn().mockResolvedValue({ ok: true }),
+        kill: vi.fn().mockResolvedValue({ ok: true }),
+        rename: vi.fn().mockResolvedValue({ ok: true }),
+        startChannel: vi.fn().mockResolvedValue({ ok: true }),
+        stopChannel: vi.fn().mockResolvedValue({ ok: true }),
     };
-    child.stderr = new EventEmitter();
-
-    // Emit stderr data then exit asynchronously
-    setTimeout(() => {
-        if (stderr) child.stderr.emit('data', Buffer.from(stderr));
-        child.emit('exit', exitCode);
-    }, 0);
-
-    return child;
 }
 
 describe('runAction', () => {
+    let services: ConsoleActionServices;
+
     beforeEach(() => {
-        vi.mocked(spawn).mockReset();
+        services = createServices();
+        mockCreateAgentActionService.mockClear();
+        mockCreateChannelActionService.mockClear();
     });
 
-    it('resolves with exitCode 0 on success', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        const result = await runAction({ type: 'open', agentName: 'jarvis' });
-        expect(result.exitCode).toBe(0);
-        expect(result.error).toBeUndefined();
+    it.each([
+        {
+            action: { type: 'open', agentName: 'jarvis' } as const,
+            method: 'open' as const,
+            input: { agentName: 'jarvis' },
+        },
+        {
+            action: { type: 'send', agentName: 'jarvis', message: 'hello' } as const,
+            method: 'send' as const,
+            input: { agentName: 'jarvis', message: 'hello' },
+        },
+        {
+            action: { type: 'start', agentType: 'codex', name: 'jarvis', cwd: '/tmp/project' } as const,
+            method: 'start' as const,
+            input: { agentType: 'codex', name: 'jarvis', cwd: '/tmp/project' },
+        },
+        {
+            action: { type: 'kill', agentName: 'jarvis' } as const,
+            method: 'kill' as const,
+            input: { agentName: 'jarvis' },
+        },
+        {
+            action: { type: 'rename', currentName: 'jarvis', newName: 'friday' } as const,
+            method: 'rename' as const,
+            input: { currentName: 'jarvis', newName: 'friday' },
+        },
+        {
+            action: { type: 'channel-start', channelName: 'work', agentName: 'jarvis' } as const,
+            method: 'startChannel' as const,
+            input: { channelName: 'work', agentName: 'jarvis', daemon: true },
+        },
+        {
+            action: { type: 'channel-stop', channelName: 'work' } as const,
+            method: 'stopChannel' as const,
+            input: { channelName: 'work' },
+        },
+    ])('invokes $method directly in-process', async ({ action, method, input }) => {
+        const result = await runAction(action, services);
+
+        expect(services[method]).toHaveBeenCalledOnce();
+        expect(services[method]).toHaveBeenCalledWith(input);
+        expect(result).toEqual({ exitCode: 0 });
     });
 
-    it('includes stderr in error when exit code is non-zero', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(1, 'agent not found') as ReturnType<typeof spawn>);
-        const result = await runAction({ type: 'open', agentName: 'jarvis' });
-        expect(result.exitCode).toBe(1);
-        expect(result.error).toBe('agent not found');
+    it('returns a service error without throwing', async () => {
+        vi.mocked(services.send).mockResolvedValue({
+            ok: false,
+            message: 'Cannot find terminal for agent "jarvis".',
+        });
+
+        await expect(runAction({
+            type: 'send',
+            agentName: 'jarvis',
+            message: 'hello',
+        }, services)).resolves.toEqual({
+            exitCode: 1,
+            error: 'Cannot find terminal for agent "jarvis".',
+        });
     });
 
-    it('does not set error when exit code is non-zero but stderr is empty', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(1, '') as ReturnType<typeof spawn>);
-        const result = await runAction({ type: 'open', agentName: 'jarvis' });
-        expect(result.exitCode).toBe(1);
-        expect(result.error).toBeUndefined();
+    it('returns a thrown service error as a non-exit failure', async () => {
+        vi.mocked(services.open).mockRejectedValue(new Error('terminal lookup failed'));
+
+        await expect(runAction({ type: 'open', agentName: 'jarvis' }, services)).resolves.toEqual({
+            exitCode: null,
+            error: 'terminal lookup failed',
+        });
     });
 
-    it('resolves with null exitCode and error message on spawn error', async () => {
-        const child = new EventEmitter() as EventEmitter & { stderr: EventEmitter };
-        child.stderr = new EventEmitter();
-        setTimeout(() => child.emit('error', new Error('ENOENT')), 0);
-        vi.mocked(spawn).mockReturnValue(child as ReturnType<typeof spawn>);
+    it('keeps service output away from the Ink terminal', async () => {
+        await runAction({ type: 'open', agentName: 'jarvis' });
 
-        const result = await runAction({ type: 'send', agentName: 'jarvis', message: 'hello' });
-        expect(result.exitCode).toBeNull();
-        expect(result.error).toBe('ENOENT');
-    });
-
-    it('passes correct argv for open action', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'open', agentName: 'my-agent' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining(['agent', 'open', 'my-agent']));
-    });
-
-    it('passes correct argv for send action', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'send', agentName: 'my-agent', message: 'hello world' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining(['agent', 'send', 'hello world', '--id', 'my-agent']));
-    });
-
-    it('passes correct argv for start action', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'start', agentType: 'codex', name: 'my-agent', cwd: '/tmp/project' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining([
-            'agent',
-            'start',
-            '--type',
-            'codex',
-            '--name',
-            'my-agent',
-            '--cwd',
-            '/tmp/project',
-        ]));
-    });
-
-    it('passes correct argv for kill action', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'kill', agentName: 'my-agent' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining(['agent', 'kill', 'my-agent']));
-    });
-
-    it('passes correct argv for rename action', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'rename', currentName: 'old-agent', newName: 'new-agent' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining(['agent', 'rename', 'old-agent', 'new-agent']));
-    });
-
-    it('passes correct argv for channel start action with selected channel name', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'channel-start', channelName: 'work-telegram', agentName: 'my-agent' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining([
-            'channel',
-            'start',
-            'work-telegram',
-            '--agent',
-            'my-agent',
-            '--daemon',
-        ]));
-    });
-
-    it('passes correct argv for channel stop action with selected channel name', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'channel-stop', channelName: 'work-telegram' });
-        const [, argv] = vi.mocked(spawn).mock.calls[0];
-        expect(argv).toEqual(expect.arrayContaining(['channel', 'stop', 'work-telegram']));
-    });
-
-    it('spawns with stdio pipe to avoid seizing the TUI terminal', async () => {
-        vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
-        await runAction({ type: 'start', agentType: 'claude', name: 'x', cwd: '/tmp/project' });
-        const [, , opts] = vi.mocked(spawn).mock.calls[0];
-        expect(opts?.stdio).toEqual(['ignore', 'pipe', 'pipe']);
+        expect(mockCreateAgentActionService).toHaveBeenCalledWith({
+            reporter: expect.objectContaining({
+                text: expect.any(Function),
+                info: expect.any(Function),
+                success: expect.any(Function),
+                warning: expect.any(Function),
+                error: expect.any(Function),
+                spinner: expect.any(Function),
+            }),
+        });
+        expect(mockCreateChannelActionService).toHaveBeenCalledWith({
+            reporter: expect.objectContaining({
+                info: expect.any(Function),
+                success: expect.any(Function),
+                error: expect.any(Function),
+            }),
+        });
     });
 });

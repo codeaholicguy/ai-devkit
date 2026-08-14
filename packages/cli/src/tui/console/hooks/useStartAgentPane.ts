@@ -1,12 +1,13 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
 import type { StartableAgentType } from '@ai-devkit/agent-manager';
-import { runAction } from '../actions/runAction.js';
+import type { RunConsoleAction } from '../actions/pendingAction.js';
 import { generateAgentName } from '../../../util/agent.js';
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from '../types.js';
 
 type StartDefaults = { name: string; cwd: string };
 
 interface UseStartAgentPaneOptions {
+    runConsoleAction: RunConsoleAction;
     refresh: () => Promise<void>;
     setFocus: Dispatch<SetStateAction<ConsoleFocus>>;
     setRightPaneMode: Dispatch<SetStateAction<RightPaneMode>>;
@@ -25,6 +26,7 @@ function createStartDefaults(): StartDefaults {
 }
 
 export function useStartAgentPane({
+    runConsoleAction,
     refresh,
     setFocus,
     setRightPaneMode,
@@ -51,7 +53,9 @@ export function useStartAgentPane({
         if (isStartingAgent) return;
         setIsStartingAgent(true);
         setStartPaneError(null);
-        void runAction({ type: 'start', agentType: values.type, name: values.name, cwd: values.cwd }).then(async result => {
+        const action = runConsoleAction({ type: 'start', agentType: values.type, name: values.name, cwd: values.cwd });
+        if (!action) return;
+        void action.then(async result => {
             if (result.error || (result.exitCode !== 0 && result.exitCode !== null)) {
                 setStartPaneError(result.error ?? `start exited ${result.exitCode}`);
                 return;
@@ -62,7 +66,7 @@ export function useStartAgentPane({
         }).finally(() => {
             setIsStartingAgent(false);
         });
-    }, [isStartingAgent, refresh, setRightPaneMode, setTransient]);
+    }, [isStartingAgent, refresh, runConsoleAction, setRightPaneMode, setTransient]);
 
     return {
         startDefaults,

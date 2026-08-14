@@ -1,8 +1,10 @@
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
-import { runAction, type ActionResult } from '../actions/runAction.js';
+import type { ActionResult } from '../actions/runAction.js';
+import type { RunConsoleAction } from '../actions/pendingAction.js';
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from '../types.js';
 
 interface UseRenameAgentPaneOptions {
+    runConsoleAction: RunConsoleAction;
     setFocus: Dispatch<SetStateAction<ConsoleFocus>>;
     setRightPaneMode: Dispatch<SetStateAction<RightPaneMode>>;
     setTransient: Dispatch<SetStateAction<TransientMessage | null>>;
@@ -19,6 +21,7 @@ export function getRenameActionError(result: ActionResult): string | null {
 }
 
 export function useRenameAgentPane({
+    runConsoleAction,
     setFocus,
     setRightPaneMode,
     setTransient,
@@ -42,7 +45,9 @@ export function useRenameAgentPane({
         if (isRenamingAgent) return;
         setIsRenamingAgent(true);
         setRenamePaneError(null);
-        void runAction({ type: 'rename', currentName, newName: values.newName }).then(result => {
+        const action = runConsoleAction({ type: 'rename', currentName, newName: values.newName });
+        if (!action) return;
+        void action.then(result => {
             const error = getRenameActionError(result);
             if (error) {
                 setRenamePaneError(error);
@@ -53,7 +58,7 @@ export function useRenameAgentPane({
         }).finally(() => {
             setIsRenamingAgent(false);
         });
-    }, [isRenamingAgent, setRightPaneMode, setTransient]);
+    }, [isRenamingAgent, runConsoleAction, setRightPaneMode, setTransient]);
 
     return {
         renamePaneError,

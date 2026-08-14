@@ -1,10 +1,11 @@
 import { useCallback, type Dispatch, type SetStateAction } from 'react';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
-import { runAction } from '../actions/runAction.js';
 import type { ActionResult } from '../actions/runAction.js';
+import type { RunConsoleAction } from '../actions/pendingAction.js';
 import type { AgentChannelStatusMap, RightPaneMode, TransientMessage } from '../types.js';
 
 interface UseChannelActionsInput {
+    runConsoleAction: RunConsoleAction;
     channelStatuses: AgentChannelStatusMap;
     refreshChannels: () => Promise<void>;
     refreshConfiguredChannels: () => Promise<void>;
@@ -36,6 +37,7 @@ export function getConnectedChannelName(
 }
 
 export function useChannelActions({
+    runConsoleAction,
     channelStatuses,
     refreshChannels,
     refreshConfiguredChannels,
@@ -54,7 +56,9 @@ export function useChannelActions({
     }, [refreshConfiguredChannels, setRightPaneMode, setTransient]);
 
     const startChannel = useCallback((channelName: string, agentName: string) => {
-        void runAction({ type: 'channel-start', channelName, agentName })
+        const action = runConsoleAction({ type: 'channel-start', channelName, agentName });
+        if (!action) return;
+        void action
             .then(async result => {
                 const actionError = getChannelActionError('channel start', result);
                 if (actionError) {
@@ -69,7 +73,7 @@ export function useChannelActions({
             .catch(err => {
                 setTransient({ kind: 'error', text: errorMessage(err) });
             });
-    }, [refreshChannels, setRightPaneMode, setTransient]);
+    }, [refreshChannels, runConsoleAction, setRightPaneMode, setTransient]);
 
     const stopAgentChannel = useCallback((agent: AgentInfo | null) => {
         const channelName = getConnectedChannelName(agent, channelStatuses);
@@ -78,7 +82,9 @@ export function useChannelActions({
             return;
         }
 
-        void runAction({ type: 'channel-stop', channelName })
+        const action = runConsoleAction({ type: 'channel-stop', channelName });
+        if (!action) return;
+        void action
             .then(async result => {
                 const actionError = getChannelActionError('channel stop', result);
                 if (actionError) {
@@ -92,7 +98,7 @@ export function useChannelActions({
             .catch(err => {
                 setTransient({ kind: 'error', text: errorMessage(err) });
             });
-    }, [channelStatuses, refreshChannels, setTransient]);
+    }, [channelStatuses, refreshChannels, runConsoleAction, setTransient]);
 
     return {
         openChannelSelect,
