@@ -88,7 +88,8 @@ const { RenameNotFoundError, RenameConflictError } = vi.hoisted(() => {
   return { RenameNotFoundError, RenameConflictError };
 });
 
-vi.mock('@ai-devkit/agent-manager', () => ({
+vi.mock('@ai-devkit/agent-manager', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@ai-devkit/agent-manager')>(),
   AgentManager: vi.fn(function () { return mockManager; }),
   ClaudeCodeAdapter: vi.fn(),
   CodexAdapter: vi.fn(),
@@ -129,7 +130,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   },
   RenameNotFoundError: RenameNotFoundError,
   RenameConflictError: RenameConflictError,
-}), { virtual: true });
+}));
 
 vi.mock('@inquirer/prompts', () => ({
   select: (...args: unknown[]) => mockSelect(...args),

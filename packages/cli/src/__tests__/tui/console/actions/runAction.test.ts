@@ -5,10 +5,12 @@ const { mockCreateAgentActionService, mockCreateChannelActionService } = vi.hois
     mockCreateChannelActionService: vi.fn(() => ({})),
 }));
 
-vi.mock('../../../../services/agent/agent-action.service.js', () => ({
+vi.mock('@ai-devkit/agent-manager', async (importOriginal) => ({
+    ...await importOriginal<typeof import('@ai-devkit/agent-manager')>(),
     createAgentActionService: mockCreateAgentActionService,
 }));
-vi.mock('../../../../services/channel/channel-action.service.js', () => ({
+vi.mock('@ai-devkit/channel-connector', async (importOriginal) => ({
+    ...await importOriginal<typeof import('@ai-devkit/channel-connector')>(),
     createChannelActionService: mockCreateChannelActionService,
 }));
 
@@ -67,7 +69,7 @@ describe('runAction', () => {
         {
             action: { type: 'channel-start', channelName: 'work', agentName: 'jarvis' } as const,
             method: 'startChannel' as const,
-            input: { channelName: 'work', agentName: 'jarvis', daemon: true },
+            input: { channelName: 'work', agentName: 'jarvis' },
         },
         {
             action: { type: 'channel-stop', channelName: 'work' } as const,

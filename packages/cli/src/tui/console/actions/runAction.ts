@@ -1,12 +1,13 @@
 import {
     createAgentActionService,
     type AgentActionReporter,
-} from '../../../services/agent/agent-action.service.js';
+    type ApplicationActionResult,
+} from '@ai-devkit/agent-manager';
 import {
     createChannelActionService,
     type ChannelActionReporter,
-} from '../../../services/channel/channel-action.service.js';
-import type { ApplicationActionResult } from '../../../services/actions/action-result.js';
+} from '@ai-devkit/channel-connector';
+import { resolveDaemonLaunch } from '../../../services/channel/daemon-launch.js';
 import type { ConsoleAction } from './types.js';
 
 export interface ActionResult {
@@ -23,7 +24,7 @@ export interface ConsoleActionServices {
     start(input: StartConsoleActionInput): Promise<ApplicationActionResult>;
     kill(input: { agentName: string }): Promise<ApplicationActionResult>;
     rename(input: { currentName: string; newName: string }): Promise<ApplicationActionResult>;
-    startChannel(input: { channelName: string; agentName: string; daemon: true }): Promise<ApplicationActionResult>;
+    startChannel(input: { channelName: string; agentName: string }): Promise<ApplicationActionResult>;
     stopChannel(input: { channelName: string }): Promise<ApplicationActionResult>;
 }
 
@@ -50,10 +51,10 @@ function createDefaultConsoleActionServices(): ConsoleActionServices {
         }),
         kill: ({ agentName }) => agent.kill({ agentName }),
         rename: ({ currentName, newName }) => agent.rename({ currentName, newName }),
-        startChannel: ({ channelName, agentName }) => channel.start({
+        startChannel: ({ channelName, agentName }) => channel.startDaemon({
             channelName,
             agentName,
-            daemon: true,
+            launch: resolveDaemonLaunch(),
         }),
         stopChannel: ({ channelName }) => channel.stop({ channelName }),
     };
@@ -92,7 +93,6 @@ export async function runAction(
                 return toActionResult(await services.startChannel({
                     channelName: action.channelName,
                     agentName: action.agentName,
-                    daemon: true,
                 }));
             case 'channel-stop':
                 return toActionResult(await services.stopChannel({ channelName: action.channelName }));

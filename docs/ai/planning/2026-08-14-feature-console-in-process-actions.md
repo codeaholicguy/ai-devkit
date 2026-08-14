@@ -19,6 +19,15 @@ description: TDD task queue for shared console action services
 - [x] Run focused tests, full CLI tests, CLI lint, CLI build, and feature-doc lint.
 - [x] Review diff, commit conventionally, rebase on `origin/main`, revalidate, push, and open a PR to `main`.
 
+## Package Ownership Revision
+
+- [x] Add red package-level tests for exported agent and channel application services.
+- [x] Move reusable agent lifecycle orchestration into `@ai-devkit/agent-manager`.
+- [x] Move reusable channel bridge registry and daemon orchestration into `@ai-devkit/channel-connector`.
+- [x] Remove CLI-owned service reimplementations and import package services from Commander and the console.
+- [x] Re-run package tests/builds plus the full CLI validation matrix.
+- [x] Commit and update PR #160.
+
 ## Scope Decision
 
 All seven actions share the same dispatch/result boundary and are included. Command-only group, print, stdin, wait, and foreground-channel modes remain in Commander orchestration, using existing lower-level services, because the console does not invoke them.

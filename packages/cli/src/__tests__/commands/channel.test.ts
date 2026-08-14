@@ -64,7 +64,8 @@ const mockChannelService = {
     stopBridge: vi.fn<(channelName?: string) => Promise<unknown>>(),
 };
 
-vi.mock('@ai-devkit/channel-connector', () => ({
+vi.mock('@ai-devkit/channel-connector', async (importOriginal) => ({
+    ...await importOriginal<typeof import('@ai-devkit/channel-connector')>(),
     ChannelManager: vi.fn(function () { return mockChannelManager; }),
     ConfigStore: vi.fn(function () { return mockConfigStore; }),
     TelegramAdapter: vi.fn(function () { return mockTelegramAdapter; }),
@@ -72,7 +73,7 @@ vi.mock('@ai-devkit/channel-connector', () => ({
     SLACK_CHANNEL_TYPE: 'slack',
     validateSlackCredentials: (...args: unknown[]) => mockValidateSlackCredentials(...args),
     validateSlackAppToken: (...args: unknown[]) => mockValidateSlackAppToken(...args),
-}), { virtual: true });
+}));
 
 vi.mock('@ai-devkit/agent-manager', () => ({
     AgentStatus: {

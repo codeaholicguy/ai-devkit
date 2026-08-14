@@ -16,8 +16,8 @@ import { withErrorHandler } from '../util/errors.js';
 import { createLogger, enableDebug } from '../util/debug.js';
 import { getErrorMessage } from '../util/text.js';
 import { confirm, password } from '@inquirer/prompts';
+import { createCliChannelActionService } from '../services/channel/cli-channel-action-service.js';
 import { ChannelService } from '../services/channel/channel.service.js';
-import { createChannelActionService } from '../services/channel/channel-action.service.js';
 
 const debug = createLogger('channel');
 function redactSecrets(message: string, secrets: string[]): string {
@@ -214,7 +214,7 @@ export function registerChannelCommand(program: Command): void {
         .option('--daemon', 'Start the channel bridge in the background')
         .option('--debug', 'Enable debug logging')
         .action(withErrorHandler('start channel bridge', async (name: string | undefined, options) => {
-            await createChannelActionService({ channelService }).start({
+            await createCliChannelActionService(channelService).start({
                 channelName: name,
                 agentName: options.agent,
                 daemon: Boolean(options.daemon),
@@ -226,7 +226,7 @@ export function registerChannelCommand(program: Command): void {
         .command('stop [name]')
         .description('Stop a running channel bridge')
         .action(withErrorHandler('stop channel bridge', async (name: string | undefined) => {
-            await createChannelActionService({ channelService }).stop({ channelName: name });
+            await createCliChannelActionService(channelService).stop({ channelName: name });
         }));
 
     channelCommand

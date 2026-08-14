@@ -1,29 +1,20 @@
 import fs from 'fs';
 import os from 'os';
-import {
-    AGENTS,
-    AgentManager,
-    AgentRegistry,
-    AgentStatus,
-    ClaudeCodeAdapter,
-    ClaudePrintAgentService,
-    CodexAdapter,
-    CopilotAdapter,
-    GeminiCliAdapter,
-    GrokCliAdapter,
-    OpenCodeAdapter,
-    PiAdapter,
-    PrintAgentStore,
-    RenameConflictError,
-    RenameNotFoundError,
-    TerminalFocusManager,
-    TmuxManager,
-    type AgentInfo,
-    type StartableAgentType,
-} from '@ai-devkit/agent-manager';
-import { select } from '@inquirer/prompts';
-import { enableDebug, createLogger } from '../../util/debug.js';
-import { ui } from '../../util/terminal-ui.js';
+import { AgentManager } from '../AgentManager.js';
+import { ClaudeCodeAdapter } from '../adapters/ClaudeCodeAdapter.js';
+import { CodexAdapter } from '../adapters/CodexAdapter.js';
+import { CopilotAdapter } from '../adapters/CopilotAdapter.js';
+import { GeminiCliAdapter } from '../adapters/GeminiCliAdapter.js';
+import { GrokCliAdapter } from '../adapters/GrokCliAdapter.js';
+import { OpenCodeAdapter } from '../adapters/OpenCodeAdapter.js';
+import { PiAdapter } from '../adapters/PiAdapter.js';
+import { AgentStatus, type AgentInfo } from '../adapters/AgentAdapter.js';
+import { ClaudePrintAgentService } from '../print/ClaudePrintAgentService.js';
+import { PrintAgentStore } from '../print/PrintAgentStore.js';
+import { TerminalFocusManager } from '../terminal/TerminalFocusManager.js';
+import { TmuxManager } from '../terminal/TmuxManager.js';
+import { AgentRegistry, RenameConflictError, RenameNotFoundError } from '../utils/AgentRegistry.js';
+import { AGENTS, type StartableAgentType } from '../utils/agents.js';
 import {
     AgentNameInUseError,
     AgentPidPollTimeoutError,
@@ -34,12 +25,8 @@ import {
     sendToAgentGroup,
     startAgent,
     type SendReporter,
-} from './agent.service.js';
-import {
-    AgentGroupNotFoundError,
-    createDefaultAgentGroupService,
-} from './agent-group.service.js';
-import { actionFailed, actionSucceeded, type ApplicationActionResult } from '../actions/action-result.js';
+} from './AgentService.js';
+import { actionFailed, actionSucceeded, type ApplicationActionResult } from './ActionResult.js';
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
 // eslint-disable-next-line no-control-regex
@@ -62,7 +49,14 @@ type FocusManagerLike = Pick<TerminalFocusManager, 'findTerminal' | 'focusTermin
 type RegistryLike = Pick<AgentRegistry, 'rename'>;
 type TmuxLike = TmuxManager;
 type PrintServiceLike = Pick<ClaudePrintAgentService, 'store' | 'create' | 'send'>;
-type GroupServiceLike = ReturnType<typeof createDefaultAgentGroupService>;
+interface GroupServiceLike {
+    get(name: string): { name: string; members: string[] } | undefined;
+}
+
+interface SelectAgentOptions {
+    message: string;
+    choices: Array<{ name: string; value: AgentInfo }>;
+}
 
 export interface StartAgentActionInput {
     agentType: string;
@@ -111,10 +105,14 @@ export interface AgentActionServiceDependencies {
     printService?: PrintServiceLike;
     groupService?: GroupServiceLike;
     reporter?: AgentActionReporter;
-    selectAgent?: (options: Parameters<typeof select<AgentInfo>>[0]) => Promise<AgentInfo>;
+    selectAgent?: (options: SelectAgentOptions) => Promise<AgentInfo>;
     writeWaitStatus?: (message: string) => void;
     writeProviderOutput?: (message: string) => void;
     writeJson?: (value: object) => void;
+    startAgent?: typeof startAgent;
+    killAgent?: typeof killAgent;
+    sendToAgent?: typeof sendToAgent;
+    sendToAgentGroup?: typeof sendToAgentGroup;
 }
 
 export function createAgentManager(): AgentManager {
@@ -176,27 +174,42 @@ function createTrackedSendReporter(
     };
 }
 
+function createSilentReporter(): AgentActionReporter {
+    const noOutput = () => undefined;
+    return {
+        text: noOutput,
+        info: noOutput,
+        success: noOutput,
+        warning: noOutput,
+        error: noOutput,
+        spinner: () => ({ start: noOutput, succeed: noOutput, fail: noOutput }),
+    };
+}
+
 export function createAgentActionService(
     dependencies: AgentActionServiceDependencies = {},
 ): AgentActionService {
-    const reporter = dependencies.reporter ?? ui;
+    const reporter = dependencies.reporter ?? createSilentReporter();
     const manager = dependencies.manager ?? createAgentManager();
     const registry = dependencies.registry ?? AgentRegistry.default();
     const tmux = dependencies.tmux ?? new TmuxManager();
     const printService = dependencies.printService ?? createPrintAgentService();
-    const groupService = dependencies.groupService ?? createDefaultAgentGroupService();
+    const groupService = dependencies.groupService;
     const createFocusManager = dependencies.createFocusManager
         ?? ((logger?: (message: string) => void) => new TerminalFocusManager(logger));
-    const selectAgent = dependencies.selectAgent ?? ((options) => select(options));
+    const selectAgent = dependencies.selectAgent;
     const writeWaitStatus = dependencies.writeWaitStatus
         ?? ((message: string) => process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`));
     const writeProviderOutput = dependencies.writeProviderOutput
         ?? ((message: string) => reporter.text(message));
     const writeJson = dependencies.writeJson ?? ((value: object) => console.log(JSON.stringify(value, null, 2)));
+    const startAgentOperation = dependencies.startAgent ?? startAgent;
+    const killAgentOperation = dependencies.killAgent ?? killAgent;
+    const sendToAgentOperation = dependencies.sendToAgent ?? sendToAgent;
+    const sendToAgentGroupOperation = dependencies.sendToAgentGroup ?? sendToAgentGroup;
 
     return {
         async start(input) {
-            if (input.debug) enableDebug();
             if (!(input.agentType in AGENTS)) {
                 const message = `Unsupported agent type "${input.agentType}". Supported: ${Object.keys(AGENTS).join(', ')}.`;
                 reporter.error(message);
@@ -229,7 +242,7 @@ export function createAgentActionService(
                     return actionSucceeded();
                 }
 
-                const entry = await startAgent(
+                const entry = await startAgentOperation(
                     { type: input.agentType as StartableAgentType, name: input.name, cwd: input.cwd },
                     { tmux, registry: registry as AgentRegistry, onWarning: (message) => reporter.warning(message) },
                 );
@@ -239,7 +252,7 @@ export function createAgentActionService(
                 return actionSucceeded();
             } catch (error) {
                 let message: string;
-                if (error instanceof TmuxUnavailableError) {
+                if (error instanceof TmuxUnavailableError || (error instanceof Error && error.name === 'TmuxUnavailableError')) {
                     message = 'tmux is not installed or not in PATH. Install it first (e.g., brew install tmux).';
                 } else if (error instanceof AgentNameInUseError) {
                     message = `Agent "${error.agentName}" is already running (PID ${error.pid}). Choose a different name.`;
@@ -255,11 +268,7 @@ export function createAgentActionService(
         },
 
         async open(input) {
-            const terminalLogger = input.debug ? createLogger('terminal') : undefined;
-            if (input.debug) enableDebug();
-            const focusManager = createFocusManager(
-                terminalLogger ? (message: string) => terminalLogger(message) : undefined,
-            );
+            const focusManager = createFocusManager();
             const agents = await manager.listAgents();
             if (agents.length === 0) {
                 const message = 'No running agents found.';
@@ -279,6 +288,11 @@ export function createAgentActionService(
             let targetAgent = resolved;
             if (Array.isArray(resolved)) {
                 reporter.warning(`Multiple agents match "${input.agentName}":`);
+                if (!selectAgent) {
+                    const message = `Multiple agents match "${input.agentName}".`;
+                    reporter.error(message);
+                    return actionFailed(message);
+                }
                 targetAgent = await selectAgent({
                     message: 'Select an agent to open:',
                     choices: resolved.map((agent) => ({
@@ -324,9 +338,10 @@ export function createAgentActionService(
             const focusManager = createFocusManager();
 
             if (input.groupName) {
+                if (!groupService) throw new Error('Agent group service is required for group sends.');
                 const group = groupService.get(input.groupName);
-                if (!group) throw new AgentGroupNotFoundError(input.groupName);
-                await sendToAgentGroup({ group, prompt: input.message, manager, focusManager });
+                if (!group) throw new Error(`Agent group "${input.groupName}" not found.`);
+                await sendToAgentGroupOperation({ group, prompt: input.message, manager, focusManager, reporter });
                 return process.exitCode === 1
                     ? actionFailed(`Failed to send message to agent group "${input.groupName}".`)
                     : actionSucceeded();
@@ -364,7 +379,7 @@ export function createAgentActionService(
             }
 
             const tracked = createTrackedSendReporter(reporter);
-            await sendToAgent({
+            await sendToAgentOperation({
                 id: input.agentName!,
                 prompt: input.message,
                 manager,
@@ -403,7 +418,7 @@ export function createAgentActionService(
                 return actionFailed(message);
             }
 
-            const result = await killAgent(resolved, { tmux, registry: registry as AgentRegistry });
+            const result = await killAgentOperation(resolved, { tmux, registry: registry as AgentRegistry });
             const suffix = result.tmuxSession ? ` and tmux session "${result.tmuxSession}"` : '';
             reporter.success(`Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`);
             return actionSucceeded();
@@ -426,10 +441,11 @@ export function createAgentActionService(
                 return actionSucceeded();
             } catch (error) {
                 let message: string;
-                if (error instanceof RenameNotFoundError) {
+                if (error instanceof RenameNotFoundError || (error instanceof Error && error.name === 'RenameNotFoundError')) {
                     message = error.message;
-                } else if (error instanceof RenameConflictError) {
-                    message = `Agent "${error.agentName}" is already in use. Choose a different name.`;
+                } else if (error instanceof RenameConflictError || (error instanceof Error && error.name === 'RenameConflictError')) {
+                    const agentName = 'agentName' in error ? String(error.agentName) : input.newName;
+                    message = `Agent "${agentName}" is already in use. Choose a different name.`;
                 } else {
                     throw error;
                 }

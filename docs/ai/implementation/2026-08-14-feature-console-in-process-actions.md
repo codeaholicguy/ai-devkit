@@ -12,8 +12,8 @@ Implementation, validation, and publication for review are complete. PR: https:/
 
 ## Intended Changes
 
-- `services/agent/agent-action.service.ts` centralizes start/open/send/kill/rename orchestration and constructs the existing manager, terminal, tmux, registry, print-agent, and group dependencies by default.
-- `services/channel/channel-action.service.ts` centralizes foreground/daemon channel start and channel stop while preserving the dedicated daemon launch.
+- `@ai-devkit/agent-manager` exports the reusable start/open/send/kill/rename service and its existing lower-level operations. The CLI keeps only a dependency-composition adapter for prompts, groups, debug logging, and terminal reporting.
+- `@ai-devkit/channel-connector` exports bridge registry and daemon start/stop services. The CLI keeps foreground execution and source/build daemon-entrypoint resolution as CLI-specific adapters.
 - Commander resolves paths and message input, calls the service, and applies only an explicit service exit directive.
 - `runAction.ts` dispatches all seven console actions directly to injectable service methods; it no longer imports `child_process`.
 - `pendingAction.ts` provides synchronous action identity/label notification and a keyed in-flight gate shared by all console flows.
@@ -22,9 +22,10 @@ Implementation, validation, and publication for review are complete. PR: https:/
 ## Decisions and Deviations
 
 - All seven actions fit coherently in the shared boundary; no action migration was deferred.
-- Group, print, wait, and foreground-channel orchestration also moved into the services, making Commander thinner than the minimum design while preserving their existing tests and output.
+- Group, print, and wait orchestration moved into the agent package service. Foreground-channel execution remains in the CLI adapter because it owns the long-running Commander process, while daemon start/stop is package-owned and shared with the console.
 - The configured Vercel React best-practices skill was unavailable in the active skill catalog. The implementation follows existing hook extraction, stable setter, memoized executor, and synchronous mutable-gate patterns; no render-time side effects or timing assertions were added.
 - The channel daemon remains an intentional detached child process. Only the per-action full CLI respawn was removed.
+- Remaining compatibility modules under `packages/cli/src/services` are export-only shims; service behavior has one implementation in the owning packages. The console imports the package APIs directly.
 
 ## Validation Evidence
 
@@ -36,3 +37,4 @@ Implementation, validation, and publication for review are complete. PR: https:/
 - CLI build: `npm run build --workspace packages/cli` — exit 0, 199 files compiled after rebase.
 - Feature docs: `npx ai-devkit@latest lint --feature console-in-process-actions` — all checks passed.
 - Output isolation: default console services receive a silent reporter; a red-to-green test proves CLI spinners/text cannot write into the Ink terminal.
+- Owning packages: agent-manager 25 files/504 tests and channel-connector 8 files/105 tests passed; both package builds and lints passed.

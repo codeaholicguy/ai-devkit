@@ -13,6 +13,7 @@ import {
     type AgentType,
     type ConversationMessage,
     type SessionSummary,
+    type ApplicationActionResult,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
@@ -23,10 +24,9 @@ import {
     toJsonSession,
 } from '../util/sessions.js';
 import {
-    createAgentActionService,
-    createAgentManager,
-} from '../services/agent/agent-action.service.js';
-import type { ApplicationActionResult } from '../services/actions/action-result.js';
+    createCliAgentActionService,
+    createCliAgentManager as createAgentManager,
+} from '../services/agent/cli-agent-action-service.js';
 import { registerAgentGroupCommand } from './agent/group.command.js';
 import { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp } from '../tui/console/ConsoleApp.js';
 import { generateAgentName } from '../util/agent.js';
@@ -214,7 +214,7 @@ export function registerAgentCommand(program: Command): void {
             const mode = options.mode as string;
             const cwd = path.resolve(options.cwd ?? process.cwd());
             const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
-            const result = await createAgentActionService().start({
+            const result = await createCliAgentActionService(Boolean(options.debug)).start({
                 agentType,
                 mode,
                 name: agentName,
@@ -422,7 +422,7 @@ export function registerAgentCommand(program: Command): void {
         .description('Focus a running agent terminal')
         .option('--debug', 'Trace how the agent terminal is resolved and focused')
         .action(withErrorHandler('open agent', async (name, options) => {
-            const result = await createAgentActionService().open({ agentName: name, debug: options.debug });
+            const result = await createCliAgentActionService(Boolean(options.debug)).open({ agentName: name });
             applyActionExit(result);
         }));
 
@@ -437,7 +437,7 @@ export function registerAgentCommand(program: Command): void {
         .option('-j, --json', 'Output wait result as JSON')
         .action(withErrorHandler('send message', async (message, options) => {
             const prompt = await resolveSendMessage(message, options);
-            const result = await createAgentActionService().send({
+            const result = await createCliAgentActionService().send({
                 agentName: options.id,
                 groupName: options.group,
                 message: prompt,
@@ -452,7 +452,7 @@ export function registerAgentCommand(program: Command): void {
         .command('kill <name>')
         .description('Stop a running agent and clean up its managed tmux session')
         .action(withErrorHandler('kill agent', async (name: string) => {
-            const result = await createAgentActionService().kill({ agentName: name });
+            const result = await createCliAgentActionService().kill({ agentName: name });
             applyActionExit(result);
         }));
 
@@ -565,7 +565,7 @@ export function registerAgentCommand(program: Command): void {
         .command('rename <current-name> <new-name>')
         .description('Rename an agent in the registry')
         .action(withErrorHandler('rename agent', async (currentName: string, newName: string) => {
-            const result = await createAgentActionService().rename({ currentName, newName });
+            const result = await createCliAgentActionService().rename({ currentName, newName });
             applyActionExit(result);
         }));
 

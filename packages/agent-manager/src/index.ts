@@ -73,3 +73,46 @@ export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
 } from './print/ClaudePrintAgentService.js';
+
+export {
+    actionFailed,
+    actionSucceeded,
+} from './services/ActionResult.js';
+export type { ApplicationActionResult } from './services/ActionResult.js';
+export {
+    createAgentActionService,
+    createAgentManager,
+} from './services/AgentActionService.js';
+export type {
+    AgentActionReporter,
+    AgentActionService,
+    AgentActionServiceDependencies,
+    KillAgentActionInput,
+    OpenAgentActionInput,
+    RenameAgentActionInput,
+    SendAgentActionInput,
+    StartAgentActionInput,
+} from './services/AgentActionService.js';
+export {
+    AgentNameInUseError,
+    AgentPidPollTimeoutError,
+    DEFAULT_PID_POLL_INTERVAL_MS,
+    DEFAULT_PID_POLL_TIMEOUT_MS,
+    TmuxUnavailableError,
+    assertSendTargetOptions,
+    killAgent,
+    sendToAgent,
+    sendToAgentGroup,
+    startAgent,
+    waitForAgentResponse,
+} from './services/AgentService.js';
+export type {
+    AgentGroup,
+    AgentSendWaitOptions,
+    AgentSendWaitResult,
+    AgentSendWaitTarget,
+    SendReporter,
+    SendToAgentGroupOptions,
+    SendToAgentOptions,
+    WaitForAgentResponseParams,
+} from './services/AgentService.js';

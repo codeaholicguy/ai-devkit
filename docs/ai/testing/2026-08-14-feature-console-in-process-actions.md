@@ -22,6 +22,7 @@ description: TDD coverage and validation evidence
 ## Validation Commands
 
 - Focused action/service/pending tests.
+- Package service tests, lint, and builds for `agent-manager` and `channel-connector`.
 - `npm test --workspace packages/cli`
 - `npm run lint --workspace packages/cli`
 - `npm run build --workspace packages/cli`
@@ -37,3 +38,6 @@ description: TDD coverage and validation evidence
 - CLI lint: exit 0 with five pre-existing warnings, zero errors.
 - CLI build: exit 0; SWC compiled 199 files after rebase and declaration generation completed.
 - Feature-doc lint: exit 0; all required feature documents and worktree checks passed.
+- Package boundary tests: agent open and channel daemon start invoke injected package dependencies directly.
+- Package builds and lint: both owning packages compile and lint successfully.
+- Agent-manager suite: 25 files and 504 tests passed with process inspection enabled; channel-connector suite: 8 files and 105 tests passed.

@@ -17,6 +17,23 @@ export {
 export { SlackDeliveryQueue } from './utils/SlackDeliveryQueue.js';
 export type { TelegramAdapterOptions } from './adapters/TelegramAdapter.js';
 
+export { ChannelService } from './services/ChannelService.js';
+export type {
+    ChannelBridgeProcess,
+    StartDaemonBridgeInput,
+    StopBridgeResult,
+} from './services/ChannelService.js';
+export { createChannelActionService } from './services/ChannelActionService.js';
+export type {
+    ChannelActionReporter,
+    ChannelActionResult,
+    ChannelActionService,
+    ChannelActionServiceDependencies,
+    DaemonLaunch,
+    StartDaemonChannelInput,
+    StopChannelInput,
+} from './services/ChannelActionService.js';
+
 export { isInteractiveChannelAdapter } from './adapters/ChannelAdapter.js';
 export type { ChannelAdapter, InteractiveChannelAdapter } from './adapters/ChannelAdapter.js';
 
