@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [b3dd3b9](https://github.com/codeaholicguy/ai-devkit/pull/164) Treated only ESRCH errors as definitive process death in the agent manager.
+- [bea4e9d](https://github.com/codeaholicguy/ai-devkit/pull/161) Reduced agent registry refresh writes.
+
 ## [0.50.0] - 2026-08-14
 
 - [ab2a6a3](https://github.com/codeaholicguy/ai-devkit/commit/ab2a6a343133d0df2f6ee5aa0c9e813dd58ae5cc) Added agent modes to CLI agent listings.
