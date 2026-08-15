@@ -180,15 +180,18 @@ export class AgentManager {
             });
         }
 
-        const preExistingByPid = new Map(this.registry.list().map((e) => [e.pid, e]));
+        const identityKey = (type: string, pid: number): string => `${type}:${pid}`;
+        const preExistingByIdentity = new Map(
+            this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
+        );
         const entries = allAgents.map((agent) =>
-            this.toRegistryEntry(agent, preExistingByPid.get(agent.pid)),
+            this.toRegistryEntry(agent, preExistingByIdentity.get(identityKey(agent.type, agent.pid))),
         );
         if (entries.length > 0) this.registry.registerBatch(entries);
-        this.registry.prune();
+        this.registry.pruneIfDue();
 
         for (const agent of allAgents) {
-            const entry = preExistingByPid.get(agent.pid);
+            const entry = preExistingByIdentity.get(identityKey(agent.type, agent.pid));
             if (entry) {
                 agent.name = entry.name;
             }

@@ -44,14 +44,29 @@ interface RegistryRow {
 }
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
+const DEFAULT_PRUNE_INTERVAL_MS = 30_000;
 
 let defaultInstance: AgentRegistry | null = null;
 
+export interface AgentRegistryOptions {
+    now?: () => Date;
+    pruneIntervalMs?: number;
+    onDatabaseOperation?: (sql: string) => void;
+}
+
 export class AgentRegistry {
     private db: DatabaseConnection;
+    private readonly now: () => Date;
+    private readonly pruneIntervalMs: number;
+    private lastPrunedAt: number | undefined;
 
-    constructor(filePath: string = DEFAULT_REGISTRY_PATH) {
-        this.db = new DatabaseConnection({ dbPath: resolveAgentRegistryDbPath(filePath) });
+    constructor(filePath: string = DEFAULT_REGISTRY_PATH, options: AgentRegistryOptions = {}) {
+        this.now = options.now ?? (() => new Date());
+        this.pruneIntervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
+        this.db = new DatabaseConnection({
+            dbPath: resolveAgentRegistryDbPath(filePath),
+            verbose: options.onDatabaseOperation,
+        });
     }
 
     static default(): AgentRegistry {
@@ -101,6 +116,24 @@ export class AgentRegistry {
         return row ? this.rowToEntry(row) : undefined;
     }
 
+    private findPidConflicts(type: AgentType, pid: number): RegistryEntry[] {
+        return this.db.query<RegistryRow>(
+            'SELECT * FROM agents WHERE pid = ? AND type <> ?',
+            [pid, type],
+        ).map((row) => this.rowToEntry(row));
+    }
+
+    private entriesEqual(left: RegistryEntry, right: RegistryEntry): boolean {
+        return left.name === right.name
+            && left.type === right.type
+            && left.pid === right.pid
+            && left.tmuxSession === right.tmuxSession
+            && left.cwd === right.cwd
+            && left.startedAt === right.startedAt
+            && left.sessionId === right.sessionId
+            && left.sessionFilePath === right.sessionFilePath;
+    }
+
     private deleteNameConflict(name: string, type: AgentType, pid: number): void {
         const conflict = this.findByName(name);
         if (!conflict) return;
@@ -126,12 +159,30 @@ export class AgentRegistry {
                 session_id = excluded.session_id,
                 session_file_path = excluded.session_file_path,
                 updated_at = excluded.updated_at
-        `).run({ ...entry, updatedAt: new Date().toISOString() });
+        `).run({ ...entry, updatedAt: this.now().toISOString() });
     }
 
-    private save(entry: RegistryEntry): void {
-        this.deleteNameConflict(entry.name, entry.type, entry.pid);
-        this.insertOrUpdate(entry);
+    private needsWrite(incoming: RegistryEntry): boolean {
+        const existing = this.findByIdentity(incoming.type, incoming.pid);
+        const merged = this.mergeEntry(incoming, existing);
+        return !existing
+            || !this.entriesEqual(merged, existing)
+            || this.findPidConflicts(incoming.type, incoming.pid).length > 0;
+    }
+
+    private save(incoming: RegistryEntry): void {
+        const existing = this.findByIdentity(incoming.type, incoming.pid);
+        const merged = this.mergeEntry(incoming, existing);
+        const pidConflicts = this.findPidConflicts(incoming.type, incoming.pid);
+        if (existing && this.entriesEqual(merged, existing) && pidConflicts.length === 0) return;
+
+        for (const conflict of pidConflicts) {
+            this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [conflict.type, conflict.pid]);
+        }
+        if (existing && this.entriesEqual(merged, existing)) return;
+
+        this.deleteNameConflict(merged.name, merged.type, merged.pid);
+        this.insertOrUpdate(merged);
     }
 
     isAlive(entry: RegistryEntry): boolean {
@@ -146,14 +197,28 @@ export class AgentRegistry {
         }
     }
 
-    prune(): void {
+    private pruneAt(nowMs: number): void {
         const entries = this.list();
         const stale = entries.filter((e) => !this.isAlive(e));
-        this.db.transaction(() => {
-            for (const entry of stale) {
-                this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [entry.type, entry.pid]);
-            }
-        });
+        if (stale.length > 0) {
+            this.db.transaction(() => {
+                for (const entry of stale) {
+                    this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [entry.type, entry.pid]);
+                }
+            });
+        }
+        this.lastPrunedAt = nowMs;
+    }
+
+    prune(): void {
+        this.pruneAt(this.now().getTime());
+    }
+
+    pruneIfDue(): void {
+        const nowMs = this.now().getTime();
+        const elapsed = this.lastPrunedAt === undefined ? undefined : nowMs - this.lastPrunedAt;
+        if (elapsed !== undefined && elapsed >= 0 && elapsed < this.pruneIntervalMs) return;
+        this.pruneAt(nowMs);
     }
 
     register(entry: RegistryEntry): void {
@@ -162,10 +227,10 @@ export class AgentRegistry {
 
     registerBatch(entries: RegistryEntry[]): void {
         if (entries.length === 0) return;
+        if (!entries.some((entry) => this.needsWrite(entry))) return;
         this.db.transaction(() => {
             for (const incoming of entries) {
-                const existing = this.findByIdentity(incoming.type, incoming.pid);
-                this.save(this.mergeEntry(incoming, existing));
+                this.save(incoming);
             }
         });
     }
@@ -186,7 +251,7 @@ export class AgentRegistry {
             }
             this.db.execute(
                 'UPDATE agents SET name = ?, updated_at = ? WHERE type = ? AND pid = ?',
-                [newName, new Date().toISOString(), existing.type, existing.pid],
+                [newName, this.now().toISOString(), existing.type, existing.pid],
             );
         });
     }
