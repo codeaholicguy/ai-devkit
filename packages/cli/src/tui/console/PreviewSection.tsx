@@ -11,6 +11,7 @@ import { getPreviewPanelTone } from './PreviewPane.js';
 interface PreviewSectionProps {
     selectedName: string | null;
     height: number;
+    contentWidth?: number;
     focused?: boolean;
     scrollOffset?: number;
     onScrollOffsetClamp?: (offset: number) => void;
@@ -19,6 +20,7 @@ interface PreviewSectionProps {
 const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
     selectedName,
     height,
+    contentWidth = 80,
     focused = false,
     scrollOffset = 0,
     onScrollOffsetClamp,
@@ -52,6 +54,7 @@ const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
                 error={error}
                 isLoading={isLoading}
                 maxLines={Math.max(4, height - 2)}
+                contentWidth={contentWidth}
                 channelStatus={channelStatus}
                 scrollOffset={scrollOffset}
                 onScrollOffsetClamp={onScrollOffsetClamp}

@@ -39,6 +39,11 @@ describe('computeLayout', () => {
             expect(layout.inputInnerWidth).toBe(layout.rightColWidth - 4);
         });
 
+        it('reserves the existing two-column message indent from preview Markdown width', () => {
+            const layout = computeLayout(160, 40, 1, false);
+            expect(layout.previewContentWidth).toBe(layout.inputInnerWidth - 2);
+        });
+
         it('previewHeight is contentHeight minus inputBoxHeight', () => {
             const layout = computeLayout(160, 40, 1, false);
             expect(layout.previewHeight).toBe(layout.contentHeight - layout.inputBoxHeight);
