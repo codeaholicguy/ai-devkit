@@ -16,20 +16,20 @@ description: Coverage and regression strategy for SQLite-backed console pins
 
 ### Console ordering and rendering
 
-- [ ] Zero pins preserve input order and produce no `OTHERS` boundary.
-- [ ] All pins sort by `lastActive` descending and produce no `OTHERS` boundary.
-- [ ] Mixed pins put the pinned block first by recency, preserve unpinned input order, and mark exactly one boundary.
-- [ ] Marker variants, including selected+pinned, fit `MARKER_W = 2` with no row-width shift.
-- [ ] Pinned and remote channel markers render concurrently.
-- [ ] Initial selection chooses the first pinned agent and falls back to the first input agent.
-- [ ] Header count and continuous scroll indicators remain unchanged.
+- [x] Zero pins preserve input order and produce no `OTHERS` boundary.
+- [x] All pins sort by `lastActive` descending and produce no `OTHERS` boundary.
+- [x] Mixed pins put the pinned block first by recency, preserve unpinned input order, and mark exactly one boundary.
+- [x] Marker variants, including selected+pinned, fit `MARKER_W = 2` with no row-width shift.
+- [x] Pinned and remote channel markers render concurrently.
+- [x] Initial selection chooses the first pinned agent and falls back to the first input agent.
+- [x] Header count and continuous scroll indicators remain unchanged.
 
 ### Key routing
 
-- [ ] Lowercase `p` in list focus resolves to `toggle-pin`.
-- [ ] Uppercase `P` remains unused.
-- [ ] Detail-focus `p` remains a no-op and input-focus `p` remains text.
-- [ ] List-mode key hints include `p pin` without changing other mode hints.
+- [x] Lowercase `p` in list focus resolves to `toggle-pin`.
+- [x] Uppercase `P` remains unused.
+- [x] Detail-focus `p` remains a no-op and input-focus `p` remains text.
+- [x] List-mode key hints include `p pin` without changing other mode hints.
 
 ## Integration Tests
 

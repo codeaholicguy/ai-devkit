@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Box, useApp, useInput, type RenderOptions } from 'ink';
 import type { AgentManager } from '@ai-devkit/agent-manager';
 import {
@@ -27,6 +27,8 @@ import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
 import { resolveConsoleKeyAction } from './consoleKeyRouting.js';
 import { Panel } from '../design-system/index.js';
 import { getNextRightPaneModeForMemoryShortcut } from './rightPaneMode.js';
+import { partitionPinned, selectInitialAgentName } from './agentListLayout.js';
+import { toggleAgentPin } from './toggleAgentPin.js';
 
 interface ConsoleAppProps {
     manager: AgentManager;
@@ -115,25 +117,27 @@ const ConsoleAppShell: React.FC<{
         lastUpdated,
         isLoading,
         refresh,
+        manager,
     } = useConsoleAgentContext();
+    const orderedAgents = useMemo(() => partitionPinned(agents), [agents]);
     const {
         channelStatuses,
         configuredChannels,
         refreshConfiguredChannels,
         refreshChannels,
     } = useConsoleChannelContext();
-    const agentsRef = useRef(agents);
-    agentsRef.current = agents;
+    const agentsRef = useRef(orderedAgents);
+    agentsRef.current = orderedAgents;
 
     useEffect(() => {
-        if (!agents.length) {
+        if (!orderedAgents.length) {
             setSelectedName(null);
             return;
         }
-        if (!selectedName || !agents.some(agent => agent.name === selectedName)) {
-            setSelectedName(agents[0].name);
+        if (!selectedName || !orderedAgents.some(agent => agent.name === selectedName)) {
+            setSelectedName(selectInitialAgentName(orderedAgents));
         }
-    }, [agents, selectedName]);
+    }, [orderedAgents, selectedName]);
 
     useEffect(() => {
         setDetailScrollOffset(0);
@@ -285,6 +289,19 @@ const ConsoleAppShell: React.FC<{
             case 'focus-input':
                 setFocus('input');
                 return;
+            case 'toggle-pin': {
+                const name = selectedNameRef.current;
+                if (!name) return;
+                void toggleAgentPin(manager, name, refresh).then((pinned) => {
+                    setTransient({ kind: 'info', text: `${pinned ? 'Pinned' : 'Unpinned'} ${name}` });
+                }).catch((err: unknown) => {
+                    setTransient({
+                        kind: 'error',
+                        text: err instanceof Error ? err.message : String(err),
+                    });
+                });
+                return;
+            }
             case 'scroll-detail':
                 setDetailScrollOffset(prev => Math.max(0, prev + keyAction.delta));
                 return;
@@ -374,7 +391,7 @@ const ConsoleAppShell: React.FC<{
             flexDirection="column"
         >
             <AgentListPane
-                agents={agents}
+                agents={orderedAgents}
                 selectedName={selectedName}
                 onSelect={setSelectedName}
                 width={listPaneWidth - 4}

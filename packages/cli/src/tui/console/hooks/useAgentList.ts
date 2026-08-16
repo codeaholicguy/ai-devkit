@@ -20,6 +20,7 @@ export function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {
         const y = b[i];
         if (
             x.name !== y.name
+            || Boolean(x.pinned) !== Boolean(y.pinned)
             || x.status !== y.status
             || x.type !== y.type
             || x.summary !== y.summary

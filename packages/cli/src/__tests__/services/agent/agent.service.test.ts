@@ -609,6 +609,7 @@ describe('startAgent', () => {
       pid: 12345,
       tmuxSession: 'agent1',
       cwd: '/work',
+      pinned: false,
     });
     expect(entry.startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });

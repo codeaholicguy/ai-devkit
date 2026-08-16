@@ -12,6 +12,7 @@ export const CONSOLE_HOTKEYS: ConsoleHotkey[] = [
     { key: 'k / Up', action: 'Select previous agent' },
     { key: 's', action: 'Start a new agent' },
     { key: 'r', action: 'Rename selected agent' },
+    { key: 'p', action: 'Pin or unpin selected agent' },
     { key: 'c', action: 'Start Telegram channel for selected agent' },
     { key: 'C', action: 'Stop Telegram channel' },
     { key: 'M', action: 'Show memory list' },
@@ -26,7 +27,7 @@ export const CONSOLE_HOTKEYS: ConsoleHotkey[] = [
 const CONSOLE_HOTKEY_KEY_WIDTH = CONSOLE_HOTKEYS.reduce((max, item) => Math.max(max, item.key.length), 0);
 
 export function getConsoleHotkeyHints(): string[] {
-    return ['j/k nav', 's start', 'r rename', 'c channel', 'C stop', 'M memory', 'o open', 'v view', 'i message', 'K kill', 'h help', 'q quit'];
+    return ['j/k nav', 's start', 'r rename', 'p pin', 'c channel', 'C stop', 'M memory', 'o open', 'v view', 'i message', 'K kill', 'h help', 'q quit'];
 }
 
 interface HelpPaneProps {

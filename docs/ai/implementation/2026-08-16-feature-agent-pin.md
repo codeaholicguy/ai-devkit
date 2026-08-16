@@ -19,7 +19,9 @@ description: Shipped code, invariants, and verification evidence for agent pins
 - `packages/agent-manager/src/database/connection.ts`: readonly-safe initialization.
 - `packages/agent-manager/src/AgentManager.ts`: pin propagation and name-based mutation API.
 - `packages/agent-manager/src/adapters/AgentAdapter.ts`: additive public `AgentInfo.pinned` field.
-- Console implementation is pending Tasks 3–4.
+- `packages/cli/src/tui/console/agentListLayout.ts`: pure ordering, selection, marker, and divider policy.
+- `packages/cli/src/tui/console/ConsoleApp.tsx`: consistent derived list and toggle orchestration.
+- `packages/cli/src/tui/console/AgentListPane.tsx`: pinned markers and boundary rendering.
 
 ## Implementation Notes
 
@@ -37,10 +39,14 @@ description: Shipped code, invariants, and verification evidence for agent pins
 - Existing persisted pin state is copied during the same identity join that restores names.
 - `AgentManager.togglePin(name)` resolves the registry identity, rejects missing/dead agents with `AgentNotRunningError`, delegates the final atomic update, and propagates readonly errors.
 
-### Pending: console
+### Completed: console
 
-- Pure partition/boundary/marker helpers and exhaustive coverage.
-- List-only routing, manager/refresh wiring, startup selection, divider, markers, and hints.
+- `partitionPinned` recency-sorts only the pinned block and preserves unpinned input/status order.
+- The same memoized derived order drives fallback selection, keyboard navigation, and rendering.
+- Four exact two-cell markers preserve `ROW_CHROME`; `OTHERS` replaces an existing divider line.
+- List-only lowercase `p` calls the manager, refreshes after success, and maps failures to transient errors.
+- Poll equality observes pin changes, while registry write equality intentionally does not.
+- Help/footer hints expose `p pin`; uppercase/detail/input behavior remains unchanged.
 
 ## Integration Points
 
@@ -72,3 +78,7 @@ description: Shipped code, invariants, and verification evidence for agent pins
 - `npm run typecheck --workspace @ai-devkit/agent-manager`: exit 0.
 - `npm run lint --workspace @ai-devkit/agent-manager`: exit 0.
 - `npm run build --workspace @ai-devkit/agent-manager`: exit 0; `002_pins.sql` matched the source via `cmp`.
+- `npm test --workspace ai-devkit -- --run ...`: 6 focused files, 72 tests passed.
+- `npm run lint --workspace ai-devkit`: exit 0 with five pre-existing warnings and no errors.
+- `npm run build --workspace ai-devkit`: exit 0 after deterministic `npm ci` and local dependency builds.
+- Focused V8 coverage for `agentListLayout.ts`: 100% statements (18/18), branches (13/13), functions (8/8), and lines (15/15).

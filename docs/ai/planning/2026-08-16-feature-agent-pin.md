@@ -10,7 +10,7 @@ description: Ordered test-first tasks for SQLite-backed console pins
 
 - [x] Milestone 1: SQLite migration and registry pin semantics are complete and regression-tested.
 - [x] Milestone 2: Manager API propagates pin state and handles dead/readonly failures.
-- [ ] Milestone 3: Console ordering, routing, rendering, selection, and feedback are complete.
+- [x] Milestone 3: Console ordering, routing, rendering, selection, and feedback are complete.
 - [ ] Milestone 4: Full verification, lifecycle reconciliation, and release-ready review are complete.
 
 ## Task Breakdown
@@ -35,18 +35,18 @@ Outcome: callers can read and mutate pins without direct registry access. Depend
 
 ### Task 3: Pure console ordering and layout helpers
 
-- [ ] Write failing exhaustive tests for `partitionPinned`: zero, all, mixed, equal/unequal recency, immutable input, and unpinned stability.
-- [ ] Implement/export the pure partition function and boundary/marker helpers.
-- [ ] Test all four marker states, exact two-column width, mixed-only `OTHERS` boundary, and pinned-plus-remote coexistence.
+- [x] Write failing exhaustive tests for `partitionPinned`: zero, all, mixed, equal/unequal recency, immutable input, and unpinned stability.
+- [x] Implement/export the pure partition function and boundary/marker helpers.
+- [x] Test all four marker states, exact two-column width, mixed-only `OTHERS` boundary, and pinned-plus-remote coexistence.
 
 Outcome: ordering and row presentation policy are deterministic and 100%-covered. Dependencies: Task 2 types. Evidence: focused console helper tests with 100% branch/function/line coverage. Scenarios: partition, divider, marker arithmetic, remote marker.
 
 ### Task 4: Console interaction and selection
 
-- [ ] Write failing routing tests for lowercase `p` in list focus and unchanged uppercase/detail/input behavior.
-- [ ] Add `toggle-pin` action handling using context manager plus refresh, including transient success/error messages.
-- [ ] Feed the partitioned list consistently into navigation/rendering and choose first pinned for initial fallback selection.
-- [ ] Add `p pin` to footer/help hints and verify counts/continuous scrolling remain unchanged.
+- [x] Write failing routing tests for lowercase `p` in list focus and unchanged uppercase/detail/input behavior.
+- [x] Add `toggle-pin` action handling using context manager plus refresh, including transient success/error messages.
+- [x] Feed the partitioned list consistently into navigation/rendering and choose first pinned for initial fallback selection.
+- [x] Add `p pin` to footer/help hints and verify counts/continuous scrolling remain unchanged.
 
 Outcome: the complete list-focused UX works across refresh and races. Dependencies: Tasks 2–3. Evidence: focused routing, hook/component, and console integration tests. Scenarios: hotkey scope, startup selection, refresh, errors, indicators/hints.
 
@@ -87,4 +87,4 @@ Task order is 1 → 2 → 3 → 4 → 5. Phase 6 planning reconciliation runs af
 
 ## Progress Summary
 
-Tasks 1–2 completed on 2026-08-16 with 90 focused tests, clean agent-manager lint/typecheck, and a verified packaged migration. No scope changes or blockers were discovered. Next: pure console ordering/layout helpers, then interaction wiring.
+Tasks 1–4 completed on 2026-08-16. Persistence/API verification passed 90 focused tests; console verification passed 72 focused tests, build, and 100% coverage for the new pure layout module. No scope changes or blockers were discovered. Next: phase-7 alignment and phase-8 full-suite/coverage verification.

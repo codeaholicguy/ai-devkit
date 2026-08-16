@@ -1,10 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { FormatStatus } from './render/formatStatus.js';
 import { AGENT_TYPE_LABEL } from './render/agentTypeLabel.js';
 import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
 import type { AgentChannelStatusMap, AgentChannelStatus } from './types.js';
+import {
+    getAgentDivider,
+    getAgentMarker,
+    isPinnedBoundary,
+    MARKER_W,
+    partitionPinned,
+} from './agentListLayout.js';
 
 interface AgentListPaneProps {
     agents: AgentInfo[];
@@ -28,7 +35,6 @@ function shortPath(p: string): string {
     return home && p.startsWith(home) ? '~' + p.slice(home.length) : p;
 }
 
-const MARKER_W = 2;
 const STATUS_W = 7;
 const TYPE_W = 9; // space(1) + label up to 8 chars ("opencode")
 const CHANNEL_MARKER = 'remote';
@@ -58,7 +64,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth, chan
         <Box flexDirection="column" width={innerWidth}>
             <Box flexDirection="row" width={innerWidth}>
                 <Box width={MARKER_W} flexShrink={0}>
-                    <Text color={accent}>{isSelected ? '▶ ' : '  '}</Text>
+                    <Text color={accent}>{getAgentMarker(isSelected, Boolean(agent.pinned))}</Text>
                 </Box>
                 <Box width={STATUS_W} flexShrink={0}>
                     <FormatStatus status={agent.status} />
@@ -99,28 +105,29 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     channelStatuses = {},
 }) => {
     const [scrollOffset, setScrollOffset] = useState(0);
+    const orderedAgents = useMemo(() => partitionPinned(agents), [agents]);
 
     useEffect(() => {
-        if (agents.length === 0) {
+        if (orderedAgents.length === 0) {
             if (selectedName !== null) onSelect(null);
             return;
         }
-        const exists = agents.some(a => a.name === selectedName);
-        if (!exists) onSelect(agents[0].name);
-    }, [agents, selectedName, onSelect]);
+        const exists = orderedAgents.some(a => a.name === selectedName);
+        if (!exists) onSelect(orderedAgents[0].name);
+    }, [orderedAgents, selectedName, onSelect]);
 
     // Keep selected agent in view
     useEffect(() => {
-        if (!height || agents.length === 0) return;
+        if (!height || orderedAgents.length === 0) return;
         const maxVisible = computeMaxVisible(height);
-        const idx = agents.findIndex(a => a.name === selectedName);
+        const idx = orderedAgents.findIndex(a => a.name === selectedName);
         if (idx < 0) return;
         setScrollOffset(prev => {
             if (idx < prev) return idx;
             if (idx >= prev + maxVisible) return idx - maxVisible + 1;
             return prev;
         });
-    }, [selectedName, agents, height]);
+    }, [selectedName, orderedAgents, height]);
 
     const innerWidth = Math.max(16, width ?? 44);
 
@@ -142,17 +149,16 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
         );
     }
 
-    const divider = '─'.repeat(innerWidth);
-    const maxVisible = height ? computeMaxVisible(height) : agents.length;
-    const visibleAgents = agents.slice(scrollOffset, scrollOffset + maxVisible);
-    const hasMore = scrollOffset + maxVisible < agents.length;
+    const maxVisible = height ? computeMaxVisible(height) : orderedAgents.length;
+    const visibleAgents = orderedAgents.slice(scrollOffset, scrollOffset + maxVisible);
+    const hasMore = scrollOffset + maxVisible < orderedAgents.length;
     const hasAbove = scrollOffset > 0;
 
     return (
         <Box flexDirection="column" width={innerWidth}>
             <Box width={innerWidth} marginBottom={1}>
                 <SectionTitle>AGENTS </SectionTitle>
-                <Text dimColor>({agents.length})</Text>
+                <Text dimColor>({orderedAgents.length})</Text>
                 {hasAbove && <Text dimColor> ↑</Text>}
                 {hasMore && <Text dimColor> ↓</Text>}
             </Box>
@@ -160,7 +166,10 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
                 <React.Fragment key={agent.name}>
                     {i > 0 && (
                         <Box width={innerWidth}>
-                            <Text dimColor>{divider}</Text>
+                            <Text dimColor>{getAgentDivider(
+                                innerWidth,
+                                isPinnedBoundary(orderedAgents, scrollOffset + i),
+                            )}</Text>
                         </Box>
                     )}
                     <AgentRow
