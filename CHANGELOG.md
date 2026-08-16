@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [5d9dc3f](https://github.com/codeaholicguy/ai-devkit/pull/166) Rendered Markdown in the agent console preview pane.
+- [1ad381b](https://github.com/codeaholicguy/ai-devkit/commit/1ad381b0dabdb8992ccf1ee8d7b4f9f9cd3a82a2) Updated package audit lockfile metadata.
+
 ## [0.50.1] - 2026-08-15
 
 - [b3dd3b9](https://github.com/codeaholicguy/ai-devkit/pull/164) Treated only ESRCH errors as definitive process death in the agent manager.
