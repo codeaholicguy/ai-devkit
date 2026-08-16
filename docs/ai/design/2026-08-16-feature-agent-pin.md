@@ -37,7 +37,7 @@ ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 ## API Design
 
 - `AgentRegistry.togglePin(type, pid): boolean | null` runs `UPDATE agents SET pinned = NOT pinned, updated_at = ? WHERE type = ? AND pid = ?`, then returns the new state. Zero matched rows return `null`.
-- `AgentManager.togglePin(agentName)` resolves the current live agent by name, delegates by `(type, pid)`, and reports missing/dead and readonly failures clearly.
+- `AgentManager.togglePin(agentName)` resolves the current live registry entry by name, delegates by `(type, pid)`, and reports missing/dead and readonly failures clearly. The registry update remains the final race check.
 - `AgentManager.listAgents()` copies `RegistryEntry.pinned` onto detected `AgentInfo` objects alongside the existing persisted-name join.
 - `partitionPinned(agents)` returns pinned agents ordered by `lastActive` descending followed by unpinned agents in input order.
 - Console action union gains `{ type: 'toggle-pin' }`; only list-mode lowercase `p` produces it.
@@ -47,6 +47,7 @@ ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 ### Database and registry
 
 - Add migration 002 and retain the migration packaging already declared by agent-manager.
+- Thread `readonly` through `AgentRegistryOptions` to `DatabaseConnection`. A readonly connection must skip write-only PRAGMAs and schema migration while retaining safe read configuration; mutation then fails with a clear readonly error.
 - Map integer pin values to Boolean on reads.
 - Preserve pin state through `insertOrUpdate`: **never add `pinned` to the `ON CONFLICT ... DO UPDATE SET` list**.
 - Keep `pinned` out of `entriesEqual`, `mergeEntry`, and `needsWrite` so poll refreshes neither overwrite nor spuriously rewrite it.
@@ -60,6 +61,7 @@ ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 
 ### Console
 
+- Use the `manager` already exposed by `ConsoleAgentContext`; after a successful toggle call the existing `refresh()` function and show an error transient on failure.
 - Partition before list navigation/rendering so selection and scroll clamps see one derived list.
 - Initial auto-selection chooses the first pinned agent, otherwise index zero.
 - Keep `MARKER_W = 2`: selected+pinned is `▶*`, unselected+pinned is ` *`, selected is `▶ `, plain is `  `.
@@ -83,3 +85,7 @@ ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 - Layout width and row-height arithmetic remain stable on narrow terminals.
 - Migration remains forward-only and transactionally managed by `user_version`.
 - Error messages must distinguish a stale selection from a readonly mutation failure.
+
+## Design Review
+
+Reviewed on 2026-08-16 against the approved requirements and current database, manager, console-context, routing, and rendering code. Migration assets are already copied by the agent-manager build. The review clarified the readonly construction path and the console's existing manager/refresh wiring. Every requirement is covered and no architecture questions remain.
