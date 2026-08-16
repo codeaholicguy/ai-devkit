@@ -16,7 +16,7 @@ description: Ordered TDD tasks for inline console name filtering
 
 ### Phase 1: Foundation
 
-- [ ] Task 1.1 — Pure filter logic (TDD)
+- [x] Task 1.1 — Pure filter logic (TDD)
   - Outcome: add `matchAgentByName`, `findMatchPositions`, and `filterAgents` with substring-only semantics, basic Unicode folding, all-occurrence positions, identity-on-empty, and preserved order.
   - Dependencies: none; no new packages.
   - Evidence: focused failing-then-passing unit tests and 100% module coverage.
@@ -85,4 +85,4 @@ Existing React/Ink, `ink-text-input`, Vitest, console fixtures, lifecycle docs, 
 
 ## Progress Summary
 
-Initial plan approved by the binding feature brief. Next: execute Task 1.1 with TDD, reconcile this checklist, then continue in dependency order.
+Task 1.1 is complete with focused tests and 100% pure-module coverage. Next: execute Task 1.2 with TDD, then continue in dependency order. No scope changes or blockers were discovered.

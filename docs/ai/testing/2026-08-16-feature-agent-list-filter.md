@@ -16,10 +16,10 @@ description: Coverage and interaction tests for console agent filtering
 
 ### Pure filter logic
 
-- [ ] Empty query matches all and `filterAgents` returns the input array by identity.
-- [ ] Matching is case-insensitive substring-only, order-preserving, and supports basic `toLowerCase()` Unicode folding.
-- [ ] Positions cover no match, empty query, one occurrence, and multiple non-overlapping occurrences.
-- [ ] No fuzzy/subsequence behavior or ranking occurs.
+- [x] Empty query matches all and `filterAgents` returns the input array by identity.
+- [x] Matching is case-insensitive substring-only, order-preserving, and supports basic `toLowerCase()` Unicode folding.
+- [x] Positions cover no match, empty query, one occurrence, and multiple non-overlapping occurrences.
+- [x] No fuzzy/subsequence behavior or ranking occurs.
 
 ### Routing and state transitions
 
@@ -59,6 +59,8 @@ Use existing `AgentInfo` fixtures plus names with mixed case, `Ä`, repeated sub
 - Run package-targeted Vitest commands during TDD.
 - Run the CLI test/typecheck/lint commands defined by repository scripts.
 - Run focused coverage for the pure filter module and routing; record any unavoidable framework-only gaps explicitly (none expected).
+
+Task 1.1 evidence: `npx vitest run packages/cli/src/__tests__/tui/console/filter/agentFilter.test.ts --coverage --coverage.include=packages/cli/src/tui/console/filter/agentFilter.ts --coverage.reporter=text` passed 5 tests with 100% statements, branches, functions, and lines.
 
 ## Manual Testing
 
