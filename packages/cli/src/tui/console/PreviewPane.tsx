@@ -7,6 +7,10 @@ import { AGENT_TYPE_LABEL_DISPLAY } from './render/agentTypeLabel.js';
 import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
 import type { AgentChannelStatus } from './types.js';
 import type { PanelTone } from '../design-system/tokens.js';
+import {
+    renderMarkdownRows,
+    type MarkdownPreviewSpan,
+} from './render/markdownPreview.js';
 
 interface PreviewPaneProps {
     agent: AgentInfo | null;
@@ -16,6 +20,7 @@ interface PreviewPaneProps {
     maxLines?: number;
     channelStatus?: AgentChannelStatus;
     scrollOffset?: number;
+    contentWidth?: number;
     onScrollOffsetClamp?: (offset: number) => void;
 }
 
@@ -36,6 +41,7 @@ export interface PreviewViewportRow {
     text: string;
     role: ConversationMessage['role'] | null;
     timestamp?: string;
+    spans?: MarkdownPreviewSpan[];
 }
 
 export interface PreviewViewport {
@@ -46,22 +52,24 @@ export interface PreviewViewport {
     hasBelow: boolean;
 }
 
-export function buildPreviewRows(messages: ConversationMessage[]): PreviewViewportRow[] {
+export function buildPreviewRows(messages: ConversationMessage[], contentWidth = 80): PreviewViewportRow[] {
     return messages.flatMap<PreviewViewportRow>((msg, index) => {
-        const contentLines = msg.content.split('\n');
+        const contentRows = renderMarkdownRows(msg.content, contentWidth);
         return [
             ...(index > 0 ? [{ kind: 'separator' as const, text: '', role: null }] : []),
             { kind: 'header', text: '', role: msg.role, timestamp: msg.timestamp },
-            ...contentLines.map<PreviewViewportRow>(line => ({ kind: 'content', text: line, role: msg.role })),
+            ...contentRows.map<PreviewViewportRow>(spans => ({
+                kind: 'content',
+                text: spans.map(span => span.text).join(''),
+                role: msg.role,
+                spans,
+            })),
         ];
     });
 }
 
-export function countPreviewRows(messages: ConversationMessage[]): number {
-    return messages.reduce(
-        (total, msg, index) => total + Math.max(1, msg.content.split('\n').length) + 1 + (index > 0 ? 1 : 0),
-        0,
-    );
+export function countPreviewRows(messages: ConversationMessage[], contentWidth = 80): number {
+    return buildPreviewRows(messages, contentWidth).length;
 }
 
 export function adjustPreviewScrollOffsetForAppendedRows(
@@ -110,8 +118,9 @@ export function buildPreviewViewport(
     messages: ConversationMessage[],
     maxLines: number,
     requestedOffset: number,
+    contentWidth = 80,
 ): PreviewViewport {
-    return buildPreviewViewportFromRows(buildPreviewRows(messages), maxLines, requestedOffset);
+    return buildPreviewViewportFromRows(buildPreviewRows(messages, contentWidth), maxLines, requestedOffset);
 }
 
 export function getPreviewPanelTone(channelStatus: AgentChannelStatus | undefined): PanelTone {
@@ -150,9 +159,10 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     maxLines = 22,
     channelStatus,
     scrollOffset = 0,
+    contentWidth = 80,
     onScrollOffsetClamp,
 }) => {
-    const rows = useMemo(() => buildPreviewRows(messages), [messages]);
+    const rows = useMemo(() => buildPreviewRows(messages, contentWidth), [messages, contentWidth]);
     const rowCount = rows.length;
     const previousRowCountRef = useRef(rowCount);
     const adjustedScrollOffset = adjustPreviewScrollOffsetForAppendedRows(
@@ -217,7 +227,23 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
                         <Box key={idx}>
                             <Text>  </Text>
                             <Box flexGrow={1}>
-                                <Text>{row.text || ' '}</Text>
+                                <Text>
+                                    {row.spans
+                                        ? row.text
+                                            ? row.spans.map((span, spanIndex) => (
+                                                <Text
+                                                    key={spanIndex}
+                                                    bold={span.bold}
+                                                    italic={span.italic}
+                                                    dimColor={span.dimColor}
+                                                    color={span.color}
+                                                >
+                                                    {span.text}
+                                                </Text>
+                                            ))
+                                            : ' '
+                                        : row.text || ' '}
+                                </Text>
                             </Box>
                         </Box>
                     )

@@ -65,13 +65,15 @@ export function computeLayout(cols: number, rows: number, inputLines: number, na
     const contentHeight = Math.max(MIN_CONTENT_HEIGHT, totalHeight - FOOTER_HEIGHT - HEADER_HEIGHT);
     const listPaneWidth = narrow ? cols - 2 : LIST_PANE_WIDTH;
     const rightColWidth = Math.max(20, cols - listPaneWidth - 1);
+    const inputInnerWidth = Math.max(4, rightColWidth - 4);
     return {
         inputBoxHeight,
         contentHeight,
         previewHeight: contentHeight - inputBoxHeight,
         listPaneWidth,
         rightColWidth,
-        inputInnerWidth: Math.max(4, rightColWidth - 4),
+        inputInnerWidth,
+        previewContentWidth: Math.max(1, inputInnerWidth - 2),
     };
 }
 
@@ -301,7 +303,15 @@ const ConsoleAppShell: React.FC<{
     const { cols, rows } = useTerminalSize();
     const narrow = cols < NARROW_THRESHOLD_COLS;
     const layout = computeLayout(cols, rows, inputLines, narrow);
-    const { inputBoxHeight, contentHeight, previewHeight, listPaneWidth, rightColWidth, inputInnerWidth } = layout;
+    const {
+        inputBoxHeight,
+        contentHeight,
+        previewHeight,
+        listPaneWidth,
+        rightColWidth,
+        inputInnerWidth,
+        previewContentWidth,
+    } = layout;
     const dialog = computeCenteredDialog(cols, rows);
     const startPane = (
         <StartAgentPane
@@ -379,6 +389,7 @@ const ConsoleAppShell: React.FC<{
             <PreviewSection
                 selectedName={selectedName}
                 height={previewHeight}
+                contentWidth={previewContentWidth}
                 focused={focus === 'detail'}
                 scrollOffset={detailScrollOffset}
                 onScrollOffsetClamp={setDetailScrollOffset}

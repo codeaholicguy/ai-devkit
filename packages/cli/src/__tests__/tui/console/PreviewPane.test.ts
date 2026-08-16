@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { render, renderToString } from 'ink';
 import { PassThrough } from 'node:stream';
@@ -11,6 +11,7 @@ import {
     PreviewPane,
 } from '../../../tui/console/PreviewPane.js';
 import { AgentStatus, type AgentInfo, type ConversationMessage } from '@ai-devkit/agent-manager';
+import * as markdownPreview from '../../../tui/console/render/markdownPreview.js';
 
 const messages: ConversationMessage[] = [
     { role: 'user', content: 'first question', timestamp: '2026-07-02T10:00:00Z' },
@@ -18,6 +19,10 @@ const messages: ConversationMessage[] = [
     { role: 'user', content: 'second question', timestamp: '2026-07-02T10:00:02Z' },
     { role: 'assistant', content: 'second answer', timestamp: '2026-07-02T10:00:03Z' },
 ];
+
+afterEach(() => {
+    vi.restoreAllMocks();
+});
 
 describe('PreviewPane helpers', () => {
     it('uses success tone when the selected agent has channel status', () => {
@@ -42,7 +47,7 @@ describe('PreviewPane helpers', () => {
         expect(viewport.rows).toEqual([
             { kind: 'indicator', text: '↑ older', role: null },
             { kind: 'header', text: '', role: 'assistant', timestamp: '2026-07-02T10:00:03Z' },
-            { kind: 'content', text: 'second answer', role: 'assistant' },
+            { kind: 'content', text: 'second answer', role: 'assistant', spans: [{ text: 'second answer' }] },
         ]);
     });
 
@@ -56,7 +61,7 @@ describe('PreviewPane helpers', () => {
         expect(viewport.rows).toEqual([
             { kind: 'indicator', text: '        ↓ newer', role: null },
             { kind: 'header', text: '', role: 'user', timestamp: '2026-07-02T10:00:00Z' },
-            { kind: 'content', text: 'first question', role: 'user' },
+            { kind: 'content', text: 'first question', role: 'user', spans: [{ text: 'first question' }] },
         ]);
     });
 
@@ -85,9 +90,14 @@ describe('PreviewPane helpers', () => {
 
         expect(viewport.rows).toEqual([
             { kind: 'header', text: '', role: 'assistant', timestamp: '2026-07-02T10:00:00Z' },
-            { kind: 'content', text: 'Summary', role: 'assistant' },
-            { kind: 'content', text: '', role: 'assistant' },
-            { kind: 'content', text: '- first item', role: 'assistant' },
+            { kind: 'content', text: 'Summary', role: 'assistant', spans: [{ text: 'Summary' }] },
+            { kind: 'content', text: '', role: 'assistant', spans: [{ text: '' }] },
+            {
+                kind: 'content',
+                text: '• first item',
+                role: 'assistant',
+                spans: [{ text: '• ' }, { text: 'first item' }],
+            },
         ]);
     });
 
@@ -115,13 +125,68 @@ describe('PreviewPane helpers', () => {
         expect(output).not.toContain('assistant │ first answer');
     });
 
+    it('renders Markdown message bodies without source punctuation', () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const output = stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [{
+                role: 'assistant',
+                content: '# Heading\n\nUse **bold** and [docs](https://example.com).',
+                timestamp: '2026-07-02T10:00:00Z',
+            }],
+            error: null,
+            isLoading: false,
+            maxLines: 8,
+        }), { columns: 80 }));
+
+        expect(output).toContain('assistant:\n  Heading\n  Use bold and docs (https://example.com).');
+        expect(output).not.toContain('# Heading');
+        expect(output).not.toContain('**bold**');
+        expect(output).not.toContain('[docs]');
+        expect(output).toMatch(/\[[^\]]+\] assistant:/u);
+    });
+
+    it('preserves selected, loading, empty, error, and channel status states', () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const renderPane = (props: Partial<React.ComponentProps<typeof PreviewPane>>) =>
+            stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+                agent,
+                messages: [],
+                error: null,
+                isLoading: false,
+                ...props,
+            }), { columns: 80 }));
+
+        expect(renderPane({ agent: null })).toContain('No agent selected.');
+        expect(renderPane({ isLoading: true })).toContain('loading…');
+        expect(renderPane({})).toContain('No messages yet.');
+        expect(renderPane({
+            error: { kind: 'no-session-file', message: 'missing' },
+        })).toContain('No session file available for this agent yet.');
+        expect(renderPane({
+            channelStatus: { channelName: 'telegram', channelType: 'telegram', bridgePid: 42 },
+        })).toContain('Connected: telegram');
+    });
+
     it('adjusts positive scroll offsets by newly appended rendered rows', () => {
         expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 2)).toBe(4);
         expect(adjustPreviewScrollOffsetForAppendedRows(5, 7, 0)).toBe(0);
         expect(adjustPreviewScrollOffsetForAppendedRows(7, 5, 2)).toBe(2);
     });
 
-    it('reuses flattened rows when only the scroll offset changes', async () => {
+    it('does not reparse Markdown or rebuild laid-out rows when only scroll offset changes', async () => {
         const agent = {
             name: 'preview-test',
             type: 'codex',
@@ -138,6 +203,7 @@ describe('PreviewPane helpers', () => {
             },
         });
         const stableMessages = [message];
+        const renderRowsSpy = vi.spyOn(markdownPreview, 'renderMarkdownRows');
         const stdout = new PassThrough() as unknown as NodeJS.WriteStream;
         const preview = (scrollOffset: number) => React.createElement(PreviewPane, {
             agent,
@@ -150,13 +216,75 @@ describe('PreviewPane helpers', () => {
         const instance = render(preview(0), { stdout, interactive: false, patchConsole: false });
         await instance.waitUntilRenderFlush();
         const readsAfterInitialRender = contentReads;
+        const layoutCallsAfterInitialRender = renderRowsSpy.mock.calls.length;
         expect(readsAfterInitialRender).toBe(1);
+        expect(layoutCallsAfterInitialRender).toBe(1);
 
         instance.rerender(preview(1));
         await instance.waitUntilRenderFlush();
 
         expect(contentReads).toBe(readsAfterInitialRender);
+        expect(renderRowsSpy).toHaveBeenCalledTimes(layoutCallsAfterInitialRender);
         instance.unmount();
         await instance.waitUntilExit();
+        renderRowsSpy.mockRestore();
+    });
+
+    it('rebuilds layout when content width changes while messages stay stable', async () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const stableMessages: ConversationMessage[] = [{
+            role: 'assistant',
+            content: 'alpha beta gamma delta',
+        }];
+        const renderRowsSpy = vi.spyOn(markdownPreview, 'renderMarkdownRows');
+        const stdout = new PassThrough() as unknown as NodeJS.WriteStream;
+        const preview = (contentWidth: number) => React.createElement(PreviewPane, {
+            agent,
+            messages: stableMessages,
+            error: null,
+            isLoading: false,
+            maxLines: 8,
+            contentWidth,
+        });
+        const instance = render(preview(40), { stdout, interactive: false, patchConsole: false });
+        await instance.waitUntilRenderFlush();
+        expect(renderRowsSpy).toHaveBeenCalledTimes(1);
+
+        instance.rerender(preview(10));
+        await instance.waitUntilRenderFlush();
+
+        expect(renderRowsSpy).toHaveBeenCalledTimes(2);
+        instance.unmount();
+        await instance.waitUntilExit();
+    });
+
+    it('renders only rows selected by the visible viewport slice', () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const output = stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [
+                { role: 'user', content: 'OFF_VIEWPORT_SENTINEL' },
+                { role: 'assistant', content: 'newest answer' },
+            ],
+            error: null,
+            isLoading: false,
+            maxLines: 3,
+            scrollOffset: 0,
+        }), { columns: 80 }));
+
+        expect(output).toContain('newest answer');
+        expect(output).not.toContain('OFF_VIEWPORT_SENTINEL');
     });
 });
