@@ -13,6 +13,7 @@ interface ResolveOverrides {
     };
     hasSelectedAgent?: boolean;
     previewVisible?: boolean;
+    filterActive?: boolean;
 }
 
 function resolve(overrides: ResolveOverrides) {
@@ -22,6 +23,7 @@ function resolve(overrides: ResolveOverrides) {
         key: {},
         hasSelectedAgent: true,
         previewVisible: true,
+        filterActive: false,
         ...overrides,
     });
 }
@@ -64,6 +66,8 @@ describe('console focus routing', () => {
             focus: 'detail',
             input: 'm',
         })).toEqual({ type: 'focus-input' });
+        expect(resolve({ input: 'm', hasSelectedAgent: false })).toEqual({ type: 'noop' });
+        expect(resolve({ focus: 'detail', input: 'i', hasSelectedAgent: false })).toEqual({ type: 'noop' });
     });
 
     it('routes arrows and j/k to preview scrolling while detail is focused', () => {
@@ -94,5 +98,23 @@ describe('console focus routing', () => {
         expect(resolve({ focus: 'input', input: 'p' })).toEqual({ type: 'noop' });
         expect(resolve({ focus: 'list', input: 'P' })).toEqual({ type: 'noop' });
         expect(resolve({ focus: 'list', input: 'p', hasSelectedAgent: false })).toEqual({ type: 'noop' });
+    });
+
+    it('opens the filter only from an unfiltered list', () => {
+        expect(resolve({ input: '/' })).toEqual({ type: 'open-filter' });
+        expect(resolve({ input: '/', filterActive: true })).toEqual({ type: 'noop' });
+        expect(resolve({ focus: 'detail', input: '/' })).toEqual({ type: 'noop' });
+    });
+
+    it('clears an active list filter with escape', () => {
+        expect(resolve({ key: { escape: true }, filterActive: true })).toEqual({ type: 'clear-filter' });
+        expect(resolve({ key: { escape: true } })).toEqual({ type: 'noop' });
+    });
+
+    it('routes every key as a no-op while the filter input owns focus', () => {
+        for (const input of ['j', 'k', 'v', 'i', 'm', 'q', '/']) {
+            expect(resolve({ focus: 'filter' as ConsoleFocus, input })).toEqual({ type: 'noop' });
+        }
+        expect(resolve({ focus: 'filter' as ConsoleFocus, key: { escape: true } })).toEqual({ type: 'noop' });
     });
 });

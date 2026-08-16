@@ -23,10 +23,10 @@ description: Coverage and interaction tests for console agent filtering
 
 ### Routing and state transitions
 
-- [ ] `/` opens editing only in list focus with no active filter.
+- [x] `/` opens editing only in list focus with no active filter.
 - [ ] While editing, `j/k/v/i/m/q` and `/` are text, not commands; Enter confirms and Esc clears.
-- [ ] `/` with a confirmed active filter is a no-op.
-- [ ] The full Esc matrix leaves detail, input, and pane behavior unchanged.
+- [x] `/` with a confirmed active filter is a no-op.
+- [x] Router-level Esc matrix leaves detail/input behavior unchanged and clears only an active list filter; full shell/pane integration remains in Task 2.1.
 
 ### List rendering and selection
 
@@ -61,6 +61,8 @@ Use existing `AgentInfo` fixtures plus names with mixed case, `Ä`, repeated sub
 - Run focused coverage for the pure filter module and routing; record any unavoidable framework-only gaps explicitly (none expected).
 
 Task 1.1 evidence: `npx vitest run packages/cli/src/__tests__/tui/console/filter/agentFilter.test.ts --coverage --coverage.include=packages/cli/src/tui/console/filter/agentFilter.ts --coverage.reporter=text` passed 5 tests with 100% statements, branches, functions, and lines.
+
+Task 1.2 evidence: focused routing coverage passed 10 tests with 100% statements, branches, functions, and lines for `consoleKeyRouting.ts`.
 
 ## Manual Testing
 

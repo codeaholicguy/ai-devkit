@@ -13,6 +13,7 @@ interface ResolveConsoleKeyActionParams {
     key: ConsoleKeyLike;
     hasSelectedAgent: boolean;
     previewVisible: boolean;
+    filterActive: boolean;
 }
 
 export type ConsoleKeyAction =
@@ -22,7 +23,9 @@ export type ConsoleKeyAction =
     | { type: 'focus-input' }
     | { type: 'toggle-pin' }
     | { type: 'scroll-detail'; delta: number }
-    | { type: 'select-agent'; delta: number };
+    | { type: 'select-agent'; delta: number }
+    | { type: 'open-filter' }
+    | { type: 'clear-filter' };
 
 export function resolveConsoleKeyAction({
     focus,
@@ -30,6 +33,7 @@ export function resolveConsoleKeyAction({
     key,
     hasSelectedAgent,
     previewVisible,
+    filterActive,
 }: ResolveConsoleKeyActionParams): ConsoleKeyAction {
     if (focus === 'detail') {
         if (key.escape || key.leftArrow) return { type: 'focus-list' };
@@ -41,6 +45,8 @@ export function resolveConsoleKeyAction({
 
     if (focus === 'list') {
         if (input === 'p') return hasSelectedAgent ? { type: 'toggle-pin' } : { type: 'noop' };
+        if (key.escape && filterActive) return { type: 'clear-filter' };
+        if (input === '/') return filterActive ? { type: 'noop' } : { type: 'open-filter' };
         if (input === 'v') {
             return hasSelectedAgent && previewVisible ? { type: 'focus-detail' } : { type: 'noop' };
         }

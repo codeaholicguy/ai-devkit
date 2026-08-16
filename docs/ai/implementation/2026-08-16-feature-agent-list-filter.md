@@ -26,6 +26,7 @@ description: Technical implementation notes, patterns, and code guidelines
 ### Core Features
 
 - Task 1.1: case-insensitive substring matching uses plain `toLowerCase()`, returns every non-overlapping occurrence range, preserves arbitrary input order, and returns the original array for an empty query.
+- Task 1.2: `ConsoleFocus` includes `'filter'`; the pure router opens only from an unfiltered list, clears only an active list filter on Esc, treats confirmed `/` as a no-op, and leaves filter-focus keystrokes to the controlled input.
 
 ### Patterns & Best Practices
 - Keep matching pure and dependency-free.

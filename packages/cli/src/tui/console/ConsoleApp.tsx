@@ -278,6 +278,7 @@ const ConsoleAppShell: React.FC<{
             key,
             hasSelectedAgent: Boolean(selectedNameRef.current),
             previewVisible,
+            filterActive: false,
         });
         switch (keyAction.type) {
             case 'focus-detail':
@@ -312,6 +313,8 @@ const ConsoleAppShell: React.FC<{
                 setSelectedName(list[(idx + keyAction.delta + list.length) % list.length].name);
                 return;
             }
+            case 'open-filter':
+            case 'clear-filter':
             case 'noop':
                 return;
         }

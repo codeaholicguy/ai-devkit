@@ -21,7 +21,7 @@ description: Ordered TDD tasks for inline console name filtering
   - Dependencies: none; no new packages.
   - Evidence: focused failing-then-passing unit tests and 100% module coverage.
   - Scenarios: pure filter logic section of the testing strategy.
-- [ ] Task 1.2 — Filter key transitions (TDD)
+- [x] Task 1.2 — Filter key transitions (TDD)
   - Outcome: add filter focus plus router actions for open, clear, active-filter slash no-op, and unchanged Esc/detail/input behavior.
   - Dependencies: Task 1.1 only for shared terminology.
   - Evidence: focused routing tests with 100% new-branch coverage.
@@ -85,4 +85,4 @@ Existing React/Ink, `ink-text-input`, Vitest, console fixtures, lifecycle docs, 
 
 ## Progress Summary
 
-Task 1.1 is complete with focused tests and 100% pure-module coverage. Next: execute Task 1.2 with TDD, then continue in dependency order. No scope changes or blockers were discovered.
+Tasks 1.1–1.2 are complete with 100% pure matcher and routing coverage. Next: integrate shell state, selection, navigation, and polling in Task 2.1. No scope changes or blockers were discovered.
