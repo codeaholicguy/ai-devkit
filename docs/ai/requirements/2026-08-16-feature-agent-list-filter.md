@@ -57,3 +57,7 @@ Non-goals:
 ## Questions & Open Items
 
 None. Matcher, key bindings, selection, polling, rendering, Unicode scope, and parallel pin composition are binding user decisions.
+
+## Requirements Review
+
+Reviewed 2026-08-16 against the requirements template and verified console architecture. The problem, users, goals, non-goals, workflows, measurable acceptance criteria, constraints, validation, and rollout scope are complete. Alternatives considered were inline, modal, and always-on filtering; inline `/` is accepted because it preserves incremental list context while providing an explicit text-entry boundary. No material gaps or open questions remain.
