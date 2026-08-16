@@ -1,60 +1,88 @@
 ---
 phase: planning
-title: Project Planning & Task Breakdown
-description: Break down work into actionable tasks and estimate timeline
+title: Agent Name Filter Implementation Plan
+description: Ordered TDD tasks for inline console name filtering
 ---
 
-# Project Planning & Task Breakdown
+# Agent Name Filter Implementation Plan
 
 ## Milestones
-**What are the major checkpoints?**
 
-- [ ] Milestone 1: [Description]
-- [ ] Milestone 2: [Description]
-- [ ] Milestone 3: [Description]
+- [ ] Milestone 1: Pure substring semantics and key-state transitions are test-driven and complete.
+- [ ] Milestone 2: Console state, polling, navigation, and list rendering integrate over one ordered filtered array.
+- [ ] Milestone 3: Edge-case coverage, docs, lint, full tests, and review are complete.
 
 ## Task Breakdown
-**What specific work needs to be done?**
 
 ### Phase 1: Foundation
-- [ ] Task 1.1: [Description]
-- [ ] Task 1.2: [Description]
 
-### Phase 2: Core Features
-- [ ] Task 2.1: [Description]
-- [ ] Task 2.2: [Description]
+- [ ] Task 1.1 — Pure filter logic (TDD)
+  - Outcome: add `matchAgentByName`, `findMatchPositions`, and `filterAgents` with substring-only semantics, basic Unicode folding, all-occurrence positions, identity-on-empty, and preserved order.
+  - Dependencies: none; no new packages.
+  - Evidence: focused failing-then-passing unit tests and 100% module coverage.
+  - Scenarios: pure filter logic section of the testing strategy.
+- [ ] Task 1.2 — Filter key transitions (TDD)
+  - Outcome: add filter focus plus router actions for open, clear, active-filter slash no-op, and unchanged Esc/detail/input behavior.
+  - Dependencies: Task 1.1 only for shared terminology.
+  - Evidence: focused routing tests with 100% new-branch coverage.
+  - Scenarios: routing/Esc matrix and printable-command isolation.
 
-### Phase 3: Integration & Polish
-- [ ] Task 3.1: [Description]
-- [ ] Task 3.2: [Description]
+### Phase 2: Core Integration
+
+- [ ] Task 2.1 — Shell state, selection, navigation, and polling
+  - Outcome: parent-owned query, filtered refs, selection fallback/null/clear behavior, filtered j/k navigation, pre-global editing interception, paused poll through editing/confirmed states, and immediate refresh on clear.
+  - Dependencies: Tasks 1.1–1.2.
+  - Evidence: ConsoleApp/ConsoleContext interaction tests and existing regressions.
+  - Scenarios: selection rules, polling lifecycle, active slash no-op, incidental refresh stability, pin-agnostic ordering.
+- [ ] Task 2.2 — Inline list rendering
+  - Outcome: TextInput under title, confirmed chip, `(matched/total)`, no-match state, highlighted clipped substrings, remote marker preservation, and filtered scroll clamp/more indicators.
+  - Dependencies: Task 2.1 supplies props and visible order.
+  - Evidence: AgentListPane render tests covering width, count, highlight, error precedence, and narrow/widen scroll transitions.
+  - Scenarios: list rendering/selection section and long-query/manual accessibility checks.
+- [ ] Task 2.3 — Footer and help affordances
+  - Outcome: `/ filter` appears in list help/footer; active state advertises Esc-clear without leaking editing keystrokes.
+  - Dependencies: Task 2.1 filter state.
+  - Evidence: HelpPane/StatusFooter tests and snapshots/text assertions.
+
+### Phase 3: Verification & Polish
+
+- [ ] Task 3.1 — Reconcile implementation and lifecycle docs
+  - Outcome: implementation notes match code; completed plan tasks and test checkboxes carry fresh evidence.
+  - Dependencies: all implementation tasks.
+  - Evidence: feature lint and reviewed diffs.
+- [ ] Task 3.2 — Full quality gates
+  - Outcome: focused coverage, CLI lint/build/test, repository-appropriate regression suite, and manual rendering smoke checks pass.
+  - Dependencies: Task 3.1.
+  - Evidence: fresh command output recorded in testing/implementation docs.
+- [ ] Task 3.3 — Final review and publication
+  - Outcome: holistic review finds no blockers; commits are scoped; branch is pushed and PR is merged-ready.
+  - Dependencies: Task 3.2.
+  - Evidence: clean status, reviewed commit range, PR checks, and feature lint.
 
 ## Dependencies
-**What needs to happen in what order?**
 
-- Task dependencies and blockers
-- External dependencies (APIs, services, etc.)
-- Team/resource dependencies
+Pure semantics precede shell integration; shell ownership precedes pane/footer wiring; implementation tasks are followed immediately by planning reconciliation. The parallel pin feature is not a code dependency: filtering consumes the received order and adds no pin-specific logic. Optional task tracing is unavailable (`npx ai-devkit@latest task list --name agent-list-filter --json` reports unknown command), so docs and commits provide progress traceability.
 
 ## Timeline & Estimates
-**When will things be done?**
 
-- Estimated effort per task/phase
-- Target dates for milestones
-- Buffer for unknowns
+- Foundation: small, 1–2 focused implementation checkpoints.
+- Core integration: medium, 2–3 checkpoints with component/hook tests.
+- Verification and review: medium, driven by regressions and coverage findings.
+- Target: complete in the current lifecycle session; no date-based rollout or migration is required.
 
 ## Risks & Mitigation
-**What could go wrong?**
 
-- Technical risks
-- Resource risks
-- Dependency risks
-- Mitigation strategies
+- Global shortcuts leak while typing: intercept filter focus before all global handlers and test dangerous printable keys.
+- Selection/preview disagree: derive and route through one `visibleAgents` array in the shell.
+- Stale scroll after narrowing: clamp offset independently against filtered length and capacity.
+- Poll resumes without fresh data: Esc-clear explicitly invokes `refresh` after unpausing.
+- Highlight clipping breaks row width: split only the clipped name and include all row chrome/channel columns in width tests.
+- Parallel pin assumptions creep in: assert preserved arbitrary input order and reject all sorting/partition code.
 
 ## Resources Needed
-**What do we need to succeed?**
 
-- Team members and roles
-- Tools and services
-- Infrastructure
-- Documentation/knowledge
+Existing React/Ink, `ink-text-input`, Vitest, console fixtures, lifecycle docs, and repository scripts only. No new services, dependencies, migrations, or additional agents are required.
 
+## Progress Summary
+
+Initial plan approved by the binding feature brief. Next: execute Task 1.1 with TDD, reconcile this checklist, then continue in dependency order.
