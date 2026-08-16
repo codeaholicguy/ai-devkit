@@ -202,6 +202,7 @@ export class AgentManager {
             if (entry) {
                 agent.name = entry.name;
                 agent.pinned = entry.pinned;
+                if (entry.pinned && entry.updatedAt) agent.lastActive = new Date(entry.updatedAt);
             }
         }
 

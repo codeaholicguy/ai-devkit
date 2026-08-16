@@ -31,6 +31,7 @@ ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 
 - `RegistryRow.pinned` is the SQLite integer.
 - `RegistryEntry.pinned` is a required Boolean read model.
+- `RegistryEntry.updatedAt` exposes the existing row timestamp for pinned recency mapping; it is not a new database column.
 - `AgentInfo.pinned?: boolean` is an additive public field; absent is false.
 - No separate table, JSON record, `pinned_at`, or retained record exists.
 
@@ -38,7 +39,7 @@ ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0;
 
 - `AgentRegistry.togglePin(type, pid): boolean | null` runs `UPDATE agents SET pinned = NOT pinned, updated_at = ? WHERE type = ? AND pid = ?`, then returns the new state. Zero matched rows return `null`.
 - `AgentManager.togglePin(agentName)` resolves the current live registry entry by name, delegates by `(type, pid)`, and reports missing/dead and readonly failures clearly. The registry update remains the final race check.
-- `AgentManager.listAgents()` copies `RegistryEntry.pinned` onto detected `AgentInfo` objects alongside the existing persisted-name join.
+- `AgentManager.listAgents()` copies `RegistryEntry.pinned` onto detected `AgentInfo` objects alongside the existing persisted-name join. For pinned entries only, it maps registry `updatedAt` to `AgentInfo.lastActive`; unpinned agents retain adapter activity timestamps.
 - `partitionPinned(agents)` returns pinned agents ordered by `lastActive` descending followed by unpinned agents in input order.
 - Console action union gains `{ type: 'toggle-pin' }`; only list-mode lowercase `p` produces it.
 

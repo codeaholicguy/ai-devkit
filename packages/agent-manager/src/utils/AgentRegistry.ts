@@ -30,6 +30,7 @@ export interface RegistryEntry {
     sessionId: string;
     sessionFilePath: string;
     pinned: boolean;
+    updatedAt?: string;
 }
 
 interface RegistryRow {
@@ -93,6 +94,7 @@ export class AgentRegistry {
             sessionId: row.session_id,
             sessionFilePath: row.session_file_path,
             pinned: row.pinned !== 0,
+            updatedAt: row.updated_at,
         };
     }
 

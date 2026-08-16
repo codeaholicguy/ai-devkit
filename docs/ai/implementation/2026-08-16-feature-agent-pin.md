@@ -37,6 +37,7 @@ description: Shipped code, invariants, and verification evidence for agent pins
 
 - `AgentInfo.pinned` is optional/additive.
 - Existing persisted pin state is copied during the same identity join that restores names.
+- Pinned entries map existing registry `updated_at` to `AgentInfo.lastActive`, delivering most-recently-touched ordering; unpinned entries preserve adapter `lastActive` behavior.
 - `AgentManager.togglePin(name)` resolves the registry identity, rejects missing/dead agents with `AgentNotRunningError`, delegates the final atomic update, and propagates readonly errors.
 
 ### Completed: console
@@ -78,6 +79,7 @@ description: Shipped code, invariants, and verification evidence for agent pins
 - `npm run typecheck --workspace @ai-devkit/agent-manager`: exit 0.
 - `npm run lint --workspace @ai-devkit/agent-manager`: exit 0.
 - `npm run build --workspace @ai-devkit/agent-manager`: exit 0; `002_pins.sql` matched the source via `cmp`.
+- Phase-7 recency correction: 2 focused files, 92 tests passed; agent-manager typecheck and lint exited 0.
 - `npm test --workspace ai-devkit -- --run ...`: 6 focused files, 72 tests passed.
 - `npm run lint --workspace ai-devkit`: exit 0 with five pre-existing warnings and no errors.
 - `npm run build --workspace ai-devkit`: exit 0 after deterministic `npm ci` and local dependency builds.

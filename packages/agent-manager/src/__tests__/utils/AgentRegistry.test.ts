@@ -193,6 +193,7 @@ describe('AgentRegistry', () => {
 
             clocked.togglePin('claude', process.pid);
 
+            expect(clocked.lookup('agent1')?.updatedAt).toBe(now.toISOString());
             const db = new Database(regPath.replace(/\.json$/, '.db'), { readonly: true });
             const row = db.prepare('SELECT updated_at FROM agents WHERE type = ? AND pid = ?')
                 .get('claude', process.pid) as { updated_at: string };

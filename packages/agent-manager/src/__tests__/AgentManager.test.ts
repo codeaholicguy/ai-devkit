@@ -571,6 +571,41 @@ describe('AgentManager', () => {
             expect(registry.lookup('pinned')).toMatchObject({ sessionId: 'after', pinned: true });
         });
 
+        it('uses registry updated_at as lastActive for pinned recency ordering', async () => {
+            const adapter = new MockAdapter('claude', [
+                createMockAgent({
+                    name: 'recently-pinned',
+                    pid: process.pid,
+                    lastActive: new Date('2026-01-01T00:00:00.000Z'),
+                }),
+            ]);
+            scopedManager.registerAdapter(adapter);
+            await scopedManager.listAgents();
+            nowMs += 60_000;
+            scopedManager.togglePin('recently-pinned');
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].pinned).toBe(true);
+            expect(agents[0].lastActive.toISOString()).toBe('2026-08-14T10:01:00.000Z');
+        });
+
+        it('preserves adapter lastActive for unpinned agents', async () => {
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({
+                    name: 'unpinned',
+                    pid: process.pid,
+                    lastActive: new Date('2026-01-01T00:00:00.000Z'),
+                }),
+            ]));
+
+            await scopedManager.listAgents();
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].pinned).toBe(false);
+            expect(agents[0].lastActive.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+        });
+
         it('persists changed fields once in one write transaction', async () => {
             const adapter = new MockAdapter('claude', [
                 createMockAgent({ name: 'changing', pid: process.pid, projectPath: '/cwd/before' }),

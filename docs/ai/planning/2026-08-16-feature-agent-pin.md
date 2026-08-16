@@ -52,6 +52,7 @@ Outcome: the complete list-focused UX works across refresh and races. Dependenci
 
 ### Task 5: Verification and documentation
 
+- [x] Correct phase-7 recency propagation so pinned agents use registry `updated_at` as `lastActive` while unpinned agents retain adapter activity timestamps.
 - [ ] Run formatting/diff checks, feature lint, affected lint/typecheck/build/test suites, coverage, then the full workspace suite.
 - [ ] Confirm `dist/database/migrations/002_pins.sql` exists after build and inspect coverage for all new pure logic.
 - [ ] Update implementation/testing docs with commands and evidence; mark all validated planning/testing checkboxes.
@@ -87,4 +88,4 @@ Task order is 1 → 2 → 3 → 4 → 5. Phase 6 planning reconciliation runs af
 
 ## Progress Summary
 
-Tasks 1–4 completed on 2026-08-16. Persistence/API verification passed 90 focused tests; console verification passed 72 focused tests, build, and 100% coverage for the new pure layout module. No scope changes or blockers were discovered. Next: phase-7 alignment and phase-8 full-suite/coverage verification.
+Tasks 1–4 completed on 2026-08-16. Persistence/API verification passed 92 focused tests after phase 7 found and corrected missing `updated_at` recency propagation; console verification passed 72 focused tests, build, and 100% coverage for the new pure layout module. No scope changes or blockers remain. Next: finish phase-7 alignment and phase-8 full-suite/coverage verification.
