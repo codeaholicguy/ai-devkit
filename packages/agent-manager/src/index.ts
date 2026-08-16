@@ -1,4 +1,4 @@
-export { AgentManager } from './AgentManager.js';
+export { AgentManager, AgentNotRunningError } from './AgentManager.js';
 
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './adapters/CodexAdapter.js';

@@ -48,6 +48,9 @@ export interface AgentInfo {
     /** Timestamp of last activity */
     lastActive: Date;
 
+    /** Whether the live process is pinned in the agent console */
+    pinned?: boolean;
+
     /** Path to the session JSONL file on disk */
     sessionFilePath?: string;
 }

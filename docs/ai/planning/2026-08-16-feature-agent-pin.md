@@ -8,8 +8,8 @@ description: Ordered test-first tasks for SQLite-backed console pins
 
 ## Milestones
 
-- [ ] Milestone 1: SQLite migration and registry pin semantics are complete and regression-tested.
-- [ ] Milestone 2: Manager API propagates pin state and handles dead/readonly failures.
+- [x] Milestone 1: SQLite migration and registry pin semantics are complete and regression-tested.
+- [x] Milestone 2: Manager API propagates pin state and handles dead/readonly failures.
 - [ ] Milestone 3: Console ordering, routing, rendering, selection, and feedback are complete.
 - [ ] Milestone 4: Full verification, lifecycle reconciliation, and release-ready review are complete.
 
@@ -17,19 +17,19 @@ description: Ordered test-first tasks for SQLite-backed console pins
 
 ### Task 1: Database and registry foundation
 
-- [ ] Write failing migration/registry tests for default pin state, atomic toggles, timestamp updates, missing rows, refresh preservation, rename preservation, prune deletion, and readonly behavior.
-- [ ] Add `002_pins.sql`, ensure build packaging includes it, and map `pinned` between SQLite integers and `RegistryEntry` Booleans.
-- [ ] Add `AgentRegistry.togglePin(type, pid)` and explicit missing-row behavior.
-- [ ] Thread readonly configuration through registry/connection construction and provide a clear mutation failure without attempting startup writes.
-- [ ] Verify `pinned` is absent from the `ON CONFLICT DO UPDATE SET` list and registry merge/equality/write decisions.
+- [x] Write failing migration/registry tests for default pin state, atomic toggles, timestamp updates, missing rows, refresh preservation, rename preservation, prune deletion, and readonly behavior.
+- [x] Add `002_pins.sql`, ensure build packaging includes it, and map `pinned` between SQLite integers and `RegistryEntry` Booleans.
+- [x] Add `AgentRegistry.togglePin(type, pid)` and explicit missing-row behavior.
+- [x] Thread readonly configuration through registry/connection construction and provide a clear mutation failure without attempting startup writes.
+- [x] Verify `pinned` is absent from the `ON CONFLICT DO UPDATE SET` list and registry merge/equality/write decisions.
 
 Outcome: process-scoped pins persist safely in the existing row. Dependencies: approved design. Evidence: focused AgentRegistry/database tests, build artifact inspection, typecheck. Scenarios: migration, toggle, refresh, rename, prune, missing/dead, readonly.
 
 ### Task 2: Manager propagation and mutation API
 
-- [ ] Write failing manager tests for `AgentInfo.pinned`, persisted-state joins, name-to-identity toggle delegation, stale agents, and readonly errors.
-- [ ] Add optional `AgentInfo.pinned`, carry persisted state through list results, and preserve it through registry entry conversion without poll writes.
-- [ ] Add `AgentManager.togglePin(agentName)` with clear stale/dead and readonly error contracts.
+- [x] Write failing manager tests for `AgentInfo.pinned`, persisted-state joins, name-to-identity toggle delegation, stale agents, and readonly errors.
+- [x] Add optional `AgentInfo.pinned`, carry persisted state through list results, and preserve it through registry entry conversion without poll writes.
+- [x] Add `AgentManager.togglePin(agentName)` with clear stale/dead and readonly error contracts.
 
 Outcome: callers can read and mutate pins without direct registry access. Dependencies: Task 1. Evidence: focused AgentManager tests and typecheck. Scenarios: propagation, refresh preservation, missing/dead, readonly.
 
@@ -87,4 +87,4 @@ Task order is 1 → 2 → 3 → 4 → 5. Phase 6 planning reconciliation runs af
 
 ## Progress Summary
 
-Initial plan approved on 2026-08-16. Requirements and design are approved; implementation has not started. The critical focus is preserving registry-owned pin state across adapter polls while keeping the console's derived ordering consistent.
+Tasks 1–2 completed on 2026-08-16 with 90 focused tests, clean agent-manager lint/typecheck, and a verified packaged migration. No scope changes or blockers were discovered. Next: pure console ordering/layout helpers, then interaction wiring.

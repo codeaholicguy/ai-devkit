@@ -33,14 +33,14 @@ description: Coverage and regression strategy for SQLite-backed console pins
 
 ## Integration Tests
 
-- [ ] Migration 002 adds a default-zero, non-null `pinned` column and is packaged in build output.
-- [ ] Toggle flips the value and advances `updated_at`.
-- [ ] Toggle followed by poll/upsert refresh remains pinned; SQL conflict update never writes `pinned`.
-- [ ] Toggle followed by rename remains pinned.
-- [ ] Dead-agent prune deletes the row and therefore its pin.
-- [ ] Toggle of a missing/dead agent reports a clear error rather than silently succeeding.
-- [ ] Toggle through a readonly database handle reports a clear readonly error.
-- [ ] `listAgents()` exposes the stored pin and `AgentManager.togglePin` resolves name to `(type, pid)`.
+- [x] Migration 002 adds a default-zero, non-null `pinned` column and is packaged in build output.
+- [x] Toggle flips the value and advances `updated_at`.
+- [x] Toggle followed by poll/upsert refresh remains pinned; SQL conflict update never writes `pinned`.
+- [x] Toggle followed by rename remains pinned.
+- [x] Dead-agent prune deletes the row and therefore its pin.
+- [x] Toggle of a missing/dead agent reports a clear error rather than silently succeeding.
+- [x] Toggle through a readonly database handle reports a clear readonly error.
+- [x] `listAgents()` exposes the stored pin and `AgentManager.togglePin` resolves name to `(type, pid)`.
 - [ ] Existing duplicate-name, PID-conflict, and register-batch behavior remains intact.
 
 ## End-to-End Tests

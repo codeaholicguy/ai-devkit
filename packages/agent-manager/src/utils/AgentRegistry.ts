@@ -29,6 +29,7 @@ export interface RegistryEntry {
     startedAt: string;  // ISO 8601
     sessionId: string;
     sessionFilePath: string;
+    pinned: boolean;
 }
 
 interface RegistryRow {
@@ -41,6 +42,7 @@ interface RegistryRow {
     session_id: string;
     session_file_path: string;
     updated_at: string;
+    pinned: number;
 }
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
@@ -52,20 +54,24 @@ export interface AgentRegistryOptions {
     now?: () => Date;
     pruneIntervalMs?: number;
     onDatabaseOperation?: (sql: string) => void;
+    readonly?: boolean;
 }
 
 export class AgentRegistry {
     private db: DatabaseConnection;
     private readonly now: () => Date;
     private readonly pruneIntervalMs: number;
+    private readonly readonly: boolean;
     private lastPrunedAt: number | undefined;
 
     constructor(filePath: string = DEFAULT_REGISTRY_PATH, options: AgentRegistryOptions = {}) {
         this.now = options.now ?? (() => new Date());
         this.pruneIntervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
+        this.readonly = options.readonly ?? false;
         this.db = new DatabaseConnection({
             dbPath: resolveAgentRegistryDbPath(filePath),
             verbose: options.onDatabaseOperation,
+            readonly: this.readonly,
         });
     }
 
@@ -86,6 +92,7 @@ export class AgentRegistry {
             startedAt: row.started_at,
             sessionId: row.session_id,
             sessionFilePath: row.session_file_path,
+            pinned: row.pinned !== 0,
         };
     }
 
@@ -254,6 +261,18 @@ export class AgentRegistry {
                 [newName, this.now().toISOString(), existing.type, existing.pid],
             );
         });
+    }
+
+    togglePin(type: AgentType, pid: number): boolean | null {
+        if (this.readonly) {
+            throw new Error('Agent registry is readonly; cannot toggle pin.');
+        }
+        const result = this.db.execute(
+            'UPDATE agents SET pinned = NOT pinned, updated_at = ? WHERE type = ? AND pid = ?',
+            [this.now().toISOString(), type, pid],
+        );
+        if (result.changes === 0) return null;
+        return this.findByIdentity(type, pid)?.pinned ?? null;
     }
 
     lookup(name: string): RegistryEntry | null {
