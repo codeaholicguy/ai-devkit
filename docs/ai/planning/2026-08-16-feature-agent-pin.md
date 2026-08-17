@@ -1,5 +1,6 @@
 ---
 phase: planning
+status: complete
 title: Agent Pinning Implementation Plan
 description: Ordered test-first tasks for SQLite-backed console pins
 ---
@@ -11,7 +12,7 @@ description: Ordered test-first tasks for SQLite-backed console pins
 - [x] Milestone 1: SQLite migration and registry pin semantics are complete and regression-tested.
 - [x] Milestone 2: Manager API propagates pin state and handles dead/readonly failures.
 - [x] Milestone 3: Console ordering, routing, rendering, selection, and feedback are complete.
-- [ ] Milestone 4: Full verification, lifecycle reconciliation, and release-ready review are complete.
+- [x] Milestone 4: Full verification, lifecycle reconciliation, and release-ready review are complete.
 
 ## Task Breakdown
 
@@ -53,11 +54,11 @@ Outcome: the complete list-focused UX works across refresh and races. Dependenci
 ### Task 5: Verification and documentation
 
 - [x] Correct phase-7 recency propagation so pinned agents use registry `updated_at` as `lastActive` while unpinned agents retain adapter activity timestamps.
-- [ ] Run formatting/diff checks, feature lint, affected lint/typecheck/build/test suites, coverage, then the full workspace suite.
-- [ ] Confirm `dist/database/migrations/002_pins.sql` exists after build and inspect coverage for all new pure logic.
-- [ ] Update implementation/testing docs with commands and evidence; mark all validated planning/testing checkboxes.
-- [ ] Run phase-7 implementation alignment, phase-8 test review, and phase-9 holistic code review; fix blockers and rerun evidence.
-- [ ] Commit and push each checkpoint, open PR `feat(agent): pin agents in console`, and verify remote CI is green.
+- [x] Run formatting/diff checks, feature lint, affected lint/typecheck/build/test suites, coverage, then the full workspace suite.
+- [x] Confirm `dist/database/migrations/002_pins.sql` exists after build and inspect coverage for all new pure logic.
+- [x] Update implementation/testing docs with commands and evidence; mark all validated planning/testing checkboxes.
+- [x] Run phase-7 implementation alignment, phase-8 test review, and phase-9 holistic code review; fix blockers and rerun evidence.
+- [x] Prepare the validated documentation checkpoint and PR metadata for final publication as `feat(agent): pin agents in console list`.
 
 Outcome: merged-ready PR with traceable evidence. Dependencies: Tasks 1–4. Evidence: command logs summarized in lifecycle docs and remote checks.
 
@@ -88,4 +89,4 @@ Task order is 1 → 2 → 3 → 4 → 5. Phase 6 planning reconciliation runs af
 
 ## Progress Summary
 
-Tasks 1–4 completed on 2026-08-16. Persistence/API verification passed 92 focused tests after phase 7 found and corrected missing `updated_at` recency propagation; console verification passed 72 focused tests, build, and 100% coverage for the new pure layout module. No scope changes or blockers remain. Next: finish phase-7 alignment and phase-8 full-suite/coverage verification.
+Tasks 1–5 completed on 2026-08-17. Fresh package validation passed 539 agent-manager tests and 1000 CLI tests; workspace-wide test, lint, and build commands all exited 0 across six projects. Agent-manager coverage was 89.28% statements, 78.43% branches, 96.03% functions, and 92.57% lines; CLI coverage was 74.72%, 65.32%, 74.39%, and 75.84%, respectively. The new pure layout module's focused coverage remains 100% across statements, branches, functions, and lines. `cmp` verified the packaged `002_pins.sql`, feature lint and `git diff --check` passed, and final review found no blockers. Task tracing was skipped because `npx ai-devkit@latest task list --name agent-pin --json` reports `unknown command 'task'`.

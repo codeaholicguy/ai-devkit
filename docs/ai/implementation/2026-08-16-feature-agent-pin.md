@@ -84,3 +84,11 @@ description: Shipped code, invariants, and verification evidence for agent pins
 - `npm run lint --workspace ai-devkit`: exit 0 with five pre-existing warnings and no errors.
 - `npm run build --workspace ai-devkit`: exit 0 after deterministic `npm ci` and local dependency builds.
 - Focused V8 coverage for `agentListLayout.ts`: 100% statements (18/18), branches (13/13), functions (8/8), and lines (15/15).
+
+## Phase 7 Implementation Review
+
+Reviewed on 2026-08-16 against the approved requirements and design, file by file. The first pass found one blocking gap: registry `updated_at` was not reaching pinned `AgentInfo.lastActive`. TDD correction `9eb4ba3` now maps it for pinned entries only and preserves adapter timestamps for unpinned agents. Fresh feature lint and both agent-manager/CLI builds pass. Direct SQL inspection confirms `pinned` is absent from the `ON CONFLICT ... DO UPDATE SET` clause. No remaining design deviations, missing components, or blocking concerns were found.
+
+## Phase 9 Final Review
+
+Reviewed on 2026-08-17 after fresh package and workspace validation. The implementation matches the approved SQLite ownership, `(type, pid)` identity, manager API, partition-before-render/navigation, marker-width, divider, ghost-pin retention, and readonly-error contracts. Migration packaging is byte-identical to the source. The additive API/schema changes have regression coverage, the migration is forward-only, and no new dependency, security, rollback, integration, or blocking concern was found. The feature composes with agent-list filtering by partitioning first and filtering within each partition.
