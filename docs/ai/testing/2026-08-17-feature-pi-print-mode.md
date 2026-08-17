@@ -54,12 +54,12 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 
 ## CLI and End-to-End Tests
 
-- [ ] S25 `agent start --type pi --mode print` creates without interactive launch.
-- [ ] S26 unsupported print providers and modes remain rejected.
-- [ ] S27 `agent send` dispatches Pi records to the Pi service and reports provider `pi`.
-- [ ] S28 list/detail output identifies Pi print agents and nullable pre-first-run sessions safely.
-- [ ] S29 console receives the combined interactive/print registry.
-- [ ] S30 Claude print start/send/list/detail behavior remains green.
+- [x] S25 `agent start --type pi --mode print` creates without interactive launch.
+- [x] S26 unsupported print providers and modes remain rejected.
+- [x] S27 `agent send` dispatches Pi records to the Pi service and reports provider `pi`.
+- [x] S28 list/detail output identifies Pi print agents and nullable pre-first-run sessions safely.
+- [x] S29 console receives the combined interactive/print registry.
+- [x] S30 Claude print start/send/list/detail behavior remains green.
 
 ## Test Data
 

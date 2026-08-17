@@ -23,7 +23,7 @@ Pi provider modules live beside the Claude modules under `src/durable/`. Shared 
 
 - Complete: Pi support in the shared SQLite `DurableAgentRepository`; no legacy import or Pi-specific migration is needed.
 - Complete: Pi capability probe, bounded JSONL runner, repository-assigned session UUID via `--session-id`, exact resume args, and service state orchestration.
-- Pending: provider-aware CLI creation/send/list/detail/console wiring.
+- Complete: provider-aware CLI creation/send dispatch, Pi labels, and shared durable list/detail integration.
 
 ### Patterns & Best Practices
 
