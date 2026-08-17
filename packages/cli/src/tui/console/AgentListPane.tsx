@@ -215,7 +215,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
         <Box flexDirection="column" width={innerWidth}>
             <Box width={innerWidth}>
                 <SectionTitle>AGENTS </SectionTitle>
-                <Text dimColor>({orderedAgents.length}/{totalAgents})</Text>
+                <Text dimColor>({filterInPlay ? `${orderedAgents.length}/${totalAgents}` : totalAgents})</Text>
                 {!filterEditing && filterText ? <Text color={TUI_COLORS.accent}> [filtered]</Text> : null}
                 {hasAbove && <Text dimColor> ↑</Text>}
                 {hasMore && <Text dimColor> ↓</Text>}
