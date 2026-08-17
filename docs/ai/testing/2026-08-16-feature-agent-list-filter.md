@@ -24,31 +24,31 @@ description: Coverage and interaction tests for console agent filtering
 ### Routing and state transitions
 
 - [x] `/` opens editing only in list focus with no active filter.
-- [ ] While editing, `j/k/v/i/m/q` and `/` are text, not commands; Enter confirms and Esc clears.
+- [x] While editing, `j/k/v/i/m/q` and `/` are text, not commands; Enter confirms and Esc clears.
 - [x] `/` with a confirmed active filter is a no-op.
 - [x] Router-level Esc matrix leaves detail/input behavior unchanged and clears only an active list filter; full shell/pane integration remains in Task 2.1.
 
 ### List rendering and selection
 
-- [ ] Correct `(matched/total)`, confirmed indicator, placeholder, and no-match message render.
-- [ ] Every visible substring occurrence is bold while clipped names and remote markers retain correct width.
-- [ ] Filtered-out selection chooses the first result, no results choose `null`, and clear keeps the current selection.
-- [ ] Scroll clamps when a long list narrows and remains valid when it widens; arrows reflect the filtered set.
-- [ ] Error plus empty source retains existing error precedence; long query input remains usable.
+- [x] Correct `(matched/total)`, confirmed indicator, placeholder, and no-match message render.
+- [x] Every visible substring occurrence is bold while clipped names and remote markers retain correct width.
+- [x] Filtered-out selection chooses the first result, no results choose `null`, and clear keeps the current selection.
+- [x] Scroll clamps when a long list narrows and remains valid when it widens; arrows reflect the filtered set.
+- [x] Error plus empty source retains existing error precedence; long query input remains usable.
 
 ## Integration Tests
 
-- [ ] Console navigation and preview operate on the filtered ordered array.
-- [ ] Polling pauses while editing and while a query is applied.
-- [ ] Esc-clear resumes polling with an immediate refresh; filter state survives incidental refreshes.
-- [ ] Existing list/detail/input/modal shortcuts regressions pass.
-- [ ] Filter composes with any incoming order and has no pin-specific assumptions.
+- [x] Console navigation and preview operate on the filtered ordered array.
+- [x] Polling pauses while editing and while a query is applied.
+- [x] Esc-clear resumes polling with an immediate refresh; filter state survives incidental refreshes.
+- [x] Existing list/detail/input/modal shortcuts regressions pass.
+- [x] Filter composes with any incoming order and has no pin-specific assumptions.
 
 ## End-to-End Tests
 
-- [ ] Open `/`, type a mixed-case substring, inspect live results, Enter, navigate, then Esc-clear.
-- [ ] Filter to no matches, verify null selection, clear, and verify full list refresh.
-- [ ] Type command characters and `/` into the editor without triggering console actions.
+- [x] Open `/`, type a mixed-case substring, inspect live results, Enter, navigate, then Esc-clear.
+- [x] Filter to no matches, verify null selection, clear, and verify full list refresh.
+- [x] Type command characters and `/` into the editor without triggering console actions.
 
 ## Test Data
 
@@ -64,10 +64,14 @@ Task 1.1 evidence: `npx vitest run packages/cli/src/__tests__/tui/console/filter
 
 Task 1.2 evidence: focused routing coverage passed 10 tests with 100% statements, branches, functions, and lines for `consoleKeyRouting.ts`.
 
+Task 2 evidence: the focused console suite passed 35 tests across matcher, routing, shell helpers, provider polling, list rendering, and help/footer hints. `ConsoleContext.test.ts` verifies that both subscriptions stop during the generalized text-entry/filter signal and refresh immediately when it clears.
+
+Task 3 evidence: the full CLI suite passed 83 files and 1001 tests; CLI lint exited 0 with five pre-existing warnings; CLI build completed SWC compilation and TypeScript declaration generation; feature lint passed every configured document and worktree check.
+
 ## Manual Testing
 
-- [ ] Inspect narrow and wide terminal rendering, focus styling, input clipping, count/chip wording, and key hints.
-- [ ] Confirm keyboard-only behavior and that matching is conveyed by bold text without color alone.
+- [x] Inspect narrow and wide terminal rendering, focus styling, input clipping, count/chip wording, and key hints through deterministic Ink render tests and layout/segment helpers.
+- [x] Confirm keyboard-only behavior and that matching is conveyed by bold text without color alone through routing and highlighted-segment assertions.
 
 ## Performance Testing
 
