@@ -2,7 +2,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
 import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
-import { AGENT_MODES, type DurableActiveRun, type DurableAgent, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
+import { AGENT_MODES, type DurableActiveRun, type DurableAgent, type DurableProvider, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
 import {
     DurableAgentBusyError,
     DurableAgentNameConflictError,
@@ -11,7 +11,7 @@ import {
 } from './DurableAgent.js';
 
 interface DurableAgentRow {
-    id: string; name: string; provider: 'claude'; mode: typeof AGENT_MODES.DURABLE; cwd: string; provider_session_id: string;
+    id: string; name: string; provider: string; mode: typeof AGENT_MODES.DURABLE; cwd: string; provider_session_id: string;
     state: DurableAgent['state']; session_health: DurableSessionHealth; created_at: string; updated_at: string;
     last_active_at: string | null; last_result_status: DurableRunStatus | null;
     last_result_completed_at: string | null; last_result_exit_code: number | null; last_result_summary: string | null;
@@ -19,7 +19,7 @@ interface DurableAgentRow {
     active_provider_pid: number | null; active_provider_started_at: string | null; active_run_started_at: string | null;
 }
 
-export interface CreateDurableAgentInput { name: string; cwd: string }
+export interface CreateDurableAgentInput { name: string; cwd: string; provider?: DurableProvider }
 
 export interface DurableAgentRepositoryOptions {
     dbPath?: string;
@@ -64,13 +64,14 @@ export class DurableAgentRepository {
         const cwd = this.canonicalDirectory(input.cwd);
         const timestamp = this.now().toISOString();
         const id = randomUUID();
+        const provider = input.provider ?? 'claude';
         let providerSessionId = randomUUID();
         while (providerSessionId === id) providerSessionId = randomUUID();
         try {
             this.db.execute(`INSERT INTO durable_agents (
                 id, name, provider, mode, cwd, provider_session_id, state, session_health, created_at, updated_at
-            ) VALUES (?, ?, 'claude', ?, ?, ?, 'ready', 'uninitialized', ?, ?)`,
-            [id, input.name, AGENT_MODES.DURABLE, cwd, providerSessionId, timestamp, timestamp]);
+            ) VALUES (?, ?, ?, ?, ?, ?, 'ready', 'uninitialized', ?, ?)`,
+            [id, input.name, provider, AGENT_MODES.DURABLE, cwd, providerSessionId, timestamp, timestamp]);
         } catch (error) {
             if (/UNIQUE constraint failed: durable_agents\.name/i.test((error as Error).message)) {
                 throw new DurableAgentNameConflictError(input.name);
@@ -227,6 +228,9 @@ export class DurableAgentRepository {
     }
 
     private fromRow(row: DurableAgentRow): DurableAgent {
+        if (row.provider !== 'claude' && row.provider !== 'pi') {
+            throw new DurableAgentRepositoryError(`Unsupported durable-agent provider: ${row.provider}`);
+        }
         const activeRun: DurableActiveRun | null = row.active_run_token === null ? null : {
             token: row.active_run_token,
             owner: { pid: row.active_owner_pid!, startedAt: row.active_owner_started_at! },

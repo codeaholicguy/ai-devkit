@@ -8,21 +8,21 @@ description: Living implementation record for durable Pi print agents
 
 ## Development Setup
 
-- Worktree: `feature-pi-print-mode` from `origin/main` at `a643f4a`.
-- References: merged Claude implementation under `packages/agent-manager/src/print/`; read-only Codex worktree at `../feature-codex-print-mode`.
+- Worktree: `feature-pi-print-mode`, rebased onto the durable-agents architecture on `origin/main`.
+- References: merged Claude implementation under `packages/agent-manager/src/durable/`; read-only Codex worktree at `../feature-codex-print-mode`.
 - Pi ground truth: installed package README, `docs/json.md`, and CLI capability probe.
 - Tests run with repository Vitest/Nx scripts; no new dependencies.
 
 ## Code Structure
 
-Planned additions are `PiCliProbe.ts`, `PiPrintRunner.ts`, and `PiPrintAgentService.ts` beside the Claude modules. Shared store/types and agent CLI wiring are generalized minimally.
+Pi provider modules live beside the Claude modules under `src/durable/`. Shared changes are limited to the provider union, repository create input, exports, and CLI dispatch.
 
 ## Implementation Notes
 
 ### Core Features
 
-- Pending: provider-discriminated schema-v2 store with legacy reads.
-- Pending: strict Pi JSONL runner with late UUID binding and resume args.
+- Complete: Pi support in the shared SQLite `DurableAgentRepository`; no legacy import or Pi-specific migration is needed.
+- Complete: Pi capability probe, bounded JSONL runner, repository-assigned session UUID via `--session-id`, exact resume args, and service state orchestration.
 - Pending: provider-aware CLI creation/send/list/detail/console wiring.
 
 ### Patterns & Best Practices
@@ -33,7 +33,7 @@ Planned additions are `PiCliProbe.ts`, `PiPrintRunner.ts`, and `PiPrintAgentServ
 
 ## Integration Points
 
-`agent start` creates through the provider service; `agent send` resolves the persisted record then dispatches by provider; list/detail/console use the shared store union.
+`agent start` creates through the provider service; `agent send` resolves the persisted record then dispatches by provider; list/detail/console use the shared durable repository.
 
 ## Error Handling
 
@@ -45,8 +45,8 @@ Parse stdout incrementally with a 1 MiB line limit. Store only the final bounded
 
 ## Security Notes
 
-No shell, prompt via stdin, canonical cwd, no stderr reflection, UUID validation, ownership-checked session binding, and existing safe-file/run-lock protections.
+No shell, prompt via stdin, canonical cwd, no stderr reflection, UUID validation, and SQLite CAS run ownership.
 
 ## Deviations and Follow-ups
 
-None at design completion. This document will be updated after each task with files, evidence, and deviations.
+The original file-store generalization was dropped because main now supplies SQLite persistence and CAS concurrency. Pi uses the repository-assigned UUID directly, avoiding late session binding.
