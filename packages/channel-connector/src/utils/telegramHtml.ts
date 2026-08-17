@@ -40,13 +40,17 @@ const renderer: RendererObject = {
         const startNum = typeof start === 'number' ? start : 1;
         const lines = items.map((item, i) => {
             const marker = ordered ? `${startNum + i}.` : '•';
-            const inner = this.parser.parse(item.tokens).trimEnd();
+            const inner = item.tokens
+                .map((token) =>
+                    token.type === 'text'
+                        ? this.parser.parseInline(token.tokens!)
+                        : this.parser.parse([token])
+                )
+                .join('')
+                .trimEnd();
             return `${marker} ${inner}`;
         });
         return `${lines.join('\n')}\n\n`;
-    },
-    listitem(item: Tokens.ListItem): string {
-        return this.parser.parseInline(item.tokens);
     },
     blockquote({ tokens }: Tokens.Blockquote): string {
         return `<blockquote>${this.parser.parse(tokens).trimEnd()}</blockquote>\n\n`;
@@ -73,13 +77,10 @@ const renderer: RendererObject = {
     br(): string {
         return '\n';
     },
-    html(): string {
-        return '';
+    html({ block, text }: Tokens.HTML | Tokens.Tag): string {
+        return block ? '' : escapeHtml(text);
     },
     text(token: Tokens.Text | Tokens.Escape): string {
-        if ('tokens' in token && token.tokens) {
-            return this.parser.parseInline(token.tokens);
-        }
         return escapeHtml(token.text);
     },
 };

@@ -9,10 +9,11 @@ describe('markdownToTelegramHtml', () => {
     });
 
     it('renders inline code and fenced code with language', () => {
-        const md = 'Run `npm test`\n\n```ts\nconst x = 1;\n```';
+        const md = 'Run `npm test`\n\n```ts\nconst x = 1;\n```\n\n```\nplain\n```';
         const out = markdownToTelegramHtml(md);
         expect(out).toContain('<code>npm test</code>');
         expect(out).toContain('<pre><code class="language-ts">const x = 1;</code></pre>');
+        expect(out).toContain('<pre><code>plain</code></pre>');
     });
 
     it('renders links and converts headings to bold', () => {
@@ -55,14 +56,81 @@ describe('markdownToTelegramHtml', () => {
         expect(out).not.toContain('<ol>');
     });
 
+    it('renders inline markup as HTML inside ordered tight lists', () => {
+        const out = markdownToTelegramHtml('1. **bold** `code` *italic*');
+
+        expect(out).toContain('1. <b>bold</b> <code>code</code> <i>italic</i>');
+        expect(out).not.toContain('&lt;b&gt;');
+        expect(out).not.toMatch(/\*\*|`/);
+    });
+
+    it('renders inline markup as HTML inside unordered tight lists', () => {
+        const out = markdownToTelegramHtml('- **bold** `code` *italic*');
+
+        expect(out).toContain('• <b>bold</b> <code>code</code> <i>italic</i>');
+        expect(out).not.toMatch(/&lt;(?:b|code|i)&gt;/);
+    });
+
+    it('renders inline markup in the middle of list item text', () => {
+        const out = markdownToTelegramHtml(
+            '- While editing, `/x` is a **literal** character.'
+        );
+
+        expect(out).toContain(
+            '• While editing, <code>/x</code> is a <b>literal</b> character.'
+        );
+    });
+
+    it('renders inline markup in loose multi-paragraph lists', () => {
+        const out = markdownToTelegramHtml(
+            '- First **bold** paragraph.\n\n  Second paragraph with *italic*.\n\n- `code` item.'
+        );
+
+        expect(out).toContain('• First <b>bold</b> paragraph.');
+        expect(out).toContain('Second paragraph with <i>italic</i>.');
+        expect(out).toContain('• <code>code</code> item.');
+        expect(out).not.toMatch(/&lt;(?:b|code|i)&gt;/);
+    });
+
+    it('renders inline markup in nested list items', () => {
+        const out = markdownToTelegramHtml('- **parent**\n  - child with `code`');
+
+        expect(out).toContain('• <b>parent</b>');
+        expect(out).toContain('• child with <code>code</code>');
+    });
+
+    it('escapes raw HTML inside list items', () => {
+        const out = markdownToTelegramHtml('- literal <script>alert(1)</script> text');
+
+        expect(out).toContain('&lt;script&gt;');
+        expect(out).not.toContain('<script>');
+    });
+
+    it('preserves ordered list start numbering with inline markup', () => {
+        const out = markdownToTelegramHtml('3. **three**\n4. *four*');
+
+        expect(out).toContain('3. <b>three</b>');
+        expect(out).toContain('4. <i>four</i>');
+    });
+
+    it('renders links as HTML inside list items', () => {
+        const out = markdownToTelegramHtml('- See [docs](https://example.com?a=1&b=2).');
+
+        expect(out).toContain(
+            '• See <a href="https://example.com?a=1&amp;b=2">docs</a>.'
+        );
+        expect(out).not.toContain('&lt;a href=');
+    });
+
     it('renders tables as ASCII inside <pre>', () => {
-        const md = '| a | b |\n|---|---|\n| 1 | 2 |';
+        const md = '| a | b |\n|---|---|\n| 1 | 2 |\n| 3 |';
         const out = markdownToTelegramHtml(md);
         expect(out.startsWith('<pre>')).toBe(true);
         expect(out).toContain('a');
         expect(out).toContain('b');
         expect(out).toContain('1');
         expect(out).toContain('2');
+        expect(out).toContain('3');
         expect(out).not.toContain('<table>');
     });
 
