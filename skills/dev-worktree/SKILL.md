@@ -58,7 +58,8 @@ After selecting the target context:
    - Rust: `cargo fetch`, or `cargo build` when fetch-only is insufficient.
    - Go: `go mod download`.
    - Java/Kotlin: `./gradlew dependencies`, `./gradlew build`, or Maven equivalent.
-4. If no dependency manager is clearly detectable, continue and state what was checked.
+4. For workspaces whose packages resolve against built artifacts (for example `dist/` output consumed via workspace aliases), run the repository build (for example `npm run build`) after install. Full-suite validation and commit hooks fail on stale or missing artifacts with errors that look like code regressions. State when the build was skipped and why.
+5. If no dependency manager is clearly detectable, continue and state what was checked.
 
 ## Output
 
@@ -68,4 +69,5 @@ End with:
 - Branch name.
 - Whether worktree or no-worktree mode is active.
 - Dependency bootstrap command run, or why it was skipped.
+- Workspace build command run (when applicable), or why it was skipped.
 - Any workspace risks or blockers.
