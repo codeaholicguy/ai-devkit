@@ -1,4 +1,8 @@
+import { PassThrough } from 'node:stream';
+import React from 'react';
+import { render } from 'ink';
 import { describe, expect, it, vi } from 'vitest';
+import type { AgentInfo } from '@ai-devkit/agent-manager';
 
 vi.mock('@ai-devkit/agent-manager', () => ({
     AgentStatus: {
@@ -9,7 +13,6 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     },
 }));
 
-import type { AgentInfo } from '@ai-devkit/agent-manager';
 import {
     getAgentMarker,
     getAgentDivider,
@@ -18,7 +21,11 @@ import {
     partitionPinned,
     selectInitialAgentName,
 } from '../../../tui/console/agentListLayout.js';
-import { getAgentChannelMarker } from '../../../tui/console/AgentListPane.js';
+import {
+    clampAgentListScrollOffset,
+    getAgentChannelMarker,
+    getHighlightedNameSegments,
+} from '../../../tui/console/AgentListPane.js';
 
 function agent(name: string, pinned: boolean, lastActive: string): AgentInfo {
     return {
@@ -31,6 +38,52 @@ function agent(name: string, pinned: boolean, lastActive: string): AgentInfo {
 describe('AgentListPane helpers', () => {
     it('uses a compact ASCII remote marker for connected agents', () => {
         expect(getAgentChannelMarker({ channelName: 'telegram', channelType: 'telegram', bridgePid: 42 })).toBe('remote');
+    });
+
+    it('renders filtered counts, query state, and remote channel markers', async () => {
+        const { AgentListPane } = await import('../../../tui/console/AgentListPane.js');
+        const output = new PassThrough();
+        let rendered = '';
+        output.on('data', chunk => { rendered += chunk.toString(); });
+        const agents = [{
+            name: 'Alpha Agent',
+            type: 'codex',
+            status: 'running',
+            projectPath: '/tmp/project',
+        }] as AgentInfo[];
+        const instance = render(React.createElement(AgentListPane, {
+            agents,
+            selectedName: 'Alpha Agent',
+            onSelect: vi.fn(),
+            width: 44,
+            height: 12,
+            totalAgents: 3,
+            filterText: 'agent',
+            channelStatuses: { 'Alpha Agent': { channelName: 'telegram', channelType: 'telegram', bridgePid: 42 } },
+        }), { stdout: output as unknown as NodeJS.WriteStream, interactive: false, patchConsole: false });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        instance.unmount();
+        await instance.waitUntilExit();
+        expect(rendered).toContain('(1/3)');
+        expect(rendered).toContain('[filtered]');
+        expect(rendered).toContain('Alpha Agent');
+        expect(rendered).toContain('remote');
+    });
+
+    it('shows a no-match message ahead of an incidental error when the source is non-empty', async () => {
+        const { AgentListPane } = await import('../../../tui/console/AgentListPane.js');
+        const output = new PassThrough();
+        let rendered = '';
+        output.on('data', chunk => { rendered += chunk.toString(); });
+        const instance = render(React.createElement(AgentListPane, {
+            agents: [], selectedName: null, onSelect: vi.fn(), width: 44, height: 12,
+            totalAgents: 3, filterText: 'xyz', error: 'refresh failed',
+        }), { stdout: output as unknown as NodeJS.WriteStream, interactive: false, patchConsole: false });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        instance.unmount();
+        await instance.waitUntilExit();
+        expect(rendered).toContain('No agents match "xyz"');
+        expect(rendered).not.toContain('refresh failed');
     });
 
     it('uses blank spacing for disconnected agents', () => {
@@ -127,5 +180,26 @@ describe('AgentListPane helpers', () => {
             agent('fallback', false, '2026-08-16T01:00:00Z'),
         ])).toBe('fallback');
         expect(selectInitialAgentName([])).toBeNull();
+    });
+
+    it('clamps a stale offset when filtering narrows and remains valid when it widens', () => {
+        expect(clampAgentListScrollOffset(20, 2, 4)).toBe(0);
+        expect(clampAgentListScrollOffset(0, 30, 4)).toBe(0);
+        expect(clampAgentListScrollOffset(29, 30, 4)).toBe(26);
+    });
+
+    it('splits a clipped name around every matched substring', () => {
+        expect(getHighlightedNameSegments('bananana', 'ana', 8)).toEqual([
+            { text: 'b', matched: false },
+            { text: 'ana', matched: true },
+            { text: 'n', matched: false },
+            { text: 'ana', matched: true },
+        ]);
+        expect(getHighlightedNameSegments('long-agent-name', 'agent', 8)).toEqual([
+            { text: 'long-', matched: false },
+            { text: 'ag', matched: true },
+            { text: '…', matched: false },
+        ]);
+        expect(getHighlightedNameSegments('agent', '', 8)).toEqual([{ text: 'agent', matched: false }]);
     });
 });

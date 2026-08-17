@@ -58,8 +58,8 @@ export const ConsoleProvider: React.FC<ConsoleProviderProps> = ({
     configStore,
     children,
 }) => {
-    // Pause list poll while user is composing a message: removes a source of
-    // re-renders that compete with the controlled TextInput.
+    // Pause polling during any text-entry/filter session so controlled input
+    // and a frozen filtered snapshot are not displaced by background updates.
     const list = useAgentList(manager, undefined, inputFocused);
     const channelState = useChannelState(channelService, configStore, undefined, inputFocused);
 
