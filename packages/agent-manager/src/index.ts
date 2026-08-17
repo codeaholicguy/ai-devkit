@@ -49,12 +49,14 @@ export {
     DurableAgentNameConflictError,
     ClaudePrintError,
     CodexPrintError,
+    PiPrintError,
 } from './durable/DurableAgent.js';
 export type {
     DurableAgent,
     DurableAgentBase,
     ClaudeDurableAgent,
     CodexDurableAgent,
+    PiDurableAgent,
     DurableProvider,
     CodexPrintErrorCode,
     DurableAgentState,
@@ -62,6 +64,7 @@ export type {
     DurableRunStatus,
     DurableActiveRun,
     DurableLastResult,
+    PiPrintErrorCode,
     ProcessIdentity,
 } from './durable/DurableAgent.js';
 export { DurableAgentRepository } from './durable/DurableAgentRepository.js';
@@ -89,3 +92,9 @@ export type {
     CodexPrintAgentServiceOptions,
     CodexPrintSendResult,
 } from './providers/codex/durable/CodexPrintAgentService.js';
+export { PiCliProbe } from './providers/pi/durable/PiCliProbe.js';
+export type { PiCliProbeOptions } from './providers/pi/durable/PiCliProbe.js';
+export { PiPrintRunner } from './providers/pi/durable/PiPrintRunner.js';
+export type { PiPrintRunnerOptions, PiPrintRunRequest, PiPrintRunResult } from './providers/pi/durable/PiPrintRunner.js';
+export { PiPrintAgentService } from './providers/pi/durable/PiPrintAgentService.js';
+export type { PiPrintAgentServiceOptions, PiPrintSendResult } from './providers/pi/durable/PiPrintAgentService.js';

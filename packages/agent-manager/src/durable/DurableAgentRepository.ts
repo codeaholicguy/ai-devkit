@@ -67,7 +67,7 @@ export class DurableAgentRepository {
         const timestamp = this.now().toISOString();
         const id = randomUUID();
         const provider = input.provider ?? 'claude';
-        let providerSessionId = provider === 'claude' ? randomUUID() : null;
+        let providerSessionId = provider === 'codex' ? null : randomUUID();
         while (providerSessionId === id) providerSessionId = randomUUID();
         try {
             this.db.execute(`INSERT INTO durable_agents (
@@ -266,8 +266,8 @@ export class DurableAgentRepository {
     }
 
     private fromRow(row: DurableAgentRow): DurableAgent {
-        if (!['claude', 'codex'].includes(row.provider)
-            || (row.provider === 'claude' && row.provider_session_id === null)) {
+        if (!['claude', 'codex', 'pi'].includes(row.provider)
+            || (row.provider !== 'codex' && row.provider_session_id === null)) {
             throw new DurableAgentRepositoryError(`Invalid durable-agent provider record: ${row.id}`);
         }
         const activeRun: DurableActiveRun | null = row.active_run_token === null ? null : {
@@ -288,9 +288,13 @@ export class DurableAgentRepository {
             },
             activeRun,
         };
-        return row.provider === 'claude'
-            ? { ...base, provider: 'claude', providerSessionId: row.provider_session_id! }
-            : { ...base, provider: 'codex', providerSessionId: row.provider_session_id };
+        if (row.provider === 'claude') {
+            return { ...base, provider: 'claude', providerSessionId: row.provider_session_id! };
+        }
+        if (row.provider === 'pi') {
+            return { ...base, provider: 'pi', providerSessionId: row.provider_session_id! };
+        }
+        return { ...base, provider: 'codex', providerSessionId: row.provider_session_id };
     }
 
     private canonicalDirectory(input: string): string {

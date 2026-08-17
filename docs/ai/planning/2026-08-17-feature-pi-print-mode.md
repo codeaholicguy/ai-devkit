@@ -10,22 +10,22 @@ description: TDD implementation plan for durable Pi print agents
 
 - [x] Requirements and Pi CLI investigation
 - [x] Architecture and test strategy
-- [ ] Provider-aware durable storage
-- [ ] Pi probe, runner, and service
+- [x] Provider-aware durable storage
+- [x] Pi probe, runner, and service
 - [ ] CLI integration and lifecycle verification
 
 ## Task Breakdown
 
 ### Phase 1: Storage Foundation
 
-- [ ] T1: Add failing store/type tests for Pi creation, legacy migration, safe late session binding, uniqueness, and invalid records. Depends on none. Evidence: targeted store suite and 100% new pure-logic coverage. Scenarios: S1-S5.
-- [ ] T2: Implement provider-discriminated agents and schema-v2 store behavior while retaining Claude compatibility. Depends on T1. Evidence: store and Claude suites green.
+- [x] T1: Rebase onto the SQLite durable-agent repository and add a failing test for Pi creation/provider validation. No legacy import is required.
+- [x] T2: Extend the provider union and repository create input additively while retaining Claude defaults and CAS behavior.
 
 ### Phase 2: Pi Provider
 
-- [ ] T3: Add failing probe tests for supported, missing, unsupported, and sanitized failure cases; implement `PiCliProbe`. Depends on T2. Evidence: probe suite and coverage. Scenarios: S6-S8.
-- [ ] T4: Add failing runner tests for first/resume args, stdin, event parsing, identity mismatch, malformed/oversized/incomplete output, process failures, and callbacks; implement `PiPrintRunner`. Depends on T2. Evidence: runner suite and coverage. Scenarios: S9-S18.
-- [ ] T5: Add failing mocked-service integration tests for create/send success, resume, ambiguity/provider mismatch, binding failure, and state recording; implement `PiPrintAgentService`. Depends on T3-T4. Evidence: service suite. Scenarios: S19-S24.
+- [x] T3: Add failing probe tests for supported, missing, unsupported, and sanitized failure cases; implement `PiCliProbe`. Depends on T2. Evidence: probe suite and coverage. Scenarios: S6-S8.
+- [x] T4: Add failing runner tests for first/resume args, stdin, event parsing, identity mismatch, malformed/oversized/incomplete output, process failures, and callbacks; implement `PiPrintRunner`. Depends on T2. Evidence: runner suite and coverage. Scenarios: S9-S18.
+- [x] T5: Add failing mocked-service integration tests for create/send success, resume, ambiguity/provider mismatch, binding failure, and state recording; implement `PiPrintAgentService`. Depends on T3-T4. Evidence: service suite. Scenarios: S19-S24.
 
 ### Phase 3: CLI Integration
 
@@ -46,4 +46,4 @@ Storage generalization precedes provider code; runner and probe precede service;
 
 ## Progress Summary
 
-Research and design are complete. Implementation begins with storage tests, then moves through one red-green-refactor cycle per task. Optional task tracing is unavailable, so this checklist and phase commits are the durable progress record.
+The obsolete file-store generalization commit was dropped during rebase. Pi provider adaptation now targets `DurableAgentRepository`, with CLI integration and full verification remaining.

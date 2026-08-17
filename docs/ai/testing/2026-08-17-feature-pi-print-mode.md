@@ -26,31 +26,31 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 
 ### Pi CLI Probe
 
-- [ ] S6 supported Pi help/version returns sanitized metadata.
-- [ ] S7 missing flags produce an unsupported-capability error.
-- [ ] S8 execution failures produce a sanitized unavailable error.
+- [x] S6 supported Pi help/version returns sanitized metadata.
+- [x] S7 missing flags produce an unsupported-capability error.
+- [x] S8 execution failures produce a sanitized unavailable error.
 
 ### Pi JSON Runner
 
-- [ ] S9 first-run args are `--mode json`; resume adds `--session <uuid>`; prompt uses stdin and shell is disabled.
-- [ ] S10 provider process identity and session callbacks run.
-- [ ] S11 the session header and completed assistant message yield the final result.
-- [ ] S12 multiple assistant completions return the last complete message.
-- [ ] S13 missing/invalid/duplicate/mismatched session identity is rejected.
-- [ ] S14 malformed, non-object, oversized, or incomplete JSON is rejected.
-- [ ] S15 missing `agent_end` or assistant output is rejected.
-- [ ] S16 spawn identity/start errors and callback failures terminate safely.
-- [ ] S17 non-zero/signal exits become process errors.
-- [ ] S18 stderr is drained without inclusion in results.
+- [x] S9 first-run args are `--mode json`; resume adds `--session <uuid>`; prompt uses stdin and shell is disabled.
+- [x] S10 provider process identity and session callbacks run.
+- [x] S11 the session header and completed assistant message yield the final result.
+- [x] S12 multiple assistant completions return the last complete message.
+- [x] S13 missing/invalid/duplicate/mismatched session identity is rejected.
+- [x] S14 malformed, non-object, oversized, or incomplete JSON is rejected.
+- [x] S15 missing `agent_end` or assistant output is rejected.
+- [x] S16 spawn identity/start errors and callback failures terminate safely.
+- [x] S17 non-zero/signal exits become process errors.
+- [x] S18 stderr is drained without inclusion in results.
 
 ## Integration Tests
 
-- [ ] S19 service create probes and persists provider `pi`.
-- [ ] S20 first send records process/session, success, health, and sanitized summary.
-- [ ] S21 resumed send preserves the bound session.
-- [ ] S22 missing/ambiguous/wrong-provider references fail clearly.
-- [ ] S23 protocol/store session mismatches record mismatch health.
-- [ ] S24 other failures record unknown health and release the run.
+- [x] S19 service create probes and persists provider `pi`.
+- [x] S20 first send records process/session, success, health, and sanitized summary.
+- [x] S21 resumed send preserves the bound session.
+- [x] S22 missing/ambiguous/wrong-provider references fail clearly.
+- [x] S23 protocol/store session mismatches record mismatch health.
+- [x] S24 other failures record unknown health and release the run.
 
 ## CLI and End-to-End Tests
 
