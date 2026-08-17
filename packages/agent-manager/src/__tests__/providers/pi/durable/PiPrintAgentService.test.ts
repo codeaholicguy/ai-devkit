@@ -5,7 +5,7 @@ const base = { id: 'id', name: 'reviewer', provider: 'pi', providerSessionId: SE
 describe('PiPrintAgentService', () => {
     it('probes before provider-aware create', async () => {
         const api = await import('../../../../index.js') as Record<string, unknown>; expect(api).toHaveProperty('PiPrintAgentService');
-        const probe = { validate: vi.fn() }; const repository = { create: vi.fn().mockResolvedValue(base) }; const runner = { run: vi.fn() };
+        const probe = { validate: vi.fn() }; const repository = { create: vi.fn().mockResolvedValue(base), list: vi.fn() }; const runner = { run: vi.fn() };
         const Service = api.PiPrintAgentService as new (options: unknown) => any;
         await new Service({ repository, probe, runner }).create({ name: 'reviewer', cwd: '/project' });
         expect(probe.validate).toHaveBeenCalledOnce(); expect(repository.create).toHaveBeenCalledWith({ name: 'reviewer', cwd: '/project', provider: 'pi' });
@@ -13,7 +13,7 @@ describe('PiPrintAgentService', () => {
 
     it('records successful first and resumed sends', async () => {
         const api = await import('../../../../index.js') as Record<string, unknown>;
-        const repository = { resolve: vi.fn().mockResolvedValue(base), acquireRun: vi.fn()
+        const repository = { list: vi.fn(), resolve: vi.fn().mockResolvedValue(base), acquireRun: vi.fn()
             .mockResolvedValueOnce({ agent: base, token: 'one' }).mockResolvedValueOnce({ agent: { ...base, sessionHealth: 'healthy' }, token: 'two' }),
             recordProviderProcess: vi.fn(), completeRun: vi.fn() };
         const runner = { run: vi.fn(async (request) => { await request.onSpawn({ pid: 42, startedAt: 'start' }); return { sessionId: SESSION, result: 'answer', messages: ['answer'], exitCode: 0 }; }) };
@@ -24,7 +24,7 @@ describe('PiPrintAgentService', () => {
 
     it('records mismatches, rejects wrong providers, missing and ambiguous records', async () => {
         const api = await import('../../../../index.js') as Record<string, unknown>; const ErrorType = api.PiPrintError as new (message: string, code: string) => Error;
-        const completeRun = vi.fn(); const repository = { resolve: vi.fn().mockResolvedValue(base), acquireRun: vi.fn().mockResolvedValue({ agent: base, token: 'one' }), recordProviderProcess: vi.fn(), completeRun };
+        const completeRun = vi.fn(); const repository = { list: vi.fn(), resolve: vi.fn().mockResolvedValue(base), acquireRun: vi.fn().mockResolvedValue({ agent: base, token: 'one' }), recordProviderProcess: vi.fn(), completeRun };
         const Service = api.PiPrintAgentService as new (options: unknown) => any;
         await expect(new Service({ repository, probe: { validate: vi.fn() }, runner: { run: vi.fn().mockRejectedValue(new ErrorType('bad', 'PI_SESSION_MISMATCH')) } }).send('reviewer', 'x'))
             .rejects.toMatchObject({ code: 'PI_SESSION_MISMATCH' });

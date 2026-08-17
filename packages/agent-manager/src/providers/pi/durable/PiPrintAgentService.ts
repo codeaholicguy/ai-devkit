@@ -4,7 +4,7 @@ import { PiCliProbe } from './PiCliProbe.js';
 import { PiPrintRunner, type PiPrintRunResult } from './PiPrintRunner.js';
 import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from '../../../durable/DurableAgentRepository.js';
 
-interface RepositoryLike { create(input: CreateDurableAgentInput): Promise<DurableAgent>; resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null>; acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }>; recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void>; completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> }
+interface RepositoryLike { create(input: CreateDurableAgentInput): Promise<DurableAgent>; list(): Promise<DurableAgent[]>; resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null>; acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }>; recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void>; completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> }
 interface ProbeLike { validate(): Promise<{ executable: string; version: string }> }
 interface RunnerLike { run(request: Parameters<PiPrintRunner['run']>[0]): Promise<PiPrintRunResult> }
 export interface PiPrintAgentServiceOptions { repository?: RepositoryLike; probe?: ProbeLike; runner?: RunnerLike; executable?: string }

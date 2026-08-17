@@ -24,6 +24,7 @@ Pi provider modules live beside the Claude modules under `src/durable/`. Shared 
 - Complete: Pi support in the shared SQLite `DurableAgentRepository`; no legacy import or Pi-specific migration is needed.
 - Complete: Pi capability probe, bounded JSONL runner, repository-assigned session UUID via `--session-id`, exact resume args, and service state orchestration.
 - Complete: provider-aware CLI creation/send dispatch, Pi labels, and shared durable list/detail integration.
+- Complete: pure `PiPrintProtocol` helpers make argument, session-identity, and assistant-text mapping independently testable at 100% coverage.
 
 ### Patterns & Best Practices
 
@@ -49,4 +50,4 @@ No shell, prompt via stdin, canonical cwd, no stderr reflection, UUID validation
 
 ## Deviations and Follow-ups
 
-The original file-store generalization was dropped because main now supplies SQLite persistence and CAS concurrency. Pi uses the repository-assigned UUID directly, avoiding late session binding.
+The original file-store generalization was dropped because main now supplies SQLite persistence and CAS concurrency. Pi uses the repository-assigned UUID directly, avoiding late session binding. Provider files are isolated under `src/durable/`; shared edits remain additive.

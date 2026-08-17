@@ -71,4 +71,40 @@ describe('PiPrintRunner', () => {
             .rejects.toMatchObject({ code: 'PI_PROCESS' });
         expect(fixture.child.kill).toHaveBeenCalledOnce();
     });
+
+    it('rejects invalid and duplicate session identities', async () => {
+        for (const lines of [
+            [JSON.stringify({ type: 'session', id: 'bad' }), ''],
+            [JSON.stringify({ type: 'session', id: SESSION }), JSON.stringify({ type: 'session', id: SESSION }), ''],
+        ]) await expect((await runner(fakeSpawn(lines))).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn() }))
+            .rejects.toMatchObject({ code: 'PI_PROTOCOL' });
+    });
+
+    it('kills on spawn persistence failure and classifies session callback failure', async () => {
+        const spawnFailure = fakeSpawn([]); const failure = new Error('cannot persist');
+        await expect((await runner(spawnFailure)).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn().mockRejectedValue(failure), onSession: vi.fn() })).rejects.toBe(failure);
+        expect(spawnFailure.child.kill).toHaveBeenCalledOnce();
+        const callbackFailure = fakeSpawn(events());
+        await expect((await runner(callbackFailure)).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn().mockRejectedValue(new Error('store')) }))
+            .rejects.toMatchObject({ code: 'PI_PROTOCOL' });
+    });
+
+    it('classifies spawn errors and a missing PID as process failures', async () => {
+        const errored = fakeSpawn([]);
+        errored.child.stdin = new Writable({ write(_chunk, _encoding, callback) { callback(); }, final(callback) { queueMicrotask(() => errored.child.emit('error', new Error('spawn'))); callback(); } });
+        await expect((await runner(errored)).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn() })).rejects.toMatchObject({ code: 'PI_PROCESS' });
+        const missing = fakeSpawn([]); missing.child.pid = undefined;
+        await expect((await runner(missing)).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn() })).rejects.toMatchObject({ code: 'PI_PROCESS' });
+        expect(missing.child.kill).toHaveBeenCalledOnce();
+    });
+
+    it('accepts string assistant content and ignores empty or unrelated messages', async () => {
+        const lines = [JSON.stringify({ type: 'session', id: SESSION }), JSON.stringify({ type: 'future' }),
+            JSON.stringify({ type: 'message_end', message: { role: 'user', content: 'ignored' } }),
+            JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: ' ' } }),
+            JSON.stringify({ type: 'message_end', message: { role: 'assistant', content: 'answer' } }),
+            JSON.stringify({ type: 'agent_end' }), ''];
+        await expect((await runner(fakeSpawn(lines))).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn() }))
+            .resolves.toMatchObject({ result: 'answer' });
+    });
 });
