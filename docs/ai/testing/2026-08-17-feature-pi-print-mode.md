@@ -72,6 +72,15 @@ Use temporary store/cwd fixtures, deterministic clocks/process identities, valid
 - Regression: `npm test --workspace @ai-devkit/agent-manager` and CLI equivalent.
 - Static: package lint/typecheck/build and `npx ai-devkit@latest lint --feature pi-print-mode`.
 
+Final evidence (2026-08-17):
+
+- Agent manager: 28 files, 552 tests passed.
+- CLI: 82 files, 986 tests passed.
+- Pi focused suites: 4 files, 23 tests passed.
+- Pure Pi protocol: 100% statements (26/26), branches (38/38), functions (4/4), and lines (20/20), enforced with `--coverage.thresholds.100=true`.
+- Agent-manager and CLI package builds passed; package lints passed (CLI retains five unrelated baseline warnings and zero errors).
+- Feature-doc lint passed all base, feature, branch, and worktree checks.
+
 ## Manual Testing
 
 No credentialed Pi model run is required. `pi --help` and installed docs provide CLI-surface evidence; subprocess behavior is deterministic under mocks.
