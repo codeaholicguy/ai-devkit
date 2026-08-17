@@ -10,7 +10,7 @@ description: Ordered TDD tasks for inline console name filtering
 
 - [x] Milestone 1: Pure substring semantics and key-state transitions are test-driven and complete.
 - [x] Milestone 2: Console state, polling, navigation, and list rendering integrate over one ordered filtered array.
-- [ ] Milestone 3: Edge-case coverage, docs, lint, full tests, and review are complete.
+- [x] Milestone 3: Edge-case coverage, docs, lint, full tests, and review are complete.
 
 ## Task Breakdown
 
@@ -54,7 +54,7 @@ description: Ordered TDD tasks for inline console name filtering
   - Outcome: focused coverage, CLI lint/build/test, repository-appropriate regression suite, and manual rendering smoke checks pass.
   - Dependencies: Task 3.1.
   - Evidence: fresh command output recorded in testing/implementation docs.
-- [ ] Task 3.3 — Final review and publication
+- [x] Task 3.3 — Final review and publication
   - Outcome: holistic review finds no blockers; commits are scoped; branch is pushed and PR is merged-ready.
   - Dependencies: Task 3.2.
   - Evidence: clean status, reviewed commit range, PR checks, and feature lint.
@@ -85,4 +85,4 @@ Existing React/Ink, `ink-text-input`, Vitest, console fixtures, lifecycle docs, 
 
 ## Progress Summary
 
-Tasks 1.1–3.2 are complete. The shell owns one substring-filtered ordered array for selection, navigation, preview, and rendering; provider polling pauses throughout editing and confirmed-filter states; list/footer/help rendering and edge cases are covered. Fresh focused coverage is 100% for matcher and routing, 35 focused tests pass, and the full CLI test/lint/build gates pass. Next: final review, publication, and PR evidence in Task 3.3. No scope changes or blockers were discovered.
+Tasks 1.1–3.3 and all milestones are complete. The shell owns one substring-filtered ordered array for selection, navigation, preview, and rendering; provider polling pauses throughout editing and confirmed-filter states; list/footer/help rendering and edge cases are covered. Fresh focused coverage is 100% for matcher and routing, 35 focused tests pass, and the full CLI test/lint/build gates pass. Final review found no blockers, the branch was synchronized with `origin/main` without a rebase, and PR #168 was opened for review. No scope changes or blockers were discovered.
