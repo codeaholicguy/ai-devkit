@@ -17,6 +17,7 @@ import {
     ClaudePrintAgentService,
     CodexPrintAgentService,
     DurableAgentRepository,
+    PiPrintAgentService,
     AgentStatus,
     TerminalFocusManager,
     AgentRegistry,
@@ -194,15 +195,16 @@ function createAgentManager(): AgentManager {
     return manager;
 }
 
-function createDurableAgentService(provider: DurableProvider = 'claude'): ClaudePrintAgentService | CodexPrintAgentService {
+function createDurableAgentService(provider: DurableProvider = 'claude'): ClaudePrintAgentService | CodexPrintAgentService | PiPrintAgentService {
     const repository = new DurableAgentRepository();
-    return provider === 'codex'
-        ? new CodexPrintAgentService({ repository })
-        : new ClaudePrintAgentService({ repository });
+    if (provider === 'codex') return new CodexPrintAgentService({ repository });
+    if (provider === 'pi') return new PiPrintAgentService({ repository });
+    return new ClaudePrintAgentService({ repository });
 }
 
 function formatPrintProvider(provider: DurableProvider): string {
-    return provider === 'codex' ? 'Codex' : 'Claude Code';
+    if (provider === 'codex') return 'Codex';
+    return provider === 'pi' ? 'Pi' : 'Claude Code';
 }
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
@@ -294,8 +296,8 @@ export function registerAgentCommand(program: Command): void {
                 throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, durable.`);
             }
             const internalMode = mode === 'durable' ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
-            if (internalMode === AGENT_MODES.DURABLE && !['claude', 'codex'].includes(agentType)) {
-                throw new Error('Durable mode currently supports only --type claude or --type codex.');
+            if (internalMode === AGENT_MODES.DURABLE && !['claude', 'codex', 'pi'].includes(agentType)) {
+                throw new Error('Durable mode currently supports only --type claude, --type codex, or --type pi.');
             }
             if (!NAME_REGEX.test(agentName)) {
                 ui.error(
@@ -642,6 +644,7 @@ export function registerAgentCommand(program: Command): void {
                 throw new Error(`Multiple durable agents match "${options.id}".`);
             }
             if (durableResolved) {
+                const providerService = createDurableAgentService(durableResolved.provider);
                 if (options.timeout !== undefined) {
                     throw new Error('--timeout is not supported for synchronous durable agents.');
                 }
@@ -652,7 +655,7 @@ export function registerAgentCommand(program: Command): void {
                         throw new Error(`Agent name "${options.id}" is ambiguous across interactive and durable modes. Use the durable agent ID.`);
                     }
                 }
-                const result = await durableService.send(options.id, prompt);
+                const result = await providerService.send(options.id, prompt);
                 if (options.json) {
                     console.log(JSON.stringify({
                         target: { id: result.agentId, name: result.agentName, provider: durableResolved.provider, mode: AGENT_MODES.DURABLE },

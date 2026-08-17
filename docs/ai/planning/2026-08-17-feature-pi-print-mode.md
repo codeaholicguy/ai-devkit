@@ -29,7 +29,7 @@ description: TDD implementation plan for durable Pi print agents
 
 ### Phase 3: CLI Integration
 
-- [ ] T6: Add failing CLI tests for Pi print start, provider-aware send/list/detail/console representation, validation, and Claude regression; implement dispatch wiring and exports. Depends on T5. Evidence: CLI targeted suite. Scenarios: S25-S30.
+- [x] T6: Add failing CLI tests for Pi print start, provider-aware send/list/detail/console representation, validation, and Claude regression; implement dispatch wiring and exports. Depends on T5. Evidence: CLI targeted suite. Scenarios: S25-S30.
 - [ ] T7: Update implementation/testing docs, run full relevant tests, coverage, lint, typecheck/build, and lifecycle review. Depends on all tasks. Evidence: fresh command outputs and feature lint.
 
 ## Dependencies
@@ -46,4 +46,4 @@ Storage generalization precedes provider code; runner and probe precede service;
 
 ## Progress Summary
 
-The obsolete file-store generalization commit was dropped during rebase. Pi provider adaptation now targets `DurableAgentRepository`, with CLI integration and full verification remaining.
+The obsolete file-store generalization commit was dropped during rebase. Pi provider and CLI adaptation now target `DurableAgentRepository`; full validation remains.
