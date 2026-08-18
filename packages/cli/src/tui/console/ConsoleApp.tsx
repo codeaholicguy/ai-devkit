@@ -27,8 +27,9 @@ import type { ConsoleFocus, RightPaneMode, TransientMessage } from './types.js';
 import { resolveConsoleKeyAction } from './consoleKeyRouting.js';
 import { Panel } from '../design-system/index.js';
 import { getNextRightPaneModeForMemoryShortcut } from './rightPaneMode.js';
-import { partitionPinned, selectInitialAgentName } from './agentListLayout.js';
+import { partitionPinned } from './agentListLayout.js';
 import { toggleAgentPin } from './toggleAgentPin.js';
+import { filterAgents } from './filter/agentFilter.js';
 
 interface ConsoleAppProps {
     manager: AgentManager;
@@ -79,6 +80,20 @@ export function computeLayout(cols: number, rows: number, inputLines: number, na
     };
 }
 
+export function getVisibleSelection(
+    agents: readonly { name: string }[],
+    selectedName: string | null,
+): string | null {
+    if (agents.length === 0) return null;
+    return selectedName && agents.some(agent => agent.name === selectedName)
+        ? selectedName
+        : agents[0].name;
+}
+
+export function isAgentFilterInPlay(filterText: string, filterEditing: boolean): boolean {
+    return filterEditing || filterText.length > 0;
+}
+
 const ConsoleAppShell: React.FC<{
     initialSelection: string | null;
     setInputFocused: (v: boolean) => void;
@@ -90,18 +105,21 @@ const ConsoleAppShell: React.FC<{
     const [transient, setTransient] = useState<TransientMessage | null>(null);
     const [rightPaneMode, setRightPaneMode] = useState<RightPaneMode>({ type: 'preview' });
     const [detailScrollOffset, setDetailScrollOffset] = useState(0);
+    const [agentFilter, setAgentFilter] = useState({ text: '' });
     const startPaneActive = rightPaneMode.type === 'start-agent';
     const renamePaneActive = rightPaneMode.type === 'rename-agent';
     const channelSelectPaneActive = rightPaneMode.type === 'channel-select';
     const memoryListPaneActive = rightPaneMode.type === 'memory-list';
     const helpPaneActive = rightPaneMode.type === 'help';
     const inputFocused = focus === 'input' && !startPaneActive && !renamePaneActive && !channelSelectPaneActive && !memoryListPaneActive && !helpPaneActive;
+    const filterEditing = focus === 'filter';
+    const filterInPlay = isAgentFilterInPlay(agentFilter.text, filterEditing);
 
     useEffect(() => {
         if (!inputFocused) setInputLines(1);
     }, [inputFocused]);
 
-    useEffect(() => { setInputFocused(inputFocused); }, [inputFocused, setInputFocused]);
+    useEffect(() => { setInputFocused(inputFocused || filterInPlay); }, [inputFocused, filterInPlay, setInputFocused]);
 
     useEffect(() => {
         if (!transient) return;
@@ -120,6 +138,10 @@ const ConsoleAppShell: React.FC<{
         manager,
     } = useConsoleAgentContext();
     const orderedAgents = useMemo(() => partitionPinned(agents), [agents]);
+    const visibleAgents = useMemo(
+        () => filterAgents(orderedAgents, agentFilter.text),
+        [orderedAgents, agentFilter.text],
+    );
     const {
         channelStatuses,
         configuredChannels,
@@ -128,16 +150,12 @@ const ConsoleAppShell: React.FC<{
     } = useConsoleChannelContext();
     const agentsRef = useRef(orderedAgents);
     agentsRef.current = orderedAgents;
+    const visibleAgentsRef = useRef(visibleAgents);
+    visibleAgentsRef.current = visibleAgents;
 
     useEffect(() => {
-        if (!orderedAgents.length) {
-            setSelectedName(null);
-            return;
-        }
-        if (!selectedName || !orderedAgents.some(agent => agent.name === selectedName)) {
-            setSelectedName(selectInitialAgentName(orderedAgents));
-        }
-    }, [orderedAgents, selectedName]);
+        setSelectedName(current => getVisibleSelection(visibleAgents, current));
+    }, [visibleAgents]);
 
     useEffect(() => {
         setDetailScrollOffset(0);
@@ -209,10 +227,21 @@ const ConsoleAppShell: React.FC<{
         setFocus('list');
     }, []);
 
+    const clearFilter = useCallback(() => {
+        setAgentFilter({ text: '' });
+        setFocus('list');
+        void refresh();
+    }, [refresh]);
+
     useInput((input, key) => {
         if (handleKillInput(input, key)) return;
 
         if (startPaneActive || renamePaneActive || channelSelectPaneActive) return;
+
+        if (focus === 'filter') {
+            if (key.escape || input === '\u001b') clearFilter();
+            return;
+        }
 
         if (focus === 'input') {
             if (key.escape) {
@@ -278,6 +307,7 @@ const ConsoleAppShell: React.FC<{
             key,
             hasSelectedAgent: Boolean(selectedNameRef.current),
             previewVisible,
+            filterActive: agentFilter.text.length > 0,
         });
         switch (keyAction.type) {
             case 'focus-detail':
@@ -306,12 +336,18 @@ const ConsoleAppShell: React.FC<{
                 setDetailScrollOffset(prev => Math.max(0, prev + keyAction.delta));
                 return;
             case 'select-agent': {
-                const list = agentsRef.current;
+                const list = visibleAgentsRef.current;
                 if (!list.length) return;
                 const idx = Math.max(0, list.findIndex(a => a.name === selectedNameRef.current));
                 setSelectedName(list[(idx + keyAction.delta + list.length) % list.length].name);
                 return;
             }
+            case 'open-filter':
+                setFocus('filter');
+                return;
+            case 'clear-filter':
+                clearFilter();
+                return;
             case 'noop':
                 return;
         }
@@ -386,18 +422,23 @@ const ConsoleAppShell: React.FC<{
         <Panel
             width={listPaneWidth}
             height={contentHeight}
-            focused={focus === 'list'}
+            focused={focus === 'list' || focus === 'filter'}
             paddingX={1}
             flexDirection="column"
         >
             <AgentListPane
-                agents={orderedAgents}
+                agents={visibleAgents}
                 selectedName={selectedName}
                 onSelect={setSelectedName}
                 width={listPaneWidth - 4}
                 height={contentHeight - 2}
                 error={error}
                 channelStatuses={channelStatuses}
+                totalAgents={agents.length}
+                filterText={agentFilter.text}
+                filterEditing={filterEditing}
+                onFilterChange={(text) => setAgentFilter({ text })}
+                onFilterSubmit={() => setFocus('list')}
             />
         </Panel>
     );
@@ -457,6 +498,7 @@ const ConsoleAppShell: React.FC<{
                         : null
                 }
                 transient={transient}
+                filterActive={filterInPlay}
             />
         </Box>
     );

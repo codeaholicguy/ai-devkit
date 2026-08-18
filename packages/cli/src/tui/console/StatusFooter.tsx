@@ -11,6 +11,11 @@ interface StatusFooterProps {
     isLoading: boolean;
     narrowNote: string | null;
     transient: { kind: 'info' | 'error'; text: string } | null;
+    filterActive?: boolean;
+}
+
+export function getStatusFooterHints(filterActive: boolean): string[] {
+    return filterActive ? ['Esc clear filter'] : getConsoleHotkeyHints();
 }
 
 const StatusFooterInner: React.FC<StatusFooterProps> = ({
@@ -19,6 +24,7 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
     isLoading,
     narrowNote,
     transient,
+    filterActive = false,
 }) => {
     const counts: Record<AgentStatus, number> = {
         [AgentStatus.RUNNING]: 0,
@@ -42,7 +48,7 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
         <Box flexDirection="column">
             <Box>
                 <Text dimColor>
-                    {summary}{'  ·  '}{updated}{'  ·  '}{formatKeyHints(getConsoleHotkeyHints())}
+                    {summary}{'  ·  '}{updated}{'  ·  '}{formatKeyHints(getStatusFooterHints(filterActive))}
                 </Text>
             </Box>
             {narrowNote ? (

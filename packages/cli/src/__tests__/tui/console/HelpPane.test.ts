@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CONSOLE_HOTKEYS, getConsoleHotkeyHints } from '../../../tui/console/HelpPane.js';
+import { getStatusFooterHints } from '../../../tui/console/StatusFooter.js';
 
 describe('HelpPane helpers', () => {
     it('lists the console shortcuts users can press from the agent list', () => {
         expect(CONSOLE_HOTKEYS).toEqual([
+            { key: '/', action: 'Filter agents by name' },
             { key: 'j / Down', action: 'Select next agent' },
             { key: 'k / Up', action: 'Select previous agent' },
             { key: 's', action: 'Start a new agent' },
@@ -44,5 +46,10 @@ describe('HelpPane helpers', () => {
 
     it('includes the detail view shortcut in footer hints', () => {
         expect(getConsoleHotkeyHints()).toContain('v view');
+    });
+
+    it('replaces command hints with Esc while a filter session is active', () => {
+        expect(getStatusFooterHints(true)).toEqual(['Esc clear filter']);
+        expect(getStatusFooterHints(false)).toContain('/ filter');
     });
 });
