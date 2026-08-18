@@ -84,9 +84,10 @@ describe('AgentListPane helpers', () => {
         await new Promise(resolve => setTimeout(resolve, 20));
         instance.unmount();
         await instance.waitUntilExit();
-        expect(rendered).toContain('FILTER');
-        expect(rendered).toContain('/ to focus');
-        expect(rendered.indexOf('FILTER')).toBeLessThan(rendered.indexOf('Alpha Agent'));
+        expect(rendered).toContain('press / to filter');
+        expect(rendered).toContain('╰');
+        expect(rendered).not.toContain('FILTER');
+        expect(rendered.indexOf('press / to filter')).toBeLessThan(rendered.indexOf('Alpha Agent'));
     });
 
     it('keeps the filter prompt visible when no agents are running', async () => {
@@ -100,8 +101,8 @@ describe('AgentListPane helpers', () => {
         await new Promise(resolve => setTimeout(resolve, 20));
         instance.unmount();
         await instance.waitUntilExit();
-        expect(rendered).toContain('FILTER');
-        expect(rendered).toContain('/ to focus');
+        expect(rendered).toContain('press / to filter');
+        expect(rendered).toContain('╰');
         expect(rendered).toContain('No running agents.');
     });
 

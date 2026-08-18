@@ -4,7 +4,7 @@ import TextInput from 'ink-text-input';
 import type { AgentInfo } from '@ai-devkit/agent-manager';
 import { FormatStatus } from './render/formatStatus.js';
 import { AGENT_TYPE_LABEL } from './render/agentTypeLabel.js';
-import { SectionTitle, TUI_COLORS } from '../design-system/index.js';
+import { Panel, SectionTitle, TUI_COLORS } from '../design-system/index.js';
 import type { AgentChannelStatusMap, AgentChannelStatus } from './types.js';
 import {
     getAgentDivider,
@@ -136,7 +136,7 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth, chan
 };
 
 function computeMaxVisible(height: number): number {
-    return Math.max(1, Math.floor((height - 2) / 3));
+    return Math.max(1, Math.floor((height - 4) / 3));
 }
 
 interface AgentFilterRowProps {
@@ -152,8 +152,7 @@ const AgentFilterRow: React.FC<AgentFilterRowProps> = ({
     onChange,
     onSubmit,
 }) => (
-    <Box width="100%">
-        <Text color={TUI_COLORS.accent} bold>FILTER </Text>
+    <Panel width="100%" height={3} focused={editing} paddingX={1}>
         {editing ? (
             <>
                 <Text color={TUI_COLORS.accent} bold>/ </Text>
@@ -161,19 +160,16 @@ const AgentFilterRow: React.FC<AgentFilterRowProps> = ({
                     value={filterText}
                     onChange={onChange}
                     onSubmit={onSubmit}
-                    placeholder="type a name · enter apply · esc clear"
+                    placeholder="name"
                 />
             </>
         ) : filterText ? (
             <>
                 <Text color={TUI_COLORS.accent}>/ </Text>
                 <Text>{filterText}</Text>
-                <Text dimColor> · / to edit</Text>
             </>
-        ) : (
-            <Text dimColor>/ to focus · filter by name</Text>
-        )}
-    </Box>
+        ) : <Text dimColor>press / to filter</Text>}
+    </Panel>
 );
 
 const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
