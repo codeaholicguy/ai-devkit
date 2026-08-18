@@ -88,6 +88,13 @@ ai-devkit lint --feature lint-command --json
 # Install a skill
 ai-devkit skill add <skill-registry> [skill-name]
 
+# Update every cached skill registry
+ai-devkit skill update
+
+# Update one cached registry by its full ID or unique repository name
+ai-devkit skill update codeaholicguy/ai-devkit
+ai-devkit skill update ai-devkit
+
 # List skills installed across known global environment paths
 ai-devkit skill list --global
 

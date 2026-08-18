@@ -126,7 +126,7 @@ export class SkillRegistry {
     }
 
     const entries = await fs.readdir(cacheDir, { withFileTypes: true });
-    const registries: Array<{ path: string; id: string }> = [];
+    const cachedRegistries: Array<{ path: string; id: string }> = [];
 
     for (const entry of entries) {
       if (entry.isDirectory()) {
@@ -137,19 +137,37 @@ export class SkillRegistry {
           if (repo.isDirectory()) {
             const fullRegistryId = `${entry.name}/${repo.name}`;
 
-            if (!registryId || fullRegistryId === registryId) {
-              registries.push({
-                path: path.join(ownerPath, repo.name),
-                id: fullRegistryId,
-              });
-            }
+            cachedRegistries.push({
+              path: path.join(ownerPath, repo.name),
+              id: fullRegistryId,
+            });
           }
         }
       }
     }
 
-    if (registryId && registries.length === 0) {
-      throw new NotFoundError(`Registry "${registryId}" not found in cache.`, { registryId });
+    cachedRegistries.sort((left, right) => left.id.localeCompare(right.id));
+
+    let registries = cachedRegistries;
+    if (registryId) {
+      registries = cachedRegistries.filter(registry => registry.id === registryId);
+
+      if (registries.length === 0 && !registryId.includes('/')) {
+        const shorthandMatches = cachedRegistries.filter(
+          registry => registry.id.slice(registry.id.indexOf('/') + 1) === registryId
+        );
+
+        if (shorthandMatches.length === 1) {
+          registries = shorthandMatches;
+          ui.info(`Resolved registry "${registryId}" to "${registries[0].id}".`);
+        }
+      }
+
+      if (registries.length === 0) {
+        const available = cachedRegistries.map(registry => registry.id).join(', ');
+        const suffix = available ? ` Available: ${available}.` : '';
+        throw new NotFoundError(`Registry "${registryId}" not found in cache.${suffix}`, { registryId });
+      }
     }
 
     const results: UpdateResult[] = [];

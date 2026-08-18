@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Hardened per-registry skill updates with direct cache-filter coverage, available-registry hints, and unique repository-name shorthand.
+
 ## [0.52.0] - 2026-08-18
 
 - [4690e3e](https://github.com/codeaholicguy/ai-devkit/pull/172) Simplified obsolete test cleanup guidance in the simplify-implementation skill.

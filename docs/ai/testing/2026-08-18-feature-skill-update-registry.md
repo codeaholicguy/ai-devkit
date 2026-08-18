@@ -16,15 +16,15 @@ description: Direct coverage for cached registry update selection and summaries
 
 ### `SkillRegistry.updateSkills`
 
-- [ ] No argument updates every cached registry.
-- [ ] Exact `owner/repo` updates only that registry.
-- [ ] Unknown full ID throws `NotFoundError` listing sorted available IDs before pulls.
-- [ ] Unique owner-less repo name resolves, emits `ui.info`, and updates only its full ID.
-- [ ] Ambiguous owner-less name throws and lists available IDs before pulls.
-- [ ] Zero-match owner-less name throws and lists available IDs before pulls.
-- [ ] Non-Git cache directories are skipped without a pull.
-- [ ] Mixed success, skip, and failure results produce correct totals and per-status counts.
-- [ ] Missing cache returns an empty summary without updates.
+- [x] No argument updates every cached registry.
+- [x] Exact `owner/repo` updates only that registry.
+- [x] Unknown full ID throws `NotFoundError` listing sorted available IDs before pulls.
+- [x] Unique owner-less repo name resolves, emits `ui.info`, and updates only its full ID.
+- [x] Ambiguous owner-less name throws and lists available IDs before pulls.
+- [x] Zero-match owner-less name throws and lists available IDs before pulls.
+- [x] Non-Git cache directories are skipped without a pull.
+- [x] Mixed success, skip, and failure results produce correct totals and per-status counts.
+- [x] Missing cache returns an empty summary without updates.
 
 ## Test Data and Isolation
 
@@ -48,3 +48,13 @@ No live registry pull is required; the orchestrator already verified the baselin
 ## Bug Tracking
 
 Any failure that permits an invalid/ambiguous selector to pull a registry is blocking. Cosmetic output differences are blocking when they omit the resolved ID or available IDs required by the contract.
+
+## Results
+
+- Focused test: 9/9 passed after the final missing-cache scenario was added.
+- Focused coverage: exit 0; all selector behaviors are covered (whole `SkillRegistry.ts`: 64.42% statements, 62% branches, including unrelated fetch/clone paths).
+- Lifecycle lint: base and feature checks passed.
+- Workspace lint: all 6 projects passed with warnings only.
+- Workspace tests: 1,923 tests passed across 137 files and 6 projects.
+- Workspace build: all 6 projects passed after a clean `npm ci`.
+- CLI help smoke test: optional `[registry-id]` displayed.
