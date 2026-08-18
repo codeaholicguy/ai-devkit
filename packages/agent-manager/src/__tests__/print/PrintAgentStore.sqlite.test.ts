@@ -62,6 +62,17 @@ describe('PrintAgentStore SQLite migration', () => {
         expect(fs.existsSync(filePath)).toBe(true);
     });
 
+    it.each([
+        ['malformed JSON', '{bad json'],
+        ['an unsupported version', JSON.stringify({ version: 2, agents: [] })],
+    ])('rejects %s before writing an import marker', (_label, contents) => {
+        const { filePath } = fixture();
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, contents);
+        expect(() => new PrintAgentStore({ filePath })).toThrow(/Invalid print-agent store/);
+        expect(fs.existsSync(filePath)).toBe(true);
+    });
+
     it('rejects a symlinked legacy file without changing its target', () => {
         const { root, filePath } = fixture();
         fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -114,6 +125,16 @@ describe('PrintAgentStore SQLite concurrency', () => {
         expect(results.filter(({ status }) => status === 'fulfilled')).toHaveLength(1);
         const rejected = results.find(({ status }) => status === 'rejected');
         expect(rejected).toMatchObject({ reason: { code: 'PRINT_AGENT_BUSY' } });
+    });
+
+    it('accepts deprecated lock options without creating lock artifacts', async () => {
+        const { root, cwd, filePath } = fixture();
+        const store = new PrintAgentStore({
+            filePath, lockTimeoutMs: 1, incompleteLockGraceMs: 1, mutationLockStaleMs: 1,
+        });
+        await store.create({ name: 'lockless', cwd });
+        expect(fs.existsSync(`${filePath}.lock`)).toBe(false);
+        expect(fs.existsSync(path.join(root, 'state', 'print-agent-locks'))).toBe(false);
     });
 
     it('keeps readonly listing pure', async () => {
