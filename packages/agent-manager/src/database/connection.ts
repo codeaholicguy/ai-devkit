@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3';
-import { mkdirSync } from 'fs';
+import { existsSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
 import { initializeSchema } from './schema.js';
@@ -25,7 +25,10 @@ export class DatabaseConnection {
     constructor(options: DatabaseOptions = {}) {
         this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
         this.readonly = options.readonly ?? false;
-        mkdirSync(dirname(this.dbPath), { recursive: true });
+        if (this.readonly && !existsSync(this.dbPath)) {
+            throw new Error(`Cannot open readonly agent database because it does not exist: ${this.dbPath}`);
+        }
+        if (!this.readonly) mkdirSync(dirname(this.dbPath), { recursive: true });
 
         this.db = new Database(this.dbPath, {
             readonly: this.readonly,
@@ -34,16 +37,19 @@ export class DatabaseConnection {
                 : options.verbose ? console.log : undefined,
         });
 
-        this.configure();
-        if (!this.readonly) initializeSchema(this);
+        if (this.readonly) {
+            const version = this.db.pragma('user_version', { simple: true }) as number;
+            if (version < 3) {
+                this.db.close();
+                throw new Error(`Readonly agent database requires schema version 3 (found ${version}).`);
+            }
+        } else {
+            this.configure();
+            initializeSchema(this);
+        }
     }
 
     private configure(): void {
-        if (this.readonly) {
-            this.db.pragma('foreign_keys = ON');
-            this.db.pragma('busy_timeout = 5000');
-            return;
-        }
         this.db.pragma('journal_mode = WAL');
         this.db.pragma('foreign_keys = ON');
         this.db.pragma('synchronous = NORMAL');
