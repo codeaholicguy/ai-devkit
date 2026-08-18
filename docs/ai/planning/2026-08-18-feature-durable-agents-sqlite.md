@@ -8,30 +8,30 @@ description: Ordered implementation and validation tasks
 
 ## Milestones
 
-- [ ] Foundation: schema migration, connection behavior, and path mapping.
-- [ ] Store backend: migration import and transactional CRUD/ownership behavior.
+- [x] Foundation: schema migration, connection behavior, and path mapping.
+- [x] Store backend: migration import and transactional CRUD/ownership behavior.
 - [ ] Validation: parity, concurrency, recovery, full gates, and review.
 
 ## Task Breakdown
 
 ### Phase 1: Foundation
 
-- [ ] Add failing schema tests for constraints, case-insensitive uniqueness, indexes, and migration version; implement `003_durable_agents.sql`. Evidence: focused database tests.
-- [ ] Add failing readonly-connection tests; make readonly open require an existing migrated database without writes. Evidence: file metadata/schema behavior tests.
-- [ ] Add failing JSON-to-database injected-path tests; implement `dbPath` precedence and registry-compatible mapping. Evidence: focused store constructor tests.
+- [x] Add failing schema tests for constraints, case-insensitive uniqueness, indexes, and migration version; implement `003_durable_agents.sql`. Evidence: focused database tests.
+- [x] Add failing readonly-connection tests; make readonly open require an existing migrated database without writes. Evidence: file metadata/schema behavior tests.
+- [x] Add failing JSON-to-database injected-path tests; implement `dbPath` precedence and registry-compatible mapping. Evidence: focused store constructor tests.
 
 ### Phase 2: Store Backend
 
-- [ ] Retarget identity, name conflict, canonical cwd, listing, result, and session-resume tests to SQLite; replace JSON CRUD with row mapping and transactions. Evidence: `PrintAgentStore` and Claude integration suites.
-- [ ] Add migration success, failure, idempotence, symlink rejection, backup, and rollback tests; implement one-time import and marker. Evidence: migration-focused tests and intact source on failure.
-- [ ] Retarget busy ownership, token rejection, provider liveness, and interrupted reconciliation tests; implement immediate transactions and token/observed-identity CAS. Evidence: focused ownership tests.
-- [ ] Add two-connection race, transaction interruption/reopen, and corrupt-database mapping tests. Evidence: concurrency/recovery tests.
-- [ ] Remove global/per-agent lock machinery and obsolete file-mode assertions; document accepted-but-unused options. Evidence: source search and type tests.
+- [x] Retarget identity, name conflict, canonical cwd, listing, result, and session-resume tests to SQLite; replace JSON CRUD with row mapping and transactions. Evidence: `PrintAgentStore` and Claude integration suites.
+- [x] Add migration success, failure, idempotence, symlink rejection, backup, and rollback tests; implement one-time import and marker. Evidence: migration-focused tests and intact source on failure.
+- [x] Retarget busy ownership, token rejection, provider liveness, and interrupted reconciliation tests; implement immediate transactions and token/observed-identity CAS. Evidence: focused ownership tests.
+- [x] Add two-connection race, transaction interruption/reopen, and corrupt-database mapping tests. Evidence: concurrency/recovery tests.
+- [x] Remove global/per-agent lock machinery and obsolete file-mode assertions; document accepted-but-unused options. Evidence: source search and type tests.
 
 ### Phase 3: Integration & Polish
 
-- [ ] Update implementation/testing docs after each completed group and reconcile this checklist.
-- [ ] Run implementation alignment check and close discovered gaps.
+- [x] Update implementation/testing docs after each completed group and reconcile this checklist.
+- [x] Run implementation alignment check and close discovered gaps.
 - [ ] Run targeted coverage plus full workspace test, lint, typecheck, and build gates.
 - [ ] Conduct holistic review, commit conventionally, sync/rebase, push, and open the requested PR.
 
@@ -49,4 +49,4 @@ Schema and readonly connection behavior precede the store rewrite. Row mapping p
 
 ## Progress Summary
 
-Requirements, architecture, rollout, and validation scope are fixed by the approved brief. Workspace bootstrap is complete. Implementation begins with failing foundation tests, proceeds through the SQLite adapter and import, then closes with concurrency/recovery validation and full gates.
+Foundation and store-backend tasks are complete with focused tests. No scope changes or design deviations were required. Remaining work is the final coverage/full-gate pass, lifecycle review, publication sync, and PR creation.
