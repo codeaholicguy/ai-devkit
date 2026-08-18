@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [7b711bd](https://github.com/codeaholicguy/ai-devkit/pull/171) Documented building workspace artifacts before full gates and commit hooks.
+- [b9c0603](https://github.com/codeaholicguy/ai-devkit/pull/170) Rendered inline HTML inside Telegram list items.
+- [363682f](https://github.com/codeaholicguy/ai-devkit/pull/167) Added agent pinning in the console list.
+- [1f62bfc](https://github.com/codeaholicguy/ai-devkit/pull/168) Added agent name filtering in the console.
+
 ## [0.51.0] - 2026-08-16
 
 - [5d9dc3f](https://github.com/codeaholicguy/ai-devkit/pull/166) Rendered Markdown in the agent console preview pane.
