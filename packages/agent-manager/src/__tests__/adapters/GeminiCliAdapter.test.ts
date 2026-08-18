@@ -1098,6 +1098,42 @@ describe('GeminiCliAdapter', () => {
         });
     });
 
+    describe('getConversationTail', () => {
+        it('parses a monolithic session asynchronously, preserves semantics, and caches unchanged files', async () => {
+            const sessionPath = path.join(tmpHome, 'session-tail.json');
+            fs.writeFileSync(sessionPath, JSON.stringify({
+                sessionId: 'abc',
+                messages: [
+                    { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'user', content: 'one' },
+                    { id: 'm2', timestamp: '2026-04-18T00:00:02Z', type: 'gemini', content: 'two' },
+                    { id: 'm3', timestamp: '2026-04-18T00:00:03Z', type: 'user', content: 'three' },
+                ],
+            }));
+
+            const first = await adapter.getConversationTail!(sessionPath, { limit: 2 });
+            expect(first.messages).toEqual(adapter.getConversation(sessionPath).slice(-2));
+            expect(first.stats).toMatchObject({
+                bytesRead: fs.statSync(sessionPath).size,
+                recordsProcessed: 3,
+                cacheHit: false,
+                resetReason: 'initial',
+            });
+
+            const unchanged = await adapter.getConversationTail!(sessionPath, { limit: 2 });
+            expect(unchanged.messages).toEqual(first.messages);
+            expect(unchanged.stats).toMatchObject({ bytesRead: 0, recordsProcessed: 0, cacheHit: true });
+        });
+
+        it('reports malformed monolithic JSON without throwing', async () => {
+            const sessionPath = path.join(tmpHome, 'session-tail-broken.json');
+            fs.writeFileSync(sessionPath, '{ broken');
+
+            const result = await adapter.getConversationTail!(sessionPath, { limit: 20 });
+            expect(result.messages).toEqual([]);
+            expect(result.stats).toMatchObject({ parseErrors: 1, cacheHit: false, resetReason: 'initial' });
+        });
+    });
+
     describe('listSessions', () => {
         it('returns empty when ~/.gemini/tmp does not exist', async () => {
             // tmpHome has no .gemini dir by default

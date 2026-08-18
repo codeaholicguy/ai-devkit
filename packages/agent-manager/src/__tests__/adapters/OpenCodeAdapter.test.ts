@@ -39,9 +39,11 @@ function makeDb(queries: {
     lastAssistant?: { completed: number | null; errored: number | null } | null;
     firstUserText?: { text: string } | null;
     parts?: Array<{ role: string; partData: string; timeCreated: number }>;
+    preparedSql?: string[];
 }) {
     const prepareImpl = (sql: string) => {
         const normalized = sql.replace(/\s+/g, ' ').trim().toLowerCase();
+        queries.preparedSql?.push(normalized);
 
         if (normalized.includes('from session')) {
             return {
@@ -87,6 +89,21 @@ function makeDb(queries: {
         if (normalized.includes('order by p.time_created asc')) {
             return {
                 all: () => queries.parts ?? [],
+            };
+        }
+
+        if (normalized.includes('order by p.time_created desc')) {
+            return {
+                all: (_sessionId: string, limit: number) => [...(queries.parts ?? [])]
+                    .filter(row => {
+                        if (normalized.includes("or json_extract(p.data, '$.type') = 'reasoning'")) return true;
+                        try {
+                            const part = JSON.parse(row.partData);
+                            return part.type === 'text' && typeof part.text === 'string' && part.text.length > 0;
+                        } catch { return false; }
+                    })
+                    .sort((a, b) => b.timeCreated - a.timeCreated)
+                    .slice(0, limit),
             };
         }
 
@@ -420,6 +437,61 @@ describe('OpenCodeAdapter', () => {
                         (adapter as any).db = null;
             const messages = adapter.getConversation(`${dbPath}::sess-z`);
             expect(messages).toEqual([]);
+        });
+    });
+
+    describe('getConversationTail', () => {
+        it('queries only the newest displayable rows and returns them chronologically', async () => {
+            const preparedSql: string[] = [];
+            const db = makeDb({
+                preparedSql,
+                parts: [
+                    { role: 'user', partData: JSON.stringify({ type: 'text', text: 'one' }), timeCreated: 1000 },
+                    { role: 'assistant', partData: JSON.stringify({ type: 'text', text: 'two' }), timeCreated: 2000 },
+                    { role: 'user', partData: JSON.stringify({ type: 'text', text: 'three' }), timeCreated: 3000 },
+                ],
+            });
+            (adapter as any).db = db;
+
+            const result = await adapter.getConversationTail!(`${dbPath}::sess-tail`, { limit: 2 });
+
+            expect(result.messages.map(message => message.content)).toEqual(['two', 'three']);
+            const tailSql = preparedSql.find(sql => sql.includes('order by p.time_created desc'));
+            expect(tailSql).toContain('limit ?');
+            expect(result.stats).toMatchObject({ bytesRead: 0, recordsProcessed: 2, cacheHit: false });
+        });
+
+        it('filters non-displayable rows before applying the non-verbose limit', async () => {
+            const db = makeDb({
+                parts: [
+                    { role: 'assistant', partData: JSON.stringify({ type: 'reasoning', reasoning: 'hidden' }), timeCreated: 1000 },
+                    { role: 'user', partData: JSON.stringify({ type: 'text', text: 'visible-one' }), timeCreated: 2000 },
+                    { role: 'assistant', partData: JSON.stringify({ type: 'tool', tool: 'read' }), timeCreated: 3000 },
+                    { role: 'assistant', partData: JSON.stringify({ type: 'text', text: 'visible-two' }), timeCreated: 4000 },
+                ],
+            });
+            (adapter as any).db = db;
+
+            const result = await adapter.getConversationTail!(`${dbPath}::sess-tail`, { limit: 2 });
+            expect(result.messages.map(message => message.content)).toEqual(['visible-one', 'visible-two']);
+        });
+
+        it('filters empty text before applying the limit', async () => {
+            const preparedSql: string[] = [];
+            const db = makeDb({
+                preparedSql,
+                parts: [
+                    { role: 'user', partData: JSON.stringify({ type: 'text', text: 'visible-one' }), timeCreated: 1000 },
+                    { role: 'assistant', partData: JSON.stringify({ type: 'text', text: 'visible-two' }), timeCreated: 2000 },
+                    { role: 'assistant', partData: JSON.stringify({ type: 'text', text: '' }), timeCreated: 3000 },
+                ],
+            });
+            (adapter as any).db = db;
+
+            const result = await adapter.getConversationTail!(`${dbPath}::sess-tail`, { limit: 2 });
+            expect(result.messages.map(message => message.content)).toEqual(['visible-one', 'visible-two']);
+            expect(preparedSql.find(sql => sql.includes('order by p.time_created desc')))
+                .toContain("json_extract(p.data, '$.text') <> ''");
         });
     });
 

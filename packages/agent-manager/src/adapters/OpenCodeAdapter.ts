@@ -19,6 +19,8 @@ import type {
     AgentInfo,
     ProcessInfo,
     ConversationMessage,
+    ConversationTailOptions,
+    ConversationTailResult,
     SessionSummary,
     ListSessionsOptions,
     AgentDetectionContext,
@@ -138,34 +140,102 @@ export class OpenCodeAdapter implements AgentAdapter {
                 ORDER BY p.time_created ASC
             `).all(ref.sessionId);
 
-            const messages: ConversationMessage[] = [];
-
-            for (const row of rows) {
-                let partData: { type?: string; text?: string; reasoning?: string; tool?: string } = {};
-                try {
-                    partData = JSON.parse(row.partData);
-                } catch {
-                    continue;
-                }
-
-                const role = row.role === 'user' ? 'user' : 'assistant';
-
-                if (partData.type === 'text' && partData.text) {
-                    messages.push({ role, content: partData.text });
-                } else if (partData.type === 'reasoning' && verbose) {
-                    const text = partData.reasoning || partData.text || '';
-                    if (text) messages.push({ role: 'assistant', content: `[thinking] ${text}` });
-                } else if (partData.type === 'tool' && verbose) {
-                    const toolName = partData.tool || 'tool';
-                    messages.push({ role: 'assistant', content: `[tool: ${toolName}]` });
-                }
-            }
-
-            return messages;
+            return this.rowsToMessages(rows, verbose);
         } catch {
             this.close();
             return [];
         }
+    }
+
+    async getConversationTail(
+        sessionFilePath: string,
+        options?: ConversationTailOptions,
+    ): Promise<ConversationTailResult> {
+        const verbose = options?.verbose ?? false;
+        const limit = Math.max(0, options?.limit ?? 20);
+        const ref = decodeSessionRef(sessionFilePath);
+        const db = ref ? this.openDb() : null;
+        if (!ref || !db) return this.emptyTailResult();
+
+        if (limit === 0) {
+            const messages = this.getConversation(sessionFilePath, { verbose });
+            return this.tailResult(messages, messages.length);
+        }
+
+        const displayable = verbose
+            ? `((json_extract(p.data, '$.type') = 'text'
+                    AND json_extract(p.data, '$.text') IS NOT NULL
+                    AND json_extract(p.data, '$.text') <> '')
+                OR (json_extract(p.data, '$.type') = 'reasoning'
+                    AND (COALESCE(json_extract(p.data, '$.reasoning'), '') <> ''
+                        OR COALESCE(json_extract(p.data, '$.text'), '') <> ''))
+                OR json_extract(p.data, '$.type') = 'tool')`
+            : `(json_extract(p.data, '$.type') = 'text'
+                AND json_extract(p.data, '$.text') IS NOT NULL
+                AND json_extract(p.data, '$.text') <> '')`;
+
+        try {
+            const rows = db.prepare<[string, number], { role: string; partData: string; timeCreated: number }>(`
+                SELECT json_extract(m.data, '$.role') AS role,
+                       p.data AS partData,
+                       p.time_created AS timeCreated
+                FROM part p
+                JOIN message m ON p.message_id = m.id
+                WHERE p.session_id = ? AND ${displayable}
+                ORDER BY p.time_created DESC
+                LIMIT ?
+            `).all(ref.sessionId, limit);
+
+            return this.tailResult(this.rowsToMessages(rows.reverse(), verbose), rows.length);
+        } catch {
+            this.close();
+            return this.emptyTailResult();
+        }
+    }
+
+    private rowsToMessages(
+        rows: Array<{ role: string; partData: string; timeCreated: number }>,
+        verbose: boolean,
+    ): ConversationMessage[] {
+        const messages: ConversationMessage[] = [];
+
+        for (const row of rows) {
+            let partData: { type?: string; text?: string; reasoning?: string; tool?: string } = {};
+            try {
+                partData = JSON.parse(row.partData);
+            } catch {
+                continue;
+            }
+
+            const role = row.role === 'user' ? 'user' : 'assistant';
+            if (partData.type === 'text' && partData.text) {
+                messages.push({ role, content: partData.text });
+            } else if (partData.type === 'reasoning' && verbose) {
+                const text = partData.reasoning || partData.text || '';
+                if (text) messages.push({ role: 'assistant', content: `[thinking] ${text}` });
+            } else if (partData.type === 'tool' && verbose) {
+                messages.push({ role: 'assistant', content: `[tool: ${partData.tool || 'tool'}]` });
+            }
+        }
+
+        return messages;
+    }
+
+    private tailResult(messages: ConversationMessage[], recordsProcessed: number): ConversationTailResult {
+        return {
+            messages,
+            stats: {
+                bytesRead: 0,
+                recordsProcessed,
+                parseErrors: 0,
+                cacheHit: false,
+                resetReason: null,
+            },
+        };
+    }
+
+    private emptyTailResult(): ConversationTailResult {
+        return this.tailResult([], 0);
     }
 
     async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
