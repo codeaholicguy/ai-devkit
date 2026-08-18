@@ -10,7 +10,7 @@ description: Ordered implementation and validation tasks
 
 - [x] Foundation: schema migration, connection behavior, and path mapping.
 - [x] Store backend: migration import and transactional CRUD/ownership behavior.
-- [ ] Validation: parity, concurrency, recovery, full gates, and review.
+- [x] Validation: parity, concurrency, recovery, full gates, and review.
 
 ## Task Breakdown
 
@@ -32,8 +32,8 @@ description: Ordered implementation and validation tasks
 
 - [x] Update implementation/testing docs after each completed group and reconcile this checklist.
 - [x] Run implementation alignment check and close discovered gaps.
-- [ ] Run targeted coverage plus full workspace test, lint, typecheck, and build gates.
-- [ ] Conduct holistic review, commit conventionally, sync/rebase, push, and open the requested PR.
+- [x] Run targeted coverage plus full workspace test, lint, typecheck, and build gates.
+- [x] Conduct holistic review, commit conventionally, sync/rebase, and push. PR creation is the immediate publication step.
 
 ## Dependencies and Sequencing
 
@@ -49,4 +49,4 @@ Schema and readonly connection behavior precede the store rewrite. Row mapping p
 
 ## Progress Summary
 
-Foundation and store-backend tasks are complete with focused tests. No scope changes or design deviations were required. Remaining work is the final coverage/full-gate pass, lifecycle review, publication sync, and PR creation.
+All implementation, validation, and review tasks are complete. No scope changes, blocking findings, or design deviations were found. The branch is synchronized with `origin/main`; only PR creation remains.
