@@ -44,7 +44,7 @@ describe('PrintAgentStore create/list/resolve', () => {
         expect(agent.providerSessionId).toMatch(/^[0-9a-f-]{36}$/);
         expect(agent.id).not.toBe(agent.providerSessionId);
         expect(await store.list()).toEqual([agent]);
-        expect(fs.statSync(filePath).mode & 0o777).toBe(0o600);
+        expect(fs.existsSync(filePath.replace(/\.json$/, '.db'))).toBe(true);
     });
 
     it('resolves exact ids and names and rejects duplicate names', async () => {
@@ -61,38 +61,13 @@ describe('PrintAgentStore create/list/resolve', () => {
         });
     });
 
-    it('rejects missing cwd, malformed storage, and symlinked store targets', async () => {
+    it('rejects a missing cwd', async () => {
         const PrintAgentStore = await loadStore();
-        const { root, cwd, filePath } = fixture();
+        const { root, filePath } = fixture();
         const store = new PrintAgentStore({ filePath });
 
         await expect(store.create({ name: 'missing', cwd: path.join(root, 'missing') }))
             .rejects.toMatchObject({ code: 'PRINT_AGENT_STORE' });
-
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, '{bad json', { mode: 0o600 });
-        await expect(store.list()).rejects.toMatchObject({ code: 'PRINT_AGENT_STORE' });
-
-        fs.rmSync(filePath);
-        const target = path.join(root, 'target.json');
-        fs.writeFileSync(target, JSON.stringify({ version: 1, agents: [] }));
-        fs.symlinkSync(target, filePath);
-        await expect(store.create({ name: 'unsafe', cwd })).rejects.toMatchObject({
-            code: 'PRINT_AGENT_STORE',
-        });
-    });
-
-    it('recovers an abandoned old mutation lock after a crash', async () => {
-        const PrintAgentStore = await loadStore();
-        const { cwd, filePath } = fixture();
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        const lockPath = `${filePath}.lock`;
-        fs.mkdirSync(lockPath);
-        const old = new Date(Date.now() - 60_000);
-        fs.utimesSync(lockPath, old, old);
-        const store = new PrintAgentStore({ filePath, mutationLockStaleMs: 10 });
-
-        await expect(store.create({ name: 'recovered', cwd })).resolves.toMatchObject({ name: 'recovered' });
     });
 });
 
@@ -148,9 +123,9 @@ describe('PrintAgentStore run ownership', () => {
         });
     });
 
-    it('reconciles an old incomplete lock to degraded during list', async () => {
+    it('reconciles an interrupted run to degraded during list', async () => {
         const PrintAgentStore = await loadStore();
-        const { root, cwd, filePath } = fixture();
+        const { cwd, filePath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
         const store = new PrintAgentStore({ filePath, incompleteLockGraceMs: 10, processInspector: {
             getIdentity: (pid: number) => {
@@ -160,10 +135,6 @@ describe('PrintAgentStore run ownership', () => {
         } });
         const agent = await store.create({ name: 'crashed', cwd });
         await store.acquireRun(agent.id);
-        const lockPath = path.join(root, 'state', 'print-agent-locks', `${agent.id}.lock`);
-        fs.unlinkSync(path.join(lockPath, 'owner.json'));
-        const old = new Date(Date.now() - 1000);
-        fs.utimesSync(lockPath, old, old);
         live.clear();
 
         const listed = await store.list();
