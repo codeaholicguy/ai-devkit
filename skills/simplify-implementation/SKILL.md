@@ -24,6 +24,7 @@ Reduce complexity with an analysis-first approach before changing code.
 2. Analyze Complexity
 - Identify sources (nesting, duplication, coupling, over-engineering, magic values).
 - Run an existence check: can this code be deleted, delegated to the standard library, handled by a native platform feature, enforced by the database, or covered by an existing dependency?
+- Apply the existence check to tests and scaffolding: remove stale, duplicate, implementation-detail-only, unused, or no-longer-relevant tests, assertions, and fixtures without unique behavioral coverage.
 - Assess impact (LOC, dependencies, cognitive load, scalability blockers).
 
 3. Apply Readability Principles
@@ -53,6 +54,7 @@ For each issue, apply a pattern:
 | "Existing fn is close enough — I'll bend it to fit" | Wrong abstraction is costlier than duplication | Reuse only on clean fit; otherwise keep the small duplicate |
 
 ## Validation
+- Preserve meaningful regression, public-contract, and interaction coverage. Update stale tests to intentional behavior; never delete tests merely to make failures pass.
 - Verify no regressions, add tests for new helpers, update docs if interfaces changed.
 
 ## Output Template
