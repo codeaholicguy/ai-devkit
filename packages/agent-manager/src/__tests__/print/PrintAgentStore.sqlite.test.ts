@@ -15,103 +15,8 @@ function fixture() {
     roots.push(root);
     const cwd = path.join(root, 'project');
     fs.mkdirSync(cwd);
-    return {
-        root,
-        cwd,
-        filePath: path.join(root, 'state', 'print-agents.json'),
-        dbPath: path.join(root, 'state', 'agents.db'),
-    };
+    return { root, cwd, dbPath: path.join(root, 'state', 'agents.db') };
 }
-
-describe('PrintAgentStore SQLite migration', () => {
-    it('maps an injected JSON path to a sibling db path while explicit dbPath wins', async () => {
-        const { cwd, filePath, dbPath } = fixture();
-        const mapped = new PrintAgentStore({ filePath });
-        await mapped.create({ name: 'mapped', cwd });
-        expect(fs.existsSync(filePath.replace(/\.json$/, '.db'))).toBe(true);
-
-        const explicit = new PrintAgentStore({ filePath, dbPath });
-        await explicit.create({ name: 'explicit', cwd });
-        expect(fs.existsSync(dbPath)).toBe(true);
-    });
-
-    it('imports legacy JSON once, backs it up after commit, and reopens idempotently', async () => {
-        const { cwd, filePath } = fixture();
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        const agent = {
-            id: crypto.randomUUID(), name: 'legacy', provider: 'claude', mode: 'print', cwd,
-            providerSessionId: crypto.randomUUID(), state: 'ready', sessionHealth: 'healthy',
-            createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
-            lastActiveAt: null, lastResult: null, activeRun: null,
-        };
-        fs.writeFileSync(filePath, JSON.stringify({ version: 1, agents: [agent] }));
-
-        const first = new PrintAgentStore({ filePath });
-        expect(await first.list()).toEqual([agent]);
-        expect(fs.existsSync(filePath)).toBe(false);
-        expect(fs.existsSync(`${filePath}.migrated-v1.bak`)).toBe(true);
-        const second = new PrintAgentStore({ filePath });
-        expect(await second.list()).toEqual([agent]);
-    });
-
-    it('rolls back invalid legacy input and leaves the source intact', () => {
-        const { filePath } = fixture();
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, JSON.stringify({ version: 1, agents: [{ id: 'bad' }] }));
-        expect(() => new PrintAgentStore({ filePath })).toThrow(/Invalid print-agent store/);
-        expect(fs.existsSync(filePath)).toBe(true);
-    });
-
-    it.each([
-        ['malformed JSON', '{bad json'],
-        ['an unsupported version', JSON.stringify({ version: 2, agents: [] })],
-    ])('rejects %s before writing an import marker', (_label, contents) => {
-        const { filePath } = fixture();
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        fs.writeFileSync(filePath, contents);
-        expect(() => new PrintAgentStore({ filePath })).toThrow(/Invalid print-agent store/);
-        expect(fs.existsSync(filePath)).toBe(true);
-    });
-
-    it('rejects a symlinked legacy file without changing its target', () => {
-        const { root, filePath } = fixture();
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        const target = path.join(root, 'legacy-target.json');
-        fs.writeFileSync(target, JSON.stringify({ version: 1, agents: [] }));
-        fs.symlinkSync(target, filePath);
-        expect(() => new PrintAgentStore({ filePath })).toThrow(/symbolic link/i);
-        expect(fs.existsSync(target)).toBe(true);
-    });
-
-    it('rolls back a partially attempted import and can reopen after the source is repaired', async () => {
-        const { cwd, filePath } = fixture();
-        fs.mkdirSync(path.dirname(filePath), { recursive: true });
-        const base = {
-            id: crypto.randomUUID(), provider: 'claude', mode: 'print', cwd,
-            providerSessionId: crypto.randomUUID(), state: 'ready', sessionHealth: 'healthy',
-            createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
-            lastActiveAt: null, lastResult: null, activeRun: null,
-        };
-        fs.writeFileSync(filePath, JSON.stringify({ version: 1, agents: [
-            { ...base, name: 'duplicate' },
-            { ...base, id: crypto.randomUUID(), providerSessionId: crypto.randomUUID(), name: 'DUPLICATE' },
-        ] }));
-        expect(() => new PrintAgentStore({ filePath })).toThrow(/Invalid print-agent store/);
-        const raw = new Database(filePath.replace(/\.json$/, '.db'));
-        expect(raw.prepare('SELECT count(*) AS count FROM durable_agents').get()).toEqual({ count: 0 });
-        expect(raw.prepare('SELECT count(*) AS count FROM durable_agent_metadata').get()).toEqual({ count: 0 });
-        raw.close();
-        fs.writeFileSync(filePath, JSON.stringify({ version: 1, agents: [{ ...base, name: 'repaired' }] }));
-        expect(await new PrintAgentStore({ filePath }).list()).toHaveLength(1);
-    });
-
-    it('maps a corrupt database to a store error', () => {
-        const { dbPath } = fixture();
-        fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-        fs.writeFileSync(dbPath, 'not sqlite');
-        expect(() => new PrintAgentStore({ dbPath })).toThrow(/Cannot open print-agent database/);
-    });
-});
 
 describe('PrintAgentStore SQLite concurrency', () => {
     it('allows exactly one acquisition across two connections', async () => {
@@ -128,12 +33,12 @@ describe('PrintAgentStore SQLite concurrency', () => {
     });
 
     it('accepts deprecated lock options without creating lock artifacts', async () => {
-        const { root, cwd, filePath } = fixture();
+        const { root, cwd, dbPath } = fixture();
         const store = new PrintAgentStore({
-            filePath, lockTimeoutMs: 1, incompleteLockGraceMs: 1, mutationLockStaleMs: 1,
+            dbPath, lockTimeoutMs: 1, incompleteLockGraceMs: 1, mutationLockStaleMs: 1,
         });
         await store.create({ name: 'lockless', cwd });
-        expect(fs.existsSync(`${filePath}.lock`)).toBe(false);
+        expect(fs.existsSync(`${dbPath}.lock`)).toBe(false);
         expect(fs.existsSync(path.join(root, 'state', 'print-agent-locks'))).toBe(false);
     });
 
@@ -189,5 +94,12 @@ describe('PrintAgentStore SQLite concurrency', () => {
         expect(other.prepare('SELECT state, active_run_token FROM durable_agents WHERE id = ?').get(agent.id))
             .toEqual({ state: 'running', active_run_token: 'replacement-token' });
         other.close();
+    });
+
+    it('maps a corrupt database to a store error', () => {
+        const { dbPath } = fixture();
+        fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+        fs.writeFileSync(dbPath, 'not sqlite');
+        expect(() => new PrintAgentStore({ dbPath })).toThrow(/Cannot open print-agent database/);
     });
 });

@@ -15,19 +15,19 @@ async function loadStore(): Promise<any> {
     return api.PrintAgentStore;
 }
 
-function fixture(): { root: string; cwd: string; filePath: string } {
+function fixture(): { root: string; cwd: string; dbPath: string } {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'print-agent-store-'));
     tempDirs.push(root);
     const cwd = path.join(root, 'project');
     fs.mkdirSync(cwd);
-    return { root, cwd, filePath: path.join(root, 'state', 'print-agents.json') };
+    return { root, cwd, dbPath: path.join(root, 'state', 'agents.db') };
 }
 
 describe('PrintAgentStore create/list/resolve', () => {
     it('creates distinct durable identities with a canonical cwd and lists them', async () => {
         const PrintAgentStore = await loadStore();
-        const { cwd, filePath } = fixture();
-        const store = new PrintAgentStore({ filePath, now: () => new Date('2026-08-07T09:00:00Z') });
+        const { cwd, dbPath } = fixture();
+        const store = new PrintAgentStore({ dbPath, now: () => new Date('2026-08-07T09:00:00Z') });
 
         const agent = await store.create({ name: 'reviewer', cwd });
 
@@ -44,13 +44,13 @@ describe('PrintAgentStore create/list/resolve', () => {
         expect(agent.providerSessionId).toMatch(/^[0-9a-f-]{36}$/);
         expect(agent.id).not.toBe(agent.providerSessionId);
         expect(await store.list()).toEqual([agent]);
-        expect(fs.existsSync(filePath.replace(/\.json$/, '.db'))).toBe(true);
+        expect(fs.existsSync(dbPath)).toBe(true);
     });
 
     it('resolves exact ids and names and rejects duplicate names', async () => {
         const PrintAgentStore = await loadStore();
-        const { cwd, filePath } = fixture();
-        const store = new PrintAgentStore({ filePath });
+        const { cwd, dbPath } = fixture();
+        const store = new PrintAgentStore({ dbPath });
         const agent = await store.create({ name: 'Reviewer', cwd });
 
         expect(await store.resolve(agent.id)).toMatchObject({ id: agent.id });
@@ -63,8 +63,8 @@ describe('PrintAgentStore create/list/resolve', () => {
 
     it('rejects a missing cwd', async () => {
         const PrintAgentStore = await loadStore();
-        const { root, filePath } = fixture();
-        const store = new PrintAgentStore({ filePath });
+        const { root, dbPath } = fixture();
+        const store = new PrintAgentStore({ dbPath });
 
         await expect(store.create({ name: 'missing', cwd: path.join(root, 'missing') }))
             .rejects.toMatchObject({ code: 'PRINT_AGENT_STORE' });
@@ -74,13 +74,13 @@ describe('PrintAgentStore create/list/resolve', () => {
 describe('PrintAgentStore run ownership', () => {
     it('fails fast when another exact owner is live and completes only for its token', async () => {
         const PrintAgentStore = await loadStore();
-        const { cwd, filePath } = fixture();
+        const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
         const processInspector = { getIdentity: (pid: number) => {
             const startedAt = live.get(pid);
             return startedAt ? { pid, startedAt } : null;
         } };
-        const store = new PrintAgentStore({ filePath, processInspector });
+        const store = new PrintAgentStore({ dbPath, processInspector });
         const agent = await store.create({ name: 'runner', cwd });
 
         const acquired = await store.acquireRun(agent.id);
@@ -97,13 +97,13 @@ describe('PrintAgentStore run ownership', () => {
 
     it('retains busy for a live provider then recovers a dead run without signaling it', async () => {
         const PrintAgentStore = await loadStore();
-        const { cwd, filePath } = fixture();
+        const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start'], [4242, 'provider-start']]);
         const processInspector = { getIdentity: (pid: number) => {
             const startedAt = live.get(pid);
             return startedAt ? { pid, startedAt } : null;
         } };
-        const first = new PrintAgentStore({ filePath, processInspector });
+        const first = new PrintAgentStore({ dbPath, processInspector });
         const agent = await first.create({ name: 'recoverable', cwd });
         const run = await first.acquireRun(agent.id);
         await first.recordProviderProcess(agent.id, run.token, { pid: 4242, startedAt: 'provider-start' });
@@ -125,9 +125,9 @@ describe('PrintAgentStore run ownership', () => {
 
     it('reconciles an interrupted run to degraded during list', async () => {
         const PrintAgentStore = await loadStore();
-        const { cwd, filePath } = fixture();
+        const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
-        const store = new PrintAgentStore({ filePath, incompleteLockGraceMs: 10, processInspector: {
+        const store = new PrintAgentStore({ dbPath, incompleteLockGraceMs: 10, processInspector: {
             getIdentity: (pid: number) => {
                 const startedAt = live.get(pid);
                 return startedAt ? { pid, startedAt } : null;
@@ -149,8 +149,8 @@ describe('PrintAgentStore run ownership', () => {
 
     it('rejects send acquisition when the bound cwd is replaced by a symlink', async () => {
         const PrintAgentStore = await loadStore();
-        const { root, cwd, filePath } = fixture();
-        const store = new PrintAgentStore({ filePath });
+        const { root, cwd, dbPath } = fixture();
+        const store = new PrintAgentStore({ dbPath });
         const agent = await store.create({ name: 'bound', cwd });
         const moved = path.join(root, 'moved-project');
         const other = path.join(root, 'other-project');

@@ -1,9 +1,7 @@
 import fs from 'fs';
-import os from 'os';
-import path from 'path';
 import { randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
-import { DatabaseConnection, resolveAgentRegistryDbPath } from '../database/index.js';
+import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
 import type { PrintActiveRun, PrintAgent, ProcessIdentity, PrintRunStatus, PrintSessionHealth } from './PrintAgent.js';
 import {
     PrintAgentBusyError,
@@ -11,8 +9,6 @@ import {
     PrintAgentNotFoundError,
     PrintAgentStoreError,
 } from './PrintAgent.js';
-
-interface PrintAgentStoreFile { version: 1; agents: PrintAgent[] }
 
 interface DurableAgentRow {
     id: string; name: string; provider: 'claude'; mode: 'print'; cwd: string; provider_session_id: string;
@@ -26,8 +22,6 @@ interface DurableAgentRow {
 export interface CreatePrintAgentInput { name: string; cwd: string }
 
 export interface PrintAgentStoreOptions {
-    /** Legacy JSON path retained for one compatibility release and one-time import. */
-    filePath?: string;
     dbPath?: string;
     readonly?: boolean;
     /** @deprecated SQLite busy_timeout replaces filesystem lock polling. */
@@ -45,11 +39,7 @@ export interface PrintRunCompletion {
     status: PrintRunStatus; exitCode: number | null; summary: string; sessionHealth: PrintSessionHealth;
 }
 
-const DEFAULT_FILE = path.join(os.homedir(), '.ai-devkit', 'print-agents.json');
-const IMPORT_MARKER = 'legacy_print_agents_json_v1_imported';
-
 export class PrintAgentStore {
-    readonly filePath: string;
     readonly dbPath: string;
     private readonly now: () => Date;
     private readonly processInspector: ProcessInspector;
@@ -57,18 +47,12 @@ export class PrintAgentStore {
     private readonly db: DatabaseConnection;
 
     constructor(options: PrintAgentStoreOptions = {}) {
-        this.filePath = options.filePath ?? (options.dbPath
-            ? path.join(path.dirname(options.dbPath), 'print-agents.json')
-            : DEFAULT_FILE);
-        this.dbPath = options.dbPath ?? resolveAgentRegistryDbPath(
-            options.filePath ?? path.join(os.homedir(), '.ai-devkit', 'agents.json'),
-        );
+        this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
         this.now = options.now ?? (() => new Date());
         this.processInspector = options.processInspector ?? new LocalProcessInspector();
         this.readonly = options.readonly ?? false;
         try {
             this.db = new DatabaseConnection({ dbPath: this.dbPath, readonly: this.readonly });
-            if (!this.readonly) this.importLegacyJson();
         } catch (error) {
             if (error instanceof PrintAgentStoreError) throw error;
             throw new PrintAgentStoreError(`Cannot open print-agent database: ${(error as Error).message}`);
@@ -209,52 +193,6 @@ export class PrintAgentStore {
         }
     }
 
-    private importLegacyJson(): void {
-        if (!fs.existsSync(this.filePath)) return;
-        this.assertNotSymlink(this.filePath);
-        const marked = this.db.queryOne('SELECT value FROM durable_agent_metadata WHERE key = ?', [IMPORT_MARKER]);
-        if (marked) return;
-        let data: PrintAgentStoreFile;
-        try {
-            const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as unknown;
-            if (!this.isStoreFile(parsed) || !parsed.agents.every((agent) => this.isAgent(agent))) throw new Error('invalid schema');
-            data = parsed;
-        } catch {
-            throw new PrintAgentStoreError(`Invalid print-agent store: ${this.filePath}`);
-        }
-        try {
-            this.immediate(() => {
-                for (const agent of data.agents) this.insertAgent(agent);
-                this.db.execute('INSERT INTO durable_agent_metadata (key, value) VALUES (?, ?)',
-                    [IMPORT_MARKER, this.now().toISOString()]);
-            });
-        } catch (error) {
-            throw this.storageError(`Invalid print-agent store: ${this.filePath}`, error);
-        }
-        try {
-            fs.renameSync(this.filePath, `${this.filePath}.migrated-v1.bak`);
-        } catch (error) {
-            throw this.storageError('Imported print agents but could not preserve the legacy backup', error);
-        }
-    }
-
-    private insertAgent(agent: PrintAgent): void {
-        this.db.execute(`INSERT INTO durable_agents (
-            id, name, provider, mode, cwd, provider_session_id, state, session_health, created_at, updated_at,
-            last_active_at, last_result_status, last_result_completed_at, last_result_exit_code, last_result_summary,
-            active_run_token, active_owner_pid, active_owner_started_at, active_provider_pid,
-            active_provider_started_at, active_run_started_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, [
-            agent.id, agent.name, agent.provider, agent.mode, agent.cwd, agent.providerSessionId,
-            agent.state, agent.sessionHealth, agent.createdAt, agent.updatedAt, agent.lastActiveAt,
-            agent.lastResult?.status ?? null, agent.lastResult?.completedAt ?? null,
-            agent.lastResult?.exitCode ?? null, agent.lastResult?.summary.slice(0, 4096) ?? null,
-            agent.activeRun?.token ?? null, agent.activeRun?.owner.pid ?? null,
-            agent.activeRun?.owner.startedAt ?? null, agent.activeRun?.provider?.pid ?? null,
-            agent.activeRun?.provider?.startedAt ?? null, agent.activeRun?.startedAt ?? null,
-        ]);
-    }
-
     private immediate<T>(operation: () => T): T {
         this.db.instance.exec('BEGIN IMMEDIATE');
         try {
@@ -309,42 +247,6 @@ export class PrintAgentStore {
         };
     }
 
-    private isStoreFile(value: unknown): value is PrintAgentStoreFile {
-        if (!value || typeof value !== 'object') return false;
-        const record = value as Record<string, unknown>;
-        return record.version === 1 && Array.isArray(record.agents);
-    }
-
-    private isAgent(value: unknown): value is PrintAgent {
-        if (!value || typeof value !== 'object') return false;
-        const agent = value as Partial<PrintAgent>;
-        const states = ['ready', 'running', 'degraded'];
-        const health = ['uninitialized', 'healthy', 'unknown', 'mismatch'];
-        return typeof agent.id === 'string' && typeof agent.name === 'string' && agent.provider === 'claude'
-            && agent.mode === 'print' && typeof agent.cwd === 'string' && typeof agent.providerSessionId === 'string'
-            && states.includes(agent.state ?? '') && health.includes(agent.sessionHealth ?? '')
-            && typeof agent.createdAt === 'string' && typeof agent.updatedAt === 'string'
-            && (agent.lastActiveAt === null || typeof agent.lastActiveAt === 'string')
-            && this.isCanonicalDirectory(agent.cwd)
-            && (agent.state === 'running') === (agent.activeRun !== null && agent.activeRun !== undefined)
-            && this.validResult(agent.lastResult) && this.validActiveRun(agent.activeRun);
-    }
-
-    private validResult(value: PrintAgent['lastResult'] | undefined): boolean {
-        return value === null || (!!value && ['succeeded', 'failed', 'interrupted'].includes(value.status)
-            && typeof value.completedAt === 'string' && (value.exitCode === null || Number.isInteger(value.exitCode))
-            && typeof value.summary === 'string');
-    }
-
-    private validActiveRun(value: PrintAgent['activeRun'] | undefined): boolean {
-        return value === null || (!!value && typeof value.token === 'string' && typeof value.startedAt === 'string'
-            && this.validIdentity(value.owner) && (value.provider === null || this.validIdentity(value.provider)));
-    }
-
-    private validIdentity(value: ProcessIdentity | undefined): boolean {
-        return !!value && Number.isInteger(value.pid) && value.pid > 0 && typeof value.startedAt === 'string';
-    }
-
     private canonicalDirectory(input: string): string {
         try {
             const resolved = fs.realpathSync(input);
@@ -355,34 +257,12 @@ export class PrintAgentStore {
         }
     }
 
-    private isCanonicalDirectory(input: string): boolean {
-        try {
-            const stat = fs.lstatSync(input);
-            return stat.isDirectory() && !stat.isSymbolicLink() && fs.realpathSync(input) === input;
-        } catch {
-            return false;
-        }
-    }
-
     private validateBoundCwd(bound: string): void {
         try {
             const stat = fs.lstatSync(bound);
             if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(bound) !== bound) throw new Error('binding changed');
         } catch {
             throw new PrintAgentStoreError(`Print agent cwd binding is no longer safe: ${bound}`);
-        }
-    }
-
-    private assertNotSymlink(target: string): void {
-        try {
-            if (fs.lstatSync(target).isSymbolicLink()) {
-                throw new PrintAgentStoreError(`Unsafe symbolic link in print-agent storage: ${target}`);
-            }
-        } catch (error) {
-            if (error instanceof PrintAgentStoreError) throw error;
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
-                throw new PrintAgentStoreError(`Cannot inspect print-agent storage: ${target}`);
-            }
         }
     }
 

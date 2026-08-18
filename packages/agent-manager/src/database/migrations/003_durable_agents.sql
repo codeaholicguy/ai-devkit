@@ -41,8 +41,3 @@ CREATE TABLE durable_agents (
 
 CREATE INDEX idx_durable_agents_state ON durable_agents(state);
 CREATE INDEX idx_durable_agents_list ON durable_agents(updated_at DESC, name COLLATE NOCASE);
-
-CREATE TABLE durable_agent_metadata (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-);

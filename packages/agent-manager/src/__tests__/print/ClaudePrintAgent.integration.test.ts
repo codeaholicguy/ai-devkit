@@ -28,7 +28,7 @@ describe('Claude print-agent fake-provider journey', () => {
         const capture = path.join(root, 'capture.jsonl');
         process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE = capture;
         const executable = fileURLToPath(new URL('../fixtures/fake-claude.cjs', import.meta.url));
-        const store = new PrintAgentStore({ filePath: path.join(root, 'state', 'print-agents.json') });
+        const store = new PrintAgentStore({ dbPath: path.join(root, 'state', 'agents.db') });
         const service = new ClaudePrintAgentService({
             store,
             probe: new ClaudeCliProbe({ executable }),
