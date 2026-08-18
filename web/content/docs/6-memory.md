@@ -227,5 +227,6 @@ Plugins can also read the configured memory database path through `runtime.getMe
 ## Next Steps
 
 - **[Skills](/docs/7-skills)**: Learn how to create reusable skill templates
+- **[Dev Lifecycle](/docs/10-dev-lifecycle-skill)**: Combine memory with the `task` skill for durable workflow progress
 - **[Plugins](/docs/14-plugins)**: Add optional CLI commands that can use the memory runtime
 - **[Getting Started](/docs/1-getting-started)**: New to AI DevKit? [Start here](/docs/1-getting-started)
