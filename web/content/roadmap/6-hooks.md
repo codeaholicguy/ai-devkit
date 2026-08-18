@@ -1,7 +1,9 @@
 ---
 title: Hooks
-status: planned
+status: in-progress
 order: 6
 ---
 
-Streamline your workflow by automatically configuring agent-specific hooks, such as those for Claude Code or Cursor. This feature will enable you to define chain reactions, like automatically asking for code review immediately after an implementation step is completed, ensuring quality checks happen without you needing to remember to run them manually.
+Agent-specific hooks are partially shipped. AI DevKit can install Codex session-mapping hooks for more reliable session discovery and Claude hooks that forward channel-related tool activity and questions.
+
+A general hook automation system remains future work. That broader milestone would let teams define portable chain reactions, such as requesting review after implementation, instead of relying only on the integrations AI DevKit configures today.
