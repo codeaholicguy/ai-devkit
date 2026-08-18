@@ -100,9 +100,9 @@ describe('console focus routing', () => {
         expect(resolve({ focus: 'list', input: 'p', hasSelectedAgent: false })).toEqual({ type: 'noop' });
     });
 
-    it('opens the filter only from an unfiltered list', () => {
+    it('focuses the filter from the list whether or not a query is active', () => {
         expect(resolve({ input: '/' })).toEqual({ type: 'open-filter' });
-        expect(resolve({ input: '/', filterActive: true })).toEqual({ type: 'noop' });
+        expect(resolve({ input: '/', filterActive: true })).toEqual({ type: 'open-filter' });
         expect(resolve({ focus: 'detail', input: '/' })).toEqual({ type: 'noop' });
     });
 

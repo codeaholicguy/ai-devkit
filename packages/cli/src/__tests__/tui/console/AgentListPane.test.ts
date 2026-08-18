@@ -70,6 +70,41 @@ describe('AgentListPane helpers', () => {
         expect(rendered).toContain('remote');
     });
 
+    it('keeps a visible filter prompt above the agent rows when inactive', async () => {
+        const { AgentListPane } = await import('../../../tui/console/AgentListPane.js');
+        const output = new PassThrough();
+        let rendered = '';
+        output.on('data', chunk => { rendered += chunk.toString(); });
+        const agents = [{
+            name: 'Alpha Agent', type: 'codex', status: 'running', projectPath: '/tmp/project',
+        }] as AgentInfo[];
+        const instance = render(React.createElement(AgentListPane, {
+            agents, selectedName: 'Alpha Agent', onSelect: vi.fn(), width: 44, height: 12,
+        }), { stdout: output as unknown as NodeJS.WriteStream, interactive: false, patchConsole: false });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        instance.unmount();
+        await instance.waitUntilExit();
+        expect(rendered).toContain('FILTER');
+        expect(rendered).toContain('/ to focus');
+        expect(rendered.indexOf('FILTER')).toBeLessThan(rendered.indexOf('Alpha Agent'));
+    });
+
+    it('keeps the filter prompt visible when no agents are running', async () => {
+        const { AgentListPane } = await import('../../../tui/console/AgentListPane.js');
+        const output = new PassThrough();
+        let rendered = '';
+        output.on('data', chunk => { rendered += chunk.toString(); });
+        const instance = render(React.createElement(AgentListPane, {
+            agents: [], selectedName: null, onSelect: vi.fn(), width: 44, height: 12,
+        }), { stdout: output as unknown as NodeJS.WriteStream, interactive: false, patchConsole: false });
+        await new Promise(resolve => setTimeout(resolve, 20));
+        instance.unmount();
+        await instance.waitUntilExit();
+        expect(rendered).toContain('FILTER');
+        expect(rendered).toContain('/ to focus');
+        expect(rendered).toContain('No running agents.');
+    });
+
     it('preserves the compact total count when no filter session is active', async () => {
         const { AgentListPane } = await import('../../../tui/console/AgentListPane.js');
         const output = new PassThrough();

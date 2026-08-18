@@ -46,7 +46,7 @@ export function resolveConsoleKeyAction({
     if (focus === 'list') {
         if (input === 'p') return hasSelectedAgent ? { type: 'toggle-pin' } : { type: 'noop' };
         if (key.escape && filterActive) return { type: 'clear-filter' };
-        if (input === '/') return filterActive ? { type: 'noop' } : { type: 'open-filter' };
+        if (input === '/') return { type: 'open-filter' };
         if (input === 'v') {
             return hasSelectedAgent && previewVisible ? { type: 'focus-detail' } : { type: 'noop' };
         }

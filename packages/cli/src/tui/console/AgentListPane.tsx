@@ -135,10 +135,46 @@ const AgentRow: React.FC<AgentRowProps> = ({ agent, isSelected, innerWidth, chan
     );
 };
 
-function computeMaxVisible(height: number, filterInPlay: boolean): number {
-    const headerRows = filterInPlay ? 2 : 1;
-    return Math.max(1, Math.floor((height - headerRows) / 3));
+function computeMaxVisible(height: number): number {
+    return Math.max(1, Math.floor((height - 2) / 3));
 }
+
+interface AgentFilterRowProps {
+    filterText: string;
+    editing: boolean;
+    onChange: (value: string) => void;
+    onSubmit: () => void;
+}
+
+const AgentFilterRow: React.FC<AgentFilterRowProps> = ({
+    filterText,
+    editing,
+    onChange,
+    onSubmit,
+}) => (
+    <Box width="100%">
+        <Text color={TUI_COLORS.accent} bold>FILTER </Text>
+        {editing ? (
+            <>
+                <Text color={TUI_COLORS.accent} bold>/ </Text>
+                <TextInput
+                    value={filterText}
+                    onChange={onChange}
+                    onSubmit={onSubmit}
+                    placeholder="type a name · enter apply · esc clear"
+                />
+            </>
+        ) : filterText ? (
+            <>
+                <Text color={TUI_COLORS.accent}>/ </Text>
+                <Text>{filterText}</Text>
+                <Text dimColor> · / to edit</Text>
+            </>
+        ) : (
+            <Text dimColor>/ to focus · filter by name</Text>
+        )}
+    </Box>
+);
 
 const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     agents,
@@ -169,7 +205,7 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
     // Keep selected agent in view
     useEffect(() => {
         if (!height || orderedAgents.length === 0) return;
-        const maxVisible = computeMaxVisible(height, filterEditing || filterText.length > 0);
+        const maxVisible = computeMaxVisible(height);
         const idx = orderedAgents.findIndex(a => a.name === selectedName);
         if (idx < 0) return;
         setScrollOffset(prev => {
@@ -177,36 +213,18 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
             if (idx >= prev + maxVisible) return idx - maxVisible + 1;
             return prev;
         });
-    }, [selectedName, orderedAgents, height, filterEditing, filterText]);
+    }, [selectedName, orderedAgents, height]);
 
     useEffect(() => {
         if (!height) return;
-        const maxVisible = computeMaxVisible(height, filterEditing || filterText.length > 0);
+        const maxVisible = computeMaxVisible(height);
         setScrollOffset(prev => clampAgentListScrollOffset(prev, orderedAgents.length, maxVisible));
-    }, [orderedAgents, height, filterEditing, filterText]);
+    }, [orderedAgents, height]);
 
     const innerWidth = Math.max(16, width ?? 44);
 
-    if (error && totalAgents === 0) {
-        return (
-            <Box flexDirection="column" width={innerWidth}>
-                <SectionTitle>AGENTS</SectionTitle>
-                <Text color={TUI_COLORS.danger}>{clip(error, innerWidth)}</Text>
-            </Box>
-        );
-    }
-
-    if (agents.length === 0 && filterText === '' && !filterEditing) {
-        return (
-            <Box flexDirection="column" width={innerWidth}>
-                <SectionTitle>AGENTS</SectionTitle>
-                <Text dimColor>No running agents.</Text>
-            </Box>
-        );
-    }
-
     const filterInPlay = filterEditing || filterText.length > 0;
-    const maxVisible = height ? computeMaxVisible(height, filterInPlay) : orderedAgents.length;
+    const maxVisible = height ? computeMaxVisible(height) : orderedAgents.length;
     const visibleAgents = orderedAgents.slice(scrollOffset, scrollOffset + maxVisible);
     const hasMore = scrollOffset + maxVisible < orderedAgents.length;
     const hasAbove = scrollOffset > 0;
@@ -220,21 +238,17 @@ const AgentListPaneInner: React.FC<AgentListPaneProps> = ({
                 {hasAbove && <Text dimColor> ↑</Text>}
                 {hasMore && <Text dimColor> ↓</Text>}
             </Box>
-            {filterInPlay ? (
-                <Box width={innerWidth}>
-                    <Text color={TUI_COLORS.accent}>/ </Text>
-                    {filterEditing ? (
-                        <TextInput
-                            value={filterText}
-                            onChange={onFilterChange}
-                            onSubmit={onFilterSubmit}
-                            placeholder="Filter by name…"
-                        />
-                    ) : <Text>{filterText}</Text>}
-                </Box>
-            ) : null}
-            {agents.length === 0 ? <Text dimColor>{`No agents match "${filterText}"`}</Text> : null}
-            {visibleAgents.map((agent, i) => (
+            <AgentFilterRow
+                filterText={filterText}
+                editing={filterEditing}
+                onChange={onFilterChange}
+                onSubmit={onFilterSubmit}
+            />
+            {error && totalAgents === 0 ? (
+                <Text color={TUI_COLORS.danger}>{clip(error, innerWidth)}</Text>
+            ) : agents.length === 0 ? (
+                <Text dimColor>{filterInPlay ? `No agents match "${filterText}"` : 'No running agents.'}</Text>
+            ) : visibleAgents.map((agent, i) => (
                 <React.Fragment key={agent.name}>
                     {i > 0 && (
                         <Box width={innerWidth}>

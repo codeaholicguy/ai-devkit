@@ -422,7 +422,7 @@ const ConsoleAppShell: React.FC<{
         <Panel
             width={listPaneWidth}
             height={contentHeight}
-            focused={focus === 'list'}
+            focused={focus === 'list' || focus === 'filter'}
             paddingX={1}
             flexDirection="column"
         >
