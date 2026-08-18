@@ -20,23 +20,30 @@ export function resolveAgentRegistryDbPath(filePath?: string): string {
 export class DatabaseConnection {
     private db: Database.Database;
     private readonly dbPath: string;
+    private readonly readonly: boolean;
 
     constructor(options: DatabaseOptions = {}) {
         this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
+        this.readonly = options.readonly ?? false;
         mkdirSync(dirname(this.dbPath), { recursive: true });
 
         this.db = new Database(this.dbPath, {
-            readonly: options.readonly ?? false,
+            readonly: this.readonly,
             verbose: typeof options.verbose === 'function'
                 ? options.verbose
                 : options.verbose ? console.log : undefined,
         });
 
         this.configure();
-        initializeSchema(this);
+        if (!this.readonly) initializeSchema(this);
     }
 
     private configure(): void {
+        if (this.readonly) {
+            this.db.pragma('foreign_keys = ON');
+            this.db.pragma('busy_timeout = 5000');
+            return;
+        }
         this.db.pragma('journal_mode = WAL');
         this.db.pragma('foreign_keys = ON');
         this.db.pragma('synchronous = NORMAL');

@@ -20,6 +20,7 @@ export type ConsoleKeyAction =
     | { type: 'focus-list' }
     | { type: 'focus-detail' }
     | { type: 'focus-input' }
+    | { type: 'toggle-pin' }
     | { type: 'scroll-detail'; delta: number }
     | { type: 'select-agent'; delta: number };
 
@@ -39,6 +40,7 @@ export function resolveConsoleKeyAction({
     }
 
     if (focus === 'list') {
+        if (input === 'p') return hasSelectedAgent ? { type: 'toggle-pin' } : { type: 'noop' };
         if (input === 'v') {
             return hasSelectedAgent && previewVisible ? { type: 'focus-detail' } : { type: 'noop' };
         }

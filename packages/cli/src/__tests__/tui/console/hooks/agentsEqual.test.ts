@@ -53,6 +53,13 @@ describe('agentsEqual', () => {
         )).toBe(false);
     });
 
+    it('returns false when pin state differs', () => {
+        expect(agentsEqual(
+            [agent({ pinned: true })],
+            [agent({ pinned: false })],
+        )).toBe(false);
+    });
+
     it('accepts string lastActive and compares correctly', () => {
         const a = agent({ lastActive: '2026-01-01T12:00:00Z' as unknown as Date });
         const b = agent({ lastActive: new Date('2026-01-01T12:00:00Z') });

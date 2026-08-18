@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import Database from 'better-sqlite3';
 import { AgentRegistry, RenameNotFoundError, RenameConflictError, type RegistryEntry } from '../../utils/AgentRegistry.js';
 
 function makeEntry(over: Partial<RegistryEntry> = {}): RegistryEntry {
@@ -13,6 +14,7 @@ function makeEntry(over: Partial<RegistryEntry> = {}): RegistryEntry {
         startedAt: '2026-05-30T00:00:00.000Z',
         sessionId: 'sid-1',
         sessionFilePath: '/tmp/session.jsonl',
+        pinned: false,
         ...over,
     };
 }
@@ -169,6 +171,72 @@ describe('AgentRegistry', () => {
         it('returns the entry when name matches', () => {
             registry.register(makeEntry({ name: 'a' }));
             expect(registry.lookup('a')?.name).toBe('a');
+        });
+    });
+
+    describe('pinning', () => {
+        it('defaults new rows to unpinned and toggles the persisted state', () => {
+            registry.register(makeEntry());
+
+            expect(registry.lookup('agent1')?.pinned).toBe(false);
+            expect(registry.togglePin('claude', process.pid)).toBe(true);
+            expect(registry.lookup('agent1')?.pinned).toBe(true);
+            expect(registry.togglePin('claude', process.pid)).toBe(false);
+            expect(registry.lookup('agent1')?.pinned).toBe(false);
+        });
+
+        it('updates existing recency when toggled', () => {
+            let now = new Date('2026-08-16T10:00:00.000Z');
+            const clocked = new AgentRegistry(regPath, { now: () => now });
+            clocked.register(makeEntry());
+            now = new Date('2026-08-16T10:01:00.000Z');
+
+            clocked.togglePin('claude', process.pid);
+
+            expect(clocked.lookup('agent1')?.updatedAt).toBe(now.toISOString());
+            const db = new Database(regPath.replace(/\.json$/, '.db'), { readonly: true });
+            const row = db.prepare('SELECT updated_at FROM agents WHERE type = ? AND pid = ?')
+                .get('claude', process.pid) as { updated_at: string };
+            db.close();
+            expect(row.updated_at).toBe(now.toISOString());
+        });
+
+        it('returns null when the process row has disappeared', () => {
+            expect(registry.togglePin('claude', 999999)).toBeNull();
+        });
+
+        it('preserves a pin when poll registration updates the row', () => {
+            registry.register(makeEntry({ sessionId: 'before' }));
+            registry.togglePin('claude', process.pid);
+
+            registry.register(makeEntry({ sessionId: 'after' }));
+
+            expect(registry.lookup('agent1')).toMatchObject({ sessionId: 'after', pinned: true });
+        });
+
+        it('preserves a pin through rename', () => {
+            registry.register(makeEntry({ name: 'before' }));
+            registry.togglePin('claude', process.pid);
+
+            registry.rename('before', 'after');
+
+            expect(registry.lookup('after')?.pinned).toBe(true);
+        });
+
+        it('removes the pin with a pruned process row', () => {
+            registry.register(makeEntry({ pid: 999999 }));
+            registry.togglePin('claude', 999999);
+
+            registry.prune();
+
+            expect(registry.lookup('agent1')).toBeNull();
+        });
+
+        it('reports a clear error when a readonly registry toggles a pin', () => {
+            registry.register(makeEntry());
+            const readonlyRegistry = new AgentRegistry(regPath, { readonly: true });
+
+            expect(() => readonlyRegistry.togglePin('claude', process.pid)).toThrow(/readonly/i);
         });
     });
 

@@ -87,4 +87,12 @@ describe('console focus routing', () => {
             key: { leftArrow: true },
         })).toEqual({ type: 'focus-list' });
     });
+
+    it('routes lowercase p to pin toggling only from list focus', () => {
+        expect(resolve({ focus: 'list', input: 'p' })).toEqual({ type: 'toggle-pin' });
+        expect(resolve({ focus: 'detail', input: 'p' })).toEqual({ type: 'noop' });
+        expect(resolve({ focus: 'input', input: 'p' })).toEqual({ type: 'noop' });
+        expect(resolve({ focus: 'list', input: 'P' })).toEqual({ type: 'noop' });
+        expect(resolve({ focus: 'list', input: 'p', hasSelectedAgent: false })).toEqual({ type: 'noop' });
+    });
 });

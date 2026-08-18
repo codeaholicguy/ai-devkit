@@ -646,6 +646,7 @@ export async function startAgent(
     startedAt: new Date().toISOString(),
     sessionId: '',
     sessionFilePath: '',
+    pinned: false,
   };
   registry.register(entry);
   debug(`startAgent: registered ${entry.name}`);

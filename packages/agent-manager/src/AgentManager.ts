@@ -26,6 +26,13 @@ export interface ListAgentsOptions {
     sortBy?: AgentSortKey;
 }
 
+export class AgentNotRunningError extends Error {
+    constructor(public agentName: string) {
+        super(`Agent "${agentName}" is no longer running.`);
+        this.name = 'AgentNotRunningError';
+    }
+}
+
 /**
  * Agent Manager Class
  * 
@@ -194,6 +201,8 @@ export class AgentManager {
             const entry = preExistingByIdentity.get(identityKey(agent.type, agent.pid));
             if (entry) {
                 agent.name = entry.name;
+                agent.pinned = entry.pinned;
+                if (entry.pinned && entry.updatedAt) agent.lastActive = new Date(entry.updatedAt);
             }
         }
 
@@ -211,7 +220,19 @@ export class AgentManager {
             startedAt: existing?.startedAt ?? new Date().toISOString(),
             sessionId: agent.sessionId,
             sessionFilePath: agent.sessionFilePath ?? '',
+            pinned: existing?.pinned ?? agent.pinned ?? false,
         };
+    }
+
+    togglePin(agentName: string): boolean {
+        const entry = this.registry.lookup(agentName);
+        if (!entry || !this.registry.isAlive(entry)) {
+            if (entry) this.registry.prune();
+            throw new AgentNotRunningError(agentName);
+        }
+        const pinned = this.registry.togglePin(entry.type, entry.pid);
+        if (pinned === null) throw new AgentNotRunningError(agentName);
+        return pinned;
     }
 
     /**

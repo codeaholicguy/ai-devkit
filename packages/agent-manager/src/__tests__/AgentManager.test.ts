@@ -554,6 +554,58 @@ describe('AgentManager', () => {
             expect(writes).toEqual([]);
         });
 
+        it('exposes a persisted pin and preserves it across a changed poll refresh', async () => {
+            const adapter = new MockAdapter('claude', [
+                createMockAgent({ name: 'pinned', pid: process.pid, sessionId: 'before' }),
+            ]);
+            scopedManager.registerAdapter(adapter);
+            await scopedManager.listAgents();
+            registry.togglePin('claude', process.pid);
+            adapter.setAgents([
+                createMockAgent({ name: 'pinned', pid: process.pid, sessionId: 'after' }),
+            ]);
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].pinned).toBe(true);
+            expect(registry.lookup('pinned')).toMatchObject({ sessionId: 'after', pinned: true });
+        });
+
+        it('uses registry updated_at as lastActive for pinned recency ordering', async () => {
+            const adapter = new MockAdapter('claude', [
+                createMockAgent({
+                    name: 'recently-pinned',
+                    pid: process.pid,
+                    lastActive: new Date('2026-01-01T00:00:00.000Z'),
+                }),
+            ]);
+            scopedManager.registerAdapter(adapter);
+            await scopedManager.listAgents();
+            nowMs += 60_000;
+            scopedManager.togglePin('recently-pinned');
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].pinned).toBe(true);
+            expect(agents[0].lastActive.toISOString()).toBe('2026-08-14T10:01:00.000Z');
+        });
+
+        it('preserves adapter lastActive for unpinned agents', async () => {
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({
+                    name: 'unpinned',
+                    pid: process.pid,
+                    lastActive: new Date('2026-01-01T00:00:00.000Z'),
+                }),
+            ]));
+
+            await scopedManager.listAgents();
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].pinned).toBe(false);
+            expect(agents[0].lastActive.toISOString()).toBe('2026-01-01T00:00:00.000Z');
+        });
+
         it('persists changed fields once in one write transaction', async () => {
             const adapter = new MockAdapter('claude', [
                 createMockAgent({ name: 'changing', pid: process.pid, projectPath: '/cwd/before' }),
@@ -642,6 +694,71 @@ describe('AgentManager', () => {
 
             expect(writeSpy).not.toHaveBeenCalled();
             expect(pruneSpy).toHaveBeenCalledTimes(2);
+        });
+    });
+
+    describe('togglePin', () => {
+        it('resolves the agent name to its process identity and toggles the pin', () => {
+            const registry = new AgentRegistry(path.join(tmpDir, 'toggle.json'));
+            const scopedManager = new AgentManager(registry);
+            registry.register({
+                name: 'renamed-agent',
+                type: 'claude',
+                pid: process.pid,
+                tmuxSession: '',
+                cwd: '/tmp',
+                startedAt: '2026-08-16T00:00:00.000Z',
+                sessionId: 'session',
+                sessionFilePath: '',
+                pinned: false,
+            });
+
+            expect(scopedManager.togglePin('renamed-agent')).toBe(true);
+            expect(registry.lookup('renamed-agent')?.pinned).toBe(true);
+        });
+
+        it('reports when the agent is no longer running', () => {
+            expect(() => manager.togglePin('missing')).toThrow(/no longer running/i);
+        });
+
+        it('rejects a dead process and prunes its row', () => {
+            const registry = new AgentRegistry(path.join(tmpDir, 'dead-toggle.json'));
+            const scopedManager = new AgentManager(registry);
+            registry.register({
+                name: 'dead',
+                type: 'claude',
+                pid: 999999,
+                tmuxSession: '',
+                cwd: '/tmp',
+                startedAt: '2026-08-16T00:00:00.000Z',
+                sessionId: 'session',
+                sessionFilePath: '',
+                pinned: false,
+            });
+
+            expect(() => scopedManager.togglePin('dead')).toThrow(/no longer running/i);
+            expect(registry.lookup('dead')).toBeNull();
+        });
+
+        it('surfaces a clear readonly mutation error', () => {
+            const regPath = path.join(tmpDir, 'readonly-toggle.json');
+            const writable = new AgentRegistry(regPath);
+            writable.register({
+                name: 'readonly-agent',
+                type: 'claude',
+                pid: process.pid,
+                tmuxSession: '',
+                cwd: '/tmp',
+                startedAt: '2026-08-16T00:00:00.000Z',
+                sessionId: 'session',
+                sessionFilePath: '',
+                pinned: false,
+            });
+            const readonlyManager = new AgentManager(new AgentRegistry(regPath, { readonly: true }));
+
+            expect(() => readonlyManager.togglePin('readonly-agent')).toThrow(
+                'Agent registry is readonly; cannot toggle pin.',
+            );
         });
     });
 
