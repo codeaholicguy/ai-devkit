@@ -8,7 +8,7 @@ order: 12
 > ⚠️ **WARNING**
 > This feature is currently **experimental**, works on macOS and Linux with ai-devkit from version 0.22.1. Behaviors and commands may change in future versions.
 
-The `channel` command lets you bridge a running AI agent to a messaging platform like Telegram. Once connected, you can send prompts to your agent and receive responses directly from your messaging app — no need to be at your terminal.
+The `channel` command lets you bridge a running AI agent to Telegram or Slack. Once connected, you can send prompts to your agent and receive responses directly from your messaging app — no need to be at your terminal.
 
 ## Prerequisites
 
@@ -22,8 +22,10 @@ The `channel` command lets you bridge a running AI agent to a messaging platform
 
 The channel bridge connects two sides:
 
-1. **Input**: Messages you send to your Telegram bot are forwarded to the agent's terminal as keystrokes.
-2. **Output**: New messages in the agent's conversation are polled and sent back to your Telegram chat.
+1. **Input**: Messages sent to the configured Telegram bot or Slack app are forwarded to the agent's terminal as keystrokes.
+2. **Output**: New messages in the agent's conversation are polled and sent back to the active messaging conversation.
+
+### Telegram authorization and routing
 
 The first Telegram user to message the bot is automatically authorized. All other users are rejected. This means:
 - Only **one person** can control the agent per bridge session.
@@ -32,11 +34,15 @@ The first Telegram user to message the bot is automatically authorized. All othe
 
 > **Tip**: Keep your bot username private, or use Telegram's bot settings to restrict who can find and message your bot.
 
+### Slack authorization and routing
+
+Slack uses a private, single-workspace Socket Mode app. It is DM-only and does not expose a public HTTP endpoint. Slack user authorization is not enabled: any workspace member who can DM the app can send text to the connected agent. The first DM received after bridge startup becomes the response destination until the bridge restarts.
+
 ## Commands
 
 ### Connect a Channel
 
-Configure a messaging channel by providing your bot token.
+Configure a Telegram bot or private Slack app:
 
 ```bash
 ai-devkit channel connect telegram
@@ -44,7 +50,7 @@ ai-devkit channel connect telegram --name personal
 ai-devkit channel connect slack --name work-slack
 ```
 
-You will be prompted to enter your Telegram bot token. AI DevKit validates the token by calling the Telegram API, then stores the configuration locally.
+For Telegram, AI DevKit prompts for a bot token and validates it with the Telegram API. For Slack, it prompts for an `xapp-` app token and an `xoxb-` bot token, then validates both credentials before saving the configuration.
 
 > **Note**: Channel configuration is stored in `~/.ai-devkit/channels.json` with file mode `0600`. Tokens are local plaintext secrets: never commit, paste into chat, or include this file in support logs.
 
@@ -125,7 +131,7 @@ ai-devkit channel list
 
 ### Start the Bridge
 
-Start the channel bridge between Telegram and a running agent.
+Start the configured channel bridge between the messaging provider and a running agent.
 
 ```bash
 ai-devkit channel start --agent <name>
@@ -140,9 +146,9 @@ ai-devkit channel start <channel-name> --agent <name>
 | `--daemon` | Start the bridge in the background |
 | `--debug` | Enable debug logging for troubleshooting |
 
-Debug output is printed to the same terminal where the bridge is running. It includes timestamps for message polling, Telegram delivery, and terminal writes. Look for lines prefixed with `channel` to trace message flow.
+Debug output is printed to the same terminal where the bridge is running. It includes timestamps for message polling, provider delivery, and terminal writes. Look for lines prefixed with `channel` to trace message flow.
 
-If you have one Telegram channel configured, the channel name is optional. If you have multiple Telegram channels, specify which one to start.
+If you have one channel configured, the channel name is optional. If you have multiple channels, specify which one to start.
 
 Foreground bridges keep running in the current terminal. Press `Ctrl+C` to stop a foreground bridge.
 
