@@ -38,15 +38,10 @@ tool side effects for that working directory. AI DevKit adds no permission bypas
 or automatic retry, and prompts are delivered over stdin rather than command-line
 arguments. `--timeout` is not supported for print agents in this first release.
 
-Durable print-agent state is stored in `~/.ai-devkit/agents.db`. On the first
-writable open after upgrading, a valid `~/.ai-devkit/print-agents.json` is
-imported once and renamed to `print-agents.json.migrated-v1.bak`. There is no
-dual-write: rollback to an older binary requires exporting the SQLite state
-before that binary is allowed to write its JSON store again.
+Durable print-agent state is stored in `~/.ai-devkit/agents.db`. This feature was
+not released with JSON persistence, so there is no legacy import or dual-write.
 
-For direct `PrintAgentStore` consumers, `dbPath` selects the SQLite database.
-The legacy `filePath` option remains available for one compatibility release as
-the JSON import path (and maps injected `.json` test paths to `.db`). The
+For direct `PrintAgentStore` consumers, `dbPath` selects the SQLite database. The
 `lockTimeoutMs`, `incompleteLockGraceMs`, and `mutationLockStaleMs` options are
 deprecated, accepted, and ignored because SQLite transactions replace the
 filesystem lock machinery.

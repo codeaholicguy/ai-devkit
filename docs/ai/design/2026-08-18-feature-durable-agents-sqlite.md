@@ -1,7 +1,7 @@
 ---
 phase: design
 title: Durable Agents SQLite Design
-description: SQLite schema, migration, and transactional ownership design
+description: SQLite schema and transactional ownership design
 ---
 
 # Durable Agents SQLite Design
@@ -13,12 +13,10 @@ flowchart LR
   CLI[CLI / runner] --> Service[ClaudePrintAgentService]
   Service --> Store[PrintAgentStore adapter]
   Store --> DB[(agents.db)]
-  JSON[print-agents.json] -. first writable open .-> Store
   Inspector[LocalProcessInspector] --> Store
-  Store --> Backup[print-agents.json.migrated-v1.bak]
 ```
 
-`PrintAgentStore` remains the public adapter and owns row mapping, validation, migration import, and transactional state changes. `DatabaseConnection` owns SQLite configuration and schema migration. Process inspection and cwd canonicalization remain outside transactions; transactions reread state and apply conditional mutations.
+`PrintAgentStore` remains the public adapter and owns row mapping, validation, and transactional state changes. `DatabaseConnection` owns SQLite configuration and schema migration. Process inspection and cwd canonicalization remain outside transactions; transactions reread state and apply conditional mutations.
 
 ## Data Model
 
@@ -31,24 +29,14 @@ flowchart LR
 - Integrity: running state requires every active field; non-running requires all active fields to be null.
 - Indexes: state lookup and updated-desc/name-case-insensitive listing.
 
-Migration metadata contains a durable-agent legacy-import marker. It is written in the same `BEGIN IMMEDIATE` transaction as imported rows so import eligibility and imported data cannot diverge.
-
 ## API Design
 
 - Existing `PrintAgentStore` methods and `StoreLike` structural consumers stay unchanged.
-- Options add `dbPath` and retain `filePath` for legacy import and injected-test path compatibility.
+- Options add `dbPath`; tests inject explicit database paths.
 - `lockTimeoutMs`, `incompleteLockGraceMs`, and `mutationLockStaleMs` remain type-compatible but have no runtime effect and are deprecated.
 - Domain errors continue to represent conflicts, busy ownership, lost tokens, invalid input, and storage failures.
 
 ## Data Flows
-
-### First writable open
-
-1. Open and migrate `agents.db` through migration 003.
-2. Start `BEGIN IMMEDIATE` and check the import marker.
-3. If unmarked legacy JSON exists, reject symlinks, parse version 1, validate every agent, and insert every row.
-4. Write the marker and commit. On any error, roll back and leave JSON untouched.
-5. After commit, rename JSON to `.migrated-v1.bak`.
 
 ### Ownership
 
@@ -66,7 +54,7 @@ Readonly construction requires an existing migrated database and skips directory
 - Flattening matches the existing latest-result contract and avoids premature run-history scope.
 - SQLite uniqueness and transactions replace lock directories and temp-file replacement.
 - Application-layer provider validation avoids migrations when new providers arrive.
-- No dual-write prevents split-brain state. The retained backup enables explicit export-based rollback.
+- Durable agents persist directly in SQLite; `print-agents.json` was never released and requires no compatibility path.
 
 Rejected alternatives are merging into `agents`, storing a whole JSON document in one row, adding `durable_runs`, introducing a repository abstraction, and retaining filesystem lock machinery.
 
@@ -74,6 +62,6 @@ Rejected alternatives are merging into `agents`, storing a whole JSON document i
 
 - Transactions remain short; filesystem checks and process inspection occur outside them.
 - WAL plus a 5-second busy timeout handle contention; acquisition contention maps to `PrintAgentBusyError`.
-- Symlink-safe cwd binding and legacy-file checks prevent path substitution.
+- Symlink-safe cwd binding prevents path substitution.
 - Schema checks reject inconsistent active-run rows and invalid lifecycle/result values.
-- Import and state transitions are atomic and recover cleanly on reopen.
+- State transitions are atomic and recover cleanly on reopen.

@@ -1,7 +1,7 @@
 ---
 phase: testing
 title: Durable Agents SQLite Testing Strategy
-description: Behavioral parity, migration, concurrency, and recovery validation
+description: Behavioral parity, concurrency, and recovery validation
 ---
 
 # Durable Agents SQLite Testing Strategy
@@ -27,12 +27,10 @@ Cover all changed persistence and connection branches with focused unit/integrat
 - [x] Session resume remains covered by `ClaudePrintAgent.integration.test.ts`.
 - [x] Latest result behavior and the 4,096-character summary cap remain intact.
 
-## Migration and Compatibility
+## Storage Compatibility
 
-- [x] Valid version-1 JSON imports once and is renamed after commit.
-- [x] Malformed, wrong-version, symlinked, or invalid-agent JSON aborts with no partial rows/marker and leaves the source intact.
-- [x] Marker plus absent JSON makes later opens a no-op.
-- [x] Injected JSON `filePath` maps to its test `agents.db`; explicit `dbPath` takes precedence.
+- [x] Store and integration tests use explicit isolated `dbPath` values.
+- [x] No `print-agents.json` import, marker, backup, or compatibility option exists because JSON persistence was never released.
 - [x] Deprecated lock options remain accepted but do not create lock artifacts.
 
 ## Concurrency and Recovery
@@ -40,7 +38,6 @@ Cover all changed persistence and connection branches with focused unit/integrat
 - [x] Two connections racing acquisition yield exactly one owner and one busy result.
 - [x] Record-provider and completion reject a stale/lost token.
 - [x] Reconcile CAS cannot overwrite ownership changed after process inspection.
-- [x] Transaction rollback leaves the database reopenable after interruption.
 - [x] Corrupt database errors map to a clear store error.
 - [x] Readonly `list()` does not reconcile or mutate running rows.
 
@@ -58,8 +55,8 @@ Fresh evidence was collected on 2026-08-18 with `npm run test:coverage --workspa
 
 ## Test Data and Fixtures
 
-Tests use isolated temporary directories, real SQLite databases, controlled process-inspector doubles, version-1 JSON fixtures, deliberate malformed/corrupt files, and independent store/connection instances for races. No user home state is read or modified.
+Tests use isolated temporary directories, real SQLite databases, controlled process-inspector doubles, a deliberately corrupt database, and independent store/connection instances for races. No user home state is read or modified.
 
 ## Manual Testing
 
-No UI changes exist. Automated integration coverage exercises the user-visible durable-agent lifecycle and migration path.
+No UI changes exist. Automated integration coverage exercises the user-visible durable-agent lifecycle directly against SQLite.
