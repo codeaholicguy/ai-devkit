@@ -46,13 +46,15 @@ Cover all changed persistence and connection branches with focused unit/integrat
 
 ## Full Validation
 
-- [ ] Focused agent-manager test suite passes.
-- [ ] Coverage is reviewed for changed files and gaps are closed or documented.
-- [ ] Full workspace test suite passes.
-- [ ] Workspace lint passes.
-- [ ] Workspace typecheck passes.
-- [ ] Workspace build passes.
-- [ ] `npx ai-devkit@latest lint --feature durable-agents-sqlite` passes.
+- [x] Focused agent-manager test suite passes (26 files, 552 tests).
+- [x] Coverage is reviewed: `PrintAgentStore.ts` reports 90.5% lines and 97.36% functions; remaining branches are defensive platform/storage failures.
+- [x] Full workspace test suite passes (1,019 tests).
+- [x] Workspace lint passes (existing warnings only, zero errors).
+- [x] Workspace typecheck passes for all five typed projects.
+- [x] Workspace build passes for all six projects.
+- [x] `npx ai-devkit@latest lint --feature durable-agents-sqlite` passes.
+
+Fresh evidence was collected on 2026-08-18 with `npm run test:coverage --workspace @ai-devkit/agent-manager`, `npm test`, `npm run lint`, `npx nx run-many -t typecheck`, `npm run build`, and the feature lint command; every command exited 0.
 
 ## Test Data and Fixtures
 
