@@ -52,7 +52,7 @@ interface DurableAgent {
   id: string;                    // immutable AI DevKit UUID
   name: string;                  // unique among durable agents
   provider: 'claude';
-  mode: 'print';
+  mode: 'durable';
   cwd: string;                   // canonical real path
   providerSessionId: string;     // immutable caller-assigned Claude UUID
   state: DurableAgentState;

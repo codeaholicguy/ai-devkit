@@ -2,7 +2,7 @@ CREATE TABLE durable_agents (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL COLLATE NOCASE UNIQUE,
     provider TEXT NOT NULL,
-    mode TEXT NOT NULL DEFAULT 'print',
+    mode TEXT NOT NULL DEFAULT 'durable',
     cwd TEXT NOT NULL,
     provider_session_id TEXT NOT NULL UNIQUE,
     state TEXT NOT NULL CHECK (state IN ('ready','running','degraded')),

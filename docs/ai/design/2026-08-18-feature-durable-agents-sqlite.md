@@ -22,7 +22,7 @@ flowchart LR
 
 `durable_agents` is one flattened row per durable agent:
 
-- Identity: `id` primary key; case-insensitive unique `name`; unconstrained `provider`; `mode` defaulting to `print`; canonical `cwd`; unique `provider_session_id`.
+- Identity: `id` primary key; case-insensitive unique `name`; unconstrained `provider`; `mode` defaulting to `durable`; canonical `cwd`; unique `provider_session_id`.
 - Lifecycle: constrained `state`, constrained `session_health`, created/updated timestamps, nullable last-active timestamp.
 - Latest result: nullable constrained status, completion timestamp, exit code, and summary.
 - Active run: unique token plus owner/provider PID and start-time identity, and run start timestamp.

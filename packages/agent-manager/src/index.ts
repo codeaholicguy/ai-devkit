@@ -38,6 +38,7 @@ export type { AgentRequest } from './utils/agent-requests.js';
 export { getAgentRequestPath, readLatestAgentRequest, writeAgentRequest } from './utils/agent-requests.js';
 
 export {
+    AGENT_MODES,
     DurableAgentError,
     DurableAgentBusyError,
     DurableAgentNotFoundError,

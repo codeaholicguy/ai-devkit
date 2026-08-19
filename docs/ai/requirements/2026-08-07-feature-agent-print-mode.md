@@ -150,7 +150,7 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 
 ### List and detail
 
-- Human and JSON list/detail output include stable ID, name, provider `claude`, mode `print`, canonical cwd, state, session health, last activity, and last result.
+- Human and JSON list/detail output include stable ID, name, provider `claude`, mode `durable`, canonical cwd, state, session health, last activity, and last result.
 - No fake PID, tmux session, terminal, or transcript path is fabricated.
 - Before first send, session health communicates that the caller-assigned identity is initialized but no provider transcript/run has yet been observed.
 - A running durable agent is visible as `running`; a provider/session/protocol failure is visible as `degraded`; a successful or safely recovered agent is `ready`.

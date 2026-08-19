@@ -34,7 +34,7 @@ describe('DurableAgentRepository create/list/resolve', () => {
         expect(agent).toMatchObject({
             name: 'reviewer',
             provider: 'claude',
-            mode: 'print',
+            mode: 'durable',
             cwd: fs.realpathSync(cwd),
             state: 'ready',
             sessionHealth: 'uninitialized',

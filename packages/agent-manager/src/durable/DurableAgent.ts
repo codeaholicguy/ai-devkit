@@ -2,6 +2,11 @@ export type DurableAgentState = 'ready' | 'running' | 'degraded';
 export type DurableSessionHealth = 'uninitialized' | 'healthy' | 'unknown' | 'mismatch';
 export type DurableRunStatus = 'succeeded' | 'failed' | 'interrupted';
 
+export const AGENT_MODES = {
+    INTERACTIVE: 'interactive',
+    DURABLE: 'durable',
+} as const;
+
 export interface ProcessIdentity {
     pid: number;
     startedAt: string;
@@ -25,7 +30,7 @@ export interface DurableAgent {
     id: string;
     name: string;
     provider: 'claude';
-    mode: 'print';
+    mode: typeof AGENT_MODES.DURABLE;
     cwd: string;
     providerSessionId: string;
     state: DurableAgentState;

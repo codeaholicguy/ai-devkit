@@ -89,6 +89,7 @@ const { RenameNotFoundError, RenameConflictError } = vi.hoisted(() => {
 });
 
 vi.mock('@ai-devkit/agent-manager', () => ({
+  AGENT_MODES: { INTERACTIVE: 'interactive', DURABLE: 'durable' },
   AgentManager: vi.fn(function () { return mockManager; }),
   ClaudeCodeAdapter: vi.fn(),
   CodexAdapter: vi.fn(),
@@ -296,7 +297,7 @@ describe('agent command', () => {
   it('labels durable agents as durable in list JSON without a fake pid', async () => {
     mockManager.listAgents.mockResolvedValue([]);
     mockDurableRepository.list.mockResolvedValue([{
-      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'durable',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
     }]);
@@ -312,7 +313,7 @@ describe('agent command', () => {
 
   it('shows durable durable-agent detail without requiring a transcript', async () => {
     const durableAgent = {
-      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'durable',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
     };
@@ -324,7 +325,7 @@ describe('agent command', () => {
     await program.parseAsync(['node', 'test', 'agent', 'detail', '--id', durableAgent.id, '--json']);
 
     const output = JSON.parse(logSpy.mock.calls[0][0] as string);
-    expect(output).toMatchObject({ id: durableAgent.id, provider: 'claude', mode: 'print', state: 'ready' });
+    expect(output).toMatchObject({ id: durableAgent.id, provider: 'claude', mode: 'durable', state: 'ready' });
     expect(output).not.toHaveProperty('conversation');
   });
 
@@ -390,7 +391,7 @@ describe('agent command', () => {
   it('renders durable agents as durable without leaking the internal print mode', async () => {
     mockManager.listAgents.mockResolvedValue([]);
     mockDurableRepository.list.mockResolvedValue([{
-      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'durable',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
     }]);
@@ -730,7 +731,7 @@ Waiting on user input`,
   it('starts a durable Claude durable agent without tmux', async () => {
     mockDurableService.create.mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
-      mode: 'print', cwd: process.cwd(), state: 'ready',
+      mode: 'durable', cwd: process.cwd(), state: 'ready',
     });
 
     const program = new Command();
@@ -747,7 +748,7 @@ Waiting on user input`,
   it('sends synchronously to an exact durable-agent id without terminal injection', async () => {
     const durableAgent = {
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
-      mode: 'print', cwd: '/project', state: 'ready',
+      mode: 'durable', cwd: '/project', state: 'ready',
     };
     mockDurableRepository.resolve.mockResolvedValue(durableAgent);
     mockDurableService.send.mockResolvedValue({ ...durableAgent, result: '\x1b]0;unsafe\x07review complete', exitCode: 0 });
@@ -766,7 +767,7 @@ Waiting on user input`,
   it('rejects timeout for a synchronous print send instead of silently ignoring it', async () => {
     const durableAgent = {
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
-      mode: 'print', cwd: '/project', state: 'ready',
+      mode: 'durable', cwd: '/project', state: 'ready',
     };
     mockDurableRepository.resolve.mockResolvedValue(durableAgent);
 

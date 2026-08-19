@@ -25,6 +25,7 @@ describe('durable agents schema', () => {
         const table = connection.queryOne<{ sql: string }>(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'durable_agents'",
         );
+        expect(table?.sql).toContain("DEFAULT 'durable'");
         expect(table?.sql).toContain("state IN ('ready','running','degraded')");
         expect(connection.query<{ name: string }>(
             "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'durable_agents'",
@@ -40,7 +41,7 @@ describe('durable agents schema', () => {
             INSERT INTO durable_agents (
                 id, name, provider, mode, cwd, provider_session_id, state, session_health,
                 created_at, updated_at
-            ) VALUES (?, ?, ?, 'print', '/tmp', ?, ?, 'uninitialized', ?, ?)
+            ) VALUES (?, ?, ?, 'durable', '/tmp', ?, ?, 'uninitialized', ?, ?)
         `, [crypto.randomUUID(), name, provider, crypto.randomUUID(), state, new Date().toISOString(), new Date().toISOString()]);
         expect(() => insert('Alpha', 'future-provider')).not.toThrow();
         expect(() => insert('alpha', 'claude')).toThrow(/UNIQUE/i);

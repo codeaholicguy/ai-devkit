@@ -23,6 +23,7 @@ import {
     RenameConflictError,
     TmuxManager,
     AGENTS,
+    AGENT_MODES,
     type StartableAgentType,
     type AgentInfo,
     type AgentType,
@@ -107,11 +108,6 @@ const TYPE_LABELS: Record<AgentType, string> = {
     pi: 'Pi',
     other: 'Other',
 };
-
-const AGENT_MODES = {
-    INTERACTIVE: 'interactive',
-    DURABLE: 'durable',
-} as const;
 
 function formatType(type: AgentType): string {
     return TYPE_LABELS[type] ?? type;
@@ -288,7 +284,8 @@ export function registerAgentCommand(program: Command): void {
             if (!['interactive', 'print'].includes(mode)) {
                 throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, print.`);
             }
-            if (mode === 'print' && agentType !== 'claude') {
+            const internalMode = mode === 'print' ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
+            if (internalMode === AGENT_MODES.DURABLE && agentType !== 'claude') {
                 throw new Error('Print mode currently supports only --type claude.');
             }
             if (!NAME_REGEX.test(agentName)) {
@@ -304,7 +301,7 @@ export function registerAgentCommand(program: Command): void {
             }
 
             try {
-                if (mode === 'print') {
+                if (internalMode === AGENT_MODES.DURABLE) {
                     const entry = await createDurableAgentService().create({ name: agentName, cwd });
                     ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
                     ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
@@ -646,7 +643,7 @@ export function registerAgentCommand(program: Command): void {
                 const result = await durableService.send(options.id, prompt);
                 if (options.json) {
                     console.log(JSON.stringify({
-                        target: { id: result.agentId, name: result.agentName, provider: 'claude', mode: 'print' },
+                        target: { id: result.agentId, name: result.agentName, provider: 'claude', mode: AGENT_MODES.DURABLE },
                         response: result.result,
                         exitCode: result.exitCode,
                         sessionId: result.sessionId,
