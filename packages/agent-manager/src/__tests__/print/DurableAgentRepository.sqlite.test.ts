@@ -3,7 +3,7 @@ import os from 'os';
 import path from 'path';
 import Database from 'better-sqlite3';
 import { afterEach, describe, expect, it } from 'vitest';
-import { DurableAgentRepository } from '../../print/DurableAgentRepository.js';
+import { DurableAgentRepository } from '../../durable/DurableAgentRepository.js';
 
 const roots: string[] = [];
 afterEach(() => {

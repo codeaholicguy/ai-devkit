@@ -16,7 +16,7 @@ description: Implementation record, decisions, validation, and deviations
 
 ### Task 1.1
 
-- Added `packages/agent-manager/src/print/DurableAgent.ts` with the durable record, state, session health, last-result, active-run, and process-identity contracts.
+- Added `packages/agent-manager/src/durable/DurableAgent.ts` with the durable record, state, session health, last-result, active-run, and process-identity contracts.
 - Added classified durable-agent/repository/Claude errors that do not carry prompt content.
 - Exported the public contracts from `@ai-devkit/agent-manager`.
 

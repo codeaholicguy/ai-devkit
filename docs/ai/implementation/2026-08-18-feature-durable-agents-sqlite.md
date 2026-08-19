@@ -16,7 +16,7 @@ description: Implementation record for the durable-agent persistence backend
 ## Code Structure
 
 - `packages/agent-manager/src/database/`: connection behavior, schema runner, and migration SQL.
-- `packages/agent-manager/src/print/DurableAgentRepository.ts`: unchanged public adapter backed by SQLite.
+- `packages/agent-manager/src/durable/DurableAgentRepository.ts`: unchanged public adapter backed by SQLite.
 - `packages/agent-manager/src/__tests__/`: schema, store, concurrency, and integration coverage.
 
 ## Implementation Notes

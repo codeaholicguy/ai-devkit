@@ -44,7 +44,7 @@ export {
     DurableAgentRepositoryError,
     DurableAgentNameConflictError,
     ClaudePrintError,
-} from './print/DurableAgent.js';
+} from './durable/DurableAgent.js';
 export type {
     DurableAgent,
     DurableAgentState,
@@ -53,25 +53,25 @@ export type {
     DurableActiveRun,
     DurableLastResult,
     ProcessIdentity,
-} from './print/DurableAgent.js';
-export { DurableAgentRepository } from './print/DurableAgentRepository.js';
-export { LocalProcessInspector } from './print/DurableAgentRepository.js';
+} from './durable/DurableAgent.js';
+export { DurableAgentRepository } from './durable/DurableAgentRepository.js';
+export { LocalProcessInspector } from './durable/DurableAgentRepository.js';
 export type {
     CreateDurableAgentInput,
     DurableAgentRepositoryOptions,
     ProcessInspector,
     DurableRunCompletion,
-} from './print/DurableAgentRepository.js';
-export { ClaudeCliProbe } from './print/ClaudeCliProbe.js';
-export type { ClaudeCliProbeOptions } from './print/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './print/ClaudePrintRunner.js';
+} from './durable/DurableAgentRepository.js';
+export { ClaudeCliProbe } from './durable/ClaudeCliProbe.js';
+export type { ClaudeCliProbeOptions } from './durable/ClaudeCliProbe.js';
+export { ClaudePrintRunner } from './durable/ClaudePrintRunner.js';
 export type {
     ClaudePrintRunnerOptions,
     ClaudePrintRunRequest,
     ClaudePrintRunResult,
-} from './print/ClaudePrintRunner.js';
-export { ClaudePrintAgentService } from './print/ClaudePrintAgentService.js';
+} from './durable/ClaudePrintRunner.js';
+export { ClaudePrintAgentService } from './durable/ClaudePrintAgentService.js';
 export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
-} from './print/ClaudePrintAgentService.js';
+} from './durable/ClaudePrintAgentService.js';
