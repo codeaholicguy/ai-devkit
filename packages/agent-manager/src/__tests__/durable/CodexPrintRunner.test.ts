@@ -7,7 +7,7 @@ const SESSION = '22222222-2222-4222-8222-222222222222';
 
 function agent(providerSessionId: string | null = null): CodexDurableAgent {
     return {
-        id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'codex', mode: 'print',
+        id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'codex', mode: 'durable',
         cwd: '/project', providerSessionId, state: 'running', sessionHealth: 'uninitialized',
         createdAt: '', updatedAt: '', lastActiveAt: null, lastResult: null, activeRun: null,
     };

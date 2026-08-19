@@ -17,10 +17,10 @@ description: Ordered TDD work for durable Codex print agents
 
 ### Phase 1: Foundation
 
-- [ ] Task 1.1: Drive the discriminated `PrintAgent` union and provider-aware creation with failing store/domain tests.
-  - Outcome: Claude and Codex records coexist; legacy Claude files remain valid.
-  - Validation: focused `PrintAgent`/`PrintAgentStore` tests and typecheck.
-- [ ] Task 1.2: Drive `bindProviderSession` integrity behavior with failing tests.
+- [x] Task 1.1: Extend the discriminated `DurableAgent` union and provider-aware SQLite creation.
+  - Outcome: Claude and Codex records coexist in `durable_agents`; Codex begins unbound and no legacy import is added.
+  - Validation: focused `DurableAgentRepository` tests and typecheck.
+- [x] Task 1.2: Drive `bindProviderSession` integrity behavior with failing tests.
   - Outcome: token-owned atomic null-to-UUID binding, idempotence, mismatch and duplicate rejection.
   - Dependencies: Task 1.1.
   - Validation: focused store tests for every binding branch and persistence after failure.
@@ -66,7 +66,7 @@ Work proceeds sequentially through the approved lifecycle without a calendar com
 ## Risks & Mitigation
 
 - Orphan/forked sessions: bind on `thread.started`; never recover through `--last`.
-- Concurrent resume: reuse fail-fast per-agent locks and token ownership.
+- Concurrent resume: reuse SQLite `BEGIN IMMEDIATE` and token-owned CAS updates.
 - Protocol drift: capability probe, strict required events, tolerant unknown objects.
 - Secret leakage: stdin-only prompt, bounded/sanitized diagnostics, no transcript storage.
 - Regression: parallel provider modules plus focused and full existing suites.

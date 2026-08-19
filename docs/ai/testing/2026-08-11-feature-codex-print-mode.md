@@ -16,12 +16,12 @@ description: Offline TDD, protocol, integration, and compatibility validation
 
 ### Domain and store
 
-- [ ] Claude and Codex records coexist with provider-specific nullable invariants.
-- [ ] Provider-aware create gives Claude a UUID and Codex `null`/`uninitialized` without spawning.
-- [ ] Legacy Claude schema remains readable; malformed/provider-invalid records remain rejected.
-- [ ] Binding requires the owned run token, validates UUID, supports null-to-value and identical idempotence, and rejects replacement.
-- [ ] Duplicate non-null provider/session bindings are rejected across records; provider namespaces remain distinct.
-- [ ] Existing atomic writes, canonical cwd, concurrency, and stale-lock recovery remain green.
+- [x] Claude and Codex records coexist with provider-specific nullable invariants.
+- [x] Provider-aware create gives Claude a UUID and Codex `null`/`uninitialized` without spawning.
+- [x] Migration 003 persists Claude and Codex rows; malformed/provider-invalid records are rejected without legacy JSON import.
+- [x] Binding requires the owned run token, validates UUID, supports null-to-value and identical idempotence, and rejects replacement.
+- [x] Duplicate non-null provider/session bindings are rejected across records; provider namespaces remain distinct.
+- [x] Existing SQLite transactions, canonical cwd, CAS concurrency, and stale-run recovery remain green.
 
 ### Codex capability probe and errors
 
@@ -43,7 +43,7 @@ description: Offline TDD, protocol, integration, and compatibility validation
 - [x] First send binds during the owned run and completes healthy; second send resumes exact UUID.
 - [x] Session mismatch becomes degraded/mismatch; unsupported provider becomes degraded/unknown; no retry occurs.
 - [x] Start accepts Codex print and keeps omitted/explicit interactive behavior unchanged.
-- [x] List/detail render `Codex (print)` and `not started`; JSON provider comes from the record.
+- [x] List renders `Codex` with mode `durable`; detail renders `not started`; JSON provider comes from the record.
 - [x] Exact-ID precedence, cross-mode ambiguity, synchronous send, and excluded command behavior remain intact.
 
 ## Integration Tests
@@ -51,7 +51,7 @@ description: Offline TDD, protocol, integration, and compatibility validation
 - [x] Fake provider create invokes only version/help and creates no session.
 - [x] First send captures prompt from stdin, mints deterministic UUID, and persists binding before completion.
 - [x] Second send receives the identical UUID in explicit resume argv.
-- [x] Existing store tests cover concurrent send, stale lock recovery, and canonical cwd; Codex tests cover post-bind failure and session mismatch.
+- [x] Existing repository tests cover concurrent send, stale-run recovery, and canonical cwd; Codex tests cover post-bind failure and session mismatch.
 - [x] Claude print and interactive Codex regression suites remain green.
 
 ## End-to-End Tests
@@ -62,7 +62,7 @@ description: Offline TDD, protocol, integration, and compatibility validation
 
 ## Test Data
 
-`fake-codex.cjs` supports version/help, initial/resume syntax, deterministic UUID, stdin/argv/cwd capture, chunked and multiple events, delay/concurrency, secret stderr, non-zero exit, malformed/oversized/truncated streams, missing required events, mismatch, and pre/post-binding failures. Tests use temporary store/cwd paths and deterministic process/clock injections.
+`fake-codex.cjs` supports version/help, initial/resume syntax, deterministic UUID, stdin/argv/cwd capture, chunked and multiple events, delay/concurrency, secret stderr, non-zero exit, malformed/oversized/truncated streams, missing required events, mismatch, and pre/post-binding failures. Tests use temporary SQLite database/cwd paths and deterministic process/clock injections.
 
 ## Test Reporting & Coverage
 
@@ -78,7 +78,7 @@ No real Codex model run is permitted. Human inspection is limited to fake-provid
 ## Performance Testing
 
 - [x] Oversized output remains bounded.
-- [x] Concurrent lock contention fails promptly through the shared store suite.
+- [x] Concurrent SQLite/CAS contention fails promptly through the shared repository suite.
 - [x] Listing mixed records requires no provider process.
 
 ## Bug Tracking

@@ -1,5 +1,5 @@
 import { spawn as nodeSpawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'child_process';
-import type { DurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
+import type { ClaudeDurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
 import { ClaudePrintError } from '../../../durable/DurableAgent.js';
 import { LocalProcessInspector, type ProcessInspector } from '../../../durable/DurableAgentRepository.js';
 
@@ -10,7 +10,7 @@ type Spawn = (
 ) => ChildProcessWithoutNullStreams;
 
 export interface ClaudePrintRunRequest {
-    agent: DurableAgent;
+    agent: ClaudeDurableAgent;
     prompt: string;
     executable?: string;
     firstRun: boolean;

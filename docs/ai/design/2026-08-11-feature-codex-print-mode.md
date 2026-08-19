@@ -15,12 +15,12 @@ flowchart LR
   CLI[agent start/list/detail/send] --> Resolver[provider-aware print resolver]
   Resolver --> Claude[ClaudePrintAgentService]
   Resolver --> Codex[CodexPrintAgentService]
-  Claude --> Store[PrintAgentStore]
-  Codex --> Store
+  Claude --> Repository[DurableAgentRepository]
+  Codex --> Repository
   Codex --> Runner[CodexPrintRunner]
   Runner -->|prompt via stdin| Exec[codex exec process]
   Exec -->|JSONL thread/turn/item events| Runner
-  Runner -->|bind thread UUID during run| Store
+  Runner -->|bind thread UUID during run| Repository
   Exec --> Native[(Codex native session)]
 ```
 
@@ -29,13 +29,13 @@ Interactive adapters remain unchanged. No generic provider framework or persiste
 ## Data Models
 
 ```ts
-type PrintProvider = 'claude' | 'codex';
-type PrintAgent = ClaudePrintAgent | CodexPrintAgent;
+type DurableProvider = 'claude' | 'codex';
+type DurableAgent = ClaudeDurableAgent | CodexDurableAgent;
 
-interface PrintAgentBase {
+interface DurableAgentBase {
   id: string;
   name: string;
-  mode: 'print';
+  mode: 'durable';
   cwd: string;
   state: 'ready' | 'running' | 'degraded';
   sessionHealth: 'uninitialized' | 'healthy' | 'unknown' | 'mismatch';
@@ -46,27 +46,27 @@ interface PrintAgentBase {
   activeRun: PrintActiveRun | null;
 }
 
-interface ClaudePrintAgent extends PrintAgentBase {
+interface ClaudeDurableAgent extends DurableAgentBase {
   provider: 'claude';
   providerSessionId: string;
 }
 
-interface CodexPrintAgent extends PrintAgentBase {
+interface CodexDurableAgent extends DurableAgentBase {
   provider: 'codex';
   providerSessionId: string | null;
 }
 ```
 
-The store remains versioned. Its reader explicitly accepts the legacy Claude schema and the new discriminated schema, then validates provider-specific invariants. It rejects duplicate non-null `(provider, providerSessionId)` pairs.
+Migration 003 stores flattened records in SQLite's `durable_agents` table. The provider column is application-validated; nullable unique session IDs allow unbound Codex creation without a follow-up migration. No legacy JSON import exists.
 
 ## API Design
 
 ```ts
-create(input: { name: string; cwd: string; provider?: PrintProvider }): Promise<PrintAgent>;
-bindProviderSession(agentId: string, runToken: string, providerSessionId: string): Promise<PrintAgent>;
+create(input: { name: string; cwd: string; provider?: DurableProvider }): Promise<DurableAgent>;
+bindProviderSession(agentId: string, runToken: string, providerSessionId: string): Promise<DurableAgent>;
 
 interface CodexPrintRunRequest {
-  agent: CodexPrintAgent;
+  agent: CodexDurableAgent;
   prompt: string;
   executable?: string;
   onSpawn(identity: ProcessIdentity): Promise<void>;
@@ -74,14 +74,14 @@ interface CodexPrintRunRequest {
 }
 ```
 
-`bindProviderSession` rereads under the mutation lock, verifies active token ownership and UUID validity, permits only Codex null-to-value or same-value idempotence, checks global uniqueness, and atomically persists.
+`bindProviderSession` runs in `BEGIN IMMEDIATE`, verifies active-token ownership and UUID validity, permits only Codex null-to-value or same-value idempotence, relies on SQLite uniqueness, and uses a conditional update on `active_run_token`.
 
 Initial argv is `exec --json -`; resume argv is `exec resume --json UUID -`. The prompt never enters argv.
 
 ## Component Breakdown
 
-- `PrintAgent`: shared base and provider discriminants.
-- `PrintAgentStore`: provider-aware creation, strict migration, uniqueness, atomic binding, existing locking/reconciliation.
+- `DurableAgent`: shared base and provider discriminants with canonical `AGENT_MODES.DURABLE`.
+- `DurableAgentRepository`: provider-aware SQLite creation, uniqueness, CAS binding, and upstream reconciliation.
 - `CodexCliProbe`: non-model version/help capability checks.
 - `CodexPrintRunner`: safe spawn, process handshake, bounded JSONL parser, immediate session callback, assistant-result extraction.
 - `CodexPrintAgentService`: resolve → acquire → run → bind → complete, with provider-specific health classification.

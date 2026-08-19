@@ -18,7 +18,7 @@ describe('ClaudePrintAgentService', () => {
 
     it('runs first and resumed sends and records provider identity/results', async () => {
         const api = await import('../../index.js') as Record<string, unknown>;
-        const base = { id: 'id', name: 'reviewer', providerSessionId: 'session', sessionHealth: 'uninitialized' };
+        const base = { id: 'id', name: 'reviewer', provider: 'claude', providerSessionId: 'session', sessionHealth: 'uninitialized' };
         const repository = {
             resolve: vi.fn().mockResolvedValue(base),
             acquireRun: vi.fn()

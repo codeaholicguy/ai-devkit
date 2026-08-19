@@ -20,8 +20,8 @@ description: Implementation record, decisions, validation, and deviations
 
 ## Code Structure
 
-- `packages/agent-manager/src/print`: shared durable store plus parallel Claude/Codex probe, runner, service, and errors.
-- `packages/agent-manager/src/__tests__/print`: unit/service/integration tests.
+- `packages/agent-manager/src/durable`: shared SQLite repository plus parallel Claude/Codex probe, runner, service, and errors.
+- `packages/agent-manager/src/__tests__/durable`: Codex unit/service/integration and repository-binding tests.
 - `packages/agent-manager/src/__tests__/fixtures/fake-codex.cjs`: executable provider fixture.
 - `packages/cli/src/commands/agent.ts` and CLI tests: provider-aware routing/rendering.
 
@@ -49,14 +49,14 @@ TDD red: Codex fixture execution and two CLI routing tests failed before executa
 ### Tasks 4.1–4.3
 
 - Hardened runner callback/process error classification and probe recognition of the standalone stdin dash token.
-- Replaced new version-1 writes with version 2 and added a strict Claude-only version-1 compatibility reader; malformed or version-1 Codex records are rejected.
+- Rebased onto migration 003's SQLite `durable_agents` table and removed all legacy JSON import/versioning assumptions.
 - Reviewed all changed files against requirements/design and traced CLI/service/store call sites. No blocking security, compatibility, or integration findings remain.
 
-TDD red/green evidence includes the standalone-dash false-positive probe test, child-process error classification test, and explicit version-1-to-version-2 migration test.
+TDD red/green evidence includes the standalone-dash false-positive probe test, child-process error classification test, and SQLite token-owned binding tests.
 
 ## Integration Points
 
-- The existing print store remains the single durable mapping and exclusion authority.
+- `DurableAgentRepository` remains the single SQLite mapping and exclusion authority.
 - CLI start selects probe/service by requested type; send selects by persisted record provider.
 - Runner callbacks persist provider process identity before stdin and provider session identity on `thread.started`.
 
@@ -70,7 +70,7 @@ TDD red/green evidence includes the standalone-dash false-positive probe test, c
 
 - Each send spawns one process; no idle process or server is retained.
 - JSONL line buffering, stderr capture, and stored summaries are bounded.
-- Store mutation locks are short-lived; the per-agent lock spans the provider run.
+- SQLite transactions are short-lived; `active_run_token` CAS ownership spans the provider run.
 
 ## Security Notes
 
