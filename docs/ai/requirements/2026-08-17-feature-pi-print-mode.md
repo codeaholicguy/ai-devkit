@@ -36,7 +36,7 @@ Non-goals:
 
 ## Success Criteria
 
-- `--type pi --mode print` creates a persisted `provider: "pi"` print agent with an initially unbound provider session.
+- `--type pi --mode print` creates a persisted durable `provider: "pi"` agent with a repository-assigned provider session UUID.
 - First send invokes `pi --mode json`, extracts and stores the session header UUID, and returns the final assistant text.
 - Later sends invoke `pi --mode json --session <uuid>` and reject a different emitted UUID.
 - Pi agents participate in existing list/detail/send/console flows and provider-specific dispatch.
@@ -58,7 +58,7 @@ Non-goals:
 - `pi -p`: simple text output but does not expose the new session UUID reliably; rejected.
 - Discover the session file after execution: races with other Pi processes and couples to filesystem layout; rejected.
 - `pi --mode rpc`: designed for a long-lived controller and adds unnecessary lifecycle complexity; rejected.
-- `pi --mode json` with late binding: deterministic structured identity and events using the documented CLI; selected.
+- `pi --mode json --session-id <uuid>`: deterministic structured identity using the repository-assigned UUID; selected.
 
 ## Questions & Open Items
 
