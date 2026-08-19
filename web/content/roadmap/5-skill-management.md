@@ -4,4 +4,4 @@ status: completed
 order: 5
 ---
 
-Stop copy-pasting prompts and scripts between projects. Skill Management will provide a centralized registry to version, install, and share your custom AI capabilities (like specific refactoring workflows or testing patterns) across all your projects and teams with a single command.
+Skill Management provides registries for discovering, installing, updating, and sharing reusable AI capabilities across projects. You can register project or global sources with `skill add-registry`, update every cached registry or one selected registry with `skill update [registry-id]`, and list, install, or remove skills in project and global agent locations.

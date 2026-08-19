@@ -29,7 +29,7 @@ ai-devkit agent console
 The console has two main areas:
 
 1. **Agent list**: shows detected agents, status, name, agent type, recent summary or project path, and a `remote` marker when a channel bridge is connected.
-2. **Preview pane**: shows the selected agent's recent conversation, metadata, project path, and connected channel name when one is active.
+2. **Preview pane**: shows the selected agent's recent conversation with Markdown formatting, metadata, project path, and connected channel name when one is active.
 
 On narrow terminals, the console hides the preview pane. Resize the terminal wider to show both panes.
 
@@ -39,13 +39,17 @@ Press `h` inside the console to show the built-in help panel.
 
 | Key | Action |
 |-----|--------|
+| `/` | Filter agents by name; press `Esc` to clear the filter |
 | `j` / `Down` | Select next agent |
 | `k` / `Up` | Select previous agent |
 | `s` | Start a new managed agent |
 | `r` | Rename the selected agent |
+| `p` | Pin or unpin the selected agent |
 | `c` | Start a Telegram channel for the selected agent |
 | `C` | Stop the selected agent's Telegram channel |
+| `M` | Show or hide the recent-memory pane |
 | `o` | Open the selected agent terminal |
+| `v` | Focus the selected agent's detail/chat pane |
 | `i` / `m` | Message the selected agent |
 | `K` | Kill the selected agent |
 | `h` | Show or hide the help panel |
@@ -61,7 +65,9 @@ Start the console from any terminal to coordinate local multi-agent coding work:
 ai-devkit agent console
 ```
 
-Use `j` and `k` to move between agents. The preview pane updates as you select agents.
+Use `j` and `k` to move between agents. The preview pane updates as you select agents and renders common Markdown formatting. Press `/` to filter the list by agent name; press `Esc` to clear the filter. Press `p` to pin or unpin an agent. Pinned agents are grouped at the top of the list.
+
+Press `v` to focus the detail/chat pane, then use `j` and `k` to scroll. Press `Esc` or `Left` to return to the agent list. Press `M` to toggle a read-only list of recent memory items.
 
 ### Send a Message
 
@@ -85,8 +91,11 @@ Supported start types:
 |------|-------|
 | `claude` | Claude Code |
 | `codex` | Codex |
+| `copilot` | GitHub Copilot |
 | `gemini_cli` | Gemini CLI |
+| `grok_cli` | Grok CLI |
 | `opencode` | opencode |
+| `pi` | Pi |
 
 Starting an agent from the console uses a managed tmux session. If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 
