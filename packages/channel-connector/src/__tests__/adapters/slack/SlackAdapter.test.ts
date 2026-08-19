@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
-import { SlackAdapter, validateSlackAppToken, validateSlackCredentials } from '../../adapters/SlackAdapter.js';
-import type { SlackConfig } from '../../types.js';
+import { SlackAdapter, validateSlackAppToken, validateSlackCredentials } from '../../../adapters/slack/SlackAdapter.js';
+import type { SlackConfig } from '../../../types.js';
 
 class FakeSocketClient extends EventEmitter {
     start = vi.fn().mockResolvedValue(undefined);

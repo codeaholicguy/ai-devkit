@@ -8,7 +8,7 @@ import {
     SLACK_CHANNEL_TYPE,
     validateSlackAppToken,
     validateSlackCredentials,
-    ConfigStore,
+    ChannelConfigRepository,
     type ChannelEntry,
     type SlackConfig,
     type TelegramConfig,
@@ -72,7 +72,7 @@ export function registerChannelCommand(program: Command): void {
             }
 
             const channelName = channelService.resolveConnectChannelName(options.name);
-            const configStore = new ConfigStore();
+            const configStore = new ChannelConfigRepository();
             const existing = await configStore.getChannel(channelName);
 
             if (type === SLACK_CHANNEL_TYPE) {
@@ -170,7 +170,7 @@ export function registerChannelCommand(program: Command): void {
         .command('list')
         .description('List configured channels')
         .action(withErrorHandler('list channels', async () => {
-            const configStore = new ConfigStore();
+            const configStore = new ChannelConfigRepository();
             const config = await configStore.getConfig();
             const channels = Object.entries(config.channels);
             const liveBridges = await channelService.getLiveBridges();
@@ -212,7 +212,7 @@ export function registerChannelCommand(program: Command): void {
         .description('Remove a channel configuration')
         .action(withErrorHandler('disconnect channel', async (name: string) => {
             const channelName = channelService.resolveConnectChannelName(name);
-            const configStore = new ConfigStore();
+            const configStore = new ChannelConfigRepository();
             const existing = await configStore.getChannel(channelName);
 
             if (!existing) {
@@ -242,8 +242,8 @@ export function registerChannelCommand(program: Command): void {
                 enableDebug();
             }
 
-            const configStore = new ConfigStore();
-            debug('Loading channel configuration from ConfigStore');
+            const configStore = new ChannelConfigRepository();
+            debug('Loading channel configuration from ChannelConfigRepository');
             const config = await configStore.getConfig();
             const channelName = channelService.resolveStartChannelName(config, name);
             debug(`Starting channel bridge: channel=${channelName}, agent=${options.agent}`);
@@ -319,7 +319,7 @@ export function registerChannelCommand(program: Command): void {
         .command('status [name]')
         .description('Show channel bridge status')
         .action(withErrorHandler('channel status', async (name: string | undefined) => {
-            const configStore = new ConfigStore();
+            const configStore = new ChannelConfigRepository();
             const config = await configStore.getConfig();
             const channelFilter = name ? channelService.resolveConnectChannelName(name) : undefined;
             const channels = Object.entries(config.channels)

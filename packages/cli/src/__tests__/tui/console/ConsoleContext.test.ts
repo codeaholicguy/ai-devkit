@@ -3,7 +3,7 @@ import React from 'react';
 import { render, Text } from 'ink';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { AgentManager } from '@ai-devkit/agent-manager';
-import type { ConfigStore } from '@ai-devkit/channel-connector';
+import type { ChannelConfigRepository } from '@ai-devkit/channel-connector';
 import type { ChannelService } from '../../../services/channel/channel.service.js';
 import {
     ConsoleProvider,
@@ -32,7 +32,7 @@ describe('ConsoleProvider subscriptions', () => {
         } as unknown as ChannelService;
         const configStore = {
             getConfig: vi.fn().mockResolvedValue({ channels: {} }),
-        } as unknown as ConfigStore;
+        } as unknown as ChannelConfigRepository;
         let agentConsumerRenders = 0;
         let agentListLoading = true;
         const AgentOnlyConsumer = () => {
@@ -85,7 +85,7 @@ describe('ConsoleProvider subscriptions', () => {
         } as unknown as ChannelService;
         const configStore = {
             getConfig: vi.fn().mockResolvedValue({ channels: {} }),
-        } as unknown as ConfigStore;
+        } as unknown as ChannelConfigRepository;
         const output = new PassThrough();
         const renderProvider = (paused: boolean) => React.createElement(
             ConsoleProvider,

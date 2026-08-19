@@ -1,7 +1,7 @@
 import * as telegrafModule from 'telegraf';
-import * as telegramHtml from '../../utils/telegramHtml.js';
-import { TelegramAdapter } from '../../adapters/TelegramAdapter.js';
-import type { IncomingMessage } from '../../types.js';
+import * as telegramHtml from '../../../adapters/telegram/telegramHtml.js';
+import { TelegramAdapter } from '../../../adapters/telegram/TelegramAdapter.js';
+import type { IncomingMessage } from '../../../types.js';
 
 // Mock telegraf
 vi.mock('telegraf', () => {
