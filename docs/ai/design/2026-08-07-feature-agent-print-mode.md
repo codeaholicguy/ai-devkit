@@ -260,7 +260,7 @@ sequenceDiagram
     participant C as CLI
     participant P as Capability Probe
     participant S as Print Store
-    U->>C: agent start --type claude --mode print
+    U->>C: agent start --type claude --mode durable
     C->>C: validate name and realpath(cwd)
     C->>P: --version and --help
     P-->>C: required flags present

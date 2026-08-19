@@ -264,7 +264,7 @@ export function registerAgentCommand(program: Command): void {
         .command('start')
         .description('Start a new agent in a managed tmux session')
         .requiredOption('--type <type>', `Agent type: ${Object.keys(AGENTS).join(', ')}`)
-        .option('--mode <mode>', 'Agent mode: interactive or print', 'interactive')
+        .option('--mode <mode>', 'Agent mode: interactive or durable', 'interactive')
         .option('--name <name>', 'Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})')
         .option('--cwd <path>', 'Working directory for the agent (default: current directory)')
         .option('--debug', 'Enable debug logging')
@@ -281,12 +281,12 @@ export function registerAgentCommand(program: Command): void {
                 ui.error(`Unsupported agent type "${agentType}". Supported: ${Object.keys(AGENTS).join(', ')}.`);
                 process.exit(1);
             }
-            if (!['interactive', 'print'].includes(mode)) {
-                throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, print.`);
+            if (!['interactive', 'durable'].includes(mode)) {
+                throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, durable.`);
             }
-            const internalMode = mode === 'print' ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
+            const internalMode = mode === 'durable' ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
             if (internalMode === AGENT_MODES.DURABLE && agentType !== 'claude') {
-                throw new Error('Print mode currently supports only --type claude.');
+                throw new Error('Durable mode currently supports only --type claude.');
             }
             if (!NAME_REGEX.test(agentName)) {
                 ui.error(
@@ -637,7 +637,7 @@ export function registerAgentCommand(program: Command): void {
                     const liveAgents = await manager.listAgents();
                     const liveExact = liveAgents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
                     if (liveExact.length > 0) {
-                        throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the durable agent ID.`);
+                        throw new Error(`Agent name "${options.id}" is ambiguous across interactive and durable modes. Use the durable agent ID.`);
                     }
                 }
                 const result = await durableService.send(options.id, prompt);
@@ -721,7 +721,7 @@ export function registerAgentCommand(program: Command): void {
             if (durableResolved) {
                 const liveExact = agents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
                 if (options.id !== durableResolved.id && liveExact.length > 0) {
-                    throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the durable agent ID.`);
+                    throw new Error(`Agent name "${options.id}" is ambiguous across interactive and durable modes. Use the durable agent ID.`);
                 }
                 if (options.json) {
                     console.log(JSON.stringify(durableResolved, null, 2));
@@ -733,7 +733,7 @@ export function registerAgentCommand(program: Command): void {
                 ui.text(`  ${chalk.bold('Session ID:')}  ${durableResolved.providerSessionId}`);
                 ui.text(`  ${chalk.bold('Name:')}        ${durableResolved.name}`);
                 ui.text(`  ${chalk.bold('Provider:')}    Claude Code`);
-                ui.text(`  ${chalk.bold('Mode:')}        print`);
+                ui.text(`  ${chalk.bold('Mode:')}        durable`);
                 ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(durableResolved.cwd)}`);
                 ui.text(`  ${chalk.bold('State:')}       ${durableResolved.state}`);
                 ui.text(`  ${chalk.bold('Session:')}     ${durableResolved.sessionHealth}`);

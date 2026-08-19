@@ -54,13 +54,13 @@ ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 
 `--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `opencode`, or `pi`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
 
-The default `--mode interactive` starts the agent in tmux. Claude also supports a durable print mode that keeps a named agent available without an interactive terminal:
+The default `--mode interactive` starts the agent in tmux. Claude also supports a durable mode that keeps a named agent available without an interactive terminal:
 
 ```bash
-ai-devkit agent start --type claude --mode print --name backend --cwd ./packages/backend
+ai-devkit agent start --type claude --mode durable --name backend --cwd ./packages/backend
 ```
 
-Print mode currently supports only `--type claude`.
+Durable mode currently supports only `--type claude`.
 
 ### List Agents
 

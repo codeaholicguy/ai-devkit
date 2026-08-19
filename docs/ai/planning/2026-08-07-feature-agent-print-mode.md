@@ -60,7 +60,7 @@ Every production behavior follows strict red → green → refactor. After each 
 ### Phase 3: CLI integration
 
 - [x] Task 3.1: Add print mode to `agent start` without changing interactive defaults.
-  - Outcome: `--mode interactive|print`, Claude-only validation, correct output, and existing tmux path unchanged.
+  - Outcome: `--mode interactive|durable`, Claude-only validation, correct output, and existing tmux path unchanged.
   - Dependencies: Task 2.3.
   - Validation: command tests for omitted/interactive/print/invalid combinations.
   - Scenarios: CLI start tests.

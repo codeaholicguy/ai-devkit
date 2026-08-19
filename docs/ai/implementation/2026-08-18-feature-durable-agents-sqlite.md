@@ -27,7 +27,7 @@ description: Implementation record for the durable-agent persistence backend
 - Added `dbPath` and readonly store options. Legacy timing options remain accepted but unused with TypeScript and README deprecations.
 - Implemented acquisition with process inspection outside `BEGIN IMMEDIATE`, transaction reread, and conditional claim. Provider recording and completion require `(id, token)`; recovery/reconciliation also compare the observed owner/run start identity.
 - Kept writable `list()` reconciliation behavior while readonly `list()` performs only a query.
-- Standardized the unreleased domain API on `DurableAgent*`, including files, store options, run/result types, error classes/codes, CLI references, tests, and documentation. Claude-specific print-provider class names and the `--mode print` mechanism remain unchanged.
+- Standardized the unreleased domain API on `DurableAgent*`, including files, store options, run/result types, error classes/codes, CLI references, tests, and documentation. Claude-specific print-provider class names remain unchanged, while the user-facing CLI mode is `--mode durable`.
 
 ## Integration Points
 
