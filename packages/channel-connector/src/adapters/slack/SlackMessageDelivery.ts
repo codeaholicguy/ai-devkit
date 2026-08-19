@@ -1,4 +1,4 @@
-import type { SentMessage } from '../types.js';
+import type { SentMessage } from '../../types.js';
 import { chunkMarkdownForSlack, SLACK_MAX_MESSAGE_LENGTH } from './slackMarkdown.js';
 
 interface SlackPoster {
@@ -27,7 +27,7 @@ interface ConversationState {
 const defaultSleep = (milliseconds: number): Promise<void> =>
     new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-export class SlackDeliveryQueue {
+export class SlackMessageDelivery {
     private readonly states = new Map<string, ConversationState>();
     private readonly maxMessageLength: number;
     private readonly maxQueueSize: number;
@@ -42,7 +42,7 @@ export class SlackDeliveryQueue {
     async send(channel: string, markdown: string): Promise<SentMessage> {
         const state = this.states.get(channel) ?? { tail: Promise.resolve(), pending: 0 };
         if (state.pending >= this.maxQueueSize) {
-            throw new Error('Slack delivery queue is full');
+            throw new Error('Slack message delivery queue is full');
         }
         state.pending += 1;
         this.states.set(channel, state);

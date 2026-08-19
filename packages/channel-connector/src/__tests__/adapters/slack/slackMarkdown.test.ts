@@ -2,7 +2,7 @@ import {
     SLACK_MAX_MESSAGE_LENGTH,
     chunkMarkdownForSlack,
     markdownToSlackMrkdwn,
-} from '../../utils/slackMarkdown.js';
+} from '../../../adapters/slack/slackMarkdown.js';
 
 describe('Slack Markdown', () => {
     it('renders common Markdown without activating broad mentions', () => {

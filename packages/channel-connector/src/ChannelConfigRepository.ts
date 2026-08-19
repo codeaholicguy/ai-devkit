@@ -11,7 +11,7 @@ const DEFAULT_CONFIG: ChannelConfig = { channels: {} };
  * Default location: ~/.ai-devkit/channels.json
  * File permissions are set to 0600 to protect tokens.
  */
-export class ConfigStore {
+export class ChannelConfigRepository {
     private configPath: string;
 
     constructor(configPath?: string) {

@@ -18,7 +18,7 @@ import {
 import {
     ChannelManager,
     type ChannelAdapter,
-    ConfigStore,
+    ChannelConfigRepository,
     SlackAdapter,
     TelegramAdapter,
     SLACK_CHANNEL_TYPE,
@@ -38,7 +38,7 @@ const AGENT_POLL_INTERVAL_MS = 2000;
 export interface RunChannelBridgeInput {
     channelName: string;
     agentName: string;
-    configStore?: ConfigStore;
+    configStore?: ChannelConfigRepository;
     channelService?: ChannelService;
 }
 
@@ -277,7 +277,7 @@ function setupGracefulShutdown(
 }
 
 export async function runChannelBridge(input: RunChannelBridgeInput): Promise<void> {
-    const configStore = input.configStore ?? new ConfigStore();
+    const configStore = input.configStore ?? new ChannelConfigRepository();
     const channelService = input.channelService ?? new ChannelService();
 
     debug(`Starting channel bridge: channel=${input.channelName}, agent=${input.agentName}`);

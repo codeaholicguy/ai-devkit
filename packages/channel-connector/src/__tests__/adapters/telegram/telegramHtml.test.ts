@@ -1,4 +1,4 @@
-import { markdownToTelegramHtml } from '../../utils/telegramHtml.js';
+import { markdownToTelegramHtml } from '../../../adapters/telegram/telegramHtml.js';
 
 describe('markdownToTelegramHtml', () => {
     it('renders bold, italic, strikethrough', () => {

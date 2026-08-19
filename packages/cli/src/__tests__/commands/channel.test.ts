@@ -66,7 +66,7 @@ const mockChannelService = {
 
 vi.mock('@ai-devkit/channel-connector', () => ({
     ChannelManager: vi.fn(function () { return mockChannelManager; }),
-    ConfigStore: vi.fn(function () { return mockConfigStore; }),
+    ChannelConfigRepository: vi.fn(function () { return mockConfigStore; }),
     TelegramAdapter: vi.fn(function () { return mockTelegramAdapter; }),
     TELEGRAM_CHANNEL_TYPE: 'telegram',
     SLACK_CHANNEL_TYPE: 'slack',

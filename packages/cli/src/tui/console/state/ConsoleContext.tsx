@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import type { AgentManager } from '@ai-devkit/agent-manager';
-import { ConfigStore } from '@ai-devkit/channel-connector';
+import { ChannelConfigRepository } from '@ai-devkit/channel-connector';
 import { ChannelService } from '../../../services/channel/channel.service.js';
 import { useAgentList, type UseAgentListResult } from '../hooks/useAgentList.js';
 import {
@@ -47,7 +47,7 @@ interface ConsoleProviderProps {
     manager: AgentManager;
     inputFocused: boolean;
     channelService?: ChannelService;
-    configStore?: ConfigStore;
+    configStore?: ChannelConfigRepository;
     children: React.ReactNode;
 }
 

@@ -1,15 +1,15 @@
 import { SocketModeClient } from '@slack/socket-mode';
 import { WebClient } from '@slack/web-api';
-import type { InteractiveChannelAdapter } from './ChannelAdapter.js';
+import type { InteractiveChannelAdapter } from '../ChannelAdapter.js';
 import type {
     ChannelQuestion,
     IncomingInteraction,
     IncomingMessage,
     SentMessage,
     SlackConfig,
-} from '../types.js';
-import { SlackDeliveryQueue } from '../utils/SlackDeliveryQueue.js';
-import { escapeSlackText } from '../utils/slackMarkdown.js';
+} from '../../types.js';
+import { SlackMessageDelivery } from './SlackMessageDelivery.js';
+import { buildSlackQuestionMessage } from './slackQuestion.js';
 
 export const SLACK_CHANNEL_TYPE = 'slack';
 
@@ -83,7 +83,7 @@ export class SlackAdapter implements InteractiveChannelAdapter {
     readonly type = SLACK_CHANNEL_TYPE;
     private readonly socket: SocketClientLike;
     private readonly web: WebClientLike;
-    private readonly delivery: SlackDeliveryQueue;
+    private readonly delivery: SlackMessageDelivery;
     private readonly recentEventIds = new Map<string, number>();
     private messageHandler: ((message: IncomingMessage) => Promise<void>) | null = null;
     private interactionHandler: ((interaction: IncomingInteraction) => Promise<void>) | null = null;
@@ -93,7 +93,7 @@ export class SlackAdapter implements InteractiveChannelAdapter {
     constructor(private readonly config: SlackConfig, dependencies: SlackAdapterDependencies = {}) {
         this.socket = dependencies.socketClient ?? new SocketModeClient({ appToken: config.appToken });
         this.web = dependencies.webClient ?? new WebClient(config.botToken) as unknown as WebClientLike;
-        this.delivery = new SlackDeliveryQueue({
+        this.delivery = new SlackMessageDelivery({
             postMessage: (input) => this.web.chat.postMessage(input),
         });
     }
@@ -136,30 +136,7 @@ export class SlackAdapter implements InteractiveChannelAdapter {
     }
 
     async sendQuestion(chatId: string, question: ChannelQuestion): Promise<SentMessage> {
-        const fallback = escapeSlackText(`${question.header ? `${question.header}: ` : ''}${question.question}`);
-        const elements = question.options.map((option) => ({
-            type: 'button',
-            action_id: 'ai_devkit_question',
-            text: { type: 'plain_text', text: option.label.slice(0, 75) },
-            value: `${question.id}:${option.value}`.slice(0, 2000),
-        }));
-        if (question.allowSkip) {
-            elements.push({
-                type: 'button', action_id: 'ai_devkit_question',
-                text: { type: 'plain_text', text: 'Skip' }, value: `${question.id}:skip`,
-            });
-        }
-        const response = await this.web.chat.postMessage({
-            channel: chatId,
-            text: fallback,
-            blocks: [
-                {
-                    type: 'section',
-                    text: { type: 'mrkdwn', text: `*${escapeSlackText(question.header ?? 'Question')}*\n${escapeSlackText(question.question)}` },
-                },
-                { type: 'actions', elements },
-            ],
-        });
+        const response = await this.web.chat.postMessage(buildSlackQuestionMessage(chatId, question));
         if (!response.ts) throw new Error('Slack did not return a question message timestamp');
         return { messageId: response.ts };
     }

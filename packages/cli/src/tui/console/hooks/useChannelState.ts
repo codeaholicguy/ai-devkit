@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ConfigStore, type ChannelConfig, type TelegramConfig } from '@ai-devkit/channel-connector';
+import { ChannelConfigRepository, type ChannelConfig, type TelegramConfig } from '@ai-devkit/channel-connector';
 import { ChannelService, type ChannelBridgeProcess } from '../../../services/channel/channel.service.js';
 import type { AgentChannelStatusMap, ConfiguredChannel } from '../types.js';
 
@@ -69,12 +69,12 @@ export function configuredChannelsEqual(a: ConfiguredChannel[], b: ConfiguredCha
 
 export function useChannelState(
     channelService?: ChannelService,
-    configStore?: ConfigStore,
+    configStore?: ChannelConfigRepository,
     intervalMs = 3000,
     paused = false,
 ): UseChannelStateResult {
     const serviceRef = useRef<ChannelService>(channelService ?? new ChannelService());
-    const configStoreRef = useRef<ConfigStore>(configStore ?? new ConfigStore());
+    const configStoreRef = useRef<ChannelConfigRepository>(configStore ?? new ChannelConfigRepository());
     const [channelStatuses, setChannelStatuses] = useState<AgentChannelStatusMap>({});
     const [configuredChannels, setConfiguredChannels] = useState<ConfiguredChannel[]>([]);
 

@@ -1,19 +1,19 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { ConfigStore } from '../ConfigStore.js';
+import { ChannelConfigRepository } from '../ChannelConfigRepository.js';
 import { isSlackEntry } from '../types.js';
 import type { ChannelEntry } from '../types.js';
 
-describe('ConfigStore', () => {
+describe('ChannelConfigRepository', () => {
     let tmpDir: string;
     let configPath: string;
-    let store: ConfigStore;
+    let store: ChannelConfigRepository;
 
     beforeEach(() => {
         tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'channel-connector-test-'));
         configPath = path.join(tmpDir, 'channels.json');
-        store = new ConfigStore(configPath);
+        store = new ChannelConfigRepository(configPath);
     });
 
     afterEach(() => {
@@ -48,7 +48,7 @@ describe('ConfigStore', () => {
 
     describe('constructor', () => {
         it('should use default path when no configPath provided', async () => {
-            const defaultStore = new ConfigStore();
+            const defaultStore = new ChannelConfigRepository();
             // Should not throw — just uses default path
             const config = await defaultStore.getConfig();
             expect(config).toBeDefined();
@@ -95,7 +95,7 @@ describe('ConfigStore', () => {
 
         it('should create parent directory if missing', async () => {
             const nestedPath = path.join(tmpDir, 'nested', 'dir', 'channels.json');
-            const nestedStore = new ConfigStore(nestedPath);
+            const nestedStore = new ChannelConfigRepository(nestedPath);
 
             await nestedStore.saveChannel('telegram', sampleEntry);
 
