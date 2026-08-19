@@ -8,7 +8,7 @@ order: 13
 > ⚠️ **WARNING**
 > This feature is currently **experimental**. It requires an interactive terminal and depends on the same local agent detection used by [Agent Management](/docs/8-agent-management).
 
-The `agent console` command opens an interactive terminal UI for working with multiple AI agents at once. Use it when you want a multi-agent control room for monitoring active sessions, sending quick messages, starting managed agents, renaming or stopping agents, and connecting Telegram channels without switching between several terminal windows.
+The `agent console` command opens an interactive terminal UI for working with multiple AI agents at once. Use it when you want a multi-agent control room for monitoring active sessions, sending quick messages, starting managed agents, renaming or stopping agents, and connecting configured messaging channels without switching between several terminal windows.
 
 ```bash
 ai-devkit agent console
@@ -22,7 +22,7 @@ ai-devkit agent console
 - **An interactive terminal**: `agent console` requires a TTY
 - **Supported agent tools** installed for the workflows you want to use, such as Claude Code, Codex, Gemini CLI, or opencode
 - **tmux** installed if you want to start or kill managed agents from the console
-- **A configured Telegram channel** if you want to start remote channel bridges from the console (see [Channel](/docs/12-channel))
+- **A configured Telegram or Slack channel** if you want to start remote channel bridges from the console (see [Channel](/docs/12-channel))
 
 ## What the Console Shows
 
@@ -123,12 +123,13 @@ Managed agents started through AI DevKit are stopped together with their tmux se
 
 ## Channel Controls
 
-The console can start and stop Telegram channel bridges for the selected agent.
+The console can start and stop configured Telegram or Slack channel bridges for the selected agent.
 
 First configure a channel:
 
 ```bash
 ai-devkit channel connect telegram
+# or: ai-devkit channel connect slack --name work-slack
 ```
 
 Then open the console:
@@ -165,6 +166,7 @@ Run:
 
 ```bash
 ai-devkit channel connect telegram
+# or: ai-devkit channel connect slack --name work-slack
 ```
 
 Then reopen the channel picker with `c`.
