@@ -56,7 +56,7 @@ npx ai-devkit@latest init
 npx ai-devkit@latest lint
 ```
 
-Then install the built-in skills. This includes `dev-lifecycle`, all phase skills, and supporting skills such as `memory`, `verify`, and `tdd`:
+Then install the built-in skills. This includes `dev-lifecycle`, all phase skills, and supporting skills such as `memory`, `task`, `verify`, and `tdd`:
 
 ```bash
 npx ai-devkit@latest skill add --built-in
@@ -66,6 +66,7 @@ These phase and supporting skills make `dev-lifecycle` effective:
 
 - `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, and `dev-review` contain the focused lifecycle guidance
 - `memory` helps the agent reuse project context across sessions
+- `task` tracks durable lifecycle and debugging progress when the optional `@ai-devkit/task-manager` plugin is installed
 - `verify` helps the agent prove work is complete with fresh evidence
 - `tdd` helps the agent write tests before or alongside implementation
 

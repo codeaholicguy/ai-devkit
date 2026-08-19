@@ -15,7 +15,7 @@ These tools take different paths to fix that.
 | **Install** | `npm install -g ai-devkit` | Agent-specific setup guide (see official repository) |
 | **Approach** | One operating model across agents: config, memory, communication, workflow skills, and verification | Behavior focused: process instructions injected into agent prompts |
 | **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
-| **Skills** | Built-in core skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
+| **Skills** | Built-in core skills (`dev-lifecycle`, `structured-debug`, `simplify-implementation`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
 | **Agents supported** | Broad setup support across Cursor, Claude Code, Codex, Copilot, Gemini CLI, opencode, Antigravity, and others | 4 (Claude Code, Cursor, Codex, opencode) |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
 | **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
@@ -84,7 +84,7 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 ### Skills and Extensibility
 
-**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `debug`, `simplify-implementation`, `document-code`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
+**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `structured-debug`, `simplify-implementation`, `document-code`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
 
 **Superpowers** comes with 14 built-in skills that form one cohesive methodology. There is a `writing-skills` skill for contributing new skills, but the system is more monolithic, with skills designed to work together in one workflow.
 
