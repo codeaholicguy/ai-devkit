@@ -54,6 +54,9 @@ export class ClaudePrintAgentService {
         }
         const acquired = await this.repository.acquireRun(resolved.id);
         try {
+            if (acquired.agent.provider !== 'claude') {
+                throw new ClaudePrintError('Durable agent provider is not Claude.', 'CLAUDE_PRINT_UNSUPPORTED');
+            }
             const result = await this.runner.run({
                 agent: acquired.agent,
                 prompt,

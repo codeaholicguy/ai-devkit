@@ -276,9 +276,9 @@ export class DurableAgentRepository {
             },
             startedAt: row.active_run_started_at!,
         };
-        return {
+        const base = {
             id: row.id, name: row.name, provider: row.provider, mode: row.mode, cwd: row.cwd,
-            providerSessionId: row.provider_session_id, state: row.state, sessionHealth: row.session_health,
+            state: row.state, sessionHealth: row.session_health,
             createdAt: row.created_at, updatedAt: row.updated_at, lastActiveAt: row.last_active_at,
             lastResult: row.last_result_status === null ? null : {
                 status: row.last_result_status, completedAt: row.last_result_completed_at!,
@@ -286,6 +286,9 @@ export class DurableAgentRepository {
             },
             activeRun,
         };
+        return row.provider === 'claude'
+            ? { ...base, provider: 'claude', providerSessionId: row.provider_session_id! }
+            : { ...base, provider: 'codex', providerSessionId: row.provider_session_id };
     }
 
     private canonicalDirectory(input: string): string {

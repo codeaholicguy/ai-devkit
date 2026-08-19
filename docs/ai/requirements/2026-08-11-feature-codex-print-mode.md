@@ -25,7 +25,7 @@ AI DevKit supports durable Claude print agents, but Codex agents still require a
 - Create the logical record without a model run or invented provider UUID.
 - On first send, run `codex exec --json -`, capture `thread.started.thread_id`, and bind it atomically during the owned run.
 - On later sends, run `codex exec resume --json <uuid> -` and require the emitted UUID to match.
-- Reuse durable state, atomic persistence, fail-fast locking, stale recovery, canonical cwd binding, safe process identity, and bounded results.
+- Reuse SQLite durable state, CAS ownership, stale recovery, canonical cwd binding, safe process identity, and bounded results.
 - Pass prompts only through stdin and validate Codex capabilities without a model call.
 - Keep print agents visible in human and JSON list/detail output.
 
@@ -48,8 +48,8 @@ AI DevKit supports durable Claude print agents, but Codex agents still require a
 
 ### Domain and persistence
 
-- `PrintAgent` is a `claude | codex` discriminated union; Claude IDs remain non-null and Codex IDs begin null.
-- Existing version-1 Claude records remain strictly readable through an explicit versioned reader.
+- `DurableAgent` is a `claude | codex` discriminated union; Claude session IDs remain non-null and Codex IDs begin null.
+- Records persist in migration 003's `durable_agents` table; no legacy JSON import exists for this unreleased feature.
 - `bindProviderSession` requires the active run token, permits Codex null-to-UUID only, is identical-UUID idempotent, rejects replacement, and rejects duplicate non-null provider/session pairs.
 - First-run binding is atomically durable before success and remains durable after a later run failure.
 
