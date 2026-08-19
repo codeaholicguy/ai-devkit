@@ -201,6 +201,7 @@ function createDurableAgentService(provider: DurableProvider = 'claude'): Claude
 
 function formatPrintProvider(provider: DurableProvider): string {
     return provider === 'pi' ? 'Pi' : 'Claude Code';
+}
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
 

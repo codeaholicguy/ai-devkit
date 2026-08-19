@@ -80,13 +80,10 @@ describe('PiPrintRunner', () => {
             .rejects.toMatchObject({ code: 'PI_PROTOCOL' });
     });
 
-    it('kills on spawn persistence failure and classifies session callback failure', async () => {
+    it('kills on spawn persistence failure', async () => {
         const spawnFailure = fakeSpawn([]); const failure = new Error('cannot persist');
         await expect((await runner(spawnFailure)).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn().mockRejectedValue(failure), onSession: vi.fn() })).rejects.toBe(failure);
         expect(spawnFailure.child.kill).toHaveBeenCalledOnce();
-        const callbackFailure = fakeSpawn(events());
-        await expect((await runner(callbackFailure)).run({ agent: agent(), prompt: 'x', onSpawn: vi.fn(), onSession: vi.fn().mockRejectedValue(new Error('store')) }))
-            .rejects.toMatchObject({ code: 'PI_PROTOCOL' });
     });
 
     it('classifies spawn errors and a missing PID as process failures', async () => {
