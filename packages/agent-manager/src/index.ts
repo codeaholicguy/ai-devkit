@@ -41,7 +41,7 @@ export {
     DurableAgentError,
     DurableAgentBusyError,
     DurableAgentNotFoundError,
-    DurableAgentStoreError,
+    DurableAgentRepositoryError,
     DurableAgentNameConflictError,
     ClaudePrintError,
 } from './print/DurableAgent.js';
@@ -54,14 +54,14 @@ export type {
     DurableLastResult,
     ProcessIdentity,
 } from './print/DurableAgent.js';
-export { DurableAgentStore } from './print/DurableAgentStore.js';
-export { LocalProcessInspector } from './print/DurableAgentStore.js';
+export { DurableAgentRepository } from './print/DurableAgentRepository.js';
+export { LocalProcessInspector } from './print/DurableAgentRepository.js';
 export type {
     CreateDurableAgentInput,
-    DurableAgentStoreOptions,
+    DurableAgentRepositoryOptions,
     ProcessInspector,
     DurableRunCompletion,
-} from './print/DurableAgentStore.js';
+} from './print/DurableAgentRepository.js';
 export { ClaudeCliProbe } from './print/ClaudeCliProbe.js';
 export type { ClaudeCliProbeOptions } from './print/ClaudeCliProbe.js';
 export { ClaudePrintRunner } from './print/ClaudePrintRunner.js';

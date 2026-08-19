@@ -11,8 +11,8 @@ afterEach(() => {
 
 async function loadStore(): Promise<any> {
     const api = await import('../../index.js') as Record<string, unknown>;
-    expect(api).toHaveProperty('DurableAgentStore');
-    return api.DurableAgentStore;
+    expect(api).toHaveProperty('DurableAgentRepository');
+    return api.DurableAgentRepository;
 }
 
 function fixture(): { root: string; cwd: string; dbPath: string } {
@@ -23,13 +23,13 @@ function fixture(): { root: string; cwd: string; dbPath: string } {
     return { root, cwd, dbPath: path.join(root, 'state', 'agents.db') };
 }
 
-describe('DurableAgentStore create/list/resolve', () => {
+describe('DurableAgentRepository create/list/resolve', () => {
     it('creates distinct durable identities with a canonical cwd and lists them', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { cwd, dbPath } = fixture();
-        const store = new DurableAgentStore({ dbPath, now: () => new Date('2026-08-07T09:00:00Z') });
+        const repository = new DurableAgentRepository({ dbPath, now: () => new Date('2026-08-07T09:00:00Z') });
 
-        const agent = await store.create({ name: 'reviewer', cwd });
+        const agent = await repository.create({ name: 'reviewer', cwd });
 
         expect(agent).toMatchObject({
             name: 'reviewer',
@@ -43,67 +43,67 @@ describe('DurableAgentStore create/list/resolve', () => {
         expect(agent.id).toMatch(/^[0-9a-f-]{36}$/);
         expect(agent.providerSessionId).toMatch(/^[0-9a-f-]{36}$/);
         expect(agent.id).not.toBe(agent.providerSessionId);
-        expect(await store.list()).toEqual([agent]);
+        expect(await repository.list()).toEqual([agent]);
         expect(fs.existsSync(dbPath)).toBe(true);
     });
 
     it('resolves exact ids and names and rejects duplicate names', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { cwd, dbPath } = fixture();
-        const store = new DurableAgentStore({ dbPath });
-        const agent = await store.create({ name: 'Reviewer', cwd });
+        const repository = new DurableAgentRepository({ dbPath });
+        const agent = await repository.create({ name: 'Reviewer', cwd });
 
-        expect(await store.resolve(agent.id)).toMatchObject({ id: agent.id });
-        expect(await store.resolve('reviewer')).toMatchObject({ id: agent.id });
-        expect(await store.resolve('view')).toBeNull();
-        await expect(store.create({ name: 'reviewer', cwd })).rejects.toMatchObject({
+        expect(await repository.resolve(agent.id)).toMatchObject({ id: agent.id });
+        expect(await repository.resolve('reviewer')).toMatchObject({ id: agent.id });
+        expect(await repository.resolve('view')).toBeNull();
+        await expect(repository.create({ name: 'reviewer', cwd })).rejects.toMatchObject({
             code: 'DURABLE_AGENT_NAME_CONFLICT',
         });
     });
 
     it('rejects a missing cwd', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { root, dbPath } = fixture();
-        const store = new DurableAgentStore({ dbPath });
+        const repository = new DurableAgentRepository({ dbPath });
 
-        await expect(store.create({ name: 'missing', cwd: path.join(root, 'missing') }))
-            .rejects.toMatchObject({ code: 'DURABLE_AGENT_STORE' });
+        await expect(repository.create({ name: 'missing', cwd: path.join(root, 'missing') }))
+            .rejects.toMatchObject({ code: 'DURABLE_AGENT_REPOSITORY' });
     });
 });
 
-describe('DurableAgentStore run ownership', () => {
+describe('DurableAgentRepository run ownership', () => {
     it('fails fast when another exact owner is live and completes only for its token', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
         const processInspector = { getIdentity: (pid: number) => {
             const startedAt = live.get(pid);
             return startedAt ? { pid, startedAt } : null;
         } };
-        const store = new DurableAgentStore({ dbPath, processInspector });
-        const agent = await store.create({ name: 'runner', cwd });
+        const repository = new DurableAgentRepository({ dbPath, processInspector });
+        const agent = await repository.create({ name: 'runner', cwd });
 
-        const acquired = await store.acquireRun(agent.id);
-        await expect(store.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_BUSY' });
-        await expect(store.completeRun(agent.id, 'wrong-token', {
+        const acquired = await repository.acquireRun(agent.id);
+        await expect(repository.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_BUSY' });
+        await expect(repository.completeRun(agent.id, 'wrong-token', {
             status: 'succeeded', exitCode: 0, summary: 'done', sessionHealth: 'healthy',
-        })).rejects.toMatchObject({ code: 'DURABLE_AGENT_STORE' });
+        })).rejects.toMatchObject({ code: 'DURABLE_AGENT_REPOSITORY' });
 
-        const completed = await store.completeRun(agent.id, acquired.token, {
+        const completed = await repository.completeRun(agent.id, acquired.token, {
             status: 'succeeded', exitCode: 0, summary: 'done', sessionHealth: 'healthy',
         });
         expect(completed).toMatchObject({ state: 'ready', sessionHealth: 'healthy', activeRun: null });
     });
 
     it('retains busy for a live provider then recovers a dead run without signaling it', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start'], [4242, 'provider-start']]);
         const processInspector = { getIdentity: (pid: number) => {
             const startedAt = live.get(pid);
             return startedAt ? { pid, startedAt } : null;
         } };
-        const first = new DurableAgentStore({ dbPath, processInspector });
+        const first = new DurableAgentRepository({ dbPath, processInspector });
         const agent = await first.create({ name: 'recoverable', cwd });
         const run = await first.acquireRun(agent.id);
         await first.recordProviderProcess(agent.id, run.token, { pid: 4242, startedAt: 'provider-start' });
@@ -124,20 +124,20 @@ describe('DurableAgentStore run ownership', () => {
     });
 
     it('reconciles an interrupted run to degraded during list', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
-        const store = new DurableAgentStore({ dbPath, incompleteLockGraceMs: 10, processInspector: {
+        const repository = new DurableAgentRepository({ dbPath, incompleteLockGraceMs: 10, processInspector: {
             getIdentity: (pid: number) => {
                 const startedAt = live.get(pid);
                 return startedAt ? { pid, startedAt } : null;
             },
         } });
-        const agent = await store.create({ name: 'crashed', cwd });
-        await store.acquireRun(agent.id);
+        const agent = await repository.create({ name: 'crashed', cwd });
+        await repository.acquireRun(agent.id);
         live.clear();
 
-        const listed = await store.list();
+        const listed = await repository.list();
 
         expect(listed[0]).toMatchObject({
             state: 'degraded',
@@ -148,16 +148,16 @@ describe('DurableAgentStore run ownership', () => {
     });
 
     it('rejects send acquisition when the bound cwd is replaced by a symlink', async () => {
-        const DurableAgentStore = await loadStore();
+        const DurableAgentRepository = await loadStore();
         const { root, cwd, dbPath } = fixture();
-        const store = new DurableAgentStore({ dbPath });
-        const agent = await store.create({ name: 'bound', cwd });
+        const repository = new DurableAgentRepository({ dbPath });
+        const agent = await repository.create({ name: 'bound', cwd });
         const moved = path.join(root, 'moved-project');
         const other = path.join(root, 'other-project');
         fs.renameSync(cwd, moved);
         fs.mkdirSync(other);
         fs.symlinkSync(other, cwd);
 
-        await expect(store.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_STORE' });
+        await expect(repository.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_REPOSITORY' });
     });
 });

@@ -44,7 +44,7 @@ Cover all changed persistence and connection branches with focused unit/integrat
 ## Full Validation
 
 - [x] Focused agent-manager test suite passes (26 files, 552 tests).
-- [x] Coverage is reviewed: `DurableAgentStore.ts` reports 90.5% lines and 97.36% functions; remaining branches are defensive platform/storage failures.
+- [x] Coverage is reviewed: `DurableAgentRepository.ts` reports 90.5% lines and 97.36% functions; remaining branches are defensive platform/storage failures.
 - [x] Full workspace test suite passes (1,019 tests).
 - [x] Workspace lint passes (existing warnings only, zero errors).
 - [x] Workspace typecheck passes for all five typed projects.

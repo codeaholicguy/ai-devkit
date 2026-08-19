@@ -7,7 +7,7 @@ import {
     ClaudeCliProbe,
     ClaudePrintAgentService,
     ClaudePrintRunner,
-    DurableAgentStore,
+    DurableAgentRepository,
 } from '../../index.js';
 
 const roots: string[] = [];
@@ -28,9 +28,9 @@ describe('Claude durable-agent fake-provider journey', () => {
         const capture = path.join(root, 'capture.jsonl');
         process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE = capture;
         const executable = fileURLToPath(new URL('../fixtures/fake-claude.cjs', import.meta.url));
-        const store = new DurableAgentStore({ dbPath: path.join(root, 'state', 'agents.db') });
+        const repository = new DurableAgentRepository({ dbPath: path.join(root, 'state', 'agents.db') });
         const service = new ClaudePrintAgentService({
-            store,
+            repository,
             probe: new ClaudeCliProbe({ executable }),
             runner: new ClaudePrintRunner(),
             executable,
@@ -50,7 +50,7 @@ describe('Claude durable-agent fake-provider journey', () => {
         expect(invocations[1].args).toContain('--resume');
         expect(invocations[1].args[invocations[1].args.indexOf('--resume') + 1]).toBe(created.providerSessionId);
 
-        const persisted = await store.getById(created.id);
+        const persisted = await repository.getById(created.id);
         expect(persisted).toMatchObject({ state: 'ready', sessionHealth: 'healthy' });
     });
 });

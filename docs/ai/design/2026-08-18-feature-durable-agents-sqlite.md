@@ -11,12 +11,12 @@ description: SQLite schema and transactional ownership design
 ```mermaid
 flowchart LR
   CLI[CLI / runner] --> Service[ClaudePrintAgentService]
-  Service --> Store[DurableAgentStore adapter]
+  Service --> Repository[DurableAgentRepository adapter]
   Store --> DB[(agents.db)]
   Inspector[LocalProcessInspector] --> Store
 ```
 
-`DurableAgentStore` remains the public adapter and owns row mapping, validation, and transactional state changes. `DatabaseConnection` owns SQLite configuration and schema migration. Process inspection and cwd canonicalization remain outside transactions; transactions reread state and apply conditional mutations.
+`DurableAgentRepository` remains the public adapter and owns row mapping, validation, and transactional state changes. `DatabaseConnection` owns SQLite configuration and schema migration. Process inspection and cwd canonicalization remain outside transactions; transactions reread state and apply conditional mutations.
 
 ## Data Model
 
@@ -31,7 +31,7 @@ flowchart LR
 
 ## API Design
 
-- Existing `DurableAgentStore` methods and `StoreLike` structural consumers stay unchanged.
+- Existing `DurableAgentRepository` methods and `RepositoryLike` structural consumers stay unchanged.
 - Options add `dbPath`; tests inject explicit database paths.
 - `lockTimeoutMs`, `incompleteLockGraceMs`, and `mutationLockStaleMs` remain type-compatible but have no runtime effect and are deprecated.
 - Domain errors continue to represent conflicts, busy ownership, lost tokens, invalid input, and storage failures.

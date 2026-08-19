@@ -41,7 +41,7 @@ arguments. `--timeout` is not supported for durable agents in this first release
 Durable durable-agent state is stored in `~/.ai-devkit/agents.db`. This feature was
 not released with JSON persistence, so there is no legacy import or dual-write.
 
-For direct `DurableAgentStore` consumers, `dbPath` selects the SQLite database. The
+For direct `DurableAgentRepository` consumers, `dbPath` selects the SQLite database. The
 `lockTimeoutMs`, `incompleteLockGraceMs`, and `mutationLockStaleMs` options are
 deprecated, accepted, and ignored because SQLite transactions replace the
 filesystem lock machinery.

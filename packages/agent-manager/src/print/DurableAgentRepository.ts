@@ -7,7 +7,7 @@ import {
     DurableAgentBusyError,
     DurableAgentNameConflictError,
     DurableAgentNotFoundError,
-    DurableAgentStoreError,
+    DurableAgentRepositoryError,
 } from './DurableAgent.js';
 
 interface DurableAgentRow {
@@ -21,7 +21,7 @@ interface DurableAgentRow {
 
 export interface CreateDurableAgentInput { name: string; cwd: string }
 
-export interface DurableAgentStoreOptions {
+export interface DurableAgentRepositoryOptions {
     dbPath?: string;
     readonly?: boolean;
     /** @deprecated SQLite busy_timeout replaces filesystem lock polling. */
@@ -39,14 +39,14 @@ export interface DurableRunCompletion {
     status: DurableRunStatus; exitCode: number | null; summary: string; sessionHealth: DurableSessionHealth;
 }
 
-export class DurableAgentStore {
+export class DurableAgentRepository {
     readonly dbPath: string;
     private readonly now: () => Date;
     private readonly processInspector: ProcessInspector;
     private readonly readonly: boolean;
     private readonly db: DatabaseConnection;
 
-    constructor(options: DurableAgentStoreOptions = {}) {
+    constructor(options: DurableAgentRepositoryOptions = {}) {
         this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
         this.now = options.now ?? (() => new Date());
         this.processInspector = options.processInspector ?? new LocalProcessInspector();
@@ -54,8 +54,8 @@ export class DurableAgentStore {
         try {
             this.db = new DatabaseConnection({ dbPath: this.dbPath, readonly: this.readonly });
         } catch (error) {
-            if (error instanceof DurableAgentStoreError) throw error;
-            throw new DurableAgentStoreError(`Cannot open durable-agent database: ${(error as Error).message}`);
+            if (error instanceof DurableAgentRepositoryError) throw error;
+            throw new DurableAgentRepositoryError(`Cannot open durable-agent database: ${(error as Error).message}`);
         }
     }
 
@@ -107,7 +107,7 @@ export class DurableAgentStore {
         const observedLive = observed ? this.isActive(observed) : false;
         if (observedLive) throw new DurableAgentBusyError(id, snapshot.name);
         const owner = this.processInspector.getIdentity(process.pid);
-        if (!owner) throw new DurableAgentStoreError('Cannot determine the current process identity.');
+        if (!owner) throw new DurableAgentRepositoryError('Cannot determine the current process identity.');
         const token = randomUUID();
         const startedAt = this.now().toISOString();
         let recovered = false;
@@ -143,7 +143,7 @@ export class DurableAgentStore {
         }
         const agent = this.requireById(id);
         if (recovered && agent.lastResult?.status !== 'interrupted') {
-            throw new DurableAgentStoreError('Failed to record interrupted print run.');
+            throw new DurableAgentRepositoryError('Failed to record interrupted print run.');
         }
         return { agent, token };
     }
@@ -154,7 +154,7 @@ export class DurableAgentStore {
             active_provider_pid = ?, active_provider_started_at = ?, updated_at = ?
             WHERE id = ? AND state = 'running' AND active_run_token = ?`,
         [identity.pid, identity.startedAt, this.now().toISOString(), id, token]);
-        if (changed.changes !== 1) throw new DurableAgentStoreError('Print run ownership changed.');
+        if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
     }
 
     async completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> {
@@ -169,7 +169,7 @@ export class DurableAgentStore {
             result.status === 'succeeded' ? 'ready' : 'degraded', result.sessionHealth, completedAt, completedAt,
             result.status, completedAt, result.exitCode, result.summary.slice(0, 4096), id, token,
         ]);
-        if (changed.changes !== 1) throw new DurableAgentStoreError('Print run ownership changed.');
+        if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
         return this.requireById(id);
     }
 
@@ -253,7 +253,7 @@ export class DurableAgentStore {
             if (!fs.statSync(resolved).isDirectory()) throw new Error('not a directory');
             return resolved;
         } catch {
-            throw new DurableAgentStoreError(`Durable agent cwd is not an existing directory: ${input}`);
+            throw new DurableAgentRepositoryError(`Durable agent cwd is not an existing directory: ${input}`);
         }
     }
 
@@ -262,7 +262,7 @@ export class DurableAgentStore {
             const stat = fs.lstatSync(bound);
             if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(bound) !== bound) throw new Error('binding changed');
         } catch {
-            throw new DurableAgentStoreError(`Durable agent cwd binding is no longer safe: ${bound}`);
+            throw new DurableAgentRepositoryError(`Durable agent cwd binding is no longer safe: ${bound}`);
         }
     }
 
@@ -276,12 +276,12 @@ export class DurableAgentStore {
     }
 
     private assertWritable(): void {
-        if (this.readonly) throw new DurableAgentStoreError('Durable-agent store is readonly.');
+        if (this.readonly) throw new DurableAgentRepositoryError('Durable-agent repository is readonly.');
     }
 
-    private storageError(prefix: string, error: unknown): DurableAgentStoreError {
-        return error instanceof DurableAgentStoreError ? error
-            : new DurableAgentStoreError(`${prefix}: ${(error as Error).message}`);
+    private storageError(prefix: string, error: unknown): DurableAgentRepositoryError {
+        return error instanceof DurableAgentRepositoryError ? error
+            : new DurableAgentRepositoryError(`${prefix}: ${(error as Error).message}`);
     }
 }
 

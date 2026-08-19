@@ -64,10 +64,10 @@ export class DurableAgentNotFoundError extends DurableAgentError {
     }
 }
 
-export class DurableAgentStoreError extends DurableAgentError {
+export class DurableAgentRepositoryError extends DurableAgentError {
     constructor(message: string) {
-        super(message, 'DURABLE_AGENT_STORE');
-        this.name = 'DurableAgentStoreError';
+        super(message, 'DURABLE_AGENT_REPOSITORY');
+        this.name = 'DurableAgentRepositoryError';
     }
 }
 

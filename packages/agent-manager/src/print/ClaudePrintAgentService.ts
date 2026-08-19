@@ -2,9 +2,9 @@ import type { DurableAgent, ProcessIdentity } from './DurableAgent.js';
 import { ClaudePrintError, DurableAgentNotFoundError } from './DurableAgent.js';
 import { ClaudeCliProbe } from './ClaudeCliProbe.js';
 import { ClaudePrintRunner, type ClaudePrintRunResult } from './ClaudePrintRunner.js';
-import { DurableAgentStore, type CreateDurableAgentInput, type DurableRunCompletion } from './DurableAgentStore.js';
+import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from './DurableAgentRepository.js';
 
-interface StoreLike {
+interface RepositoryLike {
     create(input: CreateDurableAgentInput): Promise<DurableAgent>;
     list(): Promise<DurableAgent[]>;
     resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null>;
@@ -17,7 +17,7 @@ interface ProbeLike { validate(): Promise<{ executable: string; version: string 
 interface RunnerLike { run(request: Parameters<ClaudePrintRunner['run']>[0]): Promise<ClaudePrintRunResult> }
 
 export interface ClaudePrintAgentServiceOptions {
-    store?: StoreLike;
+    repository?: RepositoryLike;
     probe?: ProbeLike;
     runner?: RunnerLike;
     executable?: string;
@@ -29,13 +29,13 @@ export interface ClaudePrintSendResult extends ClaudePrintRunResult {
 }
 
 export class ClaudePrintAgentService {
-    readonly store: StoreLike;
+    readonly repository: RepositoryLike;
     private readonly probe: ProbeLike;
     private readonly runner: RunnerLike;
     private readonly executable?: string;
 
     constructor(options: ClaudePrintAgentServiceOptions = {}) {
-        this.store = options.store ?? new DurableAgentStore();
+        this.repository = options.repository ?? new DurableAgentRepository();
         this.probe = options.probe ?? new ClaudeCliProbe();
         this.runner = options.runner ?? new ClaudePrintRunner();
         this.executable = options.executable;
@@ -43,25 +43,25 @@ export class ClaudePrintAgentService {
 
     async create(input: CreateDurableAgentInput): Promise<DurableAgent> {
         await this.probe.validate();
-        return this.store.create(input);
+        return this.repository.create(input);
     }
 
     async send(reference: string, prompt: string): Promise<ClaudePrintSendResult> {
-        const resolved = await this.store.resolve(reference);
+        const resolved = await this.repository.resolve(reference);
         if (!resolved) throw new DurableAgentNotFoundError(reference);
         if (Array.isArray(resolved)) {
             throw new ClaudePrintError(`Multiple durable agents match "${reference}".`, 'DURABLE_AGENT_AMBIGUOUS');
         }
-        const acquired = await this.store.acquireRun(resolved.id);
+        const acquired = await this.repository.acquireRun(resolved.id);
         try {
             const result = await this.runner.run({
                 agent: acquired.agent,
                 prompt,
                 executable: this.executable,
                 firstRun: acquired.agent.sessionHealth === 'uninitialized',
-                onSpawn: (identity) => this.store.recordProviderProcess(resolved.id, acquired.token, identity),
+                onSpawn: (identity) => this.repository.recordProviderProcess(resolved.id, acquired.token, identity),
             });
-            await this.store.completeRun(resolved.id, acquired.token, {
+            await this.repository.completeRun(resolved.id, acquired.token, {
                 status: 'succeeded',
                 exitCode: result.exitCode,
                 summary: sanitize(result.result, 4096),
@@ -73,7 +73,7 @@ export class ClaudePrintAgentService {
             const sessionHealth = error instanceof ClaudePrintError && error.code === 'CLAUDE_SESSION_MISMATCH'
                 ? 'mismatch' as const
                 : 'unknown' as const;
-            await this.store.completeRun(resolved.id, acquired.token, {
+            await this.repository.completeRun(resolved.id, acquired.token, {
                 status: 'failed',
                 exitCode: null,
                 summary: sanitize(failure.message, 4096),

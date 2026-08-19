@@ -17,14 +17,14 @@ description: Implementation record, decisions, validation, and deviations
 ### Task 1.1
 
 - Added `packages/agent-manager/src/print/DurableAgent.ts` with the durable record, state, session health, last-result, active-run, and process-identity contracts.
-- Added classified durable-agent/store/Claude errors that do not carry prompt content.
+- Added classified durable-agent/repository/Claude errors that do not carry prompt content.
 - Exported the public contracts from `@ai-devkit/agent-manager`.
 
 ## TDD Evidence
 
 - Red: `npx vitest run src/__tests__/print/DurableAgent.test.ts` failed because `DurableAgentBusyError` was absent.
 - Green/refactor: the same focused test passed (1/1), followed by `npm run typecheck` exit 0.
-- Task 1.2 red: three focused store tests failed because `DurableAgentStore` was absent.
+- Task 1.2 red: three focused store tests failed because `DurableAgentRepository` was absent.
 - Task 1.2 green/refactor: all three store tests passed and `npm run typecheck` exited 0.
 - Task 1.3 red: two run-ownership tests failed because acquisition/completion methods were absent.
 - Task 1.3 green/refactor: all five store tests passed and `npm run typecheck` exited 0.
@@ -38,7 +38,7 @@ description: Implementation record, decisions, validation, and deviations
 
 ### Task 1.2
 
-- Added a separate versioned `~/.ai-devkit/durable-agents.json` store.
+- Added a separate versioned `~/.ai-devkit/durable-agents.json` repository.
 - Added canonical cwd validation, distinct UUID generation, exact ID/name resolution, duplicate-name rejection, atomic exclusive temp-file replacement, owner-only mode, bounded mutation locking, and symlink rejection.
 
 ### Task 1.3

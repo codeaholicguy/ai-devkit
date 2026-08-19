@@ -15,7 +15,7 @@ import {
     OpenCodeAdapter,
     PiAdapter,
     ClaudePrintAgentService,
-    DurableAgentStore,
+    DurableAgentRepository,
     AgentStatus,
     TerminalFocusManager,
     AgentRegistry,
@@ -197,7 +197,7 @@ function createAgentManager(): AgentManager {
 }
 
 function createDurableAgentService(): ClaudePrintAgentService {
-    return new ClaudePrintAgentService({ store: new DurableAgentStore() });
+    return new ClaudePrintAgentService({ repository: new DurableAgentRepository() });
 }
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
@@ -346,7 +346,7 @@ export function registerAgentCommand(program: Command): void {
         .action(withErrorHandler('list agents', async (options) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
-            const durableAgents = await createDurableAgentService().store.list();
+            const durableAgents = await createDurableAgentService().repository.list();
 
             if (options.json) {
                 const output = [
@@ -628,7 +628,7 @@ export function registerAgentCommand(program: Command): void {
             }
 
             const durableService = createDurableAgentService();
-            const durableResolved = await durableService.store.resolve(options.id);
+            const durableResolved = await durableService.repository.resolve(options.id);
             if (Array.isArray(durableResolved)) {
                 throw new Error(`Multiple durable agents match "${options.id}".`);
             }
@@ -717,7 +717,7 @@ export function registerAgentCommand(program: Command): void {
         .action(withErrorHandler('get agent detail', async (options) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
-            const durableResolved = await createDurableAgentService().store.resolve(options.id);
+            const durableResolved = await createDurableAgentService().repository.resolve(options.id);
             if (Array.isArray(durableResolved)) {
                 throw new Error(`Multiple durable agents match "${options.id}".`);
             }

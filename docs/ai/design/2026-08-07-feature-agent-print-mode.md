@@ -39,7 +39,7 @@ flowchart LR
 Default path: `~/.ai-devkit/durable-agents.json`.
 
 ```ts
-interface DurableAgentStoreFile {
+interface DurableAgentRepositoryFile {
   version: 1;
   agents: DurableAgent[];
 }
@@ -100,14 +100,14 @@ The per-agent lock is authoritative for exclusion. Persisted `activeRun` makes s
 ### Store
 
 ```ts
-interface DurableAgentStoreOptions {
+interface DurableAgentRepositoryOptions {
   filePath?: string;
   lockTimeoutMs?: number;
   now?: () => Date;
   processInspector?: ProcessInspector;
 }
 
-class DurableAgentStore {
+class DurableAgentRepository {
   create(input: CreateDurableAgentInput): Promise<DurableAgent>;
   list(): Promise<DurableAgent[]>;
   getById(id: string): Promise<DurableAgent | null>;
@@ -227,7 +227,7 @@ Direct `agent send --id` uses this resolver. Group sends remain live-only.
 ### `agent-manager`
 
 - `print/DurableAgent.ts`: durable types and typed errors.
-- `print/DurableAgentStore.ts`: atomic JSON persistence, name/ID resolution, locking, ownership, reconciliation, and path safety.
+- `print/DurableAgentRepository.ts`: atomic JSON persistence, name/ID resolution, locking, ownership, reconciliation, and path safety.
 - `print/ProcessInspector.ts`: exact PID/start-time liveness checks, injectable in tests.
 - `print/ClaudeCliProbe.ts`: non-billable local capability validation.
 - `print/ClaudePrintRunner.ts`: safe process launch, stdin delivery, bounded stream parsing, session verification.

@@ -13,7 +13,7 @@ Durable durable-agent persistence is a new, unreleased capability. It should lau
 ## Goals & Objectives
 
 - Store durable agents in a separate `durable_agents` table in `~/.ai-devkit/agents.db`.
-- Preserve the exported `DurableAgentStore` API and all service, runner, and CLI call sites.
+- Preserve the exported `DurableAgentRepository` API and all service, runner, and CLI call sites.
 - Replace all filesystem locking and whole-file writes with short SQLite transactions and token-based compare-and-swap updates.
 - Make readonly database connections genuinely write-free and keep readonly listing pure.
 - Preserve current identity, cwd safety, ownership, recovery, reconciliation, and session-resume behavior.
@@ -36,7 +36,7 @@ Durable durable-agent persistence is a new, unreleased capability. It should lau
 ## Success Criteria
 
 - Migration `003_durable_agents.sql` creates the specified flattened table, constraints, and indexes and advances `user_version`.
-- `DurableAgentStore` accepts `dbPath` and defaults directly to `~/.ai-devkit/agents.db`.
+- `DurableAgentRepository` accepts `dbPath` and defaults directly to `~/.ai-devkit/agents.db`.
 - Deprecated lock timing options remain accepted but unused and are documented.
 - Create, acquire, provider recording, completion, and reconciliation use SQLite writes; ownership-changing writes use `(id, token)` or observed stale identity CAS predicates.
 - `list()` on readonly connections never reconciles.

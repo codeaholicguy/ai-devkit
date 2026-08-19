@@ -22,7 +22,7 @@ description: Ordered implementation and validation tasks
 
 ### Phase 2: Store Backend
 
-- [x] Retarget identity, name conflict, canonical cwd, listing, result, and session-resume tests to SQLite; replace JSON CRUD with row mapping and transactions. Evidence: `DurableAgentStore` and Claude integration suites.
+- [x] Retarget identity, name conflict, canonical cwd, listing, result, and session-resume tests to SQLite; replace JSON CRUD with row mapping and transactions. Evidence: `DurableAgentRepository` and Claude integration suites.
 - [x] Retarget busy ownership, token rejection, provider liveness, and interrupted reconciliation tests; implement immediate transactions and token/observed-identity CAS. Evidence: focused ownership tests.
 - [x] Add two-connection race and corrupt-database mapping tests. Evidence: concurrency/recovery tests.
 - [x] Remove global/per-agent lock machinery and obsolete file-mode assertions; document accepted-but-unused options. Evidence: source search and type tests.
@@ -41,7 +41,7 @@ Schema and readonly connection behavior precede the store rewrite. Row mapping p
 ## Risks & Mitigation
 
 - Competing migration number: inspect latest `origin/main` during final rebase and renumber if needed.
-- Provider PR overlap: preserve provider as unconstrained text and reconcile `DurableAgentStore` conflicts minimally if either PR lands.
+- Provider PR overlap: preserve provider as unconstrained text and reconcile `DurableAgentRepository` conflicts minimally if either PR lands.
 - PID reuse: include process start time in stale-observation CAS predicates.
 - Long write locks: keep process inspection and filesystem validation outside immediate transactions.
 

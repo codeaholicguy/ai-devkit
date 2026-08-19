@@ -8,7 +8,7 @@ description: Offline TDD, security, integration, and compatibility validation
 
 ## Test Coverage Goals
 
-- Target 100% branch/function coverage for new durable-agent store, probe, parser, runner, and orchestration modules.
+- Target 100% branch/function coverage for new durable-agent repository, probe, parser, runner, and orchestration modules.
 - Cover every requirements success criterion and design state transition.
 - Keep all provider tests offline and non-billable.
 - Re-run existing agent-manager and CLI suites to prove interactive compatibility.
@@ -16,7 +16,7 @@ description: Offline TDD, security, integration, and compatibility validation
 
 ## Unit Tests
 
-### Durable agent store and resolution
+### Durable agent repository and resolution
 
 - [ ] Creates a durable durable agent with distinct valid AI DevKit and Claude UUIDs.
 - [ ] Canonicalizes an existing cwd and rejects missing/non-directory paths.

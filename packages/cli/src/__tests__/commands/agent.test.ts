@@ -13,13 +13,13 @@ const mockManager: any = {
   getAdapter: vi.fn(),
 };
 
-const mockDurableStore: any = {
+const mockDurableRepository: any = {
   list: vi.fn().mockResolvedValue([]),
   resolve: vi.fn().mockResolvedValue(null),
 };
 
 const mockDurableService: any = {
-  store: mockDurableStore,
+  repository: mockDurableRepository,
   create: vi.fn(),
   send: vi.fn(),
 };
@@ -97,7 +97,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   GrokCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
   PiAdapter: vi.fn(),
-  DurableAgentStore: vi.fn(function () { return mockDurableStore; }),
+  DurableAgentRepository: vi.fn(function () { return mockDurableRepository; }),
   ClaudePrintAgentService: vi.fn(function () { return mockDurableService; }),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
@@ -228,8 +228,8 @@ describe('agent command', () => {
     mockManager.resolveAgent.mockReset();
     mockManager.getAdapter.mockReset();
     mockAgentAdapter.getConversation.mockReset();
-    mockDurableStore.list.mockReset().mockResolvedValue([]);
-    mockDurableStore.resolve.mockReset().mockResolvedValue(null);
+    mockDurableRepository.list.mockReset().mockResolvedValue([]);
+    mockDurableRepository.resolve.mockReset().mockResolvedValue(null);
     mockDurableService.create.mockReset();
     mockDurableService.send.mockReset();
     mockFocusManager.findTerminal.mockReset();
@@ -295,7 +295,7 @@ describe('agent command', () => {
 
   it('labels durable agents as durable in list JSON without a fake pid', async () => {
     mockManager.listAgents.mockResolvedValue([]);
-    mockDurableStore.list.mockResolvedValue([{
+    mockDurableRepository.list.mockResolvedValue([{
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
@@ -316,7 +316,7 @@ describe('agent command', () => {
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
     };
-    mockDurableStore.resolve.mockResolvedValue(durableAgent);
+    mockDurableRepository.resolve.mockResolvedValue(durableAgent);
     mockManager.listAgents.mockResolvedValue([]);
 
     const program = new Command();
@@ -389,7 +389,7 @@ describe('agent command', () => {
 
   it('renders durable agents as durable without leaking the internal print mode', async () => {
     mockManager.listAgents.mockResolvedValue([]);
-    mockDurableStore.list.mockResolvedValue([{
+    mockDurableRepository.list.mockResolvedValue([{
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
@@ -749,7 +749,7 @@ Waiting on user input`,
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
       mode: 'print', cwd: '/project', state: 'ready',
     };
-    mockDurableStore.resolve.mockResolvedValue(durableAgent);
+    mockDurableRepository.resolve.mockResolvedValue(durableAgent);
     mockDurableService.send.mockResolvedValue({ ...durableAgent, result: '\x1b]0;unsafe\x07review complete', exitCode: 0 });
 
     const program = new Command();
@@ -768,7 +768,7 @@ Waiting on user input`,
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
       mode: 'print', cwd: '/project', state: 'ready',
     };
-    mockDurableStore.resolve.mockResolvedValue(durableAgent);
+    mockDurableRepository.resolve.mockResolvedValue(durableAgent);
 
     const program = new Command();
     registerAgentCommand(program);
