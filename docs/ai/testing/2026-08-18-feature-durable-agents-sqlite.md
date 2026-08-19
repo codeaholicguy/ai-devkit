@@ -21,7 +21,7 @@ Cover all changed persistence and connection branches with focused unit/integrat
 ## Store Behavioral Parity
 
 - [x] Identity creation and provider session identity persist across reopen.
-- [x] Case-insensitive name conflicts map to `PrintAgentNameConflictError`.
+- [x] Case-insensitive name conflicts map to `DurableAgentNameConflictError`.
 - [x] Cwd is canonical, safe, and protected against symlink rebinding.
 - [x] Busy ownership, stale-token rejection, provider-liveness recovery, and interrupted-run reconciliation match current behavior.
 - [x] Session resume remains covered by `ClaudePrintAgent.integration.test.ts`.
@@ -30,7 +30,7 @@ Cover all changed persistence and connection branches with focused unit/integrat
 ## Storage Compatibility
 
 - [x] Store and integration tests use explicit isolated `dbPath` values.
-- [x] No `print-agents.json` import, marker, backup, or compatibility option exists because JSON persistence was never released.
+- [x] No `durable-agents.json` import, marker, backup, or compatibility option exists because JSON persistence was never released.
 - [x] Deprecated lock options remain accepted but do not create lock artifacts.
 
 ## Concurrency and Recovery
@@ -44,7 +44,7 @@ Cover all changed persistence and connection branches with focused unit/integrat
 ## Full Validation
 
 - [x] Focused agent-manager test suite passes (26 files, 552 tests).
-- [x] Coverage is reviewed: `PrintAgentStore.ts` reports 90.5% lines and 97.36% functions; remaining branches are defensive platform/storage failures.
+- [x] Coverage is reviewed: `DurableAgentStore.ts` reports 90.5% lines and 97.36% functions; remaining branches are defensive platform/storage failures.
 - [x] Full workspace test suite passes (1,019 tests).
 - [x] Workspace lint passes (existing warnings only, zero errors).
 - [x] Workspace typecheck passes for all five typed projects.

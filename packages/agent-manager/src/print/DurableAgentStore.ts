@@ -2,26 +2,26 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
 import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
-import type { PrintActiveRun, PrintAgent, ProcessIdentity, PrintRunStatus, PrintSessionHealth } from './PrintAgent.js';
+import type { DurableActiveRun, DurableAgent, ProcessIdentity, DurableRunStatus, DurableSessionHealth } from './DurableAgent.js';
 import {
-    PrintAgentBusyError,
-    PrintAgentNameConflictError,
-    PrintAgentNotFoundError,
-    PrintAgentStoreError,
-} from './PrintAgent.js';
+    DurableAgentBusyError,
+    DurableAgentNameConflictError,
+    DurableAgentNotFoundError,
+    DurableAgentStoreError,
+} from './DurableAgent.js';
 
 interface DurableAgentRow {
     id: string; name: string; provider: 'claude'; mode: 'print'; cwd: string; provider_session_id: string;
-    state: PrintAgent['state']; session_health: PrintSessionHealth; created_at: string; updated_at: string;
-    last_active_at: string | null; last_result_status: PrintRunStatus | null;
+    state: DurableAgent['state']; session_health: DurableSessionHealth; created_at: string; updated_at: string;
+    last_active_at: string | null; last_result_status: DurableRunStatus | null;
     last_result_completed_at: string | null; last_result_exit_code: number | null; last_result_summary: string | null;
     active_run_token: string | null; active_owner_pid: number | null; active_owner_started_at: string | null;
     active_provider_pid: number | null; active_provider_started_at: string | null; active_run_started_at: string | null;
 }
 
-export interface CreatePrintAgentInput { name: string; cwd: string }
+export interface CreateDurableAgentInput { name: string; cwd: string }
 
-export interface PrintAgentStoreOptions {
+export interface DurableAgentStoreOptions {
     dbPath?: string;
     readonly?: boolean;
     /** @deprecated SQLite busy_timeout replaces filesystem lock polling. */
@@ -35,18 +35,18 @@ export interface PrintAgentStoreOptions {
 }
 
 export interface ProcessInspector { getIdentity(pid: number): ProcessIdentity | null }
-export interface PrintRunCompletion {
-    status: PrintRunStatus; exitCode: number | null; summary: string; sessionHealth: PrintSessionHealth;
+export interface DurableRunCompletion {
+    status: DurableRunStatus; exitCode: number | null; summary: string; sessionHealth: DurableSessionHealth;
 }
 
-export class PrintAgentStore {
+export class DurableAgentStore {
     readonly dbPath: string;
     private readonly now: () => Date;
     private readonly processInspector: ProcessInspector;
     private readonly readonly: boolean;
     private readonly db: DatabaseConnection;
 
-    constructor(options: PrintAgentStoreOptions = {}) {
+    constructor(options: DurableAgentStoreOptions = {}) {
         this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
         this.now = options.now ?? (() => new Date());
         this.processInspector = options.processInspector ?? new LocalProcessInspector();
@@ -54,12 +54,12 @@ export class PrintAgentStore {
         try {
             this.db = new DatabaseConnection({ dbPath: this.dbPath, readonly: this.readonly });
         } catch (error) {
-            if (error instanceof PrintAgentStoreError) throw error;
-            throw new PrintAgentStoreError(`Cannot open print-agent database: ${(error as Error).message}`);
+            if (error instanceof DurableAgentStoreError) throw error;
+            throw new DurableAgentStoreError(`Cannot open durable-agent database: ${(error as Error).message}`);
         }
     }
 
-    async create(input: CreatePrintAgentInput): Promise<PrintAgent> {
+    async create(input: CreateDurableAgentInput): Promise<DurableAgent> {
         this.assertWritable();
         const cwd = this.canonicalDirectory(input.cwd);
         const timestamp = this.now().toISOString();
@@ -73,24 +73,24 @@ export class PrintAgentStore {
             [id, input.name, cwd, providerSessionId, timestamp, timestamp]);
         } catch (error) {
             if (/UNIQUE constraint failed: durable_agents\.name/i.test((error as Error).message)) {
-                throw new PrintAgentNameConflictError(input.name);
+                throw new DurableAgentNameConflictError(input.name);
             }
-            throw this.storageError('Failed to create print agent', error);
+            throw this.storageError('Failed to create durable agent', error);
         }
         return this.requireById(id);
     }
 
-    async list(): Promise<PrintAgent[]> {
+    async list(): Promise<DurableAgent[]> {
         if (!this.readonly) await this.reconcile();
         return this.listRaw();
     }
 
-    async getById(id: string): Promise<PrintAgent | null> {
+    async getById(id: string): Promise<DurableAgent | null> {
         if (!this.readonly) await this.reconcile();
         return this.findById(id);
     }
 
-    async resolve(reference: string): Promise<PrintAgent | PrintAgent[] | null> {
+    async resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null> {
         const agents = await this.list();
         const byId = agents.find((agent) => agent.id === reference);
         if (byId) return byId;
@@ -98,26 +98,26 @@ export class PrintAgentStore {
         return matches.length === 0 ? null : matches.length === 1 ? matches[0]! : matches;
     }
 
-    async acquireRun(id: string): Promise<{ agent: PrintAgent; token: string }> {
+    async acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }> {
         this.assertWritable();
         const snapshot = this.findById(id);
-        if (!snapshot) throw new PrintAgentNotFoundError(id);
+        if (!snapshot) throw new DurableAgentNotFoundError(id);
         this.validateBoundCwd(snapshot.cwd);
         const observed = snapshot.activeRun;
         const observedLive = observed ? this.isActive(observed) : false;
-        if (observedLive) throw new PrintAgentBusyError(id, snapshot.name);
+        if (observedLive) throw new DurableAgentBusyError(id, snapshot.name);
         const owner = this.processInspector.getIdentity(process.pid);
-        if (!owner) throw new PrintAgentStoreError('Cannot determine the current process identity.');
+        if (!owner) throw new DurableAgentStoreError('Cannot determine the current process identity.');
         const token = randomUUID();
         const startedAt = this.now().toISOString();
         let recovered = false;
         try {
             this.immediate(() => {
                 const current = this.findById(id);
-                if (!current) throw new PrintAgentNotFoundError(id);
+                if (!current) throw new DurableAgentNotFoundError(id);
                 if (current.state === 'running') {
                     if (!observed || current.activeRun?.token !== observed.token || observedLive) {
-                        throw new PrintAgentBusyError(id, current.name);
+                        throw new DurableAgentBusyError(id, current.name);
                     }
                     recovered = true;
                 }
@@ -134,16 +134,16 @@ export class PrintAgentStore {
                     ))
                 `, [token, owner.pid, owner.startedAt, startedAt, startedAt, startedAt, id,
                     observed?.token ?? null, observed?.owner.startedAt ?? null, observed?.startedAt ?? null]);
-                if (changed.changes !== 1) throw new PrintAgentBusyError(id, current.name);
+                if (changed.changes !== 1) throw new DurableAgentBusyError(id, current.name);
             });
         } catch (error) {
-            if (error instanceof PrintAgentBusyError || error instanceof PrintAgentNotFoundError) throw error;
-            if (/busy|locked/i.test((error as Error).message)) throw new PrintAgentBusyError(id, snapshot.name);
-            throw this.storageError('Failed to acquire print-agent run', error);
+            if (error instanceof DurableAgentBusyError || error instanceof DurableAgentNotFoundError) throw error;
+            if (/busy|locked/i.test((error as Error).message)) throw new DurableAgentBusyError(id, snapshot.name);
+            throw this.storageError('Failed to acquire durable-agent run', error);
         }
         const agent = this.requireById(id);
         if (recovered && agent.lastResult?.status !== 'interrupted') {
-            throw new PrintAgentStoreError('Failed to record interrupted print run.');
+            throw new DurableAgentStoreError('Failed to record interrupted print run.');
         }
         return { agent, token };
     }
@@ -154,10 +154,10 @@ export class PrintAgentStore {
             active_provider_pid = ?, active_provider_started_at = ?, updated_at = ?
             WHERE id = ? AND state = 'running' AND active_run_token = ?`,
         [identity.pid, identity.startedAt, this.now().toISOString(), id, token]);
-        if (changed.changes !== 1) throw new PrintAgentStoreError('Print run ownership changed.');
+        if (changed.changes !== 1) throw new DurableAgentStoreError('Print run ownership changed.');
     }
 
-    async completeRun(id: string, token: string, result: PrintRunCompletion): Promise<PrintAgent> {
+    async completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> {
         this.assertWritable();
         const completedAt = this.now().toISOString();
         const changed = this.db.execute(`UPDATE durable_agents SET
@@ -169,7 +169,7 @@ export class PrintAgentStore {
             result.status === 'succeeded' ? 'ready' : 'degraded', result.sessionHealth, completedAt, completedAt,
             result.status, completedAt, result.exitCode, result.summary.slice(0, 4096), id, token,
         ]);
-        if (changed.changes !== 1) throw new PrintAgentStoreError('Print run ownership changed.');
+        if (changed.changes !== 1) throw new DurableAgentStoreError('Print run ownership changed.');
         return this.requireById(id);
     }
 
@@ -205,29 +205,29 @@ export class PrintAgentStore {
         }
     }
 
-    private listRaw(): PrintAgent[] {
+    private listRaw(): DurableAgent[] {
         try {
             return this.db.query<DurableAgentRow>(
                 'SELECT * FROM durable_agents ORDER BY updated_at DESC, name COLLATE NOCASE',
             ).map((row) => this.fromRow(row));
         } catch (error) {
-            throw this.storageError('Failed to read print-agent database', error);
+            throw this.storageError('Failed to read durable-agent database', error);
         }
     }
 
-    private findById(id: string): PrintAgent | null {
+    private findById(id: string): DurableAgent | null {
         const row = this.db.queryOne<DurableAgentRow>('SELECT * FROM durable_agents WHERE id = ?', [id]);
         return row ? this.fromRow(row) : null;
     }
 
-    private requireById(id: string): PrintAgent {
+    private requireById(id: string): DurableAgent {
         const agent = this.findById(id);
-        if (!agent) throw new PrintAgentNotFoundError(id);
+        if (!agent) throw new DurableAgentNotFoundError(id);
         return agent;
     }
 
-    private fromRow(row: DurableAgentRow): PrintAgent {
-        const activeRun: PrintActiveRun | null = row.active_run_token === null ? null : {
+    private fromRow(row: DurableAgentRow): DurableAgent {
+        const activeRun: DurableActiveRun | null = row.active_run_token === null ? null : {
             token: row.active_run_token,
             owner: { pid: row.active_owner_pid!, startedAt: row.active_owner_started_at! },
             provider: row.active_provider_pid === null ? null : {
@@ -253,7 +253,7 @@ export class PrintAgentStore {
             if (!fs.statSync(resolved).isDirectory()) throw new Error('not a directory');
             return resolved;
         } catch {
-            throw new PrintAgentStoreError(`Print agent cwd is not an existing directory: ${input}`);
+            throw new DurableAgentStoreError(`Durable agent cwd is not an existing directory: ${input}`);
         }
     }
 
@@ -262,11 +262,11 @@ export class PrintAgentStore {
             const stat = fs.lstatSync(bound);
             if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(bound) !== bound) throw new Error('binding changed');
         } catch {
-            throw new PrintAgentStoreError(`Print agent cwd binding is no longer safe: ${bound}`);
+            throw new DurableAgentStoreError(`Durable agent cwd binding is no longer safe: ${bound}`);
         }
     }
 
-    private isActive(metadata: PrintActiveRun): boolean {
+    private isActive(metadata: DurableActiveRun): boolean {
         return this.sameProcess(metadata.owner) || (metadata.provider !== null && this.sameProcess(metadata.provider));
     }
 
@@ -276,12 +276,12 @@ export class PrintAgentStore {
     }
 
     private assertWritable(): void {
-        if (this.readonly) throw new PrintAgentStoreError('Print-agent store is readonly.');
+        if (this.readonly) throw new DurableAgentStoreError('Durable-agent store is readonly.');
     }
 
-    private storageError(prefix: string, error: unknown): PrintAgentStoreError {
-        return error instanceof PrintAgentStoreError ? error
-            : new PrintAgentStoreError(`${prefix}: ${(error as Error).message}`);
+    private storageError(prefix: string, error: unknown): DurableAgentStoreError {
+        return error instanceof DurableAgentStoreError ? error
+            : new DurableAgentStoreError(`${prefix}: ${(error as Error).message}`);
     }
 }
 

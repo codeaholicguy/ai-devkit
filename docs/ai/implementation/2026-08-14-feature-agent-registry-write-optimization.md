@@ -46,7 +46,7 @@ The implementation matches the design without schema or migration changes. The o
 - Initial focused red: 7 failures, including redundant BEGIN/INSERT/COMMIT plus empty prune BEGIN/COMMIT on an unchanged refresh.
 - Timestamp regression red: the changed-field test failed when `updated_at` used wall-clock time instead of the injected clock.
 - Restored green: `AgentRegistry.test.ts` and `AgentManager.test.ts` passed 67/67, including atomic rollback coverage.
-- Full agent-manager suite passed 509/509 with OS process visibility enabled for the existing print-agent integration.
+- Full agent-manager suite passed 509/509 with OS process visibility enabled for the existing durable-agent integration.
 - Full CLI suite passed 959/959 after the required workspace build.
 - Full six-project build and lint completed successfully; lint reported six unrelated pre-existing warnings and zero errors.
 

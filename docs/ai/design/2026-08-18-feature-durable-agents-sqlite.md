@@ -11,12 +11,12 @@ description: SQLite schema and transactional ownership design
 ```mermaid
 flowchart LR
   CLI[CLI / runner] --> Service[ClaudePrintAgentService]
-  Service --> Store[PrintAgentStore adapter]
+  Service --> Store[DurableAgentStore adapter]
   Store --> DB[(agents.db)]
   Inspector[LocalProcessInspector] --> Store
 ```
 
-`PrintAgentStore` remains the public adapter and owns row mapping, validation, and transactional state changes. `DatabaseConnection` owns SQLite configuration and schema migration. Process inspection and cwd canonicalization remain outside transactions; transactions reread state and apply conditional mutations.
+`DurableAgentStore` remains the public adapter and owns row mapping, validation, and transactional state changes. `DatabaseConnection` owns SQLite configuration and schema migration. Process inspection and cwd canonicalization remain outside transactions; transactions reread state and apply conditional mutations.
 
 ## Data Model
 
@@ -31,7 +31,7 @@ flowchart LR
 
 ## API Design
 
-- Existing `PrintAgentStore` methods and `StoreLike` structural consumers stay unchanged.
+- Existing `DurableAgentStore` methods and `StoreLike` structural consumers stay unchanged.
 - Options add `dbPath`; tests inject explicit database paths.
 - `lockTimeoutMs`, `incompleteLockGraceMs`, and `mutationLockStaleMs` remain type-compatible but have no runtime effect and are deprecated.
 - Domain errors continue to represent conflicts, busy ownership, lost tokens, invalid input, and storage failures.
@@ -54,14 +54,14 @@ Readonly construction requires an existing migrated database and skips directory
 - Flattening matches the existing latest-result contract and avoids premature run-history scope.
 - SQLite uniqueness and transactions replace lock directories and temp-file replacement.
 - Application-layer provider validation avoids migrations when new providers arrive.
-- Durable agents persist directly in SQLite; `print-agents.json` was never released and requires no compatibility path.
+- Durable agents persist directly in SQLite; `durable-agents.json` was never released and requires no compatibility path.
 
 Rejected alternatives are merging into `agents`, storing a whole JSON document in one row, adding `durable_runs`, introducing a repository abstraction, and retaining filesystem lock machinery.
 
 ## Non-Functional Requirements
 
 - Transactions remain short; filesystem checks and process inspection occur outside them.
-- WAL plus a 5-second busy timeout handle contention; acquisition contention maps to `PrintAgentBusyError`.
+- WAL plus a 5-second busy timeout handle contention; acquisition contention maps to `DurableAgentBusyError`.
 - Symlink-safe cwd binding prevents path substitution.
 - Schema checks reject inconsistent active-run rows and invalid lifecycle/result values.
 - State transitions are atomic and recover cleanly on reopen.

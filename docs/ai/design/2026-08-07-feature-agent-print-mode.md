@@ -1,14 +1,14 @@
 ---
 phase: design
 title: Claude Print-Mode Agent Design
-description: Minimal durable print-agent identity, execution, locking, and CLI integration
+description: Minimal durable durable-agent identity, execution, locking, and CLI integration
 ---
 
 # Claude Print-Mode Agent Design
 
 ## Architecture Overview
 
-Print agents are an additive control path beside the existing process adapters. Existing `AgentManager`, terminal discovery, tmux start, interactive send/wait, groups, channels, and TUI continue to operate on live `AgentInfo` objects. A small print-agent service in `agent-manager` owns durable records and Claude print execution; CLI command orchestration combines the two target kinds only for start, list, detail, and direct send.
+Durable agents are an additive control path beside the existing process adapters. Existing `AgentManager`, terminal discovery, tmux start, interactive send/wait, groups, channels, and TUI continue to operate on live `AgentInfo` objects. A small durable-agent service in `agent-manager` owns durable records and Claude print execution; CLI command orchestration combines the two target kinds only for start, list, detail, and direct send.
 
 ```mermaid
 flowchart LR
@@ -26,8 +26,8 @@ flowchart LR
 
 ### Design boundaries
 
-- `AgentInfo` remains the live-process type with a required PID. Print agents do not fabricate one.
-- `PrintAgent` is a separate durable type.
+- `AgentInfo` remains the live-process type with a required PID. Durable agents do not fabricate one.
+- `DurableAgent` is a separate durable type.
 - `AgentManager.listAgents()` remains live-only so existing TUI, channels, groups, kill, open, rename, and terminal flows do not accidentally acquire print semantics.
 - CLI list/detail/direct-send use a small combined resolver. Other commands remain unchanged.
 - Only Claude is implemented. The runner is injectable for tests but no generic multi-provider framework is introduced.
@@ -36,36 +36,36 @@ flowchart LR
 
 ### Store file
 
-Default path: `~/.ai-devkit/print-agents.json`.
+Default path: `~/.ai-devkit/durable-agents.json`.
 
 ```ts
-interface PrintAgentStoreFile {
+interface DurableAgentStoreFile {
   version: 1;
-  agents: PrintAgent[];
+  agents: DurableAgent[];
 }
 
-type PrintAgentState = 'ready' | 'running' | 'degraded';
-type PrintSessionHealth = 'uninitialized' | 'healthy' | 'unknown' | 'mismatch';
-type PrintRunStatus = 'succeeded' | 'failed' | 'interrupted';
+type DurableAgentState = 'ready' | 'running' | 'degraded';
+type DurableSessionHealth = 'uninitialized' | 'healthy' | 'unknown' | 'mismatch';
+type DurableRunStatus = 'succeeded' | 'failed' | 'interrupted';
 
-interface PrintAgent {
+interface DurableAgent {
   id: string;                    // immutable AI DevKit UUID
-  name: string;                  // unique among print agents
+  name: string;                  // unique among durable agents
   provider: 'claude';
   mode: 'print';
   cwd: string;                   // canonical real path
   providerSessionId: string;     // immutable caller-assigned Claude UUID
-  state: PrintAgentState;
-  sessionHealth: PrintSessionHealth;
+  state: DurableAgentState;
+  sessionHealth: DurableSessionHealth;
   createdAt: string;
   updatedAt: string;
   lastActiveAt: string | null;
-  lastResult: PrintLastResult | null;
-  activeRun: PrintActiveRun | null;
+  lastResult: DurableLastResult | null;
+  activeRun: DurableActiveRun | null;
 }
 
-interface PrintLastResult {
-  status: PrintRunStatus;
+interface DurableLastResult {
+  status: DurableRunStatus;
   completedAt: string;
   exitCode: number | null;
   summary: string;               // sanitized and bounded
@@ -76,7 +76,7 @@ interface ProcessIdentity {
   startedAt: string;             // OS-observed process start identity
 }
 
-interface PrintActiveRun {
+interface DurableActiveRun {
   token: string;                 // random ownership token
   owner: ProcessIdentity;
   provider: ProcessIdentity | null;
@@ -88,8 +88,8 @@ No prompts, transcripts, event history, tool inputs, full provider output, queue
 
 ### Lock files
 
-- Store mutation lock: sibling directory `print-agents.json.lock`.
-- Per-agent execution lock: `~/.ai-devkit/print-agent-locks/<agent-id>.lock/owner.json`.
+- Store mutation lock: sibling directory `durable-agents.json.lock`.
+- Per-agent execution lock: `~/.ai-devkit/durable-agent-locks/<agent-id>.lock/owner.json`.
 - Directory creation with `mkdir` is the cross-process atomic primitive.
 - Lock owner metadata uses the same token and process identities as `activeRun`.
 
@@ -100,22 +100,22 @@ The per-agent lock is authoritative for exclusion. Persisted `activeRun` makes s
 ### Store
 
 ```ts
-interface PrintAgentStoreOptions {
+interface DurableAgentStoreOptions {
   filePath?: string;
   lockTimeoutMs?: number;
   now?: () => Date;
   processInspector?: ProcessInspector;
 }
 
-class PrintAgentStore {
-  create(input: CreatePrintAgentInput): Promise<PrintAgent>;
-  list(): Promise<PrintAgent[]>;
-  getById(id: string): Promise<PrintAgent | null>;
-  resolve(ref: string): Promise<PrintAgent | PrintAgent[] | null>;
-  acquireRun(id: string): Promise<{ agent: PrintAgent; token: string }>;
+class DurableAgentStore {
+  create(input: CreateDurableAgentInput): Promise<DurableAgent>;
+  list(): Promise<DurableAgent[]>;
+  getById(id: string): Promise<DurableAgent | null>;
+  resolve(ref: string): Promise<DurableAgent | DurableAgent[] | null>;
+  acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }>;
   recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void>;
-  completeRun(id: string, token: string, result: PrintRunCompletion): Promise<PrintAgent>;
-  failRun(id: string, token: string, result: PrintRunFailure): Promise<PrintAgent>;
+  completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent>;
+  failRun(id: string, token: string, result: DurableRunFailure): Promise<DurableAgent>;
   reconcile(id?: string): Promise<void>;
 }
 ```
@@ -139,7 +139,7 @@ Validation runs only `claude --version` and `claude --help`. It requires help te
 
 ```ts
 interface ClaudePrintRunRequest {
-  agent: PrintAgent;
+  agent: DurableAgent;
   prompt: string;
   executable?: string;
   firstRun: boolean;
@@ -201,12 +201,12 @@ Full result text may be returned to the invoking terminal/JSON response, but onl
 ```ts
 type DirectAgentTarget =
   | { kind: 'interactive'; agent: AgentInfo }
-  | { kind: 'print'; agent: PrintAgent };
+  | { kind: 'print'; agent: DurableAgent };
 ```
 
 Resolution order:
 
-1. Exact print-agent stable ID.
+1. Exact durable-agent stable ID.
 2. Gather exact case-insensitive name matches across print and live agents.
 3. If exactly one, use it; if multiple, report ambiguity with mode/type.
 4. Apply existing live-agent partial matching only when no print name matches.
@@ -218,7 +218,7 @@ Direct `agent send --id` uses this resolver. Group sends remain live-only.
 
 - Print sends are always synchronous.
 - `--wait` is accepted as a no-op semantic confirmation, preserving scripts that add it.
-- `--timeout` is rejected for print agents with a clear error. Enforcing it would require process cancellation semantics that are explicitly outside the MVP; silently ignoring it would be unsafe. Interactive timeout behavior is unchanged.
+- `--timeout` is rejected for durable agents with a clear error. Enforcing it would require process cancellation semantics that are explicitly outside the MVP; silently ignoring it would be unsafe. Interactive timeout behavior is unchanged.
 - `--json` emits a print-specific result object without echoing the prompt.
 - Interactive send behavior and JSON shape remain unchanged.
 
@@ -226,8 +226,8 @@ Direct `agent send --id` uses this resolver. Group sends remain live-only.
 
 ### `agent-manager`
 
-- `print/PrintAgent.ts`: durable types and typed errors.
-- `print/PrintAgentStore.ts`: atomic JSON persistence, name/ID resolution, locking, ownership, reconciliation, and path safety.
+- `print/DurableAgent.ts`: durable types and typed errors.
+- `print/DurableAgentStore.ts`: atomic JSON persistence, name/ID resolution, locking, ownership, reconciliation, and path safety.
 - `print/ProcessInspector.ts`: exact PID/start-time liveness checks, injectable in tests.
 - `print/ClaudeCliProbe.ts`: non-billable local capability validation.
 - `print/ClaudePrintRunner.ts`: safe process launch, stdin delivery, bounded stream parsing, session verification.

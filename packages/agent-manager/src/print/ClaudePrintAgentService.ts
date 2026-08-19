@@ -1,16 +1,16 @@
-import type { PrintAgent, ProcessIdentity } from './PrintAgent.js';
-import { ClaudePrintError, PrintAgentNotFoundError } from './PrintAgent.js';
+import type { DurableAgent, ProcessIdentity } from './DurableAgent.js';
+import { ClaudePrintError, DurableAgentNotFoundError } from './DurableAgent.js';
 import { ClaudeCliProbe } from './ClaudeCliProbe.js';
 import { ClaudePrintRunner, type ClaudePrintRunResult } from './ClaudePrintRunner.js';
-import { PrintAgentStore, type CreatePrintAgentInput, type PrintRunCompletion } from './PrintAgentStore.js';
+import { DurableAgentStore, type CreateDurableAgentInput, type DurableRunCompletion } from './DurableAgentStore.js';
 
 interface StoreLike {
-    create(input: CreatePrintAgentInput): Promise<PrintAgent>;
-    list(): Promise<PrintAgent[]>;
-    resolve(reference: string): Promise<PrintAgent | PrintAgent[] | null>;
-    acquireRun(id: string): Promise<{ agent: PrintAgent; token: string }>;
+    create(input: CreateDurableAgentInput): Promise<DurableAgent>;
+    list(): Promise<DurableAgent[]>;
+    resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null>;
+    acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }>;
     recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void>;
-    completeRun(id: string, token: string, result: PrintRunCompletion): Promise<PrintAgent>;
+    completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent>;
 }
 
 interface ProbeLike { validate(): Promise<{ executable: string; version: string }> }
@@ -35,22 +35,22 @@ export class ClaudePrintAgentService {
     private readonly executable?: string;
 
     constructor(options: ClaudePrintAgentServiceOptions = {}) {
-        this.store = options.store ?? new PrintAgentStore();
+        this.store = options.store ?? new DurableAgentStore();
         this.probe = options.probe ?? new ClaudeCliProbe();
         this.runner = options.runner ?? new ClaudePrintRunner();
         this.executable = options.executable;
     }
 
-    async create(input: CreatePrintAgentInput): Promise<PrintAgent> {
+    async create(input: CreateDurableAgentInput): Promise<DurableAgent> {
         await this.probe.validate();
         return this.store.create(input);
     }
 
     async send(reference: string, prompt: string): Promise<ClaudePrintSendResult> {
         const resolved = await this.store.resolve(reference);
-        if (!resolved) throw new PrintAgentNotFoundError(reference);
+        if (!resolved) throw new DurableAgentNotFoundError(reference);
         if (Array.isArray(resolved)) {
-            throw new ClaudePrintError(`Multiple print agents match "${reference}".`, 'PRINT_AGENT_AMBIGUOUS');
+            throw new ClaudePrintError(`Multiple durable agents match "${reference}".`, 'DURABLE_AGENT_AMBIGUOUS');
         }
         const acquired = await this.store.acquireRun(resolved.id);
         try {

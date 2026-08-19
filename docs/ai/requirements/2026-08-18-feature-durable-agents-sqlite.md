@@ -1,19 +1,19 @@
 ---
 phase: requirements
 title: Durable Agents SQLite Requirements
-description: Persist durable print agents in the shared agents.db database
+description: Persist durable durable agents in the shared agents.db database
 ---
 
 # Durable Agents SQLite Requirements
 
 ## Problem Statement
 
-Durable print-agent persistence is a new, unreleased capability. It should launch directly on the existing SQLite agent database so durable sessions survive process exits and concurrent CLI access without introducing a separate JSON store or filesystem lock machinery.
+Durable durable-agent persistence is a new, unreleased capability. It should launch directly on the existing SQLite agent database so durable sessions survive process exits and concurrent CLI access without introducing a separate JSON store or filesystem lock machinery.
 
 ## Goals & Objectives
 
 - Store durable agents in a separate `durable_agents` table in `~/.ai-devkit/agents.db`.
-- Preserve the exported `PrintAgentStore` API and all service, runner, and CLI call sites.
+- Preserve the exported `DurableAgentStore` API and all service, runner, and CLI call sites.
 - Replace all filesystem locking and whole-file writes with short SQLite transactions and token-based compare-and-swap updates.
 - Make readonly database connections genuinely write-free and keep readonly listing pure.
 - Preserve current identity, cwd safety, ownership, recovery, reconciliation, and session-resume behavior.
@@ -23,7 +23,7 @@ Durable print-agent persistence is a new, unreleased capability. It should launc
 - Renaming print-domain types or APIs to durable-agent names.
 - Merging durable agents into the process registry `agents` table.
 - Adding run history or a `durable_runs` table.
-- Supporting legacy JSON import or dual-write; `print-agents.json` was never released to users.
+- Supporting legacy JSON import or dual-write; `durable-agents.json` was never released to users.
 - Resolving cross-provider/cross-mode name ambiguity beyond existing CLI behavior.
 
 ## User Stories & Use Cases
@@ -36,7 +36,7 @@ Durable print-agent persistence is a new, unreleased capability. It should launc
 ## Success Criteria
 
 - Migration `003_durable_agents.sql` creates the specified flattened table, constraints, and indexes and advances `user_version`.
-- `PrintAgentStore` accepts `dbPath` and defaults directly to `~/.ai-devkit/agents.db`.
+- `DurableAgentStore` accepts `dbPath` and defaults directly to `~/.ai-devkit/agents.db`.
 - Deprecated lock timing options remain accepted but unused and are documented.
 - Create, acquire, provider recording, completion, and reconciliation use SQLite writes; ownership-changing writes use `(id, token)` or observed stale identity CAS predicates.
 - `list()` on readonly connections never reconciles.

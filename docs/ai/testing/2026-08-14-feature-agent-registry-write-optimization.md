@@ -36,7 +36,7 @@ description: Deterministic SQL operation-count and fake-clock coverage
 - Green run: focused suite passed 67 tests in 2 files.
 - `npm run typecheck --workspace @ai-devkit/agent-manager`: exit 0.
 - `npm run lint --workspace @ai-devkit/agent-manager`: exit 0.
-- `npm test --workspace @ai-devkit/agent-manager`: 24 files, 509 tests passed (rerun with OS process visibility for the existing print-agent integration).
+- `npm test --workspace @ai-devkit/agent-manager`: 24 files, 509 tests passed (rerun with OS process visibility for the existing durable-agent integration).
 - `npm test --workspace ai-devkit`: 79 files, 959 tests passed after workspace packages were built.
 - `npm run build`: all 6 projects built successfully.
 - `npm run lint`: all 6 projects linted successfully; 0 errors and 6 unrelated pre-existing warnings.

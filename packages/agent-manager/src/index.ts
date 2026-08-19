@@ -38,30 +38,30 @@ export type { AgentRequest } from './utils/agent-requests.js';
 export { getAgentRequestPath, readLatestAgentRequest, writeAgentRequest } from './utils/agent-requests.js';
 
 export {
-    PrintAgentError,
-    PrintAgentBusyError,
-    PrintAgentNotFoundError,
-    PrintAgentStoreError,
-    PrintAgentNameConflictError,
+    DurableAgentError,
+    DurableAgentBusyError,
+    DurableAgentNotFoundError,
+    DurableAgentStoreError,
+    DurableAgentNameConflictError,
     ClaudePrintError,
-} from './print/PrintAgent.js';
+} from './print/DurableAgent.js';
 export type {
-    PrintAgent,
-    PrintAgentState,
-    PrintSessionHealth,
-    PrintRunStatus,
-    PrintActiveRun,
-    PrintLastResult,
+    DurableAgent,
+    DurableAgentState,
+    DurableSessionHealth,
+    DurableRunStatus,
+    DurableActiveRun,
+    DurableLastResult,
     ProcessIdentity,
-} from './print/PrintAgent.js';
-export { PrintAgentStore } from './print/PrintAgentStore.js';
-export { LocalProcessInspector } from './print/PrintAgentStore.js';
+} from './print/DurableAgent.js';
+export { DurableAgentStore } from './print/DurableAgentStore.js';
+export { LocalProcessInspector } from './print/DurableAgentStore.js';
 export type {
-    CreatePrintAgentInput,
-    PrintAgentStoreOptions,
+    CreateDurableAgentInput,
+    DurableAgentStoreOptions,
     ProcessInspector,
-    PrintRunCompletion,
-} from './print/PrintAgentStore.js';
+    DurableRunCompletion,
+} from './print/DurableAgentStore.js';
 export { ClaudeCliProbe } from './print/ClaudeCliProbe.js';
 export type { ClaudeCliProbeOptions } from './print/ClaudeCliProbe.js';
 export { ClaudePrintRunner } from './print/ClaudePrintRunner.js';

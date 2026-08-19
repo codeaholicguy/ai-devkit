@@ -1,7 +1,7 @@
 ---
 phase: planning
 title: Claude Print-Mode Agent Implementation Plan
-description: Ordered TDD tasks for durable Claude print agents
+description: Ordered TDD tasks for durable Claude durable agents
 ---
 
 # Claude Print-Mode Agent Implementation Plan
@@ -19,14 +19,14 @@ Every production behavior follows strict red → green → refactor. After each 
 
 ### Phase 1: Durable foundation
 
-- [x] Task 1.1: Add print-agent domain types and typed errors.
+- [x] Task 1.1: Add durable-agent domain types and typed errors.
   - Outcome: stable record/state/result/process-identity contracts exported from `agent-manager`.
   - Dependencies: approved requirements/design.
   - Validation: type-level/unit tests for valid public shapes and error classification.
   - Scenarios: store, locking, list/detail contract foundations.
 
 - [x] Task 1.2: Implement atomic JSON persistence and safe create/list/resolve.
-  - Outcome: separate versioned `print-agents.json`, canonical cwd, UUID creation, case-insensitive unique names, atomic replacement, and symlink rejection.
+  - Outcome: separate versioned `durable-agents.json`, canonical cwd, UUID creation, case-insensitive unique names, atomic replacement, and symlink rejection.
   - Dependencies: Task 1.1.
   - Validation: focused store tests including malformed storage, permissions, contention, and unsafe paths.
   - Scenarios: print store/resolution unit tests and create/list integration.
@@ -51,7 +51,7 @@ Every production behavior follows strict red → green → refactor. After each 
   - Validation: fake spawn/executable tests for all normal and malformed stream cases.
   - Scenarios: all runner/parser tests and provider identity mismatch integration.
 
-- [x] Task 2.3: Implement print-agent create/send orchestration.
+- [x] Task 2.3: Implement durable-agent create/send orchestration.
   - Outcome: start validates then persists without spawn; send acquires, runs once, completes ready or records degraded, and never retries.
   - Dependencies: Tasks 1.2, 1.3, 2.1, and 2.2.
   - Validation: service-level first-send, resume, busy, failure, and recovery tests.

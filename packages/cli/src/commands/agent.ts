@@ -15,7 +15,7 @@ import {
     OpenCodeAdapter,
     PiAdapter,
     ClaudePrintAgentService,
-    PrintAgentStore,
+    DurableAgentStore,
     AgentStatus,
     TerminalFocusManager,
     AgentRegistry,
@@ -196,8 +196,8 @@ function createAgentManager(): AgentManager {
     return manager;
 }
 
-function createPrintAgentService(): ClaudePrintAgentService {
-    return new ClaudePrintAgentService({ store: new PrintAgentStore() });
+function createDurableAgentService(): ClaudePrintAgentService {
+    return new ClaudePrintAgentService({ store: new DurableAgentStore() });
 }
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
@@ -305,8 +305,8 @@ export function registerAgentCommand(program: Command): void {
 
             try {
                 if (mode === 'print') {
-                    const entry = await createPrintAgentService().create({ name: agentName, cwd });
-                    ui.success(`Print agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
+                    const entry = await createDurableAgentService().create({ name: agentName, cwd });
+                    ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
                     ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
                     ui.text('State: ready (Claude session not started)');
                     return;
@@ -346,18 +346,18 @@ export function registerAgentCommand(program: Command): void {
         .action(withErrorHandler('list agents', async (options) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
-            const printAgents = await createPrintAgentService().store.list();
+            const durableAgents = await createDurableAgentService().store.list();
 
             if (options.json) {
                 const output = [
                     ...agents.map(agent => ({ ...agent, mode: AGENT_MODES.INTERACTIVE })),
-                    ...printAgents.map(agent => ({ ...agent, mode: AGENT_MODES.DURABLE })),
+                    ...durableAgents.map(agent => ({ ...agent, mode: AGENT_MODES.DURABLE })),
                 ];
                 console.log(JSON.stringify(output, null, 2));
                 return;
             }
 
-            if (agents.length === 0 && printAgents.length === 0) {
+            if (agents.length === 0 && durableAgents.length === 0) {
                 ui.info('No running agents detected.');
                 return;
             }
@@ -372,7 +372,7 @@ export function registerAgentCommand(program: Command): void {
                 formatStatus(agent.status),
                 formatWorkOn(agent.summary),
                 formatRelativeTime(agent.lastActive),
-            ]), ...printAgents.map(agent => [
+            ]), ...durableAgents.map(agent => [
                 agent.name,
                 path.basename(agent.cwd),
                 formatType(agent.provider),
@@ -627,23 +627,23 @@ export function registerAgentCommand(program: Command): void {
                 return;
             }
 
-            const printService = createPrintAgentService();
-            const printResolved = await printService.store.resolve(options.id);
-            if (Array.isArray(printResolved)) {
-                throw new Error(`Multiple print agents match "${options.id}".`);
+            const durableService = createDurableAgentService();
+            const durableResolved = await durableService.store.resolve(options.id);
+            if (Array.isArray(durableResolved)) {
+                throw new Error(`Multiple durable agents match "${options.id}".`);
             }
-            if (printResolved) {
+            if (durableResolved) {
                 if (options.timeout !== undefined) {
-                    throw new Error('--timeout is not supported for synchronous print agents.');
+                    throw new Error('--timeout is not supported for synchronous durable agents.');
                 }
-                if (options.id !== printResolved.id) {
+                if (options.id !== durableResolved.id) {
                     const liveAgents = await manager.listAgents();
                     const liveExact = liveAgents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
                     if (liveExact.length > 0) {
-                        throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the print agent ID.`);
+                        throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the durable agent ID.`);
                     }
                 }
-                const result = await printService.send(options.id, prompt);
+                const result = await durableService.send(options.id, prompt);
                 if (options.json) {
                     console.log(JSON.stringify({
                         target: { id: result.agentId, name: result.agentName, provider: 'claude', mode: 'print' },
@@ -717,31 +717,31 @@ export function registerAgentCommand(program: Command): void {
         .action(withErrorHandler('get agent detail', async (options) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
-            const printResolved = await createPrintAgentService().store.resolve(options.id);
-            if (Array.isArray(printResolved)) {
-                throw new Error(`Multiple print agents match "${options.id}".`);
+            const durableResolved = await createDurableAgentService().store.resolve(options.id);
+            if (Array.isArray(durableResolved)) {
+                throw new Error(`Multiple durable agents match "${options.id}".`);
             }
-            if (printResolved) {
+            if (durableResolved) {
                 const liveExact = agents.filter((agent) => agent.name.toLowerCase() === String(options.id).toLowerCase());
-                if (options.id !== printResolved.id && liveExact.length > 0) {
-                    throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the print agent ID.`);
+                if (options.id !== durableResolved.id && liveExact.length > 0) {
+                    throw new Error(`Agent name "${options.id}" is ambiguous across interactive and print modes. Use the durable agent ID.`);
                 }
                 if (options.json) {
-                    console.log(JSON.stringify(printResolved, null, 2));
+                    console.log(JSON.stringify(durableResolved, null, 2));
                     return;
                 }
-                ui.text('Print Agent Detail', { breakline: true });
+                ui.text('Durable Agent Detail', { breakline: true });
                 ui.text(chalk.dim('─'.repeat(40)));
-                ui.text(`  ${chalk.bold('Agent ID:')}    ${printResolved.id}`);
-                ui.text(`  ${chalk.bold('Session ID:')}  ${printResolved.providerSessionId}`);
-                ui.text(`  ${chalk.bold('Name:')}        ${printResolved.name}`);
+                ui.text(`  ${chalk.bold('Agent ID:')}    ${durableResolved.id}`);
+                ui.text(`  ${chalk.bold('Session ID:')}  ${durableResolved.providerSessionId}`);
+                ui.text(`  ${chalk.bold('Name:')}        ${durableResolved.name}`);
                 ui.text(`  ${chalk.bold('Provider:')}    Claude Code`);
                 ui.text(`  ${chalk.bold('Mode:')}        print`);
-                ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(printResolved.cwd)}`);
-                ui.text(`  ${chalk.bold('State:')}       ${printResolved.state}`);
-                ui.text(`  ${chalk.bold('Session:')}     ${printResolved.sessionHealth}`);
-                ui.text(`  ${chalk.bold('Last Active:')} ${printResolved.lastActiveAt ? formatRelativeTime(new Date(printResolved.lastActiveAt)) : 'never'}`);
-                if (printResolved.lastResult) ui.text(`  ${chalk.bold('Last Result:')} ${printResolved.lastResult.summary}`);
+                ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(durableResolved.cwd)}`);
+                ui.text(`  ${chalk.bold('State:')}       ${durableResolved.state}`);
+                ui.text(`  ${chalk.bold('Session:')}     ${durableResolved.sessionHealth}`);
+                ui.text(`  ${chalk.bold('Last Active:')} ${durableResolved.lastActiveAt ? formatRelativeTime(new Date(durableResolved.lastActiveAt)) : 'never'}`);
+                if (durableResolved.lastResult) ui.text(`  ${chalk.bold('Last Result:')} ${durableResolved.lastResult.summary}`);
                 return;
             }
 

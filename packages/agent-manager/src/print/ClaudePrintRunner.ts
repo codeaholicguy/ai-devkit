@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'child_process';
-import type { PrintAgent, ProcessIdentity } from './PrintAgent.js';
-import { ClaudePrintError } from './PrintAgent.js';
-import { LocalProcessInspector, type ProcessInspector } from './PrintAgentStore.js';
+import type { DurableAgent, ProcessIdentity } from './DurableAgent.js';
+import { ClaudePrintError } from './DurableAgent.js';
+import { LocalProcessInspector, type ProcessInspector } from './DurableAgentStore.js';
 
 type Spawn = (
     command: string,
@@ -10,7 +10,7 @@ type Spawn = (
 ) => ChildProcessWithoutNullStreams;
 
 export interface ClaudePrintRunRequest {
-    agent: PrintAgent;
+    agent: DurableAgent;
     prompt: string;
     executable?: string;
     firstRun: boolean;

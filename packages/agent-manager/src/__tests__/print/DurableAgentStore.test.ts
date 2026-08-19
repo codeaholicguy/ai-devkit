@@ -11,23 +11,23 @@ afterEach(() => {
 
 async function loadStore(): Promise<any> {
     const api = await import('../../index.js') as Record<string, unknown>;
-    expect(api).toHaveProperty('PrintAgentStore');
-    return api.PrintAgentStore;
+    expect(api).toHaveProperty('DurableAgentStore');
+    return api.DurableAgentStore;
 }
 
 function fixture(): { root: string; cwd: string; dbPath: string } {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'print-agent-store-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'durable-agent-store-'));
     tempDirs.push(root);
     const cwd = path.join(root, 'project');
     fs.mkdirSync(cwd);
     return { root, cwd, dbPath: path.join(root, 'state', 'agents.db') };
 }
 
-describe('PrintAgentStore create/list/resolve', () => {
+describe('DurableAgentStore create/list/resolve', () => {
     it('creates distinct durable identities with a canonical cwd and lists them', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { cwd, dbPath } = fixture();
-        const store = new PrintAgentStore({ dbPath, now: () => new Date('2026-08-07T09:00:00Z') });
+        const store = new DurableAgentStore({ dbPath, now: () => new Date('2026-08-07T09:00:00Z') });
 
         const agent = await store.create({ name: 'reviewer', cwd });
 
@@ -48,46 +48,46 @@ describe('PrintAgentStore create/list/resolve', () => {
     });
 
     it('resolves exact ids and names and rejects duplicate names', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { cwd, dbPath } = fixture();
-        const store = new PrintAgentStore({ dbPath });
+        const store = new DurableAgentStore({ dbPath });
         const agent = await store.create({ name: 'Reviewer', cwd });
 
         expect(await store.resolve(agent.id)).toMatchObject({ id: agent.id });
         expect(await store.resolve('reviewer')).toMatchObject({ id: agent.id });
         expect(await store.resolve('view')).toBeNull();
         await expect(store.create({ name: 'reviewer', cwd })).rejects.toMatchObject({
-            code: 'PRINT_AGENT_NAME_CONFLICT',
+            code: 'DURABLE_AGENT_NAME_CONFLICT',
         });
     });
 
     it('rejects a missing cwd', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { root, dbPath } = fixture();
-        const store = new PrintAgentStore({ dbPath });
+        const store = new DurableAgentStore({ dbPath });
 
         await expect(store.create({ name: 'missing', cwd: path.join(root, 'missing') }))
-            .rejects.toMatchObject({ code: 'PRINT_AGENT_STORE' });
+            .rejects.toMatchObject({ code: 'DURABLE_AGENT_STORE' });
     });
 });
 
-describe('PrintAgentStore run ownership', () => {
+describe('DurableAgentStore run ownership', () => {
     it('fails fast when another exact owner is live and completes only for its token', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
         const processInspector = { getIdentity: (pid: number) => {
             const startedAt = live.get(pid);
             return startedAt ? { pid, startedAt } : null;
         } };
-        const store = new PrintAgentStore({ dbPath, processInspector });
+        const store = new DurableAgentStore({ dbPath, processInspector });
         const agent = await store.create({ name: 'runner', cwd });
 
         const acquired = await store.acquireRun(agent.id);
-        await expect(store.acquireRun(agent.id)).rejects.toMatchObject({ code: 'PRINT_AGENT_BUSY' });
+        await expect(store.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_BUSY' });
         await expect(store.completeRun(agent.id, 'wrong-token', {
             status: 'succeeded', exitCode: 0, summary: 'done', sessionHealth: 'healthy',
-        })).rejects.toMatchObject({ code: 'PRINT_AGENT_STORE' });
+        })).rejects.toMatchObject({ code: 'DURABLE_AGENT_STORE' });
 
         const completed = await store.completeRun(agent.id, acquired.token, {
             status: 'succeeded', exitCode: 0, summary: 'done', sessionHealth: 'healthy',
@@ -96,20 +96,20 @@ describe('PrintAgentStore run ownership', () => {
     });
 
     it('retains busy for a live provider then recovers a dead run without signaling it', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start'], [4242, 'provider-start']]);
         const processInspector = { getIdentity: (pid: number) => {
             const startedAt = live.get(pid);
             return startedAt ? { pid, startedAt } : null;
         } };
-        const first = new PrintAgentStore({ dbPath, processInspector });
+        const first = new DurableAgentStore({ dbPath, processInspector });
         const agent = await first.create({ name: 'recoverable', cwd });
         const run = await first.acquireRun(agent.id);
         await first.recordProviderProcess(agent.id, run.token, { pid: 4242, startedAt: 'provider-start' });
 
         live.delete(process.pid);
-        await expect(first.acquireRun(agent.id)).rejects.toMatchObject({ code: 'PRINT_AGENT_BUSY' });
+        await expect(first.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_BUSY' });
 
         live.delete(4242);
         live.set(process.pid, 'replacement-owner-start');
@@ -124,10 +124,10 @@ describe('PrintAgentStore run ownership', () => {
     });
 
     it('reconciles an interrupted run to degraded during list', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { cwd, dbPath } = fixture();
         const live = new Map<number, string>([[process.pid, 'owner-start']]);
-        const store = new PrintAgentStore({ dbPath, incompleteLockGraceMs: 10, processInspector: {
+        const store = new DurableAgentStore({ dbPath, incompleteLockGraceMs: 10, processInspector: {
             getIdentity: (pid: number) => {
                 const startedAt = live.get(pid);
                 return startedAt ? { pid, startedAt } : null;
@@ -148,9 +148,9 @@ describe('PrintAgentStore run ownership', () => {
     });
 
     it('rejects send acquisition when the bound cwd is replaced by a symlink', async () => {
-        const PrintAgentStore = await loadStore();
+        const DurableAgentStore = await loadStore();
         const { root, cwd, dbPath } = fixture();
-        const store = new PrintAgentStore({ dbPath });
+        const store = new DurableAgentStore({ dbPath });
         const agent = await store.create({ name: 'bound', cwd });
         const moved = path.join(root, 'moved-project');
         const other = path.join(root, 'other-project');
@@ -158,6 +158,6 @@ describe('PrintAgentStore run ownership', () => {
         fs.mkdirSync(other);
         fs.symlinkSync(other, cwd);
 
-        await expect(store.acquireRun(agent.id)).rejects.toMatchObject({ code: 'PRINT_AGENT_STORE' });
+        await expect(store.acquireRun(agent.id)).rejects.toMatchObject({ code: 'DURABLE_AGENT_STORE' });
     });
 });

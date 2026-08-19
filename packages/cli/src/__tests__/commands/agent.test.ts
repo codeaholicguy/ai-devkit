@@ -13,13 +13,13 @@ const mockManager: any = {
   getAdapter: vi.fn(),
 };
 
-const mockPrintStore: any = {
+const mockDurableStore: any = {
   list: vi.fn().mockResolvedValue([]),
   resolve: vi.fn().mockResolvedValue(null),
 };
 
-const mockPrintService: any = {
-  store: mockPrintStore,
+const mockDurableService: any = {
+  store: mockDurableStore,
   create: vi.fn(),
   send: vi.fn(),
 };
@@ -97,8 +97,8 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   GrokCliAdapter: vi.fn(),
   OpenCodeAdapter: vi.fn(),
   PiAdapter: vi.fn(),
-  PrintAgentStore: vi.fn(function () { return mockPrintStore; }),
-  ClaudePrintAgentService: vi.fn(function () { return mockPrintService; }),
+  DurableAgentStore: vi.fn(function () { return mockDurableStore; }),
+  ClaudePrintAgentService: vi.fn(function () { return mockDurableService; }),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
@@ -228,10 +228,10 @@ describe('agent command', () => {
     mockManager.resolveAgent.mockReset();
     mockManager.getAdapter.mockReset();
     mockAgentAdapter.getConversation.mockReset();
-    mockPrintStore.list.mockReset().mockResolvedValue([]);
-    mockPrintStore.resolve.mockReset().mockResolvedValue(null);
-    mockPrintService.create.mockReset();
-    mockPrintService.send.mockReset();
+    mockDurableStore.list.mockReset().mockResolvedValue([]);
+    mockDurableStore.resolve.mockReset().mockResolvedValue(null);
+    mockDurableService.create.mockReset();
+    mockDurableService.send.mockReset();
     mockFocusManager.findTerminal.mockReset();
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
@@ -293,9 +293,9 @@ describe('agent command', () => {
     ], null, 2));
   });
 
-  it('labels print agents as durable in list JSON without a fake pid', async () => {
+  it('labels durable agents as durable in list JSON without a fake pid', async () => {
     mockManager.listAgents.mockResolvedValue([]);
-    mockPrintStore.list.mockResolvedValue([{
+    mockDurableStore.list.mockResolvedValue([{
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
@@ -310,21 +310,21 @@ describe('agent command', () => {
     expect(output[0]).not.toHaveProperty('pid');
   });
 
-  it('shows durable print-agent detail without requiring a transcript', async () => {
-    const printAgent = {
+  it('shows durable durable-agent detail without requiring a transcript', async () => {
+    const durableAgent = {
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
     };
-    mockPrintStore.resolve.mockResolvedValue(printAgent);
+    mockDurableStore.resolve.mockResolvedValue(durableAgent);
     mockManager.listAgents.mockResolvedValue([]);
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(['node', 'test', 'agent', 'detail', '--id', printAgent.id, '--json']);
+    await program.parseAsync(['node', 'test', 'agent', 'detail', '--id', durableAgent.id, '--json']);
 
     const output = JSON.parse(logSpy.mock.calls[0][0] as string);
-    expect(output).toMatchObject({ id: printAgent.id, provider: 'claude', mode: 'print', state: 'ready' });
+    expect(output).toMatchObject({ id: durableAgent.id, provider: 'claude', mode: 'print', state: 'ready' });
     expect(output).not.toHaveProperty('conversation');
   });
 
@@ -387,9 +387,9 @@ describe('agent command', () => {
     expect(ui.warning).toHaveBeenCalledWith('1 agent(s) waiting for input.');
   });
 
-  it('renders print agents as durable without leaking the internal print mode', async () => {
+  it('renders durable agents as durable without leaking the internal print mode', async () => {
     mockManager.listAgents.mockResolvedValue([]);
-    mockPrintStore.list.mockResolvedValue([{
+    mockDurableStore.list.mockResolvedValue([{
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
       cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'ready',
       sessionHealth: 'uninitialized', lastActiveAt: null, lastResult: null,
@@ -727,8 +727,8 @@ Waiting on user input`,
     expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
   });
 
-  it('starts a durable Claude print agent without tmux', async () => {
-    mockPrintService.create.mockResolvedValue({
+  it('starts a durable Claude durable agent without tmux', async () => {
+    mockDurableService.create.mockResolvedValue({
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
       mode: 'print', cwd: process.cwd(), state: 'ready',
     });
@@ -740,44 +740,44 @@ Waiting on user input`,
       '--name', 'reviewer', '--cwd', process.cwd(),
     ]);
 
-    expect(mockPrintService.create).toHaveBeenCalledWith({ name: 'reviewer', cwd: process.cwd() });
+    expect(mockDurableService.create).toHaveBeenCalledWith({ name: 'reviewer', cwd: process.cwd() });
     expect(ui.success).toHaveBeenCalledWith(expect.stringContaining('11111111-1111-4111-8111-111111111111'));
   });
 
-  it('sends synchronously to an exact print-agent id without terminal injection', async () => {
-    const printAgent = {
+  it('sends synchronously to an exact durable-agent id without terminal injection', async () => {
+    const durableAgent = {
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
       mode: 'print', cwd: '/project', state: 'ready',
     };
-    mockPrintStore.resolve.mockResolvedValue(printAgent);
-    mockPrintService.send.mockResolvedValue({ ...printAgent, result: '\x1b]0;unsafe\x07review complete', exitCode: 0 });
+    mockDurableStore.resolve.mockResolvedValue(durableAgent);
+    mockDurableService.send.mockResolvedValue({ ...durableAgent, result: '\x1b]0;unsafe\x07review complete', exitCode: 0 });
 
     const program = new Command();
     registerAgentCommand(program);
     await program.parseAsync([
-      'node', 'test', 'agent', 'send', 'review this', '--id', printAgent.id,
+      'node', 'test', 'agent', 'send', 'review this', '--id', durableAgent.id,
     ]);
 
-    expect(mockPrintService.send).toHaveBeenCalledWith(printAgent.id, 'review this');
+    expect(mockDurableService.send).toHaveBeenCalledWith(durableAgent.id, 'review this');
     expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
     expect(ui.text).toHaveBeenCalledWith('review complete');
   });
 
   it('rejects timeout for a synchronous print send instead of silently ignoring it', async () => {
-    const printAgent = {
+    const durableAgent = {
       id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude',
       mode: 'print', cwd: '/project', state: 'ready',
     };
-    mockPrintStore.resolve.mockResolvedValue(printAgent);
+    mockDurableStore.resolve.mockResolvedValue(durableAgent);
 
     const program = new Command();
     registerAgentCommand(program);
     await program.parseAsync([
-      'node', 'test', 'agent', 'send', 'review this', '--id', printAgent.id,
+      'node', 'test', 'agent', 'send', 'review this', '--id', durableAgent.id,
       '--wait', '--timeout', '1000',
     ]);
 
-    expect(mockPrintService.send).not.toHaveBeenCalled();
+    expect(mockDurableService.send).not.toHaveBeenCalled();
     expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('--timeout is not supported'));
     expect(process.exit).toHaveBeenCalledWith(1);
   });
