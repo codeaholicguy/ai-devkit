@@ -25,19 +25,30 @@ AI DevKit ships with a core set of skills in its default registry:
 
 | Skill | Purpose |
 |---|---|
-| `agent-orchestration` | Coordinate running AI agents and manage multi-agent workflows |
+| `agent-communication` | Exchange information with active AI coding agents |
+| `agent-management` | Discover, start, inspect, and manage local coding agents |
 | `document-code` | Document code entry points with structured analysis and dependency mapping |
 | `dev-commit` | Commit only intended, verified changes with a conventional message |
 | `dev-lifecycle` | Orchestrate the SDLC workflow and route to phase skills |
-| `dev-worktree`, `dev-requirements`, `dev-design`, `dev-planning`, `dev-implementation`, `dev-testing`, `dev-review`, `dev-pr` | Run focused SDLC and publish-for-review phases directly |
+| `dev-worktree` | Set up or resume isolated feature worktrees |
+| `dev-requirements` | Capture and review feature requirements |
+| `dev-design` | Validate architecture and resolve design trade-offs |
+| `dev-planning` | Create and reconcile implementation plans |
+| `dev-implementation` | Execute plans and verify implementation against design |
+| `dev-testing` | Add and validate feature test coverage |
+| `dev-review` | Run a holistic pre-push code review |
+| `dev-pr` | Publish a ready feature branch for review |
 | `structured-debug` | Follow a disciplined debugging and RCA process before implementing fixes |
 | `memory` | Use AI DevKit memory operations via CLI patterns when needed |
+| `task` | Track lifecycle and debugging progress in the durable task system |
 | `simplify-implementation` | Simplify and refactor complex code paths for maintainability |
+| `brainstorm` | Explore, compare, and refine product or technical ideas |
 | `tdd` | Apply test-driven development by writing a failing test before production code |
-| `technical-writer` | Improve docs clarity, readability, and structure |
 | `verify` | Require fresh terminal evidence before claiming work is complete |
 
 You can install these skills the same way you install community skills.
+
+The repository also contains skills such as `agent-orchestration`, `technical-writer`, and `security-review`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
 
 For more detail on the core workflow skills, see the built-in skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`structured-debug`](/skills/structured-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
 
@@ -163,6 +174,23 @@ This command will:
 - If you omit `[skill-name]` in an interactive terminal, AI DevKit shows a multi-select prompt
 - In non-interactive environments, `[skill-name]` is required
 - `--env` can only be used together with `--global`
+
+### `ai-devkit skill add-registry`
+
+Register a third-party skill registry in the current project or global configuration:
+
+```bash
+ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git
+ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git --global
+```
+
+Use `--global` to write the registry to `~/.ai-devkit/.ai-devkit.json`. If the same registry ID already points to another URL, use `--force` to replace it:
+
+```bash
+ai-devkit skill add-registry my-org/skills https://github.com/my-org/new-skills.git --force
+```
+
+Registry IDs use the `organization/repository` format. Each segment may contain letters, numbers, underscores, and hyphens.
 
 ### `ai-devkit skill list`
 
