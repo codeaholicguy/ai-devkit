@@ -166,18 +166,25 @@ ai-devkit init
 
 AI DevKit will:
 1. Detect your existing environments
-2. Ask before overwriting any existing configurations
-3. Add new environments alongside existing ones
+2. Ask once before replacing the selected environment templates in interactive mode
+3. Ask separately before replacing each existing phase document
+
+In non-interactive mode (`--yes`), existing environment templates and phase documents are skipped unless you also pass `--overwrite`. Template-driven initialization overwrites the selected artifacts without prompting.
 
 ### Override Protection
 
-When re-running `ai-devkit init`, you'll see a warning before any existing files are overwritten:
+When an interactively selected environment is already set up, `ai-devkit init` shows a warning and asks whether to replace the selected environment templates:
 
 ```
 Warning: The following environments are already set up: cursor, claude
 
+The following environments are already set up and will be overwritten:
+  Cursor, Claude Code
+
 Do you want to continue?
 ```
+
+Existing phase documents use a separate per-phase confirmation. This behavior belongs to `init`; the non-interactive `ai-devkit install` reconciliation flow does not show a general “existing install artifacts” overwrite prompt.
 
 ## For Contributors
 
