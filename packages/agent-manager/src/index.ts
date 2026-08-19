@@ -38,40 +38,41 @@ export type { AgentRequest } from './utils/agent-requests.js';
 export { getAgentRequestPath, readLatestAgentRequest, writeAgentRequest } from './utils/agent-requests.js';
 
 export {
-    PrintAgentError,
-    PrintAgentBusyError,
-    PrintAgentNotFoundError,
-    PrintAgentStoreError,
-    PrintAgentNameConflictError,
+    AGENT_MODES,
+    DurableAgentError,
+    DurableAgentBusyError,
+    DurableAgentNotFoundError,
+    DurableAgentRepositoryError,
+    DurableAgentNameConflictError,
     ClaudePrintError,
-} from './print/PrintAgent.js';
+} from './durable/DurableAgent.js';
 export type {
-    PrintAgent,
-    PrintAgentState,
-    PrintSessionHealth,
-    PrintRunStatus,
-    PrintActiveRun,
-    PrintLastResult,
+    DurableAgent,
+    DurableAgentState,
+    DurableSessionHealth,
+    DurableRunStatus,
+    DurableActiveRun,
+    DurableLastResult,
     ProcessIdentity,
-} from './print/PrintAgent.js';
-export { PrintAgentStore } from './print/PrintAgentStore.js';
-export { LocalProcessInspector } from './print/PrintAgentStore.js';
+} from './durable/DurableAgent.js';
+export { DurableAgentRepository } from './durable/DurableAgentRepository.js';
+export { LocalProcessInspector } from './durable/DurableAgentRepository.js';
 export type {
-    CreatePrintAgentInput,
-    PrintAgentStoreOptions,
+    CreateDurableAgentInput,
+    DurableAgentRepositoryOptions,
     ProcessInspector,
-    PrintRunCompletion,
-} from './print/PrintAgentStore.js';
-export { ClaudeCliProbe } from './print/ClaudeCliProbe.js';
-export type { ClaudeCliProbeOptions } from './print/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './print/ClaudePrintRunner.js';
+    DurableRunCompletion,
+} from './durable/DurableAgentRepository.js';
+export { ClaudeCliProbe } from './durable/ClaudeCliProbe.js';
+export type { ClaudeCliProbeOptions } from './durable/ClaudeCliProbe.js';
+export { ClaudePrintRunner } from './durable/ClaudePrintRunner.js';
 export type {
     ClaudePrintRunnerOptions,
     ClaudePrintRunRequest,
     ClaudePrintRunResult,
-} from './print/ClaudePrintRunner.js';
-export { ClaudePrintAgentService } from './print/ClaudePrintAgentService.js';
+} from './durable/ClaudePrintRunner.js';
+export { ClaudePrintAgentService } from './durable/ClaudePrintAgentService.js';
 export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
-} from './print/ClaudePrintAgentService.js';
+} from './durable/ClaudePrintAgentService.js';

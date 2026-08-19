@@ -28,12 +28,12 @@ The logical agent exists while no provider process is running. One logical agent
 - Preserve the existing `ai-devkit agent start` and `ai-devkit agent send --id` user journey.
 - Add `ai-devkit agent start --type claude --mode print --name NAME --cwd PATH`.
 - Keep interactive mode as the default and leave its behavior unchanged.
-- At print-agent start:
+- At durable-agent start:
   - validate the name, cwd, Claude executable, installed Claude version, and required print-mode capabilities without invoking a model;
   - generate a stable AI DevKit agent ID and a valid caller-assigned Claude session UUID;
   - persist a minimal durable local mapping and initial `ready` state;
   - do not launch Claude and do not create or discover a transcript.
-- Resolve print agents on send by exact stable agent ID or unique name.
+- Resolve durable agents on send by exact stable agent ID or unique name.
 - Atomically acquire a per-agent busy state before launching Claude; a concurrent send must fail clearly instead of waiting or queueing.
 - Send the prompt through child-process stdin, never through command-line arguments.
 - On the first send, synchronously invoke Claude with the equivalent of:
@@ -44,7 +44,7 @@ The logical agent exists while no provider process is running. One logical agent
 
 - On later sends, invoke the same mode with exact `--resume <uuid>`; never use `--continue`.
 - Parse Claude stream JSON, verify the emitted provider session ID equals the stored caller-assigned UUID, capture the final result, and return the logical agent to `ready`.
-- Keep print agents visible in list and detail output with stable identity, provider, mode, cwd, `ready`/`running`/`degraded` state, session health, last activity, and last result.
+- Keep durable agents visible in list and detail output with stable identity, provider, mode, cwd, `ready`/`running`/`degraded` state, session health, last activity, and last result.
 - Detect interrupted or abandoned busy state safely and expose/recover it without permitting concurrent use of the same Claude session.
 - Validate all behavior without a real or billable Claude prompt.
 
@@ -53,7 +53,7 @@ The logical agent exists while no provider process is running. One logical agent
 - Keep persistence and new types small and repository-consistent.
 - Isolate provider execution enough for deterministic fake-provider tests.
 - Preserve a clean future seam for other run-based providers without implementing them now.
-- Provide JSON output that identifies print agents without inventing a fake PID or terminal.
+- Provide JSON output that identifies durable agents without inventing a fake PID or terminal.
 
 ### Non-goals
 
@@ -67,11 +67,11 @@ The logical agent exists while no provider process is running. One logical agent
 - Interactive permission prompting or forwarding approvals from print-mode runs.
 - Automatic retry of a failed run.
 - Cross-host, shared, or multi-user agent storage.
-- Changing existing interactive agent start, list, detail, send, wait, open, rename, kill, or channel semantics beyond the minimum additive resolution needed for print agents.
+- Changing existing interactive agent start, list, detail, send, wait, open, rename, kill, or channel semantics beyond the minimum additive resolution needed for durable agents.
 
 ## User Stories & Use Cases
 
-### Create a print agent
+### Create a durable agent
 
 As an AI DevKit user, I can run:
 
@@ -89,7 +89,7 @@ As a user, I can run:
 ai-devkit agent send --id reviewer "Review the authentication design"
 ```
 
-AI DevKit resolves the unique print-agent name, acquires its busy state, starts Claude synchronously, sends the prompt via stdin, streams/parses provider events, verifies the stored session UUID, records the outcome, and exits when the run is terminal.
+AI DevKit resolves the unique durable-agent name, acquires its busy state, starts Claude synchronously, sends the prompt via stdin, streams/parses provider events, verifies the stored session UUID, records the outcome, and exits when the run is terminal.
 
 ### Resume the same context
 
@@ -97,7 +97,7 @@ As a user, I can send a later message to the stable agent ID or its unique name.
 
 ### Observe an idle durable agent
 
-As a user, I can list or inspect a print agent even when no Claude process or transcript exists. The output distinguishes the durable logical agent from an interactive process and reports its session health and last run outcome.
+As a user, I can list or inspect a durable agent even when no Claude process or transcript exists. The output distinguishes the durable logical agent from an interactive process and reports its session health and last run outcome.
 
 ### Reject concurrent sends
 
@@ -115,8 +115,8 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 - `--mode print` is accepted only with `--type claude` and rejects unsupported combinations before persistence.
 - Existing interactive command tests remain unchanged or are augmented only for additive mode parsing.
 - Existing interactive agents continue to use tmux/process detection and terminal input.
-- `agent send --id` resolves both existing interactive agents and durable print agents without ambiguous silent preference. Exact stable print-agent ID wins; duplicate or ambiguous names produce an actionable error.
-- Print-agent sends are synchronous. Existing `--wait` behavior for interactive agents remains intact; print sends already wait for completion and must not introduce a second execution path.
+- `agent send --id` resolves both existing interactive agents and durable durable agents without ambiguous silent preference. Exact stable durable-agent ID wins; duplicate or ambiguous names produce an actionable error.
+- Durable-agent sends are synchronous. Existing `--wait` behavior for interactive agents remains intact; print sends already wait for completion and must not introduce a second execution path.
 
 ### Identity and persistence
 
@@ -125,7 +125,7 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 - Durable persistence uses an atomic, crash-safe local update convention consistent with the repository.
 - Name uniqueness rules are explicit and deterministic for durable agents.
 - A stored cwd is canonicalized and remains bound to the provider session; later sends cannot silently resume it from another cwd.
-- Print agents survive CLI process exit and remain listable without a provider PID.
+- Durable agents survive CLI process exit and remain listable without a provider PID.
 
 ### Provider execution
 
@@ -150,10 +150,10 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 
 ### List and detail
 
-- Human and JSON list/detail output include stable ID, name, provider `claude`, mode `print`, canonical cwd, state, session health, last activity, and last result.
+- Human and JSON list/detail output include stable ID, name, provider `claude`, mode `durable`, canonical cwd, state, session health, last activity, and last result.
 - No fake PID, tmux session, terminal, or transcript path is fabricated.
 - Before first send, session health communicates that the caller-assigned identity is initialized but no provider transcript/run has yet been observed.
-- A running print agent is visible as `running`; a provider/session/protocol failure is visible as `degraded`; a successful or safely recovered agent is `ready`.
+- A running durable agent is visible as `running`; a provider/session/protocol failure is visible as `degraded`; a successful or safely recovered agent is `ready`.
 
 ### Validation
 
@@ -169,7 +169,7 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 - Synchronous execution is intentional. The process running `agent send` owns the provider child until completion.
 - Concurrent sends fail immediately; there is no queue or implicit retry.
 - Claude owns its native transcript and retention behavior. AI DevKit owns only the logical identity, binding, minimal state, and last result metadata.
-- Print agents have no terminal, so terminal-specific operations remain interactive-only and retain their existing semantics.
+- Durable agents have no terminal, so terminal-specific operations remain interactive-only and retain their existing semantics.
 
 ### Technical constraints
 
@@ -217,6 +217,6 @@ No blocking product questions remain. The following are design decisions constra
 
 - Select the smallest persistence mechanism that provides atomic busy acquisition and safe stale-owner recovery.
 - Define the exact bounded last-result and session-health representation.
-- Define deterministic resolution behavior when an interactive and print agent share a name.
+- Define deterministic resolution behavior when an interactive and durable agent share a name.
 - Define the supported Claude capability/version probe using `--version` and `--help` without invoking a model.
 - Define how `agent send --wait`, `--timeout`, and `--json` render for an already-synchronous print send while preserving interactive behavior.

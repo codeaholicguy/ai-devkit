@@ -36,7 +36,15 @@ ai-devkit agent send "review the current diff" --id reviewer
 Print mode inherits Claude Code's settings, permissions, hooks, MCP servers, and
 tool side effects for that working directory. AI DevKit adds no permission bypass
 or automatic retry, and prompts are delivered over stdin rather than command-line
-arguments. `--timeout` is not supported for print agents in this first release.
+arguments. `--timeout` is not supported for durable agents in this first release.
+
+Durable durable-agent state is stored in `~/.ai-devkit/agents.db`. This feature was
+not released with JSON persistence, so there is no legacy import or dual-write.
+
+For direct `DurableAgentRepository` consumers, `dbPath` selects the SQLite database. The
+`lockTimeoutMs`, `incompleteLockGraceMs`, and `mutationLockStaleMs` options are
+deprecated, accepted, and ignored because SQLite transactions replace the
+filesystem lock machinery.
 
 Use this package directly only when building custom tooling around AI DevKit's agent detection and control surface.
 

@@ -7,7 +7,7 @@ import {
     ClaudeCliProbe,
     ClaudePrintAgentService,
     ClaudePrintRunner,
-    PrintAgentStore,
+    DurableAgentRepository,
 } from '../../index.js';
 
 const roots: string[] = [];
@@ -19,18 +19,18 @@ afterEach(() => {
     for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe('Claude print-agent fake-provider journey', () => {
+describe('Claude durable-agent fake-provider journey', () => {
     it('creates without invocation, then starts and resumes the same session through stdin', async () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'print-agent-integration-'));
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'durable-agent-integration-'));
         roots.push(root);
         const cwd = path.join(root, 'project');
         fs.mkdirSync(cwd);
         const capture = path.join(root, 'capture.jsonl');
         process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE = capture;
         const executable = fileURLToPath(new URL('../fixtures/fake-claude.cjs', import.meta.url));
-        const store = new PrintAgentStore({ filePath: path.join(root, 'state', 'print-agents.json') });
+        const repository = new DurableAgentRepository({ dbPath: path.join(root, 'state', 'agents.db') });
         const service = new ClaudePrintAgentService({
-            store,
+            repository,
             probe: new ClaudeCliProbe({ executable }),
             runner: new ClaudePrintRunner(),
             executable,
@@ -50,7 +50,7 @@ describe('Claude print-agent fake-provider journey', () => {
         expect(invocations[1].args).toContain('--resume');
         expect(invocations[1].args[invocations[1].args.indexOf('--resume') + 1]).toBe(created.providerSessionId);
 
-        const persisted = await store.getById(created.id);
+        const persisted = await repository.getById(created.id);
         expect(persisted).toMatchObject({ state: 'ready', sessionHealth: 'healthy' });
     });
 });

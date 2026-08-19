@@ -28,7 +28,7 @@ Non-goals:
 
 - Do not redesign provider detection or session parsing.
 - Do not move historical provider session indexes into this registry.
-- Do not change print-mode agent storage in `print-agents.json`.
+- Do not change print-mode agent storage in `durable-agents.json`.
 - Do not add a daemon or long-running registry service.
 
 ## User Stories & Use Cases

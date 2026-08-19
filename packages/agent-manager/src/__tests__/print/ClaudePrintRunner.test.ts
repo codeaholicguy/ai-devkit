@@ -1,11 +1,11 @@
 import { EventEmitter } from 'node:events';
 import { PassThrough, Writable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
-import type { PrintAgent } from '../../index.js';
+import type { DurableAgent } from '../../index.js';
 
-function agent(): PrintAgent {
+function agent(): DurableAgent {
     return {
-        id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'print',
+        id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'claude', mode: 'durable',
         cwd: '/project', providerSessionId: '22222222-2222-4222-8222-222222222222', state: 'running',
         sessionHealth: 'uninitialized', createdAt: '', updatedAt: '', lastActiveAt: null, lastResult: null,
         activeRun: null,
