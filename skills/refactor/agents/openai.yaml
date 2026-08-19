@@ -1,0 +1,4 @@
+interface:
+  display_name: "Refactor Assistant"
+  short_description: "AI DevKit · Systematic, contract-safe refactors"
+  default_prompt: "Use $refactor to analyze structure, map public contracts, plan staged behavior-preserving refactors, validate the result, or review refactor risk."
