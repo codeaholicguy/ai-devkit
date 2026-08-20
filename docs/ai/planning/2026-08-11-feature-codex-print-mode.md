@@ -40,7 +40,7 @@ description: Ordered TDD work for durable Codex print agents
 - [x] Task 3.1: Add provider-aware exports and fake-Codex integration journey.
   - Outcome: create performs probes only; first send binds; second send resumes same UUID; concurrency/recovery/cwd work offline.
 - [x] Task 3.2: Drive CLI start/list/detail/send behavior with failing command tests.
-  - Outcome: `--type codex --mode print`, `Codex (print)`, `not started`, record-derived JSON provider, provider-selected send.
+  - Outcome: `--type codex --mode durable`, `Codex` with durable mode, `not started`, record-derived JSON provider, provider-selected send.
 - [x] Task 3.3: Run Claude-print and interactive-Codex regression tests and inspect excluded command paths.
 
 ### Phase 4: Validation and publication

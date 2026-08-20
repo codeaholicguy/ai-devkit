@@ -12,7 +12,7 @@ AI DevKit supports durable Claude print agents, but Codex agents still require a
 
 ### Terminology
 
-- **Logical agent:** durable AI DevKit identity created by `agent start --mode print`.
+- **Logical agent:** durable AI DevKit identity created by `agent start --mode durable`.
 - **Provider session:** Codex conversation identified by a provider-minted thread UUID.
 - **Provider process:** one ephemeral `codex exec` child process.
 - **Run:** one `agent send` handled by one provider process.
@@ -21,7 +21,7 @@ AI DevKit supports durable Claude print agents, but Codex agents still require a
 
 ### Goals
 
-- Add `agent start --type codex --mode print` while preserving interactive Codex as the default and Claude print behavior.
+- Add `agent start --type codex --mode durable` while preserving interactive Codex as the default and Claude durable behavior.
 - Create the logical record without a model run or invented provider UUID.
 - On first send, run `codex exec --json -`, capture `thread.started.thread_id`, and bind it atomically during the owned run.
 - On later sends, run `codex exec resume --json <uuid> -` and require the emitted UUID to match.
@@ -42,7 +42,7 @@ AI DevKit supports durable Claude print agents, but Codex agents still require a
 - As a user, later sends explicitly resume the same UUID in the immutable canonical cwd.
 - As a user, I receive an immediate busy error for concurrent sends, never a queue.
 - As a user, failures before binding leave the session uninitialized; failures after binding retain the UUID for safe explicit resume.
-- As a user, exact IDs win and ambiguous names across interactive/print modes are rejected.
+- As a user, exact IDs win and ambiguous names across interactive/durable modes are rejected.
 
 ## Success Criteria
 
@@ -63,9 +63,9 @@ AI DevKit supports durable Claude print agents, but Codex agents still require a
 
 ### CLI and compatibility
 
-- `--mode print` accepts Claude and Codex; omitted mode remains interactive.
-- Human output renders `Codex (print)` and an unbound session as `not started`; JSON derives provider from the record.
-- Print sends remain synchronous and preserve exact-ID/name-resolution rules.
+- `--mode durable` accepts Claude and Codex; omitted mode remains interactive.
+- Human output renders provider `Codex`, mode `durable`, and an unbound session as `not started`; JSON derives provider from the record.
+- Durable sends remain synchronous and preserve exact-ID/name-resolution rules.
 - Claude print, interactive Codex, and excluded commands retain existing behavior.
 
 ### Validation
