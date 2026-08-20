@@ -21,6 +21,7 @@ const messages: ConversationMessage[] = [
 ];
 
 afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
 });
 
@@ -123,6 +124,94 @@ describe('PreviewPane helpers', () => {
         expect(output).toContain('user:\n  first question\n\nassistant:\n  first answer\n  with detail');
         expect(output).not.toContain('assistant: first answer');
         expect(output).not.toContain('assistant │ first answer');
+    });
+
+    it('shows a working indicator for the selected running agent', () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+
+        const output = stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [],
+            error: null,
+            isLoading: false,
+        }), { columns: 80 }));
+
+        expect(output).toContain('working');
+    });
+
+    it('reclaims the activity row for conversation content when the agent stops running', () => {
+        const renderStatus = (status: AgentStatus) => {
+            const agent = {
+                name: 'preview-test',
+                type: 'codex',
+                status,
+                projectPath: '/tmp/project',
+                lastActive: new Date(),
+            } as AgentInfo;
+
+            return stripVTControlCharacters(renderToString(React.createElement(PreviewPane, {
+                agent,
+                messages: [{ role: 'assistant', content: 'line one\nline two\nline three\nline four' }],
+                error: null,
+                isLoading: false,
+                maxLines: 4,
+            }), { columns: 80 }));
+        };
+
+        const running = renderStatus(AgentStatus.RUNNING);
+        const waiting = renderStatus(AgentStatus.WAITING);
+
+        expect(running).not.toContain('line two');
+        expect(running).toContain('line three\n  line four\n⠋ working');
+        expect(waiting).toContain('line two\n  line three\n  line four');
+        expect(waiting).not.toContain('working');
+    });
+
+    it.each([
+        AgentStatus.WAITING,
+        AgentStatus.IDLE,
+        AgentStatus.UNKNOWN,
+    ])('hides the indicator for %s agents', status => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status,
+            pinned: true,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const output = renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [],
+            error: null,
+            isLoading: false,
+        }));
+
+        expect(output).not.toContain('working');
+    });
+
+    it('keeps a pinned running agent active because pinning has no status effect', () => {
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            pinned: true,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+
+        expect(renderToString(React.createElement(PreviewPane, {
+            agent,
+            messages: [],
+            error: null,
+            isLoading: false,
+        }))).toContain('working');
     });
 
     it('renders Markdown message bodies without source punctuation', () => {
@@ -228,6 +317,59 @@ describe('PreviewPane helpers', () => {
         instance.unmount();
         await instance.waitUntilExit();
         renderRowsSpy.mockRestore();
+    });
+
+    it('keeps animation ticks inside the leaf without touching parent renders or scroll state', async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+        const agent = {
+            name: 'preview-test',
+            type: 'codex',
+            status: AgentStatus.RUNNING,
+            projectPath: '/tmp/project',
+            lastActive: new Date(),
+        } as AgentInfo;
+        const stableMessages: ConversationMessage[] = [{
+            role: 'assistant',
+            content: 'first line\nsecond line\nthird line\nfourth line',
+        }];
+        const renderRowsSpy = vi.spyOn(markdownPreview, 'renderMarkdownRows');
+        const onScrollOffsetClamp = vi.fn();
+        let parentRenders = 0;
+        const Parent = () => {
+            parentRenders += 1;
+            return React.createElement(PreviewPane, {
+                agent,
+                messages: stableMessages,
+                error: null,
+                isLoading: false,
+                maxLines: 4,
+                scrollOffset: 1,
+                onScrollOffsetClamp,
+            });
+        };
+        const stdout = new PassThrough() as unknown as NodeJS.WriteStream;
+        Object.assign(stdout, { columns: 80, rows: 24, isTTY: true });
+        const instance = render(React.createElement(Parent), {
+            stdout,
+            interactive: true,
+            patchConsole: false,
+            maxFps: 60,
+        });
+        await instance.waitUntilRenderFlush();
+        await new Promise<void>(resolve => setImmediate(resolve));
+        expect(parentRenders).toBe(1);
+        expect(renderRowsSpy).toHaveBeenCalledTimes(1);
+        expect(onScrollOffsetClamp).not.toHaveBeenCalled();
+
+        await vi.advanceTimersByTimeAsync(480);
+        await instance.waitUntilRenderFlush();
+
+        expect(parentRenders).toBe(1);
+        expect(renderRowsSpy).toHaveBeenCalledTimes(1);
+        expect(onScrollOffsetClamp).not.toHaveBeenCalled();
+        instance.unmount();
+        vi.useRealTimers();
+        await instance.waitUntilExit();
     });
 
     it('rebuilds layout when content width changes while messages stay stable', async () => {
