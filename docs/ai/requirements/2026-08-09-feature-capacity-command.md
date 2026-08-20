@@ -32,7 +32,7 @@ The `capacity` command gives human operators, the agent-management workflow, par
 - Multiple accounts per provider.
 - Automatic reset-credit redemption.
 - A first-party live quota adapter for every AI DevKit environment.
-- Direct use of undocumented provider credentials or private endpoints.
+- OAuth token refresh or any mutation of provider-owned credentials.
 
 ## User Stories
 
@@ -61,7 +61,9 @@ The default cache age is 300 seconds. `--refresh` bypasses cache. Unknown provid
 - JSON uses `schemaVersion: 1` and the shipped `CapacityReport` contract.
 - Canonical capacity is `CapacityWindow[]`; daily and weekly aliases are conveniences derived from duration.
 - Missing data produces `available: "unknown"`; only explicit provider exhaustion/blocking produces `"no"`.
-- Codex uses `codex app-server --stdio` with `initialize`, `initialized`, then `account/rateLimits/read`; no model-turn method is called.
+- Codex resolves `CODEX_HOME/auth.json` (or `~/.codex/auth.json`) and prefers PAT, then fresh OAuth, then a hardened CLI fallback.
+- PAT uses authenticated `whoami` followed by `wham/usage`; OAuth calls `wham/usage` with its account ID and falls back on stale/401 responses.
+- The CLI fallback runs `codex -s read-only -a untrusted app-server`, then reads both `account/rateLimits/read` and `account/read`; no model-turn method is called.
 - Claude uses `claude auth status --json`; unsafe undocumented live usage is not called.
 - Pi and GLM authentication may be detected, but their authoritative capacity remains unknown.
 - Other configured providers are represented as unsupported with unknown availability.
@@ -77,6 +79,7 @@ The default cache age is 300 seconds. `--refresh` bypasses cache. Unknown provid
 - `unknown` is never equivalent to `yes`.
 - Authentication stays owned by provider CLIs wherever possible.
 - Capacity checking must not consume model quota.
+- AI DevKit never refreshes Codex OAuth credentials and never emits auth-file contents or token-bearing errors.
 - Reset credits are report-only and are never redeemed.
 - The implementation remains local-first and self-host friendly.
 

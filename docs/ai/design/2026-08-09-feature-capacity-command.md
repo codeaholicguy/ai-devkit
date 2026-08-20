@@ -17,7 +17,9 @@ flowchart LR
   Orchestrator --> Claude[Claude adapter]
   Orchestrator --> Pi[Pi / GLM adapter]
   Orchestrator --> Stub[Unsupported-provider stub]
-  Codex --> AppServer[codex app-server]
+  Codex --> AuthFile[Codex auth.json]
+  AuthFile --> UsageAPI[whoami / wham usage]
+  AuthFile --> AppServer[read-only app-server fallback]
   Claude --> AuthStatus[claude auth status]
   Pi --> PiAuth[Pi auth provider names]
   Orchestrator --> Report[CapacityReport v1]
@@ -104,16 +106,24 @@ type CapacityReport = {
 ```mermaid
 sequenceDiagram
   participant C as capacity
-  participant A as codex app-server --stdio
-  C->>A: initialize(clientInfo, capabilities=null)
-  A-->>C: initialize result
-  C->>A: initialized
-  C->>A: account/rateLimits/read
-  A-->>C: rateLimits + buckets + reset-credit summary
-  C->>C: sanitize, normalize, deduplicate, derive aliases
+  participant F as auth.json
+  participant H as OpenAI/ChatGPT usage API
+  participant A as read-only codex app-server
+  C->>F: read CODEX_HOME or ~/.codex
+  alt personal_access_token
+    C->>H: whoami, then wham/usage
+  else fresh OAuth token
+    C->>H: wham/usage
+  else missing/stale/failed credentials
+    C->>A: initialize
+    C->>A: account/rateLimits/read + account/read
+  end
+  C->>C: normalize into UsageSnapshot
 ```
 
-The JSON-line transport is injectable in tests. It ignores stderr, bounds execution with a timeout, kills the child after completion, and exposes only normalized fields. It never invokes `turn/start`, `codex exec`, or another model method. The mapper supports the current `rateLimitResetCredits` field plus the older compatibility name, reports `availableCount`, and has no consume/redeem operation.
+The adapter resolves `CODEX_HOME/auth.json` before the home-directory fallback. A PAT performs `whoami` to obtain the account ID and then reads `wham/usage`; a fresh OAuth access token uses its stored account ID directly. Stale tokens and 401s fall back without refresh. API calls are bounded and normalize session, weekly, credit balance, the individual-limit fallback chain, and additional limits.
+
+The JSON-line fallback transport is injectable in tests. It launches `codex -s read-only -a untrusted app-server`, ignores stderr, bounds execution, and reads both rate limits and account state. It never invokes a model method. Missing limits produce unknown availability rather than zero usage.
 
 ### Claude
 
@@ -138,7 +148,8 @@ Configured providers without an authoritative adapter use the common stub. The s
 
 ## Security and Reliability Decisions
 
-- Provider CLIs own OAuth/session authentication; secrets are not passed on command lines.
+- Codex owns OAuth refresh; AI DevKit only reads the current token and never persists or refreshes it.
+- Tokens and raw `auth.json` content are never logged, cached, or included in errors.
 - Output and cache contain normalized allowlisted data, not raw responses.
 - Codex identifiers, labels, and plan metadata are validated and credential/account-like values are rejected.
 - Claude plan metadata is similarly constrained.
@@ -148,7 +159,7 @@ Configured providers without an authoritative adapter use the common stub. The s
 
 ## Alternatives Rejected
 
-- Direct private HTTP calls: excessive credential exposure and undocumented coupling.
+- Direct OAuth refresh: rejected because AI DevKit does not own the credential lifecycle.
 - TUI scraping: brittle and capable of accidentally starting model activity.
 - Local token-history estimation: not authoritative for subscription limits.
 - Forced daily/weekly schema: loses provider-native rolling and scoped windows.

@@ -44,13 +44,23 @@ All tasks are complete. The list reflects execution order and the pushed commit 
   - Outcome: accept bounded JSON stdout from Claude's expected nonzero logged-out exit and use a six-second adapter timeout under the seven-second orchestrator guard.
   - Validation: mocked nonzero behavior plus live `authenticated: false` classification.
 
+## Milestone 5: Tiered Codex Rework
+
+- [x] Rebase the feature onto current `origin/main`.
+- [x] Add auth-file resolution and PAT/OAuth/CLI tier selection under TDD.
+- [x] Normalize API usage into `UsageSnapshot`, including credit-limit fallbacks and additional windows.
+- [x] Harden the CLI fallback with read-only/untrusted flags and both account reads.
+- [x] Prove stale/401 fallback, unavailable semantics, and token redaction with mocked boundaries.
+- [x] Run clean install, build, lifecycle lint, full repository lint/tests, and E2E tests.
+- [ ] Publish the reworked branch and update PR #147.
+
 ## Dependencies and Sequencing
 
 1. Types and detection established the provider/report contract.
 2. Provider adapters normalized into that contract.
 3. Orchestration composed adapters and added cache/timeout behavior.
 4. CLI/rendering exposed the report.
-5. Full tests and real read-only probes drove protocol/security fixes.
+5. Fully mocked network/subprocess tests drove the tiered protocol and security fixes.
 
 Runtime dependencies are Node.js, Commander, provider CLIs already installed by the user, and the existing AI DevKit environment definitions. No new package dependency or migration was introduced.
 

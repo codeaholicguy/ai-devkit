@@ -19,6 +19,13 @@ The feature was built with red-green-refactor cycles. Pure mapping and detection
 
 ### `codex.test.ts`
 
+- [x] Resolve `CODEX_HOME/auth.json`, home fallback, and missing-file CLI fallback.
+- [x] Select PAT before OAuth and exercise PAT `whoami` plus usage calls.
+- [x] Exercise fresh OAuth usage plus stale-token and 401 CLI fallback.
+- [x] Mock every network and subprocess boundary.
+- [x] Map API session/weekly windows, reset timestamps, credit balance, individual-limit fallback chain, and additional limits.
+- [x] Launch the fallback contract with read-only/untrusted flags and both account reads.
+- [x] Assert PAT, access-token, refresh-token, and raw transport failures never appear in output.
 - [x] Normalize primary, secondary, and multi-bucket arbitrary windows.
 - [x] Derive daily/weekly aliases by duration and report unredeemed reset-credit counts.
 - [x] Deduplicate the compatibility `rateLimits` view against `rateLimitsByLimitId`.
@@ -58,40 +65,20 @@ The response fixture is synthetic and redacted; it contains no real account data
 - [x] Exercise Commander wiring with an injected report reader; no live adapter is called.
 - [x] Reject invalid max-age values before probing.
 
-## Coverage
-
-The full CLI coverage run passed repository thresholds:
-
-- Statements: 71.47%
-- Branches: 62.04%
-- Functions: 70.06%
-- Lines: 72.77%
-- Capacity core modules: 80.59% statements and 85.98% lines
-
-The lower direct coverage in the default Codex transport is intentional: CI tests the injected protocol contract and mapper rather than spawning a real authenticated provider process.
-
 ## Fresh Final Gates
 
 | Gate | Result |
 |---|---|
-| `cd packages/cli && npm run lint` | Exit 0; five pre-existing warnings, zero errors |
-| `cd packages/cli && npm test` | 85 test files, 953 tests passed |
-| `cd packages/cli && npm run build` | Exit 0; 207 files compiled |
-| `cd packages/cli && npm run test:coverage` | Exit 0; repository thresholds passed |
-| PR #147 CI | 7/7 checks green |
+| `npm ci` | Exit 0 |
+| `npm run build` | Exit 0; six projects built, 217 CLI files compiled |
+| `npm run lint` | Exit 0; six pre-existing warnings, zero errors |
+| `npm run test` | Exit 0; 145 test files, 1,961 tests passed |
+| `npm run test:e2e` | Exit 0; 41 tests passed |
+| `npx ai-devkit@latest lint --feature capacity-command` | Exit 0; one branch-name warning |
 
-## Real-Run Smoke Results
+## Isolation Policy
 
-The built CLI was run on the development machine with configured Claude, Codex, and Pi/z.ai state:
-
-- [x] `capacity --json --refresh` returned only configured providers: Claude, Codex, Pi, and GLM-through-Pi.
-- [x] Codex app-server returned a live authoritative 10,080-minute window and reset-credit count through `account/rateLimits/read`.
-- [x] The request sequence contained no model turn and no reset-credit consume operation.
-- [x] Claude logged-out state normalized to `authenticated: false`, `status: unauthenticated`, and `available: unknown`.
-- [x] Pi and GLM normalized to authenticated but unsupported/unknown.
-- [x] Output and test scans contained no tokens, account IDs, endpoint bodies, headers, or credential values.
-- [x] `capacity --max-age=-1` exited 1 with a validation error.
-- [x] Existing `agent list --json` exited 0, confirming the adjacent command remained functional.
+The rework deliberately performs no live credential, network, or app-server smoke test. All HTTP responses, auth-file reads, and subprocess protocol responses are synthetic and mocked so verification cannot consume quota or expose local credentials.
 
 ## Regression Policy
 

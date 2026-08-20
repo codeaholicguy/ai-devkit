@@ -43,20 +43,29 @@ capacity [provider] [--json] [--max-age <seconds>] [--refresh]
 - `orchestrate.ts`: validates provider names, selects configured providers by default, runs probes concurrently, isolates failures/timeouts, reads/writes cache, sorts rows, and constructs the report.
 - `cache.ts`: reads freshness-keyed normalized reports and performs atomic restrictive writes under `~/.ai-devkit/cache/capacity.json` (`0700` directory, `0600` file).
 - `render.ts`: emits exact pretty JSON or a text table with Auth, Available, shortest/longest native windows, reset credits, and warnings.
-- `providers/codex.ts`: drives app-server JSON-RPC and sanitizes/normalizes rate-limit snapshots.
+- `providers/codex.ts`: resolves Codex auth, drives tiered API/CLI reads, and sanitizes normalized usage snapshots.
 - `providers/claude.ts`: invokes and safely parses `claude auth status --json`; does not fetch live quota.
 - `providers/pi.ts`: reads only Pi auth provider names and derives Pi/GLM authentication.
 - `providers/stub.ts`: builds truthful unsupported/unknown rows for providers without adapters.
 
-## Codex JSON-RPC Client
+## Tiered Codex Provider
 
-The adapter spawns `codex app-server --stdio` with piped stdin/stdout and ignored stderr. It writes newline-delimited JSON:
+The adapter reads `CODEX_HOME/auth.json` when configured, otherwise `~/.codex/auth.json`, and selects exactly one starting tier:
+
+1. `personal_access_token`: call `whoami`, then `wham/usage` with the returned account ID.
+2. Fresh `tokens.access_token`: call `wham/usage` with `tokens.account_id`.
+3. Missing, stale, unauthorized, or failed direct credentials: use the CLI fallback without refreshing OAuth.
+
+API responses become `UsageSnapshot` values containing session/weekly windows, credit balance, the three-step individual-limit fallback, additional rate limits, source, and update time. Missing windows remain nullable and keep availability unknown.
+
+The CLI fallback spawns `codex -s read-only -a untrusted app-server` with piped stdin/stdout and ignored stderr. It writes newline-delimited JSON:
 
 1. `initialize` with `clientInfo` and `capabilities: null`.
 2. After response id 1, `initialized`.
 3. `account/rateLimits/read` with request id 2 and no parameters.
+4. `account/read` with request id 3 and no parameters.
 
-Response id 2 is normalized and the subprocess is terminated. A five-second adapter timer bounds the exchange. The transport function is injectable, so CI tests use no subprocess or network.
+After responses 2 and 3 arrive, the rate limits and authentication state are normalized and the subprocess is terminated. A five-second adapter timer bounds the exchange. The transport function is injectable, so CI tests use no subprocess or network.
 
 Mapping behavior:
 
@@ -87,7 +96,8 @@ Only authoritative Codex utilization can establish `available: yes`. Claude, Pi,
 
 - No tokens, account IDs, refresh tokens, endpoint URLs, headers, raw bodies, stderr, or raw exception messages are emitted or cached.
 - No credential is placed on a subprocess command line.
-- Codex authentication and refresh remain inside Codex app-server.
+- Codex OAuth refresh remains exclusively owned by Codex; this command never refreshes or writes credentials.
+- PATs, access/refresh tokens, and raw auth-file content never enter normalized output or errors.
 - Codex labels, IDs, scopes, and plans are constrained before output; Claude plan metadata is constrained too.
 - Pi credential values are parsed only to discover top-level provider names and are never retained in normalized output.
 - Cache contains only normalized report data with restrictive permissions.
