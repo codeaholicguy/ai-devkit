@@ -12,7 +12,7 @@ AI DevKit can start Pi only as an interactive terminal process. Automation needs
 
 ## Goals & Objectives
 
-- Support `ai-devkit agent start --type pi --mode print --name <name> --cwd <dir>`.
+- Support `ai-devkit agent start --type pi --mode durable --name <name> --cwd <dir>`.
 - Run Pi non-interactively through its structured JSON event mode.
 - Persist the Pi session UUID after the first run and resume it with `--session <id>`.
 - Reuse Claude print-agent identity, locking, lifecycle, listing, detail, and pruning semantics.
@@ -36,7 +36,7 @@ Non-goals:
 
 ## Success Criteria
 
-- `--type pi --mode print` creates a persisted durable `provider: "pi"` agent with a repository-assigned provider session UUID.
+- `--type pi --mode durable` creates a persisted `provider: "pi"` agent with a repository-assigned provider session UUID.
 - First send invokes `pi --mode json`, extracts and stores the session header UUID, and returns the final assistant text.
 - Later sends invoke `pi --mode json --session <uuid>` and reject a different emitted UUID.
 - Pi agents participate in existing list/detail/send/console flows and provider-specific dispatch.

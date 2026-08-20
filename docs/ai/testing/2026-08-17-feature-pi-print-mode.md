@@ -54,11 +54,11 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 
 ## CLI and End-to-End Tests
 
-- [x] S25 `agent start --type pi --mode print` creates without interactive launch.
-- [x] S26 unsupported print providers and modes remain rejected.
+- [x] S25 `agent start --type pi --mode durable` creates without interactive launch.
+- [x] S26 unsupported durable providers and the retired `print` mode name remain rejected.
 - [x] S27 `agent send` dispatches Pi records to the Pi service and reports provider `pi`.
 - [x] S28 list/detail output identifies durable Pi agents and their repository-assigned sessions.
-- [x] S29 console receives the combined interactive/print registry.
+- [x] S29 console receives the combined interactive/durable registry.
 - [x] S30 Claude print start/send/list/detail behavior remains green.
 
 ## Test Data
