@@ -2,7 +2,7 @@ import fs from 'fs';
 import { randomUUID } from 'crypto';
 import { execFileSync } from 'child_process';
 import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
-import { AGENT_MODES, type DurableActiveRun, type DurableAgent, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
+import { AGENT_MODES, CodexPrintError, type DurableActiveRun, type DurableAgent, type DurableProvider, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
 import {
     DurableAgentBusyError,
     DurableAgentNameConflictError,
@@ -11,7 +11,7 @@ import {
 } from './DurableAgent.js';
 
 interface DurableAgentRow {
-    id: string; name: string; provider: 'claude'; mode: typeof AGENT_MODES.DURABLE; cwd: string; provider_session_id: string;
+    id: string; name: string; provider: DurableProvider; mode: typeof AGENT_MODES.DURABLE; cwd: string; provider_session_id: string | null;
     state: DurableAgent['state']; session_health: DurableSessionHealth; created_at: string; updated_at: string;
     last_active_at: string | null; last_result_status: DurableRunStatus | null;
     last_result_completed_at: string | null; last_result_exit_code: number | null; last_result_summary: string | null;
@@ -19,7 +19,7 @@ interface DurableAgentRow {
     active_provider_pid: number | null; active_provider_started_at: string | null; active_run_started_at: string | null;
 }
 
-export interface CreateDurableAgentInput { name: string; cwd: string }
+export interface CreateDurableAgentInput { name: string; cwd: string; provider?: DurableProvider }
 
 export interface DurableAgentRepositoryOptions {
     dbPath?: string;
@@ -64,13 +64,14 @@ export class DurableAgentRepository {
         const cwd = this.canonicalDirectory(input.cwd);
         const timestamp = this.now().toISOString();
         const id = randomUUID();
-        let providerSessionId = randomUUID();
+        const provider = input.provider ?? 'claude';
+        let providerSessionId = provider === 'claude' ? randomUUID() : null;
         while (providerSessionId === id) providerSessionId = randomUUID();
         try {
             this.db.execute(`INSERT INTO durable_agents (
                 id, name, provider, mode, cwd, provider_session_id, state, session_health, created_at, updated_at
-            ) VALUES (?, ?, 'claude', ?, ?, ?, 'ready', 'uninitialized', ?, ?)`,
-            [id, input.name, AGENT_MODES.DURABLE, cwd, providerSessionId, timestamp, timestamp]);
+            ) VALUES (?, ?, ?, ?, ?, ?, 'ready', 'uninitialized', ?, ?)`,
+            [id, input.name, provider, AGENT_MODES.DURABLE, cwd, providerSessionId, timestamp, timestamp]);
         } catch (error) {
             if (/UNIQUE constraint failed: durable_agents\.name/i.test((error as Error).message)) {
                 throw new DurableAgentNameConflictError(input.name);
@@ -157,6 +158,42 @@ export class DurableAgentRepository {
         if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
     }
 
+    async bindProviderSession(id: string, token: string, providerSessionId: string): Promise<DurableAgent> {
+        this.assertWritable();
+        if (!UUID_PATTERN.test(providerSessionId)) {
+            throw new DurableAgentRepositoryError('Invalid provider session id.');
+        }
+        try {
+            this.immediate(() => {
+                const agent = this.findById(id);
+                if (!agent) throw new DurableAgentNotFoundError(id);
+                if (agent.provider !== 'codex') {
+                    throw new DurableAgentRepositoryError('Only Codex durable sessions can be bound after creation.');
+                }
+                if (agent.activeRun?.token !== token) {
+                    throw new DurableAgentRepositoryError('Print run ownership changed.');
+                }
+                if (agent.providerSessionId !== null && agent.providerSessionId !== providerSessionId) {
+                    throw new CodexPrintError('Durable agent provider session identity does not match.', 'CODEX_SESSION_MISMATCH');
+                }
+                if (agent.providerSessionId === providerSessionId) return;
+                const changed = this.db.execute(`UPDATE durable_agents SET provider_session_id = ?, updated_at = ?
+                    WHERE id = ? AND provider = 'codex' AND state = 'running' AND active_run_token = ?
+                        AND provider_session_id IS NULL`,
+                [providerSessionId, this.now().toISOString(), id, token]);
+                if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
+            });
+        } catch (error) {
+            if (error instanceof DurableAgentRepositoryError || error instanceof DurableAgentNotFoundError
+                || error instanceof CodexPrintError) throw error;
+            if (/UNIQUE constraint failed: durable_agents\.provider_session_id/i.test((error as Error).message)) {
+                throw new CodexPrintError('Provider session is already bound to another durable agent.', 'CODEX_SESSION_MISMATCH');
+            }
+            throw this.storageError('Failed to bind durable-agent provider session', error);
+        }
+        return this.requireById(id);
+    }
+
     async completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> {
         this.assertWritable();
         const completedAt = this.now().toISOString();
@@ -227,6 +264,10 @@ export class DurableAgentRepository {
     }
 
     private fromRow(row: DurableAgentRow): DurableAgent {
+        if (!['claude', 'codex'].includes(row.provider)
+            || (row.provider === 'claude' && row.provider_session_id === null)) {
+            throw new DurableAgentRepositoryError(`Invalid durable-agent provider record: ${row.id}`);
+        }
         const activeRun: DurableActiveRun | null = row.active_run_token === null ? null : {
             token: row.active_run_token,
             owner: { pid: row.active_owner_pid!, startedAt: row.active_owner_started_at! },
@@ -235,9 +276,9 @@ export class DurableAgentRepository {
             },
             startedAt: row.active_run_started_at!,
         };
-        return {
+        const base = {
             id: row.id, name: row.name, provider: row.provider, mode: row.mode, cwd: row.cwd,
-            providerSessionId: row.provider_session_id, state: row.state, sessionHealth: row.session_health,
+            state: row.state, sessionHealth: row.session_health,
             createdAt: row.created_at, updatedAt: row.updated_at, lastActiveAt: row.last_active_at,
             lastResult: row.last_result_status === null ? null : {
                 status: row.last_result_status, completedAt: row.last_result_completed_at!,
@@ -245,6 +286,9 @@ export class DurableAgentRepository {
             },
             activeRun,
         };
+        return row.provider === 'claude'
+            ? { ...base, provider: 'claude', providerSessionId: row.provider_session_id! }
+            : { ...base, provider: 'codex', providerSessionId: row.provider_session_id };
     }
 
     private canonicalDirectory(input: string): string {
@@ -284,6 +328,8 @@ export class DurableAgentRepository {
             : new DurableAgentRepositoryError(`${prefix}: ${(error as Error).message}`);
     }
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class LocalProcessInspector implements ProcessInspector {
     getIdentity(pid: number): ProcessIdentity | null {
