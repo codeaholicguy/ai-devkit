@@ -34,6 +34,7 @@ AI DevKit solves these problems by giving your coding agents:
 Before you begin, make sure you have:
 - **Node.js** (version 20.20.0 or higher)
 - **npm** or **npx** (comes with Node.js)
+- **tmux** for interactive managed agents (provisional compatibility floor: tmux 2.6+; setup reports but does not reject older versions)
 - At least one supported AI coding agent or environment, such as Cursor, Claude Code, Codex, Gemini CLI, opencode, Pi, GitHub Copilot, Devin, or Antigravity
 
 ## Installation

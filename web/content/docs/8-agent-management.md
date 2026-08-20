@@ -56,6 +56,8 @@ ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 
 The default `--mode interactive` starts the agent in tmux. Claude also supports a durable mode that keeps a named agent available without an interactive terminal:
 
+Run `ai-devkit setup` to check the host prerequisite early. It reports the installed tmux version or prints a platform-aware install command without installing packages or failing setup. tmux 2.6+ is the provisional documented compatibility floor; older versions are reported, not rejected.
+
 ```bash
 ai-devkit agent start --type claude --mode durable --name backend --cwd ./packages/backend
 ```
