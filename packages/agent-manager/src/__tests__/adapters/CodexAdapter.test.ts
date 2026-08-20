@@ -750,6 +750,45 @@ describe('CodexAdapter', () => {
             expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
         });
 
+        it('uses the hook session mapping instead of a stale registry entry for the same live pid', async () => {
+            registerEntry();
+            const sessionsDir = path.join(tmpDir, '.codex', 'sessions');
+            const dateDir = path.join(sessionsDir, '2026', '06', '26');
+            const mappingPath = path.join(tmpDir, '.codex', 'ai-devkit', 'sessions.json');
+            const currentSessionFile = path.join(dateDir, 'sess-current.jsonl');
+            const recentTs = new Date().toISOString();
+
+            fs.mkdirSync(dateDir, { recursive: true });
+            fs.mkdirSync(path.dirname(mappingPath), { recursive: true });
+            fs.writeFileSync(currentSessionFile, [
+                JSON.stringify({ type: 'session_meta', payload: { id: 'sess-current', timestamp: recentTs, cwd: '/repo-current' } }),
+                JSON.stringify({ type: 'event', timestamp: recentTs, payload: { type: 'token_count', message: 'Hello from current mapping' } }),
+            ].join('\n'));
+            fs.writeFileSync(mappingPath, JSON.stringify({ 100: currentSessionFile }));
+
+            (cachedAdapter as any).codexSessionsDir = sessionsDir;
+            (cachedAdapter as any).sessionMappingPath = mappingPath;
+
+            const processes: ProcessInfo[] = [
+                { pid: 100, command: 'codex', cwd: '/repo-current', tty: 'ttys001', startTime: new Date() },
+            ];
+            mockedListAgentProcesses.mockReturnValue(processes);
+            mockedEnrichProcesses.mockReturnValue(processes);
+
+            const agents = await cachedAdapter.detectAgents();
+
+            expect(agents).toHaveLength(1);
+            expect(agents[0]).toMatchObject({
+                type: 'codex',
+                pid: 100,
+                sessionId: 'sess-current',
+                sessionFilePath: currentSessionFile,
+                summary: 'Hello from current mapping',
+            });
+            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+            expect(mockedBatchGetSessionFileBirthtimes).not.toHaveBeenCalled();
+        });
+
         it('falls through when no registry entry exists for the pid', async () => {
             const processes: ProcessInfo[] = [
                 { pid: 100, command: 'codex', cwd: '/repo-a', tty: 'ttys001', startTime: new Date() },
@@ -1564,6 +1603,99 @@ describe('CodexAdapter', () => {
 
             expect(result).toHaveLength(1);
             expect(result[0].firstUserMessage).toBe('first user');
+        });
+
+        it('captures the first current Codex response_item user message as firstUserMessage', async () => {
+            const day = path.join(sessionsDir, '2025', '01', '01');
+            writeCodexSession(day, 'response-item-user', [
+                { type: 'session_meta', payload: { id: 'response-item-user', cwd: '/repo', timestamp: '2025-01-01T00:00:00Z' } },
+                {
+                    type: 'response_item',
+                    timestamp: '2025-01-01T00:00:00.500Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: '<environment_context>\n  <cwd>/repo</cwd>\n</environment_context>' }],
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2025-01-01T00:00:01Z',
+                    payload: {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'preamble' }],
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2025-01-01T00:00:02Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: 'first current user' }],
+                    },
+                },
+                {
+                    type: 'response_item',
+                    timestamp: '2025-01-01T00:00:03Z',
+                    payload: {
+                        type: 'message',
+                        role: 'user',
+                        content: [{ type: 'input_text', text: 'second current user' }],
+                    },
+                },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('first current user');
+        });
+
+        it('captures the first current Codex event_msg user message as firstUserMessage', async () => {
+            const day = path.join(sessionsDir, '2025', '01', '01');
+            writeCodexSession(day, 'event-msg-user', [
+                { type: 'session_meta', payload: { id: 'event-msg-user', cwd: '/repo', timestamp: '2025-01-01T00:00:00Z' } },
+                {
+                    type: 'event_msg',
+                    timestamp: '2025-01-01T00:00:01Z',
+                    payload: {
+                        type: 'item_completed',
+                        item: {
+                            type: 'AgentMessage',
+                            content: [{ type: 'Text', text: 'preamble' }],
+                        },
+                    },
+                },
+                {
+                    type: 'event_msg',
+                    timestamp: '2025-01-01T00:00:02Z',
+                    payload: {
+                        type: 'item_completed',
+                        item: {
+                            type: 'UserMessage',
+                            content: [{ type: 'text', text: 'first event user' }],
+                        },
+                    },
+                },
+                {
+                    type: 'event_msg',
+                    timestamp: '2025-01-01T00:00:03Z',
+                    payload: {
+                        type: 'item_completed',
+                        item: {
+                            type: 'UserMessage',
+                            content: [{ type: 'text', text: 'second event user' }],
+                        },
+                    },
+                },
+            ]);
+
+            const result = await adapter.listSessions({ cwd: '/repo' });
+
+            expect(result).toHaveLength(1);
+            expect(result[0].firstUserMessage).toBe('first event user');
         });
 
         it('returns empty firstUserMessage when no user_message exists', async () => {

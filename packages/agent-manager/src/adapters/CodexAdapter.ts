@@ -119,11 +119,11 @@ export class CodexAdapter implements AgentAdapter {
         const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) return [];
 
-        const { cachedAgents, remaining } = this.tryRegistryCache(processes);
-        if (remaining.length === 0) return cachedAgents;
+        const mappingResult = this.mapSessionMappingMatches(processes);
+        const { cachedAgents, remaining } = this.tryRegistryCache(mappingResult.fallback);
+        if (remaining.length === 0) return [...mappingResult.agents, ...cachedAgents];
 
-        const mappingResult = this.mapSessionMappingMatches(remaining);
-        const { direct, fallback } = this.tryResumeMatching(mappingResult.fallback);
+        const { direct, fallback } = this.tryResumeMatching(remaining);
         const directResult = this.mapDirectMatches(direct);
         const { sessions, contentCache } = this.discoverSessions(fallback);
         if (sessions.length === 0) {
@@ -887,13 +887,12 @@ export class CodexAdapter implements AgentAdapter {
             const ts = this.parseTimestamp(entry.timestamp);
             if (ts) lastTimestamp = ts;
 
-            if (
-                !firstUserMessage &&
-                entry.payload?.type === 'user_message' &&
-                typeof entry.payload.message === 'string' &&
-                entry.payload.message.trim().length > 0
-            ) {
-                firstUserMessage = entry.payload.message.trim();
+            if (!firstUserMessage) {
+                const message = this.toConversationMessage(entry, false);
+                const content = message?.content.trim() ?? '';
+                if (message?.role === 'user' && content.length > 0 && !this.isSyntheticUserMessage(content)) {
+                    firstUserMessage = content;
+                }
             }
         }
 
@@ -916,5 +915,9 @@ export class CodexAdapter implements AgentAdapter {
             startedAt,
             sessionFilePath: filePath,
         };
+    }
+
+    private isSyntheticUserMessage(content: string): boolean {
+        return content.startsWith('<environment_context>') && content.includes('</environment_context>');
     }
 }
