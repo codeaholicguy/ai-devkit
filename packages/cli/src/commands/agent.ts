@@ -637,9 +637,6 @@ export function registerAgentCommand(program: Command): void {
 
             const repository = new DurableAgentRepository();
             const durableResolved = await repository.resolve(options.id);
-            const durableService = durableResolved && !Array.isArray(durableResolved)
-                ? createDurableAgentService(durableResolved.provider)
-                : createDurableAgentService();
             if (Array.isArray(durableResolved)) {
                 throw new Error(`Multiple durable agents match "${options.id}".`);
             }

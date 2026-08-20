@@ -12,7 +12,7 @@ AI DevKit can start Pi only as an interactive terminal process. Automation needs
 
 ## Goals & Objectives
 
-- Support `ai-devkit agent start --type pi --mode print --name <name> --cwd <dir>`.
+- Support `ai-devkit agent start --type pi --mode durable --name <name> --cwd <dir>`.
 - Run Pi non-interactively through its structured JSON event mode.
 - Persist the Pi session UUID after the first run and resume it with `--session <id>`.
 - Reuse Claude print-agent identity, locking, lifecycle, listing, detail, and pruning semantics.
@@ -36,8 +36,8 @@ Non-goals:
 
 ## Success Criteria
 
-- `--type pi --mode print` creates a persisted durable `provider: "pi"` agent with a repository-assigned provider session UUID.
-- First send invokes `pi --mode json`, extracts and stores the session header UUID, and returns the final assistant text.
+- `--type pi --mode durable` creates a persisted `provider: "pi"` agent with a repository-assigned provider session UUID.
+- First send invokes `pi --mode json --session-id <uuid>`, verifies the session header UUID, and returns the final assistant text.
 - Later sends invoke `pi --mode json --session <uuid>` and reject a different emitted UUID.
 - Pi agents participate in existing list/detail/send/console flows and provider-specific dispatch.
 - Claude store data remains readable and Claude tests remain green.
@@ -47,7 +47,7 @@ Non-goals:
 ## Constraints & Assumptions
 
 - Ground truth is the installed `@earendil-works/pi-coding-agent`: `--mode json` is non-interactive, emits a leading `{type:"session", id}` JSON line, auto-saves sessions, and accepts `--session <path|id>`.
-- Pi has no Claude-style caller-assigned session ID; the store must bind the provider-emitted UUID during the first run.
+- Pi supports a Claude-style caller-assigned session ID through `--session-id`; the repository assigns it at creation and every run verifies the provider-emitted UUID.
 - Pi JSON mode emits lifecycle events rather than one terminal result object; the runner derives the result from completed assistant messages and requires `agent_end`.
 - Prompts are written to stdin to avoid shell interpolation and command-line disclosure; subprocesses use `shell: false`.
 - Existing print-agent storage must migrate safely without losing Claude agents.

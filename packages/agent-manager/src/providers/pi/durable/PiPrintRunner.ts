@@ -1,11 +1,11 @@
 import { spawn as nodeSpawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'child_process';
-import type { DurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
+import type { PiDurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
 import { PiPrintError } from '../../../durable/DurableAgent.js';
 import { LocalProcessInspector, type ProcessInspector } from '../../../durable/DurableAgentRepository.js';
 import { buildPiPrintArgs, readPiAssistantText, readPiSessionId } from './PiPrintProtocol.js';
 
 type Spawn = (command: string, args: readonly string[], options: SpawnOptionsWithoutStdio & { stdio: ['pipe', 'pipe', 'pipe'] }) => ChildProcessWithoutNullStreams;
-export interface PiPrintRunRequest { agent: DurableAgent; prompt: string; executable?: string; onSpawn(identity: ProcessIdentity): Promise<void> }
+export interface PiPrintRunRequest { agent: PiDurableAgent; prompt: string; executable?: string; onSpawn(identity: ProcessIdentity): Promise<void> }
 export interface PiPrintRunResult { sessionId: string; result: string; messages: string[]; exitCode: number }
 export interface PiPrintRunnerOptions { spawn?: Spawn; processInspector?: ProcessInspector; maxLineBytes?: number }
 

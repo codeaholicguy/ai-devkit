@@ -21,13 +21,13 @@ flowchart LR
   Registry --> Console[agent list / detail]
 ```
 
-Pi follows the merged Claude durable service/runner boundary. The open Codex design is used only as a read-only consistency reference.
+Pi follows the merged Claude and Codex durable service/runner boundary and provider-directory structure.
 
 ## Data Models
 
-- `DurableProvider`: `claude | pi`.
+- `DurableProvider`: `claude | codex | pi`.
 - `DurableAgent`: shared identity, durable mode, cwd binding, state, timestamps, active-run identity, and last result.
-- `DurableAgentRepository` assigns a provider session UUID at creation and persists rows in SQLite migration 003.
+- `DurableAgentRepository` assigns Claude and Pi provider session UUIDs at creation, while Codex remains null until its first run; migration 004 permits the shared nullable column.
 
 ## API Design
 
@@ -42,9 +42,9 @@ Pi follows the merged Claude durable service/runner boundary. The open Codex des
 
 - `DurableAgent.ts`: provider union and Pi errors.
 - `DurableAgentRepository.ts`: SQLite persistence, provider creation, and CAS run ownership.
-- `PiCliProbe.ts`: sanitized capability validation.
-- `PiPrintRunner.ts`: bounded JSONL parser, identity validation, lifecycle/result extraction, subprocess safety.
-- `PiPrintAgentService.ts`: orchestration and state transitions.
+- `providers/pi/durable/PiCliProbe.ts`: sanitized capability validation.
+- `providers/pi/durable/PiPrintRunner.ts`: bounded JSONL parser, identity validation, lifecycle/result extraction, subprocess safety.
+- `providers/pi/durable/PiPrintAgentService.ts`: orchestration and state transitions.
 - `agent.ts`: start validation, provider-aware send, labels, and detail output.
 - Tests mock process and store boundaries following Claude print patterns.
 

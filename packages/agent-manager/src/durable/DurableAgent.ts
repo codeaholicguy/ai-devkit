@@ -1,7 +1,6 @@
 export type DurableAgentState = 'ready' | 'running' | 'degraded';
 export type DurableSessionHealth = 'uninitialized' | 'healthy' | 'unknown' | 'mismatch';
 export type DurableRunStatus = 'succeeded' | 'failed' | 'interrupted';
-export type DurableProvider = 'claude' | 'pi';
 export type PiPrintErrorCode =
     | 'PI_CLI_UNAVAILABLE'
     | 'PI_CLI_UNSUPPORTED'

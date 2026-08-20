@@ -1,10 +1,10 @@
 import { EventEmitter } from 'node:events';
 import { PassThrough, Writable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
-import type { DurableAgent } from '../../../../index.js';
+import type { PiDurableAgent } from '../../../../index.js';
 
 const SESSION = '22222222-2222-4222-8222-222222222222';
-function agent(sessionHealth: DurableAgent['sessionHealth'] = 'uninitialized'): DurableAgent {
+function agent(sessionHealth: PiDurableAgent['sessionHealth'] = 'uninitialized'): PiDurableAgent {
     return { id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'pi', mode: 'durable',
         cwd: '/project', providerSessionId: SESSION, state: 'running', sessionHealth, createdAt: '',
         updatedAt: '', lastActiveAt: null, lastResult: null, activeRun: null };

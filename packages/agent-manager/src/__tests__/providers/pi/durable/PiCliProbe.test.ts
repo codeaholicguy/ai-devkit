@@ -29,7 +29,7 @@ describe('PiCliProbe', () => {
     });
 
     it('reports an empty version as unknown', async () => {
-        const api = await import('../../index.js') as Record<string, unknown>;
+        const api = await import('../../../../index.js') as Record<string, unknown>;
         const Probe = api.PiCliProbe as new (options: unknown) => any;
         const exec = vi.fn().mockResolvedValueOnce({ stdout: ' \n', stderr: '' })
             .mockResolvedValueOnce({ stdout: '--mode json --session-id --session', stderr: '' });

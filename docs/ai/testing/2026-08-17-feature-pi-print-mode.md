@@ -18,11 +18,11 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 
 ### Store and Types
 
-- [ ] S1 Pi agents start with a null provider session while Claude retains an assigned UUID.
-- [ ] S2 version-1 Claude stores load and migrate to version 2 on mutation.
-- [ ] S3 an owned Pi run binds one valid UUID idempotently.
-- [ ] S4 binding rejects invalid UUIDs, ownership changes, non-Pi agents, mismatches, and duplicate provider bindings.
-- [ ] S5 malformed provider-discriminated records are rejected.
+- [x] S1 Pi and Claude agents receive non-null provider sessions at creation while Codex starts null.
+- [x] S2 migration 004 preserves existing Claude rows while permitting deferred Codex sessions.
+- [x] S3 Pi first-run arguments use the repository-assigned UUID and verify the emitted session identity.
+- [x] S4 Codex-only session binding remains unavailable to Pi; Pi identity mismatches fail in the runner.
+- [x] S5 malformed provider-discriminated records, including null Pi sessions, are rejected.
 
 ### Pi CLI Probe
 
@@ -54,11 +54,11 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 
 ## CLI and End-to-End Tests
 
-- [x] S25 `agent start --type pi --mode print` creates without interactive launch.
-- [x] S26 unsupported print providers and modes remain rejected.
+- [x] S25 `agent start --type pi --mode durable` creates without interactive launch.
+- [x] S26 unsupported durable providers and the retired `print` mode name remain rejected.
 - [x] S27 `agent send` dispatches Pi records to the Pi service and reports provider `pi`.
 - [x] S28 list/detail output identifies durable Pi agents and their repository-assigned sessions.
-- [x] S29 console receives the combined interactive/print registry.
+- [x] S29 console receives the combined interactive/durable registry.
 - [x] S30 Claude print start/send/list/detail behavior remains green.
 
 ## Test Data
