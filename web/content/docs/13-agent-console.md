@@ -31,6 +31,8 @@ The console has two main areas:
 1. **Agent list**: shows detected agents, status, name, agent type, recent summary or project path, and a `remote` marker when a channel bridge is connected.
 2. **Preview pane**: shows the selected agent's recent conversation with Markdown formatting, metadata, project path, and connected channel name when one is active.
 
+While the selected agent is running, the preview shows a live `working` spinner on its bottom row. The row returns to conversation content when the agent is no longer running; terminals reporting `TERM=dumb` use an ASCII spinner.
+
 On narrow terminals, the console hides the preview pane. Resize the terminal wider to show both panes.
 
 ## Hotkeys
@@ -66,6 +68,8 @@ ai-devkit agent console
 ```
 
 Use `j` and `k` to move between agents. The preview pane updates as you select agents and renders common Markdown formatting. Press `/` to filter the list by agent name; press `Esc` to clear the filter. Press `p` to pin or unpin an agent. Pinned agents are grouped at the top of the list.
+
+The bottom-row `working` animation reflects the selected agent's last observed running status. It continues while text entry temporarily pauses polling and disappears for waiting, idle, or unknown agents.
 
 Press `v` to focus the detail/chat pane, then use `j` and `k` to scroll. Press `Esc` or `Left` to return to the agent list. Press `M` to toggle a read-only list of recent memory items.
 
