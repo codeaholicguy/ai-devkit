@@ -12,6 +12,18 @@ export interface CapacityWindow {
   scope: string | null;
 }
 
+export type CodexUsageSource = 'pat' | 'oauth' | 'cli';
+
+export interface UsageSnapshot {
+  sessionLimit: CapacityWindow | null;
+  weeklyLimit: CapacityWindow | null;
+  creditsRemaining: number | null;
+  codexCreditLimit: number | null;
+  extraRateWindows: CapacityWindow[];
+  source: CodexUsageSource;
+  updatedAt: string;
+}
+
 export interface ProviderCapacity {
   provider: string;
   agentType: string | null;
@@ -26,6 +38,7 @@ export interface ProviderCapacity {
   windows: CapacityWindow[];
   aliases: { dailyWindowId: string | null; weeklyWindowId: string | null };
   resetCredits?: { available: number | null };
+  usage?: UsageSnapshot;
   warnings: Array<{ code: string; message: string }>;
   error?: { code: string; retryable: boolean };
 }
