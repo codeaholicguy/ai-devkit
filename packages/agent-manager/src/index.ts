@@ -45,14 +45,17 @@ export {
     DurableAgentRepositoryError,
     DurableAgentNameConflictError,
     ClaudePrintError,
+    PiPrintError,
 } from './durable/DurableAgent.js';
 export type {
     DurableAgent,
+    DurableProvider,
     DurableAgentState,
     DurableSessionHealth,
     DurableRunStatus,
     DurableActiveRun,
     DurableLastResult,
+    PiPrintErrorCode,
     ProcessIdentity,
 } from './durable/DurableAgent.js';
 export { DurableAgentRepository } from './durable/DurableAgentRepository.js';
@@ -76,3 +79,9 @@ export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
 } from './durable/ClaudePrintAgentService.js';
+export { PiCliProbe } from './durable/PiCliProbe.js';
+export type { PiCliProbeOptions } from './durable/PiCliProbe.js';
+export { PiPrintRunner } from './durable/PiPrintRunner.js';
+export type { PiPrintRunnerOptions, PiPrintRunRequest, PiPrintRunResult } from './durable/PiPrintRunner.js';
+export { PiPrintAgentService } from './durable/PiPrintAgentService.js';
+export type { PiPrintAgentServiceOptions, PiPrintSendResult } from './durable/PiPrintAgentService.js';

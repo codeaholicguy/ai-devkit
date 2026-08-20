@@ -16,6 +16,7 @@ import {
     PiAdapter,
     ClaudePrintAgentService,
     DurableAgentRepository,
+    PiPrintAgentService,
     AgentStatus,
     TerminalFocusManager,
     AgentRegistry,
@@ -29,6 +30,7 @@ import {
     type AgentType,
     type ConversationMessage,
     type SessionSummary,
+    type DurableProvider,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
@@ -192,8 +194,13 @@ function createAgentManager(): AgentManager {
     return manager;
 }
 
-function createDurableAgentService(): ClaudePrintAgentService {
-    return new ClaudePrintAgentService({ repository: new DurableAgentRepository() });
+function createDurableAgentService(provider: DurableProvider = 'claude'): ClaudePrintAgentService | PiPrintAgentService {
+    const repository = new DurableAgentRepository();
+    return provider === 'pi' ? new PiPrintAgentService({ repository }) : new ClaudePrintAgentService({ repository });
+}
+
+function formatPrintProvider(provider: DurableProvider): string {
+    return provider === 'pi' ? 'Pi' : 'Claude Code';
 }
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
@@ -285,8 +292,8 @@ export function registerAgentCommand(program: Command): void {
                 throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, durable.`);
             }
             const internalMode = mode === 'durable' ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
-            if (internalMode === AGENT_MODES.DURABLE && agentType !== 'claude') {
-                throw new Error('Durable mode currently supports only --type claude.');
+            if (internalMode === AGENT_MODES.DURABLE && !['claude', 'pi'].includes(agentType)) {
+                throw new Error('Durable mode currently supports only --type claude or --type pi.');
             }
             if (!NAME_REGEX.test(agentName)) {
                 ui.error(
@@ -302,10 +309,10 @@ export function registerAgentCommand(program: Command): void {
 
             try {
                 if (internalMode === AGENT_MODES.DURABLE) {
-                    const entry = await createDurableAgentService().create({ name: agentName, cwd });
+                    const entry = await createDurableAgentService(agentType as DurableProvider).create({ name: agentName, cwd });
                     ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
                     ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-                    ui.text('State: ready (Claude session not started)');
+                    ui.text(`State: ready (${formatPrintProvider(entry.provider)} session not started)`);
                     return;
                 }
                 const entry = await startAgent(
@@ -630,6 +637,7 @@ export function registerAgentCommand(program: Command): void {
                 throw new Error(`Multiple durable agents match "${options.id}".`);
             }
             if (durableResolved) {
+                const providerService = createDurableAgentService(durableResolved.provider);
                 if (options.timeout !== undefined) {
                     throw new Error('--timeout is not supported for synchronous durable agents.');
                 }
@@ -640,10 +648,10 @@ export function registerAgentCommand(program: Command): void {
                         throw new Error(`Agent name "${options.id}" is ambiguous across interactive and durable modes. Use the durable agent ID.`);
                     }
                 }
-                const result = await durableService.send(options.id, prompt);
+                const result = await providerService.send(options.id, prompt);
                 if (options.json) {
                     console.log(JSON.stringify({
-                        target: { id: result.agentId, name: result.agentName, provider: 'claude', mode: AGENT_MODES.DURABLE },
+                        target: { id: result.agentId, name: result.agentName, provider: durableResolved.provider, mode: AGENT_MODES.DURABLE },
                         response: result.result,
                         exitCode: result.exitCode,
                         sessionId: result.sessionId,
@@ -732,7 +740,7 @@ export function registerAgentCommand(program: Command): void {
                 ui.text(`  ${chalk.bold('Agent ID:')}    ${durableResolved.id}`);
                 ui.text(`  ${chalk.bold('Session ID:')}  ${durableResolved.providerSessionId}`);
                 ui.text(`  ${chalk.bold('Name:')}        ${durableResolved.name}`);
-                ui.text(`  ${chalk.bold('Provider:')}    Claude Code`);
+                ui.text(`  ${chalk.bold('Provider:')}    ${formatPrintProvider(durableResolved.provider)}`);
                 ui.text(`  ${chalk.bold('Mode:')}        durable`);
                 ui.text(`  ${chalk.bold('CWD:')}         ${formatCwd(durableResolved.cwd)}`);
                 ui.text(`  ${chalk.bold('State:')}       ${durableResolved.state}`);
