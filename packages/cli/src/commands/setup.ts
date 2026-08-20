@@ -6,6 +6,8 @@ import {
   type SetupStepStatus,
 } from '../services/setup/setup.service.js';
 import { ui } from '../util/terminal-ui.js';
+import { inspectTmux, resolveTmuxInstallInstructions } from '../util/tmux.js';
+import { createTmuxInspectionDeps } from '../util/tmux-deps.js';
 
 interface SetupCommandOptions {
   agent?: string;
@@ -25,6 +27,18 @@ export async function setupCommand(options: SetupCommandOptions = {}): Promise<v
   if (agents === null) {
     process.exitCode = 1;
     return;
+  }
+
+  const tmuxDeps = createTmuxInspectionDeps();
+  const tmux = await inspectTmux(tmuxDeps);
+  ui.text('Host Prerequisites');
+  if (tmux.state === 'available') {
+    ui.success(tmux.version ? `tmux ${tmux.version} available` : `${tmux.rawVersion} available`);
+  } else if (tmux.state === 'missing') {
+    const instructions = await resolveTmuxInstallInstructions(tmuxDeps);
+    ui.warning(`tmux is required for interactive managed agents. ${instructions.message} Setup will continue.`);
+  } else {
+    ui.warning(`Could not run tmux -V (${tmux.rawVersion}). Setup will continue.`);
   }
 
   const report = await createSetupService().run({ agents });
