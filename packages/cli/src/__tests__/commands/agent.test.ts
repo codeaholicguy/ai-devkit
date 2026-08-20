@@ -737,12 +737,25 @@ Waiting on user input`,
     const program = new Command();
     registerAgentCommand(program);
     await program.parseAsync([
-      'node', 'test', 'agent', 'start', '--type', 'claude', '--mode', 'print',
+      'node', 'test', 'agent', 'start', '--type', 'claude', '--mode', 'durable',
       '--name', 'reviewer', '--cwd', process.cwd(),
     ]);
 
     expect(mockDurableService.create).toHaveBeenCalledWith({ name: 'reviewer', cwd: process.cwd() });
     expect(ui.success).toHaveBeenCalledWith(expect.stringContaining('11111111-1111-4111-8111-111111111111'));
+  });
+
+  it('rejects the old print mode name for durable agent start', async () => {
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync([
+      'node', 'test', 'agent', 'start', '--type', 'claude', '--mode', 'print',
+      '--name', 'reviewer', '--cwd', process.cwd(),
+    ]);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to start agent: Unsupported agent mode "print". Supported: interactive, durable.');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockDurableService.create).not.toHaveBeenCalled();
   });
 
   it('sends synchronously to an exact durable-agent id without terminal injection', async () => {

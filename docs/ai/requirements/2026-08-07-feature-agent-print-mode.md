@@ -14,7 +14,7 @@ The feature must add a Claude-first print mode in which AI DevKit owns a stable 
 
 ### Terminology
 
-- **Logical agent:** the durable AI DevKit identity created by `agent start --mode print`.
+- **Logical agent:** the durable AI DevKit identity created by `agent start --mode durable`.
 - **Provider session:** the Claude conversation identified by the caller-assigned Claude UUID.
 - **Provider process:** one ephemeral `claude -p` child process.
 - **Run:** processing one `agent send` message by one provider process.
@@ -26,7 +26,7 @@ The logical agent exists while no provider process is running. One logical agent
 ### Primary goals
 
 - Preserve the existing `ai-devkit agent start` and `ai-devkit agent send --id` user journey.
-- Add `ai-devkit agent start --type claude --mode print --name NAME --cwd PATH`.
+- Add `ai-devkit agent start --type claude --mode durable --name NAME --cwd PATH`.
 - Keep interactive mode as the default and leave its behavior unchanged.
 - At durable-agent start:
   - validate the name, cwd, Claude executable, installed Claude version, and required print-mode capabilities without invoking a model;
@@ -76,7 +76,7 @@ The logical agent exists while no provider process is running. One logical agent
 As an AI DevKit user, I can run:
 
 ```bash
-ai-devkit agent start --type claude --mode print --name reviewer --cwd /repo
+ai-devkit agent start --type claude --mode durable --name reviewer --cwd /repo
 ```
 
 and receive a stable AI DevKit agent ID. Creation validates local configuration and persists an idle logical agent, but consumes no model tokens and creates no Claude transcript.
@@ -111,8 +111,8 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 
 ### CLI and compatibility
 
-- `agent start` accepts `--mode interactive|print`; omitted mode is `interactive`.
-- `--mode print` is accepted only with `--type claude` and rejects unsupported combinations before persistence.
+- `agent start` accepts `--mode interactive|durable`; omitted mode is `interactive`.
+- `--mode durable` is accepted only with `--type claude` and rejects unsupported combinations before persistence.
 - Existing interactive command tests remain unchanged or are augmented only for additive mode parsing.
 - Existing interactive agents continue to use tmux/process detection and terminal input.
 - `agent send --id` resolves both existing interactive agents and durable durable agents without ambiguous silent preference. Exact stable durable-agent ID wins; duplicate or ambiguous names produce an actionable error.
@@ -129,7 +129,7 @@ As a user, if the AI DevKit process dies after marking the agent busy, a later o
 
 ### Provider execution
 
-- No Claude process is spawned during `agent start --mode print`.
+- No Claude process is spawned during `agent start --mode durable`.
 - The first send passes `-p`, `--session-id`, `--output-format stream-json`, and `--verbose` as discrete argv values.
 - Later sends pass `-p`, `--resume`, the exact stored UUID, `--output-format stream-json`, and `--verbose`.
 - Prompt content is written only to stdin and never appears in provider argv, normal status output, or error messages.

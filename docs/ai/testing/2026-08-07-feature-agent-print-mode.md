@@ -74,7 +74,7 @@ description: Offline TDD, security, integration, and compatibility validation
 
 - [ ] Omitted `--mode` routes to existing interactive start unchanged.
 - [ ] `--mode interactive` routes to existing interactive start unchanged.
-- [ ] `--mode print` accepts Claude only and rejects other provider combinations.
+- [ ] `--mode durable` accepts Claude only and rejects other provider combinations.
 - [ ] Print start displays stable identity and does not display PID/tmux attach instructions.
 - [ ] List merges live and durable rows without fake PID/session file values.
 - [x] List table and JSON label live agents as `interactive` and internal print-mode agents as `durable`, without leaking `print` in list presentation.
@@ -100,7 +100,7 @@ description: Offline TDD, security, integration, and compatibility validation
 ## End-to-End Tests
 
 - [ ] Invoke the built CLI with an injected fake `claude` executable, temporary HOME/store, and temporary cwd.
-- [ ] Run `agent start --type claude --mode print`, verify no fake-provider invocation and no transcript fixture.
+- [ ] Run `agent start --type claude --mode durable`, verify no fake-provider invocation and no transcript fixture.
 - [ ] Run first `agent send`, verify captured argv/session ID, stdin prompt, cwd, stream result, and ready state.
 - [ ] Run second `agent send`, verify exact `--resume`, same provider UUID, and updated last result.
 - [ ] Hold one fake run open and verify a second CLI send exits non-zero with a clear busy error.
