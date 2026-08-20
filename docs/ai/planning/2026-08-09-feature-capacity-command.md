@@ -52,7 +52,7 @@ All tasks are complete. The list reflects execution order and the pushed commit 
 - [x] Harden the CLI fallback with read-only/untrusted flags and both account reads.
 - [x] Prove stale/401 fallback, unavailable semantics, and token redaction with mocked boundaries.
 - [x] Run clean install, build, lifecycle lint, full repository lint/tests, and E2E tests.
-- [ ] Publish the reworked branch and update PR #147.
+- [x] Publish the reworked branch and update PR #147 with the tiered-flow Rework section.
 
 ## Dependencies and Sequencing
 
