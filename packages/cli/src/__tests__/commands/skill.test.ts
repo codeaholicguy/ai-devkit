@@ -7,6 +7,7 @@ const mockAddSkill = vi.fn();
 const mockListGlobalSkills = vi.fn();
 const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
+const mockUpdateSkillIndexForRegistry = vi.fn();
 const mockProjectGetSkillRegistries = vi.fn();
 const mockProjectAddSkillRegistry = vi.fn();
 const mockGlobalGetSkillRegistries = vi.fn();
@@ -32,6 +33,7 @@ vi.mock('../../lib/SkillManager.js', () => ({
     listGlobalSkills: (...args: unknown[]) => mockListGlobalSkills(...args),
     listSkills: (...args: unknown[]) => mockListSkills(...args),
     removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
+    updateSkillIndexForRegistry: (...args: unknown[]) => mockUpdateSkillIndexForRegistry(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
     rebuildIndex: vi.fn(),
@@ -56,6 +58,7 @@ describe('skill command', () => {
     mockListGlobalSkills.mockResolvedValue([]);
     mockListSkills.mockResolvedValue([]);
     mockRemoveSkill.mockImplementation(async () => undefined);
+    mockUpdateSkillIndexForRegistry.mockImplementation(async () => undefined);
     mockProjectGetSkillRegistries.mockResolvedValue({});
     mockProjectAddSkillRegistry.mockResolvedValue({});
     mockGlobalGetSkillRegistries.mockResolvedValue({});
@@ -76,6 +79,7 @@ describe('skill command', () => {
       { force: undefined },
     );
     expect(mockGlobalAddSkillRegistry).not.toHaveBeenCalled();
+    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('shopback/skills');
   });
 
   it('reports an identical target-scope registry as already registered', async () => {
