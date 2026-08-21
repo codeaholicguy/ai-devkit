@@ -168,7 +168,7 @@ describe('PreviewPane helpers', () => {
         const waiting = renderStatus(AgentStatus.WAITING);
 
         expect(running).not.toContain('line two');
-        expect(running).toContain('line three\n  line four\n⠋ working');
+        expect(running).toContain('line three\n  line four\n| working');
         expect(waiting).toContain('line two\n  line three\n  line four');
         expect(waiting).not.toContain('working');
     });

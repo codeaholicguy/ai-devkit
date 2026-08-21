@@ -7,6 +7,7 @@ const mockAddSkill = vi.fn();
 const mockListGlobalSkills = vi.fn();
 const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
+const mockCacheRegistry = vi.fn();
 const mockUpdateSkillIndexForRegistry = vi.fn();
 const mockProjectGetSkillRegistries = vi.fn();
 const mockProjectAddSkillRegistry = vi.fn();
@@ -33,6 +34,7 @@ vi.mock('../../lib/SkillManager.js', () => ({
     listGlobalSkills: (...args: unknown[]) => mockListGlobalSkills(...args),
     listSkills: (...args: unknown[]) => mockListSkills(...args),
     removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
+    cacheRegistry: (...args: unknown[]) => mockCacheRegistry(...args),
     updateSkillIndexForRegistry: (...args: unknown[]) => mockUpdateSkillIndexForRegistry(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
@@ -58,6 +60,7 @@ describe('skill command', () => {
     mockListGlobalSkills.mockResolvedValue([]);
     mockListSkills.mockResolvedValue([]);
     mockRemoveSkill.mockImplementation(async () => undefined);
+    mockCacheRegistry.mockImplementation(async () => undefined);
     mockUpdateSkillIndexForRegistry.mockImplementation(async () => undefined);
     mockProjectGetSkillRegistries.mockResolvedValue({});
     mockProjectAddSkillRegistry.mockResolvedValue({});
@@ -71,15 +74,22 @@ describe('skill command', () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'git@gitlab.com:shopback/skills.git']);
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'git@example.com:example/private-skills.git']);
 
     expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
-      'shopback/skills',
-      'git@gitlab.com:shopback/skills.git',
+      'example/private-skills',
+      'git@example.com:example/private-skills.git',
       { force: undefined },
     );
     expect(mockGlobalAddSkillRegistry).not.toHaveBeenCalled();
-    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('shopback/skills');
+    expect(mockCacheRegistry).toHaveBeenCalledWith(
+      'example/private-skills',
+      'git@example.com:example/private-skills.git',
+    );
+    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('example/private-skills');
+    expect(mockCacheRegistry.mock.invocationCallOrder[0]).toBeLessThan(
+      mockUpdateSkillIndexForRegistry.mock.invocationCallOrder[0],
+    );
   });
 
   it('reports an identical target-scope registry as already registered', async () => {
@@ -102,11 +112,11 @@ describe('skill command', () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'opaque-url', globalFlag]);
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'opaque-url', globalFlag]);
 
     expect(mockGlobalGetSkillRegistries).toHaveBeenCalledOnce();
     expect(mockGlobalAddSkillRegistry).toHaveBeenCalledWith(
-      'shopback/skills',
+      'example/private-skills',
       'opaque-url',
       { force: undefined },
     );
@@ -114,18 +124,18 @@ describe('skill command', () => {
   });
 
   it.each(['-f', '--force'])('forwards %s and reports a forced update', async forceFlag => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'shopback/skills': 'old-url' });
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/private-skills': 'old-url' });
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'new-url', forceFlag]);
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'new-url', forceFlag]);
 
     expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
-      'shopback/skills',
+      'example/private-skills',
       'new-url',
       { force: true },
     );
-    expect(ui.success).toHaveBeenCalledWith('Updated skill registry "shopback/skills".');
+    expect(ui.success).toHaveBeenCalledWith('Updated skill registry "example/private-skills".');
   });
 
   it.each([
@@ -161,14 +171,14 @@ describe('skill command', () => {
   );
 
   it('rejects a target-scope conflict without calling the setter', async () => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'shopback/skills': 'old-url' });
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/private-skills': 'old-url' });
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'shopback/skills', 'new-url']);
+    await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'new-url']);
 
     expect(ui.error).toHaveBeenCalledWith(
-      'Failed to add registry: Registry "shopback/skills" is already registered with a different URL. Use --force to overwrite it.'
+      'Failed to add registry: Registry "example/private-skills" is already registered with a different URL. Use --force to overwrite it.'
     );
     expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
   });

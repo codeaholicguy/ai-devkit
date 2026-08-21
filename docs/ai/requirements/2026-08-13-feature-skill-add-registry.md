@@ -44,7 +44,7 @@ The feature is for users who want `skill add`, `find`, `update`, and `rebuild-in
 ## User Stories & Use Cases
 
 - As a project maintainer, I want to run `ai-devkit skill add-registry anthropics/skills https://github.com/anthropics/skills.git` so the project resolves that registry without hand-editing JSON.
-- As a user, I want to run `ai-devkit skill add-registry shopback/skills git@gitlab.com:shopback/earn-more/earn-more-experiment/skills.git --global` so all projects can resolve an SSH-hosted registry.
+- As a user, I want to run `ai-devkit skill add-registry example/private-skills git@example.com:example/private-skills.git --global` so all projects can resolve an SSH-hosted registry.
 - As a user, I want arbitrary URL strings, including strings without `.git`, stored exactly as supplied.
 - As a maintainer, I want an identical repeat invocation to succeed without rewriting config.
 - As a maintainer, I want an accidental same-scope URL change rejected and an intentional change enabled by `--force`.

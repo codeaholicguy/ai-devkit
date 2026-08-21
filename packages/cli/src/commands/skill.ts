@@ -79,7 +79,9 @@ export function registerSkillCommand(program: Command): void {
       const mutation = planSkillRegistryAdd(registries, id, url, { force: options.force });
       await configManager.addSkillRegistry(id, url, { force: options.force });
       if (mutation.status !== 'already-registered') {
-        await new SkillManager(new ConfigManager()).updateSkillIndexForRegistry(id);
+        const skillManager = new SkillManager(new ConfigManager());
+        await skillManager.cacheRegistry(id, url);
+        await skillManager.updateSkillIndexForRegistry(id);
       }
 
       if (mutation.status === 'already-registered') {

@@ -1544,7 +1544,7 @@ describe("SkillManager", () => {
     it("indexes configured non-GitHub registries from matching local cache on refresh", async () => {
       mockFetch({ registries: {} });
       mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({
-        "shopback/experiment-skills": "git@gitlab.com:shopback/earn-more/earn-more-experiment/skills.git",
+        "example/private-skills": "git@example.com:example/private-skills.git",
       });
       mockConfigManager.getSkillRegistries.mockResolvedValue({});
       mockedGitUtil.fetchGitHead.mockResolvedValue("unused");
@@ -1554,8 +1554,8 @@ describe("SkillManager", () => {
         os.homedir(),
         ".ai-devkit",
         "skills",
-        "shopback",
-        "experiment-skills",
+        "example",
+        "private-skills",
       );
       const unrelatedRegistryPath = path.join(
         os.homedir(),
@@ -1604,7 +1604,7 @@ describe("SkillManager", () => {
       expect(results).toEqual([
         expect.objectContaining({
           name: "asf",
-          registry: "shopback/experiment-skills",
+          registry: "example/private-skills",
           path: "skills/asf",
           description: "ASF experiment workflow",
         }),
@@ -1617,6 +1617,28 @@ describe("SkillManager", () => {
         path.join(unrelatedRegistryPath, "skills"),
         { withFileTypes: true },
       );
+    });
+  });
+
+  describe("cacheRegistry", () => {
+    it("prepares the registry repository in the local cache", async () => {
+      const registryId = "example/private-skills";
+      const gitUrl = "git@example.com:example/private-skills.git";
+      const repoPath = path.join(os.homedir(), ".ai-devkit", "skills", registryId);
+
+      (mockedFs.pathExists as any).mockResolvedValue(false);
+      (mockedFs.ensureDir as any).mockResolvedValue(undefined);
+      mockedGitUtil.cloneRepository.mockResolvedValue(repoPath);
+
+      const result = await skillManager.cacheRegistry(registryId, gitUrl);
+
+      expect(mockedGitUtil.ensureGitInstalled).toHaveBeenCalledOnce();
+      expect(mockedGitUtil.cloneRepository).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".ai-devkit", "skills"),
+        registryId,
+        gitUrl,
+      );
+      expect(result).toBe(repoPath);
     });
   });
 });

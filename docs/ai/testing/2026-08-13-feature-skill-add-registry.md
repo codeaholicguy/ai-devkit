@@ -58,7 +58,7 @@ description: Verify registry persistence, CLI behavior, safety, and regressions
 
 ## Test Data
 
-- Registry IDs: `anthropics/skills`, `shopback/skills`, plus invalid bare/nested/dotted forms.
+- Registry IDs: `anthropics/skills`, `example/private-skills`, plus invalid bare/nested/dotted forms.
 - URL values: `.git` HTTPS, suffixless HTTPS, SSH/SCP syntax, and an arbitrary opaque string.
 - Config fixtures: missing, valid empty, valid with sibling registries/unrelated fields, and malformed JSON.
 - Mock `fs-extra`, `os.homedir`, terminal UI, and process exit using established test patterns. No production user config, cache, network, or Git repository is touched.
