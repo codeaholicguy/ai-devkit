@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Box, Text } from 'ink';
-import type { AgentInfo, ConversationMessage } from '@ai-devkit/agent-manager';
+import { AgentStatus, type AgentInfo, type ConversationMessage } from '@ai-devkit/agent-manager';
 import type { ConversationFetchError } from './hooks/useAgentConversation.js';
 import { formatRelative } from './render/formatRelative.js';
 import { AGENT_TYPE_LABEL_DISPLAY } from './render/agentTypeLabel.js';
@@ -11,6 +11,7 @@ import {
     renderMarkdownRows,
     type MarkdownPreviewSpan,
 } from './render/markdownPreview.js';
+import { PreviewActivityIndicator } from './PreviewActivityIndicator.js';
 
 interface PreviewPaneProps {
     agent: AgentInfo | null;
@@ -162,6 +163,8 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
     contentWidth = 80,
     onScrollOffsetClamp,
 }) => {
+    const activityActive = agent?.status === AgentStatus.RUNNING;
+    const bodyMaxLines = Math.max(1, maxLines - (activityActive ? 1 : 0));
     const rows = useMemo(() => buildPreviewRows(messages, contentWidth), [messages, contentWidth]);
     const rowCount = rows.length;
     const previousRowCountRef = useRef(rowCount);
@@ -171,7 +174,7 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
         scrollOffset,
     );
     const viewport = rows.length > 0
-        ? buildPreviewViewportFromRows(rows, Math.max(4, maxLines), adjustedScrollOffset)
+        ? buildPreviewViewportFromRows(rows, bodyMaxLines, adjustedScrollOffset)
         : null;
     const clampedOffset = viewport?.clampedOffset;
 
@@ -258,6 +261,7 @@ const PreviewPaneInner: React.FC<PreviewPaneProps> = ({
             <Box flexDirection="column" flexGrow={1}>
                 {body}
             </Box>
+            <PreviewActivityIndicator active={activityActive} />
         </Box>
     );
 };
