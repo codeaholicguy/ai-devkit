@@ -7,7 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-- Added a scroll-safe `working` animation to the running agent's console preview, with a `TERM=dumb` ASCII fallback.
+- [4ac8fa2](https://github.com/codeaholicguy/ai-devkit/pull/175) Expanded the agent CLI web reference.
+- [5192336](https://github.com/codeaholicguy/ai-devkit/pull/176) Documented console controls and agent types.
+- [5ac70fb](https://github.com/codeaholicguy/ai-devkit/pull/178) Aligned the built-in skill catalog.
+- [b5a2bce](https://github.com/codeaholicguy/ai-devkit/pull/179) Corrected the structured debug skill name in docs.
+- [74ff63d](https://github.com/codeaholicguy/ai-devkit/pull/180) Expanded send wait adapter coverage.
+- [4c6ec2c](https://github.com/codeaholicguy/ai-devkit/pull/181) Clarified channel provider behavior.
+- [4233e1c](https://github.com/codeaholicguy/ai-devkit/pull/182) Clarified init overwrite behavior.
+- [c8a1fee](https://github.com/codeaholicguy/ai-devkit/pull/183) Listed first-party plugins in docs.
+- [4b15897](https://github.com/codeaholicguy/ai-devkit/pull/184) Refreshed the skill management roadmap.
+- [870529b](https://github.com/codeaholicguy/ai-devkit/pull/185) Completed the agent management roadmap.
+- [0d85d5b](https://github.com/codeaholicguy/ai-devkit/pull/187) Updated hooks and memory roadmaps.
+- [c6c2c70](https://github.com/codeaholicguy/ai-devkit/pull/188) Surfaced durable task tracking in docs.
+- [4f3afbf](https://github.com/codeaholicguy/ai-devkit/pull/177) Generalized console channel guidance.
+- [70becde](https://github.com/codeaholicguy/ai-devkit/pull/186) Refined the CLI enhancements roadmap.
+- [db7a762](https://github.com/codeaholicguy/ai-devkit/commit/db7a762daa1faf31323619bb5682f14157433c67) Added the refactor skill.
+- [44f47ef](https://github.com/codeaholicguy/ai-devkit/commit/44f47ef602702033518ab6874b27978c49ea2be0) Tightened refactor skill guidance.
+- [43e2ca9](https://github.com/codeaholicguy/ai-devkit/commit/43e2ca9c744ea461c6a05fdd41c0518c963d02fd) Simplified the refactor skill.
+- [4ee608c](https://github.com/codeaholicguy/ai-devkit/pull/174) Stored durable agents in `agents.db`.
+- [95674c9](https://github.com/codeaholicguy/ai-devkit/pull/189) Reorganized channel provider adapters.
+- [dabf19f](https://github.com/codeaholicguy/ai-devkit/pull/190) Renamed the durable agent start mode.
+- [8c1e490](https://github.com/codeaholicguy/ai-devkit/pull/192) Preferred current Codex sessions in the agent manager.
+- [9dced35](https://github.com/codeaholicguy/ai-devkit/pull/193) Added a scroll-safe `working` animation to the running agent's console preview, with a `TERM=dumb` ASCII fallback.
 
 ## [0.52.0] - 2026-08-18
 
