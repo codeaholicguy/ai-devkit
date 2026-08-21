@@ -358,6 +358,10 @@ export class SkillManager {
     return this.index.rebuildIndex(outputPath);
   }
 
+  async updateSkillIndexForRegistry(registryId: string): Promise<void> {
+    return this.index.updateRegistryFromCache(registryId);
+  }
+
   private async resolveProjectEnvironments(): Promise<string[]> {
     ui.info('Loading project configuration...');
     let config = await this.configManager.read();

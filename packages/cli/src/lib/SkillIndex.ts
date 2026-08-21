@@ -1,8 +1,8 @@
 import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import { SkillRegistry } from './SkillRegistry.js';
-import { extractSkillDescription } from '../util/skill.js';
+import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
+import { extractSkillDescription, isValidSkillName } from '../util/skill.js';
 import { fetchGitHead } from '../util/git.js';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github.js';
 import { ui } from '../util/terminal-ui.js';
@@ -66,6 +66,30 @@ export class SkillIndex {
     }
   }
 
+  async updateRegistryFromCache(registryId: string): Promise<void> {
+    const localSkills = await this.readLocalRegistrySkills(registryId);
+    if (!localSkills) {
+      return;
+    }
+
+    const existingIndex = await this.readExistingIndex();
+    const nextIndex: SkillIndexData = {
+      meta: {
+        version: 1,
+        createdAt: existingIndex?.meta?.createdAt || Date.now(),
+        updatedAt: Date.now(),
+        registryHeads: existingIndex?.meta?.registryHeads || {},
+      },
+      skills: [
+        ...(existingIndex?.skills || []).filter(skill => skill.registry !== registryId),
+        ...localSkills,
+      ],
+    };
+
+    await fs.ensureDir(path.dirname(SKILL_INDEX_PATH));
+    await fs.writeJson(SKILL_INDEX_PATH, nextIndex, { spaces: 2 });
+  }
+
   private async ensureSkillIndex(forceRefresh = false): Promise<SkillIndexData> {
     const indexExists = await fs.pathExists(SKILL_INDEX_PATH);
 
@@ -78,7 +102,7 @@ export class SkillIndex {
           return index;
         }
         ui.info(`Index is older than 24h, checking for updates...`);
-      } catch (error) {
+      } catch (ignore) {
         ui.warning('Failed to read skill index, will rebuild');
       }
     }
@@ -95,7 +119,7 @@ export class SkillIndex {
           spinner.succeed('Seed index fetched successfully');
           return seedIndex;
         }
-      } catch (error) {
+      } catch (ignore) {
         spinner.fail('Failed to fetch seed index, falling back to build');
       }
     }
@@ -125,12 +149,8 @@ export class SkillIndex {
     const registry = await this.registry.fetchMergedRegistry();
     const registryIds = Object.keys(registry.registries);
 
-    let existingIndex: SkillIndexData | null = null;
-    try {
-      if (await fs.pathExists(SKILL_INDEX_PATH)) {
-        existingIndex = await fs.readJson(SKILL_INDEX_PATH);
-      }
-    } catch { /* ignore */ }
+    const existingIndex = await this.readExistingIndex();
+    const localSkills = await this.readConfiguredLocalRegistrySkills(registryIds);
 
     ui.info(`Building skill index from ${registryIds.length} registries...`);
 
@@ -165,7 +185,6 @@ export class SkillIndex {
     for (const result of headResults) {
       const { registryId, headSha, owner, repo, error } = result;
       if (error || !headSha || !owner || !repo) {
-        if (error) ui.warning(`Skipping ${registryId}: ${error}`);
         continue;
       }
 
@@ -218,7 +237,7 @@ export class SkillIndex {
       }
     }
 
-    const skills = [...unchangedSkills, ...newSkills];
+    const skills = this.mergeSkills([...unchangedSkills, ...newSkills], localSkills);
 
     const meta: IndexMeta = {
       version: 1,
@@ -236,5 +255,80 @@ export class SkillIndex {
       const descMatch = skill.description.toLowerCase().includes(keyword);
       return nameMatch || descMatch;
     });
+  }
+
+  private async readExistingIndex(): Promise<SkillIndexData | null> {
+    try {
+      if (await fs.pathExists(SKILL_INDEX_PATH)) {
+        return await fs.readJson(SKILL_INDEX_PATH);
+      }
+    } catch { /* ignore */ }
+
+    return null;
+  }
+
+  private async readConfiguredLocalRegistrySkills(registryIds: string[]): Promise<SkillEntry[]> {
+    const skills: SkillEntry[] = [];
+
+    for (const registryId of registryIds) {
+      const registrySkills = await this.readLocalRegistrySkills(registryId);
+      if (registrySkills) {
+        skills.push(...registrySkills);
+      }
+    }
+
+    return skills;
+  }
+
+  private async readLocalRegistrySkills(registryId: string): Promise<SkillEntry[] | null> {
+    const registryPath = path.join(SKILL_CACHE_DIR, registryId);
+    const skillsPath = path.join(registryPath, 'skills');
+
+    if (!await fs.pathExists(registryPath) || !await fs.pathExists(skillsPath)) {
+      return null;
+    }
+
+    const entries = await fs.readdir(skillsPath, { withFileTypes: true });
+    const skills: SkillEntry[] = [];
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !isValidSkillName(entry.name)) {
+        continue;
+      }
+
+      const skillMdPath = path.join(skillsPath, entry.name, 'SKILL.md');
+      if (!await fs.pathExists(skillMdPath)) {
+        continue;
+      }
+
+      const content = await fs.readFile(skillMdPath, 'utf-8');
+      skills.push({
+        name: entry.name,
+        registry: registryId,
+        path: path.join('skills', entry.name).split(path.sep).join('/'),
+        description: extractSkillDescription(content),
+        lastIndexed: Date.now(),
+      });
+    }
+
+    return skills;
+  }
+
+  private mergeSkills(remoteSkills: SkillEntry[], localSkills: SkillEntry[]): SkillEntry[] {
+    const merged = new Map<string, SkillEntry>();
+
+    for (const skill of remoteSkills) {
+      merged.set(this.skillKey(skill), skill);
+    }
+
+    for (const skill of localSkills) {
+      merged.set(this.skillKey(skill), skill);
+    }
+
+    return [...merged.values()];
+  }
+
+  private skillKey(skill: SkillEntry): string {
+    return `${skill.registry}:${skill.name}`;
   }
 }

@@ -19,6 +19,7 @@ vi.mock("fs-extra", () => ({
     remove: vi.fn(),
     readdir: vi.fn(),
     realpath: vi.fn(),
+    readFile: vi.fn(),
     readJson: vi.fn(),
     writeJson: vi.fn(),
   },
@@ -1538,6 +1539,84 @@ describe("SkillManager", () => {
       const results = await skillManager.findSkills("nonexistent");
 
       expect(results).toEqual([]);
+    });
+
+    it("indexes configured non-GitHub registries from matching local cache on refresh", async () => {
+      mockFetch({ registries: {} });
+      mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({
+        "shopback/experiment-skills": "git@gitlab.com:shopback/earn-more/earn-more-experiment/skills.git",
+      });
+      mockConfigManager.getSkillRegistries.mockResolvedValue({});
+      mockedGitUtil.fetchGitHead.mockResolvedValue("unused");
+      mockedSkillUtil.extractSkillDescription.mockReturnValue("ASF experiment workflow");
+
+      const expectedRegistryPath = path.join(
+        os.homedir(),
+        ".ai-devkit",
+        "skills",
+        "shopback",
+        "experiment-skills",
+      );
+      const unrelatedRegistryPath = path.join(
+        os.homedir(),
+        ".ai-devkit",
+        "skills",
+        "unrelated",
+        "skills",
+      );
+
+      (mockedFs.pathExists as any).mockImplementation(async (checkedPath: string) => {
+        return checkedPath === expectedRegistryPath
+          || checkedPath === path.join(expectedRegistryPath, "skills")
+          || checkedPath === path.join(expectedRegistryPath, "skills", "asf", "SKILL.md")
+          || checkedPath.endsWith("skills.json");
+      });
+      (mockedFs.readJson as any).mockResolvedValue({
+        meta: {
+          version: 1,
+          createdAt: Date.now() - 1000,
+          updatedAt: Date.now() - 1000,
+          registryHeads: {},
+        },
+        skills: [
+          {
+            name: "unrelated-skill",
+            registry: "unrelated/skills",
+            path: "skills/unrelated-skill",
+            description: "Should not be indexed",
+            lastIndexed: Date.now(),
+          },
+        ],
+      });
+      (mockedFs.readdir as any).mockImplementation(async (checkedPath: string) => {
+        if (checkedPath === path.join(expectedRegistryPath, "skills")) {
+          return [{ name: "asf", isDirectory: () => true }];
+        }
+        if (checkedPath === path.join(unrelatedRegistryPath, "skills")) {
+          return [{ name: "unrelated-skill", isDirectory: () => true }];
+        }
+        return [];
+      });
+      (mockedFs.readFile as any).mockResolvedValue("# ASF\n\nASF experiment workflow");
+
+      const results = await skillManager.findSkills("asf", { refresh: true });
+
+      expect(results).toEqual([
+        expect.objectContaining({
+          name: "asf",
+          registry: "shopback/experiment-skills",
+          path: "skills/asf",
+          description: "ASF experiment workflow",
+        }),
+      ]);
+      expect(mockedFs.readdir).toHaveBeenCalledWith(
+        path.join(expectedRegistryPath, "skills"),
+        { withFileTypes: true },
+      );
+      expect(mockedFs.readdir).not.toHaveBeenCalledWith(
+        path.join(unrelatedRegistryPath, "skills"),
+        { withFileTypes: true },
+      );
     });
   });
 });
