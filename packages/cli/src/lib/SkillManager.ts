@@ -344,6 +344,11 @@ export class SkillManager {
     return this.registry.updateSkills(registryId);
   }
 
+  async cacheRegistry(registryId: string, gitUrl: string): Promise<string> {
+    await ensureGitInstalled();
+    return this.registry.prepareRegistryRepository(registryId, gitUrl);
+  }
+
   /**
    * Find skills by keyword across all registries
    */

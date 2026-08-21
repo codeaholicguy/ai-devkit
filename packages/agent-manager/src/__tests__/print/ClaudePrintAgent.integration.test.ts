@@ -8,6 +8,7 @@ import {
     ClaudePrintAgentService,
     ClaudePrintRunner,
     DurableAgentRepository,
+    type ProcessInspector,
 } from '../../index.js';
 
 const roots: string[] = [];
@@ -28,11 +29,17 @@ describe('Claude durable-agent fake-provider journey', () => {
         const capture = path.join(root, 'capture.jsonl');
         process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE = capture;
         const executable = fileURLToPath(new URL('../fixtures/fake-claude.cjs', import.meta.url));
-        const repository = new DurableAgentRepository({ dbPath: path.join(root, 'state', 'agents.db') });
+        const processInspector: ProcessInspector = {
+            getIdentity: (pid) => ({ pid, startedAt: `process-${pid}` }),
+        };
+        const repository = new DurableAgentRepository({
+            dbPath: path.join(root, 'state', 'agents.db'),
+            processInspector,
+        });
         const service = new ClaudePrintAgentService({
             repository,
             probe: new ClaudeCliProbe({ executable }),
-            runner: new ClaudePrintRunner(),
+            runner: new ClaudePrintRunner({ processInspector }),
             executable,
         });
 
