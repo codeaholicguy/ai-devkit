@@ -5,7 +5,9 @@ import { renderCapacityReport } from '../../../commands/capacity/render.js';
 import type { CapacityReport } from '@ai-devkit/agent-manager';
 import { ui } from '../../../util/terminal-ui.js';
 
-vi.mock('../../../util/terminal-ui.js', () => ({ ui: { text: vi.fn() } }));
+vi.mock('../../../util/terminal-ui.js', () => ({
+  ui: { text: vi.fn(), table: vi.fn(), warning: vi.fn(), breakline: vi.fn() },
+}));
 
 const report: CapacityReport = {
   schemaVersion: 1,
@@ -29,22 +31,25 @@ const report: CapacityReport = {
 describe('capacity command', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('renders the JSON report exactly through terminal UI', () => {
+  it('renders the JSON report exactly', () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     renderCapacityReport(report, { json: true });
-    expect(ui.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
+    expect(log).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
+    log.mockRestore();
   });
 
-  it('renders text labels, arbitrary short/long windows, credits, and warnings', () => {
+  it('renders the table, windows, credits, and warnings through the shared terminal UI', () => {
     renderCapacityReport(report);
-    const output = vi.mocked(ui.text).mock.calls.map(call => call[0]).join('\n');
-    expect(output).toContain('Provider');
-    expect(output).toContain('Auth');
-    expect(output).toContain('Available');
-    expect(output).toContain('80% left');
-    expect(output).toContain('40% left');
-    expect(output).toContain('1');
-    expect(output).toContain('Warnings:');
-    expect(output).toContain('A safe normalized warning.');
+    expect(ui.text).toHaveBeenCalledWith('Capacity:', { breakline: true });
+    expect(ui.table).toHaveBeenCalledWith(expect.objectContaining({
+      headers: ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Reset credits'],
+      rows: [[
+        'codex', 'yes', 'yes', '80% left · resets 2026-08-09T12:00:00.000Z',
+        '40% left · resets 2026-08-16T10:00:00.000Z', '1',
+      ]],
+    }));
+    expect(ui.warning).toHaveBeenCalledWith('1 warning(s):');
+    expect(ui.text).toHaveBeenCalledWith('  codex: A safe normalized warning.');
   });
 
   it('wires the Codex-only command surface', async () => {
@@ -55,7 +60,7 @@ describe('capacity command', () => {
     await program.parseAsync(['node', 'test', 'capacity', 'codex', '--json']);
 
     expect(getReport).toHaveBeenCalledWith();
-    expect(ui.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
+    expect(ui.table).not.toHaveBeenCalled();
   });
 
   it('rejects non-Codex providers before probing', async () => {

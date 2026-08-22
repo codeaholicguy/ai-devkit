@@ -1,3 +1,4 @@
+import chalk from 'chalk';
 import { ui } from '../../util/terminal-ui.js';
 import type { CapacityReport, CapacityWindow } from '@ai-devkit/agent-manager';
 
@@ -20,9 +21,12 @@ function windowPair(windows: CapacityWindow[]): [CapacityWindow | undefined, Cap
 
 export function renderCapacityReport(report: CapacityReport, options: { json?: boolean } = {}): void {
   if (options.json) {
-    ui.text(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify(report, null, 2));
     return;
   }
+
+  ui.text('Capacity:', { breakline: true });
+
   const rows = report.providers.map(provider => {
     const [shortWindow, longWindow] = windowPair(provider.windows);
     return [
@@ -32,21 +36,30 @@ export function renderCapacityReport(report: CapacityReport, options: { json?: b
       formatWindow(shortWindow),
       formatWindow(longWindow),
       provider.resetCredits?.available === null || provider.resetCredits?.available === undefined
-        ? '—' : String(provider.resetCredits.available)
+        ? '—' : String(provider.resetCredits.available),
     ];
   });
-  const headers = ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Reset credits'];
-  const widths = headers.map((header, index) => Math.max(header.length, ...rows.map(row => row[index].length)));
-  const line = (cells: string[]) => cells.map((cell, index) => cell.padEnd(widths[index])).join('  ').trimEnd();
-  ui.text(line(headers));
-  ui.text(line(widths.map(width => '─'.repeat(width))));
-  for (const row of rows) ui.text(line(row));
-  const warnings = report.providers.flatMap(provider => provider.warnings.map(warning =>
-    `${provider.provider}: ${warning.message}`
-  ));
+
+  ui.table({
+    headers: ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Reset credits'],
+    rows,
+    maxWidth: process.stdout.columns ?? 120,
+    columnStyles: [
+      (text) => chalk.cyan(text),
+      (text) => chalk.dim(text),
+      (text) => (text === 'yes' ? chalk.green(text) : text === 'no' ? chalk.yellow(text) : chalk.gray(text)),
+      (text) => text,
+      (text) => chalk.dim(text),
+      (text) => chalk.dim(text),
+    ],
+  });
+
+  const warnings = report.providers.flatMap(provider =>
+    provider.warnings.map(warning => `${provider.provider}: ${warning.message}`)
+  );
   if (warnings.length > 0) {
-    ui.text('');
-    ui.text('Warnings:');
+    ui.breakline();
+    ui.warning(`${warnings.length} warning(s):`);
     for (const warning of warnings) ui.text(`  ${warning}`);
   }
 }
