@@ -7,9 +7,10 @@ function authLabel(value: boolean | null): string {
 }
 
 function formatWindow(window: CapacityWindow | undefined): string {
-  if (!window || window.remainingPercent === null) return 'unknown';
+  if (!window || window.usedPercent === null) return 'unknown';
+  const remaining = Math.max(0, Math.min(100, 100 - window.usedPercent));
   const reset = window.resetsAt ? ` · resets ${window.resetsAt}` : '';
-  return `${window.remainingPercent}% left${reset}`;
+  return `${remaining}% left${reset}`;
 }
 
 function windowPair(windows: CapacityWindow[]): [CapacityWindow | undefined, CapacityWindow | undefined] {
@@ -27,22 +28,18 @@ export function renderCapacityReport(report: CapacityReport, options: { json?: b
 
   ui.text('Capacity:', { breakline: true });
 
-  const rows = report.providers.map(provider => {
-    const [shortWindow, longWindow] = windowPair(provider.windows);
-    return [
-      provider.provider,
-      authLabel(provider.authenticated),
-      provider.available,
+  const [shortWindow, longWindow] = windowPair(report.windows);
+  ui.table({
+    headers: ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Credits'],
+    rows: [[
+      report.provider,
+      authLabel(report.authenticated),
+      report.available,
       formatWindow(shortWindow),
       formatWindow(longWindow),
-      provider.resetCredits?.available === null || provider.resetCredits?.available === undefined
-        ? '—' : String(provider.resetCredits.available),
-    ];
-  });
-
-  ui.table({
-    headers: ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Reset credits'],
-    rows,
+      report.creditsRemaining === null || report.creditsRemaining === undefined
+        ? '—' : String(report.creditsRemaining),
+    ]],
     maxWidth: process.stdout.columns ?? 120,
     columnStyles: [
       (text) => chalk.cyan(text),
@@ -53,13 +50,4 @@ export function renderCapacityReport(report: CapacityReport, options: { json?: b
       (text) => chalk.dim(text),
     ],
   });
-
-  const warnings = report.providers.flatMap(provider =>
-    provider.warnings.map(warning => `${provider.provider}: ${warning.message}`)
-  );
-  if (warnings.length > 0) {
-    ui.breakline();
-    ui.warning(`${warnings.length} warning(s):`);
-    for (const warning of warnings) ui.text(`  ${warning}`);
-  }
 }

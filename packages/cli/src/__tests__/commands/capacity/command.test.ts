@@ -10,22 +10,17 @@ vi.mock('../../../util/terminal-ui.js', () => ({
 }));
 
 const report: CapacityReport = {
-  schemaVersion: 1,
+  provider: 'codex',
   generatedAt: '2026-08-09T10:00:00.000Z',
-  providers: [{
-    provider: 'codex', agentType: 'codex', configured: true, installed: true,
-    authenticated: true, status: 'supported', available: 'yes', plan: 'pro',
-    checkedAt: '2026-08-09T10:00:00.000Z', source: 'provider-cli',
-    windows: [
-      { id: 'short', label: '5 hour', durationMinutes: 300, usedPercent: 20,
-        remainingPercent: 80, resetsAt: '2026-08-09T12:00:00.000Z', scope: 'codex' },
-      { id: 'long', label: '7 day', durationMinutes: 10080, usedPercent: 60,
-        remainingPercent: 40, resetsAt: '2026-08-16T10:00:00.000Z', scope: 'codex' }
-    ],
-    aliases: { dailyWindowId: null, weeklyWindowId: 'long' },
-    resetCredits: { available: 1 },
-    warnings: [{ code: 'sample-warning', message: 'A safe normalized warning.' }]
-  }]
+  authenticated: true,
+  available: 'yes',
+  windows: [
+    { id: 'session', label: 'Session', durationMinutes: 300, usedPercent: 20,
+      resetsAt: '2026-08-09T12:00:00.000Z' },
+    { id: 'weekly', label: 'Weekly', durationMinutes: 10080, usedPercent: 60,
+      resetsAt: '2026-08-16T10:00:00.000Z' }
+  ],
+  creditsRemaining: 1,
 };
 
 describe('capacity command', () => {
@@ -38,18 +33,16 @@ describe('capacity command', () => {
     log.mockRestore();
   });
 
-  it('renders the table, windows, credits, and warnings through the shared terminal UI', () => {
+  it('renders the table through the shared terminal UI', () => {
     renderCapacityReport(report);
     expect(ui.text).toHaveBeenCalledWith('Capacity:', { breakline: true });
     expect(ui.table).toHaveBeenCalledWith(expect.objectContaining({
-      headers: ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Reset credits'],
+      headers: ['Provider', 'Auth', 'Available', 'Short window', 'Long window', 'Credits'],
       rows: [[
         'codex', 'yes', 'yes', '80% left · resets 2026-08-09T12:00:00.000Z',
         '40% left · resets 2026-08-16T10:00:00.000Z', '1',
       ]],
     }));
-    expect(ui.warning).toHaveBeenCalledWith('1 warning(s):');
-    expect(ui.text).toHaveBeenCalledWith('  codex: A safe normalized warning.');
   });
 
   it('wires the Codex-only command surface', async () => {

@@ -1,17 +1,14 @@
 import { constants } from 'node:fs';
 import { access as fsAccess } from 'node:fs/promises';
-import { homedir } from 'node:os';
 import path from 'node:path';
 import { probeCodexCapacity } from './codex.js';
-import type { CapacityReport, ProviderCapacity } from './types.js';
+import type { CapacityReport } from './types.js';
 
-export type { CapacityReport, CapacityWindow, ProviderCapacity, UsageSnapshot } from './types.js';
+export type { CapacityReport, CapacityWindow } from './types.js';
 
 export type CapacityProbeOptions = {
   now?: () => Date;
-  homeDir?: string;
   path?: string;
-  exists?: (target: string) => Promise<boolean>;
   access?: (target: string) => Promise<void>;
   probe?: typeof probeCodexCapacity;
 };
@@ -42,43 +39,19 @@ async function isCodexInstalled(pathValue: string, checkAccess?: (target: string
   return false;
 }
 
-function failedCapacity(configured: boolean, installed: boolean, checkedAt: string): ProviderCapacity {
-  return {
-    provider: 'codex',
-    agentType: 'codex',
-    configured,
-    installed,
-    authenticated: null,
-    status: installed ? 'unknown' : 'unavailable',
-    available: 'unknown',
-    plan: null,
-    checkedAt,
-    source: 'none',
-    windows: [],
-    aliases: { dailyWindowId: null, weeklyWindowId: null },
-    resetCredits: { available: null },
-    warnings: [{
-      code: installed ? 'probe-failed' : 'cli-not-installed',
-      message: installed ? 'Codex capacity could not be read safely.' : 'Codex CLI is not installed.'
-    }],
-    ...(installed ? { error: { code: 'codex-probe-failed', retryable: true } } : {})
-  };
-}
-
 export async function getCodexCapacityReport(options: CapacityProbeOptions = {}): Promise<CapacityReport> {
-  const now = options.now?.() ?? new Date();
-  const checkedAt = now.toISOString();
-  const home = options.homeDir ?? homedir();
-  const exists = options.exists ?? (target => canAccess(target, constants.F_OK));
-  const configured = await exists(path.join(home, '.codex'));
+  const generatedAt = (options.now?.() ?? new Date()).toISOString();
   const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? '', options.access);
-
-  let capacity: ProviderCapacity;
   try {
-    capacity = await (options.probe ?? probeCodexCapacity)({ configured, installed, checkedAt });
+    return await (options.probe ?? probeCodexCapacity)({ installed, checkedAt: generatedAt });
   } catch {
-    capacity = failedCapacity(configured, installed, checkedAt);
+    return {
+      provider: 'codex',
+      generatedAt,
+      authenticated: null,
+      available: 'unknown',
+      windows: [],
+      creditsRemaining: null
+    };
   }
-
-  return { schemaVersion: 1, generatedAt: checkedAt, providers: [capacity] };
 }

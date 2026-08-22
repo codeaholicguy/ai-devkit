@@ -25,7 +25,7 @@ The optional provider argument exists for discoverability and accepts only `code
 - Capacity supports Codex only and always emits exactly one Codex row.
 - `@ai-devkit/agent-manager` owns probing, normalization, detection, and public capacity types.
 - The CLI owns only command registration, provider validation, the agent-manager call, and text/JSON rendering.
-- JSON retains `schemaVersion: 1`, normalized arbitrary windows, availability, authentication, plan, reset-credit, warning, and stable error fields.
+- JSON reports the provider, generation time, authentication, availability, native usage windows (`id`, `label`, `durationMinutes`, `usedPercent`, `resetsAt`), and remaining credits in one flat object. Derived values and provider-internals are omitted; fields may be added when a second provider lands.
 - Codex configuration and executable presence are reported independently.
 - Probing prefers PAT, then fresh OAuth, then the hardened read-only Codex app-server fallback.
 - Missing data is `unknown`, never inferred as available; explicit exhaustion may report `no`.

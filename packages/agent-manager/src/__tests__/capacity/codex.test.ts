@@ -8,7 +8,7 @@ import {
 } from '../../capacity/codex.js';
 
 const checkedAt = '2026-08-20T10:00:00.000Z';
-const context = { configured: true, installed: true, checkedAt };
+const context = { installed: true, checkedAt };
 
 function apiUsage(overrides: Record<string, unknown> = {}) {
   return {
@@ -18,7 +18,6 @@ function apiUsage(overrides: Record<string, unknown> = {}) {
       ...overrides
     },
     credits: { balance: 12.5 },
-    individual_limit: 100,
     additional_rate_limits: [{
       limit_name: 'reviews',
       rate_limit: {
@@ -42,38 +41,24 @@ describe('Codex API usage mapping', () => {
   it('converts an API window without treating missing data as zero', () => {
     expect(toRateWindow({ used_percent: 25, limit_window_seconds: 18_000, reset_at: 1_787_220_000 }, 'session', 'Session')).toEqual({
       id: 'session', label: 'Session', durationMinutes: 300, usedPercent: 25,
-      remainingPercent: 75, resetsAt: '2026-08-20T10:00:00.000Z', scope: null
+      resetsAt: '2026-08-20T10:00:00.000Z'
     });
-    expect(toRateWindow({}, 'session', 'Session')).toMatchObject({ usedPercent: null, remainingPercent: null });
+    expect(toRateWindow({}, 'session', 'Session')).toMatchObject({ usedPercent: null });
   });
 
-  it('maps session, weekly, credits, extra limits, and source', () => {
-    const snapshot = parseUsage(apiUsage(), 'pat', checkedAt);
-    expect(snapshot).toMatchObject({
-      source: 'pat', creditsRemaining: 12.5, codexCreditLimit: 100, updatedAt: checkedAt,
-      sessionLimit: { durationMinutes: 300, remainingPercent: 80 },
-      weeklyLimit: { durationMinutes: 10080, remainingPercent: 40 }
-    });
-    expect(snapshot.extraRateWindows).toEqual([
-      expect.objectContaining({ id: 'reviews:primary', remainingPercent: 90 })
+  it('maps session, weekly, credits, and extra limits', () => {
+    const snapshot = parseUsage(apiUsage(), 'pat');
+    expect(snapshot).toMatchObject({ source: 'pat', creditsRemaining: 12.5 });
+    expect(snapshot.windows).toEqual([
+      expect.objectContaining({ id: 'session', durationMinutes: 300 }),
+      expect.objectContaining({ id: 'weekly', durationMinutes: 10080 }),
+      expect.objectContaining({ id: 'reviews:primary', durationMinutes: 60 })
     ]);
   });
 
-  it.each([
-    [{ individual_limit: 111 }, 111],
-    [{ rate_limit: { individual_limit: 222 } }, 222],
-    [{ spend_control: { individual_limit: 333 } }, 333]
-  ])('uses the credit-limit fallback chain', (patch, expected) => {
-    const usage = apiUsage();
-    delete (usage as { individual_limit?: number }).individual_limit;
-    const input = { ...usage, ...patch, rate_limit: { ...usage.rate_limit, ...('rate_limit' in patch ? patch.rate_limit : {}) } };
-    expect(parseUsage(input, 'oauth', checkedAt).codexCreditLimit).toBe(expected);
-  });
-
   it('represents missing limits as unavailable rather than zero', () => {
-    const snapshot = parseUsage({ credits: {} }, 'oauth', checkedAt);
-    expect(snapshot.sessionLimit).toBeNull();
-    expect(snapshot.weeklyLimit).toBeNull();
+    const snapshot = parseUsage({ credits: {} }, 'oauth');
+    expect(snapshot.windows).toEqual([]);
     expect(snapshot.creditsRemaining).toBeNull();
   });
 });
@@ -95,7 +80,8 @@ describe('tiered Codex probing', () => {
     expect(fetch.mock.calls[1][0]).toBe('https://chatgpt.com/backend-api/wham/usage');
     expect(fetch.mock.calls[1][1].headers).toMatchObject({ Authorization: 'Bearer pat-secret', 'ChatGPT-Account-Id': 'acct-1' });
     expect(rpc).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ source: 'provider-api', available: 'yes', usage: { source: 'pat' } });
+    expect(result).toMatchObject({ provider: 'codex', available: 'yes', creditsRemaining: 12.5, authenticated: true });
+    expect(result.windows.map(window => window.id)).toEqual(['session', 'weekly', 'reviews:primary']);
   });
 
   it('selects a fresh OAuth token without calling whoami', async () => {
@@ -108,7 +94,7 @@ describe('tiered Codex probing', () => {
     });
     expect(fetch).toHaveBeenCalledOnce();
     expect(fetch.mock.calls[0][1].headers).toMatchObject({ Authorization: 'Bearer oauth-secret', 'ChatGPT-Account-Id': 'acct-2' });
-    expect(result.usage?.source).toBe('oauth');
+    expect(result.available).toBe('yes');
   });
 
   it.each([
@@ -123,7 +109,7 @@ describe('tiered Codex probing', () => {
     }));
     const result = await probeCodexCapacity({ ...context, readFile, fetch, rpc, now: () => new Date(checkedAt) });
     expect(rpc).toHaveBeenCalledOnce();
-    expect(result.usage?.source).toBe('cli');
+    expect(result.windows).toHaveLength(1);
   });
 
   it('falls back to CLI if PAT requests fail', async () => {
@@ -154,7 +140,7 @@ describe('tiered Codex probing', () => {
       now: () => new Date(checkedAt)
     });
     expect(fetch).toHaveBeenCalledTimes(2);
-    expect(result.usage?.source).toBe('oauth');
+    expect(result.available).toBe('yes');
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -178,7 +164,7 @@ describe('tiered Codex probing', () => {
       readFile: async () => '{}',
       rpc: async () => ({ rateLimits: {}, account: { account: null } })
     });
-    expect(result).toMatchObject({ authenticated: false, status: 'unauthenticated', available: 'unknown' });
+    expect(result).toMatchObject({ authenticated: false, available: 'unknown' });
   });
 
   it('never exposes tokens or raw auth content through failures', async () => {

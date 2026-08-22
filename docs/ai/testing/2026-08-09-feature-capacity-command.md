@@ -21,7 +21,7 @@ description: Coverage and validation for the Codex-only implementation
 ## CLI Coverage
 
 - [x] Render the JSON report exactly.
-- [x] Render human headers, windows, credits, and warnings.
+- [x] Render human headers, windows, and credits.
 - [x] Accept omitted provider and `codex`, forwarding no cache options.
 - [x] Reject non-Codex providers before probing.
 

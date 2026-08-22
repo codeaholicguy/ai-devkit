@@ -27,9 +27,9 @@ Agent-manager's root `index.ts` exports `getCodexCapacityReport` and the public 
 
 ## Runtime Behavior
 
-`capacity` and `capacity codex` are equivalent. An explicit provider is normalized to lowercase and must be `codex`. The report function checks configuration and installation state, invokes the Codex probe on every call, catches unexpected probe failures into a fixed safe result, and returns one provider row.
+`capacity` and `capacity codex` are equivalent. An explicit provider is normalized to lowercase and must be `codex`. The report function checks installation, invokes the Codex probe on every call, catches unexpected probe failures into a fixed unknown result, and returns one flat report: provider, generatedAt, authenticated, available, native windows, creditsRemaining.
 
-The retained Codex implementation validates normalized identifiers and labels, preserves arbitrary windows, derives remaining percentage only from numeric usage, and keeps the PAT → fresh OAuth → hardened app-server sequence. It does not refresh tokens or invoke a model method.
+The retained Codex implementation validates normalized identifiers and labels, preserves arbitrary windows, keeps unknown values null, and keeps the PAT → fresh OAuth → hardened app-server sequence. It does not refresh tokens or invoke a model method.
 
 ## Removed Implementation
 

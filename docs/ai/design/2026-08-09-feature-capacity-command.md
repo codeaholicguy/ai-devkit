@@ -44,9 +44,9 @@ Network and app-server calls remain bounded inside the probe. Results are normal
 | Replace provider registry and configured-provider scan | Acted | A direct Codex config/PATH check is clearer than generic mappings for one provider. |
 | Remove parallel orchestration, provider arrays, sorting, and outer timeout | Acted | One probe has no concurrency or partial-result problem; probe boundaries already time out. |
 | Move model/probe/types into agent-manager | Acted | Capacity informs agent dispatch and is reusable independently of CLI presentation. |
-| Keep schema-v1 report and provider array | Rejected | It is already the documented machine-readable contract; changing it adds migration cost without simplifying the probe. |
+| Flatten the report to the minimal JSON shape (provider, generatedAt, authenticated, available, windows, creditsRemaining) | Acted | Owner decision before merge: the unmerged contract carried multi-provider-era fields (schemaVersion, providers[], status, configured, installed, agentType, plan, checkedAt, source, aliases, resetCredits wrapper, usage snapshot, warnings, error) with no current consumer; fields can return when a second provider lands. |
+| Drop derived fields (`remainingPercent`, aliases) and the credit-limit fallback chain | Acted | Derivable from `usedPercent`/`durationMinutes` by consumers; the chain fed only removed output fields. |
 | Collapse PAT, OAuth, and CLI probing to app-server only | Rejected | The fallbacks have distinct availability/authentication value and preserve credential-safe behavior. |
-| Collapse `UsageSnapshot` into render fields | Rejected | It preserves authoritative source detail and provider-native windows for JSON consumers. |
 | Merge renderer into command | Rejected | Rendering has separate behavior and tests; keeping it isolated makes the CLI flow linear. |
 | Add a new package dependency/helper library | Rejected | Node APIs and the existing agent-manager dependency are sufficient. |
 

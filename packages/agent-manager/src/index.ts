@@ -4,8 +4,6 @@ export type {
     CapacityProbeOptions,
     CapacityReport,
     CapacityWindow,
-    ProviderCapacity,
-    UsageSnapshot,
 } from './capacity/index.js';
 
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
