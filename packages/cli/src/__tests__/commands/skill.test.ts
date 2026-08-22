@@ -5,7 +5,6 @@ import { ui } from '../../util/terminal-ui.js';
 
 const mockRemoveCache = vi.hoisted(() => vi.fn());
 
-vi.mock('fs-extra', () => ({ default: { remove: mockRemoveCache } }));
 
 const mockAddSkill = vi.fn();
 const mockListGlobalSkills = vi.fn();
@@ -44,6 +43,7 @@ vi.mock('../../lib/SkillManager.js', () => ({
     removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
     cacheRegistry: (...args: unknown[]) => mockCacheRegistry(...args),
     updateSkillIndexForRegistry: (...args: unknown[]) => mockUpdateSkillIndexForRegistry(...args),
+    removeRegistryCache: (...args: unknown[]) => mockRemoveCache(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
     rebuildIndex: vi.fn(),
@@ -99,7 +99,7 @@ describe('skill command', () => {
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills', flag]);
     expect(mockGlobalRemoveSkillRegistry).toHaveBeenCalledWith('example/skills');
     expect(mockProjectRemoveSkillRegistry).not.toHaveBeenCalled();
-    expect(mockRemoveCache).toHaveBeenCalledWith(expect.stringMatching(/\.ai-devkit\/skills\/example\/skills$/));
+    expect(mockRemoveCache).toHaveBeenCalledWith('example/skills');
     expect(ui.success).toHaveBeenCalledWith('Removed global skill registry "example/skills".');
   });
 

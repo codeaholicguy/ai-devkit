@@ -1641,4 +1641,21 @@ describe("SkillManager", () => {
       expect(result).toBe(repoPath);
     });
   });
+
+  describe("removeRegistryCache", () => {
+    it("removes the contained registry cache directory", async () => {
+      await skillManager.removeRegistryCache("example/skills");
+
+      expect(mockedFs.remove).toHaveBeenCalledWith(
+        path.join(os.homedir(), ".ai-devkit", "skills", "example", "skills"),
+      );
+    });
+
+    it("refuses paths that escape the cache root", async () => {
+      await expect(
+        skillManager.removeRegistryCache("../escaped"),
+      ).rejects.toThrow(/outside/);
+      expect(mockedFs.remove).not.toHaveBeenCalled();
+    });
+  });
 });

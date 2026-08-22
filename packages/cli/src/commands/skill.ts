@@ -1,11 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
-import fs from 'fs-extra';
-import * as path from 'path';
 import { ConfigManager } from '../lib/Config.js';
 import { GlobalConfigManager } from '../lib/GlobalConfig.js';
 import { SkillManager } from '../lib/SkillManager.js';
-import { SKILL_CACHE_DIR } from '../lib/SkillRegistry.js';
 import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
@@ -117,21 +114,10 @@ export function registerSkillCommand(program: Command): void {
         throw new Error(`Registry ${id} is not registered (try --global).`);
       }
 
-      let cachePath: string | undefined;
-      if (options.global) {
-        const cacheRoot = path.resolve(SKILL_CACHE_DIR);
-        cachePath = path.resolve(cacheRoot, id);
-        const relativeCachePath = path.relative(cacheRoot, cachePath);
-        const escapesCacheRoot = relativeCachePath === '..'
-          || relativeCachePath.startsWith(`..${path.sep}`)
-          || path.isAbsolute(relativeCachePath);
-        if (!relativeCachePath || escapesCacheRoot) {
-          throw new Error(`Refusing to remove cache outside ${cacheRoot}.`);
-        }
-      }
-
       await configManager.removeSkillRegistry(id);
-      if (cachePath) await fs.remove(cachePath);
+      if (options.global) {
+        await new SkillManager(new ConfigManager()).removeRegistryCache(id);
+      }
 
       const scope = options.global ? 'global' : 'project';
       ui.success(`Removed ${scope} skill registry "${id}".`);
