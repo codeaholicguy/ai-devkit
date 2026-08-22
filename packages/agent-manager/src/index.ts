@@ -1,4 +1,10 @@
 export { AgentManager, AgentNotRunningError } from './AgentManager.js';
+export { getCodexCapacityReport } from './capacity/index.js';
+export type {
+    CapacityProbeOptions,
+    CapacityReport,
+    CapacityWindow,
+} from './capacity/index.js';
 
 export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './adapters/CodexAdapter.js';

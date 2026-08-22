@@ -12,6 +12,7 @@ import { registerChannelCommand } from './commands/channel.js';
 import { registerDocsCommand } from './commands/docs.js';
 import { registerPluginCommand } from './commands/plugin.js';
 import { registerSetupCommand } from './commands/setup.js';
+import { registerCapacityCommand } from './commands/capacity.js';
 import { registerConfiguredPluginCommands } from './services/plugin/plugin-loader.service.js';
 import { createAiDevkitRuntime } from './services/plugin/runtime.js';
 import { handleCliError } from './util/errors.js';
@@ -64,6 +65,7 @@ registerChannelCommand(program);
 registerDocsCommand(program);
 registerPluginCommand(program);
 registerSetupCommand(program);
+registerCapacityCommand(program);
 
 await registerConfiguredPluginCommands(program, createAiDevkitRuntime());
 
