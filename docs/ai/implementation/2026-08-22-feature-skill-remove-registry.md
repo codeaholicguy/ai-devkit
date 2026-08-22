@@ -29,7 +29,7 @@ Changes are confined to CLI registry utilities, config managers, command registr
 
 ## Integration Points
 
-The command reads only the selected config map and delegates removal to its manager. For global removal, it resolves the cache root and target, verifies that the target is a strict descendant, writes global config, and recursively removes that cache directory.
+The command reads only the selected config map and delegates removal to its manager. For global removal, it additionally calls `SkillManager.removeRegistryCache(id)`, which resolves the cache root and target, verifies that the target is a strict descendant, and recursively removes that cache directory. The command layer contains no filesystem logic.
 
 ## Error Handling
 

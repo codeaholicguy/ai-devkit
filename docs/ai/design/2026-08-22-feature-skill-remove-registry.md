@@ -38,7 +38,7 @@ The planner tests own-property presence, copies the input, and omits only the se
 - `skill remove-registry <id> [-g|--global]`
 - `planSkillRegistryRemove(registries, id)` is pure.
 - Project/global config managers expose `removeSkillRegistry(id)`.
-- `--global` resolves `~/.ai-devkit/skills/<id>`, verifies containment under the cache root, and recursively removes it.
+- `SkillManager.removeRegistryCache(id)` resolves `~/.ai-devkit/skills/<id>`, verifies containment under the cache root, and recursively removes it; the command only delegates to it.
 - Missing selected-scope entries return the concise `try --global` error.
 
 ## Component Breakdown

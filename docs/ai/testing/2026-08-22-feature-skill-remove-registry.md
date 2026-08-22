@@ -32,7 +32,7 @@ description: Coverage and validation strategy for skill remove-registry
 - [x] Built-in removal is rejected before config mutation.
 - [x] Missing selected-scope registrations use the concise `try --global` error.
 - [x] Invalid IDs cause no config reads or cache deletion.
-- [x] Global cache deletion targets a strict descendant of the cache root.
+- [x] Global cache deletion targets a strict descendant of the cache root (unit-tested in `SkillManager.removeRegistryCache`).
 - [x] The discovery index is not touched during removal.
 
 ## End-to-End Tests
