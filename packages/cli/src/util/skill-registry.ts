@@ -11,6 +11,13 @@ export interface SkillRegistryMutation {
   status: SkillRegistryAddStatus;
 }
 
+export type SkillRegistryRemoveStatus = 'removed' | 'not-registered';
+
+export interface SkillRegistryRemoveMutation {
+  registries: Record<string, string>;
+  status: SkillRegistryRemoveStatus;
+}
+
 export function planSkillRegistryAdd(
   registries: Record<string, string>,
   id: string,
@@ -35,4 +42,17 @@ export function planSkillRegistryAdd(
     registries: { ...registries, [id]: url },
     status: existingUrl === undefined ? 'added' : 'updated',
   };
+}
+
+export function planSkillRegistryRemove(
+  registries: Record<string, string>,
+  id: string,
+): SkillRegistryRemoveMutation {
+  const nextRegistries = { ...registries };
+  if (!Object.prototype.hasOwnProperty.call(registries, id)) {
+    return { registries: nextRegistries, status: 'not-registered' };
+  }
+
+  delete nextRegistries[id];
+  return { registries: nextRegistries, status: 'removed' };
 }

@@ -192,6 +192,19 @@ ai-devkit skill add-registry my-org/skills https://github.com/my-org/new-skills.
 
 Registry IDs use the `organization/repository` format. Each segment may contain letters, numbers, underscores, and hyphens.
 
+### `ai-devkit skill remove-registry`
+
+Unregister a third-party skill registry from the current project, or from global configuration with `--global`:
+
+```bash
+ai-devkit skill remove-registry my-org/skills
+ai-devkit skill remove-registry my-org/skills --global
+```
+
+Without `--global`, the command removes only the project configuration entry and keeps the cached repository. With `--global`, it removes the global configuration entry and recursively deletes that registry's cache directory under `~/.ai-devkit/skills/`. Registry IDs are validated and the resolved cache path must remain inside the skills cache root before deletion.
+
+The local discovery index is not modified. It is seeded with skills from registries that are not configured locally, so entries for a removed registry remain valid catalog entries. Default registries are structurally protected because they do not live in project or global configuration maps; the built-in `codeaholicguy/ai-devkit` registry is explicitly protected.
+
 ### `ai-devkit skill list`
 
 List skills installed in the current project, or inspect skills installed across known global environment paths.

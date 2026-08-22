@@ -367,6 +367,23 @@ export class SkillManager {
     return this.index.updateRegistryFromCache(registryId);
   }
 
+  /**
+   * Remove a registry's cached repository from the skill cache directory.
+   * Refuses paths that would escape the cache root.
+   */
+  async removeRegistryCache(registryId: string): Promise<void> {
+    const cacheRoot = path.resolve(SKILL_CACHE_DIR);
+    const cachePath = path.resolve(cacheRoot, registryId);
+    const relativeCachePath = path.relative(cacheRoot, cachePath);
+    const escapesCacheRoot = relativeCachePath === '..'
+      || relativeCachePath.startsWith(`..${path.sep}`)
+      || path.isAbsolute(relativeCachePath);
+    if (!relativeCachePath || escapesCacheRoot) {
+      throw new Error(`Refusing to remove cache outside ${cacheRoot}.`);
+    }
+    await fs.remove(cachePath);
+  }
+
   private async resolveProjectEnvironments(): Promise<string[]> {
     ui.info('Loading project configuration...');
     let config = await this.configManager.read();

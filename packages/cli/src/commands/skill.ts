@@ -94,6 +94,36 @@ export function registerSkillCommand(program: Command): void {
     }));
 
   skillCommand
+    .command('remove-registry <id>')
+    .description('Unregister a third-party skill registry')
+    .option('-g, --global', 'Remove from global config and delete the cached registry')
+    .action(withErrorHandler('remove registry', async (
+      id: string,
+      options: { global?: boolean },
+    ) => {
+      validateRegistryId(id);
+      if (id === BUILTIN_SKILL_REGISTRY) {
+        throw new Error(`Registry "${id}" is built in and cannot be unregistered.`);
+      }
+
+      const configManager = options.global
+        ? new GlobalConfigManager()
+        : new ConfigManager();
+      const registries = await configManager.getSkillRegistries();
+      if (!Object.prototype.hasOwnProperty.call(registries, id)) {
+        throw new Error(`Registry ${id} is not registered (try --global).`);
+      }
+
+      await configManager.removeSkillRegistry(id);
+      if (options.global) {
+        await new SkillManager(new ConfigManager()).removeRegistryCache(id);
+      }
+
+      const scope = options.global ? 'global' : 'project';
+      ui.success(`Removed ${scope} skill registry "${id}".`);
+    }));
+
+  skillCommand
     .command('list')
     .description('List installed project skills, or global skills with --global')
     .option('-g, --global', 'List skills in known configured global skill paths')
