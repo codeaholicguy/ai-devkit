@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { capacityCommand, registerCapacityCommand } from '../../../commands/capacity.js';
 import { renderCapacityReport } from '../../../commands/capacity/render.js';
-import type { CapacityReport } from '../../../commands/capacity/types.js';
+import type { CapacityReport } from '@ai-devkit/agent-manager';
 import { ui } from '../../../util/terminal-ui.js';
 
 vi.mock('../../../util/terminal-ui.js', () => ({ ui: { text: vi.fn() } }));
@@ -47,21 +47,21 @@ describe('capacity command', () => {
     expect(output).toContain('A safe normalized warning.');
   });
 
-  it('wires the locked command surface and forwards parsed options', async () => {
+  it('wires the Codex-only command surface', async () => {
     const getReport = vi.fn(async () => report);
     const program = new Command();
     program.exitOverride();
     registerCapacityCommand(program, getReport);
-    await program.parseAsync(['node', 'test', 'capacity', 'codex', '--json', '--max-age', '120', '--refresh']);
+    await program.parseAsync(['node', 'test', 'capacity', 'codex', '--json']);
 
-    expect(getReport).toHaveBeenCalledWith({ provider: 'codex', maxAge: 120, refresh: true });
+    expect(getReport).toHaveBeenCalledWith();
     expect(ui.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
   });
 
-  it('rejects invalid max-age values before probing', async () => {
+  it('rejects non-Codex providers before probing', async () => {
     const getReport = vi.fn(async () => report);
-    await expect(capacityCommand(undefined, { maxAge: '-1' }, getReport)).rejects.toThrow(
-      '--max-age must be a non-negative integer'
+    await expect(capacityCommand('claude', {}, getReport)).rejects.toThrow(
+      'Only "codex" is supported'
     );
     expect(getReport).not.toHaveBeenCalled();
   });

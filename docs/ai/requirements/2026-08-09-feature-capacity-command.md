@@ -1,88 +1,46 @@
 ---
 phase: requirements
 title: Capacity Command Requirements
-description: Define truthful, read-only provider capacity reporting before agent dispatch
+description: Define fresh, read-only Codex capacity reporting
 ---
 
 # Capacity Command Requirements
 
-## Problem Statement
+## Problem
 
-AI DevKit can start agents backed by Codex, Claude, Pi, and other providers, but previously could not inspect provider capacity before launch. Humans and orchestrators discovered limits only after starting work, sometimes after a task was already in progress. The workaround was to check provider-specific interfaces manually or launch an agent and react to a rate-limit failure.
+Codex users need a factual capacity report before dispatching work. The command must obtain current data without starting a model turn, exposing credentials, or carrying provider and cache machinery that has no supported use.
 
-The `capacity` command gives human operators, the agent-management workflow, parent agents, and future schedulers one factual report before dispatch.
-
-## Goals
-
-- Provide one fast, read-only command for provider capacity and authentication state.
-- Emit stable schema-versioned JSON for automation and a readable human table.
-- Show only configured providers by default, detected from provider configuration directories.
-- Preserve every authoritative provider window instead of forcing daily/weekly fields.
-- Distinguish configured, installed, and authenticated states.
-- Treat missing or unsupported capacity as `unknown`, never as positive availability.
-- Allow partial provider failures without losing the complete report.
-- Report available reset-credit counts without redeeming credits.
-- Avoid model inference, prompts, TUI interaction, and model-quota consumption.
-
-## Non-Goals
-
-- Automatic provider selection or changes to `agent start`.
-- Forecasting, task-cost prediction, billing reconciliation, or local-usage estimation.
-- TUI scraping or inference requests used as probes.
-- Multiple accounts per provider.
-- Automatic reset-credit redemption.
-- A first-party live quota adapter for every AI DevKit environment.
-- OAuth token refresh or any mutation of provider-owned credentials.
-
-## User Stories
-
-- As a human operator, I want to see which configured providers are authenticated and what authoritative capacity remains before choosing an agent.
-- As an orchestrator, I want stable JSON with explicit `yes`, `no`, and `unknown` availability so I can apply my own unknown-data policy.
-- As the agent-management workflow, I want provider and `agentType` fields that can be joined to launchable agent types.
-- As a security-conscious self-hosted user, I want provider-owned authentication and redacted failures so capacity checks never disclose credentials.
-- As a Codex user, I want native rolling windows and reset-credit counts without consuming a model turn or redeeming a credit.
-
-## Shipped Command Surface
+## Command Surface
 
 ```text
 ai-devkit capacity
-ai-devkit capacity [provider]
-ai-devkit capacity [provider] --json
-ai-devkit capacity [provider] --max-age <seconds>
-ai-devkit capacity [provider] --refresh
+ai-devkit capacity codex
+ai-devkit capacity [codex] --json
 ```
 
-The default cache age is 300 seconds. `--refresh` bypasses cache. Unknown providers and invalid non-negative integer values for `--max-age` are invalid arguments.
+The optional provider argument exists for discoverability and accepts only `codex`, case-insensitively. Any other value fails before probing. Every invocation probes fresh; there is no cache, `--max-age`, or `--refresh` option.
 
 ## Acceptance Criteria
 
-- `capacity` with no provider argument includes only providers whose configuration directory exists according to `ENVIRONMENT_DEFINITIONS.globalSkillPath`; PATH presence alone never adds a row.
-- Every row exposes `configured`, `installed`, and nullable `authenticated` separately.
-- JSON uses `schemaVersion: 1` and the shipped `CapacityReport` contract.
-- Canonical capacity is `CapacityWindow[]`; daily and weekly aliases are conveniences derived from duration.
-- Missing data produces `available: "unknown"`; only explicit provider exhaustion/blocking produces `"no"`.
-- Codex resolves `CODEX_HOME/auth.json` (or `~/.codex/auth.json`) and prefers PAT, then fresh OAuth, then a hardened CLI fallback.
-- PAT uses authenticated `whoami` followed by `wham/usage`; OAuth calls `wham/usage` with its account ID and falls back on stale/401 responses.
-- The CLI fallback runs `codex -s read-only -a untrusted app-server`, then reads both `account/rateLimits/read` and `account/read`; no model-turn method is called.
-- Claude uses `claude auth status --json`; unsafe undocumented live usage is not called.
-- Pi and GLM authentication may be detected, but their authoritative capacity remains unknown.
-- Other configured providers are represented as unsupported with unknown availability.
-- Provider probes run concurrently with isolated timeouts; a report with partial unknown rows exits successfully.
-- Cache data is normalized and non-sensitive, with restrictive directory/file permissions.
-- Output never contains tokens, account IDs, refresh tokens, endpoint URLs, headers, raw response bodies, stderr, or exception text.
+- Capacity supports Codex only and always emits exactly one Codex row.
+- `@ai-devkit/agent-manager` owns probing, normalization, detection, and public capacity types.
+- The CLI owns only command registration, provider validation, the agent-manager call, and text/JSON rendering.
+- JSON retains `schemaVersion: 1`, normalized arbitrary windows, availability, authentication, plan, reset-credit, warning, and stable error fields.
+- Codex configuration and executable presence are reported independently.
+- Probing prefers PAT, then fresh OAuth, then the hardened read-only Codex app-server fallback.
+- Missing data is `unknown`, never inferred as available; explicit exhaustion may report `no`.
+- Probing never starts a model turn, refreshes credentials, writes provider data, or exposes secrets/raw failures.
+- Existing meaningful normalization, fallback, redaction, rendering, and command-contract tests remain covered in their owning packages.
 
-## Constraints and Locked Decisions
+## Non-Goals
 
-- Command name is `capacity`.
-- Default selection is configuration-directory based, not PATH based.
-- Providers may expose arbitrary rolling or scoped windows; daily/weekly are not required.
-- `unknown` is never equivalent to `yes`.
-- Authentication stays owned by provider CLIs wherever possible.
-- Capacity checking must not consume model quota.
-- AI DevKit never refreshes Codex OAuth credentials and never emits auth-file contents or token-bearing errors.
-- Reset credits are report-only and are never redeemed.
-- The implementation remains local-first and self-host friendly.
+- Claude, Pi, GLM, generic provider stubs, or future-provider scaffolding.
+- Cross-provider selection, parallel orchestration, partial multi-provider results, or scheduling policy.
+- Cached or historical capacity, forecasting, cost prediction, token-history estimation, or reset-credit redemption.
+- OAuth refresh, TUI scraping, or inference-based probes.
 
-## Open Items
+## Constraints
 
-No open item blocks the shipped feature. Future adapters require a documented, non-inference, credential-safe provider mechanism. Claude live subscription usage and z.ai/GLM quota discovery remain deliberately deferred.
+- Keep the schema stable where it still describes Codex truthfully.
+- Use provider-owned credentials read-only and discard raw exception details.
+- Do not add a dependency: the CLI already depends on agent-manager.

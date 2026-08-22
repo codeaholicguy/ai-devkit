@@ -5,7 +5,7 @@ import {
   probeCodexCapacity,
   resolveCodexAuthPath,
   toRateWindow
-} from '../../../commands/capacity/providers/codex.js';
+} from '../../capacity/codex.js';
 
 const checkedAt = '2026-08-20T10:00:00.000Z';
 const context = { configured: true, installed: true, checkedAt };

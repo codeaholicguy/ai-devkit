@@ -1,5 +1,5 @@
 import { ui } from '../../util/terminal-ui.js';
-import type { CapacityReport, CapacityWindow } from './types.js';
+import type { CapacityReport, CapacityWindow } from '@ai-devkit/agent-manager';
 
 function authLabel(value: boolean | null): string {
   return value === true ? 'yes' : value === false ? 'no' : 'unknown';

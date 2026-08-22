@@ -6,7 +6,7 @@ import type {
   CodexUsageSource,
   ProviderCapacity,
   UsageSnapshot
-} from '../types.js';
+} from './types.js';
 
 type UnknownRecord = Record<string, unknown>;
 type RpcMessage = { id?: number; method: string; params?: UnknownRecord };

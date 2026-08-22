@@ -1,79 +1,38 @@
 ---
 phase: planning
-title: Capacity Command Implementation Plan
-description: Completed task record for the shipped capacity command
+title: Capacity Command Simplification Plan
+description: Completed plan for a fresh Codex-only capacity command
 ---
 
-# Capacity Command Implementation Plan
+# Capacity Command Simplification Plan
 
-All tasks are complete. The list reflects execution order and the pushed commit that delivered each outcome.
+## Completed Tasks
 
-## Milestone 1: Detection and Core Contract
+- [x] Remove cache implementation, cache tests, cache calls, `--max-age`, and `--refresh`.
+- [x] Remove Claude, Pi, GLM, unsupported-provider adapters, and their tests.
+- [x] Replace generic provider detection and multi-provider orchestration with one fresh Codex report function.
+- [x] Move Codex probing, normalization, types, and report construction to `@ai-devkit/agent-manager` using `src/capacity/` and `src/__tests__/capacity/` conventions.
+- [x] Export the capacity API and types from agent-manager's root entry point.
+- [x] Reduce CLI integration to registration, Codex argument validation, one agent-manager call, and rendering.
+- [x] Relocate behavioral tests to the owning workspace and remove tests whose only behavior was deleted.
+- [x] Update CLI README and all 2026-08-09 lifecycle documents.
 
-- [x] Define schema-v1 capacity types and configuration/PATH detection — `c6c386b`.
-  - Outcome: `CapacityReport`, `ProviderCapacity`, arbitrary `CapacityWindow[]`, and independent configured/installed checks.
-  - Validation: detection derives config roots from `ENVIRONMENT_DEFINITIONS` and never runs provider binaries.
-- [x] Build the Codex app-server adapter under TDD — `d57813a`.
-  - Outcome: injectable JSON-line transport, normalized windows, aliases, availability, plan, and reset-credit count.
-  - Validation: mocked protocol sequence contains no model-turn method and failures are redacted.
+## Order and Dependencies
 
-## Milestone 2: Provider Coverage and Orchestration
+1. Preserve the normalized contract while moving it and the Codex probe.
+2. Add the agent-manager report boundary and tests.
+3. Switch the CLI to that boundary.
+4. Delete superseded provider/cache/orchestration modules and tests.
+5. Update lifecycle records, then run build and test validation.
 
-- [x] Add truthful Claude, Pi, GLM, and unsupported-provider adapters — `c614f27`.
-  - Outcome: Claude auth detection, Pi provider-name inspection, GLM detection through z.ai keys, and unknown-capacity stubs.
-  - Validation: injected secrets and thrown response details do not reach reports.
-- [x] Add parallel orchestration and secure cache — `5de3a72`.
-  - Outcome: configured-only default, explicit provider validation, partial-result isolation, timeouts, max-age/refresh behavior, atomic restrictive cache.
-  - Validation: mocked adapters prove parallel selection, cache reuse/bypass, and partial failure behavior.
+## Risk Controls
 
-## Milestone 3: CLI and Presentation
+- Root agent-manager exports preserve one supported import path.
+- Probe exceptions become fixed normalized failures; raw provider details remain redacted.
+- Existing mocked PAT/OAuth/app-server tests move with the domain code.
+- Commander tests prove non-Codex rejection and the absence of cache-option forwarding.
+- Full workspace build/tests catch package-boundary and declaration-generation errors.
 
-- [x] Register and document the command — `69a201d`.
-  - Outcome: `registerCapacityCommand` in `cli.ts`, locked options, JSON rendering, human table, warnings, and CLI README examples.
-  - Validation: Commander integration forwards the provider and parsed cache options; invalid max-age fails before probing.
+## Deferred Scope
 
-## Milestone 4: Live-Protocol and Security Hardening
-
-- [x] Align with the generated Codex app-server protocol — `c04ea1f`.
-  - Outcome: exact initialize payload, parameterless rate-limit read, current reset-credit field, duplicate bucket removal, and identifier redaction.
-  - Validation: generated-protocol assertions and a live read-only Codex smoke test.
-- [x] Harden provider metadata and agent-type mappings — `f34dbc3`.
-  - Outcome: reject credential/account-like plan metadata; map Gemini, Grok, and Copilot to shipped agent types.
-  - Validation: redaction and mapping regression tests.
-- [x] Correct logged-out Claude handling — `5e2cc89`.
-  - Outcome: accept bounded JSON stdout from Claude's expected nonzero logged-out exit and use a six-second adapter timeout under the seven-second orchestrator guard.
-  - Validation: mocked nonzero behavior plus live `authenticated: false` classification.
-
-## Milestone 5: Tiered Codex Rework
-
-- [x] Rebase the feature onto current `origin/main`.
-- [x] Add auth-file resolution and PAT/OAuth/CLI tier selection under TDD.
-- [x] Normalize API usage into `UsageSnapshot`, including credit-limit fallbacks and additional windows.
-- [x] Harden the CLI fallback with read-only/untrusted flags and both account reads.
-- [x] Prove stale/401 fallback, unavailable semantics, and token redaction with mocked boundaries.
-- [x] Run clean install, build, lifecycle lint, full repository lint/tests, and E2E tests.
-- [x] Publish the reworked branch and update PR #147 with the tiered-flow Rework section.
-
-## Dependencies and Sequencing
-
-1. Types and detection established the provider/report contract.
-2. Provider adapters normalized into that contract.
-3. Orchestration composed adapters and added cache/timeout behavior.
-4. CLI/rendering exposed the report.
-5. Fully mocked network/subprocess tests drove the tiered protocol and security fixes.
-
-Runtime dependencies are Node.js, Commander, provider CLIs already installed by the user, and the existing AI DevKit environment definitions. No new package dependency or migration was introduced.
-
-## Risks and Mitigations
-
-- Codex app-server protocol changes: capability failures degrade to unknown; transport and mapping are isolated and tested.
-- Undocumented Claude usage endpoint: not used; authentication-only output is explicit.
-- Provider failure/latency: parallel probes, subprocess/orchestrator timeouts, and partial results.
-- Secret leakage: provider-owned auth, bounded streams, fixed errors, field sanitization, and restrictive normalized cache.
-- Misleading capacity: positive availability requires authoritative data; unsupported/missing data remains unknown.
-
-## Deferred Follow-Ups
-
-- Add Claude live capacity only if a safe provider-owned command becomes available.
-- Add GLM or other provider adapters only after verifying authoritative, non-inference quota mechanisms.
-- Add scheduling/recommendation policy separately from factual collection.
+Future providers should be added only with a verified, read-only capacity mechanism and a concrete product requirement. Do not restore generic provider scaffolding or caching speculatively.
