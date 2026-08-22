@@ -29,7 +29,7 @@ const report: CapacityReport = {
 describe('capacity command', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('renders schema-v1 JSON exactly through terminal UI', () => {
+  it('renders the JSON report exactly through terminal UI', () => {
     renderCapacityReport(report, { json: true });
     expect(ui.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
   });
