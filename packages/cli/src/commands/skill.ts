@@ -1,14 +1,17 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
+import fs from 'fs-extra';
+import * as path from 'path';
 import { ConfigManager } from '../lib/Config.js';
 import { GlobalConfigManager } from '../lib/GlobalConfig.js';
 import { SkillManager } from '../lib/SkillManager.js';
-import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY, DEFAULT_SKILL_REGISTRY_IDS } from '../constants.js';
+import { SKILL_CACHE_DIR } from '../lib/SkillRegistry.js';
+import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate, getErrorMessage } from '../util/text.js';
 import { validateRegistryId } from '../util/skill.js';
-import { planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
+import { planSkillRegistryAdd } from '../util/skill-registry.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -96,62 +99,42 @@ export function registerSkillCommand(program: Command): void {
   skillCommand
     .command('remove-registry <id>')
     .description('Unregister a third-party skill registry')
-    .option('-g, --global', 'Remove from global config (~/.ai-devkit/.ai-devkit.json)')
+    .option('-g, --global', 'Remove from global config and delete the cached registry')
     .action(withErrorHandler('remove registry', async (
       id: string,
       options: { global?: boolean },
     ) => {
       validateRegistryId(id);
-      const projectConfig = new ConfigManager();
-      const globalConfig = new GlobalConfigManager();
-      const [projectRegistries, globalRegistries] = await Promise.all([
-        projectConfig.getSkillRegistries(),
-        globalConfig.getSkillRegistries(),
-      ]);
-      const targetRegistries = options.global ? globalRegistries : projectRegistries;
-      const otherRegistries = options.global ? projectRegistries : globalRegistries;
-      const mutation = planSkillRegistryRemove(targetRegistries, id);
-
-      if (mutation.status === 'not-registered') {
-        if (Object.prototype.hasOwnProperty.call(otherRegistries, id)) {
-          throw new Error(options.global
-            ? `Registry "${id}" is not registered globally. It is registered in project config; omit --global.`
-            : `Registry "${id}" is not registered in project config. It is registered globally; re-run with --global.`);
-        }
-        if (id === BUILTIN_SKILL_REGISTRY) {
-          throw new Error(`Registry "${id}" is built in and cannot be unregistered.`);
-        }
-        if (DEFAULT_SKILL_REGISTRY_IDS.has(id)) {
-          throw new Error(`Registry "${id}" is provided by the default registry and cannot be unregistered.`);
-        }
-        const projectList = Object.keys(projectRegistries).sort().join(', ') || '(none)';
-        const globalList = Object.keys(globalRegistries).sort().join(', ') || '(none)';
-        throw new Error(
-          `Registry "${id}" is not registered.\nRegistered project registries: ${projectList}\nRegistered global registries: ${globalList}`,
-        );
+      if (id === BUILTIN_SKILL_REGISTRY) {
+        throw new Error(`Registry "${id}" is built in and cannot be unregistered.`);
       }
 
-      const targetConfig = options.global ? globalConfig : projectConfig;
-      await targetConfig.removeSkillRegistry(id);
-      try {
-        await new SkillManager(projectConfig).removeSkillIndexForRegistry(id);
-      } catch {
-        const scope = options.global ? 'global config' : 'project config';
-        throw new Error(`Registry was removed from ${scope}, but the skill index could not be updated. Run "ai-devkit skill rebuild-index".`);
+      const configManager = options.global
+        ? new GlobalConfigManager()
+        : new ConfigManager();
+      const registries = await configManager.getSkillRegistries();
+      if (!Object.prototype.hasOwnProperty.call(registries, id)) {
+        throw new Error(`Registry ${id} is not registered (try --global).`);
       }
+
+      let cachePath: string | undefined;
+      if (options.global) {
+        const cacheRoot = path.resolve(SKILL_CACHE_DIR);
+        cachePath = path.resolve(cacheRoot, id);
+        const relativeCachePath = path.relative(cacheRoot, cachePath);
+        const escapesCacheRoot = relativeCachePath === '..'
+          || relativeCachePath.startsWith(`..${path.sep}`)
+          || path.isAbsolute(relativeCachePath);
+        if (!relativeCachePath || escapesCacheRoot) {
+          throw new Error(`Refusing to remove cache outside ${cacheRoot}.`);
+        }
+      }
+
+      await configManager.removeSkillRegistry(id);
+      if (cachePath) await fs.remove(cachePath);
 
       const scope = options.global ? 'global' : 'project';
-      if (!options.global && Object.prototype.hasOwnProperty.call(globalRegistries, id)) {
-        ui.success(`Removed project registry "${id}"; the global registration remains active.`);
-      } else if (options.global && Object.prototype.hasOwnProperty.call(projectRegistries, id)) {
-        ui.success(`Removed global registry "${id}"; the project registration remains active.`);
-      } else if (DEFAULT_SKILL_REGISTRY_IDS.has(id)) {
-        ui.success(`Removed ${scope} registry "${id}"; the built-in/default registry remains active.`);
-      } else {
-        ui.success(`Removed ${scope} skill registry "${id}".`);
-      }
-      ui.info(`Cached repository preserved at ~/.ai-devkit/skills/${id} because installed skills may depend on it.`);
-      ui.info('Installed skills were not removed.');
+      ui.success(`Removed ${scope} skill registry "${id}".`);
     }));
 
   skillCommand

@@ -1,7 +1,7 @@
 ---
 phase: design
 title: Skill Registry Removal Design
-description: Safe scoped config removal and local index cleanup
+description: Scoped config removal with guarded global cache deletion
 ---
 
 # Skill Registry Removal Design
@@ -11,16 +11,15 @@ description: Safe scoped config removal and local index cleanup
 ```mermaid
 flowchart LR
   CLI[remove-registry command] --> Validate[validateRegistryId]
-  Validate --> Read[read project/global/default maps]
-  Read --> Plan[planSkillRegistryRemove]
-  Plan --> Config[selected ConfigManager]
-  Config --> Index[local focused index cleanup]
-  Index -. no access .-> Network[(Network)]
-  Index -. preserved .-> Cache[(Registry cache)]
-  Config -. untouched .-> Installs[(Installed skills)]
+  Validate --> Read[read selected config map]
+  Read --> Guard[own-property guard]
+  Guard --> Config[selected ConfigManager]
+  Config -->|global only| Contain[resolve and contain cache path]
+  Contain --> Cache[remove registry cache directory]
+  Config -. unchanged .-> Index[(Seed-backed discovery index)]
 ```
 
-The command resolves precedence and messages. Config managers persist the pure planner result. `SkillIndex` performs a focused local inverse of registry indexing.
+The command validates and guards the selected scope, while config managers persist the pure planner result. Project removal stops after config mutation. Global removal additionally deletes the contained registry cache path. The discovery index is intentionally unchanged because its seed contains unconfigured registries by design.
 
 ## Data Models
 
@@ -29,7 +28,6 @@ type SkillRegistryRemoveStatus = 'removed' | 'not-registered';
 interface SkillRegistryRemoveMutation {
   registries: Record<string, string>;
   status: SkillRegistryRemoveStatus;
-  removedUrl?: string;
 }
 ```
 
@@ -40,8 +38,8 @@ The planner tests own-property presence, copies the input, and omits only the se
 - `skill remove-registry <id> [-g|--global]`
 - `planSkillRegistryRemove(registries, id)` is pure.
 - Project/global config managers expose `removeSkillRegistry(id)`.
-- `SkillManager.removeSkillIndexForRegistry(id)` delegates to local filtering of `skills[].registry` and `meta.registryHeads[id]`.
-- Exact output follows the approved exploration, including shadow reports and partial-success repair guidance.
+- `--global` resolves `~/.ai-devkit/skills/<id>`, verifies containment under the cache root, and recursively removes it.
+- Missing selected-scope entries return the concise `try --global` error.
 
 ## Component Breakdown
 
@@ -49,23 +47,21 @@ The planner tests own-property presence, copies the input, and omits only the se
 |---|---|
 | `util/skill-registry.ts` | Pure removal planner and types |
 | `Config.ts`, `GlobalConfig.ts` | Scoped removal writers |
-| `SkillIndex.ts`, `SkillManager.ts` | Local focused index cleanup |
-| `commands/skill.ts` | Command and scope/default protection |
+| `commands/skill.ts` | Scope guard and contained global cache deletion |
 | Tests/docs | Behavior, exact copy, and follow-ups |
 
 ## Design Decisions
 
 - Mutate only the selected scope.
-- Config plus focused index cleanup avoids stale search results.
-- Never use the network; a lower source repopulates on later refresh.
-- Built-in/default sources are read-only, while configured shadows remain removable.
-- Preserve cache to protect symlink-backed installs across projects.
+- Do not clean the index: seed catalog entries are valid even without local registry configuration.
+- Never use the network during removal.
+- Protect the built-in ID explicitly; default sources are structurally protected by absence from user config maps.
+- Preserve cache for project removal; delete the selected cached repository for global removal.
 - Keep `remove-registry` paired with `add-registry`; defer registry-group migration.
-- Defer `--purge-cache`; a future version must require `--yes` in non-TTY use, protect effective/built-in sources, and never remove installed skills.
 
 ## Non-Functional Requirements
 
-- Local complexity is linear in index size.
-- Writes retain existing config/index safety conventions.
+- Work is constant-time apart from recursive global cache deletion.
+- Writes retain existing config safety conventions.
 - Invalid IDs cannot influence filesystem paths.
-- Failures distinguish pre-write rejection from repairable post-write index failure.
+- Resolved cache targets must be strict descendants of `SKILL_CACHE_DIR`.

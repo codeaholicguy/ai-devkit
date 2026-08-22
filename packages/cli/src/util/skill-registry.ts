@@ -16,7 +16,6 @@ export type SkillRegistryRemoveStatus = 'removed' | 'not-registered';
 export interface SkillRegistryRemoveMutation {
   registries: Record<string, string>;
   status: SkillRegistryRemoveStatus;
-  removedUrl?: string;
 }
 
 export function planSkillRegistryAdd(
@@ -54,7 +53,6 @@ export function planSkillRegistryRemove(
     return { registries: nextRegistries, status: 'not-registered' };
   }
 
-  const removedUrl = registries[id];
   delete nextRegistries[id];
-  return { registries: nextRegistries, status: 'removed', removedUrl };
+  return { registries: nextRegistries, status: 'removed' };
 }

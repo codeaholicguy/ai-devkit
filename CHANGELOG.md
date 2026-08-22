@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Added `skill remove-registry` with scoped config removal, offline index cleanup, default-registry protection, and cache/install preservation.
+- Added `skill remove-registry` with project-scoped config removal and global removal that also deletes the registry's cached repository.
 
 ## [0.54.0] - 2026-08-21
 

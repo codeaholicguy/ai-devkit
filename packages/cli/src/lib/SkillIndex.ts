@@ -90,17 +90,6 @@ export class SkillIndex {
     await fs.writeJson(SKILL_INDEX_PATH, nextIndex, { spaces: 2 });
   }
 
-  async removeRegistry(registryId: string): Promise<void> {
-    if (!await fs.pathExists(SKILL_INDEX_PATH)) return;
-    const existingIndex: SkillIndexData = await fs.readJson(SKILL_INDEX_PATH);
-    const registryHeads = { ...existingIndex.meta.registryHeads };
-    delete registryHeads[registryId];
-    await fs.writeJson(SKILL_INDEX_PATH, {
-      meta: { ...existingIndex.meta, updatedAt: Date.now(), registryHeads },
-      skills: existingIndex.skills.filter(skill => skill.registry !== registryId),
-    }, { spaces: 2 });
-  }
-
   private async ensureSkillIndex(forceRefresh = false): Promise<SkillIndexData> {
     const indexExists = await fs.pathExists(SKILL_INDEX_PATH);
 

@@ -201,11 +201,9 @@ ai-devkit skill remove-registry my-org/skills
 ai-devkit skill remove-registry my-org/skills --global
 ```
 
-The command removes only the selected scope's configuration entry and immediately filters that registry from the local search index. It never uses the network. Cached repositories and installed skills are preserved because installed skills in this or another project may depend on that cache. Built-in and default registries cannot be unregistered, but a project or global registration that shadows one can be removed to reveal the default again.
+Without `--global`, the command removes only the project configuration entry and keeps the cached repository. With `--global`, it removes the global configuration entry and recursively deletes that registry's cache directory under `~/.ai-devkit/skills/`. Registry IDs are validated and the resolved cache path must remain inside the skills cache root before deletion.
 
-If the same ID is registered in another scope, that registration remains active. The command reports the remaining source and the next registry refresh can repopulate its index entries.
-
-> **Follow-up:** v1 intentionally has no `--purge-cache` option. A future cache-cleanup workflow must use that narrow name, require explicit `--yes` in non-interactive terminals, protect built-in or still-effective registries, and never remove installed skills. A future registry command group should migrate `add-registry` and `remove-registry` together rather than changing one name independently.
+The local discovery index is not modified. It is seeded with skills from registries that are not configured locally, so entries for a removed registry remain valid catalog entries. Default registries are structurally protected because they do not live in project or global configuration maps; the built-in `codeaholicguy/ai-devkit` registry is explicitly protected.
 
 ### `ai-devkit skill list`
 

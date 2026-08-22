@@ -21,7 +21,6 @@ describe('planSkillRegistryRemove', () => {
     expect(planSkillRegistryRemove(registries, 'target/skills')).toEqual({
       registries: { 'keep/skills': 'keep-url' },
       status: 'removed',
-      removedUrl: 'target-url',
     });
     expect(registries).toEqual({ 'target/skills': 'target-url', 'keep/skills': 'keep-url' });
   });

@@ -367,10 +367,6 @@ export class SkillManager {
     return this.index.updateRegistryFromCache(registryId);
   }
 
-  async removeSkillIndexForRegistry(registryId: string): Promise<void> {
-    return this.index.removeRegistry(registryId);
-  }
-
   private async resolveProjectEnvironments(): Promise<string[]> {
     ui.info('Loading project configuration...');
     let config = await this.configManager.read();
