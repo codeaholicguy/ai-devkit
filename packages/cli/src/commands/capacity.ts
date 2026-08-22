@@ -21,7 +21,7 @@ export async function capacityCommand(
 export function registerCapacityCommand(program: Command, readReport: ReportReader = getCodexCapacityReport): void {
   program
     .command('capacity [provider]')
-    .description('Report Codex capacity without consuming model quota')
+    .description('Report AI provider capacity')
     .option('-j, --json', 'Output as JSON')
     .action((provider: string | undefined, options: CapacityOptions) =>
       capacityCommand(provider, options, readReport));

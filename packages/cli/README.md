@@ -85,7 +85,7 @@ ai-devkit lint --feature lint-command
 # Emit machine-readable output for CI
 ai-devkit lint --feature lint-command --json
 
-# Probe current Codex capacity (read-only; never cached)
+# Probe current AI provider capacity (currently Codex)
 ai-devkit capacity
 
 # Emit the JSON report
