@@ -13,7 +13,7 @@ packages/agent-manager/src/
 ├── capacity/
 │   ├── index.ts       # detection, one fresh probe, report construction
 │   ├── codex.ts       # PAT/OAuth/app-server probing and normalization
-│   └── types.ts       # capacity report model (schemaVersion field included)
+│   └── types.ts       # capacity report model
 └── __tests__/capacity/
     ├── index.test.ts
     └── codex.test.ts
@@ -27,7 +27,7 @@ Agent-manager's root `index.ts` exports `getCodexCapacityReport` and the public 
 
 ## Runtime Behavior
 
-`capacity` and `capacity codex` are equivalent. An explicit provider is normalized to lowercase and must be `codex`. The report function checks configuration and installation state, invokes the Codex probe on every call, catches unexpected probe failures into a fixed safe result, and returns one provider row. The `schemaVersion` field in the JSON output is the machine-checked contract marker; human-facing help text does not mention it.
+`capacity` and `capacity codex` are equivalent. An explicit provider is normalized to lowercase and must be `codex`. The report function checks configuration and installation state, invokes the Codex probe on every call, catches unexpected probe failures into a fixed safe result, and returns one provider row.
 
 The retained Codex implementation validates normalized identifiers and labels, preserves arbitrary windows, derives remaining percentage only from numeric usage, and keeps the PAT → fresh OAuth → hardened app-server sequence. It does not refresh tokens or invoke a model method.
 

@@ -22,7 +22,7 @@ export function registerCapacityCommand(program: Command, readReport: ReportRead
   program
     .command('capacity [provider]')
     .description('Report Codex capacity without consuming model quota')
-    .option('--json', 'Output the report as JSON')
+    .option('-j, --json', 'Output as JSON')
     .action((provider: string | undefined, options: CapacityOptions) =>
       capacityCommand(provider, options, readReport));
 }

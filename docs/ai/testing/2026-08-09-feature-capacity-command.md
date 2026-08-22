@@ -16,11 +16,11 @@ description: Coverage and validation for the Codex-only implementation
 - [x] Distinguish logged-out account state and keep unknown/unavailable semantics.
 - [x] Prevent token and raw failure leakage.
 - [x] Detect Codex configuration and installation independently before probing.
-- [x] Build exactly one Codex report (schemaVersion 1) and redact unexpected probe failures.
+- [x] Build exactly one Codex report and redact unexpected probe failures.
 
 ## CLI Coverage
 
-- [x] Render the JSON report exactly (schemaVersion field included).
+- [x] Render the JSON report exactly.
 - [x] Render human headers, windows, credits, and warnings.
 - [x] Accept omitted provider and `codex`, forwarding no cache options.
 - [x] Reject non-Codex providers before probing.

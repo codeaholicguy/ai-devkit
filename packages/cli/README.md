@@ -88,7 +88,7 @@ ai-devkit lint --feature lint-command --json
 # Probe current Codex capacity (read-only; never cached)
 ai-devkit capacity
 
-# Emit the machine-readable JSON report (includes schemaVersion)
+# Emit the JSON report
 ai-devkit capacity codex --json
 
 # Install a skill
