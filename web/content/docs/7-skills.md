@@ -192,6 +192,21 @@ ai-devkit skill add-registry my-org/skills https://github.com/my-org/new-skills.
 
 Registry IDs use the `organization/repository` format. Each segment may contain letters, numbers, underscores, and hyphens.
 
+### `ai-devkit skill remove-registry`
+
+Unregister a third-party skill registry from the current project, or from global configuration with `--global`:
+
+```bash
+ai-devkit skill remove-registry my-org/skills
+ai-devkit skill remove-registry my-org/skills --global
+```
+
+The command removes only the selected scope's configuration entry and immediately filters that registry from the local search index. It never uses the network. Cached repositories and installed skills are preserved because installed skills in this or another project may depend on that cache. Built-in and default registries cannot be unregistered, but a project or global registration that shadows one can be removed to reveal the default again.
+
+If the same ID is registered in another scope, that registration remains active. The command reports the remaining source and the next registry refresh can repopulate its index entries.
+
+> **Follow-up:** v1 intentionally has no `--purge-cache` option. A future cache-cleanup workflow must use that narrow name, require explicit `--yes` in non-interactive terminals, protect built-in or still-effective registries, and never remove installed skills. A future registry command group should migrate `add-registry` and `remove-registry` together rather than changing one name independently.
+
 ### `ai-devkit skill list`
 
 List skills installed in the current project, or inspect skills installed across known global environment paths.

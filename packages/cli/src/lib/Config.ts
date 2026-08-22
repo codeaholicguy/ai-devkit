@@ -3,7 +3,7 @@ import * as path from 'path';
 import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
 import { ConfigNotFoundError } from '../util/errors.js';
-import { AddSkillRegistryOptions, planSkillRegistryAdd } from '../util/skill-registry.js';
+import { AddSkillRegistryOptions, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
@@ -188,5 +188,16 @@ export class ConfigManager {
     }
 
     return this.update({ registries: mutation.registries });
+  }
+
+  async removeSkillRegistry(id: string): Promise<DevKitConfig> {
+    const config = await this.read();
+    if (!config) {
+      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+    }
+    const mutation = planSkillRegistryRemove(filterStringRecord(config.registries), id);
+    return mutation.status === 'removed'
+      ? this.update({ registries: mutation.registries })
+      : config;
   }
 }

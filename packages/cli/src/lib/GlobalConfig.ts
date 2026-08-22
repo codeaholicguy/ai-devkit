@@ -4,7 +4,7 @@ import * as path from 'path';
 import { GlobalDevKitConfig } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
 import { CliError } from '../util/errors.js';
-import { AddSkillRegistryOptions, planSkillRegistryAdd } from '../util/skill-registry.js';
+import { AddSkillRegistryOptions, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
 import { ui } from '../util/terminal-ui.js';
 
 export class GlobalConfigManager {
@@ -53,6 +53,22 @@ export class GlobalConfigManager {
       ...existingConfig,
       registries: mutation.registries,
     });
+  }
+
+  async removeSkillRegistry(id: string): Promise<GlobalDevKitConfig> {
+    const configExists = await this.exists();
+    const config = await this.read();
+    if (configExists && !config) {
+      throw new CliError(
+        `Cannot update global config because the existing file could not be read: ${this.getGlobalConfigPath()}`,
+        'GLOBAL_CONFIG_UNREADABLE',
+        { configPath: this.getGlobalConfigPath() },
+      );
+    }
+    const existingConfig = config ?? {};
+    const mutation = planSkillRegistryRemove(filterStringRecord(existingConfig.registries), id);
+    if (mutation.status === 'not-registered') return existingConfig;
+    return this.write({ ...existingConfig, registries: mutation.registries });
   }
 
   async getPlugins(): Promise<string[]> {

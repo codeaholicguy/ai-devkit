@@ -174,6 +174,28 @@ describe('GlobalConfigManager', () => {
     });
   });
 
+  describe('removeSkillRegistry', () => {
+    it('removes one registry while preserving unrelated global config', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        plugins: ['memory-dashboard'],
+        registries: { 'target/skills': 'target-url', 'keep/skills': 'keep-url' },
+      });
+
+      const result = await configManager.removeSkillRegistry('target/skills');
+
+      expect(result).toEqual({
+        plugins: ['memory-dashboard'], registries: { 'keep/skills': 'keep-url' },
+      });
+    });
+
+    it('does not create a global config for a missing registry', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      expect(await configManager.removeSkillRegistry('target/skills')).toEqual({});
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getPlugins', () => {
     it('should return empty list when no config exists', async () => {
       (mockFs.pathExists as any).mockResolvedValue(false);

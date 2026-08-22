@@ -9,15 +9,19 @@ const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
 const mockCacheRegistry = vi.fn();
 const mockUpdateSkillIndexForRegistry = vi.fn();
+const mockRemoveSkillIndexForRegistry = vi.fn();
 const mockProjectGetSkillRegistries = vi.fn();
 const mockProjectAddSkillRegistry = vi.fn();
+const mockProjectRemoveSkillRegistry = vi.fn();
 const mockGlobalGetSkillRegistries = vi.fn();
 const mockGlobalAddSkillRegistry = vi.fn();
+const mockGlobalRemoveSkillRegistry = vi.fn();
 
 vi.mock('../../lib/Config.js', () => ({
   ConfigManager: vi.fn(function () { return {
     getSkillRegistries: (...args: unknown[]) => mockProjectGetSkillRegistries(...args),
     addSkillRegistry: (...args: unknown[]) => mockProjectAddSkillRegistry(...args),
+    removeSkillRegistry: (...args: unknown[]) => mockProjectRemoveSkillRegistry(...args),
   }; }),
 }));
 
@@ -25,6 +29,7 @@ vi.mock('../../lib/GlobalConfig.js', () => ({
   GlobalConfigManager: vi.fn(function () { return {
     getSkillRegistries: (...args: unknown[]) => mockGlobalGetSkillRegistries(...args),
     addSkillRegistry: (...args: unknown[]) => mockGlobalAddSkillRegistry(...args),
+    removeSkillRegistry: (...args: unknown[]) => mockGlobalRemoveSkillRegistry(...args),
   }; }),
 }));
 
@@ -36,6 +41,7 @@ vi.mock('../../lib/SkillManager.js', () => ({
     removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
     cacheRegistry: (...args: unknown[]) => mockCacheRegistry(...args),
     updateSkillIndexForRegistry: (...args: unknown[]) => mockUpdateSkillIndexForRegistry(...args),
+    removeSkillIndexForRegistry: (...args: unknown[]) => mockRemoveSkillIndexForRegistry(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
     rebuildIndex: vi.fn(),
@@ -62,12 +68,114 @@ describe('skill command', () => {
     mockRemoveSkill.mockImplementation(async () => undefined);
     mockCacheRegistry.mockImplementation(async () => undefined);
     mockUpdateSkillIndexForRegistry.mockImplementation(async () => undefined);
+    mockRemoveSkillIndexForRegistry.mockImplementation(async () => undefined);
     mockProjectGetSkillRegistries.mockResolvedValue({});
     mockProjectAddSkillRegistry.mockResolvedValue({});
     mockGlobalGetSkillRegistries.mockResolvedValue({});
     mockGlobalAddSkillRegistry.mockResolvedValue({});
+    mockProjectRemoveSkillRegistry.mockResolvedValue({});
+    mockGlobalRemoveSkillRegistry.mockResolvedValue({});
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
+  });
+
+  it('removes a project registry by default and preserves cache/installations', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
+    const program = new Command(); registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills']);
+
+    expect(mockProjectRemoveSkillRegistry).toHaveBeenCalledWith('example/skills');
+    expect(mockGlobalRemoveSkillRegistry).not.toHaveBeenCalled();
+    expect(mockRemoveSkillIndexForRegistry).toHaveBeenCalledWith('example/skills');
+    expect(ui.success).toHaveBeenCalledWith('Removed project skill registry "example/skills".');
+    expect(ui.info).toHaveBeenCalledWith('Cached repository preserved at ~/.ai-devkit/skills/example/skills because installed skills may depend on it.');
+    expect(ui.info).toHaveBeenCalledWith('Installed skills were not removed.');
+  });
+
+  it.each(['-g', '--global'])('removes only the global registry with %s', async flag => {
+    mockGlobalGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills', flag]);
+    expect(mockGlobalRemoveSkillRegistry).toHaveBeenCalledWith('example/skills');
+    expect(mockProjectRemoveSkillRegistry).not.toHaveBeenCalled();
+    expect(ui.success).toHaveBeenCalledWith('Removed global skill registry "example/skills".');
+  });
+
+  it('reports a remaining global shadow after project removal', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/skills': 'project-url' });
+    mockGlobalGetSkillRegistries.mockResolvedValue({ 'example/skills': 'global-url' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills']);
+    expect(ui.success).toHaveBeenCalledWith('Removed project registry "example/skills"; the global registration remains active.');
+    expect(mockRemoveSkillIndexForRegistry).toHaveBeenCalledWith('example/skills');
+  });
+
+  it('reports a remaining project registration after global removal', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/skills': 'project-url' });
+    mockGlobalGetSkillRegistries.mockResolvedValue({ 'example/skills': 'global-url' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills', '--global']);
+    expect(ui.success).toHaveBeenCalledWith('Removed global registry "example/skills"; the project registration remains active.');
+  });
+
+  it('removes a built-in shadow and reports the default is active again', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'codeaholicguy/ai-devkit': 'shadow-url' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'codeaholicguy/ai-devkit']);
+    expect(mockProjectRemoveSkillRegistry).toHaveBeenCalled();
+    expect(ui.success).toHaveBeenCalledWith('Removed project registry "codeaholicguy/ai-devkit"; the built-in/default registry remains active.');
+  });
+
+  it('removes a default-registry shadow and reports the default is active again', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'anthropics/skills': 'shadow-url' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'anthropics/skills']);
+    expect(ui.success).toHaveBeenCalledWith('Removed project registry "anthropics/skills"; the built-in/default registry remains active.');
+  });
+
+  it('protects the built-in registry when no user shadow exists', async () => {
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'codeaholicguy/ai-devkit']);
+    expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry "codeaholicguy/ai-devkit" is built in and cannot be unregistered.');
+    expect(mockProjectRemoveSkillRegistry).not.toHaveBeenCalled();
+  });
+
+  it('protects a registry provided by the bundled default registry', async () => {
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'anthropics/skills']);
+    expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry "anthropics/skills" is provided by the default registry and cannot be unregistered.');
+    expect(mockProjectRemoveSkillRegistry).not.toHaveBeenCalled();
+  });
+
+  it('reports partial success when local index cleanup fails', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
+    mockRemoveSkillIndexForRegistry.mockRejectedValue(new Error('write failed'));
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills']);
+    expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry was removed from project config, but the skill index could not be updated. Run "ai-devkit skill rebuild-index".');
+  });
+
+  it('points to the other scope when the target scope is missing', async () => {
+    mockGlobalGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills']);
+    expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry "example/skills" is not registered in project config. It is registered globally; re-run with --global.');
+  });
+
+  it('lists sorted registrations when the ID is missing everywhere', async () => {
+    mockProjectGetSkillRegistries.mockResolvedValue({ 'b/two': '2', 'a/one': '1' });
+    mockGlobalGetSkillRegistries.mockResolvedValue({ 'c/three': '3' });
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'x/missing']);
+    expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry "x/missing" is not registered.\nRegistered project registries: a/one, b/two\nRegistered global registries: c/three');
+  });
+
+  it('validates removal IDs before reading either scope', async () => {
+    const program = new Command(); registerSkillCommand(program);
+    await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'invalid']);
+    expect(mockProjectGetSkillRegistries).not.toHaveBeenCalled();
+    expect(mockGlobalGetSkillRegistries).not.toHaveBeenCalled();
   });
 
   it('adds an opaque registry URL to project config by default', async () => {
@@ -194,7 +302,10 @@ describe('skill command', () => {
     expect(addRegistryCommand?.usage()).toContain('<url>');
     expect(addRegistryCommand?.helpInformation()).toContain('-g, --global');
     expect(addRegistryCommand?.helpInformation()).toContain('-f, --force');
-    expect(skillCommand?.commands.some(command => command.name() === 'remove-registry')).toBe(false);
+    const removeRegistryCommand = skillCommand?.commands.find(command => command.name() === 'remove-registry');
+    expect(removeRegistryCommand?.usage()).toContain('<id>');
+    expect(removeRegistryCommand?.helpInformation()).toContain('-g, --global');
+    expect(removeRegistryCommand?.helpInformation()).not.toContain('purge');
     expect(skillCommand?.commands.some(command => command.name() === 'list-registries')).toBe(false);
   });
 

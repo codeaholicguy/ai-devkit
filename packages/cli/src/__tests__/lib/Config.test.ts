@@ -791,6 +791,32 @@ describe('ConfigManager', () => {
     });
   });
 
+  describe('removeSkillRegistry', () => {
+    it('removes one registry while preserving sibling configuration', async () => {
+      const config: DevKitConfig = {
+        version: '1.0.0', environments: ['cursor'], phases: [],
+        skills: [{ registry: 'target/skills', name: 'keep-installed' }],
+        registries: { 'target/skills': 'target-url', 'keep/skills': 'keep-url' },
+        createdAt: '2024-01-01T00:00:00.000Z',
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.removeSkillRegistry('target/skills');
+
+      expect(result).toEqual(expect.objectContaining({
+        environments: ['cursor'], skills: config.skills,
+        registries: { 'keep/skills': 'keep-url' },
+      }));
+    });
+
+    it('rejects removal when project config is missing', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      await expect(configManager.removeSkillRegistry('target/skills')).rejects.toThrow('Config file not found');
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getMemoryDbPath', () => {
     it('returns undefined when config does not exist', async () => {
       (mockFs.pathExists as any).mockResolvedValue(false);

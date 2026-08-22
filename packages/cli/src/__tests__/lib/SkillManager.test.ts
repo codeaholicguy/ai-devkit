@@ -1473,6 +1473,33 @@ describe("SkillManager", () => {
       });
     });
 
+    it('removes only one registry from the local skill index', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);
+
+      await skillManager.removeSkillIndexForRegistry('anthropics/skills');
+
+      expect(mockedFs.writeJson).toHaveBeenCalledWith(
+        expect.stringContaining('skills.json'),
+        expect.objectContaining({
+          meta: expect.objectContaining({ registryHeads: { 'vercel-labs/agent-skills': 'def456' } }),
+          skills: [expect.objectContaining({ registry: 'vercel-labs/agent-skills' })],
+        }),
+        { spaces: 2 },
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not create a skill index when none exists', async () => {
+      (mockedFs.pathExists as any).mockResolvedValue(false);
+
+      await skillManager.removeSkillIndexForRegistry('anthropics/skills');
+
+      expect(mockedFs.readJson).not.toHaveBeenCalled();
+      expect(mockedFs.writeJson).not.toHaveBeenCalled();
+    });
+
     it("should throw error if keyword is empty", async () => {
       await expect(skillManager.findSkills("")).rejects.toThrow("Keyword is required");
       await expect(skillManager.findSkills("   ")).rejects.toThrow("Keyword is required");
