@@ -13,7 +13,7 @@ feature: status-command
 - [x] Milestone 2: Architecture and output contract designed.
 - [x] Milestone 3: Canonical status service implemented through TDD.
 - [x] Milestone 4: CLI registration and human/JSON rendering implemented.
-- [ ] Milestone 5: Documentation, full validation, and final review completed.
+- [ ] Milestone 5: Documentation and full validation completed; final review pending.
 - [ ] Milestone 6: Branch published and pull request opened.
 
 ## Ordered Task Breakdown
@@ -119,17 +119,17 @@ feature: status-command
 
 ### Phase 5: Documentation and gates
 
-- [ ] **Task 5.1 — Maintain implementation and testing docs** *(implementation notes complete; testing evidence pending)*
+- [x] **Task 5.1 — Maintain implementation and testing docs**
   - Outcome: record changed files, decisions, deviations, security handling, scenarios, and current task state.
   - Dependencies: update after every implementation milestone.
   - Evidence: feature lint recognizes all five lifecycle documents.
 
-- [ ] **Task 5.2 — Targeted and coverage validation**
+- [x] **Task 5.2 — Targeted and coverage validation**
   - Outcome: all new status tests pass and new/changed logic has meaningful happy/error/security coverage.
   - Dependencies: implementation complete.
   - Evidence: CLI status test command and CLI coverage command.
 
-- [ ] **Task 5.3 — Repository validation**
+- [x] **Task 5.3 — Repository validation**
   - Outcome: six-project build, full test suite, and repository/feature lint pass.
   - Dependencies: all code/docs complete.
   - Evidence: fresh command output recorded in testing doc.
@@ -179,4 +179,4 @@ feature: status-command
 
 ## Progress Summary
 
-Requirements, design, core implementation, command registration, and targeted TDD cycles are complete. The immediate next action is the testing phase: create the testing document, run coverage and repository-wide gates, resolve any genuine regressions, and record fresh evidence. The only current environmental risk is the exhausted `/tmp` user quota affecting two pre-existing plugin-loader tests that hard-code `/tmp`.
+Requirements, design, implementation, testing documentation, coverage, repository build/tests/lint, lifecycle lint, and built-command smoke checks are complete. The `/tmp` quota blocker was resolved by approved cleanup of stale test artifacts and the previously affected plugin tests pass. The immediate next action is final lifecycle review, followed by publication if no blocker is found.
