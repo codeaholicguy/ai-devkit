@@ -11,8 +11,8 @@ feature: status-command
 
 - [x] Milestone 1: Requirements approved and committed.
 - [x] Milestone 2: Architecture and output contract designed.
-- [ ] Milestone 3: Canonical status service implemented through TDD.
-- [ ] Milestone 4: CLI registration and human/JSON rendering implemented.
+- [x] Milestone 3: Canonical status service implemented through TDD.
+- [x] Milestone 4: CLI registration and human/JSON rendering implemented.
 - [ ] Milestone 5: Documentation, full validation, and final review completed.
 - [ ] Milestone 6: Branch published and pull request opened.
 
@@ -20,14 +20,14 @@ feature: status-command
 
 ### Phase 1: Canonical model and pure behavior
 
-- [ ] **Task 1.1 — Define report types and aggregation helpers**
+- [x] **Task 1.1 — Define report types and aggregation helpers**
   - Outcome: typed per-agent/subsystem report with `pass | warn | fail`, auth states, deterministic leaf counts, and worst-status aggregation.
   - Dependencies: requirements output contract and design data model.
   - TDD: red tests for status precedence, leaf counting, empty arrays, and explicit nulls.
   - Evidence: targeted status service tests and TypeScript build.
   - Covers: AC-11, AC-12.
 
-- [ ] **Task 1.2 — Add injectable status runtime boundary**
+- [x] **Task 1.2 — Add injectable status runtime boundary**
   - Outcome: service accepts cwd/home/PATH/time plus filesystem, command, npm, asset, and Codex-auth dependencies.
   - Dependencies: Task 1.1.
   - TDD: red test builds a complete report without reading the real machine.
@@ -36,28 +36,28 @@ feature: status-command
 
 ### Phase 2: Local agent readiness checks
 
-- [ ] **Task 2.1 — Executables and global configuration directories**
+- [x] **Task 2.1 — Executables and global configuration directories**
   - Outcome: Codex, Pi, and Claude report resolved executable paths plus directory presence/readability.
   - Dependencies: Task 1.2; reuse `AGENTS` command names and environment path definitions.
   - TDD: mixed-present/missing executables and directories.
   - Evidence: targeted tests.
   - Covers: AC-01, AC-02.
 
-- [ ] **Task 2.2 — Built-in skills per agent**
+- [x] **Task 2.2 — Built-in skills per agent**
   - Outcome: compare `BUILTIN_SKILL_NAMES` against three global skill roots, returning counts and missing names only.
   - Dependencies: Task 1.2.
   - TDD: complete, partial, and absent skill roots; assert no skill-index dependency.
   - Evidence: targeted tests.
   - Covers: AC-03, AC-14.
 
-- [ ] **Task 2.3 — Codex, Claude, and Pi integration hooks**
+- [x] **Task 2.3 — Codex, Claude, and Pi integration hooks**
   - Outcome: validate installed assets and registrations; validate Codex/Pi mapping files with missing/malformed/stale distinctions.
   - Dependencies: Task 1.2 and packaged assets.
   - TDD: correct/missing/mismatched scripts, unrelated hook preservation, malformed JSON, invalid entries, stale paths, absent registries.
   - Evidence: targeted tests.
   - Covers: AC-04, AC-12, AC-13.
 
-- [ ] **Task 2.4 — Authentication state**
+- [x] **Task 2.4 — Authentication state**
   - Outcome: map safe Codex auth result, parse Claude auth status, and structurally evaluate Pi auth without overclaiming validity.
   - Dependencies: Task 1.2 and existing Codex capacity API.
   - TDD: authenticated/unauthenticated/unknown, timeouts, malformed outputs, secret-sentinel failures.
@@ -66,28 +66,28 @@ feature: status-command
 
 ### Phase 3: Shared subsystem checks
 
-- [ ] **Task 3.1 — tmux readiness**
+- [x] **Task 3.1 — tmux readiness**
   - Outcome: resolved path and `tmux -V` result without requiring a server.
   - Dependencies: executable helper.
   - TDD: installed, absent, and command-failure cases.
   - Evidence: targeted tests.
   - Covers: AC-06.
 
-- [ ] **Task 3.2 — Channel config validity and local readiness**
+- [x] **Task 3.2 — Channel config validity and local readiness**
   - Outcome: distinguish absent/malformed/root-invalid config and validate secret-free Telegram/Slack projections.
   - Dependencies: Task 1.2 and channel connector types/rules.
   - TDD: ready/unready/disabled entries, malformed tokens, missing identity/authorization, unsupported types, secret sentinels, and assertion that no live connector runs.
   - Evidence: targeted tests.
   - Covers: AC-07, AC-13, AC-14.
 
-- [ ] **Task 3.3 — Project config and registries**
+- [x] **Task 3.3 — Project config and registries**
   - Outcome: report project config presence/structure/environment validity and project/global registry provenance.
   - Dependencies: canonical environment validators and registry normalization helper.
   - TDD: absent, malformed, invalid environment, valid config, malformed global config, and mixed registry values.
   - Evidence: targeted tests.
   - Covers: AC-08, AC-10, AC-12.
 
-- [ ] **Task 3.4 — Installed/latest version**
+- [x] **Task 3.4 — Installed/latest version**
   - Outcome: compare installed package version with npm latest; npm failures yield warning/nulls.
   - Dependencies: injected command boundary and semver-safe equality/order.
   - TDD: same/newer/latest and npm unavailable/invalid output.
@@ -96,21 +96,21 @@ feature: status-command
 
 ### Phase 4: Command and rendering
 
-- [ ] **Task 4.1 — Register `status` command**
+- [x] **Task 4.1 — Register `status` command**
   - Outcome: top-level command supports `-j, --json`, uses `withErrorHandler`, and invokes one report reader.
   - Dependencies: completed service.
   - TDD: Commander registration and dependency invocation.
   - Evidence: command test.
   - Covers: command UX and AC-11.
 
-- [ ] **Task 4.2 — Canonical JSON renderer**
+- [x] **Task 4.2 — Canonical JSON renderer**
   - Outcome: exact pretty JSON with no alternate transformation.
   - Dependencies: Task 4.1.
   - TDD: captured stdout deep-equals supplied report and secret sentinel is absent.
   - Evidence: command test.
   - Covers: AC-11, AC-13.
 
-- [ ] **Task 4.3 — Human renderer**
+- [x] **Task 4.3 — Human renderer**
   - Outcome: shared `ui.table` sections use cyan identifiers, green/yellow/red statuses, and dim evidence; missing skills/errors render safely.
   - Dependencies: Task 4.1 and existing terminal UI conventions.
   - TDD: mocked `ui` calls for sections, rows, and status styles.
@@ -119,7 +119,7 @@ feature: status-command
 
 ### Phase 5: Documentation and gates
 
-- [ ] **Task 5.1 — Maintain implementation and testing docs**
+- [ ] **Task 5.1 — Maintain implementation and testing docs** *(implementation notes complete; testing evidence pending)*
   - Outcome: record changed files, decisions, deviations, security handling, scenarios, and current task state.
   - Dependencies: update after every implementation milestone.
   - Evidence: feature lint recognizes all five lifecycle documents.
@@ -179,4 +179,4 @@ feature: status-command
 
 ## Progress Summary
 
-Requirements and design are complete. Implementation has not started. The immediate next action is Task 1.1: write failing tests for the report/status aggregation contract, then add the minimum types and helpers to pass them.
+Requirements, design, core implementation, command registration, and targeted TDD cycles are complete. The immediate next action is the testing phase: create the testing document, run coverage and repository-wide gates, resolve any genuine regressions, and record fresh evidence. The only current environmental risk is the exhausted `/tmp` user quota affecting two pre-existing plugin-loader tests that hard-code `/tmp`.
