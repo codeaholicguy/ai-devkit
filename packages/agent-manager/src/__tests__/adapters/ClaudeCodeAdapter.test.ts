@@ -6,7 +6,7 @@ import type { MockedFunction } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { ClaudeCodeAdapter } from '../../adapters/ClaudeCodeAdapter.js';
+import { ClaudeCodeAdapter } from '../../providers/claude/ClaudeCodeAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
 import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';

@@ -6,7 +6,7 @@ export type {
     CapacityWindow,
 } from './capacity/index.js';
 
-export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
+export { ClaudeCodeAdapter } from './providers/claude/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './adapters/CodexAdapter.js';
 export { CopilotAdapter } from './adapters/CopilotAdapter.js';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
@@ -69,16 +69,16 @@ export type {
     ProcessInspector,
     DurableRunCompletion,
 } from './durable/DurableAgentRepository.js';
-export { ClaudeCliProbe } from './durable/ClaudeCliProbe.js';
-export type { ClaudeCliProbeOptions } from './durable/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './durable/ClaudePrintRunner.js';
+export { ClaudeCliProbe } from './providers/claude/durable/ClaudeCliProbe.js';
+export type { ClaudeCliProbeOptions } from './providers/claude/durable/ClaudeCliProbe.js';
+export { ClaudePrintRunner } from './providers/claude/durable/ClaudePrintRunner.js';
 export type {
     ClaudePrintRunnerOptions,
     ClaudePrintRunRequest,
     ClaudePrintRunResult,
-} from './durable/ClaudePrintRunner.js';
-export { ClaudePrintAgentService } from './durable/ClaudePrintAgentService.js';
+} from './providers/claude/durable/ClaudePrintRunner.js';
+export { ClaudePrintAgentService } from './providers/claude/durable/ClaudePrintAgentService.js';
 export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
-} from './durable/ClaudePrintAgentService.js';
+} from './providers/claude/durable/ClaudePrintAgentService.js';

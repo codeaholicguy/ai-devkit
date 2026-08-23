@@ -10,9 +10,9 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 
 - [x] Milestone 1: Requirements, design, and testing strategy created.
 - [x] Milestone 2: Baseline validation recorded before source changes.
-- [x] Milestone 3: Claude parser and adapter implementation moved behind compatibility exports.
+- [x] Milestone 3: Claude parser and adapter implementation moved into provider-local modules.
 - [x] Milestone 4: Claude session locator and agent mapper extracted with focused tests.
-- [x] Milestone 5: Claude durable implementation moved behind compatibility exports.
+- [x] Milestone 5: Claude durable implementation moved into provider-local modules.
 - [x] Milestone 6: Final validation, implementation check, testing update, and review complete.
 
 ## Task Breakdown
@@ -23,12 +23,12 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
   - Outcome: pre-refactor pass/fail evidence is recorded.
   - Validation: task evidence includes command, exit code, and summary.
   - Testing scenarios: baseline reporting in testing doc.
-- [x] Task 1.2: Create `src/providers/claude/` and move `ClaudeSessionParser` behind the old `utils/ClaudeSessionParser.ts` export.
-  - Outcome: existing parser tests and imports remain valid.
+- [x] Task 1.2: Create `src/providers/claude/` and move `ClaudeSessionParser` to the provider-local path.
+  - Outcome: parser tests import the provider-local module directly.
   - Validation: `ClaudeSessionParser` tests pass.
   - Testing scenarios: parser compatibility.
-- [x] Task 1.3: Move `ClaudeCodeAdapter` implementation behind `src/adapters/ClaudeCodeAdapter.ts` compatibility export.
-  - Outcome: public and adapter barrel exports remain valid.
+- [x] Task 1.3: Move `ClaudeCodeAdapter` implementation to the provider-local path.
+  - Outcome: public and adapter barrel exports remain valid without a path-level wrapper.
   - Validation: `ClaudeCodeAdapter` tests compile and pass.
   - Testing scenarios: adapter export compatibility.
 
@@ -51,7 +51,7 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 
 ### Phase 3: Durable Provider Locality
 
-- [x] Task 3.1: Move Claude durable execution files under `providers/claude/durable/` with old `src/durable/*` paths as compatibility exports, if the move is low-risk after Phase 2.
+- [x] Task 3.1: Move Claude durable execution files under `providers/claude/durable/`, if the move is low-risk after Phase 2.
   - Outcome: `ClaudeCliProbe`, `ClaudePrintRunner`, and `ClaudePrintAgentService` are provider-local while public exports remain unchanged.
   - Dependencies: Phase 2 complete and green.
   - Validation: durable print tests pass.
@@ -71,7 +71,7 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 
 ## Dependencies
 
-- Existing public exports in `src/index.ts`, `src/adapters/index.ts`, and `src/durable/*` must remain compatible throughout.
+- Existing public exports in `src/index.ts` and `src/adapters/index.ts` must remain compatible throughout.
 - Task 1.1 must complete before source edits.
 - Parser and adapter moves should happen before extraction to minimize import churn.
 - Durable relocation depends on interactive provider extraction being stable.
@@ -85,7 +85,7 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 
 ## Risks & Mitigation
 
-- **Risk:** Compatibility exports break declaration output or package barrels.
+- **Risk:** Provider-local exports break declaration output or package barrels.
   - Mitigation: run typecheck/build after moves and inspect public exports.
 - **Risk:** Private-method tests become brittle after extraction.
   - Mitigation: move assertions to provider-local module tests where behavior is now first-class.
@@ -105,4 +105,4 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 
 ## Progress Summary
 
-Implementation completed. Claude interactive detection, parsing, mapping, session locating, and durable print-mode execution now live under `src/providers/claude/` with compatibility re-exports preserving old adapter, utility, and durable paths. The planned `types.ts` file was intentionally skipped because extracted modules did not need a shared provider-local type barrel.
+Implementation completed. Claude interactive detection, parsing, mapping, session locating, and durable print-mode execution now live under `src/providers/claude/`. Package-root and adapter-barrel exports are preserved, while no-value path-level wrappers were removed. The planned `types.ts` file was intentionally skipped because extracted modules did not need a shared provider-local type barrel.

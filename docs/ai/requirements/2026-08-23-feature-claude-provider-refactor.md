@@ -48,7 +48,7 @@ The current behavior works, but the structure makes future changes harder to rea
 - Generalizing durable agents beyond the current Claude print-mode implementation.
 - Changing durable persistence, database schema, locking, or run semantics.
 - Changing Claude JSONL parsing rules, PID-file matching semantics, resume matching semantics, or status mapping beyond mechanical extraction.
-- Deleting compatibility re-exports during the first refactor.
+- Preserving path-level compatibility re-exports that add no value after the provider-local shape is proven.
 
 ## User Stories & Use Cases
 
@@ -56,12 +56,12 @@ The current behavior works, but the structure makes future changes harder to rea
 - As a maintainer, I can modify Claude PID-file matching or resume matching without editing a monolithic adapter class.
 - As a maintainer, I can add focused tests for Claude session location and agent mapping without reaching through private adapter methods.
 - As a CLI user, I see identical `agent list`, `agent sessions`, `agent detail`, and durable Claude behavior after the refactor.
-- As a package consumer, existing imports from `@ai-devkit/agent-manager` and `src/adapters/ClaudeCodeAdapter.js` continue to work.
+- As a package consumer, existing imports from `@ai-devkit/agent-manager` continue to work.
 - As a future feature author, I can model provider-specific capacity or durable support as provider capabilities rather than adding more unrelated top-level files.
 
 ### Edge cases
 
-- Existing tests that import `ClaudeCodeAdapter` from adapter paths must continue to compile.
+- Existing tests that import Claude implementation files should target provider-local paths unless they are testing package barrels.
 - Tests that currently spy on private methods should either continue through compatibility wrappers or move to newly extracted provider-local modules with equivalent assertions.
 - Claude Code PID files may be missing, stale, malformed, or point to a missing JSONL; fallback behavior must remain unchanged.
 - `claude --resume <uuid>` matching must remain authoritative for resumed sessions.
@@ -71,11 +71,11 @@ The current behavior works, but the structure makes future changes harder to rea
 
 ## Success Criteria
 
-1. Claude provider code is organized under a provider-local boundary, with compatibility exports preserving existing import paths.
+1. Claude provider code is organized under a provider-local boundary, with package-root exports preserving the public package contract.
 2. `ClaudeCodeAdapter.detectAgents()` produces the same `AgentInfo` results for existing tested scenarios.
 3. `ClaudeCodeAdapter.getConversation()` and `listSessions()` remain behaviorally compatible with existing tests.
 4. Claude durable print-mode exports and behavior remain compatible with current durable tests.
-5. The refactor introduces no public breaking change in `packages/agent-manager/src/index.ts` or `packages/agent-manager/src/adapters/index.ts`.
+5. The refactor introduces no public breaking change in `packages/agent-manager/src/index.ts` or `packages/agent-manager/src/adapters/index.ts`; no-value path-level wrappers are removed.
 6. New or updated tests cover extracted Claude session locating/matching and agent mapping directly where practical.
 7. Baseline validation is recorded before behavior-preserving moves, and each extraction stage is validated before the next one.
 8. `npm run nx -- test agent-manager`, `npm run nx -- run agent-manager:typecheck` or equivalent TypeScript validation, package lint, and package build pass after the refactor.

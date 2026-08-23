@@ -41,8 +41,8 @@ description: Characterization and validation plan for behavior-preserving Claude
 
 ### Claude Durable Provider Files
 
-- [x] Existing `ClaudeCliProbe`, `ClaudePrintRunner`, and `ClaudePrintAgentService` tests continue to pass through compatibility exports.
-- [x] If files move, tests import from the same public paths unless a new provider-local test is more direct.
+- [x] Existing `ClaudeCliProbe`, `ClaudePrintRunner`, and `ClaudePrintAgentService` tests continue to pass through package-root exports.
+- [x] Provider-local tests import provider-local modules directly.
 
 ## Integration Tests
 
@@ -51,7 +51,7 @@ description: Characterization and validation plan for behavior-preserving Claude
 - [x] Mixed direct PID-file and legacy matching still returns one agent per process.
 - [x] Bad direct matches still fall back to process-only or legacy behavior as before.
 - [x] `ClaudeCodeAdapter.listSessions({ cwd })` still handles worktree/current-cwd divergence.
-- [x] Adapter and package barrel exports compile after compatibility wrappers are introduced.
+- [x] Adapter and package barrel exports compile after no-value path-level wrappers are removed.
 
 ## End-to-End Tests
 
@@ -100,6 +100,7 @@ Any pre-existing baseline failures must be recorded before implementation and no
 ### Results
 
 - `npm run nx -- test agent-manager`: passed with 30 test files and 571 tests.
+- `npm test -- src/__tests__/adapters/ClaudeCodeAdapter.test.ts src/__tests__/utils/ClaudeSessionParser.test.ts src/__tests__/print/ClaudeCliProbe.test.ts src/__tests__/print/ClaudePrintRunner.test.ts src/__tests__/print/ClaudePrintAgentService.test.ts src/__tests__/print/ClaudePrintAgent.integration.test.ts src/__tests__/providers/claude/ClaudeAgentMapper.test.ts src/__tests__/providers/claude/ClaudeSessionLocator.test.ts`: passed with 8 test files and 117 tests.
 - `npm run lint` in `packages/agent-manager`: passed.
 - `npm run typecheck` in `packages/agent-manager`: passed.
 - `npm run build` in `packages/agent-manager`: passed.

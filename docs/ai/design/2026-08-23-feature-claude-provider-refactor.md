@@ -1,20 +1,19 @@
 ---
 phase: design
 title: Claude Provider Refactor Design
-description: Provider-local Claude module boundary with compatibility exports
+description: Provider-local Claude module boundary with public package exports
 ---
 
 # Claude Provider Refactor Design
 
 ## Architecture Overview
 
-The refactor introduces a Claude provider-local implementation area while preserving current public adapter and durable exports.
+The refactor introduces a Claude provider-local implementation area while preserving current package-root adapter and durable exports.
 
 ```mermaid
 graph TD
-  PublicIndex["src/index.ts"] --> AdapterCompat["src/adapters/ClaudeCodeAdapter.ts"]
-  AdapterIndex["src/adapters/index.ts"] --> AdapterCompat
-  AdapterCompat --> ClaudeAdapter["src/providers/claude/ClaudeCodeAdapter.ts"]
+  PublicIndex["src/index.ts"] --> ClaudeAdapter["src/providers/claude/ClaudeCodeAdapter.ts"]
+  AdapterIndex["src/adapters/index.ts"] --> ClaudeAdapter
 
   ClaudeAdapter --> Locator["ClaudeSessionLocator"]
   ClaudeAdapter --> Parser["ClaudeSessionParser"]
@@ -22,7 +21,7 @@ graph TD
   ClaudeAdapter --> SharedProcess["utils/process"]
   ClaudeAdapter --> SharedMatching["utils/matching"]
 
-  DurableExports["src/durable/*.ts compatibility exports"] --> ClaudeDurable["src/providers/claude/durable/*"]
+  PublicIndex --> ClaudeDurable["src/providers/claude/durable/*"]
   ClaudeDurable --> Database["database + DurableAgentRepository contracts"]
   ClaudeDurable --> ClaudeCli["Claude CLI"]
 ```
@@ -42,12 +41,6 @@ packages/agent-manager/src/
         ClaudeCliProbe.ts
         ClaudePrintRunner.ts
         ClaudePrintAgentService.ts
-  adapters/
-    ClaudeCodeAdapter.ts          compatibility export
-  durable/
-    ClaudeCliProbe.ts             compatibility export or wrapper
-    ClaudePrintRunner.ts          compatibility export or wrapper
-    ClaudePrintAgentService.ts    compatibility export or wrapper
 ```
 
 ## Data Models
@@ -74,16 +67,18 @@ Existing public models remain unchanged:
 
 ### Public API
 
-No public API change.
+No public package-root API change.
 
 Existing exports stay valid:
 
 ```ts
-export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
-export { ClaudeCliProbe } from './durable/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './durable/ClaudePrintRunner.js';
-export { ClaudePrintAgentService } from './durable/ClaudePrintAgentService.js';
+export { ClaudeCodeAdapter } from './providers/claude/ClaudeCodeAdapter.js';
+export { ClaudeCliProbe } from './providers/claude/durable/ClaudeCliProbe.js';
+export { ClaudePrintRunner } from './providers/claude/durable/ClaudePrintRunner.js';
+export { ClaudePrintAgentService } from './providers/claude/durable/ClaudePrintAgentService.js';
 ```
+
+The implementation now exports these directly from `src/providers/claude/...` through `src/index.ts` and `src/adapters/index.ts`. Thin path-level wrapper files were removed because they added no behavior or contract value.
 
 ### Internal Interfaces
 

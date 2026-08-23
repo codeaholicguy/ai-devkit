@@ -27,15 +27,7 @@ packages/agent-manager/src/providers/claude/
   durable/
 ```
 
-Compatibility paths must remain:
-
-```text
-packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts
-packages/agent-manager/src/utils/ClaudeSessionParser.ts
-packages/agent-manager/src/durable/ClaudeCliProbe.ts
-packages/agent-manager/src/durable/ClaudePrintRunner.ts
-packages/agent-manager/src/durable/ClaudePrintAgentService.ts
-```
+Package-root exports remain the compatibility surface. Thin path-level wrappers under `src/adapters`, `src/utils`, and `src/durable` were removed after review because they only re-exported provider-local modules.
 
 ## Implementation Notes
 
@@ -50,7 +42,7 @@ packages/agent-manager/src/durable/ClaudePrintAgentService.ts
 
 ### Patterns & Best Practices
 
-- Use compatibility re-exports instead of deleting old paths.
+- Preserve public package exports while avoiding no-value path-level re-export files.
 - Keep provider-local concrete classes small and focused.
 - Avoid a generic provider/capability framework in this feature.
 - Add comments only where extraction makes responsibility boundaries clearer.
@@ -58,7 +50,7 @@ packages/agent-manager/src/durable/ClaudePrintAgentService.ts
 
 ## Integration Points
 
-- `src/index.ts` and `src/adapters/index.ts` continue exporting `ClaudeCodeAdapter`.
+- `src/index.ts` and `src/adapters/index.ts` continue exporting `ClaudeCodeAdapter` directly from the Claude provider.
 - `AgentManager` continues working through `AgentAdapter`.
 - `ClaudeCodeAdapter` continues using shared process snapshot filtering.
 - Durable service continues using `DurableAgentRepository`, `ClaudeCliProbe`, and `ClaudePrintRunner` contracts.
@@ -80,7 +72,7 @@ packages/agent-manager/src/durable/ClaudePrintAgentService.ts
 - No new provider command execution behavior is introduced.
 - Prompt handling and durable stdin behavior remain unchanged.
 - Provider-reported metadata is not promoted to persisted state by this refactor.
-- Compatibility wrappers must not duplicate or alter durable persistence behavior.
+- Public exports must not duplicate or alter durable persistence behavior.
 
 ## Implementation Log
 
@@ -90,10 +82,8 @@ packages/agent-manager/src/durable/ClaudePrintAgentService.ts
   - `npm run typecheck` in `packages/agent-manager` passed.
   - `npm run build` in `packages/agent-manager` passed.
 - Moved `ClaudeSessionParser` to `packages/agent-manager/src/providers/claude/ClaudeSessionParser.ts`.
-  - Kept `packages/agent-manager/src/utils/ClaudeSessionParser.ts` as a compatibility export.
   - Focused parser validation passed with 19 tests.
 - Moved `ClaudeCodeAdapter` implementation to `packages/agent-manager/src/providers/claude/ClaudeCodeAdapter.ts`.
-  - Kept `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts` as a compatibility export.
   - Focused adapter validation passed with 87 tests.
 - Added `packages/agent-manager/src/providers/claude/ClaudeAgentMapper.ts`.
   - Extracted session-backed and process-only `AgentInfo` mapping from the adapter.
@@ -103,8 +93,14 @@ packages/agent-manager/src/durable/ClaudePrintAgentService.ts
   - Added focused locator test covering resume matching plus live PID status metadata.
   - Kept adapter private compatibility proxies for existing tests that mutate fixture directories.
 - Moved Claude durable execution implementations under `packages/agent-manager/src/providers/claude/durable/`.
-  - Kept old `packages/agent-manager/src/durable/Claude*.ts` paths as compatibility exports.
   - Claude print-mode focused validation passed with 4 test files and 8 tests.
+- Removed no-value wrapper files after review:
+  - `packages/agent-manager/src/adapters/ClaudeCodeAdapter.ts`
+  - `packages/agent-manager/src/utils/ClaudeSessionParser.ts`
+  - `packages/agent-manager/src/durable/ClaudeCliProbe.ts`
+  - `packages/agent-manager/src/durable/ClaudePrintRunner.ts`
+  - `packages/agent-manager/src/durable/ClaudePrintAgentService.ts`
+  - Updated `src/index.ts`, `src/adapters/index.ts`, and focused tests to import provider-local modules directly.
 - Final validation after source changes:
   - `npm run nx -- test agent-manager` passed with 30 test files and 571 tests.
   - `npm run lint` in `packages/agent-manager` passed.
