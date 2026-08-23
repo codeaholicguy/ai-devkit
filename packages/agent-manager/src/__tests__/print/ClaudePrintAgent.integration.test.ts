@@ -4,12 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-    ClaudeCliProbe,
     ClaudePrintAgentService,
-    ClaudePrintRunner,
     DurableAgentRepository,
     type ProcessInspector,
 } from '../../index.js';
+import { ClaudeCliProbe } from '../../providers/claude/durable/ClaudeCliProbe.js';
+import { ClaudePrintRunner } from '../../providers/claude/durable/ClaudePrintRunner.js';
 
 const roots: string[] = [];
 const originalCapture = process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE;

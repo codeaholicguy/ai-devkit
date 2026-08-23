@@ -2,6 +2,7 @@ import { EventEmitter } from 'node:events';
 import { PassThrough, Writable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import type { DurableAgent } from '../../index.js';
+import { ClaudePrintRunner } from '../../providers/claude/durable/ClaudePrintRunner.js';
 
 function agent(): DurableAgent {
     return {
@@ -34,15 +35,12 @@ function fakeSpawn(events: object[], exitCode = 0) {
 
 describe('ClaudePrintRunner', () => {
     it('starts a caller-assigned session and persists provider identity before stdin', async () => {
-        const api = await import('../../index.js') as Record<string, unknown>;
-        expect(api).toHaveProperty('ClaudePrintRunner');
         const fixture = fakeSpawn([
             { type: 'system', subtype: 'init', session_id: agent().providerSessionId },
             { type: 'result', session_id: agent().providerSessionId, result: 'done' },
         ]);
         let persisted = false;
-        const Runner = api.ClaudePrintRunner as new (options: unknown) => any;
-        const runner = new Runner({ spawn: fixture.spawn, processInspector: {
+        const runner = new ClaudePrintRunner({ spawn: fixture.spawn, processInspector: {
             getIdentity: () => ({ pid: 4242, startedAt: 'provider-start' }),
         } });
 
@@ -63,10 +61,8 @@ describe('ClaudePrintRunner', () => {
     });
 
     it('uses exact resume and rejects a mismatched result session', async () => {
-        const api = await import('../../index.js') as Record<string, unknown>;
         const fixture = fakeSpawn([{ type: 'result', session_id: 'wrong', result: 'nope' }]);
-        const Runner = api.ClaudePrintRunner as new (options: unknown) => any;
-        const runner = new Runner({ spawn: fixture.spawn, processInspector: {
+        const runner = new ClaudePrintRunner({ spawn: fixture.spawn, processInspector: {
             getIdentity: () => ({ pid: 4242, startedAt: 'provider-start' }),
         } });
 
@@ -79,10 +75,8 @@ describe('ClaudePrintRunner', () => {
     });
 
     it('does not disclose provider stderr in a failed-run error', async () => {
-        const api = await import('../../index.js') as Record<string, unknown>;
         const fixture = fakeSpawn([], 1);
-        const Runner = api.ClaudePrintRunner as new (options: unknown) => any;
-        const runner = new Runner({ spawn: fixture.spawn, processInspector: {
+        const runner = new ClaudePrintRunner({ spawn: fixture.spawn, processInspector: {
             getIdentity: () => ({ pid: 4242, startedAt: 'provider-start' }),
         } });
         fixture.spawn.mockImplementationOnce((...args: unknown[]) => {

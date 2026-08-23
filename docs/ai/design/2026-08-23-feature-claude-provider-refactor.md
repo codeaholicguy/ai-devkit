@@ -36,7 +36,6 @@ packages/agent-manager/src/
       ClaudeSessionLocator.ts
       ClaudeSessionParser.ts
       ClaudeAgentMapper.ts
-      types.ts
       durable/
         ClaudeCliProbe.ts
         ClaudePrintRunner.ts
@@ -73,12 +72,10 @@ Existing exports stay valid:
 
 ```ts
 export { ClaudeCodeAdapter } from './providers/claude/ClaudeCodeAdapter.js';
-export { ClaudeCliProbe } from './providers/claude/durable/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './providers/claude/durable/ClaudePrintRunner.js';
 export { ClaudePrintAgentService } from './providers/claude/durable/ClaudePrintAgentService.js';
 ```
 
-The implementation now exports these directly from `src/providers/claude/...` through `src/index.ts` and `src/adapters/index.ts`. Thin path-level wrapper files were removed because they added no behavior or contract value.
+The implementation exports high-level public provider entry points directly from `src/providers/claude/...` through `src/index.ts` and `src/adapters/index.ts`. Lower-level Claude print probe/runner classes stay provider-local; thin path-level wrapper files were removed because they added no behavior or contract value.
 
 ### Internal Interfaces
 

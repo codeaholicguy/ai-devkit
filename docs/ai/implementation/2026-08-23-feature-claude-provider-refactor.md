@@ -53,7 +53,7 @@ Package-root exports remain the compatibility surface. Thin path-level wrappers 
 - `src/index.ts` and `src/adapters/index.ts` continue exporting `ClaudeCodeAdapter` directly from the Claude provider.
 - `AgentManager` continues working through `AgentAdapter`.
 - `ClaudeCodeAdapter` continues using shared process snapshot filtering.
-- Durable service continues using `DurableAgentRepository`, `ClaudeCliProbe`, and `ClaudePrintRunner` contracts.
+- Durable service continues using `DurableAgentRepository`, provider-local `ClaudeCliProbe`, and provider-local `ClaudePrintRunner` contracts.
 
 ## Error Handling
 
@@ -101,6 +101,11 @@ Package-root exports remain the compatibility surface. Thin path-level wrappers 
   - `packages/agent-manager/src/durable/ClaudePrintRunner.ts`
   - `packages/agent-manager/src/durable/ClaudePrintAgentService.ts`
   - Updated `src/index.ts`, `src/adapters/index.ts`, and focused tests to import provider-local modules directly.
+- Cleaned package-root exports after review:
+  - Removed process-helper exports: `getProcessTty`, `captureProcessSnapshot`, `executableBasename`, and `filterByProcessNames`.
+  - Removed root export of `AgentSortKey`; `ListAgentsOptions` remains exported as the public options contract.
+  - Removed root export of `LocalProcessInspector`; `ProcessInspector` remains exported as the injectable contract.
+  - Kept `ClaudePrintAgentService` public and moved `ClaudeCliProbe`/`ClaudePrintRunner` tests to provider-local imports.
 - Final validation after source changes:
   - `npm run nx -- test agent-manager` passed with 30 test files and 571 tests.
   - `npm run lint` in `packages/agent-manager` passed.

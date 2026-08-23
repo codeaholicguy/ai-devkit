@@ -41,7 +41,8 @@ description: Characterization and validation plan for behavior-preserving Claude
 
 ### Claude Durable Provider Files
 
-- [x] Existing `ClaudeCliProbe`, `ClaudePrintRunner`, and `ClaudePrintAgentService` tests continue to pass through package-root exports.
+- [x] Existing `ClaudePrintAgentService` tests continue to pass through package-root exports.
+- [x] Lower-level `ClaudeCliProbe` and `ClaudePrintRunner` tests import provider-local modules directly.
 - [x] Provider-local tests import provider-local modules directly.
 
 ## Integration Tests
@@ -100,6 +101,7 @@ Any pre-existing baseline failures must be recorded before implementation and no
 ### Results
 
 - `npm run nx -- test agent-manager`: passed with 30 test files and 571 tests.
+- `npm test -- src/__tests__/print/ClaudeCliProbe.test.ts src/__tests__/print/ClaudePrintRunner.test.ts src/__tests__/print/ClaudePrintAgentService.test.ts src/__tests__/print/ClaudePrintAgent.integration.test.ts src/__tests__/print/DurableAgent.test.ts src/__tests__/print/DurableAgentRepository.test.ts`: passed with 6 test files and 16 tests.
 - `npm test -- src/__tests__/adapters/ClaudeCodeAdapter.test.ts src/__tests__/utils/ClaudeSessionParser.test.ts src/__tests__/print/ClaudeCliProbe.test.ts src/__tests__/print/ClaudePrintRunner.test.ts src/__tests__/print/ClaudePrintAgentService.test.ts src/__tests__/print/ClaudePrintAgent.integration.test.ts src/__tests__/providers/claude/ClaudeAgentMapper.test.ts src/__tests__/providers/claude/ClaudeSessionLocator.test.ts`: passed with 8 test files and 117 tests.
 - `npm run lint` in `packages/agent-manager`: passed.
 - `npm run typecheck` in `packages/agent-manager`: passed.

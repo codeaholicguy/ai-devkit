@@ -52,7 +52,7 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 ### Phase 3: Durable Provider Locality
 
 - [x] Task 3.1: Move Claude durable execution files under `providers/claude/durable/`, if the move is low-risk after Phase 2.
-  - Outcome: `ClaudeCliProbe`, `ClaudePrintRunner`, and `ClaudePrintAgentService` are provider-local while public exports remain unchanged.
+  - Outcome: `ClaudeCliProbe`, `ClaudePrintRunner`, and `ClaudePrintAgentService` are provider-local while the package root keeps the high-level durable service public.
   - Dependencies: Phase 2 complete and green.
   - Validation: durable print tests pass.
   - Testing scenarios: existing durable tests through compatibility exports.
@@ -105,4 +105,4 @@ description: Ordered behavior-preserving extraction plan for Claude provider cod
 
 ## Progress Summary
 
-Implementation completed. Claude interactive detection, parsing, mapping, session locating, and durable print-mode execution now live under `src/providers/claude/`. Package-root and adapter-barrel exports are preserved, while no-value path-level wrappers were removed. The planned `types.ts` file was intentionally skipped because extracted modules did not need a shared provider-local type barrel.
+Implementation completed. Claude interactive detection, parsing, mapping, session locating, and durable print-mode execution now live under `src/providers/claude/`. Package-root and adapter-barrel exports are preserved for high-level public entry points, while no-value path-level wrappers and lower-level root exports were removed. The planned `types.ts` file was intentionally skipped because extracted modules did not need a shared provider-local type barrel.

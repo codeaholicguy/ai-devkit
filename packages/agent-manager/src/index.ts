@@ -29,9 +29,6 @@ export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusMana
 export type { TerminalLocation } from './terminal/TerminalFocusManager.js';
 export { TtyWriter } from './terminal/TtyWriter.js';
 
-export { getProcessTty } from './utils/process.js';
-export { captureProcessSnapshot, executableBasename, filterByProcessNames } from './utils/process.js';
-export type { AgentSortKey } from './utils/sortAgents.js';
 export type { ListAgentsOptions } from './AgentManager.js';
 
 export { AgentRegistry, RenameNotFoundError, RenameConflictError } from './utils/AgentRegistry.js';
@@ -62,21 +59,12 @@ export type {
     ProcessIdentity,
 } from './durable/DurableAgent.js';
 export { DurableAgentRepository } from './durable/DurableAgentRepository.js';
-export { LocalProcessInspector } from './durable/DurableAgentRepository.js';
 export type {
     CreateDurableAgentInput,
     DurableAgentRepositoryOptions,
     ProcessInspector,
     DurableRunCompletion,
 } from './durable/DurableAgentRepository.js';
-export { ClaudeCliProbe } from './providers/claude/durable/ClaudeCliProbe.js';
-export type { ClaudeCliProbeOptions } from './providers/claude/durable/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './providers/claude/durable/ClaudePrintRunner.js';
-export type {
-    ClaudePrintRunnerOptions,
-    ClaudePrintRunRequest,
-    ClaudePrintRunResult,
-} from './providers/claude/durable/ClaudePrintRunner.js';
 export { ClaudePrintAgentService } from './providers/claude/durable/ClaudePrintAgentService.js';
 export type {
     ClaudePrintAgentServiceOptions,
