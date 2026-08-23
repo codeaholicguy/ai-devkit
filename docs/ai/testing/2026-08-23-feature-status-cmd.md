@@ -45,6 +45,7 @@ feature: status-command
 ## Security and Scope Tests
 
 - [x] Recognizable secrets in channel tokens, malformed source content, filesystem errors, and subprocess errors are absent from the report.
+- [x] Registry credentials, query strings, and fragments are removed before configured registry URLs enter either renderer.
 - [x] Mapping validators expose only counts/status and never mapping keys or session contents.
 - [x] Channel readiness is derived locally; no Telegram/Slack client exists in status dependencies.
 - [x] No live agent/session, task, memory, Git, registry-fetch, skill-index, channel-bridge, or full-capacity output dependency is present.
@@ -74,6 +75,8 @@ feature: status-command
 | Code lint | Passed | 6 targets, zero errors; four pre-existing unused-catch warnings outside changed files |
 | Base/feature docs lint | Passed | All five base templates, all five feature docs, branch, and worktree recognized |
 
+The targeted status tests, six-project build, full 1,984-test repository suite, code lint, and both lifecycle lint commands were rerun after the final review fixes. Results above describe the final code commit.
+
 ## Environment Issue Resolved
 
 The first full CLI run produced two plugin-loader failures with `Disk quota exceeded`. The affected tests hard-code `/tmp`; a direct 4 KB write there reproduced the same error. Thirty-two current-user `/tmp/tmp-*` test directories older than one day were removed after approval. A direct write probe and the isolated 9-test plugin suite then passed. No repository, home, recent temporary, or active Codex mount path was removed.
@@ -85,4 +88,4 @@ The first full CLI run produced two plugin-loader failures with `Disk quota exce
 
 ## Remaining Gate
 
-All testing gates pass. Proceed to final lifecycle review, commit readiness reconciliation, fetch/rebase, push, and PR creation if review finds no blocker.
+All testing and review gates pass. Proceed to fetch/rebase, push, and PR creation without merging.

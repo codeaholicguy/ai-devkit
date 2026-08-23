@@ -57,7 +57,7 @@ feature: status-command
 - tmux resolves on `PATH` and runs only `tmux -V`.
 - Channel configuration is read directly so missing, malformed, root-invalid, entry-invalid, disabled, and ready states remain distinguishable.
 - Telegram and Slack readiness is local-only; tokens are reduced to booleans and never serialized.
-- Project and global registries retain provenance and use existing string-record normalization.
+- Project and global registries retain provenance; URL credentials, queries, and fragments are removed before serialization, while unrecognized URL forms are redacted.
 - Npm latest lookup is bounded behind the injected subprocess dependency and degrades to warning/null values.
 - Project configuration validates JSON object shape, version, environment array, and canonical environment codes.
 
@@ -68,6 +68,7 @@ feature: status-command
 3. **Red:** command test failed because `commands/status` did not exist.
 4. **Green:** command, renderer, and registration added; combined suites passed after completing the test fixture.
 5. **Refactor:** added execute-permission and invalid channel-entry assertions; 7 combined tests pass.
+6. **Review fix:** made bundled-asset discovery work from both source and compiled module layouts, and added registry-secret regression coverage; 7 combined tests pass.
 
 ## Design Alignment and Deviations
 
@@ -80,6 +81,7 @@ feature: status-command
 ## Error Handling
 
 - Raw filesystem, subprocess, npm, auth, and provider errors are never placed in the report.
+- Registry URL user information, query strings, and fragments are never placed in the report.
 - Missing and malformed local state is returned as findings and does not stop sibling probes.
 - Only inability to construct or serialize the report escapes to the command error handler.
 
@@ -91,15 +93,16 @@ feature: status-command
 - Channel checks do not call Telegram or Slack.
 - The only allowed network-capable boundaries are the approved Codex auth probe and npm latest-version query.
 
-## Validation So Far
+## Validation
 
 - Targeted status tests: 2 files, 7 tests passed.
-- Six-project build: passed after implementation.
-- CLI lint: zero errors; three pre-existing unused-catch warnings outside changed files.
+- Six-project build: passed after final review fixes.
+- Full repository tests: 1,984 tests passed across six projects.
+- Repository lint: zero errors; four pre-existing unused-catch warnings outside changed files.
 - Built JSON smoke test: parsed successfully with `codex`, `pi`, and `claude` keys and normalized overall status.
-- Full CLI suite: 1,055 tests passed; two pre-existing plugin-loader tests are blocked by `/tmp` quota (`Disk quota exceeded`) and will be rerun during the testing phase after safe environment cleanup.
+- Base and feature lifecycle lint: passed.
 
 ## Follow-ups
 
-- Complete testing documentation, coverage, full repository gates, feature lint, and final lifecycle review.
+- Publish the reviewed branch and open the pull request without merging it.
 - No product or implementation follow-up is currently identified.

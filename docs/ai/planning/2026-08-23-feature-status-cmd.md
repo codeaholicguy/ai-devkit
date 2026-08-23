@@ -13,7 +13,7 @@ feature: status-command
 - [x] Milestone 2: Architecture and output contract designed.
 - [x] Milestone 3: Canonical status service implemented through TDD.
 - [x] Milestone 4: CLI registration and human/JSON rendering implemented.
-- [ ] Milestone 5: Documentation and full validation completed; final review pending.
+- [x] Milestone 5: Documentation, full validation, and final review completed.
 - [ ] Milestone 6: Branch published and pull request opened.
 
 ## Ordered Task Breakdown
@@ -134,7 +134,7 @@ feature: status-command
   - Dependencies: all code/docs complete.
   - Evidence: fresh command output recorded in testing doc.
 
-- [ ] **Task 5.4 — Final lifecycle review**
+- [x] **Task 5.4 — Final lifecycle review**
   - Outcome: requirements/design alignment, caller tracing, security, dependency, scope, and rollback review has no blocking findings.
   - Dependencies: Task 5.3.
   - Evidence: review checklist and clean Git diff.
@@ -179,4 +179,4 @@ feature: status-command
 
 ## Progress Summary
 
-Requirements, design, implementation, testing documentation, coverage, repository build/tests/lint, lifecycle lint, and built-command smoke checks are complete. The `/tmp` quota blocker was resolved by approved cleanup of stale test artifacts and the previously affected plugin tests pass. The immediate next action is final lifecycle review, followed by publication if no blocker is found.
+Requirements, design, implementation, testing documentation, coverage, repository build/tests/lint, lifecycle lint, built-command smoke checks, and final review are complete. Review identified and resolved source-tree asset discovery and registry URL credential/query disclosure, with focused regression coverage. The `/tmp` quota blocker was resolved by approved cleanup of stale test artifacts and the previously affected plugin tests pass. The immediate next action is publication without merge.
