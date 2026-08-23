@@ -1,4 +1,4 @@
-import { constants } from 'node:fs';
+import { constants, existsSync } from 'node:fs';
 import { access as fsAccess, readFile as fsReadFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { dirname, delimiter, join, resolve } from 'node:path';
@@ -189,7 +189,8 @@ async function defaultRunCommand(command: string, args: string[]): Promise<Comma
 
 function resolveDefaultAssetRoot(): string {
   const serviceDir = dirname(fileURLToPath(import.meta.url));
-  return resolve(serviceDir, '../../assets');
+  const candidates = [resolve(serviceDir, '../../assets'), resolve(serviceDir, '../../../assets')];
+  return candidates.find(candidate => existsSync(candidate)) ?? candidates[0];
 }
 
 function runtime(options: StatusServiceOptions): Runtime {
@@ -473,7 +474,7 @@ async function globalRegistries(rt: Runtime): Promise<RegistryScopeCheck> {
   try {
     const parsed = record(JSON.parse(await rt.readFile(source)));
     if (!parsed) throw new Error('invalid');
-    return { source: displayHome(source, rt.homeDir), configured: filterStringRecord(parsed.registries), status: 'pass', errors: [] };
+    return { source: displayHome(source, rt.homeDir), configured: safeRegistries(parsed.registries), status: 'pass', errors: [] };
   } catch {
     return {
       source: displayHome(source, rt.homeDir), configured: {}, status: 'warn',
@@ -484,8 +485,23 @@ async function globalRegistries(rt: Runtime): Promise<RegistryScopeCheck> {
 
 function projectRegistries(raw: Record<string, unknown> | null, source: string): RegistryScopeCheck {
   return raw
-    ? { source, configured: filterStringRecord(raw.registries), status: 'pass', errors: [] }
+    ? { source, configured: safeRegistries(raw.registries), status: 'pass', errors: [] }
     : { source, configured: {}, status: 'fail', errors: ['project registries are unavailable because project configuration is invalid'] };
+}
+
+function safeRegistries(raw: unknown): Record<string, string> {
+  return Object.fromEntries(Object.entries(filterStringRecord(raw)).map(([id, value]) => {
+    try {
+      const url = new URL(value);
+      url.username = '';
+      url.password = '';
+      url.search = '';
+      url.hash = '';
+      return [id, url.toString()];
+    } catch {
+      return [id, /^[\w.-]+@[\w.-]+:[^\s]+$/.test(value) ? value : '[redacted registry URL]'];
+    }
+  }));
 }
 
 function versionParts(value: string): number[] | null {

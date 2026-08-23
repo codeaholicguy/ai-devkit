@@ -17,7 +17,10 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
   const files: Files = {
     [path.join(cwd, '.ai-devkit.json')]: JSON.stringify({
       version: '0.55.0', environments: ['codex', 'pi', 'claude'], phases: [], createdAt: 'now',
-      registries: { project: 'https://example.test/project.git' },
+      registries: {
+        project: 'https://example.test/project.git',
+        private: 'https://user:registry-secret@example.test/private.git?token=query-secret',
+      },
     }),
     [path.join(homeDir, '.ai-devkit', '.ai-devkit.json')]: JSON.stringify({
       registries: { global: 'https://example.test/global.git' },
@@ -102,7 +105,7 @@ describe('getStatusReport', () => {
     expect(report.agents.pi.auth).toMatchObject({ state: 'unknown', status: 'warn' });
     expect(report.agents.claude.hooks.registration).toMatchObject({ present: true, valid: true });
     expect(report.tmux).toMatchObject({ path: '/bin/tmux', available: true, version: '3.4' });
-    expect(report.registries.project.configured).toEqual({ project: 'https://example.test/project.git' });
+    expect(report.registries.project.configured).toMatchObject({ project: 'https://example.test/project.git' });
     expect(report.registries.global.configured).toEqual({ global: 'https://example.test/global.git' });
     expect(report.aiDevkit).toMatchObject({ installedVersion: '0.55.0', latestVersion: '0.56.0', updateAvailable: true });
     expect(report.project.config).toMatchObject({ present: true, valid: true, environments: ['codex', 'pi', 'claude'] });
@@ -111,6 +114,9 @@ describe('getStatusReport', () => {
       expect.objectContaining({ name: 'slack', ready: true }),
     ]));
     expect(report.checks.warnings).toBeGreaterThan(0);
+    expect(report.registries.project.configured.private).toBe('https://example.test/private.git');
+    expect(JSON.stringify(report)).not.toContain('registry-secret');
+    expect(JSON.stringify(report)).not.toContain('query-secret');
   });
 
   it('returns independent findings when files, commands, auth, and npm are unavailable', async () => {
