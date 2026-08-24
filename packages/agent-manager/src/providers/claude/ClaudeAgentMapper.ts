@@ -25,6 +25,9 @@ export class ClaudeAgentMapper {
         sessionFile,
         liveInfo,
     }: ClaudeSessionAgentInput): AgentInfo {
+        // Live PID-file status is authoritative when present — JSONL-derived
+        // status mis-classifies sessions whose latest entry is a UI-state
+        // event like `permission-mode` or `ai-title`.
         const status = liveInfo?.pidStatus ?? this.parser.determineStatus(session);
         const baseSummary = session.lastUserMessage || 'Session started';
         const summary = status === AgentStatus.WAITING && liveInfo?.waitingFor

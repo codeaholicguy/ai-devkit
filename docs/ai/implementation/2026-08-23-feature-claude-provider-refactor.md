@@ -91,7 +91,7 @@ Package-root exports remain the compatibility surface. Thin path-level wrappers 
 - Added `packages/agent-manager/src/providers/claude/ClaudeSessionLocator.ts`.
   - Extracted resume matching, PID-file matching, legacy live discovery, project-dir encoding, and historical session discovery from the adapter.
   - Added focused locator test covering resume matching plus live PID status metadata.
-  - Kept adapter private compatibility proxies for existing tests that mutate fixture directories.
+  - Moved the adapter's locator-facing tests onto `ClaudeSessionLocator` so no compatibility proxies remain on the adapter.
 - Moved Claude durable execution implementations under `packages/agent-manager/src/providers/claude/durable/`.
   - Claude print-mode focused validation passed with 4 test files and 8 tests.
 - Removed no-value wrapper files after review:
@@ -116,4 +116,4 @@ Package-root exports remain the compatibility surface. Thin path-level wrappers 
 ## Design Deviations
 
 - `providers/claude/types.ts` was not created. The extracted modules did not need a shared provider-local type barrel, and skipping it avoids a thin abstraction.
-- Adapter private compatibility proxies remain for `discoverSessions`, `tryPidFileMatching`, and `getProjectDir` because the existing test suite exercises those hooks. They delegate to `ClaudeSessionLocator` and are not public package contracts.
+- Adapter private compatibility proxies for `discoverSessions`, `tryPidFileMatching`, and `getProjectDir` were removed after review. The 19 tests that drove them moved to `__tests__/providers/claude/ClaudeSessionLocator.test.ts` and now target `ClaudeSessionLocator` directly, so `tryPidFileMatching` and `getProjectDir` are private on the locator again.

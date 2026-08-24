@@ -10,10 +10,9 @@ import type {
 } from '../../adapters/AgentAdapter.js';
 import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../../utils/process.js';
 import { safeStat } from '../../utils/session.js';
-import type { SessionFile } from '../../utils/session.js';
 import { ClaudeSessionParser } from './ClaudeSessionParser.js';
 import { ClaudeAgentMapper } from './ClaudeAgentMapper.js';
-import { ClaudeSessionLocator, type ClaudeDirectMatch } from './ClaudeSessionLocator.js';
+import { ClaudeSessionLocator } from './ClaudeSessionLocator.js';
 
 /**
  * Claude Code Adapter
@@ -121,21 +120,6 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         });
     }
 
-    private discoverSessions(processes: ProcessInfo[]): SessionFile[] {
-        return this.createLocator().discoverLiveSessions(processes);
-    }
-
-    private tryPidFileMatching(processes: ProcessInfo[]): {
-        direct: ClaudeDirectMatch[];
-        fallback: ProcessInfo[];
-    } {
-        return this.createLocator().tryPidFileMatching(processes);
-    }
-
-    private getProjectDir(cwd: string): string {
-        return this.createLocator().getProjectDir(cwd);
-    }
-
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
         return this.parser.getConversation(sessionFilePath, options);
     }
@@ -173,5 +157,4 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
         return summaries;
     }
-
 }
