@@ -13,6 +13,7 @@ import { registerDocsCommand } from './commands/docs.js';
 import { registerPluginCommand } from './commands/plugin.js';
 import { registerSetupCommand } from './commands/setup.js';
 import { registerCapacityCommand } from './commands/capacity.js';
+import { registerStatusCommand } from './commands/status.js';
 import { registerConfiguredPluginCommands } from './services/plugin/plugin-loader.service.js';
 import { createAiDevkitRuntime } from './services/plugin/runtime.js';
 import { handleCliError } from './util/errors.js';
@@ -66,6 +67,7 @@ registerDocsCommand(program);
 registerPluginCommand(program);
 registerSetupCommand(program);
 registerCapacityCommand(program);
+registerStatusCommand(program);
 
 await registerConfiguredPluginCommands(program, createAiDevkitRuntime());
 
