@@ -7,16 +7,17 @@ import type {
     SessionSummary,
     ListSessionsOptions,
 } from './AgentAdapter.js';
+import type { AgentDetectionContext } from './AgentAdapter.js';
 import { AgentStatus } from './AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../utils/process.js';
-import { safeReadFile, safeStat } from '../utils/session.js';
+import { captureProcessSnapshot, executableBasename, filterByProcessNames } from '../utils/process.js';
+import { isDirectory, safeReaddir, safeReadFile, safeStat } from '../utils/session.js';
 import { generateAgentName } from '../utils/matching.js';
 
 /**
  * Antigravity CLI Adapter
  *
  * Detects running Antigravity CLI agents (Google's Gemini-family `agy` CLI) by:
- * 1. Finding running `agy` processes via shared listAgentProcesses() — Antigravity
+ * 1. Finding running `agy` processes in the shared process snapshot — Antigravity
  *    ships a native binary (argv[0] basename `agy`).
  * 2. Resolving each live process to its conversation via
  *    ~/.gemini/antigravity-cli/cache/last_conversations.json, which the CLI
@@ -28,6 +29,11 @@ import { generateAgentName } from '../utils/matching.js';
  *    model's reply is a PLANNER_RESPONSE record; tool calls (RUN_COMMAND, ...) are
  *    skipped. The last user turn is the summary; each record's created_at gives the
  *    last-activity time.
+ *
+ * listSessions() enumerates brain/ instead, because that directory — not the
+ * cache — is the full history: the cache only names the *current* conversation
+ * of each workspace, so older conversations of the same cwd are absent from it.
+ * See {@link AntigravityCliAdapter.listSessions} for what that costs us.
  *
  * This is the runtime/agent side of Antigravity; it is independent of the
  * `antigravity` environment (which configures the Antigravity IDE), the same way
@@ -69,6 +75,7 @@ interface AntigravitySession {
 
 export class AntigravityCliAdapter implements AgentAdapter {
     readonly type = 'antigravity_cli' as const;
+    readonly processNames = ['agy'] as const;
 
     private base: string;
 
@@ -83,13 +90,14 @@ export class AntigravityCliAdapter implements AgentAdapter {
     }
 
     private isAgyExecutable(command: string): boolean {
-        const executable = command.trim().split(/\s+/)[0] || '';
-        const base = path.basename(executable).toLowerCase();
+        const base = executableBasename(command);
         return base === 'agy' || base === 'agy.exe';
     }
 
-    async detectAgents(): Promise<AgentInfo[]> {
-        const processes = enrichProcesses(listAgentProcesses('agy'));
+    async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+        const snapshot = context?.processes ?? await captureProcessSnapshot(this.processNames);
+        const relevant = filterByProcessNames(snapshot, this.processNames);
+        const processes = relevant.filter((process) => this.canHandle(process));
         if (processes.length === 0) {
             return [];
         }
@@ -176,11 +184,31 @@ export class AntigravityCliAdapter implements AgentAdapter {
         return this.parseTranscript(this.resolveTranscriptPath(sessionFilePath), options?.verbose ?? false).messages;
     }
 
+    /**
+     * Enumerate every conversation under brain/, not just the ones named in
+     * cache/last_conversations.json: that cache holds the *current* conversation
+     * per workspace, so listing from it would hide every older conversation of a
+     * cwd the moment a new one starts.
+     *
+     * The trade-off is cwd coverage. Antigravity records the workspace nowhere in
+     * the conversation itself — neither transcript.jsonl nor transcript_full.jsonl
+     * carries it, and conversations/<id>.db keeps its metadata in opaque protobuf
+     * blobs — so the cache is the only readable cwd source. Conversations it no
+     * longer names therefore get `cwd: ''` and surface under `--all` rather than
+     * under a cwd-scoped listing.
+     */
     async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
+        const brainDir = path.join(this.base, BRAIN_DIR);
+        if (!isDirectory(brainDir)) return [];
+
         const filterCwd = opts?.cwd;
+        const knownCwds = this.readConversationCwds();
         const summaries: SessionSummary[] = [];
 
-        for (const [cwd, conversationId] of this.readRegistry()) {
+        for (const conversationId of safeReaddir(brainDir)) {
+            if (!isDirectory(path.join(brainDir, conversationId))) continue;
+
+            const cwd = knownCwds.get(conversationId) ?? '';
             if (filterCwd !== undefined && cwd !== filterCwd) continue;
 
             const session = this.readSession(conversationId, cwd);
@@ -198,6 +226,19 @@ export class AntigravityCliAdapter implements AgentAdapter {
         }
 
         return summaries;
+    }
+
+    /**
+     * Invert {@link readRegistry} into conversationId -> cwd. Only the current
+     * conversation of each workspace appears, so a miss means "workspace unknown",
+     * not "no such conversation".
+     */
+    private readConversationCwds(): Map<string, string> {
+        const map = new Map<string, string>();
+        for (const [cwd, conversationId] of this.readRegistry()) {
+            map.set(conversationId, cwd);
+        }
+        return map;
     }
 
     // --- Session parsing (transcript.jsonl) ---

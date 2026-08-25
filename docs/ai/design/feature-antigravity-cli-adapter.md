@@ -23,14 +23,16 @@ Normalized into `AgentInfo`: `name` ← `generateAgentName(projectPath, pid)`; `
 ## Component breakdown
 1. `packages/agent-manager/src/adapters/AntigravityCliAdapter.ts` (new, self-contained)
    - `canHandle`: argv[0] basename `agy`/`agy.exe`.
-   - `detectAgents`: `enrichProcesses(listAgentProcesses('agy'))`; per process resolve cwd → conversationId via `readRegistry()`, read the transcript; live processes with no conversation → process-only RUNNING agents.
-   - inline parsing: `readRegistry`, `readSession`, `parseTranscript` (`<USER_REQUEST>` prompts + `PLANNER_RESPONSE` replies), `determineStatus`, `getConversation`.
-   - `listSessions`: iterate the `cwd → id` registry, parse each transcript, strict `cwd` filter.
+   - `detectAgents`: take `agy` processes from the shared `AgentDetectionContext` snapshot (falling back to `captureProcessSnapshot(processNames)`); per process resolve cwd → conversationId via `readRegistry()`, read the transcript; live processes with no conversation → process-only RUNNING agents.
+   - inline parsing: `readRegistry`, `readConversationCwds`, `readSession`, `parseTranscript` (`<USER_REQUEST>` prompts + `PLANNER_RESPONSE` replies), `determineStatus`, `getConversation`.
+   - `listSessions`: enumerate `brain/<id>/`, attach a cwd from the inverted registry when it names that conversation, parse each transcript, strict `cwd` filter.
 2. `AntigravityCliAdapter.test.ts` (new): fixtures from the captured real format.
 3. Exports, launch map, CLI registration, labels, validation.
 
 ## Design decisions
 - Resolve a live process's conversation from `cache/last_conversations.json` (cwd → id), not from cwd-encoded session dirs; there is one current conversation per workspace.
+- Enumerate history from `brain/`, not from that cache. The cache names only the *current* conversation of each workspace, so listing from it hides every older conversation as soon as a new one starts. `brain/` is the full set.
+- Accept partial cwd coverage as the cost of that: Antigravity records the workspace nowhere in the conversation itself (neither `transcript.jsonl` nor `transcript_full.jsonl` contains it, and `conversations/<id>.db` keeps its metadata in opaque protobuf blobs), so a conversation the cache no longer names gets `cwd: ''` and surfaces under `agent sessions --all`. Listing a session with an unknown cwd beats not listing it at all.
 - Parse `transcript.jsonl` for conversation and summary; take the prompt inside `<USER_REQUEST>...</USER_REQUEST>`.
 - `sessionFilePath` points at `transcript.jsonl` so the console's `fs.stat().mtime` cache invalidation tracks conversation growth.
 - Keep parsing resilient — a missing/malformed transcript skips the session; adapter-level failures return empty so other adapters still render.

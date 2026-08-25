@@ -14,6 +14,8 @@ description: Implementation notes for the Antigravity (`agy`) CLI adapter
 
 ## Notes
 - Home: `~/.gemini/antigravity-cli/` (override via `ANTIGRAVITY_CLI_HOME`). A live process is resolved to its conversation via `cache/last_conversations.json` (`{cwd:id}`); the process cwd is the join key.
+- `detectAgents` reads `agy` processes from the shared `AgentDetectionContext` snapshot and declares `processNames = ['agy']`, so the manager's single `ps` pass covers this adapter too.
+- `listSessions` enumerates `brain/<id>/` and attaches a cwd only when the (inverted) cache still names that conversation — the cache holds one entry per workspace, so older conversations of a cwd are absent from it and would otherwise never be listed. Conversations without a cwd get `''` and show under `agent sessions --all`; nothing else on disk records the workspace (see requirements).
 - Parsing: `transcript.jsonl` → user prompts are the text inside `<USER_REQUEST>...</USER_REQUEST>` of `type:'USER_INPUT'` records; the assistant reply is a `type:'PLANNER_RESPONSE'` record; other MODEL records (tool calls like RUN_COMMAND) and `SYSTEM` records are skipped unless verbose. `lastActive` is the newest record `created_at` (else file mtime).
 - `AgentInfo.sessionFilePath` / `SessionSummary.sessionFilePath` point at `transcript.jsonl`; `getConversation` accepts the file path, a session dir, or a bare conversation id.
 
@@ -22,6 +24,7 @@ description: Implementation notes for the Antigravity (`agy`) CLI adapter
 - Fail soft: a missing/malformed `transcript.jsonl` skips the session; adapter-level failures return empty so other adapters still render.
 
 ## Error handling
-- Missing `cache/last_conversations.json` → empty registry, no throw.
+- Missing `cache/last_conversations.json` → empty registry, no throw; `listSessions` still lists `brain/` with unknown cwds.
+- Missing `brain/` → `listSessions` returns `[]`; a `brain/<id>/` with no transcript is skipped.
 - Mapped conversation with no transcript → process-only RUNNING agent.
 - A live `agy` process whose cwd is not in the registry → process-only RUNNING agent.

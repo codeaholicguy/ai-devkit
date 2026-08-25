@@ -14,7 +14,7 @@ import * as path from 'path';
 import { AntigravityCliAdapter } from '../../adapters/AntigravityCliAdapter.js';
 import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
 import { AgentStatus } from '../../adapters/AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses } from '../../utils/process.js';
+import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
 import { generateAgentName } from '../../utils/matching.js';
 
 vi.mock('../../utils/process.js', async (importOriginal) => {
@@ -23,6 +23,7 @@ vi.mock('../../utils/process.js', async (importOriginal) => {
         ...actual,
         listAgentProcesses: vi.fn(),
         enrichProcesses: vi.fn(),
+        captureProcessSnapshot: vi.fn(),
     };
 });
 
@@ -36,6 +37,7 @@ vi.mock('../../utils/matching.js', async (importOriginal) => {
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 const CONVERSATION_ID = '10485e13-2742-4e9e-b286-ac0606f0cb1e';
@@ -82,9 +84,14 @@ describe('AntigravityCliAdapter', () => {
 
         mockedListAgentProcesses.mockReset();
         mockedEnrichProcesses.mockReset();
+        mockedCaptureProcessSnapshot.mockReset();
         mockedGenerateAgentName.mockReset();
 
         mockedEnrichProcesses.mockImplementation((procs) => procs);
+        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
+        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
+            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
+        ));
         mockedGenerateAgentName.mockImplementation((c: string, pid: number) => `${path.basename(c) || 'unknown'}-${pid}`);
     });
 
@@ -256,11 +263,11 @@ describe('AntigravityCliAdapter', () => {
     });
 
     describe('listSessions', () => {
-        it('returns [] when there is no registry', async () => {
+        it('returns [] when there is no brain dir', async () => {
             expect(await adapter.listSessions()).toEqual([]);
         });
 
-        it('lists sessions from the registry with cwd + first user message', async () => {
+        it('lists a conversation with the cwd the cache names for it', async () => {
             writeTranscript({});
             writeRegistry({ [cwd]: CONVERSATION_ID });
             const summaries = await adapter.listSessions();
@@ -273,16 +280,42 @@ describe('AntigravityCliAdapter', () => {
             });
         });
 
-        it('applies the cwd filter', async () => {
+        it('lists older conversations of a cwd the cache no longer names', async () => {
+            // The CLI keeps only the newest conversation per workspace in
+            // last_conversations.json, so the previous two exist on disk with no
+            // cache entry. Listing from the cache alone would drop them.
+            writeTranscript({ id: 'aaa0000a-0000-4000-8000-00000000000a', records: [userRecord('older')] });
+            writeTranscript({ id: 'bbb0000b-0000-4000-8000-00000000000b', records: [userRecord('older still')] });
+            writeTranscript({ records: [userRecord('current')] });
+            writeRegistry({ [cwd]: CONVERSATION_ID });
+
+            const summaries = await adapter.listSessions();
+            expect(summaries.map((s) => s.sessionId).sort()).toEqual([
+                'aaa0000a-0000-4000-8000-00000000000a',
+                'bbb0000b-0000-4000-8000-00000000000b',
+                CONVERSATION_ID,
+            ].sort());
+            expect(summaries.find((s) => s.sessionId === CONVERSATION_ID)?.cwd).toBe(cwd);
+            // Antigravity records the workspace nowhere else, so these are cwd-less.
+            expect(summaries.filter((s) => s.cwd === '')).toHaveLength(2);
+        });
+
+        it('skips brain entries without a transcript', async () => {
+            writeTranscript({ transcript: false });
+            expect(await adapter.listSessions()).toEqual([]);
+        });
+
+        it('applies the cwd filter, leaving cwd-less conversations to --all', async () => {
             writeTranscript({ id: 'aaa0000a-0000-4000-8000-00000000000a', records: [userRecord('a')] });
             writeTranscript({ id: 'bbb0000b-0000-4000-8000-00000000000b', records: [userRecord('b')] });
+            writeTranscript({ records: [userRecord('unknown cwd')] });
             writeRegistry({
                 '/Users/dev/project-a': 'aaa0000a-0000-4000-8000-00000000000a',
                 '/Users/dev/project-b': 'bbb0000b-0000-4000-8000-00000000000b',
             });
 
             const all = await adapter.listSessions();
-            expect(all).toHaveLength(2);
+            expect(all).toHaveLength(3);
 
             const filtered = await adapter.listSessions({ cwd: '/Users/dev/project-a' });
             expect(filtered).toHaveLength(1);

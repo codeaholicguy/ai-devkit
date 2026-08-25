@@ -12,7 +12,7 @@ ai-devkit already configures the Antigravity **IDE** via the `antigravity` envir
 
 ## Goals
 - Detect running `agy` processes and surface them in `agent list` / console.
-- List historical Antigravity CLI conversations in `agent sessions --type antigravity_cli`.
+- List historical Antigravity CLI conversations in `agent sessions --type antigravity_cli` — every conversation on disk, not only the current one per workspace.
 - Read a conversation transcript for `agent detail` / `agent send` targeting.
 - Keep the existing `antigravity` IDE environment untouched.
 
@@ -22,10 +22,12 @@ ai-devkit already configures the Antigravity **IDE** via the `antigravity` envir
 
 ## On-disk facts (verified against `agy`, Google Gemini-family CLI)
 - Home: `~/.gemini/antigravity-cli/` (`ANTIGRAVITY_CLI_HOME` overrides it).
-- `cache/last_conversations.json`: a `{ "<cwd>": "<conversationId>" }` map of the current conversation per workspace. This is the join key from a live process's cwd to its conversation.
+- `cache/last_conversations.json`: a `{ "<cwd>": "<conversationId>" }` map of the current conversation per workspace. This is the join key from a live process's cwd to its conversation. It is *not* a session index: starting a new conversation in a workspace overwrites that workspace's entry, so it names at most one conversation per cwd.
+- `brain/` holds every conversation, current or not — it is the only complete list. On a dev machine with five conversations, the cache named one.
+- No file outside that cache records a conversation's workspace: `transcript.jsonl` and `transcript_full.jsonl` contain no cwd, and `conversations/<id>.db` stores its metadata in protobuf blobs (`trajectory_metadata_blob`, `steps.metadata`) with no readable path column.
 - Transcript: `brain/<conversationId>/.system_generated/logs/transcript.jsonl`, newline-delimited `{ source, type, created_at, content }`. User turns are `type: "USER_INPUT"` with the prompt inside `<USER_REQUEST>...</USER_REQUEST>`; the model reply is a `type: "PLANNER_RESPONSE"` record. Other MODEL records (tool calls such as RUN_COMMAND) and `SYSTEM` records (conversation history, checkpoints) are non-conversational.
 - The `agy` binary's argv[0] basename is `agy`.
 
 ## Acceptance
-- Unit tests cover: `canHandle`, no-process, registry cwd→id resolution, process-only fallback, missing transcript, transcript conversation extraction, status mapping, `listSessions` + cwd filter.
+- Unit tests cover: `canHandle`, no-process, registry cwd→id resolution, process-only fallback, missing transcript, transcript conversation extraction, status mapping, `listSessions` + cwd filter, and conversations the cache no longer names.
 - Verified end-to-end against a real `agy 0.x` session on disk (`agent-manager:test` and `cli:test` pass).

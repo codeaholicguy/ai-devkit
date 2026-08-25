@@ -18,13 +18,15 @@ description: Test strategy and coverage for the Antigravity (`agy`) CLI adapter
 - [x] `getConversation` excludes `SYSTEM` records unless verbose
 - [x] Status: WAITING on trailing MODEL turn; RUNNING on trailing USER_INPUT; IDLE past threshold
 - [x] Agent summary is the last user request
-- [x] `listSessions` returns `[]` without a registry; lists from the registry with cwd; applies the cwd filter
+- [x] `listSessions` returns `[]` without a `brain/` dir; attaches the cwd the cache names; applies the cwd filter
+- [x] `listSessions` lists conversations the cache no longer names (older conversations of the same cwd), with `cwd: ''`
+- [x] `listSessions` skips `brain/` entries with no transcript
 
 ## Integration / launch map
 - [x] `AGENTS.antigravity_cli.command === 'agy'`; registered in `agent` command + channel runner; `STARTABLE_AGENT_TYPES` includes `antigravity_cli`; `--type antigravity_cli` accepted.
 
 ## End-to-End (verified against a real `agy` install)
-- [x] `listSessions()` against the real `~/.gemini/antigravity-cli` lists the on-disk conversation with `cwd`, `firstUserMessage`, and the `transcript.jsonl` `sessionFilePath`.
+- [x] `listSessions()` against the real `~/.gemini/antigravity-cli` lists all 5 on-disk conversations (the cache named 1) with `firstUserMessage` and the `transcript.jsonl` `sessionFilePath`; the 1 the cache still names carries its `cwd`, and `listSessions({ cwd })` returns exactly that one.
 - [x] `getConversation()` against the real transcript returns the `[{user}, {assistant}]` turns (`<USER_REQUEST>` extracted, `MODEL` response, `SYSTEM` skipped).
 - [x] `detectAgents()` with a live `agy` process + real registry resolves the cwd, picks the conversation, and surfaces `{type:"antigravity_cli", projectPath:<repo>, summary:<prompt>}`.
 - [x] Regression: full `agent-manager` and `cli` suites pass.
