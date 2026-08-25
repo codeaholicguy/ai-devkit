@@ -1,8 +1,8 @@
-import type { DurableAgent, ProcessIdentity } from './DurableAgent.js';
-import { ClaudePrintError, DurableAgentNotFoundError } from './DurableAgent.js';
+import type { DurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
+import { ClaudePrintError, DurableAgentNotFoundError } from '../../../durable/DurableAgent.js';
 import { ClaudeCliProbe } from './ClaudeCliProbe.js';
 import { ClaudePrintRunner, type ClaudePrintRunResult } from './ClaudePrintRunner.js';
-import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from './DurableAgentRepository.js';
+import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from '../../../durable/DurableAgentRepository.js';
 
 interface RepositoryLike {
     create(input: CreateDurableAgentInput): Promise<DurableAgent>;

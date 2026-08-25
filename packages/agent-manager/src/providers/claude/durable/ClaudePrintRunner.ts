@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'child_process';
-import type { DurableAgent, ProcessIdentity } from './DurableAgent.js';
-import { ClaudePrintError } from './DurableAgent.js';
-import { LocalProcessInspector, type ProcessInspector } from './DurableAgentRepository.js';
+import type { DurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
+import { ClaudePrintError } from '../../../durable/DurableAgent.js';
+import { LocalProcessInspector, type ProcessInspector } from '../../../durable/DurableAgentRepository.js';
 
 type Spawn = (
     command: string,

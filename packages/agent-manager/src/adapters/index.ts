@@ -1,4 +1,4 @@
-export { ClaudeCodeAdapter } from './ClaudeCodeAdapter.js';
+export { ClaudeCodeAdapter } from '../providers/claude/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './CodexAdapter.js';
 export { CopilotAdapter } from './CopilotAdapter.js';
 export { GeminiCliAdapter } from './GeminiCliAdapter.js';

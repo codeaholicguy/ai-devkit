@@ -1,6 +1,6 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
-import { ClaudePrintError } from './DurableAgent.js';
+import { ClaudePrintError } from '../../../durable/DurableAgent.js';
 
 type ExecResult = { stdout: string; stderr: string };
 type Exec = (file: string, args: string[]) => Promise<ExecResult>;

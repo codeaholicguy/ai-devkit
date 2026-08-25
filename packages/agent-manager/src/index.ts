@@ -6,7 +6,7 @@ export type {
     CapacityWindow,
 } from './capacity/index.js';
 
-export { ClaudeCodeAdapter } from './adapters/ClaudeCodeAdapter.js';
+export { ClaudeCodeAdapter } from './providers/claude/ClaudeCodeAdapter.js';
 export { CodexAdapter } from './adapters/CodexAdapter.js';
 export { CopilotAdapter } from './adapters/CopilotAdapter.js';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
@@ -29,9 +29,6 @@ export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusMana
 export type { TerminalLocation } from './terminal/TerminalFocusManager.js';
 export { TtyWriter } from './terminal/TtyWriter.js';
 
-export { getProcessTty } from './utils/process.js';
-export { captureProcessSnapshot, executableBasename, filterByProcessNames } from './utils/process.js';
-export type { AgentSortKey } from './utils/sortAgents.js';
 export type { ListAgentsOptions } from './AgentManager.js';
 
 export { AgentRegistry, RenameNotFoundError, RenameConflictError } from './utils/AgentRegistry.js';
@@ -62,23 +59,14 @@ export type {
     ProcessIdentity,
 } from './durable/DurableAgent.js';
 export { DurableAgentRepository } from './durable/DurableAgentRepository.js';
-export { LocalProcessInspector } from './durable/DurableAgentRepository.js';
 export type {
     CreateDurableAgentInput,
     DurableAgentRepositoryOptions,
     ProcessInspector,
     DurableRunCompletion,
 } from './durable/DurableAgentRepository.js';
-export { ClaudeCliProbe } from './durable/ClaudeCliProbe.js';
-export type { ClaudeCliProbeOptions } from './durable/ClaudeCliProbe.js';
-export { ClaudePrintRunner } from './durable/ClaudePrintRunner.js';
-export type {
-    ClaudePrintRunnerOptions,
-    ClaudePrintRunRequest,
-    ClaudePrintRunResult,
-} from './durable/ClaudePrintRunner.js';
-export { ClaudePrintAgentService } from './durable/ClaudePrintAgentService.js';
+export { ClaudePrintAgentService } from './providers/claude/durable/ClaudePrintAgentService.js';
 export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
-} from './durable/ClaudePrintAgentService.js';
+} from './providers/claude/durable/ClaudePrintAgentService.js';

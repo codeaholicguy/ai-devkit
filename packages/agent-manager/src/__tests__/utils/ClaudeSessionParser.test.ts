@@ -1,5 +1,5 @@
 /**
- * Tests for utils/ClaudeSessionParser.ts — focused on stripping
+ * Tests for providers/claude/ClaudeSessionParser.ts — focused on stripping
  * harness-injected XML tags from conversation content.
  */
 
@@ -7,7 +7,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
-import { ClaudeSessionParser } from '../../utils/ClaudeSessionParser.js';
+import { ClaudeSessionParser } from '../../providers/claude/ClaudeSessionParser.js';
 
 interface JsonlEntry {
     type: 'user' | 'assistant' | 'system';
