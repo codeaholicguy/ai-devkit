@@ -1,6 +1,7 @@
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { CodexPrintError } from '../../../durable/DurableAgent.js';
+import { sanitizeText } from '../../../durable/utils.js';
 
 type ExecResult = { stdout: string; stderr: string };
 type Exec = (file: string, args: string[]) => Promise<ExecResult>;
@@ -43,11 +44,11 @@ export class CodexCliProbe {
                     'CODEX_CLI_UNSUPPORTED',
                 );
             }
-            return { executable: this.executable, version: sanitize(version.stdout, 256) || 'unknown' };
+            return { executable: this.executable, version: sanitizeText(version.stdout, 256) || 'unknown' };
         } catch (error) {
             if (error instanceof CodexPrintError) throw error;
             throw new CodexPrintError(
-                `Codex CLI validation failed: ${sanitize((error as Error).message, 512)}`,
+                `Codex CLI validation failed: ${sanitizeText((error as Error).message, 512)}`,
                 'CODEX_CLI_UNAVAILABLE',
             );
         }
@@ -56,11 +57,4 @@ export class CodexCliProbe {
 
 function hasStdinDash(help: string): boolean {
     return /(?:^|\s)-(?:\s|$)/m.test(help);
-}
-
-function sanitize(value: string, max: number): string {
-    return Array.from(value, (character) => {
-        const code = character.charCodeAt(0);
-        return code <= 31 || code === 127 ? ' ' : character;
-    }).join('').trim().slice(0, max);
 }

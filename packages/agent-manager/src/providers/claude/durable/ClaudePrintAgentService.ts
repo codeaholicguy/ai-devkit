@@ -3,6 +3,7 @@ import { ClaudePrintError, DurableAgentNotFoundError } from '../../../durable/Du
 import { ClaudeCliProbe } from './ClaudeCliProbe.js';
 import { ClaudePrintRunner, type ClaudePrintRunResult } from './ClaudePrintRunner.js';
 import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from '../../../durable/DurableAgentRepository.js';
+import { sanitizeText } from '../../../durable/utils.js';
 
 interface RepositoryLike {
     create(input: CreateDurableAgentInput): Promise<DurableAgent>;
@@ -67,7 +68,7 @@ export class ClaudePrintAgentService {
             await this.repository.completeRun(resolved.id, acquired.token, {
                 status: 'succeeded',
                 exitCode: result.exitCode,
-                summary: sanitize(result.result, 4096),
+                summary: sanitizeText(result.result, 4096, { preserveFormatting: true }),
                 sessionHealth: 'healthy',
             });
             return { ...result, agentId: resolved.id, agentName: resolved.name };
@@ -79,19 +80,10 @@ export class ClaudePrintAgentService {
             await this.repository.completeRun(resolved.id, acquired.token, {
                 status: 'failed',
                 exitCode: null,
-                summary: sanitize(failure.message, 4096),
+                summary: sanitizeText(failure.message, 4096, { preserveFormatting: true }),
                 sessionHealth,
             });
             throw error;
         }
     }
-}
-
-function sanitize(value: string, max: number): string {
-    return Array.from(value, (character) => {
-        const code = character.charCodeAt(0);
-        return (code <= 8 || code === 11 || code === 12 || (code >= 14 && code <= 31) || code === 127)
-            ? ' '
-            : character;
-    }).join('').trim().slice(0, max);
 }

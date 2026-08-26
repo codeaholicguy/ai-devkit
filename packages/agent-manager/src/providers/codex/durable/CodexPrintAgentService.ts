@@ -3,6 +3,7 @@ import { CodexPrintError, DurableAgentNotFoundError } from '../../../durable/Dur
 import { CodexCliProbe } from './CodexCliProbe.js';
 import { CodexPrintRunner, type CodexPrintRunResult } from './CodexPrintRunner.js';
 import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from '../../../durable/DurableAgentRepository.js';
+import { sanitizeText } from '../../../durable/utils.js';
 
 interface RepositoryLike {
     create(input: CreateDurableAgentInput): Promise<DurableAgent>;
@@ -65,7 +66,7 @@ export class CodexPrintAgentService {
             });
             await this.repository.completeRun(resolved.id, acquired.token, {
                 status: 'succeeded', exitCode: result.exitCode,
-                summary: sanitize(result.result, 4096), sessionHealth: 'healthy',
+                summary: sanitizeText(result.result, 4096, { preserveFormatting: true }), sessionHealth: 'healthy',
             });
             return { ...result, agentId: resolved.id, agentName: resolved.name };
         } catch (error) {
@@ -73,17 +74,10 @@ export class CodexPrintAgentService {
             const sessionHealth = error instanceof CodexPrintError && error.code === 'CODEX_SESSION_MISMATCH'
                 ? 'mismatch' as const : 'unknown' as const;
             await this.repository.completeRun(resolved.id, acquired.token, {
-                status: 'failed', exitCode: null, summary: sanitize(failure.message, 4096), sessionHealth,
+                status: 'failed', exitCode: null,
+                summary: sanitizeText(failure.message, 4096, { preserveFormatting: true }), sessionHealth,
             });
             throw error;
         }
     }
-}
-
-function sanitize(value: string, max: number): string {
-    return Array.from(value, (character) => {
-        const code = character.charCodeAt(0);
-        return (code <= 8 || code === 11 || code === 12 || (code >= 14 && code <= 31) || code === 127)
-            ? ' ' : character;
-    }).join('').trim().slice(0, max);
 }

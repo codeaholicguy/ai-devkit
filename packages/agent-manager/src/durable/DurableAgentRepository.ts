@@ -1,8 +1,9 @@
 import fs from 'fs';
 import { randomUUID } from 'crypto';
-import { execFileSync } from 'child_process';
 import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
 import { AGENT_MODES, CodexPrintError, type DurableActiveRun, type DurableAgent, type DurableProvider, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
+import { LocalProcessInspector, type ProcessInspector } from './process.js';
+import { isUuid } from './utils.js';
 import {
     DurableAgentBusyError,
     DurableAgentNameConflictError,
@@ -34,7 +35,8 @@ export interface DurableAgentRepositoryOptions {
     mutationLockStaleMs?: number;
 }
 
-export interface ProcessInspector { getIdentity(pid: number): ProcessIdentity | null }
+export { LocalProcessInspector } from './process.js';
+export type { ProcessInspector } from './process.js';
 export interface DurableRunCompletion {
     status: DurableRunStatus; exitCode: number | null; summary: string; sessionHealth: DurableSessionHealth;
 }
@@ -160,7 +162,7 @@ export class DurableAgentRepository {
 
     async bindProviderSession(id: string, token: string, providerSessionId: string): Promise<DurableAgent> {
         this.assertWritable();
-        if (!UUID_PATTERN.test(providerSessionId)) {
+        if (!isUuid(providerSessionId)) {
             throw new DurableAgentRepositoryError('Invalid provider session id.');
         }
         try {
@@ -326,28 +328,5 @@ export class DurableAgentRepository {
     private storageError(prefix: string, error: unknown): DurableAgentRepositoryError {
         return error instanceof DurableAgentRepositoryError ? error
             : new DurableAgentRepositoryError(`${prefix}: ${(error as Error).message}`);
-    }
-}
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-export class LocalProcessInspector implements ProcessInspector {
-    getIdentity(pid: number): ProcessIdentity | null {
-        if (!Number.isInteger(pid) || pid <= 0) return null;
-        try {
-            if (process.platform === 'linux') {
-                const stat = fs.readFileSync(`/proc/${pid}/stat`, 'utf8');
-                const close = stat.lastIndexOf(')');
-                const fields = stat.slice(close + 2).split(' ');
-                const startTicks = fields[19];
-                return startTicks ? { pid, startedAt: `linux:${startTicks}` } : null;
-            }
-            const startedAt = execFileSync('ps', ['-o', 'lstart=', '-p', String(pid)], {
-                encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
-            }).trim();
-            return startedAt ? { pid, startedAt } : null;
-        } catch {
-            return null;
-        }
     }
 }
