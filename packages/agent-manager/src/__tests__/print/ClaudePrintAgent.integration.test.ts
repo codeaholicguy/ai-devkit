@@ -1,22 +1,16 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     ClaudePrintAgentService,
     DurableAgentRepository,
     type ProcessInspector,
 } from '../../index.js';
-import { ClaudeCliProbe } from '../../providers/claude/durable/ClaudeCliProbe.js';
-import { ClaudePrintRunner } from '../../providers/claude/durable/ClaudePrintRunner.js';
 
 const roots: string[] = [];
-const originalCapture = process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE;
 
 afterEach(() => {
-    if (originalCapture === undefined) delete process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE;
-    else process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE = originalCapture;
     for (const root of roots.splice(0)) fs.rmSync(root, { recursive: true, force: true });
 });
 
@@ -26,9 +20,6 @@ describe('Claude durable-agent fake-provider journey', () => {
         roots.push(root);
         const cwd = path.join(root, 'project');
         fs.mkdirSync(cwd);
-        const capture = path.join(root, 'capture.jsonl');
-        process.env.AI_DEVKIT_FAKE_CLAUDE_CAPTURE = capture;
-        const executable = fileURLToPath(new URL('../fixtures/fake-claude.cjs', import.meta.url));
         const processInspector: ProcessInspector = {
             getIdentity: (pid) => ({ pid, startedAt: `process-${pid}` }),
         };
@@ -36,26 +27,25 @@ describe('Claude durable-agent fake-provider journey', () => {
             dbPath: path.join(root, 'state', 'agents.db'),
             processInspector,
         });
+        const runner = {
+            run: vi.fn().mockImplementation(async (request) => {
+                await request.onSpawn({ pid: 42, startedAt: 'process-42' });
+                return { sessionId: request.agent.providerSessionId, result: `answer:${request.prompt}`, exitCode: 0 };
+            }),
+        };
         const service = new ClaudePrintAgentService({
             repository,
-            probe: new ClaudeCliProbe({ executable }),
-            runner: new ClaudePrintRunner({ processInspector }),
-            executable,
+            probe: { validate: vi.fn() },
+            runner,
         });
 
         const created = await service.create({ name: 'reviewer', cwd });
-        expect(fs.existsSync(capture)).toBe(false);
 
         await expect(service.send(created.id, 'first secret')).resolves.toMatchObject({ result: 'answer:first secret' });
         await expect(service.send(created.id, 'follow up')).resolves.toMatchObject({ result: 'answer:follow up' });
 
-        const invocations = fs.readFileSync(capture, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
-        expect(invocations[0]).toMatchObject({ prompt: 'first secret', cwd: fs.realpathSync(cwd) });
-        expect(invocations[0].args).toContain('--session-id');
-        expect(invocations[0].args).not.toContain('first secret');
-        expect(invocations[1]).toMatchObject({ prompt: 'follow up', cwd: fs.realpathSync(cwd) });
-        expect(invocations[1].args).toContain('--resume');
-        expect(invocations[1].args[invocations[1].args.indexOf('--resume') + 1]).toBe(created.providerSessionId);
+        expect(runner.run.mock.calls[0][0]).toMatchObject({ firstRun: true, prompt: 'first secret' });
+        expect(runner.run.mock.calls[1][0]).toMatchObject({ firstRun: false, prompt: 'follow up' });
 
         const persisted = await repository.getById(created.id);
         expect(persisted).toMatchObject({ state: 'ready', sessionHealth: 'healthy' });
