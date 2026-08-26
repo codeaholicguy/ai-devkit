@@ -14,6 +14,7 @@ Reduce complexity with an analysis-first approach before changing code.
 - Before improving code, ask whether the function, abstraction, dependency, or custom logic needs to exist at all.
 - Prefer platform and standard-library features over custom code or dependencies. Use already-installed dependencies when they cleanly solve the problem; do not add a dependency for logic that is only a few clear lines.
 - For breaking changes: modify in place only when all callers are in-repo and updated in the same change. For public/external APIs, add a new function and deprecate the old one (parallel change).
+- Delete or inline before adding: remove dead code, one-caller wrappers, redundant guards, stale tests, and unused configuration first.
 
 ## Workflow
 
@@ -25,10 +26,12 @@ Reduce complexity with an analysis-first approach before changing code.
 - Identify sources (nesting, duplication, coupling, over-engineering, magic values).
 - Run an existence check: can this code be deleted, delegated to the standard library, handled by a native platform feature, enforced by the database, or covered by an existing dependency?
 - Apply the existence check to tests and scaffolding: remove stale, duplicate, implementation-detail-only, unused, or no-longer-relevant tests, assertions, and fixtures without unique behavioral coverage.
-- Assess impact (LOC, dependencies, cognitive load, scalability blockers).
+- Apply the reader-load test: can a new reader answer where key values come from and what can change them quickly? Count needless layers and hidden mutable state.
+- Assess impact (LOC, dependencies, cognitive load, boundary leakage, scalability blockers).
 
 3. Apply Readability Principles
 - Apply the [readability guide](references/readability-guide.md) and its "Reading Test".
+- Prefer domain-shaped structures over scattered conditionals when they remove branches, duplicated rules, or invalid states. Do not add an abstraction that only moves code around.
 
 4. Propose Simplifications
 For each issue, apply a pattern:
@@ -39,6 +42,7 @@ For each issue, apply a pattern:
 - **Remove**: Dead code, unused features, excessive abstractions.
 - **Replace**: Custom logic → standard-library, native platform, database, or already-installed dependency features.
 - **Defer**: Premature optimization → measure-first approach.
+- **Redesign**: Repeated implementation friction, patched branches, or synchronized flags → revisit the model before another local cleanup.
 
 5. Prioritize and Plan
 - Rank by impact/risk. Present plan with before/after snippets. Request approval.

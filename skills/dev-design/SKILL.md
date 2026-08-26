@@ -26,11 +26,14 @@ Use for Phase 3.
 2. Search memory for relevant architecture patterns or past decisions.
 3. Cross-check against the latest matching requirements doc. Verify every goal, user story, and constraint has corresponding design coverage. Flag uncovered requirements.
 4. Review completeness: architecture, components, technology choices, data models, API contracts, design trade-offs, and non-functional requirements.
-5. Resolve every gap, misalignment, open question, hidden assumption, or unresolved trade-off between requirements and design.
-6. Brainstorm alternatives for key architecture decisions and trade-offs before accepting the first approach.
-7. Update the design doc with clarified decisions and chosen options.
-8. Store reusable architecture decisions in memory.
-9. If task tracing is available, record design coverage progress, next step, or blockers per `task`.
-10. Summarize requirements coverage, completeness assessment, updates made, and remaining gaps.
+5. Check usage-first design: APIs, CLI flows, UI flows, and docs should optimize for their caller/user, not implementation convenience.
+6. Screen design red flags: shallow modules, pass-through layers, temporal decomposition, leaked transport/storage/framework types, scattered validation, synchronized flags, and repeated conditionals where a domain model would fit.
+7. Resolve every gap, misalignment, open question, hidden assumption, or unresolved trade-off between requirements and design.
+8. Brainstorm alternatives for key architecture decisions and trade-offs before accepting the first approach.
+9. Prefer subtract-before-add sequencing: delete obsolete paths, consolidate redundant concepts, and narrow scope before adding new structure.
+10. Update the design doc with clarified decisions and chosen options.
+11. Store reusable architecture decisions in memory.
+12. If task tracing is available, record design coverage progress, next step, or blockers per `task`.
+13. Summarize requirements coverage, completeness assessment, updates made, and remaining gaps.
 
 Next: `dev-implementation`. If requirements gaps are found, return to `dev-requirements`. If design is fundamentally wrong, revise design and re-review.

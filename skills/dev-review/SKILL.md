@@ -26,13 +26,16 @@ Use for Phase 9. Take a holistic review stance: findings first, ordered by sever
 4. Check consistency against 1-2 similar modules.
 5. Search for existing utilities the new code could reuse or now duplicates. Flag near-matches honestly; do not force a wrong abstraction.
 6. Verify contract integrity at API, type, config, and schema boundaries.
-7. Check dependency health, including circular dependencies or version conflicts from new imports.
-8. Check breaking changes. For public/external APIs, recommend parallel change and deprecation over in-place mutation. For in-repo-only callers, in-place modification with all callers updated is acceptable.
-9. Check rollback safety, especially irreversible migrations or one-way data/state changes.
-10. Review file by file for correctness, logic, edge cases, redundancy, security, performance, error handling, and test coverage.
-11. Check cross-cutting concerns: naming conventions, documentation updates, missing tests, config/migration changes.
-12. Summarize blocking issues, important follow-ups, and nice-to-haves. Per finding include file, issue, impact severity, and recommendation.
-13. If task tracing is available, add blockers and set `blocked` for blocking findings; if review passes with final evidence, close the task per `task`.
-14. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
+7. Check boundary discipline: external data is validated at edges, internal code is not littered with redundant guards, and transport/storage/framework types do not leak through domain APIs.
+8. Check reader load: needless layers, pass-through methods, broad shallow interfaces, mutable state scope, and unclear value ownership.
+9. Check domain fit: branch growth, synchronized flags, repeated shape assumptions, temporal decomposition, and missing state models.
+10. Check dependency health, including circular dependencies or version conflicts from new imports.
+11. Check breaking changes. For public/external APIs, recommend parallel change and deprecation over in-place mutation. For in-repo-only callers, all callers should be migrated and legacy APIs deleted.
+12. Check rollback safety, especially irreversible migrations or one-way data/state changes.
+13. Review file by file for correctness, logic, edge cases, redundancy, security, performance, error handling, and test coverage.
+14. Check cross-cutting concerns: naming conventions, documentation updates, missing tests, config/migration changes.
+15. Summarize blocking issues, important follow-ups, and nice-to-haves. Per finding include file, issue, impact severity, and recommendation.
+16. If task tracing is available, add blockers and set `blocked` for blocking findings; if review passes with final evidence, close the task per `task`.
+17. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
 
 Done: if the checklist passes, the feature is ready to push and create a PR. If blocking issues remain, return to `dev-implementation` or `dev-testing`.
