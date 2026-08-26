@@ -48,9 +48,15 @@ export {
     DurableAgentRepositoryError,
     DurableAgentNameConflictError,
     ClaudePrintError,
+    CodexPrintError,
 } from './durable/DurableAgent.js';
 export type {
     DurableAgent,
+    DurableAgentBase,
+    ClaudeDurableAgent,
+    CodexDurableAgent,
+    DurableProvider,
+    CodexPrintErrorCode,
     DurableAgentState,
     DurableSessionHealth,
     DurableRunStatus,
@@ -70,3 +76,16 @@ export type {
     ClaudePrintAgentServiceOptions,
     ClaudePrintSendResult,
 } from './providers/claude/durable/ClaudePrintAgentService.js';
+export { CodexCliProbe } from './providers/codex/durable/CodexCliProbe.js';
+export type { CodexCliProbeOptions } from './providers/codex/durable/CodexCliProbe.js';
+export { CodexPrintRunner } from './providers/codex/durable/CodexPrintRunner.js';
+export type {
+    CodexPrintRunnerOptions,
+    CodexPrintRunRequest,
+    CodexPrintRunResult,
+} from './providers/codex/durable/CodexPrintRunner.js';
+export { CodexPrintAgentService } from './providers/codex/durable/CodexPrintAgentService.js';
+export type {
+    CodexPrintAgentServiceOptions,
+    CodexPrintSendResult,
+} from './providers/codex/durable/CodexPrintAgentService.js';
