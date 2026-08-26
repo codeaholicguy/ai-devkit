@@ -4,7 +4,7 @@ CREATE TABLE durable_agents (
     provider TEXT NOT NULL,
     mode TEXT NOT NULL DEFAULT 'durable',
     cwd TEXT NOT NULL,
-    provider_session_id TEXT NULL UNIQUE,
+    provider_session_id TEXT NOT NULL UNIQUE,
     state TEXT NOT NULL CHECK (state IN ('ready','running','degraded')),
     session_health TEXT NOT NULL CHECK (session_health IN ('uninitialized','healthy','unknown','mismatch')),
     created_at TEXT NOT NULL,
