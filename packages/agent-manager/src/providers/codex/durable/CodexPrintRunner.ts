@@ -1,7 +1,7 @@
 import { spawn as nodeSpawn, type ChildProcessWithoutNullStreams, type SpawnOptionsWithoutStdio } from 'child_process';
-import type { CodexDurableAgent, ProcessIdentity } from './DurableAgent.js';
-import { CodexPrintError } from './DurableAgent.js';
-import { LocalProcessInspector, type ProcessInspector } from './DurableAgentRepository.js';
+import type { CodexDurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
+import { CodexPrintError } from '../../../durable/DurableAgent.js';
+import { LocalProcessInspector, type ProcessInspector } from '../../../durable/DurableAgentRepository.js';
 
 type Spawn = (
     command: string,

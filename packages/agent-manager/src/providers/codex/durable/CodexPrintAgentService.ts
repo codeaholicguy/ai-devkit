@@ -1,8 +1,8 @@
-import type { CodexDurableAgent, DurableAgent, ProcessIdentity } from './DurableAgent.js';
-import { CodexPrintError, DurableAgentNotFoundError } from './DurableAgent.js';
+import type { CodexDurableAgent, DurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
+import { CodexPrintError, DurableAgentNotFoundError } from '../../../durable/DurableAgent.js';
 import { CodexCliProbe } from './CodexCliProbe.js';
 import { CodexPrintRunner, type CodexPrintRunResult } from './CodexPrintRunner.js';
-import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from './DurableAgentRepository.js';
+import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from '../../../durable/DurableAgentRepository.js';
 
 interface RepositoryLike {
     create(input: CreateDurableAgentInput): Promise<DurableAgent>;
