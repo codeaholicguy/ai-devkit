@@ -32,6 +32,12 @@ const mockCodexPrintService: any = {
   send: vi.fn(),
 };
 
+const mockPiPrintService: any = {
+  repository: mockDurableRepository,
+  create: vi.fn(),
+  send: vi.fn(),
+};
+
 const mockAgentAdapter: any = {
   getConversation: vi.fn(),
 };
@@ -109,6 +115,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   DurableAgentRepository: vi.fn(function () { return mockDurableRepository; }),
   ClaudePrintAgentService: vi.fn(function () { return mockDurableService; }),
   CodexPrintAgentService: vi.fn(function () { return mockCodexPrintService; }),
+  PiPrintAgentService: vi.fn(function () { return mockPiPrintService; }),
   TerminalFocusManager: vi.fn(function () { return mockFocusManager; }),
   TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
   AgentStatus: {
@@ -242,6 +249,8 @@ describe('agent command', () => {
     mockDurableRepository.resolve.mockReset().mockResolvedValue(null);
     mockDurableService.create.mockReset();
     mockDurableService.send.mockReset();
+    mockPiPrintService.create.mockReset();
+    mockPiPrintService.send.mockReset();
     mockFocusManager.findTerminal.mockReset();
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
@@ -800,6 +809,27 @@ Waiting on user input`,
 
     expect(mockCodexPrintService.send).toHaveBeenCalledWith(durableAgent.id, 'review');
     expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe('codex');
+  });
+
+  it('starts a durable Pi agent without tmux', async () => {
+    mockPiPrintService.create.mockResolvedValue({
+      id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'pi',
+      mode: 'durable', cwd: process.cwd(), state: 'ready', providerSessionId: '22222222-2222-4222-8222-222222222222',
+    });
+    const program = new Command(); registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'start', '--type', 'pi', '--mode', 'durable', '--name', 'reviewer', '--cwd', process.cwd()]);
+    expect(mockPiPrintService.create).toHaveBeenCalledWith({ name: 'reviewer', cwd: process.cwd() });
+    expect(ui.text).toHaveBeenCalledWith('State: ready (Pi session not started)');
+  });
+
+  it('dispatches durable send to the persisted Pi provider', async () => {
+    const durableAgent = { id: '11111111-1111-4111-8111-111111111111', name: 'reviewer', provider: 'pi', mode: 'durable', cwd: '/project', state: 'ready' };
+    mockDurableRepository.resolve.mockResolvedValue(durableAgent);
+    mockPiPrintService.send.mockResolvedValue({ agentId: durableAgent.id, agentName: durableAgent.name, result: 'done', exitCode: 0, sessionId: '22222222-2222-4222-8222-222222222222' });
+    const program = new Command(); registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'review', '--id', durableAgent.id, '--json']);
+    expect(mockPiPrintService.send).toHaveBeenCalledWith(durableAgent.id, 'review');
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe('pi');
   });
 
   it('sends synchronously to an exact durable-agent id without terminal injection', async () => {

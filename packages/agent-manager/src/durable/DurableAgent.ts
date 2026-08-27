@@ -1,6 +1,14 @@
 export type DurableAgentState = 'ready' | 'running' | 'degraded';
 export type DurableSessionHealth = 'uninitialized' | 'healthy' | 'unknown' | 'mismatch';
 export type DurableRunStatus = 'succeeded' | 'failed' | 'interrupted';
+export type PiPrintErrorCode =
+    | 'PI_CLI_UNAVAILABLE'
+    | 'PI_CLI_UNSUPPORTED'
+    | 'PI_PROCESS'
+    | 'PI_PROTOCOL'
+    | 'PI_RESULT_MISSING'
+    | 'PI_SESSION_MISMATCH'
+    | 'PI_UNSUPPORTED';
 
 export const AGENT_MODES = {
     INTERACTIVE: 'interactive',
@@ -26,7 +34,7 @@ export interface DurableLastResult {
     summary: string;
 }
 
-export type DurableProvider = 'claude' | 'codex';
+export type DurableProvider = 'claude' | 'codex' | 'pi';
 
 export interface DurableAgentBase {
     id: string;
@@ -52,7 +60,12 @@ export interface CodexDurableAgent extends DurableAgentBase {
     providerSessionId: string | null;
 }
 
-export type DurableAgent = ClaudeDurableAgent | CodexDurableAgent;
+export interface PiDurableAgent extends DurableAgentBase {
+    provider: 'pi';
+    providerSessionId: string;
+}
+
+export type DurableAgent = ClaudeDurableAgent | CodexDurableAgent | PiDurableAgent;
 
 export class DurableAgentError extends Error {
     constructor(
@@ -115,5 +128,12 @@ export class CodexPrintError extends DurableAgentError {
     constructor(message: string, code: CodexPrintErrorCode) {
         super(message, code);
         this.name = 'CodexPrintError';
+    }
+}
+
+export class PiPrintError extends DurableAgentError {
+    constructor(message: string, code: PiPrintErrorCode = 'PI_PROCESS') {
+        super(message, code);
+        this.name = 'PiPrintError';
     }
 }
