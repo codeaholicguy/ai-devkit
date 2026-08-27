@@ -43,4 +43,36 @@ describe('ClaudePrintAgentService', () => {
             status: 'succeeded', exitCode: 0, sessionHealth: 'healthy',
         }));
     });
+
+    it('rejects a non-Claude target without acquiring or mutating it', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Service = api.ClaudePrintAgentService as new (options: unknown) => any;
+        const target = { id: 'id', name: 'reviewer', provider: 'pi' };
+        const repository = {
+            resolve: vi.fn().mockResolvedValue(target),
+            acquireRun: vi.fn(), recordProviderProcess: vi.fn(), completeRun: vi.fn(),
+        };
+
+        await expect(new Service({ repository, probe: { validate: vi.fn() }, runner: { run: vi.fn() } })
+            .send('reviewer', 'x')).rejects.toMatchObject({ code: 'CLAUDE_PRINT_UNSUPPORTED' });
+        expect(repository.acquireRun).not.toHaveBeenCalled();
+        expect(repository.completeRun).not.toHaveBeenCalled();
+    });
+
+    it('does not turn a successful completion write failure into a second completion', async () => {
+        const api = await import('../../index.js') as Record<string, unknown>;
+        const Service = api.ClaudePrintAgentService as new (options: unknown) => any;
+        const target = { id: 'id', name: 'reviewer', provider: 'claude', providerSessionId: 'session', sessionHealth: 'healthy' };
+        const completionFailure = new Error('completion failed');
+        const repository = {
+            resolve: vi.fn().mockResolvedValue(target),
+            acquireRun: vi.fn().mockResolvedValue({ agent: target, token: 'one' }),
+            recordProviderProcess: vi.fn(), completeRun: vi.fn().mockRejectedValue(completionFailure),
+        };
+        const runner = { run: vi.fn().mockResolvedValue({ sessionId: 'session', result: 'answer', exitCode: 0 }) };
+
+        await expect(new Service({ repository, probe: { validate: vi.fn() }, runner })
+            .send('reviewer', 'x')).rejects.toBe(completionFailure);
+        expect(repository.completeRun).toHaveBeenCalledOnce();
+    });
 });

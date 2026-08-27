@@ -22,18 +22,48 @@ describe('PiPrintAgentService', () => {
         expect(repository.completeRun).toHaveBeenCalledWith('id', 'one', expect.objectContaining({ status: 'succeeded', sessionHealth: 'healthy' }));
     });
 
-    it('records mismatches, rejects wrong providers, missing and ambiguous records', async () => {
+    it('records mismatches and rejects missing and ambiguous records', async () => {
         const api = await import('../../../../index.js') as Record<string, unknown>; const ErrorType = api.PiPrintError as new (message: string, code: string) => Error;
         const completeRun = vi.fn(); const repository = { list: vi.fn(), resolve: vi.fn().mockResolvedValue(base), acquireRun: vi.fn().mockResolvedValue({ agent: base, token: 'one' }), recordProviderProcess: vi.fn(), completeRun };
         const Service = api.PiPrintAgentService as new (options: unknown) => any;
         await expect(new Service({ repository, probe: { validate: vi.fn() }, runner: { run: vi.fn().mockRejectedValue(new ErrorType('bad', 'PI_SESSION_MISMATCH')) } }).send('reviewer', 'x'))
             .rejects.toMatchObject({ code: 'PI_SESSION_MISMATCH' });
         expect(completeRun).toHaveBeenCalledWith('id', 'one', expect.objectContaining({ sessionHealth: 'mismatch' }));
-        repository.acquireRun.mockResolvedValueOnce({ agent: { ...base, provider: 'claude' }, token: 'two' });
-        await expect(new Service({ repository, probe: { validate: vi.fn() }, runner: { run: vi.fn() } }).send('reviewer', 'x')).rejects.toMatchObject({ code: 'PI_UNSUPPORTED' });
         const earlyRepository = { ...repository, resolve: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce([base, base]), acquireRun: vi.fn() };
         const early = new Service({ repository: earlyRepository, probe: { validate: vi.fn() }, runner: { run: vi.fn() } });
         await expect(early.send('missing', 'x')).rejects.toMatchObject({ code: 'DURABLE_AGENT_NOT_FOUND' });
         await expect(early.send('many', 'x')).rejects.toMatchObject({ code: 'PI_UNSUPPORTED' });
+    });
+
+    it('rejects a non-Pi target without acquiring or mutating it', async () => {
+        const api = await import('../../../../index.js') as Record<string, unknown>;
+        const Service = api.PiPrintAgentService as new (options: unknown) => any;
+        const repository = {
+            resolve: vi.fn().mockResolvedValue({ ...base, provider: 'claude' }),
+            acquireRun: vi.fn(), recordProviderProcess: vi.fn(), completeRun: vi.fn(),
+        };
+
+        await expect(new Service({ repository, probe: { validate: vi.fn() }, runner: { run: vi.fn() } })
+            .send('reviewer', 'x')).rejects.toMatchObject({ code: 'PI_UNSUPPORTED' });
+        expect(repository.acquireRun).not.toHaveBeenCalled();
+        expect(repository.completeRun).not.toHaveBeenCalled();
+    });
+
+    it('does not turn a successful completion write failure into a second completion', async () => {
+        const api = await import('../../../../index.js') as Record<string, unknown>;
+        const Service = api.PiPrintAgentService as new (options: unknown) => any;
+        const completionFailure = new Error('completion failed');
+        const repository = {
+            resolve: vi.fn().mockResolvedValue(base),
+            acquireRun: vi.fn().mockResolvedValue({ agent: base, token: 'one' }),
+            recordProviderProcess: vi.fn(), completeRun: vi.fn().mockRejectedValue(completionFailure),
+        };
+        const runner = { run: vi.fn().mockResolvedValue({
+            sessionId: SESSION, result: 'answer', messages: ['answer'], exitCode: 0,
+        }) };
+
+        await expect(new Service({ repository, probe: { validate: vi.fn() }, runner })
+            .send('reviewer', 'x')).rejects.toBe(completionFailure);
+        expect(repository.completeRun).toHaveBeenCalledOnce();
     });
 });

@@ -32,6 +32,11 @@ description: TDD implementation plan for durable Pi print agents
 - [x] T6: Add failing CLI tests for Pi print start, provider-aware send/list/detail/console representation, validation, and Claude regression; implement dispatch wiring and exports. Depends on T5. Evidence: CLI targeted suite. Scenarios: S25-S30.
 - [x] T7: Update implementation/testing docs, run full relevant tests, coverage, lint, typecheck/build, and lifecycle review. Depends on all tasks. Evidence: fresh command outputs and feature lint.
 
+### Phase 4: Durable Lifecycle Simplification
+
+- [x] T8: Add regressions and correct provider validation/completion sequencing across Pi, Claude, and Codex durable services.
+- [x] T9: Extract the shared durable-run lifecycle, move Pi stream state into a provider-local parser, and reuse shared sanitization, UUID, buffering, process, and child-close utilities.
+
 ## Dependencies
 
 Storage generalization precedes provider code; runner and probe precede service; service precedes CLI. No new external dependencies. The Codex worktree is read-only reference material, never a branch dependency.

@@ -12,6 +12,8 @@ describe('Pi print pure protocol mapping', () => {
     it('accepts one expected UUID and rejects invalid, duplicate, and mismatched identities', () => {
         expect(readPiSessionId({ id: SESSION }, null, SESSION)).toBe(SESSION);
         expect(() => readPiSessionId({}, null, SESSION)).toThrowError(expect.objectContaining({ code: 'PI_PROTOCOL' }));
+        expect(() => readPiSessionId({ id: [SESSION] }, null, SESSION))
+            .toThrowError(expect.objectContaining({ code: 'PI_PROTOCOL' }));
         expect(() => readPiSessionId({ id: SESSION }, SESSION, SESSION)).toThrowError(expect.objectContaining({ code: 'PI_PROTOCOL' }));
         expect(() => readPiSessionId({ id: '33333333-3333-4333-8333-333333333333' }, null, SESSION))
             .toThrowError(expect.objectContaining({ code: 'PI_SESSION_MISMATCH' }));

@@ -26,12 +26,16 @@ Pi provider modules mirror Claude under `src/providers/pi/durable/`. Shared dura
 - Complete: provider-aware CLI creation/send dispatch, Pi labels, and shared durable list/detail integration.
 - Complete: user-facing creation uses `--mode durable`; the retired `--mode print` spelling is rejected consistently.
 - Complete: pure `PiPrintProtocol` helpers make argument, session-identity, and assistant-text mapping independently testable at 100% coverage.
+- Complete: shared `durable/run.ts` now owns durable resolve, provider validation, run acquisition, execution, and completion ordering for Pi, Claude, and Codex services.
+- Complete: wrong-provider service calls fail before acquiring or mutating the target, and a failed successful-completion write is attempted only once.
+- Complete: `PiStreamParser` owns bounded JSONL state while the runner focuses on safe process orchestration.
 
 ### Patterns & Best Practices
 
 - Red-green-refactor for each planning task.
 - Mock child processes and store boundaries; validate public behavior.
 - Preserve Claude defaults for callers that omit provider.
+- Reuse shared durable sanitization, UUID validation, line buffering, process inspection, and child-close helpers instead of Pi-local copies.
 
 ## Integration Points
 
@@ -40,6 +44,8 @@ Pi provider modules mirror Claude under `src/providers/pi/durable/`. Shared dura
 ## Error Handling
 
 Provider-specific probe/protocol/process errors are sanitized. The service maps identity mismatches to `sessionHealth: mismatch` and other failures to `unknown`, then records completion to release ownership.
+
+Successful completion persistence is outside the runner failure handler, so repository completion errors are not reclassified or retried as provider failures.
 
 ## Performance Considerations
 
@@ -52,3 +58,5 @@ No shell, prompt via stdin, canonical cwd, no stderr reflection, UUID validation
 ## Deviations and Follow-ups
 
 The original file-store generalization was dropped because main supplies SQLite persistence and CAS concurrency. Unlike Codex, Pi accepts `--session-id`, so it uses a repository-assigned non-null UUID and does not call the Codex-only late-binding method. Pi already exposes the landed repository/probe/runner injection seams. Provider files are isolated under `src/providers/pi/durable/`; shared edits remain additive.
+
+The 2026-08-27 simplification introduced one provider-neutral lifecycle function after three providers demonstrated the same sequence. Protocol parsing, error classification, session binding, and runner construction remain provider-local; no base class or provider plugin framework was added.

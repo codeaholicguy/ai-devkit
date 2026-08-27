@@ -1,6 +1,5 @@
 import { PiPrintError } from '../../../durable/DurableAgent.js';
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+import { isUuid } from '../../../durable/utils.js';
 
 export function buildPiPrintArgs(providerSessionId: string, firstRun: boolean): string[] {
     return firstRun
@@ -13,10 +12,10 @@ export function readPiSessionId(
     currentSessionId: string | null,
     expectedSessionId: string,
 ): string {
-    if (currentSessionId !== null || !UUID_PATTERN.test(String(event.id ?? ''))) {
+    if (currentSessionId !== null || typeof event.id !== 'string' || !isUuid(event.id)) {
         throw new PiPrintError('Pi emitted an invalid session identity.', 'PI_PROTOCOL');
     }
-    const sessionId = event.id as string;
+    const sessionId = event.id;
     if (expectedSessionId !== sessionId) {
         throw new PiPrintError('Pi returned a different session identity.', 'PI_SESSION_MISMATCH');
     }

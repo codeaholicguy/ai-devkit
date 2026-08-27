@@ -42,6 +42,8 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 - [x] S16 spawn identity/start errors and callback failures terminate safely.
 - [x] S17 non-zero/signal exits become process errors.
 - [x] S18 stderr is drained without inclusion in results.
+- [x] S31 session identities must be UUID strings; values that merely stringify as UUIDs are protocol errors.
+- [x] S34 parser blank-line handling, generic failure normalization, and signal-bearing process failures are covered directly.
 
 ## Integration Tests
 
@@ -51,6 +53,8 @@ description: Unit, integration, CLI, and regression coverage for Pi print agents
 - [x] S22 missing/ambiguous/wrong-provider references fail clearly.
 - [x] S23 protocol/store session mismatches record mismatch health.
 - [x] S24 other failures record unknown health and release the run.
+- [x] S32 wrong-provider calls are rejected before acquiring or mutating durable run ownership for Pi, Claude, and Codex.
+- [x] S33 a failed successful-completion write is attempted once and is not reclassified as a provider execution failure.
 
 ## CLI and End-to-End Tests
 
@@ -80,6 +84,13 @@ Final evidence (2026-08-17):
 - Pure Pi protocol: 100% statements (26/26), branches (38/38), functions (4/4), and lines (20/20), enforced with `--coverage.thresholds.100=true`.
 - Agent-manager and CLI package builds passed; package lints passed (CLI retains five unrelated baseline warnings and zero errors).
 - Feature-doc lint passed all base, feature, branch, and worktree checks.
+
+Simplification verification (2026-08-27):
+
+- Agent manager: 41 files, 631 tests passed.
+- CLI durable-command regression: 1 file, 79 tests passed.
+- Pure Pi protocol/parser coverage: 100% statements (66/66), branches (62/62), functions (12/12), and lines (56/56).
+- Agent-manager lint, typecheck, and build passed; feature-doc lint passed.
 
 ## Manual Testing
 

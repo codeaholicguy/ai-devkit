@@ -1,10 +1,12 @@
 import type { DurableAgent, ProcessIdentity } from '../../../durable/DurableAgent.js';
-import { DurableAgentNotFoundError, PiPrintError } from '../../../durable/DurableAgent.js';
+import { PiPrintError } from '../../../durable/DurableAgent.js';
 import { PiCliProbe } from './PiCliProbe.js';
 import { PiPrintRunner, type PiPrintRunResult } from './PiPrintRunner.js';
-import { DurableAgentRepository, type CreateDurableAgentInput, type DurableRunCompletion } from '../../../durable/DurableAgentRepository.js';
+import { DurableAgentRepository, type CreateDurableAgentInput } from '../../../durable/DurableAgentRepository.js';
+import { runDurableAgent, type DurableRunRepository } from '../../../durable/run.js';
+import { sanitizeText } from '../../../durable/utils.js';
 
-interface RepositoryLike { create(input: CreateDurableAgentInput): Promise<DurableAgent>; list(): Promise<DurableAgent[]>; resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null>; acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }>; recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void>; completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> }
+interface RepositoryLike extends DurableRunRepository { create(input: CreateDurableAgentInput): Promise<DurableAgent>; list(): Promise<DurableAgent[]>; recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void> }
 interface ProbeLike { validate(): Promise<{ executable: string; version: string }> }
 interface RunnerLike { run(request: Parameters<PiPrintRunner['run']>[0]): Promise<PiPrintRunResult> }
 export interface PiPrintAgentServiceOptions { repository?: RepositoryLike; probe?: ProbeLike; runner?: RunnerLike; executable?: string }
@@ -20,27 +22,22 @@ export class PiPrintAgentService {
         await this.probe.validate(); return this.repository.create({ ...input, provider: 'pi' });
     }
     async send(reference: string, prompt: string): Promise<PiPrintSendResult> {
-        const resolved = await this.repository.resolve(reference);
-        if (!resolved) throw new DurableAgentNotFoundError(reference);
-        if (Array.isArray(resolved)) throw new PiPrintError('Multiple print agents match.', 'PI_UNSUPPORTED');
-        const acquired = await this.repository.acquireRun(resolved.id);
-        try {
-            if (acquired.agent.provider !== 'pi') throw new PiPrintError('Print agent provider is not Pi.', 'PI_UNSUPPORTED');
-            const result = await this.runner.run({ agent: acquired.agent, prompt, executable: this.executable,
-                onSpawn: (identity) => this.repository.recordProviderProcess(resolved.id, acquired.token, identity) });
-            await this.repository.completeRun(resolved.id, acquired.token, { status: 'succeeded', exitCode: result.exitCode,
-                summary: sanitize(result.result, 4096), sessionHealth: 'healthy' });
-            return { ...result, agentId: resolved.id, agentName: resolved.name };
-        } catch (error) {
-            const failure = error instanceof Error ? error : new Error(String(error));
-            const mismatch = error instanceof PiPrintError && error.code === 'PI_SESSION_MISMATCH';
-            await this.repository.completeRun(resolved.id, acquired.token, { status: 'failed', exitCode: null,
-                summary: sanitize(failure.message, 4096), sessionHealth: mismatch ? 'mismatch' : 'unknown' });
-            throw error;
-        }
+        const completed = await runDurableAgent({
+            reference, provider: 'pi', repository: this.repository,
+            ambiguousError: () => new PiPrintError('Multiple print agents match.', 'PI_UNSUPPORTED'),
+            providerError: () => new PiPrintError('Print agent provider is not Pi.', 'PI_UNSUPPORTED'),
+            execute: (agent, token) => this.runner.run({ agent, prompt, executable: this.executable,
+                onSpawn: (identity) => this.repository.recordProviderProcess(agent.id, token, identity) }),
+            succeeded: (result) => ({ status: 'succeeded', exitCode: result.exitCode,
+                summary: sanitizeText(result.result, 4096, { preserveFormatting: true }), sessionHealth: 'healthy' }),
+            failed: (error) => {
+                const failure = error instanceof Error ? error : new Error(String(error));
+                const mismatch = error instanceof PiPrintError && error.code === 'PI_SESSION_MISMATCH';
+                return { status: 'failed', exitCode: null,
+                    summary: sanitizeText(failure.message, 4096, { preserveFormatting: true }),
+                    sessionHealth: mismatch ? 'mismatch' : 'unknown' };
+            },
+        });
+        return { ...completed.result, agentId: completed.agent.id, agentName: completed.agent.name };
     }
-}
-
-function sanitize(value: string, max: number): string {
-    return Array.from(value, (character) => { const code = character.charCodeAt(0); return (code <= 8 || code === 11 || code === 12 || (code >= 14 && code <= 31) || code === 127) ? ' ' : character; }).join('').trim().slice(0, max);
 }

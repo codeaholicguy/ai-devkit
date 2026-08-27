@@ -12,9 +12,11 @@ description: Architecture for durable Pi JSON-mode agents
 flowchart LR
   CLI[agent start/send/list/detail] --> Dispatch[provider dispatch]
   Dispatch --> Service[PiPrintAgentService]
+  Service --> Lifecycle[shared durable run lifecycle]
   Service --> Probe[PiCliProbe]
-  Service --> Repository[DurableAgentRepository]
-  Service --> Runner[PiPrintRunner]
+  Lifecycle --> Repository[DurableAgentRepository]
+  Lifecycle --> Runner[PiPrintRunner]
+  Runner --> Parser[PiStreamParser]
   Runner -->|pi --mode json --session-id/--session UUID| Pi[Pi CLI]
   Pi -->|session header + events| Runner
   Repository --> Registry[(agents.db durable_agents)]
@@ -36,14 +38,17 @@ Pi follows the merged Claude and Codex durable service/runner boundary and provi
 - `onSpawn(ProcessIdentity)` persists process ownership; the emitted session UUID must match the repository-assigned UUID.
 - `PiPrintAgentService.create()` probes then creates with provider `pi`.
 - `PiPrintAgentService.send()` resolves, locks, checks provider, runs, records success/failure, and always releases through `completeRun`.
+- The shared durable run lifecycle rejects the wrong provider before ownership acquisition and keeps successful completion writes outside the execution-failure handler.
 - CLI creates and dispatches services by stored provider rather than assuming Claude.
 
 ## Component Breakdown
 
 - `DurableAgent.ts`: provider union and Pi errors.
 - `DurableAgentRepository.ts`: SQLite persistence, provider creation, and CAS run ownership.
+- `durable/run.ts`: provider-neutral resolve, validation, ownership, execution, and completion sequencing.
 - `providers/pi/durable/PiCliProbe.ts`: sanitized capability validation.
 - `providers/pi/durable/PiPrintRunner.ts`: bounded JSONL parser, identity validation, lifecycle/result extraction, subprocess safety.
+- `providers/pi/durable/PiStreamParser.ts`: provider-local bounded JSONL state and final-result validation.
 - `providers/pi/durable/PiPrintAgentService.ts`: orchestration and state transitions.
 - `agent.ts`: start validation, provider-aware send, labels, and detail output.
 - Tests mock process and store boundaries following Claude print patterns.
