@@ -47,20 +47,22 @@ That feedback loop is the main reason the workflow feels more senior and less ch
 
 ## Quick Setup
 
-Start by initializing AI DevKit in your project:
+Connect detected agents once on your machine:
 
-> **Where to run these commands:** Run `init`, `lint`, and `skill add` in your terminal from the root of your project.
+```bash
+npx ai-devkit@latest setup
+```
+
+Then initialize and lint the project:
+
+> **Where to run these commands:** Run `init` and `lint` in your terminal from the root of your project.
 
 ```bash
 npx ai-devkit@latest init
 npx ai-devkit@latest lint
 ```
 
-Then install the built-in skills. This includes `dev-lifecycle`, all phase skills, and supporting skills such as `memory`, `task`, `verify`, and `tdd`:
-
-```bash
-npx ai-devkit@latest skill add --built-in
-```
+Machine setup installs the built-in skills globally for detected agents. This includes `dev-lifecycle`, all phase skills, and supporting skills such as `memory`, `task`, `verify`, and `tdd`. Use `skill add --built-in` only for manual recovery or explicit skill management; use `init --built-in` for project-local installation in CI.
 
 These phase and supporting skills make `dev-lifecycle` effective:
 
@@ -78,7 +80,7 @@ Before running these commands, make sure you have:
 
 If `lint` fails because your AI docs have not been set up yet, rerun `init` and then run `lint` again.
 
-If you want more background on setup, see [Agent Setup](/docs/9-agent-setup). For skill management details, see [Skills](/docs/7-skills).
+For the global-install, npx-only, and CI paths, see [Getting Started](/docs/1-getting-started). For project configuration, see [Agent Setup](/docs/9-agent-setup). For manual skill management, see [Skills](/docs/7-skills).
 
 ## Important Dependencies
 

@@ -84,23 +84,27 @@ AI DevKit isn't tied to a single tool. It supports [many AI coding environments]
 
 Here's what working with AI DevKit looks like in practice:
 
-1. Run `npx ai-devkit@latest init` in your terminal to set up your project
-2. Open `ai-devkit agent console` to inspect local running agents
-3. Use `ai-devkit agent send` to route prompts, logs, or test output to the right session
-4. Ask an agent to use the `dev-lifecycle` skill to clarify requirements, design, and implementation tasks
-5. Use memory, `tdd`, and `verify` while implementing
-6. Require verification output before the agent claims the work is complete
+1. Run `npx ai-devkit@latest setup` once to connect detected local agents
+2. Run `npx ai-devkit@latest init` in each project to create its workflow configuration
+3. Use `agent list`, then open `agent console` to inspect local running agents
+4. Use `agent send` to route prompts, logs, or test output to the right session
+5. Ask an agent to use the `dev-lifecycle` skill to clarify requirements, design, and implementation tasks
+6. Use memory, `tdd`, and `verify` while implementing
+7. Require verification output before the agent claims the work is complete
 
-Each step produces documentation in `docs/ai/` that gives your AI full context for the next step.
+Project initialization and lifecycle work produce documentation in `docs/ai/`, giving agents durable context for later phases.
 
 ## How It Works
 
-1. **Initialize** - Run `npx ai-devkit@latest init` to set up your project with workflow docs and environment-specific agent configuration.
-2. **Operate** - Use `agent list`, `agent console`, and `agent send` to supervise and route work across running local agents.
-3. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
-4. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
-5. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
-6. **Add tools** - Install plugins when you want optional CLI commands such as dashboards or heavier integrations.
+1. **Connect** - Run `npx ai-devkit@latest setup` once per machine to connect detected agents and install their global workflow skills.
+2. **Initialize** - Run `npx ai-devkit@latest init` once per project to create workflow docs and environment-specific project configuration.
+3. **Operate** - Use `agent list`, `agent console`, and `agent send` to supervise and route work across running local agents.
+4. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
+5. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
+6. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
+7. **Add tools** - Install plugins when you want optional CLI commands such as dashboards or heavier integrations.
+
+See [Getting Started](/docs/1-getting-started) for global-install, npx-only, and CI commands.
 
 ## Who Is It For?
 

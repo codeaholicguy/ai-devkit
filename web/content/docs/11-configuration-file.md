@@ -7,6 +7,8 @@ order: 11
 
 AI DevKit stores your project settings in a `.ai-devkit.json` file at your project root. This file is created by `ai-devkit init` and read by most other commands.
 
+This is the project-scoped half of onboarding. Complete the machine setup first by following [Getting Started](/docs/1-getting-started).
+
 There is also an optional global config at `~/.ai-devkit/.ai-devkit.json` for settings that apply across all your projects.
 
 Use this page as a reference for fields inside `.ai-devkit.json`. In most cases, prefer AI DevKit commands such as `ai-devkit init`, `ai-devkit phase`, and `ai-devkit skill add` to update the file for you. Edit the JSON directly only when you need to make a manual change that is not covered by a command.

@@ -16,7 +16,7 @@ When joining a new project or working with unfamiliar code, understanding how ev
 ## Prerequisites
 
 Before using `document-code`, ensure you have:
-- Initialized AI DevKit in your project (`ai-devkit init`)
+- Completed the machine setup and project initialization in [Getting Started](/docs/1-getting-started)
 - An AI editor with skill support
 
 ## Using the Skill
@@ -148,7 +148,7 @@ These files can be committed to version control, making your knowledge base sear
 
 | Problem | Solution |
 |---------|----------|
-| Command not recognized | Run `ai-devkit init` first to install commands |
+| Command not recognized | Install the CLI globally, or prefix the command with `npx ai-devkit@latest` as described in [Getting Started](/docs/1-getting-started) |
 | Analysis seems incomplete | Try analyzing a smaller entry point first |
 | Diagrams not rendering | Ensure your editor supports Mermaid syntax |
 | Entry point not found | Check the path is relative to your project root |

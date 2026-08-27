@@ -61,21 +61,21 @@ Use the `dev-lifecycle` skill to guide you through the entire workflow. The skil
 
 If you want the full setup, dependencies, and usage guide, see [Dev Lifecycle Skill](/docs/10-dev-lifecycle-skill).
 
-### Installing the skill
+### Installing the skills
 
-Install the built-in AI DevKit skills:
-
-```bash
-ai-devkit skill add --built-in
-```
-
-or
+The normal first-run path installs built-in skills globally when you connect detected agents:
 
 ```bash
-npx ai-devkit@latest skill add --built-in
+ai-devkit setup
 ```
 
-Once installed, the skill is immediately available to your AI agent. For more details on managing skills, see [Skills](/docs/7-skills).
+With npx only:
+
+```bash
+npx ai-devkit@latest setup
+```
+
+Launch your agent once before setup so AI DevKit can detect its home directory. For manual skill installation and recovery options, see [Skills](/docs/7-skills). For the complete machine and project sequence, see [Getting Started](/docs/1-getting-started).
 
 ### How to use it
 

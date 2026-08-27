@@ -24,28 +24,29 @@ AI DevKit then uses that local mapping to list, inspect, open, and message activ
 
 ## How do I install it?
 
-From the AI DevKit repository root, create the Codex hooks directory and copy the hook script:
+Run the AI DevKit machine setup after you have launched Codex at least once:
 
 ```bash
-mkdir -p ~/.codex/hooks
-cp hooks/codex/hooks/codex-session-mapping.cjs ~/.codex/hooks/codex-session-mapping.cjs
+ai-devkit setup
 ```
 
-Then copy the AI DevKit Codex hook configuration:
+With npx only:
 
 ```bash
-cp hooks/codex/hooks.json ~/.codex/hooks.json
+npx ai-devkit@latest setup
 ```
 
-Restart Codex, then check what AI DevKit can see:
+Setup preserves existing hook entries while adding the AI DevKit session hook. Restart Codex, start a session, and check discovery before opening the console:
 
 ```bash
 ai-devkit agent list
 ```
 
-## What if I already have ~/.codex/hooks.json?
+For the complete setup-then-init sequence, see [Getting Started](/docs/1-getting-started).
 
-Do not overwrite an existing `~/.codex/hooks.json` if it contains other hooks you want to keep. Instead, merge this `SessionStart` entry into your existing `hooks` object:
+## Manual troubleshooting
+
+If `setup` reports a failed Codex hook step, verify that `~/.codex` exists and that you can write to it. As a recovery option, merge this `SessionStart` entry into the existing `hooks` object in `~/.codex/hooks.json`:
 
 ```json
 {
@@ -66,7 +67,7 @@ Do not overwrite an existing `~/.codex/hooks.json` if it contains other hooks yo
 }
 ```
 
-If your file already has a `SessionStart` array, add the object above to that array.
+If the file already has a `SessionStart` array, add the object above to that array. Copy `codex-session-mapping.cjs` from the AI DevKit package's Codex assets into `~/.codex/hooks/`, or rerun `setup` to install the matching script automatically. Do not replace an existing hooks file wholesale.
 
 ## When should I install it?
 
@@ -74,7 +75,7 @@ Install it if you use Codex with AI DevKit agent management features, especially
 
 ## Does this replace AI DevKit setup?
 
-No. The Codex hook improves Codex session visibility for AI DevKit. You should still initialize AI DevKit in your project when you want skills, memory, workflow docs, or other AI DevKit project configuration:
+No. Machine setup improves Codex session visibility and installs global skills. You should still initialize AI DevKit in each project when you want workflow docs and other project configuration:
 
 ```bash
 ai-devkit init

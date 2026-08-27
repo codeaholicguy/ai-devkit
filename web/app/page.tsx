@@ -19,7 +19,7 @@ const operatingLayer = [
   {
     label: ".ai-devkit.json",
     title: "One setup for the whole agent team",
-    body: "Reconcile supported coding agents from one project-local source of truth, then re-run setup as your stack changes.",
+    body: "Reconcile project integrations from one local source of truth, then re-run project installation as your configuration changes.",
   },
   {
     label: "agent console",
@@ -64,9 +64,8 @@ export default function Home() {
               Your AI coding agents are a team now. Give them a way to work together.
             </h1>
             <p className="mb-8 max-w-2xl text-base leading-6 text-[#515367] sm:text-[16px]">
-              AI DevKit is the control plane for Claude Code, Codex,
-              Cursor, Gemini CLI, opencode, Pi, and other coding agents: one
-              shared config, one console, local-first memory, cross-agent
+              AI DevKit is the control plane for supported AI coding agents:
+              one shared config, one console, local-first memory, cross-agent
               communication, and proof before done.
             </p>
             <p className="mb-5 max-w-2xl text-sm font-medium leading-5 text-[#2e303a]">
@@ -78,7 +77,12 @@ export default function Home() {
             </p>
 
             <div className="flex flex-col gap-3 sm:items-start">
-              <CopyCommandButton command="npx ai-devkit@latest init" />
+              <CopyCommandButton command="npx ai-devkit@latest setup" />
+              <p className="max-w-xl text-sm leading-5 text-[#515367]">
+                Run setup once on this machine. Then run{" "}
+                <span className="font-mono">npx ai-devkit@latest init</span>{" "}
+                inside each project.
+              </p>
               <Link
                 href="/docs"
                 className="text-sm font-semibold text-[#2a3e9a] no-underline hover:text-[#0c2483] hover:opacity-100"
@@ -223,22 +227,22 @@ export default function Home() {
         <div className="mx-auto grid max-w-[1440px] gap-10 px-4 sm:px-6 lg:grid-cols-[1fr_1fr] lg:px-10">
           <div className="min-w-0">
             <p className="mb-3 font-mono text-[11px] font-medium uppercase leading-4 text-[#14521a]">
-              Start in 30 seconds
+              Once per machine, once per project
             </p>
             <h2 className="text-[32px] font-semibold leading-[40px] text-[#11131c] sm:text-[48px] sm:leading-[56px]">
-              Create your agent control plane.
+              Connect your agents, then initialize your workflow.
             </h2>
             <p className="mt-5 max-w-xl text-base leading-6 text-[#515367]">
-              The init flow writes project-local files you can review and
-              commit. Re-run it whenever your agent list, skills, or workflow
-              changes.
+              Setup connects detected local agents and installs their global
+              workflow skills. Init writes project-local files you can review
+              and commit.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link
                 href="/docs/1-getting-started"
                 className="inline-flex min-h-12 w-full items-center justify-center rounded bg-[#b3f6ab] px-6 py-3 text-sm font-semibold text-[#003909] no-underline hover:bg-[#96d68f] hover:opacity-100 sm:w-auto"
               >
-                Start with one command
+                Follow the two-step setup
               </Link>
               <GitHubButton
                 repo="codeaholicguy/ai-devkit"
@@ -254,11 +258,16 @@ export default function Home() {
               <span className="h-3 w-3 rounded-full bg-[#b3f6ab]" />
             </div>
             <pre className="m-0 max-w-full overflow-x-auto p-0 leading-5 sm:leading-[22px]">
-              <code className="block whitespace-pre-wrap break-words text-[#fff] sm:whitespace-pre">{`npx ai-devkit@latest init --built-in
-ai-devkit agent console
+              <code className="block whitespace-pre-wrap break-words text-[#fff] sm:whitespace-pre">{`# Once on this machine
+npm install -g ai-devkit
+ai-devkit setup
+
+# Once in each project
+ai-devkit init
 ai-devkit agent list
+ai-devkit agent console
 ai-devkit agent send "review this branch for release risk" --group reviewers
-npm test 2>&1 | ai-devkit agent send --id codex --stdin
+npm test 2>&1 | ai-devkit agent send --id <agent-id> --stdin
 ai-devkit memory search --query "testing convention"`}</code>
             </pre>
           </div>
