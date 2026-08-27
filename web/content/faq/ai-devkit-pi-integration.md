@@ -4,13 +4,19 @@ description: How to improve AI DevKit's Pi session detection with the @ai-devkit
 order: 12
 ---
 
-AI DevKit can detect Pi sessions through its agent management system. For the most accurate Pi integration, install the dedicated Pi session tracker package:
+AI DevKit can detect Pi sessions through its agent management system. For the most accurate integration, launch Pi at least once and run the AI DevKit machine setup:
 
 ```bash
-pi install npm:@ai-devkit/pi-session-tracker
+ai-devkit setup
 ```
 
-Package page: https://pi.dev/packages/@ai-devkit/pi-session-tracker
+With npx only:
+
+```bash
+npx ai-devkit@latest setup
+```
+
+Setup installs the dedicated Pi session tracker and built-in AI DevKit skills for detected agents. For the complete setup-then-init sequence, see [Getting Started](/docs/1-getting-started).
 
 ## What does the Pi session tracker do?
 
@@ -30,9 +36,9 @@ Without the tracker, AI DevKit may still detect Pi through local processes, but 
 
 Install it if you use Pi with AI DevKit agent management features, especially if you want AI DevKit to more reliably list, inspect, or message your active Pi sessions.
 
-## How do I install it in Pi?
+## Manual troubleshooting
 
-Run this from Pi:
+If the Pi tracker step fails during `setup`, retry its underlying installation command:
 
 ```bash
 pi install npm:@ai-devkit/pi-session-tracker
@@ -46,7 +52,7 @@ ai-devkit agent list
 
 ## Does this replace AI DevKit setup?
 
-No. The Pi session tracker improves Pi session visibility for AI DevKit. You should still initialize AI DevKit in your project when you want skills, memory, workflow docs, or other AI DevKit project configuration:
+No. Machine setup improves Pi session visibility and installs global skills. You should still initialize AI DevKit in each project when you want workflow docs and other project configuration:
 
 ```bash
 ai-devkit init

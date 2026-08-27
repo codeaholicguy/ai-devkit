@@ -1,30 +1,44 @@
 ---
 title: Agent Setup
-description: Configure AI DevKit once and generate repeatable setup for Claude Code, Codex, Cursor, MCP servers, skills, memory, and workflow docs.
+description: Connect local agents once per machine and generate repeatable workflow configuration for each project.
 slug: agent-setup
 order: 9
 ---
 
-AI DevKit provides two commands for agent setup: `ai-devkit init` creates your project configuration (`.ai-devkit.json`), and `ai-devkit install` applies it to your workspace. Together they give you repeatable setup, easy onboarding, and consistent agent files after configuration changes.
+AI DevKit separates machine integration from project workflow configuration:
+
+1. Run `ai-devkit setup` once per machine. It connects detected local agents, installs their available session integrations, and installs built-in skills globally.
+2. Run `ai-devkit init` once per project. It creates `.ai-devkit.json`, workflow docs, and environment-specific project templates.
+3. Run `ai-devkit install` later when you need to reconcile installable project artifacts from `.ai-devkit.json`.
+
+Start with the complete [Getting Started flow](/docs/1-getting-started), including the separate global-install, npx-only, and CI paths.
 
 For teams adopting AI coding agents across multiple tools, this setup becomes the shared foundation of the control plane: one config that generates workflow docs, skills, MCP server files, and environment-specific instructions.
 
 Before running these commands:
-- Install AI DevKit (`npm install -g ai-devkit`) or use `npx ai-devkit@latest ...`
+- Install AI DevKit (`npm install -g ai-devkit`) and run `ai-devkit setup`, or use `npx ai-devkit@latest setup`
 - Run commands from your project root directory
 - Make sure you have permission to create or update agent-related files in the repository
 
+Global npm installation does not run `setup` automatically. If you use npx only, prefix every command on this page with `npx ai-devkit@latest`.
+
 Key concepts:
-- **Environment**: An AI coding tool you work with, such as Cursor, Claude Code, or Codex. AI DevKit generates the configuration files each environment expects.
+- **Environment**: An AI coding tool you use in the project. AI DevKit generates the configuration files each environment expects.
 - **Phase**: A stage of the software development lifecycle, such as requirements, design, or testing. AI DevKit provides document templates for each phase.
 
-## When to Use `install` vs `init`
+## When to Use `setup`, `init`, and `install`
+
+Use `ai-devkit setup` when:
+
+- You are connecting AI DevKit to agents on a machine for the first time
+- You installed or launched another supported agent and want AI DevKit to detect it
+- You need to restore global built-in skills or a session integration
 
 Use `ai-devkit init` when:
 - You are setting up AI DevKit in a project for the first time
 - You want interactive prompts to choose environments and phases
 - You want non-interactive bootstrap from a template file (`ai-devkit init --template`)
-- You want to install AI DevKit built-in skills (prompted interactively, or pass `--built-in` for CI)
+- You need project workflow docs and environment-specific templates
 
 Use `ai-devkit install` when:
 - `.ai-devkit.json` already exists
@@ -33,7 +47,7 @@ Use `ai-devkit install` when:
 
 ## Basic Usage
 
-The simplest way to get started is the interactive setup. This walks you through choosing environments, phases, and built-in skills:
+After completing machine setup, the simplest project path is interactive initialization. This walks you through choosing environments and phases:
 
 ```bash
 ai-devkit init
@@ -88,7 +102,7 @@ Once `.ai-devkit.json` is committed to your repository, teammates and CI pipelin
 ai-devkit install
 ```
 
-Each teammate still needs the AI DevKit CLI available locally, either from a global install (`npm install -g ai-devkit`) or by using `npx ai-devkit@latest install`.
+Each teammate still needs the AI DevKit CLI available locally. With a global installation, run `ai-devkit setup` once and then use `ai-devkit install`. With npx only, use `npx ai-devkit@latest setup` once and prefix the install command too: `npx ai-devkit@latest install`.
 
 ### Template-based Setup
 
@@ -160,17 +174,17 @@ After running `ai-devkit init --template`, MCP server definitions are saved to `
 
 *If omitted, `ai-devkit init` will prompt you to select them interactively. Required for fully non-interactive runs.
 
-## Built-in Skills
+## Built-in Skills in CI
 
-When running `ai-devkit init` interactively (without a template), you are prompted to install AI DevKit's built-in skills. In non-interactive environments such as CI, pass `--built-in` to install them automatically:
+For normal local onboarding, `ai-devkit setup` installs built-in skills globally for detected agents. In non-interactive environments such as CI, pass `--built-in` to `init` when the job needs project-local copies:
 
 ```bash
-ai-devkit init --environment cursor,claude --all --built-in
+ai-devkit init --yes --environment <environment> --all --built-in
 ```
 
-The `--all` flag selects all available phases. Combined with `--environment` and `--built-in`, this gives a fully non-interactive setup.
+The `--all` flag selects all available phases. Combined with `--yes`, `--environment`, and `--built-in`, this gives a fully non-interactive project initialization.
 
-When using a template with a `skills` section, skills from the template are installed from that configuration instead of using the interactive built-in skills prompt. In that case, avoid combining the template with `--built-in` unless you intentionally want built-in skills added separately.
+When using a template with a `skills` section, skills from the template are installed from that configuration. Avoid combining the template with `--built-in` unless you intentionally want built-in skills added separately.
 
 ## MCP Servers
 

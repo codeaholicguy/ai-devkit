@@ -7,6 +7,8 @@ order: 7
 
 **Skills** are reusable instruction packs that extend what your AI coding agents can do. Each skill teaches an agent a specific workflow or domain practice, such as frontend design, database optimization, security review, or multi-agent coordination.
 
+The normal onboarding flow installs AI DevKit's built-in skills globally during machine setup. Complete [Getting Started](/docs/1-getting-started) first; use this page when you want to manage skills manually or add skills from another registry.
+
 > **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, or Roo Code).
 
 ## How Skills Work
@@ -54,16 +56,16 @@ For more detail on the core workflow skills, see the built-in skill pages for [`
 
 ## Quick Start
 
-Get up and running in 30 seconds:
+After machine setup, initialize the project and add the skill you want:
 
 ```bash
-# 1. Initialize ai-devkit in your project (if not already done)
+# 1. Initialize AI DevKit in your project (if not already done)
 ai-devkit init
 
 # 2. Install a skill from a registry
 ai-devkit skill add anthropics/skills frontend-design
 
-# 3. Done! Your AI agent can now use the skill.
+# 3. Your AI agent can now use the skill.
 ```
 
 Once installed, simply ask your AI agent to use the skill's capabilities—it will automatically apply the techniques and patterns defined in the skill.

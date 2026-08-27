@@ -6,6 +6,8 @@ order: 10
 
 If you run `npx ai-devkit` inside Codex and hit permission or connectivity errors, this is usually a sandbox configuration issue.
 
+For the canonical npx-only command sequence, see [Getting Started](/docs/1-getting-started). Prefix every AI DevKit command with `npx ai-devkit@latest` when you do not have a global installation.
+
 ## Why this happens
 
 Codex runs in sandbox mode by default. That means it can be blocked from:

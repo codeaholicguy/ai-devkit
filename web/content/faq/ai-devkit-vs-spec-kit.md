@@ -42,7 +42,9 @@ The main difference is what each tool focuses on:
 
 ```bash
 npm install -g ai-devkit
-npx ai-devkit@latest init
+ai-devkit setup
+cd your-project
+ai-devkit init
 # open your AI coding tool in this project folder
 Use the dev-lifecycle skill to start requirements for <feature>
 ```
@@ -73,7 +75,9 @@ AI DevKit is a **control plane for AI coding agents** that you install globally 
 
 ```bash
 npm install -g ai-devkit
-npx ai-devkit@latest init
+ai-devkit setup
+cd your-project
+ai-devkit init
 ```
 
 After initialization, your project gets a `docs/ai/` directory with subdirectories for requirements, design, planning, implementation, and testing. Your AI agent uses workflow skills such as `dev-lifecycle`, `tdd`, and `verify` to plan before code and review before push.
@@ -149,10 +153,12 @@ Ready to give your AI coding agents one control plane? Install AI DevKit and ini
 
 ```bash
 npm install -g ai-devkit
-npx ai-devkit@latest init
+ai-devkit setup
+cd your-project
+ai-devkit init
 ```
 
-Then ask the agent to use `dev-lifecycle` so it clarifies the feature before editing code, or explore the [documentation](https://ai-devkit.com/docs) to learn more.
+Then ask the agent to use `dev-lifecycle` so it clarifies the feature before editing code. See [Getting Started](https://ai-devkit.com/docs/1-getting-started) for the npx-only and CI paths.
 
 ## Sources
 

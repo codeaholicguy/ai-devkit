@@ -6,6 +6,8 @@ order: 2
 
 AI DevKit works with a variety of AI coding agents and coding environments. This page lists supported environments and explains what AI DevKit installs for each one, so teams can keep setup, skills, memory, and verification consistent across tools.
 
+Before selecting project environments here, complete the once-per-machine setup in [Getting Started](/docs/1-getting-started).
+
 Support levels here describe setup and environment integration. Agent session discovery, `agent console`, and `agent send` depend on whether the local agent exposes a detectable running session. See [Agent Management](/docs/8-agent-management) and [Agent Console](/docs/13-agent-console) for the operational control-plane commands.
 
 ## Status Legend

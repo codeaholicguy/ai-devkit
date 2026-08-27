@@ -17,6 +17,8 @@ Before using Memory, ensure you have:
 - **AI DevKit CLI** installed: `npm install -g ai-devkit` or use `npx ai-devkit@latest`
 - For MCP usage: A compatible AI coding agent or environment (Cursor, Claude Code, etc.)
 
+If this is your first AI DevKit command, complete [Getting Started](/docs/1-getting-started) first. With npx only, prefix every CLI example below with `npx ai-devkit@latest`.
+
 ## How It Works
 
 You can interact with Memory in three ways:
