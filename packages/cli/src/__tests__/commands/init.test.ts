@@ -11,6 +11,8 @@ const {
   mockLoadInitTemplate,
   mockExecFileSync,
   mockIsInteractiveTerminal,
+  mockReconcileAndInstall,
+  mockGetInstallExitCode,
 } = vi.hoisted(() => ({
   mockConfigManager: {
     exists: vi.fn(),
@@ -18,6 +20,7 @@ const {
     create: vi.fn(),
     setEnvironments: vi.fn(),
     addPhase: vi.fn(),
+    update: vi.fn(),
   } as any,
   mockTemplateManager: {
     checkEnvironmentExists: vi.fn(),
@@ -41,11 +44,19 @@ const {
     success: vi.fn(),
     info: vi.fn(),
     text: vi.fn(),
+    summary: vi.fn(),
   } as any,
   mockConfirm: vi.fn() as any,
   mockLoadInitTemplate: vi.fn() as any,
   mockExecFileSync: vi.fn() as any,
   mockIsInteractiveTerminal: vi.fn() as any,
+  mockReconcileAndInstall: vi.fn() as any,
+  mockGetInstallExitCode: vi.fn() as any,
+}));
+
+vi.mock('../../services/install/install.service.js', () => ({
+  reconcileAndInstall: (...args: unknown[]) => mockReconcileAndInstall(...args),
+  getInstallExitCode: (...args: unknown[]) => mockGetInstallExitCode(...args)
 }));
 
 vi.mock('child_process', () => ({
@@ -98,6 +109,10 @@ function confirmCallsMatching(pattern: RegExp): any[] {
   );
 }
 
+function appliedConfig(): any {
+  return mockReconcileAndInstall.mock.calls.at(-1)?.[0];
+}
+
 describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -111,6 +126,7 @@ describe('init command', () => {
     mockConfigManager.create.mockResolvedValue({ environments: [], phases: [] });
     mockConfigManager.setEnvironments.mockResolvedValue(undefined);
     mockConfigManager.addPhase.mockResolvedValue(undefined);
+    mockConfigManager.update.mockResolvedValue({});
 
     mockTemplateManager.checkEnvironmentExists.mockResolvedValue(false);
     mockTemplateManager.setupMultipleEnvironments.mockResolvedValue(['AGENTS.md']);
@@ -125,6 +141,14 @@ describe('init command', () => {
     mockSkillManager.addSkill.mockResolvedValue(undefined);
     mockLoadInitTemplate.mockResolvedValue({});
     mockIsInteractiveTerminal.mockReturnValue(true);
+    mockReconcileAndInstall.mockResolvedValue({
+      environments: { installed: 1, skipped: 0, failed: 0 },
+      phases: { installed: 1, skipped: 0, failed: 0 },
+      skills: { installed: 0, skipped: 0, failed: 0 },
+      mcpServers: { installed: 1, skipped: 0, conflicts: 0, failed: 0 },
+      warnings: [], items: [], complete: true
+    });
+    mockGetInstallExitCode.mockReturnValue(0);
   });
 
   afterEach(() => {
@@ -132,6 +156,27 @@ describe('init command', () => {
   });
 
   describe('template mode', () => {
+    it('applies template MCP servers through the shared project application service', async () => {
+      mockLoadInitTemplate.mockResolvedValue({
+        environments: ['codex'],
+        phases: ['requirements'],
+        mcpServers: {
+          memory: { transport: 'stdio', command: 'npx', args: ['-y', '@ai-devkit/memory'] }
+        }
+      });
+
+      await initCommand({ template: './init.yaml' });
+
+      expect(mockReconcileAndInstall).toHaveBeenCalledWith(
+        expect.objectContaining({
+          environments: ['codex'],
+          phases: ['requirements'],
+          mcpServers: expect.objectContaining({ memory: expect.any(Object) })
+        }),
+        expect.objectContaining({ overwrite: undefined, nonInteractive: false })
+      );
+      expect(mockUi.info).not.toHaveBeenCalledWith(expect.stringContaining('Run `ai-devkit install`'));
+    });
     it('uses template values and installs multiple skills from same registry without prompts', async () => {
     mockLoadInitTemplate.mockResolvedValue({
       environments: ['codex'],
@@ -149,11 +194,14 @@ describe('init command', () => {
     expect(mockPhaseSelector.selectPhases).not.toHaveBeenCalled();
     expect(mockConfirm).not.toHaveBeenCalled();
 
-    expect(mockConfigManager.setEnvironments).toHaveBeenCalledWith(['codex']);
-    expect(mockTemplateManager.copyPhaseTemplate).toHaveBeenCalledTimes(2);
-    expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(2);
-    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(1, 'codeaholicguy/ai-devkit', 'debug');
-    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(2, 'codeaholicguy/ai-devkit', 'memory');
+    expect(appliedConfig()).toEqual(expect.objectContaining({
+      environments: ['codex'],
+      phases: ['requirements', 'design'],
+      skills: [
+        { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      ]
+    }));
   });
 
   it('uses one skill manager for a mixed-registry template', async () => {
@@ -175,7 +223,8 @@ describe('init command', () => {
     expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(3, 'codeaholicguy/ai-devkit', 'memory');
   });
 
-  it('continues on skill failures and skips duplicate registry+skill entries', async () => {
+
+  it('deduplicates template skills before shared application', async () => {
     mockLoadInitTemplate.mockResolvedValue({
       environments: ['codex'],
       phases: ['requirements'],
@@ -186,17 +235,12 @@ describe('init command', () => {
       ]
     });
 
-    mockSkillManager.addSkill
-      .mockResolvedValueOnce(undefined)
-      .mockRejectedValueOnce(new Error('network failed'));
-
     await initCommand({ template: './init.yaml' });
 
-    expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(2);
-    expect(mockUi.warning).toHaveBeenCalledWith('Skipped 1 duplicate skill entry(ies) from template.');
-    expect(mockUi.warning).toHaveBeenCalledWith(
-      '1 skill install(s) failed. Continuing with warnings as configured.'
-    );
+    expect(appliedConfig().skills).toEqual([
+      { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
+      { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+    ]);
   });
 
   it('falls back to interactive selection when template omits environments and phases', async () => {
@@ -208,7 +252,7 @@ describe('init command', () => {
 
     expect(mockEnvironmentSelector.selectEnvironments).toHaveBeenCalledTimes(1);
     expect(mockPhaseSelector.selectPhases).toHaveBeenCalledTimes(1);
-    expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'debug');
+    expect(appliedConfig().skills).toContainEqual({ registry: 'codeaholicguy/ai-devkit', name: 'debug' });
   });
 
   it('keeps existing interactive reconfigure prompt when no template is provided', async () => {
@@ -241,10 +285,10 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml', builtIn: true });
 
-      expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(BUILTIN_SKILL_NAMES.length + 1);
-      expect(mockSkillManager.addSkill).toHaveBeenCalledWith(BUILTIN_SKILL_REGISTRY, 'debug');
+      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_NAMES.length + 1);
+      expect(appliedConfig().skills).toContainEqual({ registry: BUILTIN_SKILL_REGISTRY, name: 'debug' });
       for (const skill of BUILTIN_SKILL_NAMES) {
-        expect(mockSkillManager.addSkill).toHaveBeenCalledWith(BUILTIN_SKILL_REGISTRY, skill);
+        expect(appliedConfig().skills).toContainEqual({ registry: BUILTIN_SKILL_REGISTRY, name: skill });
       }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
@@ -258,9 +302,9 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml', builtIn: true });
 
-      expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(BUILTIN_SKILL_NAMES.length);
+      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_NAMES.length);
       for (const skill of BUILTIN_SKILL_NAMES) {
-        expect(mockSkillManager.addSkill).toHaveBeenCalledWith(BUILTIN_SKILL_REGISTRY, skill);
+        expect(appliedConfig().skills).toContainEqual({ registry: BUILTIN_SKILL_REGISTRY, name: skill });
       }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
@@ -274,10 +318,7 @@ describe('init command', () => {
 
       await initCommand({});
 
-      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
-        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
-      );
-      expect(builtinCalls.length).toBeGreaterThan(0);
+      expect(appliedConfig().skills.length).toBeGreaterThan(0);
       expect(mockConfirm).toHaveBeenCalledWith(
         expect.objectContaining({
           message: expect.stringContaining('Install AI DevKit built-in skills'),
@@ -308,13 +349,20 @@ describe('init command', () => {
       expect(builtinPrompts).toHaveLength(0);
     });
 
-    it('continues init when built-in skill install fails', async () => {
+    it('reports incomplete init when shared skill application fails', async () => {
       mockConfirm.mockResolvedValueOnce(true);
-      mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
+      mockReconcileAndInstall.mockResolvedValue({
+        environments: { installed: 1, skipped: 0, failed: 0 },
+        phases: { installed: 1, skipped: 0, failed: 0 },
+        skills: { installed: 0, skipped: 0, failed: 1 },
+        mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0 },
+        warnings: ['network down'], items: [], complete: false
+      });
+      mockGetInstallExitCode.mockReturnValue(1);
 
       await expect(initCommand({})).resolves.toBeUndefined();
-      expect(mockSkillManager.addSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', expect.any(String));
-      expect(process.exitCode).not.toBe(1);
+      expect(process.exitCode).toBe(1);
+      expect(mockUi.warning).toHaveBeenCalledWith(expect.stringContaining('setup is incomplete'));
     });
   });
 
@@ -339,10 +387,7 @@ describe('init command', () => {
 
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
-      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
-        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
-      );
-      expect(builtinCalls.length).toBeGreaterThan(0);
+      expect(appliedConfig().skills.length).toBeGreaterThan(0);
     });
 
     it('installs built-in skills without prompting when --built-in is passed in an interactive environment', async () => {
@@ -352,14 +397,21 @@ describe('init command', () => {
 
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
-      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
-        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
-      );
-      expect(builtinCalls.length).toBeGreaterThan(0);
+      expect(appliedConfig().skills.length).toBeGreaterThan(0);
     });
   });
 
   describe('non-interactive (--yes)', () => {
+    it('does not issue any prompts for a complete non-interactive run', async () => {
+      await initCommand({ yes: true, all: true, environment: 'claude' });
+
+      expect(mockConfirm).not.toHaveBeenCalled();
+      expect(mockEnvironmentSelector.selectEnvironments).not.toHaveBeenCalled();
+      expect(mockPhaseSelector.selectPhases).toHaveBeenCalledWith(true, undefined);
+      expect(mockReconcileAndInstall).toHaveBeenCalledWith(
+        expect.any(Object), expect.objectContaining({ nonInteractive: true })
+      );
+    });
     it('exits 1 with a clear error when --yes is passed without -e (and no template)', async () => {
       await initCommand({ yes: true, all: true });
 
@@ -410,7 +462,7 @@ describe('init command', () => {
       await initCommand({ yes: true, overwrite: true, all: true, environment: 'claude' });
 
       expect(mockEnvironmentSelector.confirmOverride).not.toHaveBeenCalled();
-      expect(mockTemplateManager.setupMultipleEnvironments).toHaveBeenCalled();
+      expect(mockReconcileAndInstall).toHaveBeenCalled();
       expect(mockUi.warning).toHaveBeenCalledWith(
         expect.stringMatching(/Overwriting existing environments/)
       );
@@ -424,7 +476,10 @@ describe('init command', () => {
       const overwritePrompts = confirmCallsMatching(/already exists\. Overwrite\?/);
       expect(overwritePrompts).toHaveLength(0);
       expect(mockTemplateManager.copyPhaseTemplate).not.toHaveBeenCalled();
-      expect(mockUi.warning).toHaveBeenCalledWith(expect.stringMatching(/Skipped .* phase/));
+      expect(mockReconcileAndInstall).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+        overwrite: undefined,
+        nonInteractive: true
+      }));
     });
 
     it('overwrites existing phase files under --yes --overwrite (no prompt)', async () => {
@@ -434,7 +489,10 @@ describe('init command', () => {
 
       const overwritePrompts = confirmCallsMatching(/already exists\. Overwrite\?/);
       expect(overwritePrompts).toHaveLength(0);
-      expect(mockTemplateManager.copyPhaseTemplate).toHaveBeenCalled();
+      expect(mockReconcileAndInstall).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+        overwrite: true,
+        nonInteractive: true
+      }));
     });
 
     it('skips the built-in skills install under --yes without --built-in (TTY attached)', async () => {
@@ -452,10 +510,7 @@ describe('init command', () => {
 
       await initCommand({ yes: true, builtIn: true, all: true, environment: 'claude' });
 
-      const builtinCalls = mockSkillManager.addSkill.mock.calls.filter(
-        (call: unknown[]) => call[0] === 'codeaholicguy/ai-devkit'
-      );
-      expect(builtinCalls.length).toBeGreaterThan(0);
+      expect(appliedConfig().skills.length).toBeGreaterThan(0);
     });
   });
 });

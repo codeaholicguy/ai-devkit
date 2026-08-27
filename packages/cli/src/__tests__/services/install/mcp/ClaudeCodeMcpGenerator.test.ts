@@ -86,7 +86,7 @@ describe('ClaudeCodeMcpGenerator', () => {
       expect(plan.skippedServers).toEqual(['notion']);
     });
 
-    it('handles malformed existing .mcp.json gracefully', async () => {
+    it('fails malformed existing .mcp.json without replacing it', async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
       mockFs.readJson.mockRejectedValue(new Error('Invalid JSON'));
 
@@ -94,8 +94,8 @@ describe('ClaudeCodeMcpGenerator', () => {
         memory: { transport: 'stdio', command: 'npx' }
       };
 
-      const plan = await generator.plan(servers, projectRoot);
-      expect(plan.newServers).toEqual(['memory']);
+      await expect(generator.plan(servers, projectRoot)).rejects.toThrow('Invalid JSON');
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
 
     it('handles mixed new, skip, and conflict servers', async () => {

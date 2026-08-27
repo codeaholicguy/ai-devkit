@@ -67,7 +67,7 @@ command = "old-cmd"
       expect(plan.conflictServers).toEqual(['memory']);
     });
 
-    it('handles malformed existing config.toml gracefully', async () => {
+    it('fails malformed existing config.toml without replacing it', async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
       mockFs.readFile.mockResolvedValue('this is not valid toml [[[' as never);
 
@@ -75,8 +75,8 @@ command = "old-cmd"
         memory: { transport: 'stdio', command: 'npx' }
       };
 
-      const plan = await generator.plan(servers, projectRoot);
-      expect(plan.newServers).toEqual(['memory']);
+      await expect(generator.plan(servers, projectRoot)).rejects.toThrow();
+      expect(mockFs.writeFile).not.toHaveBeenCalled();
     });
   });
 

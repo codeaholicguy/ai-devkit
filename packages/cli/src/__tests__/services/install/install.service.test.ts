@@ -1,6 +1,7 @@
 
 
 const mockConfirm: any = vi.fn();
+const mockIsInteractiveTerminal: any = vi.fn();
 
 const mockConfigManager: any = {
   read: vi.fn(),
@@ -23,6 +24,10 @@ const mockSkillManager: any = {
 
 vi.mock('@inquirer/prompts', () => ({
   confirm: (...args: unknown[]) => mockConfirm(...args)
+}));
+
+vi.mock('../../../util/terminal.js', () => ({
+  isInteractiveTerminal: () => mockIsInteractiveTerminal()
 }));
 
 vi.mock('../../../lib/Config.js', () => ({
@@ -75,6 +80,7 @@ describe('install service', () => {
 
     mockSkillManager.addSkill.mockResolvedValue(undefined);
     mockConfirm.mockResolvedValue(false);
+    mockIsInteractiveTerminal.mockReturnValue(true);
   });
 
   it('installs all sections on happy path', async () => {
@@ -85,10 +91,17 @@ describe('install service', () => {
       phases: ['requirements'],
       skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
     });
-    expect(report.environments.installed).toBe(1);
+    expect(report.environments.installed).toBe(0);
+    expect(report.environments.skipped).toBe(1);
     expect(report.phases.installed).toBe(1);
     expect(report.skills.installed).toBe(1);
     expect(report.warnings).toEqual([]);
+    expect(report.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ section: 'environment', name: 'codex', status: 'matched' }),
+      expect.objectContaining({ section: 'phase', name: 'requirements', status: 'installed' }),
+      expect.objectContaining({ section: 'skill', name: 'debug', status: 'installed' })
+    ]));
+    expect(report.complete).toBe(true);
   });
 
   it('uses one skill manager while reconciling mixed registries', async () => {
@@ -108,7 +121,8 @@ describe('install service', () => {
     expect(report.skills.installed).toBe(3);
   });
 
-  it('reinstalls existing generated artifacts without prompting for overwrite', async () => {
+
+  it('preserves existing phase documents when overwrite is declined', async () => {
     mockTemplateManager.checkEnvironmentExists
       .mockResolvedValueOnce(true)
       .mockResolvedValueOnce(true);
@@ -119,17 +133,31 @@ describe('install service', () => {
 
     const report = await reconcileAndInstall(installConfig, {});
 
-    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockConfirm).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.stringContaining('Requirements')
+    }));
     expect(mockTemplateManager.checkEnvironmentExists).not.toHaveBeenCalled();
-    expect(mockTemplateManager.fileExists).not.toHaveBeenCalled();
-    expect(report.environments.installed).toBe(1);
-    expect(report.phases.installed).toBe(1);
+    expect(mockTemplateManager.fileExists).toHaveBeenCalledWith('requirements');
+    expect(report.environments.installed).toBe(0);
+    expect(report.phases.installed).toBe(0);
+    expect(report.phases.skipped).toBe(1);
     expect(report.skills.installed).toBe(1);
     expect(mockConfigManager.update).toHaveBeenCalledWith({
       environments: ['codex'],
       phases: ['requirements'],
       skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }],
     });
+  });
+
+  it('preserves existing phase documents without prompting in non-interactive mode', async () => {
+    mockIsInteractiveTerminal.mockReturnValue(false);
+    mockTemplateManager.fileExists.mockResolvedValue(true);
+
+    const report = await reconcileAndInstall(installConfig, {});
+
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockTemplateManager.copyPhaseTemplate).not.toHaveBeenCalled();
+    expect(report.phases.skipped).toBe(1);
   });
 
   it('auto-overwrites and does not prompt when --overwrite is set', async () => {
@@ -143,7 +171,7 @@ describe('install service', () => {
     const report = await reconcileAndInstall(installConfig, { overwrite: true });
 
     expect(mockConfirm).not.toHaveBeenCalled();
-    expect(report.environments.installed).toBe(1);
+    expect(report.environments.installed).toBe(0);
     expect(report.phases.installed).toBe(1);
   });
 
@@ -164,6 +192,21 @@ describe('install service', () => {
     );
   });
 
+  it('persists custom registries before installing skills that may consume them', async () => {
+    await reconcileAndInstall({
+      ...installConfig,
+      registries: { team: 'https://example.com/team-skills.git' },
+      skills: [{ registry: 'team', name: 'review' }]
+    }, {});
+
+    expect(mockConfigManager.update).toHaveBeenCalledWith(expect.objectContaining({
+      registries: { team: 'https://example.com/team-skills.git' }
+    }));
+    expect(mockConfigManager.update.mock.invocationCallOrder[0]).toBeLessThan(
+      mockSkillManager.addSkill.mock.invocationCallOrder[0]
+    );
+  });
+
   it('reports skill failures as warnings and continues', async () => {
     mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
 
@@ -173,7 +216,14 @@ describe('install service', () => {
     expect(report.warnings).toEqual([
       'Skill codeaholicguy/ai-devkit/debug failed: network down'
     ]);
-    expect(getInstallExitCode(report)).toBe(0);
+    expect(report.items).toContainEqual(expect.objectContaining({
+      section: 'skill', name: 'debug', status: 'failed'
+    }));
+    expect(report.complete).toBe(false);
+    expect(getInstallExitCode(report)).toBe(1);
+    expect(mockConfigManager.update).toHaveBeenCalledWith(expect.objectContaining({
+      skills: installConfig.skills
+    }));
   });
 
   it('returns non-zero exit code when environment or phase failures occur', () => {
@@ -183,6 +233,20 @@ describe('install service', () => {
       skills: { installed: 0, skipped: 0, failed: 0 },
       mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0 },
       warnings: []
+    };
+
+    expect(getInstallExitCode(report)).toBe(1);
+  });
+
+  it('returns non-zero exit code for unresolved MCP conflicts', () => {
+    const report = {
+      environments: { installed: 0, skipped: 0, failed: 0 },
+      phases: { installed: 0, skipped: 0, failed: 0 },
+      skills: { installed: 0, skipped: 0, failed: 0 },
+      mcpServers: { installed: 0, skipped: 0, conflicts: 1, failed: 0 },
+      warnings: [],
+      items: [{ section: 'mcpServer' as const, name: 'memory', status: 'conflict' as const }],
+      complete: false
     };
 
     expect(getInstallExitCode(report)).toBe(1);

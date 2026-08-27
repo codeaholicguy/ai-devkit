@@ -224,7 +224,9 @@ describe("SkillManager", () => {
     };
 
     it("should successfully add a skill", async () => {
-      await skillManager.addSkill(mockRegistryId, mockSkillName);
+      const status = await skillManager.addSkill(mockRegistryId, mockSkillName);
+
+      expect(status).toBe("matched");
 
       expect(mockedSkillUtil.validateRegistryId).toHaveBeenCalledWith(
         mockRegistryId,
@@ -302,7 +304,6 @@ describe("SkillManager", () => {
       });
 
       await skillManager.addSkill(mockRegistryId, mockSkillName);
-
       expect(global.fetch).toHaveBeenCalledWith(
         expect.stringContaining("registry.json")
       );
@@ -555,8 +556,9 @@ describe("SkillManager", () => {
     it("should skip if skill already exists in target", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
 
-      await skillManager.addSkill(mockRegistryId, mockSkillName);
+      const status = await skillManager.addSkill(mockRegistryId, mockSkillName);
 
+      expect(status).toBe("matched");
       expect(mockedFs.symlink).not.toHaveBeenCalled();
       expect(mockedFs.copy).not.toHaveBeenCalled();
       expect(console.log).toHaveBeenCalledWith(
