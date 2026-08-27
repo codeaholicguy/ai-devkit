@@ -3,7 +3,6 @@ import { ClaudePrintError } from '../../../durable/DurableAgent.js';
 import { ClaudeCliProbe } from './ClaudeCliProbe.js';
 import { ClaudePrintRunner, type ClaudePrintRunResult } from './ClaudePrintRunner.js';
 import { DurableAgentRepository, type CreateDurableAgentInput } from '../../../durable/DurableAgentRepository.js';
-import { sanitizeText } from '../../../durable/utils.js';
 import { runDurableAgent, type DurableRunRepository } from '../../../durable/run.js';
 
 interface RepositoryLike extends DurableRunRepository {
@@ -59,15 +58,8 @@ export class ClaudePrintAgentService {
                 firstRun: agent.sessionHealth === 'uninitialized',
                 onSpawn: (identity) => this.repository.recordProviderProcess(agent.id, token, identity),
             }),
-            succeeded: (result) => ({ status: 'succeeded', exitCode: result.exitCode,
-                summary: sanitizeText(result.result, 4096, { preserveFormatting: true }), sessionHealth: 'healthy' }),
-            failed: (error) => {
-                const failure = error instanceof Error ? error : new Error(String(error));
-                const sessionHealth = error instanceof ClaudePrintError && error.code === 'CLAUDE_SESSION_MISMATCH'
-                    ? 'mismatch' as const : 'unknown' as const;
-                return { status: 'failed', exitCode: null,
-                    summary: sanitizeText(failure.message, 4096, { preserveFormatting: true }), sessionHealth };
-            },
+            isSessionMismatch: (error) => error instanceof ClaudePrintError
+                && error.code === 'CLAUDE_SESSION_MISMATCH',
         });
         return { ...completed.result, agentId: completed.agent.id, agentName: completed.agent.name };
     }

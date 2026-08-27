@@ -36,6 +36,7 @@ description: TDD implementation plan for durable Pi print agents
 
 - [x] T8: Add regressions and correct provider validation/completion sequencing across Pi, Claude, and Codex durable services.
 - [x] T9: Extract the shared durable-run lifecycle, move Pi stream state into a provider-local parser, and reuse shared sanitization, UUID, buffering, process, and child-close utilities.
+- [x] T10: Consolidate identical success/failure completion construction in the durable-run lifecycle and expand dense Pi provider code for linear readability.
 
 ## Dependencies
 

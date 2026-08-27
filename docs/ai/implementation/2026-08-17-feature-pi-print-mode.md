@@ -27,8 +27,10 @@ Pi provider modules mirror Claude under `src/providers/pi/durable/`. Shared dura
 - Complete: user-facing creation uses `--mode durable`; the retired `--mode print` spelling is rejected consistently.
 - Complete: pure `PiPrintProtocol` helpers make argument, session-identity, and assistant-text mapping independently testable at 100% coverage.
 - Complete: shared `durable/run.ts` now owns durable resolve, provider validation, run acquisition, execution, and completion ordering for Pi, Claude, and Codex services.
+- Complete: the shared lifecycle also owns sanitized 4 KiB success/failure summaries and healthy/mismatch/unknown completion mapping; providers supply only their mismatch predicate.
 - Complete: wrong-provider service calls fail before acquiring or mutating the target, and a failed successful-completion write is attempted only once.
 - Complete: `PiStreamParser` owns bounded JSONL state while the runner focuses on safe process orchestration.
+- Complete: Pi probe, service, and runner declarations and control flow now follow the expanded Claude/Codex formatting style.
 
 ### Patterns & Best Practices
 

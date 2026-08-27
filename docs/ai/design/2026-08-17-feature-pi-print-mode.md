@@ -45,7 +45,7 @@ Pi follows the merged Claude and Codex durable service/runner boundary and provi
 
 - `DurableAgent.ts`: provider union and Pi errors.
 - `DurableAgentRepository.ts`: SQLite persistence, provider creation, and CAS run ownership.
-- `durable/run.ts`: provider-neutral resolve, validation, ownership, execution, and completion sequencing.
+- `durable/run.ts`: provider-neutral resolve, validation, ownership, execution, completion sequencing, summary sanitization, and session-health result mapping.
 - `providers/pi/durable/PiCliProbe.ts`: sanitized capability validation.
 - `providers/pi/durable/PiPrintRunner.ts`: bounded JSONL parser, identity validation, lifecycle/result extraction, subprocess safety.
 - `providers/pi/durable/PiStreamParser.ts`: provider-local bounded JSONL state and final-result validation.

@@ -3,7 +3,6 @@ import { CodexPrintError } from '../../../durable/DurableAgent.js';
 import { CodexCliProbe } from './CodexCliProbe.js';
 import { CodexPrintRunner, type CodexPrintRunResult } from './CodexPrintRunner.js';
 import { DurableAgentRepository, type CreateDurableAgentInput } from '../../../durable/DurableAgentRepository.js';
-import { sanitizeText } from '../../../durable/utils.js';
 import { runDurableAgent, type DurableRunRepository } from '../../../durable/run.js';
 
 interface RepositoryLike extends DurableRunRepository {
@@ -58,15 +57,8 @@ export class CodexPrintAgentService {
                 onSpawn: (identity) => this.repository.recordProviderProcess(agent.id, token, identity),
                 onSession: async (sessionId) => { await this.repository.bindProviderSession(agent.id, token, sessionId); },
             }),
-            succeeded: (result) => ({ status: 'succeeded', exitCode: result.exitCode,
-                summary: sanitizeText(result.result, 4096, { preserveFormatting: true }), sessionHealth: 'healthy' }),
-            failed: (error) => {
-                const failure = error instanceof Error ? error : new Error(String(error));
-                const sessionHealth = error instanceof CodexPrintError && error.code === 'CODEX_SESSION_MISMATCH'
-                    ? 'mismatch' as const : 'unknown' as const;
-                return { status: 'failed', exitCode: null,
-                    summary: sanitizeText(failure.message, 4096, { preserveFormatting: true }), sessionHealth };
-            },
+            isSessionMismatch: (error) => error instanceof CodexPrintError
+                && error.code === 'CODEX_SESSION_MISMATCH',
         });
         return { ...completed.result, agentId: completed.agent.id, agentName: completed.agent.name };
     }
