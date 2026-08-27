@@ -204,7 +204,7 @@ describe('init command', () => {
     }));
   });
 
-  it('uses one skill manager for a mixed-registry template', async () => {
+  it('delegates mixed-registry application to the shared install service', async () => {
     mockLoadInitTemplate.mockResolvedValue({
       environments: ['codex'],
       phases: ['requirements'],
@@ -217,10 +217,12 @@ describe('init command', () => {
 
     await initCommand({ template: './init.yaml' });
 
-    expect(SkillManager).toHaveBeenCalledTimes(1);
-    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(1, 'codeaholicguy/ai-devkit', 'debug');
-    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(2, 'anthropics/skills', 'frontend-design');
-    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(3, 'codeaholicguy/ai-devkit', 'memory');
+    expect(mockReconcileAndInstall).toHaveBeenCalledTimes(1);
+    expect(appliedConfig().skills).toEqual([
+      { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
+      { registry: 'anthropics/skills', name: 'frontend-design' },
+      { registry: 'codeaholicguy/ai-devkit', name: 'memory' },
+    ]);
   });
 
 
@@ -308,7 +310,6 @@ describe('init command', () => {
       }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
-      expect(SkillManager).toHaveBeenCalledTimes(1);
     });
   });
 
