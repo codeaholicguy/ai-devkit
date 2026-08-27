@@ -37,14 +37,10 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
     const configPath = path.join(projectRoot, '.kilo', 'kilo.jsonc');
-    try {
-      if (await fs.pathExists(configPath)) {
-        const content = await fs.readFile(configPath, 'utf8');
-        this.fullConfig = parseJsonc(content);
-        return (this.fullConfig.mcp || {}) as Record<string, unknown>;
-      }
-    } catch {
-      // Malformed file — treat as empty
+    if (await fs.pathExists(configPath)) {
+      const content = await fs.readFile(configPath, 'utf8');
+      this.fullConfig = parseJsonc(content);
+      return (this.fullConfig.mcp || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
     return {};

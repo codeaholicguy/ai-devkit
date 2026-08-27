@@ -29,13 +29,9 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
     const configPath = path.join(projectRoot, '.mcp.json');
-    try {
-      if (await fs.pathExists(configPath)) {
-        this.fullConfig = await fs.readJson(configPath);
-        return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
-      }
-    } catch {
-      // Malformed file — treat as empty
+    if (await fs.pathExists(configPath)) {
+      this.fullConfig = await fs.readJson(configPath);
+      return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
     return {};
