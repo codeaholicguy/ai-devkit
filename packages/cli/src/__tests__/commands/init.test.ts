@@ -90,6 +90,7 @@ vi.mock('../../util/terminal.js', () => ({
 
 import { initCommand } from '../../commands/init.js';
 import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../../constants.js';
+import { SkillManager } from '../../lib/SkillManager.js';
 
 function confirmCallsMatching(pattern: RegExp): any[] {
   return mockConfirm.mock.calls.filter(([config]: any[]) =>
@@ -153,6 +154,25 @@ describe('init command', () => {
     expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(2);
     expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(1, 'codeaholicguy/ai-devkit', 'debug');
     expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(2, 'codeaholicguy/ai-devkit', 'memory');
+  });
+
+  it('uses one skill manager for a mixed-registry template', async () => {
+    mockLoadInitTemplate.mockResolvedValue({
+      environments: ['codex'],
+      phases: ['requirements'],
+      skills: [
+        { registry: 'codeaholicguy/ai-devkit', skill: 'debug' },
+        { registry: 'anthropics/skills', skill: 'frontend-design' },
+        { registry: 'codeaholicguy/ai-devkit', skill: 'memory' },
+      ],
+    });
+
+    await initCommand({ template: './init.yaml' });
+
+    expect(SkillManager).toHaveBeenCalledTimes(1);
+    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(1, 'codeaholicguy/ai-devkit', 'debug');
+    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(2, 'anthropics/skills', 'frontend-design');
+    expect(mockSkillManager.addSkill).toHaveBeenNthCalledWith(3, 'codeaholicguy/ai-devkit', 'memory');
   });
 
   it('continues on skill failures and skips duplicate registry+skill entries', async () => {
@@ -244,6 +264,7 @@ describe('init command', () => {
       }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
+      expect(SkillManager).toHaveBeenCalledTimes(1);
     });
   });
 

@@ -86,7 +86,6 @@ export class SkillManager {
       );
     }
 
-    ui.info('Checking local cache...');
     const repoPath = await this.registry.prepareRegistryRepository(registryId, gitUrl);
 
     const resolvedSkillNames = skillName

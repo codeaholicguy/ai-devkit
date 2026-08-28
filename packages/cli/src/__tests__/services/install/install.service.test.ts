@@ -42,6 +42,7 @@ vi.mock('../../../lib/SkillManager.js', () => ({
 }));
 
 import { getInstallExitCode, reconcileAndInstall } from '../../../services/install/install.service.js';
+import { SkillManager } from '../../../lib/SkillManager.js';
 
 describe('install service', () => {
   const installConfig = {
@@ -88,6 +89,23 @@ describe('install service', () => {
     expect(report.phases.installed).toBe(1);
     expect(report.skills.installed).toBe(1);
     expect(report.warnings).toEqual([]);
+  });
+
+  it('uses one skill manager while reconciling mixed registries', async () => {
+    const mixedRegistryConfig = {
+      ...installConfig,
+      skills: [
+        { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
+        { registry: 'anthropics/skills', name: 'frontend-design' },
+        { registry: 'codeaholicguy/ai-devkit', name: 'memory' },
+      ],
+    };
+
+    const report = await reconcileAndInstall(mixedRegistryConfig, {});
+
+    expect(SkillManager).toHaveBeenCalledTimes(1);
+    expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(3);
+    expect(report.skills.installed).toBe(3);
   });
 
   it('reinstalls existing generated artifacts without prompting for overwrite', async () => {
