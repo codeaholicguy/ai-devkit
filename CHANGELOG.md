@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.56.0] - 2026-08-28
+
+- [0039ac7](https://github.com/codeaholicguy/ai-devkit/commit/0039ac7b23961facddff775623e5626103175473) Added the MIT license.
+- [7d66b48](https://github.com/codeaholicguy/ai-devkit/pull/201) Aligned onboarding docs with the setup-then-init flow.
+- [2b7dd5e](https://github.com/codeaholicguy/ai-devkit/pull/169) Added pi print mode.
+- [06bb8b9](https://github.com/codeaholicguy/ai-devkit/pull/203) Prepared skill registries once per CLI run.
+- [4103bd5](https://github.com/codeaholicguy/ai-devkit/pull/202) Completed the init flow with a shared project application service.
+
 ## [0.55.0] - 2026-08-23
 
 - [7f33392](https://github.com/codeaholicguy/ai-devkit/pull/196) Removed the skill registry.
