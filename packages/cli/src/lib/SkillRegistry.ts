@@ -31,6 +31,7 @@ export interface UpdateSummary {
 }
 
 export class SkillRegistry {
+  private mergedRegistry?: Promise<SkillRegistryData>;
   private readonly preparedRepositories = new Map<string, Promise<string>>();
 
   constructor(
@@ -48,7 +49,15 @@ export class SkillRegistry {
     return response.json() as Promise<SkillRegistryData>;
   }
 
-  async fetchMergedRegistry(): Promise<SkillRegistryData> {
+  fetchMergedRegistry(): Promise<SkillRegistryData> {
+    if (!this.mergedRegistry) {
+      this.mergedRegistry = this.loadMergedRegistry();
+    }
+
+    return this.mergedRegistry;
+  }
+
+  private async loadMergedRegistry(): Promise<SkillRegistryData> {
     let defaultRegistries: Record<string, string> = {};
 
     try {

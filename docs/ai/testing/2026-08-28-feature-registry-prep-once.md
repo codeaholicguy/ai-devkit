@@ -20,6 +20,7 @@ Cover 100% of new branches and all approved freshness/failure semantics. Mock Gi
 - [x] A second `SkillRegistry`/`SkillManager` instance refreshes again.
 - [x] A non-Git cached registry is accepted and reported once.
 - [x] Refresh start/success outcomes appear once and `Checking local cache...` is absent.
+- [x] Sequential and concurrent merged-catalog requests share one network/config-read promise per instance.
 
 ## Command and Service Tests
 
@@ -45,4 +46,4 @@ Reuse temporary cache paths and mocked `pullRepository`, `cloneRepository`, `isG
 
 ## Results
 
-Focused registry/manager suites: 80 passed. Caller suites: 79 passed. Full validation remains pending.
+Focused registry/manager suites: 81 passed. Caller suites: 79 passed. Full validation remains pending.

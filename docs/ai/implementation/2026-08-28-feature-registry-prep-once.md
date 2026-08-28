@@ -23,7 +23,7 @@ description: Record code changes, decisions, deviations, and verification
 - Promise retained for all outcomes, including rejection, to enforce one attempt per registry per instance.
 - Registry ID is the only key; no current caller mutates its URL within one instance.
 - No TTL, flags, batch API, or public signature change.
-- Fetch-catalog memoization is optional and must be a separate testable commit.
+- Fetch-catalog memoization uses a separate instance promise and private loader, with no public signature change.
 
 ## Implementation Record
 
@@ -32,6 +32,7 @@ description: Record code changes, decisions, deviations, and verification
 - Moved the generic manager cache message to registry-specific start/success/stale messages.
 - Strengthened init, install-service, and built-in skill command tests to show multi-skill callers retain one manager instance; existing setup tests cover the single built-in installer boundary.
 - Regression gate: the sequential test passed with the fix, failed with two pulls when memoization was temporarily removed, and passed after restoration.
+- Independently memoized `fetchMergedRegistry`; one shared promise now replaces repeated default-registry fetches and project/global config reads within the same instance.
 
 ## Deviations
 

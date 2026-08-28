@@ -39,6 +39,39 @@ function createRegistry(): SkillRegistry {
   return new SkillRegistry({} as ConfigManager, {} as GlobalConfigManager);
 }
 
+describe('SkillRegistry merged catalog', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('fetches and merges the catalog once per instance', async () => {
+    const fetchRegistry = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ registries: { 'default/skills': 'default-url' } }),
+    });
+    vi.stubGlobal('fetch', fetchRegistry);
+    const configManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({ 'project/skills': 'project-url' }),
+    } as unknown as ConfigManager;
+    const globalConfigManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({ 'global/skills': 'global-url' }),
+    } as unknown as GlobalConfigManager;
+    const registry = new SkillRegistry(configManager, globalConfigManager);
+
+    const [first, second] = await Promise.all([
+      registry.fetchMergedRegistry(),
+      registry.fetchMergedRegistry(),
+    ]);
+    const third = await registry.fetchMergedRegistry();
+
+    expect(first).toEqual(second);
+    expect(second).toEqual(third);
+    expect(fetchRegistry).toHaveBeenCalledTimes(1);
+    expect(globalConfigManager.getSkillRegistries).toHaveBeenCalledTimes(1);
+    expect(configManager.getSkillRegistries).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('SkillRegistry repository preparation', () => {
   const registryId = 'example/skills';
   const secondRegistryId = 'other/skills';

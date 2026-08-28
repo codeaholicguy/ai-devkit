@@ -16,7 +16,7 @@ description: TDD task breakdown for one preparation per registry instance
 
 - [x] Move cache-check messaging from `SkillManager` into the first registry preparation and assert start/success/stale output once.
 - [x] Add or strengthen command/service coverage for init built-ins, mixed-registry templates, mixed-registry install, `skill add --built-in`, and setup. Evidence: four caller suites pass 79 tests.
-- [ ] Evaluate `fetchMergedRegistry` instance memoization independently; implement in a separate commit only if a focused red/green test and clear failure semantics remain isolated.
+- [x] Memoize `fetchMergedRegistry` independently. Its focused test observed 3 fetch/config reads red and 1 green; implementation is one instance promise plus one private loader.
 
 ## Milestone 3: Lifecycle completion
 
@@ -33,4 +33,4 @@ description: TDD task breakdown for one preparation per registry instance
 
 ## Progress Summary
 
-Core implementation and caller coverage are complete. Next: independently evaluate merged-catalog memoization, then full validation and review.
+Implementation and caller coverage are complete. Next: full validation and review.
