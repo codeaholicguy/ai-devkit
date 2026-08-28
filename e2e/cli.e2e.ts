@@ -58,7 +58,7 @@ describe('init command', () => {
   it('should initialize with environment and all phases', () => {
     const result = run('init -e claude --all', { cwd: projectDir });
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('AI DevKit initialized successfully');
+    expect(result.stdout).toContain('AI DevKit project initialized successfully!');
 
     // Config file should exist
     const configPath = join(projectDir, '.ai-devkit.json');
@@ -124,7 +124,7 @@ paths:
 
     const result = run(`init -t "${templatePath}"`, { cwd: projectDir });
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('AI DevKit initialized successfully');
+    expect(result.stdout).toContain('AI DevKit project initialized successfully!');
   });
 
   it('should save template registries to config', () => {

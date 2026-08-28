@@ -1,5 +1,5 @@
 import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
-import { hasMcpSupport } from '../../../util/env.js';
+import { getMcpConfigPath, hasMcpSupport } from '../../../util/env.js';
 import { isInteractiveTerminal } from '../../../util/terminal.js';
 import { McpAgentGenerator, McpInstallReport, McpMergePlan } from './types.js';
 import { ClaudeCodeMcpGenerator } from './ClaudeCodeMcpGenerator.js';
@@ -14,6 +14,7 @@ import { confirm, select } from '@inquirer/prompts';
 
 export interface McpInstallOptions {
   overwrite?: boolean;
+  nonInteractive?: boolean;
 }
 
 const GENERATORS: McpAgentGenerator[] = [
@@ -38,21 +39,34 @@ export async function installMcpServers(
     skipped: 0,
     conflicts: 0,
     failed: 0,
+    items: [],
   };
 
   if (!servers || Object.keys(servers).length === 0) {
     return report;
   }
 
-  const activeGenerators = GENERATORS.filter(g =>
+  const selectedGenerators = GENERATORS.filter(g =>
     environments.includes(g.agentType) && hasMcpSupport(g.agentType)
   );
+  const generatorsByTarget = new Map<string, McpAgentGenerator>();
+  for (const generator of selectedGenerators) {
+    const target = getMcpConfigPath(generator.agentType) || generator.agentType;
+    if (!generatorsByTarget.has(target)) {
+      generatorsByTarget.set(target, generator);
+    }
+  }
+  const activeGenerators = [...generatorsByTarget.values()];
 
   for (const generator of activeGenerators) {
+    const target = getMcpConfigPath(generator.agentType) || generator.agentType;
     try {
       const plan = await generator.plan(servers, projectRoot);
 
       report.skipped += plan.skippedServers.length;
+      report.items.push(...plan.skippedServers.map(name => ({
+        name, target, status: 'matched' as const
+      })));
 
       if (plan.conflictServers.length > 0) {
         const resolved = resolveConflicts(plan, options);
@@ -60,15 +74,28 @@ export async function installMcpServers(
           ? (resolved === 'overwrite' ? [...plan.conflictServers] : [])
           : await resolved;
         report.conflicts += plan.conflictServers.length - plan.resolvedConflicts.length;
+        const unresolved = plan.conflictServers.filter(name => !plan.resolvedConflicts.includes(name));
+        report.items.push(...unresolved.map(name => ({
+          name, target, status: 'conflict' as const
+        })));
       }
 
       const toInstall = plan.newServers.length + plan.resolvedConflicts.length;
       if (toInstall > 0) {
         await generator.apply(plan, servers, projectRoot);
         report.installed += toInstall;
+        report.items.push(...[...plan.newServers, ...plan.resolvedConflicts].map(name => ({
+          name, target, status: 'installed' as const
+        })));
       }
-    } catch {
+    } catch (error) {
       report.failed += Object.keys(servers).length;
+      report.items.push(...Object.keys(servers).map(name => ({
+        name,
+        target,
+        status: 'failed' as const,
+        message: error instanceof Error ? error.message : String(error)
+      })));
     }
   }
 
@@ -84,7 +111,7 @@ function resolveConflicts(
   options: McpInstallOptions
 ): string | Promise<string[]> {
   if (options.overwrite) return 'overwrite';
-  if (!isInteractiveTerminal()) return 'skip';
+  if (options.nonInteractive || !isInteractiveTerminal()) return 'skip';
   return promptConflicts(plan);
 }
 

@@ -35,14 +35,10 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
     const configPath = path.join(projectRoot, 'opencode.json');
-    try {
-      if (await fs.pathExists(configPath)) {
-        const content = await fs.readFile(configPath, 'utf8');
-        this.fullConfig = JSON.parse(content || '{}') as OpenCodeConfig;
-        return (this.fullConfig.mcp || {}) as Record<string, unknown>;
-      }
-    } catch {
-      // Malformed file — treat as empty.
+    if (await fs.pathExists(configPath)) {
+      const content = await fs.readFile(configPath, 'utf8');
+      this.fullConfig = JSON.parse(content || '{}') as OpenCodeConfig;
+      return (this.fullConfig.mcp || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
     return {};

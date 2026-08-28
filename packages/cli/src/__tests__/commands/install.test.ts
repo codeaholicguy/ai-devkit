@@ -50,8 +50,10 @@ describe('install command', () => {
       environments: { installed: 1, skipped: 0, failed: 0 },
       phases: { installed: 1, skipped: 0, failed: 0 },
       skills: { installed: 1, skipped: 0, failed: 0 },
-      mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0 },
-      warnings: []
+      mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0, items: [] },
+      warnings: [],
+      items: [{ section: 'environment', name: 'codex', status: 'installed' }],
+      complete: true
     });
   });
 
@@ -111,6 +113,24 @@ describe('install command', () => {
     );
     expect(mockUi.summary).toHaveBeenCalled();
     expect(process.exitCode).toBe(0);
+  });
+
+  it('loads a custom desired config and applies it through the canonical project service', async () => {
+    mockLoadConfigFile.mockResolvedValue({
+      configPath: '/project/team.json',
+      data: {}
+    });
+    mockLoadAndValidateInstallConfig.mockReturnValue({
+      environments: ['codex'], phases: [], registries: {}, skills: [], mcpServers: {}
+    });
+
+    await installCommand({ config: './team.json' });
+
+    expect(mockLoadConfigFile).toHaveBeenCalledWith('./team.json');
+    expect(mockReconcileAndInstall).toHaveBeenCalledWith(
+      expect.objectContaining({ environments: ['codex'] }),
+      { overwrite: undefined }
+    );
   });
 
   it('fails with non-zero exit code when reconcile step throws', async () => {

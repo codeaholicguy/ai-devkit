@@ -5,6 +5,7 @@ import {
 import { loadConfigFile } from '../services/config/config.service.js';
 import { validateInstallConfig } from '../util/config.js';
 import { ui } from '../util/terminal-ui.js';
+import { renderApplicationReport } from '../services/install/install-report.js';
 
 interface InstallCommandOptions {
   config?: string;
@@ -55,35 +56,7 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
     return;
   }
 
-  ui.summary({
-    title: 'Install Summary',
-    items: [
-      { type: 'success', count: report.environments.installed, label: 'environment(s) installed' },
-      { type: 'warning', count: report.environments.skipped, label: 'environment(s) skipped' },
-      { type: 'error', count: report.environments.failed, label: 'environment(s) failed' },
-      { type: 'success', count: report.phases.installed, label: 'phase template(s) installed' },
-      { type: 'warning', count: report.phases.skipped, label: 'phase template(s) skipped' },
-      { type: 'error', count: report.phases.failed, label: 'phase template(s) failed' },
-      { type: 'success', count: report.skills.installed, label: 'skill(s) installed' },
-      { type: 'error', count: report.skills.failed, label: 'skill(s) failed' },
-      { type: 'success', count: report.mcpServers.installed, label: 'MCP server config(s) installed' },
-      { type: 'warning', count: report.mcpServers.skipped, label: 'MCP server config(s) skipped' },
-      { type: 'warning', count: report.mcpServers.conflicts, label: 'MCP server conflict(s) skipped' },
-      { type: 'error', count: report.mcpServers.failed, label: 'MCP server config(s) failed' }
-    ]
-  });
-
-  if (report.warnings.length > 0) {
-    ui.text('');
-    ui.warning('Warnings:');
-    report.warnings.forEach(warning => {
-      ui.text(`  - ${warning}`);
-    });
-
-    if (report.skills.failed > 0) {
-      ui.warning('Skill failures are reported as warnings and do not change exit code.');
-    }
-  }
+  renderApplicationReport(report);
 
   process.exitCode = getInstallExitCode(report, {
     overwrite: options.overwrite

@@ -10,8 +10,10 @@ vi.mock('@inquirer/prompts', () => ({
 }));
 
 const mockHasMcpSupport = vi.fn();
+const mockGetMcpConfigPath = vi.fn();
 vi.mock('../../../../util/env.js', () => ({
   hasMcpSupport: (...args: unknown[]) => mockHasMcpSupport(...args),
+  getMcpConfigPath: (...args: unknown[]) => mockGetMcpConfigPath(...args),
 }));
 
 const mockIsInteractiveTerminal = vi.fn();
@@ -88,6 +90,9 @@ describe('McpConfigGenerator (orchestrator)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockHasMcpSupport.mockReturnValue(true);
+    mockGetMcpConfigPath.mockImplementation((agent: EnvironmentCode) =>
+      agent === 'claude' || agent === 'github' ? '.mcp.json' : `.${agent}/mcp.json`
+    );
     mockIsInteractiveTerminal.mockReturnValue(true);
   });
 
@@ -138,6 +143,22 @@ describe('McpConfigGenerator (orchestrator)', () => {
     });
 
     const report = await installMcpServers(servers, ['github'], '/project');
+
+    expect(mockPlan).toHaveBeenCalledTimes(1);
+    expect(mockApply).toHaveBeenCalledTimes(1);
+    expect(report.installed).toBe(1);
+  });
+
+  it('applies a shared physical MCP target once for Claude and GitHub', async () => {
+    mockPlan.mockResolvedValue({
+      agentType: 'claude',
+      newServers: ['memory'],
+      conflictServers: [],
+      skippedServers: [],
+      resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(servers, ['claude', 'github'], '/project');
 
     expect(mockPlan).toHaveBeenCalledTimes(1);
     expect(mockApply).toHaveBeenCalledTimes(1);
@@ -229,6 +250,9 @@ describe('McpConfigGenerator (orchestrator)', () => {
     expect(report.skipped).toBe(1);
     expect(report.installed).toBe(0);
     expect(mockApply).not.toHaveBeenCalled();
+    expect(report.items).toContainEqual(expect.objectContaining({
+      name: 'memory', status: 'matched'
+    }));
   });
 
   it('prompts user for conflicts in interactive mode', async () => {
@@ -280,6 +304,21 @@ describe('McpConfigGenerator (orchestrator)', () => {
     expect(report.installed).toBe(0);
   });
 
+  it('does not prompt for conflicts when the caller explicitly selects non-interactive mode', async () => {
+    mockIsInteractiveTerminal.mockReturnValue(true);
+    mockPlan.mockResolvedValue({
+      agentType: 'claude', newServers: [], conflictServers: ['memory'],
+      skippedServers: [], resolvedConflicts: [],
+    });
+
+    const report = await installMcpServers(
+      servers, ['claude'], '/project', { nonInteractive: true }
+    );
+
+    expect(mockSelect).not.toHaveBeenCalled();
+    expect(report.conflicts).toBe(1);
+  });
+
   it('overwrites conflicts in non-interactive mode with --overwrite', async () => {
     mockIsInteractiveTerminal.mockReturnValue(false);
     mockPlan.mockResolvedValue({
@@ -318,6 +357,9 @@ describe('McpConfigGenerator (orchestrator)', () => {
     const report = await installMcpServers(servers, ['claude'], '/project');
     expect(report.failed).toBe(1);
     expect(report.installed).toBe(0);
+    expect(report.items).toContainEqual(expect.objectContaining({
+      name: 'memory', status: 'failed'
+    }));
   });
 
   it('handles per-server choice in interactive mode', async () => {

@@ -4,9 +4,10 @@ import { ConfigManager } from '../lib/Config.js';
 import { TemplateManager } from '../lib/TemplateManager.js';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';
 import { PhaseSelector } from '../lib/PhaseSelector.js';
-import { SkillManager } from '../lib/SkillManager.js';
 import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate.js';
-import { EnvironmentCode, PHASE_DISPLAY_NAMES, Phase, DEFAULT_DOCS_DIR } from '../types.js';
+import { ConfigSkill, EnvironmentCode, Phase, DEFAULT_DOCS_DIR } from '../types.js';
+import { getInstallExitCode, reconcileAndInstall } from '../services/install/install.service.js';
+import { renderApplicationReport } from '../services/install/install-report.js';
 import { isValidEnvironmentCode } from '../util/env.js';
 import { isInteractiveTerminal } from '../util/terminal.js';
 import { ui } from '../util/terminal-ui.js';
@@ -96,48 +97,18 @@ async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean
   return Boolean(installBuiltinSkills);
 }
 
-interface TemplateSkillInstallResult {
-  registry: string;
-  skill: string;
-  status: 'installed' | 'skipped' | 'failed';
-  reason?: string;
-}
-
-async function installTemplateSkills(
-  skillManager: SkillManager,
-  skills: InitTemplateSkill[]
-): Promise<TemplateSkillInstallResult[]> {
+function normalizeSkills(skills: InitTemplateSkill[]): ConfigSkill[] {
   const seen = new Set<string>();
-  const results: TemplateSkillInstallResult[] = [];
+  const results: ConfigSkill[] = [];
 
   for (const entry of skills) {
     const dedupeKey = `${entry.registry}::${entry.skill}`;
     if (seen.has(dedupeKey)) {
-      results.push({
-        registry: entry.registry,
-        skill: entry.skill,
-        status: 'skipped',
-        reason: 'Duplicate skill entry in template'
-      });
       continue;
     }
     seen.add(dedupeKey);
 
-    try {
-      await skillManager.addSkill(entry.registry, entry.skill);
-      results.push({
-        registry: entry.registry,
-        skill: entry.skill,
-        status: 'installed'
-      });
-    } catch (error) {
-      results.push({
-        registry: entry.registry,
-        skill: entry.skill,
-        status: 'failed',
-        reason: error instanceof Error ? error.message : String(error)
-      });
-    }
+    results.push({ registry: entry.registry, name: entry.skill });
   }
 
   return results;
@@ -148,7 +119,6 @@ export async function initCommand(options: InitOptions) {
   const templateManager = new TemplateManager();
   const environmentSelector = new EnvironmentSelector();
   const phaseSelector = new PhaseSelector();
-  const skillManager = new SkillManager(configManager, environmentSelector);
   const templatePath = options.template?.trim();
   const hasTemplate = Boolean(templatePath);
   const templateConfig = hasTemplate
@@ -264,8 +234,6 @@ export async function initCommand(options: InitOptions) {
     docsDir = templateConfig.paths.docs;
   }
 
-  const phaseTemplateManager = new TemplateManager({ docsDir });
-
   ui.text('Initializing AI DevKit...', { breakline: true });
 
   let config = await configManager.read();
@@ -274,119 +242,54 @@ export async function initCommand(options: InitOptions) {
     ui.success('Created configuration file');
   }
 
-  if (docsDir !== DEFAULT_DOCS_DIR) {
-    await configManager.update({ paths: { docs: docsDir } });
-  }
-
-  await configManager.setEnvironments(selectedEnvironments);
-  ui.success('Updated configuration with selected environments');
-
-  environmentSelector.displaySelectionSummary(selectedEnvironments);
-
-  phaseSelector.displaySelectionSummary(selectedPhases);
-  if (hasTemplate && templateConfig) {
-    ui.info(`Template mode: ${templatePath}`);
-    if (templateConfig.skills?.length) {
-      ui.info(`Template skills to install: ${templateConfig.skills.length}`);
-    }
-  }
-  ui.text('Setting up environment templates...', { breakline: true });
-  const envFiles = await phaseTemplateManager.setupMultipleEnvironments(selectedEnvironments);
-  envFiles.forEach(file => {
-    ui.success(`Created ${file}`);
-  });
-
-  for (const phase of selectedPhases) {
-    const exists = await phaseTemplateManager.fileExists(phase);
-    let shouldCopy = true;
-
-    if (exists) {
-      if (hasTemplate) {
-        ui.warning(`${PHASE_DISPLAY_NAMES[phase]} already exists. Overwriting in template mode.`);
-      } else if (nonInteractive) {
-        shouldCopy = Boolean(options.overwrite);
-      } else {
-        const overwrite = await confirm({
-          message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
-          default: false
-        });
-        shouldCopy = overwrite;
-      }
-    }
-
-    if (shouldCopy) {
-      await phaseTemplateManager.copyPhaseTemplate(phase);
-      await configManager.addPhase(phase);
-      ui.success(`Created ${phase} phase`);
-    } else {
-      ui.warning(`Skipped ${phase} phase`);
-    }
-  }
-
-  if (templateConfig?.registries) {
-    const registryCount = Object.keys(templateConfig.registries).length;
-    if (registryCount > 0) {
-      await configManager.update({ registries: templateConfig.registries });
-      ui.success(`Saved ${registryCount} custom registry(ies) to config.`);
-    }
-  }
-
-  if (templateConfig?.skills?.length) {
-    ui.text('Installing skills from template...', { breakline: true });
-    const skillResults = await installTemplateSkills(skillManager, templateConfig.skills);
-    const installedCount = skillResults.filter(result => result.status === 'installed').length;
-    const skippedCount = skillResults.filter(result => result.status === 'skipped').length;
-    const failedResults = skillResults.filter(result => result.status === 'failed');
-
-    if (installedCount > 0) {
-      ui.success(`Installed ${installedCount} skill(s) from template.`);
-    }
-    if (skippedCount > 0) {
-      ui.warning(`Skipped ${skippedCount} duplicate skill entry(ies) from template.`);
-    }
-    if (failedResults.length > 0) {
-      ui.warning(
-        `${failedResults.length} skill install(s) failed. Continuing with warnings as configured.`
-      );
-      failedResults.forEach(result => {
-        ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
-      });
-    }
-  }
-
+  const desiredSkillEntries = [...(templateConfig?.skills || [])];
   if (options.builtIn || !hasTemplate) {
     const shouldInstall = await shouldInstallBuiltinSkills(options);
-
     if (shouldInstall) {
-      ui.text('Installing AI DevKit built-in skills...', { breakline: true });
-      const skillResults = await installTemplateSkills(skillManager, BUILTIN_SKILLS);
-      const installedCount = skillResults.filter(result => result.status === 'installed').length;
-      const failedResults = skillResults.filter(result => result.status === 'failed');
-
-      if (installedCount > 0) {
-        ui.success(`Installed ${installedCount} built-in skill(s).`);
-      }
-      if (failedResults.length > 0) {
-        ui.warning(
-          `${failedResults.length} built-in skill install(s) failed. Continuing with warnings.`
-        );
-        failedResults.forEach(result => {
-          ui.warning(`${result.registry}/${result.skill}: ${result.reason || 'Unknown error'}`);
-        });
-      }
+      desiredSkillEntries.push(...BUILTIN_SKILLS);
     }
   }
+  const desiredSkills = normalizeSkills(desiredSkillEntries);
 
-  if (templateConfig?.mcpServers && Object.keys(templateConfig.mcpServers).length > 0) {
-    await configManager.update({ mcpServers: templateConfig.mcpServers });
-    ui.success(`Saved ${Object.keys(templateConfig.mcpServers).length} MCP server definition(s) to config.`);
-    ui.info('Run `ai-devkit install` to generate agent-specific MCP config files.');
+  const registries = templateConfig?.registries || config.registries || {};
+  const mcpServers = templateConfig?.mcpServers || config.mcpServers || {};
+  await configManager.update({
+    environments: selectedEnvironments,
+    phases: selectedPhases,
+    ...(docsDir !== DEFAULT_DOCS_DIR ? { paths: { ...config.paths, docs: docsDir } } : {}),
+    ...(Object.keys(registries).length > 0 ? { registries } : {}),
+    ...(desiredSkills.length > 0 ? { skills: desiredSkills } : {}),
+    ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {})
+  });
+
+  ui.success('Saved project configuration');
+  environmentSelector.displaySelectionSummary(selectedEnvironments);
+  phaseSelector.displaySelectionSummary(selectedPhases);
+
+  const report = await reconcileAndInstall({
+    environments: selectedEnvironments,
+    phases: selectedPhases,
+    registries,
+    skills: desiredSkills,
+    mcpServers
+  }, {
+    overwrite: options.overwrite,
+    nonInteractive
+  });
+
+  renderApplicationReport(report, 'Initialization Summary');
+  process.exitCode = getInstallExitCode(report, { overwrite: options.overwrite });
+
+  if (process.exitCode !== 0) {
+    ui.warning('Project configuration was saved, but setup is incomplete.');
+    ui.info('Resolve the errors above, then run `ai-devkit install`.');
+    return;
   }
 
-  ui.text('AI DevKit initialized successfully!', { breakline: true });
+  ui.text('AI DevKit project initialized successfully!', { breakline: true });
   ui.info('Next steps:');
   ui.text(`  • Review and customize templates in ${docsDir}/`);
-  ui.text('  • Your AI environments are ready to use with the generated configurations');
+  ui.text('  • Your selected AI environments are ready in this project');
   ui.text('  • Run `ai-devkit phase <name>` to add more phases later');
   ui.text('  • Run `ai-devkit init` again to add more environments\n');
 }

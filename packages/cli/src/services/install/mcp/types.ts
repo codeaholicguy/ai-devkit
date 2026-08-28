@@ -34,4 +34,10 @@ export interface McpInstallReport {
   skipped: number;
   conflicts: number;
   failed: number;
+  items: Array<{
+    name: string;
+    target: string;
+    status: 'installed' | 'matched' | 'conflict' | 'failed';
+    message?: string;
+  }>;
 }

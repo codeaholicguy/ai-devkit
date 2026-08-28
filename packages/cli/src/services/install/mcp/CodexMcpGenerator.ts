@@ -30,14 +30,10 @@ export class CodexMcpGenerator extends BaseMcpGenerator {
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
     const configPath = path.join(projectRoot, '.codex', 'config.toml');
-    try {
-      if (await fs.pathExists(configPath)) {
-        const content = await fs.readFile(configPath, 'utf-8');
-        this.fullConfig = TOML.parse(content) as CodexConfig;
-        return (this.fullConfig.mcp_servers || {}) as Record<string, unknown>;
-      }
-    } catch {
-      // Malformed file — treat as empty
+    if (await fs.pathExists(configPath)) {
+      const content = await fs.readFile(configPath, 'utf-8');
+      this.fullConfig = TOML.parse(content) as CodexConfig;
+      return (this.fullConfig.mcp_servers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
     return {};

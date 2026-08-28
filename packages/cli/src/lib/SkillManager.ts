@@ -68,7 +68,11 @@ export class SkillManager {
   /**
    * Add a skill to the project
    */
-  async addSkill(registryId: string, skillName?: string, options: AddSkillOptions = {}): Promise<void> {
+  async addSkill(
+    registryId: string,
+    skillName?: string,
+    options: AddSkillOptions = {}
+  ): Promise<'installed' | 'matched'> {
     ui.info(`Validating registry: ${registryId}`);
     validateRegistryId(registryId);
     await ensureGitInstalled();
@@ -94,9 +98,16 @@ export class SkillManager {
     const selectedEnvironments = await this.resolveInstallEnvironments(options);
     const installContext = this.buildInstallContext(selectedEnvironments, options);
 
+    let status: 'installed' | 'matched' = 'matched';
     for (const resolvedSkillName of resolvedSkillNames) {
-      await this.installResolvedSkill(registryId, repoPath, resolvedSkillName, options, installContext);
+      const itemStatus = await this.installResolvedSkill(
+        registryId, repoPath, resolvedSkillName, options, installContext
+      );
+      if (itemStatus === 'installed') {
+        status = 'installed';
+      }
     }
+    return status;
   }
 
   /**
@@ -463,13 +474,14 @@ export class SkillManager {
     resolvedSkillName: string,
     options: AddSkillOptions,
     installContext: ResolvedInstallContext
-  ): Promise<void> {
+  ): Promise<'installed' | 'matched'> {
     ui.info(`Validating skill: ${resolvedSkillName} from ${registryId}`);
     validateSkillName(resolvedSkillName);
 
     const skillPath = await this.resolveInstallableSkillPath(repoPath, registryId, resolvedSkillName);
 
     ui.info(`Installing skill to ${installContext.installMode}...`);
+    let installed = false;
     for (const targetDir of installContext.targets) {
       const targetPath = path.join(installContext.baseDir, targetDir, resolvedSkillName);
 
@@ -483,10 +495,11 @@ export class SkillManager {
       try {
         await fs.symlink(skillPath, targetPath, 'dir');
         ui.text(`  → ${targetDir}/${resolvedSkillName} (symlinked)`);
-      } catch (error) {
+      } catch (ignoreError) {
         await fs.copy(skillPath, targetPath);
         ui.text(`  → ${targetDir}/${resolvedSkillName} (copied)`);
       }
+      installed = true;
     }
 
     if (!options.global) {
@@ -499,6 +512,7 @@ export class SkillManager {
     ui.text(`Successfully installed: ${resolvedSkillName}`);
     ui.info(`  Source: ${registryId}`);
     ui.info(`  Installed to (${installContext.installMode}): ${installContext.capableEnvironments.join(', ')}`);
+    return installed ? 'installed' : 'matched';
   }
 
   private buildInstallContext(
