@@ -2,6 +2,7 @@ import { Command } from 'commander';
 
 import { registerSkillCommand } from '../../commands/skill.js';
 import { ui } from '../../util/terminal-ui.js';
+import { SkillManager } from '../../lib/SkillManager.js';
 
 const mockRemoveCache = vi.hoisted(() => vi.fn());
 
@@ -338,6 +339,7 @@ describe('skill command', () => {
       global: undefined,
       environments: undefined,
     });
+    expect(SkillManager).toHaveBeenCalledTimes(1);
   });
 
   it('exits when skill add has neither registry nor --built-in', async () => {

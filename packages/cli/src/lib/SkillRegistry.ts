@@ -31,6 +31,9 @@ export interface UpdateSummary {
 }
 
 export class SkillRegistry {
+  private mergedRegistry?: Promise<SkillRegistryData>;
+  private readonly preparedRepositories = new Map<string, Promise<string>>();
+
   constructor(
     private configManager: ConfigManager,
     private globalConfigManager: GlobalConfigManager
@@ -46,7 +49,15 @@ export class SkillRegistry {
     return response.json() as Promise<SkillRegistryData>;
   }
 
-  async fetchMergedRegistry(): Promise<SkillRegistryData> {
+  fetchMergedRegistry(): Promise<SkillRegistryData> {
+    if (!this.mergedRegistry) {
+      this.mergedRegistry = this.loadMergedRegistry();
+    }
+
+    return this.mergedRegistry;
+  }
+
+  private async loadMergedRegistry(): Promise<SkillRegistryData> {
     let defaultRegistries: Record<string, string> = {};
 
     try {
@@ -97,13 +108,27 @@ export class SkillRegistry {
   }
 
   async prepareRegistryRepository(registryId: string, gitUrl?: string): Promise<string> {
+    const preparedRepository = this.preparedRepositories.get(registryId);
+    if (preparedRepository) {
+      return preparedRepository;
+    }
+
+    const preparation = this.refreshOrUseStaleCache(registryId, gitUrl);
+    this.preparedRepositories.set(registryId, preparation);
+    return preparation;
+  }
+
+  private async refreshOrUseStaleCache(registryId: string, gitUrl?: string): Promise<string> {
     const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
+    ui.info(`Refreshing registry ${registryId}...`);
 
     try {
-      return await this.cloneRepositoryToCache(registryId, gitUrl);
+      const repositoryPath = await this.cloneRepositoryToCache(registryId, gitUrl);
+      ui.success(`Registry ${registryId} refreshed.`);
+      return repositoryPath;
     } catch (error: unknown) {
       if (await fs.pathExists(cachedPath)) {
-        ui.warning(`Failed to refresh ${registryId}: ${getErrorMessage(error)}. Using cached registry contents.`);
+        ui.warning(`Could not refresh registry ${registryId}: ${getErrorMessage(error)}. Using cached registry contents for this run.`);
         return cachedPath;
       }
 
