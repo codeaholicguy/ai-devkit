@@ -20,9 +20,9 @@ description: TDD task breakdown for one preparation per registry instance
 
 ## Milestone 3: Lifecycle completion
 
-- [ ] Reconcile implementation/testing docs and verify design alignment.
-- [ ] Run focused tests, build (6 projects), full tests, lint, feature lint, and e2e.
-- [ ] Complete final review, create logical conventional commits, rebase on fetched `origin/main`, push, and open a PR.
+- [x] Reconcile implementation/testing docs and verify design alignment.
+- [x] Run focused tests, build (6 projects), full tests, lint, feature lint, and e2e.
+- [ ] Complete final review, rebase on fetched `origin/main`, push, and open a PR.
 
 ## Dependencies and Risks
 
@@ -33,4 +33,4 @@ description: TDD task breakdown for one preparation per registry instance
 
 ## Progress Summary
 
-Implementation and caller coverage are complete. Next: full validation and review.
+Implementation, tests, documentation, and local review are complete with no blocking findings. Next: final remote sync, push, and PR.

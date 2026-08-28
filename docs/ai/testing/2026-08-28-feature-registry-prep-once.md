@@ -32,12 +32,12 @@ Cover 100% of new branches and all approved freshness/failure semantics. Mock Gi
 
 ## Regression and E2E
 
-- [ ] Focused CLI tests pass.
-- [ ] `npm run build` succeeds for 6 projects.
-- [ ] Full `npm test` passes.
-- [ ] `npm run lint` passes.
-- [ ] `npx ai-devkit@latest lint --feature registry-prep-once` passes.
-- [ ] `npx vitest run --config e2e/vitest.config.ts` passes.
+- [x] Focused CLI tests pass (159 tests across 6 selected files before full validation).
+- [x] `npm run build` succeeds for 6 projects.
+- [x] Full `npm test` passes (159 files, 2,061 tests).
+- [x] `npm run lint` passes all 6 projects; three pre-existing warnings remain.
+- [x] `npx ai-devkit@latest lint --feature registry-prep-once` passes.
+- [x] `npx vitest run --config e2e/vitest.config.ts` passes (1 file, 41 tests).
 - [x] Regression proof: core test passes with fix, fails with two pulls when the fix is reverted, and passes after restoration.
 
 ## Fixtures
@@ -46,4 +46,4 @@ Reuse temporary cache paths and mocked `pullRepository`, `cloneRepository`, `isG
 
 ## Results
 
-Focused registry/manager suites: 81 passed. Caller suites: 79 passed. Full validation remains pending.
+All requested validation passed. No coverage gaps or blocking review findings remain for the changed behavior.

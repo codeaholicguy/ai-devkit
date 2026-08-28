@@ -1,7 +1,6 @@
 import type { Mocked } from 'vitest';
 import fs from 'fs-extra';
 import * as path from 'path';
-import * as os from 'os';
 import { SkillRegistry, SKILL_CACHE_DIR } from '../../lib/SkillRegistry.js';
 import { ConfigManager } from '../../lib/Config.js';
 import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
