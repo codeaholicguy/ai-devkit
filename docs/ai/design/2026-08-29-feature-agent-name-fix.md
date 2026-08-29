@@ -1,79 +1,37 @@
 ---
 phase: design
-title: System Design & Architecture
-description: Define the technical architecture, components, and data models
+title: Observer-Never-Deletes Registry Design
+description: Minimal design for durable registry ownership
 ---
 
-# System Design & Architecture
+# Observer-Never-Deletes Registry Design
 
-## Architecture Overview
+## Ownership rule
 
-```mermaid
-flowchart LR
-  A[Managed start] --> R[(agents row)]
-  S[Sandbox refresh] --> P{PID alive?}
-  P -->|ESRCH| T{managed tmux exists?}
-  T -->|yes| R
-  T -->|no| D[prune row]
-  H[Host/provider detection] --> M{type + PID match}
-  M -->|no| I{type + stable sessionId match}
-  I -->|yes| X[atomic PID migration preserving metadata]
-  I -->|no| N[new unmanaged row]
-  K[agent kill] --> C[capture registry mapping]
-  C --> F[refresh/resolve provider]
-  F --> Q[kill PID if present and captured tmux]
-```
+`AgentManager.listAgents()` detects and displays live agents but cannot know
+authoritatively that an absent PID is dead: ai-devkit did not necessarily start
+the process, and callers may run in another PID namespace. Therefore refresh,
+registration, rename conflict resolution, and pin validation never delete rows.
+Only the explicit `agent kill` workflow calls `AgentRegistry.remove(type, pid)`.
 
-`AgentRegistry` owns liveness and continuity. `AgentManager` resolves detected
-agents against a registry snapshot. The CLI kill flow captures managed metadata
-before detection can mutate it.
+## Refresh reconciliation
 
-## Data Models
-**What data do we need to manage?**
+For each detected agent, take the pre-refresh registry snapshot and compare exact
+`(type, pid)` identity:
 
-- No schema migration is required. Interactive rows keep `(type, pid)` as the
-  primary key and carry `name`, `tmux_session`, and `session_id`.
-- Stable-session matching selects an existing row only when type and non-empty,
-  non-synthetic session ID match uniquely.
-- Migration deletes the superseded identity and inserts/updates the new identity
-  in one transaction.
-- `durable_agents` remains separate and untouched.
+- Stored session ID empty or equal: inherit the held name and metadata, register
+  the observation, and display the persisted values.
+- Stored session ID different: treat the PID as recycled. Generate the first
+  available suffix (`name-2`, `name-3`, ...), display it without registering it,
+  and leave the held row untouched.
+- No exact row: register the detected agent normally.
 
-## API Design
-**How do components communicate?**
+Display-only handling is required for the mismatched-session case because the
+SQLite primary key is `(type, pid)`; writing it would overwrite the held row.
+Collision takeover is deferred, so a detector never acquires a held name.
 
-- Extend `AgentRegistryOptions` with an injectable managed-session liveness probe.
-- Add registry lookup by stable provider session identity and use it during
-  `AgentManager.listAgents()` snapshot reconciliation.
-- Extend kill orchestration inputs so a registry entry captured before refresh
-  can be supplied without a second lossy lookup.
+## Data boundaries
 
-## Component Breakdown
-**What are the major building blocks?**
-
-- `AgentRegistry`: tmux-aware prune decision and atomic identity migration.
-- `AgentManager`: PID-first, stable-session-second continuity matching.
-- agent CLI/service: capture-first kill resolution and cleanup.
-- `TmuxManager`: existing session-existence and kill operations; no shell
-  interpolation.
-
-## Design Decisions
-**Why did we choose this approach?**
-
-- Prefer confirming managed tmux existence over skipping all managed-row pruning;
-  this retains cleanup once both PID and session are gone.
-- Keep PID as the primary identity and treat session ID as a guarded continuity
-  key, avoiding a database migration.
-- Do not match by cwd or generated name because either can identify multiple
-  agents.
-- Do not use PID rollover as the explanation for the live incident; it is a
-  separately reproduced defect covered by the same continuity layer.
-
-## Non-Functional Requirements
-**How should the system perform?**
-
-- Avoid tmux probes for unmanaged rows and live PIDs.
-- Invoke tmux without a shell and pass the session name as an argument.
-- Ambiguous session-ID matches fail closed and create an unmanaged row rather
-  than stealing metadata.
-- Registry mutation remains transactional.
+No schema changes are required. The `agents` table remains distinct from
+`durable_agents`; durable-agent lifecycle code is not involved. `isAlive`
+remains available only for user-facing validation and reporting.

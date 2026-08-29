@@ -1,87 +1,35 @@
 ---
 phase: implementation
-title: Implementation Guide
-description: Technical implementation notes, patterns, and code guidelines
+title: Agent Registry Name Fix Implementation
+description: Implementation notes and incident evidence
 ---
 
-# Implementation Guide
+# Agent Registry Name Fix Implementation
 
-## Development Setup
+## Root cause
 
-- Worktree: `.worktrees/feature-agent-name-fix`
-- Bootstrap: `npm ci && npm run build`
-- Runtime evidence: Node 24.18.0, npm 11.16.0, CLI 0.56.0, Linux/tmux.
+At `2026-08-29T08:10:16Z`, an FTS agent invoked
+`npx ai-devkit agent list --json` in a Codex exec sandbox. The sandbox could not
+see host PIDs, and list-time `pruneIfDue` interpreted `ESRCH` as authoritative
+death. It deleted managed rows. Subsequent host-side Codex detection reused the
+original PIDs from session metadata but, with no rows left to inherit, generated
+default names and registered empty tmux links. This exactly explains original
+PIDs plus replaced names plus empty `tmux_session`.
 
-## Code Structure
-**How is the code organized?**
+## Changes
 
-- Registry: `packages/agent-manager/src/utils/AgentRegistry.ts`
-- Refresh reconciliation: `packages/agent-manager/src/AgentManager.ts`
-- Kill orchestration: `packages/cli/src/services/agent/agent.service.ts` and
-  `packages/cli/src/commands/agent.ts`
-- Tests remain beside existing agent-manager and CLI suites.
+- Removed `pruneAt`, `prune`, `pruneIfDue`, their refresh/start call sites, and
+  all liveness-based deletion in registration, rename conflicts, and pinning.
+- Added exact registry removal to the explicit kill service; `ESRCH` still permits
+  tmux cleanup and row removal.
+- Made refresh inheritance require exact type/PID plus compatible session ID.
+  Recycled PIDs receive an available suffixed display name without a registry
+  write, preserving the old row.
+- Kept list output detection-based: retained but undetected rows are invisible.
+- Made no changes to `durable_agents`.
 
-## Implementation Notes
-**Key technical details to remember:**
+## Safety properties
 
-### Core Features
-- `AgentRegistry.isAlive` now consults exact tmux-session liveness only after an
-  `ESRCH` result for a managed row. Missing sessions permit pruning; probe errors
-  preserve state.
-- Detection batches opt into stable-session continuity. Only unique, non-empty,
-  non-synthetic `(type, sessionId)` matches migrate managed metadata, and the
-  old/new PID change occurs in the existing SQLite transaction.
-- `agent kill` captures an exact registry entry before refresh, follows its PID
-  or unique stable session to the detected process, and passes the captured tmux
-  mapping to kill orchestration.
-
-### Patterns & Best Practices
-- Dependency-inject external liveness checks for deterministic tests.
-- Match strongest identity first and fail closed on ambiguity.
-- Preserve synchronous registry semantics and transactional writes.
-
-## Integration Points
-**How do pieces connect?**
-
-- SQLite is accessed through the existing `DatabaseConnection`.
-- Tmux checks reuse argument-safe process execution and the current
-  `TmuxManager` abstraction where asynchronous orchestration permits it.
-
-## Error Handling
-**How do we handle failures?**
-
-- Only `ESRCH` is definitive PID absence. A live managed tmux session overrides
-  that absence for pruning purposes.
-- Unexpected process or tmux probe failures preserve registry state.
-- Kill ignores `ESRCH` from process termination but still cleans captured tmux.
-
-## Performance Considerations
-**How do we keep it fast?**
-
-- Tmux is queried only for managed entries after a definitive dead-PID result.
-- Registry snapshots and migrations remain batched.
-
-## Security Notes
-**What security measures are in place?**
-
-- Session names already pass CLI validation; process execution must not use a
-  shell. No credentials or user content are added to registry state.
-
-## Evidence
-
-- Sandboxed `agent list`: original rows present before, `[]` returned, rows empty
-  afterward because outer PIDs were absent from sandbox `/proc`.
-- Unsandboxed `agent list`: original PIDs rediscovered and rows recreated with
-  generated names and empty `tmux_session`.
-- Controlled current-code reproduction: stable session ID under a new PID lost
-  custom name and tmux metadata and replaced the old row.
-- TDD red: prune, continuity, kill-service, and kill-command regressions each
-  failed against the old production implementation.
-- Regression reversal repeated the four failures after implementation, followed
-  by four passing tests after restoration.
-- Post-fix sandbox smoke: an invisible PID row remained registered while
-  `tmux has-session -t =memory-search-brainstorm` returned success.
-- Repository gates: build, six-project tests, lint, and 41 e2e tests passed.
-- Security review found no command-injection, SQL-injection, privilege-boundary,
-  or destructive-target findings: tmux uses an array-based API with an exact
-  target, SQL remains parameterized, and ambiguous session matches fail closed.
+SQL remains parameterized. No shell execution or new external input surface was
+introduced. Observer paths cannot destroy registry history merely because their
+process namespace is incomplete.

@@ -1,71 +1,40 @@
 ---
 phase: requirements
-title: Requirements & Problem Understanding
-description: Clarify the problem space, gather requirements, and define success criteria
+title: Agent Registry Names Must Survive Observation
+description: Incident requirements and acceptance criteria
 ---
 
-# Requirements & Problem Understanding
+# Agent Registry Names Must Survive Observation
 
-## Problem Statement
+## Incident and evidence chain
 
-Interactive agents started in managed tmux sessions lose their custom registry
-name and tmux link. A refresh inside a provider sandbox cannot see host PIDs,
-prunes the managed rows as dead, and a later host refresh recreates them from
-provider session mappings with generated names and an empty `tmux_session`.
-Consequently `agent kill` can terminate a provider process without removing its
-managed tmux session. A genuine provider PID rollover has the same metadata-loss
-outcome because registry continuity currently uses only `(type, pid)`.
+Managed agents initially retained their custom names and tmux links. Their SQLite
+rows later contained the original, still-live host PIDs but generated names and
+empty `tmux_session` values. This disproved PID rollover as the incident trigger.
 
-## Goals & Objectives
-**What do we want to achieve?**
+Manager forensics identified the destructive observation: at
+`2026-08-29T08:10:16Z`, an FTS agent ran `npx ai-devkit agent list --json` inside
+its Codex exec sandbox. Host PIDs were absent from that PID namespace, so
+`process.kill(pid, 0)` returned `ESRCH`; list-time pruning deleted the rows. A
+later host refresh rediscovered the same original PIDs through Codex session
+metadata and registered generated folder-PID names with no tmux mapping.
 
-- Keep a managed registry row while its tmux session exists, even if PID probing
-  reports `ESRCH` from an isolated namespace.
-- Preserve managed identity across a genuine PID rollover when provider session
-  identity is stable.
-- Ensure kill captures and cleans the managed tmux session when the provider is
-  already gone or a refresh would otherwise discard the mapping.
-- Keep unmanaged detected rows prunable and preserve current stale-name conflict
-  behavior.
-- Non-goals: rebuilding the process detector, changing durable-agent lifecycle,
-  restoring already-lost names, or automatically deleting unrelated orphan tmux
-  sessions.
+## Required behavior
 
-## User Stories & Use Cases
-**How will users interact with the solution?**
+- Refresh/list is an observer and never deletes registry rows.
+- Registration conflict handling never deletes a row based on process liveness.
+- Pinning a dead or namespace-invisible agent throws `AgentNotRunningError` but
+  preserves its row.
+- `agent kill` is the only interactive-agent row deletion path, including when
+  the target process already exited.
+- Detection inherits a name only for an exact `(type, pid)` match whose stored
+  session ID is empty or equals the detected session ID.
+- A recycled PID with a different session ID receives a display-only unique
+  suffix; it neither inherits nor overwrites the held row.
+- Undetected registry rows remain hidden from `agent list` output.
+- `durable_agents` is separate and unchanged.
 
-- As an agent operator, I want names and tmux links to survive refreshes from
-  sandboxed workers so registry commands remain trustworthy.
-- As an agent operator, I want a restarted provider process to retain the managed
-  session identity when it resumes the same provider session.
-- As an agent operator, I want `agent kill <custom-name>` to remove the managed
-  tmux session even if the provider process has already exited.
-- Unmanaged detected agents remain PID-scoped and are pruned when dead.
+## Deferred work
 
-## Success Criteria
-**How will we know when we're done?**
-
-- An `ESRCH` probe does not prune a row with non-empty `tmux_session` while
-  `tmux has-session` confirms that session exists.
-- The same row is pruned once both provider PID and tmux session are absent.
-- A detected `(type, sessionId)` match migrates managed metadata atomically to a
-  new PID without leaving duplicate rows.
-- Refresh output retains the custom name and kill removes the captured tmux
-  session even when process termination returns `ESRCH`.
-- `durable_agents` behavior and schema remain unchanged.
-
-## Constraints & Assumptions
-**What limitations do we need to work within?**
-
-- Registry APIs are synchronous; tmux liveness probing must therefore use a
-  synchronous, argument-safe process call or an injectable synchronous probe.
-- Only non-empty managed tmux links receive the tmux-liveness exception.
-- Provider session IDs are scoped by agent type and ignored when empty or
-  synthetic PID identifiers.
-- SQLite updates must be transactional and preserve pins and start metadata.
-
-## Questions & Open Items
-**What do we still need to clarify?**
-
-- None. The user approved prune safety, session-ID continuity, and pre-refresh
-  kill capture after live validation of the two-stage trigger.
+PID-rollover session continuity, tmux-guarded liveness, kill-order changes, and
+name-collision takeover are explicitly out of scope.
