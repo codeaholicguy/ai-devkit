@@ -573,6 +573,33 @@ describe('killAgent', () => {
     expect(tmux.killSession).toHaveBeenCalledWith('repo-a');
   });
 
+  it('uses a registry mapping captured before refresh when the live lookup is gone', async () => {
+    const tmux = makeTmux();
+    const registry = makeRegistry({ lookup: vi.fn().mockReturnValue(null) });
+    const capturedEntry = {
+      name: 'custom-name',
+      type: 'codex',
+      pid: 123,
+      tmuxSession: 'custom-name',
+      cwd: '/repo',
+      startedAt: '2026-08-29T08:08:31.000Z',
+      sessionId: 'stable-session',
+      sessionFilePath: '/tmp/session.jsonl',
+      pinned: false,
+    } satisfies RegistryEntry;
+    const gone = Object.assign(new Error('gone'), { code: 'ESRCH' });
+
+    const result = await killAgent(makeAgent({ name: 'custom-name', pid: 123 }), {
+      tmux,
+      registry,
+      killProcess: vi.fn(() => { throw gone; }),
+      capturedEntry,
+    } as any);
+
+    expect(tmux.killSession).toHaveBeenCalledWith('custom-name');
+    expect(result.tmuxSession).toBe('custom-name');
+  });
+
   it('rethrows unexpected process kill errors', async () => {
     const tmux = makeTmux();
     const registry = makeRegistry();

@@ -255,6 +255,7 @@ describe('agent command', () => {
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
     mockKillAgent.mockReset();
+    mockRegistry.lookup.mockReset().mockReturnValue(null);
     Object.values(mockGroupStore).forEach((method) => method.mockReset());
     mockGroupStore.list.mockReturnValue([]);
     process.exitCode = undefined;
@@ -562,6 +563,47 @@ Waiting on user input`,
       registry: mockRegistry,
     }));
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
+  });
+
+  it('captures the managed mapping before refresh and follows its stable session', async () => {
+    const capturedEntry = {
+      name: 'memory-eval-explore',
+      type: 'codex',
+      pid: 10,
+      tmuxSession: 'memory-eval-explore',
+      cwd: '/repo',
+      startedAt: '2026-08-29T08:08:31.000Z',
+      sessionId: 'stable-session',
+      sessionFilePath: '/tmp/session.jsonl',
+      pinned: false,
+    };
+    const detected = {
+      name: 'repo-11',
+      type: 'codex',
+      status: AgentStatus.RUNNING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 11,
+      sessionId: 'stable-session',
+    };
+    mockRegistry.lookup.mockReturnValue(capturedEntry);
+    mockManager.listAgents.mockResolvedValue([detected]);
+    mockManager.resolveAgent.mockReturnValue(null);
+    mockKillAgent.mockResolvedValue({
+      agentName: 'memory-eval-explore',
+      pid: 11,
+      tmuxSession: 'memory-eval-explore',
+    });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'kill', 'memory-eval-explore']);
+
+    expect(mockRegistry.lookup.mock.invocationCallOrder[0])
+      .toBeLessThan(mockManager.listAgents.mock.invocationCallOrder[0]);
+    expect(mockKillAgent).toHaveBeenCalledWith(detected, expect.objectContaining({
+      capturedEntry,
+    }));
   });
 
   it('does not kill when target is ambiguous', async () => {

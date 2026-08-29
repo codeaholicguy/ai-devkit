@@ -439,6 +439,75 @@ describe('AgentManager', () => {
             expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
         });
 
+        it('migrates managed identity when the same provider session has a new pid', async () => {
+            const oldPid = 999998;
+            registry.register({
+                name: 'memory-eval-explore',
+                type: 'codex',
+                pid: oldPid,
+                tmuxSession: 'memory-eval-explore',
+                cwd: '/cwd/project',
+                startedAt: '2026-08-29T08:08:31.000Z',
+                sessionId: 'stable-codex-session',
+                sessionFilePath: '/path/session.jsonl',
+                pinned: true,
+            });
+            scopedManager.registerAdapter(new MockAdapter('codex', [
+                createMockAgent({
+                    name: `project-${process.pid}`,
+                    type: 'codex',
+                    pid: process.pid,
+                    projectPath: '/cwd/project',
+                    sessionId: 'stable-codex-session',
+                    sessionFilePath: '/path/session.jsonl',
+                }),
+            ]));
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].name).toBe('memory-eval-explore');
+            expect(registry.list()).toEqual([
+                expect.objectContaining({
+                    name: 'memory-eval-explore',
+                    type: 'codex',
+                    pid: process.pid,
+                    tmuxSession: 'memory-eval-explore',
+                    startedAt: '2026-08-29T08:08:31.000Z',
+                    sessionId: 'stable-codex-session',
+                    pinned: true,
+                }),
+            ]);
+        });
+
+        it('does not inherit managed identity from an ambiguous provider session', async () => {
+            vi.spyOn(process, 'kill').mockImplementation(() => true);
+            for (const [name, pid] of [['managed-a', 999996], ['managed-b', 999997]] as const) {
+                registry.register({
+                    name,
+                    type: 'codex',
+                    pid,
+                    tmuxSession: name,
+                    cwd: '/cwd/project',
+                    startedAt: '2026-08-29T08:08:31.000Z',
+                    sessionId: 'ambiguous-session',
+                    sessionFilePath: `/path/${name}.jsonl`,
+                    pinned: false,
+                });
+            }
+            scopedManager.registerAdapter(new MockAdapter('codex', [createMockAgent({
+                name: `project-${process.pid}`,
+                type: 'codex',
+                pid: process.pid,
+                sessionId: 'ambiguous-session',
+            })]));
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents[0].name).toBe(`project-${process.pid}`);
+            expect(registry.lookup('managed-a')).not.toBeNull();
+            expect(registry.lookup('managed-b')).not.toBeNull();
+        });
+
         it('preserves custom name and tmux session across two EPERM refresh cycles', async () => {
             registry.register({
                 name: 'merry',

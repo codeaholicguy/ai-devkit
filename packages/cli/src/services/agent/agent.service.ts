@@ -522,6 +522,7 @@ export interface KillAgentDeps {
   tmux: Pick<TmuxManager, 'killSession'>;
   registry: Pick<AgentRegistry, 'lookup'>;
   killProcess?: (pid: number, signal: NodeJS.Signals) => void;
+  capturedEntry?: RegistryEntry | null;
 }
 
 export interface KillAgentResult {
@@ -563,7 +564,7 @@ export async function killAgent(
   deps: KillAgentDeps,
 ): Promise<KillAgentResult> {
   const killProcess = deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
-  const registryEntry = deps.registry.lookup(agent.name);
+  const registryEntry = deps.capturedEntry ?? deps.registry.lookup(agent.name);
   const tmuxSession = registryEntry?.tmuxSession || null;
 
   try {
@@ -579,7 +580,7 @@ export async function killAgent(
   }
 
   return {
-    agentName: agent.name,
+    agentName: registryEntry?.name ?? agent.name,
     pid: agent.pid,
     tmuxSession,
   };

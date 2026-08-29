@@ -293,6 +293,49 @@ describe('AgentRegistry', () => {
     });
 
     describe('prune', () => {
+        it('preserves a managed entry when its pid is hidden but its tmux session exists', () => {
+            const managedSessionExists = vi.fn().mockReturnValue(true);
+            const tmuxAwareRegistry = new AgentRegistry(regPath, { managedSessionExists } as any);
+            tmuxAwareRegistry.register(makeEntry({
+                name: 'custom-name',
+                pid: 999999,
+                tmuxSession: 'custom-name',
+            }));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+            });
+
+            tmuxAwareRegistry.prune();
+
+            expect(tmuxAwareRegistry.lookup('custom-name')).toMatchObject({
+                pid: 999999,
+                tmuxSession: 'custom-name',
+            });
+            expect(managedSessionExists).toHaveBeenCalledWith('custom-name');
+        });
+
+        it('removes a managed entry when both its pid and tmux session are gone', () => {
+            const tmuxAwareRegistry = new AgentRegistry(regPath, {
+                managedSessionExists: vi.fn().mockReturnValue(false),
+            });
+            tmuxAwareRegistry.register(makeEntry({ pid: 999999, tmuxSession: 'gone-session' }));
+
+            tmuxAwareRegistry.prune();
+
+            expect(tmuxAwareRegistry.list()).toEqual([]);
+        });
+
+        it('preserves a managed entry when tmux liveness is indeterminate', () => {
+            const tmuxAwareRegistry = new AgentRegistry(regPath, {
+                managedSessionExists: vi.fn().mockReturnValue(undefined),
+            });
+            tmuxAwareRegistry.register(makeEntry({ pid: 999999, tmuxSession: 'unknown-session' }));
+
+            tmuxAwareRegistry.prune();
+
+            expect(tmuxAwareRegistry.lookup('agent1')).not.toBeNull();
+        });
+
         it('removes entries whose PIDs are dead', () => {
             registry.register(makeEntry({ name: 'alive', pid: process.pid }));
             registry.register(makeEntry({ name: 'dead', pid: 999999 }));

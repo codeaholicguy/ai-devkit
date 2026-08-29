@@ -1,5 +1,6 @@
 import os from 'os';
 import path from 'path';
+import { execFileSync } from 'child_process';
 import type { AgentType } from '../adapters/AgentAdapter.js';
 import {
     DatabaseConnection,
@@ -56,6 +57,19 @@ export interface AgentRegistryOptions {
     pruneIntervalMs?: number;
     onDatabaseOperation?: (sql: string) => void;
     readonly?: boolean;
+    managedSessionExists?: (sessionName: string) => boolean | undefined;
+}
+
+function defaultManagedSessionExists(sessionName: string): boolean | undefined {
+    try {
+        execFileSync('tmux', ['has-session', '-t', `=${sessionName}`], { stdio: 'ignore' });
+        return true;
+    } catch (error) {
+        const status = error && typeof error === 'object' && 'status' in error
+            ? error.status
+            : undefined;
+        return status === 1 ? false : undefined;
+    }
 }
 
 export class AgentRegistry {
@@ -63,12 +77,14 @@ export class AgentRegistry {
     private readonly now: () => Date;
     private readonly pruneIntervalMs: number;
     private readonly readonly: boolean;
+    private readonly managedSessionExists: (sessionName: string) => boolean | undefined;
     private lastPrunedAt: number | undefined;
 
     constructor(filePath: string = DEFAULT_REGISTRY_PATH, options: AgentRegistryOptions = {}) {
         this.now = options.now ?? (() => new Date());
         this.pruneIntervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
         this.readonly = options.readonly ?? false;
+        this.managedSessionExists = options.managedSessionExists ?? defaultManagedSessionExists;
         this.db = new DatabaseConnection({
             dbPath: resolveAgentRegistryDbPath(filePath),
             verbose: options.onDatabaseOperation,
@@ -103,6 +119,8 @@ export class AgentRegistry {
         const incomingIsManaged = Boolean(incoming.tmuxSession);
         return {
             ...existing,
+            type: incoming.type,
+            pid: incoming.pid,
             name: incomingIsManaged ? incoming.name : existing.name,
             tmuxSession: incoming.tmuxSession || existing.tmuxSession,
             cwd: incoming.cwd || existing.cwd,
@@ -118,6 +136,25 @@ export class AgentRegistry {
             [type, pid],
         );
         return row ? this.rowToEntry(row) : undefined;
+    }
+
+    private findManagedBySession(type: AgentType, sessionId: string): RegistryEntry | undefined {
+        if (!sessionId || sessionId.startsWith('pid-')) return undefined;
+        const rows = this.db.query<RegistryRow>(
+            `SELECT * FROM agents
+             WHERE type = ? AND session_id = ? AND tmux_session <> ''`,
+            [type, sessionId],
+        );
+        return rows.length === 1 ? this.rowToEntry(rows[0]) : undefined;
+    }
+
+    match(type: AgentType, pid: number, sessionId: string): RegistryEntry | undefined {
+        return this.findByIdentity(type, pid) ?? this.findManagedBySession(type, sessionId);
+    }
+
+    private matchIncoming(incoming: RegistryEntry, allowSessionContinuity: boolean): RegistryEntry | undefined {
+        return this.findByIdentity(incoming.type, incoming.pid)
+            ?? (allowSessionContinuity ? this.findManagedBySession(incoming.type, incoming.sessionId) : undefined);
     }
 
     private findByName(name: string): RegistryEntry | undefined {
@@ -155,10 +192,10 @@ export class AgentRegistry {
     private insertOrUpdate(entry: RegistryEntry): void {
         this.db.instance.prepare(`
             INSERT INTO agents (
-                type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at
+                type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at, pinned
             )
             VALUES (
-                @type, @pid, @name, @tmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt
+                @type, @pid, @name, @tmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt, @pinned
             )
             ON CONFLICT(type, pid) DO UPDATE SET
                 name = excluded.name,
@@ -167,20 +204,21 @@ export class AgentRegistry {
                 started_at = agents.started_at,
                 session_id = excluded.session_id,
                 session_file_path = excluded.session_file_path,
-                updated_at = excluded.updated_at
-        `).run({ ...entry, updatedAt: this.now().toISOString() });
+                updated_at = excluded.updated_at,
+                pinned = excluded.pinned
+        `).run({ ...entry, pinned: entry.pinned ? 1 : 0, updatedAt: this.now().toISOString() });
     }
 
-    private needsWrite(incoming: RegistryEntry): boolean {
-        const existing = this.findByIdentity(incoming.type, incoming.pid);
+    private needsWrite(incoming: RegistryEntry, allowSessionContinuity: boolean): boolean {
+        const existing = this.matchIncoming(incoming, allowSessionContinuity);
         const merged = this.mergeEntry(incoming, existing);
         return !existing
             || !this.entriesEqual(merged, existing)
             || this.findPidConflicts(incoming.type, incoming.pid).length > 0;
     }
 
-    private save(incoming: RegistryEntry): void {
-        const existing = this.findByIdentity(incoming.type, incoming.pid);
+    private save(incoming: RegistryEntry, allowSessionContinuity: boolean): void {
+        const existing = this.matchIncoming(incoming, allowSessionContinuity);
         const merged = this.mergeEntry(incoming, existing);
         const pidConflicts = this.findPidConflicts(incoming.type, incoming.pid);
         if (existing && this.entriesEqual(merged, existing) && pidConflicts.length === 0) return;
@@ -190,6 +228,9 @@ export class AgentRegistry {
         }
         if (existing && this.entriesEqual(merged, existing)) return;
 
+        if (existing && (existing.type !== merged.type || existing.pid !== merged.pid)) {
+            this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [existing.type, existing.pid]);
+        }
         this.deleteNameConflict(merged.name, merged.type, merged.pid);
         this.insertOrUpdate(merged);
     }
@@ -202,7 +243,9 @@ export class AgentRegistry {
             const code = error && typeof error === 'object' && 'code' in error
                 ? error.code
                 : undefined;
-            return code !== 'ESRCH';
+            if (code !== 'ESRCH') return true;
+            if (!entry.tmuxSession) return false;
+            return this.managedSessionExists(entry.tmuxSession) !== false;
         }
     }
 
@@ -234,12 +277,25 @@ export class AgentRegistry {
         this.registerBatch([entry]);
     }
 
-    registerBatch(entries: RegistryEntry[]): void {
+    registerBatch(entries: RegistryEntry[], options: { sessionContinuity?: boolean } = {}): void {
+        this.registerEntries(entries, options.sessionContinuity ?? false);
+    }
+
+    private registerEntries(entries: RegistryEntry[], allowSessionContinuity: boolean): void {
         if (entries.length === 0) return;
-        if (!entries.some((entry) => this.needsWrite(entry))) return;
+        const sessionCounts = new Map<string, number>();
+        if (allowSessionContinuity) {
+            for (const entry of entries) {
+                const key = `${entry.type}:${entry.sessionId}`;
+                sessionCounts.set(key, (sessionCounts.get(key) ?? 0) + 1);
+            }
+        }
+        const canContinue = (entry: RegistryEntry): boolean => allowSessionContinuity
+            && sessionCounts.get(`${entry.type}:${entry.sessionId}`) === 1;
+        if (!entries.some((entry) => this.needsWrite(entry, canContinue(entry)))) return;
         this.db.transaction(() => {
             for (const incoming of entries) {
-                this.save(incoming);
+                this.save(incoming, canContinue(incoming));
             }
         });
     }

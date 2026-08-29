@@ -191,14 +191,15 @@ export class AgentManager {
         const preExistingByIdentity = new Map(
             this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
         );
-        const entries = allAgents.map((agent) =>
-            this.toRegistryEntry(agent, preExistingByIdentity.get(identityKey(agent.type, agent.pid))),
-        );
-        if (entries.length > 0) this.registry.registerBatch(entries);
+        const entries = allAgents.map((agent) => this.toRegistryEntry(
+            agent,
+            preExistingByIdentity.get(identityKey(agent.type, agent.pid)),
+        ));
+        if (entries.length > 0) this.registry.registerBatch(entries, { sessionContinuity: true });
         this.registry.pruneIfDue();
 
         for (const agent of allAgents) {
-            const entry = preExistingByIdentity.get(identityKey(agent.type, agent.pid));
+            const entry = this.registry.match(agent.type, agent.pid, agent.sessionId);
             if (entry) {
                 agent.name = entry.name;
                 agent.pinned = entry.pinned;
