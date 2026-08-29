@@ -10,7 +10,7 @@ description: Break down work into actionable tasks and estimate timeline
 
 - [x] Milestone 1: Validate sandbox deletion and host re-registration live.
 - [x] Milestone 2: Implement prune, continuity, and kill fixes using TDD.
-- [ ] Milestone 3: Complete lifecycle verification and publish a PR.
+- [x] Milestone 3: Complete lifecycle verification and publish a PR.
 
 ## Task Breakdown
 **What specific work needs to be done?**
@@ -30,12 +30,13 @@ description: Break down work into actionable tasks and estimate timeline
 ### Phase 4: Documentation and gates
 - [x] Update implementation/testing evidence and reconcile this plan.
 - [x] Run regression reversal, package/full tests, build, lint, and e2e.
-- [ ] Review, commit, rebase, push, and open a PR without merging.
+- [x] Review, commit, rebase, push, and open PR #205 without merging.
 
 ## Progress Summary
 
-Implementation and validation are complete. Scope remained aligned with the
-approved three-part fix. Final review, publication, and PR creation remain.
+Implementation, validation, final review, and publication are complete. Scope
+remained aligned with the approved three-part fix. PR #205 is open and was not
+merged as part of this work.
 
 ## Dependencies
 **What needs to happen in what order?**
