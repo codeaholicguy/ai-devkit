@@ -135,7 +135,7 @@ describe('AgentRegistry', () => {
             expect(registry.lookup('custom-name')?.pid).toBe(process.pid);
         });
 
-        it('cleans up a cross-type row when its pid has been reused', () => {
+        it('keeps cross-type rows when its pid has been reused', () => {
             registry.register(makeEntry({ name: 'old-claude', type: 'claude', pid: process.pid }));
 
             registry.register(makeEntry({
@@ -145,9 +145,9 @@ describe('AgentRegistry', () => {
                 tmuxSession: '',
             }));
 
-            expect(registry.lookup('old-claude')).toBeNull();
+            expect(registry.lookup('old-claude')).not.toBeNull();
             expect(registry.lookup('new-codex')).toMatchObject({ type: 'codex', pid: process.pid });
-            expect(registry.list()).toHaveLength(1);
+            expect(registry.list()).toHaveLength(2);
         });
 
         it('rolls back the whole batch when a live name conflict rejects one entry', () => {
@@ -223,15 +223,6 @@ describe('AgentRegistry', () => {
             expect(registry.lookup('after')?.pinned).toBe(true);
         });
 
-        it('removes the pin with a pruned process row', () => {
-            registry.register(makeEntry({ pid: 999999 }));
-            registry.togglePin('claude', 999999);
-
-            registry.prune();
-
-            expect(registry.lookup('agent1')).toBeNull();
-        });
-
         it('reports a clear error when a readonly registry toggles a pin', () => {
             registry.register(makeEntry());
             const readonlyRegistry = new AgentRegistry(regPath, { readonly: true });
@@ -292,115 +283,6 @@ describe('AgentRegistry', () => {
         });
     });
 
-    describe('prune', () => {
-        it('preserves a managed entry when its pid is hidden but its tmux session exists', () => {
-            const managedSessionExists = vi.fn().mockReturnValue(true);
-            const tmuxAwareRegistry = new AgentRegistry(regPath, { managedSessionExists } as any);
-            tmuxAwareRegistry.register(makeEntry({
-                name: 'custom-name',
-                pid: 999999,
-                tmuxSession: 'custom-name',
-            }));
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
-            });
-
-            tmuxAwareRegistry.prune();
-
-            expect(tmuxAwareRegistry.lookup('custom-name')).toMatchObject({
-                pid: 999999,
-                tmuxSession: 'custom-name',
-            });
-            expect(managedSessionExists).toHaveBeenCalledWith('custom-name');
-        });
-
-        it('removes a managed entry when both its pid and tmux session are gone', () => {
-            const tmuxAwareRegistry = new AgentRegistry(regPath, {
-                managedSessionExists: vi.fn().mockReturnValue(false),
-            });
-            tmuxAwareRegistry.register(makeEntry({ pid: 999999, tmuxSession: 'gone-session' }));
-
-            tmuxAwareRegistry.prune();
-
-            expect(tmuxAwareRegistry.list()).toEqual([]);
-        });
-
-        it('preserves a managed entry when tmux liveness is indeterminate', () => {
-            const tmuxAwareRegistry = new AgentRegistry(regPath, {
-                managedSessionExists: vi.fn().mockReturnValue(undefined),
-            });
-            tmuxAwareRegistry.register(makeEntry({ pid: 999999, tmuxSession: 'unknown-session' }));
-
-            tmuxAwareRegistry.prune();
-
-            expect(tmuxAwareRegistry.lookup('agent1')).not.toBeNull();
-        });
-
-        it('removes entries whose PIDs are dead', () => {
-            registry.register(makeEntry({ name: 'alive', pid: process.pid }));
-            registry.register(makeEntry({ name: 'dead', pid: 999999 }));
-            registry.prune();
-            const remaining = registry.list();
-            expect(remaining).toHaveLength(1);
-            expect(remaining[0].name).toBe('alive');
-        });
-
-        it('is a no-op when all entries are alive', () => {
-            registry.register(makeEntry({ pid: process.pid }));
-            const before = registry.list();
-            registry.prune();
-            const after = registry.list();
-            expect(after).toEqual(before);
-        });
-
-        it('preserves entries when liveness probing fails with EPERM', () => {
-            registry.register(makeEntry({ name: 'custom-name', tmuxSession: 'tmux-custom' }));
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
-            });
-
-            registry.prune();
-
-            expect(registry.lookup('custom-name')).toMatchObject({
-                name: 'custom-name',
-                tmuxSession: 'tmux-custom',
-            });
-        });
-
-        it('removes entries when liveness probing fails with ESRCH', () => {
-            registry.register(makeEntry({ name: 'dead' }));
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
-            });
-
-            registry.prune();
-
-            expect(registry.lookup('dead')).toBeNull();
-        });
-
-        it('does nothing when file is missing', () => {
-            expect(() => registry.prune()).not.toThrow();
-        });
-
-        it('keeps forced prune available before the passive cadence is due', () => {
-            let nowMs = Date.parse('2026-08-14T10:00:00.000Z');
-            const clocked = new AgentRegistry(regPath, {
-                now: () => new Date(nowMs),
-                pruneIntervalMs: 30_000,
-            });
-            clocked.register(makeEntry({ name: 'forced', pid: process.pid }));
-            const alive = vi.spyOn(clocked, 'isAlive').mockReturnValue(true);
-            clocked.pruneIfDue();
-            alive.mockReturnValue(false);
-            nowMs += 1;
-
-            clocked.prune();
-
-            expect(alive).toHaveBeenCalledTimes(2);
-            expect(clocked.lookup('forced')).toBeNull();
-        });
-    });
-
     describe('default()', () => {
         it('returns a singleton instance', () => {
             expect(AgentRegistry.default()).toBe(AgentRegistry.default());
@@ -445,11 +327,11 @@ describe('AgentRegistry', () => {
             expect(registry.lookup('agent-b')?.pid).toBe(process.ppid);
         });
 
-        it('succeeds when new name exists only as a stale (dead) entry', () => {
+        it('does not take over a name held by a stale entry', () => {
             registry.register(makeEntry({ name: 'agent-a', pid: process.pid }));
             registry.register(makeEntry({ name: 'agent-b', pid: 999999 }));
-            expect(() => registry.rename('agent-a', 'agent-b')).not.toThrow();
-            expect(registry.lookup('agent-b')?.pid).toBe(process.pid);
+            expect(() => registry.rename('agent-a', 'agent-b')).toThrow(RenameConflictError);
+            expect(registry.lookup('agent-b')?.pid).toBe(999999);
         });
 
         it('does not create the legacy fixed .tmp path on rename', () => {

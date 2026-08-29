@@ -191,15 +191,28 @@ export class AgentManager {
         const preExistingByIdentity = new Map(
             this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
         );
-        const entries = allAgents.map((agent) => this.toRegistryEntry(
-            agent,
-            preExistingByIdentity.get(identityKey(agent.type, agent.pid)),
-        ));
-        if (entries.length > 0) this.registry.registerBatch(entries, { sessionContinuity: true });
-        this.registry.pruneIfDue();
+        const heldNames = new Set(this.registry.list().map((entry) => entry.name));
+        const entries: RegistryEntry[] = [];
+        const inheritedByAgent = new Map<AgentInfo, RegistryEntry>();
+        for (const agent of allAgents) {
+            const key = identityKey(agent.type, agent.pid);
+            const existing = preExistingByIdentity.get(key);
+            const sessionMatches = existing && (!existing.sessionId || existing.sessionId === agent.sessionId);
+            if (existing && !sessionMatches) {
+                agent.name = this.uniqueDetectedName(agent.name, heldNames);
+                heldNames.add(agent.name);
+                continue;
+            }
+            const entry = this.toRegistryEntry(agent, sessionMatches ? existing : undefined);
+            entries.push(entry);
+            inheritedByAgent.set(agent, entry);
+            heldNames.add(entry.name);
+        }
+        if (entries.length > 0) this.registry.registerBatch(entries);
 
         for (const agent of allAgents) {
-            const entry = this.registry.match(agent.type, agent.pid, agent.sessionId);
+            const inherited = inheritedByAgent.get(agent);
+            const entry = inherited ? this.registry.lookup(inherited.name) ?? inherited : undefined;
             if (entry) {
                 agent.name = entry.name;
                 agent.pinned = entry.pinned;
@@ -225,10 +238,16 @@ export class AgentManager {
         };
     }
 
+    private uniqueDetectedName(baseName: string, heldNames: ReadonlySet<string>): string {
+        if (!heldNames.has(baseName)) return baseName;
+        let suffix = 2;
+        while (heldNames.has(`${baseName}-${suffix}`)) suffix += 1;
+        return `${baseName}-${suffix}`;
+    }
+
     togglePin(agentName: string): boolean {
         const entry = this.registry.lookup(agentName);
         if (!entry || !this.registry.isAlive(entry)) {
-            if (entry) this.registry.prune();
             throw new AgentNotRunningError(agentName);
         }
         const pinned = this.registry.togglePin(entry.type, entry.pid);

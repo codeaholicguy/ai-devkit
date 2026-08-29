@@ -393,26 +393,29 @@ describe('AgentManager', () => {
             expect(entries[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         });
 
-        it('prunes entries for dead pids', async () => {
+        it('keeps invisible registry rows while omitting undetected agents from list output', async () => {
             registry.register({
-                name: 'dead',
+                name: 'memory-eval-explore',
                 type: 'claude',
                 pid: 999999,
-                tmuxSession: '',
+                tmuxSession: 'memory-eval-explore',
                 cwd: '/cwd/dead',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'sid-dead',
                 sessionFilePath: '/path/dead.jsonl',
             });
+            scopedManager.registerAdapter(new MockAdapter('claude', []));
+            vi.spyOn(process, 'kill').mockImplementation(() => {
+                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
+            });
 
-            scopedManager.registerAdapter(new MockAdapter('claude', [
-                createMockAgent({ name: 'live', pid: process.pid }),
-            ]));
+            const agents = await scopedManager.listAgents();
 
-            await scopedManager.listAgents();
-
-            const entries = registry.list();
-            expect(entries.map((e) => e.name)).toEqual(['live']);
+            expect(agents).toEqual([]);
+            expect(registry.lookup('memory-eval-explore')).toMatchObject({
+                name: 'memory-eval-explore',
+                tmuxSession: 'memory-eval-explore',
+            });
         });
 
         it('preserves an existing name (e.g. user-set "merry") across cycles', async () => {
@@ -428,7 +431,7 @@ describe('AgentManager', () => {
             });
 
             scopedManager.registerAdapter(new MockAdapter('claude', [
-                createMockAgent({ name: 'default-name', pid: process.pid }),
+                createMockAgent({ name: 'default-name', pid: process.pid, sessionId: 'sid-merry' }),
             ]));
 
             const agents = await scopedManager.listAgents();
@@ -439,73 +442,52 @@ describe('AgentManager', () => {
             expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
         });
 
-        it('migrates managed identity when the same provider session has a new pid', async () => {
-            const oldPid = 999998;
+        it('does not inherit or overwrite a held name when a pid is recycled', async () => {
+            const baseName = `project-${process.pid}`;
             registry.register({
-                name: 'memory-eval-explore',
+                name: baseName,
                 type: 'codex',
-                pid: oldPid,
-                tmuxSession: 'memory-eval-explore',
+                pid: process.pid,
+                tmuxSession: baseName,
                 cwd: '/cwd/project',
                 startedAt: '2026-08-29T08:08:31.000Z',
-                sessionId: 'stable-codex-session',
-                sessionFilePath: '/path/session.jsonl',
-                pinned: true,
+                sessionId: 'old-session',
+                sessionFilePath: '/path/old.jsonl',
+                pinned: false,
+            });
+            registry.register({
+                name: `${baseName}-2`,
+                type: 'claude',
+                pid: process.pid + 1,
+                tmuxSession: '',
+                cwd: '/cwd/other',
+                startedAt: '2026-08-29T08:09:31.000Z',
+                sessionId: 'other-session',
+                sessionFilePath: '/path/other.jsonl',
+                pinned: false,
             });
             scopedManager.registerAdapter(new MockAdapter('codex', [
                 createMockAgent({
-                    name: `project-${process.pid}`,
+                    name: baseName,
                     type: 'codex',
                     pid: process.pid,
                     projectPath: '/cwd/project',
-                    sessionId: 'stable-codex-session',
-                    sessionFilePath: '/path/session.jsonl',
+                    sessionId: 'new-session',
+                    sessionFilePath: '/path/new.jsonl',
                 }),
             ]));
 
             const agents = await scopedManager.listAgents();
 
-            expect(agents[0].name).toBe('memory-eval-explore');
-            expect(registry.list()).toEqual([
-                expect.objectContaining({
-                    name: 'memory-eval-explore',
-                    type: 'codex',
-                    pid: process.pid,
-                    tmuxSession: 'memory-eval-explore',
-                    startedAt: '2026-08-29T08:08:31.000Z',
-                    sessionId: 'stable-codex-session',
-                    pinned: true,
-                }),
-            ]);
-        });
-
-        it('does not inherit managed identity from an ambiguous provider session', async () => {
-            vi.spyOn(process, 'kill').mockImplementation(() => true);
-            for (const [name, pid] of [['managed-a', 999996], ['managed-b', 999997]] as const) {
-                registry.register({
-                    name,
-                    type: 'codex',
-                    pid,
-                    tmuxSession: name,
-                    cwd: '/cwd/project',
-                    startedAt: '2026-08-29T08:08:31.000Z',
-                    sessionId: 'ambiguous-session',
-                    sessionFilePath: `/path/${name}.jsonl`,
-                    pinned: false,
-                });
-            }
-            scopedManager.registerAdapter(new MockAdapter('codex', [createMockAgent({
-                name: `project-${process.pid}`,
+            expect(agents[0].name).toBe(`${baseName}-3`);
+            expect(registry.lookup(baseName)).toMatchObject({
                 type: 'codex',
                 pid: process.pid,
-                sessionId: 'ambiguous-session',
-            })]));
-
-            const agents = await scopedManager.listAgents();
-
-            expect(agents[0].name).toBe(`project-${process.pid}`);
-            expect(registry.lookup('managed-a')).not.toBeNull();
-            expect(registry.lookup('managed-b')).not.toBeNull();
+                sessionId: 'old-session',
+                sessionFilePath: '/path/old.jsonl',
+            });
+            expect(registry.lookup(`${baseName}-2`)).not.toBeNull();
+            expect(registry.lookup(`${baseName}-3`)).toBeNull();
         });
 
         it('preserves custom name and tmux session across two EPERM refresh cycles', async () => {
@@ -520,7 +502,7 @@ describe('AgentManager', () => {
                 sessionFilePath: '/path/merry.jsonl',
             });
             scopedManager.registerAdapter(new MockAdapter('claude', [
-                createMockAgent({ name: `ai-devkit-${process.pid}`, pid: process.pid }),
+                createMockAgent({ name: `ai-devkit-${process.pid}`, pid: process.pid, sessionId: 'sid-merry' }),
             ]));
             vi.spyOn(process, 'kill').mockImplementation(() => {
                 throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
@@ -560,7 +542,12 @@ describe('AgentManager', () => {
             });
 
             scopedManager.registerAdapter(new MockAdapter('codex', [
-                createMockAgent({ name: `ai-devkit-${process.pid}`, type: 'codex', pid: process.pid }),
+                createMockAgent({
+                    name: `ai-devkit-${process.pid}`,
+                    type: 'codex',
+                    pid: process.pid,
+                    sessionId: 'pid-debug',
+                }),
             ]));
 
             const agents = await scopedManager.listAgents();
@@ -625,19 +612,19 @@ describe('AgentManager', () => {
 
         it('exposes a persisted pin and preserves it across a changed poll refresh', async () => {
             const adapter = new MockAdapter('claude', [
-                createMockAgent({ name: 'pinned', pid: process.pid, sessionId: 'before' }),
+                createMockAgent({ name: 'pinned', pid: process.pid, sessionId: 'stable' }),
             ]);
             scopedManager.registerAdapter(adapter);
             await scopedManager.listAgents();
             registry.togglePin('claude', process.pid);
             adapter.setAgents([
-                createMockAgent({ name: 'pinned', pid: process.pid, sessionId: 'after' }),
+                createMockAgent({ name: 'pinned', pid: process.pid, sessionId: 'stable' }),
             ]);
 
             const agents = await scopedManager.listAgents();
 
             expect(agents[0].pinned).toBe(true);
-            expect(registry.lookup('pinned')).toMatchObject({ sessionId: 'after', pinned: true });
+            expect(registry.lookup('pinned')).toMatchObject({ sessionId: 'stable', pinned: true });
         });
 
         it('uses registry updated_at as lastActive for pinned recency ordering', async () => {
@@ -697,34 +684,6 @@ describe('AgentManager', () => {
             expect(registry.lookup('changing')?.cwd).toBe('/cwd/after');
         });
 
-        it('prunes newly dead entries only when the passive cadence is due', async () => {
-            registry.register({
-                name: 'cadenced',
-                type: 'claude',
-                pid: process.pid,
-                tmuxSession: '',
-                cwd: '/cwd/cadenced',
-                startedAt: '2026-05-30T00:00:00.000Z',
-                sessionId: 'sid-cadenced',
-                sessionFilePath: '',
-            });
-            const alive = vi.spyOn(registry, 'isAlive').mockReturnValue(true);
-
-            await scopedManager.listAgents();
-            expect(alive).toHaveBeenCalledTimes(1);
-            alive.mockReturnValue(false);
-            nowMs += 29_999;
-
-            await scopedManager.listAgents();
-            expect(alive).toHaveBeenCalledTimes(1);
-            expect(registry.lookup('cadenced')).not.toBeNull();
-
-            nowMs += 1;
-            await scopedManager.listAgents();
-            expect(alive).toHaveBeenCalledTimes(2);
-            expect(registry.lookup('cadenced')).toBeNull();
-        });
-
         it('does not inherit a name when the same pid is reused by another agent type', async () => {
             registry.register({
                 name: 'old-claude',
@@ -749,20 +708,18 @@ describe('AgentManager', () => {
             const agents = await scopedManager.listAgents();
 
             expect(agents[0].name).toBe('new-codex');
-            expect(registry.lookup('old-claude')).toBeNull();
+            expect(registry.lookup('old-claude')).not.toBeNull();
             expect(registry.lookup('new-codex')).toMatchObject({ type: 'codex', pid: process.pid });
         });
 
-        it('skips registerBatch when no agents are detected and prune is not due', async () => {
+        it('skips registerBatch when no agents are detected', async () => {
             const writeSpy = vi.spyOn(registry, 'registerBatch');
-            const pruneSpy = vi.spyOn(registry, 'pruneIfDue');
 
             scopedManager.registerAdapter(new MockAdapter('claude', []));
             await scopedManager.listAgents();
             await scopedManager.listAgents();
 
             expect(writeSpy).not.toHaveBeenCalled();
-            expect(pruneSpy).toHaveBeenCalledTimes(2);
         });
     });
 
@@ -790,7 +747,7 @@ describe('AgentManager', () => {
             expect(() => manager.togglePin('missing')).toThrow(/no longer running/i);
         });
 
-        it('rejects a dead process and prunes its row', () => {
+        it('rejects a dead process without deleting its row', () => {
             const registry = new AgentRegistry(path.join(tmpDir, 'dead-toggle.json'));
             const scopedManager = new AgentManager(registry);
             registry.register({
@@ -806,7 +763,7 @@ describe('AgentManager', () => {
             });
 
             expect(() => scopedManager.togglePin('dead')).toThrow(/no longer running/i);
-            expect(registry.lookup('dead')).toBeNull();
+            expect(registry.lookup('dead')).not.toBeNull();
         });
 
         it('surfaces a clear readonly mutation error', () => {

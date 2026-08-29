@@ -480,6 +480,7 @@ function makeRegistry(over: Partial<AgentRegistry> = {}): AgentRegistry {
     lookup: vi.fn().mockReturnValue(null),
     list: vi.fn().mockReturnValue([]),
     register: vi.fn(),
+    remove: vi.fn(),
     isAlive: vi.fn().mockReturnValue(false),
     ...over,
   } as unknown as AgentRegistry;
@@ -571,33 +572,7 @@ describe('killAgent', () => {
     });
 
     expect(tmux.killSession).toHaveBeenCalledWith('repo-a');
-  });
-
-  it('uses a registry mapping captured before refresh when the live lookup is gone', async () => {
-    const tmux = makeTmux();
-    const registry = makeRegistry({ lookup: vi.fn().mockReturnValue(null) });
-    const capturedEntry = {
-      name: 'custom-name',
-      type: 'codex',
-      pid: 123,
-      tmuxSession: 'custom-name',
-      cwd: '/repo',
-      startedAt: '2026-08-29T08:08:31.000Z',
-      sessionId: 'stable-session',
-      sessionFilePath: '/tmp/session.jsonl',
-      pinned: false,
-    } satisfies RegistryEntry;
-    const gone = Object.assign(new Error('gone'), { code: 'ESRCH' });
-
-    const result = await killAgent(makeAgent({ name: 'custom-name', pid: 123 }), {
-      tmux,
-      registry,
-      killProcess: vi.fn(() => { throw gone; }),
-      capturedEntry,
-    } as any);
-
-    expect(tmux.killSession).toHaveBeenCalledWith('custom-name');
-    expect(result.tmuxSession).toBe('custom-name');
+    expect(registry.remove).toHaveBeenCalledWith('claude', 123);
   });
 
   it('rethrows unexpected process kill errors', async () => {
@@ -628,7 +603,6 @@ describe('startAgent', () => {
 
     expect(tmux.createSession).toHaveBeenCalledWith('agent1', '/work');
     expect(tmux.sendKeys).toHaveBeenCalledWith('agent1', 'claude');
-    expect(registry.prune).toHaveBeenCalled();
     expect(registry.register).toHaveBeenCalledOnce();
     expect(entry).toMatchObject({
       name: 'agent1',
@@ -749,19 +723,6 @@ describe('startAgent', () => {
     expect(tmux.killSession).toHaveBeenLastCalledWith('agent1');
   });
 
-  it('prunes registry before checking for name collision', async () => {
-    const tmux = makeTmux();
-    const registry = makeRegistry();
-    const order: string[] = [];
-    (registry.prune as any).mockImplementation(() => order.push('prune'));
-    (registry.lookup as any).mockImplementation(() => {
-      order.push('lookup');
-      return null;
-    });
-
-    await startAgent(startOpts, { tmux, registry });
-    expect(order).toEqual(['prune', 'lookup']);
-  });
 });
 
 describe('sendToAgentGroup', () => {
