@@ -14,7 +14,7 @@ Run a compact diverge-to-converge loop.
 3. Diverge: distinct options across practical, high-leverage, and unusual angles.
 4. Challenge: weak assumptions, failure modes, tradeoffs, rejections. Always: reject speculative generality (each abstraction, layer, flag, and data copy needs a current caller) and verify load-bearing "needed" claims in the consuming code, not doc assertions.
 5. Compare: only relevant criteria, plus deletion cost (how easily the option can be removed later). Ties go to the smaller option.
-6. Converge: strongest 3 picks with rationale and a next step. Self-review first: for each new constant, object, layer, and flag ask "why do we need this?" Cut answers that are only messaging or future-proofing.
+6. Converge: strongest 3 picks with rationale and a next step. Self-review first: for each new constant, object, layer, flag, and guard (retry, fallback, timeout) ask "what demonstrated trigger does this answer?" Cut answers that are only messaging, future-proofing, or hardening without a concrete trigger scenario.
 
 ## Formats
 
