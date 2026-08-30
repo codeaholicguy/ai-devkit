@@ -4,6 +4,14 @@ import { dirname, join } from 'path';
 import { homedir } from 'os';
 import { initializeSchema } from './schema.js';
 
+const CONFIGURE_RETRY_DELAY_MS = 50;
+const configureRetrySignal = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+
+function isSqliteBusy(error: unknown): error is { code: string } {
+    return typeof error === 'object' && error !== null && 'code' in error
+        && (error as { code?: unknown }).code === 'SQLITE_BUSY';
+}
+
 export const DEFAULT_AGENT_REGISTRY_DB_PATH = join(homedir(), '.ai-devkit', 'agents.db');
 
 export interface DatabaseOptions {
@@ -32,6 +40,7 @@ export class DatabaseConnection {
 
         this.db = new Database(this.dbPath, {
             readonly: this.readonly,
+            timeout: 5000,
             verbose: typeof options.verbose === 'function'
                 ? options.verbose
                 : options.verbose ? console.log : undefined,
@@ -50,7 +59,18 @@ export class DatabaseConnection {
     }
 
     private configure(): void {
-        this.db.pragma('journal_mode = WAL');
+        try {
+            this.configureOnce();
+        } catch (error) {
+            if (!isSqliteBusy(error)) throw error;
+            Atomics.wait(configureRetrySignal, 0, 0, CONFIGURE_RETRY_DELAY_MS);
+            this.configureOnce();
+        }
+    }
+
+    private configureOnce(): void {
+        const journalMode = this.db.pragma('journal_mode', { simple: true }) as string;
+        if (journalMode.toLowerCase() !== 'wal') this.db.pragma('journal_mode = WAL');
         this.db.pragma('foreign_keys = ON');
         this.db.pragma('synchronous = NORMAL');
         this.db.pragma('busy_timeout = 5000');
