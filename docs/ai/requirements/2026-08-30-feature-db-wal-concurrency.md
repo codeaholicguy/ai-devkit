@@ -14,7 +14,6 @@ Concurrent cold opens of the memory, agent-manager, and task-manager SQLite data
 
 - Arm a 5000 ms SQLite busy timeout when each connection is constructed.
 - Read the current journal mode and request WAL only when it differs from `wal`.
-- Retry the complete pragma configuration once after about 50 ms when it raises `SQLITE_BUSY`.
 - Apply identical behavior to all three database connection classes.
 - Prove concurrent fresh shared-file opens, already-WAL opens, and readonly already-WAL opens do not fail or repeat the mode transition.
 
@@ -24,6 +23,7 @@ Concurrent cold opens of the memory, agent-manager, and task-manager SQLite data
 - Keep `foreign_keys`, `synchronous = NORMAL`, `busy_timeout`, and `mmap_size` unchanged.
 - No schema/data migration or public API change.
 - No broader SQLite policy changes.
+- A rare collision while multiple processes initialize a genuinely fresh database may remain visible as `SQLITE_BUSY`; rerunning the command self-heals after WAL is established.
 
 ## Open items
 

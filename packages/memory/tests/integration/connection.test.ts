@@ -64,32 +64,4 @@ describe('DatabaseConnection configuration', () => {
 
         expect(pragma).not.toHaveBeenCalledWith('journal_mode = WAL');
     });
-
-    it('retries the full pragma sequence once after SQLITE_BUSY', () => {
-        const file = dbPath();
-        const original = Database.prototype.pragma;
-        let busyInjected = false;
-        const pragma = vi.spyOn(Database.prototype, 'pragma').mockImplementation(function (...args) {
-            if (!busyInjected && args[0] === 'foreign_keys = ON') {
-                busyInjected = true;
-                throw Object.assign(new Error('database is locked'), { code: 'SQLITE_BUSY' });
-            }
-            return original.apply(this, args as Parameters<typeof original>);
-        });
-
-        const connection = new DatabaseConnection({ dbPath: file });
-        connection.close();
-
-        expect(pragma.mock.calls.filter(([sql]) => sql === 'foreign_keys = ON')).toHaveLength(2);
-    });
-
-    it('does not retry non-busy configuration errors', () => {
-        const file = dbPath();
-        const pragma = vi.spyOn(Database.prototype, 'pragma').mockImplementation(() => {
-            throw Object.assign(new Error('not busy'), { code: 'SQLITE_ERROR' });
-        });
-
-        expect(() => new DatabaseConnection({ dbPath: file })).toThrow('not busy');
-        expect(pragma).toHaveBeenCalledTimes(1);
-    });
 });

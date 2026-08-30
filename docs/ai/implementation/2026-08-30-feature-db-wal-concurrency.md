@@ -16,8 +16,7 @@ description: Implementation record for the three SQLite connection classes
 
 - Each constructor passes `timeout: 5000` to `better-sqlite3`.
 - Configuration reads `journal_mode` and only requests WAL when required.
-- A first `SQLITE_BUSY` waits 50 ms using `Atomics.wait`, then retries the full pragma sequence once.
-- All other errors, and a second busy error, propagate unchanged.
+- Configuration errors propagate unchanged; no synchronous retry mechanism is used.
 - Existing pragmas, schema behavior, dependencies, and public APIs are unchanged.
 
 The implementation follows the design without deviations.
