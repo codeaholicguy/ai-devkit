@@ -5,7 +5,12 @@ import { homedir } from 'os';
 import { initializeSchema } from './schema.js';
 
 const CONFIGURE_RETRY_DELAY_MS = 50;
-const configureRetrySignal = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+
+function waitBeforeConfigureRetry(): void {
+    // Node has no synchronous sleep; this blocks until the timeout expires.
+    const waitBuffer = new Int32Array(new SharedArrayBuffer(Int32Array.BYTES_PER_ELEMENT));
+    Atomics.wait(waitBuffer, 0, 0, CONFIGURE_RETRY_DELAY_MS);
+}
 
 function isSqliteBusy(error: unknown): error is { code: string } {
     return typeof error === 'object' && error !== null && 'code' in error
@@ -65,7 +70,7 @@ export class DatabaseConnection {
             this.configureOnce();
         } catch (error) {
             if (!isSqliteBusy(error)) throw error;
-            Atomics.wait(configureRetrySignal, 0, 0, CONFIGURE_RETRY_DELAY_MS);
+            waitBeforeConfigureRetry();
             this.configureOnce();
         }
     }
