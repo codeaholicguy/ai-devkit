@@ -163,6 +163,79 @@ describe('AgentRegistry', () => {
         });
     });
 
+    describe('reconcile', () => {
+        it('restores a soft-deleted session under a new pid without losing managed metadata', () => {
+            registry.register(makeEntry({ name: 'custom', pid: 101, sessionId: 'same', tmuxSession: 'custom' }));
+            registry.togglePin('claude', 101);
+            registry.reconcile([], ['claude']);
+
+            const [restored] = registry.reconcile([
+                makeEntry({ name: 'generated', pid: 202, sessionId: 'same', tmuxSession: '', cwd: '/new' }),
+            ], ['claude']);
+
+            expect(restored).toMatchObject({
+                name: 'custom', pid: 202, sessionId: 'same', pinned: true,
+                tmuxSession: 'custom', startedAt: '2026-05-30T00:00:00.000Z', deletedAt: null,
+            });
+            expect(registry.list()).toHaveLength(1);
+        });
+
+        it('soft-deletes a recycled-pid session and restores it if that session returns', () => {
+            registry.register(makeEntry({ name: 'old', pid: 101, sessionId: 'old', tmuxSession: 'old' }));
+
+            const [replacement] = registry.reconcile([
+                makeEntry({ name: 'old', pid: 101, sessionId: 'new', tmuxSession: '' }),
+            ], ['claude']);
+
+            expect(replacement.name).toBe('old-2');
+            expect(registry.lookup('old')).toMatchObject({ sessionId: 'old' });
+            expect(registry.lookup('old')?.deletedAt).not.toBeNull();
+            expect(registry.lookup('old-2')).toMatchObject({ sessionId: 'new', pid: 101, deletedAt: null });
+
+            const [restored] = registry.reconcile([
+                makeEntry({ name: 'generated', pid: 303, sessionId: 'old', tmuxSession: '' }),
+            ], ['claude']);
+            expect(restored).toMatchObject({ name: 'old', pid: 303, tmuxSession: 'old', deletedAt: null });
+            expect(registry.lookup('old-2')?.deletedAt).not.toBeNull();
+        });
+
+        it('soft-deletes undetected rows with a forensic timestamp instead of removing them', () => {
+            const now = new Date('2026-08-31T10:00:00.000Z');
+            const clocked = new AgentRegistry(regPath, { now: () => now });
+            clocked.register(makeEntry({ name: 'missing', sessionId: 'missing' }));
+
+            clocked.reconcile([], ['claude']);
+
+            expect(clocked.lookup('missing')?.deletedAt).toBe(now.toISOString());
+            expect(clocked.list()).toHaveLength(1);
+        });
+
+        it('rolls back every mutation when a later reconcile write fails', () => {
+            registry.register(makeEntry({ name: 'existing', pid: 101, sessionId: 'existing' }));
+
+            expect(() => registry.reconcile([
+                makeEntry({ name: 'fresh', pid: 202, sessionId: 'fresh' }),
+                makeEntry({ name: 'invalid', pid: 303, sessionId: null as any }),
+            ], ['claude'])).toThrow();
+
+            expect(registry.lookup('existing')).toMatchObject({ deletedAt: null });
+            expect(registry.lookup('fresh')).toBeNull();
+        });
+    });
+
+    describe('remove', () => {
+        it('hard-deletes either a live or soft-deleted row', () => {
+            registry.register(makeEntry({ name: 'live', pid: 101, sessionId: 'live' }));
+            registry.register(makeEntry({ name: 'deleted', pid: 202, sessionId: 'deleted' }));
+            registry.reconcile([makeEntry({ name: 'live', pid: 101, sessionId: 'live' })], ['claude']);
+
+            expect(registry.lookup('deleted')?.deletedAt).not.toBeNull();
+            expect(registry.remove('claude', 101)).toBe(true);
+            expect(registry.remove('claude', registry.lookup('deleted')!.pid)).toBe(true);
+            expect(registry.list()).toEqual([]);
+        });
+    });
+
     describe('lookup', () => {
         it('returns null when name not found', () => {
             expect(registry.lookup('missing')).toBeNull();
@@ -246,40 +319,6 @@ describe('AgentRegistry', () => {
             expect(legacyRegistry.lookup('legacy')).toBeNull();
             expect(legacyRegistry.list()).toEqual([]);
             expect(fs.existsSync(regPath.replace(/\.json$/, '.db'))).toBe(true);
-        });
-    });
-
-    describe('isAlive', () => {
-        it('returns true for the current process', () => {
-            expect(registry.isAlive(makeEntry({ pid: process.pid }))).toBe(true);
-        });
-
-        it('returns false for a PID that does not exist', () => {
-            expect(registry.isAlive(makeEntry({ pid: 999999 }))).toBe(false);
-        });
-
-        it('returns true when the process probe is forbidden with EPERM', () => {
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
-            });
-
-            expect(registry.isAlive(makeEntry())).toBe(true);
-        });
-
-        it('returns false when the process probe reports ESRCH', () => {
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
-            });
-
-            expect(registry.isAlive(makeEntry())).toBe(false);
-        });
-
-        it('returns true when the process probe fails without a definitive error code', () => {
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw new Error('indeterminate probe failure');
-            });
-
-            expect(registry.isAlive(makeEntry())).toBe(true);
         });
     });
 

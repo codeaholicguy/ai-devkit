@@ -266,8 +266,8 @@ describe('AgentManager', () => {
 
         it('should return agents from single adapter', async () => {
             const mockAgents = [
-                createMockAgent({ name: 'agent1' }),
-                createMockAgent({ name: 'agent2' }),
+                createMockAgent({ name: 'agent1', sessionId: 'session-1' }),
+                createMockAgent({ name: 'agent2', sessionId: 'session-2' }),
             ];
             const adapter = new MockAdapter('claude', mockAgents);
 
@@ -295,10 +295,10 @@ describe('AgentManager', () => {
 
         it('should sort agents by status priority (waiting first)', async () => {
             const mockAgents = [
-                createMockAgent({ name: 'idle-agent', status: AgentStatus.IDLE }),
-                createMockAgent({ name: 'waiting-agent', status: AgentStatus.WAITING }),
-                createMockAgent({ name: 'running-agent', status: AgentStatus.RUNNING }),
-                createMockAgent({ name: 'unknown-agent', status: AgentStatus.UNKNOWN }),
+                createMockAgent({ name: 'idle-agent', status: AgentStatus.IDLE, sessionId: 'idle' }),
+                createMockAgent({ name: 'waiting-agent', status: AgentStatus.WAITING, sessionId: 'waiting' }),
+                createMockAgent({ name: 'running-agent', status: AgentStatus.RUNNING, sessionId: 'running' }),
+                createMockAgent({ name: 'unknown-agent', status: AgentStatus.UNKNOWN, sessionId: 'unknown' }),
             ];
             const adapter = new MockAdapter('claude', mockAgents);
 
@@ -354,7 +354,6 @@ describe('AgentManager', () => {
             databaseOperations = [];
             registry = new AgentRegistry(regPath, {
                 now: () => new Date(nowMs),
-                pruneIntervalMs: 30_000,
                 onDatabaseOperation: (sql) => databaseOperations.push(sql),
             });
             scopedManager = new AgentManager(registry);
@@ -393,7 +392,7 @@ describe('AgentManager', () => {
             expect(entries[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         });
 
-        it('keeps invisible registry rows while omitting undetected agents from list output', async () => {
+        it('soft-deletes invisible rows while omitting them from list output', async () => {
             registry.register({
                 name: 'memory-eval-explore',
                 type: 'claude',
@@ -405,16 +404,13 @@ describe('AgentManager', () => {
                 sessionFilePath: '/path/dead.jsonl',
             });
             scopedManager.registerAdapter(new MockAdapter('claude', []));
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('no such process'), { code: 'ESRCH' });
-            });
-
             const agents = await scopedManager.listAgents();
 
             expect(agents).toEqual([]);
             expect(registry.lookup('memory-eval-explore')).toMatchObject({
                 name: 'memory-eval-explore',
                 tmuxSession: 'memory-eval-explore',
+                deletedAt: '2026-08-14T10:00:00.000Z',
             });
         });
 
@@ -442,7 +438,7 @@ describe('AgentManager', () => {
             expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
         });
 
-        it('does not inherit or overwrite a held name when a pid is recycled', async () => {
+        it('soft-deletes a held session when its pid is recycled and persists the unique replacement', async () => {
             const baseName = `project-${process.pid}`;
             registry.register({
                 name: baseName,
@@ -482,15 +478,19 @@ describe('AgentManager', () => {
             expect(agents[0].name).toBe(`${baseName}-3`);
             expect(registry.lookup(baseName)).toMatchObject({
                 type: 'codex',
-                pid: process.pid,
                 sessionId: 'old-session',
                 sessionFilePath: '/path/old.jsonl',
+                deletedAt: '2026-08-14T10:00:00.000Z',
             });
             expect(registry.lookup(`${baseName}-2`)).not.toBeNull();
-            expect(registry.lookup(`${baseName}-3`)).toBeNull();
+            expect(registry.lookup(`${baseName}-3`)).toMatchObject({
+                pid: process.pid,
+                sessionId: 'new-session',
+                deletedAt: null,
+            });
         });
 
-        it('preserves custom name and tmux session across two EPERM refresh cycles', async () => {
+        it('never probes process liveness during refresh', async () => {
             registry.register({
                 name: 'merry',
                 type: 'claude',
@@ -504,9 +504,7 @@ describe('AgentManager', () => {
             scopedManager.registerAdapter(new MockAdapter('claude', [
                 createMockAgent({ name: `ai-devkit-${process.pid}`, pid: process.pid, sessionId: 'sid-merry' }),
             ]));
-            vi.spyOn(process, 'kill').mockImplementation(() => {
-                throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
-            });
+            const killSpy = vi.spyOn(process, 'kill');
 
             const firstRefresh = await scopedManager.listAgents();
             const secondRefresh = await scopedManager.listAgents();
@@ -516,6 +514,54 @@ describe('AgentManager', () => {
             expect(registry.lookup('merry')).toMatchObject({
                 name: 'merry',
                 tmuxSession: 'merry-tmux',
+            });
+            expect(killSpy).not.toHaveBeenCalled();
+        });
+
+        it('leaves a failed adapter type untouched while reconciling successful types', async () => {
+            registry.register({
+                name: 'claude-held', type: 'claude', pid: 101, tmuxSession: 'claude-held',
+                cwd: '/claude', startedAt: '2026-05-30T00:00:00.000Z', sessionId: 'claude-session',
+                sessionFilePath: '', pinned: false,
+            });
+            registry.register({
+                name: 'codex-held', type: 'codex', pid: 202, tmuxSession: 'codex-held',
+                cwd: '/codex', startedAt: '2026-05-30T00:00:00.000Z', sessionId: 'codex-session',
+                sessionFilePath: '', pinned: false,
+            });
+            scopedManager.registerAdapter(new MockAdapter('claude', [], true));
+            scopedManager.registerAdapter(new MockAdapter('codex', []));
+
+            await scopedManager.listAgents();
+
+            expect(registry.lookup('claude-held')?.deletedAt).toBeNull();
+            expect(registry.lookup('codex-held')?.deletedAt).toBe('2026-08-14T10:00:00.000Z');
+        });
+
+        it('self-heals names, pins, and tmux links after a blind sandbox observation', async () => {
+            const adapter = new MockAdapter('codex', []);
+            registry.register({
+                name: 'memory-eval-explore', type: 'codex', pid: 101,
+                tmuxSession: 'memory-eval-explore', cwd: '/repo',
+                startedAt: '2026-05-30T00:00:00.000Z', sessionId: 'pid-session',
+                sessionFilePath: '/sessions/pid-session.jsonl', pinned: false,
+            });
+            registry.togglePin('codex', 101);
+            scopedManager.registerAdapter(adapter);
+
+            expect(await scopedManager.listAgents()).toEqual([]);
+            expect(registry.lookup('memory-eval-explore')?.deletedAt).not.toBeNull();
+
+            adapter.setAgents([createMockAgent({
+                name: 'ai-devkit-202', type: 'codex', pid: 202, sessionId: 'pid-session',
+                sessionFilePath: '/sessions/pid-session.jsonl', projectPath: '/repo',
+            })]);
+            const restored = await scopedManager.listAgents();
+
+            expect(restored).toHaveLength(1);
+            expect(restored[0]).toMatchObject({ name: 'memory-eval-explore', pid: 202, pinned: true });
+            expect(registry.lookup('memory-eval-explore')).toMatchObject({
+                pid: 202, pinned: true, tmuxSession: 'memory-eval-explore', deletedAt: null,
             });
         });
 
@@ -573,8 +619,8 @@ describe('AgentManager', () => {
             expect(entry.startedAt >= before).toBe(true);
         });
 
-        it('batches the write — a single registerBatch call per listAgents', async () => {
-            const spy = vi.spyOn(registry, 'registerBatch');
+        it('batches the write — a single reconcile call per listAgents', async () => {
+            const spy = vi.spyOn(registry, 'reconcile');
 
             scopedManager.registerAdapter(new MockAdapter('claude', [
                 createMockAgent({ name: 'a', pid: process.pid }),
@@ -607,7 +653,7 @@ describe('AgentManager', () => {
             await scopedManager.listAgents();
 
             const writes = databaseOperations.filter((sql) => /^\s*(BEGIN|COMMIT|INSERT|UPDATE|DELETE)/i.test(sql));
-            expect(writes).toEqual([]);
+            expect(writes).toEqual(['BEGIN IMMEDIATE', 'COMMIT']);
         });
 
         it('exposes a persisted pin and preserves it across a changed poll refresh', async () => {
@@ -676,10 +722,10 @@ describe('AgentManager', () => {
 
             await scopedManager.listAgents();
 
-            const upserts = databaseOperations.filter((sql) => /^\s*INSERT INTO agents/i.test(sql));
+            const updates = databaseOperations.filter((sql) => /^\s*UPDATE agents SET/i.test(sql));
             const transactions = databaseOperations.filter((sql) => /^\s*(BEGIN|COMMIT)/i.test(sql));
-            expect(upserts).toHaveLength(1);
-            expect(upserts[0]).toContain("'2026-08-14T10:00:01.000Z'");
+            expect(updates).toHaveLength(1);
+            expect(updates[0]).toContain("'2026-08-14T10:00:01.000Z'");
             expect(transactions).toHaveLength(2);
             expect(registry.lookup('changing')?.cwd).toBe('/cwd/after');
         });
@@ -712,14 +758,38 @@ describe('AgentManager', () => {
             expect(registry.lookup('new-codex')).toMatchObject({ type: 'codex', pid: process.pid });
         });
 
-        it('skips registerBatch when no agents are detected', async () => {
-            const writeSpy = vi.spyOn(registry, 'registerBatch');
+        it('reconciles a successful empty result so all rows for that type are soft-deleted', async () => {
+            registry.register({
+                name: 'held', type: 'claude', pid: 101, tmuxSession: '', cwd: '/tmp',
+                startedAt: '2026-05-30T00:00:00.000Z', sessionId: 'held-session',
+                sessionFilePath: '', pinned: false,
+            });
+            const writeSpy = vi.spyOn(registry, 'reconcile');
 
             scopedManager.registerAdapter(new MockAdapter('claude', []));
             await scopedManager.listAgents();
             await scopedManager.listAgents();
 
-            expect(writeSpy).not.toHaveBeenCalled();
+            expect(writeSpy).toHaveBeenCalledTimes(2);
+            expect(registry.lookup('held')?.deletedAt).not.toBeNull();
+        });
+
+        it('soft-deletes all interactive rows after globally successful empty detection', async () => {
+            registry.register({
+                name: 'claude-held', type: 'claude', pid: 101, tmuxSession: '', cwd: '/tmp',
+                startedAt: '2026-05-30T00:00:00.000Z', sessionId: 'claude-session',
+                sessionFilePath: '', pinned: false,
+            });
+            registry.register({
+                name: 'codex-held', type: 'codex', pid: 202, tmuxSession: '', cwd: '/tmp',
+                startedAt: '2026-05-30T00:00:00.000Z', sessionId: 'codex-session',
+                sessionFilePath: '', pinned: false,
+            });
+            scopedManager.registerAdapter(new MockAdapter('claude', []));
+            scopedManager.registerAdapter(new MockAdapter('codex', []));
+
+            expect(await scopedManager.listAgents()).toEqual([]);
+            expect(registry.list().every((entry) => entry.deletedAt !== null)).toBe(true);
         });
     });
 
@@ -747,7 +817,7 @@ describe('AgentManager', () => {
             expect(() => manager.togglePin('missing')).toThrow(/no longer running/i);
         });
 
-        it('rejects a dead process without deleting its row', () => {
+        it('rejects a soft-deleted agent without probing liveness', () => {
             const registry = new AgentRegistry(path.join(tmpDir, 'dead-toggle.json'));
             const scopedManager = new AgentManager(registry);
             registry.register({
@@ -761,9 +831,12 @@ describe('AgentManager', () => {
                 sessionFilePath: '',
                 pinned: false,
             });
+            registry.reconcile([], ['claude']);
+            const killSpy = vi.spyOn(process, 'kill');
 
             expect(() => scopedManager.togglePin('dead')).toThrow(/no longer running/i);
             expect(registry.lookup('dead')).not.toBeNull();
+            expect(killSpy).not.toHaveBeenCalled();
         });
 
         it('surfaces a clear readonly mutation error', () => {
