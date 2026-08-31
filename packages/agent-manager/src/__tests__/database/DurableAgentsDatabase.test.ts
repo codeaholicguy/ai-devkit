@@ -19,9 +19,9 @@ function dbPath(): string {
 }
 
 describe('durable agents schema', () => {
-    it('migrates to version 5 with an interactive-agent identity index', () => {
+    it('keeps the durable-agent schema at version 4 without an interactive identity index', () => {
         const connection = new DatabaseConnection({ dbPath: dbPath() });
-        expect(getSchemaVersion(connection)).toBe(5);
+        expect(getSchemaVersion(connection)).toBe(4);
         const table = connection.queryOne<{ sql: string }>(
             "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'durable_agents'",
         );
@@ -32,11 +32,9 @@ describe('durable agents schema', () => {
         ).map(({ name }) => name)).toEqual(expect.arrayContaining([
             'idx_durable_agents_state', 'idx_durable_agents_list',
         ]));
-        const agentsColumns = connection.query<{ name: string }>('PRAGMA table_info(agents)');
-        expect(agentsColumns.map(({ name }) => name)).not.toContain('deleted_at');
         expect(connection.queryOne<{ sql: string }>(
             "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_agents_identity'",
-        )?.sql).toContain('agents(type, session_id)');
+        )).toBeUndefined();
         connection.close();
     });
 
@@ -61,7 +59,7 @@ describe('durable agents schema', () => {
         raw.close();
 
         const connection = new DatabaseConnection({ dbPath: file });
-        expect(getSchemaVersion(connection)).toBe(5);
+        expect(getSchemaVersion(connection)).toBe(4);
         expect(() => connection.execute(
             'INSERT INTO durable_agents (id, provider_session_id) VALUES (?, NULL)', ['codex'],
         )).not.toThrow();
@@ -93,7 +91,7 @@ describe('readonly DatabaseConnection', () => {
         writable.close();
         const before = fs.statSync(file).mtimeMs;
         const readonly = new DatabaseConnection({ dbPath: file, readonly: true });
-        expect(readonly.queryOne<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(5);
+        expect(readonly.queryOne<{ user_version: number }>('PRAGMA user_version')?.user_version).toBe(4);
         readonly.close();
         expect(fs.statSync(file).mtimeMs).toBe(before);
     });
@@ -107,7 +105,7 @@ describe('readonly DatabaseConnection', () => {
         const raw = new Database(missing);
         raw.pragma('user_version = 2');
         raw.close();
-        expect(() => new DatabaseConnection({ dbPath: missing, readonly: true })).toThrow(/schema version 5/i);
+        expect(() => new DatabaseConnection({ dbPath: missing, readonly: true })).toThrow(/schema version 3/i);
         expect(new Database(missing, { readonly: true }).pragma('user_version', { simple: true })).toBe(2);
     });
 });

@@ -187,14 +187,15 @@ export class AgentManager {
             });
         }
 
-        const entries = allAgents.map((agent) => this.toRegistryEntry(agent));
+        const boundAgents = allAgents.filter((agent) => Boolean(agent.sessionId));
+        const entries = boundAgents.map((agent) => this.toRegistryEntry(agent));
         const successfulTypes = results
             .filter((result) => result.error === null)
             .map((result) => result.type);
         const reconciled = this.registry.reconcile(entries, successfulTypes);
 
-        for (let index = 0; index < allAgents.length; index += 1) {
-            const agent = allAgents[index];
+        for (let index = 0; index < boundAgents.length; index += 1) {
+            const agent = boundAgents[index];
             const entry = reconciled[index];
             if (!agent || !entry) continue;
             agent.name = entry.name;
@@ -205,7 +206,7 @@ export class AgentManager {
         }
 
         const sortKey: AgentSortKey = options?.sortBy ?? 'status';
-        return sortAgents(allAgents, sortKey);
+        return sortAgents(boundAgents, sortKey);
     }
 
     private toRegistryEntry(agent: AgentInfo): RegistryEntry {

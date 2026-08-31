@@ -137,13 +137,6 @@ export class AgentRegistry {
         return `${baseName}-${suffix}`;
     }
 
-    private displacePidConflict(type: AgentType, pid: number, sessionId: string): RegistryEntry | undefined {
-        const conflict = this.findByPid(type, pid);
-        if (!conflict || conflict.sessionId === sessionId) return undefined;
-        this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [type, pid]);
-        return conflict;
-    }
-
     private entriesEqual(left: RegistryEntry, right: RegistryEntry): boolean {
         return left.name === right.name
             && left.type === right.type
@@ -209,39 +202,61 @@ export class AgentRegistry {
         const successful = new Set(successfulTypes);
 
         return this.db.immediateTransaction(() => {
+            const detectedWithIdentity = detected.filter((entry) => Boolean(entry.sessionId));
             const heldNames = new Set(this.list().map((entry) => entry.name));
-            const detectedIdentities = new Set(detected.map((entry) => `${entry.type}\0${entry.sessionId}`));
+            const detectedIdentities = new Set(
+                detectedWithIdentity.map((entry) => `${entry.type}\0${entry.sessionId}`),
+            );
             const active: RegistryEntry[] = [];
 
-            for (const incoming of detected) {
+            for (const incoming of detectedWithIdentity) {
                 let existing = this.findBySession(incoming.type, incoming.sessionId);
+                let bindSessionId = false;
                 if (!existing) {
                     const pidEntry = this.findByPid(incoming.type, incoming.pid);
-                    const unbound = pidEntry && (pidEntry.sessionId === '' || pidEntry.sessionId.startsWith('pid-'));
-                    if (unbound) {
+                    if (pidEntry?.sessionId === '') {
                         existing = pidEntry;
-                    } else {
-                        const displaced = this.displacePidConflict(incoming.type, incoming.pid, incoming.sessionId);
-                        if (displaced) heldNames.delete(displaced.name);
+                        bindSessionId = true;
+                    } else if (pidEntry) {
+                        this.db.execute(
+                            'DELETE FROM agents WHERE type = ? AND pid = ?',
+                            [pidEntry.type, pidEntry.pid],
+                        );
+                        heldNames.delete(pidEntry.name);
                     }
                 } else if (existing.pid !== incoming.pid) {
-                    const displaced = this.displacePidConflict(incoming.type, incoming.pid, incoming.sessionId);
-                    if (displaced) heldNames.delete(displaced.name);
+                    const pidEntry = this.findByPid(incoming.type, incoming.pid);
+                    if (pidEntry?.sessionId) {
+                        this.db.execute(
+                            'DELETE FROM agents WHERE type = ? AND pid = ?',
+                            [pidEntry.type, pidEntry.pid],
+                        );
+                        heldNames.delete(pidEntry.name);
+                    }
                 }
 
                 if (existing) {
                     const cwd = incoming.cwd || existing.cwd;
                     const sessionFilePath = incoming.sessionFilePath || existing.sessionFilePath;
                     const unchanged = existing.pid === incoming.pid
-                        && existing.sessionId === incoming.sessionId
+                        && !bindSessionId
                         && existing.cwd === cwd
                         && existing.sessionFilePath === sessionFilePath;
                     if (!unchanged) {
-                        this.db.execute(`UPDATE agents SET
-                            pid = ?, session_id = ?, cwd = ?, session_file_path = ?, updated_at = ?
-                            WHERE type = ? AND pid = ?`, [
-                            incoming.pid, incoming.sessionId, cwd, sessionFilePath, now, existing.type, existing.pid,
-                        ]);
+                        if (bindSessionId) {
+                            this.db.execute(`UPDATE agents SET
+                                session_id = ?, pid = ?, cwd = ?, session_file_path = ?, updated_at = ?
+                                WHERE type = ? AND pid = ?`, [
+                                incoming.sessionId, incoming.pid, cwd, sessionFilePath, now,
+                                existing.type, existing.pid,
+                            ]);
+                        } else {
+                            this.db.execute(`UPDATE agents SET
+                                pid = ?, cwd = ?, session_file_path = ?, updated_at = ?
+                                WHERE type = ? AND pid = ?`, [
+                                incoming.pid, cwd, sessionFilePath, now, existing.type, existing.pid,
+                            ]);
+                        }
                     }
                     active.push({
                         ...existing,
@@ -263,7 +278,9 @@ export class AgentRegistry {
 
             for (const entry of this.list()) {
                 const identity = `${entry.type}\0${entry.sessionId}`;
-                if (successful.has(entry.type) && !detectedIdentities.has(identity)) {
+                if (entry.sessionId !== ''
+                    && successful.has(entry.type)
+                    && !detectedIdentities.has(identity)) {
                     this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [entry.type, entry.pid]);
                 }
             }

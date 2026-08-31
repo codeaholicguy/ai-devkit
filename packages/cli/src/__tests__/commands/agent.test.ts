@@ -563,10 +563,10 @@ Waiting on user input`,
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
   });
 
-  it('kills an exact retained registry row when adapter detection throws', async () => {
+  it('kills a skipped empty-session start row by its registry name', async () => {
     const retained = {
       name: 'old-session', type: 'codex', pid: 123, tmuxSession: 'old-session', cwd: '/repo',
-      startedAt: '2026-06-01T00:00:00.000Z', sessionId: 'old', sessionFilePath: '',
+      startedAt: '2026-06-01T00:00:00.000Z', sessionId: '', sessionFilePath: '',
       pinned: true,
     };
     mockManager.listAgents.mockResolvedValue([]);

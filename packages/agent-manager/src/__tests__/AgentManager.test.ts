@@ -410,6 +410,19 @@ describe('AgentManager', () => {
             expect(registry.lookup('memory-eval-explore')).toBeNull();
         });
 
+        it('skips empty-session detections without displaying or registering them', async () => {
+            scopedManager.registerAdapter(new MockAdapter('claude', [
+                createMockAgent({ name: 'empty', pid: 101, sessionId: '' }),
+                createMockAgent({ name: 'bound', pid: 102, sessionId: 'bound-session' }),
+            ]));
+
+            const agents = await scopedManager.listAgents();
+
+            expect(agents.map((agent) => agent.name)).toEqual(['bound']);
+            expect(registry.lookup('empty')).toBeNull();
+            expect(registry.lookup('bound')).not.toBeNull();
+        });
+
         it('preserves an existing name (e.g. user-set "merry") across cycles', async () => {
             registry.register({
                 name: 'merry',
@@ -556,7 +569,7 @@ describe('AgentManager', () => {
             });
         });
 
-        it('adopts the detected identity into an unbound start row', async () => {
+        it('binds the detected identity into an empty-session start row', async () => {
             registry.register({
                 name: 'agent-list-debug',
                 type: 'codex',
@@ -564,7 +577,7 @@ describe('AgentManager', () => {
                 tmuxSession: 'agent-list-debug',
                 cwd: '/cwd/debug',
                 startedAt: '2026-05-30T00:00:00.000Z',
-                sessionId: 'pid-debug',
+                sessionId: '',
                 sessionFilePath: '',
             });
             scopedManager.registerAdapter(new MockAdapter('codex', [

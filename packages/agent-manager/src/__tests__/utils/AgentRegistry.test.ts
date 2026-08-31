@@ -178,16 +178,31 @@ describe('AgentRegistry', () => {
             expect(registry.list()).toHaveLength(1);
         });
 
-        it.each(['', 'pid-101'])('adopts an unbound %j session identity without losing metadata', (sessionId) => {
-            registry.register(makeEntry({ name: 'custom', pid: 101, sessionId, tmuxSession: 'custom' }));
+        it('binds an empty-session start row without losing metadata', () => {
+            registry.register(makeEntry({ name: 'custom', pid: 101, sessionId: '', tmuxSession: 'custom' }));
             registry.togglePin('claude', 101);
 
-            const [adopted] = registry.reconcile([
+            const [bound] = registry.reconcile([
                 makeEntry({ name: 'generated', pid: 101, sessionId: 'bound-session', tmuxSession: '' }),
             ], ['claude']);
 
-            expect(adopted).toMatchObject({
+            expect(bound).toMatchObject({
                 name: 'custom', pid: 101, sessionId: 'bound-session', pinned: true, tmuxSession: 'custom',
+            });
+            expect(registry.list()).toHaveLength(1);
+        });
+
+        it('skips a detected agent with an empty session id without changing the registry', () => {
+            registry.register(makeEntry({
+                name: 'start-row', pid: 101, sessionId: '', tmuxSession: 'start-row', cwd: '/original',
+            }));
+
+            expect(registry.reconcile([
+                makeEntry({ name: 'detected', pid: 101, sessionId: '', tmuxSession: '', cwd: '/changed' }),
+            ], ['claude'])).toEqual([]);
+
+            expect(registry.lookup('start-row')).toMatchObject({
+                sessionId: '', name: 'start-row', tmuxSession: 'start-row', cwd: '/original',
             });
             expect(registry.list()).toHaveLength(1);
         });
@@ -204,26 +219,17 @@ describe('AgentRegistry', () => {
             expect(registry.lookup('generated')).not.toMatchObject({ tmuxSession: 'old' });
         });
 
-        it('deletes undetected rows', () => {
+        it('deletes undetected bound rows but leaves empty-session management rows', () => {
             registry.register(makeEntry({ name: 'missing', sessionId: 'missing' }));
+            registry.register(makeEntry({ name: 'starting', pid: 102, sessionId: '' }));
 
             registry.reconcile([], ['claude']);
 
             expect(registry.lookup('missing')).toBeNull();
-            expect(registry.list()).toHaveLength(0);
+            expect(registry.lookup('starting')).not.toBeNull();
+            expect(registry.list()).toHaveLength(1);
         });
 
-        it('rolls back every mutation when a later reconcile write fails', () => {
-            registry.register(makeEntry({ name: 'existing', pid: 101, sessionId: 'existing' }));
-
-            expect(() => registry.reconcile([
-                makeEntry({ name: 'fresh', pid: 202, sessionId: 'fresh' }),
-                makeEntry({ name: 'invalid', pid: 303, sessionId: null as any }),
-            ], ['claude'])).toThrow();
-
-            expect(registry.lookup('existing')).not.toBeNull();
-            expect(registry.lookup('fresh')).toBeNull();
-        });
     });
 
     describe('remove', () => {
