@@ -32,6 +32,7 @@ export class DatabaseConnection {
 
         this.db = new Database(this.dbPath, {
             readonly: this.readonly,
+            timeout: 5000,
             verbose: typeof options.verbose === 'function'
                 ? options.verbose
                 : options.verbose ? console.log : undefined,
@@ -50,7 +51,8 @@ export class DatabaseConnection {
     }
 
     private configure(): void {
-        this.db.pragma('journal_mode = WAL');
+        const journalMode = this.db.pragma('journal_mode', { simple: true }) as string;
+        if (journalMode.toLowerCase() !== 'wal') this.db.pragma('journal_mode = WAL');
         this.db.pragma('foreign_keys = ON');
         this.db.pragma('synchronous = NORMAL');
         this.db.pragma('busy_timeout = 5000');
