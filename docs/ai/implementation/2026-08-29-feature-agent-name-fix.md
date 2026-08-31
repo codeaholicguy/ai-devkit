@@ -1,24 +1,23 @@
 ---
 phase: implementation
-title: Session Reconciliation Implementation
-description: Registry, manager, migration, and kill changes
+title: Bound-Session Reconciliation Implementation
+description: Registry, manager, and kill behavior
 ---
 
-# Session Reconciliation Implementation
+# Bound-Session Reconciliation Implementation
 
-- `005_interactive_agent_identity.sql` adds the `(type, session_id)` lookup index.
-- The agent-manager build cleans `dist` before copying migrations so a renamed
-  migration cannot leave two files with the same schema version in packaged output.
-- `AgentRegistry.reconcile` uses one immediate transaction for identity matching,
-  unbound adoption, PID migration/displacement, insertion, and absent-row deletion.
-- Matching sessions preserve name, tmux link, pin, start time, and other managed metadata.
-- `AgentManager.listAgents` reconciles successful adapter types; thrown types are untouched.
-- Pinning and refresh perform no PID-liveness probes.
-- Kill hard-deletes rows. The command-level registry lookup remains necessary when
-  an adapter throws: reconciliation skips that type, so its retained row may still
-  be explicitly killed and its tmux session cleaned.
+- `AgentRegistry.reconcile` performs one immediate transaction and returns only
+  detected agents with non-empty session IDs.
+- Session matches preserve managed metadata across PID rollover.
+- Empty-session same-PID start rows bind in place; no other placeholder is special.
+- Bound PID reuse deletes the occupant and inserts a fresh detected row.
+- Cleanup deletes only missing bound rows belonging to successful adapter types.
+- `AgentManager.listAgents` treats adapter exceptions as absence of information.
+- Interactive refresh and pinning contain no process-liveness calls.
+- The command-level kill lookup remains because empty-session start rows are skipped
+  by detection and must still be addressable by their custom registry name.
+- Database schema and migrations remain at version 4; durable agents are unchanged.
 
-The incident evidence remains the sandbox PID-namespace prune followed by
-default-name re-registration. The final product decision accepts equivalent
-metadata loss after a blind successful observation; session identity protects
-normal refreshes, PID migration, and the start-row-to-detected-session transition.
+The original incident came from observer-relative PID visibility. The final design
+accepts destructive blind observation for bound rows while keeping unbound management
+records under explicit start/kill ownership.

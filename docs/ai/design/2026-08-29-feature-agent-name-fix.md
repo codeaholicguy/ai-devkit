@@ -1,29 +1,24 @@
 ---
 phase: design
-title: Session-Identity Reconciliation Design
-description: Atomic hard-delete reconciliation architecture
+title: Bound-Session Reconciliation Design
+description: Immediate-transaction reconciliation without schema changes
 ---
 
-# Session-Identity Reconciliation Design
+# Bound-Session Reconciliation Design
 
-Successful adapter output is authoritative for that observer. Within one
-`BEGIN IMMEDIATE` transaction, reconciliation matches indexed `(type, session_id)`
-identities, migrates matching rows to detected PIDs, adopts an unbound same-PID
-start row, deletes bound PID conflicts, inserts suffix-unique new rows, and deletes
-rows missing from successful adapter types. Adapter exceptions skip their type.
+`AgentRegistry.reconcile` filters out null and empty detected session IDs, then
+runs one `BEGIN IMMEDIATE` transaction. For each remaining detection it first
+finds `(type, session_id)`, otherwise inspects `(type, pid)`: an empty-session PID
+row binds in place, a different bound occupant is deleted, and an empty slot gets
+a fresh suffix-unique insert. Matching rows update only PID, cwd, session file,
+and update time. Managed metadata remains unchanged.
 
-Migration `005_interactive_agent_identity.sql` is additive and creates only:
+After processing detections, rows with non-empty session IDs are deleted when
+their successful adapter type did not report them. Empty-session rows are excluded
+from cleanup. A thrown adapter contributes no successful type and therefore causes
+no deletion for that type; a successful empty result deletes every bound row for it.
 
-```sql
-CREATE INDEX idx_agents_identity ON agents(type, session_id);
-```
-
-The existing `(type,pid)` primary key remains. `BEGIN IMMEDIATE` is required for
-the read-then-write algorithm under multi-process concurrency: a deferred
-transaction's lock upgrade can return `BUSY` without honoring the configured busy
-handler. Existing ordinary transaction callers remain, so both helpers are kept.
-
-Identity adoption bridges agent start to first provider detection: if session lookup
-misses and the same PID row has `session_id = ''` or a `pid-*` placeholder, its
-identity is updated while name, tmux mapping, pin, and start time remain intact.
-Only a bound different session is displaced, by deletion. `durable_agents` is untouched.
+The existing `(type,pid)` primary key and schema version 4 remain unchanged. No
+index, column, surrogate key, liveness probe, or scheduled pruning is introduced.
+`BEGIN IMMEDIATE` protects the read-then-write sequence from deferred lock-upgrade
+failures under multi-process access.

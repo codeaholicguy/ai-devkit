@@ -1,20 +1,17 @@
 ---
 phase: planning
-title: Session Reconciliation Implementation Plan
-description: Ordered implementation and verification work
+title: Registry Reconciliation Implementation Plan
+description: Final simplified implementation and verification plan
 ---
 
-# Session Reconciliation Implementation Plan
+# Registry Reconciliation Implementation Plan
 
 - [x] Rebase PR #205 onto current `origin/main`.
-- [x] Rewrite regressions for hard deletion and unbound identity adoption.
-- [x] Keep migration 005 limited to the session identity index.
-- [x] Implement one-immediate-transaction reconciliation.
-- [x] Preserve successful/error adapter semantics and remove liveness probes.
-- [x] Retain explicit-kill registry fallback for adapter-error rows.
-- [x] Update lifecycle documentation to the accepted destructive semantics.
-- [x] Run complete build, test, lint, and e2e gates.
-- [x] Complete final review, logical commits, force-push-with-lease, and PR update.
-
-Risk focus: atomic PID displacement, unbound identity adoption, and destructive
-observer-relative empty results.
+- [x] Rewrite focused tests for empty-session ownership and bound reconciliation.
+- [x] Remove migration 005 and restore schema-version-4 compatibility.
+- [x] Implement empty-detection skip, start-row binding, rollover, replacement, and cleanup.
+- [x] Keep adapter-error isolation and kill-by-registry-name fallback.
+- [x] Confirm no interactive liveness probes or pruning remain.
+- [x] Update lifecycle documentation to the final model.
+- [x] Run build, full tests, lint, and e2e.
+- [x] Review, commit, force-push-with-lease, and update PR #205.

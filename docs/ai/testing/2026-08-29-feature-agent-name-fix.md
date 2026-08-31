@@ -1,24 +1,22 @@
 ---
 phase: testing
-title: Session Reconciliation Test Strategy
-description: Required regressions and repository gates
+title: Registry Reconciliation Test Strategy
+description: Focused regressions and repository gates
 ---
 
-# Session Reconciliation Test Strategy
+# Registry Reconciliation Test Strategy
 
 ## Required regressions
 
-- [x] Name, pin, tmux, and start metadata survive same-session PID migration.
-- [x] Empty and `pid-*` start rows adopt a detected bound identity without metadata loss.
-- [x] Bound different-session PID reuse inherits nothing and deletes the old row.
-- [x] Undetected rows are hard-deleted; thrown adapter types remain untouched.
-- [x] Successful type/global empty results delete the corresponding interactive rows.
-- [x] Blind detection deletes metadata and later detection regenerates defaults (accepted).
-- [x] Mid-transaction failure rolls back every mutation.
-- [x] Refresh and pin paths never invoke a process-liveness probe.
-- [x] Explicit kill deletes rows, including retained adapter-error rows.
-- [x] Display remains detected-only.
-- [x] Schema version 5 creates `idx_agents_identity` without `deleted_at` or durable changes.
+- [x] Name, tmux mapping, and pin survive first detection through empty-row binding.
+- [x] Name and managed metadata survive same-session PID rollover.
+- [x] Empty-session detections cause no insert, update, delete, or display entry.
+- [x] Bound PID reuse deletes the old row and inserts without metadata inheritance.
+- [x] Undetected bound rows are hard-deleted; empty-session rows remain.
+- [x] Adapter exceptions skip their type; successful empty results delete bound rows.
+- [x] Refresh and pin paths perform no liveness probe.
+- [x] Kill reaches a skipped empty-session start row by registry name.
+- [x] Schema remains version 4 with no interactive identity migration or index.
 
 ## Fresh evidence
 
@@ -27,7 +25,7 @@ description: Required regressions and repository gates
 
 ## Repository gates
 
-- [x] Build: all six projects passed; agent-manager rebuild also verified clean migration output.
-- [x] Full tests: all six projects passed.
+- [x] Build: all six projects passed.
+- [x] Full tests: all six projects passed sequentially with workspace-backed `TMPDIR`.
 - [x] Lint: all six projects passed with four pre-existing warnings and zero errors.
-- [x] E2E: 41/41 passed after removing the stale migration artifact at build time.
+- [x] E2E: 41/41 passed.
