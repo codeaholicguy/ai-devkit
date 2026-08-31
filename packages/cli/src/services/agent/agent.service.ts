@@ -559,18 +559,20 @@ function isProcessAlreadyGone(error: unknown): boolean {
 }
 
 export async function killAgent(
-  agent: Pick<AgentInfo, 'name' | 'pid'>,
+  agent: Pick<AgentInfo, 'name' | 'pid'> & { deletedAt?: string | null },
   deps: KillAgentDeps,
 ): Promise<KillAgentResult> {
   const killProcess = deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
   const registryEntry = deps.registry.lookup(agent.name);
   const tmuxSession = registryEntry?.tmuxSession || null;
 
-  try {
-    killProcess(agent.pid, 'SIGTERM');
-  } catch (error) {
-    if (!isProcessAlreadyGone(error)) {
-      throw error;
+  if (agent.pid > 0) {
+    try {
+      killProcess(agent.pid, 'SIGTERM');
+    } catch (error) {
+      if (!isProcessAlreadyGone(error)) {
+        throw error;
+      }
     }
   }
 

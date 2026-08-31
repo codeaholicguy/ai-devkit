@@ -40,9 +40,9 @@ export class DatabaseConnection {
 
         if (this.readonly) {
             const version = this.db.pragma('user_version', { simple: true }) as number;
-            if (version < 3) {
+            if (version < 5) {
                 this.db.close();
-                throw new Error(`Readonly agent database requires schema version 3 (found ${version}).`);
+                throw new Error(`Readonly agent database requires schema version 5 (found ${version}).`);
             }
         } else {
             this.configure();
@@ -81,6 +81,10 @@ export class DatabaseConnection {
 
     transaction<T>(fn: () => T): T {
         return this.db.transaction(fn)();
+    }
+
+    immediateTransaction<T>(fn: () => T): T {
+        return this.db.transaction(fn).immediate();
     }
 
     close(): void {

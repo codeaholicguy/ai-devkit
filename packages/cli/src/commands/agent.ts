@@ -684,15 +684,17 @@ export function registerAgentCommand(program: Command): void {
         .description('Stop a running agent and clean up its managed tmux session')
         .action(withErrorHandler('kill agent', async (name: string) => {
             const manager = createAgentManager();
+            const registry = AgentRegistry.default();
             const agents = await manager.listAgents();
-            if (agents.length === 0) {
+            const registryEntry = registry.lookup(name);
+            if (agents.length === 0 && !registryEntry) {
                 ui.error('No running agents found.');
                 return;
             }
 
             const resolved = manager.resolveAgent(name, agents);
 
-            if (!resolved) {
+            if (!resolved && !registryEntry) {
                 ui.error(`No agent found matching "${name}".`);
                 ui.info('Available agents:');
                 agents.forEach(a => ui.text(`  - ${a.name}`));
@@ -706,9 +708,11 @@ export function registerAgentCommand(program: Command): void {
                 return;
             }
 
-            const result = await killAgent(resolved, {
+            const target = resolved ?? registryEntry;
+            if (!target) return;
+            const result = await killAgent(target, {
                 tmux: new TmuxManager(),
-                registry: AgentRegistry.default(),
+                registry,
             });
 
             const suffix = result.tmuxSession ? ` and tmux session "${result.tmuxSession}"` : '';

@@ -187,36 +187,20 @@ export class AgentManager {
             });
         }
 
-        const identityKey = (type: string, pid: number): string => `${type}:${pid}`;
-        const preExistingByIdentity = new Map(
-            this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
-        );
-        const heldNames = new Set(this.registry.list().map((entry) => entry.name));
-        const entries: RegistryEntry[] = [];
-        const inheritedByAgent = new Map<AgentInfo, RegistryEntry>();
-        for (const agent of allAgents) {
-            const key = identityKey(agent.type, agent.pid);
-            const existing = preExistingByIdentity.get(key);
-            const sessionMatches = existing && (!existing.sessionId || existing.sessionId === agent.sessionId);
-            if (existing && !sessionMatches) {
-                agent.name = this.uniqueDetectedName(agent.name, heldNames);
-                heldNames.add(agent.name);
-                continue;
-            }
-            const entry = this.toRegistryEntry(agent, sessionMatches ? existing : undefined);
-            entries.push(entry);
-            inheritedByAgent.set(agent, entry);
-            heldNames.add(entry.name);
-        }
-        if (entries.length > 0) this.registry.registerBatch(entries);
+        const entries = allAgents.map((agent) => this.toRegistryEntry(agent));
+        const successfulTypes = results
+            .filter((result) => result.error === null)
+            .map((result) => result.type);
+        const reconciled = this.registry.reconcile(entries, successfulTypes);
 
-        for (const agent of allAgents) {
-            const inherited = inheritedByAgent.get(agent);
-            const entry = inherited ? this.registry.lookup(inherited.name) ?? inherited : undefined;
-            if (entry) {
-                agent.name = entry.name;
-                agent.pinned = entry.pinned;
-                if (entry.pinned && entry.updatedAt) agent.lastActive = new Date(entry.updatedAt);
+        for (let index = 0; index < allAgents.length; index += 1) {
+            const agent = allAgents[index];
+            const entry = reconciled[index];
+            if (!agent || !entry) continue;
+            agent.name = entry.name;
+            agent.pinned = entry.pinned;
+            if (entry.pinned && entry.updatedAt) {
+                agent.lastActive = new Date(entry.updatedAt);
             }
         }
 
@@ -224,30 +208,23 @@ export class AgentManager {
         return sortAgents(allAgents, sortKey);
     }
 
-    private toRegistryEntry(agent: AgentInfo, existing?: RegistryEntry): RegistryEntry {
+    private toRegistryEntry(agent: AgentInfo): RegistryEntry {
         return {
-            name: existing?.name ?? agent.name,
+            name: agent.name,
             type: agent.type,
             pid: agent.pid,
-            tmuxSession: existing?.tmuxSession ?? '',
+            tmuxSession: '',
             cwd: agent.projectPath,
-            startedAt: existing?.startedAt ?? new Date().toISOString(),
+            startedAt: new Date().toISOString(),
             sessionId: agent.sessionId,
             sessionFilePath: agent.sessionFilePath ?? '',
-            pinned: existing?.pinned ?? agent.pinned ?? false,
+            pinned: agent.pinned ?? false,
         };
-    }
-
-    private uniqueDetectedName(baseName: string, heldNames: ReadonlySet<string>): string {
-        if (!heldNames.has(baseName)) return baseName;
-        let suffix = 2;
-        while (heldNames.has(`${baseName}-${suffix}`)) suffix += 1;
-        return `${baseName}-${suffix}`;
     }
 
     togglePin(agentName: string): boolean {
         const entry = this.registry.lookup(agentName);
-        if (!entry || !this.registry.isAlive(entry)) {
+        if (!entry || entry.deletedAt !== null) {
             throw new AgentNotRunningError(agentName);
         }
         const pinned = this.registry.togglePin(entry.type, entry.pid);
