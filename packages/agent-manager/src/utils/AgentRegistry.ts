@@ -31,7 +31,6 @@ export interface RegistryEntry {
     sessionFilePath: string;
     pinned: boolean;
     updatedAt?: string;
-    deletedAt?: string | null;
 }
 
 interface RegistryRow {
@@ -45,7 +44,6 @@ interface RegistryRow {
     session_file_path: string;
     updated_at: string;
     pinned: number;
-    deleted_at: string | null;
 }
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
@@ -91,7 +89,6 @@ export class AgentRegistry {
             sessionFilePath: row.session_file_path,
             pinned: row.pinned !== 0,
             updatedAt: row.updated_at,
-            deletedAt: row.deleted_at,
         };
     }
 
@@ -121,7 +118,7 @@ export class AgentRegistry {
         const row = this.db.queryOne<RegistryRow>(
             `SELECT * FROM agents
              WHERE type = ? AND session_id = ?
-             ORDER BY (deleted_at IS NULL) DESC, updated_at DESC
+             ORDER BY updated_at DESC
              LIMIT 1`,
             [type, sessionId],
         );
@@ -140,18 +137,11 @@ export class AgentRegistry {
         return `${baseName}-${suffix}`;
     }
 
-    private displacePidConflict(type: AgentType, pid: number, sessionId: string, now: string): void {
+    private displacePidConflict(type: AgentType, pid: number, sessionId: string): RegistryEntry | undefined {
         const conflict = this.findByPid(type, pid);
-        if (!conflict || conflict.sessionId === sessionId) return;
-        const minimum = this.db.queryOne<{ pid: number | null }>(
-            'SELECT MIN(pid) AS pid FROM agents WHERE type = ? AND pid < 0',
-            [type],
-        )?.pid;
-        const tombstonePid = minimum === null || minimum === undefined ? -1 : minimum - 1;
-        this.db.execute(
-            'UPDATE agents SET pid = ?, deleted_at = ?, updated_at = ? WHERE type = ? AND pid = ?',
-            [tombstonePid, now, now, type, pid],
-        );
+        if (!conflict || conflict.sessionId === sessionId) return undefined;
+        this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [type, pid]);
+        return conflict;
     }
 
     private entriesEqual(left: RegistryEntry, right: RegistryEntry): boolean {
@@ -168,10 +158,10 @@ export class AgentRegistry {
     private insertOrUpdate(entry: RegistryEntry): void {
         this.db.instance.prepare(`
             INSERT INTO agents (
-                type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at, deleted_at
+                type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at
             )
             VALUES (
-                @type, @pid, @name, @tmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt, @deletedAt
+                @type, @pid, @name, @tmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt
             )
             ON CONFLICT(type, pid) DO UPDATE SET
                 name = excluded.name,
@@ -180,9 +170,8 @@ export class AgentRegistry {
                 started_at = agents.started_at,
                 session_id = excluded.session_id,
                 session_file_path = excluded.session_file_path,
-                updated_at = excluded.updated_at,
-                deleted_at = excluded.deleted_at
-        `).run({ ...entry, updatedAt: this.now().toISOString(), deletedAt: entry.deletedAt ?? null });
+                updated_at = excluded.updated_at
+        `).run({ ...entry, updatedAt: this.now().toISOString() });
     }
 
     private needsWrite(incoming: RegistryEntry): boolean {
@@ -222,55 +211,64 @@ export class AgentRegistry {
         return this.db.immediateTransaction(() => {
             const heldNames = new Set(this.list().map((entry) => entry.name));
             const detectedIdentities = new Set(detected.map((entry) => `${entry.type}\0${entry.sessionId}`));
-            const restored: RegistryEntry[] = [];
+            const active: RegistryEntry[] = [];
 
             for (const incoming of detected) {
-                const existing = this.findBySession(incoming.type, incoming.sessionId);
-                this.displacePidConflict(incoming.type, incoming.pid, incoming.sessionId, now);
+                let existing = this.findBySession(incoming.type, incoming.sessionId);
+                if (!existing) {
+                    const pidEntry = this.findByPid(incoming.type, incoming.pid);
+                    const unbound = pidEntry && (pidEntry.sessionId === '' || pidEntry.sessionId.startsWith('pid-'));
+                    if (unbound) {
+                        existing = pidEntry;
+                    } else {
+                        const displaced = this.displacePidConflict(incoming.type, incoming.pid, incoming.sessionId);
+                        if (displaced) heldNames.delete(displaced.name);
+                    }
+                } else if (existing.pid !== incoming.pid) {
+                    const displaced = this.displacePidConflict(incoming.type, incoming.pid, incoming.sessionId);
+                    if (displaced) heldNames.delete(displaced.name);
+                }
 
                 if (existing) {
                     const cwd = incoming.cwd || existing.cwd;
                     const sessionFilePath = incoming.sessionFilePath || existing.sessionFilePath;
                     const unchanged = existing.pid === incoming.pid
-                        && existing.deletedAt === null
+                        && existing.sessionId === incoming.sessionId
                         && existing.cwd === cwd
                         && existing.sessionFilePath === sessionFilePath;
                     if (!unchanged) {
                         this.db.execute(`UPDATE agents SET
-                            pid = ?, cwd = ?, session_file_path = ?, updated_at = ?, deleted_at = NULL
+                            pid = ?, session_id = ?, cwd = ?, session_file_path = ?, updated_at = ?
                             WHERE type = ? AND pid = ?`, [
-                            incoming.pid, cwd, sessionFilePath, now, existing.type, existing.pid,
+                            incoming.pid, incoming.sessionId, cwd, sessionFilePath, now, existing.type, existing.pid,
                         ]);
                     }
-                    restored.push({
+                    active.push({
                         ...existing,
                         pid: incoming.pid,
+                        sessionId: incoming.sessionId,
                         cwd,
                         sessionFilePath,
                         updatedAt: unchanged ? existing.updatedAt : now,
-                        deletedAt: null,
                     });
                     continue;
                 }
 
                 const name = this.uniqueName(incoming.name, heldNames);
                 heldNames.add(name);
-                const inserted = { ...incoming, name, deletedAt: null };
+                const inserted = { ...incoming, name };
                 this.insertOrUpdate(inserted);
-                restored.push({ ...inserted, updatedAt: now });
+                active.push({ ...inserted, updatedAt: now });
             }
 
             for (const entry of this.list()) {
                 const identity = `${entry.type}\0${entry.sessionId}`;
-                if (successful.has(entry.type) && !detectedIdentities.has(identity) && entry.deletedAt === null) {
-                    this.db.execute(
-                        'UPDATE agents SET deleted_at = ?, updated_at = ? WHERE type = ? AND pid = ?',
-                        [now, now, entry.type, entry.pid],
-                    );
+                if (successful.has(entry.type) && !detectedIdentities.has(identity)) {
+                    this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [entry.type, entry.pid]);
                 }
             }
 
-            return restored;
+            return active;
         });
     }
 

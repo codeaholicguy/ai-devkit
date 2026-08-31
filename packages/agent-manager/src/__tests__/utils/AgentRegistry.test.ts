@@ -164,50 +164,53 @@ describe('AgentRegistry', () => {
     });
 
     describe('reconcile', () => {
-        it('restores a soft-deleted session under a new pid without losing managed metadata', () => {
+        it('migrates a session to a new pid without losing managed metadata', () => {
             registry.register(makeEntry({ name: 'custom', pid: 101, sessionId: 'same', tmuxSession: 'custom' }));
             registry.togglePin('claude', 101);
-            registry.reconcile([], ['claude']);
-
             const [restored] = registry.reconcile([
                 makeEntry({ name: 'generated', pid: 202, sessionId: 'same', tmuxSession: '', cwd: '/new' }),
             ], ['claude']);
 
             expect(restored).toMatchObject({
                 name: 'custom', pid: 202, sessionId: 'same', pinned: true,
-                tmuxSession: 'custom', startedAt: '2026-05-30T00:00:00.000Z', deletedAt: null,
+                tmuxSession: 'custom', startedAt: '2026-05-30T00:00:00.000Z',
             });
             expect(registry.list()).toHaveLength(1);
         });
 
-        it('soft-deletes a recycled-pid session and restores it if that session returns', () => {
+        it.each(['', 'pid-101'])('adopts an unbound %j session identity without losing metadata', (sessionId) => {
+            registry.register(makeEntry({ name: 'custom', pid: 101, sessionId, tmuxSession: 'custom' }));
+            registry.togglePin('claude', 101);
+
+            const [adopted] = registry.reconcile([
+                makeEntry({ name: 'generated', pid: 101, sessionId: 'bound-session', tmuxSession: '' }),
+            ], ['claude']);
+
+            expect(adopted).toMatchObject({
+                name: 'custom', pid: 101, sessionId: 'bound-session', pinned: true, tmuxSession: 'custom',
+            });
+            expect(registry.list()).toHaveLength(1);
+        });
+
+        it('deletes a bound recycled-pid session without inheriting its metadata', () => {
             registry.register(makeEntry({ name: 'old', pid: 101, sessionId: 'old', tmuxSession: 'old' }));
 
             const [replacement] = registry.reconcile([
-                makeEntry({ name: 'old', pid: 101, sessionId: 'new', tmuxSession: '' }),
+                makeEntry({ name: 'generated', pid: 101, sessionId: 'new', tmuxSession: '' }),
             ], ['claude']);
 
-            expect(replacement.name).toBe('old-2');
-            expect(registry.lookup('old')).toMatchObject({ sessionId: 'old' });
-            expect(registry.lookup('old')?.deletedAt).not.toBeNull();
-            expect(registry.lookup('old-2')).toMatchObject({ sessionId: 'new', pid: 101, deletedAt: null });
-
-            const [restored] = registry.reconcile([
-                makeEntry({ name: 'generated', pid: 303, sessionId: 'old', tmuxSession: '' }),
-            ], ['claude']);
-            expect(restored).toMatchObject({ name: 'old', pid: 303, tmuxSession: 'old', deletedAt: null });
-            expect(registry.lookup('old-2')?.deletedAt).not.toBeNull();
+            expect(replacement).toMatchObject({ name: 'generated', sessionId: 'new', pid: 101, tmuxSession: '' });
+            expect(registry.lookup('old')).toBeNull();
+            expect(registry.lookup('generated')).not.toMatchObject({ tmuxSession: 'old' });
         });
 
-        it('soft-deletes undetected rows with a forensic timestamp instead of removing them', () => {
-            const now = new Date('2026-08-31T10:00:00.000Z');
-            const clocked = new AgentRegistry(regPath, { now: () => now });
-            clocked.register(makeEntry({ name: 'missing', sessionId: 'missing' }));
+        it('deletes undetected rows', () => {
+            registry.register(makeEntry({ name: 'missing', sessionId: 'missing' }));
 
-            clocked.reconcile([], ['claude']);
+            registry.reconcile([], ['claude']);
 
-            expect(clocked.lookup('missing')?.deletedAt).toBe(now.toISOString());
-            expect(clocked.list()).toHaveLength(1);
+            expect(registry.lookup('missing')).toBeNull();
+            expect(registry.list()).toHaveLength(0);
         });
 
         it('rolls back every mutation when a later reconcile write fails', () => {
@@ -218,20 +221,16 @@ describe('AgentRegistry', () => {
                 makeEntry({ name: 'invalid', pid: 303, sessionId: null as any }),
             ], ['claude'])).toThrow();
 
-            expect(registry.lookup('existing')).toMatchObject({ deletedAt: null });
+            expect(registry.lookup('existing')).not.toBeNull();
             expect(registry.lookup('fresh')).toBeNull();
         });
     });
 
     describe('remove', () => {
-        it('hard-deletes either a live or soft-deleted row', () => {
+        it('hard-deletes a row', () => {
             registry.register(makeEntry({ name: 'live', pid: 101, sessionId: 'live' }));
-            registry.register(makeEntry({ name: 'deleted', pid: 202, sessionId: 'deleted' }));
-            registry.reconcile([makeEntry({ name: 'live', pid: 101, sessionId: 'live' })], ['claude']);
 
-            expect(registry.lookup('deleted')?.deletedAt).not.toBeNull();
             expect(registry.remove('claude', 101)).toBe(true);
-            expect(registry.remove('claude', registry.lookup('deleted')!.pid)).toBe(true);
             expect(registry.list()).toEqual([]);
         });
     });

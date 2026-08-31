@@ -559,15 +559,14 @@ function isProcessAlreadyGone(error: unknown): boolean {
 }
 
 export async function killAgent(
-  agent: Pick<AgentInfo, 'name' | 'pid'> & { deletedAt?: string | null },
+  agent: Pick<AgentInfo, 'name' | 'pid'>,
   deps: KillAgentDeps,
 ): Promise<KillAgentResult> {
   const killProcess = deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
   const registryEntry = deps.registry.lookup(agent.name);
   const tmuxSession = registryEntry?.tmuxSession || null;
 
-  const isSoftDeleted = agent.deletedAt != null || registryEntry?.deletedAt != null;
-  if (agent.pid > 0 && !isSoftDeleted) {
+  if (agent.pid > 0) {
     try {
       killProcess(agent.pid, 'SIGTERM');
     } catch (error) {

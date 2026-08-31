@@ -19,7 +19,7 @@ function dbPath(): string {
 }
 
 describe('durable agents schema', () => {
-    it('migrates to version 5 with interactive soft-delete identity metadata', () => {
+    it('migrates to version 5 with an interactive-agent identity index', () => {
         const connection = new DatabaseConnection({ dbPath: dbPath() });
         expect(getSchemaVersion(connection)).toBe(5);
         const table = connection.queryOne<{ sql: string }>(
@@ -33,7 +33,7 @@ describe('durable agents schema', () => {
             'idx_durable_agents_state', 'idx_durable_agents_list',
         ]));
         const agentsColumns = connection.query<{ name: string }>('PRAGMA table_info(agents)');
-        expect(agentsColumns.map(({ name }) => name)).toContain('deleted_at');
+        expect(agentsColumns.map(({ name }) => name)).not.toContain('deleted_at');
         expect(connection.queryOne<{ sql: string }>(
             "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_agents_identity'",
         )?.sql).toContain('agents(type, session_id)');

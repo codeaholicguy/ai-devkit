@@ -563,23 +563,23 @@ Waiting on user input`,
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
   });
 
-  it('kills an exact soft-deleted registry row when it is absent from detection', async () => {
-    const deleted = {
-      name: 'old-session', type: 'codex', pid: -1, tmuxSession: 'old-session', cwd: '/repo',
+  it('kills an exact retained registry row when adapter detection throws', async () => {
+    const retained = {
+      name: 'old-session', type: 'codex', pid: 123, tmuxSession: 'old-session', cwd: '/repo',
       startedAt: '2026-06-01T00:00:00.000Z', sessionId: 'old', sessionFilePath: '',
-      pinned: true, deletedAt: '2026-08-31T10:00:00.000Z',
+      pinned: true,
     };
     mockManager.listAgents.mockResolvedValue([]);
-    mockRegistry.lookup.mockReturnValue(deleted);
-    mockKillAgent.mockResolvedValue({ agentName: 'old-session', pid: -1, tmuxSession: 'old-session' });
+    mockRegistry.lookup.mockReturnValue(retained);
+    mockKillAgent.mockResolvedValue({ agentName: 'old-session', pid: 123, tmuxSession: 'old-session' });
 
     const program = new Command();
     registerAgentCommand(program);
     await program.parseAsync(['node', 'test', 'agent', 'kill', 'old-session']);
 
-    expect(mockKillAgent).toHaveBeenCalledWith(deleted, expect.objectContaining({ registry: mockRegistry }));
+    expect(mockKillAgent).toHaveBeenCalledWith(retained, expect.objectContaining({ registry: mockRegistry }));
     expect(ui.success).toHaveBeenCalledWith(
-      'Stopped agent "old-session" (PID -1) and tmux session "old-session".',
+      'Stopped agent "old-session" (PID 123) and tmux session "old-session".',
     );
   });
 

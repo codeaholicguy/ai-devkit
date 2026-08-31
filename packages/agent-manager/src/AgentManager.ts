@@ -224,7 +224,7 @@ export class AgentManager {
 
     togglePin(agentName: string): boolean {
         const entry = this.registry.lookup(agentName);
-        if (!entry || entry.deletedAt !== null) {
+        if (!entry) {
             throw new AgentNotRunningError(agentName);
         }
         const pinned = this.registry.togglePin(entry.type, entry.pid);
