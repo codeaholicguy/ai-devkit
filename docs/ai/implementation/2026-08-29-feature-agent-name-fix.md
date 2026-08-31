@@ -1,35 +1,36 @@
 ---
 phase: implementation
-title: Agent Registry Name Fix Implementation
-description: Implementation notes and incident evidence
+title: Session Reconciliation Implementation
+description: Implemented registry, manager, migration, and kill changes
 ---
 
-# Agent Registry Name Fix Implementation
+# Session Reconciliation Implementation
 
-## Root cause
+## Changed components
 
-At `2026-08-29T08:10:16Z`, an FTS agent invoked
-`npx ai-devkit agent list --json` in a Codex exec sandbox. The sandbox could not
-see host PIDs, and list-time `pruneIfDue` interpreted `ESRCH` as authoritative
-death. It deleted managed rows. Subsequent host-side Codex detection reused the
-original PIDs from session metadata but, with no rows left to inherit, generated
-default names and registered empty tmux links. This exactly explains original
-PIDs plus replaced names plus empty `tmux_session`.
+- `005_interactive_agent_soft_delete.sql`: adds forensic deletion state and the
+  `(type, session_id)` lookup index.
+- `DatabaseConnection`: exposes better-sqlite3's immediate transaction mode.
+- `AgentRegistry.reconcile`: restores session matches, migrates PIDs, preserves
+  managed metadata, suffixes new names, soft-deletes missing rows, and returns
+  active entries in detection order.
+- `AgentManager.listAgents`: passes only successful adapter types to reconciliation;
+  thrown types are untouched and successful empty types are reconciled empty.
+- Pinning: rejects soft-deleted rows without probing process liveness.
+- Kill: exact registry fallback makes soft-deleted names killable. Soft-deleted
+  rows skip PID signaling because that PID may have been recycled, but still
+  clean tmux and hard-delete the exact registry row.
 
-## Changes
+## Incident correction
 
-- Removed `pruneAt`, `prune`, `pruneIfDue`, their refresh/start call sites, and
-  all liveness-based deletion in registration, rename conflicts, and pinning.
-- Added exact registry removal to the explicit kill service; `ESRCH` still permits
-  tmux cleanup and row removal.
-- Made refresh inheritance require exact type/PID plus compatible session ID.
-  Recycled PIDs receive an available suffixed display name without a registry
-  write, preserving the old row.
-- Kept list output detection-based: retained but undetected rows are invisible.
-- Made no changes to `durable_agents`.
+The original sandbox trigger remains the evidence chain, but observer deletion
+is now reversible instead of forbidden. A blind Codex sandbox marks rows with
+`deleted_at`; a later full observation finds the same session IDs, clears the
+timestamp, migrates current PIDs, and restores names, pins, and tmux mappings.
 
-## Safety properties
+No interactive code calls `process.kill(pid, 0)`. The unrelated channel-daemon
+service retains its own liveness behavior.
 
-SQL remains parameterized. No shell execution or new external input surface was
-introduced. Observer paths cannot destroy registry history merely because their
-process namespace is incomplete.
+Security review found and fixed one PID-reuse hazard: explicit cleanup of a
+soft-deleted row never signals its stored PID, which may now belong to another
+process. SQL remains parameterized and reconcile rollback is transaction-bound.

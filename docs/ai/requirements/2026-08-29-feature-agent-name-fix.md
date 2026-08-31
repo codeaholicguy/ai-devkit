@@ -1,40 +1,41 @@
 ---
 phase: requirements
-title: Agent Registry Names Must Survive Observation
-description: Incident requirements and acceptance criteria
+title: Reversible Interactive Agent Reconciliation
+description: Requirements for session identity and forensic soft deletion
 ---
 
-# Agent Registry Names Must Survive Observation
+# Reversible Interactive Agent Reconciliation
 
-## Incident and evidence chain
+## Incident evidence
 
-Managed agents initially retained their custom names and tmux links. Their SQLite
-rows later contained the original, still-live host PIDs but generated names and
-empty `tmux_session` values. This disproved PID rollover as the incident trigger.
-
-Manager forensics identified the destructive observation: at
-`2026-08-29T08:10:16Z`, an FTS agent ran `npx ai-devkit agent list --json` inside
-its Codex exec sandbox. Host PIDs were absent from that PID namespace, so
-`process.kill(pid, 0)` returned `ESRCH`; list-time pruning deleted the rows. A
-later host refresh rediscovered the same original PIDs through Codex session
-metadata and registered generated folder-PID names with no tmux mapping.
+Managed agents lost their custom names and tmux mappings while retaining their
+original, live host PIDs. At `2026-08-29T08:10:16Z`, an FTS agent ran
+`npx ai-devkit agent list --json` inside a Codex exec sandbox. Host PIDs were
+invisible there, so the old list-time liveness prune hard-deleted the rows. A
+later host observation rediscovered the original PIDs from Codex session data
+and recreated default folder-PID names with empty `tmux_session` values.
 
 ## Required behavior
 
-- Refresh/list is an observer and never deletes registry rows.
-- Registration conflict handling never deletes a row based on process liveness.
-- Pinning a dead or namespace-invisible agent throws `AgentNotRunningError` but
-  preserves its row.
-- `agent kill` is the only interactive-agent row deletion path, including when
-  the target process already exited.
-- Detection inherits a name only for an exact `(type, pid)` match whose stored
-  session ID is empty or equals the detected session ID.
-- A recycled PID with a different session ID receives a display-only unique
-  suffix; it neither inherits nor overwrites the held row.
-- Undetected registry rows remain hidden from `agent list` output.
-- `durable_agents` is separate and unchanged.
+- Interactive identity is exactly `(type, AgentInfo.sessionId)`, including
+  provider `pid-*` fallback IDs.
+- Every detection cycle reconciles all successful adapter results in one
+  `BEGIN IMMEDIATE` SQLite transaction.
+- Matching sessions restore soft-deleted rows and migrate PID while preserving
+  name, pin, tmux link, start time, and managed metadata.
+- New sessions receive suffix-unique generated names.
+- Missing sessions and recycled-PID occupants are soft-deleted with a forensic
+  `deleted_at` timestamp, never hard-deleted by observation.
+- A successful empty adapter result soft-deletes that type. A thrown adapter is
+  skipped because failure supplies no state information.
+- List output contains detected/restored agents only.
+- Explicit `agent kill` is the only hard-delete operation and supports live and
+  soft-deleted rows.
+- No process-liveness probe exists in the interactive registry path.
+- `durable_agents` remains unchanged.
 
-## Deferred work
+## Success criteria
 
-PID-rollover session continuity, tmux-guarded liveness, kill-order changes, and
-name-collision takeover are explicitly out of scope.
+Blind sandbox observation is reversible: full detection restores every session's
+name, pin, tmux mapping, and other durable metadata. Transaction failure leaves
+no partial reconciliation state.

@@ -1,20 +1,22 @@
 ---
 phase: planning
-title: Agent Name Fix Plan
-description: Minimal implementation task breakdown
+title: Session Reconciliation Implementation Plan
+description: Ordered implementation and verification work
 ---
 
-# Agent Name Fix Plan
+# Session Reconciliation Implementation Plan
 
-- [x] Capture and validate the PID-namespace deletion evidence.
-- [x] Add failing regressions for non-destructive refresh, dead-agent pinning and
-  killing, recycled PID isolation, and unchanged list visibility.
-- [x] Remove pruning and every liveness-based deletion path.
-- [x] Add kill-only registry removal.
-- [x] Guard exact-PID inheritance with session identity and unique display names.
-- [x] Confirm `durable_agents` has no interaction with interactive refresh.
-- [x] Run build, full tests, lint, and e2e gates.
-- [x] Commit and prepare PR #205 for an update without merging.
+- [x] Rebase PR #205 onto current `origin/main`.
+- [x] Add red migration, reconcile, sandbox, atomicity, liveness, kill, and
+  display regressions.
+- [x] Add migration 005 and readonly schema-version enforcement.
+- [x] Implement one-transaction session reconciliation and reversible PID reuse.
+- [x] Integrate adapter success/error semantics into `listAgents`.
+- [x] Remove interactive liveness probes and guard pinning with soft-delete state.
+- [x] Support explicit hard deletion of live and soft-deleted agents.
+- [x] Reconcile lifecycle documentation with the final design.
+- [x] Run complete build, test, lint, and e2e gates.
+- [x] Complete final review and logical commits; prepare force-push-with-lease and PR update.
 
-The implementation deliberately excludes PID-rollover migration, tmux liveness
-guards, kill-order changes, and collision takeover.
+Current risk focus: additive-schema PID tombstones, global name uniqueness across
+soft-deleted history, and transaction rollback under constraint failure.
