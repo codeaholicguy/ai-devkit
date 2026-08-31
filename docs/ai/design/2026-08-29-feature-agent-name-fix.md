@@ -1,52 +1,29 @@
 ---
 phase: design
-title: Session-Identity Soft-Delete Design
-description: Atomic reconciliation architecture and schema
+title: Session-Identity Reconciliation Design
+description: Atomic hard-delete reconciliation architecture
 ---
 
-# Session-Identity Soft-Delete Design
+# Session-Identity Reconciliation Design
 
-## Architecture
+Successful adapter output is authoritative for that observer. Within one
+`BEGIN IMMEDIATE` transaction, reconciliation matches indexed `(type, session_id)`
+identities, migrates matching rows to detected PIDs, adopts an unbound same-PID
+start row, deletes bound PID conflicts, inserts suffix-unique new rows, and deletes
+rows missing from successful adapter types. Adapter exceptions skip their type.
 
-```mermaid
-flowchart LR
-  A[Adapter result] -->|success| R[BEGIN IMMEDIATE reconcile]
-  A -->|throws| S[Skip adapter type]
-  R --> M{type + sessionId match?}
-  M -->|yes| X[Restore and migrate PID]
-  M -->|no| N[Insert suffix-unique row]
-  R --> D[Soft-delete missing sessions]
-  X --> L[Detected-only list output]
-  N --> L
-  K[Explicit agent kill] --> H[Hard delete]
-```
-
-Adapter output is observer-relative truth. Soft deletion makes a blind
-observer's conclusion reversible and self-healing, while `deleted_at` records
-when the observer stopped seeing a session for incident forensics.
-
-## Schema and identity
-
-Migration `005_interactive_agent_soft_delete.sql` is additive:
+Migration `005_interactive_agent_identity.sql` is additive and creates only:
 
 ```sql
-ALTER TABLE agents ADD COLUMN deleted_at TEXT;
 CREATE INDEX idx_agents_identity ON agents(type, session_id);
 ```
 
-The logical key is `(type, session_id)`. The legacy physical primary key
-`(type,pid)` remains because the approved migration is additive. When a new
-session reuses an occupied PID, reconciliation moves the displaced soft-deleted
-row to a reserved negative PID tombstone before inserting the live row. Its
-logical identity and metadata remain restorable; a later observation migrates
-it back to its detected positive PID.
+The existing `(type,pid)` primary key remains. `BEGIN IMMEDIATE` is required for
+the read-then-write algorithm under multi-process concurrency: a deferred
+transaction's lock upgrade can return `BUSY` without honoring the configured busy
+handler. Existing ordinary transaction callers remain, so both helpers are kept.
 
-## Transaction algorithm
-
-Within one immediate transaction, indexed session lookup restores matches,
-PID conflicts are tombstoned and soft-deleted, new names are suffix-uniquified,
-and rows absent from successful adapter types receive `deleted_at`. Failed
-adapter types are excluded. Statements are prepared/batched within the single
-transaction; there are no per-row transactions or liveness probes.
-
-`durable_agents` uses separate repository and lifecycle code and is untouched.
+Identity adoption bridges agent start to first provider detection: if session lookup
+misses and the same PID row has `session_id = ''` or a `pid-*` placeholder, its
+identity is updated while name, tmux mapping, pin, and start time remain intact.
+Only a bound different session is displaced, by deletion. `durable_agents` is untouched.

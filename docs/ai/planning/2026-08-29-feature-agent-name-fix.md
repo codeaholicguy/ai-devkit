@@ -7,16 +7,14 @@ description: Ordered implementation and verification work
 # Session Reconciliation Implementation Plan
 
 - [x] Rebase PR #205 onto current `origin/main`.
-- [x] Add red migration, reconcile, sandbox, atomicity, liveness, kill, and
-  display regressions.
-- [x] Add migration 005 and readonly schema-version enforcement.
-- [x] Implement one-transaction session reconciliation and reversible PID reuse.
-- [x] Integrate adapter success/error semantics into `listAgents`.
-- [x] Remove interactive liveness probes and guard pinning with soft-delete state.
-- [x] Support explicit hard deletion of live and soft-deleted agents.
-- [x] Reconcile lifecycle documentation with the final design.
+- [x] Rewrite regressions for hard deletion and unbound identity adoption.
+- [x] Keep migration 005 limited to the session identity index.
+- [x] Implement one-immediate-transaction reconciliation.
+- [x] Preserve successful/error adapter semantics and remove liveness probes.
+- [x] Retain explicit-kill registry fallback for adapter-error rows.
+- [x] Update lifecycle documentation to the accepted destructive semantics.
 - [x] Run complete build, test, lint, and e2e gates.
-- [x] Complete final review and logical commits; prepare force-push-with-lease and PR update.
+- [x] Complete final review, logical commits, force-push-with-lease, and PR update.
 
-Current risk focus: additive-schema PID tombstones, global name uniqueness across
-soft-deleted history, and transaction rollback under constraint failure.
+Risk focus: atomic PID displacement, unbound identity adoption, and destructive
+observer-relative empty results.
