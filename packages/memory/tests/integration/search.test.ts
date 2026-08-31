@@ -4,7 +4,7 @@ import { rmSync } from 'fs';
 import { DatabaseConnection } from '../../src/database/connection';
 import { initializeSchema } from '../../src/database/schema';
 import { ValidationError } from '../../src/utils/errors';
-import { buildFtsQuery, buildSearchQuery, buildSimpleQuery } from '../../src/services/search';
+import { buildBroadFtsQuery, buildBroadSearchQuery, buildFtsQuery, buildSearchQuery, buildSimpleQuery, normalizeSearchTokens } from '../../src/services/search';
 import { rankResults } from '../../src/services/ranker';
 import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../../src/services/normalizer';
 import { v4 as uuidv4 } from 'uuid';
@@ -32,12 +32,13 @@ function searchKnowledgeDirect(db: DatabaseConnection, input: {
         rows = db.query(sql, params);
     } else {
         const { sql, params } = buildSearchQuery(ftsQuery, input.scope, limit * 2);
-        try {
-            rows = db.query(sql, params);
-        } catch {
-            // FTS query syntax may fail on certain inputs; fall back to simple LIKE query
-            const { sql: fallbackSql, params: fallbackParams } = buildSimpleQuery(input.scope, limit);
-            rows = db.query(fallbackSql, fallbackParams);
+        rows = db.query(sql, params);
+        const tokens = normalizeSearchTokens(input.query);
+        if (rows.length === 0 && tokens.length >= 2) {
+            const broad = buildBroadSearchQuery(
+                buildBroadFtsQuery(input.query), tokens, input.scope, limit * 4,
+            );
+            rows = db.query(broad.sql, broad.params);
         }
     }
 
@@ -132,6 +133,17 @@ describe('search handler', () => {
     });
 
     describe('ranking', () => {
+        it('executes broad SQL and exposes token coverage for partial sentence matches', () => {
+            const query = 'How should API schema migrations work';
+            const tokens = normalizeSearchTokens(query);
+            const { sql, params } = buildBroadSearchQuery(buildBroadFtsQuery(query), tokens, undefined, 10);
+
+            const rows = db.query<any>(sql, params);
+
+            expect(rows.length).toBeGreaterThan(0);
+            expect(rows.every(row => row.token_coverage > 0 && row.token_coverage <= 1)).toBe(true);
+        });
+
         it('should rank API-specific rules in top results for API queries', () => {
             const result = searchKnowledgeDirect(db, { query: 'building API endpoint' });
             const topTitles = result.results.slice(0, 3).map(r => r.title.toLowerCase());

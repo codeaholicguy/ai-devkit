@@ -15,6 +15,7 @@ describe('ranker', () => {
         tags: '["api", "backend"]',
         scope: 'global',
         bm25_score: -1.5, // BM25 returns negative, closer to 0 = better
+        token_coverage: 1,
         ...overrides,
     });
 
@@ -77,6 +78,24 @@ describe('ranker', () => {
             expect(ranked[0].id).toBe('high');
             expect(ranked[1].id).toBe('mid');
             expect(ranked[2].id).toBe('low');
+        });
+
+        it('should prefer broader token coverage when BM25 is equal', () => {
+            const ranked = rankResults([
+                makeResult({ id: 'partial', token_coverage: 0.5 }),
+                makeResult({ id: 'broad', token_coverage: 1 }),
+            ], {});
+
+            expect(ranked.map(result => result.id)).toEqual(['broad', 'partial']);
+        });
+
+        it('should preserve legacy rows without token coverage and ignore unmatched context tags', () => {
+            const result = makeResult({ tags: '["api"]' });
+            delete (result as Partial<typeof result>).token_coverage;
+
+            const ranked = rankResults([result], { contextTags: ['frontend'] });
+
+            expect(ranked[0].score).toBe(1.7);
         });
 
         it('should prioritize project scope over global', () => {

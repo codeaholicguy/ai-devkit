@@ -59,6 +59,7 @@ export interface SearchKnowledgeResult {
     results: SearchResultItem[];
     totalMatches: number;
     query: string;
+    strategy: 'strict' | 'broad' | 'recent';
 }
 
 export type ListKnowledgeSort = 'updated-desc' | 'created-desc' | 'title-asc';

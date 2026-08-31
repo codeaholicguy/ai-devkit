@@ -7,6 +7,7 @@ interface RawSearchResult {
     tags: string;
     scope: string;
     bm25_score: number;
+    token_coverage?: number;
 }
 
 interface RankingContext {
@@ -55,7 +56,7 @@ function calculateScopeBoost(itemScope: string, queryScope?: string | null): num
 /**
  * Apply ranking formula to search results
  * 
- * Formula: final_score = bm25_score × tag_boost + scope_boost
+ * Formula: final_score = bm25_score × token_coverage × tag_boost + scope_boost
  */
 export function rankResults(
     results: RawSearchResult[],
@@ -76,7 +77,7 @@ export function rankResults(
         // We negate it to make higher values better
         const normalizedBm25 = -result.bm25_score;
 
-        const finalScore = (normalizedBm25 * tagBoost) + scopeBoost;
+        const finalScore = (normalizedBm25 * (result.token_coverage ?? 1) * tagBoost) + scopeBoost;
 
         return {
             id: result.id,
