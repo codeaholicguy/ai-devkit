@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.57.1] - 2026-08-31
+
+- Pinned `@ai-devkit/memory` to 0.17.0 so CLI installs include the database WAL concurrency fix (#206).
+
 ## [0.57.0] - 2026-08-31
 
 - [0f2d731](https://github.com/codeaholicguy/ai-devkit/pull/206) Made WAL setup concurrency-safe across packages so concurrent memory store and CLI processes no longer hit database-locked errors at startup.
