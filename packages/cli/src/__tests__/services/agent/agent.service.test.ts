@@ -573,24 +573,24 @@ describe('killAgent', () => {
     expect(registry.remove).toHaveBeenCalledWith('claude', 123);
   });
 
-  it('hard-deletes a soft-deleted tombstone without signaling its reserved pid', async () => {
+  it('hard-deletes a soft-deleted row without signaling its possibly recycled pid', async () => {
     const tmux = makeTmux();
     const registry = makeRegistry({
       lookup: vi.fn().mockReturnValue({
-        name: 'old-session', type: 'codex', pid: -1, tmuxSession: 'old-session', cwd: '/repo',
+        name: 'old-session', type: 'codex', pid: 123, tmuxSession: 'old-session', cwd: '/repo',
         startedAt: '2026-06-01T00:00:00.000Z', sessionId: 'old', sessionFilePath: '',
         pinned: true, deletedAt: '2026-08-31T10:00:00.000Z',
       } satisfies RegistryEntry),
     } as Partial<AgentRegistry>);
     const killProcess = vi.fn();
 
-    await killAgent({ name: 'old-session', pid: -1, deletedAt: '2026-08-31T10:00:00.000Z' }, {
+    await killAgent({ name: 'old-session', pid: 123, deletedAt: '2026-08-31T10:00:00.000Z' }, {
       tmux, registry, killProcess,
     });
 
     expect(killProcess).not.toHaveBeenCalled();
     expect(tmux.killSession).toHaveBeenCalledWith('old-session');
-    expect(registry.remove).toHaveBeenCalledWith('codex', -1);
+    expect(registry.remove).toHaveBeenCalledWith('codex', 123);
   });
 
   it('rethrows unexpected process kill errors', async () => {

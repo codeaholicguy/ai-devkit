@@ -566,7 +566,8 @@ export async function killAgent(
   const registryEntry = deps.registry.lookup(agent.name);
   const tmuxSession = registryEntry?.tmuxSession || null;
 
-  if (agent.pid > 0) {
+  const isSoftDeleted = agent.deletedAt != null || registryEntry?.deletedAt != null;
+  if (agent.pid > 0 && !isSoftDeleted) {
     try {
       killProcess(agent.pid, 'SIGTERM');
     } catch (error) {
