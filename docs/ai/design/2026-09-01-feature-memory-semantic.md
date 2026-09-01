@@ -107,6 +107,11 @@ flowchart LR
   - Pros: removes an entire class of "which model produced this embedding" bugs and keeps the embedding-version compatibility check trivial (`embedding_version = MODEL_VERSION`).
   - Cons: cannot swap models without a code change.
   - Alternatives considered: BGE (small) was benchmarked and rejected — see the Model Selection Gate in the requirements doc; it did not clear the paraphrase nDCG@5/recall@5 improvement threshold.
+- `memory.semantic` resolves with project > global > default(false) precedence
+  - The flag can be set in the per-project `.ai-devkit.json` (`memory.semantic`) and/or the global `~/.ai-devkit/.ai-devkit.json` (`memory.semantic`, `GlobalDevKitConfig.memory.semantic`).
+  - Resolution (`ConfigManager#getMemorySemanticEnabled`, `packages/cli/src/lib/Config.ts`): if the project config has an explicit boolean value (`true` or `false`), that value wins outright. Only when the project value is absent or malformed does the resolver fall back to the global config's explicit `true`; anything else defaults to `false`.
+  - Rationale (user-driven): a developer who wants semantic search on for every project they touch should be able to set it once globally instead of repeating `"memory": { "semantic": true }` in every project's `.ai-devkit.json`. An explicit per-project setting (on or off) still overrides the global default, so a project can opt out even when semantic is on globally.
+  - This was reverted from an earlier pass in this branch that removed the (at-the-time unread) global field as dead code — the field was always intended to be load-bearing; the gap was that nothing wired it yet, not that it should be deleted. No new config surface was added: it is the same `boolean` value read from one more file, resolved through a single function at the one call site (`ConfigManager#getMemorySemanticEnabled`) that every semantic-aware command/server path already went through.
 - Patterns applied
   - Fail-open degradation at every semantic call site (search, store, update, backfill) rather than a single global "is semantic available" gate, so a corrupt single row or a mid-session network blip degrades only that call.
   - Config read at the process/command boundary (`server.ts`, `commands/memory.ts`) rather than threaded as a parameter through every handler, since the flag is process-lifetime, not per-call.

@@ -31,7 +31,7 @@ description: Technical implementation notes, patterns, and code guidelines
 - `packages/memory/src/database/migrations/002_semantic_embeddings.sql` — additive columns + index.
 - `packages/memory/src/server.ts` — reads `readSemanticConfig().enabled` once at server construction and routes each MCP tool call to the semantic or plain handler.
 - `packages/memory/src/api.ts` — exports `*Async` command wrappers (`memorySearchCommandAsync`, `memoryStoreCommandAsync`, `memoryUpdateCommandAsync`) plus `memorySemanticStatusCommand`, `memoryDownloadSemanticCommand`, `memoryReembedCommand`.
-- `packages/cli/src/lib/Config.ts` — `getMemorySemanticEnabled()` reads `memory.semantic === true` from the project `.ai-devkit.json`.
+- `packages/cli/src/lib/Config.ts` — `getMemorySemanticEnabled()` resolves `memory.semantic` with project > global (`GlobalConfigManager`, `~/.ai-devkit/.ai-devkit.json`) > default `false` precedence.
 - `packages/cli/src/commands/memory.ts` — `registerMemoryCommand` picks the async/semantic-aware command when `getMemorySemanticEnabled()` resolves `true`; adds the `memory semantic status|download` and `memory reembed [--force]` subcommands and `--explain` on `memory search`.
 
 ## Implementation Notes
@@ -52,7 +52,7 @@ description: Technical implementation notes, patterns, and code guidelines
 
 ### Simplification pass (post-functional-completion)
 Applied after all eval gates and functional tests were already green, so none of it touches ranking, degradation, or migration behavior:
-- Removed `GlobalDevKitConfig.memory.semantic` — added by mistake alongside the per-project field; nothing in `GlobalConfig.ts` or anywhere else ever read it.
+- Initially removed `GlobalDevKitConfig.memory.semantic` as dead (nothing read it yet), then reinstated on user review and wired it: `ConfigManager#getMemorySemanticEnabled` now resolves `memory.semantic` with project > global > default(false) precedence, reading `GlobalConfigManager` (`~/.ai-devkit/.ai-devkit.json`) only when the project value is absent or non-boolean. This lets a developer enable semantic search once globally instead of repeating the setting per project, while an explicit per-project value (either direction) still wins. See the design doc's Design Decisions section for the full rationale.
 - Collapsed `loadLocalEmbedder()` from a `{ modelsRoot?, download? }`-configurable function to a zero-argument one. Its only real caller (`getDefaultLocalEmbedder`) always passed `download: true` and never passed `modelsRoot`; the `download: false` branch (inspect-only, throw if not ready) was unreachable in shipped code, and `storeKnowledgeSemantic`/`updateKnowledgeSemantic`/`reembedKnowledge` all threaded a `modelsRoot` option that no caller (production or test) ever set.
 - Removed `LocalEmbedder.dispose()` — implemented (`session.release()`) but never invoked anywhere; the embedder is process-lifetime by design (CLI processes are short-lived and exit; the MCP server holds one memoized session for its life), so there was no call site that could ever exercise cleanup.
 - Replaced `SemanticModelUnavailableError` with a plain `Error` (still carrying `cause`) — the subclass was thrown but never checked with `instanceof` anywhere; every catch site already falls back to `error.message`/`String(error)` generically.

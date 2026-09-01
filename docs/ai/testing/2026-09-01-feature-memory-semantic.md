@@ -38,6 +38,9 @@ description: Define testing approach, test cases, and quality assurance
 
 ### CLI config (`packages/cli/src/__tests__/lib/Config.test.ts`)
 - [x] `getMemorySemanticEnabled()` returns `false` by default, `true` only for `{ memory: { semantic: true } }`, and `false` for `{ memory: { semantic: 'true' } }`.
+- [x] An explicit project value overrides the global config (project `true` wins over global `false`).
+- [x] An unset/malformed project value falls back to the global config (global `true` is inherited when the project value is absent).
+- [x] Neither project nor global config setting `semantic` defaults to `false`.
 
 ## Integration Tests
 
@@ -110,11 +113,11 @@ Executed after the simplification commits in this pass, before any doc-only chan
   - `@ai-devkit/task-manager`: 8 test files, 112 tests passed.
   - `@ai-devkit/agent-manager`: 41 test files, 631 tests passed.
   - `@ai-devkit/memory-dashboard`: 3 test files, 22 tests passed.
-  - `ai-devkit` (cli): 91 test files, 1,088 tests passed (was 1,087 before this pass's added `memory update` semantic test).
+  - `ai-devkit` (cli): 91 test files, 1,091 tests passed (was 1,087 before this pass's added `memory update` semantic test and the three global/project precedence tests).
 - `npm run lint` (workspace-wide) — 0 errors; 3 pre-existing warnings unrelated to this feature (`init.test.ts`, `channel.ts`, `util/skill.ts`); the pre-existing `memoryUpdateCommandAsync` unused-import warning in `memory.test.ts` is resolved by this pass's added test.
 - `npx vitest run --config e2e/vitest.config.ts` — 1 test file, 41 tests passed.
 
-No eval-gate number above changed as a result of this pass: the simplification commits touched only unused config/API surface (a dead global-config field, unused embedder options and an unreachable branch, an unused error subclass, an unused lifecycle method) and added one missing test; they did not touch `fuseSearchResults`, the degradation paths in `searchKnowledgeHybrid`, the migration, or the pinned model/thresholds.
+No eval-gate number above changed as a result of this pass: the changes touched unused embedder options and an unreachable branch, an unused error subclass, an unused lifecycle method, the `memory.semantic` global/project resolution, and added tests for both; none of it touched `fuseSearchResults`, the degradation paths in `searchKnowledgeHybrid`, the migration, or the pinned model/thresholds.
 
 ## Manual Testing
 

@@ -43,10 +43,15 @@ description: Break down work into actionable tasks and estimate timeline
 
 ### Phase 5: Pre-merge simplification (this pass)
 - [x] Task 5.1: Audit the diff for speculative config surface, unused options, and dead guard/error paths against the `simplify-implementation` discipline
-- [x] Task 5.2: Remove `GlobalDevKitConfig.memory.semantic` (never read — global config has no semantic reader)
-- [x] Task 5.3: Collapse `loadLocalEmbedder`'s unused `modelsRoot`/`download` options and the dead offline-inspect branch; remove the never-invoked `LocalEmbedder.dispose()`; replace the never-narrowed `SemanticModelUnavailableError` with a plain `Error`
-- [x] Task 5.4: Close the CLI test gap on the semantic-enabled `memory update` path (previously an unused mock import, flagged by lint)
-- [x] Task 5.5: Rebuild the five lifecycle phase docs (this document and its siblings) against the simplified, shipped state, replacing the single ad hoc `docs/ai/2026-09-01-feature-memory-semantic.md` note
+- [x] Task 5.2: Collapse `loadLocalEmbedder`'s unused `modelsRoot`/`download` options and the dead offline-inspect branch; remove the never-invoked `LocalEmbedder.dispose()`; replace the never-narrowed `SemanticModelUnavailableError` with a plain `Error`
+- [x] Task 5.3: Close the CLI test gap on the semantic-enabled `memory update` path (previously an unused mock import, flagged by lint)
+- [x] Task 5.4: Rebuild the five lifecycle phase docs (this document and its siblings) against the simplified, shipped state, replacing the single ad hoc `docs/ai/2026-09-01-feature-memory-semantic.md` note
+
+### Phase 6: User review correction (this pass)
+- [x] Task 6.1: Reinstate `GlobalDevKitConfig.memory.semantic` — the initial pass wrongly treated it as dead code; it was unwired, not unwanted.
+- [x] Task 6.2: Wire it at the single resolution site (`ConfigManager#getMemorySemanticEnabled`) with project > global > default(false) precedence, so semantic search can be enabled once globally instead of per project.
+- [x] Task 6.3: Add tests for all three precedence cases (project overrides global, project unset inherits global, both unset defaults to false).
+- [x] Task 6.4: Record the precedence decision and its rationale in the design doc; correct the implementation/testing docs and the simplification record to reflect the reversal.
 
 ## Dependencies
 
@@ -91,7 +96,7 @@ Delivered in a single feature branch (`feature-memory-semantic`) across five com
 
 ## Progress Summary
 
-All functional milestones (1-4) were complete and gate-evidenced before this pass began. This pass (Milestone 5) audited the shipped diff against the repository's simplification discipline, removed four pieces of speculative/dead surface (an unread global-config field, unused embedder options and an unreachable degradation branch, an unused error subclass, and an unused lifecycle method), closed one CLI test gap that lint had flagged, and rebuilt the lifecycle documentation set to match the phase-by-phase discipline the docs were missing. No eval-passing behavior (RRF fusion, degradation paths, migration safety, or the MiniLM model/thresholds) was changed.
+All functional milestones (1-4) were complete and gate-evidenced before this pass began. This pass (Milestone 5) audited the shipped diff against the repository's simplification discipline, removed three pieces of speculative/dead surface (unused embedder options and an unreachable degradation branch, an unused error subclass, and an unused lifecycle method), closed one CLI test gap that lint had flagged, and rebuilt the lifecycle documentation set to match the phase-by-phase discipline the docs were missing. A fourth candidate — `GlobalDevKitConfig.memory.semantic` — was initially removed as dead code, then reinstated on user review (Milestone 6): the field was unwired, not unwanted, and now resolves with project > global > default(false) precedence at the one call site every semantic-aware path already goes through. No eval-passing behavior (RRF fusion, degradation paths, migration safety, or the MiniLM model/thresholds) was changed.
 
 ## Next Focus
 
