@@ -4,6 +4,7 @@ import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DE
 import { filterStringRecord } from '../util/config.js';
 import { ConfigNotFoundError } from '../util/errors.js';
 import { AddSkillRegistryOptions, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
+import { GlobalConfigManager } from './GlobalConfig.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
 const CONFIG_FILE_NAME = '.ai-devkit.json';
@@ -102,9 +103,19 @@ export class ConfigManager {
     return this.resolveConfiguredPath(config?.memory?.path);
   }
 
+  /**
+   * Resolves with project > global > default(false) precedence, so semantic
+   * search can be turned on once globally instead of repeating it per project.
+   */
   async getMemorySemanticEnabled(): Promise<boolean> {
     const config = await this.read();
-    return config?.memory?.semantic === true;
+    const projectValue = config?.memory?.semantic;
+    if (typeof projectValue === 'boolean') {
+      return projectValue;
+    }
+
+    const globalConfig = await new GlobalConfigManager().read();
+    return globalConfig?.memory?.semantic === true;
   }
 
   private resolveConfiguredPath(configuredPath: unknown): string | undefined {
