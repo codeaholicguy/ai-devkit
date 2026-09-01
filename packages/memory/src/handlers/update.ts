@@ -4,7 +4,12 @@ import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../s
 import { DuplicateError, NotFoundError, StorageError } from '../utils/errors.js';
 import type { UpdateKnowledgeInput, UpdateKnowledgeResult, KnowledgeRow } from '../types/index.js';
 
-export function updateKnowledge(input: UpdateKnowledgeInput): UpdateKnowledgeResult {
+interface StoredEmbedding {
+    value: Buffer;
+    version: string;
+}
+
+export function updateKnowledge(input: UpdateKnowledgeInput, embedding?: StoredEmbedding): UpdateKnowledgeResult {
     validateUpdateInput(input);
 
     const db = getDatabase();
@@ -27,6 +32,9 @@ export function updateKnowledge(input: UpdateKnowledgeInput): UpdateKnowledgeRes
             const scope = input.scope !== undefined ? normalizeScope(input.scope) : existing.scope;
             const normalizedTitle = normalizeTitle(title);
             const contentHash = hashContent(content);
+            const invalidatesEmbedding = input.title !== undefined
+                || input.content !== undefined
+                || input.tags !== undefined;
 
             const existingByTitle = db.queryOne<KnowledgeRow>(
                 'SELECT id FROM knowledge WHERE normalized_title = ? AND scope = ? AND id != ?',
@@ -57,7 +65,8 @@ export function updateKnowledge(input: UpdateKnowledgeInput): UpdateKnowledgeRes
             db.execute(
                 `UPDATE knowledge SET
                     title = ?, content = ?, tags = ?, scope = ?,
-                    normalized_title = ?, content_hash = ?, updated_at = ?
+                    normalized_title = ?, content_hash = ?, updated_at = ?,
+                    embedding = ?, embedding_version = ?
                 WHERE id = ?`,
                 [
                     title,
@@ -67,6 +76,8 @@ export function updateKnowledge(input: UpdateKnowledgeInput): UpdateKnowledgeRes
                     normalizedTitle,
                     contentHash,
                     now,
+                    embedding?.value ?? (invalidatesEmbedding ? null : existing.embedding ?? null),
+                    embedding?.version ?? (invalidatesEmbedding ? null : existing.embedding_version ?? null),
                     input.id
                 ]
             );

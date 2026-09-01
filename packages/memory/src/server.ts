@@ -7,6 +7,9 @@ import {
 import { storeKnowledge } from './handlers/store.js';
 import { searchKnowledge } from './handlers/search.js';
 import { updateKnowledge } from './handlers/update.js';
+import { searchKnowledgeHybrid } from './handlers/semantic-search.js';
+import { storeKnowledgeSemantic, updateKnowledgeSemantic } from './handlers/semantic-maintenance.js';
+import { readSemanticConfig } from './services/config.js';
 import { KnowledgeMemoryError } from './utils/errors.js';
 import type { StoreKnowledgeInput, SearchKnowledgeInput, UpdateKnowledgeInput } from './types/index.js';
 
@@ -96,6 +99,10 @@ const SEARCH_TOOL = {
                 type: 'number',
                 description: 'Maximum number of results to return (1-20, default: 5)',
             },
+            explain: {
+                type: 'boolean',
+                description: 'Include lexical and semantic rank details when semantic search is enabled.',
+            },
         },
         required: ['query'],
     },
@@ -104,6 +111,7 @@ const SEARCH_TOOL = {
 export const TOOLS = [STORE_TOOL, UPDATE_TOOL, SEARCH_TOOL];
 
 export function createServer(): Server {
+    const semanticEnabled = readSemanticConfig().enabled;
     const server = new Server(
         {
             name: SERVER_NAME,
@@ -132,7 +140,9 @@ export function createServer(): Server {
             // stale prompts/templates continue to work. Remove in next major.
             if (name === 'memory_storeKnowledge' || name === 'memory.storeKnowledge') {
                 const input = args as unknown as StoreKnowledgeInput;
-                const result = storeKnowledge(input);
+                const result = semanticEnabled
+                    ? await storeKnowledgeSemantic(input)
+                    : storeKnowledge(input);
                 return {
                     content: [
                         {
@@ -145,7 +155,9 @@ export function createServer(): Server {
 
             if (name === 'memory_updateKnowledge' || name === 'memory.updateKnowledge') {
                 const input = args as unknown as UpdateKnowledgeInput;
-                const result = updateKnowledge(input);
+                const result = semanticEnabled
+                    ? await updateKnowledgeSemantic(input)
+                    : updateKnowledge(input);
                 return {
                     content: [
                         {
@@ -158,7 +170,9 @@ export function createServer(): Server {
 
             if (name === 'memory_searchKnowledge' || name === 'memory.searchKnowledge') {
                 const input = args as unknown as SearchKnowledgeInput;
-                const result = searchKnowledge(input);
+                const result = semanticEnabled
+                    ? await searchKnowledgeHybrid(input)
+                    : searchKnowledge(input);
                 return {
                     content: [
                         {

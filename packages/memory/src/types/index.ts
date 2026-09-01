@@ -44,6 +44,7 @@ export interface SearchKnowledgeInput {
     contextTags?: string[];
     scope?: string;
     limit?: number;
+    explain?: boolean;
 }
 
 export interface SearchResultItem {
@@ -53,6 +54,14 @@ export interface SearchResultItem {
     tags: string[];
     scope: string;
     score: number;
+    retrieval?: SearchRetrievalExplanation;
+}
+
+export interface SearchRetrievalExplanation {
+    lexicalRank: number | null;
+    semanticRank: number | null;
+    semanticSimilarity: number | null;
+    rrfScore: number;
 }
 
 export interface SearchKnowledgeResult {
@@ -60,6 +69,15 @@ export interface SearchKnowledgeResult {
     totalMatches: number;
     query: string;
     strategy: 'strict' | 'broad' | 'recent';
+    retrievalMode?: 'lexical' | 'hybrid';
+    semantic?: SemanticSearchStatus;
+}
+
+export interface SemanticSearchStatus {
+    status: 'ready' | 'unavailable' | 'corpus-too-large';
+    embeddingVersion: string;
+    eligibleCount: number;
+    reason?: string;
 }
 
 export type ListKnowledgeSort = 'updated-desc' | 'created-desc' | 'title-asc';
@@ -95,6 +113,8 @@ export interface KnowledgeRow {
     content_hash: string;
     created_at: string;
     updated_at: string;
+    embedding?: Buffer | null;
+    embedding_version?: string | null;
 }
 
 export interface MetaRow {

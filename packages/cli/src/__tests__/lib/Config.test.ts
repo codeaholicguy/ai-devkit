@@ -121,6 +121,7 @@ describe('ConfigManager', () => {
         version: '1.0.0',
         environments: [],
         phases: [],
+        memory: { semantic: false },
         createdAt: expect.any(String),
       };
 
@@ -894,6 +895,51 @@ describe('ConfigManager', () => {
       expect(mockPath.dirname).toHaveBeenCalledWith('/test/dir/.ai-devkit.json');
       expect(mockPath.resolve).toHaveBeenCalledWith('/test/dir', '.ai-devkit/project-memory.db');
       expect(result).toBe('/test/dir/.ai-devkit/project-memory.db');
+    });
+  });
+
+  describe('getMemorySemanticEnabled', () => {
+    it('defaults to false and accepts only explicit true', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(false);
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ memory: { semantic: true } });
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(true);
+
+      (mockFs.readJson as any).mockResolvedValue({ memory: { semantic: 'true' } });
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(false);
+    });
+
+    it('lets an explicit project value override the global config', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockImplementation((configPath: string) =>
+        Promise.resolve(
+          configPath === '/test/dir/.ai-devkit.json'
+            ? { memory: { semantic: true } }
+            : { memory: { semantic: false } }
+        )
+      );
+
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(true);
+    });
+
+    it('falls back to the global config when the project value is unset', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockImplementation((configPath: string) =>
+        Promise.resolve(
+          configPath === '/test/dir/.ai-devkit.json'
+            ? { environments: [], phases: [] }
+            : { memory: { semantic: true } }
+        )
+      );
+
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(true);
+    });
+
+    it('defaults to false when neither project nor global config sets semantic', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(false);
     });
   });
 
