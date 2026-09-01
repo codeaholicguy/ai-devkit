@@ -1,13 +1,6 @@
 import { readFile } from 'fs/promises';
 import { join } from 'path';
-import { ensureModelFiles, getModelDirectory, inspectModelFiles, normalizeEmbedding } from './model.js';
-
-export class SemanticModelUnavailableError extends Error {
-    constructor(message: string, options?: ErrorOptions) {
-        super(message, options);
-        this.name = 'SemanticModelUnavailableError';
-    }
-}
+import { ensureModelFiles, getModelDirectory, normalizeEmbedding } from './model.js';
 
 export function meanPoolAndNormalize(
     data: Float32Array,
@@ -39,38 +32,25 @@ export function meanPoolAndNormalize(
 export interface LocalEmbedder {
     embed(text: string): Promise<Float32Array>;
     embedMany(texts: string[]): Promise<Float32Array[]>;
-    dispose(): Promise<void>;
-}
-
-interface LoadEmbedderOptions {
-    modelsRoot?: string;
-    download?: boolean;
 }
 
 let defaultEmbedder: Promise<LocalEmbedder> | undefined;
 
 /** Reuse the model session across semantic operations in long-lived CLI/MCP processes. */
 export function getDefaultLocalEmbedder(): Promise<LocalEmbedder> {
-    defaultEmbedder ??= loadLocalEmbedder({ download: true }).catch(error => {
+    defaultEmbedder ??= loadLocalEmbedder().catch(error => {
         defaultEmbedder = undefined;
         throw error;
     });
     return defaultEmbedder;
 }
 
-export async function loadLocalEmbedder(options: LoadEmbedderOptions = {}): Promise<LocalEmbedder> {
-    const directory = getModelDirectory(options.modelsRoot);
-    if (options.download) {
-        try {
-            await ensureModelFiles({ directory });
-        } catch (error) {
-            throw new SemanticModelUnavailableError('Semantic model download failed', { cause: error });
-        }
-    } else {
-        const inspection = await inspectModelFiles(directory);
-        if (!inspection.ready) {
-            throw new SemanticModelUnavailableError('Semantic model is not available in the local cache');
-        }
+export async function loadLocalEmbedder(): Promise<LocalEmbedder> {
+    const directory = getModelDirectory();
+    try {
+        await ensureModelFiles({ directory });
+    } catch (error) {
+        throw new Error('Semantic model download failed', { cause: error });
     }
 
     const [{ Tokenizer }, ort, tokenizerJson, tokenizerConfig, modelBytes] = await Promise.all([
@@ -108,6 +88,5 @@ export async function loadLocalEmbedder(options: LoadEmbedderOptions = {}): Prom
             for (const text of texts) results.push(await embed(text));
             return results;
         },
-        dispose: async () => session.release(),
     };
 }

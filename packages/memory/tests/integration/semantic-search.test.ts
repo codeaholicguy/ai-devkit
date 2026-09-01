@@ -7,7 +7,7 @@ import { updateKnowledge } from '../../src/handlers/update';
 import { searchKnowledgeHybrid } from '../../src/handlers/semantic-search';
 import { MODEL_VERSION } from '../../src/services/model';
 import { serializeEmbedding } from '../../src/services/semantic';
-import { SemanticModelUnavailableError, type LocalEmbedder } from '../../src/services/embedder';
+import { type LocalEmbedder } from '../../src/services/embedder';
 import { getSemanticStatus, reembedKnowledge, storeKnowledgeSemantic } from '../../src/handlers/semantic-maintenance';
 
 describe('semantic search integration', () => {
@@ -17,7 +17,6 @@ describe('semantic search integration', () => {
     const embedder: LocalEmbedder = {
         embed: async () => first,
         embedMany: async () => [first],
-        dispose: async () => undefined,
     };
 
     beforeAll(() => getDatabase({ dbPath }));
@@ -56,9 +55,8 @@ describe('semantic search integration', () => {
     it('degrades to lexical results when the local model is unavailable', async () => {
         const relevant = store('Exact retry policy identifier', 'The WEB-1842 retry rule applies exponential backoff only to transient server failures.');
         const unavailable: LocalEmbedder = {
-            embed: async () => { throw new SemanticModelUnavailableError('offline'); },
+            embed: async () => { throw new Error('offline'); },
             embedMany: async () => [],
-            dispose: async () => undefined,
         };
 
         const result = await searchKnowledgeHybrid({ query: 'WEB-1842', limit: 5 }, { embedder: unavailable });
