@@ -61,6 +61,8 @@ import { registerAgentGroupCommand } from './agent/group.command.js';
 import { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp } from '../tui/console/ConsoleApp.js';
 import { generateAgentName } from '../util/agent.js';
 import { select } from '@inquirer/prompts';
+import { resolveTmuxInstallInstructions } from '../util/tmux.js';
+import { createTmuxInspectionDeps } from '../util/tmux-deps.js';
 
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -332,7 +334,8 @@ export function registerAgentCommand(program: Command): void {
                 ui.text(`Attach: tmux attach -t ${entry.tmuxSession}`);
             } catch (err) {
                 if (err instanceof TmuxUnavailableError) {
-                    ui.error('tmux is not installed or not in PATH. Install it first (e.g., brew install tmux).');
+                    const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
+                    ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
                 } else if (err instanceof AgentNameInUseError) {
                     ui.error(`Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`);
                 } else if (err instanceof AgentPidPollTimeoutError) {

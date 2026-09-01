@@ -57,9 +57,14 @@ const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
-const { mockEnableDebug, mockDebugLogger } = vi.hoisted(() => ({
+const { mockEnableDebug, mockDebugLogger, mockTmuxIsAvailable, mockTmuxInstructions } = vi.hoisted(() => ({
   mockEnableDebug: vi.fn(),
   mockDebugLogger: vi.fn(),
+  mockTmuxIsAvailable: vi.fn().mockResolvedValue(true),
+  mockTmuxInstructions: vi.fn().mockResolvedValue({
+    command: 'sudo apt-get update && sudo apt-get install tmux',
+    message: 'Install it with: sudo apt-get update && sudo apt-get install tmux.',
+  }),
 }));
 let restoreStdin: (() => void) | undefined;
 
@@ -128,7 +133,7 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     default: vi.fn(function () { return mockRegistry; }),
   },
   TmuxManager: vi.fn(function () { return {
-    isAvailable: vi.fn().mockResolvedValue(true),
+    isAvailable: mockTmuxIsAvailable,
     sessionExists: vi.fn().mockResolvedValue(false),
     createSession: vi.fn().mockResolvedValue(undefined),
     sendKeys: vi.fn().mockResolvedValue(undefined),
@@ -169,6 +174,12 @@ vi.mock('../../util/debug.js', () => ({
   enableDebug: () => mockEnableDebug(),
   createLogger: () => mockDebugLogger,
 }));
+
+vi.mock('../../util/tmux.js', () => ({
+  resolveTmuxInstallInstructions: mockTmuxInstructions,
+}));
+
+vi.mock('../../util/tmux-deps.js', () => ({ createTmuxInspectionDeps: () => ({}) }));
 
 vi.mock('../../services/agent/agent.service.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/agent/agent.service.js')>();
@@ -255,6 +266,11 @@ describe('agent command', () => {
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
     mockKillAgent.mockReset();
+    mockTmuxIsAvailable.mockReset().mockResolvedValue(true);
+    mockTmuxInstructions.mockReset().mockResolvedValue({
+      command: 'sudo apt-get update && sudo apt-get install tmux',
+      message: 'Install it with: sudo apt-get update && sudo apt-get install tmux.',
+    });
     Object.values(mockGroupStore).forEach((method) => method.mockReset());
     mockGroupStore.list.mockReturnValue([]);
     process.exitCode = undefined;
@@ -355,6 +371,19 @@ describe('agent command', () => {
 
     expect(mockEnableDebug).toHaveBeenCalledTimes(1);
     expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (claude, PID 12345)');
+  });
+
+  it('shows the platform-aware tmux install hint when interactive start is unavailable', async () => {
+    mockTmuxIsAvailable.mockResolvedValue(false);
+    const program = new Command();
+    registerAgentCommand(program);
+
+    await program.parseAsync(['node', 'test', 'agent', 'start', '--type', 'claude', '--name', 'agent1']);
+
+    expect(ui.error).toHaveBeenCalledWith(
+      'tmux is not installed or not in PATH. Install it with: sudo apt-get update && sudo apt-get install tmux.',
+    );
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it('shows info when no agents are running', async () => {

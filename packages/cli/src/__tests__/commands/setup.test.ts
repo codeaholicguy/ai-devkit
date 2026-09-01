@@ -2,17 +2,31 @@ import { Command } from 'commander';
 
 const {
   mockSetupService,
+  mockInspectTmux,
+  mockResolveTmuxInstallInstructions,
   mockUi,
 } = vi.hoisted(() => ({
   mockSetupService: {
     run: vi.fn(),
   },
+  mockInspectTmux: vi.fn(),
+  mockResolveTmuxInstallInstructions: vi.fn(),
   mockUi: {
     error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    text: vi.fn(),
     summary: vi.fn(),
     table: vi.fn(),
   },
 }));
+
+vi.mock('../../util/tmux.js', () => ({
+  inspectTmux: mockInspectTmux,
+  resolveTmuxInstallInstructions: mockResolveTmuxInstallInstructions,
+}));
+
+vi.mock('../../util/tmux-deps.js', () => ({ createTmuxInspectionDeps: () => ({}) }));
 
 vi.mock('../../services/setup/setup.service.js', () => ({
   createSetupService: () => mockSetupService,
@@ -45,6 +59,8 @@ describe('setup command', () => {
         },
       ],
     });
+    mockInspectTmux.mockResolvedValue({ state: 'available', version: '3.4', rawVersion: 'tmux 3.4' });
+    mockResolveTmuxInstallInstructions.mockResolvedValue({ command: 'brew install tmux', message: 'Install it with: brew install tmux.' });
   });
 
   afterEach(() => {
@@ -58,6 +74,8 @@ describe('setup command', () => {
     await program.parseAsync(['node', 'test', 'setup']);
 
     expect(mockSetupService.run).toHaveBeenCalledWith({ agents: undefined });
+    expect(mockUi.text).toHaveBeenCalledWith('Host Prerequisites');
+    expect(mockUi.success).toHaveBeenCalledWith('tmux 3.4 available');
     expect(mockUi.summary).toHaveBeenCalledWith({
       title: 'Setup Summary',
       items: [
@@ -73,6 +91,34 @@ describe('setup command', () => {
         ['pi', 'pi-session-tracker', 'skipped', '~/.pi does not exist.'],
       ],
     });
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('warns with platform-aware instructions and continues setup when tmux is missing', async () => {
+    mockInspectTmux.mockResolvedValue({ state: 'missing', version: null, rawVersion: null });
+    mockResolveTmuxInstallInstructions.mockResolvedValue({
+      command: 'sudo apt-get update && sudo apt-get install tmux',
+      message: 'Install it with: sudo apt-get update && sudo apt-get install tmux.',
+    });
+    const program = new Command();
+    registerSetupCommand(program);
+
+    await program.parseAsync(['node', 'test', 'setup']);
+
+    expect(mockUi.warning).toHaveBeenCalledWith(expect.stringContaining('sudo apt-get install tmux'));
+    expect(mockSetupService.run).toHaveBeenCalledOnce();
+    expect(process.exitCode).toBe(0);
+  });
+
+  it('warns and continues setup when tmux cannot be executed', async () => {
+    mockInspectTmux.mockResolvedValue({ state: 'error', version: null, rawVersion: 'permission denied' });
+    const program = new Command();
+    registerSetupCommand(program);
+
+    await program.parseAsync(['node', 'test', 'setup']);
+
+    expect(mockUi.warning).toHaveBeenCalledWith(expect.stringContaining('permission denied'));
+    expect(mockSetupService.run).toHaveBeenCalledOnce();
     expect(process.exitCode).toBe(0);
   });
 
