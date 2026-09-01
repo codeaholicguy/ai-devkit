@@ -367,6 +367,18 @@ describe('memory command', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
   });
 
+  it('awaits semantic-enabled updates before printing their result', async () => {
+    mockGetMemorySemanticEnabled.mockResolvedValue(true);
+    const result = { success: true, id: 'semantic-1', message: 'updated' };
+    vi.mocked(memoryUpdateCommandAsync).mockResolvedValue(result);
+
+    const program = new Command(); registerMemoryCommand(program);
+    await program.parseAsync(['node', 'test', 'memory', 'update', '--id', 'semantic-1', '--title', 'Updated title']);
+
+    expect(memoryUpdateCommandAsync).toHaveBeenCalledWith(expect.objectContaining({ id: 'semantic-1', semantic: true }));
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
+  });
+
   it('exposes semantic status, download, and force reembed commands', async () => {
     vi.mocked(memorySemanticStatusCommand).mockResolvedValue({
       modelReady: false, modelDirectory: '/models', embeddingVersion: 'model', total: 0, current: 0, missing: 0, stale: 0,
