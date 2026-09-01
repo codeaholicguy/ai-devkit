@@ -1,5 +1,5 @@
 import { getDatabase } from '../database/index.js';
-import { loadLocalEmbedder, type LocalEmbedder } from '../services/embedder.js';
+import { getDefaultLocalEmbedder, type LocalEmbedder } from '../services/embedder.js';
 import { MODEL_DIMENSION, MODEL_VERSION } from '../services/model.js';
 import { cosineSimilarity, deserializeEmbedding, fuseSearchResults, type SemanticCandidate } from '../services/semantic.js';
 import { searchKnowledge } from './search.js';
@@ -7,7 +7,6 @@ import type { SearchKnowledgeInput, SearchKnowledgeResult } from '../types/index
 
 const MAX_SEMANTIC_CORPUS = 5_000;
 const MAX_CANDIDATES = 20;
-let defaultEmbedder: Promise<LocalEmbedder> | undefined;
 
 interface RawSemanticRow {
     id: string;
@@ -35,14 +34,6 @@ function semanticStatus(
     } as const;
 }
 
-function getDefaultEmbedder(): Promise<LocalEmbedder> {
-    defaultEmbedder ??= loadLocalEmbedder({ download: true }).catch(error => {
-        defaultEmbedder = undefined;
-        throw error;
-    });
-    return defaultEmbedder;
-}
-
 export async function searchKnowledgeHybrid(
     input: SearchKnowledgeInput,
     options: HybridSearchOptions = {},
@@ -67,7 +58,7 @@ export async function searchKnowledgeHybrid(
     }
 
     try {
-        const embedder = options.embedder ?? await getDefaultEmbedder();
+        const embedder = options.embedder ?? await getDefaultLocalEmbedder();
         const queryEmbedding = await embedder.embed(input.query.trim());
         if (queryEmbedding.length !== MODEL_DIMENSION) {
             throw new Error(`Semantic model returned ${queryEmbedding.length} dimensions; expected ${MODEL_DIMENSION}`);

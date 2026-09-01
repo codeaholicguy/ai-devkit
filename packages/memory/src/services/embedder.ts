@@ -47,6 +47,17 @@ interface LoadEmbedderOptions {
     download?: boolean;
 }
 
+let defaultEmbedder: Promise<LocalEmbedder> | undefined;
+
+/** Reuse the model session across semantic operations in long-lived CLI/MCP processes. */
+export function getDefaultLocalEmbedder(): Promise<LocalEmbedder> {
+    defaultEmbedder ??= loadLocalEmbedder({ download: true }).catch(error => {
+        defaultEmbedder = undefined;
+        throw error;
+    });
+    return defaultEmbedder;
+}
+
 export async function loadLocalEmbedder(options: LoadEmbedderOptions = {}): Promise<LocalEmbedder> {
     const directory = getModelDirectory(options.modelsRoot);
     if (options.download) {

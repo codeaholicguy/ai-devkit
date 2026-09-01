@@ -1,6 +1,6 @@
 import { getDatabase } from '../database/index.js';
 import { normalizeTags } from '../services/normalizer.js';
-import { loadLocalEmbedder, type LocalEmbedder } from '../services/embedder.js';
+import { getDefaultLocalEmbedder, loadLocalEmbedder, type LocalEmbedder } from '../services/embedder.js';
 import { ensureModelFiles, getModelDirectory, inspectModelFiles, MODEL_VERSION } from '../services/model.js';
 import { buildEmbeddingText, serializeEmbedding } from '../services/semantic.js';
 import { storeKnowledge } from './store.js';
@@ -64,7 +64,9 @@ export async function storeKnowledgeSemantic(
 ): Promise<StoreKnowledgeResult> {
     let value: Buffer;
     try {
-        const embedder = options.embedder ?? await loadLocalEmbedder({ modelsRoot: options.modelsRoot, download: true });
+        const embedder = options.embedder ?? (options.modelsRoot
+            ? await loadLocalEmbedder({ modelsRoot: options.modelsRoot, download: true })
+            : await getDefaultLocalEmbedder());
         const tags = normalizeTags(input.tags ?? []);
         const vector = await embedder.embed(buildEmbeddingText({ title: input.title, content: input.content, tags }));
         value = serializeEmbedding(vector);
@@ -85,7 +87,9 @@ export async function updateKnowledgeSemantic(
     if (!existing) return updateKnowledge(input);
     let value: Buffer;
     try {
-        const embedder = options.embedder ?? await loadLocalEmbedder({ modelsRoot: options.modelsRoot, download: true });
+        const embedder = options.embedder ?? (options.modelsRoot
+            ? await loadLocalEmbedder({ modelsRoot: options.modelsRoot, download: true })
+            : await getDefaultLocalEmbedder());
         const vector = await embedder.embed(buildEmbeddingText({
             title: input.title ?? existing.title,
             content: input.content ?? existing.content,
@@ -109,7 +113,9 @@ export async function reembedKnowledge(options: ReembedOptions = {}): Promise<Re
     const pending = options.force
         ? all
         : all.filter(row => !row.embedding || row.embedding_version !== MODEL_VERSION);
-    const embedder = options.embedder ?? await loadLocalEmbedder({ modelsRoot: options.modelsRoot, download: true });
+    const embedder = options.embedder ?? (options.modelsRoot
+        ? await loadLocalEmbedder({ modelsRoot: options.modelsRoot, download: true })
+        : await getDefaultLocalEmbedder());
     const batchSize = Math.max(1, options.batchSize ?? 32);
     let embedded = 0;
     let failed = 0;

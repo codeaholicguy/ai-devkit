@@ -57,7 +57,7 @@ flowchart LR
 - [x] Wire config through CLI and MCP while preserving default behavior.
 - [x] Run expanded-100 gate through the built CLI: hit@1 88%, hit@3 97%, hit@5 98%, zero results 0%; one-shot CLI p95 1,886 ms and seed time 76.6 s.
 - [x] Run 1,000-row warm latency gate: median 21.85 ms, p95 29.78 ms, max 33.51 ms across 100 searches after five warmups.
-- [ ] Run six-project build, full tests, lint, and e2e.
+- [x] Run six-project build, full tests, lint, and e2e: all six projects built; 1,087 tests and 41 e2e tests passed; lint completed with no errors.
 
 ## Testing record
 
