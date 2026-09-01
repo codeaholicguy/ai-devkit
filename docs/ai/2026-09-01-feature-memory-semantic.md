@@ -55,8 +55,8 @@ flowchart LR
 - [x] Add status, download, and resumable re-embed APIs and CLI tests.
 - [x] Add async hybrid search with offline/corrupt/stale degradation tests; large-corpus validation remains in the performance gate.
 - [x] Wire config through CLI and MCP while preserving default behavior.
-- [ ] Run expanded-100 gate through the built CLI.
-- [ ] Run 1,000-row warm latency gate.
+- [x] Run expanded-100 gate through the built CLI: hit@1 88%, hit@3 97%, hit@5 98%, zero results 0%; one-shot CLI p95 1,886 ms and seed time 76.6 s.
+- [x] Run 1,000-row warm latency gate: median 21.85 ms, p95 29.78 ms, max 33.51 ms across 100 searches after five warmups.
 - [ ] Run six-project build, full tests, lint, and e2e.
 
 ## Testing record
@@ -68,9 +68,11 @@ flowchart LR
 - [x] RRF is deterministic and protects lexical ties.
 - [x] Offline and missing-model search returns lexical results.
 - [x] Stale/corrupt embeddings are excluded safely.
-- [x] Backfill resumes and skips current rows; force mode remains in final CLI validation.
+- [x] Backfill resumes, skips current rows, and force-rebuilds.
 - [x] CLI surfaces config, status, download, reembed, and explanations.
 - [x] Default lexical API and strict/broad strategies remain compatible in targeted tests.
+
+The built-CLI benchmark improved the published 0.57.1 lexical baseline from hit@1 81% / hit@3 91% / hit@5 96% / zero 1% to 88% / 97% / 98% / zero 0%. Judged irrelevant top-three increased from 2.9% to 4.7%, a known semantic-recall trade-off to monitor. The one-shot CLI timings include process and ONNX startup; the warm in-process 1,000-row gate is the search SLA measurement.
 
 ## Rollback
 

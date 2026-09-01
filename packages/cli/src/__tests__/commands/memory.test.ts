@@ -353,6 +353,20 @@ describe('memory command', () => {
     expect(mockedMemorySearchCommand).not.toHaveBeenCalled();
   });
 
+  it('awaits semantic-enabled stores before printing their result', async () => {
+    mockGetMemorySemanticEnabled.mockResolvedValue(true);
+    const result = { success: true, id: 'semantic-1', message: 'stored' };
+    vi.mocked(memoryStoreCommandAsync).mockResolvedValue(result);
+
+    const program = new Command(); registerMemoryCommand(program);
+    await program.parseAsync([
+      'node', 'test', 'memory', 'store', '--title', 'Semantic store title',
+      '--content', 'This semantic store content is long enough to pass all memory validation constraints.',
+    ]);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
+  });
+
   it('exposes semantic status, download, and force reembed commands', async () => {
     vi.mocked(memorySemanticStatusCommand).mockResolvedValue({
       modelReady: false, modelDirectory: '/models', embeddingVersion: 'model', total: 0, current: 0, missing: 0, stale: 0,

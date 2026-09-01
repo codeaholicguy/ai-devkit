@@ -88,9 +88,11 @@ describe('semantic search integration', () => {
 
         const firstRun = await reembedKnowledge({ embedder, batchSize: 1 });
         const secondRun = await reembedKnowledge({ embedder, batchSize: 1 });
+        const forcedRun = await reembedKnowledge({ embedder, batchSize: 1, force: true });
 
         expect(firstRun).toMatchObject({ embedded: 2, failed: 0, skipped: 0 });
         expect(secondRun).toMatchObject({ embedded: 0, failed: 0, skipped: 2 });
+        expect(forcedRun).toMatchObject({ embedded: 2, failed: 0, skipped: 0 });
         expect(getDatabase().queryOne<{ count: number }>(
             'SELECT COUNT(*) AS count FROM knowledge WHERE embedding_version = ?', [MODEL_VERSION]
         )?.count).toBe(2);
@@ -113,5 +115,34 @@ describe('semantic search integration', () => {
         const status = await getSemanticStatus({ modelsRoot: join(tmpdir(), 'definitely-missing-model-root') });
 
         expect(status).toMatchObject({ modelReady: false, total: 1, current: 0, missing: 1, stale: 0 });
+    });
+
+    it('ignores corrupt vectors without losing lexical results', async () => {
+        const relevant = store('Corrupt vector fallback', 'Lexical retrieval remains available when a stored semantic vector has an invalid byte length.');
+        getDatabase().execute('UPDATE knowledge SET embedding = ?, embedding_version = ? WHERE id = ?', [Buffer.from([1, 2]), MODEL_VERSION, relevant]);
+
+        const result = await searchKnowledgeHybrid({ query: 'corrupt vector fallback', limit: 5 }, { embedder });
+
+        expect(result.results[0]?.id).toBe(relevant);
+        expect(result.semantic).toMatchObject({ status: 'ready', eligibleCount: 0 });
+    });
+
+    it('skips semantic inference when the eligible corpus exceeds the scan limit', async () => {
+        const db = getDatabase();
+        const insert = db.instance.prepare(`INSERT INTO knowledge
+            (id,title,content,tags,scope,normalized_title,content_hash,created_at,updated_at,embedding,embedding_version)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?)`);
+        db.instance.transaction(() => {
+            for (let index = 0; index < 5_001; index++) {
+                insert.run(`large-${index}`, `Large corpus memory ${index}`, `Large corpus content ${index} contains enough searchable developer knowledge for validation.`, '[]', 'global', `large corpus memory ${index}`, `large-hash-${index}`, '2026-09-01', '2026-09-01', serializeEmbedding(first), MODEL_VERSION);
+            }
+        })();
+        const neverCalled = vi.spyOn(embedder, 'embed');
+
+        const result = await searchKnowledgeHybrid({ query: 'large corpus', limit: 5 }, { embedder });
+
+        expect(result.semantic.status).toBe('corpus-too-large');
+        expect(result.retrievalMode).toBe('lexical');
+        expect(neverCalled).not.toHaveBeenCalled();
     });
 });

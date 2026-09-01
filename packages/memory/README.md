@@ -10,6 +10,7 @@ Most users get this automatically through `ai-devkit init`. Install `@ai-devkit/
 ## Features
 
 - 🔍 **Full-Text Search** — FTS5 with BM25 ranking
+- 🧠 **Optional Semantic Search** — Local MiniLM embeddings fused with lexical ranks
 - 🏷️ **Tag-Based Filtering** — Organize and find knowledge by tags
 - 📁 **Scoped Knowledge** — Global, project, or repo-specific rules
 - 🔄 **Deduplication** — Prevents duplicate content automatically
@@ -64,6 +65,30 @@ Example developer use case: after deciding that all API responses must use DTOs,
   }
 }
 ```
+
+## Optional semantic search
+
+Semantic search is disabled by default. Enable it in the project's `.ai-devkit.json`:
+
+```json
+{
+  "memory": {
+    "semantic": true
+  }
+}
+```
+
+The first semantic operation downloads a pinned 23 MB quantized MiniLM model to `~/.ai-devkit/models`. Queries and memory content are embedded locally and are not sent to an inference service. Once cached, the model works offline. If it is unavailable, search returns lexical FTS results instead.
+
+You can prepare and inspect the cache explicitly, then backfill existing memories:
+
+```bash
+ai-devkit memory semantic status
+ai-devkit memory semantic download
+ai-devkit memory reembed
+```
+
+Use `ai-devkit memory reembed --force` after troubleshooting a cache or embedding issue. Add `--explain` to `memory search` to include lexical rank, semantic rank, cosine similarity, and reciprocal-rank-fusion score.
 
 ## Documentation
 

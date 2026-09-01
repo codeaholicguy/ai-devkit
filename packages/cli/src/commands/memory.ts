@@ -46,7 +46,7 @@ export function registerMemoryCommand(program: Command): void {
         dbPath: await resolveMemoryDbPath()
       } as MemoryStoreOptions;
       const result = await resolveSemanticEnabled()
-        ? memoryStoreCommandAsync({ ...commandOptions, semantic: true })
+        ? await memoryStoreCommandAsync({ ...commandOptions, semantic: true })
         : memoryStoreCommand(commandOptions);
       console.log(JSON.stringify(result, null, 2));
     }));
@@ -65,7 +65,7 @@ export function registerMemoryCommand(program: Command): void {
         dbPath: await resolveMemoryDbPath()
       } as MemoryUpdateOptions;
       const result = await resolveSemanticEnabled()
-        ? memoryUpdateCommandAsync({ ...commandOptions, semantic: true })
+        ? await memoryUpdateCommandAsync({ ...commandOptions, semantic: true })
         : memoryUpdateCommand(commandOptions);
       console.log(JSON.stringify(result, null, 2));
     }));
