@@ -60,7 +60,6 @@ export interface GlobalDevKitConfig {
   plugins?: string[];
   memory?: {
     path?: string;
-    semantic?: boolean;
   };
 }
 
