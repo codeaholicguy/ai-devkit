@@ -35,6 +35,7 @@ export class ConfigManager {
       version: packageJson.version,
       environments: [],
       phases: [],
+      memory: { semantic: false },
       createdAt: new Date().toISOString()
     };
 
@@ -99,6 +100,11 @@ export class ConfigManager {
   async getMemoryDbPath(): Promise<string | undefined> {
     const config = await this.read();
     return this.resolveConfiguredPath(config?.memory?.path);
+  }
+
+  async getMemorySemanticEnabled(): Promise<boolean> {
+    const config = await this.read();
+    return config?.memory?.semantic === true;
   }
 
   private resolveConfiguredPath(configuredPath: unknown): string | undefined {

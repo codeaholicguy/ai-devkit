@@ -121,6 +121,7 @@ describe('ConfigManager', () => {
         version: '1.0.0',
         environments: [],
         phases: [],
+        memory: { semantic: false },
         createdAt: expect.any(String),
       };
 
@@ -894,6 +895,20 @@ describe('ConfigManager', () => {
       expect(mockPath.dirname).toHaveBeenCalledWith('/test/dir/.ai-devkit.json');
       expect(mockPath.resolve).toHaveBeenCalledWith('/test/dir', '.ai-devkit/project-memory.db');
       expect(result).toBe('/test/dir/.ai-devkit/project-memory.db');
+    });
+  });
+
+  describe('getMemorySemanticEnabled', () => {
+    it('defaults to false and accepts only explicit true', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(false);
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ memory: { semantic: true } });
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(true);
+
+      (mockFs.readJson as any).mockResolvedValue({ memory: { semantic: 'true' } });
+      await expect(configManager.getMemorySemanticEnabled()).resolves.toBe(false);
     });
   });
 

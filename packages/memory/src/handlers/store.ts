@@ -5,7 +5,12 @@ import { normalizeTitle, normalizeScope, normalizeTags, hashContent } from '../s
 import { DuplicateError, StorageError } from '../utils/errors.js';
 import type { StoreKnowledgeInput, StoreKnowledgeResult, KnowledgeRow } from '../types/index.js';
 
-export function storeKnowledge(input: StoreKnowledgeInput): StoreKnowledgeResult {
+interface StoredEmbedding {
+    value: Buffer;
+    version: string;
+}
+
+export function storeKnowledge(input: StoreKnowledgeInput, embedding?: StoredEmbedding): StoreKnowledgeResult {
     validateStoreInput(input);
 
     const db = getDatabase();
@@ -46,9 +51,10 @@ export function storeKnowledge(input: StoreKnowledgeInput): StoreKnowledgeResult
 
             db.execute(
                 `INSERT INTO knowledge (
-          id, title, content, tags, scope,
-          normalized_title, content_hash, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  id, title, content, tags, scope,
+                  normalized_title, content_hash, created_at, updated_at,
+                  embedding, embedding_version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     id,
                     input.title.trim(),
@@ -58,7 +64,9 @@ export function storeKnowledge(input: StoreKnowledgeInput): StoreKnowledgeResult
                     normalizedTitle,
                     contentHash,
                     now,
-                    now
+                    now,
+                    embedding?.value ?? null,
+                    embedding?.version ?? null,
                 ]
             );
 

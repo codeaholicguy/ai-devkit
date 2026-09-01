@@ -27,6 +27,7 @@ export interface DevKitConfig {
   };
   memory?: {
     path?: string;
+    semantic?: boolean;
   };
   environments: EnvironmentCode[];
   phases: Phase[];
@@ -59,6 +60,7 @@ export interface GlobalDevKitConfig {
   plugins?: string[];
   memory?: {
     path?: string;
+    semantic?: boolean;
   };
 }
 

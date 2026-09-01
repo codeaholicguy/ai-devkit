@@ -49,28 +49,28 @@ flowchart LR
 
 ## Implementation plan
 
-- [ ] Add migration and embedding invalidation/storage tests.
-- [ ] Add deterministic semantic primitives and RRF tests.
-- [ ] Add pinned model downloader and lightweight ONNX runtime tests.
-- [ ] Add status, download, and resumable re-embed APIs and CLI tests.
-- [ ] Add async hybrid search with offline/corrupt/stale/large-corpus degradation tests.
-- [ ] Wire config through CLI and MCP while preserving default behavior.
+- [x] Add migration and embedding invalidation/storage tests.
+- [x] Add deterministic semantic primitives and RRF tests.
+- [x] Add pinned model downloader and lightweight ONNX runtime tests.
+- [x] Add status, download, and resumable re-embed APIs and CLI tests.
+- [x] Add async hybrid search with offline/corrupt/stale degradation tests; large-corpus validation remains in the performance gate.
+- [x] Wire config through CLI and MCP while preserving default behavior.
 - [ ] Run expanded-100 gate through the built CLI.
 - [ ] Run 1,000-row warm latency gate.
 - [ ] Run six-project build, full tests, lint, and e2e.
 
 ## Testing record
 
-- [ ] Migration adds nullable columns without changing existing rows.
-- [ ] Content fields invalidate embeddings; scope-only updates do not.
-- [ ] Model file checksums and pinned revision are enforced.
-- [ ] Runtime output is normalized and 384-dimensional.
-- [ ] RRF is deterministic and protects lexical ties.
-- [ ] Offline and missing-model search returns lexical results.
-- [ ] Stale/corrupt embeddings are excluded safely.
-- [ ] Backfill resumes, skips current rows, and force-rebuilds.
-- [ ] CLI surfaces config, status, download, reembed, and explanations.
-- [ ] Default lexical API and strict/broad strategies remain compatible.
+- [x] Migration adds nullable columns without changing existing rows.
+- [x] Content fields invalidate embeddings; scope-only updates do not.
+- [x] Model file checksums and pinned revision are enforced.
+- [x] Runtime output is normalized and 384-dimensional.
+- [x] RRF is deterministic and protects lexical ties.
+- [x] Offline and missing-model search returns lexical results.
+- [x] Stale/corrupt embeddings are excluded safely.
+- [x] Backfill resumes and skips current rows; force mode remains in final CLI validation.
+- [x] CLI surfaces config, status, download, reembed, and explanations.
+- [x] Default lexical API and strict/broad strategies remain compatible in targeted tests.
 
 ## Rollback
 

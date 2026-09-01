@@ -2,18 +2,36 @@ import type { MockedFunction } from 'vitest';
 import { Command } from 'commander';
 
 import { registerMemoryCommand } from '../../commands/memory.js';
-import { memorySearchCommand, memoryStoreCommand, memoryUpdateCommand } from '@ai-devkit/memory';
+import {
+  memoryDownloadSemanticCommand,
+  memoryReembedCommand,
+  memorySearchCommand,
+  memorySearchCommandAsync,
+  memorySemanticStatusCommand,
+  memoryStoreCommand,
+  memoryStoreCommandAsync,
+  memoryUpdateCommand,
+  memoryUpdateCommandAsync,
+} from '@ai-devkit/memory';
 import { ui } from '../../util/terminal-ui.js';
 
 const mockGetMemoryDbPath = vi.fn<() => Promise<string | undefined>>();
+const mockGetMemorySemanticEnabled = vi.fn<() => Promise<boolean>>();
 const mockConfigManager = {
-  getMemoryDbPath: mockGetMemoryDbPath
+  getMemoryDbPath: mockGetMemoryDbPath,
+  getMemorySemanticEnabled: mockGetMemorySemanticEnabled,
 };
 
 vi.mock('@ai-devkit/memory', () => ({
   memoryStoreCommand: vi.fn(),
+  memoryStoreCommandAsync: vi.fn(),
   memorySearchCommand: vi.fn(),
-  memoryUpdateCommand: vi.fn()
+  memorySearchCommandAsync: vi.fn(),
+  memoryUpdateCommand: vi.fn(),
+  memoryUpdateCommandAsync: vi.fn(),
+  memorySemanticStatusCommand: vi.fn(),
+  memoryDownloadSemanticCommand: vi.fn(),
+  memoryReembedCommand: vi.fn(),
 }), { virtual: true });
 
 vi.mock('../../lib/Config.js', () => ({
@@ -38,6 +56,7 @@ describe('memory command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetMemoryDbPath.mockResolvedValue(undefined);
+    mockGetMemorySemanticEnabled.mockResolvedValue(false);
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
@@ -314,5 +333,46 @@ describe('memory command', () => {
 
     expect(mockedUi.error).toHaveBeenCalledWith('Failed to search knowledge: search failed');
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it('uses hybrid search and explanations when semantic config is enabled', async () => {
+    mockGetMemorySemanticEnabled.mockResolvedValue(true);
+    vi.mocked(memorySearchCommandAsync).mockResolvedValue({
+      results: [], totalMatches: 0, query: 'wire contracts', strategy: 'broad',
+      retrievalMode: 'hybrid',
+      semantic: { status: 'ready', embeddingVersion: 'model', eligibleCount: 2 },
+    });
+
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'wire contracts', '--explain']);
+
+    expect(memorySearchCommandAsync).toHaveBeenCalledWith(expect.objectContaining({
+      query: 'wire contracts', semantic: true, explain: true,
+    }));
+    expect(mockedMemorySearchCommand).not.toHaveBeenCalled();
+  });
+
+  it('exposes semantic status, download, and force reembed commands', async () => {
+    vi.mocked(memorySemanticStatusCommand).mockResolvedValue({
+      modelReady: false, modelDirectory: '/models', embeddingVersion: 'model', total: 0, current: 0, missing: 0, stale: 0,
+    });
+    vi.mocked(memoryDownloadSemanticCommand).mockResolvedValue({
+      modelReady: true, modelDirectory: '/models', embeddingVersion: 'model', total: 0, current: 0, missing: 0, stale: 0,
+    });
+    vi.mocked(memoryReembedCommand).mockResolvedValue({ total: 0, embedded: 0, skipped: 0, failed: 0, embeddingVersion: 'model' });
+
+    for (const args of [
+      ['memory', 'semantic', 'status'],
+      ['memory', 'semantic', 'download'],
+      ['memory', 'reembed', '--force'],
+    ]) {
+      const program = new Command(); registerMemoryCommand(program);
+      await program.parseAsync(['node', 'test', ...args]);
+    }
+
+    expect(memorySemanticStatusCommand).toHaveBeenCalledWith({ dbPath: undefined });
+    expect(memoryDownloadSemanticCommand).toHaveBeenCalledWith({ dbPath: undefined });
+    expect(memoryReembedCommand).toHaveBeenCalledWith({ dbPath: undefined, force: true });
   });
 });
