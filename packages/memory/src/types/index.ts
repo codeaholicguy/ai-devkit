@@ -53,6 +53,14 @@ export interface SearchResultItem {
     tags: string[];
     scope: string;
     score: number;
+    retrieval?: SearchRetrievalExplanation;
+}
+
+export interface SearchRetrievalExplanation {
+    lexicalRank: number | null;
+    semanticRank: number | null;
+    semanticSimilarity: number | null;
+    rrfScore: number;
 }
 
 export interface SearchKnowledgeResult {
