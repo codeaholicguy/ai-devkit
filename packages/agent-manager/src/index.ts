@@ -20,10 +20,21 @@ export type {
     AgentInfo,
     ProcessInfo,
     ConversationMessage,
+    ConversationReadStats,
+    ConversationResetReason,
+    ConversationTailOptions,
+    ConversationTailResult,
     SessionSummary,
     ListSessionsOptions,
     AgentDetectionContext,
 } from './adapters/AgentAdapter.js';
+
+export { JsonlConversationTailCache } from './utils/JsonlConversationTailCache.js';
+export type {
+    JsonlConversationReducer,
+    JsonlConversationReadOptions,
+    JsonlConversationTailCacheOptions,
+} from './utils/JsonlConversationTailCache.js';
 
 export { TerminalFocusManager, TerminalType } from './terminal/TerminalFocusManager.js';
 export type { TerminalLocation } from './terminal/TerminalFocusManager.js';

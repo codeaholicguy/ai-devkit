@@ -1,4 +1,3 @@
-import fs from 'fs';
 import { useEffect, useRef, useState } from 'react';
 import type { AgentInfo, AgentManager, ConversationMessage } from '@ai-devkit/agent-manager';
 
@@ -60,6 +59,78 @@ export function cacheSet(key: string, entry: CacheEntry): void {
     conversationCache.set(key, entry);
 }
 
+export class ConversationRequestGate {
+    private currentToken = 0;
+
+    begin(): number {
+        return ++this.currentToken;
+    }
+
+    invalidate(): void {
+        this.currentToken++;
+    }
+
+    isCurrent(token: number): boolean {
+        return token === this.currentToken;
+    }
+}
+
+export async function loadAgentConversation(
+    manager: AgentManager,
+    agent: AgentInfo,
+    tail: number,
+    gate: ConversationRequestGate,
+    token: number,
+): Promise<UseAgentConversationResult | null> {
+    if (!agent.sessionFilePath) {
+        return gate.isCurrent(token) ? {
+            messages: [],
+            error: { kind: 'no-session-file', message: `No session file for "${agent.name}".` },
+            lastUpdated: null,
+            isLoading: false,
+        } : null;
+    }
+
+    if (!manager.getAdapter(agent.type)) {
+        return gate.isCurrent(token) ? {
+            messages: [],
+            error: { kind: 'no-adapter', message: `Unsupported agent type: ${agent.type}` },
+            lastUpdated: null,
+            isLoading: false,
+        } : null;
+    }
+
+    try {
+        const result = await manager.getConversationTail(agent.type, agent.sessionFilePath, {
+            verbose: false,
+            limit: tail,
+        });
+        if (!gate.isCurrent(token)) return null;
+        const messages = tail > 0 && result.messages.length > tail
+            ? result.messages.slice(-tail)
+            : result.messages;
+        return { messages, error: null, lastUpdated: new Date(), isLoading: false };
+    } catch (error) {
+        if (!gate.isCurrent(token)) return null;
+        return {
+            messages: [],
+            error: {
+                kind: 'parse-error',
+                message: error instanceof Error ? error.message : String(error),
+            },
+            lastUpdated: null,
+            isLoading: false,
+        };
+    }
+}
+
+export function startConversationPolling(
+    fetchOnce: () => Promise<void>,
+    intervalMs: number,
+): ReturnType<typeof setInterval> {
+    return setInterval(() => { void fetchOnce(); }, intervalMs);
+}
+
 export function useAgentConversation({
     manager,
     agent,
@@ -69,7 +140,7 @@ export function useAgentConversation({
 }: Params): UseAgentConversationResult {
     const [state, setState] = useState<UseAgentConversationResult>(EMPTY_STATE);
 
-    const runTokenRef = useRef(0);
+    const gateRef = useRef(new ConversationRequestGate());
     const mountedRef = useRef(true);
 
     useEffect(() => {
@@ -77,7 +148,10 @@ export function useAgentConversation({
 
         if (!agent) {
             setState(prev => prev === EMPTY_STATE ? prev : EMPTY_STATE);
-            return () => { mountedRef.current = false; };
+            return () => {
+                mountedRef.current = false;
+                gateRef.current.invalidate();
+            };
         }
 
         // If we have a cached result for this agent, show it immediately while
@@ -88,98 +162,59 @@ export function useAgentConversation({
             : { messages: [], error: null, lastUpdated: null, isLoading: true },
         );
 
-        const fetchOnce = (): void => {
-            const token = ++runTokenRef.current;
-
-            if (!agent.sessionFilePath) {
-                if (token !== runTokenRef.current || !mountedRef.current) return;
-                setState(prev => prev.error?.kind === 'no-session-file' && !prev.isLoading
-                    ? prev
-                    : {
-                        messages: [],
-                        error: { kind: 'no-session-file', message: `No session file for "${agent.name}".` },
-                        lastUpdated: prev.lastUpdated,
-                        isLoading: false,
-                    });
-                return;
-            }
-
-            const adapter = manager.getAdapter(agent.type);
-            if (!adapter) {
-                if (token !== runTokenRef.current || !mountedRef.current) return;
-                setState(prev => prev.error?.kind === 'no-adapter' && !prev.isLoading
-                    ? prev
-                    : {
-                        messages: [],
-                        error: { kind: 'no-adapter', message: `Unsupported agent type: ${agent.type}` },
-                        lastUpdated: prev.lastUpdated,
-                        isLoading: false,
-                    });
-                return;
-            }
-
+        let inFlight = false;
+        const fetchOnce = async (): Promise<void> => {
+            if (inFlight) return;
+            inFlight = true;
+            const token = gateRef.current.begin();
             try {
-                let mtime: number | null = null;
-                try {
-                    mtime = fs.statSync(agent.sessionFilePath).mtimeMs;
-                } catch {
-                    mtime = null;
-                }
+                const result = await loadAgentConversation(manager, agent, tail, gateRef.current, token);
+                if (!result || !mountedRef.current) return;
 
-                const cached = conversationCache.get(agent.sessionFilePath);
-                if (mtime !== null && cached && cached.mtime === mtime) {
-                    // File unchanged — serve from cache, no JSONL parse needed.
-                    if (token !== runTokenRef.current || !mountedRef.current) return;
-                    setState(prev => {
-                        const changed = !messagesEqual(prev.messages, cached.messages);
-                        if (!changed && prev.error === null && !prev.isLoading && prev.lastUpdated !== null) return prev;
-                        return { messages: changed ? cached.messages : prev.messages, error: null, lastUpdated: new Date(), isLoading: false };
-                    });
+                if (result.error) {
+                    setState(prev => ({
+                        ...prev,
+                        error: result.error,
+                        lastUpdated: prev.lastUpdated,
+                        isLoading: false,
+                    }));
                     return;
                 }
 
-                const conversation = adapter.getConversation(agent.sessionFilePath, { verbose: false });
-                if (token !== runTokenRef.current || !mountedRef.current) return;
-
-                const sliced = tail > 0 && conversation.length > tail
-                    ? conversation.slice(-tail)
-                    : conversation;
-                if (mtime !== null) {
-                    cacheSet(agent.sessionFilePath, { mtime, messages: sliced });
+                if (agent.sessionFilePath) {
+                    cacheSet(agent.sessionFilePath, { mtime: Date.now(), messages: result.messages });
                 }
                 setState(prev => {
-                    const changed = !messagesEqual(prev.messages, sliced);
-                    if (!changed && prev.error === null && !prev.isLoading && prev.lastUpdated !== null) {
-                        return prev;
-                    }
+                    const changed = !messagesEqual(prev.messages, result.messages);
+                    if (!changed && prev.error === null && !prev.isLoading && prev.lastUpdated !== null) return prev;
                     return {
-                        messages: changed ? sliced : prev.messages,
+                        messages: changed ? result.messages : prev.messages,
                         error: null,
-                        lastUpdated: new Date(),
+                        lastUpdated: result.lastUpdated,
                         isLoading: false,
                     };
                 });
-            } catch (err) {
-                if (token !== runTokenRef.current || !mountedRef.current) return;
-                const message = err instanceof Error ? err.message : String(err);
-                setState(prev => ({ ...prev, error: { kind: 'parse-error', message }, isLoading: false }));
+            } finally {
+                inFlight = false;
             }
         };
 
         // Debounce the immediate fetch on selection change so rapid arrow-key
         // navigation doesn't fire a synchronous getConversation() per keystroke.
-        const debounceHandle = setTimeout(fetchOnce, SELECTION_DEBOUNCE_MS);
+        const debounceHandle = setTimeout(() => { void fetchOnce(); }, SELECTION_DEBOUNCE_MS);
 
         if (paused) {
             return () => {
                 mountedRef.current = false;
+                gateRef.current.invalidate();
                 clearTimeout(debounceHandle);
             };
         }
 
-        const intervalHandle = setInterval(fetchOnce, intervalMs);
+        const intervalHandle = startConversationPolling(fetchOnce, intervalMs);
         return () => {
             mountedRef.current = false;
+            gateRef.current.invalidate();
             clearTimeout(debounceHandle);
             clearInterval(intervalHandle);
         };
