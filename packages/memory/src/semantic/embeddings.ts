@@ -1,7 +1,7 @@
 import type { SearchResultItem, SearchRetrievalExplanation } from '../domain/knowledge/types.js';
 
 export const EMBEDDING_DIMENSION = 384;
-export const RRF_K = 60;
+export const RRF_K = 10;
 
 interface EmbeddingDocument {
     title: string;
