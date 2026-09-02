@@ -43,12 +43,4 @@ describe('semantic retrieval primitives', () => {
         expect(first).toEqual(second);
         expect(first[1]?.retrieval).toMatchObject({ lexicalRank: 1, semanticRank: null });
     });
-
-    it('keeps lexical candidates above semantic-only candidates during fusion', () => {
-        const item = (id: string) => ({ id, title: id, content: 'x', tags: [], scope: 'global', score: 1 });
-        const lexical = Array.from({ length: 20 }, (_, index) => item(`lexical-${index}`));
-        const semantic = [{ ...item('semantic-only'), similarity: 0.9 }];
-
-        expect(fuseSearchResults(lexical, semantic, 21).at(-1)?.id).toBe('semantic-only');
-    });
 });

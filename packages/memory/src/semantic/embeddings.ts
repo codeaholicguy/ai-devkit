@@ -1,8 +1,7 @@
 import type { SearchResultItem, SearchRetrievalExplanation } from '../domain/knowledge/types.js';
 
 export const EMBEDDING_DIMENSION = 384;
-export const LEXICAL_RRF_K = 60;
-export const SEMANTIC_RRF_K = 90;
+export const RRF_K = 60;
 
 interface EmbeddingDocument {
     title: string;
@@ -77,7 +76,7 @@ export function fuseSearchResults(
     lexical.forEach((item, index) => {
         fused.set(item.id, {
             item,
-            score: 1 / (LEXICAL_RRF_K + index + 1),
+            score: 1 / (RRF_K + index + 1),
             lexicalRank: index + 1,
             semanticRank: null,
             similarity: null,
@@ -86,7 +85,7 @@ export function fuseSearchResults(
 
     semantic.forEach((candidate, index) => {
         const existing = fused.get(candidate.id);
-        const semanticScore = 1 / (SEMANTIC_RRF_K + index + 1);
+        const semanticScore = 1 / (RRF_K + index + 1);
         if (existing) {
             existing.score += semanticScore;
             existing.semanticRank = index + 1;
