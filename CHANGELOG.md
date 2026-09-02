@@ -5,9 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.59.0] - 2026-09-02
 
-- Added a read-only tmux prerequisite check to setup and platform-aware installation hints to managed agent startup.
+- [f077fa1](https://github.com/codeaholicguy/ai-devkit/pull/191) Added a read-only tmux prerequisite check to setup and platform-aware installation hints to managed agent startup.
+- [20d799f](https://github.com/codeaholicguy/ai-devkit/pull/209) Reorganized the memory package into domain, repository, semantic, and service layers.
+- [8e65a5d](https://github.com/codeaholicguy/ai-devkit/pull/210) Added optional You.com search integration to the skill registry.
+- [0d14c87](https://github.com/codeaholicguy/ai-devkit/pull/211) Added adapter readiness checks to agent status reporting.
 
 ## [0.58.0] - 2026-09-01
 
