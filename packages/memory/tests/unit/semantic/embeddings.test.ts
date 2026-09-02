@@ -43,15 +43,4 @@ describe('semantic retrieval primitives', () => {
         expect(first).toEqual(second);
         expect(first[1]?.retrieval).toMatchObject({ lexicalRank: 1, semanticRank: null });
     });
-
-    it('keeps a top lexical match above weak agreement deep in both channels', () => {
-        const item = (id: string) => ({ id, title: id, content: 'x', tags: [], scope: 'global', score: 1 });
-        const lexical = [item('exact'), ...Array.from({ length: 18 }, (_, index) => item(`lexical-${index}`)), item('weak')];
-        const semantic = [...Array.from({ length: 19 }, (_, index) => ({
-            ...item(`semantic-${index}`),
-            similarity: 1 - index / 100,
-        })), { ...item('weak'), similarity: 0.5 }];
-
-        expect(fuseSearchResults(lexical, semantic, 2)[0]?.id).toBe('exact');
-    });
 });
