@@ -4,17 +4,22 @@ import {
     CallToolRequestSchema,
     ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import { storeKnowledge } from './handlers/store.js';
-import { searchKnowledge } from './handlers/search.js';
-import { updateKnowledge } from './handlers/update.js';
-import { searchKnowledgeHybrid } from './handlers/semantic-search.js';
-import { storeKnowledgeSemantic, updateKnowledgeSemantic } from './handlers/semantic-maintenance.js';
-import { readSemanticConfig } from './services/config.js';
-import { KnowledgeMemoryError } from './utils/errors.js';
-import type { StoreKnowledgeInput, SearchKnowledgeInput, UpdateKnowledgeInput } from './types/index.js';
+import { storeKnowledge } from './services/knowledge.service.js';
+import { searchKnowledge } from './services/search.service.js';
+import { updateKnowledge } from './services/knowledge.service.js';
+import { searchKnowledgeHybrid } from './services/semantic.service.js';
+import { storeKnowledgeSemantic, updateKnowledgeSemantic } from './services/semantic.service.js';
+import { readSemanticConfig } from './services/config.service.js';
+import { KnowledgeMemoryError } from './domain/knowledge/errors.js';
+import type { StoreKnowledgeInput, SearchKnowledgeInput, UpdateKnowledgeInput } from './domain/knowledge/types.js';
 
 const SERVER_NAME = 'ai-devkit-memory';
 const SERVER_VERSION = '0.1.0';
+
+type ToolResponse = {
+    content: Array<{ type: 'text'; text: string }>;
+    isError?: boolean;
+};
 
 const STORE_TOOL = {
     name: 'memory_storeKnowledge',
@@ -136,76 +141,17 @@ export function createServer(): Server {
         const { name, arguments: args } = request.params;
 
         try {
-            // Backward-compat: accept deprecated dotted names so agents with
-            // stale prompts/templates continue to work. Remove in next major.
-            if (name === 'memory_storeKnowledge' || name === 'memory.storeKnowledge') {
-                const input = args as unknown as StoreKnowledgeInput;
-                const result = semanticEnabled
-                    ? await storeKnowledgeSemantic(input)
-                    : storeKnowledge(input);
-                return {
-                    content: [
-                        {
-                            type: 'text' as const,
-                            text: JSON.stringify(result, null, 2),
-                        },
-                    ],
-                };
-            }
+            const result = await callMemoryTool(name, args, semanticEnabled);
 
-            if (name === 'memory_updateKnowledge' || name === 'memory.updateKnowledge') {
-                const input = args as unknown as UpdateKnowledgeInput;
-                const result = semanticEnabled
-                    ? await updateKnowledgeSemantic(input)
-                    : updateKnowledge(input);
-                return {
-                    content: [
-                        {
-                            type: 'text' as const,
-                            text: JSON.stringify(result, null, 2),
-                        },
-                    ],
-                };
-            }
-
-            if (name === 'memory_searchKnowledge' || name === 'memory.searchKnowledge') {
-                const input = args as unknown as SearchKnowledgeInput;
-                const result = semanticEnabled
-                    ? await searchKnowledgeHybrid(input)
-                    : searchKnowledge(input);
-                return {
-                    content: [
-                        {
-                            type: 'text' as const,
-                            text: JSON.stringify(result, null, 2),
-                        },
-                    ],
-                };
-            }
-
-            return {
-                content: [
-                    {
-                        type: 'text' as const,
-                        text: JSON.stringify({ error: 'UNKNOWN_TOOL', message: `Unknown tool: ${name}` }),
-                    },
-                ],
-                isError: true,
-            };
+            return result === undefined
+                ? toToolError({ error: 'UNKNOWN_TOOL', message: `Unknown tool: ${name}` })
+                : toToolResponse(result);
         } catch (error) {
             const errorResponse = error instanceof KnowledgeMemoryError
                 ? error.toJSON()
                 : { error: 'INTERNAL_ERROR', message: error instanceof Error ? error.message : String(error) };
 
-            return {
-                content: [
-                    {
-                        type: 'text' as const,
-                        text: JSON.stringify(errorResponse, null, 2),
-                    },
-                ],
-                isError: true,
-            };
+            return toToolError(errorResponse);
         }
     });
 
@@ -216,4 +162,47 @@ export async function runServer(): Promise<void> {
     const server = createServer();
     const transport = new StdioServerTransport();
     await server.connect(transport);
+}
+
+async function callMemoryTool(
+    name: string,
+    args: unknown,
+    semanticEnabled: boolean,
+): Promise<unknown | undefined> {
+    // Backward-compat: accept deprecated dotted names so agents with
+    // stale prompts/templates continue to work. Remove in next major.
+    if (name === 'memory_storeKnowledge' || name === 'memory.storeKnowledge') {
+        const input = args as StoreKnowledgeInput;
+        return semanticEnabled ? await storeKnowledgeSemantic(input) : storeKnowledge(input);
+    }
+
+    if (name === 'memory_updateKnowledge' || name === 'memory.updateKnowledge') {
+        const input = args as UpdateKnowledgeInput;
+        return semanticEnabled ? await updateKnowledgeSemantic(input) : updateKnowledge(input);
+    }
+
+    if (name === 'memory_searchKnowledge' || name === 'memory.searchKnowledge') {
+        const input = args as SearchKnowledgeInput;
+        return semanticEnabled ? await searchKnowledgeHybrid(input) : searchKnowledge(input);
+    }
+
+    return undefined;
+}
+
+function toToolResponse(result: unknown): ToolResponse {
+    return {
+        content: [
+            {
+                type: 'text',
+                text: JSON.stringify(result, null, 2),
+            },
+        ],
+    };
+}
+
+function toToolError(error: unknown): ToolResponse {
+    return {
+        ...toToolResponse(error),
+        isError: true,
+    };
 }
