@@ -43,4 +43,19 @@ describe('semantic retrieval primitives', () => {
         expect(first).toEqual(second);
         expect(first[1]?.retrieval).toMatchObject({ lexicalRank: 1, semanticRank: null });
     });
+
+    it('suppresses weak semantic-only candidates without discarding lexical matches', () => {
+        const item = (id: string) => ({ id, title: id, content: 'x', tags: [], scope: 'global', score: 1 });
+        const results = fuseSearchResults(
+            [item('lexical-low-similarity')],
+            [
+                { ...item('lexical-low-similarity'), similarity: 0.2 },
+                { ...item('semantic-low-similarity'), similarity: 0.49 },
+                { ...item('semantic-confident'), similarity: 0.5 },
+            ],
+            5,
+        );
+
+        expect(results.map(result => result.id)).toEqual(['lexical-low-similarity', 'semantic-confident']);
+    });
 });
