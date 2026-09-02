@@ -37,4 +37,3 @@ Each candidate was applied, built, and measured against the same expanded-100 fi
 - No migration, deployment configuration, or rollback operation is required.
 - Reverting the two selected commits restores the previous fusion policy.
 - The threshold can reduce result count for weak semantic-only queries; the API already permits fewer results than the requested maximum.
-

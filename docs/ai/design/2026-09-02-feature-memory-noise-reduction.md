@@ -54,4 +54,3 @@ The rank-discount experiment remains visible in Git history and was reverted bef
 - Security/privacy: unchanged local inference and data handling.
 - Reliability: semantic failure still degrades to lexical-only search.
 - Compatibility: no public type, response, configuration, or schema change.
-

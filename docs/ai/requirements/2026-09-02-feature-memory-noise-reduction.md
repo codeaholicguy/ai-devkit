@@ -52,4 +52,3 @@ Two failures were weak semantic-only fillers. Four were lexical distractors rein
 ## Assumptions and Follow-up
 
 The current fixture is sufficient for a release-gating comparison but not a final precision estimate. The benchmark should eventually judge the pooled lexical and hybrid top-three results: only 127 of 360 unique query/result pairs are currently judged, leaving 233 missing judgments.
-
