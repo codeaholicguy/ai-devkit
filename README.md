@@ -205,6 +205,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Cursor](https://cursor.sh/) | yes | — |
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |
+| [Antigravity CLI](https://antigravity.google/) | yes | yes |
 | [Amp](https://ampcode.com/) | yes | — |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | — |
 | [Roo Code](https://roocode.com/) | testing | — |
