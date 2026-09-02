@@ -50,17 +50,28 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     '/sessions/pi.jsonl': '',
     [path.join(homeDir, '.pi', 'agent', 'auth.json')]: JSON.stringify({ provider: 'anthropic' }),
   };
-  for (const directory of ['.codex', '.pi', '.claude']) files[path.join(homeDir, directory)] = '<dir>';
+  for (const directory of ['.codex', '.pi', '.claude', '.copilot', '.gemini', '.grok', '.config/opencode']) {
+    files[path.join(homeDir, directory)] = '<dir>';
+  }
   for (const [agent, skillRoot] of [
     ['codex', path.join(homeDir, '.codex', 'skills')],
     ['pi', path.join(homeDir, '.pi', 'agent', 'skills')],
     ['claude', path.join(homeDir, '.claude', 'skills')],
+    ['copilot', path.join(homeDir, '.copilot', 'skills')],
+    ['grok_cli', path.join(homeDir, '.grok', 'skills')],
+    ['opencode', path.join(homeDir, '.config', 'opencode', 'skills')],
   ] as const) {
     void agent;
     for (const skill of builtIns) files[path.join(skillRoot, skill, 'SKILL.md')] = '# skill';
   }
   const executablePaths: Record<string, string> = {
-    codex: '/bin/codex', pi: '/bin/pi', claude: '/bin/claude', tmux: '/bin/tmux',
+    codex: '/bin/codex',
+    pi: '/bin/pi',
+    claude: '/bin/claude',
+    copilot: '/bin/copilot',
+    grok_cli: '/bin/grok',
+    opencode: '/bin/opencode',
+    tmux: '/bin/tmux',
   };
   const options: StatusServiceOptions = {
     cwd,
@@ -82,6 +93,8 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
       if (command === 'tmux') return { stdout: 'tmux 3.4\n', stderr: '' };
       if (command === 'pi') return { stdout: '@ai-devkit/pi-session-tracker\n', stderr: '' };
       if (command === 'claude') return { stdout: JSON.stringify({ loggedIn: true }), stderr: '' };
+      if (command === 'gh') return { stdout: 'github.com\n  Logged in to github.com account test-user\n', stderr: '' };
+      if (command === 'opencode') return { stdout: '●  litellm api\n●  OpenAI oauth\n', stderr: '' };
       if (command === 'npm') return { stdout: '0.56.0\n', stderr: '' };
       throw new Error(`unexpected command ${command} ${args.join(' ')}`);
     }),
@@ -99,12 +112,15 @@ describe('getStatusReport', () => {
     expect(report.generatedAt).toBe('2026-08-23T00:00:00.000Z');
     expect(report.agents.codex.executable.path).toBe('/bin/codex');
     expect(report.agents.codex.auth.state).toBe('authenticated');
-    expect(report.agents.codex.builtInSkills.missing).toEqual([]);
-    expect(report.agents.codex.hooks.mappingFile).toMatchObject({ valid: true, staleEntries: 0 });
-    expect(report.agents.pi.hooks.sessionTracker).toMatchObject({ installed: true, registryValid: true });
-    expect(report.agents.pi.auth).toMatchObject({ state: 'unknown', status: 'warn' });
-    expect(report.agents.claude.hooks.registration).toMatchObject({ present: true, valid: true });
-    expect(report.tmux).toMatchObject({ path: '/bin/tmux', available: true, version: '3.4' });
+    expect(report.agents.codex.integration).toMatchObject({ label: 'ai-devkit hook', installed: true, status: 'pass' });
+    expect(report.agents.pi.integration).toMatchObject({ label: 'ai-devkit plugin', installed: true, status: 'pass' });
+    expect(report.agents.claude.integration).toMatchObject({ label: 'ai-devkit hook', installed: true, status: 'pass' });
+    expect(Object.keys(report.agents)).toEqual(['claude', 'codex', 'copilot', 'grok_cli', 'opencode', 'pi']);
+    expect(report.agents.copilot.integration).toBeUndefined();
+    expect(report.agents).not.toHaveProperty('gemini_cli');
+    expect(report.agents.opencode.auth?.status).toBe('pass');
+    expect(report.agents.copilot.auth?.status).toBe('pass');
+    expect(report.tmux).toMatchObject({ path: 'tmux', available: true, version: '3.4' });
     expect(report.registries.project.configured).toMatchObject({ project: 'https://example.test/project.git' });
     expect(report.registries.global.configured).toEqual({ global: 'https://example.test/global.git' });
     expect(report.aiDevkit).toMatchObject({ installedVersion: '0.55.0', latestVersion: '0.56.0', updateAvailable: true });
@@ -113,10 +129,85 @@ describe('getStatusReport', () => {
       expect.objectContaining({ name: 'telegram', ready: true }),
       expect.objectContaining({ name: 'slack', ready: true }),
     ]));
-    expect(report.checks.warnings).toBeGreaterThan(0);
+    expect(report.checks.warnings).toBe(0);
     expect(report.registries.project.configured.private).toBe('https://example.test/private.git');
     expect(JSON.stringify(report)).not.toContain('registry-secret');
     expect(JSON.stringify(report)).not.toContain('query-secret');
+  });
+
+  it('checks built-in skills concurrently across each agent skill root', async () => {
+    const { options } = fixture();
+    let activeSkillChecks = 0;
+    let maxActiveSkillChecks = 0;
+    const baseAccess = options.access!;
+    const access: StatusServiceOptions['access'] = async (target, mode) => {
+      if (!target.endsWith('SKILL.md')) return baseAccess(target, mode);
+      activeSkillChecks += 1;
+      maxActiveSkillChecks = Math.max(maxActiveSkillChecks, activeSkillChecks);
+      await new Promise(resolve => setTimeout(resolve, 1));
+      try {
+        await baseAccess(target, mode);
+      } finally {
+        activeSkillChecks -= 1;
+      }
+    };
+
+    await getStatusReport({ ...options, access });
+
+    expect(maxActiveSkillChecks).toBeGreaterThan(3);
+  });
+
+  it('uses the shared tmux inspection without a PATH preflight', async () => {
+    const { options } = fixture({
+      path: '',
+      runCommand: vi.fn(async (command, args) => {
+        if (command === 'tmux') return { stdout: 'tmux 3.5\n', stderr: '' };
+        if (command === 'pi') return { stdout: '@ai-devkit/pi-session-tracker\n', stderr: '' };
+        if (command === 'claude') return { stdout: JSON.stringify({ loggedIn: true }), stderr: '' };
+        if (command === 'gh') return { stdout: 'github.com\n  Logged in to github.com account test-user\n', stderr: '' };
+        if (command === 'opencode') return { stdout: '●  litellm api\n', stderr: '' };
+        if (command === 'npm') return { stdout: '0.56.0\n', stderr: '' };
+        throw new Error(`unexpected command ${command} ${args.join(' ')}`);
+      }),
+    });
+
+    const report = await getStatusReport(options);
+
+    expect(report.tmux).toMatchObject({ path: 'tmux', available: true, version: '3.5', status: 'pass' });
+  });
+
+  it('excludes adapters without executables from scored readiness checks', async () => {
+    const { options } = fixture();
+    const baseAccess = options.access!;
+    const access: StatusServiceOptions['access'] = async (target, mode) => {
+      if (target === '/bin/grok' || target === path.join(options.homeDir!, '.grok')) {
+        throw new Error('missing');
+      }
+      return baseAccess(target, mode);
+    };
+
+    const report = await getStatusReport({ ...options, access });
+
+    expect(report.agents.grok_cli.executable).toMatchObject({ path: null, status: 'fail' });
+    expect(report.agents.grok_cli.globalConfig.status).toBe('fail');
+    expect(report.overall).toBe('pass');
+    expect(report.checks.failed).toBe(0);
+  });
+
+  it('warns when project configuration is missing', async () => {
+    const { options, files } = fixture();
+    delete files[path.join(options.cwd!, '.ai-devkit.json')];
+
+    const report = await getStatusReport(options);
+
+    expect(report.project.config).toMatchObject({
+      present: false,
+      valid: false,
+      status: 'warn',
+      errors: ['project configuration is missing'],
+    });
+    expect(report.overall).toBe('warn');
+    expect(report.checks.failed).toBe(0);
   });
 
   it('returns independent findings when files, commands, auth, and npm are unavailable', async () => {
@@ -147,19 +238,23 @@ describe('getStatusReport', () => {
 
     const report = await getStatusReport(options);
     const serialized = JSON.stringify(report);
-    expect(report.agents.codex.hooks.mappingFile.status).toBe('fail');
-    expect(report.channels.config).toMatchObject({ present: true, validJson: false, validSchema: false, status: 'fail' });
+    expect(report.agents.codex.integration?.details?.mappingFile).toMatchObject({ status: 'fail' });
+    expect(report.channels.config).toMatchObject({ present: true, validJson: false, validSchema: false });
     expect(serialized).not.toContain('token-secret');
     expect(serialized).not.toContain('channel-secret');
   });
 
-  it('marks the channel schema invalid when an entry is structurally incomplete', async () => {
+  it('reports channel schema as informational when an entry is structurally incomplete', async () => {
     const { options, files } = fixture();
     files[path.join(options.homeDir!, '.ai-devkit', 'channels.json')] = JSON.stringify({
       channels: { broken: { type: 'slack', enabled: true, config: { appToken: 'xapp-secret' } } },
     });
     const report = await getStatusReport(options);
-    expect(report.channels.config).toMatchObject({ validJson: true, validSchema: false, status: 'fail' });
-    expect(report.channels.connections[0]).toMatchObject({ ready: false, status: 'fail' });
+    expect(report.channels.config).toMatchObject({ validJson: true, validSchema: false });
+    expect(report.channels.connections[0]).toMatchObject({ ready: false, errors: ['channel configuration is not ready'] });
+    expect(report.registries).not.toHaveProperty('status');
+    expect(report.channels).not.toHaveProperty('status');
+    expect(report.channels.connections[0]).not.toHaveProperty('status');
   });
+
 });

@@ -1,13 +1,32 @@
 import chalk from 'chalk';
+import type { AgentReadinessReport, ReadinessAgentType } from '@ai-devkit/agent-manager';
 import { ui } from '../../util/terminal-ui.js';
 import type { CheckStatus, StatusReport } from '../../services/status/status.service.js';
 
 function statusStyle(text: string): string {
-  return text === 'pass' ? chalk.green(text) : text === 'warn' ? chalk.yellow(text) : chalk.red(text);
+  if (text === 'ready' || text === 'pass') return chalk.green(text);
+  if (text === 'not ready' || text === 'warn') return chalk.yellow(text);
+  if (text === 'fail') return chalk.red(text);
+  return chalk.dim(text);
 }
 
-function yesNo(value: boolean): string {
-  return value ? 'yes' : 'no';
+function statusLabel(status: CheckStatus | 'info'): string {
+  if (status === 'pass') return 'ready';
+  if (status === 'warn') return 'not ready';
+  return status;
+}
+
+function installed(value: boolean): string {
+  return value ? 'installed' : 'not installed';
+}
+
+function authEvidence(auth: NonNullable<AgentReadinessReport['auth']>): string {
+  return auth.provider ?? auth.state;
+}
+
+function agentEntries(report: StatusReport): Array<[ReadinessAgentType, AgentReadinessReport]> {
+  return (Object.entries(report.agents) as Array<[ReadinessAgentType, AgentReadinessReport]>)
+    .filter(([, agent]) => agent.executable.path !== null);
 }
 
 export function renderStatusReport(report: StatusReport, options: { json?: boolean } = {}): void {
@@ -20,15 +39,15 @@ export function renderStatusReport(report: StatusReport, options: { json?: boole
   ui.table({
     headers: ['Scope', 'Status', 'Details'],
     rows: [
-      ['overall', report.overall, `${report.checks.passed} pass · ${report.checks.warnings} warn · ${report.checks.failed} fail`],
-      ['ai-devkit', report.aiDevkit.status, report.aiDevkit.latestVersion
+      ['overall', statusLabel(report.overall), `${report.checks.passed} ready · ${report.checks.warnings} not ready · ${report.checks.failed} fail`],
+      ['ai-devkit', statusLabel(report.aiDevkit.status), report.aiDevkit.latestVersion
         ? `${report.aiDevkit.installedVersion} (latest ${report.aiDevkit.latestVersion})`
         : `${report.aiDevkit.installedVersion} (latest unknown)`],
-      ['project', report.project.config.status, report.project.config.path],
-      ['tmux', report.tmux.status, report.tmux.available ? `${report.tmux.path} · ${report.tmux.version ?? 'unknown'}` : 'unavailable'],
-      ['registries', report.registries.status,
+      ['project', statusLabel(report.project.config.status), report.project.config.path],
+      ['tmux', statusLabel(report.tmux.status), report.tmux.available ? `${report.tmux.path} · ${report.tmux.version ?? 'unknown'}` : 'unavailable'],
+      ['registries', 'info',
         `${Object.keys(report.registries.project.configured).length} project · ${Object.keys(report.registries.global.configured).length} global`],
-      ['channels', report.channels.status, `${report.channels.readyCount}/${report.channels.connections.length} ready`],
+      ['channels', 'info', `${report.channels.readyCount}/${report.channels.connections.length} ready`],
     ],
     maxWidth: process.stdout.columns ?? 120,
     columnStyles: [chalk.cyan, statusStyle, chalk.dim],
@@ -37,30 +56,32 @@ export function renderStatusReport(report: StatusReport, options: { json?: boole
   ui.text('Agents:', { breakline: true });
   ui.table({
     headers: ['Agent', 'Status'],
-    rows: (['codex', 'pi', 'claude'] as const).map(agent => [agent, report.agents[agent].status]),
+    rows: agentEntries(report).map(([agent, item]) => [agent, statusLabel(item.status)]),
     maxWidth: process.stdout.columns ?? 120,
     columnStyles: [chalk.cyan, statusStyle],
   });
 
-  const details: Array<[string, CheckStatus, string]> = [];
-  for (const agent of ['codex', 'pi', 'claude'] as const) {
-    const item = report.agents[agent];
+  ui.text('Checks:', { breakline: true });
+  const details: Array<[string, string, string]> = [];
+  for (const [agent, item] of agentEntries(report)) {
     details.push(
-      [`${agent}: executable`, item.executable.status, item.executable.path ?? 'not found'],
-      [`${agent}: config`, item.globalConfig.status, item.globalConfig.path],
-      [`${agent}: auth`, item.auth.status, item.auth.state],
-      [`${agent}: skills`, item.builtInSkills.status, `${item.builtInSkills.present}/${item.builtInSkills.required}`],
-      [`${agent}: hooks`, item.hooks.status, yesNo(item.hooks.status === 'pass')],
+      [`${agent}: executable`, statusLabel(item.executable.status), item.executable.path ?? 'not found'],
+      [`${agent}: config`, statusLabel(item.globalConfig.status), item.globalConfig.path],
+      [`${agent}: ai-devkit built-in skills`, statusLabel(item.builtInSkills.status), `${item.builtInSkills.present}/${item.builtInSkills.required}`],
     );
+    if (item.auth) {
+      details.push([`${agent}: auth`, statusLabel(item.auth.status), authEvidence(item.auth)]);
+      if (item.auth.availableProviders.length) {
+        details.push([`${agent}: providers`, 'info', item.auth.availableProviders.join(', ')]);
+      }
+    }
+    if (item.integration) {
+      details.push([`${agent}: ${item.integration.label}`, statusLabel(item.integration.status), installed(item.integration.installed)]);
+    }
   }
   ui.table({
     headers: ['Check', 'Status', 'Evidence'], rows: details,
     maxWidth: process.stdout.columns ?? 120,
     columnStyles: [chalk.cyan, statusStyle, chalk.dim],
   });
-
-  for (const agent of ['codex', 'pi', 'claude'] as const) {
-    const missing = report.agents[agent].builtInSkills.missing;
-    if (missing.length) ui.warning(`${agent} missing built-in skills: ${missing.join(', ')}`);
-  }
 }

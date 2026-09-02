@@ -10,14 +10,27 @@ vi.mock('../../util/terminal-ui.js', () => ({
 }));
 
 const base = { status: 'pass' as const, errors: [] as string[] };
-function agent(status: 'pass' | 'warn' | 'fail') {
+function agent(status: 'pass' | 'warn' | 'fail', options: {
+  auth?: boolean;
+  integration?: { label: string; installed: boolean };
+  executablePath?: string | null;
+  builtInSkills?: { status: 'info'; present: number; required: number; missing: string[] };
+} = {}) {
   return {
+    type: 'codex',
     status,
-    executable: { ...base, command: 'agent', path: '/bin/agent' },
+    executable: {
+      status: options.executablePath === null ? 'fail' : 'pass',
+      errors: options.executablePath === null ? ['agent was not found on PATH'] : [],
+      command: 'agent',
+      path: options.executablePath === undefined ? '/bin/agent' : options.executablePath,
+    },
     globalConfig: { ...base, path: '~/.agent', present: true, readable: true },
-    auth: { ...base, state: 'authenticated', source: 'test' },
-    builtInSkills: { ...base, path: '~/.agent/skills', required: 20, present: 20, missing: [] },
-    hooks: { status: 'pass' },
+    builtInSkills: options.builtInSkills
+      ? { status: options.builtInSkills.status, errors: ['required built-in skills are missing'], path: '~/.agent/skills', ...options.builtInSkills }
+      : { status: 'info' as const, errors: [], path: '~/.agent/skills', required: 20, present: 20, missing: [] },
+    ...(options.auth ? { auth: { ...base, state: 'authenticated', source: 'test', provider: null, availableProviders: [] } } : {}),
+    ...(options.integration ? { integration: { ...base, ...options.integration } } : {}),
   };
 }
 const report = {
@@ -26,11 +39,27 @@ const report = {
   aiDevkit: { ...base, installedVersion: '0.55.0', latestVersion: '0.56.0', updateAvailable: true, latestVersionSource: 'npm' },
   project: { cwd: '/repo', config: { ...base, path: '/repo/.ai-devkit.json', present: true, valid: true, version: '0.55.0', environments: ['codex'] } },
   agents: {
-    codex: agent('pass'), pi: agent('warn'), claude: agent('fail'),
+    codex: { ...agent('pass', { auth: true, integration: { label: 'ai-devkit hook', installed: true } }), type: 'codex' },
+    pi: {
+      ...agent('warn', { auth: true, integration: { label: 'ai-devkit plugin', installed: true } }),
+      type: 'pi',
+      auth: { ...base, state: 'authenticated', source: 'test', provider: null, availableProviders: ['anthropic'] },
+    },
+    claude: { ...agent('fail', { auth: true, integration: { label: 'ai-devkit hook', installed: true } }), type: 'claude' },
+    copilot: { ...agent('pass'), type: 'copilot' },
+    grok_cli: { ...agent('fail', { executablePath: null }), type: 'grok_cli' },
+    opencode: {
+      ...agent('pass', {
+        auth: true,
+        builtInSkills: { status: 'info', present: 19, required: 20, missing: ['verify'] },
+      }),
+      type: 'opencode',
+      auth: { ...base, state: 'authenticated', source: 'opencode auth list', provider: null, availableProviders: ['OpenAI', 'litellm'] },
+    },
   },
   tmux: { ...base, path: '/bin/tmux', available: true, version: '3.4' },
-  registries: { project: { ...base, source: '/repo/.ai-devkit.json', configured: {} }, global: { ...base, source: '~/.ai-devkit/.ai-devkit.json', configured: {} }, status: 'pass' },
-  channels: { config: { ...base, path: '~/.ai-devkit/channels.json', present: true, validJson: true, validSchema: true }, connections: [], readyCount: 0, status: 'pass' },
+  registries: { project: { source: '/repo/.ai-devkit.json', configured: {}, errors: [] }, global: { source: '~/.ai-devkit/.ai-devkit.json', configured: {}, errors: [] } },
+  channels: { config: { path: '~/.ai-devkit/channels.json', present: true, validJson: true, validSchema: true, errors: [] }, connections: [], readyCount: 0 },
   checks: { passed: 20, warnings: 1, failed: 1 },
 } as unknown as StatusReport;
 
@@ -48,10 +77,33 @@ describe('status command', () => {
   it('renders human status with shared terminal tables', () => {
     renderStatusReport(report);
     expect(ui.text).toHaveBeenCalledWith('AI DevKit Status:', { breakline: true });
+    expect(ui.text).toHaveBeenCalledWith('Checks:', { breakline: true });
     expect(ui.table).toHaveBeenCalledWith(expect.objectContaining({
       headers: ['Agent', 'Status'],
-      rows: [['codex', 'pass'], ['pi', 'warn'], ['claude', 'fail']],
+      rows: [
+        ['codex', 'ready'],
+        ['pi', 'not ready'],
+        ['claude', 'fail'],
+        ['copilot', 'ready'],
+        ['opencode', 'ready'],
+      ],
     }));
+    expect(ui.table).toHaveBeenCalledWith(expect.objectContaining({
+      headers: ['Check', 'Status', 'Evidence'],
+      rows: expect.arrayContaining([
+        ['codex: ai-devkit built-in skills', 'info', '20/20'],
+        ['codex: ai-devkit hook', 'ready', 'installed'],
+        ['pi: ai-devkit plugin', 'ready', 'installed'],
+        ['pi: providers', 'info', 'anthropic'],
+        ['opencode: ai-devkit built-in skills', 'info', '19/20'],
+        ['opencode: auth', 'ready', 'authenticated'],
+        ['opencode: providers', 'info', 'OpenAI, litellm'],
+      ]),
+    }));
+    const checkRows = (vi.mocked(ui.table).mock.calls[2][0].rows ?? []) as Array<[string, string, string]>;
+    expect(checkRows.some(([label]) => label.startsWith('grok_cli:'))).toBe(false);
+    expect(checkRows).not.toContainEqual(['codex: ai-devkit built-in skills', 'pass', '20/20']);
+    expect(ui.warning).not.toHaveBeenCalledWith(expect.stringContaining('missing built-in skills'));
   });
 
   it('registers the top-level status command and passes json intent', async () => {
