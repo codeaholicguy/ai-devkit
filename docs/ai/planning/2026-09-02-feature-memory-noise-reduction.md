@@ -20,7 +20,7 @@ description: Track diagnosis, isolated experiments, selected implementation, and
 - [x] Add deterministic unit tests for both selected ranking rules.
 - [x] Prove the tests fail when the selected implementation is removed.
 - [x] Run final build, full test, lint, and E2E gates after documentation changes.
-- [ ] Publish the branch and open a review request without merging.
+- [x] Publish the branch and open a review request without merging.
 
 ## Dependencies and Sequencing
 
