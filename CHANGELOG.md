@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.60.0] - 2026-09-03
+
+- [d105b57](https://github.com/codeaholicguy/ai-devkit/pull/212) Reduced hybrid semantic noise with a 0.50 cosine floor for semantic-only results and a tighter RRF constant (60 to 10), preserving the full recall gain: judged irrelevant top-3 results fell from 4.7% to 2.5%, known-bad results from 6 to 3, and hit@3 remained 97%.
+
 ## [0.59.0] - 2026-09-02
 
 - [f077fa1](https://github.com/codeaholicguy/ai-devkit/pull/191) Added a read-only tmux prerequisite check to setup and platform-aware installation hints to managed agent startup.
