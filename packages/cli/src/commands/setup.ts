@@ -31,15 +31,6 @@ export async function setupCommand(options: SetupCommandOptions = {}): Promise<v
 
   const tmuxDeps = createTmuxInspectionDeps();
   const tmux = await inspectTmux(tmuxDeps);
-  ui.text('Host Prerequisites');
-  if (tmux.state === 'available') {
-    ui.success(tmux.version ? `tmux ${tmux.version} available` : `${tmux.rawVersion} available`);
-  } else if (tmux.state === 'missing') {
-    const instructions = await resolveTmuxInstallInstructions(tmuxDeps);
-    ui.warning(`tmux is required for interactive managed agents. ${instructions.message} Setup will continue.`);
-  } else {
-    ui.warning(`Could not run tmux -V (${tmux.rawVersion}). Setup will continue.`);
-  }
 
   const report = await createSetupService().run({ agents });
   const counts = countStatuses(report.results.map(result => result.status));
@@ -62,6 +53,18 @@ export async function setupCommand(options: SetupCommandOptions = {}): Promise<v
       result.message,
     ]),
   });
+
+  if (tmux.state === 'available') {
+    ui.text('Host Prerequisites');
+    ui.success(tmux.version ? `tmux ${tmux.version} available` : `${tmux.rawVersion} available`);
+  } else if (tmux.state === 'missing') {
+    const instructions = await resolveTmuxInstallInstructions(tmuxDeps);
+    ui.text('Next steps');
+    ui.warning(`Next step: install tmux (${instructions.command}), then run ai-devkit setup again to start managed agents.`);
+  } else {
+    ui.text('Next steps');
+    ui.warning(`tmux check could not run (${tmux.rawVersion}) — verify tmux works before starting agents.`);
+  }
 
   process.exitCode = counts.failed > 0 ? 1 : 0;
 }
