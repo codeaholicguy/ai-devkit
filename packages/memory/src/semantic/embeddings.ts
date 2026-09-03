@@ -1,7 +1,8 @@
 import type { SearchResultItem, SearchRetrievalExplanation } from '../domain/knowledge/types.js';
 
 export const EMBEDDING_DIMENSION = 384;
-export const RRF_K = 60;
+export const RRF_K = 10;
+const SEMANTIC_ONLY_MIN_SIMILARITY = 0.5;
 
 interface EmbeddingDocument {
     title: string;
@@ -92,6 +93,7 @@ export function fuseSearchResults(
             existing.similarity = candidate.similarity;
             return;
         }
+        if (candidate.similarity < SEMANTIC_ONLY_MIN_SIMILARITY) return;
         const { similarity, ...item } = candidate;
         fused.set(candidate.id, {
             item: { ...item, score: 0 },
