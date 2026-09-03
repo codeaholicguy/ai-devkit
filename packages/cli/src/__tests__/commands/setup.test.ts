@@ -105,7 +105,13 @@ describe('setup command', () => {
 
     await program.parseAsync(['node', 'test', 'setup']);
 
-    expect(mockUi.warning).toHaveBeenCalledWith(expect.stringContaining('sudo apt-get install tmux'));
+    expect(mockUi.text).toHaveBeenCalledWith('Next steps');
+    expect(mockUi.warning).toHaveBeenCalledWith(
+      'Next step: install tmux (sudo apt-get update && sudo apt-get install tmux), then run ai-devkit setup again to start managed agents.',
+    );
+    expect(mockInspectTmux.mock.invocationCallOrder[0]).toBeLessThan(mockSetupService.run.mock.invocationCallOrder[0]);
+    expect(mockUi.table.mock.invocationCallOrder[0]).toBeLessThan(mockUi.text.mock.invocationCallOrder[0]);
+    expect(mockUi.table.mock.invocationCallOrder[0]).toBeLessThan(mockUi.warning.mock.invocationCallOrder[0]);
     expect(mockSetupService.run).toHaveBeenCalledOnce();
     expect(process.exitCode).toBe(0);
   });
@@ -117,7 +123,12 @@ describe('setup command', () => {
 
     await program.parseAsync(['node', 'test', 'setup']);
 
-    expect(mockUi.warning).toHaveBeenCalledWith(expect.stringContaining('permission denied'));
+    expect(mockUi.text).toHaveBeenCalledWith('Next steps');
+    expect(mockUi.warning).toHaveBeenCalledWith(
+      'tmux check could not run (permission denied) — verify tmux works before starting agents.',
+    );
+    expect(mockInspectTmux.mock.invocationCallOrder[0]).toBeLessThan(mockSetupService.run.mock.invocationCallOrder[0]);
+    expect(mockUi.table.mock.invocationCallOrder[0]).toBeLessThan(mockUi.warning.mock.invocationCallOrder[0]);
     expect(mockSetupService.run).toHaveBeenCalledOnce();
     expect(process.exitCode).toBe(0);
   });
