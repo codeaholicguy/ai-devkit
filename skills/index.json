@@ -795,6 +795,13 @@
       "lastIndexed": 1788056018532
     },
     {
+      "name": "ai-devkit-setup",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/ai-devkit-setup",
+      "description": "AI DevKit · Check local AI DevKit readiness and run setup only when status shows onboarding or harness integration gaps.",
+      "lastIndexed": 1788056018532
+    },
+    {
       "name": "brainstorm",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/brainstorm",

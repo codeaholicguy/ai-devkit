@@ -108,6 +108,20 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "opencode"],
   },
   {
+    name: "ai-devkit-setup",
+    title: "AI DevKit Setup",
+    category: "Setup",
+    summary: "Check local readiness and run AI DevKit setup only when needed.",
+    description:
+      "Use ai-devkit-setup when onboarding AI DevKit, preparing a harness, or repairing local agent integration. It starts with the status report, runs the smallest setup command that addresses detected gaps, and verifies readiness after setup.",
+    useCases: [
+      "Onboard a machine with Codex, Claude Code, or Pi integrations",
+      "Repair missing hooks, session tracking, or built-in skills",
+      "Separate setup-repairable gaps from manual actions like auth or host tool installation",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Pi"],
+  },
+  {
     name: "document-code",
     title: "Document Code",
     category: "Documentation",

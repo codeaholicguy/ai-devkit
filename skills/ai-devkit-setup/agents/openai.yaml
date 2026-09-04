@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI DevKit Setup"
+  short_description: "AI DevKit · Check readiness and run setup only when needed"
+  default_prompt: "Use $ai-devkit-setup to check AI DevKit status, run the smallest needed setup command, and verify readiness after setup."
