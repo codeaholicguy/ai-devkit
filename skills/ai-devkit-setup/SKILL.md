@@ -9,6 +9,10 @@ Use this skill when a user wants to onboard AI DevKit, prepare a harness, repair
 
 Keep the workflow status-driven and simple. Prefer the installed `ai-devkit` binary; if it is unavailable, use `npx ai-devkit@latest`.
 
+## Execution Notes
+
+- Under filesystem sandboxing, run `ai-devkit status --json` and any `ai-devkit setup` command outside the sandbox. These commands inspect and modify host-level agent configuration; sandboxed runs can produce false failures or block setup writes, especially for integrations that execute harness commands and access paths like `~/.pi/agent`.
+
 ## Workflow
 
 1. Run readiness first:
@@ -17,25 +21,17 @@ Keep the workflow status-driven and simple. Prefer the installed `ai-devkit` bin
    ai-devkit status --json
    ```
 
-2. Read the report and identify failed or warning checks that setup can actually address. Setup covers supported local agent integrations such as hooks, built-in skills, and session tracking for `codex`, `pi`, and `claude`; it does not fix unrelated requirements such as missing authentication, unavailable package managers, or host tools that need user installation.
+2. Identify failed or warning checks that setup can fix. Setup covers local integrations like hooks, built-in skills, and session tracking for `codex`, `pi`, and `claude`; it does not fix auth, missing package managers, or host tools requiring user installation.
 
-3. If setup-repairable checks are missing or failed, run the narrowest setup command:
-
-   ```bash
-   ai-devkit setup --agent codex
-   ai-devkit setup --agent pi
-   ai-devkit setup --agent claude
-   ```
-
-   Use comma-separated agents when more than one detected harness needs setup:
+3. Run the narrowest setup command, for example:
 
    ```bash
-   ai-devkit setup --agent codex,claude
+   ai-devkit setup --agent codex,pi,claude
    ```
 
-   If the user asked for broad onboarding and status shows several supported harnesses present, `ai-devkit setup` is acceptable.
+   If the user asked for broad onboarding and several supported harnesses need setup, `ai-devkit setup` is acceptable.
 
-4. Re-run `ai-devkit status --json` after setup and report what changed. Mention any remaining failures as concrete next steps, especially manual actions like signing in to a harness or installing `tmux`.
+4. Re-run `ai-devkit status --json` and report what changed plus any remaining manual actions.
 
 ## Boundaries
 
