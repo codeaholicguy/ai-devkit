@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remote From Telegram"
+  short_description: "AI DevKit · Connect this session to Telegram"
+  default_prompt: "Use $remote-from-telegram to connect the current agent session to an available Telegram channel bridge."
