@@ -31,7 +31,7 @@ description: Ordered TDD tasks for the manifest loader and four consumers
 
 - [x] Task 3.1: Reconcile implementation/testing docs and perform design-alignment review. Evidence: feature lint and diff review.
 - [x] Task 3.2: Run `npm run build`, `npm test`, `npm run lint`, and E2E; fix regressions. Evidence: fresh exit-zero output.
-- [ ] Task 3.3: Create logical commits, rebase onto latest `origin/main`, rerun gates, push, and open the PR. Evidence: clean branch and PR URL.
+- [x] Task 3.3: Create logical commits, rebase onto latest `origin/main`, rerun gates, push, and open the PR. Evidence: clean branch and PR URL.
 
 ## Dependencies and Risks
 
@@ -42,4 +42,4 @@ description: Ordered TDD tasks for the manifest loader and four consumers
 
 ## Progress Summary
 
-The loader, manifest, and four consumers are complete and aligned with the approved design. The latest base added `ai-devkit-setup` after the original brief, so the manifest and safe fallback preserve the current 21-name set rather than regressing offline setup. Focused tests, the six-project build/lint/unit gates, E2E, and feature-doc lint pass. Publication remains.
+The loader, manifest, and four consumers are complete and aligned with the approved design. The latest base added `ai-devkit-setup` after the original brief, so the manifest and safe fallback preserve the current 21-name set rather than regressing offline setup. Focused tests, the six-project build/lint/unit gates, E2E, and feature-doc lint pass. The branch is published for review in PR #214.

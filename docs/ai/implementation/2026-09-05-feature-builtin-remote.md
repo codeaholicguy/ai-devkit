@@ -56,3 +56,9 @@ The remote list controls installation membership. The loader validates the full 
 ## Design Alignment
 
 The implementation matches the approved single-loader data flow, all-or-nothing validation, process-local promise caching, embedded fallback, runtime string typing, and four consumer boundaries. No design deviations or follow-up work were identified.
+
+## Publication
+
+- Branch: `feature-builtin-remote`
+- Pull request: https://github.com/codeaholicguy/ai-devkit/pull/214
+- Merge intentionally left to reviewers.
