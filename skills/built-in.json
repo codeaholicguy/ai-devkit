@@ -1,0 +1,23 @@
+[
+  "agent-communication",
+  "agent-management",
+  "ai-devkit-setup",
+  "dev-commit",
+  "dev-lifecycle",
+  "dev-worktree",
+  "dev-requirements",
+  "dev-design",
+  "dev-planning",
+  "dev-implementation",
+  "dev-testing",
+  "dev-review",
+  "dev-pr",
+  "structured-debug",
+  "document-code",
+  "memory",
+  "task",
+  "simplify-implementation",
+  "brainstorm",
+  "verify",
+  "tdd"
+]

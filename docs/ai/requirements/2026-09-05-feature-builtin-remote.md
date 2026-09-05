@@ -17,7 +17,7 @@ Maintainers need a hand-managed list on `main` so a newly added skill can become
 - Make `skills/built-in.json` on `main` the live source of truth for built-in skill names.
 - Fetch the manifest whenever an init, setup, built-in install, or status flow needs the list.
 - Fetch at most once per CLI process.
-- Preserve working setup and built-in flows during network or manifest failures by using the current 20-name list.
+- Preserve working setup and built-in flows during network or manifest failures by using the current 21-name list from the latest base.
 - Keep the manifest and implementation deliberately small.
 
 ### Non-goals
@@ -37,7 +37,7 @@ Maintainers need a hand-managed list on `main` so a newly added skill can become
 
 ## Success Criteria
 
-- [ ] `skills/built-in.json` is a bare JSON array seeded with the existing 20 names.
+- [ ] `skills/built-in.json` is a bare JSON array seeded with the existing 21 names from the latest base.
 - [ ] A single loader fetches the raw `main` manifest and returns `Promise<readonly string[]>`.
 - [ ] Repeated loader calls in one process share one fetch promise.
 - [ ] The loader accepts only a non-empty array of non-empty, unique, valid skill-name strings.

@@ -13,7 +13,7 @@ import {
   type ReadinessAgentType,
   type ReadinessStatus,
 } from '@ai-devkit/agent-manager';
-import { BUILTIN_SKILL_NAMES } from '../../constants.js';
+import { getBuiltinSkillNames } from '../../lib/BuiltinSkills.js';
 import { filterStringRecord } from '../../util/config.js';
 import { getGlobalSkillPath, isValidEnvironmentCode } from '../../util/env.js';
 import { inspectTmux } from '../../util/tmux.js';
@@ -346,12 +346,13 @@ function leafStatuses(report: Omit<StatusReport, 'overall' | 'checks'>): CheckSt
 
 export async function getStatusReport(options: StatusServiceOptions = {}): Promise<StatusReport> {
   const rt = runtime(options);
+  const builtInSkillNames = await getBuiltinSkillNames();
   const projectPromise = projectConfigCheck(rt);
   const agentOptions: AgentReadinessOptions = {
     homeDir: rt.homeDir,
     path: rt.path,
     assetRoot: rt.assetRoot,
-    builtInSkillNames: BUILTIN_SKILL_NAMES,
+    builtInSkillNames,
     skillRoots: STATUS_SKILL_ROOTS,
     readFile: rt.readFile,
     access: rt.access,

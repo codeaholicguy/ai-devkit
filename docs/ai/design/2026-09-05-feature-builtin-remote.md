@@ -14,7 +14,7 @@ flowchart LR
   L -->|first call| R[raw GitHub main manifest]
   L --> V[validate bare array]
   V -->|valid| N[readonly string list]
-  R -->|network/HTTP/JSON failure| B[embedded 20-name fallback]
+  R -->|network/HTTP/JSON failure| B[embedded 21-name fallback]
   V -->|invalid| B
   N --> C[init / skill / setup / status]
   B --> C

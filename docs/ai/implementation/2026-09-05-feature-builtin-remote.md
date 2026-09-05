@@ -22,7 +22,11 @@ description: Track implementation decisions, files, and design alignment
 
 ## Implementation Notes
 
-No production implementation has started. The design intentionally leaves `SkillManager` unchanged because it already resolves validated runtime names from `skills/<name>/SKILL.md`.
+- Added the live bare-array manifest with the 21 names present on the latest base.
+- Added a single loader that shares its promise, validates remote data, and warns before returning the embedded fallback.
+- Migrated init, skill add, setup, and status to await runtime names.
+- Deleted the obsolete constants module and literal union.
+- Left `SkillManager` unchanged because it already resolves validated runtime names from `skills/<name>/SKILL.md`.
 
 ## Error Handling
 
@@ -34,7 +38,13 @@ The remote list controls installation membership. The loader validates the full 
 
 ## Progress
 
-- [ ] Loader and manifest
-- [ ] Consumer migration
-- [ ] Implementation alignment check
+- [x] Loader and manifest
+- [x] Consumer migration
+- [x] Implementation alignment check
 - [ ] Full validation
+
+## Verification Evidence
+
+- Focused suite: 7 files, 97 tests passed.
+- CLI build: TypeScript declarations and 221 source files compiled successfully.
+- Optional task tracing was unavailable: `npx ai-devkit@latest task list --name builtin-remote --json` returned `unknown command 'task'`.

@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config.js';
 import { GlobalConfigManager } from '../lib/GlobalConfig.js';
 import { SkillManager } from '../lib/SkillManager.js';
-import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../lib/BuiltinSkills.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate, getErrorMessage } from '../util/text.js';
@@ -35,7 +35,7 @@ export function registerSkillCommand(program: Command): void {
             ui.warning('Ignoring registry and skill arguments because --built-in installs the curated AI DevKit set.');
           }
 
-          for (const builtInSkill of BUILTIN_SKILL_NAMES) {
+          for (const builtInSkill of await getBuiltinSkillNames()) {
             await skillManager.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions);
           }
 

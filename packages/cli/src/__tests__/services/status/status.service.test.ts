@@ -1,5 +1,14 @@
 import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
+
+const mockGetBuiltinSkillNames = vi.hoisted(() =>
+  vi.fn(async () => ['remote-one', 'remote-two'])
+);
+
+vi.mock('../../../lib/BuiltinSkills.js', () => ({
+  getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
+}));
+
 import { getStatusReport, type StatusServiceOptions } from '../../../services/status/status.service.js';
 
 type Files = Record<string, string>;
@@ -8,12 +17,7 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
   const homeDir = '/home/test';
   const cwd = '/repo';
   const assetRoot = '/assets';
-  const builtIns = [
-    'agent-communication', 'agent-management', 'dev-commit', 'dev-lifecycle', 'dev-worktree',
-    'dev-requirements', 'dev-design', 'dev-planning', 'dev-implementation', 'dev-testing',
-    'dev-review', 'dev-pr', 'structured-debug', 'document-code', 'memory', 'task',
-    'simplify-implementation', 'brainstorm', 'verify', 'tdd',
-  ];
+  const builtIns = ['remote-one', 'remote-two'];
   const files: Files = {
     [path.join(cwd, '.ai-devkit.json')]: JSON.stringify({
       version: '0.55.0', environments: ['codex', 'pi', 'claude'], phases: [], createdAt: 'now',
@@ -152,9 +156,15 @@ describe('getStatusReport', () => {
       }
     };
 
-    await getStatusReport({ ...options, access });
+    const report = await getStatusReport({ ...options, access });
 
     expect(maxActiveSkillChecks).toBeGreaterThan(3);
+    expect(report.agents.codex.builtInSkills).toMatchObject({
+      required: 2,
+      present: 2,
+      missing: [],
+    });
+    expect(mockGetBuiltinSkillNames).toHaveBeenCalled();
   });
 
   it('uses the shared tmux inspection without a PATH preflight', async () => {
