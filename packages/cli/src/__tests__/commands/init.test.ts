@@ -13,6 +13,7 @@ const {
   mockIsInteractiveTerminal,
   mockReconcileAndInstall,
   mockGetInstallExitCode,
+  mockGetBuiltinSkillNames,
 } = vi.hoisted(() => ({
   mockConfigManager: {
     exists: vi.fn(),
@@ -52,7 +53,10 @@ const {
   mockIsInteractiveTerminal: vi.fn() as any,
   mockReconcileAndInstall: vi.fn() as any,
   mockGetInstallExitCode: vi.fn() as any,
+  mockGetBuiltinSkillNames: vi.fn() as any,
 }));
+
+const BUILTIN_SKILL_FIXTURE = ['remote-one', 'remote-two'];
 
 vi.mock('../../services/install/install.service.js', () => ({
   reconcileAndInstall: (...args: unknown[]) => mockReconcileAndInstall(...args),
@@ -87,6 +91,11 @@ vi.mock('../../lib/SkillManager.js', () => ({
   SkillManager: vi.fn(function () { return mockSkillManager; })
 }));
 
+vi.mock('../../lib/BuiltinSkills.js', () => ({
+  BUILTIN_SKILL_REGISTRY: 'codeaholicguy/ai-devkit',
+  getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
+}));
+
 vi.mock('../../lib/InitTemplate.js', () => ({
   loadInitTemplate: (...args: unknown[]) => mockLoadInitTemplate(...args)
 }));
@@ -100,8 +109,7 @@ vi.mock('../../util/terminal.js', () => ({
 }));
 
 import { initCommand } from '../../commands/init.js';
-import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../../constants.js';
-import { SkillManager } from '../../lib/SkillManager.js';
+import { BUILTIN_SKILL_REGISTRY } from '../../lib/BuiltinSkills.js';
 
 function confirmCallsMatching(pattern: RegExp): any[] {
   return mockConfirm.mock.calls.filter(([config]: any[]) =>
@@ -149,6 +157,7 @@ describe('init command', () => {
       warnings: [], items: [], complete: true
     });
     mockGetInstallExitCode.mockReturnValue(0);
+    mockGetBuiltinSkillNames.mockResolvedValue(BUILTIN_SKILL_FIXTURE);
   });
 
   afterEach(() => {
@@ -287,9 +296,9 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml', builtIn: true });
 
-      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_NAMES.length + 1);
+      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_FIXTURE.length + 1);
       expect(appliedConfig().skills).toContainEqual({ registry: BUILTIN_SKILL_REGISTRY, name: 'debug' });
-      for (const skill of BUILTIN_SKILL_NAMES) {
+      for (const skill of BUILTIN_SKILL_FIXTURE) {
         expect(appliedConfig().skills).toContainEqual({ registry: BUILTIN_SKILL_REGISTRY, name: skill });
       }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
@@ -304,8 +313,8 @@ describe('init command', () => {
 
       await initCommand({ template: './init.yaml', builtIn: true });
 
-      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_NAMES.length);
-      for (const skill of BUILTIN_SKILL_NAMES) {
+      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_FIXTURE.length);
+      for (const skill of BUILTIN_SKILL_FIXTURE) {
         expect(appliedConfig().skills).toContainEqual({ registry: BUILTIN_SKILL_REGISTRY, name: skill });
       }
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
@@ -336,6 +345,7 @@ describe('init command', () => {
       const builtinPromptCalls = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPromptCalls.length).toBe(1);
       expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockGetBuiltinSkillNames).not.toHaveBeenCalled();
     });
 
     it('does not prompt for built-in skills when running in template mode', async () => {
@@ -376,6 +386,7 @@ describe('init command', () => {
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockGetBuiltinSkillNames).not.toHaveBeenCalled();
       expect(mockUi.info).toHaveBeenCalledWith(
         expect.stringMatching(/non-interactive|--built-in/)
       );

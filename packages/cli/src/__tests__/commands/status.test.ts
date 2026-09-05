@@ -28,7 +28,7 @@ function agent(status: 'pass' | 'warn' | 'fail', options: {
     globalConfig: { ...base, path: '~/.agent', present: true, readable: true },
     builtInSkills: options.builtInSkills
       ? { status: options.builtInSkills.status, errors: ['required built-in skills are missing'], path: '~/.agent/skills', ...options.builtInSkills }
-      : { status: 'info' as const, errors: [], path: '~/.agent/skills', required: 20, present: 20, missing: [] },
+      : { status: 'info' as const, errors: [], path: '~/.agent/skills', required: 2, present: 2, missing: [] },
     ...(options.auth ? { auth: { ...base, state: 'authenticated', source: 'test', provider: null, availableProviders: [] } } : {}),
     ...(options.integration ? { integration: { ...base, ...options.integration } } : {}),
   };
@@ -51,7 +51,7 @@ const report = {
     opencode: {
       ...agent('pass', {
         auth: true,
-        builtInSkills: { status: 'info', present: 19, required: 20, missing: ['verify'] },
+        builtInSkills: { status: 'info', present: 1, required: 2, missing: ['remote-two'] },
       }),
       type: 'opencode',
       auth: { ...base, state: 'authenticated', source: 'opencode auth list', provider: null, availableProviders: ['OpenAI', 'litellm'] },
@@ -91,18 +91,18 @@ describe('status command', () => {
     expect(ui.table).toHaveBeenCalledWith(expect.objectContaining({
       headers: ['Check', 'Status', 'Evidence'],
       rows: expect.arrayContaining([
-        ['codex: ai-devkit built-in skills', 'info', '20/20'],
+        ['codex: ai-devkit built-in skills', 'info', '2/2'],
         ['codex: ai-devkit hook', 'ready', 'installed'],
         ['pi: ai-devkit plugin', 'ready', 'installed'],
         ['pi: providers', 'info', 'anthropic'],
-        ['opencode: ai-devkit built-in skills', 'info', '19/20'],
+        ['opencode: ai-devkit built-in skills', 'info', '1/2'],
         ['opencode: auth', 'ready', 'authenticated'],
         ['opencode: providers', 'info', 'OpenAI, litellm'],
       ]),
     }));
     const checkRows = (vi.mocked(ui.table).mock.calls[2][0].rows ?? []) as Array<[string, string, string]>;
     expect(checkRows.some(([label]) => label.startsWith('grok_cli:'))).toBe(false);
-    expect(checkRows).not.toContainEqual(['codex: ai-devkit built-in skills', 'pass', '20/20']);
+    expect(checkRows).not.toContainEqual(['codex: ai-devkit built-in skills', 'pass', '2/2']);
     expect(ui.warning).not.toHaveBeenCalledWith(expect.stringContaining('missing built-in skills'));
   });
 

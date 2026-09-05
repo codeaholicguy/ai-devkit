@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process';
-import { BUILTIN_SKILL_NAMES, BUILTIN_SKILL_REGISTRY } from '../constants.js';
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../lib/BuiltinSkills.js';
 import { ConfigManager } from '../lib/Config.js';
 import { TemplateManager } from '../lib/TemplateManager.js';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';
@@ -71,11 +71,6 @@ function normalizeEnvironmentOption(
     .map(value => value.trim())
     .filter((value): value is EnvironmentCode => value.length > 0);
 }
-
-const BUILTIN_SKILLS: InitTemplateSkill[] = BUILTIN_SKILL_NAMES.map((skill: string) => ({
-  registry: BUILTIN_SKILL_REGISTRY,
-  skill
-}));
 
 async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean> {
   if (options.builtIn) {
@@ -246,7 +241,11 @@ export async function initCommand(options: InitOptions) {
   if (options.builtIn || !hasTemplate) {
     const shouldInstall = await shouldInstallBuiltinSkills(options);
     if (shouldInstall) {
-      desiredSkillEntries.push(...BUILTIN_SKILLS);
+      const builtInSkills: InitTemplateSkill[] = (await getBuiltinSkillNames()).map(skill => ({
+        registry: BUILTIN_SKILL_REGISTRY,
+        skill,
+      }));
+      desiredSkillEntries.push(...builtInSkills);
     }
   }
   const desiredSkills = normalizeSkills(desiredSkillEntries);

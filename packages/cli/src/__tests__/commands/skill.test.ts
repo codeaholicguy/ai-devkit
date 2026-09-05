@@ -5,6 +5,7 @@ import { ui } from '../../util/terminal-ui.js';
 import { SkillManager } from '../../lib/SkillManager.js';
 
 const mockRemoveCache = vi.hoisted(() => vi.fn());
+const mockGetBuiltinSkillNames = vi.hoisted(() => vi.fn());
 
 
 const mockAddSkill = vi.fn();
@@ -51,6 +52,11 @@ vi.mock('../../lib/SkillManager.js', () => ({
   }; }),
 }));
 
+vi.mock('../../lib/BuiltinSkills.js', () => ({
+  BUILTIN_SKILL_REGISTRY: 'codeaholicguy/ai-devkit',
+  getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
+}));
+
 vi.mock('../../util/terminal-ui.js', () => ({
   ui: {
     error: vi.fn(),
@@ -78,6 +84,7 @@ describe('skill command', () => {
     mockGlobalAddSkillRegistry.mockResolvedValue({});
     mockProjectRemoveSkillRegistry.mockResolvedValue({});
     mockGlobalRemoveSkillRegistry.mockResolvedValue({});
+    mockGetBuiltinSkillNames.mockResolvedValue(['remote-one', 'remote-two']);
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
   });
@@ -311,34 +318,16 @@ describe('skill command', () => {
 
     await program.parseAsync(['node', 'test', 'skill', 'add', '--built-in']);
 
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'agent-communication', {
+    expect(mockAddSkill).toHaveBeenCalledTimes(2);
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'remote-one', {
       global: undefined,
       environments: undefined,
     });
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'agent-management', {
+    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'remote-two', {
       global: undefined,
       environments: undefined,
     });
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-commit', {
-      global: undefined,
-      environments: undefined,
-    });
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-worktree', {
-      global: undefined,
-      environments: undefined,
-    });
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-requirements', {
-      global: undefined,
-      environments: undefined,
-    });
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-review', {
-      global: undefined,
-      environments: undefined,
-    });
-    expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'dev-pr', {
-      global: undefined,
-      environments: undefined,
-    });
+    expect(mockGetBuiltinSkillNames).toHaveBeenCalledOnce();
     expect(SkillManager).toHaveBeenCalledTimes(1);
   });
 
