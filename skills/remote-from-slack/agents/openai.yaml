@@ -1,0 +1,4 @@
+interface:
+  display_name: "Remote From Slack"
+  short_description: "AI DevKit · Connect this session to Slack"
+  default_prompt: "Use $remote-from-slack to connect the current agent session to an available Slack channel bridge."
