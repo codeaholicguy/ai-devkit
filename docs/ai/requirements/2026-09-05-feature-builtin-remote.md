@@ -37,17 +37,17 @@ Maintainers need a hand-managed list on `main` so a newly added skill can become
 
 ## Success Criteria
 
-- [ ] `skills/built-in.json` is a bare JSON array seeded with the existing 21 names from the latest base.
-- [ ] A single loader fetches the raw `main` manifest and returns `Promise<readonly string[]>`.
-- [ ] Repeated loader calls in one process share one fetch promise.
-- [ ] The loader accepts only a non-empty array of non-empty, unique, valid skill-name strings.
-- [ ] Network, HTTP, JSON, or validation failure emits a clear warning and returns the embedded current list.
-- [ ] `init`, `skill add --built-in`, setup, and status obtain names through the loader.
-- [ ] A runtime name is passed directly to `SkillManager.addSkill`, which resolves `skills/<name>/SKILL.md` from the refreshed registry without another compiled allowlist.
-- [ ] Status reports `required` and `present` against the live list; on fetch failure it reports against the fallback and warns.
-- [ ] `BUILTIN_SKILL_NAMES` and the unused `BuiltinSkillName` literal union are removed.
-- [ ] Tests never use the real network and cover loader success, promise caching, invalid manifests, fallback, and consumer integration.
-- [ ] Build, unit tests, lint, and the E2E suite pass.
+- [x] `skills/built-in.json` is a bare JSON array seeded with the existing 21 names from the latest base.
+- [x] A single loader fetches the raw `main` manifest and returns `Promise<readonly string[]>`.
+- [x] Repeated loader calls in one process share one fetch promise.
+- [x] The loader accepts only a non-empty array of non-empty, unique, valid skill-name strings.
+- [x] Network, HTTP, JSON, or validation failure emits a clear warning and returns the embedded current list.
+- [x] `init`, `skill add --built-in`, setup, and status obtain names through the loader.
+- [x] A runtime name is passed directly to `SkillManager.addSkill`, which resolves `skills/<name>/SKILL.md` from the refreshed registry without another compiled allowlist.
+- [x] Status reports `required` and `present` against the live list; on fetch failure it reports against the fallback and warns.
+- [x] `BUILTIN_SKILL_NAMES` and the unused `BuiltinSkillName` literal union are removed.
+- [x] Tests never use the real network and cover loader success, promise caching, invalid manifests, fallback, and consumer integration.
+- [x] Build, unit tests, lint, and the E2E suite pass.
 
 ## Constraints & Assumptions
 

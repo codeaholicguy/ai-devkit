@@ -33,17 +33,17 @@ description: Deterministic coverage for remote loading, fallback, and built-in c
 
 ## Integration and End-to-End Tests
 
-- [ ] Existing CLI command and service suites pass with deterministic mocks.
-- [ ] Search E2E tests for compiled 20-skill assumptions and update any affected assertions.
-- [ ] Full E2E suite passes without accessing the live manifest.
+- [x] Existing CLI command and service suites pass with deterministic mocks.
+- [x] Search E2E tests for compiled skill-count assumptions and update any affected assertions.
+- [x] Full E2E suite passes without accessing the live manifest.
 
 ## Verification Gates
 
-- [ ] `npm run build`
-- [ ] `npm test`
-- [ ] `npm run lint`
-- [ ] `npx vitest run --config e2e/vitest.config.ts`
-- [ ] `npx ai-devkit@latest lint --feature builtin-remote`
+- [x] `npm run build`
+- [x] `npm test` (equivalent Nx target run serially after a shared temporary-filesystem quota failure)
+- [x] `npm run lint`
+- [x] `npx vitest run --config e2e/vitest.config.ts`
+- [x] `npx ai-devkit@latest lint --feature builtin-remote`
 
 ## Test Data
 
@@ -53,4 +53,4 @@ description: Deterministic coverage for remote loading, fallback, and built-in c
 
 ## Results
 
-Focused verification passed 97 tests in seven files. The CLI package build also passed. Full workspace and E2E results remain pending.
+Focused verification passed 97 tests in seven files. The full six-project build and lint gates passed. The full unit suite passed 2177 tests across six projects when run serially to avoid the shared temporary-filesystem quota. E2E passed 41 tests. No hardcoded E2E skill-count assertions existed.

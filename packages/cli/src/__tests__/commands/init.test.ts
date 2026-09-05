@@ -110,7 +110,6 @@ vi.mock('../../util/terminal.js', () => ({
 
 import { initCommand } from '../../commands/init.js';
 import { BUILTIN_SKILL_REGISTRY } from '../../lib/BuiltinSkills.js';
-import { SkillManager } from '../../lib/SkillManager.js';
 
 function confirmCallsMatching(pattern: RegExp): any[] {
   return mockConfirm.mock.calls.filter(([config]: any[]) =>
