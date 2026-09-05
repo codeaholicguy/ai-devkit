@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.61.0] - 2026-09-05
 
 - [7ad2afb](https://github.com/codeaholicguy/ai-devkit/pull/213) Show tmux guidance after setup output as next steps.
 - [1547913](https://github.com/codeaholicguy/ai-devkit/pull/214) Fetch the built-in skills list from a remote manifest so new built-ins can ship without a CLI release, with an embedded fallback for offline use.
