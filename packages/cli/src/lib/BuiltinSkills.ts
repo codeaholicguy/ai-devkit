@@ -11,6 +11,8 @@ const FALLBACK_BUILTIN_SKILL_NAMES = [
   'agent-communication',
   'agent-management',
   'ai-devkit-setup',
+  'remote-from-slack',
+  'remote-from-telegram',
   'dev-commit',
   'dev-lifecycle',
   'dev-worktree',

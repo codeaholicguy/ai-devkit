@@ -30,6 +30,8 @@ AI DevKit ships with a core set of skills in its default registry:
 | `agent-communication` | Exchange information with active AI coding agents |
 | `agent-management` | Discover, start, inspect, and manage local coding agents |
 | `ai-devkit-setup` | Check readiness and run setup only when onboarding or integration gaps require it |
+| `remote-from-slack` | Connect the current agent session to an available Slack channel bridge |
+| `remote-from-telegram` | Connect the current agent session to an available Telegram channel bridge |
 | `document-code` | Document code entry points with structured analysis and dependency mapping |
 | `dev-commit` | Commit only intended, verified changes with a conventional message |
 | `dev-lifecycle` | Orchestrate the SDLC workflow and route to phase skills |

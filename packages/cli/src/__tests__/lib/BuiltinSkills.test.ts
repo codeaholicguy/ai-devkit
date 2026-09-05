@@ -40,7 +40,7 @@ describe('getBuiltinSkillNames', () => {
     const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
 
     const names = await getBuiltinSkillNames();
-    expect(names).toHaveLength(21);
+    expect(names).toHaveLength(23);
     expect(names).toContain('agent-communication');
     expect(names).toContain('tdd');
     expect(mockWarning).toHaveBeenCalledWith(
@@ -56,7 +56,7 @@ describe('getBuiltinSkillNames', () => {
 
     const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(21);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
     expect(mockWarning).toHaveBeenCalledWith(
       'Failed to load built-in skills manifest: HTTP 404. Using bundled fallback.'
     );
@@ -72,7 +72,7 @@ describe('getBuiltinSkillNames', () => {
 
     const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(21);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
     expect(mockWarning).toHaveBeenCalledWith(
       'Failed to load built-in skills manifest: Unexpected token. Using bundled fallback.'
     );
@@ -93,7 +93,7 @@ describe('getBuiltinSkillNames', () => {
 
     const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(21);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
     expect(mockWarning).toHaveBeenCalledWith(
       expect.stringMatching(/^Failed to load built-in skills manifest: .+ Using bundled fallback\.$/)
     );
@@ -105,11 +105,13 @@ describe('built-in skills manifest', () => {
     const manifestPath = new URL('../../../../../skills/built-in.json', import.meta.url);
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
-    expect(manifest).toHaveLength(21);
+    expect(manifest).toHaveLength(23);
     expect(manifest).toEqual(expect.arrayContaining([
       'agent-communication',
       'agent-management',
       'ai-devkit-setup',
+      'remote-from-slack',
+      'remote-from-telegram',
       'dev-lifecycle',
       'structured-debug',
       'memory',

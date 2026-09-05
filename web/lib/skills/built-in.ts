@@ -122,6 +122,34 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Pi"],
   },
   {
+    name: "remote-from-slack",
+    title: "Remote From Slack",
+    category: "Remote",
+    summary: "Connect the current agent session to an available Slack channel bridge.",
+    description:
+      "Use remote-from-slack when you want to control or chat with the current session from Slack. It checks AI DevKit readiness, selects an available Slack channel, starts the bridge in daemon mode, and avoids stopping existing bridges without confirmation.",
+    useCases: [
+      "Bridge the current agent session to Slack",
+      "Reuse an existing configured Slack channel",
+      "Start a background channel bridge with a clear stop command",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "opencode", "Pi"],
+  },
+  {
+    name: "remote-from-telegram",
+    title: "Remote From Telegram",
+    category: "Remote",
+    summary: "Connect the current agent session to an available Telegram channel bridge.",
+    description:
+      "Use remote-from-telegram when you want to control or chat with the current session from Telegram. It checks AI DevKit readiness, selects an available Telegram channel, starts the bridge in daemon mode, and avoids stopping existing bridges without confirmation.",
+    useCases: [
+      "Bridge the current agent session to Telegram",
+      "Reuse an existing configured Telegram bot channel",
+      "Start a background channel bridge with a clear stop command",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "opencode", "Pi"],
+  },
+  {
     name: "document-code",
     title: "Document Code",
     category: "Documentation",
