@@ -5,25 +5,21 @@ import { pathToFileURL } from 'node:url';
 import {
   normalizeRegistrySourceInput,
   normalizeRegistrySources,
-  parseRegistrySource,
+  parseLocalRegistryPath,
   planSkillRegistryAdd,
   planSkillRegistryRemove,
 } from '../../util/skill-registry.js';
 
 describe('registry sources', () => {
   it('classifies only file URLs as persisted local sources', () => {
-    expect(parseRegistrySource('https://example.com/skills.git')).toEqual({
-      type: 'git', value: 'https://example.com/skills.git',
-    });
-    expect(parseRegistrySource('git@example.com:org/skills.git').type).toBe('git');
-    expect(parseRegistrySource('file:///tmp/skills')).toEqual({
-      type: 'local', value: 'file:///tmp/skills', path: '/tmp/skills',
-    });
+    expect(parseLocalRegistryPath('https://example.com/skills.git')).toBeNull();
+    expect(parseLocalRegistryPath('git@example.com:org/skills.git')).toBeNull();
+    expect(parseLocalRegistryPath('file:///tmp/skills')).toBe('/tmp/skills');
   });
 
   it('rejects malformed and hosted file URLs instead of treating them as Git', () => {
-    expect(() => parseRegistrySource('file://remote/share')).toThrow(/host/i);
-    expect(() => parseRegistrySource('file:%')).toThrow(/local registry/i);
+    expect(() => parseLocalRegistryPath('file://remote/share')).toThrow(/host/i);
+    expect(() => parseLocalRegistryPath('file:%')).toThrow(/local registry/i);
   });
 
   it('canonicalizes absolute and relative path input at registration time', async () => {

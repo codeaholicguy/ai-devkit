@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   discoverRegistrySkills,
+  LOCAL_REGISTRY_MAX_ENTRIES,
   LOCAL_REGISTRY_MAX_SKILL_MD_BYTES,
   resolveContainedSkill,
 } from '../../util/local-registry.js';
@@ -22,10 +23,27 @@ describe('local registry filesystem boundary', () => {
     await expect(discoverRegistrySkills('test/skills', root)).resolves.toEqual([
       expect.objectContaining({ name: 'safe-skill' }),
     ]);
-    await expect(discoverRegistrySkills('test/skills', root, { maxEntries: 0, maxSkillMdBytes: 1024 }))
-      .rejects.toThrow(/entry limit/i);
-    await expect(discoverRegistrySkills('test/skills', root, { maxEntries: 10, maxSkillMdBytes: 1 }))
-      .rejects.toThrow(/too large/i);
+  });
+
+  it('bounds direct-entry enumeration at the production limit', async () => {
+    const opendir = vi.spyOn(fs, 'opendir').mockResolvedValue({
+      async *[Symbol.asyncIterator]() {
+        for (let index = 0; index <= LOCAL_REGISTRY_MAX_ENTRIES; index += 1) {
+          yield { name: 'invalid_name', isDirectory: () => true, isSymbolicLink: () => false };
+        }
+      },
+    } as Awaited<ReturnType<typeof fs.opendir>>);
+
+    await expect(discoverRegistrySkills('test/skills', root)).rejects.toThrow(/entry limit/i);
+    opendir.mockRestore();
+  });
+
+  it('bounds metadata reads at the production limit', async () => {
+    await fs.writeFile(
+      path.join(root, 'skills', 'safe-skill', 'SKILL.md'),
+      Buffer.alloc(LOCAL_REGISTRY_MAX_SKILL_MD_BYTES + 1),
+    );
+    await expect(discoverRegistrySkills('test/skills', root)).rejects.toThrow(/too large/i);
   });
 
   it('rejects skill and metadata symlinks that escape the registry', async () => {

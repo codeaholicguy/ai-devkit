@@ -77,7 +77,7 @@ describe('skill command', () => {
     mockListGlobalSkills.mockResolvedValue([]);
     mockListSkills.mockResolvedValue([]);
     mockRemoveSkill.mockImplementation(async () => undefined);
-    mockCacheRegistry.mockImplementation(async () => undefined);
+    mockCacheRegistry.mockResolvedValue('/tmp/registry-cache');
     mockUpdateSkillIndexForRegistry.mockImplementation(async () => undefined);
     mockRemoveSkillIndexForRegistry.mockImplementation(async () => undefined);
     mockRemoveCache.mockResolvedValue(undefined);
@@ -161,7 +161,7 @@ describe('skill command', () => {
       'example/private-skills',
       'git@example.com:example/private-skills.git',
     );
-    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('example/private-skills', undefined);
+    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('example/private-skills', '/tmp/registry-cache');
     expect(mockCacheRegistry.mock.invocationCallOrder[0]).toBeLessThan(
       mockUpdateSkillIndexForRegistry.mock.invocationCallOrder[0],
     );

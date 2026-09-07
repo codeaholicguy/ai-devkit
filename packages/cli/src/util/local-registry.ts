@@ -6,22 +6,10 @@ import { extractSkillDescription, isValidSkillName } from './skill.js';
 export const LOCAL_REGISTRY_MAX_ENTRIES = 10_000;
 export const LOCAL_REGISTRY_MAX_SKILL_MD_BYTES = 1024 * 1024;
 
-export interface RegistryDiscoveryLimits {
-  maxEntries: number;
-  maxSkillMdBytes: number;
-}
-
-export interface DiscoveredRegistrySkill {
+interface DiscoveredRegistrySkill {
   name: string;
-  path: string;
-  content: string;
   description: string;
 }
-
-const DEFAULT_LIMITS: RegistryDiscoveryLimits = {
-  maxEntries: LOCAL_REGISTRY_MAX_ENTRIES,
-  maxSkillMdBytes: LOCAL_REGISTRY_MAX_SKILL_MD_BYTES,
-};
 
 function isStrictlyContained(root: string, candidate: string): boolean {
   const relative = path.relative(root, candidate);
@@ -72,7 +60,6 @@ export async function resolveContainedSkill(
 export async function discoverRegistrySkills(
   registryId: string,
   registryRoot: string,
-  limits: RegistryDiscoveryLimits = DEFAULT_LIMITS,
 ): Promise<DiscoveredRegistrySkill[]> {
   const canonicalRoot = await fs.realpath(registryRoot);
   const skillsRoot = await fs.realpath(path.join(canonicalRoot, 'skills'));
@@ -88,27 +75,18 @@ export async function discoverRegistrySkills(
   let entries = 0;
   for await (const entry of directory) {
     entries += 1;
-    if (entries > limits.maxEntries) {
+    if (entries > LOCAL_REGISTRY_MAX_ENTRIES) {
       throw new CliError(
-        `Local registry "${registryId}" exceeds the ${limits.maxEntries} entry limit.`,
+        `Local registry "${registryId}" exceeds the ${LOCAL_REGISTRY_MAX_ENTRIES} entry limit.`,
         'LOCAL_REGISTRY_TOO_LARGE',
       );
     }
     if ((!entry.isDirectory() && !entry.isSymbolicLink()) || !isValidSkillName(entry.name)) continue;
     const skillPath = await resolveContainedSkill(registryId, canonicalRoot, entry.name);
     const metadataPath = path.join(skillPath, 'SKILL.md');
-    const stat = await fs.stat(metadataPath);
-    if (stat.size > limits.maxSkillMdBytes) {
-      throw new CliError(
-        `SKILL.md for "${entry.name}" is too large (${stat.size} bytes; limit ${limits.maxSkillMdBytes}).`,
-        'LOCAL_REGISTRY_TOO_LARGE',
-      );
-    }
     const content = await fs.readFile(metadataPath, 'utf8');
     skills.push({
       name: entry.name,
-      path: skillPath,
-      content,
       description: extractSkillDescription(content),
     });
   }

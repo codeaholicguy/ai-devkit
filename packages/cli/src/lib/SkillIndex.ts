@@ -7,7 +7,7 @@ import { fetchGitHead } from '../util/git.js';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github.js';
 import { ui } from '../util/terminal-ui.js';
 import { getErrorMessage } from '../util/text.js';
-import { parseRegistrySource } from '../util/skill-registry.js';
+import { parseLocalRegistryPath } from '../util/skill-registry.js';
 import { discoverRegistrySkills } from '../util/local-registry.js';
 
 const SEED_INDEX_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/index.json';
@@ -68,7 +68,7 @@ export class SkillIndex {
     }
   }
 
-  async updateRegistryFromCache(registryId: string, registryPath?: string): Promise<void> {
+  async updateRegistryFromCache(registryId: string, registryPath: string): Promise<void> {
     const localSkills = await this.readLocalRegistrySkills(registryId, registryPath);
     if (!localSkills) {
       return;
@@ -174,7 +174,7 @@ export class SkillIndex {
       const batchResults = await Promise.allSettled(
         batch.map(async (registryId) => {
           const gitUrl = registry.registries[registryId];
-          if (parseRegistrySource(gitUrl).type === 'local') {
+          if (parseLocalRegistryPath(gitUrl) !== null) {
             return { registryId, error: 'local registry' };
           }
           const match = gitUrl.match(/github\.com\/([^/]+)\/([^/.]+)/);
@@ -284,7 +284,7 @@ export class SkillIndex {
   private async refreshLocalRegistryEntries(index: SkillIndexData): Promise<SkillIndexData> {
     const registry = await this.registry.fetchMergedRegistry();
     const localIds = Object.entries(registry.registries)
-      .filter(([, value]) => parseRegistrySource(value).type === 'local')
+      .filter(([, value]) => parseLocalRegistryPath(value) !== null)
       .map(([id]) => id);
     if (localIds.length === 0) return index;
     const localSkills = await this.readConfiguredLocalRegistrySkills(registry.registries);
@@ -301,8 +301,7 @@ export class SkillIndex {
     const skills: SkillEntry[] = [];
 
     for (const [registryId, value] of Object.entries(registries)) {
-      const source = parseRegistrySource(value);
-      const registrySkills = source.type === 'local'
+      const registrySkills = parseLocalRegistryPath(value) !== null
         ? await this.readLocalRegistrySkills(
           registryId,
           await this.registry.prepareRegistryRepository(registryId, value),

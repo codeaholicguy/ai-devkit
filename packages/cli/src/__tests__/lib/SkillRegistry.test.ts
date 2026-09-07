@@ -184,9 +184,6 @@ describe('SkillRegistry repository preparation', () => {
       },
     } as Awaited<ReturnType<typeof fs.opendir>>);
     mockedFs.pathExists.mockResolvedValue(true);
-    mockedFs.readdir
-      .mockResolvedValueOnce([{ name: 'example', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>)
-      .mockResolvedValueOnce([{ name: 'skills', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>);
     const registry = createRegistry();
 
     await expect(registry.prepareRegistryRepository(registryId, 'file:///tmp/local-skills'))
@@ -199,9 +196,7 @@ describe('SkillRegistry repository preparation', () => {
     expect(mockedGit.ensureGitInstalled).not.toHaveBeenCalled();
     expect(mockedGit.isGitRepository).not.toHaveBeenCalled();
     expect(mockedGit.pullRepository).not.toHaveBeenCalled();
-    expect(mockedGit.isGitRepository).not.toHaveBeenCalled();
     expect(mockedGit.cloneRepository).not.toHaveBeenCalled();
-    expect(mockUi.info).toHaveBeenCalledWith(`Using local registry ${registryId}: ${localPath}`);
   });
 
   it('does not use a same-ID cache when a local registry is missing', async () => {
@@ -224,9 +219,7 @@ describe('SkillRegistry repository preparation', () => {
       },
     } as Awaited<ReturnType<typeof fs.opendir>>);
     mockedFs.pathExists.mockResolvedValue(true);
-    mockedFs.readdir
-      .mockResolvedValueOnce([{ name: 'example', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>)
-      .mockResolvedValueOnce([{ name: 'skills', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>);
+    mockedFs.readdir.mockResolvedValue([]);
     const registry = new SkillRegistry(
       { getSkillRegistries: vi.fn().mockResolvedValue({ [registryId]: 'file:///tmp/local-skills' }) } as unknown as ConfigManager,
       { getSkillRegistries: vi.fn().mockResolvedValue({}) } as unknown as GlobalConfigManager,

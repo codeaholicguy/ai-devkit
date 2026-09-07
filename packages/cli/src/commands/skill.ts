@@ -8,7 +8,7 @@ import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate, getErrorMessage } from '../util/text.js';
 import { validateRegistryId } from '../util/skill.js';
-import { assertUniqueLocalRegistrySource, normalizeRegistrySources, planSkillRegistryAdd } from '../util/skill-registry.js';
+import { normalizeRegistrySourceInput, normalizeRegistrySources, planSkillRegistryAdd } from '../util/skill-registry.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -76,13 +76,12 @@ export function registerSkillCommand(program: Command): void {
         : new ConfigManager();
 
       const registries = await configManager.getSkillRegistries();
-      const normalized = await normalizeRegistrySources({ ...registries, [id]: source }, process.cwd());
-      const value = normalized[id];
+      const value = await normalizeRegistrySourceInput(source, process.cwd());
       const [projectRegistries, globalRegistries] = await Promise.all([
         options.global ? new ConfigManager().getSkillRegistries() : Promise.resolve(registries),
         options.global ? Promise.resolve(registries) : new GlobalConfigManager().getSkillRegistries(),
       ]);
-      assertUniqueLocalRegistrySource({ ...globalRegistries, ...projectRegistries }, id, value);
+      await normalizeRegistrySources({ ...globalRegistries, ...projectRegistries, [id]: value }, process.cwd());
       const mutation = planSkillRegistryAdd(registries, id, value, { force: options.force });
       if (mutation.status !== 'already-registered') {
         const skillManager = new SkillManager(new ConfigManager());

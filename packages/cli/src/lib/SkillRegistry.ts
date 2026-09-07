@@ -7,7 +7,7 @@ import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } 
 import { ui } from '../util/terminal-ui.js';
 import { getErrorMessage } from '../util/text.js';
 import { CliError, NotFoundError } from '../util/errors.js';
-import { parseRegistrySource } from '../util/skill-registry.js';
+import { parseLocalRegistryPath } from '../util/skill-registry.js';
 import { isValidSkillName } from '../util/skill.js';
 import { LOCAL_REGISTRY_MAX_ENTRIES } from '../util/local-registry.js';
 
@@ -116,7 +116,7 @@ export class SkillRegistry {
       return preparedRepository;
     }
 
-    const preparation = gitUrl && parseRegistrySource(gitUrl).type === 'local'
+    const preparation = gitUrl && parseLocalRegistryPath(gitUrl) !== null
       ? this.prepareLocalRegistry(registryId, gitUrl)
       : this.prepareGitRegistry(registryId, gitUrl);
     this.preparedRepositories.set(registryId, preparation);
@@ -129,20 +129,20 @@ export class SkillRegistry {
   }
 
   private async prepareLocalRegistry(registryId: string, value: string): Promise<string> {
-    const source = parseRegistrySource(value);
-    if (source.type !== 'local') {
+    const localPath = parseLocalRegistryPath(value);
+    if (localPath === null) {
       throw new CliError(`Registry "${registryId}" is not a local source.`, 'INVALID_LOCAL_REGISTRY');
     }
 
     let root: string;
     try {
-      root = await fs.realpath(source.path);
+      root = await fs.realpath(localPath);
       const stat = await fs.stat(root);
       if (!stat.isDirectory()) throw new Error('source is not a directory');
     } catch (error: unknown) {
       throw new NotFoundError(
-        `Local registry "${registryId}" is unavailable at ${source.path}: ${getErrorMessage(error)}. Recreate it or re-register the source.`,
-        { registryId, path: source.path },
+        `Local registry "${registryId}" is unavailable at ${localPath}: ${getErrorMessage(error)}. Recreate it or re-register the source.`,
+        { registryId, path: localPath },
       );
     }
 
@@ -209,9 +209,9 @@ export class SkillRegistry {
     const cacheDir = SKILL_CACHE_DIR;
     const configured = await this.fetchMergedRegistry();
     const localEntries = Object.entries(configured.registries)
-      .filter(([id, value]) => (!registryId || id === registryId) && parseRegistrySource(value).type === 'local');
+      .filter(([id, value]) => (!registryId || id === registryId) && parseLocalRegistryPath(value) !== null);
     const configuredLocalIds = new Set(Object.entries(configured.registries)
-      .filter(([, value]) => parseRegistrySource(value).type === 'local')
+      .filter(([, value]) => parseLocalRegistryPath(value) !== null)
       .map(([id]) => id));
 
     const results: UpdateResult[] = [];

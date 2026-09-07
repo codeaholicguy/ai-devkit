@@ -8,7 +8,7 @@ import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
 import { SkillIndex } from './SkillIndex.js';
 import { getAllEnvironments, getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
 import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill.js';
-import { parseRegistrySource } from '../util/skill-registry.js';
+import { parseLocalRegistryPath } from '../util/skill-registry.js';
 import { discoverRegistrySkills, resolveContainedSkill } from '../util/local-registry.js';
 import { isInteractiveTerminal } from '../util/terminal.js';
 import { ui } from '../util/terminal-ui.js';
@@ -90,7 +90,7 @@ export class SkillManager {
     }
 
     const repoPath = await this.registry.prepareRegistryRepository(registryId, gitUrl);
-    const isLocal = Boolean(gitUrl && parseRegistrySource(gitUrl).type === 'local');
+    const isLocal = Boolean(gitUrl && parseLocalRegistryPath(gitUrl) !== null);
 
     const resolvedSkillNames = skillName
       ? [skillName]
@@ -376,7 +376,7 @@ export class SkillManager {
     return this.index.rebuildIndex(outputPath);
   }
 
-  async updateSkillIndexForRegistry(registryId: string, registryPath?: string): Promise<void> {
+  async updateSkillIndexForRegistry(registryId: string, registryPath: string): Promise<void> {
     return this.index.updateRegistryFromCache(registryId, registryPath);
   }
 
