@@ -23,6 +23,7 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
       version: '0.55.0', environments: ['codex', 'pi', 'claude'], phases: [], createdAt: 'now',
       registries: {
         project: 'https://example.test/project.git',
+        local: 'file:///work/local-registry',
         private: 'https://user:registry-secret@example.test/private.git?token=query-secret',
       },
     }),
@@ -126,6 +127,7 @@ describe('getStatusReport', () => {
     expect(report.agents.copilot.auth?.status).toBe('pass');
     expect(report.tmux).toMatchObject({ path: 'tmux', available: true, version: '3.4' });
     expect(report.registries.project.configured).toMatchObject({ project: 'https://example.test/project.git' });
+    expect(report.registries.project.configured.local).toBe('local: /work/local-registry');
     expect(report.registries.global.configured).toEqual({ global: 'https://example.test/global.git' });
     expect(report.aiDevkit).toMatchObject({ installedVersion: '0.55.0', latestVersion: '0.56.0', updateAvailable: true });
     expect(report.project.config).toMatchObject({ present: true, valid: true, environments: ['codex', 'pi', 'claude'] });

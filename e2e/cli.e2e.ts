@@ -377,6 +377,41 @@ describe('install command', () => {
 });
 
 describe('skill command', () => {
+  it('registers, installs, and removes a relative local registry without deleting it', () => {
+    const projectDir = createTempProject();
+    const homeDir = join(projectDir, 'home');
+    const registryDir = join(projectDir, 'local-registry');
+    mkdirSync(join(registryDir, 'skills', 'local-test'), { recursive: true });
+    writeFileSync(join(registryDir, 'skills', 'local-test', 'SKILL.md'), '---\ndescription: local fixture\n---\n');
+    writeConfigFile(projectDir, {
+      version: '1.0.0', environments: ['claude'], phases: [], createdAt: new Date().toISOString(),
+    });
+
+    try {
+      const added = run('skill add-registry local/skills ./local-registry', {
+        cwd: projectDir, env: { HOME: homeDir },
+      });
+      expect(added.exitCode).toBe(0);
+      const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf8'));
+      expect(config.registries['local/skills']).toBe(`file://${realpathSync(registryDir)}`);
+
+      const installed = run('skill add local/skills local-test', {
+        cwd: projectDir, env: { HOME: homeDir },
+      });
+      expect(installed.exitCode).toBe(0);
+      expect(existsSync(join(projectDir, '.claude', 'skills', 'local-test', 'SKILL.md'))).toBe(true);
+
+      const removed = run('skill remove-registry local/skills', {
+        cwd: projectDir, env: { HOME: homeDir },
+      });
+      expect(removed.exitCode).toBe(0);
+      expect(existsSync(join(registryDir, 'skills', 'local-test', 'SKILL.md'))).toBe(true);
+      expect(JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf8')).registries).toEqual({});
+    } finally {
+      cleanupTempProject(projectDir);
+    }
+  });
+
   it('should list skills (empty)', () => {
     const projectDir = createTempProject();
     run('init -e claude -p requirements', { cwd: projectDir });

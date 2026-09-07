@@ -35,7 +35,8 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
     "path": ".ai-devkit/memory.db"
   },
   "registries": {
-    "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git"
+    "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
+    "my-org/local-skills": "file:///absolute/path/to/local-registry"
   },
   "skills": [
     { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug" },

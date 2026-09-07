@@ -7,8 +7,9 @@ import { EnvironmentSelector } from './EnvironmentSelector.js';
 import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
 import { SkillIndex } from './SkillIndex.js';
 import { getAllEnvironments, getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
-import { ensureGitInstalled } from '../util/git.js';
 import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill.js';
+import { parseRegistrySource } from '../util/skill-registry.js';
+import { discoverRegistrySkills, resolveContainedSkill } from '../util/local-registry.js';
 import { isInteractiveTerminal } from '../util/terminal.js';
 import { ui } from '../util/terminal-ui.js';
 import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors.js';
@@ -75,8 +76,6 @@ export class SkillManager {
   ): Promise<'installed' | 'matched'> {
     ui.info(`Validating registry: ${registryId}`);
     validateRegistryId(registryId);
-    await ensureGitInstalled();
-
     const spinner = ui.spinner('Fetching registries...');
     spinner.start();
     const registry = await this.registry.fetchMergedRegistry();
@@ -91,17 +90,18 @@ export class SkillManager {
     }
 
     const repoPath = await this.registry.prepareRegistryRepository(registryId, gitUrl);
+    const isLocal = Boolean(gitUrl && parseRegistrySource(gitUrl).type === 'local');
 
     const resolvedSkillNames = skillName
       ? [skillName]
-      : await this.resolveSkillNamesFromRegistry(registryId, repoPath);
+      : await this.resolveSkillNamesFromRegistry(registryId, repoPath, isLocal);
     const selectedEnvironments = await this.resolveInstallEnvironments(options);
     const installContext = this.buildInstallContext(selectedEnvironments, options);
 
     let status: 'installed' | 'matched' = 'matched';
     for (const resolvedSkillName of resolvedSkillNames) {
       const itemStatus = await this.installResolvedSkill(
-        registryId, repoPath, resolvedSkillName, options, installContext
+        registryId, repoPath, resolvedSkillName, options, installContext, isLocal
       );
       if (itemStatus === 'installed') {
         status = 'installed';
@@ -148,7 +148,11 @@ export class SkillManager {
               const realPath = await fs.realpath(skillPath);
               const cacheRelative = path.relative(SKILL_CACHE_DIR, realPath);
               const parts = cacheRelative.split(path.sep);
-              if (parts.length >= 2) {
+              const insideCache = cacheRelative
+                && cacheRelative !== '..'
+                && !cacheRelative.startsWith(`..${path.sep}`)
+                && !path.isAbsolute(cacheRelative);
+              if (insideCache && parts.length >= 2) {
                 registry = `${parts[0]}/${parts[1]}`;
               }
             } catch {
@@ -354,9 +358,8 @@ export class SkillManager {
     return this.registry.updateSkills(registryId);
   }
 
-  async cacheRegistry(registryId: string, gitUrl: string): Promise<string> {
-    await ensureGitInstalled();
-    return this.registry.prepareRegistryRepository(registryId, gitUrl);
+  async cacheRegistry(registryId: string, source: string): Promise<string> {
+    return this.registry.prepareRegistryRepository(registryId, source);
   }
 
   /**
@@ -373,8 +376,12 @@ export class SkillManager {
     return this.index.rebuildIndex(outputPath);
   }
 
-  async updateSkillIndexForRegistry(registryId: string): Promise<void> {
-    return this.index.updateRegistryFromCache(registryId);
+  async updateSkillIndexForRegistry(registryId: string, registryPath?: string): Promise<void> {
+    return this.index.updateRegistryFromCache(registryId, registryPath);
+  }
+
+  async removeSkillIndexForRegistry(registryId: string): Promise<void> {
+    return this.index.removeRegistry(registryId);
   }
 
   /**
@@ -473,12 +480,15 @@ export class SkillManager {
     repoPath: string,
     resolvedSkillName: string,
     options: AddSkillOptions,
-    installContext: ResolvedInstallContext
+    installContext: ResolvedInstallContext,
+    isLocal: boolean,
   ): Promise<'installed' | 'matched'> {
     ui.info(`Validating skill: ${resolvedSkillName} from ${registryId}`);
     validateSkillName(resolvedSkillName);
 
-    const skillPath = await this.resolveInstallableSkillPath(repoPath, registryId, resolvedSkillName);
+    const skillPath = isLocal
+      ? await resolveContainedSkill(registryId, repoPath, resolvedSkillName)
+      : await this.resolveInstallableSkillPath(repoPath, registryId, resolvedSkillName);
 
     ui.info(`Installing skill to ${installContext.installMode}...`);
     let installed = false;
@@ -553,12 +563,17 @@ export class SkillManager {
     return skillPath;
   }
 
-  private async resolveSkillNamesFromRegistry(registryId: string, repoPath: string): Promise<string[]> {
+  private async resolveSkillNamesFromRegistry(registryId: string, repoPath: string, isLocal: boolean): Promise<string[]> {
     if (!isInteractiveTerminal()) {
       throw new ValidationError('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
     }
 
-    const skills = await this.listRegistrySkills(registryId, repoPath);
+    const skills = isLocal
+      ? (await discoverRegistrySkills(registryId, repoPath)).map(skill => ({
+        name: skill.name,
+        description: skill.description,
+      }))
+      : await this.listRegistrySkills(registryId, repoPath);
     return this.promptForSkillSelection(skills);
   }
 

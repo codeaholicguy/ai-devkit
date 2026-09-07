@@ -3,7 +3,7 @@ import * as path from 'path';
 import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
 import { ConfigNotFoundError } from '../util/errors.js';
-import { AddSkillRegistryOptions, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
+import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
 import { GlobalConfigManager } from './GlobalConfig.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
@@ -189,7 +189,7 @@ export class ConfigManager {
 
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
-    return filterStringRecord(config?.registries);
+    return normalizeRegistrySources(filterStringRecord(config?.registries), path.dirname(this.configPath));
   }
 
   async addSkillRegistry(id: string, url: string, options: AddSkillRegistryOptions = {}): Promise<DevKitConfig> {

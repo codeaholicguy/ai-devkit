@@ -7,6 +7,9 @@ import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } 
 import { ui } from '../util/terminal-ui.js';
 import { getErrorMessage } from '../util/text.js';
 import { CliError, NotFoundError } from '../util/errors.js';
+import { parseRegistrySource } from '../util/skill-registry.js';
+import { isValidSkillName } from '../util/skill.js';
+import { LOCAL_REGISTRY_MAX_ENTRIES } from '../util/local-registry.js';
 
 export const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
 export const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');
@@ -113,9 +116,70 @@ export class SkillRegistry {
       return preparedRepository;
     }
 
-    const preparation = this.refreshOrUseStaleCache(registryId, gitUrl);
+    const preparation = gitUrl && parseRegistrySource(gitUrl).type === 'local'
+      ? this.prepareLocalRegistry(registryId, gitUrl)
+      : this.prepareGitRegistry(registryId, gitUrl);
     this.preparedRepositories.set(registryId, preparation);
     return preparation;
+  }
+
+  private async prepareGitRegistry(registryId: string, gitUrl?: string): Promise<string> {
+    await ensureGitInstalled();
+    return this.refreshOrUseStaleCache(registryId, gitUrl);
+  }
+
+  private async prepareLocalRegistry(registryId: string, value: string): Promise<string> {
+    const source = parseRegistrySource(value);
+    if (source.type !== 'local') {
+      throw new CliError(`Registry "${registryId}" is not a local source.`, 'INVALID_LOCAL_REGISTRY');
+    }
+
+    let root: string;
+    try {
+      root = await fs.realpath(source.path);
+      const stat = await fs.stat(root);
+      if (!stat.isDirectory()) throw new Error('source is not a directory');
+    } catch (error: unknown) {
+      throw new NotFoundError(
+        `Local registry "${registryId}" is unavailable at ${source.path}: ${getErrorMessage(error)}. Recreate it or re-register the source.`,
+        { registryId, path: source.path },
+      );
+    }
+
+    const skillsPath = path.join(root, 'skills');
+    if (!await fs.pathExists(skillsPath)) {
+      throw new NotFoundError(
+        `Local registry "${registryId}" has no skills directory: ${skillsPath}`,
+        { registryId, path: skillsPath },
+      );
+    }
+    const directory = await fs.opendir(skillsPath);
+    let count = 0;
+    let hasSkill = false;
+    for await (const entry of directory) {
+      count += 1;
+      if (count > LOCAL_REGISTRY_MAX_ENTRIES) {
+        throw new CliError(
+          `Local registry "${registryId}" exceeds the ${LOCAL_REGISTRY_MAX_ENTRIES} entry limit.`,
+          'LOCAL_REGISTRY_TOO_LARGE',
+        );
+      }
+      if ((entry.isDirectory() || entry.isSymbolicLink())
+        && isValidSkillName(entry.name)
+        && await fs.pathExists(path.join(skillsPath, entry.name, 'SKILL.md'))) {
+        hasSkill = true;
+        break;
+      }
+    }
+    if (!hasSkill) {
+      throw new NotFoundError(
+        `No valid skills found in local registry "${registryId}". Expected skills/<name>/SKILL.md.`,
+        { registryId, path: skillsPath },
+      );
+    }
+
+    ui.info(`Using local registry ${registryId}: ${root}`);
+    return root;
   }
 
   private async refreshOrUseStaleCache(registryId: string, gitUrl?: string): Promise<string> {
@@ -142,12 +206,33 @@ export class SkillRegistry {
       : 'Updating all skills...'
     );
 
-    await ensureGitInstalled();
-
     const cacheDir = SKILL_CACHE_DIR;
+    const configured = await this.fetchMergedRegistry();
+    const localEntries = Object.entries(configured.registries)
+      .filter(([id, value]) => (!registryId || id === registryId) && parseRegistrySource(value).type === 'local');
+    const configuredLocalIds = new Set(Object.entries(configured.registries)
+      .filter(([, value]) => parseRegistrySource(value).type === 'local')
+      .map(([id]) => id));
+
+    const results: UpdateResult[] = [];
+    for (const [id, value] of localEntries) {
+      await this.prepareRegistryRepository(id, value);
+      results.push({
+        registryId: id,
+        status: 'skipped',
+        message: 'Local registry uses the live filesystem; nothing to update',
+      });
+      ui.warning(`${id} skipped (Local registry uses the live filesystem; nothing to update)`);
+    }
+
     if (!await fs.pathExists(cacheDir)) {
+      if (registryId && localEntries.length === 0) {
+        throw new NotFoundError(`Registry "${registryId}" not found.`, { registryId });
+      }
       ui.warning('No skills cache found. Nothing to update.');
-      return { total: 0, successful: 0, skipped: 0, failed: 0, results: [] };
+      const summary = this.summarize(results);
+      this.displayUpdateSummary(summary);
+      return summary;
     }
 
     const entries = await fs.readdir(cacheDir, { withFileTypes: true });
@@ -162,7 +247,8 @@ export class SkillRegistry {
           if (repo.isDirectory()) {
             const fullRegistryId = `${entry.name}/${repo.name}`;
 
-            if (!registryId || fullRegistryId === registryId) {
+            if (!configuredLocalIds.has(fullRegistryId)
+              && (!registryId || fullRegistryId === registryId)) {
               registries.push({
                 path: path.join(ownerPath, repo.name),
                 id: fullRegistryId,
@@ -173,11 +259,9 @@ export class SkillRegistry {
       }
     }
 
-    if (registryId && registries.length === 0) {
+    if (registryId && registries.length === 0 && localEntries.length === 0) {
       throw new NotFoundError(`Registry "${registryId}" not found in cache.`, { registryId });
     }
-
-    const results: UpdateResult[] = [];
 
     for (const registry of registries) {
       ui.info(`Updating ${registry.id}...`);
@@ -192,19 +276,24 @@ export class SkillRegistry {
       }
     }
 
-    const summary: UpdateSummary = {
+    const summary = this.summarize(results);
+    this.displayUpdateSummary(summary);
+
+    return summary;
+  }
+
+  private summarize(results: UpdateResult[]): UpdateSummary {
+    return {
       total: results.length,
       successful: results.filter(r => r.status === 'success').length,
       skipped: results.filter(r => r.status === 'skipped').length,
       failed: results.filter(r => r.status === 'error').length,
       results,
     };
-    this.displayUpdateSummary(summary);
-
-    return summary;
   }
 
   private async updateRegistry(registryPath: string, registryId: string): Promise<UpdateResult> {
+    await ensureGitInstalled();
     const isGit = await isGitRepository(registryPath);
 
     if (!isGit) {

@@ -19,6 +19,10 @@ vi.mock('fs-extra', () => ({
   default: {
     pathExists: vi.fn(),
     ensureDir: vi.fn(),
+    stat: vi.fn(),
+    readdir: vi.fn(),
+    opendir: vi.fn(),
+    realpath: vi.fn(),
   },
 }));
 
@@ -168,5 +172,72 @@ describe('SkillRegistry repository preparation', () => {
     expect(mockUi.warning).toHaveBeenCalledWith(
       `Cached registry ${registryId} is not a git repository, using as-is.`,
     );
+  });
+
+  it('prepares a local registry once without invoking Git or writing', async () => {
+    const localPath = '/tmp/local-skills';
+    mockedFs.realpath.mockResolvedValue(localPath);
+    mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as Awaited<ReturnType<typeof fs.stat>>);
+    mockedFs.opendir.mockResolvedValue({
+      async *[Symbol.asyncIterator]() {
+        yield { name: 'test-skill', isDirectory: () => true, isSymbolicLink: () => false };
+      },
+    } as Awaited<ReturnType<typeof fs.opendir>>);
+    mockedFs.pathExists.mockResolvedValue(true);
+    mockedFs.readdir
+      .mockResolvedValueOnce([{ name: 'example', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>)
+      .mockResolvedValueOnce([{ name: 'skills', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>);
+    const registry = createRegistry();
+
+    await expect(registry.prepareRegistryRepository(registryId, 'file:///tmp/local-skills'))
+      .resolves.toBe(localPath);
+    await expect(registry.prepareRegistryRepository(registryId, 'file:///tmp/local-skills'))
+      .resolves.toBe(localPath);
+
+    expect(mockedFs.realpath).toHaveBeenCalledTimes(1);
+    expect(mockedFs.ensureDir).not.toHaveBeenCalled();
+    expect(mockedGit.ensureGitInstalled).not.toHaveBeenCalled();
+    expect(mockedGit.isGitRepository).not.toHaveBeenCalled();
+    expect(mockedGit.pullRepository).not.toHaveBeenCalled();
+    expect(mockedGit.isGitRepository).not.toHaveBeenCalled();
+    expect(mockedGit.cloneRepository).not.toHaveBeenCalled();
+    expect(mockUi.info).toHaveBeenCalledWith(`Using local registry ${registryId}: ${localPath}`);
+  });
+
+  it('does not use a same-ID cache when a local registry is missing', async () => {
+    mockedFs.realpath.mockRejectedValue(new Error('ENOENT'));
+    mockedFs.pathExists.mockResolvedValue(true);
+
+    await expect(createRegistry().prepareRegistryRepository(registryId, 'file:///missing'))
+      .rejects.toThrow(/unavailable/i);
+    expect(mockedGit.pullRepository).not.toHaveBeenCalled();
+  });
+
+  it('treats update of a local registry as a read-only live-filesystem no-op', async () => {
+    const localPath = '/tmp/local-skills';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ registries: {} }) }));
+    mockedFs.realpath.mockResolvedValue(localPath);
+    mockedFs.stat.mockResolvedValue({ isDirectory: () => true } as Awaited<ReturnType<typeof fs.stat>>);
+    mockedFs.opendir.mockResolvedValue({
+      async *[Symbol.asyncIterator]() {
+        yield { name: 'test-skill', isDirectory: () => true, isSymbolicLink: () => false };
+      },
+    } as Awaited<ReturnType<typeof fs.opendir>>);
+    mockedFs.pathExists.mockResolvedValue(true);
+    mockedFs.readdir
+      .mockResolvedValueOnce([{ name: 'example', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>)
+      .mockResolvedValueOnce([{ name: 'skills', isDirectory: () => true }] as Awaited<ReturnType<typeof fs.readdir>>);
+    const registry = new SkillRegistry(
+      { getSkillRegistries: vi.fn().mockResolvedValue({ [registryId]: 'file:///tmp/local-skills' }) } as unknown as ConfigManager,
+      { getSkillRegistries: vi.fn().mockResolvedValue({}) } as unknown as GlobalConfigManager,
+    );
+
+    await expect(registry.updateSkills(registryId)).resolves.toMatchObject({
+      total: 1, successful: 0, skipped: 1, failed: 0,
+    });
+    expect(mockedGit.ensureGitInstalled).not.toHaveBeenCalled();
+    expect(mockedGit.pullRepository).not.toHaveBeenCalled();
+    expect(mockedGit.isGitRepository).not.toHaveBeenCalled();
+    expect(mockedFs.ensureDir).not.toHaveBeenCalled();
   });
 });

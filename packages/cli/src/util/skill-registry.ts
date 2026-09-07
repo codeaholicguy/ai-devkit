@@ -1,4 +1,117 @@
 import { CliError } from './errors.js';
+import fs from 'fs-extra';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+export type RegistrySource =
+  | { type: 'git'; value: string }
+  | { type: 'local'; value: string; path: string };
+
+export function parseRegistrySource(value: string): RegistrySource {
+  if (!value.toLowerCase().startsWith('file:')) {
+    return { type: 'git', value };
+  }
+
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'file:') {
+      throw new Error('invalid protocol');
+    }
+    if (url.hostname && url.hostname !== 'localhost') {
+      throw new Error('file URL hosts are not supported');
+    }
+    const localPath = fileURLToPath(url);
+    if (!path.isAbsolute(localPath)) {
+      throw new Error('path must be absolute');
+    }
+    return { type: 'local', value, path: localPath };
+  } catch (error: unknown) {
+    throw new CliError(
+      `Invalid local registry source "${value}": ${error instanceof Error ? error.message : String(error)}`,
+      'INVALID_LOCAL_REGISTRY',
+      { value },
+    );
+  }
+}
+
+function isPathShorthand(value: string): boolean {
+  return path.isAbsolute(value) || /^\.\.?[\\/]/.test(value);
+}
+
+export async function normalizeRegistrySourceInput(value: string, baseDir: string): Promise<string> {
+  const parsed = parseRegistrySource(value);
+  if (parsed.type === 'git' && !isPathShorthand(value)) {
+    return value;
+  }
+
+  const requestedPath = parsed.type === 'local'
+    ? parsed.path
+    : path.resolve(baseDir, value);
+  let canonicalPath: string;
+  try {
+    canonicalPath = await fs.realpath(requestedPath);
+  } catch {
+    throw new CliError(
+      `Local registry source not found: ${requestedPath}`,
+      'LOCAL_REGISTRY_NOT_FOUND',
+      { path: requestedPath },
+    );
+  }
+  const stat = await fs.stat(canonicalPath);
+  if (!stat.isDirectory()) {
+    throw new CliError(
+      `Local registry source is not a directory: ${canonicalPath}`,
+      'INVALID_LOCAL_REGISTRY',
+      { path: canonicalPath },
+    );
+  }
+  return pathToFileURL(canonicalPath).href;
+}
+
+export async function normalizeRegistrySources(
+  registries: Record<string, string>,
+  baseDir: string,
+): Promise<Record<string, string>> {
+  const normalized: Record<string, string> = {};
+  const localOwners = new Map<string, string>();
+  for (const [id, value] of Object.entries(registries)) {
+    const nextValue = await normalizeRegistrySourceInput(value, baseDir);
+    const source = parseRegistrySource(nextValue);
+    if (source.type === 'local') {
+      const existingId = localOwners.get(source.path);
+      if (existingId && existingId !== id) {
+        throw new CliError(
+          `Local folder is already registered as "${existingId}": ${source.path}`,
+          'REGISTRY_SOURCE_CONFLICT',
+          { id, existingId, path: source.path },
+        );
+      }
+      localOwners.set(source.path, id);
+    }
+    normalized[id] = nextValue;
+  }
+  return normalized;
+}
+
+export function assertUniqueLocalRegistrySource(
+  registries: Record<string, string>,
+  id: string,
+  value: string,
+): void {
+  const requested = parseRegistrySource(value);
+  if (requested.type !== 'local') return;
+  for (const [existingId, existingValue] of Object.entries(registries)) {
+    if (existingId === id) continue;
+    const existing = parseRegistrySource(existingValue);
+    if (existing.type === 'local' && existing.path === requested.path) {
+      throw new CliError(
+        `Local folder is already registered as "${existingId}": ${requested.path}`,
+        'REGISTRY_SOURCE_CONFLICT',
+        { id, existingId, path: requested.path },
+      );
+    }
+  }
+}
 
 export interface AddSkillRegistryOptions {
   force?: boolean;

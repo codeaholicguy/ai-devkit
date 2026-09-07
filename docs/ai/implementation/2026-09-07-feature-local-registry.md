@@ -24,7 +24,14 @@ description: Running implementation record
 
 ## Implementation Log
 
-Pending. Each task records red/green/refactor evidence here.
+- T1–T2: Parser/canonicalization/duplicate tests drove the explicit source boundary and base-directory normalization.
+- T4: Prep-once/no-Git/cache-fallback tests drove separate read-only local and Git preparation.
+- T5: Real temp-directory tests drove direct discovery, entry/file limits, and symlink containment.
+- T6–T7: Indexing uses actual local roots and update treats them as live; stale same-ID caches are excluded.
+- T8–T9: Removal cleans focused index and only ID-derived cache paths; status/provenance are source-aware.
+- T10: Built-CLI e2e registers a relative folder, installs, removes registration, and proves the source remains.
+
+Red evidence included missing parser functions and a missing local-registry module. Green evidence includes focused suites, 1,139 CLI tests, the full workspace suite, and e2e.
 
 ## Invariants
 
@@ -36,4 +43,4 @@ Pending. Each task records red/green/refactor evidence here.
 
 ## Deviations
 
-None.
+None. Limits are 10,000 direct entries and 1 MiB per SKILL.md, against a measured built-in baseline of 28 entries and a largest SKILL.md of 7,522 bytes.

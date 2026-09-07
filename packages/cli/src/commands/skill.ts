@@ -8,7 +8,7 @@ import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
 import { truncate, getErrorMessage } from '../util/text.js';
 import { validateRegistryId } from '../util/skill.js';
-import { planSkillRegistryAdd } from '../util/skill-registry.js';
+import { assertUniqueLocalRegistrySource, normalizeRegistrySources, planSkillRegistryAdd } from '../util/skill-registry.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -61,13 +61,13 @@ export function registerSkillCommand(program: Command): void {
     });
 
   skillCommand
-    .command('add-registry <id> <url>')
-    .description('Register a third-party skill registry')
+    .command('add-registry <id> <source>')
+    .description('Register a Git or local-folder skill registry')
     .option('-g, --global', 'Register in global config (~/.ai-devkit/.ai-devkit.json)')
     .option('-f, --force', 'Overwrite a conflicting registry URL')
     .action(withErrorHandler('add registry', async (
       id: string,
-      url: string,
+      source: string,
       options: { global?: boolean; force?: boolean },
     ) => {
       validateRegistryId(id);
@@ -76,13 +76,20 @@ export function registerSkillCommand(program: Command): void {
         : new ConfigManager();
 
       const registries = await configManager.getSkillRegistries();
-      const mutation = planSkillRegistryAdd(registries, id, url, { force: options.force });
-      await configManager.addSkillRegistry(id, url, { force: options.force });
+      const normalized = await normalizeRegistrySources({ ...registries, [id]: source }, process.cwd());
+      const value = normalized[id];
+      const [projectRegistries, globalRegistries] = await Promise.all([
+        options.global ? new ConfigManager().getSkillRegistries() : Promise.resolve(registries),
+        options.global ? Promise.resolve(registries) : new GlobalConfigManager().getSkillRegistries(),
+      ]);
+      assertUniqueLocalRegistrySource({ ...globalRegistries, ...projectRegistries }, id, value);
+      const mutation = planSkillRegistryAdd(registries, id, value, { force: options.force });
       if (mutation.status !== 'already-registered') {
         const skillManager = new SkillManager(new ConfigManager());
-        await skillManager.cacheRegistry(id, url);
-        await skillManager.updateSkillIndexForRegistry(id);
+        const registryPath = await skillManager.cacheRegistry(id, value);
+        await skillManager.updateSkillIndexForRegistry(id, registryPath);
       }
+      await configManager.addSkillRegistry(id, value, { force: options.force });
 
       if (mutation.status === 'already-registered') {
         ui.info(`Registry "${id}" is already registered.`);
@@ -115,8 +122,10 @@ export function registerSkillCommand(program: Command): void {
       }
 
       await configManager.removeSkillRegistry(id);
+      const skillManager = new SkillManager(new ConfigManager());
+      await skillManager.removeSkillIndexForRegistry(id);
       if (options.global) {
-        await new SkillManager(new ConfigManager()).removeRegistryCache(id);
+        await skillManager.removeRegistryCache(id);
       }
 
       const scope = options.global ? 'global' : 'project';

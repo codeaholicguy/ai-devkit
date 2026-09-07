@@ -8,19 +8,19 @@ description: TDD plan for explicit read-only local sources
 
 ## Milestones and Tasks
 
-- [ ] **M1 Source boundary**
-  - [ ] T1: TDD source parser and explicit file:/Git classification (AC-01, SR-06, SR-12).
-  - [ ] T2: TDD cwd/config/template normalization and canonical duplicate rejection (AC-02–05).
-  - [ ] T3: Document canonical storage and move/re-add semantics.
-- [ ] **M2 Runtime flows**
-  - [ ] T4: TDD read-only local preparation, no Git calls, and prep-once compatibility (AC-06, SR-01–05).
-  - [ ] T5: TDD fixture discovery/install, missing/empty errors, containment, direct-only and bounded reads (AC-07, SR-07–10).
-  - [ ] T6: TDD focused/full/seed/TTL index behavior using actual source roots (AC-08).
-  - [ ] T7: TDD selected/local-only/mixed update behavior (AC-09).
-- [ ] **M3 Removal and surfaces**
-  - [ ] T8: TDD config/index cleanup and ID-derived cache-only deletion; snapshot local fixtures (AC-10, SR-01–04).
-  - [ ] T9: TDD status and installed provenance (AC-11–12, SR-11).
-  - [ ] T10: CLI e2e normalization/error/removal journeys and user docs.
+- [x] **M1 Source boundary**
+  - [x] T1: TDD source parser and explicit file:/Git classification (AC-01, SR-06, SR-12).
+  - [x] T2: TDD cwd/config/template normalization and canonical duplicate rejection (AC-02–05).
+  - [x] T3: Document canonical storage and move/re-add semantics.
+- [x] **M2 Runtime flows**
+  - [x] T4: TDD read-only local preparation, no Git calls, and prep-once compatibility (AC-06, SR-01–05).
+  - [x] T5: TDD fixture discovery/install, missing/empty errors, containment, direct-only and bounded reads (AC-07, SR-07–10).
+  - [x] T6: TDD focused/full/seed/TTL index behavior using actual source roots (AC-08).
+  - [x] T7: TDD selected/local-only/mixed update behavior (AC-09).
+- [x] **M3 Removal and surfaces**
+  - [x] T8: TDD config/index cleanup and ID-derived cache-only deletion; snapshot local fixtures (AC-10, SR-01–04).
+  - [x] T9: TDD status and installed provenance (AC-11–12, SR-11).
+  - [x] T10: CLI e2e normalization/error/removal journeys and user docs.
   - [ ] T11: Reconcile docs; implementation check, coverage, build, tests, lint, e2e, final review.
 
 ## Dependencies
@@ -42,4 +42,4 @@ Every production change follows focused red, green, refactor commands recorded i
 
 ## Progress
 
-Planning approved; implementation begins at T1 and this checklist is reconciled after completed tasks.
+T1–T10 are complete. T11 final verification and review remain; no scope changes or blockers were discovered.

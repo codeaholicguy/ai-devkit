@@ -3,6 +3,7 @@ import * as path from 'path';
 import YAML from 'yaml';
 import { AVAILABLE_PHASES, EnvironmentCode, MCP_TRANSPORTS, McpServerDefinition, McpTransport, Phase } from '../types.js';
 import { isValidEnvironmentCode } from '../util/env.js';
+import { normalizeRegistrySources } from '../util/skill-registry.js';
 
 export interface InitTemplateSkill {
   registry: string;
@@ -279,5 +280,9 @@ export async function loadInitTemplate(templatePath: string): Promise<InitTempla
   }
 
   const parsed = parseRawTemplate(rawContent, resolvedPath);
-  return validateTemplate(parsed, resolvedPath);
+  const template = validateTemplate(parsed, resolvedPath);
+  if (template.registries) {
+    template.registries = await normalizeRegistrySources(template.registries, path.dirname(resolvedPath));
+  }
+  return template;
 }

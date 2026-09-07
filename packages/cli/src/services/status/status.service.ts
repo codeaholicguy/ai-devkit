@@ -203,6 +203,9 @@ function safeRegistries(raw: unknown): Record<string, string> {
   return Object.fromEntries(Object.entries(filterStringRecord(raw)).map(([id, value]) => {
     try {
       const url = new URL(value);
+      if (url.protocol === 'file:' && (!url.hostname || url.hostname === 'localhost')) {
+        return [id, `local: ${decodeURIComponent(url.pathname)}`];
+      }
       url.username = '';
       url.password = '';
       url.search = '';

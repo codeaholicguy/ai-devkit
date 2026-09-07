@@ -187,9 +187,12 @@ Register a third-party skill registry in the current project or global configura
 ```bash
 ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git
 ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git --global
+ai-devkit skill add-registry my-org/local-skills ../local-registry
 ```
 
-Use `--global` to write the registry to `~/.ai-devkit/.ai-devkit.json`. If the same registry ID already points to another URL, use `--force` to replace it:
+Local sources accept absolute paths, `./`, `../`, or explicit `file:` URLs. AI DevKit resolves them when registered, stores a canonical absolute `file:` URL, and reads the folder in place without cloning, pulling, writing, or deleting it. If the folder moves, re-add it with `--force`.
+
+Use `--global` to write the registry to `~/.ai-devkit/.ai-devkit.json`. If the same registry ID already points to another source, use `--force` to replace it:
 
 ```bash
 ai-devkit skill add-registry my-org/skills https://github.com/my-org/new-skills.git --force
@@ -206,9 +209,7 @@ ai-devkit skill remove-registry my-org/skills
 ai-devkit skill remove-registry my-org/skills --global
 ```
 
-Without `--global`, the command removes only the project configuration entry and keeps the cached repository. With `--global`, it removes the global configuration entry and recursively deletes that registry's cache directory under `~/.ai-devkit/skills/`. Registry IDs are validated and the resolved cache path must remain inside the skills cache root before deletion.
-
-The local discovery index is not modified. It is seeded with skills from registries that are not configured locally, so entries for a removed registry remain valid catalog entries. Default registries are structurally protected because they do not live in project or global configuration maps; the built-in `codeaholicguy/ai-devkit` registry is explicitly protected.
+Removal also deletes that registry's focused search-index entries. With `--global`, it may delete only the registry's ID-derived cache directory under `~/.ai-devkit/skills/`. A configured local source folder is never a deletion target. Default registries are structurally protected; the built-in `codeaholicguy/ai-devkit` registry is explicitly protected.
 
 ### `ai-devkit skill list`
 

@@ -1,0 +1,109 @@
+import fs from 'fs-extra';
+import path from 'node:path';
+import { CliError, NotFoundError } from './errors.js';
+import { extractSkillDescription, isValidSkillName } from './skill.js';
+
+export const LOCAL_REGISTRY_MAX_ENTRIES = 10_000;
+export const LOCAL_REGISTRY_MAX_SKILL_MD_BYTES = 1024 * 1024;
+
+export interface RegistryDiscoveryLimits {
+  maxEntries: number;
+  maxSkillMdBytes: number;
+}
+
+export interface DiscoveredRegistrySkill {
+  name: string;
+  path: string;
+  content: string;
+  description: string;
+}
+
+const DEFAULT_LIMITS: RegistryDiscoveryLimits = {
+  maxEntries: LOCAL_REGISTRY_MAX_ENTRIES,
+  maxSkillMdBytes: LOCAL_REGISTRY_MAX_SKILL_MD_BYTES,
+};
+
+function isStrictlyContained(root: string, candidate: string): boolean {
+  const relative = path.relative(root, candidate);
+  return Boolean(relative)
+    && relative !== '..'
+    && !relative.startsWith(`..${path.sep}`)
+    && !path.isAbsolute(relative);
+}
+
+export async function resolveContainedSkill(
+  registryId: string,
+  registryRoot: string,
+  skillName: string,
+): Promise<string> {
+  const canonicalRoot = await fs.realpath(registryRoot);
+  const skillsRoot = await fs.realpath(path.join(canonicalRoot, 'skills'));
+  const skillPath = path.join(skillsRoot, skillName);
+  let canonicalSkill: string;
+  let canonicalMetadata: string;
+  try {
+    canonicalSkill = await fs.realpath(skillPath);
+    canonicalMetadata = await fs.realpath(path.join(skillPath, 'SKILL.md'));
+  } catch {
+    throw new NotFoundError(
+      `Skill "${skillName}" or its SKILL.md was not found in ${registryId}.`,
+      { registryId, skillName },
+    );
+  }
+  if (!isStrictlyContained(skillsRoot, canonicalSkill)
+    || !isStrictlyContained(skillsRoot, canonicalMetadata)
+    || !isStrictlyContained(canonicalSkill, canonicalMetadata)) {
+    throw new CliError(
+      `Skill "${skillName}" resolves outside local registry "${registryId}"; refusing to use it.`,
+      'LOCAL_REGISTRY_ESCAPE',
+      { registryId, skillName },
+    );
+  }
+  return canonicalSkill;
+}
+
+export async function discoverRegistrySkills(
+  registryId: string,
+  registryRoot: string,
+  limits: RegistryDiscoveryLimits = DEFAULT_LIMITS,
+): Promise<DiscoveredRegistrySkill[]> {
+  const canonicalRoot = await fs.realpath(registryRoot);
+  const skillsRoot = await fs.realpath(path.join(canonicalRoot, 'skills'));
+  if (!isStrictlyContained(canonicalRoot, skillsRoot)) {
+    throw new CliError(
+      `Skills directory resolves outside local registry "${registryId}".`,
+      'LOCAL_REGISTRY_ESCAPE',
+    );
+  }
+
+  const directory = await fs.opendir(skillsRoot);
+  const skills: DiscoveredRegistrySkill[] = [];
+  let entries = 0;
+  for await (const entry of directory) {
+    entries += 1;
+    if (entries > limits.maxEntries) {
+      throw new CliError(
+        `Local registry "${registryId}" exceeds the ${limits.maxEntries} entry limit.`,
+        'LOCAL_REGISTRY_TOO_LARGE',
+      );
+    }
+    if ((!entry.isDirectory() && !entry.isSymbolicLink()) || !isValidSkillName(entry.name)) continue;
+    const skillPath = await resolveContainedSkill(registryId, canonicalRoot, entry.name);
+    const metadataPath = path.join(skillPath, 'SKILL.md');
+    const stat = await fs.stat(metadataPath);
+    if (stat.size > limits.maxSkillMdBytes) {
+      throw new CliError(
+        `SKILL.md for "${entry.name}" is too large (${stat.size} bytes; limit ${limits.maxSkillMdBytes}).`,
+        'LOCAL_REGISTRY_TOO_LARGE',
+      );
+    }
+    const content = await fs.readFile(metadataPath, 'utf8');
+    skills.push({
+      name: entry.name,
+      path: skillPath,
+      content,
+      description: extractSkillDescription(content),
+    });
+  }
+  return skills;
+}

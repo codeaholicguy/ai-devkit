@@ -4,7 +4,7 @@ import * as path from 'path';
 import { GlobalDevKitConfig } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
 import { CliError } from '../util/errors.js';
-import { AddSkillRegistryOptions, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
+import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
 import { ui } from '../util/terminal-ui.js';
 
 export class GlobalConfigManager {
@@ -28,7 +28,7 @@ export class GlobalConfigManager {
 
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
-    return filterStringRecord(config?.registries);
+    return normalizeRegistrySources(filterStringRecord(config?.registries), path.dirname(this.getGlobalConfigPath()));
   }
 
   async addSkillRegistry(id: string, url: string, options: AddSkillRegistryOptions = {}): Promise<GlobalDevKitConfig> {
