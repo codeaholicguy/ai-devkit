@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   discoverRegistrySkills,
+  LOCAL_REGISTRY_MAX_SKILL_MD_BYTES,
   resolveContainedSkill,
 } from '../../util/local-registry.js';
 
@@ -37,5 +38,13 @@ describe('local registry filesystem boundary', () => {
     await fs.ensureDir(metadataEscape);
     await fs.symlink(path.join(outside, 'SKILL.md'), path.join(metadataEscape, 'SKILL.md'));
     await expect(resolveContainedSkill('test/skills', root, 'metadata-escape')).rejects.toThrow(/outside/i);
+  });
+
+  it('rejects oversized metadata on an explicit skill install path', async () => {
+    await fs.writeFile(
+      path.join(root, 'skills', 'safe-skill', 'SKILL.md'),
+      Buffer.alloc(LOCAL_REGISTRY_MAX_SKILL_MD_BYTES + 1),
+    );
+    await expect(resolveContainedSkill('test/skills', root, 'safe-skill')).rejects.toThrow(/too large/i);
   });
 });

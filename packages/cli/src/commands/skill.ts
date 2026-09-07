@@ -64,7 +64,7 @@ export function registerSkillCommand(program: Command): void {
     .command('add-registry <id> <source>')
     .description('Register a Git or local-folder skill registry')
     .option('-g, --global', 'Register in global config (~/.ai-devkit/.ai-devkit.json)')
-    .option('-f, --force', 'Overwrite a conflicting registry URL')
+    .option('-f, --force', 'Overwrite a conflicting registry source')
     .action(withErrorHandler('add registry', async (
       id: string,
       source: string,

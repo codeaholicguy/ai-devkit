@@ -59,6 +59,13 @@ export async function resolveContainedSkill(
       { registryId, skillName },
     );
   }
+  const metadataSize = (await fs.stat(canonicalMetadata)).size;
+  if (metadataSize > LOCAL_REGISTRY_MAX_SKILL_MD_BYTES) {
+    throw new CliError(
+      `SKILL.md for "${skillName}" is too large (${metadataSize} bytes; limit ${LOCAL_REGISTRY_MAX_SKILL_MD_BYTES}).`,
+      'LOCAL_REGISTRY_TOO_LARGE',
+    );
+  }
   return canonicalSkill;
 }
 
