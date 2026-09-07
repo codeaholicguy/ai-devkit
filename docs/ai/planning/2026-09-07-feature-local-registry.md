@@ -22,6 +22,10 @@ description: TDD plan for explicit read-only local sources
   - [x] T9: TDD status and installed provenance (AC-11–12, SR-11).
   - [x] T10: CLI e2e normalization/error/removal journeys and user docs.
   - [x] T11: Reconcile docs; implementation check, coverage, build, tests, lint, e2e, final review.
+- [x] **M4 Pre-merge simplification**
+  - [x] T12: Trace every new abstraction, guard, fallback, and test to a current caller or demonstrated safety trigger.
+  - [x] T13: Remove unused source/discovery surface, duplicate validation, redundant filesystem work, and implementation-detail assertions.
+  - [x] T14: Reconcile lifecycle docs and rerun build, full tests, lint, and e2e before push.
 
 ## Dependencies
 

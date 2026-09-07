@@ -65,7 +65,7 @@ AI DevKit treats every registry string as Git and clones/pulls it into ~/.ai-dev
 - Registry IDs keep org/repo validation; config remains Record<string, string>.
 - Installs keep symlink-first/copy-fallback after containment validation; writes target install locations only.
 - Local sources are live; search re-enumerates them.
-- Production limits use measured evidence; tests use injectable low limits.
+- Production limits use measured evidence and tests exercise those limits directly.
 
 ## Questions
 

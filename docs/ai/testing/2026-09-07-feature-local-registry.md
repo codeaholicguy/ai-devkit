@@ -8,7 +8,7 @@ description: Safety-first testing strategy
 
 ## Goals
 
-100% new parser/containment coverage, unit coverage for SR-01–12, temp-directory adapter coverage, CLI e2e path/error coverage, and green Git registry regressions.
+Safety-contract coverage for SR-01–12, temp-directory adapter coverage, CLI e2e path/error coverage, and green Git registry regressions. Tests target observable boundaries and demonstrated guard triggers rather than private result shapes or injectable test-only limits.
 
 ## Source and Config
 
@@ -53,4 +53,6 @@ Tests create isolated temp roots with skills/name/SKILL.md, snapshot source cont
 
 ## Results
 
-Final evidence: npm run build built six projects; npm test passed 2,188 tests across six projects, including 1,140 CLI tests; npm run lint passed with zero errors and two unrelated existing warnings; npm run test:e2e passed 42 tests. Focused TDD suites passed after every change. Coverage tooling limitation: npm run test:coverage exits successfully but Nx forwards --coverage as an npm config option, so Vitest runs without a coverage report; a selected-file direct coverage run is not representative because unselected files count as zero.
+Post-simplification evidence: npm run build built six projects; npm test passed 2,190 tests across six projects, including 1,142 CLI tests; npm run lint passed with zero errors and two unrelated existing warnings; npm run test:e2e passed 42 tests. The focused local-registry suites passed 139 tests before the full gates. Coverage tooling limitation: npm run test:coverage exits successfully but Nx forwards --coverage as an npm config option, so Vitest runs without a coverage report; a selected-file direct coverage run is not representative because unselected files count as zero.
+
+The pre-merge simplification pass kept all named safety tests, changed the enumeration and metadata-limit tests to exercise production thresholds directly, and removed duplicate no-Git and UI-format assertions.

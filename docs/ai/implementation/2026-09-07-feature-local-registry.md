@@ -43,8 +43,8 @@ Red evidence included missing parser functions and a missing local-registry modu
 
 ## Deviations
 
-None. Limits are 10,000 direct entries and 1 MiB per SKILL.md, against a measured built-in baseline of 28 entries and a largest SKILL.md of 7,522 bytes.
+The pre-merge simplification audit replaced the exported parsed-source union with a local-path-or-null parser, consolidated cross-scope duplicate detection into the existing normalization pass, removed test-only discovery-limit injection, removed unused discovery fields, required the prepared path at the focused-index call site, and deleted a redundant metadata stat/limit check. Limits remain 10,000 direct entries and 1 MiB per SKILL.md, against a measured built-in baseline of 28 entries and a largest SKILL.md of 7,522 bytes.
 
 ## Final Review
 
-The implementation matches the requirements and design. All parser, config, preparation, discovery, install, index, update, removal, status, template, and CLI call sites were traced. No local source path reaches Git or deletion operations; removal remains ID-derived and cache-contained. No blocking findings remain.
+The simplified implementation matches the requirements and design. All parser, config, preparation, discovery, install, index, update, removal, status, template, and CLI call sites were traced. No local source path reaches Git or deletion operations; removal remains ID-derived and cache-contained. The audit removed 43 net lines from production and tests in commit 5d61f46 without changing the safety contract. No blocking findings remain.

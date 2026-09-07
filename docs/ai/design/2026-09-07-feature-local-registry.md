@@ -18,13 +18,11 @@ description: Explicit file URL sources with read-only preparation and contained 
       Discover --> Index[skills.json]
       Remove --> Owned[config/index/contained cache only]
 
-The string map remains the storage boundary. A small parsed union centralizes type detection; SkillRegistry branches preparation/update and consumers receive the actual prepared root.
+The string map remains the storage boundary. A parser returns the local path for file URLs and null for Git sources; SkillRegistry branches preparation/update and consumers receive the actual prepared root.
 
 ## Data Model
 
-    type RegistrySource =
-      | { type: 'git'; value: string }
-      | { type: 'local'; value: string; path: string };
+    parseLocalRegistryPath(source): string | null
 
 Local storage is a canonical file:///absolute/path string. No object migration or provider class is introduced.
 
@@ -45,7 +43,7 @@ prepareRegistryRepository retains its per-instance promise map. Git keeps clone/
 
 A shared routine canonicalizes root and skills, streams direct entries with opendir, enforces a candidate limit, validates names, canonicalizes skill and metadata paths, requires strict containment, stats metadata before a bounded read, and never recurses. Explicit install uses the same containment guard.
 
-Production limits are documented constants based on measured repositories, with injectable test limits and no user-facing flag.
+Production limits are documented constants based on measured repositories, with no user-facing or test-only configuration surface.
 
 ## Flow Integration
 
