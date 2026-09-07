@@ -14,6 +14,7 @@ const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
 const mockCacheRegistry = vi.fn();
 const mockUpdateSkillIndexForRegistry = vi.fn();
+const mockRemoveSkillIndexForRegistry = vi.fn();
 const mockProjectGetSkillRegistries = vi.fn();
 const mockProjectAddSkillRegistry = vi.fn();
 const mockProjectRemoveSkillRegistry = vi.fn();
@@ -45,6 +46,7 @@ vi.mock('../../lib/SkillManager.js', () => ({
     removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
     cacheRegistry: (...args: unknown[]) => mockCacheRegistry(...args),
     updateSkillIndexForRegistry: (...args: unknown[]) => mockUpdateSkillIndexForRegistry(...args),
+    removeSkillIndexForRegistry: (...args: unknown[]) => mockRemoveSkillIndexForRegistry(...args),
     removeRegistryCache: (...args: unknown[]) => mockRemoveCache(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
@@ -75,8 +77,9 @@ describe('skill command', () => {
     mockListGlobalSkills.mockResolvedValue([]);
     mockListSkills.mockResolvedValue([]);
     mockRemoveSkill.mockImplementation(async () => undefined);
-    mockCacheRegistry.mockImplementation(async () => undefined);
+    mockCacheRegistry.mockResolvedValue('/tmp/registry-cache');
     mockUpdateSkillIndexForRegistry.mockImplementation(async () => undefined);
+    mockRemoveSkillIndexForRegistry.mockImplementation(async () => undefined);
     mockRemoveCache.mockResolvedValue(undefined);
     mockProjectGetSkillRegistries.mockResolvedValue({});
     mockProjectAddSkillRegistry.mockResolvedValue({});
@@ -158,7 +161,7 @@ describe('skill command', () => {
       'example/private-skills',
       'git@example.com:example/private-skills.git',
     );
-    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('example/private-skills');
+    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('example/private-skills', '/tmp/registry-cache');
     expect(mockCacheRegistry.mock.invocationCallOrder[0]).toBeLessThan(
       mockUpdateSkillIndexForRegistry.mock.invocationCallOrder[0],
     );
@@ -263,7 +266,7 @@ describe('skill command', () => {
     const addRegistryCommand = skillCommand?.commands.find(command => command.name() === 'add-registry');
 
     expect(addRegistryCommand?.usage()).toContain('<id>');
-    expect(addRegistryCommand?.usage()).toContain('<url>');
+    expect(addRegistryCommand?.usage()).toContain('<source>');
     expect(addRegistryCommand?.helpInformation()).toContain('-g, --global');
     expect(addRegistryCommand?.helpInformation()).toContain('-f, --force');
     const removeRegistryCommand = skillCommand?.commands.find(command => command.name() === 'remove-registry');

@@ -1180,12 +1180,12 @@ describe("SkillManager", () => {
       mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
     });
 
-    it("should ensure git is installed before updating", async () => {
+    it("does not require git when there is no cached git registry to update", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(false);
 
       await skillManager.updateSkills();
 
-      expect(mockedGitUtil.ensureGitInstalled).toHaveBeenCalled();
+      expect(mockedGitUtil.ensureGitInstalled).not.toHaveBeenCalled();
     });
 
     it("should return empty summary when cache directory does not exist", async () => {

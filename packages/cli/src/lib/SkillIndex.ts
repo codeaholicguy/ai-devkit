@@ -7,6 +7,8 @@ import { fetchGitHead } from '../util/git.js';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github.js';
 import { ui } from '../util/terminal-ui.js';
 import { getErrorMessage } from '../util/text.js';
+import { parseLocalRegistryPath } from '../util/skill-registry.js';
+import { discoverRegistrySkills } from '../util/local-registry.js';
 
 const SEED_INDEX_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/index.json';
 const SKILL_INDEX_PATH = path.join(os.homedir(), '.ai-devkit', 'skills.json');
@@ -66,8 +68,8 @@ export class SkillIndex {
     }
   }
 
-  async updateRegistryFromCache(registryId: string): Promise<void> {
-    const localSkills = await this.readLocalRegistrySkills(registryId);
+  async updateRegistryFromCache(registryId: string, registryPath: string): Promise<void> {
+    const localSkills = await this.readLocalRegistrySkills(registryId, registryPath);
     if (!localSkills) {
       return;
     }
@@ -90,6 +92,15 @@ export class SkillIndex {
     await fs.writeJson(SKILL_INDEX_PATH, nextIndex, { spaces: 2 });
   }
 
+  async removeRegistry(registryId: string): Promise<void> {
+    const existingIndex = await this.readExistingIndex();
+    if (!existingIndex) return;
+    existingIndex.skills = existingIndex.skills.filter(skill => skill.registry !== registryId);
+    delete existingIndex.meta.registryHeads[registryId];
+    existingIndex.meta.updatedAt = Date.now();
+    await fs.writeJson(SKILL_INDEX_PATH, existingIndex, { spaces: 2 });
+  }
+
   private async ensureSkillIndex(forceRefresh = false): Promise<SkillIndexData> {
     const indexExists = await fs.pathExists(SKILL_INDEX_PATH);
 
@@ -99,7 +110,7 @@ export class SkillIndex {
         const age = Date.now() - (index.meta.updatedAt || 0);
 
         if (age < INDEX_TTL_MS) {
-          return index;
+          return this.refreshLocalRegistryEntries(index);
         }
         ui.info(`Index is older than 24h, checking for updates...`);
       } catch (ignore) {
@@ -117,7 +128,7 @@ export class SkillIndex {
           await fs.ensureDir(path.dirname(SKILL_INDEX_PATH));
           await fs.writeJson(SKILL_INDEX_PATH, seedIndex, { spaces: 2 });
           spinner.succeed('Seed index fetched successfully');
-          return seedIndex;
+          return this.refreshLocalRegistryEntries(seedIndex);
         }
       } catch (ignore) {
         spinner.fail('Failed to fetch seed index, falling back to build');
@@ -150,7 +161,7 @@ export class SkillIndex {
     const registryIds = Object.keys(registry.registries);
 
     const existingIndex = await this.readExistingIndex();
-    const localSkills = await this.readConfiguredLocalRegistrySkills(registryIds);
+    const localSkills = await this.readConfiguredLocalRegistrySkills(registry.registries);
 
     ui.info(`Building skill index from ${registryIds.length} registries...`);
 
@@ -163,6 +174,9 @@ export class SkillIndex {
       const batchResults = await Promise.allSettled(
         batch.map(async (registryId) => {
           const gitUrl = registry.registries[registryId];
+          if (parseLocalRegistryPath(gitUrl) !== null) {
+            return { registryId, error: 'local registry' };
+          }
           const match = gitUrl.match(/github\.com\/([^/]+)\/([^/.]+)/);
           if (!match) return { registryId, error: 'not a GitHub URL' };
 
@@ -267,11 +281,32 @@ export class SkillIndex {
     return null;
   }
 
-  private async readConfiguredLocalRegistrySkills(registryIds: string[]): Promise<SkillEntry[]> {
+  private async refreshLocalRegistryEntries(index: SkillIndexData): Promise<SkillIndexData> {
+    const registry = await this.registry.fetchMergedRegistry();
+    const localIds = Object.entries(registry.registries)
+      .filter(([, value]) => parseLocalRegistryPath(value) !== null)
+      .map(([id]) => id);
+    if (localIds.length === 0) return index;
+    const localSkills = await this.readConfiguredLocalRegistrySkills(registry.registries);
+    const next = {
+      ...index,
+      meta: { ...index.meta, updatedAt: Date.now() },
+      skills: [...index.skills.filter(skill => !localIds.includes(skill.registry)), ...localSkills],
+    };
+    await fs.writeJson(SKILL_INDEX_PATH, next, { spaces: 2 });
+    return next;
+  }
+
+  private async readConfiguredLocalRegistrySkills(registries: Record<string, string>): Promise<SkillEntry[]> {
     const skills: SkillEntry[] = [];
 
-    for (const registryId of registryIds) {
-      const registrySkills = await this.readLocalRegistrySkills(registryId);
+    for (const [registryId, value] of Object.entries(registries)) {
+      const registrySkills = parseLocalRegistryPath(value) !== null
+        ? await this.readLocalRegistrySkills(
+          registryId,
+          await this.registry.prepareRegistryRepository(registryId, value),
+        )
+        : await this.readLocalRegistrySkills(registryId);
       if (registrySkills) {
         skills.push(...registrySkills);
       }
@@ -280,8 +315,18 @@ export class SkillIndex {
     return skills;
   }
 
-  private async readLocalRegistrySkills(registryId: string): Promise<SkillEntry[] | null> {
-    const registryPath = path.join(SKILL_CACHE_DIR, registryId);
+  private async readLocalRegistrySkills(registryId: string, sourcePath?: string): Promise<SkillEntry[] | null> {
+    const registryPath = sourcePath || path.join(SKILL_CACHE_DIR, registryId);
+    if (sourcePath) {
+      const discovered = await discoverRegistrySkills(registryId, sourcePath);
+      return discovered.map(skill => ({
+        name: skill.name,
+        registry: registryId,
+        path: path.join('skills', skill.name).split(path.sep).join('/'),
+        description: skill.description,
+        lastIndexed: Date.now(),
+      }));
+    }
     const skillsPath = path.join(registryPath, 'skills');
 
     if (!await fs.pathExists(registryPath) || !await fs.pathExists(skillsPath)) {

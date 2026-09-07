@@ -1,4 +1,73 @@
-import { planSkillRegistryAdd, planSkillRegistryRemove } from '../../util/skill-registry.js';
+import fs from 'fs-extra';
+import os from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import {
+  normalizeRegistrySourceInput,
+  normalizeRegistrySources,
+  parseLocalRegistryPath,
+  planSkillRegistryAdd,
+  planSkillRegistryRemove,
+} from '../../util/skill-registry.js';
+
+describe('registry sources', () => {
+  it('classifies only file URLs as persisted local sources', () => {
+    expect(parseLocalRegistryPath('https://example.com/skills.git')).toBeNull();
+    expect(parseLocalRegistryPath('git@example.com:org/skills.git')).toBeNull();
+    expect(parseLocalRegistryPath('file:///tmp/skills')).toBe('/tmp/skills');
+  });
+
+  it('rejects malformed and hosted file URLs instead of treating them as Git', () => {
+    expect(() => parseLocalRegistryPath('file://remote/share')).toThrow(/host/i);
+    expect(() => parseLocalRegistryPath('file:%')).toThrow(/local registry/i);
+  });
+
+  it('canonicalizes absolute and relative path input at registration time', async () => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'registry-source-'));
+    const root = path.join(temp, 'registry');
+    await fs.ensureDir(path.join(root, 'skills'));
+    const alias = path.join(temp, 'alias');
+    await fs.symlink(root, alias, 'dir');
+
+    try {
+      const expected = pathToFileURL(await fs.realpath(root)).href;
+      expect(await normalizeRegistrySourceInput(root, temp)).toBe(expected);
+      expect(await normalizeRegistrySourceInput('./registry/', temp)).toBe(expected);
+      expect(await normalizeRegistrySourceInput('../alias', path.join(temp, 'child'))).toBe(expected);
+      expect(await normalizeRegistrySourceInput(pathToFileURL(alias).href, temp)).toBe(expected);
+      expect(await normalizeRegistrySourceInput('https://example.com/skills.git', temp))
+        .toBe('https://example.com/skills.git');
+    } finally {
+      await fs.remove(temp);
+    }
+  });
+
+  it('reports missing and non-directory local sources clearly', async () => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'registry-source-'));
+    const file = path.join(temp, 'file');
+    await fs.writeFile(file, 'x');
+    try {
+      await expect(normalizeRegistrySourceInput('./missing', temp)).rejects.toThrow(/not found/i);
+      await expect(normalizeRegistrySourceInput(file, temp)).rejects.toThrow(/not a directory/i);
+    } finally {
+      await fs.remove(temp);
+    }
+  });
+
+  it('rejects duplicate canonical local folders under different IDs', async () => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'registry-source-'));
+    await fs.ensureDir(path.join(temp, 'skills'));
+    try {
+      const source = pathToFileURL(temp).href;
+      await expect(normalizeRegistrySources({
+        'one/skills': source,
+        'two/skills': `${source}/`,
+      }, process.cwd())).rejects.toThrow(/already registered as "one\/skills"/i);
+    } finally {
+      await fs.remove(temp);
+    }
+  });
+});
 
 describe('planSkillRegistryAdd', () => {
   it('covers existing add planner states used by the shared module', () => {
