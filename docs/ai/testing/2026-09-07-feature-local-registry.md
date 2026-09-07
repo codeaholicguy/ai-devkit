@@ -53,4 +53,4 @@ Tests create isolated temp roots with skills/name/SKILL.md, snapshot source cont
 
 ## Results
 
-Focused suites passed 63 tests. Full workspace tests passed all six projects, including 1,139 CLI tests. The six-project build passed. Lint passed with two unrelated pre-existing warnings. E2E passed 42 tests. A partial coverage run passed selected tests but failed the global threshold because unselected files count as zero; full coverage remains in T11.
+Final evidence: npm run build built six projects; npm test passed 2,188 tests across six projects, including 1,140 CLI tests; npm run lint passed with zero errors and two unrelated existing warnings; npm run test:e2e passed 42 tests. Focused TDD suites passed after every change. Coverage tooling limitation: npm run test:coverage exits successfully but Nx forwards --coverage as an npm config option, so Vitest runs without a coverage report; a selected-file direct coverage run is not representative because unselected files count as zero.

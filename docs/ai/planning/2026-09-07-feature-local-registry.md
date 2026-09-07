@@ -21,7 +21,7 @@ description: TDD plan for explicit read-only local sources
   - [x] T8: TDD config/index cleanup and ID-derived cache-only deletion; snapshot local fixtures (AC-10, SR-01–04).
   - [x] T9: TDD status and installed provenance (AC-11–12, SR-11).
   - [x] T10: CLI e2e normalization/error/removal journeys and user docs.
-  - [ ] T11: Reconcile docs; implementation check, coverage, build, tests, lint, e2e, final review.
+  - [x] T11: Reconcile docs; implementation check, coverage, build, tests, lint, e2e, final review.
 
 ## Dependencies
 
@@ -42,4 +42,4 @@ Every production change follows focused red, green, refactor commands recorded i
 
 ## Progress
 
-T1–T10 are complete. T11 final verification and review remain; no scope changes or blockers were discovered.
+All tasks are complete. Final review found no blocking issues. The only validation limitation is that the repository's test:coverage script forwards --coverage as an npm config flag and produces no trustworthy percentage.
