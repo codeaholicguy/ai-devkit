@@ -21,4 +21,11 @@ describe('AGENTS', () => {
         expect(AGENTS.grok_cli.matches('/Users/dev/.grok/bin/grok --always-approve')).toBe(true);
         expect(AGENTS.grok_cli.matches('node /repo/feature-grok-cli/script.js')).toBe(false);
     });
+
+    it('includes Antigravity CLI as a startable agent', () => {
+        expect(AGENTS.antigravity_cli.command).toBe('agy');
+        expect(AGENTS.antigravity_cli.matches('agy')).toBe(true);
+        expect(AGENTS.antigravity_cli.matches('/Users/dev/.gemini/antigravity-cli/bin/agy')).toBe(true);
+        expect(AGENTS.antigravity_cli.matches('node /repo/feature-antigravity-cli/script.js')).toBe(false);
+    });
 });
