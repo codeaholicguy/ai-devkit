@@ -8,13 +8,13 @@ const { mockAddSkill, mockGetBuiltinSkillNames } = vi.hoisted(() => ({
   mockGetBuiltinSkillNames: vi.fn(),
 }));
 
-vi.mock('../../../lib/SkillManager.js', () => ({
-  SkillManager: vi.fn(function () {
+vi.mock('../../../services/skill/skill.service.js', () => ({
+  SkillService: vi.fn(function () {
     return { addSkill: (...args: unknown[]) => mockAddSkill(...args) };
   }),
 }));
 
-vi.mock('../../../lib/BuiltinSkills.js', () => ({
+vi.mock('../../../services/skill/skill-builtins.js', () => ({
   BUILTIN_SKILL_REGISTRY: 'codeaholicguy/ai-devkit',
   getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
 }));

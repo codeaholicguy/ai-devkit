@@ -1,6 +1,6 @@
 import { ConfigManager } from '../../lib/Config.js';
 import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
-import { SkillManager } from '../../lib/SkillManager.js';
+import { SkillService } from '../skill/skill.service.js';
 import { TemplateManager } from '../../lib/TemplateManager.js';
 import { InstallConfigData } from '../../util/config.js';
 import { installMcpServers, McpInstallReport } from './mcp/index.js';
@@ -47,7 +47,7 @@ export async function reconcileAndInstall(
   const configManager = new ConfigManager();
   const docsDir = await configManager.getDocsDir();
   const templateManager = new TemplateManager({ docsDir });
-  const skillManager = new SkillManager(configManager, new EnvironmentSelector());
+  const skillService = new SkillService(configManager, new EnvironmentSelector());
 
   const report: InstallReport = {
     environments: { installed: 0, skipped: 0, failed: 0 },
@@ -135,7 +135,7 @@ export async function reconcileAndInstall(
 
   for (const skill of config.skills) {
     try {
-      const status = await skillManager.addSkill(skill.registry, skill.name);
+      const status = await skillService.addSkill(skill.registry, skill.name);
       if (status === 'matched') {
         report.skills.skipped += 1;
       } else {

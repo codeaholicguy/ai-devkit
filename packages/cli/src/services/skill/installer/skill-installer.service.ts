@@ -1,81 +1,99 @@
 import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import { ConfigManager } from './Config.js';
-import { GlobalConfigManager } from './GlobalConfig.js';
-import { EnvironmentSelector } from './EnvironmentSelector.js';
-import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
-import { SkillIndex } from './SkillIndex.js';
-import { getAllEnvironments, getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../util/env.js';
-import { validateRegistryId, validateSkillName, extractSkillDescription, isValidSkillName } from '../util/skill.js';
-import { parseLocalRegistryPath } from '../util/skill-registry.js';
-import { discoverRegistrySkills, resolveContainedSkill } from '../util/local-registry.js';
-import { isInteractiveTerminal } from '../util/terminal.js';
-import { ui } from '../util/terminal-ui.js';
-import { ConfigNotFoundError, NotFoundError, ValidationError } from '../util/errors.js';
-import { checkbox } from '@inquirer/prompts';
-import type { EnvironmentCode } from '../types.js';
+import { ConfigManager } from '../../../lib/Config.js';
+import { EnvironmentSelector } from '../../../lib/EnvironmentSelector.js';
+import { SkillRegistryService, SKILL_CACHE_DIR } from '../registry/skill-registry.service.js';
+import { getAllEnvironments, getGlobalSkillPath, getSkillCapableEnvironments, getSkillPath, validateEnvironmentCodes } from '../../../util/env.js';
+import { validateRegistryId, validateSkillName, isValidSkillName } from '../skill-validation.js';
+import { parseLocalRegistryPath } from '../registry/skill-registry-source.js';
+import { discoverRegistrySkills, resolveContainedSkill } from '../registry/registry-skill-discovery.js';
+import { isInteractiveTerminal } from '../../../util/terminal.js';
+import { ui } from '../../../util/terminal-ui.js';
+import { ConfigNotFoundError, NotFoundError, ValidationError } from '../../../util/errors.js';
+import type { EnvironmentCode } from '../../../types.js';
+import type { AddSkillOptions, GlobalInstalledSkill, InstalledSkill, RegistrySkillChoice, RemoveSkillOptions } from '../skill.types.js';
 
-import type { UpdateSummary } from './SkillRegistry.js';
-import type { SkillEntry } from './SkillIndex.js';
-
-interface InstalledSkill {
-  name: string;
-  registry: string;
-  environments: string[];
-}
-
-interface GlobalInstalledSkill {
-  name: string;
-  environments: string[];
-  path: string;
-}
-
-interface AddSkillOptions {
-  global?: boolean;
-  environments?: string[];
-}
-
-interface RemoveSkillOptions {
-  global?: boolean;
-  environments?: string[];
-}
-
-interface RegistrySkillChoice {
-  name: string;
-  description?: string;
-}
-
-interface ResolvedInstallContext {
-  baseDir: string;
-  capableEnvironments: string[];
-  installMode: 'global' | 'project';
+interface ResolvedInstallTargets {
   targets: string[];
+  capableEnvironments: string[];
 }
 
-export class SkillManager {
-  private registry: SkillRegistry;
-  private index: SkillIndex;
+interface ResolvedInstallContext extends ResolvedInstallTargets {
+  baseDir: string;
+  installMode: 'global' | 'project';
+}
 
+export class SkillInstallerService {
   constructor(
     private configManager: ConfigManager,
+    private registry: SkillRegistryService,
     private environmentSelector: EnvironmentSelector = new EnvironmentSelector(),
-    private globalConfigManager: GlobalConfigManager = new GlobalConfigManager()
-  ) {
-    this.registry = new SkillRegistry(configManager, globalConfigManager);
-    this.index = new SkillIndex(this.registry);
-  }
+  ) { }
 
   /**
    * Add a skill to the project
    */
   async addSkill(
     registryId: string,
-    skillName?: string,
+    skillName: string,
     options: AddSkillOptions = {}
   ): Promise<'installed' | 'matched'> {
+    if (!skillName) {
+      throw new ValidationError('Skill name is required. Re-run with: ai-devkit skill add <registry> <skill-name>');
+    }
+
+    return this.addSkills(registryId, [skillName], options);
+  }
+
+  async addSkills(
+    registryId: string,
+    skillNames: string[],
+    options: AddSkillOptions = {}
+  ): Promise<'installed' | 'matched'> {
+    if (skillNames.length === 0) {
+      throw new ValidationError('At least one skill name is required.');
+    }
+
     ui.info(`Validating registry: ${registryId}`);
     validateRegistryId(registryId);
+    const { repoPath, isLocal } = await this.prepareInstallableRegistry(registryId);
+    const selectedEnvironments = await this.resolveInstallEnvironments(options);
+    const installContext = this.buildInstallContext(selectedEnvironments, options);
+
+    let status: 'installed' | 'matched' = 'matched';
+    for (const resolvedSkillName of skillNames) {
+      const itemStatus = await this.installResolvedSkill(
+        registryId, repoPath, resolvedSkillName, options, installContext, isLocal
+      );
+      if (itemStatus === 'installed') {
+        status = 'installed';
+      }
+    }
+    return status;
+  }
+
+  async listInstallableSkills(registryId: string): Promise<RegistrySkillChoice[]> {
+    validateRegistryId(registryId);
+    const { repoPath } = await this.prepareInstallableRegistry(registryId);
+
+    const skillsDir = path.join(repoPath, 'skills');
+    if (!await fs.pathExists(skillsDir)) {
+      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
+    }
+
+    const skills = await discoverRegistrySkills(registryId, repoPath);
+    if (skills.length === 0) {
+      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
+    }
+
+    return skills.map(skill => ({
+      name: skill.name,
+      description: skill.description,
+    }));
+  }
+
+  private async prepareInstallableRegistry(registryId: string): Promise<{ repoPath: string; isLocal: boolean }> {
     const spinner = ui.spinner('Fetching registries...');
     spinner.start();
     const registry = await this.registry.fetchMergedRegistry();
@@ -92,22 +110,7 @@ export class SkillManager {
     const repoPath = await this.registry.prepareRegistryRepository(registryId, gitUrl);
     const isLocal = Boolean(gitUrl && parseLocalRegistryPath(gitUrl) !== null);
 
-    const resolvedSkillNames = skillName
-      ? [skillName]
-      : await this.resolveSkillNamesFromRegistry(registryId, repoPath, isLocal);
-    const selectedEnvironments = await this.resolveInstallEnvironments(options);
-    const installContext = this.buildInstallContext(selectedEnvironments, options);
-
-    let status: 'installed' | 'matched' = 'matched';
-    for (const resolvedSkillName of resolvedSkillNames) {
-      const itemStatus = await this.installResolvedSkill(
-        registryId, repoPath, resolvedSkillName, options, installContext, isLocal
-      );
-      if (itemStatus === 'installed') {
-        status = 'installed';
-      }
-    }
-    return status;
+    return { repoPath, isLocal };
   }
 
   /**
@@ -123,7 +126,7 @@ export class SkillManager {
       return [];
     }
 
-    const { targets, capableEnvironments } = this.resolveInstallationTargets(config.environments);
+    const { targets, capableEnvironments } = resolveInstallationTargets(config.environments);
 
     for (const targetDir of targets) {
       const fullPath = path.join(process.cwd(), targetDir);
@@ -255,7 +258,7 @@ export class SkillManager {
       throw new ConfigNotFoundError('No .ai-devkit.json found. Run: ai-devkit init');
     }
 
-    const { targets } = this.resolveInstallationTargets(config.environments);
+    const { targets } = resolveInstallationTargets(config.environments);
     let removedCount = 0;
 
     for (const targetDir of targets) {
@@ -354,53 +357,6 @@ export class SkillManager {
   /**
    * Update skills from registries
    */
-  async updateSkills(registryId?: string): Promise<UpdateSummary> {
-    return this.registry.updateSkills(registryId);
-  }
-
-  async cacheRegistry(registryId: string, source: string): Promise<string> {
-    return this.registry.prepareRegistryRepository(registryId, source);
-  }
-
-  /**
-   * Find skills by keyword across all registries
-   */
-  async findSkills(keyword: string, options?: { refresh?: boolean }): Promise<SkillEntry[]> {
-    return this.index.findSkills(keyword, options);
-  }
-
-  /**
-   * Rebuild skill index
-   */
-  async rebuildIndex(outputPath?: string): Promise<void> {
-    return this.index.rebuildIndex(outputPath);
-  }
-
-  async updateSkillIndexForRegistry(registryId: string, registryPath: string): Promise<void> {
-    return this.index.updateRegistryFromCache(registryId, registryPath);
-  }
-
-  async removeSkillIndexForRegistry(registryId: string): Promise<void> {
-    return this.index.removeRegistry(registryId);
-  }
-
-  /**
-   * Remove a registry's cached repository from the skill cache directory.
-   * Refuses paths that would escape the cache root.
-   */
-  async removeRegistryCache(registryId: string): Promise<void> {
-    const cacheRoot = path.resolve(SKILL_CACHE_DIR);
-    const cachePath = path.resolve(cacheRoot, registryId);
-    const relativeCachePath = path.relative(cacheRoot, cachePath);
-    const escapesCacheRoot = relativeCachePath === '..'
-      || relativeCachePath.startsWith(`..${path.sep}`)
-      || path.isAbsolute(relativeCachePath);
-    if (!relativeCachePath || escapesCacheRoot) {
-      throw new Error(`Refusing to remove cache outside ${cacheRoot}.`);
-    }
-    await fs.remove(cachePath);
-  }
-
   private async resolveProjectEnvironments(): Promise<string[]> {
     ui.info('Loading project configuration...');
     let config = await this.configManager.read();
@@ -447,32 +403,6 @@ export class SkillManager {
     }
 
     return await this.resolveProjectEnvironments();
-  }
-
-  private resolveInstallationTargets(
-    environments: string[],
-    isGlobal = false
-  ): { targets: string[]; capableEnvironments: string[] } {
-    const targets: string[] = [];
-    const capableEnvironments: string[] = [];
-
-    for (const env of environments) {
-      const skillPath = isGlobal ? getGlobalSkillPath(env as EnvironmentCode) : getSkillPath(env as EnvironmentCode);
-      if (skillPath) {
-        targets.push(skillPath);
-        capableEnvironments.push(env);
-      }
-    }
-
-    if (targets.length === 0) {
-      if (isGlobal) {
-        throw new ValidationError('No global-skill-capable environments configured.');
-      }
-      const supported = getSkillCapableEnvironments().map(env => env.code).join(', ');
-      throw new ValidationError(`No skill-capable environments configured. Supported: ${supported}`);
-    }
-
-    return { targets, capableEnvironments };
   }
 
   private async installResolvedSkill(
@@ -529,7 +459,7 @@ export class SkillManager {
     selectedEnvironments: string[],
     options: AddSkillOptions
   ): ResolvedInstallContext {
-    const { targets, capableEnvironments } = this.resolveInstallationTargets(selectedEnvironments, options.global);
+    const { targets, capableEnvironments } = resolveInstallationTargets(selectedEnvironments, options.global);
 
     return {
       baseDir: options.global ? os.homedir() : process.cwd(),
@@ -563,78 +493,30 @@ export class SkillManager {
     return skillPath;
   }
 
-  private async resolveSkillNamesFromRegistry(registryId: string, repoPath: string, isLocal: boolean): Promise<string[]> {
-    if (!isInteractiveTerminal()) {
-      throw new ValidationError('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
-    }
+}
 
-    const skills = isLocal
-      ? (await discoverRegistrySkills(registryId, repoPath)).map(skill => ({
-        name: skill.name,
-        description: skill.description,
-      }))
-      : await this.listRegistrySkills(registryId, repoPath);
-    return this.promptForSkillSelection(skills);
-  }
+function resolveInstallationTargets(
+  environments: string[],
+  isGlobal = false,
+): ResolvedInstallTargets {
+  const targets: string[] = [];
+  const capableEnvironments: string[] = [];
 
-  private async listRegistrySkills(registryId: string, repoPath: string): Promise<RegistrySkillChoice[]> {
-    const skillsDir = path.join(repoPath, 'skills');
-    if (!await fs.pathExists(skillsDir)) {
-      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
-    }
-
-    const entries = await fs.readdir(skillsDir, { withFileTypes: true });
-    const skills: RegistrySkillChoice[] = [];
-
-    for (const entry of entries) {
-      if (!entry.isDirectory() || !isValidSkillName(entry.name)) {
-        continue;
-      }
-
-      const skillMdPath = path.join(skillsDir, entry.name, 'SKILL.md');
-      if (!await fs.pathExists(skillMdPath)) {
-        continue;
-      }
-
-      let description: string | undefined;
-      try {
-        const content = await fs.readFile(skillMdPath, 'utf8');
-        description = extractSkillDescription(content);
-      } catch {
-        description = undefined;
-      }
-
-      skills.push({
-        name: entry.name,
-        description,
-      });
-    }
-
-    if (skills.length === 0) {
-      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
-    }
-
-    skills.sort((a, b) => a.name.localeCompare(b.name));
-    return skills;
-  }
-
-  private async promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string[]> {
-    try {
-      return await checkbox({
-        message: 'Select skill(s) to install',
-        choices: skills.map(skill => ({
-          name: skill.description ? `${skill.name} - ${skill.description}` : skill.name,
-          value: skill.name,
-        })),
-        required: true,
-      });
-    } catch (error: unknown) {
-      if (error instanceof Error &&
-        (error.name === 'ExitPromptError' || error.message.toLowerCase().includes('cancel'))) {
-        throw new Error('Skill selection cancelled.');
-      }
-
-      throw error;
+  for (const env of environments) {
+    const skillPath = isGlobal ? getGlobalSkillPath(env as EnvironmentCode) : getSkillPath(env as EnvironmentCode);
+    if (skillPath) {
+      targets.push(skillPath);
+      capableEnvironments.push(env);
     }
   }
+
+  if (targets.length === 0) {
+    if (isGlobal) {
+      throw new ValidationError('No global-skill-capable environments configured.');
+    }
+    const supported = getSkillCapableEnvironments().map(env => env.code).join(', ');
+    throw new ValidationError(`No skill-capable environments configured. Supported: ${supported}`);
+  }
+
+  return { targets, capableEnvironments };
 }

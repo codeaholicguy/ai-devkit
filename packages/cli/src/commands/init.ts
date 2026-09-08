@@ -1,5 +1,5 @@
 import { execFileSync } from 'child_process';
-import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../lib/BuiltinSkills.js';
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../services/skill/skill-builtins.js';
 import { ConfigManager } from '../lib/Config.js';
 import { TemplateManager } from '../lib/TemplateManager.js';
 import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';

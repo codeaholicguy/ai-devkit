@@ -1,4 +1,4 @@
-import { CliError } from './errors.js';
+import { CliError } from '../../../util/errors.js';
 import fs from 'fs-extra';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';

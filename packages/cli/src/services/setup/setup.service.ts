@@ -4,9 +4,9 @@ import { homedir } from 'os';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { promisify } from 'util';
-import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../../lib/BuiltinSkills.js';
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../skill/skill-builtins.js';
 import { ConfigManager } from '../../lib/Config.js';
-import { SkillManager } from '../../lib/SkillManager.js';
+import { SkillService } from '../../services/skill/skill.service.js';
 import { getErrorMessage } from '../../util/text.js';
 
 const execFileAsync = promisify(execFile);
@@ -309,10 +309,10 @@ async function defaultRunCommand(command: string, args: string[]): Promise<void>
 }
 
 async function defaultInstallBuiltInSkills(agent: SetupAgent): Promise<void> {
-  const skillManager = new SkillManager(new ConfigManager());
+  const skillService = new SkillService(new ConfigManager());
 
   for (const builtInSkill of await getBuiltinSkillNames()) {
-    await skillManager.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, {
+    await skillService.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, {
       global: true,
       environments: [agent],
     });

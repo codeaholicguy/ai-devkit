@@ -1,12 +1,13 @@
 import fs from 'fs-extra';
 import path from 'node:path';
-import { CliError, NotFoundError } from './errors.js';
-import { extractSkillDescription, isValidSkillName } from './skill.js';
+import { CliError, NotFoundError } from '../../../util/errors.js';
+import { isValidSkillName } from '../skill-validation.js';
+import { extractSkillDescription } from '../skill-description.js';
 
 export const LOCAL_REGISTRY_MAX_ENTRIES = 10_000;
 export const LOCAL_REGISTRY_MAX_SKILL_MD_BYTES = 1024 * 1024;
 
-interface DiscoveredRegistrySkill {
+export interface DiscoveredRegistrySkill {
   name: string;
   description: string;
 }
@@ -82,13 +83,14 @@ export async function discoverRegistrySkills(
       );
     }
     if ((!entry.isDirectory() && !entry.isSymbolicLink()) || !isValidSkillName(entry.name)) continue;
+    const metadataPath = path.join(skillsRoot, entry.name, 'SKILL.md');
+    if (!await fs.pathExists(metadataPath)) continue;
     const skillPath = await resolveContainedSkill(registryId, canonicalRoot, entry.name);
-    const metadataPath = path.join(skillPath, 'SKILL.md');
-    const content = await fs.readFile(metadataPath, 'utf8');
+    const content = await fs.readFile(path.join(skillPath, 'SKILL.md'), 'utf8');
     skills.push({
       name: entry.name,
       description: extractSkillDescription(content),
     });
   }
-  return skills;
+  return skills.sort((left, right) => left.name.localeCompare(right.name));
 }

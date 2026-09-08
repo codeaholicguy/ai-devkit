@@ -8,7 +8,7 @@ import {
   parseLocalRegistryPath,
   planSkillRegistryAdd,
   planSkillRegistryRemove,
-} from '../../util/skill-registry.js';
+} from '../../../../services/skill/registry/skill-registry-source.js';
 
 describe('registry sources', () => {
   it('classifies only file URLs as persisted local sources', () => {

@@ -1,6 +1,6 @@
-import { isValidSkillName } from '../util/skill.js';
-import { getErrorMessage } from '../util/text.js';
-import { ui } from '../util/terminal-ui.js';
+import { isValidSkillName } from './skill-validation.js';
+import { getErrorMessage } from '../../util/text.js';
+import { ui } from '../../util/terminal-ui.js';
 
 const BUILTIN_SKILLS_URL =
   'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/built-in.json';

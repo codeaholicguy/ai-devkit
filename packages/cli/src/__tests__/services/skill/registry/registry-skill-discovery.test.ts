@@ -6,7 +6,7 @@ import {
   LOCAL_REGISTRY_MAX_ENTRIES,
   LOCAL_REGISTRY_MAX_SKILL_MD_BYTES,
   resolveContainedSkill,
-} from '../../util/local-registry.js';
+} from '../../../../services/skill/registry/registry-skill-discovery.js';
 
 describe('local registry filesystem boundary', () => {
   let temp: string;

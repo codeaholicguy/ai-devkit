@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 
 const mockWarning = vi.fn();
 
-vi.mock('../../util/terminal-ui.js', () => ({
+vi.mock('../../../util/terminal-ui.js', () => ({
   ui: {
     warning: (...args: unknown[]) => mockWarning(...args),
   },
@@ -23,7 +23,7 @@ describe('getBuiltinSkillNames', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
+    const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toEqual(['remote-one', 'remote-two']);
     await expect(getBuiltinSkillNames()).resolves.toEqual(['remote-one', 'remote-two']);
@@ -37,7 +37,7 @@ describe('getBuiltinSkillNames', () => {
   it('falls back to the bundled list when the manifest cannot be fetched', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('network unavailable')));
 
-    const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
+    const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     const names = await getBuiltinSkillNames();
     expect(names).toHaveLength(23);
@@ -54,7 +54,7 @@ describe('getBuiltinSkillNames', () => {
       status: 404,
     }));
 
-    const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
+    const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
     expect(mockWarning).toHaveBeenCalledWith(
@@ -70,7 +70,7 @@ describe('getBuiltinSkillNames', () => {
       },
     }));
 
-    const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
+    const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
     expect(mockWarning).toHaveBeenCalledWith(
@@ -91,7 +91,7 @@ describe('getBuiltinSkillNames', () => {
       json: async () => manifest,
     }));
 
-    const { getBuiltinSkillNames } = await import('../../lib/BuiltinSkills.js');
+    const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
     expect(mockWarning).toHaveBeenCalledWith(
@@ -102,7 +102,7 @@ describe('getBuiltinSkillNames', () => {
 
 describe('built-in skills manifest', () => {
   it('starts with the current built-in skill names', async () => {
-    const manifestPath = new URL('../../../../../skills/built-in.json', import.meta.url);
+    const manifestPath = new URL('../../../../../../skills/built-in.json', import.meta.url);
     const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
     expect(manifest).toHaveLength(23);

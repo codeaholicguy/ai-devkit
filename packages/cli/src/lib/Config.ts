@@ -3,7 +3,7 @@ import * as path from 'path';
 import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
 import { ConfigNotFoundError } from '../util/errors.js';
-import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
+import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../services/skill/registry/skill-registry-source.js';
 import { GlobalConfigManager } from './GlobalConfig.js';
 import packageJson from '../../package.json' with { type: 'json' };
 
