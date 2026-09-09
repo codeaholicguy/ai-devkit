@@ -18,6 +18,8 @@ import type {
     AgentInfo,
     ProcessInfo,
     ConversationMessage,
+    ConversationTailOptions,
+    ConversationTailResult,
     SessionSummary,
     ListSessionsOptions,
     AgentDetectionContext,
@@ -28,6 +30,10 @@ import { batchGetSessionFileBirthtimes, isDirectory, safeReadFile, safeReaddir, 
 import type { SessionFile } from '../utils/session.js';
 import { matchProcessesToSessions, generateAgentName } from '../utils/matching.js';
 import { AgentRegistry } from '../utils/AgentRegistry.js';
+import {
+    JsonlConversationTailCache,
+    type JsonlConversationReducer,
+} from '../utils/JsonlConversationTailCache.js';
 
 interface CodexEventEntry {
     timestamp?: string;
@@ -87,6 +93,17 @@ interface MappingMatchResult {
     fallback: ProcessInfo[];
 }
 
+interface CodexTailMessage {
+    message: ConversationMessage;
+    source: string | undefined;
+    mirrorKey: string | null;
+}
+
+interface CodexTailState {
+    messages: CodexTailMessage[];
+    responseItemMirrorKeys: Set<string>;
+}
+
 export class CodexAdapter implements AgentAdapter {
     readonly type = 'codex' as const;
     readonly processNames = ['codex'] as const;
@@ -98,6 +115,7 @@ export class CodexAdapter implements AgentAdapter {
     private codexSessionsDir: string;
     private sessionMappingPath: string;
     private registry: AgentRegistry;
+    private readonly conversationTailCache = new JsonlConversationTailCache();
 
     constructor(registry: AgentRegistry = AgentRegistry.default()) {
         const homeDir = process.env.HOME || process.env.USERPROFILE || '';
@@ -715,6 +733,51 @@ export class CodexAdapter implements AgentAdapter {
         }
 
         return messages;
+    }
+
+    async getConversationTail(
+        sessionFilePath: string,
+        options?: ConversationTailOptions,
+    ): Promise<ConversationTailResult> {
+        const verbose = options?.verbose ?? false;
+        const limit = Math.max(0, options?.limit ?? 20);
+        const reducer: JsonlConversationReducer<CodexTailState> = {
+            createState: () => ({ messages: [], responseItemMirrorKeys: new Set() }),
+            processRecord: (state, record) => {
+                const entry = record as CodexEventEntry;
+                const message = this.toConversationMessage(entry, verbose);
+                if (!message) return;
+
+                const mirrorKey = this.mirroredMessageKey(entry, message);
+                if (entry.type === 'response_item' && mirrorKey) {
+                    state.responseItemMirrorKeys.add(mirrorKey);
+                    state.messages = state.messages.filter(candidate =>
+                        candidate.source !== 'event_msg' || candidate.mirrorKey !== mirrorKey,
+                    );
+                } else if (
+                    entry.type === 'event_msg' &&
+                    mirrorKey &&
+                    state.responseItemMirrorKeys.has(mirrorKey)
+                ) {
+                    return;
+                }
+
+                state.messages.push({ message, source: entry.type, mirrorKey });
+            },
+            getMessages: state => state.messages.map(candidate => candidate.message),
+            trim: (state, tailLimit) => {
+                if (tailLimit > 0 && state.messages.length > tailLimit) {
+                    state.messages.splice(0, state.messages.length - tailLimit);
+                }
+            },
+        };
+
+        return this.conversationTailCache.read({
+            key: `codex:${verbose ? 'verbose' : 'default'}`,
+            filePath: sessionFilePath,
+            limit,
+            reducer,
+        });
     }
 
     private toConversationMessage(entry: CodexEventEntry, verbose: boolean): ConversationMessage | null {

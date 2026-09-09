@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
+    "benchmark:conversation-tail": "node scripts/benchmark-codex-conversation-tail.mjs",
     "clean": "rm -rf dist"
   },
   "keywords": [

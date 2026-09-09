@@ -87,6 +87,31 @@ export interface ConversationMessage {
     timestamp?: string;
 }
 
+export type ConversationResetReason = 'initial' | 'identity-changed' | 'truncated' | 'missing' | null;
+
+export interface ConversationReadStats {
+    /** Bytes read from the backing session source for this request. */
+    bytesRead: number;
+    /** Complete records considered, including malformed records. */
+    recordsProcessed: number;
+    /** Complete records that were not valid JSON. */
+    parseErrors: number;
+    /** True when the source was unchanged and cached messages were returned. */
+    cacheHit: boolean;
+    /** Why incremental parser state was rebuilt, if it was rebuilt. */
+    resetReason: ConversationResetReason;
+}
+
+export interface ConversationTailOptions {
+    verbose?: boolean;
+    limit?: number;
+}
+
+export interface ConversationTailResult {
+    messages: ConversationMessage[];
+    stats: ConversationReadStats;
+}
+
 /**
  * A historical session discovered on disk (running or not).
  *
@@ -188,6 +213,12 @@ export interface AgentAdapter {
      * @returns Array of conversation messages
      */
     getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[];
+
+    /** Optimized asynchronous conversation tail reader when the adapter provides one. */
+    getConversationTail?(
+        sessionFilePath: string,
+        options?: ConversationTailOptions,
+    ): Promise<ConversationTailResult>;
 
     /**
      * Enumerate historical sessions for this tool from disk.

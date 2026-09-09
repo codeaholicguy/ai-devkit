@@ -1,11 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     cacheSet,
     conversationCache,
     CACHE_MAX,
     messagesEqual,
+    ConversationRequestGate,
+    loadAgentConversation,
+    startConversationPolling,
 } from '../../../../tui/console/hooks/useAgentConversation.js';
-import type { ConversationMessage } from '@ai-devkit/agent-manager';
+import type { AgentInfo, AgentManager, ConversationMessage } from '@ai-devkit/agent-manager';
 
 const msg = (role: ConversationMessage['role'], content: string, timestamp?: string): ConversationMessage =>
     ({ role, content, timestamp } as ConversationMessage);
@@ -83,5 +86,74 @@ describe('messagesEqual', () => {
 
     it('returns true when both timestamps are undefined', () => {
         expect(messagesEqual([msg('user', 'x')], [msg('user', 'x')])).toBe(true);
+    });
+});
+
+describe('async conversation requests', () => {
+    const agent = {
+        name: 'codex-one',
+        type: 'codex',
+        sessionFilePath: '/tmp/session.jsonl',
+    } as AgentInfo;
+
+    afterEach(() => vi.useRealTimers());
+
+    it('rejects a stale selection result after a newer request begins', async () => {
+        let resolveFirst!: (value: any) => void;
+        let resolveSecond!: (value: any) => void;
+        const first = new Promise(resolve => { resolveFirst = resolve; });
+        const second = new Promise(resolve => { resolveSecond = resolve; });
+        const getConversationTail = vi.fn()
+            .mockReturnValueOnce(first)
+            .mockReturnValueOnce(second);
+        const manager = {
+            getAdapter: () => ({}),
+            getConversationTail,
+        } as unknown as AgentManager;
+        const gate = new ConversationRequestGate();
+
+        const firstToken = gate.begin();
+        const oldRequest = loadAgentConversation(manager, agent, 20, gate, firstToken);
+        const secondToken = gate.begin();
+        const newRequest = loadAgentConversation(manager, agent, 20, gate, secondToken);
+        resolveSecond({ messages: [msg('assistant', 'new')], stats: {} });
+        expect((await newRequest)?.messages.map(message => message.content)).toEqual(['new']);
+
+        resolveFirst({ messages: [msg('assistant', 'old')], stats: {} });
+        expect(await oldRequest).toBeNull();
+    });
+
+    it('rejects a stale error and retains only the newest 20 messages', async () => {
+        let rejectFirst!: (error: Error) => void;
+        const first = new Promise((_resolve, reject) => { rejectFirst = reject; });
+        const many = Array.from({ length: 30 }, (_, index) => msg('user', `message-${index}`));
+        const manager = {
+            getAdapter: () => ({}),
+            getConversationTail: vi.fn()
+                .mockReturnValueOnce(first)
+                .mockResolvedValueOnce({ messages: many, stats: {} }),
+        } as unknown as AgentManager;
+        const gate = new ConversationRequestGate();
+
+        const staleToken = gate.begin();
+        const stale = loadAgentConversation(manager, agent, 20, gate, staleToken);
+        const currentToken = gate.begin();
+        const current = await loadAgentConversation(manager, agent, 20, gate, currentToken);
+        expect(current?.messages).toHaveLength(20);
+        expect(current?.messages[0].content).toBe('message-10');
+
+        rejectFirst(new Error('old parse failed'));
+        expect(await stale).toBeNull();
+    });
+
+    it('keeps interval polling as a fallback', async () => {
+        vi.useFakeTimers();
+        const fetchOnce = vi.fn(async () => undefined);
+        const handle = startConversationPolling(fetchOnce, 3000);
+
+        await vi.advanceTimersByTimeAsync(9000);
+        clearInterval(handle);
+
+        expect(fetchOnce).toHaveBeenCalledTimes(3);
     });
 });
