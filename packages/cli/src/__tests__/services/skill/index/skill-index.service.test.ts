@@ -4,7 +4,6 @@ import * as os from "os";
 import * as path from "path";
 import { SkillService } from "../../../../services/skill/skill.service.js";
 import { ConfigManager } from "../../../../lib/Config.js";
-import { EnvironmentSelector } from "../../../../lib/EnvironmentSelector.js";
 import { GlobalConfigManager } from "../../../../lib/GlobalConfig.js";
 import * as gitUtil from "../../../../util/git.js";
 import * as skillUtil from "../../../../services/skill/skill-validation.js";
@@ -34,15 +33,6 @@ vi.mock("../../../../lib/Config.js", () => ({
     read: vi.fn(),
     removeSkill: vi.fn(),
     update: vi.fn(),
-  }; }),
-}));
-vi.mock("../../../../lib/EnvironmentSelector.js", () => ({
-  EnvironmentSelector: vi.fn(function () { return {
-    selectEnvironments: vi.fn(),
-    selectSkillEnvironments: vi.fn(),
-    selectGlobalSkillEnvironments: vi.fn(),
-    confirmOverride: vi.fn(),
-    displaySelectionSummary: vi.fn(),
   }; }),
 }));
 vi.mock("../../../../lib/GlobalConfig.js", () => ({
@@ -91,9 +81,6 @@ const mockedFs = fs as Mocked<typeof fs>;
 const MockedConfigManager = ConfigManager as MockedClass<
   typeof ConfigManager
 >;
-const MockedEnvironmentSelector = EnvironmentSelector as MockedClass<
-  typeof EnvironmentSelector
->;
 const MockedGlobalConfigManager = GlobalConfigManager as MockedClass<
   typeof GlobalConfigManager
 >;
@@ -112,7 +99,6 @@ function mockFetch(response: any) {
 describe("SkillService", () => {
   let skillManager: SkillService;
   let mockConfigManager: Mocked<ConfigManager>;
-  let mockEnvironmentSelector: Mocked<EnvironmentSelector>;
   let mockGlobalConfigManager: Mocked<GlobalConfigManager>;
 
   beforeEach(() => {
@@ -120,8 +106,6 @@ describe("SkillService", () => {
     vi.spyOn(console, "log").mockImplementation(() => { });
 
     mockConfigManager = new MockedConfigManager() as Mocked<ConfigManager>;
-    mockEnvironmentSelector =
-      new MockedEnvironmentSelector() as Mocked<EnvironmentSelector>;
     mockGlobalConfigManager =
       new MockedGlobalConfigManager() as Mocked<GlobalConfigManager>;
 
@@ -130,7 +114,6 @@ describe("SkillService", () => {
 
     skillManager = new SkillService(
       mockConfigManager,
-      mockEnvironmentSelector,
       mockGlobalConfigManager,
     );
 
@@ -177,11 +160,7 @@ describe("SkillService", () => {
         failed: 0,
         results: [],
       });
-      // UI utility outputs symbol and message as separate parameters
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("⚠"),
-        expect.stringContaining("No skills cache found"),
-      );
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should update all registries when no registryId provided", async () => {
@@ -336,14 +315,10 @@ describe("SkillService", () => {
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
 
-      await skillManager.updateSkills();
+      const result = await skillManager.updateSkills();
 
-      // Summary now uses ui.summary() which formats differently
-      // It outputs "✓ 1 updated" as a single colored string
-      expect(console.log).toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("updated"),
-      );
+      expect(result.successful).toBe(1);
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should display summary after updates", async () => {
@@ -359,14 +334,14 @@ describe("SkillService", () => {
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
 
-      await skillManager.updateSkills();
+      const result = await skillManager.updateSkills();
 
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("Summary:"),
-      );
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("1 updated"),
-      );
+      expect(result).toMatchObject({
+        successful: 1,
+        skipped: 0,
+        failed: 0,
+      });
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should handle mixed results (success, skip, error)", async () => {

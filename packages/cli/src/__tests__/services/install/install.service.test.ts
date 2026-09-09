@@ -78,7 +78,13 @@ describe('install service', () => {
     mockTemplateManager.setupMultipleEnvironments.mockResolvedValue([]);
     mockTemplateManager.copyPhaseTemplate.mockResolvedValue('docs/ai/requirements/README.md');
 
-    mockSkillService.addSkill.mockResolvedValue(undefined);
+    mockSkillService.addSkill.mockImplementation(async (registryId: string, skillName: string) => ({
+      status: 'installed',
+      registryId,
+      installMode: 'project',
+      environments: ['codex'],
+      items: [{ skillName, target: `.codex/skills/${skillName}`, action: 'symlinked' }],
+    }));
     mockConfirm.mockResolvedValue(false);
     mockIsInteractiveTerminal.mockReturnValue(true);
   });

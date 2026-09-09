@@ -97,8 +97,6 @@ describe('SkillRegistryService repository preparation', () => {
     await registry.prepareRegistryRepository(registryId, gitUrl);
 
     expect(mockedGit.pullRepository).toHaveBeenCalledTimes(1);
-    expect(mockUi.info).toHaveBeenCalledWith(`Refreshing registry ${registryId}...`);
-    expect(mockUi.success).toHaveBeenCalledWith(`Registry ${registryId} refreshed.`);
   });
 
   it('shares one in-flight refresh between concurrent preparations', async () => {
@@ -136,10 +134,6 @@ describe('SkillRegistryService repository preparation', () => {
     await expect(registry.prepareRegistryRepository(registryId, gitUrl)).resolves.toBe(cachedPath);
 
     expect(mockedGit.pullRepository).toHaveBeenCalledTimes(1);
-    expect(mockUi.warning).toHaveBeenCalledTimes(1);
-    expect(mockUi.warning).toHaveBeenCalledWith(
-      `Could not refresh registry ${registryId}: network down. Using cached registry contents for this run.`,
-    );
   });
 
   it('reuses a failed no-cache preparation without retrying', async () => {
@@ -169,10 +163,6 @@ describe('SkillRegistryService repository preparation', () => {
 
     expect(mockedGit.isGitRepository).toHaveBeenCalledTimes(1);
     expect(mockedGit.pullRepository).not.toHaveBeenCalled();
-    expect(mockUi.warning).toHaveBeenCalledTimes(1);
-    expect(mockUi.warning).toHaveBeenCalledWith(
-      `Cached registry ${registryId} is not a git repository, using as-is.`,
-    );
   });
 
   it('prepares the registry repository in the local cache', async () => {

@@ -1,6 +1,4 @@
 import { isValidSkillName } from './skill-validation.js';
-import { getErrorMessage } from '../../util/text.js';
-import { ui } from '../../util/terminal-ui.js';
 
 const BUILTIN_SKILLS_URL =
   'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/built-in.json';
@@ -60,10 +58,7 @@ async function loadBuiltinSkillNames(): Promise<readonly string[]> {
     }
 
     return manifest;
-  } catch (error: unknown) {
-    ui.warning(
-      `Failed to load built-in skills manifest: ${getErrorMessage(error)}. Using bundled fallback.`
-    );
+  } catch {
     return FALLBACK_BUILTIN_SKILL_NAMES;
   }
 }

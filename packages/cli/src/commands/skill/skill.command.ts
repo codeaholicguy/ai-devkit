@@ -1,14 +1,23 @@
 import { Command } from 'commander';
 import { checkbox } from '@inquirer/prompts';
-import chalk from 'chalk';
-import { ConfigManager } from '../lib/Config.js';
-import { SkillService } from '../services/skill/skill.service.js';
-import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../services/skill/skill-builtins.js';
-import { ui } from '../util/terminal-ui.js';
-import { withErrorHandler } from '../util/errors.js';
-import { isInteractiveTerminal } from '../util/terminal.js';
-import { truncate, getErrorMessage } from '../util/text.js';
-import type { RegistrySkillChoice } from '../services/skill/skill.types.js';
+import { ConfigManager } from '../../lib/Config.js';
+import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
+import { SkillService } from '../../services/skill/skill.service.js';
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../../services/skill/skill-builtins.js';
+import { ui } from '../../util/terminal-ui.js';
+import { ConfigNotFoundError, ValidationError, withErrorHandler } from '../../util/errors.js';
+import { isInteractiveTerminal } from '../../util/terminal.js';
+import { getErrorMessage } from '../../util/text.js';
+import type { AddSkillOptions, RegistrySkillChoice } from '../../services/skill/skill.types.js';
+import {
+  renderGlobalSkills,
+  renderProjectSkills,
+  renderSkillIndexRebuild,
+  renderSkillInstallResult,
+  renderSkillRemoveResult,
+  renderSkillSearchResults,
+  renderUpdateSummary,
+} from './skill.render.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -25,18 +34,18 @@ export function registerSkillCommand(program: Command): void {
       try {
         const configManager = new ConfigManager();
         const skillService = new SkillService(configManager);
-        const installOptions = {
-          global: options.global,
-          environments: options.env,
-        };
 
         if (options.builtIn) {
           if (registryRepo || skillName) {
             ui.warning('Ignoring registry and skill arguments because --built-in installs the curated AI DevKit set.');
           }
 
+          const installOptions = await resolveSkillInstallOptions(configManager, {
+            global: options.global,
+            environments: options.env,
+          });
           for (const builtInSkill of await getBuiltinSkillNames()) {
-            await skillService.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions);
+            renderSkillInstallResult(await skillService.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions));
           }
 
           return;
@@ -49,7 +58,11 @@ export function registerSkillCommand(program: Command): void {
         }
 
         if (skillName) {
-          await skillService.addSkill(registryRepo, skillName, installOptions);
+          const installOptions = await resolveSkillInstallOptions(configManager, {
+            global: options.global,
+            environments: options.env,
+          });
+          renderSkillInstallResult(await skillService.addSkill(registryRepo, skillName, installOptions));
           return;
         }
 
@@ -60,7 +73,11 @@ export function registerSkillCommand(program: Command): void {
         const selectedSkillNames = await promptForSkillSelection(
           await skillService.listInstallableSkills(registryRepo),
         );
-        await skillService.addSkills(registryRepo, selectedSkillNames, installOptions);
+        const installOptions = await resolveSkillInstallOptions(configManager, {
+          global: options.global,
+          environments: options.env,
+        });
+        renderSkillInstallResult(await skillService.addSkills(registryRepo, selectedSkillNames, installOptions));
       } catch (error: unknown) {
         const message = getErrorMessage(error);
         if (message === 'Skill selection cancelled.') {
@@ -121,49 +138,11 @@ export function registerSkillCommand(program: Command): void {
       }
 
       if (options.global) {
-        const skills = await skillService.listGlobalSkills(options.env);
-
-        if (skills.length === 0) {
-          ui.warning('No global skills installed in the selected environments.');
-          ui.info('Install a global skill with: ai-devkit skill add <registry>/<repo> [skill-name] --global');
-          return;
-        }
-
-        ui.text('Globally Installed Skills:', { breakline: true });
-        ui.table({
-          headers: ['Skill Name', 'Environments', 'Path'],
-          rows: skills.map(skill => [
-            skill.name,
-            skill.environments.join(', '),
-            skill.path,
-          ]),
-          columnStyles: [chalk.cyan, chalk.green, chalk.dim],
-        });
-        ui.text(`Total: ${skills.length} skill installation(s)`, { breakline: true });
+        renderGlobalSkills(await skillService.listGlobalSkills(options.env));
         return;
       }
 
-      const skills = await skillService.listSkills();
-
-      if (skills.length === 0) {
-        ui.warning('No skills installed in this project.');
-        ui.info('Install a skill with: ai-devkit skill add <registry>/<repo> [skill-name]');
-        return;
-      }
-
-      ui.text('Installed Skills:', { breakline: true });
-
-      ui.table({
-        headers: ['Skill Name', 'Registry', 'Environments'],
-        rows: skills.map(skill => [
-          skill.name,
-          skill.registry,
-          skill.environments.join(', ')
-        ]),
-        columnStyles: [chalk.cyan, chalk.dim, chalk.green]
-      });
-
-      ui.text(`Total: ${skills.length} skill(s)`, { breakline: true });
+      renderProjectSkills(await skillService.listSkills());
     }));
 
   skillCommand
@@ -178,10 +157,11 @@ export function registerSkillCommand(program: Command): void {
       const configManager = new ConfigManager();
       const skillService = new SkillService(configManager);
 
-      await skillService.removeSkill(skillName, {
+      const result = await skillService.removeSkill(skillName, {
         global: options.global,
         environments: options.env,
       });
+      renderSkillRemoveResult(result);
     }));
 
   skillCommand
@@ -191,7 +171,7 @@ export function registerSkillCommand(program: Command): void {
       const configManager = new ConfigManager();
       const skillService = new SkillService(configManager);
 
-      await skillService.updateSkills(registryId);
+      renderUpdateSummary(await skillService.updateSkills(registryId));
     }));
 
   skillCommand
@@ -202,27 +182,7 @@ export function registerSkillCommand(program: Command): void {
       const configManager = new ConfigManager();
       const skillService = new SkillService(configManager);
 
-      const results = await skillService.findSkills(keyword, { refresh: options.refresh });
-
-      if (results.length === 0) {
-        ui.warning(`No skills found matching "${keyword}"`);
-        ui.info('Try a different keyword or use --refresh to update the skill index');
-        return;
-      }
-
-      ui.text(`Found ${results.length} skill(s) matching "${keyword}":`, { breakline: true });
-
-      ui.table({
-        headers: ['Skill Name', 'Registry', 'Description'],
-        rows: results.map(skill => [
-          skill.name,
-          skill.registry,
-          truncate(skill.description, 60, '...')
-        ]),
-        columnStyles: [chalk.cyan, chalk.dim, chalk.white]
-      });
-
-      ui.text(`\nInstall with: ai-devkit skill add <registry> [skill-name]`, { breakline: true });
+      renderSkillSearchResults(keyword, await skillService.findSkills(keyword, { refresh: options.refresh }));
     }));
 
   skillCommand
@@ -233,8 +193,61 @@ export function registerSkillCommand(program: Command): void {
       const configManager = new ConfigManager();
       const skillService = new SkillService(configManager);
 
-      await skillService.rebuildIndex(options.output);
+      renderSkillIndexRebuild(await skillService.rebuildIndex(options.output));
     }));
+}
+
+async function resolveSkillInstallOptions(
+  configManager: ConfigManager,
+  options: AddSkillOptions,
+): Promise<AddSkillOptions> {
+  if (options.environments && options.environments.length > 0 && !options.global) {
+    throw new ValidationError('--env can only be used with --global');
+  }
+
+  const environmentSelector = new EnvironmentSelector();
+
+  if (options.global) {
+    if (options.environments && options.environments.length > 0) {
+      return options;
+    }
+
+    if (!isInteractiveTerminal()) {
+      throw new ValidationError('Global skill installation requires at least one environment.');
+    }
+
+    return {
+      ...options,
+      environments: await environmentSelector.selectGlobalSkillEnvironments(),
+    };
+  }
+
+  ui.info('Loading project configuration...');
+  let config = await configManager.read();
+  if (!config) {
+    ui.info('No .ai-devkit.json found. Creating configuration...');
+    config = await configManager.create();
+  }
+
+  if (config.environments && config.environments.length > 0) {
+    return {
+      ...options,
+      environments: config.environments,
+    };
+  }
+
+  if (!isInteractiveTerminal()) {
+    throw new ConfigNotFoundError('No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.');
+  }
+
+  const selectedEnvironments = await environmentSelector.selectSkillEnvironments();
+  await configManager.update({ environments: selectedEnvironments });
+  ui.success('Configuration saved.');
+
+  return {
+    ...options,
+    environments: selectedEnvironments,
+  };
 }
 
 async function promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string[]> {

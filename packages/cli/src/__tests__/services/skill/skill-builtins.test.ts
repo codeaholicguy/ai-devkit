@@ -1,19 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFile } from 'node:fs/promises';
 
-const mockWarning = vi.fn();
-
-vi.mock('../../../util/terminal-ui.js', () => ({
-  ui: {
-    warning: (...args: unknown[]) => mockWarning(...args),
-  },
-}));
-
 describe('getBuiltinSkillNames', () => {
   beforeEach(() => {
     vi.resetModules();
     vi.unstubAllGlobals();
-    mockWarning.mockReset();
   });
 
   it('returns the live bare-array manifest and fetches it once per process', async () => {
@@ -31,7 +22,6 @@ describe('getBuiltinSkillNames', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/built-in.json'
     );
-    expect(mockWarning).not.toHaveBeenCalled();
   });
 
   it('falls back to the bundled list when the manifest cannot be fetched', async () => {
@@ -43,9 +33,6 @@ describe('getBuiltinSkillNames', () => {
     expect(names).toHaveLength(23);
     expect(names).toContain('agent-communication');
     expect(names).toContain('tdd');
-    expect(mockWarning).toHaveBeenCalledWith(
-      'Failed to load built-in skills manifest: network unavailable. Using bundled fallback.'
-    );
   });
 
   it('falls back to the bundled list for an unsuccessful response', async () => {
@@ -57,9 +44,6 @@ describe('getBuiltinSkillNames', () => {
     const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
-    expect(mockWarning).toHaveBeenCalledWith(
-      'Failed to load built-in skills manifest: HTTP 404. Using bundled fallback.'
-    );
   });
 
   it('falls back to the bundled list when response JSON cannot be parsed', async () => {
@@ -73,9 +57,6 @@ describe('getBuiltinSkillNames', () => {
     const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
-    expect(mockWarning).toHaveBeenCalledWith(
-      'Failed to load built-in skills manifest: Unexpected token. Using bundled fallback.'
-    );
   });
 
   it.each([
@@ -94,9 +75,6 @@ describe('getBuiltinSkillNames', () => {
     const { getBuiltinSkillNames } = await import('../../../services/skill/skill-builtins.js');
 
     await expect(getBuiltinSkillNames()).resolves.toHaveLength(23);
-    expect(mockWarning).toHaveBeenCalledWith(
-      expect.stringMatching(/^Failed to load built-in skills manifest: .+ Using bundled fallback\.$/)
-    );
   });
 });
 
