@@ -1,5 +1,5 @@
 export { ClaudeCodeAdapter } from '../providers/claude/ClaudeCodeAdapter.js';
-export { CodexAdapter } from './CodexAdapter.js';
+export { CodexAdapter } from '../providers/codex/CodexAdapter.js';
 export { CopilotAdapter } from './CopilotAdapter.js';
 export { GeminiCliAdapter } from './GeminiCliAdapter.js';
 export { GrokCliAdapter } from './GrokCliAdapter.js';

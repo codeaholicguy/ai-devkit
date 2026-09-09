@@ -25,7 +25,7 @@ export type {
 } from './readiness/AgentReadiness.js';
 
 export { ClaudeCodeAdapter } from './providers/claude/ClaudeCodeAdapter.js';
-export { CodexAdapter } from './adapters/CodexAdapter.js';
+export { CodexAdapter } from './providers/codex/CodexAdapter.js';
 export { CopilotAdapter } from './adapters/CopilotAdapter.js';
 export { GeminiCliAdapter } from './adapters/GeminiCliAdapter.js';
 export { GrokCliAdapter } from './adapters/GrokCliAdapter.js';
