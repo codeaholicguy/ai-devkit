@@ -1,12 +1,17 @@
 import { Command } from 'commander';
 
-import { registerSkillCommand } from '../../commands/skill.js';
+import { registerSkillCommand } from '../../commands/skill/index.js';
 import { ui } from '../../util/terminal-ui.js';
 import { SkillService } from '../../services/skill/skill.service.js';
 
 const mockGetBuiltinSkillNames = vi.hoisted(() => vi.fn());
 const mockIsInteractiveTerminal = vi.hoisted(() => vi.fn(() => true));
 const mockCheckbox = vi.hoisted(() => vi.fn());
+const mockConfigRead = vi.hoisted(() => vi.fn());
+const mockConfigCreate = vi.hoisted(() => vi.fn());
+const mockConfigUpdate = vi.hoisted(() => vi.fn());
+const mockSelectSkillEnvironments = vi.hoisted(() => vi.fn());
+const mockSelectGlobalSkillEnvironments = vi.hoisted(() => vi.fn());
 
 
 const mockAddSkill = vi.fn();
@@ -19,7 +24,18 @@ const mockRemoveSkill = vi.fn();
 const mockRemoveRegistry = vi.fn();
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(function () { return {}; }),
+  ConfigManager: vi.fn(function () { return {
+    read: (...args: unknown[]) => mockConfigRead(...args),
+    create: (...args: unknown[]) => mockConfigCreate(...args),
+    update: (...args: unknown[]) => mockConfigUpdate(...args),
+  }; }),
+}));
+
+vi.mock('../../lib/EnvironmentSelector.js', () => ({
+  EnvironmentSelector: vi.fn(function () { return {
+    selectSkillEnvironments: (...args: unknown[]) => mockSelectSkillEnvironments(...args),
+    selectGlobalSkillEnvironments: (...args: unknown[]) => mockSelectGlobalSkillEnvironments(...args),
+  }; }),
 }));
 
 vi.mock('../../services/skill/skill.service.js', () => ({
@@ -65,8 +81,20 @@ vi.mock('@inquirer/prompts', () => ({
 describe('skill command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockAddSkill.mockImplementation(async () => undefined);
-    mockAddSkills.mockImplementation(async () => undefined);
+    mockAddSkill.mockImplementation(async (registryId: string, skillName: string, options: { global?: boolean; environments?: string[] }) => ({
+      status: 'installed',
+      registryId,
+      installMode: options.global ? 'global' : 'project',
+      environments: options.environments || [],
+      items: [{ skillName, target: `.claude/skills/${skillName}`, action: 'symlinked' }],
+    }));
+    mockAddSkills.mockImplementation(async (registryId: string, skillNames: string[], options: { global?: boolean; environments?: string[] }) => ({
+      status: 'installed',
+      registryId,
+      installMode: options.global ? 'global' : 'project',
+      environments: options.environments || [],
+      items: skillNames.map(skillName => ({ skillName, target: `.claude/skills/${skillName}`, action: 'symlinked' })),
+    }));
     mockAddRegistry.mockResolvedValue('added');
     mockListGlobalSkills.mockResolvedValue([]);
     mockListInstallableSkills.mockResolvedValue([
@@ -74,10 +102,20 @@ describe('skill command', () => {
       { name: 'debug' },
     ]);
     mockListSkills.mockResolvedValue([]);
-    mockRemoveSkill.mockImplementation(async () => undefined);
+    mockRemoveSkill.mockImplementation(async (skillName: string, options: { global?: boolean }) => ({
+      skillName,
+      scope: options.global ? 'global' : 'project',
+      removedTargets: [],
+      failures: [],
+    }));
     mockRemoveRegistry.mockResolvedValue('project');
     mockGetBuiltinSkillNames.mockResolvedValue(['remote-one', 'remote-two']);
     mockIsInteractiveTerminal.mockReturnValue(true);
+    mockConfigRead.mockResolvedValue({ environments: ['claude'] });
+    mockConfigCreate.mockResolvedValue({ environments: [] });
+    mockConfigUpdate.mockResolvedValue({});
+    mockSelectSkillEnvironments.mockResolvedValue(['claude']);
+    mockSelectGlobalSkillEnvironments.mockResolvedValue(['claude']);
     mockCheckbox.mockResolvedValue(['frontend-design']);
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
@@ -259,7 +297,7 @@ describe('skill command', () => {
     });
     expect(mockAddSkills).toHaveBeenCalledWith('anthropics/skills', ['frontend-design'], {
       global: undefined,
-      environments: undefined,
+      environments: ['claude'],
     });
     expect(mockAddSkill).not.toHaveBeenCalled();
     expect(process.stderr.write).not.toHaveBeenCalled();
@@ -273,7 +311,7 @@ describe('skill command', () => {
 
     expect(mockAddSkill).toHaveBeenCalledWith('anthropics/skills', 'frontend-design', {
       global: undefined,
-      environments: undefined,
+      environments: ['claude'],
     });
     expect(mockListInstallableSkills).not.toHaveBeenCalled();
     expect(mockAddSkills).not.toHaveBeenCalled();
@@ -318,11 +356,11 @@ describe('skill command', () => {
     expect(mockAddSkill).toHaveBeenCalledTimes(2);
     expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'remote-one', {
       global: undefined,
-      environments: undefined,
+      environments: ['claude'],
     });
     expect(mockAddSkill).toHaveBeenCalledWith('codeaholicguy/ai-devkit', 'remote-two', {
       global: undefined,
-      environments: undefined,
+      environments: ['claude'],
     });
     expect(mockGetBuiltinSkillNames).toHaveBeenCalledOnce();
     expect(SkillService).toHaveBeenCalledTimes(1);

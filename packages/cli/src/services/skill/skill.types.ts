@@ -20,9 +20,32 @@ export interface AddSkillOptions {
   environments?: string[];
 }
 
+export type SkillInstallAction = 'symlinked' | 'copied' | 'skipped';
+
+export interface SkillInstallItem {
+  skillName: string;
+  target: string;
+  action: SkillInstallAction;
+}
+
+export interface SkillInstallResult {
+  status: 'installed' | 'matched';
+  registryId: string;
+  installMode: 'global' | 'project';
+  environments: string[];
+  items: SkillInstallItem[];
+}
+
 export interface RemoveSkillOptions {
   global?: boolean;
   environments?: string[];
+}
+
+export interface SkillRemoveResult {
+  skillName: string;
+  scope: 'global' | 'project';
+  removedTargets: string[];
+  failures: string[];
 }
 
 export interface AddSkillRegistryCommandOptions {

@@ -1,6 +1,5 @@
 import { ConfigManager } from '../../lib/Config.js';
 import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
-import { EnvironmentSelector } from '../../lib/EnvironmentSelector.js';
 import { SkillInstallerService } from './installer/skill-installer.service.js';
 import { SkillIndexService } from './index/skill-index.service.js';
 import { SkillRegistryService } from './registry/skill-registry.service.js';
@@ -12,10 +11,13 @@ import type {
   RegistrySkillChoice,
   RemoveSkillOptions,
   RemoveSkillRegistryCommandOptions,
+  SkillInstallResult,
+  SkillRemoveResult,
 } from './skill.types.js';
 import type { SkillEntry } from './index/skill-index.service.js';
 import type { SkillRegistryAddStatus } from './registry/skill-registry-source.js';
 import type { UpdateSummary } from './registry/skill-registry.service.js';
+import type { SkillIndexRebuildResult } from './index/skill-index.service.js';
 
 export class SkillService {
   private readonly installer: SkillInstallerService;
@@ -24,19 +26,18 @@ export class SkillService {
 
   constructor(
     configManager: ConfigManager,
-    environmentSelector: EnvironmentSelector = new EnvironmentSelector(),
     globalConfigManager: GlobalConfigManager = new GlobalConfigManager(),
   ) {
     this.registry = new SkillRegistryService(configManager, globalConfigManager);
     this.index = new SkillIndexService(this.registry);
-    this.installer = new SkillInstallerService(configManager, this.registry, environmentSelector);
+    this.installer = new SkillInstallerService(configManager, this.registry);
   }
 
   addSkill(
     registryId: string,
     skillName: string,
     options: AddSkillOptions = {},
-  ): Promise<'installed' | 'matched'> {
+  ): Promise<SkillInstallResult> {
     return this.installer.addSkill(registryId, skillName, options);
   }
 
@@ -44,7 +45,7 @@ export class SkillService {
     registryId: string,
     skillNames: string[],
     options: AddSkillOptions = {},
-  ): Promise<'installed' | 'matched'> {
+  ): Promise<SkillInstallResult> {
     return this.installer.addSkills(registryId, skillNames, options);
   }
 
@@ -60,7 +61,7 @@ export class SkillService {
     return this.installer.listGlobalSkills(envCodes);
   }
 
-  removeSkill(skillName: string, options: RemoveSkillOptions = {}): Promise<void> {
+  removeSkill(skillName: string, options: RemoveSkillOptions = {}): Promise<SkillRemoveResult> {
     return this.installer.removeSkill(skillName, options);
   }
 
@@ -93,7 +94,7 @@ export class SkillService {
     return this.index.findSkills(keyword, options);
   }
 
-  rebuildIndex(outputPath?: string): Promise<void> {
+  rebuildIndex(outputPath?: string): Promise<SkillIndexRebuildResult> {
     return this.index.rebuildIndex(outputPath);
   }
 }

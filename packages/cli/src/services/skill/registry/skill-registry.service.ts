@@ -4,7 +4,6 @@ import * as os from 'os';
 import { ConfigManager } from '../../../lib/Config.js';
 import { GlobalConfigManager } from '../../../lib/GlobalConfig.js';
 import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../../util/git.js';
-import { ui } from '../../../util/terminal-ui.js';
 import { getErrorMessage } from '../../../util/text.js';
 import { CliError, NotFoundError } from '../../../util/errors.js';
 import { normalizeRegistrySourceInput, normalizeRegistrySources, parseLocalRegistryPath, planSkillRegistryAdd } from './skill-registry-source.js';
@@ -74,8 +73,7 @@ export class SkillRegistryService {
     try {
       const defaultRegistry = await this.fetchDefaultRegistry();
       defaultRegistries = defaultRegistry.registries || {};
-    } catch (error: unknown) {
-      ui.warning(`Failed to fetch default registry: ${getErrorMessage(error)}`);
+    } catch {
       defaultRegistries = {};
     }
 
@@ -96,13 +94,8 @@ export class SkillRegistryService {
 
     if (await fs.pathExists(repoPath)) {
       if (await isGitRepository(repoPath)) {
-        ui.info(`Updating cached repository ${registryId}...`);
         await pullRepository(repoPath);
-        ui.success(`Cached repository ${registryId} updated`);
-      } else {
-        ui.warning(`Cached registry ${registryId} is not a git repository, using as-is.`);
       }
-      ui.text('  → Using cached repository');
       return repoPath;
     }
 
@@ -110,11 +103,9 @@ export class SkillRegistryService {
       throw new NotFoundError(`Registry "${registryId}" is not cached and has no configured URL.`, { registryId });
     }
 
-    ui.info(`Cloning ${registryId} (this may take a moment)...`);
     await fs.ensureDir(path.dirname(repoPath));
 
     const result = await cloneRepository(SKILL_CACHE_DIR, registryId, gitUrl);
-    ui.success(`${registryId} cloned successfully`);
     return result;
   }
 
@@ -259,21 +250,16 @@ export class SkillRegistryService {
       );
     }
 
-    ui.info(`Using local registry ${registryId}: ${root}`);
     return root;
   }
 
   private async refreshOrUseStaleCache(registryId: string, gitUrl?: string): Promise<string> {
     const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
-    ui.info(`Refreshing registry ${registryId}...`);
 
     try {
-      const repositoryPath = await this.cloneRepositoryToCache(registryId, gitUrl);
-      ui.success(`Registry ${registryId} refreshed.`);
-      return repositoryPath;
+      return await this.cloneRepositoryToCache(registryId, gitUrl);
     } catch (error: unknown) {
       if (await fs.pathExists(cachedPath)) {
-        ui.warning(`Could not refresh registry ${registryId}: ${getErrorMessage(error)}. Using cached registry contents for this run.`);
         return cachedPath;
       }
 
@@ -282,11 +268,6 @@ export class SkillRegistryService {
   }
 
   async updateSkills(registryId?: string): Promise<UpdateSummary> {
-    ui.info(registryId
-      ? `Updating registry: ${registryId}...`
-      : 'Updating all skills...'
-    );
-
     const cacheDir = SKILL_CACHE_DIR;
     const configured = await this.fetchMergedRegistry();
     const localEntries = Object.entries(configured.registries)
@@ -303,17 +284,13 @@ export class SkillRegistryService {
         status: 'skipped',
         message: 'Local registry uses the live filesystem; nothing to update',
       });
-      ui.warning(`${id} skipped (Local registry uses the live filesystem; nothing to update)`);
     }
 
     if (!await fs.pathExists(cacheDir)) {
       if (registryId && localEntries.length === 0) {
         throw new NotFoundError(`Registry "${registryId}" not found.`, { registryId });
       }
-      ui.warning('No skills cache found. Nothing to update.');
-      const summary = this.summarize(results);
-      this.displayUpdateSummary(summary);
-      return summary;
+      return this.summarize(results);
     }
 
     const entries = await fs.readdir(cacheDir, { withFileTypes: true });
@@ -345,22 +322,11 @@ export class SkillRegistryService {
     }
 
     for (const registry of registries) {
-      ui.info(`Updating ${registry.id}...`);
       const result = await this.updateRegistry(registry.path, registry.id);
       results.push(result);
-      if (result.status === 'success') {
-        ui.success(`${registry.id} updated`);
-      } else if (result.status === 'skipped') {
-        ui.warning(`${registry.id} skipped (${result.message})`);
-      } else {
-        ui.error(`${registry.id} failed`);
-      }
     }
 
-    const summary = this.summarize(results);
-    this.displayUpdateSummary(summary);
-
-    return summary;
+    return this.summarize(results);
   }
 
   private summarize(results: UpdateResult[]): UpdateSummary {
@@ -401,33 +367,4 @@ export class SkillRegistryService {
     }
   }
 
-  private displayUpdateSummary(summary: UpdateSummary): void {
-    const errors = summary.results.filter(r => r.status === 'error');
-
-    ui.summary({
-      title: 'Summary',
-      items: [
-        { type: 'success', count: summary.successful, label: 'updated' },
-        { type: 'warning', count: summary.skipped, label: 'skipped' },
-        { type: 'error', count: summary.failed, label: 'failed' },
-      ],
-      details: errors.length > 0 ? {
-        title: 'Errors',
-        items: errors.map(error => {
-          let tip: string | undefined;
-
-          if (error.message.includes('uncommitted') || error.message.includes('unstaged')) {
-            tip = `Run 'git status' in ~/.ai-devkit/skills/${error.registryId} to see details.`;
-          } else if (error.message.includes('network') || error.message.includes('timeout')) {
-            tip = 'Check your internet connection and try again.';
-          }
-
-          return {
-            message: `${error.registryId}: ${error.message}`,
-            tip,
-          };
-        }),
-      } : undefined,
-    });
-  }
 }

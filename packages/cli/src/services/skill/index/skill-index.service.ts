@@ -4,7 +4,6 @@ import { SkillRegistryService, SKILL_CACHE_DIR } from '../registry/skill-registr
 import { extractSkillDescription } from '../skill-description.js';
 import { fetchGitHead } from '../../../util/git.js';
 import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../../../util/github.js';
-import { ui } from '../../../util/terminal-ui.js';
 import { getErrorMessage } from '../../../util/text.js';
 import { parseLocalRegistryPath } from '../registry/skill-registry-source.js';
 import { discoverRegistrySkills } from '../registry/registry-skill-discovery.js';
@@ -33,6 +32,11 @@ export interface SkillIndexData {
   skills: SkillEntry[];
 }
 
+export interface SkillIndexRebuildResult {
+  outputPath: string;
+  skillCount: number;
+}
+
 export class SkillIndexService {
   constructor(
     private registry: SkillRegistryService,
@@ -50,19 +54,17 @@ export class SkillIndexService {
     return this.searchSkillIndex(index, normalizedKeyword);
   }
 
-  async rebuildIndex(outputPath?: string): Promise<void> {
+  async rebuildIndex(outputPath?: string): Promise<SkillIndexRebuildResult> {
     const targetPath = outputPath || this.repository.defaultPath;
-
-    const spinner = ui.spinner('Rebuilding skill index from all registries...');
-    spinner.start();
 
     try {
       const newIndex = await this.buildSkillIndex();
       await this.repository.write(newIndex, targetPath);
-      spinner.succeed(`Skill index rebuilt: ${newIndex.skills.length} skills`);
-      ui.info(`Written to: ${targetPath}`);
+      return {
+        outputPath: targetPath,
+        skillCount: newIndex.skills.length,
+      };
     } catch (error: unknown) {
-      spinner.fail('Failed to rebuild index');
       throw new Error(`Failed to rebuild skill index: ${getErrorMessage(error)}`);
     }
   }
@@ -110,41 +112,30 @@ export class SkillIndexService {
         if (age < INDEX_TTL_MS) {
           return this.refreshLocalRegistryEntries(index);
         }
-        ui.info(`Index is older than 24h, checking for updates...`);
-      } catch (ignore) {
-        ui.warning('Failed to read skill index, will rebuild');
+      } catch {
+        // Fall through to rebuilding the index.
       }
     }
 
     if (!indexExists && !forceRefresh) {
-      const spinner = ui.spinner('Fetching seed index...');
-      spinner.start();
       try {
         const response = await fetch(SEED_INDEX_URL);
         if (response.ok) {
           const seedIndex = (await response.json()) as SkillIndexData;
           await this.repository.write(seedIndex);
-          spinner.succeed('Seed index fetched successfully');
           return this.refreshLocalRegistryEntries(seedIndex);
         }
-      } catch (ignore) {
-        spinner.fail('Failed to fetch seed index, falling back to build');
+      } catch {
+        // Fall through to building from registries.
       }
     }
-
-    const spinner = ui.spinner('Building skill index from registries...');
-    spinner.start();
 
     try {
       const newIndex = await this.buildSkillIndex();
       await this.repository.write(newIndex);
-      spinner.succeed('Skill index updated');
       return newIndex;
     } catch (error: unknown) {
-      spinner.fail('Failed to build index');
-
       if (!forceRefresh && await this.repository.exists()) {
-        ui.warning('Using stale index due to error');
         return await this.repository.readRequired();
       }
 
@@ -158,8 +149,6 @@ export class SkillIndexService {
 
     const existingIndex = await this.repository.read();
     const localSkills = await this.readConfiguredLocalRegistrySkills(registry.registries);
-
-    ui.info(`Building skill index from ${registryIds.length} registries...`);
 
     const HEAD_CONCURRENCY = 10;
     type HeadResult = { registryId: string; headSha?: string; owner?: string; repo?: string; error?: string };
@@ -208,8 +197,6 @@ export class SkillIndexService {
         registriesToFetch.push({ registryId, owner, repo });
       }
     }
-
-    ui.info(`${registriesToFetch.length} registries need updating, ${unchangedSkills.length} skills cached`);
 
     const CONCURRENCY = 5;
     const newSkills: SkillEntry[] = [];

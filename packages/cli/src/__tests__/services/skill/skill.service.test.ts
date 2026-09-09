@@ -132,7 +132,6 @@ describe("SkillService", () => {
 
     skillManager = new SkillService(
       mockConfigManager,
-      mockEnvironmentSelector,
       mockGlobalConfigManager,
     );
 
@@ -243,9 +242,9 @@ describe("SkillService", () => {
     };
 
     it("should successfully add a skill", async () => {
-      const status = await skillManager.addSkill(mockRegistryId, mockSkillName);
+      const result = await skillManager.addSkill(mockRegistryId, mockSkillName);
 
-      expect(status).toBe("matched");
+      expect(result.status).toBe("matched");
 
       expect(mockedSkillUtil.validateRegistryId).toHaveBeenCalledWith(
         mockRegistryId,
@@ -271,14 +270,13 @@ describe("SkillService", () => {
         return Promise.resolve(true);
       });
 
-      await skillManager.addSkill(mockRegistryId, mockSkillName, { global: true });
+      await skillManager.addSkill(mockRegistryId, mockSkillName, { global: true, environments: ["cursor", "claude"] });
 
       expect(mockedFs.symlink).toHaveBeenCalledWith(
         expect.any(String),
         path.join(os.homedir(), ".cursor", "skills", mockSkillName),
         "dir",
       );
-      expect(mockEnvironmentSelector.selectGlobalSkillEnvironments).toHaveBeenCalled();
       expect(mockConfigManager.read).not.toHaveBeenCalled();
       expect(mockConfigManager.create).not.toHaveBeenCalled();
       expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
@@ -290,10 +288,11 @@ describe("SkillService", () => {
       ).rejects.toThrow("Invalid environment codes: invalid-env");
     });
 
-    it("should throw error when env is provided without global option", async () => {
-      await expect(
-        skillManager.addSkill(mockRegistryId, mockSkillName, { environments: ["claude"] }),
-      ).rejects.toThrow("--env can only be used with --global");
+    it("should accept resolved project environments from the command layer", async () => {
+      const result = await skillManager.addSkill(mockRegistryId, mockSkillName, { environments: ["claude"] });
+
+      expect(result.environments).toEqual(["claude"]);
+      expect(mockConfigManager.read).not.toHaveBeenCalled();
     });
 
     it("should install only selected global environments", async () => {
@@ -476,7 +475,6 @@ describe("SkillService", () => {
 
       const skillManagerWithRealGlobal = new SkillService(
         mockConfigManager,
-        mockEnvironmentSelector,
         realGlobalConfigManager,
       );
 
@@ -575,53 +573,43 @@ describe("SkillService", () => {
     it("should skip if skill already exists in target", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
 
-      const status = await skillManager.addSkill(mockRegistryId, mockSkillName);
+      const result = await skillManager.addSkill(mockRegistryId, mockSkillName);
 
-      expect(status).toBe("matched");
+      expect(result.status).toBe("matched");
       expect(mockedFs.symlink).not.toHaveBeenCalled();
       expect(mockedFs.copy).not.toHaveBeenCalled();
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("already exists, skipped"),
-      );
+      expect(result.items).toEqual(expect.arrayContaining([
+        expect.objectContaining({ action: "skipped", skillName: mockSkillName }),
+      ]));
     });
 
-    it("should create config if missing", async () => {
-      mockIsInteractiveTerminal.mockReturnValue(true);
+    it("should create config if missing and fail when environments remain unresolved", async () => {
       mockConfigManager.read.mockResolvedValue(null);
       mockConfigManager.create.mockResolvedValue({
         environments: [],
       } as any);
-      mockEnvironmentSelector.selectSkillEnvironments.mockResolvedValue([
-        "cursor",
-      ]);
 
-      await skillManager.addSkill(mockRegistryId, mockSkillName);
+      await expect(skillManager.addSkill(mockRegistryId, mockSkillName)).rejects.toThrow(
+        'No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.',
+      );
 
       expect(mockConfigManager.create).toHaveBeenCalled();
-      expect(
-        mockEnvironmentSelector.selectSkillEnvironments,
-      ).toHaveBeenCalled();
-      expect(mockConfigManager.update).toHaveBeenCalledWith({
-        environments: ["cursor"],
-      });
+      expect(mockEnvironmentSelector.selectSkillEnvironments).not.toHaveBeenCalled();
+      expect(mockConfigManager.update).not.toHaveBeenCalled();
     });
 
-    it("should select environments when config exists but has no environments", async () => {
-      mockIsInteractiveTerminal.mockReturnValue(true);
+    it("should fail when config exists but has no environments", async () => {
       mockConfigManager.read.mockResolvedValue({
         environments: [],
       } as any);
-      mockEnvironmentSelector.selectSkillEnvironments.mockResolvedValue([
-        "claude",
-      ]);
 
-      await skillManager.addSkill(mockRegistryId, mockSkillName);
+      await expect(skillManager.addSkill(mockRegistryId, mockSkillName)).rejects.toThrow(
+        'No environments configured. Run "ai-devkit init" or add "environments" in .ai-devkit.json.',
+      );
 
       expect(mockConfigManager.create).not.toHaveBeenCalled();
-      expect(mockEnvironmentSelector.selectSkillEnvironments).toHaveBeenCalled();
-      expect(mockConfigManager.update).toHaveBeenCalledWith({
-        environments: ["claude"],
-      });
+      expect(mockEnvironmentSelector.selectSkillEnvironments).not.toHaveBeenCalled();
+      expect(mockConfigManager.update).not.toHaveBeenCalled();
     });
 
     it("should throw in non-interactive mode when no environments configured", async () => {
@@ -682,10 +670,7 @@ describe("SkillService", () => {
       const skills = await skillManager.listInstallableSkills(mockRegistryId);
 
       expect(skills.map(skill => skill.name)).toEqual(["debug", "frontend-design"]);
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("⚠"),
-        expect.stringContaining("Using cached registry contents"),
-      );
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should throw a clear error when the registry has no valid skills", async () => {
@@ -773,11 +758,7 @@ describe("SkillService", () => {
       const skills = await skillManager.listSkills();
 
       expect(skills).toEqual([]);
-      // UI utility outputs symbol and message as separate parameters
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("⚠"),
-        expect.stringContaining("No .ai-devkit.json found"),
-      );
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should return empty array if no environments configured", async () => {
@@ -1004,14 +985,10 @@ describe("SkillService", () => {
     });
 
     it("should remove skill from all skill-capable environments", async () => {
-      await skillManager.removeSkill(mockSkillName);
+      const result = await skillManager.removeSkill(mockSkillName);
 
       expect(mockedFs.remove).toHaveBeenCalled();
-      // UI utility outputs symbol and message as separate parameters
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("✔"),
-        expect.stringContaining("Successfully removed"),
-      );
+      expect(result.removedTargets).toEqual([".cursor/skills", ".claude/skills"]);
     });
 
     it("should update config to remove skill entry after successful removal", async () => {
@@ -1031,40 +1008,26 @@ describe("SkillService", () => {
     it("should handle skill not found gracefully", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(false);
 
-      await skillManager.removeSkill(mockSkillName);
+      const result = await skillManager.removeSkill(mockSkillName);
 
       expect(mockedFs.remove).not.toHaveBeenCalled();
-      // UI utility outputs symbol and message as separate parameters
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("⚠"),
-        expect.stringContaining("not found"),
-      );
+      expect(result.removedTargets).toEqual([]);
     });
 
     it("should log helpful tip when skill not found", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(false);
 
-      await skillManager.removeSkill(mockSkillName);
+      const result = await skillManager.removeSkill(mockSkillName);
 
-      // UI utility outputs symbol and message as separate parameters
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("ℹ"),
-        expect.stringContaining("ai-devkit skill list"),
-      );
+      expect(result.removedTargets).toEqual([]);
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should note that cache is preserved", async () => {
-      await skillManager.removeSkill(mockSkillName);
+      const result = await skillManager.removeSkill(mockSkillName);
 
-      // UI utility outputs symbol and message as separate parameters
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("ℹ"),
-        expect.stringContaining("Cache"),
-      );
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining("ℹ"),
-        expect.stringContaining("preserved"),
-      );
+      expect(result.removedTargets).toHaveLength(2);
+      expect(console.log).not.toHaveBeenCalled();
     });
 
     it("should throw error if no valid skill-capable environments", async () => {

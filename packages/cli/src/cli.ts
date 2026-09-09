@@ -6,7 +6,7 @@ import { phaseCommand } from './commands/phase.js';
 import { lintCommand } from './commands/lint.js';
 import { installCommand } from './commands/install.js';
 import { registerMemoryCommand } from './commands/memory.js';
-import { registerSkillCommand } from './commands/skill.js';
+import { registerSkillCommand } from './commands/skill/index.js';
 import { registerAgentCommand } from './commands/agent.js';
 import { registerChannelCommand } from './commands/channel.js';
 import { registerDocsCommand } from './commands/docs.js';
