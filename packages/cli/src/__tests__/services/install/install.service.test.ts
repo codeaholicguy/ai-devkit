@@ -18,7 +18,7 @@ const mockTemplateManager: any = {
   copyPhaseTemplate: vi.fn()
 };
 
-const mockSkillManager: any = {
+const mockSkillService: any = {
   addSkill: vi.fn()
 };
 
@@ -42,12 +42,12 @@ vi.mock('../../../lib/EnvironmentSelector.js', () => ({
   EnvironmentSelector: vi.fn()
 }));
 
-vi.mock('../../../lib/SkillManager.js', () => ({
-  SkillManager: vi.fn(function () { return mockSkillManager; })
+vi.mock('../../../services/skill/skill.service.js', () => ({
+  SkillService: vi.fn(function () { return mockSkillService; })
 }));
 
 import { getInstallExitCode, reconcileAndInstall } from '../../../services/install/install.service.js';
-import { SkillManager } from '../../../lib/SkillManager.js';
+import { SkillService } from '../../../services/skill/skill.service.js';
 
 describe('install service', () => {
   const installConfig = {
@@ -78,7 +78,7 @@ describe('install service', () => {
     mockTemplateManager.setupMultipleEnvironments.mockResolvedValue([]);
     mockTemplateManager.copyPhaseTemplate.mockResolvedValue('docs/ai/requirements/README.md');
 
-    mockSkillManager.addSkill.mockResolvedValue(undefined);
+    mockSkillService.addSkill.mockResolvedValue(undefined);
     mockConfirm.mockResolvedValue(false);
     mockIsInteractiveTerminal.mockReturnValue(true);
   });
@@ -116,8 +116,8 @@ describe('install service', () => {
 
     const report = await reconcileAndInstall(mixedRegistryConfig, {});
 
-    expect(SkillManager).toHaveBeenCalledTimes(1);
-    expect(mockSkillManager.addSkill).toHaveBeenCalledTimes(3);
+    expect(SkillService).toHaveBeenCalledTimes(1);
+    expect(mockSkillService.addSkill).toHaveBeenCalledTimes(3);
     expect(report.skills.installed).toBe(3);
   });
 
@@ -203,12 +203,12 @@ describe('install service', () => {
       registries: { team: 'https://example.com/team-skills.git' }
     }));
     expect(mockConfigManager.update.mock.invocationCallOrder[0]).toBeLessThan(
-      mockSkillManager.addSkill.mock.invocationCallOrder[0]
+      mockSkillService.addSkill.mock.invocationCallOrder[0]
     );
   });
 
   it('reports skill failures as warnings and continues', async () => {
-    mockSkillManager.addSkill.mockRejectedValue(new Error('network down'));
+    mockSkillService.addSkill.mockRejectedValue(new Error('network down'));
 
     const report = await reconcileAndInstall(installConfig, {});
 

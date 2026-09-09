@@ -3,7 +3,7 @@ import * as path from 'path';
 import YAML from 'yaml';
 import { AVAILABLE_PHASES, EnvironmentCode, MCP_TRANSPORTS, McpServerDefinition, McpTransport, Phase } from '../types.js';
 import { isValidEnvironmentCode } from '../util/env.js';
-import { normalizeRegistrySources } from '../util/skill-registry.js';
+import { normalizeRegistrySources } from '../services/skill/registry/skill-registry-source.js';
 
 export interface InitTemplateSkill {
   registry: string;

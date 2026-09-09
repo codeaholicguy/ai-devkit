@@ -1,17 +1,16 @@
 import fs from 'fs-extra';
 import * as path from 'path';
-import * as os from 'os';
-import { SkillRegistry, SKILL_CACHE_DIR } from './SkillRegistry.js';
-import { extractSkillDescription, isValidSkillName } from '../util/skill.js';
-import { fetchGitHead } from '../util/git.js';
-import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../util/github.js';
-import { ui } from '../util/terminal-ui.js';
-import { getErrorMessage } from '../util/text.js';
-import { parseLocalRegistryPath } from '../util/skill-registry.js';
-import { discoverRegistrySkills } from '../util/local-registry.js';
+import { SkillRegistryService, SKILL_CACHE_DIR } from '../registry/skill-registry.service.js';
+import { extractSkillDescription } from '../skill-description.js';
+import { fetchGitHead } from '../../../util/git.js';
+import { fetchGitHubSkillPaths, fetchRawGitHubFile } from '../../../util/github.js';
+import { ui } from '../../../util/terminal-ui.js';
+import { getErrorMessage } from '../../../util/text.js';
+import { parseLocalRegistryPath } from '../registry/skill-registry-source.js';
+import { discoverRegistrySkills } from '../registry/registry-skill-discovery.js';
+import { SkillIndexRepository } from './skill-index.repository.js';
 
 const SEED_INDEX_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/index.json';
-const SKILL_INDEX_PATH = path.join(os.homedir(), '.ai-devkit', 'skills.json');
 const INDEX_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface SkillEntry {
@@ -34,9 +33,10 @@ export interface SkillIndexData {
   skills: SkillEntry[];
 }
 
-export class SkillIndex {
+export class SkillIndexService {
   constructor(
-    private registry: SkillRegistry
+    private registry: SkillRegistryService,
+    private repository = new SkillIndexRepository(),
   ) { }
 
   async findSkills(keyword: string, options?: { refresh?: boolean }): Promise<SkillEntry[]> {
@@ -51,15 +51,14 @@ export class SkillIndex {
   }
 
   async rebuildIndex(outputPath?: string): Promise<void> {
-    const targetPath = outputPath || SKILL_INDEX_PATH;
+    const targetPath = outputPath || this.repository.defaultPath;
 
     const spinner = ui.spinner('Rebuilding skill index from all registries...');
     spinner.start();
 
     try {
       const newIndex = await this.buildSkillIndex();
-      await fs.ensureDir(path.dirname(targetPath));
-      await fs.writeJson(targetPath, newIndex, { spaces: 2 });
+      await this.repository.write(newIndex, targetPath);
       spinner.succeed(`Skill index rebuilt: ${newIndex.skills.length} skills`);
       ui.info(`Written to: ${targetPath}`);
     } catch (error: unknown) {
@@ -74,7 +73,7 @@ export class SkillIndex {
       return;
     }
 
-    const existingIndex = await this.readExistingIndex();
+    const existingIndex = await this.repository.read();
     const nextIndex: SkillIndexData = {
       meta: {
         version: 1,
@@ -88,25 +87,24 @@ export class SkillIndex {
       ],
     };
 
-    await fs.ensureDir(path.dirname(SKILL_INDEX_PATH));
-    await fs.writeJson(SKILL_INDEX_PATH, nextIndex, { spaces: 2 });
+    await this.repository.write(nextIndex);
   }
 
   async removeRegistry(registryId: string): Promise<void> {
-    const existingIndex = await this.readExistingIndex();
+    const existingIndex = await this.repository.read();
     if (!existingIndex) return;
     existingIndex.skills = existingIndex.skills.filter(skill => skill.registry !== registryId);
     delete existingIndex.meta.registryHeads[registryId];
     existingIndex.meta.updatedAt = Date.now();
-    await fs.writeJson(SKILL_INDEX_PATH, existingIndex, { spaces: 2 });
+    await this.repository.write(existingIndex);
   }
 
   private async ensureSkillIndex(forceRefresh = false): Promise<SkillIndexData> {
-    const indexExists = await fs.pathExists(SKILL_INDEX_PATH);
+    const indexExists = await this.repository.exists();
 
     if (indexExists && !forceRefresh) {
       try {
-        const index: SkillIndexData = await fs.readJson(SKILL_INDEX_PATH);
+        const index = await this.repository.readRequired();
         const age = Date.now() - (index.meta.updatedAt || 0);
 
         if (age < INDEX_TTL_MS) {
@@ -125,8 +123,7 @@ export class SkillIndex {
         const response = await fetch(SEED_INDEX_URL);
         if (response.ok) {
           const seedIndex = (await response.json()) as SkillIndexData;
-          await fs.ensureDir(path.dirname(SKILL_INDEX_PATH));
-          await fs.writeJson(SKILL_INDEX_PATH, seedIndex, { spaces: 2 });
+          await this.repository.write(seedIndex);
           spinner.succeed('Seed index fetched successfully');
           return this.refreshLocalRegistryEntries(seedIndex);
         }
@@ -140,16 +137,15 @@ export class SkillIndex {
 
     try {
       const newIndex = await this.buildSkillIndex();
-      await fs.ensureDir(path.dirname(SKILL_INDEX_PATH));
-      await fs.writeJson(SKILL_INDEX_PATH, newIndex, { spaces: 2 });
+      await this.repository.write(newIndex);
       spinner.succeed('Skill index updated');
       return newIndex;
     } catch (error: unknown) {
       spinner.fail('Failed to build index');
 
-      if (!forceRefresh && await fs.pathExists(SKILL_INDEX_PATH)) {
+      if (!forceRefresh && await this.repository.exists()) {
         ui.warning('Using stale index due to error');
-        return await fs.readJson(SKILL_INDEX_PATH);
+        return await this.repository.readRequired();
       }
 
       throw new Error(`Failed to build skill index: ${getErrorMessage(error)}`);
@@ -160,7 +156,7 @@ export class SkillIndex {
     const registry = await this.registry.fetchMergedRegistry();
     const registryIds = Object.keys(registry.registries);
 
-    const existingIndex = await this.readExistingIndex();
+    const existingIndex = await this.repository.read();
     const localSkills = await this.readConfiguredLocalRegistrySkills(registry.registries);
 
     ui.info(`Building skill index from ${registryIds.length} registries...`);
@@ -271,16 +267,6 @@ export class SkillIndex {
     });
   }
 
-  private async readExistingIndex(): Promise<SkillIndexData | null> {
-    try {
-      if (await fs.pathExists(SKILL_INDEX_PATH)) {
-        return await fs.readJson(SKILL_INDEX_PATH);
-      }
-    } catch { /* ignore */ }
-
-    return null;
-  }
-
   private async refreshLocalRegistryEntries(index: SkillIndexData): Promise<SkillIndexData> {
     const registry = await this.registry.fetchMergedRegistry();
     const localIds = Object.entries(registry.registries)
@@ -293,7 +279,7 @@ export class SkillIndex {
       meta: { ...index.meta, updatedAt: Date.now() },
       skills: [...index.skills.filter(skill => !localIds.includes(skill.registry)), ...localSkills],
     };
-    await fs.writeJson(SKILL_INDEX_PATH, next, { spaces: 2 });
+    await this.repository.write(next);
     return next;
   }
 
@@ -333,30 +319,14 @@ export class SkillIndex {
       return null;
     }
 
-    const entries = await fs.readdir(skillsPath, { withFileTypes: true });
-    const skills: SkillEntry[] = [];
-
-    for (const entry of entries) {
-      if (!entry.isDirectory() || !isValidSkillName(entry.name)) {
-        continue;
-      }
-
-      const skillMdPath = path.join(skillsPath, entry.name, 'SKILL.md');
-      if (!await fs.pathExists(skillMdPath)) {
-        continue;
-      }
-
-      const content = await fs.readFile(skillMdPath, 'utf-8');
-      skills.push({
-        name: entry.name,
-        registry: registryId,
-        path: path.join('skills', entry.name).split(path.sep).join('/'),
-        description: extractSkillDescription(content),
-        lastIndexed: Date.now(),
-      });
-    }
-
-    return skills;
+    const discovered = await discoverRegistrySkills(registryId, registryPath);
+    return discovered.map(skill => ({
+      name: skill.name,
+      registry: registryId,
+      path: path.join('skills', skill.name).split(path.sep).join('/'),
+      description: skill.description,
+      lastIndexed: Date.now(),
+    }));
   }
 
   private mergeSkills(remoteSkills: SkillEntry[], localSkills: SkillEntry[]): SkillEntry[] {

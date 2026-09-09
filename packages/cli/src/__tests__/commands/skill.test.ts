@@ -2,59 +2,43 @@ import { Command } from 'commander';
 
 import { registerSkillCommand } from '../../commands/skill.js';
 import { ui } from '../../util/terminal-ui.js';
-import { SkillManager } from '../../lib/SkillManager.js';
+import { SkillService } from '../../services/skill/skill.service.js';
 
-const mockRemoveCache = vi.hoisted(() => vi.fn());
 const mockGetBuiltinSkillNames = vi.hoisted(() => vi.fn());
+const mockIsInteractiveTerminal = vi.hoisted(() => vi.fn(() => true));
+const mockCheckbox = vi.hoisted(() => vi.fn());
 
 
 const mockAddSkill = vi.fn();
+const mockAddSkills = vi.fn();
+const mockAddRegistry = vi.fn();
 const mockListGlobalSkills = vi.fn();
+const mockListInstallableSkills = vi.fn();
 const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
-const mockCacheRegistry = vi.fn();
-const mockUpdateSkillIndexForRegistry = vi.fn();
-const mockRemoveSkillIndexForRegistry = vi.fn();
-const mockProjectGetSkillRegistries = vi.fn();
-const mockProjectAddSkillRegistry = vi.fn();
-const mockProjectRemoveSkillRegistry = vi.fn();
-const mockGlobalGetSkillRegistries = vi.fn();
-const mockGlobalAddSkillRegistry = vi.fn();
-const mockGlobalRemoveSkillRegistry = vi.fn();
+const mockRemoveRegistry = vi.fn();
 
 vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(function () { return {
-    getSkillRegistries: (...args: unknown[]) => mockProjectGetSkillRegistries(...args),
-    addSkillRegistry: (...args: unknown[]) => mockProjectAddSkillRegistry(...args),
-    removeSkillRegistry: (...args: unknown[]) => mockProjectRemoveSkillRegistry(...args),
-  }; }),
+  ConfigManager: vi.fn(function () { return {}; }),
 }));
 
-vi.mock('../../lib/GlobalConfig.js', () => ({
-  GlobalConfigManager: vi.fn(function () { return {
-    getSkillRegistries: (...args: unknown[]) => mockGlobalGetSkillRegistries(...args),
-    addSkillRegistry: (...args: unknown[]) => mockGlobalAddSkillRegistry(...args),
-    removeSkillRegistry: (...args: unknown[]) => mockGlobalRemoveSkillRegistry(...args),
-  }; }),
-}));
-
-vi.mock('../../lib/SkillManager.js', () => ({
-  SkillManager: vi.fn(function () { return {
+vi.mock('../../services/skill/skill.service.js', () => ({
+  SkillService: vi.fn(function () { return {
     addSkill: (...args: unknown[]) => mockAddSkill(...args),
+    addSkills: (...args: unknown[]) => mockAddSkills(...args),
+    addRegistry: (...args: unknown[]) => mockAddRegistry(...args),
     listGlobalSkills: (...args: unknown[]) => mockListGlobalSkills(...args),
+    listInstallableSkills: (...args: unknown[]) => mockListInstallableSkills(...args),
     listSkills: (...args: unknown[]) => mockListSkills(...args),
     removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
-    cacheRegistry: (...args: unknown[]) => mockCacheRegistry(...args),
-    updateSkillIndexForRegistry: (...args: unknown[]) => mockUpdateSkillIndexForRegistry(...args),
-    removeSkillIndexForRegistry: (...args: unknown[]) => mockRemoveSkillIndexForRegistry(...args),
-    removeRegistryCache: (...args: unknown[]) => mockRemoveCache(...args),
+    removeRegistry: (...args: unknown[]) => mockRemoveRegistry(...args),
     updateSkills: vi.fn(),
     findSkills: vi.fn(),
     rebuildIndex: vi.fn(),
   }; }),
 }));
 
-vi.mock('../../lib/BuiltinSkills.js', () => ({
+vi.mock('../../services/skill/skill-builtins.js', () => ({
   BUILTIN_SKILL_REGISTRY: 'codeaholicguy/ai-devkit',
   getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
 }));
@@ -70,79 +54,78 @@ vi.mock('../../util/terminal-ui.js', () => ({
   },
 }));
 
+vi.mock('../../util/terminal.js', () => ({
+  isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args),
+}));
+
+vi.mock('@inquirer/prompts', () => ({
+  checkbox: (...args: unknown[]) => mockCheckbox(...args),
+}));
+
 describe('skill command', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockAddSkill.mockImplementation(async () => undefined);
+    mockAddSkills.mockImplementation(async () => undefined);
+    mockAddRegistry.mockResolvedValue('added');
     mockListGlobalSkills.mockResolvedValue([]);
+    mockListInstallableSkills.mockResolvedValue([
+      { name: 'frontend-design', description: 'Frontend skill' },
+      { name: 'debug' },
+    ]);
     mockListSkills.mockResolvedValue([]);
     mockRemoveSkill.mockImplementation(async () => undefined);
-    mockCacheRegistry.mockResolvedValue('/tmp/registry-cache');
-    mockUpdateSkillIndexForRegistry.mockImplementation(async () => undefined);
-    mockRemoveSkillIndexForRegistry.mockImplementation(async () => undefined);
-    mockRemoveCache.mockResolvedValue(undefined);
-    mockProjectGetSkillRegistries.mockResolvedValue({});
-    mockProjectAddSkillRegistry.mockResolvedValue({});
-    mockGlobalGetSkillRegistries.mockResolvedValue({});
-    mockGlobalAddSkillRegistry.mockResolvedValue({});
-    mockProjectRemoveSkillRegistry.mockResolvedValue({});
-    mockGlobalRemoveSkillRegistry.mockResolvedValue({});
+    mockRemoveRegistry.mockResolvedValue('project');
     mockGetBuiltinSkillNames.mockResolvedValue(['remote-one', 'remote-two']);
+    mockIsInteractiveTerminal.mockReturnValue(true);
+    mockCheckbox.mockResolvedValue(['frontend-design']);
     vi.spyOn(process, 'exit').mockImplementation((() => undefined) as any);
     vi.spyOn(process.stderr, 'write').mockImplementation((() => true) as any);
   });
 
   it('removes a project registry by default and keeps its cache', async () => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
     const program = new Command(); registerSkillCommand(program);
 
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills']);
 
-    expect(mockProjectRemoveSkillRegistry).toHaveBeenCalledWith('example/skills');
-    expect(mockGlobalRemoveSkillRegistry).not.toHaveBeenCalled();
+    expect(mockRemoveRegistry).toHaveBeenCalledWith('example/skills', { global: undefined });
     expect(ui.success).toHaveBeenCalledWith('Removed project skill registry "example/skills".');
-    expect(mockRemoveCache).not.toHaveBeenCalled();
   });
 
   it.each(['-g', '--global'])('removes the global registry and its cache with %s', async flag => {
-    mockGlobalGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
+    mockRemoveRegistry.mockResolvedValue('global');
     const program = new Command(); registerSkillCommand(program);
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills', flag]);
-    expect(mockGlobalRemoveSkillRegistry).toHaveBeenCalledWith('example/skills');
-    expect(mockProjectRemoveSkillRegistry).not.toHaveBeenCalled();
-    expect(mockRemoveCache).toHaveBeenCalledWith('example/skills');
+    expect(mockRemoveRegistry).toHaveBeenCalledWith('example/skills', { global: true });
     expect(ui.success).toHaveBeenCalledWith('Removed global skill registry "example/skills".');
   });
 
   it('always protects the built-in registry', async () => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'codeaholicguy/ai-devkit': 'shadow-url' });
+    mockRemoveRegistry.mockRejectedValue(new Error('Registry "codeaholicguy/ai-devkit" is built in and cannot be unregistered.'));
     const program = new Command(); registerSkillCommand(program);
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'codeaholicguy/ai-devkit']);
     expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry "codeaholicguy/ai-devkit" is built in and cannot be unregistered.');
-    expect(mockProjectRemoveSkillRegistry).not.toHaveBeenCalled();
   });
 
   it('suggests --global when the project registration is missing', async () => {
-    mockGlobalGetSkillRegistries.mockResolvedValue({ 'example/skills': 'url' });
+    mockRemoveRegistry.mockRejectedValue(new Error('Registry example/skills is not registered (try --global).'));
     const program = new Command(); registerSkillCommand(program);
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'example/skills']);
     expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry example/skills is not registered (try --global).');
   });
 
   it('reports a missing global registration without reading project config', async () => {
+    mockRemoveRegistry.mockRejectedValue(new Error('Registry x/missing is not registered (try --global).'));
     const program = new Command(); registerSkillCommand(program);
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'x/missing', '--global']);
     expect(ui.error).toHaveBeenCalledWith('Failed to remove registry: Registry x/missing is not registered (try --global).');
-    expect(mockProjectGetSkillRegistries).not.toHaveBeenCalled();
-    expect(mockRemoveCache).not.toHaveBeenCalled();
   });
 
   it('validates removal IDs before reading either scope', async () => {
+    mockRemoveRegistry.mockRejectedValue(new Error('Invalid registry ID format: "invalid". Expected format: "org/repo"'));
     const program = new Command(); registerSkillCommand(program);
     await program.parseAsync(['node', 'test', 'skill', 'remove-registry', 'invalid']);
-    expect(mockProjectGetSkillRegistries).not.toHaveBeenCalled();
-    expect(mockGlobalGetSkillRegistries).not.toHaveBeenCalled();
-    expect(mockRemoveCache).not.toHaveBeenCalled();
+    expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('Invalid registry ID format'));
   });
 
   it('adds an opaque registry URL to project config by default', async () => {
@@ -151,34 +134,21 @@ describe('skill command', () => {
 
     await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'git@example.com:example/private-skills.git']);
 
-    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+    expect(mockAddRegistry).toHaveBeenCalledWith(
       'example/private-skills',
       'git@example.com:example/private-skills.git',
       { force: undefined },
     );
-    expect(mockGlobalAddSkillRegistry).not.toHaveBeenCalled();
-    expect(mockCacheRegistry).toHaveBeenCalledWith(
-      'example/private-skills',
-      'git@example.com:example/private-skills.git',
-    );
-    expect(mockUpdateSkillIndexForRegistry).toHaveBeenCalledWith('example/private-skills', '/tmp/registry-cache');
-    expect(mockCacheRegistry.mock.invocationCallOrder[0]).toBeLessThan(
-      mockUpdateSkillIndexForRegistry.mock.invocationCallOrder[0],
-    );
   });
 
   it('reports an identical target-scope registry as already registered', async () => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'anthropics/skills': 'same-url' });
+    mockAddRegistry.mockResolvedValue('already-registered');
     const program = new Command();
     registerSkillCommand(program);
 
     await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'anthropics/skills', 'same-url']);
 
-    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
-      'anthropics/skills',
-      'same-url',
-      { force: undefined },
-    );
+    expect(mockAddRegistry).toHaveBeenCalledWith('anthropics/skills', 'same-url', { force: undefined });
     expect(ui.info).toHaveBeenCalledWith('Registry "anthropics/skills" is already registered.');
     expect(ui.success).not.toHaveBeenCalled();
   });
@@ -189,23 +159,21 @@ describe('skill command', () => {
 
     await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'opaque-url', globalFlag]);
 
-    expect(mockGlobalGetSkillRegistries).toHaveBeenCalledOnce();
-    expect(mockGlobalAddSkillRegistry).toHaveBeenCalledWith(
+    expect(mockAddRegistry).toHaveBeenCalledWith(
       'example/private-skills',
       'opaque-url',
-      { force: undefined },
+      { global: true, force: undefined },
     );
-    expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
   });
 
   it.each(['-f', '--force'])('forwards %s and reports a forced update', async forceFlag => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/private-skills': 'old-url' });
+    mockAddRegistry.mockResolvedValue('updated');
     const program = new Command();
     registerSkillCommand(program);
 
     await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'example/private-skills', 'new-url', forceFlag]);
 
-    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+    expect(mockAddRegistry).toHaveBeenCalledWith(
       'example/private-skills',
       'new-url',
       { force: true },
@@ -223,7 +191,7 @@ describe('skill command', () => {
 
     await program.parseAsync(['node', 'test', 'skill', 'add-registry', 'anthropics/skills', url]);
 
-    expect(mockProjectAddSkillRegistry).toHaveBeenCalledWith(
+    expect(mockAddRegistry).toHaveBeenCalledWith(
       'anthropics/skills',
       url,
       { force: undefined },
@@ -235,18 +203,17 @@ describe('skill command', () => {
     async id => {
       const program = new Command();
       registerSkillCommand(program);
+      mockAddRegistry.mockRejectedValue(new Error(`Invalid registry ID format: "${id}". Expected format: "org/repo"`));
 
       await program.parseAsync(['node', 'test', 'skill', 'add-registry', id, 'opaque-url']);
 
       expect(ui.error).toHaveBeenCalledWith(expect.stringContaining('Invalid registry ID format'));
       expect(process.exit).toHaveBeenCalledWith(1);
-      expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
-      expect(mockGlobalAddSkillRegistry).not.toHaveBeenCalled();
     }
   );
 
   it('rejects a target-scope conflict without calling the setter', async () => {
-    mockProjectGetSkillRegistries.mockResolvedValue({ 'example/private-skills': 'old-url' });
+    mockAddRegistry.mockRejectedValue(new Error('Registry "example/private-skills" is already registered with a different URL. Use --force to overwrite it.'));
     const program = new Command();
     registerSkillCommand(program);
 
@@ -255,7 +222,6 @@ describe('skill command', () => {
     expect(ui.error).toHaveBeenCalledWith(
       'Failed to add registry: Registry "example/private-skills" is already registered with a different URL. Use --force to overwrite it.'
     );
-    expect(mockProjectAddSkillRegistry).not.toHaveBeenCalled();
   });
 
   it('documents add-registry arguments and scope/conflict flags', () => {
@@ -276,16 +242,26 @@ describe('skill command', () => {
     expect(skillCommand?.commands.some(command => command.name() === 'list-registries')).toBe(false);
   });
 
-  it('parses skill add with registry only and forwards undefined skill name', async () => {
+  it('prompts for skill add when skill name is omitted', async () => {
     const program = new Command();
     registerSkillCommand(program);
 
     await program.parseAsync(['node', 'test', 'skill', 'add', 'anthropics/skills']);
 
-    expect(mockAddSkill).toHaveBeenCalledWith('anthropics/skills', undefined, {
+    expect(mockListInstallableSkills).toHaveBeenCalledWith('anthropics/skills');
+    expect(mockCheckbox).toHaveBeenCalledWith({
+      message: 'Select skill(s) to install',
+      choices: [
+        { name: 'frontend-design - Frontend skill', value: 'frontend-design' },
+        { name: 'debug', value: 'debug' },
+      ],
+      required: true,
+    });
+    expect(mockAddSkills).toHaveBeenCalledWith('anthropics/skills', ['frontend-design'], {
       global: undefined,
       environments: undefined,
     });
+    expect(mockAddSkill).not.toHaveBeenCalled();
     expect(process.stderr.write).not.toHaveBeenCalled();
   });
 
@@ -299,12 +275,14 @@ describe('skill command', () => {
       global: undefined,
       environments: undefined,
     });
+    expect(mockListInstallableSkills).not.toHaveBeenCalled();
+    expect(mockAddSkills).not.toHaveBeenCalled();
   });
 
   it('shows a warning instead of exiting when skill selection is cancelled', async () => {
-    mockAddSkill.mockImplementation(async () => {
-      throw new Error('Skill selection cancelled.');
-    });
+    const error = new Error('User cancelled');
+    error.name = 'ExitPromptError';
+    mockCheckbox.mockRejectedValue(error);
 
     const program = new Command();
     registerSkillCommand(program);
@@ -313,6 +291,22 @@ describe('skill command', () => {
 
     expect(ui.warning).toHaveBeenCalledWith('Skill selection cancelled.');
     expect(ui.error).not.toHaveBeenCalled();
+    expect(mockAddSkills).not.toHaveBeenCalled();
+  });
+
+  it('fails before prompting when skill name is omitted in non-interactive mode', async () => {
+    mockIsInteractiveTerminal.mockReturnValue(false);
+
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(['node', 'test', 'skill', 'add', 'anthropics/skills']);
+
+    expect(ui.error).toHaveBeenCalledWith('Failed to add skill: Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
+    expect(process.exit).toHaveBeenCalledWith(1);
+    expect(mockListInstallableSkills).not.toHaveBeenCalled();
+    expect(mockCheckbox).not.toHaveBeenCalled();
+    expect(mockAddSkills).not.toHaveBeenCalled();
   });
 
   it('installs all built-in skills with skill add --built-in', async () => {
@@ -331,7 +325,7 @@ describe('skill command', () => {
       environments: undefined,
     });
     expect(mockGetBuiltinSkillNames).toHaveBeenCalledOnce();
-    expect(SkillManager).toHaveBeenCalledTimes(1);
+    expect(SkillService).toHaveBeenCalledTimes(1);
   });
 
   it('exits when skill add has neither registry nor --built-in', async () => {

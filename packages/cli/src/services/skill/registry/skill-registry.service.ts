@@ -1,15 +1,18 @@
 import fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';
-import { ConfigManager } from './Config.js';
-import { GlobalConfigManager } from './GlobalConfig.js';
-import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../util/git.js';
-import { ui } from '../util/terminal-ui.js';
-import { getErrorMessage } from '../util/text.js';
-import { CliError, NotFoundError } from '../util/errors.js';
-import { parseLocalRegistryPath } from '../util/skill-registry.js';
-import { isValidSkillName } from '../util/skill.js';
-import { LOCAL_REGISTRY_MAX_ENTRIES } from '../util/local-registry.js';
+import { ConfigManager } from '../../../lib/Config.js';
+import { GlobalConfigManager } from '../../../lib/GlobalConfig.js';
+import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../../util/git.js';
+import { ui } from '../../../util/terminal-ui.js';
+import { getErrorMessage } from '../../../util/text.js';
+import { CliError, NotFoundError } from '../../../util/errors.js';
+import { normalizeRegistrySourceInput, normalizeRegistrySources, parseLocalRegistryPath, planSkillRegistryAdd } from './skill-registry-source.js';
+import { isValidSkillName, validateRegistryId } from '../skill-validation.js';
+import { BUILTIN_SKILL_REGISTRY } from '../skill-builtins.js';
+import { LOCAL_REGISTRY_MAX_ENTRIES } from './registry-skill-discovery.js';
+import type { AddSkillRegistryCommandOptions, RemoveSkillRegistryCommandOptions } from '../skill.types.js';
+import type { SkillRegistryAddStatus } from './skill-registry-source.js';
 
 export const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
 export const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');
@@ -33,7 +36,12 @@ export interface UpdateSummary {
   results: UpdateResult[];
 }
 
-export class SkillRegistry {
+export interface AddRegistryResult {
+  status: SkillRegistryAddStatus;
+  registryPath?: string;
+}
+
+export class SkillRegistryService {
   private mergedRegistry?: Promise<SkillRegistryData>;
   private readonly preparedRepositories = new Map<string, Promise<string>>();
 
@@ -121,6 +129,79 @@ export class SkillRegistry {
       : this.prepareGitRegistry(registryId, gitUrl);
     this.preparedRepositories.set(registryId, preparation);
     return preparation;
+  }
+
+  async cacheRegistry(registryId: string, source: string): Promise<string> {
+    return this.prepareRegistryRepository(registryId, source);
+  }
+
+  async addRegistrySource(
+    id: string,
+    source: string,
+    options: AddSkillRegistryCommandOptions = {},
+  ): Promise<AddRegistryResult> {
+    validateRegistryId(id);
+    const configManager = options.global
+      ? this.globalConfigManager
+      : this.configManager;
+
+    const registries = await configManager.getSkillRegistries();
+    const value = await normalizeRegistrySourceInput(source, process.cwd());
+    const [projectRegistries, globalRegistries] = await Promise.all([
+      options.global ? this.configManager.getSkillRegistries() : Promise.resolve(registries),
+      options.global ? Promise.resolve(registries) : this.globalConfigManager.getSkillRegistries(),
+    ]);
+    await normalizeRegistrySources({ ...globalRegistries, ...projectRegistries, [id]: value }, process.cwd());
+    const mutation = planSkillRegistryAdd(registries, id, value, { force: options.force });
+
+    const registryPath = mutation.status !== 'already-registered'
+      ? await this.cacheRegistry(id, value)
+      : undefined;
+
+    await configManager.addSkillRegistry(id, value, { force: options.force });
+    return { status: mutation.status, registryPath };
+  }
+
+  async removeRegistrySource(
+    id: string,
+    options: RemoveSkillRegistryCommandOptions = {},
+  ): Promise<'project' | 'global'> {
+    validateRegistryId(id);
+    if (id === BUILTIN_SKILL_REGISTRY) {
+      throw new Error(`Registry "${id}" is built in and cannot be unregistered.`);
+    }
+
+    const configManager = options.global
+      ? this.globalConfigManager
+      : this.configManager;
+    const registries = await configManager.getSkillRegistries();
+    if (!Object.prototype.hasOwnProperty.call(registries, id)) {
+      throw new Error(`Registry ${id} is not registered (try --global).`);
+    }
+
+    await configManager.removeSkillRegistry(id);
+    if (options.global) {
+      await this.removeRegistryCache(id);
+    }
+
+    return options.global ? 'global' : 'project';
+  }
+
+  /**
+   * Remove a registry's cached repository from the skill cache directory.
+   * Refuses paths that would escape the cache root.
+   */
+  async removeRegistryCache(registryId: string): Promise<void> {
+    const cacheRoot = path.resolve(SKILL_CACHE_DIR);
+    const cachePath = path.resolve(cacheRoot, registryId);
+    const relativeCachePath = path.relative(cacheRoot, cachePath);
+    const escapesCacheRoot = relativeCachePath === '..'
+      || relativeCachePath.startsWith(`..${path.sep}`)
+      || path.isAbsolute(relativeCachePath);
+    if (!relativeCachePath || escapesCacheRoot) {
+      throw new Error(`Refusing to remove cache outside ${cacheRoot}.`);
+    }
+    await fs.remove(cachePath);
   }
 
   private async prepareGitRegistry(registryId: string, gitUrl?: string): Promise<string> {

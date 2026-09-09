@@ -4,7 +4,7 @@ import * as path from 'path';
 import { GlobalDevKitConfig } from '../types.js';
 import { filterStringRecord } from '../util/config.js';
 import { CliError } from '../util/errors.js';
-import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../util/skill-registry.js';
+import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../services/skill/registry/skill-registry-source.js';
 import { ui } from '../util/terminal-ui.js';
 
 export class GlobalConfigManager {

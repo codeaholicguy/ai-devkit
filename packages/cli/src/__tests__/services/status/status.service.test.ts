@@ -5,7 +5,7 @@ const mockGetBuiltinSkillNames = vi.hoisted(() =>
   vi.fn(async () => ['remote-one', 'remote-two'])
 );
 
-vi.mock('../../../lib/BuiltinSkills.js', () => ({
+vi.mock('../../../services/skill/skill-builtins.js', () => ({
   getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
 }));
 

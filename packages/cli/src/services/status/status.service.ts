@@ -13,7 +13,7 @@ import {
   type ReadinessAgentType,
   type ReadinessStatus,
 } from '@ai-devkit/agent-manager';
-import { getBuiltinSkillNames } from '../../lib/BuiltinSkills.js';
+import { getBuiltinSkillNames } from '../skill/skill-builtins.js';
 import { filterStringRecord } from '../../util/config.js';
 import { getGlobalSkillPath, isValidEnvironmentCode } from '../../util/env.js';
 import { inspectTmux } from '../../util/tmux.js';

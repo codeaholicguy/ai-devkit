@@ -1,14 +1,14 @@
 import { Command } from 'commander';
+import { checkbox } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { ConfigManager } from '../lib/Config.js';
-import { GlobalConfigManager } from '../lib/GlobalConfig.js';
-import { SkillManager } from '../lib/SkillManager.js';
-import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../lib/BuiltinSkills.js';
+import { SkillService } from '../services/skill/skill.service.js';
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../services/skill/skill-builtins.js';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
+import { isInteractiveTerminal } from '../util/terminal.js';
 import { truncate, getErrorMessage } from '../util/text.js';
-import { validateRegistryId } from '../util/skill.js';
-import { normalizeRegistrySourceInput, normalizeRegistrySources, planSkillRegistryAdd } from '../util/skill-registry.js';
+import type { RegistrySkillChoice } from '../services/skill/skill.types.js';
 
 export function registerSkillCommand(program: Command): void {
   const skillCommand = program
@@ -24,7 +24,7 @@ export function registerSkillCommand(program: Command): void {
     .action(async (registryRepo: string | undefined, skillName: string | undefined, options: { builtIn?: boolean; global?: boolean; env?: string[] }) => {
       try {
         const configManager = new ConfigManager();
-        const skillManager = new SkillManager(configManager);
+        const skillService = new SkillService(configManager);
         const installOptions = {
           global: options.global,
           environments: options.env,
@@ -36,7 +36,7 @@ export function registerSkillCommand(program: Command): void {
           }
 
           for (const builtInSkill of await getBuiltinSkillNames()) {
-            await skillManager.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions);
+            await skillService.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions);
           }
 
           return;
@@ -48,7 +48,19 @@ export function registerSkillCommand(program: Command): void {
           return;
         }
 
-        await skillManager.addSkill(registryRepo, skillName, installOptions);
+        if (skillName) {
+          await skillService.addSkill(registryRepo, skillName, installOptions);
+          return;
+        }
+
+        if (!isInteractiveTerminal()) {
+          throw new Error('Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>');
+        }
+
+        const selectedSkillNames = await promptForSkillSelection(
+          await skillService.listInstallableSkills(registryRepo),
+        );
+        await skillService.addSkills(registryRepo, selectedSkillNames, installOptions);
       } catch (error: unknown) {
         const message = getErrorMessage(error);
         if (message === 'Skill selection cancelled.') {
@@ -70,29 +82,12 @@ export function registerSkillCommand(program: Command): void {
       source: string,
       options: { global?: boolean; force?: boolean },
     ) => {
-      validateRegistryId(id);
-      const configManager = options.global
-        ? new GlobalConfigManager()
-        : new ConfigManager();
+      const skillService = new SkillService(new ConfigManager());
+      const status = await skillService.addRegistry(id, source, options);
 
-      const registries = await configManager.getSkillRegistries();
-      const value = await normalizeRegistrySourceInput(source, process.cwd());
-      const [projectRegistries, globalRegistries] = await Promise.all([
-        options.global ? new ConfigManager().getSkillRegistries() : Promise.resolve(registries),
-        options.global ? Promise.resolve(registries) : new GlobalConfigManager().getSkillRegistries(),
-      ]);
-      await normalizeRegistrySources({ ...globalRegistries, ...projectRegistries, [id]: value }, process.cwd());
-      const mutation = planSkillRegistryAdd(registries, id, value, { force: options.force });
-      if (mutation.status !== 'already-registered') {
-        const skillManager = new SkillManager(new ConfigManager());
-        const registryPath = await skillManager.cacheRegistry(id, value);
-        await skillManager.updateSkillIndexForRegistry(id, registryPath);
-      }
-      await configManager.addSkillRegistry(id, value, { force: options.force });
-
-      if (mutation.status === 'already-registered') {
+      if (status === 'already-registered') {
         ui.info(`Registry "${id}" is already registered.`);
-      } else if (mutation.status === 'updated') {
+      } else if (status === 'updated') {
         ui.success(`Updated skill registry "${id}".`);
       } else {
         ui.success(`Registered skill registry "${id}".`);
@@ -107,27 +102,8 @@ export function registerSkillCommand(program: Command): void {
       id: string,
       options: { global?: boolean },
     ) => {
-      validateRegistryId(id);
-      if (id === BUILTIN_SKILL_REGISTRY) {
-        throw new Error(`Registry "${id}" is built in and cannot be unregistered.`);
-      }
-
-      const configManager = options.global
-        ? new GlobalConfigManager()
-        : new ConfigManager();
-      const registries = await configManager.getSkillRegistries();
-      if (!Object.prototype.hasOwnProperty.call(registries, id)) {
-        throw new Error(`Registry ${id} is not registered (try --global).`);
-      }
-
-      await configManager.removeSkillRegistry(id);
-      const skillManager = new SkillManager(new ConfigManager());
-      await skillManager.removeSkillIndexForRegistry(id);
-      if (options.global) {
-        await skillManager.removeRegistryCache(id);
-      }
-
-      const scope = options.global ? 'global' : 'project';
+      const skillService = new SkillService(new ConfigManager());
+      const scope = await skillService.removeRegistry(id, options);
       ui.success(`Removed ${scope} skill registry "${id}".`);
     }));
 
@@ -138,14 +114,14 @@ export function registerSkillCommand(program: Command): void {
     .option('-e, --env <environment...>', 'Limit global listing to environment(s) (requires --global)')
     .action(withErrorHandler('list skills', async (options: { global?: boolean; env?: string[] }) => {
       const configManager = new ConfigManager();
-      const skillManager = new SkillManager(configManager);
+      const skillService = new SkillService(configManager);
 
       if (options.env && options.env.length > 0 && !options.global) {
         throw new Error('--env can only be used with --global');
       }
 
       if (options.global) {
-        const skills = await skillManager.listGlobalSkills(options.env);
+        const skills = await skillService.listGlobalSkills(options.env);
 
         if (skills.length === 0) {
           ui.warning('No global skills installed in the selected environments.');
@@ -167,7 +143,7 @@ export function registerSkillCommand(program: Command): void {
         return;
       }
 
-      const skills = await skillManager.listSkills();
+      const skills = await skillService.listSkills();
 
       if (skills.length === 0) {
         ui.warning('No skills installed in this project.');
@@ -200,9 +176,9 @@ export function registerSkillCommand(program: Command): void {
       options: { global?: boolean; env?: string[] },
     ) => {
       const configManager = new ConfigManager();
-      const skillManager = new SkillManager(configManager);
+      const skillService = new SkillService(configManager);
 
-      await skillManager.removeSkill(skillName, {
+      await skillService.removeSkill(skillName, {
         global: options.global,
         environments: options.env,
       });
@@ -213,9 +189,9 @@ export function registerSkillCommand(program: Command): void {
     .description('Update skills from registries (e.g., ai-devkit skill update or ai-devkit skill update anthropic/skills)')
     .action(withErrorHandler('update skills', async (registryId?: string) => {
       const configManager = new ConfigManager();
-      const skillManager = new SkillManager(configManager);
+      const skillService = new SkillService(configManager);
 
-      await skillManager.updateSkills(registryId);
+      await skillService.updateSkills(registryId);
     }));
 
   skillCommand
@@ -224,9 +200,9 @@ export function registerSkillCommand(program: Command): void {
     .option('--refresh', 'Force rebuild the skill index')
     .action(withErrorHandler('search skills', async (keyword: string, options: { refresh?: boolean }) => {
       const configManager = new ConfigManager();
-      const skillManager = new SkillManager(configManager);
+      const skillService = new SkillService(configManager);
 
-      const results = await skillManager.findSkills(keyword, { refresh: options.refresh });
+      const results = await skillService.findSkills(keyword, { refresh: options.refresh });
 
       if (results.length === 0) {
         ui.warning(`No skills found matching "${keyword}"`);
@@ -255,8 +231,28 @@ export function registerSkillCommand(program: Command): void {
     .option('--output <path>', 'Output path for the index file')
     .action(withErrorHandler('rebuild index', async (options: { output?: string }) => {
       const configManager = new ConfigManager();
-      const skillManager = new SkillManager(configManager);
+      const skillService = new SkillService(configManager);
 
-      await skillManager.rebuildIndex(options.output);
+      await skillService.rebuildIndex(options.output);
     }));
+}
+
+async function promptForSkillSelection(skills: RegistrySkillChoice[]): Promise<string[]> {
+  try {
+    return await checkbox({
+      message: 'Select skill(s) to install',
+      choices: skills.map(skill => ({
+        name: skill.description ? `${skill.name} - ${skill.description}` : skill.name,
+        value: skill.name,
+      })),
+      required: true,
+    });
+  } catch (error: unknown) {
+    if (error instanceof Error &&
+      (error.name === 'ExitPromptError' || error.message.toLowerCase().includes('cancel'))) {
+      throw new Error('Skill selection cancelled.');
+    }
+
+    throw error;
+  }
 }

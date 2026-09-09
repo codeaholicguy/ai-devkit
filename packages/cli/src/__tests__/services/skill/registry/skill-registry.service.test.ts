@@ -1,10 +1,10 @@
 import type { Mocked } from 'vitest';
 import fs from 'fs-extra';
 import * as path from 'path';
-import { SkillRegistry, SKILL_CACHE_DIR } from '../../lib/SkillRegistry.js';
-import { ConfigManager } from '../../lib/Config.js';
-import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
-import * as gitUtil from '../../util/git.js';
+import { SkillRegistryService, SKILL_CACHE_DIR } from '../../../../services/skill/registry/skill-registry.service.js';
+import { ConfigManager } from '../../../../lib/Config.js';
+import { GlobalConfigManager } from '../../../../lib/GlobalConfig.js';
+import * as gitUtil from '../../../../util/git.js';
 
 const mockUi = vi.hoisted(() => ({
   info: vi.fn(),
@@ -23,26 +23,27 @@ vi.mock('fs-extra', () => ({
     readdir: vi.fn(),
     opendir: vi.fn(),
     realpath: vi.fn(),
+    remove: vi.fn(),
   },
 }));
 
-vi.mock('../../util/git.js', () => ({
+vi.mock('../../../../util/git.js', () => ({
   ensureGitInstalled: vi.fn(),
   cloneRepository: vi.fn(),
   isGitRepository: vi.fn(),
   pullRepository: vi.fn(),
 }));
 
-vi.mock('../../util/terminal-ui.js', () => ({ ui: mockUi }));
+vi.mock('../../../../util/terminal-ui.js', () => ({ ui: mockUi }));
 
 const mockedFs = fs as Mocked<typeof fs>;
 const mockedGit = gitUtil as Mocked<typeof gitUtil>;
 
-function createRegistry(): SkillRegistry {
-  return new SkillRegistry({} as ConfigManager, {} as GlobalConfigManager);
+function createRegistry(): SkillRegistryService {
+  return new SkillRegistryService({} as ConfigManager, {} as GlobalConfigManager);
 }
 
-describe('SkillRegistry merged catalog', () => {
+describe('SkillRegistryService merged catalog', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -59,7 +60,7 @@ describe('SkillRegistry merged catalog', () => {
     const globalConfigManager = {
       getSkillRegistries: vi.fn().mockResolvedValue({ 'global/skills': 'global-url' }),
     } as unknown as GlobalConfigManager;
-    const registry = new SkillRegistry(configManager, globalConfigManager);
+    const registry = new SkillRegistryService(configManager, globalConfigManager);
 
     const [first, second] = await Promise.all([
       registry.fetchMergedRegistry(),
@@ -75,7 +76,7 @@ describe('SkillRegistry merged catalog', () => {
   });
 });
 
-describe('SkillRegistry repository preparation', () => {
+describe('SkillRegistryService repository preparation', () => {
   const registryId = 'example/skills';
   const secondRegistryId = 'other/skills';
   const gitUrl = 'https://github.com/example/skills.git';
@@ -174,6 +175,33 @@ describe('SkillRegistry repository preparation', () => {
     );
   });
 
+  it('prepares the registry repository in the local cache', async () => {
+    const repoPath = path.join(SKILL_CACHE_DIR, registryId);
+    mockedFs.pathExists.mockResolvedValue(false);
+    mockedGit.cloneRepository.mockResolvedValue(repoPath);
+
+    const result = await createRegistry().cacheRegistry(registryId, gitUrl);
+
+    expect(mockedGit.ensureGitInstalled).toHaveBeenCalledOnce();
+    expect(mockedGit.cloneRepository).toHaveBeenCalledWith(SKILL_CACHE_DIR, registryId, gitUrl);
+    expect(result).toBe(repoPath);
+  });
+
+  it('removes the contained registry cache directory', async () => {
+    await createRegistry().removeRegistryCache('example/skills');
+
+    expect(mockedFs.remove).toHaveBeenCalledWith(
+      path.join(SKILL_CACHE_DIR, 'example', 'skills'),
+    );
+  });
+
+  it('refuses paths that escape the cache root', async () => {
+    await expect(
+      createRegistry().removeRegistryCache('../escaped'),
+    ).rejects.toThrow(/outside/);
+    expect(mockedFs.remove).not.toHaveBeenCalled();
+  });
+
   it('prepares a local registry once without invoking Git or writing', async () => {
     const localPath = '/tmp/local-skills';
     mockedFs.realpath.mockResolvedValue(localPath);
@@ -220,7 +248,7 @@ describe('SkillRegistry repository preparation', () => {
     } as Awaited<ReturnType<typeof fs.opendir>>);
     mockedFs.pathExists.mockResolvedValue(true);
     mockedFs.readdir.mockResolvedValue([]);
-    const registry = new SkillRegistry(
+    const registry = new SkillRegistryService(
       { getSkillRegistries: vi.fn().mockResolvedValue({ [registryId]: 'file:///tmp/local-skills' }) } as unknown as ConfigManager,
       { getSkillRegistries: vi.fn().mockResolvedValue({}) } as unknown as GlobalConfigManager,
     );
@@ -232,5 +260,92 @@ describe('SkillRegistry repository preparation', () => {
     expect(mockedGit.pullRepository).not.toHaveBeenCalled();
     expect(mockedGit.isGitRepository).not.toHaveBeenCalled();
     expect(mockedFs.ensureDir).not.toHaveBeenCalled();
+  });
+});
+
+describe('SkillRegistryService registry source mutations', () => {
+  const registryId = 'example/private-skills';
+  const gitUrl = 'git@example.com:example/private-skills.git';
+  const cachedPath = path.join(SKILL_CACHE_DIR, registryId);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedFs.pathExists.mockResolvedValue(false);
+    mockedFs.ensureDir.mockResolvedValue(undefined);
+    mockedGit.cloneRepository.mockResolvedValue(cachedPath);
+  });
+
+  it('adds a project registry source and prepares its cache', async () => {
+    const configManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({}),
+      addSkillRegistry: vi.fn().mockResolvedValue({}),
+    } as unknown as ConfigManager;
+    const globalConfigManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({}),
+    } as unknown as GlobalConfigManager;
+    const registry = new SkillRegistryService(configManager, globalConfigManager);
+
+    await expect(registry.addRegistrySource(registryId, gitUrl)).resolves.toEqual({
+      status: 'added',
+      registryPath: cachedPath,
+    });
+
+    expect(configManager.addSkillRegistry).toHaveBeenCalledWith(registryId, gitUrl, { force: undefined });
+    expect(mockedGit.cloneRepository).toHaveBeenCalledWith(SKILL_CACHE_DIR, registryId, gitUrl);
+  });
+
+  it('adds a global registry source through global config', async () => {
+    const configManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({}),
+    } as unknown as ConfigManager;
+    const globalConfigManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({}),
+      addSkillRegistry: vi.fn().mockResolvedValue({}),
+    } as unknown as GlobalConfigManager;
+    const registry = new SkillRegistryService(configManager, globalConfigManager);
+
+    await expect(registry.addRegistrySource(registryId, gitUrl, { global: true })).resolves.toMatchObject({
+      status: 'added',
+    });
+
+    expect(globalConfigManager.addSkillRegistry).toHaveBeenCalledWith(registryId, gitUrl, { force: undefined });
+    expect(configManager.getSkillRegistries).toHaveBeenCalledOnce();
+  });
+
+  it('does not prepare cache again for an already registered source', async () => {
+    const configManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({ [registryId]: gitUrl }),
+      addSkillRegistry: vi.fn().mockResolvedValue({}),
+    } as unknown as ConfigManager;
+    const globalConfigManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({}),
+    } as unknown as GlobalConfigManager;
+    const registry = new SkillRegistryService(configManager, globalConfigManager);
+
+    await expect(registry.addRegistrySource(registryId, gitUrl)).resolves.toEqual({
+      status: 'already-registered',
+      registryPath: undefined,
+    });
+
+    expect(mockedGit.cloneRepository).not.toHaveBeenCalled();
+  });
+
+  it('removes a project registry source', async () => {
+    const configManager = {
+      getSkillRegistries: vi.fn().mockResolvedValue({ [registryId]: gitUrl }),
+      removeSkillRegistry: vi.fn().mockResolvedValue({}),
+    } as unknown as ConfigManager;
+    const registry = new SkillRegistryService(configManager, {} as GlobalConfigManager);
+
+    await expect(registry.removeRegistrySource(registryId)).resolves.toBe('project');
+
+    expect(configManager.removeSkillRegistry).toHaveBeenCalledWith(registryId);
+    expect(mockedFs.remove).not.toHaveBeenCalled();
+  });
+
+  it('protects the built-in registry from removal', async () => {
+    const registry = new SkillRegistryService({} as ConfigManager, {} as GlobalConfigManager);
+
+    await expect(registry.removeRegistrySource('codeaholicguy/ai-devkit')).rejects.toThrow(/built in/);
   });
 });

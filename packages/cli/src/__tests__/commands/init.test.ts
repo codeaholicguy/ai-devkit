@@ -5,7 +5,7 @@ const {
   mockTemplateManager,
   mockEnvironmentSelector,
   mockPhaseSelector,
-  mockSkillManager,
+  mockSkillService,
   mockUi,
   mockConfirm,
   mockLoadInitTemplate,
@@ -38,7 +38,7 @@ const {
     selectPhases: vi.fn(),
     displaySelectionSummary: vi.fn(),
   } as any,
-  mockSkillManager: { addSkill: vi.fn() } as any,
+  mockSkillService: { addSkill: vi.fn() } as any,
   mockUi: {
     warning: vi.fn(),
     error: vi.fn(),
@@ -87,11 +87,11 @@ vi.mock('../../lib/PhaseSelector.js', () => ({
   PhaseSelector: vi.fn(function () { return mockPhaseSelector; })
 }));
 
-vi.mock('../../lib/SkillManager.js', () => ({
-  SkillManager: vi.fn(function () { return mockSkillManager; })
+vi.mock('../../services/skill/skill.service.js', () => ({
+  SkillService: vi.fn(function () { return mockSkillService; })
 }));
 
-vi.mock('../../lib/BuiltinSkills.js', () => ({
+vi.mock('../../services/skill/skill-builtins.js', () => ({
   BUILTIN_SKILL_REGISTRY: 'codeaholicguy/ai-devkit',
   getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
 }));
@@ -109,7 +109,7 @@ vi.mock('../../util/terminal.js', () => ({
 }));
 
 import { initCommand } from '../../commands/init.js';
-import { BUILTIN_SKILL_REGISTRY } from '../../lib/BuiltinSkills.js';
+import { BUILTIN_SKILL_REGISTRY } from '../../services/skill/skill-builtins.js';
 
 function confirmCallsMatching(pattern: RegExp): any[] {
   return mockConfirm.mock.calls.filter(([config]: any[]) =>
@@ -146,7 +146,7 @@ describe('init command', () => {
 
     mockPhaseSelector.selectPhases.mockResolvedValue(['requirements']);
 
-    mockSkillManager.addSkill.mockResolvedValue(undefined);
+    mockSkillService.addSkill.mockResolvedValue(undefined);
     mockLoadInitTemplate.mockResolvedValue({});
     mockIsInteractiveTerminal.mockReturnValue(true);
     mockReconcileAndInstall.mockResolvedValue({
@@ -344,7 +344,7 @@ describe('init command', () => {
 
       const builtinPromptCalls = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPromptCalls.length).toBe(1);
-      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockSkillService.addSkill).not.toHaveBeenCalled();
       expect(mockGetBuiltinSkillNames).not.toHaveBeenCalled();
     });
 
@@ -385,7 +385,7 @@ describe('init command', () => {
 
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
-      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockSkillService.addSkill).not.toHaveBeenCalled();
       expect(mockGetBuiltinSkillNames).not.toHaveBeenCalled();
       expect(mockUi.info).toHaveBeenCalledWith(
         expect.stringMatching(/non-interactive|--built-in/)
@@ -514,7 +514,7 @@ describe('init command', () => {
 
       const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
-      expect(mockSkillManager.addSkill).not.toHaveBeenCalled();
+      expect(mockSkillService.addSkill).not.toHaveBeenCalled();
     });
 
     it('installs built-in skills under --yes when --built-in is also passed', async () => {
