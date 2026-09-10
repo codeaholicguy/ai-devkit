@@ -23,20 +23,23 @@ import {
     AgentRegistry,
     RenameNotFoundError,
     RenameConflictError,
-    TmuxManager,
     AGENTS,
     AGENT_MODES,
     parseTmuxRuntimeRef,
+    startAgent,
+    stopAgent,
+    focusAgent,
+    TmuxUnavailableError,
+    AgentNameInUseError,
+    AgentPidPollTimeoutError,
+    AgentRuntimeUnavailableError,
     createHerdrRuntime,
-    createInteractiveRuntime,
-    isHerdrRegistryEntry,
     type StartableAgentType,
     type AgentInfo,
     type AgentType,
     type ConversationMessage,
     type SessionSummary,
     type DurableProvider,
-    type AgentRuntimeProvider,
 } from '@ai-devkit/agent-manager';
 import { ui } from '../util/terminal-ui.js';
 import { withErrorHandler } from '../util/errors.js';
@@ -48,16 +51,10 @@ import {
     toJsonSession,
 } from '../util/sessions.js';
 import {
-    startAgent,
-    killAgent,
     assertSendTargetOptions,
     type SendReporter,
     sendToAgent,
     sendToAgentGroup,
-    TmuxUnavailableError,
-    AgentNameInUseError,
-    AgentPidPollTimeoutError,
-    AgentRuntimeUnavailableError,
 } from '../services/agent/agent.service.js';
 import {
     AgentGroupNotFoundError,
@@ -218,24 +215,6 @@ function formatPrintProvider(provider: DurableProvider): string {
 
 const NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
 
-function createInteractiveStartDeps(provider: AgentRuntimeProvider) {
-    const registry = AgentRegistry.default();
-    const runtime = createInteractiveRuntime(provider);
-    if (runtime) {
-        return {
-            runtime,
-            registry,
-            onWarning: (msg: string) => ui.warning(msg),
-        };
-    }
-
-    return {
-        tmux: new TmuxManager(),
-        registry,
-        onWarning: (msg: string) => ui.warning(msg),
-    };
-}
-
 function writeWaitStatus(message: string): void {
     process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, '')}\n`);
 }
@@ -348,8 +327,8 @@ export function registerAgentCommand(program: Command): void {
                 }
                 const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
                 const entry = await startAgent(
-                    { type: agentType as StartableAgentType, name: agentName, cwd },
-                    createInteractiveStartDeps(runtimeProvider),
+                    { type: agentType as StartableAgentType, name: agentName, cwd, runtimeProvider },
+                    { onWarning: (msg: string) => ui.warning(msg) },
                 );
                 ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
                 ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
@@ -628,30 +607,21 @@ export function registerAgentCommand(program: Command): void {
             const spinner = ui.spinner(`Switching focus to ${agent.name}...`);
             spinner.start();
 
-            const registryEntry = AgentRegistry.default().lookup(agent.name);
-            if (isHerdrRegistryEntry(registryEntry)) {
-                const success = await createHerdrRuntime().focus({ runtimeRef: registryEntry.runtimeRef });
-                if (success) {
-                    spinner.succeed(`Focused ${agent.name}!`);
-                } else {
-                    spinner.fail(`Failed to switch focus to ${agent.name}.`);
-                }
-                return;
-            }
-
-            const location = await focusManager.findTerminal(agent.pid);
-            if (!location) {
+            const focusResult = await focusAgent(agent, {
+                registry: AgentRegistry.default(),
+                runtime: createHerdrRuntime(),
+                focusManager,
+            });
+            if (!focusResult.focused && focusResult.reason === 'terminal-not-found') {
                 spinner.fail(`Could not find terminal window for agent "${agent.name}" (PID: ${agent.pid}).`);
                 return;
             }
-
-            const success = await focusManager.focusTerminal(location);
-
-            if (success) {
-                spinner.succeed(`Focused ${agent.name}!`);
-            } else {
-                spinner.fail(`Failed to switch focus to ${agent.name}.`);
+            if (!focusResult.focused) {
+                spinner.fail(`Failed to switch focus to "${agent.name}".`);
+                return;
             }
+
+            spinner.succeed(`Focused ${agent.name}!`);
         }));
 
     agentCommand
@@ -752,17 +722,14 @@ export function registerAgentCommand(program: Command): void {
             }
 
             const registry = AgentRegistry.default();
-            const registryEntry = registry.lookup(resolved.name);
-            if (isHerdrRegistryEntry(registryEntry)) {
-                await createHerdrRuntime().stop({ runtimeRef: registryEntry.runtimeRef });
+            const result = await stopAgent(resolved, {
+                registry,
+                runtime: createHerdrRuntime(),
+            });
+            if (result.runtime === 'herdr') {
                 ui.success(`Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`);
                 return;
             }
-
-            const result = await killAgent(resolved, {
-                tmux: new TmuxManager(),
-                registry,
-            });
 
             const tmuxRef = parseTmuxRuntimeRef(result.runtimeRef);
             const suffix = tmuxRef ? ` and tmux session "${tmuxRef.session}"` : '';

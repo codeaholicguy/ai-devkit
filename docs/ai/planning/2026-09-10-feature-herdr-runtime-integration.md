@@ -56,7 +56,7 @@ description: Break down work into actionable tasks and estimate timeline
 - Risk: Registry identity currently keys on `(type, pid)`, while Herdr refs are pane/session based. Mitigation: confirm Herdr PID behavior early; if PID is optional, plan a focused identity change before Herdr start.
 - Risk: Removing `tmux_session` now causes broad churn. Mitigation: keep it for MVP and migrate call sites gradually.
 - Risk: Herdr CLI output format changes or is not JSON. Mitigation: require structured responses for MVP code and keep the client injected/testable.
-- Risk: `agent send --wait` semantics diverge across runtime providers. Mitigation: preserve AI DevKit transcript-based waiting where possible and use Herdr output only as transport/result input.
+- Risk: `agent send --wait` semantics diverge across runtime providers. Mitigation: use Herdr only for prompt delivery, then preserve AI DevKit transcript-based waiting for both tmux and Herdr-backed agents.
 - Risk: Global runtime config conflicts with old stored rows. Mitigation: operate existing agents by stored runtime and make mismatch messaging explicit.
 - Risk: Herdr may be configured from outside Herdr. Mitigation: availability checks binary and backend reachability, not only `HERDR_ENV`.
 

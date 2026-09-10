@@ -42,6 +42,7 @@ description: Technical implementation notes, patterns, and code guidelines
 - Runtime dispatch:
   - Start uses configured runtime.
   - Send/focus/kill use stored runtime on the target row.
+  - Managed start/stop/focus/send orchestration lives in `agent-manager`; CLI passes the selected runtime provider and renders results.
   - Runtime contracts, factories, and runtime-entry predicates are exported from `agent-manager`; CLI does not define Herdr runtime interfaces or construct the Herdr adapter class directly.
   - Herdr references are captured from Herdr responses only.
 - Herdr availability:
@@ -51,6 +52,10 @@ description: Technical implementation notes, patterns, and code guidelines
   - Removed an unused Herdr availability error reason.
   - Simplified Herdr runtime ref parsing to normalize each field once.
   - Trimmed duplicate runtime-provider tests from `ConfigManager`; `GlobalConfigManager` and config util tests own those behavior cases.
+- Refactor pass:
+  - Moved runtime start/stop/focus/send orchestration from CLI agent service into `agent-manager`.
+  - Moved corresponding start/stop/focus/send tests into agent-manager runtime tests.
+  - Kept CLI responsible for option parsing, config lookup, UI messages, and send/wait output formatting.
 
 ### Implemented Behavior
 
@@ -61,6 +66,8 @@ description: Technical implementation notes, patterns, and code guidelines
 - Old SQLite rows with only `tmux_session` synthesize `{ session: tmux_session }` when read.
 - `agent start` reads global runtime config once for interactive mode and starts through tmux or Herdr accordingly.
 - `agent send`, `agent send --wait`, `agent open`, and `agent kill` use stored Herdr refs when the target registry row is Herdr-backed.
+- Runtime-aware start, stop, focus, and prompt delivery are centralized in `packages/agent-manager/src/runtime/ManagedAgentRuntime.ts`; `agent send --wait` reads AI DevKit session transcripts for both tmux and Herdr-backed agents.
+- `agent send --wait` waits through a short transcript-flush grace period before reporting that an agent returned to waiting without assistant output.
 - Durable mode is unchanged and remains separate from interactive runtime selection.
 
 ### Patterns & Best Practices
@@ -116,3 +123,13 @@ description: Technical implementation notes, patterns, and code guidelines
 - `packages/agent-manager`: `npm run build`
 - repository: `npx ai-devkit@latest lint --feature herdr-runtime-integration`
 - repository: `git diff --check`
+- Refactor validation:
+  - `packages/agent-manager`: `npx vitest run src/__tests__/runtime/ManagedAgentRuntime.test.ts src/__tests__/runtime/AgentRuntime.test.ts src/__tests__/runtime/HerdrAgentRuntime.test.ts`
+  - `packages/agent-manager`: `npm run typecheck`
+  - `packages/agent-manager`: `npm run lint`
+  - `packages/agent-manager`: `npm run build`
+  - `packages/cli`: `npx vitest run src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts src/__tests__/services/plugin/plugin-loader.service.test.ts`
+  - `packages/cli`: `npx tsc --noEmit`
+  - `packages/cli`: `npm run lint`
+  - repository: `npx ai-devkit@latest lint --feature herdr-runtime-integration`
+  - repository: `git diff --check`

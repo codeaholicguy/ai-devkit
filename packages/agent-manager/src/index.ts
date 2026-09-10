@@ -54,6 +54,28 @@ export type { AgentRegistryOptions, RegistryEntry, AgentRuntimeProvider, TmuxRun
 export { TmuxManager } from './terminal/TmuxManager.js';
 export { createHerdrRuntime, createInteractiveRuntime, isHerdrRegistryEntry } from './runtime/AgentRuntime.js';
 export type { AgentRuntimeAvailability, HerdrStartRuntime, HerdrInteractiveRuntime } from './runtime/AgentRuntime.js';
+export {
+    startAgent,
+    stopAgent,
+    focusAgent,
+    sendAgentPrompt,
+    TmuxUnavailableError,
+    AgentNameInUseError,
+    AgentPidPollTimeoutError,
+    AgentRuntimeUnavailableError,
+    AgentTerminalNotFoundError,
+    DEFAULT_PID_POLL_INTERVAL_MS,
+    DEFAULT_PID_POLL_TIMEOUT_MS,
+} from './runtime/ManagedAgentRuntime.js';
+export type {
+    FocusAgentDeps,
+    StartAgentDeps,
+    StartAgentOptions,
+    StopAgentDeps,
+    StopAgentResult,
+    FocusAgentResult,
+    SendAgentPromptDeps,
+} from './runtime/ManagedAgentRuntime.js';
 export { HerdrAgentRuntime, HerdrRuntimeError, parseHerdrRuntimeRef } from './runtime/HerdrAgentRuntime.js';
 export type {
     HerdrCommandResult,

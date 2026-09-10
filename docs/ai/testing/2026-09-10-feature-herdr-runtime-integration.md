@@ -42,9 +42,11 @@ description: Define testing approach, test cases, and quality assurance
 - [x] `agent start` defaults to tmux runtime.
 - [x] `agent start` uses Herdr runtime when configured.
 - [x] `agent send` uses the target registry row runtime.
-- [x] `agent send --wait` uses runtime-specific send/read behavior where available and existing transcript wait behavior where required.
+- [x] `agent send --wait` sends through the stored runtime and waits through the AI DevKit session transcript.
+- [x] `agent send --wait` keeps polling briefly when waiting status appears before assistant transcript output.
 - [x] Focus/open dispatches to Herdr for Herdr-backed records.
 - [x] Kill/stop dispatches through stored runtime and preserves existing tmux behavior.
+- [x] Managed start/stop/focus/send orchestration is covered in `agent-manager`.
 
 ### Herdr Runtime Client
 
@@ -63,7 +65,7 @@ description: Define testing approach, test cases, and quality assurance
 - [x] CLI config fixture with no runtime keeps current `agent start` tmux dependency behavior.
 - [x] Global CLI config fixture with Herdr routes managed start through Herdr runtime and stores `runtime_ref`.
 - [x] Existing `agent list` and `agent detail` show AI DevKit metadata for Herdr records without requiring full Herdr session mirroring.
-- [x] `agent send --wait` failure paths remain clear when a target has no session file or Herdr output cannot be read.
+- [x] `agent send --wait` failure paths remain clear when a target has no session file or supported adapter.
 - [x] SQLite migration applies to an old registry DB and preserves old tmux rows.
 
 ## End-to-End Tests
@@ -93,6 +95,12 @@ description: Define testing approach, test cases, and quality assurance
   - `packages/cli`: `npx tsc --noEmit` passed.
   - `packages/agent-manager`: `npm run build` passed.
   - Repository: `npx ai-devkit@latest lint --feature herdr-runtime-integration` and `git diff --check` passed.
+- Refactor validation:
+  - `packages/agent-manager`: `npx vitest run src/__tests__/runtime/ManagedAgentRuntime.test.ts src/__tests__/runtime/AgentRuntime.test.ts src/__tests__/runtime/HerdrAgentRuntime.test.ts`.
+  - `packages/agent-manager`: `npm run typecheck`, `npm run lint`, and `npm run build`.
+  - `packages/cli`: `npx vitest run src/__tests__/services/agent/agent.service.test.ts src/__tests__/commands/agent.test.ts src/__tests__/services/plugin/plugin-loader.service.test.ts`.
+  - `packages/cli`: `npx tsc --noEmit` and `npm run lint`.
+  - Repository: `npx ai-devkit@latest lint --feature herdr-runtime-integration` and `git diff --check`.
 
 ## Manual Testing
 

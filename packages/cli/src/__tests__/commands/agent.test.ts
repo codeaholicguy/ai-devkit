@@ -1,10 +1,9 @@
 import type { Mock } from 'vitest';
 import { Command } from 'commander';
 
-import { AgentManager, AgentStatus, TerminalFocusManager } from '@ai-devkit/agent-manager';
+import { AgentManager, AgentStatus, DEFAULT_PID_POLL_TIMEOUT_MS, TerminalFocusManager } from '@ai-devkit/agent-manager';
 import { registerAgentCommand } from '../../commands/agent.js';
 import { ui } from '../../util/terminal-ui.js';
-import { DEFAULT_PID_POLL_TIMEOUT_MS } from '../../services/agent/agent.service.js';
 
 const SESSION = '22222222-2222-4222-8222-222222222222';
 
@@ -57,7 +56,10 @@ const mockSpinner: any = {
 const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
-const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
+const mockStartAgent = vi.fn<(...args: any[]) => Promise<any>>();
+const mockStopAgent = vi.fn<(...args: any[]) => Promise<any>>();
+const mockFocusAgent = vi.fn<(...args: any[]) => Promise<{ focused: true } | { focused: false; reason: string }>>();
+const mockSendAgentPrompt = vi.fn<(...args: any[]) => Promise<any>>();
 const {
   mockEnableDebug,
   mockDebugLogger,
@@ -112,7 +114,15 @@ const mockRegistry: any = {
   rename: vi.fn(),
 };
 
-const { RenameNotFoundError, RenameConflictError } = vi.hoisted(() => {
+const {
+  RenameNotFoundError,
+  RenameConflictError,
+  TmuxUnavailableError,
+  AgentNameInUseError,
+  AgentPidPollTimeoutError,
+  AgentRuntimeUnavailableError,
+  AgentTerminalNotFoundError,
+} = vi.hoisted(() => {
   class RenameNotFoundError extends Error {
     agentName: string;
     constructor(agentName: string) {
@@ -129,7 +139,45 @@ const { RenameNotFoundError, RenameConflictError } = vi.hoisted(() => {
       this.agentName = agentName;
     }
   }
-  return { RenameNotFoundError, RenameConflictError };
+  class TmuxUnavailableError extends Error {
+    constructor() {
+      super('tmux is not installed or not in PATH.');
+      this.name = 'TmuxUnavailableError';
+    }
+  }
+  class AgentNameInUseError extends Error {
+    constructor(public agentName: string, public pid: number) {
+      super(`Agent "${agentName}" is already running (PID ${pid}).`);
+      this.name = 'AgentNameInUseError';
+    }
+  }
+  class AgentPidPollTimeoutError extends Error {
+    constructor(public agentName: string, public command: string, public timeoutMs: number) {
+      super(`Agent process not found after ${timeoutMs / 1000}s.`);
+      this.name = 'AgentPidPollTimeoutError';
+    }
+  }
+  class AgentRuntimeUnavailableError extends Error {
+    constructor(public provider: string, public reason: string, public detail: string) {
+      super(`${provider} runtime is unavailable (${reason}): ${detail}`);
+      this.name = 'AgentRuntimeUnavailableError';
+    }
+  }
+  class AgentTerminalNotFoundError extends Error {
+    constructor(public agentName: string, public pid: number) {
+      super(`Cannot find terminal for agent "${agentName}" (PID: ${pid}).`);
+      this.name = 'AgentTerminalNotFoundError';
+    }
+  }
+  return {
+    RenameNotFoundError,
+    RenameConflictError,
+    TmuxUnavailableError,
+    AgentNameInUseError,
+    AgentPidPollTimeoutError,
+    AgentRuntimeUnavailableError,
+    AgentTerminalNotFoundError,
+  };
 });
 
 vi.mock('@ai-devkit/agent-manager', () => ({
@@ -157,14 +205,16 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   AgentRegistry: {
     default: vi.fn(function () { return mockRegistry; }),
   },
-  TmuxManager: vi.fn(function () { return {
-    isAvailable: mockTmuxIsAvailable,
-    sessionExists: vi.fn().mockResolvedValue(false),
-    createSession: vi.fn().mockResolvedValue(undefined),
-    sendKeys: vi.fn().mockResolvedValue(undefined),
-    findAgentPid: vi.fn().mockResolvedValue(12345),
-    killSession: vi.fn().mockResolvedValue(undefined),
-  }; }),
+  startAgent: (...args: any[]) => mockStartAgent(...args),
+  stopAgent: (...args: any[]) => mockStopAgent(...args),
+  focusAgent: (...args: any[]) => mockFocusAgent(...args),
+  sendAgentPrompt: (...args: any[]) => mockSendAgentPrompt(...args),
+  TmuxUnavailableError,
+  AgentNameInUseError,
+  AgentPidPollTimeoutError,
+  AgentRuntimeUnavailableError,
+  AgentTerminalNotFoundError,
+  DEFAULT_PID_POLL_TIMEOUT_MS: 15_000,
   createHerdrRuntime: vi.fn(() => ({
     provider: 'herdr',
     isAvailable: mockHerdrIsAvailable,
@@ -245,14 +295,6 @@ vi.mock('../../lib/Config.js', () => ({
   }),
 }));
 
-vi.mock('../../services/agent/agent.service.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../services/agent/agent.service.js')>();
-  return {
-    ...actual,
-    killAgent: (...args: any[]) => mockKillAgent(...args),
-  };
-});
-
 vi.mock('../../tui/console/ConsoleApp.js', () => ({
   ConsoleApp: () => null,
 }));
@@ -329,7 +371,87 @@ describe('agent command', () => {
     mockFocusManager.findTerminal.mockReset();
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
-    mockKillAgent.mockReset();
+    mockStartAgent.mockReset().mockImplementation(async (opts: any) => {
+      if (opts.runtimeProvider === 'herdr') {
+        const availability = await mockHerdrIsAvailable();
+        if (!availability.ok) {
+          throw new AgentRuntimeUnavailableError('herdr', availability.reason, availability.detail);
+        }
+        const result = await mockHerdrStartAgent({
+          name: opts.name,
+          cwd: opts.cwd,
+          kind: opts.type === 'gemini_cli' ? 'gemini' : opts.type,
+          args: [],
+          timeoutMs: DEFAULT_PID_POLL_TIMEOUT_MS,
+        });
+        return {
+          name: opts.name,
+          type: opts.type,
+          pid: result.pid,
+          runtime: 'herdr',
+          runtimeRef: result.runtimeRef,
+          cwd: opts.cwd,
+          startedAt: new Date().toISOString(),
+          sessionId: '',
+          sessionFilePath: '',
+          pinned: false,
+        };
+      }
+      if (!await mockTmuxIsAvailable()) throw new TmuxUnavailableError();
+      return {
+        name: opts.name,
+        type: opts.type,
+        pid: 12345,
+        runtime: 'tmux',
+        runtimeRef: { session: opts.name },
+        cwd: opts.cwd,
+        startedAt: new Date().toISOString(),
+        sessionId: '',
+        sessionFilePath: '',
+        pinned: false,
+      };
+    });
+    mockStopAgent.mockReset().mockImplementation(async (agent: any, deps: any) => {
+      const registryEntry = deps.registry.lookup(agent.name);
+      if (registryEntry?.runtime === 'herdr') {
+        await mockHerdrStop({ runtimeRef: registryEntry.runtimeRef });
+        return {
+          agentName: agent.name,
+          pid: agent.pid,
+          runtime: 'herdr',
+          runtimeRef: registryEntry.runtimeRef,
+        };
+      }
+      return {
+        agentName: agent.name,
+        pid: agent.pid,
+        runtime: 'tmux',
+        runtimeRef: { session: agent.name },
+      };
+    });
+    mockFocusAgent.mockReset().mockImplementation(async (_agent: any, deps: any) => {
+      const registryEntry = deps.registry.lookup(_agent.name);
+      if (registryEntry?.runtime === 'herdr') {
+        await mockHerdrFocus({ runtimeRef: registryEntry.runtimeRef });
+        return { focused: true };
+      }
+      const location = await deps.focusManager.findTerminal(_agent.pid);
+      if (!location) return { focused: false, reason: 'terminal-not-found' };
+      const focused = await deps.focusManager.focusTerminal(location);
+      return focused ? { focused: true } : { focused: false, reason: 'focus-failed' };
+    });
+    mockSendAgentPrompt.mockReset().mockImplementation(async (agent: any, prompt: string, deps: any) => {
+      const registryEntry = deps.registry?.lookup(agent.name);
+      if (registryEntry?.runtime === 'herdr') {
+        await mockHerdrSend({ runtimeRef: registryEntry.runtimeRef, prompt });
+        return;
+      }
+      const location = await deps.focusManager.findTerminal(agent.pid);
+      if (!location) {
+        throw new AgentTerminalNotFoundError(agent.name, agent.pid);
+      }
+      await deps.writer(location, prompt);
+    });
     mockRegistry.prune.mockReset();
     mockRegistry.lookup.mockReset().mockReturnValue(null);
     mockRegistry.list.mockReset().mockReturnValue([]);
@@ -660,6 +782,49 @@ Waiting on user input`,
     expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
   });
 
+  it('reports when an agent terminal cannot be found', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue(null);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'open', 'repo-a']);
+
+    expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
+    expect(mockFocusManager.focusTerminal).not.toHaveBeenCalled();
+    expect(mockSpinner.fail).toHaveBeenCalledWith('Could not find terminal window for agent "repo-a" (PID: 10).');
+  });
+
+  it('reports when terminal focus fails after locating the agent', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockFocusManager.findTerminal.mockResolvedValue({ type: 'tmux', identifier: '1:1' });
+    mockFocusManager.focusTerminal.mockResolvedValue(false);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'open', 'repo-a']);
+
+    expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
+    expect(mockFocusManager.focusTerminal).toHaveBeenCalled();
+    expect(mockSpinner.fail).toHaveBeenCalledWith('Failed to switch focus to "repo-a".');
+  });
+
   it('focuses Herdr-backed agents through Herdr instead of terminal PID lookup', async () => {
     const agent = {
       name: 'repo-a',
@@ -718,9 +883,10 @@ Waiting on user input`,
     };
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockKillAgent.mockResolvedValue({
+    mockStopAgent.mockResolvedValue({
       agentName: 'repo-a',
       pid: 10,
+      runtime: 'tmux',
       runtimeRef: { session: 'repo-a' },
     });
 
@@ -729,9 +895,9 @@ Waiting on user input`,
     await program.parseAsync(['node', 'test', 'agent', 'kill', 'repo-a']);
 
     expect(mockManager.resolveAgent).toHaveBeenCalledWith('repo-a', [agent]);
-    expect(mockKillAgent).toHaveBeenCalledWith(agent, expect.objectContaining({
-      tmux: expect.any(Object),
+    expect(mockStopAgent).toHaveBeenCalledWith(agent, expect.objectContaining({
       registry: mockRegistry,
+      runtime: expect.any(Object),
     }));
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
   });
@@ -755,7 +921,7 @@ Waiting on user input`,
     await program.parseAsync(['node', 'test', 'agent', 'kill', 'repo-a']);
 
     expect(mockHerdrStop).toHaveBeenCalledWith({ runtimeRef });
-    expect(mockKillAgent).not.toHaveBeenCalled();
+    expect(mockStopAgent).toHaveBeenCalled();
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and Herdr pane.');
   });
 
@@ -772,7 +938,7 @@ Waiting on user input`,
     await program.parseAsync(['node', 'test', 'agent', 'kill', 'repo']);
 
     expect(ui.error).toHaveBeenCalledWith('Multiple agents match "repo":');
-    expect(mockKillAgent).not.toHaveBeenCalled();
+    expect(mockStopAgent).not.toHaveBeenCalled();
   });
 
   it('does not kill when target is not found', async () => {
@@ -788,7 +954,7 @@ Waiting on user input`,
 
     expect(ui.error).toHaveBeenCalledWith('No agent found matching "missing".');
     expect(ui.info).toHaveBeenCalledWith('Available agents:');
-    expect(mockKillAgent).not.toHaveBeenCalled();
+    expect(mockStopAgent).not.toHaveBeenCalled();
   });
 
   it('creates an agent group with multiple members', async () => {
@@ -941,7 +1107,7 @@ Waiting on user input`,
     expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
   });
 
-  it('sends and waits for Herdr-backed agents through Herdr process IO', async () => {
+  it('sends Herdr-backed prompts and waits through the AI DevKit session transcript', async () => {
     const agent = {
       name: 'repo-a',
       type: 'codex',
@@ -949,20 +1115,31 @@ Waiting on user input`,
       summary: 'Waiting',
       lastActive: new Date(),
       pid: 10,
+      sessionId: 'session-1',
+      sessionFilePath: '/tmp/session.jsonl',
     };
     const runtimeRef = { session: 'default', paneId: 'w1:p2', agentName: 'repo-a' };
+    const historical = [{ role: 'assistant', content: 'old response' }];
+    const withNewResponse = [...historical, { role: 'assistant', content: 'done' }];
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce(historical)
+      .mockReturnValueOnce(withNewResponse);
     mockRegistry.lookup.mockReturnValue({ name: 'repo-a', runtime: 'herdr', runtimeRef, pid: 10 });
-    mockHerdrReadOutput.mockResolvedValue('done\n');
 
     const program = new Command();
     registerAgentCommand(program);
     await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait', '--timeout', '2000']);
 
     expect(mockHerdrSend).toHaveBeenCalledWith({ runtimeRef, prompt: 'continue' });
-    expect(mockHerdrWait).toHaveBeenCalledWith({ runtimeRef, timeoutMs: 2000 });
-    expect(mockHerdrReadOutput).toHaveBeenCalledWith({ runtimeRef, lines: 200 });
+    expect(mockManager.getAdapter).toHaveBeenCalledWith('codex');
+    expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith('/tmp/session.jsonl', { verbose: false });
+    expect(mockAgentAdapter.getConversation.mock.invocationCallOrder[0])
+      .toBeLessThan(mockHerdrSend.mock.invocationCallOrder[0]);
+    expect(mockHerdrWait).not.toHaveBeenCalled();
+    expect(mockHerdrReadOutput).not.toHaveBeenCalled();
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
     expect(stdoutSpy).toHaveBeenCalledWith('done\n');
   });
@@ -1342,7 +1519,11 @@ Waiting on user input`,
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
-    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce([])
+      .mockReturnValue([
+        { role: 'assistant', content: 'done' },
+      ]);
     mockFocusManager.findTerminal.mockResolvedValue(location);
     mockTtyWriterSend.mockResolvedValue(undefined);
 
@@ -1500,7 +1681,11 @@ Waiting on user input`,
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
-    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce([])
+      .mockReturnValue([
+        { role: 'assistant', content: 'done' },
+      ]);
     mockFocusManager.findTerminal.mockResolvedValue(null);
 
     const program = new Command();
@@ -1603,10 +1788,14 @@ Waiting on user input`,
     const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
     mockManager.listAgents
       .mockResolvedValueOnce([agent])
-      .mockResolvedValueOnce([{ ...agent, status: AgentStatus.WAITING }]);
+      .mockResolvedValue([{ ...agent, status: AgentStatus.WAITING }]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
-    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce([])
+      .mockReturnValue([
+        { role: 'assistant', content: 'done' },
+      ]);
     mockFocusManager.findTerminal.mockResolvedValue(location);
     mockTtyWriterSend.mockResolvedValue(undefined);
 
@@ -1635,10 +1824,14 @@ Waiting on user input`,
     const location = { type: 'tmux', identifier: '0:1.0', tty: '/dev/ttys030' };
     mockManager.listAgents
       .mockResolvedValueOnce([agent])
-      .mockResolvedValueOnce([{ ...agent, status: AgentStatus.WAITING }]);
+      .mockResolvedValue([{ ...agent, status: AgentStatus.WAITING }]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
-    mockAgentAdapter.getConversation.mockReturnValue([]);
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce([])
+      .mockReturnValue([
+        { role: 'assistant', content: 'done' },
+      ]);
     mockFocusManager.findTerminal.mockResolvedValue(location);
     mockTtyWriterSend.mockResolvedValue(undefined);
 
@@ -1649,7 +1842,6 @@ Waiting on user input`,
     expect(stderrSpy).toHaveBeenCalledWith(
       'Agent "repo-a" is not waiting for input (status: running). Sending anyway.\n'
     );
-    expect(stderrSpy).toHaveBeenCalledWith('Agent "repo-a" returned to waiting without assistant output.\n');
   });
 
   it('shows error when terminal cannot be found', async () => {
