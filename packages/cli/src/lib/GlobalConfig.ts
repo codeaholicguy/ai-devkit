@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 import * as os from 'os';
 import * as path from 'path';
 import { GlobalDevKitConfig } from '../types.js';
-import { filterStringRecord } from '../util/config.js';
+import { filterStringRecord, resolveAgentRuntimeProvider, type AgentRuntimeProvider } from '../util/config.js';
 import { CliError } from '../util/errors.js';
 import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../services/skill/registry/skill-registry-source.js';
 import { ui } from '../util/terminal-ui.js';
@@ -74,6 +74,11 @@ export class GlobalConfigManager {
   async getPlugins(): Promise<string[]> {
     const config = await this.read();
     return normalizePlugins(config?.plugins);
+  }
+
+  async getAgentRuntimeProvider(): Promise<AgentRuntimeProvider> {
+    const config = await this.read();
+    return resolveAgentRuntimeProvider(config?.agentRuntime?.provider);
   }
 
   async addPlugin(pluginName: string): Promise<GlobalDevKitConfig> {

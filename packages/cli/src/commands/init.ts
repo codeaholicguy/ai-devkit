@@ -270,7 +270,7 @@ export async function initCommand(options: InitOptions) {
     phases: selectedPhases,
     registries,
     skills: desiredSkills,
-    mcpServers
+    mcpServers,
   }, {
     overwrite: options.overwrite,
     nonInteractive

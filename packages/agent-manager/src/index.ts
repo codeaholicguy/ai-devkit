@@ -49,9 +49,21 @@ export { TtyWriter } from './terminal/TtyWriter.js';
 
 export type { ListAgentsOptions } from './AgentManager.js';
 
-export { AgentRegistry, RenameNotFoundError, RenameConflictError } from './utils/AgentRegistry.js';
-export type { AgentRegistryOptions, RegistryEntry } from './utils/AgentRegistry.js';
+export { AgentRegistry, RenameNotFoundError, RenameConflictError, AGENT_RUNTIME_PROVIDERS, parseTmuxRuntimeRef } from './utils/AgentRegistry.js';
+export type { AgentRegistryOptions, RegistryEntry, AgentRuntimeProvider, TmuxRuntimeRef } from './utils/AgentRegistry.js';
 export { TmuxManager } from './terminal/TmuxManager.js';
+export { createHerdrRuntime, createInteractiveRuntime, isHerdrRegistryEntry } from './runtime/AgentRuntime.js';
+export type { AgentRuntimeAvailability, HerdrStartRuntime, HerdrInteractiveRuntime } from './runtime/AgentRuntime.js';
+export { HerdrAgentRuntime, HerdrRuntimeError, parseHerdrRuntimeRef } from './runtime/HerdrAgentRuntime.js';
+export type {
+    HerdrCommandResult,
+    HerdrCommandRunner,
+    HerdrRuntimeAvailability,
+    HerdrRuntimeOptions,
+    HerdrRuntimeRef,
+    HerdrStartInput,
+    HerdrStartResult,
+} from './runtime/HerdrAgentRuntime.js';
 export { AGENTS } from './utils/agents.js';
 export type { AgentConfig, StartableAgentType } from './utils/agents.js';
 

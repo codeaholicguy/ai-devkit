@@ -13,6 +13,11 @@ import {
   type RegistryEntry,
   type StartableAgentType,
   type TmuxManager,
+  type AgentRuntimeProvider,
+  type HerdrStartRuntime,
+  type HerdrInteractiveRuntime,
+  parseTmuxRuntimeRef,
+  isHerdrRegistryEntry,
 } from '@ai-devkit/agent-manager';
 import { createLogger } from '../../util/debug.js';
 import { parseMilliseconds, sleep } from '../../util/time.js';
@@ -74,6 +79,8 @@ export interface SendToAgentOptions {
   prompt: string;
   manager: Pick<AgentManager, 'listAgents' | 'resolveAgent' | 'getAdapter'>;
   focusManager: Pick<TerminalFocusManager, 'findTerminal'>;
+  registry?: Pick<AgentRegistry, 'lookup'>;
+  runtime?: HerdrInteractiveRuntime;
   wait?: boolean;
   timeout?: string;
   json?: boolean;
@@ -200,6 +207,8 @@ export async function sendToAgent({
   prompt,
   manager,
   focusManager,
+  registry,
+  runtime,
   wait = false,
   timeout,
   json = false,
@@ -239,6 +248,40 @@ export async function sendToAgent({
     } else {
       reporter.warning(warning);
     }
+  }
+
+  const registryEntry = registry?.lookup(agent.name);
+  if (runtime && isHerdrRegistryEntry(registryEntry)) {
+    await runtime.send({ runtimeRef: registryEntry.runtimeRef, prompt });
+
+    if (!wait) {
+      reporter.success(`Sent message to ${agent.name}.`);
+      return;
+    }
+
+    const startedAt = Date.now();
+    await runtime.wait({ runtimeRef: registryEntry.runtimeRef, timeoutMs: waitTimeout.maxWaitMs });
+    const output = await runtime.readOutput({ runtimeRef: registryEntry.runtimeRef, lines: 200 });
+    if (json) {
+      writeJson({
+        target: {
+          id,
+          name: agent.name,
+          type: agent.type,
+          pid: agent.pid,
+          status: agent.status,
+          summary: agent.summary,
+          projectPath: agent.projectPath,
+          runtime: 'herdr',
+        },
+        prompt,
+        output,
+        elapsedMs: Date.now() - startedAt,
+      });
+    } else {
+      process.stdout.write(output);
+    }
+    return;
   }
 
   const waitContext = wait ? prepareWaitMode(manager, agent) : undefined;
@@ -512,7 +555,8 @@ export interface StartAgentOptions {
 }
 
 export interface StartAgentDeps {
-  tmux: TmuxManager;
+  tmux?: TmuxManager;
+  runtime?: HerdrStartRuntime;
   registry: AgentRegistry;
   /** Called for non-fatal events (e.g., replacing an orphan tmux session). */
   onWarning?: (message: string) => void;
@@ -527,7 +571,7 @@ export interface KillAgentDeps {
 export interface KillAgentResult {
   agentName: string;
   pid: number;
-  tmuxSession: string | null;
+  runtimeRef: unknown | null;
 }
 
 export class TmuxUnavailableError extends Error {
@@ -551,6 +595,13 @@ export class AgentPidPollTimeoutError extends Error {
   }
 }
 
+export class AgentRuntimeUnavailableError extends Error {
+  constructor(public provider: AgentRuntimeProvider, public reason: string, public detail: string) {
+    super(`${provider} runtime is unavailable (${reason}): ${detail}`);
+    this.name = 'AgentRuntimeUnavailableError';
+  }
+}
+
 function isProcessAlreadyGone(error: unknown): boolean {
   return typeof error === 'object'
     && error !== null
@@ -564,7 +615,9 @@ export async function killAgent(
 ): Promise<KillAgentResult> {
   const killProcess = deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
   const registryEntry = deps.registry.lookup(agent.name);
-  const tmuxSession = registryEntry?.tmuxSession || null;
+  const tmuxRuntimeRef = registryEntry?.runtime === 'tmux'
+    ? parseTmuxRuntimeRef(registryEntry.runtimeRef)
+    : null;
 
   try {
     killProcess(agent.pid, 'SIGTERM');
@@ -574,14 +627,14 @@ export async function killAgent(
     }
   }
 
-  if (tmuxSession) {
-    await deps.tmux.killSession(tmuxSession);
+  if (tmuxRuntimeRef) {
+    await deps.tmux.killSession(tmuxRuntimeRef.session);
   }
 
   return {
     agentName: agent.name,
     pid: agent.pid,
-    tmuxSession,
+    runtimeRef: registryEntry?.runtimeRef ?? null,
   };
 }
 
@@ -598,12 +651,21 @@ export async function startAgent(
   opts: StartAgentOptions,
   deps: StartAgentDeps,
 ): Promise<RegistryEntry> {
-  const { tmux, registry, onWarning } = deps;
+  const { registry, onWarning } = deps;
   const agent = AGENTS[opts.type];
   const intervalMs = opts.pollIntervalMs ?? DEFAULT_PID_POLL_INTERVAL_MS;
   const timeoutMs = opts.pollTimeoutMs ?? DEFAULT_PID_POLL_TIMEOUT_MS;
 
   debug(`startAgent: type=${opts.type}, name=${opts.name}, cwd=${opts.cwd}, pollTimeoutMs=${timeoutMs}`);
+
+  if (deps.runtime?.provider === 'herdr') {
+    return startAgentWithHerdr(opts, deps.runtime, registry, timeoutMs);
+  }
+
+  const tmux = deps.tmux;
+  if (!tmux) {
+    throw new TmuxUnavailableError();
+  }
 
   if (!await tmux.isAvailable()) {
     debug('startAgent: tmux unavailable');
@@ -641,7 +703,8 @@ export async function startAgent(
     name: opts.name,
     type: opts.type,
     pid: agentPid,
-    tmuxSession: opts.name,
+    runtime: 'tmux',
+    runtimeRef: { session: opts.name },
     cwd: opts.cwd,
     startedAt: new Date().toISOString(),
     sessionId: '',
@@ -651,6 +714,61 @@ export async function startAgent(
   registry.register(entry);
   debug(`startAgent: registered ${entry.name}`);
   return entry;
+}
+
+async function startAgentWithHerdr(
+  opts: StartAgentOptions,
+  runtime: HerdrStartRuntime,
+  registry: AgentRegistry,
+  timeoutMs: number,
+): Promise<RegistryEntry> {
+  const availability = await runtime.isAvailable();
+  if (!availability.ok) {
+    throw new AgentRuntimeUnavailableError(runtime.provider, availability.reason, availability.detail);
+  }
+
+  registry.prune();
+  const existing = registry.lookup(opts.name);
+  if (existing) {
+    debug(`startAgent: name already in use pid=${existing.pid}`);
+    throw new AgentNameInUseError(opts.name, existing.pid);
+  }
+
+  const result = await runtime.startAgent({
+    name: opts.name,
+    cwd: opts.cwd,
+    kind: herdrAgentKind(opts.type),
+    args: [],
+    timeoutMs,
+  });
+
+  const entry: RegistryEntry = {
+    name: opts.name,
+    type: opts.type,
+    pid: result.pid,
+    runtime: runtime.provider,
+    runtimeRef: result.runtimeRef,
+    cwd: opts.cwd,
+    startedAt: new Date().toISOString(),
+    sessionId: '',
+    sessionFilePath: '',
+    pinned: false,
+  };
+  registry.register(entry);
+  debug(`startAgent: registered ${entry.name} on ${runtime.provider}`);
+  return entry;
+}
+
+function herdrAgentKind(type: StartableAgentType): string {
+  return {
+    claude: 'claude',
+    codex: 'codex',
+    copilot: 'copilot',
+    gemini_cli: 'gemini',
+    grok_cli: 'grok',
+    opencode: 'opencode',
+    pi: 'pi',
+  }[type];
 }
 
 async function pollForPid(

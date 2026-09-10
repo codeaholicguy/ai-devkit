@@ -9,12 +9,13 @@ function makeEntry(over: Partial<RegistryEntry> = {}): RegistryEntry {
         name: 'agent1',
         type: 'claude',
         pid: process.pid,
-        tmuxSession: 'agent1',
         cwd: '/tmp',
         startedAt: '2026-05-30T00:00:00.000Z',
         sessionId: 'sid-1',
         sessionFilePath: '/tmp/session.jsonl',
         pinned: false,
+        runtime: 'tmux',
+        runtimeRef: { session: 'agent1' },
         ...over,
     };
 }
@@ -50,7 +51,7 @@ describe('AgentRegistry', () => {
 
         it('upserts in place when type and pid already exist', () => {
             registry.register(makeEntry({ name: 'a', pid: process.pid }));
-            registry.register(makeEntry({ name: 'fallback', pid: process.pid, tmuxSession: '' }));
+            registry.register(makeEntry({ name: 'fallback', pid: process.pid, runtimeRef: null }));
             const all = registry.list();
             expect(all).toHaveLength(1);
             expect(all[0].pid).toBe(process.pid);
@@ -69,18 +70,58 @@ describe('AgentRegistry', () => {
             expect(saved.sessionFilePath).toBe('/foo/bar.jsonl');
         });
 
-        it('preserves existing tmuxSession when incoming is empty string', () => {
-            registry.register(makeEntry({ name: 'a', tmuxSession: 'pinned' }));
-            registry.register(makeEntry({ name: 'fallback', tmuxSession: '', pid: process.pid }));
+        it('persists runtime metadata for Herdr-backed entries', () => {
+            const runtimeRef = { session: 'default', paneId: 'w1:p2', agentName: 'reviewer' };
+
+            registry.register(makeEntry({
+                name: 'reviewer',
+                runtime: 'herdr',
+                runtimeRef,
+            }));
+
+            expect(registry.lookup('reviewer')).toMatchObject({
+                runtime: 'herdr',
+                runtimeRef,
+            });
+        });
+
+        it('lets a Herdr managed start replace an existing same-pid name', () => {
+            const runtimeRef = { session: 'default', paneId: 'w1:p2', agentName: 'requested-name' };
+
+            registry.register(makeEntry({ name: 'old-name', pid: process.pid }));
+            registry.register(makeEntry({
+                name: 'requested-name',
+                pid: process.pid,
+                runtime: 'herdr',
+                runtimeRef,
+            }));
+
+            expect(registry.lookup('old-name')).toBeNull();
+            expect(registry.lookup('requested-name')).toMatchObject({
+                pid: process.pid,
+                runtime: 'herdr',
+                runtimeRef,
+            });
+        });
+
+        it('preserves existing runtime ref when incoming runtime ref is empty', () => {
+            registry.register(makeEntry({ name: 'a', runtimeRef: { session: 'pinned' } }));
+            registry.register(makeEntry({ name: 'fallback', runtimeRef: null, pid: process.pid }));
             const saved = registry.lookup('a');
-            expect(saved?.tmuxSession).toBe('pinned');
+            expect(saved?.runtimeRef).toEqual({ session: 'pinned' });
             expect(saved?.pid).toBe(process.pid);
         });
 
+        it('defaults an empty tmux runtime ref from the tmux session', () => {
+            registry.register(makeEntry({ name: 'a', runtimeRef: null }));
+
+            expect(registry.lookup('a')?.runtimeRef).toBeNull();
+        });
+
         it('lets a managed start entry replace a generated fallback for the same pid', () => {
-            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, tmuxSession: '' }));
-            registry.register(makeEntry({ name: 'custom-name', tmuxSession: 'custom-name' }));
-            expect(registry.lookup('custom-name')?.tmuxSession).toBe('custom-name');
+            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, runtimeRef: null }));
+            registry.register(makeEntry({ name: 'custom-name', runtimeRef: { session: 'custom-name' } }));
+            expect(registry.lookup('custom-name')?.runtimeRef).toEqual({ session: 'custom-name' });
             expect(registry.lookup(`ai-devkit-${process.pid}`)).toBeNull();
             expect(registry.list()).toHaveLength(1);
         });
@@ -114,22 +155,22 @@ describe('AgentRegistry', () => {
             expect(registry.list()).toHaveLength(3);
         });
 
-        it('applies the tmuxSession merge per entry', () => {
-            registry.register(makeEntry({ name: 'a', tmuxSession: 'pinned' }));
+        it('applies the tmux runtime ref merge per entry', () => {
+            registry.register(makeEntry({ name: 'a', runtimeRef: { session: 'pinned' } }));
             registry.registerBatch([
-                makeEntry({ name: 'fallback', tmuxSession: '', pid: process.pid }),
-                makeEntry({ name: 'b', tmuxSession: '', pid: process.pid + 1 }),
+                makeEntry({ name: 'fallback', runtimeRef: null, pid: process.pid }),
+                makeEntry({ name: 'b', runtimeRef: null, pid: process.pid + 1 }),
             ]);
-            expect(registry.lookup('a')?.tmuxSession).toBe('pinned');
+            expect(registry.lookup('a')?.runtimeRef).toEqual({ session: 'pinned' });
             expect(registry.lookup('a')?.pid).toBe(process.pid);
-            expect(registry.lookup('b')?.tmuxSession).toBe('');
+            expect(registry.lookup('b')?.runtimeRef).toBeNull();
         });
 
         it('handles concurrent registry instances without duplicate pid rows', () => {
             const other = new AgentRegistry(regPath);
-            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, tmuxSession: '' }));
-            other.register(makeEntry({ name: 'custom-name', tmuxSession: 'custom-name' }));
-            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, tmuxSession: '' }));
+            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, runtimeRef: null }));
+            other.register(makeEntry({ name: 'custom-name', runtimeRef: { session: 'custom-name' } }));
+            registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, runtimeRef: null }));
 
             expect(registry.list()).toHaveLength(1);
             expect(registry.lookup('custom-name')?.pid).toBe(process.pid);
@@ -142,7 +183,7 @@ describe('AgentRegistry', () => {
                 name: 'new-codex',
                 type: 'codex',
                 pid: process.pid,
-                tmuxSession: '',
+                runtimeRef: null,
             }));
 
             expect(registry.lookup('old-claude')).toBeNull();
@@ -246,7 +287,7 @@ describe('AgentRegistry', () => {
         });
 
         it('ignores existing legacy agents.json entries', () => {
-            const legacyEntry = makeEntry({ name: 'legacy', tmuxSession: 'legacy' });
+            const legacyEntry = makeEntry({ name: 'legacy', runtimeRef: { session: 'legacy' } });
             fs.mkdirSync(path.dirname(regPath), { recursive: true });
             fs.writeFileSync(regPath, JSON.stringify({ entries: [legacyEntry] }), 'utf8');
 
@@ -255,6 +296,44 @@ describe('AgentRegistry', () => {
             expect(legacyRegistry.lookup('legacy')).toBeNull();
             expect(legacyRegistry.list()).toEqual([]);
             expect(fs.existsSync(regPath.replace(/\.json$/, '.db'))).toBe(true);
+        });
+
+        it('reads pre-runtime SQLite rows as tmux-backed records', () => {
+            const dbPath = regPath.replace(/\.json$/, '.db');
+            fs.mkdirSync(path.dirname(dbPath), { recursive: true });
+            fs.rmSync(dbPath, { force: true });
+            fs.rmSync(`${dbPath}-wal`, { force: true });
+            fs.rmSync(`${dbPath}-shm`, { force: true });
+            const db = new Database(dbPath);
+            db.exec(`
+                CREATE TABLE agents (
+                    type TEXT NOT NULL,
+                    pid INTEGER NOT NULL,
+                    name TEXT NOT NULL UNIQUE,
+                    tmux_session TEXT NOT NULL DEFAULT '',
+                    cwd TEXT NOT NULL DEFAULT '',
+                    started_at TEXT NOT NULL,
+                    session_id TEXT NOT NULL DEFAULT '',
+                    session_file_path TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL,
+                    PRIMARY KEY (type, pid)
+                );
+                INSERT INTO agents (
+                    type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at
+                ) VALUES (
+                    'claude', ${process.pid}, 'legacy-sqlite', 'legacy-sqlite', '/tmp',
+                    '2026-05-30T00:00:00.000Z', 'sid-1', '/tmp/session.jsonl', '2026-05-30T00:00:00.000Z'
+                );
+                PRAGMA user_version = 1;
+            `);
+            db.close();
+
+            const migratedRegistry = new AgentRegistry(regPath);
+
+            expect(migratedRegistry.lookup('legacy-sqlite')).toMatchObject({
+                runtime: 'tmux',
+                runtimeRef: { session: 'legacy-sqlite' },
+            });
         });
     });
 
@@ -311,7 +390,7 @@ describe('AgentRegistry', () => {
         });
 
         it('preserves entries when liveness probing fails with EPERM', () => {
-            registry.register(makeEntry({ name: 'custom-name', tmuxSession: 'tmux-custom' }));
+            registry.register(makeEntry({ name: 'custom-name', runtimeRef: { session: 'tmux-custom' } }));
             vi.spyOn(process, 'kill').mockImplementation(() => {
                 throw Object.assign(new Error('operation not permitted'), { code: 'EPERM' });
             });
@@ -320,7 +399,7 @@ describe('AgentRegistry', () => {
 
             expect(registry.lookup('custom-name')).toMatchObject({
                 name: 'custom-name',
-                tmuxSession: 'tmux-custom',
+                runtimeRef: { session: 'tmux-custom' },
             });
         });
 
@@ -373,10 +452,10 @@ describe('AgentRegistry', () => {
         });
 
         it('preserves all other fields on the renamed entry', () => {
-            registry.register(makeEntry({ name: 'old-name', pid: process.pid, tmuxSession: 'old-name', cwd: '/my/cwd' }));
+            registry.register(makeEntry({ name: 'old-name', pid: process.pid, runtimeRef: { session: 'old-name' }, cwd: '/my/cwd' }));
             registry.rename('old-name', 'new-name');
             const entry = registry.lookup('new-name');
-            expect(entry?.tmuxSession).toBe('old-name');
+            expect(entry?.runtimeRef).toEqual({ session: 'old-name' });
             expect(entry?.cwd).toBe('/my/cwd');
             expect(entry?.pid).toBe(process.pid);
         });

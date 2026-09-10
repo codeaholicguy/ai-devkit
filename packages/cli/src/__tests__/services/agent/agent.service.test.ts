@@ -6,6 +6,7 @@ import {
   type ConversationMessage,
   type RegistryEntry,
   type TmuxManager,
+  type HerdrInteractiveRuntime,
 } from '@ai-devkit/agent-manager';
 import {
   waitForAgentResponse,
@@ -485,6 +486,23 @@ function makeRegistry(over: Partial<AgentRegistry> = {}): AgentRegistry {
   } as unknown as AgentRegistry;
 }
 
+function makeRuntime(over: Partial<HerdrInteractiveRuntime> = {}): HerdrInteractiveRuntime {
+  return {
+    provider: 'herdr',
+    isAvailable: vi.fn().mockResolvedValue({ ok: true, insideRuntime: false }),
+    startAgent: vi.fn().mockResolvedValue({
+      pid: 12345,
+      runtimeRef: { session: 'default', paneId: 'w1:p2', agentName: 'agent1' },
+    }),
+    send: vi.fn().mockResolvedValue(undefined),
+    wait: vi.fn().mockResolvedValue(undefined),
+    readOutput: vi.fn().mockResolvedValue('done\n'),
+    focus: vi.fn().mockResolvedValue(true),
+    stop: vi.fn().mockResolvedValue(undefined),
+    ...over,
+  } as unknown as HerdrInteractiveRuntime;
+}
+
 const startOpts = {
   type: 'claude' as const,
   name: 'agent1',
@@ -516,7 +534,7 @@ describe('killAgent', () => {
     expect(result).toEqual({
       agentName: 'repo-a',
       pid: 123,
-      tmuxSession: null,
+      runtimeRef: null,
     });
   });
 
@@ -527,7 +545,8 @@ describe('killAgent', () => {
         name: 'repo-a',
         type: 'claude',
         pid: 123,
-        tmuxSession: 'repo-a',
+        runtime: 'tmux',
+        runtimeRef: { session: 'repo-a' },
         cwd: '/repo',
         startedAt: '2026-06-01T00:00:00.000Z',
         sessionId: 'session-1',
@@ -544,7 +563,7 @@ describe('killAgent', () => {
 
     expect(killProcess).toHaveBeenCalledWith(123, 'SIGTERM');
     expect(tmux.killSession).toHaveBeenCalledWith('repo-a');
-    expect(result.tmuxSession).toBe('repo-a');
+    expect(result.runtimeRef).toEqual({ session: 'repo-a' });
   });
 
   it('still kills tmux session when the process is already gone', async () => {
@@ -554,7 +573,8 @@ describe('killAgent', () => {
         name: 'repo-a',
         type: 'claude',
         pid: 123,
-        tmuxSession: 'repo-a',
+        runtime: 'tmux',
+        runtimeRef: { session: 'repo-a' },
         cwd: '/repo',
         startedAt: '2026-06-01T00:00:00.000Z',
         sessionId: 'session-1',
@@ -607,7 +627,8 @@ describe('startAgent', () => {
       name: 'agent1',
       type: 'claude',
       pid: 12345,
-      tmuxSession: 'agent1',
+      runtime: 'tmux',
+      runtimeRef: { session: 'agent1' },
       cwd: '/work',
       pinned: false,
     });
@@ -623,11 +644,59 @@ describe('startAgent', () => {
     expect(registry.register).not.toHaveBeenCalled();
   });
 
+  it('starts Herdr-backed agents through the configured runtime and persists runtime metadata', async () => {
+    const runtime = makeRuntime();
+    const registry = makeRegistry();
+
+    const entry = await startAgent(startOpts, { runtime, registry });
+
+    expect(runtime.isAvailable).toHaveBeenCalledOnce();
+    expect(runtime.startAgent).toHaveBeenCalledWith({
+      name: 'agent1',
+      cwd: '/work',
+      kind: 'claude',
+      args: [],
+      timeoutMs: 50,
+    });
+    expect(entry).toMatchObject({
+      name: 'agent1',
+      type: 'claude',
+      pid: 12345,
+      runtime: 'herdr',
+      runtimeRef: { session: 'default', paneId: 'w1:p2', agentName: 'agent1' },
+      cwd: '/work',
+      pinned: false,
+    });
+    expect(registry.register).toHaveBeenCalledWith(expect.objectContaining({
+      runtime: 'herdr',
+      runtimeRef: { session: 'default', paneId: 'w1:p2', agentName: 'agent1' },
+    }));
+  });
+
+  it('fails Herdr starts when the configured runtime is unavailable', async () => {
+    const runtime = makeRuntime({
+      isAvailable: vi.fn().mockResolvedValue({
+        ok: false,
+        reason: 'binary-missing',
+        detail: 'herdr command was not found in PATH.',
+      }),
+    });
+    const registry = makeRegistry();
+
+    await expect(startAgent(startOpts, { runtime, registry })).rejects.toMatchObject({
+      name: 'AgentRuntimeUnavailableError',
+      provider: 'herdr',
+      reason: 'binary-missing',
+    });
+    expect(runtime.startAgent).not.toHaveBeenCalled();
+    expect(registry.register).not.toHaveBeenCalled();
+  });
+
   it('throws AgentNameInUseError when registry already has a live entry', async () => {
     const tmux = makeTmux();
     const liveEntry: RegistryEntry = {
       name: 'agent1', type: 'claude', pid: 999,
-      tmuxSession: 'agent1', cwd: '/old', startedAt: '2026-01-01T00:00:00.000Z',
+      runtime: 'tmux', runtimeRef: { session: 'agent1' }, cwd: '/old', startedAt: '2026-01-01T00:00:00.000Z',
     };
     const registry = makeRegistry({ lookup: vi.fn().mockReturnValue(liveEntry) } as Partial<AgentRegistry>);
 

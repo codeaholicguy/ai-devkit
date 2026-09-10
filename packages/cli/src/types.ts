@@ -1,3 +1,5 @@
+import type { AgentRuntimeProvider } from '@ai-devkit/agent-manager';
+
 export type Phase =
   | 'requirements'
   | 'design'
@@ -61,6 +63,9 @@ export interface GlobalDevKitConfig {
   memory?: {
     path?: string;
     semantic?: boolean;
+  };
+  agentRuntime?: {
+    provider?: AgentRuntimeProvider;
   };
 }
 

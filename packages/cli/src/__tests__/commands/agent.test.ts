@@ -4,6 +4,7 @@ import { Command } from 'commander';
 import { AgentManager, AgentStatus, TerminalFocusManager } from '@ai-devkit/agent-manager';
 import { registerAgentCommand } from '../../commands/agent.js';
 import { ui } from '../../util/terminal-ui.js';
+import { DEFAULT_PID_POLL_TIMEOUT_MS } from '../../services/agent/agent.service.js';
 
 const SESSION = '22222222-2222-4222-8222-222222222222';
 
@@ -57,7 +58,20 @@ const mockSelect: any = vi.fn();
 
 const mockTtyWriterSend = vi.fn<(location: any, message: string) => Promise<void>>().mockResolvedValue(undefined);
 const mockKillAgent = vi.fn<(...args: any[]) => Promise<any>>();
-const { mockEnableDebug, mockDebugLogger, mockTmuxIsAvailable, mockTmuxInstructions } = vi.hoisted(() => ({
+const {
+  mockEnableDebug,
+  mockDebugLogger,
+  mockTmuxIsAvailable,
+  mockTmuxInstructions,
+  mockAgentRuntimeProvider,
+  mockHerdrIsAvailable,
+  mockHerdrStartAgent,
+  mockHerdrSend,
+  mockHerdrWait,
+  mockHerdrReadOutput,
+  mockHerdrFocus,
+  mockHerdrStop,
+} = vi.hoisted(() => ({
   mockEnableDebug: vi.fn(),
   mockDebugLogger: vi.fn(),
   mockTmuxIsAvailable: vi.fn().mockResolvedValue(true),
@@ -65,6 +79,17 @@ const { mockEnableDebug, mockDebugLogger, mockTmuxIsAvailable, mockTmuxInstructi
     command: 'sudo apt-get update && sudo apt-get install tmux',
     message: 'Install it with: sudo apt-get update && sudo apt-get install tmux.',
   }),
+  mockAgentRuntimeProvider: vi.fn().mockResolvedValue('tmux'),
+  mockHerdrIsAvailable: vi.fn().mockResolvedValue({ ok: true, insideRuntime: false }),
+  mockHerdrStartAgent: vi.fn().mockResolvedValue({
+    pid: 12345,
+    runtimeRef: { session: 'default', paneId: 'w1:p2', agentName: 'agent1' },
+  }),
+  mockHerdrSend: vi.fn().mockResolvedValue(undefined),
+  mockHerdrWait: vi.fn().mockResolvedValue(undefined),
+  mockHerdrReadOutput: vi.fn().mockResolvedValue('done\n'),
+  mockHerdrFocus: vi.fn().mockResolvedValue(true),
+  mockHerdrStop: vi.fn().mockResolvedValue(undefined),
 }));
 let restoreStdin: (() => void) | undefined;
 
@@ -140,6 +165,37 @@ vi.mock('@ai-devkit/agent-manager', () => ({
     findAgentPid: vi.fn().mockResolvedValue(12345),
     killSession: vi.fn().mockResolvedValue(undefined),
   }; }),
+  createHerdrRuntime: vi.fn(() => ({
+    provider: 'herdr',
+    isAvailable: mockHerdrIsAvailable,
+    startAgent: mockHerdrStartAgent,
+    send: mockHerdrSend,
+    wait: mockHerdrWait,
+    readOutput: mockHerdrReadOutput,
+    focus: mockHerdrFocus,
+    stop: mockHerdrStop,
+  })),
+  createInteractiveRuntime: vi.fn((provider: string) => provider === 'herdr' ? {
+    provider: 'herdr',
+    isAvailable: mockHerdrIsAvailable,
+    startAgent: mockHerdrStartAgent,
+    send: mockHerdrSend,
+    wait: mockHerdrWait,
+    readOutput: mockHerdrReadOutput,
+    focus: mockHerdrFocus,
+    stop: mockHerdrStop,
+  } : null),
+  isHerdrRegistryEntry: vi.fn((entry: unknown) => (
+    typeof entry === 'object'
+    && entry !== null
+    && (entry as { runtime?: unknown }).runtime === 'herdr'
+    && 'runtimeRef' in entry
+  )),
+  parseTmuxRuntimeRef: vi.fn((value: unknown) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const session = (value as { session?: unknown }).session;
+    return typeof session === 'string' && session ? { session } : null;
+  }),
   AGENTS: {
     claude:     { command: 'claude',   matches: () => true },
     codex:      { command: 'codex',    matches: () => true },
@@ -180,6 +236,14 @@ vi.mock('../../util/tmux.js', () => ({
 }));
 
 vi.mock('../../util/tmux-deps.js', () => ({ createTmuxInspectionDeps: () => ({}) }));
+
+vi.mock('../../lib/Config.js', () => ({
+  ConfigManager: vi.fn(function () {
+    return {
+      getAgentRuntimeProvider: mockAgentRuntimeProvider,
+    };
+  }),
+}));
 
 vi.mock('../../services/agent/agent.service.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/agent/agent.service.js')>();
@@ -266,7 +330,24 @@ describe('agent command', () => {
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
     mockKillAgent.mockReset();
+    mockRegistry.prune.mockReset();
+    mockRegistry.lookup.mockReset().mockReturnValue(null);
+    mockRegistry.list.mockReset().mockReturnValue([]);
+    mockRegistry.register.mockReset();
+    mockRegistry.isAlive.mockReset().mockReturnValue(false);
+    mockRegistry.rename.mockReset();
     mockTmuxIsAvailable.mockReset().mockResolvedValue(true);
+    mockAgentRuntimeProvider.mockReset().mockResolvedValue('tmux');
+    mockHerdrIsAvailable.mockReset().mockResolvedValue({ ok: true, insideRuntime: false });
+    mockHerdrStartAgent.mockReset().mockResolvedValue({
+      pid: 12345,
+      runtimeRef: { session: 'default', paneId: 'w1:p2', agentName: 'agent1' },
+    });
+    mockHerdrSend.mockReset().mockResolvedValue(undefined);
+    mockHerdrWait.mockReset().mockResolvedValue(undefined);
+    mockHerdrReadOutput.mockReset().mockResolvedValue('done\n');
+    mockHerdrFocus.mockReset().mockResolvedValue(true);
+    mockHerdrStop.mockReset().mockResolvedValue(undefined);
     mockTmuxInstructions.mockReset().mockResolvedValue({
       command: 'sudo apt-get update && sudo apt-get install tmux',
       message: 'Install it with: sudo apt-get update && sudo apt-get install tmux.',
@@ -383,6 +464,46 @@ describe('agent command', () => {
     expect(ui.error).toHaveBeenCalledWith(
       'tmux is not installed or not in PATH. Install it with: sudo apt-get update && sudo apt-get install tmux.',
     );
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('starts interactive agents with Herdr when the global runtime provider is herdr', async () => {
+    mockAgentRuntimeProvider.mockResolvedValue('herdr');
+    const program = new Command();
+    registerAgentCommand(program);
+
+    await program.parseAsync(['node', 'test', 'agent', 'start', '--type', 'codex', '--name', 'agent1', '--cwd', process.cwd()]);
+
+    expect(mockHerdrIsAvailable).toHaveBeenCalledOnce();
+    expect(mockHerdrStartAgent).toHaveBeenCalledWith({
+      name: 'agent1',
+      cwd: process.cwd(),
+      kind: 'codex',
+      args: [],
+      timeoutMs: DEFAULT_PID_POLL_TIMEOUT_MS,
+    });
+    expect(mockTmuxIsAvailable).not.toHaveBeenCalled();
+    expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (codex, PID 12345)');
+    expect(ui.text).toHaveBeenCalledWith('Runtime: herdr');
+    expect(ui.text).not.toHaveBeenCalledWith(expect.stringContaining('tmux attach'));
+  });
+
+  it('reports Herdr runtime availability errors during interactive start', async () => {
+    mockAgentRuntimeProvider.mockResolvedValue('herdr');
+    mockHerdrIsAvailable.mockResolvedValue({
+      ok: false,
+      reason: 'backend-unreachable',
+      detail: 'herdr api snapshot failed.',
+    });
+    const program = new Command();
+    registerAgentCommand(program);
+
+    await program.parseAsync(['node', 'test', 'agent', 'start', '--type', 'codex', '--name', 'agent1']);
+
+    expect(ui.error).toHaveBeenCalledWith(
+      'Herdr runtime is unavailable (backend-unreachable): herdr api snapshot failed.',
+    );
+    expect(mockHerdrStartAgent).not.toHaveBeenCalled();
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
@@ -539,6 +660,28 @@ Waiting on user input`,
     expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
   });
 
+  it('focuses Herdr-backed agents through Herdr instead of terminal PID lookup', async () => {
+    const agent = {
+      name: 'repo-a',
+      status: AgentStatus.WAITING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const runtimeRef = { session: 'default', paneId: 'w1:p2', agentName: 'repo-a' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockRegistry.lookup.mockReturnValue({ name: 'repo-a', runtime: 'herdr', runtimeRef, pid: 10 });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'open', 'repo-a']);
+
+    expect(mockHerdrFocus).toHaveBeenCalledWith({ runtimeRef });
+    expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
+    expect(mockSpinner.succeed).toHaveBeenCalledWith('Focused repo-a!');
+  });
+
   it('enables debug logging and wires a terminal trace when opening with --debug', async () => {
     const agent = {
       name: 'repo-a',
@@ -578,7 +721,7 @@ Waiting on user input`,
     mockKillAgent.mockResolvedValue({
       agentName: 'repo-a',
       pid: 10,
-      tmuxSession: 'repo-a',
+      runtimeRef: { session: 'repo-a' },
     });
 
     const program = new Command();
@@ -591,6 +734,29 @@ Waiting on user input`,
       registry: mockRegistry,
     }));
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
+  });
+
+  it('stops Herdr-backed agents through Herdr instead of tmux cleanup', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'codex',
+      status: AgentStatus.RUNNING,
+      summary: 'A',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const runtimeRef = { session: 'default', paneId: 'w1:p2', agentName: 'repo-a' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockRegistry.lookup.mockReturnValue({ name: 'repo-a', runtime: 'herdr', runtimeRef, pid: 10 });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'kill', 'repo-a']);
+
+    expect(mockHerdrStop).toHaveBeenCalledWith({ runtimeRef });
+    expect(mockKillAgent).not.toHaveBeenCalled();
+    expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and Herdr pane.');
   });
 
   it('does not kill when target is ambiguous', async () => {
@@ -773,6 +939,32 @@ Waiting on user input`,
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
     expect(mockTtyWriterSend).toHaveBeenCalledWith(location, 'continue');
     expect(ui.success).toHaveBeenCalledWith('Sent message to repo-a.');
+  });
+
+  it('sends and waits for Herdr-backed agents through Herdr process IO', async () => {
+    const agent = {
+      name: 'repo-a',
+      type: 'codex',
+      status: AgentStatus.WAITING,
+      summary: 'Waiting',
+      lastActive: new Date(),
+      pid: 10,
+    };
+    const runtimeRef = { session: 'default', paneId: 'w1:p2', agentName: 'repo-a' };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockRegistry.lookup.mockReturnValue({ name: 'repo-a', runtime: 'herdr', runtimeRef, pid: 10 });
+    mockHerdrReadOutput.mockResolvedValue('done\n');
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(['node', 'test', 'agent', 'send', 'continue', '--id', 'repo-a', '--wait', '--timeout', '2000']);
+
+    expect(mockHerdrSend).toHaveBeenCalledWith({ runtimeRef, prompt: 'continue' });
+    expect(mockHerdrWait).toHaveBeenCalledWith({ runtimeRef, timeoutMs: 2000 });
+    expect(mockHerdrReadOutput).toHaveBeenCalledWith({ runtimeRef, lines: 200 });
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+    expect(stdoutSpy).toHaveBeenCalledWith('done\n');
   });
 
   it('starts a durable Claude durable agent without tmux', async () => {

@@ -115,6 +115,33 @@ describe('ConfigManager', () => {
     });
   });
 
+  describe('getAgentRuntimeProvider', () => {
+    it('returns herdr when configured globally', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        agentRuntime: { provider: 'herdr' },
+      });
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe('herdr');
+    });
+
+    it('ignores project-level runtime config because agent runtime is global-only', async () => {
+      (mockFs.pathExists as any).mockImplementation(async (configPath: string) => (
+        configPath === '/test/dir/.ai-devkit.json'
+      ));
+      (mockFs.readJson as any).mockResolvedValue({
+        version: '1.0.0',
+        environments: [],
+        phases: [],
+        createdAt: '2026-09-10T00:00:00.000Z',
+        agentRuntime: { provider: 'herdr' },
+      });
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe('tmux');
+      expect(mockFs.readJson).not.toHaveBeenCalled();
+    });
+  });
+
   describe('create', () => {
     it('should create config with default values', async () => {
       const expectedConfig: DevKitConfig = {
