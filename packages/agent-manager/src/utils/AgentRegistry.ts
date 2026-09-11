@@ -24,7 +24,8 @@ export interface RegistryEntry {
     name: string;
     type: AgentType;
     pid: number;
-    tmuxSession: string;
+    runtime: AgentRuntimeProvider;
+    runtimeRef: unknown | null;
     cwd: string;
     startedAt: string;  // ISO 8601
     sessionId: string;
@@ -38,12 +39,20 @@ interface RegistryRow {
     type: AgentType;
     pid: number;
     tmux_session: string;
+    runtime?: string;
+    runtime_ref?: string;
     cwd: string;
     started_at: string;
     session_id: string;
     session_file_path: string;
     updated_at: string;
     pinned: number;
+}
+
+export const AGENT_RUNTIME_PROVIDERS = ['tmux', 'herdr'] as const;
+export type AgentRuntimeProvider = typeof AGENT_RUNTIME_PROVIDERS[number];
+export interface TmuxRuntimeRef {
+    session: string;
 }
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
@@ -84,11 +93,13 @@ export class AgentRegistry {
     }
 
     private rowToEntry(row: RegistryRow): RegistryEntry {
+        const runtime = this.parseRuntime(row.runtime);
         return {
             name: row.name,
             type: row.type,
             pid: row.pid,
-            tmuxSession: row.tmux_session,
+            runtime,
+            runtimeRef: this.parseRuntimeRef(runtime, row.runtime_ref, row.tmux_session),
             cwd: row.cwd,
             startedAt: row.started_at,
             sessionId: row.session_id,
@@ -98,13 +109,38 @@ export class AgentRegistry {
         };
     }
 
+    private parseRuntime(value: string | undefined): AgentRuntimeProvider {
+        return value === 'herdr' ? 'herdr' : 'tmux';
+    }
+
+    private parseRuntimeRef(
+        runtime: AgentRuntimeProvider,
+        raw: string | undefined,
+        legacyTmuxSession: string,
+    ): unknown | null {
+        if (raw) {
+            try {
+                return JSON.parse(raw) as unknown;
+            } catch {
+                return null;
+            }
+        }
+
+        if (runtime === 'tmux' && legacyTmuxSession) {
+            return { session: legacyTmuxSession };
+        }
+
+        return null;
+    }
+
     private mergeEntry(incoming: RegistryEntry, existing: RegistryEntry | undefined): RegistryEntry {
         if (!existing) return incoming;
-        const incomingIsManaged = Boolean(incoming.tmuxSession);
+        const incomingIsManaged = incoming.runtime === 'herdr' || Boolean(parseTmuxRuntimeRef(incoming.runtimeRef));
         return {
             ...existing,
             name: incomingIsManaged ? incoming.name : existing.name,
-            tmuxSession: incoming.tmuxSession || existing.tmuxSession,
+            runtime: incoming.runtime ?? existing.runtime,
+            runtimeRef: incoming.runtimeRef ?? existing.runtimeRef,
             cwd: incoming.cwd || existing.cwd,
             startedAt: existing.startedAt || incoming.startedAt,
             sessionId: incoming.sessionId || existing.sessionId,
@@ -136,7 +172,8 @@ export class AgentRegistry {
         return left.name === right.name
             && left.type === right.type
             && left.pid === right.pid
-            && left.tmuxSession === right.tmuxSession
+            && left.runtime === right.runtime
+            && JSON.stringify(left.runtimeRef ?? null) === JSON.stringify(right.runtimeRef ?? null)
             && left.cwd === right.cwd
             && left.startedAt === right.startedAt
             && left.sessionId === right.sessionId
@@ -156,19 +193,28 @@ export class AgentRegistry {
         this.db.instance.prepare(`
             INSERT INTO agents (
                 type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at
+                , runtime, runtime_ref
             )
             VALUES (
-                @type, @pid, @name, @tmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt
+                @type, @pid, @name, @legacyTmuxSession, @cwd, @startedAt, @sessionId, @sessionFilePath, @updatedAt
+                , @runtime, @runtimeRefJson
             )
             ON CONFLICT(type, pid) DO UPDATE SET
                 name = excluded.name,
                 tmux_session = excluded.tmux_session,
+                runtime = excluded.runtime,
+                runtime_ref = excluded.runtime_ref,
                 cwd = excluded.cwd,
                 started_at = agents.started_at,
                 session_id = excluded.session_id,
                 session_file_path = excluded.session_file_path,
                 updated_at = excluded.updated_at
-        `).run({ ...entry, updatedAt: this.now().toISOString() });
+        `).run({
+            ...entry,
+            legacyTmuxSession: parseTmuxRuntimeRef(entry.runtimeRef)?.session ?? '',
+            runtimeRefJson: JSON.stringify(entry.runtimeRef ?? null),
+            updatedAt: this.now().toISOString(),
+        });
     }
 
     private needsWrite(incoming: RegistryEntry): boolean {
@@ -285,4 +331,10 @@ export class AgentRegistry {
         const rows = this.db.query<RegistryRow>('SELECT * FROM agents ORDER BY started_at ASC, name ASC');
         return rows.map((row) => this.rowToEntry(row));
     }
+}
+
+export function parseTmuxRuntimeRef(value: unknown): TmuxRuntimeRef | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    const session = (value as { session?: unknown }).session;
+    return typeof session === 'string' && session.trim() ? { session } : null;
 }

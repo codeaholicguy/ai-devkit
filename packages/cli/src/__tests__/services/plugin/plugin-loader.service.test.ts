@@ -10,7 +10,13 @@ import {
   type LoadedPluginCommand,
 } from '../../../services/plugin/plugin-loader.service.js';
 
-vi.mock('os');
+vi.mock('os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('os')>();
+  return {
+    ...actual,
+    homedir: vi.fn(actual.homedir),
+  };
+});
 
 describe('plugin loader service', () => {
   let tempHome: string;

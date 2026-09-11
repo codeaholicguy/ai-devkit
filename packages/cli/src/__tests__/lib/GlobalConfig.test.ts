@@ -100,6 +100,37 @@ describe('GlobalConfigManager', () => {
     });
   });
 
+  describe('getAgentRuntimeProvider', () => {
+    it('defaults to tmux when global config is missing', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe('tmux');
+    });
+
+    it('defaults to tmux when global agentRuntime provider is missing', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ agentRuntime: {} });
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe('tmux');
+    });
+
+    it('returns herdr when configured globally', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ agentRuntime: { provider: 'herdr' } });
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe('herdr');
+    });
+
+    it('rejects unknown global runtime providers', async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ agentRuntime: { provider: 'screen' } });
+
+      await expect(configManager.getAgentRuntimeProvider()).rejects.toThrow(
+        'agentRuntime.provider has unsupported value "screen"; supported values: tmux, herdr',
+      );
+    });
+  });
+
   describe('addSkillRegistry', () => {
     it('creates a missing global config with the registry', async () => {
       (mockFs.pathExists as any).mockResolvedValue(false);

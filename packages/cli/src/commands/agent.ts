@@ -23,9 +23,17 @@ import {
     AgentRegistry,
     RenameNotFoundError,
     RenameConflictError,
-    TmuxManager,
     AGENTS,
     AGENT_MODES,
+    parseTmuxRuntimeRef,
+    startAgent,
+    stopAgent,
+    focusAgent,
+    TmuxUnavailableError,
+    AgentNameInUseError,
+    AgentPidPollTimeoutError,
+    AgentRuntimeUnavailableError,
+    createHerdrRuntime,
     type StartableAgentType,
     type AgentInfo,
     type AgentType,
@@ -43,15 +51,10 @@ import {
     toJsonSession,
 } from '../util/sessions.js';
 import {
-    startAgent,
-    killAgent,
     assertSendTargetOptions,
     type SendReporter,
     sendToAgent,
     sendToAgentGroup,
-    TmuxUnavailableError,
-    AgentNameInUseError,
-    AgentPidPollTimeoutError,
 } from '../services/agent/agent.service.js';
 import {
     AgentGroupNotFoundError,
@@ -63,6 +66,7 @@ import { generateAgentName } from '../util/agent.js';
 import { select } from '@inquirer/prompts';
 import { resolveTmuxInstallInstructions } from '../util/tmux.js';
 import { createTmuxInspectionDeps } from '../util/tmux-deps.js';
+import { ConfigManager } from '../lib/Config.js';
 
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -275,7 +279,7 @@ export function registerAgentCommand(program: Command): void {
 
     agentCommand
         .command('start')
-        .description('Start a new agent in a managed tmux session')
+        .description('Start a new agent in the configured interactive runtime')
         .requiredOption('--type <type>', `Agent type: ${Object.keys(AGENTS).join(', ')}`)
         .option('--mode <mode>', 'Agent mode: interactive or durable', 'interactive')
         .option('--name <name>', 'Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})')
@@ -321,21 +325,25 @@ export function registerAgentCommand(program: Command): void {
                     ui.text(`State: ready (${formatPrintProvider(entry.provider)} session not started)`);
                     return;
                 }
+                const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
                 const entry = await startAgent(
-                    { type: agentType as StartableAgentType, name: agentName, cwd },
-                    {
-                        tmux: new TmuxManager(),
-                        registry: AgentRegistry.default(),
-                        onWarning: (msg) => ui.warning(msg),
-                    },
+                    { type: agentType as StartableAgentType, name: agentName, cwd, runtimeProvider },
+                    { onWarning: (msg: string) => ui.warning(msg) },
                 );
                 ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
                 ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-                ui.text(`Attach: tmux attach -t ${entry.tmuxSession}`);
+                if (entry.runtime === 'herdr') {
+                    ui.text('Runtime: herdr');
+                } else {
+                    const tmuxRef = parseTmuxRuntimeRef(entry.runtimeRef);
+                    if (tmuxRef) ui.text(`Attach: tmux attach -t ${tmuxRef.session}`);
+                }
             } catch (err) {
                 if (err instanceof TmuxUnavailableError) {
                     const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
                     ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
+                } else if (err instanceof AgentRuntimeUnavailableError) {
+                    ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
                 } else if (err instanceof AgentNameInUseError) {
                     ui.error(`Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`);
                 } else if (err instanceof AgentPidPollTimeoutError) {
@@ -599,19 +607,21 @@ export function registerAgentCommand(program: Command): void {
             const spinner = ui.spinner(`Switching focus to ${agent.name}...`);
             spinner.start();
 
-            const location = await focusManager.findTerminal(agent.pid);
-            if (!location) {
+            const focusResult = await focusAgent(agent, {
+                registry: AgentRegistry.default(),
+                runtime: createHerdrRuntime(),
+                focusManager,
+            });
+            if (!focusResult.focused && focusResult.reason === 'terminal-not-found') {
                 spinner.fail(`Could not find terminal window for agent "${agent.name}" (PID: ${agent.pid}).`);
                 return;
             }
-
-            const success = await focusManager.focusTerminal(location);
-
-            if (success) {
-                spinner.succeed(`Focused ${agent.name}!`);
-            } else {
-                spinner.fail(`Failed to switch focus to ${agent.name}.`);
+            if (!focusResult.focused) {
+                spinner.fail(`Failed to switch focus to "${agent.name}".`);
+                return;
             }
+
+            spinner.succeed(`Focused ${agent.name}!`);
         }));
 
     agentCommand
@@ -674,6 +684,8 @@ export function registerAgentCommand(program: Command): void {
                 prompt,
                 manager,
                 focusManager,
+                registry: AgentRegistry.default(),
+                runtime: createHerdrRuntime(),
                 wait: options.wait,
                 timeout: options.timeout,
                 json: options.json,
@@ -684,7 +696,7 @@ export function registerAgentCommand(program: Command): void {
 
     agentCommand
         .command('kill <name>')
-        .description('Stop a running agent and clean up its managed tmux session')
+        .description('Stop a running agent and clean up its managed runtime')
         .action(withErrorHandler('kill agent', async (name: string) => {
             const manager = createAgentManager();
             const agents = await manager.listAgents();
@@ -709,12 +721,18 @@ export function registerAgentCommand(program: Command): void {
                 return;
             }
 
-            const result = await killAgent(resolved, {
-                tmux: new TmuxManager(),
-                registry: AgentRegistry.default(),
+            const registry = AgentRegistry.default();
+            const result = await stopAgent(resolved, {
+                registry,
+                runtime: createHerdrRuntime(),
             });
+            if (result.runtime === 'herdr') {
+                ui.success(`Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`);
+                return;
+            }
 
-            const suffix = result.tmuxSession ? ` and tmux session "${result.tmuxSession}"` : '';
+            const tmuxRef = parseTmuxRuntimeRef(result.runtimeRef);
+            const suffix = tmuxRef ? ` and tmux session "${tmuxRef.session}"` : '';
             ui.success(`Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`);
         }));
 

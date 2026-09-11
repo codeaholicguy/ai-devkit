@@ -231,7 +231,8 @@ describe('GeminiCliAdapter', () => {
                 name: 'cli-mqcqj469',
                 type: 'gemini_cli',
                 pid: wrapperProc.pid,
-                tmuxSession: 'cli-mqcqj469',
+                runtime: 'tmux',
+                runtimeRef: { session: 'cli-mqcqj469' },
                 cwd: wrapperProc.cwd,
                 startedAt: '2026-06-13T19:15:16.211Z',
                 sessionId: `pid-${wrapperProc.pid}`,
@@ -427,7 +428,8 @@ describe('GeminiCliAdapter', () => {
                 name: 'gemini-100',
                 type: 'gemini_cli',
                 pid: 100,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/repo-a',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 's-cached',
@@ -556,7 +558,7 @@ describe('GeminiCliAdapter', () => {
             registerEntry({
                 name: 'cli-mqcq0mg5',
                 pid: wrapperProc.pid,
-                tmuxSession: 'cli-mqcq0mg5',
+                runtimeRef: { session: 'cli-mqcq0mg5' },
                 sessionId: 's-cached',
                 sessionFilePath,
             });

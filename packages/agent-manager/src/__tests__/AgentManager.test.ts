@@ -388,7 +388,8 @@ describe('AgentManager', () => {
                 cwd: '/cwd/a',
                 sessionId: 'sid-a',
                 sessionFilePath: '/path/a.jsonl',
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
             });
             expect(entries[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
         });
@@ -398,7 +399,8 @@ describe('AgentManager', () => {
                 name: 'dead',
                 type: 'claude',
                 pid: 999999,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/cwd/dead',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'sid-dead',
@@ -420,7 +422,8 @@ describe('AgentManager', () => {
                 name: 'merry',
                 type: 'claude',
                 pid: process.pid,
-                tmuxSession: 'merry',
+                runtime: 'tmux',
+                runtimeRef: { session: 'merry' },
                 cwd: '/cwd/merry',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'sid-merry',
@@ -435,16 +438,17 @@ describe('AgentManager', () => {
 
             expect(agents[0].name).toBe('merry');
             expect(registry.list()[0].name).toBe('merry');
-            expect(registry.list()[0].tmuxSession).toBe('merry');
+            expect(registry.list()[0].runtimeRef).toEqual({ session: 'merry' });
             expect(registry.list()[0].startedAt).toBe('2026-05-30T00:00:00.000Z');
         });
 
-        it('preserves custom name and tmux session across two EPERM refresh cycles', async () => {
+        it('preserves custom name and tmux runtime ref across two EPERM refresh cycles', async () => {
             registry.register({
                 name: 'merry',
                 type: 'claude',
                 pid: process.pid,
-                tmuxSession: 'merry-tmux',
+                runtime: 'tmux',
+                runtimeRef: { session: 'merry-tmux' },
                 cwd: '/cwd/merry',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'sid-merry',
@@ -464,7 +468,7 @@ describe('AgentManager', () => {
             expect(secondRefresh[0].name).toBe('merry');
             expect(registry.lookup('merry')).toMatchObject({
                 name: 'merry',
-                tmuxSession: 'merry-tmux',
+                runtimeRef: { session: 'merry-tmux' },
             });
         });
 
@@ -473,7 +477,8 @@ describe('AgentManager', () => {
                 name: 'agent-list-debug',
                 type: 'codex',
                 pid: process.pid,
-                tmuxSession: 'agent-list-debug',
+                runtime: 'tmux',
+                runtimeRef: { session: 'agent-list-debug' },
                 cwd: '/cwd/debug',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'pid-debug',
@@ -483,7 +488,8 @@ describe('AgentManager', () => {
                 name: `ai-devkit-${process.pid}`,
                 type: 'codex',
                 pid: process.pid,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/cwd/debug',
                 startedAt: '2026-05-31T00:00:00.000Z',
                 sessionId: 'pid-debug',
@@ -501,7 +507,7 @@ describe('AgentManager', () => {
             expect(registry.list()[0]).toMatchObject({
                 name: 'agent-list-debug',
                 pid: process.pid,
-                tmuxSession: 'agent-list-debug',
+                runtimeRef: { session: 'agent-list-debug' },
             });
         });
 
@@ -633,7 +639,8 @@ describe('AgentManager', () => {
                 name: 'cadenced',
                 type: 'claude',
                 pid: process.pid,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/cwd/cadenced',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'sid-cadenced',
@@ -661,7 +668,8 @@ describe('AgentManager', () => {
                 name: 'old-claude',
                 type: 'claude',
                 pid: process.pid,
-                tmuxSession: 'old-claude',
+                runtime: 'tmux',
+                runtimeRef: { session: 'old-claude' },
                 cwd: '/cwd/old',
                 startedAt: '2026-05-30T00:00:00.000Z',
                 sessionId: 'old-session',
@@ -705,7 +713,8 @@ describe('AgentManager', () => {
                 name: 'renamed-agent',
                 type: 'claude',
                 pid: process.pid,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/tmp',
                 startedAt: '2026-08-16T00:00:00.000Z',
                 sessionId: 'session',
@@ -728,7 +737,8 @@ describe('AgentManager', () => {
                 name: 'dead',
                 type: 'claude',
                 pid: 999999,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/tmp',
                 startedAt: '2026-08-16T00:00:00.000Z',
                 sessionId: 'session',
@@ -747,7 +757,8 @@ describe('AgentManager', () => {
                 name: 'readonly-agent',
                 type: 'claude',
                 pid: process.pid,
-                tmuxSession: '',
+                runtime: 'tmux',
+                runtimeRef: null,
                 cwd: '/tmp',
                 startedAt: '2026-08-16T00:00:00.000Z',
                 sessionId: 'session',

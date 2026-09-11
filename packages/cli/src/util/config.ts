@@ -1,6 +1,9 @@
 import { z } from 'zod';
+import { AGENT_RUNTIME_PROVIDERS, type AgentRuntimeProvider } from '@ai-devkit/agent-manager';
 import { ConfigSkill, EnvironmentCode, McpServerDefinition, Phase, AVAILABLE_PHASES } from '../types.js';
 import { isValidEnvironmentCode } from './env.js';
+
+export type { AgentRuntimeProvider };
 
 export interface InstallConfigData {
   environments: EnvironmentCode[];
@@ -56,7 +59,7 @@ const installConfigSchema = z.object({
     env: z.record(z.string(), z.string()).optional(),
     url: z.string().optional(),
     headers: z.record(z.string(), z.string()).optional(),
-  })).optional().default({})
+  })).optional().default({}),
 }).transform((data, ctx) => {
   const phaseValues = data.phases ?? [];
 
@@ -75,9 +78,29 @@ const installConfigSchema = z.object({
     phases: dedupe(phaseValues) as Phase[],
     registries: data.registries,
     skills: dedupeSkills(data.skills),
-    mcpServers: data.mcpServers as Record<string, McpServerDefinition>
+    mcpServers: data.mcpServers as Record<string, McpServerDefinition>,
   };
 });
+
+export function resolveAgentRuntimeProvider(
+  value: string | undefined,
+  ctx?: z.RefinementCtx,
+): AgentRuntimeProvider {
+  if (value === undefined) return 'tmux';
+  if ((AGENT_RUNTIME_PROVIDERS as readonly string[]).includes(value)) {
+    return value as AgentRuntimeProvider;
+  }
+  const message = `has unsupported value "${value}"; supported values: ${AGENT_RUNTIME_PROVIDERS.join(', ')}`;
+  if (!ctx) {
+    throw new Error(`agentRuntime.provider ${message}`);
+  }
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['agentRuntime', 'provider'],
+    message,
+  });
+  return z.NEVER;
+}
 
 export function validateInstallConfig(data: unknown, configPath: string): InstallConfigData {
   const parsed = installConfigSchema.safeParse(data);
@@ -103,7 +126,7 @@ function formatZodIssue(error: z.ZodError): string {
     return issue.message;
   }
 
-  return `${formatPath(issue.path)} ${issue.message}`;
+  return `${formatPath(issue.path as Array<string | number>)} ${issue.message}`;
 }
 
 function formatPath(pathParts: Array<string | number>): string {

@@ -1,5 +1,4 @@
 import {
-  AGENTS,
   AgentStatus,
   TtyWriter,
   type AgentAdapter,
@@ -10,16 +9,13 @@ import {
   type TerminalLocation,
   type AgentType,
   type ConversationMessage,
-  type RegistryEntry,
-  type StartableAgentType,
-  type TmuxManager,
+  type HerdrInteractiveRuntime,
+  AgentTerminalNotFoundError,
+  sendAgentPrompt,
 } from '@ai-devkit/agent-manager';
-import { createLogger } from '../../util/debug.js';
 import { parseMilliseconds, sleep } from '../../util/time.js';
 import { ui } from '../../util/terminal-ui.js';
 import type { AgentGroup } from './agent-group.service.js';
-
-const debug = createLogger('agent');
 
 export interface AgentSendWaitTarget {
   id: string;
@@ -34,6 +30,7 @@ export interface AgentSendWaitOptions {
   pollIntervalMs: number;
   maxWaitMs: number;
   timeoutLabel?: string;
+  emptyWaitingGraceMs?: number;
 }
 
 export interface AgentSendWaitResult {
@@ -74,6 +71,8 @@ export interface SendToAgentOptions {
   prompt: string;
   manager: Pick<AgentManager, 'listAgents' | 'resolveAgent' | 'getAdapter'>;
   focusManager: Pick<TerminalFocusManager, 'findTerminal'>;
+  registry?: Pick<AgentRegistry, 'lookup'>;
+  runtime?: HerdrInteractiveRuntime;
   wait?: boolean;
   timeout?: string;
   json?: boolean;
@@ -141,7 +140,9 @@ export async function waitForAgentResponse(params: WaitForAgentResponseParams): 
   const { manager, adapter, target, initialMessageCount, options, onAssistantMessage, onStatus } = params;
   const startedAt = Date.now();
   let lastSeenCount = initialMessageCount;
+  let emptyWaitingSince: number | null = null;
   const messages: ConversationMessage[] = [];
+  const emptyWaitingGraceMs = options.emptyWaitingGraceMs ?? AGENT_SEND_WAIT_EMPTY_WAITING_GRACE_MS;
 
   while (Date.now() - startedAt < options.maxWaitMs) {
     let transcriptReadSucceeded = false;
@@ -171,10 +172,28 @@ export async function waitForAgentResponse(params: WaitForAgentResponseParams): 
       (agent.status === AgentStatus.IDLE && hasAssistantOutput);
 
     if (canCompleteOnStatus && transcriptReadSucceeded) {
-      if (messages.length === 0) {
-        onStatus?.(`Agent "${target.name}" returned to waiting without assistant output.`);
+      if (messages.length > 0) {
+        return {
+          agentName: target.name,
+          agentType: target.type,
+          pid: target.pid,
+          sessionId: target.sessionId,
+          sessionFilePath: target.sessionFilePath,
+          messages,
+          finalStatus: agent.status,
+          elapsedMs: Date.now() - startedAt,
+        };
       }
 
+      emptyWaitingSince ??= Date.now();
+      if (Date.now() - emptyWaitingSince < emptyWaitingGraceMs) {
+        const elapsedMs = Date.now() - startedAt;
+        const remainingMs = options.maxWaitMs - elapsedMs;
+        await sleep(Math.min(options.pollIntervalMs, remainingMs, emptyWaitingGraceMs));
+        continue;
+      }
+
+      onStatus?.(`Agent "${target.name}" returned to waiting without assistant output.`);
       return {
         agentName: target.name,
         agentType: target.type,
@@ -200,6 +219,8 @@ export async function sendToAgent({
   prompt,
   manager,
   focusManager,
+  registry,
+  runtime,
   wait = false,
   timeout,
   json = false,
@@ -242,16 +263,22 @@ export async function sendToAgent({
   }
 
   const waitContext = wait ? prepareWaitMode(manager, agent) : undefined;
-  const location = await focusManager.findTerminal(agent.pid);
-  if (!location) {
-    if (wait) {
-      throw new Error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
+  const sendFailed = await sendAgentPrompt(agent, prompt, {
+    registry,
+    runtime,
+    focusManager,
+    writer,
+  }).then(() => false).catch((error) => {
+    if (error instanceof AgentTerminalNotFoundError) {
+      if (wait) {
+        throw error;
+      }
+      reporter.error(error.message);
+      return true;
     }
-    reporter.error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
-    return;
-  }
-
-  await writer(location, prompt);
+    throw error;
+  });
+  if (sendFailed) return;
 
   if (!wait) {
     reporter.success(`Sent message to ${agent.name}.`);
@@ -498,187 +525,4 @@ function targetKey(agent: AgentInfo): string {
 
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
-
-export const DEFAULT_PID_POLL_INTERVAL_MS = 500;
-export const DEFAULT_PID_POLL_TIMEOUT_MS = 15_000;
-const REQUIRED_STABLE_PID_POLLS = 5;
-
-export interface StartAgentOptions {
-  type: StartableAgentType;
-  name: string;
-  cwd: string;
-  pollIntervalMs?: number;
-  pollTimeoutMs?: number;
-}
-
-export interface StartAgentDeps {
-  tmux: TmuxManager;
-  registry: AgentRegistry;
-  /** Called for non-fatal events (e.g., replacing an orphan tmux session). */
-  onWarning?: (message: string) => void;
-}
-
-export interface KillAgentDeps {
-  tmux: Pick<TmuxManager, 'killSession'>;
-  registry: Pick<AgentRegistry, 'lookup'>;
-  killProcess?: (pid: number, signal: NodeJS.Signals) => void;
-}
-
-export interface KillAgentResult {
-  agentName: string;
-  pid: number;
-  tmuxSession: string | null;
-}
-
-export class TmuxUnavailableError extends Error {
-  constructor() {
-    super('tmux is not installed or not in PATH.');
-    this.name = 'TmuxUnavailableError';
-  }
-}
-
-export class AgentNameInUseError extends Error {
-  constructor(public agentName: string, public pid: number) {
-    super(`Agent "${agentName}" is already running (PID ${pid}).`);
-    this.name = 'AgentNameInUseError';
-  }
-}
-
-export class AgentPidPollTimeoutError extends Error {
-  constructor(public agentName: string, public command: string, public timeoutMs: number) {
-    super(`Agent process not found after ${timeoutMs / 1000}s.`);
-    this.name = 'AgentPidPollTimeoutError';
-  }
-}
-
-function isProcessAlreadyGone(error: unknown): boolean {
-  return typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && (error as NodeJS.ErrnoException).code === 'ESRCH';
-}
-
-export async function killAgent(
-  agent: Pick<AgentInfo, 'name' | 'pid'>,
-  deps: KillAgentDeps,
-): Promise<KillAgentResult> {
-  const killProcess = deps.killProcess ?? ((pid, signal) => process.kill(pid, signal));
-  const registryEntry = deps.registry.lookup(agent.name);
-  const tmuxSession = registryEntry?.tmuxSession || null;
-
-  try {
-    killProcess(agent.pid, 'SIGTERM');
-  } catch (error) {
-    if (!isProcessAlreadyGone(error)) {
-      throw error;
-    }
-  }
-
-  if (tmuxSession) {
-    await deps.tmux.killSession(tmuxSession);
-  }
-
-  return {
-    agentName: agent.name,
-    pid: agent.pid,
-    tmuxSession,
-  };
-}
-
-/**
- * Orchestrate `agent start`: ensure tmux is available, drop stale state,
- * create the session, send the launch command, poll for the real agent PID,
- * and register the entry. On poll timeout the tmux session is torn down so no
- * orphan is left behind.
- *
- * Callers are responsible for input-format validation (name regex, cwd existence)
- * before invoking this service.
- */
-export async function startAgent(
-  opts: StartAgentOptions,
-  deps: StartAgentDeps,
-): Promise<RegistryEntry> {
-  const { tmux, registry, onWarning } = deps;
-  const agent = AGENTS[opts.type];
-  const intervalMs = opts.pollIntervalMs ?? DEFAULT_PID_POLL_INTERVAL_MS;
-  const timeoutMs = opts.pollTimeoutMs ?? DEFAULT_PID_POLL_TIMEOUT_MS;
-
-  debug(`startAgent: type=${opts.type}, name=${opts.name}, cwd=${opts.cwd}, pollTimeoutMs=${timeoutMs}`);
-
-  if (!await tmux.isAvailable()) {
-    debug('startAgent: tmux unavailable');
-    throw new TmuxUnavailableError();
-  }
-
-  registry.prune();
-  const existing = registry.lookup(opts.name);
-  if (existing) {
-    debug(`startAgent: name already in use pid=${existing.pid}`);
-    throw new AgentNameInUseError(opts.name, existing.pid);
-  }
-
-  if (await tmux.sessionExists(opts.name)) {
-    onWarning?.(
-      `tmux session "${opts.name}" already exists but has no live registry entry — it will be replaced.`,
-    );
-    await tmux.killSession(opts.name);
-  }
-
-  debug(`startAgent: creating tmux session ${opts.name}`);
-  await tmux.createSession(opts.name, opts.cwd);
-  debug(`startAgent: sending launch command "${agent.command}"`);
-  await tmux.sendKeys(opts.name, agent.command);
-
-  const agentPid = await pollForPid(tmux, opts.name, agent.matches, intervalMs, timeoutMs);
-  if (agentPid === null) {
-    debug(`startAgent: PID poll timed out after ${timeoutMs}ms`);
-    await tmux.killSession(opts.name);
-    throw new AgentPidPollTimeoutError(opts.name, agent.command, timeoutMs);
-  }
-  debug(`startAgent: detected stable PID ${agentPid}`);
-
-  const entry: RegistryEntry = {
-    name: opts.name,
-    type: opts.type,
-    pid: agentPid,
-    tmuxSession: opts.name,
-    cwd: opts.cwd,
-    startedAt: new Date().toISOString(),
-    sessionId: '',
-    sessionFilePath: '',
-    pinned: false,
-  };
-  registry.register(entry);
-  debug(`startAgent: registered ${entry.name}`);
-  return entry;
-}
-
-async function pollForPid(
-  tmux: TmuxManager,
-  session: string,
-  matches: (psCommand: string) => boolean,
-  intervalMs: number,
-  timeoutMs: number,
-): Promise<number | null> {
-  const deadline = Date.now() + timeoutMs;
-  let candidatePid: number | null = null;
-  let stablePolls = 0;
-
-  while (Date.now() < deadline) {
-    const pid = await tmux.findAgentPid(session, matches);
-    if (pid !== null) {
-      if (pid === candidatePid) {
-        stablePolls += 1;
-      } else {
-        candidatePid = pid;
-        stablePolls = 1;
-      }
-
-      debug(`pollForPid: candidatePid=${pid}, stablePolls=${stablePolls}`);
-      if (stablePolls >= REQUIRED_STABLE_PID_POLLS) return pid;
-    }
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-
-  return null;
-}
+const AGENT_SEND_WAIT_EMPTY_WAITING_GRACE_MS = 1000;

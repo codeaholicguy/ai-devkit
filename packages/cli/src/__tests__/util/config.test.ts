@@ -1,4 +1,4 @@
-import { validateInstallConfig } from '../../util/config.js';
+import { resolveAgentRuntimeProvider, validateInstallConfig } from '../../util/config.js';
 
 describe('config util', () => {
   it('validates and normalizes valid install config', () => {
@@ -68,5 +68,31 @@ describe('config util', () => {
     expect(result.skills).toEqual([
       { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
     ]);
+  });
+
+  it('does not include project-level agent runtime in install config', () => {
+    const result = validateInstallConfig({}, '/tmp/.ai-devkit.json');
+
+    expect(result).not.toHaveProperty('agentRuntime');
+  });
+
+  it('ignores project-level agent runtime because runtime is global-only', () => {
+    const result = validateInstallConfig({
+      agentRuntime: { provider: 'herdr' },
+    }, '/tmp/.ai-devkit.json');
+
+    expect(result).not.toHaveProperty('agentRuntime');
+  });
+
+  it('defaults agent runtime provider to tmux when global config omits it', () => {
+    expect(resolveAgentRuntimeProvider(undefined)).toBe('tmux');
+  });
+
+  it('accepts herdr as a global agent runtime provider', () => {
+    expect(resolveAgentRuntimeProvider('herdr')).toBe('herdr');
+  });
+
+  it('rejects unknown global agent runtime providers with supported values', () => {
+    expect(() => resolveAgentRuntimeProvider('screen')).toThrow('agentRuntime.provider has unsupported value "screen"; supported values: tmux, herdr');
   });
 });
