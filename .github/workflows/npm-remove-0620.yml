@@ -1,0 +1,21 @@
+name: Remove broken 0.62.0 from npm
+
+on:
+  workflow_dispatch:
+
+jobs:
+  remove:
+    name: Unpublish ai-devkit@0.62.0
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Unpublish ai-devkit@0.62.0
+        run: npm unpublish ai-devkit@0.62.0
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
