@@ -1,4 +1,6 @@
-import { HerdrAgentRuntime, HerdrRuntimeError, type HerdrCommandRunner } from '../../runtime/HerdrAgentRuntime.js';
+import { HerdrAgentRuntime } from '../../runtime/herdr/HerdrAgentRuntime.js';
+import { HerdrRuntimeError } from '../../runtime/herdr/HerdrErrors.js';
+import type { HerdrCommandRunner } from '../../runtime/herdr/HerdrCliClient.js';
 
 function createRunner(responses: Array<{ stdout?: string; stderr?: string; reject?: Error }> = []): HerdrCommandRunner {
     const runner = vi.fn(async () => {

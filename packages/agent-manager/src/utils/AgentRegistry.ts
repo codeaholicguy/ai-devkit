@@ -5,6 +5,7 @@ import {
     DatabaseConnection,
     resolveAgentRegistryDbPath,
 } from '../database/index.js';
+import { parseTmuxRuntimeRef, type TmuxRuntimeRef } from '../runtime/tmux/TmuxRuntimeRef.js';
 
 export class RenameNotFoundError extends Error {
     constructor(public agentName: string) {
@@ -51,9 +52,6 @@ interface RegistryRow {
 
 export const AGENT_RUNTIME_PROVIDERS = ['tmux', 'herdr'] as const;
 export type AgentRuntimeProvider = typeof AGENT_RUNTIME_PROVIDERS[number];
-export interface TmuxRuntimeRef {
-    session: string;
-}
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
 const DEFAULT_PRUNE_INTERVAL_MS = 30_000;
@@ -333,8 +331,5 @@ export class AgentRegistry {
     }
 }
 
-export function parseTmuxRuntimeRef(value: unknown): TmuxRuntimeRef | null {
-    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-    const session = (value as { session?: unknown }).session;
-    return typeof session === 'string' && session.trim() ? { session } : null;
-}
+export { parseTmuxRuntimeRef };
+export type { TmuxRuntimeRef };

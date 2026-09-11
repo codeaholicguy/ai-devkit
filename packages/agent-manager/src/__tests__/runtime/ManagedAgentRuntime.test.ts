@@ -13,7 +13,7 @@ import {
 import type { AgentInfo } from '../../adapters/AgentAdapter.js';
 import type { AgentRegistry, RegistryEntry } from '../../utils/AgentRegistry.js';
 import type { TmuxManager } from '../../terminal/TmuxManager.js';
-import type { HerdrInteractiveRuntime } from '../../runtime/AgentRuntime.js';
+import type { InteractiveAgentRuntime } from '../../runtime/types.js';
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
     return {
@@ -53,7 +53,7 @@ function makeRegistry(over: Partial<AgentRegistry> = {}): AgentRegistry {
     } as unknown as AgentRegistry;
 }
 
-function makeRuntime(over: Partial<HerdrInteractiveRuntime> = {}): HerdrInteractiveRuntime {
+function makeRuntime(over: Partial<InteractiveAgentRuntime> = {}): InteractiveAgentRuntime {
     return {
         provider: 'herdr',
         isAvailable: vi.fn().mockResolvedValue({ ok: true, insideRuntime: false }),
@@ -67,7 +67,7 @@ function makeRuntime(over: Partial<HerdrInteractiveRuntime> = {}): HerdrInteract
         focus: vi.fn().mockResolvedValue(true),
         stop: vi.fn().mockResolvedValue(undefined),
         ...over,
-    } as unknown as HerdrInteractiveRuntime;
+    } as unknown as InteractiveAgentRuntime;
 }
 
 const startOpts: StartAgentOptions = {
@@ -157,7 +157,9 @@ describe('stopAgent', () => {
             killProcess,
         });
 
-        expect(runtime.stop).toHaveBeenCalledWith({ runtimeRef: { session: 'default', paneId: 'w1:p2' } });
+        expect(runtime.stop).toHaveBeenCalledWith(expect.objectContaining({
+            runtimeRef: { session: 'default', paneId: 'w1:p2' },
+        }));
         expect(killProcess).not.toHaveBeenCalled();
         expect(result.runtime).toBe('herdr');
     });
@@ -227,7 +229,7 @@ describe('focusAgent', () => {
 
         const result = await focusAgent(makeAgent(), { registry, runtime, focusManager });
 
-        expect(runtime.focus).toHaveBeenCalledWith({ runtimeRef });
+        expect(runtime.focus).toHaveBeenCalledWith(expect.objectContaining({ runtimeRef }));
         expect(focusManager.findTerminal).not.toHaveBeenCalled();
         expect(result).toEqual({ focused: true });
     });
@@ -290,7 +292,10 @@ describe('sendAgentPrompt', () => {
             focusManager,
         });
 
-        expect(runtime.send).toHaveBeenCalledWith({ runtimeRef, prompt: 'hello' });
+        expect(runtime.send).toHaveBeenCalledWith(
+            expect.objectContaining({ runtimeRef, prompt: 'hello' }),
+            expect.objectContaining({ focusManager }),
+        );
         expect(focusManager.findTerminal).not.toHaveBeenCalled();
     });
 

@@ -215,32 +215,6 @@ vi.mock('@ai-devkit/agent-manager', () => ({
   AgentRuntimeUnavailableError,
   AgentTerminalNotFoundError,
   DEFAULT_PID_POLL_TIMEOUT_MS: 15_000,
-  createHerdrRuntime: vi.fn(() => ({
-    provider: 'herdr',
-    isAvailable: mockHerdrIsAvailable,
-    startAgent: mockHerdrStartAgent,
-    send: mockHerdrSend,
-    wait: mockHerdrWait,
-    readOutput: mockHerdrReadOutput,
-    focus: mockHerdrFocus,
-    stop: mockHerdrStop,
-  })),
-  createInteractiveRuntime: vi.fn((provider: string) => provider === 'herdr' ? {
-    provider: 'herdr',
-    isAvailable: mockHerdrIsAvailable,
-    startAgent: mockHerdrStartAgent,
-    send: mockHerdrSend,
-    wait: mockHerdrWait,
-    readOutput: mockHerdrReadOutput,
-    focus: mockHerdrFocus,
-    stop: mockHerdrStop,
-  } : null),
-  isHerdrRegistryEntry: vi.fn((entry: unknown) => (
-    typeof entry === 'object'
-    && entry !== null
-    && (entry as { runtime?: unknown }).runtime === 'herdr'
-    && 'runtimeRef' in entry
-  )),
   parseTmuxRuntimeRef: vi.fn((value: unknown) => {
     if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
     const session = (value as { session?: unknown }).session;
@@ -897,7 +871,6 @@ Waiting on user input`,
     expect(mockManager.resolveAgent).toHaveBeenCalledWith('repo-a', [agent]);
     expect(mockStopAgent).toHaveBeenCalledWith(agent, expect.objectContaining({
       registry: mockRegistry,
-      runtime: expect.any(Object),
     }));
     expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and tmux session "repo-a".');
   });

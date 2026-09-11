@@ -1,26 +1,8 @@
-import { createInteractiveRuntime, isHerdrRegistryEntry } from '../../runtime/AgentRuntime.js';
+import { createInteractiveRuntime } from '../../runtime/RuntimeFactory.js';
 
 describe('AgentRuntime', () => {
-    it('creates a Herdr runtime only for the Herdr provider', () => {
+    it('creates a runtime for each supported interactive provider', () => {
         expect(createInteractiveRuntime('herdr')).toMatchObject({ provider: 'herdr' });
-        expect(createInteractiveRuntime('tmux')).toBeNull();
-    });
-
-    it('identifies Herdr-backed registry entries', () => {
-        expect(isHerdrRegistryEntry({
-            name: 'reviewer',
-            type: 'codex',
-            pid: 123,
-            runtime: 'herdr',
-            runtimeRef: { session: 'default', paneId: 'w1:p2' },
-        })).toBe(true);
-
-        expect(isHerdrRegistryEntry({
-            name: 'reviewer',
-            type: 'codex',
-            pid: 123,
-            runtime: 'tmux',
-            runtimeRef: { session: 'reviewer' },
-        })).toBe(false);
+        expect(createInteractiveRuntime('tmux')).toMatchObject({ provider: 'tmux' });
     });
 });

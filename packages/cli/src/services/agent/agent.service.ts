@@ -9,7 +9,7 @@ import {
   type TerminalLocation,
   type AgentType,
   type ConversationMessage,
-  type HerdrInteractiveRuntime,
+  type InteractiveAgentRuntime,
   AgentTerminalNotFoundError,
   sendAgentPrompt,
 } from '@ai-devkit/agent-manager';
@@ -72,7 +72,7 @@ export interface SendToAgentOptions {
   manager: Pick<AgentManager, 'listAgents' | 'resolveAgent' | 'getAdapter'>;
   focusManager: Pick<TerminalFocusManager, 'findTerminal'>;
   registry?: Pick<AgentRegistry, 'lookup'>;
-  runtime?: HerdrInteractiveRuntime;
+  runtime?: InteractiveAgentRuntime;
   wait?: boolean;
   timeout?: string;
   json?: boolean;

@@ -33,7 +33,6 @@ import {
     AgentNameInUseError,
     AgentPidPollTimeoutError,
     AgentRuntimeUnavailableError,
-    createHerdrRuntime,
     type StartableAgentType,
     type AgentInfo,
     type AgentType,
@@ -609,7 +608,6 @@ export function registerAgentCommand(program: Command): void {
 
             const focusResult = await focusAgent(agent, {
                 registry: AgentRegistry.default(),
-                runtime: createHerdrRuntime(),
                 focusManager,
             });
             if (!focusResult.focused && focusResult.reason === 'terminal-not-found') {
@@ -685,7 +683,6 @@ export function registerAgentCommand(program: Command): void {
                 manager,
                 focusManager,
                 registry: AgentRegistry.default(),
-                runtime: createHerdrRuntime(),
                 wait: options.wait,
                 timeout: options.timeout,
                 json: options.json,
@@ -724,7 +721,6 @@ export function registerAgentCommand(program: Command): void {
             const registry = AgentRegistry.default();
             const result = await stopAgent(resolved, {
                 registry,
-                runtime: createHerdrRuntime(),
             });
             if (result.runtime === 'herdr') {
                 ui.success(`Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`);
