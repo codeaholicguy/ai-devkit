@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.62.0] - 2026-09-11
+
+- [5941ca5](https://github.com/codeaholicguy/ai-devkit/pull/215) Added local folder skill registries.
+- [c661165](https://github.com/codeaholicguy/ai-devkit/pull/216) Reorganized CLI skill services.
+- [dafaedb](https://github.com/codeaholicguy/ai-devkit/pull/217) Moved the skill UI out of services.
+- [45b76a9](https://github.com/codeaholicguy/ai-devkit/commit/45b76a9a0cce9d8835f359053b8a88cd094256d4) Moved the Codex adapter into the agent-manager provider structure.
+- [1a858a4](https://github.com/codeaholicguy/ai-devkit/commit/1a858a4b16e2f1649868daa371429441c3aca2f6) Moved the Pi adapter into the agent-manager provider structure.
+- [b4d2b8f](https://github.com/codeaholicguy/ai-devkit/commit/b4d2b8f9fa6a3b62ab1d9c1be20c463d2809566b) Updated the license copyright year and owner.
+- [033c4ef](https://github.com/codeaholicguy/ai-devkit/pull/232) Added the Herdr agent runtime.
+
 ## [0.61.0] - 2026-09-05
 
 - [7ad2afb](https://github.com/codeaholicguy/ai-devkit/pull/213) Show tmux guidance after setup output as next steps.
