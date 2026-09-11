@@ -5,7 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.62.0] - 2026-09-11
+## [0.62.1] - 2026-09-11
+
+- Fixed the published package composition: 0.62.0 shipped importing `AGENT_RUNTIME_PROVIDERS` and other exports from `@ai-devkit/agent-manager` 0.33.0 while pinning 0.32.0, breaking fresh installs. 0.62.1 pins `@ai-devkit/agent-manager` 0.33.0 (published with this release). 0.62.0 has been removed from npm.
+
+## [0.62.0] - 2026-09-11 — yanked (broken dependency pin)
+
 
 - [5941ca5](https://github.com/codeaholicguy/ai-devkit/pull/215) Added local folder skill registries.
 - [c661165](https://github.com/codeaholicguy/ai-devkit/pull/216) Reorganized CLI skill services.
