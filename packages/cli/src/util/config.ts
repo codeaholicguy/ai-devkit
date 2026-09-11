@@ -1,7 +1,13 @@
-import { z } from 'zod';
-import { AGENT_RUNTIME_PROVIDERS, type AgentRuntimeProvider } from '@ai-devkit/agent-manager';
-import { ConfigSkill, EnvironmentCode, McpServerDefinition, Phase, AVAILABLE_PHASES } from '../types.js';
-import { isValidEnvironmentCode } from './env.js';
+import { z } from "zod";
+import { AGENT_RUNTIME_PROVIDERS, type AgentRuntimeProvider } from "@ai-devkit/agent-manager";
+import {
+  ConfigSkill,
+  EnvironmentCode,
+  McpServerDefinition,
+  Phase,
+  AVAILABLE_PHASES,
+} from "../types.js";
+import { isValidEnvironmentCode } from "./env.js";
 
 export type { AgentRuntimeProvider };
 
@@ -13,90 +19,107 @@ export interface InstallConfigData {
   mcpServers: Record<string, McpServerDefinition>;
 }
 
-const skillEntrySchema = z.object({
-  registry: z.string().trim().min(1, 'registry must be a non-empty string'),
-  name: z.string().trim().min(1).optional(),
-  skill: z.string().trim().min(1).optional()
-}).transform((entry, ctx): ConfigSkill => {
-  const resolvedName = entry.name ?? entry.skill;
-  if (!resolvedName) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['name'],
-      message: 'requires a non-empty "name" field'
-    });
-    return z.NEVER;
-  }
+const skillEntrySchema = z
+  .object({
+    registry: z.string().trim().min(1, "registry must be a non-empty string"),
+    name: z.string().trim().min(1).optional(),
+    skill: z.string().trim().min(1).optional(),
+  })
+  .transform((entry, ctx): ConfigSkill => {
+    const resolvedName = entry.name ?? entry.skill;
+    if (!resolvedName) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["name"],
+        message: 'requires a non-empty "name" field',
+      });
+      return z.NEVER;
+    }
 
-  return {
-    registry: entry.registry,
-    name: resolvedName
-  };
-});
+    return {
+      registry: entry.registry,
+      name: resolvedName,
+    };
+  });
 
-const installConfigSchema = z.object({
-  paths: z.object({
-    docs: z.string().trim().min(1).optional()
-  }).optional(),
-  environments: z.array(z.string()).optional().default([]).superRefine((values, ctx) => {
-    values.forEach((value, index) => {
-      if (!isValidEnvironmentCode(value)) {
+const installConfigSchema = z
+  .object({
+    paths: z
+      .object({
+        docs: z.string().trim().min(1).optional(),
+      })
+      .optional(),
+    environments: z
+      .array(z.string())
+      .optional()
+      .default([])
+      .superRefine((values, ctx) => {
+        values.forEach((value, index) => {
+          if (!isValidEnvironmentCode(value)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: [index],
+              message: `has unsupported value "${value}"`,
+            });
+          }
+        });
+      })
+      .transform((values) => dedupe(values) as EnvironmentCode[]),
+    phases: z.array(z.string()).optional(),
+    registries: z.record(z.string(), z.string()).optional().default({}),
+    skills: z.array(skillEntrySchema).optional().default([]),
+    mcpServers: z
+      .record(
+        z.string(),
+        z.object({
+          transport: z.enum(["stdio", "http", "sse"]),
+          command: z.string().optional(),
+          args: z.array(z.string()).optional(),
+          env: z.record(z.string(), z.string()).optional(),
+          url: z.string().optional(),
+          headers: z.record(z.string(), z.string()).optional(),
+        }),
+      )
+      .optional()
+      .default({}),
+  })
+  .transform((data, ctx) => {
+    const phaseValues = data.phases ?? [];
+
+    phaseValues.forEach((value, index) => {
+      if (!AVAILABLE_PHASES.includes(value as Phase)) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
-          path: [index],
-          message: `has unsupported value "${value}"`
+          path: ["phases", index],
+          message: `has unsupported value "${value}"`,
         });
       }
     });
-  }).transform(values => dedupe(values) as EnvironmentCode[]),
-  phases: z.array(z.string()).optional(),
-  registries: z.record(z.string(), z.string()).optional().default({}),
-  skills: z.array(skillEntrySchema).optional().default([]),
-  mcpServers: z.record(z.string(), z.object({
-    transport: z.enum(['stdio', 'http', 'sse']),
-    command: z.string().optional(),
-    args: z.array(z.string()).optional(),
-    env: z.record(z.string(), z.string()).optional(),
-    url: z.string().optional(),
-    headers: z.record(z.string(), z.string()).optional(),
-  })).optional().default({}),
-}).transform((data, ctx) => {
-  const phaseValues = data.phases ?? [];
 
-  phaseValues.forEach((value, index) => {
-    if (!AVAILABLE_PHASES.includes(value as Phase)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['phases', index],
-        message: `has unsupported value "${value}"`
-      });
-    }
+    return {
+      environments: data.environments,
+      phases: dedupe(phaseValues) as Phase[],
+      registries: data.registries,
+      skills: dedupeSkills(data.skills),
+      mcpServers: data.mcpServers as Record<string, McpServerDefinition>,
+    };
   });
-
-  return {
-    environments: data.environments,
-    phases: dedupe(phaseValues) as Phase[],
-    registries: data.registries,
-    skills: dedupeSkills(data.skills),
-    mcpServers: data.mcpServers as Record<string, McpServerDefinition>,
-  };
-});
 
 export function resolveAgentRuntimeProvider(
   value: string | undefined,
   ctx?: z.RefinementCtx,
 ): AgentRuntimeProvider {
-  if (value === undefined) return 'tmux';
+  if (value === undefined) return "tmux";
   if ((AGENT_RUNTIME_PROVIDERS as readonly string[]).includes(value)) {
     return value as AgentRuntimeProvider;
   }
-  const message = `has unsupported value "${value}"; supported values: ${AGENT_RUNTIME_PROVIDERS.join(', ')}`;
+  const message = `has unsupported value "${value}"; supported values: ${AGENT_RUNTIME_PROVIDERS.join(", ")}`;
   if (!ctx) {
     throw new Error(`agentRuntime.provider ${message}`);
   }
   ctx.addIssue({
     code: z.ZodIssueCode.custom,
-    path: ['agentRuntime', 'provider'],
+    path: ["agentRuntime", "provider"],
     message,
   });
   return z.NEVER;
@@ -115,11 +138,11 @@ export function validateInstallConfig(data: unknown, configPath: string): Instal
 function formatZodIssue(error: z.ZodError): string {
   const issue = error.issues[0];
   if (!issue) {
-    return 'validation failed';
+    return "validation failed";
   }
 
   if (issue.code === z.ZodIssueCode.invalid_type && issue.path.length === 0) {
-    return 'expected a JSON object at root';
+    return "expected a JSON object at root";
   }
 
   if (issue.path.length === 0) {
@@ -134,7 +157,7 @@ function formatPath(pathParts: Array<string | number>): string {
   let result = String(first);
 
   for (const part of rest) {
-    if (typeof part === 'number') {
+    if (typeof part === "number") {
       result += `[${part}]`;
     } else {
       result += `.${part}`;
@@ -149,12 +172,10 @@ function dedupe<T>(values: T[]): T[] {
 }
 
 export function filterStringRecord(raw: unknown): Record<string, string> {
-  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
     return {};
   }
-  return Object.fromEntries(
-    Object.entries(raw).filter(([, value]) => typeof value === 'string')
-  );
+  return Object.fromEntries(Object.entries(raw).filter(([, value]) => typeof value === "string"));
 }
 
 function dedupeSkills(skills: ConfigSkill[]): ConfigSkill[] {

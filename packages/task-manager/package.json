@@ -1,8 +1,28 @@
 {
   "name": "@ai-devkit/task-manager",
   "version": "0.4.0",
-  "type": "module",
   "description": "Durable task system for AI DevKit: stable task ids, artifacts, evidence, progress, blockers, lifecycle phase, agent attribution, and append-only event history",
+  "keywords": [
+    "agent",
+    "ai",
+    "ai-devkit",
+    "dev-lifecycle",
+    "evidence",
+    "task",
+    "trace"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/task-manager"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -15,15 +35,6 @@
       "import": "./dist/command.js"
     }
   },
-  "aiDevkit": {
-    "commands": [
-      {
-        "name": "task",
-        "description": "Manage durable development/debug tasks",
-        "entry": "./dist/command.js"
-      }
-    ]
-  },
   "scripts": {
     "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
     "dev": "swc src -d dist --strip-leading-paths --watch",
@@ -32,23 +43,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "ai",
-    "task",
-    "dev-lifecycle",
-    "evidence",
-    "agent",
-    "trace",
-    "ai-devkit"
-  ],
-  "author": "",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
-    "directory": "packages/task-manager"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1"
@@ -61,8 +58,8 @@
     "@typescript-eslint/eslint-plugin": "^8.60.1",
     "@typescript-eslint/parser": "^8.60.1",
     "@vitest/coverage-v8": "^4.1.8",
-    "eslint": "^8.56.0",
     "commander": "^11.1.0",
+    "eslint": "^8.56.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0",
     "vitest": "^4.1.8"
@@ -70,8 +67,13 @@
   "engines": {
     "node": ">=20.20.0"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ]
+  "aiDevkit": {
+    "commands": [
+      {
+        "name": "task",
+        "description": "Manage durable development/debug tasks",
+        "entry": "./dist/command.js"
+      }
+    ]
+  }
 }

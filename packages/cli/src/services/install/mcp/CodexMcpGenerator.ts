@@ -1,8 +1,8 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import * as TOML from 'smol-toml';
-import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
-import { BaseMcpGenerator } from './BaseMcpGenerator.js';
+import fs from "fs-extra";
+import * as path from "path";
+import * as TOML from "smol-toml";
+import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
+import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 
 interface CodexConfig {
   mcp_servers?: Record<string, Record<string, unknown>>;
@@ -10,12 +10,12 @@ interface CodexConfig {
 }
 
 export class CodexMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = 'codex';
+  readonly agentType: EnvironmentCode = "codex";
 
   private fullConfig: CodexConfig = {};
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
-    if (def.transport === 'stdio') {
+    if (def.transport === "stdio") {
       const entry: Record<string, unknown> = { command: def.command! };
       if (def.args && def.args.length > 0) entry.args = def.args;
       if (def.env && Object.keys(def.env).length > 0) entry.env = def.env;
@@ -29,9 +29,9 @@ export class CodexMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, '.codex', 'config.toml');
+    const configPath = path.join(projectRoot, ".codex", "config.toml");
     if (await fs.pathExists(configPath)) {
-      const content = await fs.readFile(configPath, 'utf-8');
+      const content = await fs.readFile(configPath, "utf-8");
       this.fullConfig = TOML.parse(content) as CodexConfig;
       return (this.fullConfig.mcp_servers || {}) as Record<string, unknown>;
     }
@@ -41,11 +41,11 @@ export class CodexMcpGenerator extends BaseMcpGenerator {
 
   protected async writeServers(
     projectRoot: string,
-    mergedServers: Record<string, unknown>
+    mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcp_servers: mergedServers };
-    const configPath = path.join(projectRoot, '.codex', 'config.toml');
+    const configPath = path.join(projectRoot, ".codex", "config.toml");
     await fs.ensureDir(path.dirname(configPath));
-    await fs.writeFile(configPath, TOML.stringify(output), 'utf-8');
+    await fs.writeFile(configPath, TOML.stringify(output), "utf-8");
   }
 }

@@ -1,21 +1,21 @@
-import { execFileSync } from 'child_process';
-import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from '../services/skill/skill-builtins.js';
-import { ConfigManager } from '../lib/Config.js';
-import { TemplateManager } from '../lib/TemplateManager.js';
-import { EnvironmentSelector } from '../lib/EnvironmentSelector.js';
-import { PhaseSelector } from '../lib/PhaseSelector.js';
-import { loadInitTemplate, InitTemplateSkill } from '../lib/InitTemplate.js';
-import { ConfigSkill, EnvironmentCode, Phase, DEFAULT_DOCS_DIR } from '../types.js';
-import { getInstallExitCode, reconcileAndInstall } from '../services/install/install.service.js';
-import { renderApplicationReport } from '../services/install/install-report.js';
-import { isValidEnvironmentCode } from '../util/env.js';
-import { isInteractiveTerminal } from '../util/terminal.js';
-import { ui } from '../util/terminal-ui.js';
-import { confirm } from '@inquirer/prompts';
+import { execFileSync } from "child_process";
+import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from "../services/skill/skill-builtins.js";
+import { ConfigManager } from "../lib/Config.js";
+import { TemplateManager } from "../lib/TemplateManager.js";
+import { EnvironmentSelector } from "../lib/EnvironmentSelector.js";
+import { PhaseSelector } from "../lib/PhaseSelector.js";
+import { loadInitTemplate, InitTemplateSkill } from "../lib/InitTemplate.js";
+import { ConfigSkill, EnvironmentCode, Phase, DEFAULT_DOCS_DIR } from "../types.js";
+import { getInstallExitCode, reconcileAndInstall } from "../services/install/install.service.js";
+import { renderApplicationReport } from "../services/install/install-report.js";
+import { isValidEnvironmentCode } from "../util/env.js";
+import { isInteractiveTerminal } from "../util/terminal.js";
+import { ui } from "../util/terminal-ui.js";
+import { confirm } from "@inquirer/prompts";
 
 function isGitAvailable(): boolean {
   try {
-    execFileSync('git', ['--version'], { stdio: 'ignore' });
+    execFileSync("git", ["--version"], { stdio: "ignore" });
     return true;
   } catch {
     return false;
@@ -25,20 +25,20 @@ function isGitAvailable(): boolean {
 function ensureGitRepository(): void {
   if (!isGitAvailable()) {
     ui.warning(
-      'Git is not installed or not available on the PATH. Skipping repository initialization.'
+      "Git is not installed or not available on the PATH. Skipping repository initialization.",
     );
     return;
   }
 
   try {
-    execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { stdio: 'ignore' });
+    execFileSync("git", ["rev-parse", "--is-inside-work-tree"], { stdio: "ignore" });
   } catch {
     try {
-      execFileSync('git', ['init'], { stdio: 'ignore' });
-      ui.success('Initialized a new git repository');
+      execFileSync("git", ["init"], { stdio: "ignore" });
+      ui.success("Initialized a new git repository");
     } catch (error) {
       ui.error(
-        `Failed to initialize git repository: ${error instanceof Error ? error.message : error}`
+        `Failed to initialize git repository: ${error instanceof Error ? error.message : error}`,
       );
     }
   }
@@ -56,7 +56,7 @@ interface InitOptions {
 }
 
 function normalizeEnvironmentOption(
-  environment: EnvironmentCode[] | string | undefined
+  environment: EnvironmentCode[] | string | undefined,
 ): EnvironmentCode[] {
   if (!environment) {
     return [];
@@ -67,8 +67,8 @@ function normalizeEnvironmentOption(
   }
 
   return environment
-    .split(',')
-    .map(value => value.trim())
+    .split(",")
+    .map((value) => value.trim())
     .filter((value): value is EnvironmentCode => value.length > 0);
 }
 
@@ -79,14 +79,14 @@ async function shouldInstallBuiltinSkills(options: InitOptions): Promise<boolean
 
   if (options.yes || !isInteractiveTerminal()) {
     ui.info(
-      `Skipping built-in skills (non-interactive environment). Pass --built-in to install them from ${BUILTIN_SKILL_REGISTRY}.`
+      `Skipping built-in skills (non-interactive environment). Pass --built-in to install them from ${BUILTIN_SKILL_REGISTRY}.`,
     );
     return false;
   }
 
   const installBuiltinSkills = await confirm({
     message: `Install AI DevKit built-in skills from ${BUILTIN_SKILL_REGISTRY}?`,
-    default: true
+    default: true,
   });
 
   return Boolean(installBuiltinSkills);
@@ -117,11 +117,11 @@ export async function initCommand(options: InitOptions) {
   const templatePath = options.template?.trim();
   const hasTemplate = Boolean(templatePath);
   const templateConfig = hasTemplate
-    ? await loadInitTemplate(templatePath as string).catch(error => {
-      ui.error(error instanceof Error ? error.message : String(error));
-      process.exitCode = 1;
-      return null;
-    })
+    ? await loadInitTemplate(templatePath as string).catch((error) => {
+        ui.error(error instanceof Error ? error.message : String(error));
+        process.exitCode = 1;
+        return null;
+      })
     : null;
 
   if (hasTemplate && !templateConfig) {
@@ -132,22 +132,22 @@ export async function initCommand(options: InitOptions) {
 
   const nonInteractive = Boolean(options.yes);
 
-  if (await configManager.exists() && !hasTemplate) {
+  if ((await configManager.exists()) && !hasTemplate) {
     if (nonInteractive) {
-      ui.warning('AI DevKit is already initialized. Reconfiguring (--yes).');
+      ui.warning("AI DevKit is already initialized. Reconfiguring (--yes).");
     } else {
       const shouldContinue = await confirm({
-        message: 'AI DevKit is already initialized. Do you want to reconfigure?',
-        default: false
+        message: "AI DevKit is already initialized. Do you want to reconfigure?",
+        default: false,
       });
 
       if (!shouldContinue) {
-        ui.warning('Initialization cancelled.');
+        ui.warning("Initialization cancelled.");
         return;
       }
     }
-  } else if (await configManager.exists() && hasTemplate) {
-    ui.warning('AI DevKit is already initialized. Reconfiguring from template.');
+  } else if ((await configManager.exists()) && hasTemplate) {
+    ui.warning("AI DevKit is already initialized. Reconfiguring from template.");
   }
 
   let selectedEnvironments: EnvironmentCode[] = normalizeEnvironmentOption(options.environment);
@@ -156,16 +156,18 @@ export async function initCommand(options: InitOptions) {
   }
   if (selectedEnvironments.length === 0) {
     if (nonInteractive) {
-      ui.error('Non-interactive mode requires --environment <env> (or a template that declares environments).');
+      ui.error(
+        "Non-interactive mode requires --environment <env> (or a template that declares environments).",
+      );
       process.exitCode = 1;
       return;
     }
-    ui.info('AI Environment Setup');
+    ui.info("AI Environment Setup");
     selectedEnvironments = await environmentSelector.selectEnvironments();
   }
 
   if (selectedEnvironments.length === 0) {
-    ui.warning('No environments selected. Initialization cancelled.');
+    ui.warning("No environments selected. Initialization cancelled.");
     return;
   }
 
@@ -184,14 +186,14 @@ export async function initCommand(options: InitOptions) {
 
   let shouldProceedWithSetup = true;
   if (existingEnvironments.length > 0) {
-    ui.warning(`The following environments are already set up: ${existingEnvironments.join(', ')}`);
+    ui.warning(`The following environments are already set up: ${existingEnvironments.join(", ")}`);
     if (hasTemplate) {
-      ui.warning('Template mode enabled: proceeding with overwrite of selected environments.');
+      ui.warning("Template mode enabled: proceeding with overwrite of selected environments.");
     } else if (nonInteractive) {
       if (options.overwrite) {
-        ui.warning('Overwriting existing environments (--yes --overwrite).');
+        ui.warning("Overwriting existing environments (--yes --overwrite).");
       } else {
-        ui.warning('Skipping overwrite of existing environments (--yes without --overwrite).');
+        ui.warning("Skipping overwrite of existing environments (--yes without --overwrite).");
         shouldProceedWithSetup = false;
       }
     } else {
@@ -200,7 +202,7 @@ export async function initCommand(options: InitOptions) {
   }
 
   if (!shouldProceedWithSetup) {
-    ui.warning('Environment setup cancelled.');
+    ui.warning("Environment setup cancelled.");
     return;
   }
 
@@ -210,7 +212,9 @@ export async function initCommand(options: InitOptions) {
   } else if (templateConfig?.phases?.length) {
     selectedPhases = templateConfig.phases;
   } else if (nonInteractive) {
-    ui.error('Non-interactive mode requires --all or --phases (or a template that declares phases).');
+    ui.error(
+      "Non-interactive mode requires --all or --phases (or a template that declares phases).",
+    );
     process.exitCode = 1;
     return;
   } else {
@@ -218,7 +222,7 @@ export async function initCommand(options: InitOptions) {
   }
 
   if (selectedPhases.length === 0) {
-    ui.warning('No phases selected. Nothing to initialize.');
+    ui.warning("No phases selected. Nothing to initialize.");
     return;
   }
 
@@ -229,19 +233,19 @@ export async function initCommand(options: InitOptions) {
     docsDir = templateConfig.paths.docs;
   }
 
-  ui.text('Initializing AI DevKit...', { breakline: true });
+  ui.text("Initializing AI DevKit...", { breakline: true });
 
   let config = await configManager.read();
   if (!config) {
     config = await configManager.create();
-    ui.success('Created configuration file');
+    ui.success("Created configuration file");
   }
 
   const desiredSkillEntries = [...(templateConfig?.skills || [])];
   if (options.builtIn || !hasTemplate) {
     const shouldInstall = await shouldInstallBuiltinSkills(options);
     if (shouldInstall) {
-      const builtInSkills: InitTemplateSkill[] = (await getBuiltinSkillNames()).map(skill => ({
+      const builtInSkills: InitTemplateSkill[] = (await getBuiltinSkillNames()).map((skill) => ({
         registry: BUILTIN_SKILL_REGISTRY,
         skill,
       }));
@@ -258,37 +262,40 @@ export async function initCommand(options: InitOptions) {
     ...(docsDir !== DEFAULT_DOCS_DIR ? { paths: { ...config.paths, docs: docsDir } } : {}),
     ...(Object.keys(registries).length > 0 ? { registries } : {}),
     ...(desiredSkills.length > 0 ? { skills: desiredSkills } : {}),
-    ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {})
+    ...(Object.keys(mcpServers).length > 0 ? { mcpServers } : {}),
   });
 
-  ui.success('Saved project configuration');
+  ui.success("Saved project configuration");
   environmentSelector.displaySelectionSummary(selectedEnvironments);
   phaseSelector.displaySelectionSummary(selectedPhases);
 
-  const report = await reconcileAndInstall({
-    environments: selectedEnvironments,
-    phases: selectedPhases,
-    registries,
-    skills: desiredSkills,
-    mcpServers,
-  }, {
-    overwrite: options.overwrite,
-    nonInteractive
-  });
+  const report = await reconcileAndInstall(
+    {
+      environments: selectedEnvironments,
+      phases: selectedPhases,
+      registries,
+      skills: desiredSkills,
+      mcpServers,
+    },
+    {
+      overwrite: options.overwrite,
+      nonInteractive,
+    },
+  );
 
-  renderApplicationReport(report, 'Initialization Summary');
+  renderApplicationReport(report, "Initialization Summary");
   process.exitCode = getInstallExitCode(report, { overwrite: options.overwrite });
 
   if (process.exitCode !== 0) {
-    ui.warning('Project configuration was saved, but setup is incomplete.');
-    ui.info('Resolve the errors above, then run `ai-devkit install`.');
+    ui.warning("Project configuration was saved, but setup is incomplete.");
+    ui.info("Resolve the errors above, then run `ai-devkit install`.");
     return;
   }
 
-  ui.text('AI DevKit project initialized successfully!', { breakline: true });
-  ui.info('Next steps:');
+  ui.text("AI DevKit project initialized successfully!", { breakline: true });
+  ui.info("Next steps:");
   ui.text(`  • Review and customize templates in ${docsDir}/`);
-  ui.text('  • Your selected AI environments are ready in this project');
-  ui.text('  • Run `ai-devkit phase <name>` to add more phases later');
-  ui.text('  • Run `ai-devkit init` again to add more environments\n');
+  ui.text("  • Your selected AI environments are ready in this project");
+  ui.text("  • Run `ai-devkit phase <name>` to add more phases later");
+  ui.text("  • Run `ai-devkit init` again to add more environments\n");
 }

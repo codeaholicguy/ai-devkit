@@ -1,12 +1,12 @@
-import { ConfigManager } from '../../lib/Config.js';
-import { SkillService } from '../skill/skill.service.js';
-import { TemplateManager } from '../../lib/TemplateManager.js';
-import { InstallConfigData } from '../../util/config.js';
-import { installMcpServers, McpInstallReport } from './mcp/index.js';
-import type { DevKitConfig } from '../../types.js';
-import { PHASE_DISPLAY_NAMES } from '../../types.js';
-import { isInteractiveTerminal } from '../../util/terminal.js';
-import { confirm } from '@inquirer/prompts';
+import { ConfigManager } from "../../lib/Config.js";
+import { SkillService } from "../skill/skill.service.js";
+import { TemplateManager } from "../../lib/TemplateManager.js";
+import { InstallConfigData } from "../../util/config.js";
+import { installMcpServers, McpInstallReport } from "./mcp/index.js";
+import type { DevKitConfig } from "../../types.js";
+import { PHASE_DISPLAY_NAMES } from "../../types.js";
+import { isInteractiveTerminal } from "../../util/terminal.js";
+import { confirm } from "@inquirer/prompts";
 
 export interface InstallRunOptions {
   overwrite?: boolean;
@@ -19,10 +19,10 @@ interface InstallSectionReport {
   failed: number;
 }
 
-export type ApplicationStatus = 'installed' | 'matched' | 'skipped' | 'conflict' | 'failed';
+export type ApplicationStatus = "installed" | "matched" | "skipped" | "conflict" | "failed";
 
 export interface ApplicationItemResult {
-  section: 'environment' | 'phase' | 'skill' | 'mcpServer';
+  section: "environment" | "phase" | "skill" | "mcpServer";
   name: string;
   target?: string;
   status: ApplicationStatus;
@@ -41,7 +41,7 @@ export interface InstallReport {
 
 export async function reconcileAndInstall(
   config: InstallConfigData,
-  options: InstallRunOptions = {}
+  options: InstallRunOptions = {},
 ): Promise<InstallReport> {
   const configManager = new ConfigManager();
   const docsDir = await configManager.getDocsDir();
@@ -55,7 +55,7 @@ export async function reconcileAndInstall(
     mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0, items: [] },
     warnings: [],
     items: [],
-    complete: true
+    complete: true,
   };
 
   let projectConfig = await configManager.read();
@@ -65,7 +65,7 @@ export async function reconcileAndInstall(
   }
 
   if (!projectConfig) {
-    throw new Error('Failed to initialize project config for install command.');
+    throw new Error("Failed to initialize project config for install command.");
   }
 
   const desiredUpdates: Partial<DevKitConfig> = {};
@@ -81,53 +81,58 @@ export async function reconcileAndInstall(
   for (const envCode of config.environments) {
     try {
       const installedFiles = await templateManager.setupMultipleEnvironments([envCode]);
-      const status = installedFiles.length > 0 ? 'installed' : 'matched';
-      if (status === 'installed') {
+      const status = installedFiles.length > 0 ? "installed" : "matched";
+      if (status === "installed") {
         report.environments.installed += 1;
       } else {
         report.environments.skipped += 1;
       }
       successfulEnvironments.push(envCode);
-      report.items.push({ section: 'environment', name: envCode, status });
+      report.items.push({ section: "environment", name: envCode, status });
     } catch (error) {
       report.environments.failed += 1;
       report.warnings.push(
-        `Environment ${envCode} failed: ${error instanceof Error ? error.message : String(error)}`
+        `Environment ${envCode} failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       report.items.push({
-        section: 'environment', name: envCode, status: 'failed',
-        message: error instanceof Error ? error.message : String(error)
+        section: "environment",
+        name: envCode,
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
   for (const phase of config.phases) {
     try {
-      if (await templateManager.fileExists(phase) && !options.overwrite) {
-        const overwrite = !options.nonInteractive && isInteractiveTerminal()
-          ? await confirm({
-            message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
-            default: false
-          })
-          : false;
+      if ((await templateManager.fileExists(phase)) && !options.overwrite) {
+        const overwrite =
+          !options.nonInteractive && isInteractiveTerminal()
+            ? await confirm({
+                message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
+                default: false,
+              })
+            : false;
         if (!overwrite) {
           report.phases.skipped += 1;
-          report.items.push({ section: 'phase', name: phase, status: 'skipped' });
+          report.items.push({ section: "phase", name: phase, status: "skipped" });
           continue;
         }
       }
       await templateManager.copyPhaseTemplate(phase);
       await configManager.addPhase(phase);
       report.phases.installed += 1;
-      report.items.push({ section: 'phase', name: phase, status: 'installed' });
+      report.items.push({ section: "phase", name: phase, status: "installed" });
     } catch (error) {
       report.phases.failed += 1;
       report.warnings.push(
-        `Phase ${phase} failed: ${error instanceof Error ? error.message : String(error)}`
+        `Phase ${phase} failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       report.items.push({
-        section: 'phase', name: phase, status: 'failed',
-        message: error instanceof Error ? error.message : String(error)
+        section: "phase",
+        name: phase,
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
       });
     }
   }
@@ -135,55 +140,58 @@ export async function reconcileAndInstall(
   for (const skill of config.skills) {
     try {
       const result = await skillService.addSkill(skill.registry, skill.name);
-      if (result.status === 'matched') {
+      if (result.status === "matched") {
         report.skills.skipped += 1;
       } else {
         report.skills.installed += 1;
       }
       report.items.push({
-        section: 'skill',
+        section: "skill",
         name: skill.name,
-        status: result.status === 'matched' ? 'matched' : 'installed'
+        status: result.status === "matched" ? "matched" : "installed",
       });
     } catch (error) {
       report.skills.failed += 1;
       report.warnings.push(
-        `Skill ${skill.registry}/${skill.name} failed: ${error instanceof Error ? error.message : String(error)}`
+        `Skill ${skill.registry}/${skill.name} failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       report.items.push({
-        section: 'skill', name: skill.name, status: 'failed',
-        message: error instanceof Error ? error.message : String(error)
+        section: "skill",
+        name: skill.name,
+        status: "failed",
+        message: error instanceof Error ? error.message : String(error),
       });
     }
   }
 
   if (config.mcpServers && Object.keys(config.mcpServers).length > 0) {
     const allEnvironments = [
-      ...new Set([...projectConfig.environments, ...successfulEnvironments])
+      ...new Set([...projectConfig.environments, ...successfulEnvironments]),
     ];
     try {
-      const mcpReport = await installMcpServers(
-        config.mcpServers,
-        allEnvironments,
-        process.cwd(),
-        { overwrite: options.overwrite, nonInteractive: options.nonInteractive }
-      );
+      const mcpReport = await installMcpServers(config.mcpServers, allEnvironments, process.cwd(), {
+        overwrite: options.overwrite,
+        nonInteractive: options.nonInteractive,
+      });
       report.mcpServers = mcpReport;
-      report.items.push(...mcpReport.items.map(item => ({
-        section: 'mcpServer' as const,
-        ...item
-      })));
+      report.items.push(
+        ...mcpReport.items.map((item) => ({
+          section: "mcpServer" as const,
+          ...item,
+        })),
+      );
     } catch (error) {
       report.warnings.push(
-        `MCP servers failed: ${error instanceof Error ? error.message : String(error)}`
+        `MCP servers failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       report.mcpServers.failed = Object.keys(config.mcpServers).length;
     }
   }
 
-  report.complete = report.items.every(item => item.status !== 'failed' && item.status !== 'conflict')
-    && report.mcpServers.failed === 0
-    && report.mcpServers.conflicts === 0;
+  report.complete =
+    report.items.every((item) => item.status !== "failed" && item.status !== "conflict") &&
+    report.mcpServers.failed === 0 &&
+    report.mcpServers.conflicts === 0;
 
   return report;
 }

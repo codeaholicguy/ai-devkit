@@ -1,26 +1,26 @@
 import {
   getWorktreePathsForBranchSync,
   isInsideGitWorkTreeSync,
-  localBranchExistsSync
-} from '../../../util/git.js';
-import { LintCheckResult, LintDependencies } from '../types.js';
-import { createMissingCheck, createOkCheck, createWarnCheck } from './check-factories.js';
+  localBranchExistsSync,
+} from "../../../util/git.js";
+import { LintCheckResult, LintDependencies } from "../types.js";
+import { createMissingCheck, createOkCheck, createWarnCheck } from "./check-factories.js";
 
 export function runGitWorktreeRules(
   cwd: string,
   branchName: string,
-  deps: LintDependencies
+  deps: LintDependencies,
 ): LintCheckResult[] {
   const checks: LintCheckResult[] = [];
 
   if (!isInsideGitWorkTreeSync(cwd, deps.execFileSync)) {
     checks.push(
       createMissingCheck(
-        'git-repo',
-        'git-worktree',
-        'Current directory is not inside a git repository',
-        'Run lint --feature from the repository root or a repo worktree.'
-      )
+        "git-repo",
+        "git-worktree",
+        "Current directory is not inside a git repository",
+        "Run lint --feature from the repository root or a repo worktree.",
+      ),
     );
     return checks;
   }
@@ -29,32 +29,36 @@ export function runGitWorktreeRules(
   if (!branchExists) {
     checks.push(
       createMissingCheck(
-        'git-branch',
-        'git-worktree',
+        "git-branch",
+        "git-worktree",
         `Branch ${branchName} does not exist`,
-        `Run: git worktree add -b ${branchName} ../${branchName}`
-      )
+        `Run: git worktree add -b ${branchName} ../${branchName}`,
+      ),
     );
     return checks;
   }
 
-  checks.push(createOkCheck('git-branch', 'git-worktree', `Branch ${branchName} exists`));
+  checks.push(createOkCheck("git-branch", "git-worktree", `Branch ${branchName} exists`));
 
   const worktreePaths = getWorktreePathsForBranchSync(cwd, branchName, deps.execFileSync);
   if (worktreePaths.length === 0) {
     checks.push(
       createWarnCheck(
-        'git-worktree',
-        'git-worktree',
+        "git-worktree",
+        "git-worktree",
         `No dedicated worktree registered for ${branchName}`,
-        `Suggested: git worktree add ../${branchName} ${branchName}`
-      )
+        `Suggested: git worktree add ../${branchName} ${branchName}`,
+      ),
     );
     return checks;
   }
 
   checks.push(
-    createOkCheck('git-worktree', 'git-worktree', `Worktree detected for ${branchName}: ${worktreePaths.join(', ')}`)
+    createOkCheck(
+      "git-worktree",
+      "git-worktree",
+      `Worktree detected for ${branchName}: ${worktreePaths.join(", ")}`,
+    ),
   );
 
   return checks;

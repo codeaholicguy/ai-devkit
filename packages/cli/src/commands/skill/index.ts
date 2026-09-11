@@ -1,1 +1,1 @@
-export { registerSkillCommand } from './skill.command.js';
+export { registerSkillCommand } from "./skill.command.js";

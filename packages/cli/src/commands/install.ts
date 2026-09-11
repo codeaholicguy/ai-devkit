@@ -1,11 +1,8 @@
-import {
-  getInstallExitCode,
-  reconcileAndInstall
-} from '../services/install/install.service.js';
-import { loadConfigFile } from '../services/config/config.service.js';
-import { validateInstallConfig } from '../util/config.js';
-import { ui } from '../util/terminal-ui.js';
-import { renderApplicationReport } from '../services/install/install-report.js';
+import { getInstallExitCode, reconcileAndInstall } from "../services/install/install.service.js";
+import { loadConfigFile } from "../services/config/config.service.js";
+import { validateInstallConfig } from "../util/config.js";
+import { ui } from "../util/terminal-ui.js";
+import { renderApplicationReport } from "../services/install/install-report.js";
 
 interface InstallCommandOptions {
   config?: string;
@@ -13,7 +10,7 @@ interface InstallCommandOptions {
 }
 
 export async function installCommand(options: InstallCommandOptions): Promise<void> {
-  const configPath = options.config?.trim() || '.ai-devkit.json';
+  const configPath = options.config?.trim() || ".ai-devkit.json";
 
   let loadedConfig;
   try {
@@ -34,13 +31,13 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
   }
 
   if (
-    validatedConfig.environments.length === 0
-    && validatedConfig.phases.length === 0
-    && validatedConfig.skills.length === 0
-    && Object.keys(validatedConfig.mcpServers).length === 0
+    validatedConfig.environments.length === 0 &&
+    validatedConfig.phases.length === 0 &&
+    validatedConfig.skills.length === 0 &&
+    Object.keys(validatedConfig.mcpServers).length === 0
   ) {
     ui.warning(`No installable entries found in ${loadedConfig.configPath}.`);
-    ui.info('Expected one or more of: environments, phases, skills, mcpServers.');
+    ui.info("Expected one or more of: environments, phases, skills, mcpServers.");
     process.exitCode = 1;
     return;
   }
@@ -48,7 +45,7 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
   let report;
   try {
     report = await reconcileAndInstall(validatedConfig, {
-      overwrite: options.overwrite
+      overwrite: options.overwrite,
     });
   } catch (error) {
     ui.error(error instanceof Error ? error.message : String(error));
@@ -59,6 +56,6 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
   renderApplicationReport(report);
 
   process.exitCode = getInstallExitCode(report, {
-    overwrite: options.overwrite
+    overwrite: options.overwrite,
   });
 }

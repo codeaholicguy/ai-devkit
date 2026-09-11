@@ -1,7 +1,7 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
-import { BaseMcpGenerator } from './BaseMcpGenerator.js';
+import fs from "fs-extra";
+import * as path from "path";
+import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
+import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 
 interface KiloMcpConfig {
   mcp?: Record<string, Record<string, unknown>>;
@@ -9,14 +9,14 @@ interface KiloMcpConfig {
 }
 
 export class KiloCodeMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = 'kilocode';
+  readonly agentType: EnvironmentCode = "kilocode";
 
   private fullConfig: KiloMcpConfig = {};
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
-    if (def.transport === 'stdio') {
+    if (def.transport === "stdio") {
       const entry: Record<string, unknown> = {
-        type: 'local',
+        type: "local",
         command: [def.command!, ...(def.args || [])],
         enabled: true,
         timeout: 10000,
@@ -26,7 +26,7 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
     }
 
     const entry: Record<string, unknown> = {
-      type: 'remote',
+      type: "remote",
       url: def.url!,
       enabled: true,
       timeout: 15000,
@@ -36,9 +36,9 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, '.kilo', 'kilo.jsonc');
+    const configPath = path.join(projectRoot, ".kilo", "kilo.jsonc");
     if (await fs.pathExists(configPath)) {
-      const content = await fs.readFile(configPath, 'utf8');
+      const content = await fs.readFile(configPath, "utf8");
       this.fullConfig = parseJsonc(content);
       return (this.fullConfig.mcp || {}) as Record<string, unknown>;
     }
@@ -48,10 +48,10 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
 
   protected async writeServers(
     projectRoot: string,
-    mergedServers: Record<string, unknown>
+    mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcp: mergedServers };
-    const configPath = path.join(projectRoot, '.kilo', 'kilo.jsonc');
+    const configPath = path.join(projectRoot, ".kilo", "kilo.jsonc");
     await fs.ensureDir(path.dirname(configPath));
     await fs.writeFile(configPath, `${JSON.stringify(output, null, 2)}\n`);
   }
@@ -59,13 +59,13 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
 
 function parseJsonc(content: string): KiloMcpConfig {
   const json = stripTrailingCommas(stripJsonComments(content)).trim();
-  return JSON.parse(json || '{}') as KiloMcpConfig;
+  return JSON.parse(json || "{}") as KiloMcpConfig;
 }
 
 function stripJsonComments(content: string): string {
-  let output = '';
+  let output = "";
   let inString = false;
-  let quote = '';
+  let quote = "";
   let escaped = false;
 
   for (let i = 0; i < content.length; i++) {
@@ -76,7 +76,7 @@ function stripJsonComments(content: string): string {
       output += char;
       if (escaped) {
         escaped = false;
-      } else if (char === '\\') {
+      } else if (char === "\\") {
         escaped = true;
       } else if (char === quote) {
         inString = false;
@@ -91,15 +91,15 @@ function stripJsonComments(content: string): string {
       continue;
     }
 
-    if (char === '/' && next === '/') {
-      while (i < content.length && content[i] !== '\n') i++;
-      output += '\n';
+    if (char === "/" && next === "/") {
+      while (i < content.length && content[i] !== "\n") i++;
+      output += "\n";
       continue;
     }
 
-    if (char === '/' && next === '*') {
+    if (char === "/" && next === "*") {
       i += 2;
-      while (i < content.length && !(content[i] === '*' && content[i + 1] === '/')) i++;
+      while (i < content.length && !(content[i] === "*" && content[i + 1] === "/")) i++;
       i++;
       continue;
     }
@@ -111,9 +111,9 @@ function stripJsonComments(content: string): string {
 }
 
 function stripTrailingCommas(content: string): string {
-  let output = '';
+  let output = "";
   let inString = false;
-  let quote = '';
+  let quote = "";
   let escaped = false;
 
   for (let i = 0; i < content.length; i++) {
@@ -123,7 +123,7 @@ function stripTrailingCommas(content: string): string {
       output += char;
       if (escaped) {
         escaped = false;
-      } else if (char === '\\') {
+      } else if (char === "\\") {
         escaped = true;
       } else if (char === quote) {
         inString = false;
@@ -138,10 +138,10 @@ function stripTrailingCommas(content: string): string {
       continue;
     }
 
-    if (char === ',') {
+    if (char === ",") {
       let nextIndex = i + 1;
-      while (/\s/.test(content[nextIndex] || '')) nextIndex++;
-      if (content[nextIndex] === '}' || content[nextIndex] === ']') {
+      while (/\s/.test(content[nextIndex] || "")) nextIndex++;
+      if (content[nextIndex] === "}" || content[nextIndex] === "]") {
         continue;
       }
     }

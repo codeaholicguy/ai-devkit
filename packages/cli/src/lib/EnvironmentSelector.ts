@@ -5,13 +5,13 @@ import {
   getSkillCapableEnvironments,
 } from "../util/env.js";
 import { ui } from "../util/terminal-ui.js";
-import { checkbox, confirm } from '@inquirer/prompts';
+import { checkbox, confirm } from "@inquirer/prompts";
 
 export class EnvironmentSelector {
   private async selectFromEnvironments(
     environments: EnvironmentDefinition[],
     message: string,
-    emptyMessage: string
+    emptyMessage: string,
   ): Promise<EnvironmentCode[]> {
     if (environments.length === 0) {
       ui.info(emptyMessage);
@@ -36,7 +36,7 @@ export class EnvironmentSelector {
     return this.selectFromEnvironments(
       getAllEnvironments(),
       "Select AI environments to set up (use space to select, enter to confirm):",
-      "No environments available."
+      "No environments available.",
     );
   }
 
@@ -70,15 +70,15 @@ export class EnvironmentSelector {
     return this.selectFromEnvironments(
       getSkillCapableEnvironments(),
       "Select AI environments for skill installation (use space to select, enter to confirm):",
-      "No environments support skills."
+      "No environments support skills.",
     );
   }
 
   async selectGlobalSkillEnvironments(): Promise<EnvironmentCode[]> {
     return this.selectFromEnvironments(
-      getAllEnvironments().filter(env => env.globalSkillPath !== undefined),
+      getAllEnvironments().filter((env) => env.globalSkillPath !== undefined),
       "Select AI environments for global skill installation (use space to select, enter to confirm):",
-      "No environments support global skill installation."
+      "No environments support global skill installation.",
     );
   }
 }

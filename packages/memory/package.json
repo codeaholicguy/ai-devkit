@@ -1,8 +1,31 @@
 {
   "name": "@ai-devkit/memory",
   "version": "0.20.0",
-  "type": "module",
   "description": "Local MCP memory for AI coding agents to reuse project decisions, conventions, and fixes across sessions",
+  "keywords": [
+    "agent",
+    "ai",
+    "fts5",
+    "knowledge",
+    "mcp",
+    "memory",
+    "sqlite"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/memory"
+  },
+  "bin": {
+    "ai-devkit-memory": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -15,9 +38,6 @@
       "import": "./dist/api.js"
     }
   },
-  "bin": {
-    "ai-devkit-memory": "./dist/index.js"
-  },
   "scripts": {
     "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
     "dev": "swc src -d dist --strip-leading-paths --watch",
@@ -28,24 +48,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/**/*.ts",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "clean": "rm -rf dist",
     "benchmark": "node --import 'ts-node/register/esm' scripts/benchmark.ts --items=5000 --searches=300"
-  },
-  "keywords": [
-    "mcp",
-    "memory",
-    "ai",
-    "agent",
-    "knowledge",
-    "sqlite",
-    "fts5"
-  ],
-  "author": "",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
-    "directory": "packages/memory"
   },
   "dependencies": {
     "@huggingface/tokenizers": "0.1.3",
@@ -70,9 +76,5 @@
   },
   "engines": {
     "node": ">=20.20.0"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ]
+  }
 }

@@ -1,194 +1,197 @@
-import os from 'os';
-import path from 'path';
-import type { AgentType } from '../adapters/AgentAdapter.js';
-import {
-    DatabaseConnection,
-    resolveAgentRegistryDbPath,
-} from '../database/index.js';
-import { parseTmuxRuntimeRef, type TmuxRuntimeRef } from '../runtime/tmux/TmuxRuntimeRef.js';
+import os from "os";
+import path from "path";
+import type { AgentType } from "../adapters/AgentAdapter.js";
+import { DatabaseConnection, resolveAgentRegistryDbPath } from "../database/index.js";
+import { parseTmuxRuntimeRef, type TmuxRuntimeRef } from "../runtime/tmux/TmuxRuntimeRef.js";
 
 export class RenameNotFoundError extends Error {
-    constructor(public agentName: string) {
-        super(`Agent "${agentName}" not found in registry.`);
-        this.name = 'RenameNotFoundError';
-    }
+  constructor(public agentName: string) {
+    super(`Agent "${agentName}" not found in registry.`);
+    this.name = "RenameNotFoundError";
+  }
 }
 
 export class RenameConflictError extends Error {
-    constructor(public agentName: string) {
-        super(`Agent "${agentName}" is already in use.`);
-        this.name = 'RenameConflictError';
-    }
+  constructor(public agentName: string) {
+    super(`Agent "${agentName}" is already in use.`);
+    this.name = "RenameConflictError";
+  }
 }
 
 export interface RegistryEntry {
-    name: string;
-    type: AgentType;
-    pid: number;
-    runtime: AgentRuntimeProvider;
-    runtimeRef: unknown | null;
-    cwd: string;
-    startedAt: string;  // ISO 8601
-    sessionId: string;
-    sessionFilePath: string;
-    pinned: boolean;
-    updatedAt?: string;
+  name: string;
+  type: AgentType;
+  pid: number;
+  runtime: AgentRuntimeProvider;
+  runtimeRef: unknown | null;
+  cwd: string;
+  startedAt: string; // ISO 8601
+  sessionId: string;
+  sessionFilePath: string;
+  pinned: boolean;
+  updatedAt?: string;
 }
 
 interface RegistryRow {
-    name: string;
-    type: AgentType;
-    pid: number;
-    tmux_session: string;
-    runtime?: string;
-    runtime_ref?: string;
-    cwd: string;
-    started_at: string;
-    session_id: string;
-    session_file_path: string;
-    updated_at: string;
-    pinned: number;
+  name: string;
+  type: AgentType;
+  pid: number;
+  tmux_session: string;
+  runtime?: string;
+  runtime_ref?: string;
+  cwd: string;
+  started_at: string;
+  session_id: string;
+  session_file_path: string;
+  updated_at: string;
+  pinned: number;
 }
 
-export const AGENT_RUNTIME_PROVIDERS = ['tmux', 'herdr'] as const;
-export type AgentRuntimeProvider = typeof AGENT_RUNTIME_PROVIDERS[number];
+export const AGENT_RUNTIME_PROVIDERS = ["tmux", "herdr"] as const;
+export type AgentRuntimeProvider = (typeof AGENT_RUNTIME_PROVIDERS)[number];
 
-const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), '.ai-devkit', 'agents.json');
+const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), ".ai-devkit", "agents.json");
 const DEFAULT_PRUNE_INTERVAL_MS = 30_000;
 
 let defaultInstance: AgentRegistry | null = null;
 
 export interface AgentRegistryOptions {
-    now?: () => Date;
-    pruneIntervalMs?: number;
-    onDatabaseOperation?: (sql: string) => void;
-    readonly?: boolean;
+  now?: () => Date;
+  pruneIntervalMs?: number;
+  onDatabaseOperation?: (sql: string) => void;
+  readonly?: boolean;
 }
 
 export class AgentRegistry {
-    private db: DatabaseConnection;
-    private readonly now: () => Date;
-    private readonly pruneIntervalMs: number;
-    private readonly readonly: boolean;
-    private lastPrunedAt: number | undefined;
+  private db: DatabaseConnection;
+  private readonly now: () => Date;
+  private readonly pruneIntervalMs: number;
+  private readonly readonly: boolean;
+  private lastPrunedAt: number | undefined;
 
-    constructor(filePath: string = DEFAULT_REGISTRY_PATH, options: AgentRegistryOptions = {}) {
-        this.now = options.now ?? (() => new Date());
-        this.pruneIntervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
-        this.readonly = options.readonly ?? false;
-        this.db = new DatabaseConnection({
-            dbPath: resolveAgentRegistryDbPath(filePath),
-            verbose: options.onDatabaseOperation,
-            readonly: this.readonly,
-        });
+  constructor(filePath: string = DEFAULT_REGISTRY_PATH, options: AgentRegistryOptions = {}) {
+    this.now = options.now ?? (() => new Date());
+    this.pruneIntervalMs = options.pruneIntervalMs ?? DEFAULT_PRUNE_INTERVAL_MS;
+    this.readonly = options.readonly ?? false;
+    this.db = new DatabaseConnection({
+      dbPath: resolveAgentRegistryDbPath(filePath),
+      verbose: options.onDatabaseOperation,
+      readonly: this.readonly,
+    });
+  }
+
+  static default(): AgentRegistry {
+    if (!defaultInstance) {
+      defaultInstance = new AgentRegistry();
     }
+    return defaultInstance;
+  }
 
-    static default(): AgentRegistry {
-        if (!defaultInstance) {
-            defaultInstance = new AgentRegistry();
-        }
-        return defaultInstance;
-    }
+  private rowToEntry(row: RegistryRow): RegistryEntry {
+    const runtime = this.parseRuntime(row.runtime);
+    return {
+      name: row.name,
+      type: row.type,
+      pid: row.pid,
+      runtime,
+      runtimeRef: this.parseRuntimeRef(runtime, row.runtime_ref, row.tmux_session),
+      cwd: row.cwd,
+      startedAt: row.started_at,
+      sessionId: row.session_id,
+      sessionFilePath: row.session_file_path,
+      pinned: row.pinned !== 0,
+      updatedAt: row.updated_at,
+    };
+  }
 
-    private rowToEntry(row: RegistryRow): RegistryEntry {
-        const runtime = this.parseRuntime(row.runtime);
-        return {
-            name: row.name,
-            type: row.type,
-            pid: row.pid,
-            runtime,
-            runtimeRef: this.parseRuntimeRef(runtime, row.runtime_ref, row.tmux_session),
-            cwd: row.cwd,
-            startedAt: row.started_at,
-            sessionId: row.session_id,
-            sessionFilePath: row.session_file_path,
-            pinned: row.pinned !== 0,
-            updatedAt: row.updated_at,
-        };
-    }
+  private parseRuntime(value: string | undefined): AgentRuntimeProvider {
+    return value === "herdr" ? "herdr" : "tmux";
+  }
 
-    private parseRuntime(value: string | undefined): AgentRuntimeProvider {
-        return value === 'herdr' ? 'herdr' : 'tmux';
-    }
-
-    private parseRuntimeRef(
-        runtime: AgentRuntimeProvider,
-        raw: string | undefined,
-        legacyTmuxSession: string,
-    ): unknown | null {
-        if (raw) {
-            try {
-                return JSON.parse(raw) as unknown;
-            } catch {
-                return null;
-            }
-        }
-
-        if (runtime === 'tmux' && legacyTmuxSession) {
-            return { session: legacyTmuxSession };
-        }
-
+  private parseRuntimeRef(
+    runtime: AgentRuntimeProvider,
+    raw: string | undefined,
+    legacyTmuxSession: string,
+  ): unknown | null {
+    if (raw) {
+      try {
+        return JSON.parse(raw) as unknown;
+      } catch {
         return null;
+      }
     }
 
-    private mergeEntry(incoming: RegistryEntry, existing: RegistryEntry | undefined): RegistryEntry {
-        if (!existing) return incoming;
-        const incomingIsManaged = incoming.runtime === 'herdr' || Boolean(parseTmuxRuntimeRef(incoming.runtimeRef));
-        return {
-            ...existing,
-            name: incomingIsManaged ? incoming.name : existing.name,
-            runtime: incoming.runtime ?? existing.runtime,
-            runtimeRef: incoming.runtimeRef ?? existing.runtimeRef,
-            cwd: incoming.cwd || existing.cwd,
-            startedAt: existing.startedAt || incoming.startedAt,
-            sessionId: incoming.sessionId || existing.sessionId,
-            sessionFilePath: incoming.sessionFilePath || existing.sessionFilePath,
-        };
+    if (runtime === "tmux" && legacyTmuxSession) {
+      return { session: legacyTmuxSession };
     }
 
-    private findByIdentity(type: AgentType, pid: number): RegistryEntry | undefined {
-        const row = this.db.queryOne<RegistryRow>(
-            'SELECT * FROM agents WHERE type = ? AND pid = ?',
-            [type, pid],
-        );
-        return row ? this.rowToEntry(row) : undefined;
-    }
+    return null;
+  }
 
-    private findByName(name: string): RegistryEntry | undefined {
-        const row = this.db.queryOne<RegistryRow>('SELECT * FROM agents WHERE name = ?', [name]);
-        return row ? this.rowToEntry(row) : undefined;
-    }
+  private mergeEntry(incoming: RegistryEntry, existing: RegistryEntry | undefined): RegistryEntry {
+    if (!existing) return incoming;
+    const incomingIsManaged =
+      incoming.runtime === "herdr" || Boolean(parseTmuxRuntimeRef(incoming.runtimeRef));
+    return {
+      ...existing,
+      name: incomingIsManaged ? incoming.name : existing.name,
+      runtime: incoming.runtime ?? existing.runtime,
+      runtimeRef: incoming.runtimeRef ?? existing.runtimeRef,
+      cwd: incoming.cwd || existing.cwd,
+      startedAt: existing.startedAt || incoming.startedAt,
+      sessionId: incoming.sessionId || existing.sessionId,
+      sessionFilePath: incoming.sessionFilePath || existing.sessionFilePath,
+    };
+  }
 
-    private findPidConflicts(type: AgentType, pid: number): RegistryEntry[] {
-        return this.db.query<RegistryRow>(
-            'SELECT * FROM agents WHERE pid = ? AND type <> ?',
-            [pid, type],
-        ).map((row) => this.rowToEntry(row));
-    }
+  private findByIdentity(type: AgentType, pid: number): RegistryEntry | undefined {
+    const row = this.db.queryOne<RegistryRow>("SELECT * FROM agents WHERE type = ? AND pid = ?", [
+      type,
+      pid,
+    ]);
+    return row ? this.rowToEntry(row) : undefined;
+  }
 
-    private entriesEqual(left: RegistryEntry, right: RegistryEntry): boolean {
-        return left.name === right.name
-            && left.type === right.type
-            && left.pid === right.pid
-            && left.runtime === right.runtime
-            && JSON.stringify(left.runtimeRef ?? null) === JSON.stringify(right.runtimeRef ?? null)
-            && left.cwd === right.cwd
-            && left.startedAt === right.startedAt
-            && left.sessionId === right.sessionId
-            && left.sessionFilePath === right.sessionFilePath;
-    }
+  private findByName(name: string): RegistryEntry | undefined {
+    const row = this.db.queryOne<RegistryRow>("SELECT * FROM agents WHERE name = ?", [name]);
+    return row ? this.rowToEntry(row) : undefined;
+  }
 
-    private deleteNameConflict(name: string, type: AgentType, pid: number): void {
-        const conflict = this.findByName(name);
-        if (!conflict) return;
-        if (conflict.type === type && conflict.pid === pid) return;
-        if (!this.isAlive(conflict)) {
-            this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [conflict.type, conflict.pid]);
-        }
-    }
+  private findPidConflicts(type: AgentType, pid: number): RegistryEntry[] {
+    return this.db
+      .query<RegistryRow>("SELECT * FROM agents WHERE pid = ? AND type <> ?", [pid, type])
+      .map((row) => this.rowToEntry(row));
+  }
 
-    private insertOrUpdate(entry: RegistryEntry): void {
-        this.db.instance.prepare(`
+  private entriesEqual(left: RegistryEntry, right: RegistryEntry): boolean {
+    return (
+      left.name === right.name &&
+      left.type === right.type &&
+      left.pid === right.pid &&
+      left.runtime === right.runtime &&
+      JSON.stringify(left.runtimeRef ?? null) === JSON.stringify(right.runtimeRef ?? null) &&
+      left.cwd === right.cwd &&
+      left.startedAt === right.startedAt &&
+      left.sessionId === right.sessionId &&
+      left.sessionFilePath === right.sessionFilePath
+    );
+  }
+
+  private deleteNameConflict(name: string, type: AgentType, pid: number): void {
+    const conflict = this.findByName(name);
+    if (!conflict) return;
+    if (conflict.type === type && conflict.pid === pid) return;
+    if (!this.isAlive(conflict)) {
+      this.db.execute("DELETE FROM agents WHERE type = ? AND pid = ?", [
+        conflict.type,
+        conflict.pid,
+      ]);
+    }
+  }
+
+  private insertOrUpdate(entry: RegistryEntry): void {
+    this.db.instance
+      .prepare(`
             INSERT INTO agents (
                 type, pid, name, tmux_session, cwd, started_at, session_id, session_file_path, updated_at
                 , runtime, runtime_ref
@@ -207,128 +210,139 @@ export class AgentRegistry {
                 session_id = excluded.session_id,
                 session_file_path = excluded.session_file_path,
                 updated_at = excluded.updated_at
-        `).run({
-            ...entry,
-            legacyTmuxSession: parseTmuxRuntimeRef(entry.runtimeRef)?.session ?? '',
-            runtimeRefJson: JSON.stringify(entry.runtimeRef ?? null),
-            updatedAt: this.now().toISOString(),
-        });
+        `)
+      .run({
+        ...entry,
+        legacyTmuxSession: parseTmuxRuntimeRef(entry.runtimeRef)?.session ?? "",
+        runtimeRefJson: JSON.stringify(entry.runtimeRef ?? null),
+        updatedAt: this.now().toISOString(),
+      });
+  }
+
+  private needsWrite(incoming: RegistryEntry): boolean {
+    const existing = this.findByIdentity(incoming.type, incoming.pid);
+    const merged = this.mergeEntry(incoming, existing);
+    return (
+      !existing ||
+      !this.entriesEqual(merged, existing) ||
+      this.findPidConflicts(incoming.type, incoming.pid).length > 0
+    );
+  }
+
+  private save(incoming: RegistryEntry): void {
+    const existing = this.findByIdentity(incoming.type, incoming.pid);
+    const merged = this.mergeEntry(incoming, existing);
+    const pidConflicts = this.findPidConflicts(incoming.type, incoming.pid);
+    if (existing && this.entriesEqual(merged, existing) && pidConflicts.length === 0) return;
+
+    for (const conflict of pidConflicts) {
+      this.db.execute("DELETE FROM agents WHERE type = ? AND pid = ?", [
+        conflict.type,
+        conflict.pid,
+      ]);
     }
+    if (existing && this.entriesEqual(merged, existing)) return;
 
-    private needsWrite(incoming: RegistryEntry): boolean {
-        const existing = this.findByIdentity(incoming.type, incoming.pid);
-        const merged = this.mergeEntry(incoming, existing);
-        return !existing
-            || !this.entriesEqual(merged, existing)
-            || this.findPidConflicts(incoming.type, incoming.pid).length > 0;
+    this.deleteNameConflict(merged.name, merged.type, merged.pid);
+    this.insertOrUpdate(merged);
+  }
+
+  isAlive(entry: RegistryEntry): boolean {
+    try {
+      process.kill(entry.pid, 0);
+      return true;
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? error.code : undefined;
+      return code !== "ESRCH";
     }
+  }
 
-    private save(incoming: RegistryEntry): void {
-        const existing = this.findByIdentity(incoming.type, incoming.pid);
-        const merged = this.mergeEntry(incoming, existing);
-        const pidConflicts = this.findPidConflicts(incoming.type, incoming.pid);
-        if (existing && this.entriesEqual(merged, existing) && pidConflicts.length === 0) return;
-
-        for (const conflict of pidConflicts) {
-            this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [conflict.type, conflict.pid]);
+  private pruneAt(nowMs: number): void {
+    const entries = this.list();
+    const stale = entries.filter((e) => !this.isAlive(e));
+    if (stale.length > 0) {
+      this.db.transaction(() => {
+        for (const entry of stale) {
+          this.db.execute("DELETE FROM agents WHERE type = ? AND pid = ?", [entry.type, entry.pid]);
         }
-        if (existing && this.entriesEqual(merged, existing)) return;
+      });
+    }
+    this.lastPrunedAt = nowMs;
+  }
 
-        this.deleteNameConflict(merged.name, merged.type, merged.pid);
-        this.insertOrUpdate(merged);
+  prune(): void {
+    this.pruneAt(this.now().getTime());
+  }
+
+  pruneIfDue(): void {
+    const nowMs = this.now().getTime();
+    const elapsed = this.lastPrunedAt === undefined ? undefined : nowMs - this.lastPrunedAt;
+    if (elapsed !== undefined && elapsed >= 0 && elapsed < this.pruneIntervalMs) return;
+    this.pruneAt(nowMs);
+  }
+
+  register(entry: RegistryEntry): void {
+    this.registerBatch([entry]);
+  }
+
+  registerBatch(entries: RegistryEntry[]): void {
+    if (entries.length === 0) return;
+    if (!entries.some((entry) => this.needsWrite(entry))) return;
+    this.db.transaction(() => {
+      for (const incoming of entries) {
+        this.save(incoming);
+      }
+    });
+  }
+
+  rename(currentName: string, newName: string): void {
+    const existing = this.findByName(currentName);
+    if (!existing) {
+      throw new RenameNotFoundError(currentName);
+    }
+    const conflict = this.findByName(newName);
+    if (conflict && this.isAlive(conflict)) {
+      throw new RenameConflictError(newName);
     }
 
-    isAlive(entry: RegistryEntry): boolean {
-        try {
-            process.kill(entry.pid, 0);
-            return true;
-        } catch (error) {
-            const code = error && typeof error === 'object' && 'code' in error
-                ? error.code
-                : undefined;
-            return code !== 'ESRCH';
-        }
-    }
+    this.db.transaction(() => {
+      if (conflict) {
+        this.db.execute("DELETE FROM agents WHERE type = ? AND pid = ?", [
+          conflict.type,
+          conflict.pid,
+        ]);
+      }
+      this.db.execute("UPDATE agents SET name = ?, updated_at = ? WHERE type = ? AND pid = ?", [
+        newName,
+        this.now().toISOString(),
+        existing.type,
+        existing.pid,
+      ]);
+    });
+  }
 
-    private pruneAt(nowMs: number): void {
-        const entries = this.list();
-        const stale = entries.filter((e) => !this.isAlive(e));
-        if (stale.length > 0) {
-            this.db.transaction(() => {
-                for (const entry of stale) {
-                    this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [entry.type, entry.pid]);
-                }
-            });
-        }
-        this.lastPrunedAt = nowMs;
+  togglePin(type: AgentType, pid: number): boolean | null {
+    if (this.readonly) {
+      throw new Error("Agent registry is readonly; cannot toggle pin.");
     }
+    const result = this.db.execute(
+      "UPDATE agents SET pinned = NOT pinned, updated_at = ? WHERE type = ? AND pid = ?",
+      [this.now().toISOString(), type, pid],
+    );
+    if (result.changes === 0) return null;
+    return this.findByIdentity(type, pid)?.pinned ?? null;
+  }
 
-    prune(): void {
-        this.pruneAt(this.now().getTime());
-    }
+  lookup(name: string): RegistryEntry | null {
+    return this.findByName(name) ?? null;
+  }
 
-    pruneIfDue(): void {
-        const nowMs = this.now().getTime();
-        const elapsed = this.lastPrunedAt === undefined ? undefined : nowMs - this.lastPrunedAt;
-        if (elapsed !== undefined && elapsed >= 0 && elapsed < this.pruneIntervalMs) return;
-        this.pruneAt(nowMs);
-    }
-
-    register(entry: RegistryEntry): void {
-        this.registerBatch([entry]);
-    }
-
-    registerBatch(entries: RegistryEntry[]): void {
-        if (entries.length === 0) return;
-        if (!entries.some((entry) => this.needsWrite(entry))) return;
-        this.db.transaction(() => {
-            for (const incoming of entries) {
-                this.save(incoming);
-            }
-        });
-    }
-
-    rename(currentName: string, newName: string): void {
-        const existing = this.findByName(currentName);
-        if (!existing) {
-            throw new RenameNotFoundError(currentName);
-        }
-        const conflict = this.findByName(newName);
-        if (conflict && this.isAlive(conflict)) {
-            throw new RenameConflictError(newName);
-        }
-
-        this.db.transaction(() => {
-            if (conflict) {
-                this.db.execute('DELETE FROM agents WHERE type = ? AND pid = ?', [conflict.type, conflict.pid]);
-            }
-            this.db.execute(
-                'UPDATE agents SET name = ?, updated_at = ? WHERE type = ? AND pid = ?',
-                [newName, this.now().toISOString(), existing.type, existing.pid],
-            );
-        });
-    }
-
-    togglePin(type: AgentType, pid: number): boolean | null {
-        if (this.readonly) {
-            throw new Error('Agent registry is readonly; cannot toggle pin.');
-        }
-        const result = this.db.execute(
-            'UPDATE agents SET pinned = NOT pinned, updated_at = ? WHERE type = ? AND pid = ?',
-            [this.now().toISOString(), type, pid],
-        );
-        if (result.changes === 0) return null;
-        return this.findByIdentity(type, pid)?.pinned ?? null;
-    }
-
-    lookup(name: string): RegistryEntry | null {
-        return this.findByName(name) ?? null;
-    }
-
-    list(): RegistryEntry[] {
-        const rows = this.db.query<RegistryRow>('SELECT * FROM agents ORDER BY started_at ASC, name ASC');
-        return rows.map((row) => this.rowToEntry(row));
-    }
+  list(): RegistryEntry[] {
+    const rows = this.db.query<RegistryRow>(
+      "SELECT * FROM agents ORDER BY started_at ASC, name ASC",
+    );
+    return rows.map((row) => this.rowToEntry(row));
+  }
 }
 
 export { parseTmuxRuntimeRef };

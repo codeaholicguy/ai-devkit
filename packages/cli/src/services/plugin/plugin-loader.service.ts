@@ -1,29 +1,29 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import { pathToFileURL } from 'url';
-import type { Command } from 'commander';
-import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
-import { ValidationError } from '../../util/errors.js';
-import { getErrorMessage } from '../../util/text.js';
-import { ui } from '../../util/terminal-ui.js';
-import { getGlobalPluginNpmRoot, validatePluginPackageName } from './plugin-package.service.js';
+import fs from "fs-extra";
+import * as path from "path";
+import { pathToFileURL } from "url";
+import type { Command } from "commander";
+import { GlobalConfigManager } from "../../lib/GlobalConfig.js";
+import { ValidationError } from "../../util/errors.js";
+import { getErrorMessage } from "../../util/text.js";
+import { ui } from "../../util/terminal-ui.js";
+import { getGlobalPluginNpmRoot, validatePluginPackageName } from "./plugin-package.service.js";
 import {
   resolvePluginCommandEntry,
   validatePluginManifest,
   type AiDevkitPluginCommand,
-} from './plugin-manifest.service.js';
+} from "./plugin-manifest.service.js";
 
 export const BUILT_IN_COMMAND_NAMES = new Set([
-  'init',
-  'phase',
-  'lint',
-  'install',
-  'memory',
-  'skill',
-  'agent',
-  'channel',
-  'docs',
-  'plugin'
+  "init",
+  "phase",
+  "lint",
+  "install",
+  "memory",
+  "skill",
+  "agent",
+  "channel",
+  "docs",
+  "plugin",
 ]);
 
 export async function validateInstalledPluginManifest(pluginName: string): Promise<void> {
@@ -64,7 +64,7 @@ interface RegisterConfiguredPluginCommandsDeps {
 export async function registerConfiguredPluginCommands(
   program: Command,
   runtime: AiDevkitRuntime,
-  deps: RegisterConfiguredPluginCommandsDeps = {}
+  deps: RegisterConfiguredPluginCommandsDeps = {},
 ): Promise<void> {
   const globalConfig = new GlobalConfigManager();
   const getPlugins = deps.getPlugins ?? (() => globalConfig.getPlugins());
@@ -72,7 +72,7 @@ export async function registerConfiguredPluginCommands(
   const importCommandEntry = deps.importCommandEntry ?? defaultImportCommandEntry;
   const warn = deps.warn ?? ((message: string) => ui.warning(message));
   const plugins = await getPlugins();
-  const registeredCommandNames = new Set(program.commands.map(command => command.name()));
+  const registeredCommandNames = new Set(program.commands.map((command) => command.name()));
 
   for (const pluginName of plugins) {
     try {
@@ -80,13 +80,17 @@ export async function registerConfiguredPluginCommands(
 
       for (const loadedCommand of commands) {
         if (registeredCommandNames.has(loadedCommand.command.name)) {
-          warn(`Plugin ${pluginName} command "${loadedCommand.command.name}" conflicts with an already registered command.`);
+          warn(
+            `Plugin ${pluginName} command "${loadedCommand.command.name}" conflicts with an already registered command.`,
+          );
           continue;
         }
 
         const entryModule = await importCommandEntry(loadedCommand.command.entryPath);
-        if (typeof entryModule.register !== 'function') {
-          warn(`Plugin ${pluginName} command "${loadedCommand.command.name}" entrypoint must export register().`);
+        if (typeof entryModule.register !== "function") {
+          warn(
+            `Plugin ${pluginName} command "${loadedCommand.command.name}" entrypoint must export register().`,
+          );
           continue;
         }
 
@@ -103,25 +107,29 @@ export async function registerConfiguredPluginCommands(
   }
 }
 
-export async function loadInstalledPluginCommands(pluginName: string): Promise<LoadedPluginCommand[]> {
+export async function loadInstalledPluginCommands(
+  pluginName: string,
+): Promise<LoadedPluginCommand[]> {
   const packageJsonPath = getInstalledPluginPackageJsonPath(pluginName);
-  const packageJson = await fs.readJson(packageJsonPath) as unknown;
+  const packageJson = (await fs.readJson(packageJsonPath)) as unknown;
   const pluginRoot = path.dirname(packageJsonPath);
   const manifest = validatePluginManifest(pluginName, packageJson, BUILT_IN_COMMAND_NAMES);
   const commands: LoadedPluginCommand[] = [];
 
   for (const command of manifest.commands) {
     const entryPath = resolvePluginCommandEntry(pluginRoot, command.entry);
-    if (!await fs.pathExists(entryPath)) {
-      throw new ValidationError(`Plugin ${pluginName} command "${command.name}" entrypoint does not exist: ${command.entry}`);
+    if (!(await fs.pathExists(entryPath))) {
+      throw new ValidationError(
+        `Plugin ${pluginName} command "${command.name}" entrypoint does not exist: ${command.entry}`,
+      );
     }
 
     commands.push({
       pluginName,
       command: {
         ...command,
-        entryPath
-      }
+        entryPath,
+      },
     });
   }
 
@@ -130,7 +138,7 @@ export async function loadInstalledPluginCommands(pluginName: string): Promise<L
 
 export function getInstalledPluginPackageJsonPath(pluginName: string): string {
   const normalizedName = validatePluginPackageName(pluginName);
-  return path.join(getGlobalPluginNpmRoot(), 'node_modules', normalizedName, 'package.json');
+  return path.join(getGlobalPluginNpmRoot(), "node_modules", normalizedName, "package.json");
 }
 
 async function defaultImportCommandEntry(entryPath: string): Promise<PluginCommandEntryModule> {

@@ -1,130 +1,176 @@
-import fs from 'fs';
-import { randomUUID } from 'crypto';
-import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from '../database/index.js';
-import { AGENT_MODES, CodexPrintError, type DurableActiveRun, type DurableAgent, type DurableProvider, type ProcessIdentity, type DurableRunStatus, type DurableSessionHealth } from './DurableAgent.js';
-import { LocalProcessInspector, type ProcessInspector } from './process.js';
-import { isUuid } from './utils.js';
+import fs from "fs";
+import { randomUUID } from "crypto";
+import { DatabaseConnection, DEFAULT_AGENT_REGISTRY_DB_PATH } from "../database/index.js";
 import {
-    DurableAgentBusyError,
-    DurableAgentNameConflictError,
-    DurableAgentNotFoundError,
-    DurableAgentRepositoryError,
-} from './DurableAgent.js';
+  AGENT_MODES,
+  CodexPrintError,
+  type DurableActiveRun,
+  type DurableAgent,
+  type DurableProvider,
+  type ProcessIdentity,
+  type DurableRunStatus,
+  type DurableSessionHealth,
+} from "./DurableAgent.js";
+import { LocalProcessInspector, type ProcessInspector } from "./process.js";
+import { isUuid } from "./utils.js";
+import {
+  DurableAgentBusyError,
+  DurableAgentNameConflictError,
+  DurableAgentNotFoundError,
+  DurableAgentRepositoryError,
+} from "./DurableAgent.js";
 
 interface DurableAgentRow {
-    id: string; name: string; provider: DurableProvider; mode: typeof AGENT_MODES.DURABLE; cwd: string; provider_session_id: string | null;
-    state: DurableAgent['state']; session_health: DurableSessionHealth; created_at: string; updated_at: string;
-    last_active_at: string | null; last_result_status: DurableRunStatus | null;
-    last_result_completed_at: string | null; last_result_exit_code: number | null; last_result_summary: string | null;
-    active_run_token: string | null; active_owner_pid: number | null; active_owner_started_at: string | null;
-    active_provider_pid: number | null; active_provider_started_at: string | null; active_run_started_at: string | null;
+  id: string;
+  name: string;
+  provider: DurableProvider;
+  mode: typeof AGENT_MODES.DURABLE;
+  cwd: string;
+  provider_session_id: string | null;
+  state: DurableAgent["state"];
+  session_health: DurableSessionHealth;
+  created_at: string;
+  updated_at: string;
+  last_active_at: string | null;
+  last_result_status: DurableRunStatus | null;
+  last_result_completed_at: string | null;
+  last_result_exit_code: number | null;
+  last_result_summary: string | null;
+  active_run_token: string | null;
+  active_owner_pid: number | null;
+  active_owner_started_at: string | null;
+  active_provider_pid: number | null;
+  active_provider_started_at: string | null;
+  active_run_started_at: string | null;
 }
 
-export interface CreateDurableAgentInput { name: string; cwd: string; provider?: DurableProvider }
+export interface CreateDurableAgentInput {
+  name: string;
+  cwd: string;
+  provider?: DurableProvider;
+}
 
 export interface DurableAgentRepositoryOptions {
-    dbPath?: string;
-    readonly?: boolean;
-    /** @deprecated SQLite busy_timeout replaces filesystem lock polling. */
-    lockTimeoutMs?: number;
-    now?: () => Date;
-    processInspector?: ProcessInspector;
-    /** @deprecated Active ownership is committed atomically. */
-    incompleteLockGraceMs?: number;
-    /** @deprecated SQLite transactions replace mutation lock directories. */
-    mutationLockStaleMs?: number;
+  dbPath?: string;
+  readonly?: boolean;
+  /** @deprecated SQLite busy_timeout replaces filesystem lock polling. */
+  lockTimeoutMs?: number;
+  now?: () => Date;
+  processInspector?: ProcessInspector;
+  /** @deprecated Active ownership is committed atomically. */
+  incompleteLockGraceMs?: number;
+  /** @deprecated SQLite transactions replace mutation lock directories. */
+  mutationLockStaleMs?: number;
 }
 
-export { LocalProcessInspector } from './process.js';
-export type { ProcessInspector } from './process.js';
+export { LocalProcessInspector } from "./process.js";
+export type { ProcessInspector } from "./process.js";
 export interface DurableRunCompletion {
-    status: DurableRunStatus; exitCode: number | null; summary: string; sessionHealth: DurableSessionHealth;
+  status: DurableRunStatus;
+  exitCode: number | null;
+  summary: string;
+  sessionHealth: DurableSessionHealth;
 }
 
 export class DurableAgentRepository {
-    readonly dbPath: string;
-    private readonly now: () => Date;
-    private readonly processInspector: ProcessInspector;
-    private readonly readonly: boolean;
-    private readonly db: DatabaseConnection;
+  readonly dbPath: string;
+  private readonly now: () => Date;
+  private readonly processInspector: ProcessInspector;
+  private readonly readonly: boolean;
+  private readonly db: DatabaseConnection;
 
-    constructor(options: DurableAgentRepositoryOptions = {}) {
-        this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
-        this.now = options.now ?? (() => new Date());
-        this.processInspector = options.processInspector ?? new LocalProcessInspector();
-        this.readonly = options.readonly ?? false;
-        try {
-            this.db = new DatabaseConnection({ dbPath: this.dbPath, readonly: this.readonly });
-        } catch (error) {
-            if (error instanceof DurableAgentRepositoryError) throw error;
-            throw new DurableAgentRepositoryError(`Cannot open durable-agent database: ${(error as Error).message}`);
-        }
+  constructor(options: DurableAgentRepositoryOptions = {}) {
+    this.dbPath = options.dbPath ?? DEFAULT_AGENT_REGISTRY_DB_PATH;
+    this.now = options.now ?? (() => new Date());
+    this.processInspector = options.processInspector ?? new LocalProcessInspector();
+    this.readonly = options.readonly ?? false;
+    try {
+      this.db = new DatabaseConnection({ dbPath: this.dbPath, readonly: this.readonly });
+    } catch (error) {
+      if (error instanceof DurableAgentRepositoryError) throw error;
+      throw new DurableAgentRepositoryError(
+        `Cannot open durable-agent database: ${(error as Error).message}`,
+      );
     }
+  }
 
-    async create(input: CreateDurableAgentInput): Promise<DurableAgent> {
-        this.assertWritable();
-        const cwd = this.canonicalDirectory(input.cwd);
-        const timestamp = this.now().toISOString();
-        const id = randomUUID();
-        const provider = input.provider ?? 'claude';
-        let providerSessionId = provider === 'codex' ? null : randomUUID();
-        while (providerSessionId === id) providerSessionId = randomUUID();
-        try {
-            this.db.execute(`INSERT INTO durable_agents (
+  async create(input: CreateDurableAgentInput): Promise<DurableAgent> {
+    this.assertWritable();
+    const cwd = this.canonicalDirectory(input.cwd);
+    const timestamp = this.now().toISOString();
+    const id = randomUUID();
+    const provider = input.provider ?? "claude";
+    let providerSessionId = provider === "codex" ? null : randomUUID();
+    while (providerSessionId === id) providerSessionId = randomUUID();
+    try {
+      this.db.execute(
+        `INSERT INTO durable_agents (
                 id, name, provider, mode, cwd, provider_session_id, state, session_health, created_at, updated_at
             ) VALUES (?, ?, ?, ?, ?, ?, 'ready', 'uninitialized', ?, ?)`,
-            [id, input.name, provider, AGENT_MODES.DURABLE, cwd, providerSessionId, timestamp, timestamp]);
-        } catch (error) {
-            if (/UNIQUE constraint failed: durable_agents\.name/i.test((error as Error).message)) {
-                throw new DurableAgentNameConflictError(input.name);
-            }
-            throw this.storageError('Failed to create durable agent', error);
+        [
+          id,
+          input.name,
+          provider,
+          AGENT_MODES.DURABLE,
+          cwd,
+          providerSessionId,
+          timestamp,
+          timestamp,
+        ],
+      );
+    } catch (error) {
+      if (/UNIQUE constraint failed: durable_agents\.name/i.test((error as Error).message)) {
+        throw new DurableAgentNameConflictError(input.name);
+      }
+      throw this.storageError("Failed to create durable agent", error);
+    }
+    return this.requireById(id);
+  }
+
+  async list(): Promise<DurableAgent[]> {
+    if (!this.readonly) await this.reconcile();
+    return this.listRaw();
+  }
+
+  async getById(id: string): Promise<DurableAgent | null> {
+    if (!this.readonly) await this.reconcile();
+    return this.findById(id);
+  }
+
+  async resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null> {
+    const agents = await this.list();
+    const byId = agents.find((agent) => agent.id === reference);
+    if (byId) return byId;
+    const matches = agents.filter((agent) => agent.name.toLowerCase() === reference.toLowerCase());
+    return matches.length === 0 ? null : matches.length === 1 ? matches[0]! : matches;
+  }
+
+  async acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }> {
+    this.assertWritable();
+    const snapshot = this.findById(id);
+    if (!snapshot) throw new DurableAgentNotFoundError(id);
+    this.validateBoundCwd(snapshot.cwd);
+    const observed = snapshot.activeRun;
+    const observedLive = observed ? this.isActive(observed) : false;
+    if (observedLive) throw new DurableAgentBusyError(id, snapshot.name);
+    const owner = this.processInspector.getIdentity(process.pid);
+    if (!owner)
+      throw new DurableAgentRepositoryError("Cannot determine the current process identity.");
+    const token = randomUUID();
+    const startedAt = this.now().toISOString();
+    let recovered = false;
+    try {
+      this.immediate(() => {
+        const current = this.findById(id);
+        if (!current) throw new DurableAgentNotFoundError(id);
+        if (current.state === "running") {
+          if (!observed || current.activeRun?.token !== observed.token || observedLive) {
+            throw new DurableAgentBusyError(id, current.name);
+          }
+          recovered = true;
         }
-        return this.requireById(id);
-    }
-
-    async list(): Promise<DurableAgent[]> {
-        if (!this.readonly) await this.reconcile();
-        return this.listRaw();
-    }
-
-    async getById(id: string): Promise<DurableAgent | null> {
-        if (!this.readonly) await this.reconcile();
-        return this.findById(id);
-    }
-
-    async resolve(reference: string): Promise<DurableAgent | DurableAgent[] | null> {
-        const agents = await this.list();
-        const byId = agents.find((agent) => agent.id === reference);
-        if (byId) return byId;
-        const matches = agents.filter((agent) => agent.name.toLowerCase() === reference.toLowerCase());
-        return matches.length === 0 ? null : matches.length === 1 ? matches[0]! : matches;
-    }
-
-    async acquireRun(id: string): Promise<{ agent: DurableAgent; token: string }> {
-        this.assertWritable();
-        const snapshot = this.findById(id);
-        if (!snapshot) throw new DurableAgentNotFoundError(id);
-        this.validateBoundCwd(snapshot.cwd);
-        const observed = snapshot.activeRun;
-        const observedLive = observed ? this.isActive(observed) : false;
-        if (observedLive) throw new DurableAgentBusyError(id, snapshot.name);
-        const owner = this.processInspector.getIdentity(process.pid);
-        if (!owner) throw new DurableAgentRepositoryError('Cannot determine the current process identity.');
-        const token = randomUUID();
-        const startedAt = this.now().toISOString();
-        let recovered = false;
-        try {
-            this.immediate(() => {
-                const current = this.findById(id);
-                if (!current) throw new DurableAgentNotFoundError(id);
-                if (current.state === 'running') {
-                    if (!observed || current.activeRun?.token !== observed.token || observedLive) {
-                        throw new DurableAgentBusyError(id, current.name);
-                    }
-                    recovered = true;
-                }
-                const changed = this.db.execute(`UPDATE durable_agents SET
+        const changed = this.db.execute(
+          `UPDATE durable_agents SET
                     state = 'running', active_run_token = ?, active_owner_pid = ?, active_owner_started_at = ?,
                     active_provider_pid = NULL, active_provider_started_at = NULL, active_run_started_at = ?, updated_at = ?,
                     session_health = CASE WHEN state = 'running' THEN 'unknown' ELSE session_health END,
@@ -135,202 +181,305 @@ export class DurableAgentRepository {
                     WHERE id = ? AND (state <> 'running' OR (
                         active_run_token = ? AND active_owner_started_at = ? AND active_run_started_at = ?
                     ))
-                `, [token, owner.pid, owner.startedAt, startedAt, startedAt, startedAt, id,
-                    observed?.token ?? null, observed?.owner.startedAt ?? null, observed?.startedAt ?? null]);
-                if (changed.changes !== 1) throw new DurableAgentBusyError(id, current.name);
-            });
-        } catch (error) {
-            if (error instanceof DurableAgentBusyError || error instanceof DurableAgentNotFoundError) throw error;
-            if (/busy|locked/i.test((error as Error).message)) throw new DurableAgentBusyError(id, snapshot.name);
-            throw this.storageError('Failed to acquire durable-agent run', error);
-        }
-        const agent = this.requireById(id);
-        if (recovered && agent.lastResult?.status !== 'interrupted') {
-            throw new DurableAgentRepositoryError('Failed to record interrupted print run.');
-        }
-        return { agent, token };
+                `,
+          [
+            token,
+            owner.pid,
+            owner.startedAt,
+            startedAt,
+            startedAt,
+            startedAt,
+            id,
+            observed?.token ?? null,
+            observed?.owner.startedAt ?? null,
+            observed?.startedAt ?? null,
+          ],
+        );
+        if (changed.changes !== 1) throw new DurableAgentBusyError(id, current.name);
+      });
+    } catch (error) {
+      if (error instanceof DurableAgentBusyError || error instanceof DurableAgentNotFoundError)
+        throw error;
+      if (/busy|locked/i.test((error as Error).message))
+        throw new DurableAgentBusyError(id, snapshot.name);
+      throw this.storageError("Failed to acquire durable-agent run", error);
     }
+    const agent = this.requireById(id);
+    if (recovered && agent.lastResult?.status !== "interrupted") {
+      throw new DurableAgentRepositoryError("Failed to record interrupted print run.");
+    }
+    return { agent, token };
+  }
 
-    async recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void> {
-        this.assertWritable();
-        const changed = this.db.execute(`UPDATE durable_agents SET
+  async recordProviderProcess(id: string, token: string, identity: ProcessIdentity): Promise<void> {
+    this.assertWritable();
+    const changed = this.db.execute(
+      `UPDATE durable_agents SET
             active_provider_pid = ?, active_provider_started_at = ?, updated_at = ?
             WHERE id = ? AND state = 'running' AND active_run_token = ?`,
-        [identity.pid, identity.startedAt, this.now().toISOString(), id, token]);
-        if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
-    }
+      [identity.pid, identity.startedAt, this.now().toISOString(), id, token],
+    );
+    if (changed.changes !== 1)
+      throw new DurableAgentRepositoryError("Print run ownership changed.");
+  }
 
-    async bindProviderSession(id: string, token: string, providerSessionId: string): Promise<DurableAgent> {
-        this.assertWritable();
-        if (!isUuid(providerSessionId)) {
-            throw new DurableAgentRepositoryError('Invalid provider session id.');
+  async bindProviderSession(
+    id: string,
+    token: string,
+    providerSessionId: string,
+  ): Promise<DurableAgent> {
+    this.assertWritable();
+    if (!isUuid(providerSessionId)) {
+      throw new DurableAgentRepositoryError("Invalid provider session id.");
+    }
+    try {
+      this.immediate(() => {
+        const agent = this.findById(id);
+        if (!agent) throw new DurableAgentNotFoundError(id);
+        if (agent.provider !== "codex") {
+          throw new DurableAgentRepositoryError(
+            "Only Codex durable sessions can be bound after creation.",
+          );
         }
-        try {
-            this.immediate(() => {
-                const agent = this.findById(id);
-                if (!agent) throw new DurableAgentNotFoundError(id);
-                if (agent.provider !== 'codex') {
-                    throw new DurableAgentRepositoryError('Only Codex durable sessions can be bound after creation.');
-                }
-                if (agent.activeRun?.token !== token) {
-                    throw new DurableAgentRepositoryError('Print run ownership changed.');
-                }
-                if (agent.providerSessionId !== null && agent.providerSessionId !== providerSessionId) {
-                    throw new CodexPrintError('Durable agent provider session identity does not match.', 'CODEX_SESSION_MISMATCH');
-                }
-                if (agent.providerSessionId === providerSessionId) return;
-                const changed = this.db.execute(`UPDATE durable_agents SET provider_session_id = ?, updated_at = ?
+        if (agent.activeRun?.token !== token) {
+          throw new DurableAgentRepositoryError("Print run ownership changed.");
+        }
+        if (agent.providerSessionId !== null && agent.providerSessionId !== providerSessionId) {
+          throw new CodexPrintError(
+            "Durable agent provider session identity does not match.",
+            "CODEX_SESSION_MISMATCH",
+          );
+        }
+        if (agent.providerSessionId === providerSessionId) return;
+        const changed = this.db.execute(
+          `UPDATE durable_agents SET provider_session_id = ?, updated_at = ?
                     WHERE id = ? AND provider = 'codex' AND state = 'running' AND active_run_token = ?
                         AND provider_session_id IS NULL`,
-                [providerSessionId, this.now().toISOString(), id, token]);
-                if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
-            });
-        } catch (error) {
-            if (error instanceof DurableAgentRepositoryError || error instanceof DurableAgentNotFoundError
-                || error instanceof CodexPrintError) throw error;
-            if (/UNIQUE constraint failed: durable_agents\.provider_session_id/i.test((error as Error).message)) {
-                throw new CodexPrintError('Provider session is already bound to another durable agent.', 'CODEX_SESSION_MISMATCH');
-            }
-            throw this.storageError('Failed to bind durable-agent provider session', error);
-        }
-        return this.requireById(id);
+          [providerSessionId, this.now().toISOString(), id, token],
+        );
+        if (changed.changes !== 1)
+          throw new DurableAgentRepositoryError("Print run ownership changed.");
+      });
+    } catch (error) {
+      if (
+        error instanceof DurableAgentRepositoryError ||
+        error instanceof DurableAgentNotFoundError ||
+        error instanceof CodexPrintError
+      )
+        throw error;
+      if (
+        /UNIQUE constraint failed: durable_agents\.provider_session_id/i.test(
+          (error as Error).message,
+        )
+      ) {
+        throw new CodexPrintError(
+          "Provider session is already bound to another durable agent.",
+          "CODEX_SESSION_MISMATCH",
+        );
+      }
+      throw this.storageError("Failed to bind durable-agent provider session", error);
     }
+    return this.requireById(id);
+  }
 
-    async completeRun(id: string, token: string, result: DurableRunCompletion): Promise<DurableAgent> {
-        this.assertWritable();
-        const completedAt = this.now().toISOString();
-        const changed = this.db.execute(`UPDATE durable_agents SET
+  async completeRun(
+    id: string,
+    token: string,
+    result: DurableRunCompletion,
+  ): Promise<DurableAgent> {
+    this.assertWritable();
+    const completedAt = this.now().toISOString();
+    const changed = this.db.execute(
+      `UPDATE durable_agents SET
             state = ?, session_health = ?, active_run_token = NULL, active_owner_pid = NULL,
             active_owner_started_at = NULL, active_provider_pid = NULL, active_provider_started_at = NULL,
             active_run_started_at = NULL, last_active_at = ?, updated_at = ?, last_result_status = ?,
             last_result_completed_at = ?, last_result_exit_code = ?, last_result_summary = ?
-            WHERE id = ? AND state = 'running' AND active_run_token = ?`, [
-            result.status === 'succeeded' ? 'ready' : 'degraded', result.sessionHealth, completedAt, completedAt,
-            result.status, completedAt, result.exitCode, result.summary.slice(0, 4096), id, token,
-        ]);
-        if (changed.changes !== 1) throw new DurableAgentRepositoryError('Print run ownership changed.');
-        return this.requireById(id);
-    }
+            WHERE id = ? AND state = 'running' AND active_run_token = ?`,
+      [
+        result.status === "succeeded" ? "ready" : "degraded",
+        result.sessionHealth,
+        completedAt,
+        completedAt,
+        result.status,
+        completedAt,
+        result.exitCode,
+        result.summary.slice(0, 4096),
+        id,
+        token,
+      ],
+    );
+    if (changed.changes !== 1)
+      throw new DurableAgentRepositoryError("Print run ownership changed.");
+    return this.requireById(id);
+  }
 
-    async reconcile(): Promise<void> {
-        this.assertWritable();
-        const running = this.listRaw().filter((agent) => agent.state === 'running' && agent.activeRun);
-        for (const snapshot of running) {
-            if (this.isActive(snapshot.activeRun!)) continue;
-            const completedAt = this.now().toISOString();
-            this.db.execute(`UPDATE durable_agents SET
+  async reconcile(): Promise<void> {
+    this.assertWritable();
+    const running = this.listRaw().filter((agent) => agent.state === "running" && agent.activeRun);
+    for (const snapshot of running) {
+      if (this.isActive(snapshot.activeRun!)) continue;
+      const completedAt = this.now().toISOString();
+      this.db.execute(
+        `UPDATE durable_agents SET
                 state = 'degraded', session_health = 'unknown', active_run_token = NULL,
                 active_owner_pid = NULL, active_owner_started_at = NULL, active_provider_pid = NULL,
                 active_provider_started_at = NULL, active_run_started_at = NULL, updated_at = ?, last_active_at = ?,
                 last_result_status = 'interrupted', last_result_completed_at = ?, last_result_exit_code = NULL,
                 last_result_summary = 'Previous print run was interrupted.'
                 WHERE id = ? AND state = 'running' AND active_run_token = ?
-                    AND active_owner_started_at = ? AND active_run_started_at = ?`, [
-                completedAt, completedAt, completedAt, snapshot.id, snapshot.activeRun!.token,
-                snapshot.activeRun!.owner.startedAt, snapshot.activeRun!.startedAt,
-            ]);
-        }
+                    AND active_owner_started_at = ? AND active_run_started_at = ?`,
+        [
+          completedAt,
+          completedAt,
+          completedAt,
+          snapshot.id,
+          snapshot.activeRun!.token,
+          snapshot.activeRun!.owner.startedAt,
+          snapshot.activeRun!.startedAt,
+        ],
+      );
     }
+  }
 
-    private immediate<T>(operation: () => T): T {
-        this.db.instance.exec('BEGIN IMMEDIATE');
-        try {
-            const result = operation();
-            this.db.instance.exec('COMMIT');
-            return result;
-        } catch (error) {
-            try { this.db.instance.exec('ROLLBACK'); } catch { /* retain original failure */ }
-            throw error;
-        }
+  private immediate<T>(operation: () => T): T {
+    this.db.instance.exec("BEGIN IMMEDIATE");
+    try {
+      const result = operation();
+      this.db.instance.exec("COMMIT");
+      return result;
+    } catch (error) {
+      try {
+        this.db.instance.exec("ROLLBACK");
+      } catch {
+        /* retain original failure */
+      }
+      throw error;
     }
+  }
 
-    private listRaw(): DurableAgent[] {
-        try {
-            return this.db.query<DurableAgentRow>(
-                'SELECT * FROM durable_agents ORDER BY updated_at DESC, name COLLATE NOCASE',
-            ).map((row) => this.fromRow(row));
-        } catch (error) {
-            throw this.storageError('Failed to read durable-agent database', error);
-        }
+  private listRaw(): DurableAgent[] {
+    try {
+      return this.db
+        .query<DurableAgentRow>(
+          "SELECT * FROM durable_agents ORDER BY updated_at DESC, name COLLATE NOCASE",
+        )
+        .map((row) => this.fromRow(row));
+    } catch (error) {
+      throw this.storageError("Failed to read durable-agent database", error);
     }
+  }
 
-    private findById(id: string): DurableAgent | null {
-        const row = this.db.queryOne<DurableAgentRow>('SELECT * FROM durable_agents WHERE id = ?', [id]);
-        return row ? this.fromRow(row) : null;
+  private findById(id: string): DurableAgent | null {
+    const row = this.db.queryOne<DurableAgentRow>("SELECT * FROM durable_agents WHERE id = ?", [
+      id,
+    ]);
+    return row ? this.fromRow(row) : null;
+  }
+
+  private requireById(id: string): DurableAgent {
+    const agent = this.findById(id);
+    if (!agent) throw new DurableAgentNotFoundError(id);
+    return agent;
+  }
+
+  private fromRow(row: DurableAgentRow): DurableAgent {
+    if (
+      !["claude", "codex", "pi"].includes(row.provider) ||
+      (row.provider !== "codex" && row.provider_session_id === null)
+    ) {
+      throw new DurableAgentRepositoryError(`Invalid durable-agent provider record: ${row.id}`);
     }
-
-    private requireById(id: string): DurableAgent {
-        const agent = this.findById(id);
-        if (!agent) throw new DurableAgentNotFoundError(id);
-        return agent;
-    }
-
-    private fromRow(row: DurableAgentRow): DurableAgent {
-        if (!['claude', 'codex', 'pi'].includes(row.provider)
-            || (row.provider !== 'codex' && row.provider_session_id === null)) {
-            throw new DurableAgentRepositoryError(`Invalid durable-agent provider record: ${row.id}`);
-        }
-        const activeRun: DurableActiveRun | null = row.active_run_token === null ? null : {
+    const activeRun: DurableActiveRun | null =
+      row.active_run_token === null
+        ? null
+        : {
             token: row.active_run_token,
             owner: { pid: row.active_owner_pid!, startedAt: row.active_owner_started_at! },
-            provider: row.active_provider_pid === null ? null : {
-                pid: row.active_provider_pid, startedAt: row.active_provider_started_at!,
-            },
+            provider:
+              row.active_provider_pid === null
+                ? null
+                : {
+                    pid: row.active_provider_pid,
+                    startedAt: row.active_provider_started_at!,
+                  },
             startedAt: row.active_run_started_at!,
-        };
-        const base = {
-            id: row.id, name: row.name, provider: row.provider, mode: row.mode, cwd: row.cwd,
-            state: row.state, sessionHealth: row.session_health,
-            createdAt: row.created_at, updatedAt: row.updated_at, lastActiveAt: row.last_active_at,
-            lastResult: row.last_result_status === null ? null : {
-                status: row.last_result_status, completedAt: row.last_result_completed_at!,
-                exitCode: row.last_result_exit_code, summary: row.last_result_summary ?? '',
+          };
+    const base = {
+      id: row.id,
+      name: row.name,
+      provider: row.provider,
+      mode: row.mode,
+      cwd: row.cwd,
+      state: row.state,
+      sessionHealth: row.session_health,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      lastActiveAt: row.last_active_at,
+      lastResult:
+        row.last_result_status === null
+          ? null
+          : {
+              status: row.last_result_status,
+              completedAt: row.last_result_completed_at!,
+              exitCode: row.last_result_exit_code,
+              summary: row.last_result_summary ?? "",
             },
-            activeRun,
-        };
-        if (row.provider === 'claude') {
-            return { ...base, provider: 'claude', providerSessionId: row.provider_session_id! };
-        }
-        if (row.provider === 'pi') {
-            return { ...base, provider: 'pi', providerSessionId: row.provider_session_id! };
-        }
-        return { ...base, provider: 'codex', providerSessionId: row.provider_session_id };
+      activeRun,
+    };
+    if (row.provider === "claude") {
+      return { ...base, provider: "claude", providerSessionId: row.provider_session_id! };
     }
+    if (row.provider === "pi") {
+      return { ...base, provider: "pi", providerSessionId: row.provider_session_id! };
+    }
+    return { ...base, provider: "codex", providerSessionId: row.provider_session_id };
+  }
 
-    private canonicalDirectory(input: string): string {
-        try {
-            const resolved = fs.realpathSync(input);
-            if (!fs.statSync(resolved).isDirectory()) throw new Error('not a directory');
-            return resolved;
-        } catch {
-            throw new DurableAgentRepositoryError(`Durable agent cwd is not an existing directory: ${input}`);
-        }
+  private canonicalDirectory(input: string): string {
+    try {
+      const resolved = fs.realpathSync(input);
+      if (!fs.statSync(resolved).isDirectory()) throw new Error("not a directory");
+      return resolved;
+    } catch {
+      throw new DurableAgentRepositoryError(
+        `Durable agent cwd is not an existing directory: ${input}`,
+      );
     }
+  }
 
-    private validateBoundCwd(bound: string): void {
-        try {
-            const stat = fs.lstatSync(bound);
-            if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(bound) !== bound) throw new Error('binding changed');
-        } catch {
-            throw new DurableAgentRepositoryError(`Durable agent cwd binding is no longer safe: ${bound}`);
-        }
+  private validateBoundCwd(bound: string): void {
+    try {
+      const stat = fs.lstatSync(bound);
+      if (!stat.isDirectory() || stat.isSymbolicLink() || fs.realpathSync(bound) !== bound)
+        throw new Error("binding changed");
+    } catch {
+      throw new DurableAgentRepositoryError(
+        `Durable agent cwd binding is no longer safe: ${bound}`,
+      );
     }
+  }
 
-    private isActive(metadata: DurableActiveRun): boolean {
-        return this.sameProcess(metadata.owner) || (metadata.provider !== null && this.sameProcess(metadata.provider));
-    }
+  private isActive(metadata: DurableActiveRun): boolean {
+    return (
+      this.sameProcess(metadata.owner) ||
+      (metadata.provider !== null && this.sameProcess(metadata.provider))
+    );
+  }
 
-    private sameProcess(expected: ProcessIdentity): boolean {
-        const actual = this.processInspector.getIdentity(expected.pid);
-        return actual !== null && actual.startedAt === expected.startedAt;
-    }
+  private sameProcess(expected: ProcessIdentity): boolean {
+    const actual = this.processInspector.getIdentity(expected.pid);
+    return actual !== null && actual.startedAt === expected.startedAt;
+  }
 
-    private assertWritable(): void {
-        if (this.readonly) throw new DurableAgentRepositoryError('Durable-agent repository is readonly.');
-    }
+  private assertWritable(): void {
+    if (this.readonly)
+      throw new DurableAgentRepositoryError("Durable-agent repository is readonly.");
+  }
 
-    private storageError(prefix: string, error: unknown): DurableAgentRepositoryError {
-        return error instanceof DurableAgentRepositoryError ? error
-            : new DurableAgentRepositoryError(`${prefix}: ${(error as Error).message}`);
-    }
+  private storageError(prefix: string, error: unknown): DurableAgentRepositoryError {
+    return error instanceof DurableAgentRepositoryError
+      ? error
+      : new DurableAgentRepositoryError(`${prefix}: ${(error as Error).message}`);
+  }
 }

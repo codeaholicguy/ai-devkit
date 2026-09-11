@@ -1,13 +1,13 @@
-import type { AgentRuntimeProvider } from '@ai-devkit/agent-manager';
+import type { AgentRuntimeProvider } from "@ai-devkit/agent-manager";
 
 export type Phase =
-  | 'requirements'
-  | 'design'
-  | 'planning'
-  | 'implementation'
-  | 'testing'
-  | 'deployment'
-  | 'monitoring';
+  | "requirements"
+  | "design"
+  | "planning"
+  | "implementation"
+  | "testing"
+  | "deployment"
+  | "monitoring";
 
 export interface EnvironmentDefinition {
   code: string;
@@ -18,9 +18,25 @@ export interface EnvironmentDefinition {
   mcpConfigPath?: string;
 }
 
-export type EnvironmentCode = 'cursor' | 'claude' | 'github' | 'gemini' | 'grok' | 'codex' | 'kilocode' | 'amp' | 'opencode' | 'roo' | 'antigravity' | 'antigravity-cli' | 'junie' | 'cline' | 'devin' | 'pi';
+export type EnvironmentCode =
+  | "cursor"
+  | "claude"
+  | "github"
+  | "gemini"
+  | "grok"
+  | "codex"
+  | "kilocode"
+  | "amp"
+  | "opencode"
+  | "roo"
+  | "antigravity"
+  | "antigravity-cli"
+  | "junie"
+  | "cline"
+  | "devin"
+  | "pi";
 
-export const DEFAULT_DOCS_DIR = 'docs/ai';
+export const DEFAULT_DOCS_DIR = "docs/ai";
 
 export interface DevKitConfig {
   version: string;
@@ -44,9 +60,9 @@ export interface ConfigSkill {
   name: string;
 }
 
-export type McpTransport = 'stdio' | 'http' | 'sse';
+export type McpTransport = "stdio" | "http" | "sse";
 
-export const MCP_TRANSPORTS: McpTransport[] = ['stdio', 'http', 'sse'];
+export const MCP_TRANSPORTS: McpTransport[] = ["stdio", "http", "sse"];
 
 export interface McpServerDefinition {
   transport: McpTransport;
@@ -76,29 +92,29 @@ export interface PhaseMetadata {
 }
 
 export const AVAILABLE_PHASES: Phase[] = [
-  'requirements',
-  'design',
-  'planning',
-  'implementation',
-  'testing',
-  'deployment',
-  'monitoring'
+  "requirements",
+  "design",
+  "planning",
+  "implementation",
+  "testing",
+  "deployment",
+  "monitoring",
 ];
 
 export const DEFAULT_PHASES: Phase[] = [
-  'requirements',
-  'design',
-  'planning',
-  'implementation',
-  'testing'
+  "requirements",
+  "design",
+  "planning",
+  "implementation",
+  "testing",
 ];
 
 export const PHASE_DISPLAY_NAMES: Record<Phase, string> = {
-  requirements: 'Requirements & Problem Understanding',
-  design: 'System Design & Architecture',
-  planning: 'Project Planning & Task Breakdown',
-  implementation: 'Implementation Guide',
-  testing: 'Testing Strategy',
-  deployment: 'Deployment Strategy',
-  monitoring: 'Monitoring & Observability'
+  requirements: "Requirements & Problem Understanding",
+  design: "System Design & Architecture",
+  planning: "Project Planning & Task Breakdown",
+  implementation: "Implementation Guide",
+  testing: "Testing Strategy",
+  deployment: "Deployment Strategy",
+  monitoring: "Monitoring & Observability",
 };

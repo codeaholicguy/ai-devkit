@@ -1,10 +1,10 @@
-import { FEATURE_NAME_PATTERN } from '../constants.js';
-import { FeatureTarget, LintCheckResult } from '../types.js';
-import { createMissingCheck } from './check-factories.js';
+import { FEATURE_NAME_PATTERN } from "../constants.js";
+import { FeatureTarget, LintCheckResult } from "../types.js";
+import { createMissingCheck } from "./check-factories.js";
 
 export function normalizeFeatureName(input: string): string {
   const trimmed = input.trim();
-  return trimmed.startsWith('feature-') ? trimmed.slice('feature-'.length) : trimmed;
+  return trimmed.startsWith("feature-") ? trimmed.slice("feature-".length) : trimmed;
 }
 
 export function validateFeatureNameRule(rawFeature: string): {
@@ -15,7 +15,7 @@ export function validateFeatureNameRule(rawFeature: string): {
   const target: FeatureTarget = {
     raw: rawFeature,
     normalizedName,
-    branchName: `feature-${normalizedName}`
+    branchName: `feature-${normalizedName}`,
   };
 
   if (FEATURE_NAME_PATTERN.test(normalizedName)) {
@@ -25,10 +25,10 @@ export function validateFeatureNameRule(rawFeature: string): {
   return {
     target,
     check: createMissingCheck(
-      'feature-name',
-      'feature-docs',
+      "feature-name",
+      "feature-docs",
       `Invalid feature name: ${rawFeature}`,
-      'Use kebab-case and optionally prefix with feature- (example: lint-command or feature-lint-command).'
-    )
+      "Use kebab-case and optionally prefix with feature- (example: lint-command or feature-lint-command).",
+    ),
   };
 }

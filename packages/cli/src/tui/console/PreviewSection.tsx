@@ -1,66 +1,63 @@
-import React, { useMemo } from 'react';
-import { PreviewPane } from './PreviewPane.js';
-import {
-    useConsoleAgentContext,
-    useConsoleChannelContext,
-} from './state/ConsoleContext.js';
-import { useAgentConversation } from './hooks/useAgentConversation.js';
-import { Panel } from '../design-system/index.js';
-import { getPreviewPanelTone } from './PreviewPane.js';
+import React, { useMemo } from "react";
+import { PreviewPane } from "./PreviewPane.js";
+import { useConsoleAgentContext, useConsoleChannelContext } from "./state/ConsoleContext.js";
+import { useAgentConversation } from "./hooks/useAgentConversation.js";
+import { Panel } from "../design-system/index.js";
+import { getPreviewPanelTone } from "./PreviewPane.js";
 
 interface PreviewSectionProps {
-    selectedName: string | null;
-    height: number;
-    contentWidth?: number;
-    focused?: boolean;
-    scrollOffset?: number;
-    onScrollOffsetClamp?: (offset: number) => void;
+  selectedName: string | null;
+  height: number;
+  contentWidth?: number;
+  focused?: boolean;
+  scrollOffset?: number;
+  onScrollOffsetClamp?: (offset: number) => void;
 }
 
 const PreviewSectionInner: React.FC<PreviewSectionProps> = ({
-    selectedName,
-    height,
-    contentWidth = 80,
-    focused = false,
-    scrollOffset = 0,
-    onScrollOffsetClamp,
+  selectedName,
+  height,
+  contentWidth = 80,
+  focused = false,
+  scrollOffset = 0,
+  onScrollOffsetClamp,
 }) => {
-    const { agents, manager, inputFocused } = useConsoleAgentContext();
-    const { channelStatuses } = useConsoleChannelContext();
-    const selectedAgent = useMemo(
-        () => agents.find(a => a.name === selectedName) ?? null,
-        [agents, selectedName],
-    );
-    const { messages, error, isLoading } = useAgentConversation({
-        manager,
-        agent: selectedAgent,
-        paused: inputFocused,
-    });
+  const { agents, manager, inputFocused } = useConsoleAgentContext();
+  const { channelStatuses } = useConsoleChannelContext();
+  const selectedAgent = useMemo(
+    () => agents.find((a) => a.name === selectedName) ?? null,
+    [agents, selectedName],
+  );
+  const { messages, error, isLoading } = useAgentConversation({
+    manager,
+    agent: selectedAgent,
+    paused: inputFocused,
+  });
 
-    const channelStatus = selectedAgent ? channelStatuses[selectedAgent.name] : undefined;
+  const channelStatus = selectedAgent ? channelStatuses[selectedAgent.name] : undefined;
 
-    return (
-        <Panel
-            height={height}
-            focused={focused}
-            paddingX={1}
-            flexDirection="column"
-            flexShrink={0}
-            tone={getPreviewPanelTone(channelStatus)}
-        >
-            <PreviewPane
-                agent={selectedAgent}
-                messages={messages}
-                error={error}
-                isLoading={isLoading}
-                maxLines={Math.max(4, height - 2)}
-                contentWidth={contentWidth}
-                channelStatus={channelStatus}
-                scrollOffset={scrollOffset}
-                onScrollOffsetClamp={onScrollOffsetClamp}
-            />
-        </Panel>
-    );
+  return (
+    <Panel
+      height={height}
+      focused={focused}
+      paddingX={1}
+      flexDirection="column"
+      flexShrink={0}
+      tone={getPreviewPanelTone(channelStatus)}
+    >
+      <PreviewPane
+        agent={selectedAgent}
+        messages={messages}
+        error={error}
+        isLoading={isLoading}
+        maxLines={Math.max(4, height - 2)}
+        contentWidth={contentWidth}
+        channelStatus={channelStatus}
+        scrollOffset={scrollOffset}
+        onScrollOffsetClamp={onScrollOffsetClamp}
+      />
+    </Panel>
+  );
 };
 
 export const PreviewSection = React.memo(PreviewSectionInner);

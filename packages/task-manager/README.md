@@ -9,25 +9,25 @@ or PR, and an append-only event history.
 ## Quick Start
 
 ```ts
-import { createTaskService } from '@ai-devkit/task-manager';
+import { createTaskService } from "@ai-devkit/task-manager";
 
 const service = createTaskService(); // Uses ~/.ai-devkit/tasks.db
 
 const task = await service.create({
-  title: 'Ship feature X',
-  name: 'feature-x',
-  phase: 'requirements',
+  title: "Ship feature X",
+  name: "feature-x",
+  phase: "requirements",
 });
 
-await service.setPhase(task.taskId, 'design');
-await service.setProgress(task.taskId, { text: 'implementation started' });
+await service.setPhase(task.taskId, "design");
+await service.setProgress(task.taskId, { text: "implementation started" });
 await service.addEvidence(task.taskId, {
-  command: 'nx test',
+  command: "nx test",
   exitCode: 0,
   passed: true,
-  summary: 'all green',
+  summary: "all green",
 });
-await service.close(task.taskId, 'completed');
+await service.close(task.taskId, "completed");
 ```
 
 ## CLI

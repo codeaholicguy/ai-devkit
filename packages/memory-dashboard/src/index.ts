@@ -1,1 +1,1 @@
-export { register } from './command.js';
+export { register } from "./command.js";

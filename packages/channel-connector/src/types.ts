@@ -3,15 +3,15 @@
  * Generic — no agent-specific concepts.
  */
 export interface IncomingMessage {
-    channelType: string;
-    chatId: string;
-    userId: string;
-    text: string;
-    timestamp: Date;
-    messageId?: string;
-    threadId?: string;
-    workspaceId?: string;
-    metadata?: Record<string, unknown>;
+  channelType: string;
+  chatId: string;
+  userId: string;
+  text: string;
+  timestamp: Date;
+  messageId?: string;
+  threadId?: string;
+  workspaceId?: string;
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -24,30 +24,30 @@ export type MessageHandler = (message: IncomingMessage) => Promise<void>;
  * Root configuration for all channels.
  */
 export interface ChannelConfig {
-    channels: Record<string, ChannelEntry>;
+  channels: Record<string, ChannelEntry>;
 }
 
 /**
  * Configuration entry for a single channel.
  */
 interface BaseChannelEntry {
-    enabled: boolean;
-    createdAt: string;
+  enabled: boolean;
+  createdAt: string;
 }
 
 export interface TelegramChannelEntry extends BaseChannelEntry {
-    type: 'telegram';
-    config: TelegramConfig;
+  type: "telegram";
+  config: TelegramConfig;
 }
 
 export interface SlackChannelEntry extends BaseChannelEntry {
-    type: 'slack';
-    config: SlackConfig;
+  type: "slack";
+  config: SlackConfig;
 }
 
 export interface OtherChannelEntry extends BaseChannelEntry {
-    type: Exclude<ChannelType, 'telegram' | 'slack'>;
-    config: Record<string, unknown>;
+  type: Exclude<ChannelType, "telegram" | "slack">;
+  config: Record<string, unknown>;
 }
 
 export type ChannelEntry = TelegramChannelEntry | SlackChannelEntry | OtherChannelEntry;
@@ -55,65 +55,65 @@ export type ChannelEntry = TelegramChannelEntry | SlackChannelEntry | OtherChann
 /**
  * Supported channel types.
  */
-export type ChannelType = 'telegram' | 'slack' | 'whatsapp';
+export type ChannelType = "telegram" | "slack" | "whatsapp";
 
 /**
  * Telegram-specific configuration.
  */
 export interface TelegramConfig {
-    botToken: string;
-    botUsername: string;
-    authorizedChatId?: number;
+  botToken: string;
+  botUsername: string;
+  authorizedChatId?: number;
 }
 
 export interface SlackConfig {
-    appToken: string;
-    botToken: string;
-    appId?: string;
-    botUserId: string;
-    workspaceId: string;
-    workspaceName?: string;
-    transport: 'socket-mode';
-    audience: 'dm';
+  appToken: string;
+  botToken: string;
+  appId?: string;
+  botUserId: string;
+  workspaceId: string;
+  workspaceName?: string;
+  transport: "socket-mode";
+  audience: "dm";
 }
 
 export function isSlackEntry(entry: ChannelEntry): entry is SlackChannelEntry {
-    return entry.type === 'slack';
+  return entry.type === "slack";
 }
 
 export interface SendMessageOptions {
-    threadId?: string;
+  threadId?: string;
 }
 
 export interface SentMessage {
-    messageId: string;
-    threadId?: string;
+  messageId: string;
+  threadId?: string;
 }
 
 export interface ChannelQuestionOption {
-    label: string;
-    description?: string;
-    value: string;
+  label: string;
+  description?: string;
+  value: string;
 }
 
 export interface ChannelQuestion {
-    id: string;
-    question: string;
-    header?: string;
-    options: ChannelQuestionOption[];
-    allowSkip: boolean;
+  id: string;
+  question: string;
+  header?: string;
+  options: ChannelQuestionOption[];
+  allowSkip: boolean;
 }
 
 export interface IncomingInteraction {
-    channelType: string;
-    chatId: string;
-    userId: string;
-    interactionId: string;
-    messageId: string;
-    actionId: string;
-    value: string;
-    workspaceId?: string;
-    timestamp: Date;
+  channelType: string;
+  chatId: string;
+  userId: string;
+  interactionId: string;
+  messageId: string;
+  actionId: string;
+  value: string;
+  workspaceId?: string;
+  timestamp: Date;
 }
 
 export type InteractionHandler = (interaction: IncomingInteraction) => Promise<void>;
@@ -122,8 +122,8 @@ export type InteractionHandler = (interaction: IncomingInteraction) => Promise<v
  * A single button in a Telegram-style inline keyboard.
  */
 export interface InlineKeyboardButton {
-    text: string;
-    callbackData: string;
+  text: string;
+  callbackData: string;
 }
 
 /**
@@ -135,13 +135,13 @@ export type InlineKeyboard = InlineKeyboardButton[][];
  * An inline-keyboard tap delivered as a callback_query.
  */
 export interface IncomingCallback {
-    channelType: string;
-    chatId: string;
-    userId: string;
-    messageId: number;
-    callbackData: string;
-    callbackQueryId: string;
-    timestamp: Date;
+  channelType: string;
+  chatId: string;
+  userId: string;
+  messageId: number;
+  callbackData: string;
+  callbackQueryId: string;
+  timestamp: Date;
 }
 
 /**

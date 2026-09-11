@@ -1,5 +1,5 @@
-import { GitExecFileSync } from '../../util/git.js';
-import { LINT_LEVEL } from './constants.js';
+import { GitExecFileSync } from "../../util/git.js";
+import { LINT_LEVEL } from "./constants.js";
 
 export interface LintOptions {
   feature?: string;
@@ -11,7 +11,7 @@ export type LintLevel = (typeof LINT_LEVEL)[keyof typeof LINT_LEVEL];
 export interface LintCheckResult {
   id: string;
   level: LintLevel;
-  category: 'base-docs' | 'feature-docs' | 'git-worktree';
+  category: "base-docs" | "feature-docs" | "git-worktree";
   required: boolean;
   message: string;
   fix?: string;

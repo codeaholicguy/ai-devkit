@@ -48,7 +48,7 @@ export class TemplateManager {
 
   async copyFeatureDocTemplates(
     featureName: string,
-    options: FeatureDocTemplateOptions
+    options: FeatureDocTemplateOptions,
   ): Promise<FeatureDoc[]> {
     const docsDir = options.docsDir ?? this.docsDir;
     const docs = options.phases.map((phase) => {
@@ -60,19 +60,19 @@ export class TemplateManager {
         sourceFile: path.join(this.templatesDir, "phases", `${phase}.md`),
         targetDir: path.join(this.targetDir, docsDir, phase),
         targetFile: path.join(this.targetDir, relativePath),
-        relativePath
+        relativePath,
       };
     });
 
     const missingTemplates: string[] = [];
     for (const doc of docs) {
-      if (!await fs.pathExists(doc.sourceFile)) {
+      if (!(await fs.pathExists(doc.sourceFile))) {
         missingTemplates.push(path.join("phases", `${doc.phase}.md`));
       }
     }
 
     if (missingTemplates.length > 0) {
-      throw new Error(`Phase templates not found: ${missingTemplates.join(', ')}`);
+      throw new Error(`Phase templates not found: ${missingTemplates.join(", ")}`);
     }
 
     const existingFiles: string[] = [];
@@ -83,7 +83,7 @@ export class TemplateManager {
     }
 
     if (existingFiles.length > 0) {
-      throw new Error(`Feature docs already exist: ${existingFiles.join(', ')}`);
+      throw new Error(`Feature docs already exist: ${existingFiles.join(", ")}`);
     }
 
     const created: FeatureDoc[] = [];
@@ -93,7 +93,7 @@ export class TemplateManager {
       created.push({
         phase: doc.phase,
         path: doc.targetFile,
-        relativePath: doc.relativePath
+        relativePath: doc.relativePath,
       });
     }
 
@@ -101,18 +101,11 @@ export class TemplateManager {
   }
 
   async fileExists(phase: Phase): Promise<boolean> {
-    const targetFile = path.join(
-      this.targetDir,
-      this.docsDir,
-      phase,
-      "README.md"
-    );
+    const targetFile = path.join(this.targetDir, this.docsDir, phase, "README.md");
     return fs.pathExists(targetFile);
   }
 
-  async setupMultipleEnvironments(
-    environmentCodes: EnvironmentCode[]
-  ): Promise<string[]> {
+  async setupMultipleEnvironments(environmentCodes: EnvironmentCode[]): Promise<string[]> {
     const copiedFiles: string[] = [];
 
     for (const envCode of environmentCodes) {
@@ -126,7 +119,9 @@ export class TemplateManager {
         const envFiles = await this.setupSingleEnvironment(env);
         copiedFiles.push(...envFiles);
       } catch (error) {
-        ui.error(`Error setting up environment '${env.name}': ${error instanceof Error ? error.message : String(error)}`);
+        ui.error(
+          `Error setting up environment '${env.name}': ${error instanceof Error ? error.message : String(error)}`,
+        );
         throw error; // Re-throw to stop the entire process on failure
       }
     }
@@ -148,9 +143,7 @@ export class TemplateManager {
     return false;
   }
 
-  private async setupSingleEnvironment(
-    env: EnvironmentDefinition
-  ): Promise<string[]> {
+  private async setupSingleEnvironment(env: EnvironmentDefinition): Promise<string[]> {
     const copiedFiles: string[] = [];
 
     try {
@@ -162,7 +155,9 @@ export class TemplateManager {
           break;
       }
     } catch (error) {
-      ui.error(`Error setting up environment '${env.name}': ${error instanceof Error ? error.message : String(error)}`);
+      ui.error(
+        `Error setting up environment '${env.name}': ${error instanceof Error ? error.message : String(error)}`,
+      );
       throw error;
     }
 
@@ -170,12 +165,7 @@ export class TemplateManager {
   }
 
   private async copyCursorSpecificFiles(copiedFiles: string[]): Promise<void> {
-    const rulesSourceDir = path.join(
-      this.templatesDir,
-      "env",
-      "cursor",
-      "rules"
-    );
+    const rulesSourceDir = path.join(this.templatesDir, "env", "cursor", "rules");
     const rulesTargetDir = path.join(this.targetDir, ".cursor", "rules");
 
     if (await fs.pathExists(rulesSourceDir)) {
@@ -188,5 +178,4 @@ export class TemplateManager {
       });
     }
   }
-
 }

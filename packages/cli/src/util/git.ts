@@ -1,21 +1,21 @@
-import { execFile, execFileSync } from 'child_process';
-import { promisify } from 'util';
-import fs from 'fs-extra';
-import * as path from 'path';
-import { GitError } from './errors.js';
-import { ui } from './terminal-ui.js';
+import { execFile, execFileSync } from "child_process";
+import { promisify } from "util";
+import fs from "fs-extra";
+import * as path from "path";
+import { GitError } from "./errors.js";
+import { ui } from "./terminal-ui.js";
 
 const execFileAsync = promisify(execFile);
 export type GitExecFileSync = (
   file: string,
   args: readonly string[],
-  options?: { cwd?: string; stdio?: 'ignore' | 'pipe'; encoding?: BufferEncoding }
+  options?: { cwd?: string; stdio?: "ignore" | "pipe"; encoding?: BufferEncoding },
 ) => string | Buffer;
 
 const defaultExecFileSync: GitExecFileSync = (
   file: string,
   args: readonly string[],
-  options?: { cwd?: string; stdio?: 'ignore' | 'pipe'; encoding?: BufferEncoding }
+  options?: { cwd?: string; stdio?: "ignore" | "pipe"; encoding?: BufferEncoding },
 ) => execFileSync(file, args, options);
 
 /**
@@ -24,10 +24,10 @@ const defaultExecFileSync: GitExecFileSync = (
  */
 export async function ensureGitInstalled(): Promise<void> {
   try {
-    await execFileAsync('git', ['--version']);
+    await execFileAsync("git", ["--version"]);
   } catch {
     throw new GitError(
-      'Git is not installed or not in PATH. Please install Git: https://git-scm.com/downloads'
+      "Git is not installed or not in PATH. Please install Git: https://git-scm.com/downloads",
     );
   }
 }
@@ -40,7 +40,11 @@ export async function ensureGitInstalled(): Promise<void> {
  * @returns Path to cloned repository
  * @throws Error if clone fails or times out
  */
-export async function cloneRepository(targetDir: string, repoName: string, gitUrl: string): Promise<string> {
+export async function cloneRepository(
+  targetDir: string,
+  repoName: string,
+  gitUrl: string,
+): Promise<string> {
   const repoPath = path.join(targetDir, repoName);
 
   if (await fs.pathExists(repoPath)) {
@@ -52,14 +56,16 @@ export async function cloneRepository(targetDir: string, repoName: string, gitUr
   await fs.ensureDir(path.dirname(repoPath));
 
   try {
-    await execFileAsync('git', ['clone', '--depth', '1', '--single-branch', gitUrl, repoPath], {
+    await execFileAsync("git", ["clone", "--depth", "1", "--single-branch", gitUrl, repoPath], {
       timeout: 60000,
     });
-    ui.text('  → Clone complete');
+    ui.text("  → Clone complete");
     return repoPath;
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new GitError(`Git clone failed: ${message}. Check network and git installation.`, { gitUrl });
+    throw new GitError(`Git clone failed: ${message}. Check network and git installation.`, {
+      gitUrl,
+    });
   }
 }
 
@@ -69,7 +75,7 @@ export async function cloneRepository(targetDir: string, repoName: string, gitUr
  * @returns true if .git directory exists
  */
 export async function isGitRepository(dirPath: string): Promise<boolean> {
-  const gitDir = path.join(dirPath, '.git');
+  const gitDir = path.join(dirPath, ".git");
   return await fs.pathExists(gitDir);
 }
 
@@ -80,7 +86,7 @@ export async function isGitRepository(dirPath: string): Promise<boolean> {
  */
 export async function pullRepository(repoPath: string): Promise<void> {
   try {
-    await execFileAsync('git', ['pull'], {
+    await execFileAsync("git", ["pull"], {
       cwd: repoPath,
       timeout: 60000,
     });
@@ -98,11 +104,11 @@ export async function pullRepository(repoPath: string): Promise<void> {
  */
 export async function fetchGitHead(gitUrl: string): Promise<string> {
   try {
-    const { stdout } = await execFileAsync('git', ['ls-remote', gitUrl, 'HEAD']);
+    const { stdout } = await execFileAsync("git", ["ls-remote", gitUrl, "HEAD"]);
     const match = stdout.trim().match(/^([a-f0-9]+)\s+HEAD$/m);
 
     if (!match) {
-      throw new GitError('Could not parse HEAD from ls-remote output', { gitUrl });
+      throw new GitError("Could not parse HEAD from ls-remote output", { gitUrl });
     }
 
     return match[1];
@@ -113,18 +119,21 @@ export async function fetchGitHead(gitUrl: string): Promise<string> {
 }
 
 function normalizeExecResult(result: string | Buffer): string {
-  return Buffer.isBuffer(result) ? result.toString('utf8').trim() : result.trim();
+  return Buffer.isBuffer(result) ? result.toString("utf8").trim() : result.trim();
 }
 
-export function isInsideGitWorkTreeSync(cwd: string, execFileSyncFn: GitExecFileSync = defaultExecFileSync): boolean {
+export function isInsideGitWorkTreeSync(
+  cwd: string,
+  execFileSyncFn: GitExecFileSync = defaultExecFileSync,
+): boolean {
   try {
-    const result = execFileSyncFn('git', ['rev-parse', '--is-inside-work-tree'], {
+    const result = execFileSyncFn("git", ["rev-parse", "--is-inside-work-tree"], {
       cwd,
-      stdio: 'pipe',
-      encoding: 'utf8'
+      stdio: "pipe",
+      encoding: "utf8",
     });
 
-    return normalizeExecResult(result) === 'true';
+    return normalizeExecResult(result) === "true";
   } catch {
     return false;
   }
@@ -133,12 +142,12 @@ export function isInsideGitWorkTreeSync(cwd: string, execFileSyncFn: GitExecFile
 export function localBranchExistsSync(
   cwd: string,
   branchName: string,
-  execFileSyncFn: GitExecFileSync = defaultExecFileSync
+  execFileSyncFn: GitExecFileSync = defaultExecFileSync,
 ): boolean {
   try {
-    execFileSyncFn('git', ['show-ref', '--verify', '--quiet', `refs/heads/${branchName}`], {
+    execFileSyncFn("git", ["show-ref", "--verify", "--quiet", `refs/heads/${branchName}`], {
       cwd,
-      stdio: 'ignore'
+      stdio: "ignore",
     });
     return true;
   } catch {
@@ -149,38 +158,38 @@ export function localBranchExistsSync(
 export function getWorktreePathsForBranchSync(
   cwd: string,
   branchName: string,
-  execFileSyncFn: GitExecFileSync = defaultExecFileSync
+  execFileSyncFn: GitExecFileSync = defaultExecFileSync,
 ): string[] {
   try {
-    const raw = execFileSyncFn('git', ['worktree', 'list', '--porcelain'], {
+    const raw = execFileSyncFn("git", ["worktree", "list", "--porcelain"], {
       cwd,
-      stdio: 'pipe',
-      encoding: 'utf8'
+      stdio: "pipe",
+      encoding: "utf8",
     });
 
     const output = normalizeExecResult(raw);
-    const lines = output.split('\n');
+    const lines = output.split("\n");
     const matches: string[] = [];
 
-    let currentPath = '';
-    let currentBranch = '';
+    let currentPath = "";
+    let currentBranch = "";
 
     for (const line of lines) {
       if (!line.trim()) {
         if (currentBranch === `refs/heads/${branchName}` && currentPath) {
           matches.push(currentPath);
         }
-        currentPath = '';
-        currentBranch = '';
+        currentPath = "";
+        currentBranch = "";
         continue;
       }
 
-      if (line.startsWith('worktree ')) {
-        currentPath = line.slice('worktree '.length).trim();
+      if (line.startsWith("worktree ")) {
+        currentPath = line.slice("worktree ".length).trim();
       }
 
-      if (line.startsWith('branch ')) {
-        currentBranch = line.slice('branch '.length).trim();
+      if (line.startsWith("branch ")) {
+        currentBranch = line.slice("branch ".length).trim();
       }
     }
 

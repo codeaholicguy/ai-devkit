@@ -1,21 +1,25 @@
-import type { Mocked } from 'vitest';
-import fs from 'fs-extra';
-import * as path from 'path';
-import { loadInitTemplate } from '../../lib/InitTemplate.js';
+import type { Mocked } from "vitest";
+import fs from "fs-extra";
+import * as path from "path";
+import { loadInitTemplate } from "../../lib/InitTemplate.js";
 
-vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
+vi.mock("fs-extra", async () => {
+  const { makeFsExtraMock } = await import("../__shared__/fs-extra-mock.js");
+  return makeFsExtraMock();
+});
 
-describe('InitTemplate', () => {
+describe("InitTemplate", () => {
   const mockFs = fs as Mocked<typeof fs>;
 
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('loads YAML template from relative path', async () => {
-    const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue('/repo');
+  it("loads YAML template from relative path", async () => {
+    const cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/repo");
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
+    mockFs.readFile.mockResolvedValue(
+      `
 version: 1
 environments:
   - codex
@@ -24,125 +28,130 @@ phases:
 skills:
   - registry: codeaholicguy/ai-devkit
     skill: debug
-` as never);
+` as never,
+    );
 
-    const result = await loadInitTemplate('init.yaml');
+    const result = await loadInitTemplate("init.yaml");
 
-    expect(mockFs.pathExists).toHaveBeenCalledWith(path.resolve('/repo', 'init.yaml'));
-    expect(result.environments).toEqual(['codex']);
-    expect(result.phases).toEqual(['requirements']);
-    expect(result.skills).toEqual([
-      { registry: 'codeaholicguy/ai-devkit', skill: 'debug' }
-    ]);
+    expect(mockFs.pathExists).toHaveBeenCalledWith(path.resolve("/repo", "init.yaml"));
+    expect(result.environments).toEqual(["codex"]);
+    expect(result.phases).toEqual(["requirements"]);
+    expect(result.skills).toEqual([{ registry: "codeaholicguy/ai-devkit", skill: "debug" }]);
 
     cwdSpy.mockRestore();
   });
 
-  it('loads JSON template from absolute path', async () => {
-    const templatePath = '/tmp/init.json';
+  it("loads JSON template from absolute path", async () => {
+    const templatePath = "/tmp/init.json";
     mockFs.pathExists.mockResolvedValue(true as never);
     mockFs.readFile.mockResolvedValue(
       JSON.stringify({
-        environments: ['claude'],
-        phases: ['design'],
-        skills: [{ registry: 'codeaholicguy/ai-devkit', skill: 'memory' }]
-      }) as never
+        environments: ["claude"],
+        phases: ["design"],
+        skills: [{ registry: "codeaholicguy/ai-devkit", skill: "memory" }],
+      }) as never,
     );
 
     const result = await loadInitTemplate(templatePath);
 
     expect(mockFs.pathExists).toHaveBeenCalledWith(templatePath);
-    expect(result.environments).toEqual(['claude']);
-    expect(result.phases).toEqual(['design']);
-    expect(result.skills).toEqual([
-      { registry: 'codeaholicguy/ai-devkit', skill: 'memory' }
-    ]);
+    expect(result.environments).toEqual(["claude"]);
+    expect(result.phases).toEqual(["design"]);
+    expect(result.skills).toEqual([{ registry: "codeaholicguy/ai-devkit", skill: "memory" }]);
   });
 
-  it('supports multiple skills in the same registry', async () => {
+  it("supports multiple skills in the same registry", async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
+    mockFs.readFile.mockResolvedValue(
+      `
 skills:
   - registry: codeaholicguy/ai-devkit
     skill: debug
   - registry: codeaholicguy/ai-devkit
     skill: memory
-` as never);
+` as never,
+    );
 
-    const result = await loadInitTemplate('/tmp/init.yaml');
+    const result = await loadInitTemplate("/tmp/init.yaml");
 
     expect(result.skills).toEqual([
-      { registry: 'codeaholicguy/ai-devkit', skill: 'debug' },
-      { registry: 'codeaholicguy/ai-devkit', skill: 'memory' }
+      { registry: "codeaholicguy/ai-devkit", skill: "debug" },
+      { registry: "codeaholicguy/ai-devkit", skill: "memory" },
     ]);
   });
 
-  it('throws actionable validation error for invalid environment', async () => {
+  it("throws actionable validation error for invalid environment", async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
+    mockFs.readFile.mockResolvedValue(
+      `
 environments:
   - invalid-env
-` as never);
+` as never,
+    );
 
-    await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
-      'Invalid template at /tmp/init.yaml: "environments[0]" has invalid value "invalid-env"'
+    await expect(loadInitTemplate("/tmp/init.yaml")).rejects.toThrow(
+      'Invalid template at /tmp/init.yaml: "environments[0]" has invalid value "invalid-env"',
     );
   });
 
-  it('loads template with paths.docs config', async () => {
+  it("loads template with paths.docs config", async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
+    mockFs.readFile.mockResolvedValue(
+      `
 paths:
   docs: .ai-docs
 environments:
   - claude
 phases:
   - requirements
-` as never);
+` as never,
+    );
 
-    const result = await loadInitTemplate('/tmp/init.yaml');
+    const result = await loadInitTemplate("/tmp/init.yaml");
 
-    expect(result.paths?.docs).toBe('.ai-docs');
-    expect(result.environments).toEqual(['claude']);
+    expect(result.paths?.docs).toBe(".ai-docs");
+    expect(result.environments).toEqual(["claude"]);
   });
 
-  it('throws when paths.docs is empty string', async () => {
+  it("throws when paths.docs is empty string", async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
+    mockFs.readFile.mockResolvedValue(
+      `
 paths:
   docs: "  "
-` as never);
+` as never,
+    );
 
-    await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
-      '"paths.docs" must be a non-empty string'
+    await expect(loadInitTemplate("/tmp/init.yaml")).rejects.toThrow(
+      '"paths.docs" must be a non-empty string',
     );
   });
 
-  it('throws when paths is not an object', async () => {
+  it("throws when paths is not an object", async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(JSON.stringify({ paths: 'invalid' }) as never);
+    mockFs.readFile.mockResolvedValue(JSON.stringify({ paths: "invalid" }) as never);
 
-    await expect(loadInitTemplate('/tmp/init.json')).rejects.toThrow(
-      '"paths" must be an object'
-    );
+    await expect(loadInitTemplate("/tmp/init.json")).rejects.toThrow('"paths" must be an object');
   });
 
-  it('throws when unknown field exists', async () => {
+  it("throws when unknown field exists", async () => {
     mockFs.pathExists.mockResolvedValue(true as never);
-    mockFs.readFile.mockResolvedValue(`
+    mockFs.readFile.mockResolvedValue(
+      `
 foo: bar
-` as never);
+` as never,
+    );
 
-    await expect(loadInitTemplate('/tmp/init.yaml')).rejects.toThrow(
-      'Invalid template at /tmp/init.yaml: unknown field(s): foo'
+    await expect(loadInitTemplate("/tmp/init.yaml")).rejects.toThrow(
+      "Invalid template at /tmp/init.yaml: unknown field(s): foo",
     );
   });
 
-  it('throws when template file does not exist', async () => {
+  it("throws when template file does not exist", async () => {
     mockFs.pathExists.mockResolvedValue(false as never);
 
-    await expect(loadInitTemplate('/tmp/missing.yaml')).rejects.toThrow(
-      'Template file not found: /tmp/missing.yaml'
+    await expect(loadInitTemplate("/tmp/missing.yaml")).rejects.toThrow(
+      "Template file not found: /tmp/missing.yaml",
     );
   });
 });

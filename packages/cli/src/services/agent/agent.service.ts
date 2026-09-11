@@ -12,10 +12,10 @@ import {
   type InteractiveAgentRuntime,
   AgentTerminalNotFoundError,
   sendAgentPrompt,
-} from '@ai-devkit/agent-manager';
-import { parseMilliseconds, sleep } from '../../util/time.js';
-import { ui } from '../../util/terminal-ui.js';
-import type { AgentGroup } from './agent-group.service.js';
+} from "@ai-devkit/agent-manager";
+import { parseMilliseconds, sleep } from "../../util/time.js";
+import { ui } from "../../util/terminal-ui.js";
+import type { AgentGroup } from "./agent-group.service.js";
 
 export interface AgentSendWaitTarget {
   id: string;
@@ -45,8 +45,8 @@ export interface AgentSendWaitResult {
 }
 
 export interface WaitForAgentResponseParams {
-  manager: Pick<AgentManager, 'listAgents'>;
-  adapter: Pick<AgentAdapter, 'getConversation'>;
+  manager: Pick<AgentManager, "listAgents">;
+  adapter: Pick<AgentAdapter, "getConversation">;
   target: AgentSendWaitTarget;
   initialMessageCount: number;
   options: AgentSendWaitOptions;
@@ -69,9 +69,9 @@ interface GroupTarget {
 export interface SendToAgentOptions {
   id: string;
   prompt: string;
-  manager: Pick<AgentManager, 'listAgents' | 'resolveAgent' | 'getAdapter'>;
-  focusManager: Pick<TerminalFocusManager, 'findTerminal'>;
-  registry?: Pick<AgentRegistry, 'lookup'>;
+  manager: Pick<AgentManager, "listAgents" | "resolveAgent" | "getAdapter">;
+  focusManager: Pick<TerminalFocusManager, "findTerminal">;
+  registry?: Pick<AgentRegistry, "lookup">;
   runtime?: InteractiveAgentRuntime;
   wait?: boolean;
   timeout?: string;
@@ -86,28 +86,34 @@ export interface SendToAgentOptions {
 export interface SendToAgentGroupOptions {
   group: AgentGroup;
   prompt: string;
-  manager: Pick<AgentManager, 'listAgents' | 'resolveAgent'>;
-  focusManager: Pick<TerminalFocusManager, 'findTerminal'>;
+  manager: Pick<AgentManager, "listAgents" | "resolveAgent">;
+  focusManager: Pick<TerminalFocusManager, "findTerminal">;
   reporter?: SendReporter;
   writer?: typeof TtyWriter.send;
 }
 
-export function assertSendTargetOptions(options: { id?: string; group?: string; wait?: boolean; timeout?: string; json?: boolean }): void {
+export function assertSendTargetOptions(options: {
+  id?: string;
+  group?: string;
+  wait?: boolean;
+  timeout?: string;
+  json?: boolean;
+}): void {
   const targetCount = Number(Boolean(options.id)) + Number(Boolean(options.group));
   if (targetCount !== 1) {
-    throw new Error('Use exactly one of --id or --group.');
+    throw new Error("Use exactly one of --id or --group.");
   }
   if (options.group && options.wait) {
-    throw new Error('Use --wait only with --id; group wait mode is not supported.');
+    throw new Error("Use --wait only with --id; group wait mode is not supported.");
   }
   if (options.group && options.timeout !== undefined) {
-    throw new Error('Use --timeout only with --id --wait; group wait mode is not supported.');
+    throw new Error("Use --timeout only with --id --wait; group wait mode is not supported.");
   }
   if (options.group && options.json) {
-    throw new Error('Use --json only with --id --wait; group JSON output is not supported.');
+    throw new Error("Use --json only with --id --wait; group JSON output is not supported.");
   }
   if (options.timeout !== undefined && !options.wait) {
-    throw new Error('Use --timeout only with --wait.');
+    throw new Error("Use --timeout only with --wait.");
   }
   if (options.timeout !== undefined) {
     parseSendWaitTimeout(options.timeout);
@@ -115,20 +121,22 @@ export function assertSendTargetOptions(options: { id?: string; group?: string; 
 }
 
 function findSameAgent(target: AgentSendWaitTarget, agents: AgentInfo[]): AgentInfo | undefined {
-  return agents.find((agent) => agent.pid === target.pid)
-    ?? agents.find((agent) => agent.sessionId === target.sessionId && agent.type === target.type);
+  return (
+    agents.find((agent) => agent.pid === target.pid) ??
+    agents.find((agent) => agent.sessionId === target.sessionId && agent.type === target.type)
+  );
 }
 
 function readNewAssistantMessages(
-  adapter: Pick<AgentAdapter, 'getConversation'>,
+  adapter: Pick<AgentAdapter, "getConversation">,
   sessionFilePath: string,
   lastSeenCount: number,
 ): { messages: ConversationMessage[]; nextSeenCount: number } {
   const conversation = adapter.getConversation(sessionFilePath, { verbose: false });
   const newMessages = conversation.slice(lastSeenCount);
-  const assistantMessages = newMessages.filter((message) => (
-    message.role === 'assistant' && Boolean(message.content)
-  ));
+  const assistantMessages = newMessages.filter(
+    (message) => message.role === "assistant" && Boolean(message.content),
+  );
 
   return {
     messages: assistantMessages,
@@ -136,8 +144,11 @@ function readNewAssistantMessages(
   };
 }
 
-export async function waitForAgentResponse(params: WaitForAgentResponseParams): Promise<AgentSendWaitResult> {
-  const { manager, adapter, target, initialMessageCount, options, onAssistantMessage, onStatus } = params;
+export async function waitForAgentResponse(
+  params: WaitForAgentResponseParams,
+): Promise<AgentSendWaitResult> {
+  const { manager, adapter, target, initialMessageCount, options, onAssistantMessage, onStatus } =
+    params;
   const startedAt = Date.now();
   let lastSeenCount = initialMessageCount;
   let emptyWaitingSince: number | null = null;
@@ -211,7 +222,9 @@ export async function waitForAgentResponse(params: WaitForAgentResponseParams): 
     await sleep(Math.min(options.pollIntervalMs, remainingMs));
   }
 
-  throw new Error(`Timed out waiting for agent "${target.name}" after ${options.timeoutLabel ?? `${options.maxWaitMs}ms`}.`);
+  throw new Error(
+    `Timed out waiting for agent "${target.name}" after ${options.timeoutLabel ?? `${options.maxWaitMs}ms`}.`,
+  );
 }
 
 export async function sendToAgent({
@@ -233,14 +246,14 @@ export async function sendToAgent({
   const waitTimeout = parseSendWaitTimeout(timeout);
   const agents = await manager.listAgents();
   if (agents.length === 0) {
-    reporter.error('No running agents found.');
+    reporter.error("No running agents found.");
     return;
   }
 
   const resolved = manager.resolveAgent(id, agents);
   if (!resolved) {
     reporter.error(`No agent found matching "${id}".`);
-    reporter.info('Available agents:');
+    reporter.info("Available agents:");
     agents.forEach((agent) => reporter.info(`  - ${agent.name}`));
     return;
   }
@@ -248,7 +261,7 @@ export async function sendToAgent({
   if (Array.isArray(resolved)) {
     reporter.error(`Multiple agents match "${id}":`);
     resolved.forEach((agent) => reporter.info(`  - ${agent.name} (${formatStatus(agent.status)})`));
-    reporter.info('Please use a more specific identifier.');
+    reporter.info("Please use a more specific identifier.");
     return;
   }
 
@@ -268,16 +281,18 @@ export async function sendToAgent({
     runtime,
     focusManager,
     writer,
-  }).then(() => false).catch((error) => {
-    if (error instanceof AgentTerminalNotFoundError) {
-      if (wait) {
-        throw error;
+  })
+    .then(() => false)
+    .catch((error) => {
+      if (error instanceof AgentTerminalNotFoundError) {
+        if (wait) {
+          throw error;
+        }
+        reporter.error(error.message);
+        return true;
       }
-      reporter.error(error.message);
-      return true;
-    }
-    throw error;
-  });
+      throw error;
+    });
   if (sendFailed) return;
 
   if (!wait) {
@@ -286,7 +301,7 @@ export async function sendToAgent({
   }
 
   if (!waitContext) {
-    throw new Error('Wait mode was not prepared.');
+    throw new Error("Wait mode was not prepared.");
   }
 
   const waitResult = await waitForAgentResponse({
@@ -331,7 +346,7 @@ export async function sendToAgentGroup({
 
   const agents = await manager.listAgents();
   if (agents.length === 0) {
-    reporter.error('No running agents found.');
+    reporter.error("No running agents found.");
     process.exitCode = 1;
     return;
   }
@@ -363,7 +378,10 @@ function parseSendWaitTimeout(value: string | undefined): { maxWaitMs: number; l
   }
 }
 
-function prepareWaitMode(manager: Pick<AgentManager, 'getAdapter'>, agent: AgentInfo): {
+function prepareWaitMode(
+  manager: Pick<AgentManager, "getAdapter">,
+  agent: AgentInfo,
+): {
   adapter: AgentAdapter;
   sessionFilePath: string;
   initialMessageCount: number;
@@ -384,7 +402,12 @@ function prepareWaitMode(manager: Pick<AgentManager, 'getAdapter'>, agent: Agent
   };
 }
 
-function toAgentSendWaitJson(result: AgentSendWaitResult, agent: AgentInfo, prompt: string, targetId: string): object {
+function toAgentSendWaitJson(
+  result: AgentSendWaitResult,
+  agent: AgentInfo,
+  prompt: string,
+  targetId: string,
+): object {
   return {
     target: {
       id: targetId,
@@ -406,28 +429,31 @@ function toAgentSendWaitJson(result: AgentSendWaitResult, agent: AgentInfo, prom
 }
 
 function formatStatus(status: AgentStatus): string {
-  const label = {
-    [AgentStatus.RUNNING]: 'run',
-    [AgentStatus.WAITING]: 'wait',
-    [AgentStatus.IDLE]: 'idle',
-    [AgentStatus.UNKNOWN]: 'unknown',
-  }[status] ?? 'unknown';
+  const label =
+    {
+      [AgentStatus.RUNNING]: "run",
+      [AgentStatus.WAITING]: "wait",
+      [AgentStatus.IDLE]: "idle",
+      [AgentStatus.UNKNOWN]: "unknown",
+    }[status] ?? "unknown";
   return `${statusEmoji(status)} ${label}`;
 }
 
 function statusEmoji(status: AgentStatus): string {
-  return {
-    [AgentStatus.RUNNING]: '\u{1F7E2}',
-    [AgentStatus.WAITING]: '\u{1F7E1}',
-    [AgentStatus.IDLE]: '\u{26AA}',
-    [AgentStatus.UNKNOWN]: '\u{2753}',
-  }[status] ?? '\u{2753}';
+  return (
+    {
+      [AgentStatus.RUNNING]: "\u{1F7E2}",
+      [AgentStatus.WAITING]: "\u{1F7E1}",
+      [AgentStatus.IDLE]: "\u{26AA}",
+      [AgentStatus.UNKNOWN]: "\u{2753}",
+    }[status] ?? "\u{2753}"
+  );
 }
 
 function resolveGroupTargets(
   group: AgentGroup,
   agents: AgentInfo[],
-  manager: Pick<AgentManager, 'resolveAgent'>,
+  manager: Pick<AgentManager, "resolveAgent">,
 ): { targets: GroupTarget[]; errors: string[] } {
   const targets: GroupTarget[] = [];
   const errors: string[] = [];
@@ -439,7 +465,9 @@ function resolveGroupTargets(
       continue;
     }
     if (Array.isArray(resolved)) {
-      errors.push(`  - ${member}: matched multiple agents (${resolved.map((agent) => agent.name).join(', ')})`);
+      errors.push(
+        `  - ${member}: matched multiple agents (${resolved.map((agent) => agent.name).join(", ")})`,
+      );
       continue;
     }
     targets.push({ member, agent: resolved });
@@ -462,7 +490,9 @@ function dedupeTargets(targets: GroupTarget[], reporter: SendReporter): GroupTar
   for (const target of targets) {
     const key = targetKey(target.agent);
     if (seen.has(key)) {
-      reporter.info(`Skipped duplicate target "${target.agent.name}" from group member "${target.member}".`);
+      reporter.info(
+        `Skipped duplicate target "${target.agent.name}" from group member "${target.member}".`,
+      );
       continue;
     }
     seen.add(key);
@@ -476,7 +506,7 @@ async function deliverGroupMessage(options: {
   groupName: string;
   targets: GroupTarget[];
   prompt: string;
-  focusManager: Pick<TerminalFocusManager, 'findTerminal'>;
+  focusManager: Pick<TerminalFocusManager, "findTerminal">;
   reporter: SendReporter;
   writer: (location: TerminalLocation, message: string) => Promise<void>;
 }): Promise<void> {
@@ -505,13 +535,22 @@ async function deliverGroupMessage(options: {
 
 function warnIfAgentIsBusy(agent: AgentInfo, reporter: SendReporter): void {
   if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
-    reporter.warning(`Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`);
+    reporter.warning(
+      `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`,
+    );
   }
 }
 
-function reportDeliverySummary(groupName: string, successCount: number, failureCount: number, reporter: SendReporter): void {
+function reportDeliverySummary(
+  groupName: string,
+  successCount: number,
+  failureCount: number,
+  reporter: SendReporter,
+): void {
   if (failureCount > 0) {
-    reporter.error(`Sent message to ${successCount} agent(s), failed for ${failureCount} agent(s) in group "${groupName}".`);
+    reporter.error(
+      `Sent message to ${successCount} agent(s), failed for ${failureCount} agent(s) in group "${groupName}".`,
+    );
     process.exitCode = 1;
     return;
   }

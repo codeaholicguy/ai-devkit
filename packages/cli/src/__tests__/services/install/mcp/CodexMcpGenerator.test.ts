@@ -1,78 +1,85 @@
-import type { Mocked } from 'vitest';
-import fs from 'fs-extra';
-import * as path from 'path';
-import { CodexMcpGenerator } from '../../../../services/install/mcp/CodexMcpGenerator.js';
-import { McpServerDefinition } from '../../../../types.js';
+import type { Mocked } from "vitest";
+import fs from "fs-extra";
+import * as path from "path";
+import { CodexMcpGenerator } from "../../../../services/install/mcp/CodexMcpGenerator.js";
+import { McpServerDefinition } from "../../../../types.js";
 
-vi.mock('fs-extra', async () => { const { makeFsExtraMock } = await import('../../../__shared__/fs-extra-mock.js'); return makeFsExtraMock(); });
+vi.mock("fs-extra", async () => {
+  const { makeFsExtraMock } = await import("../../../__shared__/fs-extra-mock.js");
+  return makeFsExtraMock();
+});
 
 const mockFs = fs as Mocked<typeof fs>;
 
-describe('CodexMcpGenerator', () => {
+describe("CodexMcpGenerator", () => {
   let generator: CodexMcpGenerator;
-  const projectRoot = '/project';
+  const projectRoot = "/project";
 
   beforeEach(() => {
     vi.clearAllMocks();
     generator = new CodexMcpGenerator();
   });
 
-  describe('plan()', () => {
-    it('marks all servers as new when no existing config.toml', async () => {
+  describe("plan()", () => {
+    it("marks all servers as new when no existing config.toml", async () => {
       mockFs.pathExists.mockResolvedValue(false as never);
 
       const servers: Record<string, McpServerDefinition> = {
-        memory: { transport: 'stdio', command: 'npx', args: ['-y', '@ai-devkit/memory'] },
-        notion: { transport: 'http', url: 'https://mcp.notion.com/mcp' }
+        memory: { transport: "stdio", command: "npx", args: ["-y", "@ai-devkit/memory"] },
+        notion: { transport: "http", url: "https://mcp.notion.com/mcp" },
       };
 
       const plan = await generator.plan(servers, projectRoot);
 
-      expect(plan.newServers).toEqual(['memory', 'notion']);
+      expect(plan.newServers).toEqual(["memory", "notion"]);
       expect(plan.conflictServers).toEqual([]);
       expect(plan.skippedServers).toEqual([]);
     });
 
-    it('skips servers that already exist with identical config', async () => {
+    it("skips servers that already exist with identical config", async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
-      mockFs.readFile.mockResolvedValue(`
+      mockFs.readFile.mockResolvedValue(
+        `
 [mcp_servers.memory]
 command = "npx"
 args = ["-y", "@ai-devkit/memory"]
-` as never);
+` as never,
+      );
 
       const servers: Record<string, McpServerDefinition> = {
-        memory: { transport: 'stdio', command: 'npx', args: ['-y', '@ai-devkit/memory'] }
+        memory: { transport: "stdio", command: "npx", args: ["-y", "@ai-devkit/memory"] },
       };
 
       const plan = await generator.plan(servers, projectRoot);
 
-      expect(plan.skippedServers).toEqual(['memory']);
+      expect(plan.skippedServers).toEqual(["memory"]);
       expect(plan.newServers).toEqual([]);
     });
 
-    it('detects conflicts when server exists with different config', async () => {
+    it("detects conflicts when server exists with different config", async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
-      mockFs.readFile.mockResolvedValue(`
+      mockFs.readFile.mockResolvedValue(
+        `
 [mcp_servers.memory]
 command = "old-cmd"
-` as never);
+` as never,
+      );
 
       const servers: Record<string, McpServerDefinition> = {
-        memory: { transport: 'stdio', command: 'new-cmd' }
+        memory: { transport: "stdio", command: "new-cmd" },
       };
 
       const plan = await generator.plan(servers, projectRoot);
 
-      expect(plan.conflictServers).toEqual(['memory']);
+      expect(plan.conflictServers).toEqual(["memory"]);
     });
 
-    it('fails malformed existing config.toml without replacing it', async () => {
+    it("fails malformed existing config.toml without replacing it", async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
-      mockFs.readFile.mockResolvedValue('this is not valid toml [[[' as never);
+      mockFs.readFile.mockResolvedValue("this is not valid toml [[[" as never);
 
       const servers: Record<string, McpServerDefinition> = {
-        memory: { transport: 'stdio', command: 'npx' }
+        memory: { transport: "stdio", command: "npx" },
       };
 
       await expect(generator.plan(servers, projectRoot)).rejects.toThrow();
@@ -80,111 +87,154 @@ command = "old-cmd"
     });
   });
 
-  describe('apply()', () => {
-    it('writes new servers to .codex/config.toml when no existing file', async () => {
+  describe("apply()", () => {
+    it("writes new servers to .codex/config.toml when no existing file", async () => {
       mockFs.pathExists.mockResolvedValue(false as never);
 
       const servers: Record<string, McpServerDefinition> = {
-        memory: { transport: 'stdio', command: 'npx', args: ['-y', '@ai-devkit/memory'], env: { DB: './db' } }
+        memory: {
+          transport: "stdio",
+          command: "npx",
+          args: ["-y", "@ai-devkit/memory"],
+          env: { DB: "./db" },
+        },
       };
 
       await generator.apply(
-        { agentType: 'codex', newServers: ['memory'], conflictServers: [], skippedServers: [], resolvedConflicts: [] },
+        {
+          agentType: "codex",
+          newServers: ["memory"],
+          conflictServers: [],
+          skippedServers: [],
+          resolvedConflicts: [],
+        },
         servers,
-        projectRoot
+        projectRoot,
       );
 
-      expect(mockFs.ensureDir).toHaveBeenCalledWith(path.join(projectRoot, '.codex'));
+      expect(mockFs.ensureDir).toHaveBeenCalledWith(path.join(projectRoot, ".codex"));
       expect(mockFs.writeFile).toHaveBeenCalled();
 
       const written = mockFs.writeFile.mock.calls[0]![1] as string;
-      expect(written).toContain('[mcp_servers.memory]');
+      expect(written).toContain("[mcp_servers.memory]");
       expect(written).toContain('command = "npx"');
-      expect(written).toContain('[mcp_servers.memory.env]');
+      expect(written).toContain("[mcp_servers.memory.env]");
       expect(written).toContain('DB = "./db"');
     });
 
-    it('preserves non-MCP sections in existing config.toml', async () => {
+    it("preserves non-MCP sections in existing config.toml", async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
-      mockFs.readFile.mockResolvedValue(`
+      mockFs.readFile.mockResolvedValue(
+        `
 model = "gpt-4"
 approval_mode = "suggest"
 
 [mcp_servers.existing]
 command = "old-server"
-` as never);
+` as never,
+      );
 
       const servers: Record<string, McpServerDefinition> = {
-        newserver: { transport: 'stdio', command: 'npx' }
+        newserver: { transport: "stdio", command: "npx" },
       };
 
       await generator.apply(
-        { agentType: 'codex', newServers: ['newserver'], conflictServers: [], skippedServers: [], resolvedConflicts: [] },
+        {
+          agentType: "codex",
+          newServers: ["newserver"],
+          conflictServers: [],
+          skippedServers: [],
+          resolvedConflicts: [],
+        },
         servers,
-        projectRoot
+        projectRoot,
       );
 
       const written = mockFs.writeFile.mock.calls[0]![1] as string;
       expect(written).toContain('model = "gpt-4"');
       expect(written).toContain('approval_mode = "suggest"');
-      expect(written).toContain('[mcp_servers.existing]');
-      expect(written).toContain('[mcp_servers.newserver]');
+      expect(written).toContain("[mcp_servers.existing]");
+      expect(written).toContain("[mcp_servers.newserver]");
     });
 
-    it('maps http transport to url with http_headers', async () => {
+    it("maps http transport to url with http_headers", async () => {
       mockFs.pathExists.mockResolvedValue(false as never);
 
       const servers: Record<string, McpServerDefinition> = {
-        api: { transport: 'http', url: 'https://api.example.com/mcp', headers: { Authorization: 'Bearer token' } }
+        api: {
+          transport: "http",
+          url: "https://api.example.com/mcp",
+          headers: { Authorization: "Bearer token" },
+        },
       };
 
       await generator.apply(
-        { agentType: 'codex', newServers: ['api'], conflictServers: [], skippedServers: [], resolvedConflicts: [] },
+        {
+          agentType: "codex",
+          newServers: ["api"],
+          conflictServers: [],
+          skippedServers: [],
+          resolvedConflicts: [],
+        },
         servers,
-        projectRoot
+        projectRoot,
       );
 
       const written = mockFs.writeFile.mock.calls[0]![1] as string;
       expect(written).toContain('url = "https://api.example.com/mcp"');
-      expect(written).toContain('[mcp_servers.api.http_headers]');
+      expect(written).toContain("[mcp_servers.api.http_headers]");
       expect(written).toContain('Authorization = "Bearer token"');
     });
 
-    it('writes resolved conflicts', async () => {
+    it("writes resolved conflicts", async () => {
       mockFs.pathExists.mockResolvedValue(true as never);
-      mockFs.readFile.mockResolvedValue(`
+      mockFs.readFile.mockResolvedValue(
+        `
 [mcp_servers.memory]
 command = "old-cmd"
-` as never);
+` as never,
+      );
 
       const servers: Record<string, McpServerDefinition> = {
-        memory: { transport: 'stdio', command: 'new-cmd' }
+        memory: { transport: "stdio", command: "new-cmd" },
       };
 
       await generator.apply(
-        { agentType: 'codex', newServers: [], conflictServers: ['memory'], skippedServers: [], resolvedConflicts: ['memory'] },
+        {
+          agentType: "codex",
+          newServers: [],
+          conflictServers: ["memory"],
+          skippedServers: [],
+          resolvedConflicts: ["memory"],
+        },
         servers,
-        projectRoot
+        projectRoot,
       );
 
       const written = mockFs.writeFile.mock.calls[0]![1] as string;
       expect(written).toContain('command = "new-cmd"');
     });
 
-    it('creates .codex directory if missing', async () => {
+    it("creates .codex directory if missing", async () => {
       mockFs.pathExists.mockResolvedValue(false as never);
 
       const servers: Record<string, McpServerDefinition> = {
-        test: { transport: 'stdio', command: 'test-server' }
+        test: { transport: "stdio", command: "test-server" },
       };
 
       await generator.apply(
-        { agentType: 'codex', newServers: ['test'], conflictServers: [], skippedServers: [], resolvedConflicts: [] },
+        {
+          agentType: "codex",
+          newServers: ["test"],
+          conflictServers: [],
+          skippedServers: [],
+          resolvedConflicts: [],
+        },
         servers,
-        projectRoot
+        projectRoot,
       );
 
-      expect(mockFs.ensureDir).toHaveBeenCalledWith(path.join(projectRoot, '.codex'));
+      expect(mockFs.ensureDir).toHaveBeenCalledWith(path.join(projectRoot, ".codex"));
     });
   });
 });

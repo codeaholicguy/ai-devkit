@@ -1,6 +1,6 @@
-import createDebug from 'debug';
+import createDebug from "debug";
 
-const APP_NAME = 'ai-devkit';
+const APP_NAME = "ai-devkit";
 
 /**
  * Create a namespaced debug logger.
@@ -16,7 +16,7 @@ const APP_NAME = 'ai-devkit';
  *   DEBUG=ai-devkit:channel env var (specific namespace)
  */
 export function createLogger(namespace: string): createDebug.Debugger {
-    return createDebug(`${APP_NAME}:${namespace}`);
+  return createDebug(`${APP_NAME}:${namespace}`);
 }
 
 /**
@@ -24,5 +24,5 @@ export function createLogger(namespace: string): createDebug.Debugger {
  * Called from the CLI entry point when --debug is passed.
  */
 export function enableDebug(): void {
-    createDebug.enable(`${APP_NAME}:*`);
+  createDebug.enable(`${APP_NAME}:*`);
 }

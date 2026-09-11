@@ -1,4 +1,4 @@
-import matter from 'gray-matter';
+import matter from "gray-matter";
 
 /**
  * Extract skill description from SKILL.md frontmatter
@@ -15,13 +15,11 @@ export function extractSkillDescription(content: string): string {
     }
 
     // Fallback: use first non-empty paragraph from content
-    const lines = parsed.content
-      .split('\n')
-      .filter((l: string) => l.trim() && !l.startsWith('#'));
+    const lines = parsed.content.split("\n").filter((l: string) => l.trim() && !l.startsWith("#"));
 
-    return lines[0]?.trim() || 'No description available';
+    return lines[0]?.trim() || "No description available";
   } catch (ignoreError) {
     // If parsing fails, return fallback
-    return 'No description available';
+    return "No description available";
   }
 }

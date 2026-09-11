@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from "crypto";
 
 /**
  * Id generation + ISO timestamps.
@@ -10,25 +10,25 @@ import { randomUUID } from 'crypto';
  */
 
 export function nowIso(now: Date = new Date()): string {
-    return now.toISOString();
+  return now.toISOString();
 }
 
 export function makeTaskId(): string {
-    return randomUUID();
+  return randomUUID();
 }
 
 export function makeEventId(): string {
-    return randomUUID();
+  return randomUUID();
 }
 
 export function makeBlockerId(): string {
-    return randomUUID();
+  return randomUUID();
 }
 
 export function makeEvidenceId(): string {
-    return randomUUID();
+  return randomUUID();
 }
 
 export function makeArtifactId(): string {
-    return randomUUID();
+  return randomUUID();
 }

@@ -1,15 +1,15 @@
-import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
-import { getErrorMessage } from '../../util/text.js';
+import { GlobalConfigManager } from "../../lib/GlobalConfig.js";
+import { getErrorMessage } from "../../util/text.js";
 import {
   createPluginPackageService,
   type PluginPackageService,
   validatePluginPackageName,
-} from './plugin-package.service.js';
-import { validateInstalledPluginManifest } from './plugin-loader.service.js';
+} from "./plugin-package.service.js";
+import { validateInstalledPluginManifest } from "./plugin-loader.service.js";
 
 export interface PluginListItem {
   name: string;
-  status: 'valid' | 'invalid';
+  status: "valid" | "invalid";
   error?: string;
 }
 
@@ -61,32 +61,34 @@ export function createPluginManager(deps: PluginManagerDeps = {}) {
           await validateInstalledPlugin(plugin);
           items.push({
             name: plugin,
-            status: 'valid',
-            error: undefined
+            status: "valid",
+            error: undefined,
           });
         } catch (error) {
           items.push({
             name: plugin,
-            status: 'invalid',
-            error: getErrorMessage(error)
+            status: "invalid",
+            error: getErrorMessage(error),
           });
         }
       }
 
       return items;
-    }
+    },
   };
 }
 
 async function rollbackInstall(
   packages: PluginPackageService,
   pluginName: string,
-  validationError: unknown
+  validationError: unknown,
 ): Promise<never> {
   try {
     await packages.uninstall(pluginName);
   } catch (rollbackError) {
-    throw new Error(`${getErrorMessage(validationError)} Rollback uninstall also failed: ${getErrorMessage(rollbackError)}`);
+    throw new Error(
+      `${getErrorMessage(validationError)} Rollback uninstall also failed: ${getErrorMessage(rollbackError)}`,
+    );
   }
 
   throw validationError;

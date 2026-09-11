@@ -1,37 +1,39 @@
 {
   "name": "ai-devkit",
   "version": "0.61.0",
-  "type": "module",
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "keywords": [
+    "ai",
+    "claude",
+    "cli",
+    "cursor",
+    "development",
+    "templates"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/cli"
+  },
   "bin": {
     "ai-devkit": "dist/cli.js"
   },
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "build": "rm -rf dist && swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates && cp -R assets dist/assets",
     "dev:build": "swc src -d dist --strip-leading-paths --watch",
     "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
     "lint": "eslint src --ext .ts",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepublishOnly": "npm run build"
-  },
-  "keywords": [
-    "ai",
-    "development",
-    "cli",
-    "templates",
-    "cursor",
-    "claude"
-  ],
-  "author": "",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
-    "directory": "packages/cli"
   },
   "dependencies": {
     "@ai-devkit/agent-manager": "0.32.0",

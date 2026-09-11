@@ -5,9 +5,9 @@
  * based on CWD and birth-time proximity to process start time.
  */
 
-import * as path from 'path';
-import type { ProcessInfo } from '../adapters/AgentAdapter.js';
-import type { SessionFile } from './session.js';
+import * as path from "path";
+import type { ProcessInfo } from "../adapters/AgentAdapter.js";
+import type { SessionFile } from "./session.js";
 
 /** Maximum allowed delta between process start time and session file birth time. */
 const TOLERANCE_MS = 3 * 60 * 1000; // 3 minutes
@@ -16,14 +16,14 @@ const TOLERANCE_MS = 3 * 60 * 1000; // 3 minutes
  * Result of matching a process to a session file.
  */
 export interface MatchResult {
-    /** The matched process */
-    process: ProcessInfo;
+  /** The matched process */
+  process: ProcessInfo;
 
-    /** The matched session file */
-    session: SessionFile;
+  /** The matched session file */
+  session: SessionFile;
 
-    /** Absolute time delta in ms between process start and session birth time */
-    deltaMs: number;
+  /** Absolute time delta in ms between process start and session birth time */
+  deltaMs: number;
 }
 
 /**
@@ -39,46 +39,46 @@ export interface MatchResult {
  * Adapters must set session.resolvedCwd before calling this function.
  */
 export function matchProcessesToSessions(
-    processes: ProcessInfo[],
-    sessions: SessionFile[],
+  processes: ProcessInfo[],
+  sessions: SessionFile[],
 ): MatchResult[] {
-    // Build all candidate pairs
-    const candidates: Array<{ process: ProcessInfo; session: SessionFile; deltaMs: number }> = [];
+  // Build all candidate pairs
+  const candidates: Array<{ process: ProcessInfo; session: SessionFile; deltaMs: number }> = [];
 
-    for (const proc of processes) {
-        if (!proc.startTime || !proc.cwd) continue;
+  for (const proc of processes) {
+    if (!proc.startTime || !proc.cwd) continue;
 
-        const processStartMs = proc.startTime.getTime();
+    const processStartMs = proc.startTime.getTime();
 
-        for (const session of sessions) {
-            if (!session.resolvedCwd) continue;
-            if (proc.cwd !== session.resolvedCwd) continue;
+    for (const session of sessions) {
+      if (!session.resolvedCwd) continue;
+      if (proc.cwd !== session.resolvedCwd) continue;
 
-            const deltaMs = Math.abs(processStartMs - session.birthtimeMs);
-            if (deltaMs > TOLERANCE_MS) continue;
+      const deltaMs = Math.abs(processStartMs - session.birthtimeMs);
+      if (deltaMs > TOLERANCE_MS) continue;
 
-            candidates.push({ process: proc, session, deltaMs });
-        }
+      candidates.push({ process: proc, session, deltaMs });
     }
+  }
 
-    // Sort by smallest delta first
-    candidates.sort((a, b) => a.deltaMs - b.deltaMs);
+  // Sort by smallest delta first
+  candidates.sort((a, b) => a.deltaMs - b.deltaMs);
 
-    // Greedy 1:1 assignment
-    const matchedPids = new Set<number>();
-    const matchedSessionIds = new Set<string>();
-    const results: MatchResult[] = [];
+  // Greedy 1:1 assignment
+  const matchedPids = new Set<number>();
+  const matchedSessionIds = new Set<string>();
+  const results: MatchResult[] = [];
 
-    for (const candidate of candidates) {
-        if (matchedPids.has(candidate.process.pid)) continue;
-        if (matchedSessionIds.has(candidate.session.sessionId)) continue;
+  for (const candidate of candidates) {
+    if (matchedPids.has(candidate.process.pid)) continue;
+    if (matchedSessionIds.has(candidate.session.sessionId)) continue;
 
-        matchedPids.add(candidate.process.pid);
-        matchedSessionIds.add(candidate.session.sessionId);
-        results.push(candidate);
-    }
+    matchedPids.add(candidate.process.pid);
+    matchedSessionIds.add(candidate.session.sessionId);
+    results.push(candidate);
+  }
 
-    return results;
+  return results;
 }
 
 /**
@@ -87,10 +87,10 @@ export function matchProcessesToSessions(
  * Format: "folder-name-pid" (lowercase kebab-case)
  */
 export function generateAgentName(cwd: string, pid: number): string {
-    const folderName = path.basename(cwd) || 'unknown';
-    const kebab = folderName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-    return `${kebab || 'unknown'}-${pid}`;
+  const folderName = path.basename(cwd) || "unknown";
+  const kebab = folderName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return `${kebab || "unknown"}-${pid}`;
 }

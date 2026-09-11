@@ -1,7 +1,7 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
-import { BaseMcpGenerator } from './BaseMcpGenerator.js';
+import fs from "fs-extra";
+import * as path from "path";
+import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
+import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 
 interface OpenCodeConfig {
   mcp?: Record<string, Record<string, unknown>>;
@@ -9,14 +9,14 @@ interface OpenCodeConfig {
 }
 
 export class OpenCodeMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = 'opencode';
+  readonly agentType: EnvironmentCode = "opencode";
 
   private fullConfig: OpenCodeConfig = {};
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
-    if (def.transport === 'stdio') {
+    if (def.transport === "stdio") {
       const entry: Record<string, unknown> = {
-        type: 'local',
+        type: "local",
         command: [def.command!, ...(def.args || [])],
         enabled: true,
       };
@@ -25,7 +25,7 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
     }
 
     const entry: Record<string, unknown> = {
-      type: 'remote',
+      type: "remote",
       url: def.url!,
       enabled: true,
     };
@@ -34,10 +34,10 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, 'opencode.json');
+    const configPath = path.join(projectRoot, "opencode.json");
     if (await fs.pathExists(configPath)) {
-      const content = await fs.readFile(configPath, 'utf8');
-      this.fullConfig = JSON.parse(content || '{}') as OpenCodeConfig;
+      const content = await fs.readFile(configPath, "utf8");
+      this.fullConfig = JSON.parse(content || "{}") as OpenCodeConfig;
       return (this.fullConfig.mcp || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
@@ -46,10 +46,10 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
 
   protected async writeServers(
     projectRoot: string,
-    mergedServers: Record<string, unknown>
+    mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcp: mergedServers };
-    const configPath = path.join(projectRoot, 'opencode.json');
+    const configPath = path.join(projectRoot, "opencode.json");
     await fs.ensureDir(path.dirname(configPath));
     await fs.writeFile(configPath, `${JSON.stringify(output, null, 2)}\n`);
   }

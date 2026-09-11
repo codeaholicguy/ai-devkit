@@ -1,4 +1,4 @@
-import type { MockedClass, Mocked } from 'vitest';
+import type { MockedClass, Mocked } from "vitest";
 import fs from "fs-extra";
 import * as os from "os";
 import * as path from "path";
@@ -26,19 +26,23 @@ vi.mock("fs-extra", () => ({
   },
 }));
 vi.mock("../../../../lib/Config.js", () => ({
-  ConfigManager: vi.fn(function () { return {
-    addSkill: vi.fn(),
-    create: vi.fn(),
-    getSkillRegistries: vi.fn(),
-    read: vi.fn(),
-    removeSkill: vi.fn(),
-    update: vi.fn(),
-  }; }),
+  ConfigManager: vi.fn(function () {
+    return {
+      addSkill: vi.fn(),
+      create: vi.fn(),
+      getSkillRegistries: vi.fn(),
+      read: vi.fn(),
+      removeSkill: vi.fn(),
+      update: vi.fn(),
+    };
+  }),
 }));
 vi.mock("../../../../lib/GlobalConfig.js", () => ({
-  GlobalConfigManager: vi.fn(function () { return {
-    getSkillRegistries: vi.fn(),
-  }; }),
+  GlobalConfigManager: vi.fn(function () {
+    return {
+      getSkillRegistries: vi.fn(),
+    };
+  }),
 }));
 vi.mock("../../../../util/git.js", () => ({
   ensureGitInstalled: vi.fn(),
@@ -63,38 +67,34 @@ vi.mock("../../../../util/terminal.js", () => ({
 }));
 
 vi.mock("ora", () => ({
-  default: vi.fn(function () { return {
-    start: vi.fn().mockReturnThis(),
-    succeed: vi.fn().mockReturnThis(),
-    fail: vi.fn().mockReturnThis(),
-    warn: vi.fn().mockReturnThis(),
-    stop: vi.fn().mockReturnThis(),
-    text: '',
-    isSpinning: false,
-  }; }),
+  default: vi.fn(function () {
+    return {
+      start: vi.fn().mockReturnThis(),
+      succeed: vi.fn().mockReturnThis(),
+      fail: vi.fn().mockReturnThis(),
+      warn: vi.fn().mockReturnThis(),
+      stop: vi.fn().mockReturnThis(),
+      text: "",
+      isSpinning: false,
+    };
+  }),
 }));
 
 import * as skillDescription from "../../../../services/skill/skill-description.js";
 const mockedSkillDescription = skillDescription as Mocked<typeof skillDescription>;
 
 const mockedFs = fs as Mocked<typeof fs>;
-const MockedConfigManager = ConfigManager as MockedClass<
-  typeof ConfigManager
->;
-const MockedGlobalConfigManager = GlobalConfigManager as MockedClass<
-  typeof GlobalConfigManager
->;
+const MockedConfigManager = ConfigManager as MockedClass<typeof ConfigManager>;
+const MockedGlobalConfigManager = GlobalConfigManager as MockedClass<typeof GlobalConfigManager>;
 const mockedGitUtil = gitUtil as Mocked<typeof gitUtil>;
 const mockedSkillUtil = skillUtil as Mocked<typeof skillUtil>;
 
 function mockFetch(response: any) {
   global.fetch = vi.fn().mockResolvedValue({
     ok: true,
-    json: () => Promise.resolve(response)
+    json: () => Promise.resolve(response),
   });
 }
-
-
 
 describe("SkillService", () => {
   let skillManager: SkillService;
@@ -103,29 +103,27 @@ describe("SkillService", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "log").mockImplementation(() => { });
+    vi.spyOn(console, "log").mockImplementation(() => {});
 
     mockConfigManager = new MockedConfigManager() as Mocked<ConfigManager>;
-    mockGlobalConfigManager =
-      new MockedGlobalConfigManager() as Mocked<GlobalConfigManager>;
+    mockGlobalConfigManager = new MockedGlobalConfigManager() as Mocked<GlobalConfigManager>;
 
     mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
     mockConfigManager.getSkillRegistries.mockResolvedValue({});
 
-    skillManager = new SkillService(
-      mockConfigManager,
-      mockGlobalConfigManager,
-    );
+    skillManager = new SkillService(mockConfigManager, mockGlobalConfigManager);
 
-    mockedSkillUtil.validateRegistryId.mockImplementation(() => { });
-    mockedSkillUtil.validateSkillName.mockImplementation(() => { });
-    mockedSkillUtil.isValidSkillName.mockImplementation((name: string) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name));
+    mockedSkillUtil.validateRegistryId.mockImplementation(() => {});
+    mockedSkillUtil.validateSkillName.mockImplementation(() => {});
+    mockedSkillUtil.isValidSkillName.mockImplementation((name: string) =>
+      /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name),
+    );
     mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
     mockConfigManager.addSkill.mockResolvedValue({} as any);
     (mockedFs.realpath as any).mockImplementation(async (checkedPath: string) => checkedPath);
     (mockedFs.stat as any).mockResolvedValue({ size: 100 });
     (mockedFs.opendir as any).mockResolvedValue({
-      async *[Symbol.asyncIterator]() { },
+      async *[Symbol.asyncIterator]() {},
     });
   });
 
@@ -134,9 +132,8 @@ describe("SkillService", () => {
   });
 
   describe("updateSkills", () => {
-
     beforeEach(() => {
-      vi.spyOn(console, "log").mockImplementation(() => { });
+      vi.spyOn(console, "log").mockImplementation(() => {});
       mockedGitUtil.ensureGitInstalled.mockResolvedValue(undefined);
     });
 
@@ -170,12 +167,8 @@ describe("SkillService", () => {
           { name: "anthropics", isDirectory: () => true },
           { name: "openai", isDirectory: () => true },
         ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "tools", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "tools", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
@@ -196,12 +189,8 @@ describe("SkillService", () => {
           { name: "anthropics", isDirectory: () => true },
           { name: "openai", isDirectory: () => true },
         ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "tools", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "tools", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
@@ -217,27 +206,19 @@ describe("SkillService", () => {
     it("should throw error when specific registry not found", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.readdir as any)
-        .mockResolvedValueOnce([
-          { name: "anthropics", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "anthropics", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }]);
 
-      await expect(
-        skillManager.updateSkills("nonexistent/registry"),
-      ).rejects.toThrow('Registry "nonexistent/registry" not found in cache');
+      await expect(skillManager.updateSkills("nonexistent/registry")).rejects.toThrow(
+        'Registry "nonexistent/registry" not found in cache',
+      );
     });
 
     it("should skip non-git directories", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.readdir as any)
-        .mockResolvedValueOnce([
-          { name: "anthropics", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "anthropics", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(false);
 
@@ -258,12 +239,8 @@ describe("SkillService", () => {
           { name: "anthropics", isDirectory: () => true },
           { name: "openai", isDirectory: () => true },
         ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "tools", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "tools", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any)
@@ -283,17 +260,11 @@ describe("SkillService", () => {
     it("should collect and report all errors", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.readdir as any)
-        .mockResolvedValueOnce([
-          { name: "anthropics", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "anthropics", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
-      (mockedGitUtil.pullRepository as any).mockRejectedValue(
-        new Error("Network error"),
-      );
+      (mockedGitUtil.pullRepository as any).mockRejectedValue(new Error("Network error"));
 
       const result = await skillManager.updateSkills();
 
@@ -305,12 +276,8 @@ describe("SkillService", () => {
     it("should show progress for each registry", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.readdir as any)
-        .mockResolvedValueOnce([
-          { name: "anthropics", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "anthropics", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
@@ -324,12 +291,8 @@ describe("SkillService", () => {
     it("should display summary after updates", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.readdir as any)
-        .mockResolvedValueOnce([
-          { name: "anthropics", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "anthropics", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any).mockResolvedValue(true);
       (mockedGitUtil.pullRepository as any).mockResolvedValue(undefined);
@@ -352,18 +315,12 @@ describe("SkillService", () => {
           { name: "openai", isDirectory: () => true },
           { name: "custom", isDirectory: () => true },
         ])
-        .mockResolvedValueOnce([
-          { name: "skills", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "tools", isDirectory: () => true },
-        ])
-        .mockResolvedValueOnce([
-          { name: "manual", isDirectory: () => true },
-        ]);
+        .mockResolvedValueOnce([{ name: "skills", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "tools", isDirectory: () => true }])
+        .mockResolvedValueOnce([{ name: "manual", isDirectory: () => true }]);
 
       (mockedGitUtil.isGitRepository as any)
-        .mockResolvedValueOnce(true)  // anthropics/skills - git repo
+        .mockResolvedValueOnce(true) // anthropics/skills - git repo
         .mockResolvedValueOnce(false) // openai/tools - not git
         .mockResolvedValueOnce(true); // custom/manual - git repo
 
@@ -421,9 +378,9 @@ describe("SkillService", () => {
       mockGlobalConfigManager.getSkillRegistries.mockResolvedValue({});
 
       mockedGitUtil.fetchGitHead.mockImplementation(async (url: string) => {
-        if (url.includes('anthropics')) return 'abc123';
-        if (url.includes('vercel')) return 'def456';
-        return '000000';
+        if (url.includes("anthropics")) return "abc123";
+        if (url.includes("vercel")) return "def456";
+        return "000000";
       });
     });
 
@@ -438,9 +395,7 @@ describe("SkillService", () => {
 
       const results = await skillManager.findSkills("typescript");
 
-      expect(mockedFs.readJson).toHaveBeenCalledWith(
-        expect.stringContaining("skills.json")
-      );
+      expect(mockedFs.readJson).toHaveBeenCalledWith(expect.stringContaining("skills.json"));
       expect(results).toHaveLength(1);
       expect(results[0].name).toBe("typescript-helper");
     });
@@ -482,8 +437,8 @@ describe("SkillService", () => {
       const results = await skillManager.findSkills("component");
 
       expect(results).toHaveLength(2);
-      expect(results.map(r => r.name)).toContain("react-components");
-      expect(results.map(r => r.name)).toContain("frontend-design");
+      expect(results.map((r) => r.name)).toContain("react-components");
+      expect(results.map((r) => r.name)).toContain("frontend-design");
     });
 
     it("should return empty array when no matches found", async () => {
@@ -520,10 +475,12 @@ describe("SkillService", () => {
       );
 
       (mockedFs.pathExists as any).mockImplementation(async (checkedPath: string) => {
-        return checkedPath === expectedRegistryPath
-          || checkedPath === path.join(expectedRegistryPath, "skills")
-          || checkedPath === path.join(expectedRegistryPath, "skills", "asf", "SKILL.md")
-          || checkedPath.endsWith("skills.json");
+        return (
+          checkedPath === expectedRegistryPath ||
+          checkedPath === path.join(expectedRegistryPath, "skills") ||
+          checkedPath === path.join(expectedRegistryPath, "skills", "asf", "SKILL.md") ||
+          checkedPath.endsWith("skills.json")
+        );
       });
       (mockedFs.readJson as any).mockResolvedValue({
         meta: {
@@ -574,13 +531,8 @@ describe("SkillService", () => {
           description: "ASF experiment workflow",
         }),
       ]);
-      expect(mockedFs.opendir).toHaveBeenCalledWith(
-        path.join(expectedRegistryPath, "skills"),
-      );
-      expect(mockedFs.opendir).not.toHaveBeenCalledWith(
-        path.join(unrelatedRegistryPath, "skills"),
-      );
+      expect(mockedFs.opendir).toHaveBeenCalledWith(path.join(expectedRegistryPath, "skills"));
+      expect(mockedFs.opendir).not.toHaveBeenCalledWith(path.join(unrelatedRegistryPath, "skills"));
     });
   });
-
 });

@@ -2,511 +2,604 @@
  * Tests for CopilotAdapter
  */
 
-import type { MockedFunction } from 'vitest';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import type { MockedFunction } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
-import { CopilotAdapter } from '../../adapters/CopilotAdapter.js';
-import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
-import { AgentStatus } from '../../adapters/AgentAdapter.js';
-import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
-import { generateAgentName } from '../../utils/matching.js';
-import { AgentRegistry } from '../../utils/AgentRegistry.js';
+import { CopilotAdapter } from "../../adapters/CopilotAdapter.js";
+import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import {
+  listAgentProcesses,
+  enrichProcesses,
+  captureProcessSnapshot,
+} from "../../utils/process.js";
+import { generateAgentName } from "../../utils/matching.js";
+import { AgentRegistry } from "../../utils/AgentRegistry.js";
 
-vi.mock('../../utils/process.js', async (importOriginal) => {
-    const actual = await importOriginal() as typeof import('../../utils/process.js');
-    return {
-        ...actual,
-        listAgentProcesses: vi.fn(),
-        enrichProcesses: vi.fn(),
-        captureProcessSnapshot: vi.fn(),
-    };
+vi.mock("../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
+  return {
+    ...actual,
+    listAgentProcesses: vi.fn(),
+    enrichProcesses: vi.fn(),
+    captureProcessSnapshot: vi.fn(),
+  };
 });
 
-vi.mock('../../utils/matching.js', () => ({
-    generateAgentName: vi.fn(),
+vi.mock("../../utils/matching.js", () => ({
+  generateAgentName: vi.fn(),
 }));
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
-const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<
+  typeof captureProcessSnapshot
+>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
-describe('CopilotAdapter', () => {
-    let adapter: CopilotAdapter;
-    let tmpDir: string;
-    let sessionStateDir: string;
+describe("CopilotAdapter", () => {
+  let adapter: CopilotAdapter;
+  let tmpDir: string;
+  let sessionStateDir: string;
 
-    beforeEach(() => {
-        adapter = new CopilotAdapter();
-        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'copilot-test-'));
-        sessionStateDir = path.join(tmpDir, 'session-state');
-        fs.mkdirSync(sessionStateDir, { recursive: true });
-        (adapter as any).sessionStateDir = sessionStateDir;
+  beforeEach(() => {
+    adapter = new CopilotAdapter();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-test-"));
+    sessionStateDir = path.join(tmpDir, "session-state");
+    fs.mkdirSync(sessionStateDir, { recursive: true });
+    (adapter as any).sessionStateDir = sessionStateDir;
 
-        mockedListAgentProcesses.mockReset();
-        mockedEnrichProcesses.mockReset();
-        mockedCaptureProcessSnapshot.mockReset();
-        mockedGenerateAgentName.mockReset();
-        mockedEnrichProcesses.mockImplementation((procs) => procs);
-        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
-        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
-            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
-        ));
-        mockedGenerateAgentName.mockImplementation((cwd, pid) => `${path.basename(cwd) || 'unknown'} (${pid})`);
-    });
+    mockedListAgentProcesses.mockReset();
+    mockedEnrichProcesses.mockReset();
+    mockedCaptureProcessSnapshot.mockReset();
+    mockedGenerateAgentName.mockReset();
+    mockedEnrichProcesses.mockImplementation((procs) => procs);
+    // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
+    mockedCaptureProcessSnapshot.mockImplementation(async (names) =>
+      enrichProcesses(names.flatMap((name) => listAgentProcesses(name))),
+    );
+    mockedGenerateAgentName.mockImplementation(
+      (cwd, pid) => `${path.basename(cwd) || "unknown"} (${pid})`,
+    );
+  });
 
-    afterEach(() => {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-    });
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
 
-    function writeSession(
-        sessionId: string,
-        options: {
-            events?: Array<object | string>;
-            workspace?: Record<string, string>;
-            lockPid?: number | string;
+  function writeSession(
+    sessionId: string,
+    options: {
+      events?: Array<object | string>;
+      workspace?: Record<string, string>;
+      lockPid?: number | string;
+    },
+  ): string {
+    const sessionDir = path.join(sessionStateDir, sessionId);
+    fs.mkdirSync(sessionDir, { recursive: true });
+
+    if (options.events) {
+      const lines = options.events.map((entry) =>
+        typeof entry === "string" ? entry : JSON.stringify(entry),
+      );
+      fs.writeFileSync(path.join(sessionDir, "events.jsonl"), lines.join("\n"));
+    }
+
+    if (options.workspace) {
+      const lines = Object.entries(options.workspace).map(([key, value]) => `${key}: ${value}`);
+      fs.writeFileSync(path.join(sessionDir, "workspace.yaml"), lines.join("\n"));
+    }
+
+    if (options.lockPid !== undefined) {
+      fs.writeFileSync(path.join(sessionDir, `inuse.${options.lockPid}.lock`), "");
+    }
+
+    return sessionDir;
+  }
+
+  function sessionStart(
+    sessionId: string,
+    cwd: string,
+    startTime = "2026-06-09T09:50:00.000Z",
+  ): object {
+    return {
+      type: "session.start",
+      data: {
+        sessionId,
+        startTime,
+        context: {
+          cwd,
+          gitRoot: cwd,
+          branch: "main",
         },
-    ): string {
-        const sessionDir = path.join(sessionStateDir, sessionId);
-        fs.mkdirSync(sessionDir, { recursive: true });
+      },
+      timestamp: startTime,
+    };
+  }
 
-        if (options.events) {
-            const lines = options.events.map((entry) => (
-                typeof entry === 'string' ? entry : JSON.stringify(entry)
-            ));
-            fs.writeFileSync(path.join(sessionDir, 'events.jsonl'), lines.join('\n'));
-        }
+  describe("initialization", () => {
+    it("exposes copilot type", () => {
+      expect(adapter.type).toBe("copilot");
+    });
+  });
 
-        if (options.workspace) {
-            const lines = Object.entries(options.workspace).map(([key, value]) => `${key}: ${value}`);
-            fs.writeFileSync(path.join(sessionDir, 'workspace.yaml'), lines.join('\n'));
-        }
-
-        if (options.lockPid !== undefined) {
-            fs.writeFileSync(path.join(sessionDir, `inuse.${options.lockPid}.lock`), '');
-        }
-
-        return sessionDir;
-    }
-
-    function sessionStart(sessionId: string, cwd: string, startTime = '2026-06-09T09:50:00.000Z'): object {
-        return {
-            type: 'session.start',
-            data: {
-                sessionId,
-                startTime,
-                context: {
-                    cwd,
-                    gitRoot: cwd,
-                    branch: 'main',
-                },
-            },
-            timestamp: startTime,
-        };
-    }
-
-    describe('initialization', () => {
-        it('exposes copilot type', () => {
-            expect(adapter.type).toBe('copilot');
-        });
+  describe("canHandle", () => {
+    it("returns true for copilot commands", () => {
+      expect(adapter.canHandle({ pid: 1, command: "copilot", cwd: "/repo", tty: "ttys001" })).toBe(
+        true,
+      );
     });
 
-    describe('canHandle', () => {
-        it('returns true for copilot commands', () => {
-            expect(adapter.canHandle({ pid: 1, command: 'copilot', cwd: '/repo', tty: 'ttys001' })).toBe(true);
-        });
-
-        it('returns true for full-path Homebrew copilot commands', () => {
-            expect(adapter.canHandle({
-                pid: 2,
-                command: '/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot',
-                cwd: '/repo',
-                tty: 'ttys002',
-            })).toBe(true);
-        });
-
-        it('returns true for copilot.exe commands', () => {
-            expect(adapter.canHandle({ pid: 3, command: '/usr/bin/copilot.exe', cwd: '/repo', tty: 'ttys003' })).toBe(true);
-        });
-
-        it('returns false when copilot appears only in an argument', () => {
-            expect(adapter.canHandle({
-                pid: 4,
-                command: 'node /repo/copilot-plugin/index.js',
-                cwd: '/repo',
-                tty: 'ttys004',
-            })).toBe(false);
-        });
+    it("returns true for full-path Homebrew copilot commands", () => {
+      expect(
+        adapter.canHandle({
+          pid: 2,
+          command: "/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot",
+          cwd: "/repo",
+          tty: "ttys002",
+        }),
+      ).toBe(true);
     });
 
-    describe('detectAgents', () => {
-        it('returns empty list when no copilot process is running', async () => {
-            mockedListAgentProcesses.mockReturnValue([]);
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toEqual([]);
-            expect(mockedListAgentProcesses).toHaveBeenCalledWith('copilot');
-        });
-
-        it('maps matching inuse lock and events to an active agent', async () => {
-            const processes: ProcessInfo[] = [
-                { pid: 14096, command: '/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot', cwd: '/repo', tty: 'ttys001' },
-            ];
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-            writeSession('sess-a', {
-                lockPid: 14096,
-                events: [
-                    sessionStart('sess-a', '/repo', '2026-06-09T09:50:00.000Z'),
-                    { type: 'user.message', data: { content: 'Build the Copilot adapter' }, timestamp: new Date().toISOString() },
-                    { type: 'assistant.message', data: { content: 'I will inspect the code.' }, timestamp: new Date().toISOString() },
-                ],
-                workspace: {
-                    id: 'sess-a',
-                    cwd: '/fallback',
-                    name: 'Fallback Name',
-                    created_at: '2026-06-09T09:49:00.000Z',
-                    updated_at: '2026-06-09T09:51:00.000Z',
-                },
-            });
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                type: 'copilot',
-                status: AgentStatus.WAITING,
-                pid: 14096,
-                projectPath: '/repo',
-                sessionId: 'sess-a',
-                summary: 'Build the Copilot adapter',
-                sessionFilePath: path.join(sessionStateDir, 'sess-a', 'events.jsonl'),
-            });
-        });
-
-        it('ignores invalid and unmatched lock PIDs', async () => {
-            const processes: ProcessInfo[] = [
-                { pid: 100, command: 'copilot', cwd: '/repo', tty: 'ttys001' },
-            ];
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-            writeSession('invalid', {
-                lockPid: 'not-a-pid',
-                events: [sessionStart('invalid', '/invalid')],
-            });
-            writeSession('unmatched', {
-                lockPid: 999999,
-                events: [sessionStart('unmatched', '/unmatched')],
-            });
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                pid: 100,
-                sessionId: 'pid-100',
-                summary: 'Copilot process running',
-            });
-        });
-
-        it('falls back to process-only agent when no session lock matches', async () => {
-            const processes: ProcessInfo[] = [
-                { pid: 200, command: 'copilot', cwd: '/repo-b', tty: 'ttys002' },
-            ];
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                type: 'copilot',
-                status: AgentStatus.RUNNING,
-                pid: 200,
-                projectPath: '/repo-b',
-                sessionId: 'pid-200',
-                summary: 'Copilot process running',
-            });
-        });
-
-        it('suppresses wrapper process-only agents before the session lock exists', async () => {
-            const processes: ProcessInfo[] = [
-                { pid: 86800, command: 'copilot', cwd: '/repo', tty: 'ttys001', ppid: 84174 },
-                { pid: 86810, command: '/custom/install/copilot', cwd: '/repo', tty: 'ttys001', ppid: 86800 },
-            ];
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                pid: 86810,
-                sessionId: 'pid-86810',
-                summary: 'Copilot process running',
-            });
-        });
-
-        it('carries the managed wrapper name to a process-only child before the session lock exists', async () => {
-            const registry = new AgentRegistry(path.join(tmpDir, 'agents.json'));
-            adapter = new CopilotAdapter(registry);
-            (adapter as any).sessionStateDir = sessionStateDir;
-            const processes: ProcessInfo[] = [
-                { pid: 86800, command: 'copilot', cwd: '/repo', tty: 'ttys001', ppid: 84174 },
-                { pid: 86810, command: '/custom/install/copilot', cwd: '/repo', tty: 'ttys001', ppid: 86800 },
-            ];
-            registry.register({
-                name: 'copilot-started',
-                type: 'copilot',
-                pid: 86800,
-                runtime: 'tmux',
-                runtimeRef: { session: 'copilot-started' },
-                cwd: '/repo',
-                startedAt: '2026-06-13T19:15:16.211Z',
-                sessionId: 'pid-86800',
-                sessionFilePath: '',
-            });
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                name: 'copilot-started',
-                pid: 86810,
-                sessionId: 'pid-86810',
-            });
-        });
-
-        it('does not add duplicate process-only agent for wrapper process in the same terminal', async () => {
-            const processes: ProcessInfo[] = [
-                { pid: 14095, command: 'copilot', cwd: '/repo', tty: 'ttys001' },
-                { pid: 14096, command: '/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot', cwd: '/repo', tty: 'ttys001' },
-            ];
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-            writeSession('sess-wrapper', {
-                lockPid: 14096,
-                events: [
-                    sessionStart('sess-wrapper', '/repo', '2026-06-09T09:50:00.000Z'),
-                    { type: 'user.message', data: { content: 'hello' }, timestamp: new Date().toISOString() },
-                ],
-            });
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                pid: 14096,
-                sessionId: 'sess-wrapper',
-            });
-        });
-
-        it('carries the managed wrapper name to a lock-backed child process', async () => {
-            const registry = new AgentRegistry(path.join(tmpDir, 'agents.json'));
-            adapter = new CopilotAdapter(registry);
-            (adapter as any).sessionStateDir = sessionStateDir;
-            const processes: ProcessInfo[] = [
-                { pid: 14095, command: 'copilot', cwd: '/repo', tty: 'ttys001', ppid: 84174 },
-                { pid: 14096, command: '/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot', cwd: '/repo', tty: 'ttys001', ppid: 14095 },
-            ];
-            registry.register({
-                name: 'copilot-started',
-                type: 'copilot',
-                pid: 14095,
-                runtime: 'tmux',
-                runtimeRef: { session: 'copilot-started' },
-                cwd: '/repo',
-                startedAt: '2026-06-13T19:15:16.211Z',
-                sessionId: 'pid-14095',
-                sessionFilePath: '',
-            });
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-            writeSession('sess-wrapper', {
-                lockPid: 14096,
-                events: [
-                    sessionStart('sess-wrapper', '/repo', '2026-06-09T09:50:00.000Z'),
-                    { type: 'user.message', data: { content: 'hello' }, timestamp: new Date().toISOString() },
-                ],
-            });
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                name: 'copilot-started',
-                pid: 14096,
-                sessionId: 'sess-wrapper',
-            });
-        });
-
-        it('uses workspace metadata when events are missing', async () => {
-            const processes: ProcessInfo[] = [
-                { pid: 300, command: 'copilot', cwd: '/proc-cwd', tty: 'ttys003' },
-            ];
-            mockedListAgentProcesses.mockReturnValue(processes);
-            mockedEnrichProcesses.mockReturnValue(processes);
-            writeSession('workspace-only', {
-                lockPid: 300,
-                workspace: {
-                    id: 'workspace-only',
-                    cwd: '/workspace-cwd',
-                    name: 'Workspace Session',
-                    created_at: '2026-06-09T09:00:00.000Z',
-                    updated_at: '2026-06-09T09:10:00.000Z',
-                },
-            });
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                pid: 300,
-                projectPath: '/workspace-cwd',
-                sessionId: 'workspace-only',
-                summary: 'Workspace Session',
-            });
-        });
+    it("returns true for copilot.exe commands", () => {
+      expect(
+        adapter.canHandle({
+          pid: 3,
+          command: "/usr/bin/copilot.exe",
+          cwd: "/repo",
+          tty: "ttys003",
+        }),
+      ).toBe(true);
     });
 
-    describe('getConversation', () => {
-        it('parses user and assistant message events', () => {
-            const sessionDir = writeSession('conv', {
-                events: [
-                    sessionStart('conv', '/repo'),
-                    { type: 'user.message', data: { content: 'hello' }, timestamp: '2026-06-09T09:50:01.000Z' },
-                    { type: 'assistant.message', data: { content: 'Hi there' }, timestamp: '2026-06-09T09:50:02.000Z' },
-                ],
-            });
+    it("returns false when copilot appears only in an argument", () => {
+      expect(
+        adapter.canHandle({
+          pid: 4,
+          command: "node /repo/copilot-plugin/index.js",
+          cwd: "/repo",
+          tty: "ttys004",
+        }),
+      ).toBe(false);
+    });
+  });
 
-            const messages = adapter.getConversation(path.join(sessionDir, 'events.jsonl'));
+  describe("detectAgents", () => {
+    it("returns empty list when no copilot process is running", async () => {
+      mockedListAgentProcesses.mockReturnValue([]);
 
-            expect(messages).toEqual([
-                { role: 'user', content: 'hello', timestamp: '2026-06-09T09:50:01.000Z' },
-                { role: 'assistant', content: 'Hi there', timestamp: '2026-06-09T09:50:02.000Z' },
-            ]);
-        });
+      const agents = await adapter.detectAgents();
 
-        it('includes system/info/warning messages only in verbose mode', () => {
-            const sessionDir = writeSession('verbose', {
-                events: [
-                    { type: 'session.warning', data: { message: 'MCP failed' }, timestamp: '2026-06-09T09:50:01.000Z' },
-                    { type: 'tool.execution_complete', data: { result: { content: 'Tool result' } }, timestamp: '2026-06-09T09:50:02.000Z' },
-                ],
-            });
-            const filePath = path.join(sessionDir, 'events.jsonl');
-
-            expect(adapter.getConversation(filePath)).toEqual([]);
-            expect(adapter.getConversation(filePath, { verbose: true })).toEqual([
-                { role: 'system', content: 'MCP failed', timestamp: '2026-06-09T09:50:01.000Z' },
-                { role: 'system', content: 'Tool result', timestamp: '2026-06-09T09:50:02.000Z' },
-            ]);
-        });
-
-        it('skips malformed JSONL lines and missing text', () => {
-            const sessionDir = writeSession('malformed', {
-                events: [
-                    'not json',
-                    { type: 'user.message', data: { content: 'valid' }, timestamp: '2026-06-09T09:50:01.000Z' },
-                    { type: 'assistant.message', data: {}, timestamp: '2026-06-09T09:50:02.000Z' },
-                ],
-            });
-
-            const messages = adapter.getConversation(path.join(sessionDir, 'events.jsonl'));
-
-            expect(messages).toEqual([
-                { role: 'user', content: 'valid', timestamp: '2026-06-09T09:50:01.000Z' },
-            ]);
-        });
-
-        it('returns empty array for missing file', () => {
-            expect(adapter.getConversation(path.join(tmpDir, 'missing.jsonl'))).toEqual([]);
-        });
+      expect(agents).toEqual([]);
+      expect(mockedListAgentProcesses).toHaveBeenCalledWith("copilot");
     });
 
-    describe('listSessions', () => {
-        it('returns historical sessions without active locks', async () => {
-            writeSession('history-a', {
-                events: [
-                    sessionStart('history-a', '/repo-a', '2026-06-09T09:00:00.000Z'),
-                    { type: 'user.message', data: { content: 'first user' }, timestamp: '2026-06-09T09:00:01.000Z' },
-                    { type: 'assistant.message', data: { content: 'answer' }, timestamp: '2026-06-09T09:00:02.000Z' },
-                ],
-            });
-            writeSession('history-b', {
-                events: [
-                    sessionStart('history-b', '/repo-b', '2026-06-09T10:00:00.000Z'),
-                    { type: 'user.message', data: { content: 'other user' }, timestamp: '2026-06-09T10:00:01.000Z' },
-                ],
-            });
+    it("maps matching inuse lock and events to an active agent", async () => {
+      const processes: ProcessInfo[] = [
+        {
+          pid: 14096,
+          command: "/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot",
+          cwd: "/repo",
+          tty: "ttys001",
+        },
+      ];
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+      writeSession("sess-a", {
+        lockPid: 14096,
+        events: [
+          sessionStart("sess-a", "/repo", "2026-06-09T09:50:00.000Z"),
+          {
+            type: "user.message",
+            data: { content: "Build the Copilot adapter" },
+            timestamp: new Date().toISOString(),
+          },
+          {
+            type: "assistant.message",
+            data: { content: "I will inspect the code." },
+            timestamp: new Date().toISOString(),
+          },
+        ],
+        workspace: {
+          id: "sess-a",
+          cwd: "/fallback",
+          name: "Fallback Name",
+          created_at: "2026-06-09T09:49:00.000Z",
+          updated_at: "2026-06-09T09:51:00.000Z",
+        },
+      });
 
-            const sessions = await adapter.listSessions();
+      const agents = await adapter.detectAgents();
 
-            expect(sessions).toHaveLength(2);
-            const byId = Object.fromEntries(sessions.map((session) => [session.sessionId, session]));
-            expect(byId['history-a']).toMatchObject({
-                type: 'copilot',
-                cwd: '/repo-a',
-                firstUserMessage: 'first user',
-                sessionFilePath: path.join(sessionStateDir, 'history-a', 'events.jsonl'),
-            });
-            expect(byId['history-b']).toMatchObject({
-                type: 'copilot',
-                cwd: '/repo-b',
-                firstUserMessage: 'other user',
-            });
-        });
-
-        it('applies strict cwd filter', async () => {
-            writeSession('keep', { events: [sessionStart('keep', '/repo')] });
-            writeSession('drop', { events: [sessionStart('drop', '/other')] });
-
-            const sessions = await adapter.listSessions({ cwd: '/repo' });
-
-            expect(sessions).toHaveLength(1);
-            expect(sessions[0].sessionId).toBe('keep');
-        });
-
-        it('uses workspace fallback for historical sessions without events', async () => {
-            writeSession('workspace-history', {
-                workspace: {
-                    id: 'workspace-history',
-                    cwd: '/workspace-repo',
-                    name: 'Workspace History',
-                    created_at: '2026-06-09T08:00:00.000Z',
-                    updated_at: '2026-06-09T08:10:00.000Z',
-                },
-            });
-
-            const sessions = await adapter.listSessions();
-
-            expect(sessions).toHaveLength(1);
-            expect(sessions[0]).toMatchObject({
-                type: 'copilot',
-                sessionId: 'workspace-history',
-                cwd: '/workspace-repo',
-                firstUserMessage: '',
-                sessionFilePath: path.join(sessionStateDir, 'workspace-history', 'events.jsonl'),
-            });
-        });
-
-        it('skips session directories without events or workspace metadata', async () => {
-            fs.mkdirSync(path.join(sessionStateDir, 'empty'), { recursive: true });
-
-            const sessions = await adapter.listSessions();
-
-            expect(sessions).toEqual([]);
-        });
-
-        it('returns empty when session-state directory does not exist', async () => {
-            (adapter as any).sessionStateDir = path.join(tmpDir, 'missing');
-
-            await expect(adapter.listSessions()).resolves.toEqual([]);
-        });
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        type: "copilot",
+        status: AgentStatus.WAITING,
+        pid: 14096,
+        projectPath: "/repo",
+        sessionId: "sess-a",
+        summary: "Build the Copilot adapter",
+        sessionFilePath: path.join(sessionStateDir, "sess-a", "events.jsonl"),
+      });
     });
+
+    it("ignores invalid and unmatched lock PIDs", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 100, command: "copilot", cwd: "/repo", tty: "ttys001" },
+      ];
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+      writeSession("invalid", {
+        lockPid: "not-a-pid",
+        events: [sessionStart("invalid", "/invalid")],
+      });
+      writeSession("unmatched", {
+        lockPid: 999999,
+        events: [sessionStart("unmatched", "/unmatched")],
+      });
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        pid: 100,
+        sessionId: "pid-100",
+        summary: "Copilot process running",
+      });
+    });
+
+    it("falls back to process-only agent when no session lock matches", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 200, command: "copilot", cwd: "/repo-b", tty: "ttys002" },
+      ];
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        type: "copilot",
+        status: AgentStatus.RUNNING,
+        pid: 200,
+        projectPath: "/repo-b",
+        sessionId: "pid-200",
+        summary: "Copilot process running",
+      });
+    });
+
+    it("suppresses wrapper process-only agents before the session lock exists", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 86800, command: "copilot", cwd: "/repo", tty: "ttys001", ppid: 84174 },
+        {
+          pid: 86810,
+          command: "/custom/install/copilot",
+          cwd: "/repo",
+          tty: "ttys001",
+          ppid: 86800,
+        },
+      ];
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        pid: 86810,
+        sessionId: "pid-86810",
+        summary: "Copilot process running",
+      });
+    });
+
+    it("carries the managed wrapper name to a process-only child before the session lock exists", async () => {
+      const registry = new AgentRegistry(path.join(tmpDir, "agents.json"));
+      adapter = new CopilotAdapter(registry);
+      (adapter as any).sessionStateDir = sessionStateDir;
+      const processes: ProcessInfo[] = [
+        { pid: 86800, command: "copilot", cwd: "/repo", tty: "ttys001", ppid: 84174 },
+        {
+          pid: 86810,
+          command: "/custom/install/copilot",
+          cwd: "/repo",
+          tty: "ttys001",
+          ppid: 86800,
+        },
+      ];
+      registry.register({
+        name: "copilot-started",
+        type: "copilot",
+        pid: 86800,
+        runtime: "tmux",
+        runtimeRef: { session: "copilot-started" },
+        cwd: "/repo",
+        startedAt: "2026-06-13T19:15:16.211Z",
+        sessionId: "pid-86800",
+        sessionFilePath: "",
+      });
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        name: "copilot-started",
+        pid: 86810,
+        sessionId: "pid-86810",
+      });
+    });
+
+    it("does not add duplicate process-only agent for wrapper process in the same terminal", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 14095, command: "copilot", cwd: "/repo", tty: "ttys001" },
+        {
+          pid: 14096,
+          command: "/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot",
+          cwd: "/repo",
+          tty: "ttys001",
+        },
+      ];
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+      writeSession("sess-wrapper", {
+        lockPid: 14096,
+        events: [
+          sessionStart("sess-wrapper", "/repo", "2026-06-09T09:50:00.000Z"),
+          { type: "user.message", data: { content: "hello" }, timestamp: new Date().toISOString() },
+        ],
+      });
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        pid: 14096,
+        sessionId: "sess-wrapper",
+      });
+    });
+
+    it("carries the managed wrapper name to a lock-backed child process", async () => {
+      const registry = new AgentRegistry(path.join(tmpDir, "agents.json"));
+      adapter = new CopilotAdapter(registry);
+      (adapter as any).sessionStateDir = sessionStateDir;
+      const processes: ProcessInfo[] = [
+        { pid: 14095, command: "copilot", cwd: "/repo", tty: "ttys001", ppid: 84174 },
+        {
+          pid: 14096,
+          command: "/opt/homebrew/Caskroom/copilot-cli/1.0.60/copilot",
+          cwd: "/repo",
+          tty: "ttys001",
+          ppid: 14095,
+        },
+      ];
+      registry.register({
+        name: "copilot-started",
+        type: "copilot",
+        pid: 14095,
+        runtime: "tmux",
+        runtimeRef: { session: "copilot-started" },
+        cwd: "/repo",
+        startedAt: "2026-06-13T19:15:16.211Z",
+        sessionId: "pid-14095",
+        sessionFilePath: "",
+      });
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+      writeSession("sess-wrapper", {
+        lockPid: 14096,
+        events: [
+          sessionStart("sess-wrapper", "/repo", "2026-06-09T09:50:00.000Z"),
+          { type: "user.message", data: { content: "hello" }, timestamp: new Date().toISOString() },
+        ],
+      });
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        name: "copilot-started",
+        pid: 14096,
+        sessionId: "sess-wrapper",
+      });
+    });
+
+    it("uses workspace metadata when events are missing", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 300, command: "copilot", cwd: "/proc-cwd", tty: "ttys003" },
+      ];
+      mockedListAgentProcesses.mockReturnValue(processes);
+      mockedEnrichProcesses.mockReturnValue(processes);
+      writeSession("workspace-only", {
+        lockPid: 300,
+        workspace: {
+          id: "workspace-only",
+          cwd: "/workspace-cwd",
+          name: "Workspace Session",
+          created_at: "2026-06-09T09:00:00.000Z",
+          updated_at: "2026-06-09T09:10:00.000Z",
+        },
+      });
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        pid: 300,
+        projectPath: "/workspace-cwd",
+        sessionId: "workspace-only",
+        summary: "Workspace Session",
+      });
+    });
+  });
+
+  describe("getConversation", () => {
+    it("parses user and assistant message events", () => {
+      const sessionDir = writeSession("conv", {
+        events: [
+          sessionStart("conv", "/repo"),
+          {
+            type: "user.message",
+            data: { content: "hello" },
+            timestamp: "2026-06-09T09:50:01.000Z",
+          },
+          {
+            type: "assistant.message",
+            data: { content: "Hi there" },
+            timestamp: "2026-06-09T09:50:02.000Z",
+          },
+        ],
+      });
+
+      const messages = adapter.getConversation(path.join(sessionDir, "events.jsonl"));
+
+      expect(messages).toEqual([
+        { role: "user", content: "hello", timestamp: "2026-06-09T09:50:01.000Z" },
+        { role: "assistant", content: "Hi there", timestamp: "2026-06-09T09:50:02.000Z" },
+      ]);
+    });
+
+    it("includes system/info/warning messages only in verbose mode", () => {
+      const sessionDir = writeSession("verbose", {
+        events: [
+          {
+            type: "session.warning",
+            data: { message: "MCP failed" },
+            timestamp: "2026-06-09T09:50:01.000Z",
+          },
+          {
+            type: "tool.execution_complete",
+            data: { result: { content: "Tool result" } },
+            timestamp: "2026-06-09T09:50:02.000Z",
+          },
+        ],
+      });
+      const filePath = path.join(sessionDir, "events.jsonl");
+
+      expect(adapter.getConversation(filePath)).toEqual([]);
+      expect(adapter.getConversation(filePath, { verbose: true })).toEqual([
+        { role: "system", content: "MCP failed", timestamp: "2026-06-09T09:50:01.000Z" },
+        { role: "system", content: "Tool result", timestamp: "2026-06-09T09:50:02.000Z" },
+      ]);
+    });
+
+    it("skips malformed JSONL lines and missing text", () => {
+      const sessionDir = writeSession("malformed", {
+        events: [
+          "not json",
+          {
+            type: "user.message",
+            data: { content: "valid" },
+            timestamp: "2026-06-09T09:50:01.000Z",
+          },
+          { type: "assistant.message", data: {}, timestamp: "2026-06-09T09:50:02.000Z" },
+        ],
+      });
+
+      const messages = adapter.getConversation(path.join(sessionDir, "events.jsonl"));
+
+      expect(messages).toEqual([
+        { role: "user", content: "valid", timestamp: "2026-06-09T09:50:01.000Z" },
+      ]);
+    });
+
+    it("returns empty array for missing file", () => {
+      expect(adapter.getConversation(path.join(tmpDir, "missing.jsonl"))).toEqual([]);
+    });
+  });
+
+  describe("listSessions", () => {
+    it("returns historical sessions without active locks", async () => {
+      writeSession("history-a", {
+        events: [
+          sessionStart("history-a", "/repo-a", "2026-06-09T09:00:00.000Z"),
+          {
+            type: "user.message",
+            data: { content: "first user" },
+            timestamp: "2026-06-09T09:00:01.000Z",
+          },
+          {
+            type: "assistant.message",
+            data: { content: "answer" },
+            timestamp: "2026-06-09T09:00:02.000Z",
+          },
+        ],
+      });
+      writeSession("history-b", {
+        events: [
+          sessionStart("history-b", "/repo-b", "2026-06-09T10:00:00.000Z"),
+          {
+            type: "user.message",
+            data: { content: "other user" },
+            timestamp: "2026-06-09T10:00:01.000Z",
+          },
+        ],
+      });
+
+      const sessions = await adapter.listSessions();
+
+      expect(sessions).toHaveLength(2);
+      const byId = Object.fromEntries(sessions.map((session) => [session.sessionId, session]));
+      expect(byId["history-a"]).toMatchObject({
+        type: "copilot",
+        cwd: "/repo-a",
+        firstUserMessage: "first user",
+        sessionFilePath: path.join(sessionStateDir, "history-a", "events.jsonl"),
+      });
+      expect(byId["history-b"]).toMatchObject({
+        type: "copilot",
+        cwd: "/repo-b",
+        firstUserMessage: "other user",
+      });
+    });
+
+    it("applies strict cwd filter", async () => {
+      writeSession("keep", { events: [sessionStart("keep", "/repo")] });
+      writeSession("drop", { events: [sessionStart("drop", "/other")] });
+
+      const sessions = await adapter.listSessions({ cwd: "/repo" });
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0].sessionId).toBe("keep");
+    });
+
+    it("uses workspace fallback for historical sessions without events", async () => {
+      writeSession("workspace-history", {
+        workspace: {
+          id: "workspace-history",
+          cwd: "/workspace-repo",
+          name: "Workspace History",
+          created_at: "2026-06-09T08:00:00.000Z",
+          updated_at: "2026-06-09T08:10:00.000Z",
+        },
+      });
+
+      const sessions = await adapter.listSessions();
+
+      expect(sessions).toHaveLength(1);
+      expect(sessions[0]).toMatchObject({
+        type: "copilot",
+        sessionId: "workspace-history",
+        cwd: "/workspace-repo",
+        firstUserMessage: "",
+        sessionFilePath: path.join(sessionStateDir, "workspace-history", "events.jsonl"),
+      });
+    });
+
+    it("skips session directories without events or workspace metadata", async () => {
+      fs.mkdirSync(path.join(sessionStateDir, "empty"), { recursive: true });
+
+      const sessions = await adapter.listSessions();
+
+      expect(sessions).toEqual([]);
+    });
+
+    it("returns empty when session-state directory does not exist", async () => {
+      (adapter as any).sessionStateDir = path.join(tmpDir, "missing");
+
+      await expect(adapter.listSessions()).resolves.toEqual([]);
+    });
+  });
 });

@@ -1,8 +1,8 @@
-import { ConfigManager } from '../../lib/Config.js';
-import { GlobalConfigManager } from '../../lib/GlobalConfig.js';
-import { SkillInstallerService } from './installer/skill-installer.service.js';
-import { SkillIndexService } from './index/skill-index.service.js';
-import { SkillRegistryService } from './registry/skill-registry.service.js';
+import { ConfigManager } from "../../lib/Config.js";
+import { GlobalConfigManager } from "../../lib/GlobalConfig.js";
+import { SkillInstallerService } from "./installer/skill-installer.service.js";
+import { SkillIndexService } from "./index/skill-index.service.js";
+import { SkillRegistryService } from "./registry/skill-registry.service.js";
 import type {
   AddSkillOptions,
   AddSkillRegistryCommandOptions,
@@ -13,11 +13,11 @@ import type {
   RemoveSkillRegistryCommandOptions,
   SkillInstallResult,
   SkillRemoveResult,
-} from './skill.types.js';
-import type { SkillEntry } from './index/skill-index.service.js';
-import type { SkillRegistryAddStatus } from './registry/skill-registry-source.js';
-import type { UpdateSummary } from './registry/skill-registry.service.js';
-import type { SkillIndexRebuildResult } from './index/skill-index.service.js';
+} from "./skill.types.js";
+import type { SkillEntry } from "./index/skill-index.service.js";
+import type { SkillRegistryAddStatus } from "./registry/skill-registry-source.js";
+import type { UpdateSummary } from "./registry/skill-registry.service.js";
+import type { SkillIndexRebuildResult } from "./index/skill-index.service.js";
 
 export class SkillService {
   private readonly installer: SkillInstallerService;
@@ -80,7 +80,7 @@ export class SkillService {
   async removeRegistry(
     id: string,
     options: RemoveSkillRegistryCommandOptions = {},
-  ): Promise<'project' | 'global'> {
+  ): Promise<"project" | "global"> {
     const scope = await this.registry.removeRegistrySource(id, options);
     await this.index.removeRegistry(id);
     return scope;

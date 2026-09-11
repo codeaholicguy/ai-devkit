@@ -1,20 +1,34 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import * as os from 'os';
-import { ConfigManager } from '../../../lib/Config.js';
-import { GlobalConfigManager } from '../../../lib/GlobalConfig.js';
-import { ensureGitInstalled, cloneRepository, isGitRepository, pullRepository } from '../../../util/git.js';
-import { getErrorMessage } from '../../../util/text.js';
-import { CliError, NotFoundError } from '../../../util/errors.js';
-import { normalizeRegistrySourceInput, normalizeRegistrySources, parseLocalRegistryPath, planSkillRegistryAdd } from './skill-registry-source.js';
-import { isValidSkillName, validateRegistryId } from '../skill-validation.js';
-import { BUILTIN_SKILL_REGISTRY } from '../skill-builtins.js';
-import { LOCAL_REGISTRY_MAX_ENTRIES } from './registry-skill-discovery.js';
-import type { AddSkillRegistryCommandOptions, RemoveSkillRegistryCommandOptions } from '../skill.types.js';
-import type { SkillRegistryAddStatus } from './skill-registry-source.js';
+import fs from "fs-extra";
+import * as path from "path";
+import * as os from "os";
+import { ConfigManager } from "../../../lib/Config.js";
+import { GlobalConfigManager } from "../../../lib/GlobalConfig.js";
+import {
+  ensureGitInstalled,
+  cloneRepository,
+  isGitRepository,
+  pullRepository,
+} from "../../../util/git.js";
+import { getErrorMessage } from "../../../util/text.js";
+import { CliError, NotFoundError } from "../../../util/errors.js";
+import {
+  normalizeRegistrySourceInput,
+  normalizeRegistrySources,
+  parseLocalRegistryPath,
+  planSkillRegistryAdd,
+} from "./skill-registry-source.js";
+import { isValidSkillName, validateRegistryId } from "../skill-validation.js";
+import { BUILTIN_SKILL_REGISTRY } from "../skill-builtins.js";
+import { LOCAL_REGISTRY_MAX_ENTRIES } from "./registry-skill-discovery.js";
+import type {
+  AddSkillRegistryCommandOptions,
+  RemoveSkillRegistryCommandOptions,
+} from "../skill.types.js";
+import type { SkillRegistryAddStatus } from "./skill-registry-source.js";
 
-export const REGISTRY_URL = 'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json';
-export const SKILL_CACHE_DIR = path.join(os.homedir(), '.ai-devkit', 'skills');
+export const REGISTRY_URL =
+  "https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/registry.json";
+export const SKILL_CACHE_DIR = path.join(os.homedir(), ".ai-devkit", "skills");
 
 export interface SkillRegistryData {
   registries: Record<string, string>;
@@ -22,7 +36,7 @@ export interface SkillRegistryData {
 
 export interface UpdateResult {
   registryId: string;
-  status: 'success' | 'skipped' | 'error';
+  status: "success" | "skipped" | "error";
   message: string;
   error?: Error;
 }
@@ -46,14 +60,14 @@ export class SkillRegistryService {
 
   constructor(
     private configManager: ConfigManager,
-    private globalConfigManager: GlobalConfigManager
-  ) { }
+    private globalConfigManager: GlobalConfigManager,
+  ) {}
 
   async fetchDefaultRegistry(): Promise<SkillRegistryData> {
     const response = await fetch(REGISTRY_URL);
 
     if (!response.ok) {
-      throw new CliError(`Failed to fetch registry: HTTP ${response.status}`, 'NETWORK_ERROR');
+      throw new CliError(`Failed to fetch registry: HTTP ${response.status}`, "NETWORK_ERROR");
     }
 
     return response.json() as Promise<SkillRegistryData>;
@@ -84,8 +98,8 @@ export class SkillRegistryService {
       registries: {
         ...defaultRegistries,
         ...globalRegistries,
-        ...projectRegistries
-      }
+        ...projectRegistries,
+      },
     };
   }
 
@@ -100,7 +114,9 @@ export class SkillRegistryService {
     }
 
     if (!gitUrl) {
-      throw new NotFoundError(`Registry "${registryId}" is not cached and has no configured URL.`, { registryId });
+      throw new NotFoundError(`Registry "${registryId}" is not cached and has no configured URL.`, {
+        registryId,
+      });
     }
 
     await fs.ensureDir(path.dirname(repoPath));
@@ -115,9 +131,10 @@ export class SkillRegistryService {
       return preparedRepository;
     }
 
-    const preparation = gitUrl && parseLocalRegistryPath(gitUrl) !== null
-      ? this.prepareLocalRegistry(registryId, gitUrl)
-      : this.prepareGitRegistry(registryId, gitUrl);
+    const preparation =
+      gitUrl && parseLocalRegistryPath(gitUrl) !== null
+        ? this.prepareLocalRegistry(registryId, gitUrl)
+        : this.prepareGitRegistry(registryId, gitUrl);
     this.preparedRepositories.set(registryId, preparation);
     return preparation;
   }
@@ -132,9 +149,7 @@ export class SkillRegistryService {
     options: AddSkillRegistryCommandOptions = {},
   ): Promise<AddRegistryResult> {
     validateRegistryId(id);
-    const configManager = options.global
-      ? this.globalConfigManager
-      : this.configManager;
+    const configManager = options.global ? this.globalConfigManager : this.configManager;
 
     const registries = await configManager.getSkillRegistries();
     const value = await normalizeRegistrySourceInput(source, process.cwd());
@@ -142,12 +157,14 @@ export class SkillRegistryService {
       options.global ? this.configManager.getSkillRegistries() : Promise.resolve(registries),
       options.global ? Promise.resolve(registries) : this.globalConfigManager.getSkillRegistries(),
     ]);
-    await normalizeRegistrySources({ ...globalRegistries, ...projectRegistries, [id]: value }, process.cwd());
+    await normalizeRegistrySources(
+      { ...globalRegistries, ...projectRegistries, [id]: value },
+      process.cwd(),
+    );
     const mutation = planSkillRegistryAdd(registries, id, value, { force: options.force });
 
-    const registryPath = mutation.status !== 'already-registered'
-      ? await this.cacheRegistry(id, value)
-      : undefined;
+    const registryPath =
+      mutation.status !== "already-registered" ? await this.cacheRegistry(id, value) : undefined;
 
     await configManager.addSkillRegistry(id, value, { force: options.force });
     return { status: mutation.status, registryPath };
@@ -156,15 +173,13 @@ export class SkillRegistryService {
   async removeRegistrySource(
     id: string,
     options: RemoveSkillRegistryCommandOptions = {},
-  ): Promise<'project' | 'global'> {
+  ): Promise<"project" | "global"> {
     validateRegistryId(id);
     if (id === BUILTIN_SKILL_REGISTRY) {
       throw new Error(`Registry "${id}" is built in and cannot be unregistered.`);
     }
 
-    const configManager = options.global
-      ? this.globalConfigManager
-      : this.configManager;
+    const configManager = options.global ? this.globalConfigManager : this.configManager;
     const registries = await configManager.getSkillRegistries();
     if (!Object.prototype.hasOwnProperty.call(registries, id)) {
       throw new Error(`Registry ${id} is not registered (try --global).`);
@@ -175,7 +190,7 @@ export class SkillRegistryService {
       await this.removeRegistryCache(id);
     }
 
-    return options.global ? 'global' : 'project';
+    return options.global ? "global" : "project";
   }
 
   /**
@@ -186,9 +201,10 @@ export class SkillRegistryService {
     const cacheRoot = path.resolve(SKILL_CACHE_DIR);
     const cachePath = path.resolve(cacheRoot, registryId);
     const relativeCachePath = path.relative(cacheRoot, cachePath);
-    const escapesCacheRoot = relativeCachePath === '..'
-      || relativeCachePath.startsWith(`..${path.sep}`)
-      || path.isAbsolute(relativeCachePath);
+    const escapesCacheRoot =
+      relativeCachePath === ".." ||
+      relativeCachePath.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(relativeCachePath);
     if (!relativeCachePath || escapesCacheRoot) {
       throw new Error(`Refusing to remove cache outside ${cacheRoot}.`);
     }
@@ -203,14 +219,17 @@ export class SkillRegistryService {
   private async prepareLocalRegistry(registryId: string, value: string): Promise<string> {
     const localPath = parseLocalRegistryPath(value);
     if (localPath === null) {
-      throw new CliError(`Registry "${registryId}" is not a local source.`, 'INVALID_LOCAL_REGISTRY');
+      throw new CliError(
+        `Registry "${registryId}" is not a local source.`,
+        "INVALID_LOCAL_REGISTRY",
+      );
     }
 
     let root: string;
     try {
       root = await fs.realpath(localPath);
       const stat = await fs.stat(root);
-      if (!stat.isDirectory()) throw new Error('source is not a directory');
+      if (!stat.isDirectory()) throw new Error("source is not a directory");
     } catch (error: unknown) {
       throw new NotFoundError(
         `Local registry "${registryId}" is unavailable at ${localPath}: ${getErrorMessage(error)}. Recreate it or re-register the source.`,
@@ -218,8 +237,8 @@ export class SkillRegistryService {
       );
     }
 
-    const skillsPath = path.join(root, 'skills');
-    if (!await fs.pathExists(skillsPath)) {
+    const skillsPath = path.join(root, "skills");
+    if (!(await fs.pathExists(skillsPath))) {
       throw new NotFoundError(
         `Local registry "${registryId}" has no skills directory: ${skillsPath}`,
         { registryId, path: skillsPath },
@@ -233,12 +252,14 @@ export class SkillRegistryService {
       if (count > LOCAL_REGISTRY_MAX_ENTRIES) {
         throw new CliError(
           `Local registry "${registryId}" exceeds the ${LOCAL_REGISTRY_MAX_ENTRIES} entry limit.`,
-          'LOCAL_REGISTRY_TOO_LARGE',
+          "LOCAL_REGISTRY_TOO_LARGE",
         );
       }
-      if ((entry.isDirectory() || entry.isSymbolicLink())
-        && isValidSkillName(entry.name)
-        && await fs.pathExists(path.join(skillsPath, entry.name, 'SKILL.md'))) {
+      if (
+        (entry.isDirectory() || entry.isSymbolicLink()) &&
+        isValidSkillName(entry.name) &&
+        (await fs.pathExists(path.join(skillsPath, entry.name, "SKILL.md")))
+      ) {
         hasSkill = true;
         break;
       }
@@ -270,23 +291,26 @@ export class SkillRegistryService {
   async updateSkills(registryId?: string): Promise<UpdateSummary> {
     const cacheDir = SKILL_CACHE_DIR;
     const configured = await this.fetchMergedRegistry();
-    const localEntries = Object.entries(configured.registries)
-      .filter(([id, value]) => (!registryId || id === registryId) && parseLocalRegistryPath(value) !== null);
-    const configuredLocalIds = new Set(Object.entries(configured.registries)
-      .filter(([, value]) => parseLocalRegistryPath(value) !== null)
-      .map(([id]) => id));
+    const localEntries = Object.entries(configured.registries).filter(
+      ([id, value]) => (!registryId || id === registryId) && parseLocalRegistryPath(value) !== null,
+    );
+    const configuredLocalIds = new Set(
+      Object.entries(configured.registries)
+        .filter(([, value]) => parseLocalRegistryPath(value) !== null)
+        .map(([id]) => id),
+    );
 
     const results: UpdateResult[] = [];
     for (const [id, value] of localEntries) {
       await this.prepareRegistryRepository(id, value);
       results.push({
         registryId: id,
-        status: 'skipped',
-        message: 'Local registry uses the live filesystem; nothing to update',
+        status: "skipped",
+        message: "Local registry uses the live filesystem; nothing to update",
       });
     }
 
-    if (!await fs.pathExists(cacheDir)) {
+    if (!(await fs.pathExists(cacheDir))) {
       if (registryId && localEntries.length === 0) {
         throw new NotFoundError(`Registry "${registryId}" not found.`, { registryId });
       }
@@ -305,8 +329,10 @@ export class SkillRegistryService {
           if (repo.isDirectory()) {
             const fullRegistryId = `${entry.name}/${repo.name}`;
 
-            if (!configuredLocalIds.has(fullRegistryId)
-              && (!registryId || fullRegistryId === registryId)) {
+            if (
+              !configuredLocalIds.has(fullRegistryId) &&
+              (!registryId || fullRegistryId === registryId)
+            ) {
               registries.push({
                 path: path.join(ownerPath, repo.name),
                 id: fullRegistryId,
@@ -332,9 +358,9 @@ export class SkillRegistryService {
   private summarize(results: UpdateResult[]): UpdateSummary {
     return {
       total: results.length,
-      successful: results.filter(r => r.status === 'success').length,
-      skipped: results.filter(r => r.status === 'skipped').length,
-      failed: results.filter(r => r.status === 'error').length,
+      successful: results.filter((r) => r.status === "success").length,
+      skipped: results.filter((r) => r.status === "skipped").length,
+      failed: results.filter((r) => r.status === "error").length,
       results,
     };
   }
@@ -346,25 +372,24 @@ export class SkillRegistryService {
     if (!isGit) {
       return {
         registryId,
-        status: 'skipped',
-        message: 'Not a git repository',
+        status: "skipped",
+        message: "Not a git repository",
       };
     }
     try {
       await pullRepository(registryPath);
       return {
         registryId,
-        status: 'success',
-        message: 'Updated successfully',
+        status: "success",
+        message: "Updated successfully",
       };
     } catch (error: unknown) {
       return {
         registryId,
-        status: 'error',
+        status: "error",
         message: getErrorMessage(error),
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
-
 }

@@ -3,11 +3,7 @@ export function getErrorMessage(error: unknown): string {
   return String(error);
 }
 
-export function truncate(
-  text: string,
-  maxLength: number,
-  replaceText: string = "...",
-): string {
+export function truncate(text: string, maxLength: number, replaceText: string = "..."): string {
   if (maxLength <= 0) {
     return "";
   }

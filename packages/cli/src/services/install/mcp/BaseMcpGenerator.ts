@@ -1,6 +1,6 @@
-import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
-import { McpAgentGenerator, McpMergePlan } from './types.js';
-import { deepEqual } from '../../../util/object.js';
+import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
+import { McpAgentGenerator, McpMergePlan } from "./types.js";
+import { deepEqual } from "../../../util/object.js";
 
 /**
  * Base class for per-agent MCP config generators.
@@ -15,12 +15,12 @@ export abstract class BaseMcpGenerator implements McpAgentGenerator {
   protected abstract readExistingServers(projectRoot: string): Promise<Record<string, unknown>>;
   protected abstract writeServers(
     projectRoot: string,
-    mergedServers: Record<string, unknown>
+    mergedServers: Record<string, unknown>,
   ): Promise<void>;
 
   async plan(
     servers: Record<string, McpServerDefinition>,
-    projectRoot: string
+    projectRoot: string,
   ): Promise<McpMergePlan> {
     const existingServers = await this.readExistingServers(projectRoot);
 
@@ -51,7 +51,7 @@ export abstract class BaseMcpGenerator implements McpAgentGenerator {
   async apply(
     plan: McpMergePlan,
     servers: Record<string, McpServerDefinition>,
-    projectRoot: string
+    projectRoot: string,
   ): Promise<void> {
     const existingServers = await this.readExistingServers(projectRoot);
     const toWrite = new Set([...plan.newServers, ...plan.resolvedConflicts]);

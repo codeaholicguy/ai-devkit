@@ -1,25 +1,25 @@
-import { LintCheckResult } from '../types.js';
-import { LINT_LEVEL } from '../constants.js';
+import { LintCheckResult } from "../types.js";
+import { LINT_LEVEL } from "../constants.js";
 
 export function createOkCheck(
   id: string,
-  category: LintCheckResult['category'],
-  message: string
+  category: LintCheckResult["category"],
+  message: string,
 ): LintCheckResult {
   return {
     id,
     level: LINT_LEVEL.OK,
     category,
     required: false,
-    message
+    message,
   };
 }
 
 export function createMissingCheck(
   id: string,
-  category: LintCheckResult['category'],
+  category: LintCheckResult["category"],
   message: string,
-  fix?: string
+  fix?: string,
 ): LintCheckResult {
   return {
     id,
@@ -27,15 +27,15 @@ export function createMissingCheck(
     category,
     required: true,
     message,
-    fix
+    fix,
   };
 }
 
 export function createWarnCheck(
   id: string,
-  category: LintCheckResult['category'],
+  category: LintCheckResult["category"],
   message: string,
-  fix?: string
+  fix?: string,
 ): LintCheckResult {
   return {
     id,
@@ -43,6 +43,6 @@ export function createWarnCheck(
     category,
     required: false,
     message,
-    fix
+    fix,
   };
 }

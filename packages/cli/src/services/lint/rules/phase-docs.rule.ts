@@ -1,12 +1,12 @@
-import * as path from 'path';
-import { LintCheckResult, LintDependencies } from '../types.js';
-import { createMissingCheck, createOkCheck } from './check-factories.js';
+import * as path from "path";
+import { LintCheckResult, LintDependencies } from "../types.js";
+import { createMissingCheck, createOkCheck } from "./check-factories.js";
 
 interface PhaseDocRuleParams {
   cwd: string;
   phases: readonly string[];
   idPrefix: string;
-  category: LintCheckResult['category'];
+  category: LintCheckResult["category"];
   filePathForPhase: (phase: string) => string;
   missingFix?: string;
   deps: LintDependencies;

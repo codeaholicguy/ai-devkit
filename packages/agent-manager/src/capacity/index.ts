@@ -1,10 +1,10 @@
-import { constants } from 'node:fs';
-import { access as fsAccess } from 'node:fs/promises';
-import path from 'node:path';
-import { probeCodexCapacity } from './codex.js';
-import type { CapacityReport } from './types.js';
+import { constants } from "node:fs";
+import { access as fsAccess } from "node:fs/promises";
+import path from "node:path";
+import { probeCodexCapacity } from "./codex.js";
+import type { CapacityReport } from "./types.js";
 
-export type { CapacityReport, CapacityWindow } from './types.js';
+export type { CapacityReport, CapacityWindow } from "./types.js";
 
 export type CapacityProbeOptions = {
   now?: () => Date;
@@ -22,10 +22,13 @@ async function canAccess(target: string, mode: number): Promise<boolean> {
   }
 }
 
-async function isCodexInstalled(pathValue: string, checkAccess?: (target: string) => Promise<void>): Promise<boolean> {
+async function isCodexInstalled(
+  pathValue: string,
+  checkAccess?: (target: string) => Promise<void>,
+): Promise<boolean> {
   const directories = pathValue.split(path.delimiter).filter(Boolean);
   for (const directory of directories) {
-    const executable = path.join(directory, 'codex');
+    const executable = path.join(directory, "codex");
     if (checkAccess) {
       try {
         await checkAccess(executable);
@@ -39,19 +42,21 @@ async function isCodexInstalled(pathValue: string, checkAccess?: (target: string
   return false;
 }
 
-export async function getCodexCapacityReport(options: CapacityProbeOptions = {}): Promise<CapacityReport> {
+export async function getCodexCapacityReport(
+  options: CapacityProbeOptions = {},
+): Promise<CapacityReport> {
   const generatedAt = (options.now?.() ?? new Date()).toISOString();
-  const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? '', options.access);
+  const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? "", options.access);
   try {
     return await (options.probe ?? probeCodexCapacity)({ installed, checkedAt: generatedAt });
   } catch {
     return {
-      provider: 'codex',
+      provider: "codex",
       generatedAt,
       authenticated: null,
-      available: 'unknown',
+      available: "unknown",
       windows: [],
-      creditsRemaining: null
+      creditsRemaining: null,
     };
   }
 }

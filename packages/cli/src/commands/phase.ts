@@ -1,8 +1,8 @@
-import { ConfigManager } from '../lib/Config.js';
-import { TemplateManager } from '../lib/TemplateManager.js';
-import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types.js';
-import { ui } from '../util/terminal-ui.js';
-import { confirm, select } from '@inquirer/prompts';
+import { ConfigManager } from "../lib/Config.js";
+import { TemplateManager } from "../lib/TemplateManager.js";
+import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from "../types.js";
+import { ui } from "../util/terminal-ui.js";
+import { confirm, select } from "@inquirer/prompts";
 
 export async function phaseCommand(phaseName?: string) {
   const configManager = new ConfigManager();
@@ -10,7 +10,7 @@ export async function phaseCommand(phaseName?: string) {
   const templateManager = new TemplateManager({ docsDir });
 
   if (!(await configManager.exists())) {
-    ui.error('AI DevKit not initialized. Run `ai-devkit init` first.');
+    ui.error("AI DevKit not initialized. Run `ai-devkit init` first.");
     return;
   }
 
@@ -19,17 +19,17 @@ export async function phaseCommand(phaseName?: string) {
   if (phaseName && AVAILABLE_PHASES.includes(phaseName as Phase)) {
     phase = phaseName as Phase;
   } else if (phaseName) {
-    ui.error(`Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(', ')}`);
+    ui.error(`Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(", ")}`);
     return;
   } else {
     const config = await configManager.read();
-    const availableToAdd = AVAILABLE_PHASES.filter(p => !config?.phases.includes(p));
+    const availableToAdd = AVAILABLE_PHASES.filter((p) => !config?.phases.includes(p));
 
     if (availableToAdd.length === 0) {
-      ui.warning('All phases are already initialized.');
+      ui.warning("All phases are already initialized.");
       const shouldReinitialize = await confirm({
-        message: 'Would you like to reinitialize a phase?',
-        default: false
+        message: "Would you like to reinitialize a phase?",
+        default: false,
       });
 
       if (!shouldReinitialize) {
@@ -38,11 +38,11 @@ export async function phaseCommand(phaseName?: string) {
     }
 
     const selectedPhase = await select({
-      message: 'Which phase would you like to add?',
-      choices: AVAILABLE_PHASES.map(p => ({
+      message: "Which phase would you like to add?",
+      choices: AVAILABLE_PHASES.map((p) => ({
         name: PHASE_DISPLAY_NAMES[p],
-        value: p
-      }))
+        value: p,
+      })),
     });
     phase = selectedPhase;
   }
@@ -53,7 +53,7 @@ export async function phaseCommand(phaseName?: string) {
   if (exists) {
     const overwrite = await confirm({
       message: `${PHASE_DISPLAY_NAMES[phase]} already exists. Overwrite?`,
-      default: false
+      default: false,
     });
     shouldCopy = overwrite;
   }

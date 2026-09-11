@@ -2,1236 +2,1266 @@
  * Tests for GeminiCliAdapter
  */
 
-import type { MockedFunction } from 'vitest';
-import * as fs from 'fs';
-import * as os from 'os';
-import * as path from 'path';
+import type { MockedFunction } from "vitest";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
-import { GeminiCliAdapter } from '../../adapters/GeminiCliAdapter.js';
-import type { ProcessInfo } from '../../adapters/AgentAdapter.js';
-import { AgentStatus } from '../../adapters/AgentAdapter.js';
-import { AgentRegistry, type RegistryEntry } from '../../utils/AgentRegistry.js';
-import { listAgentProcesses, enrichProcesses, captureProcessSnapshot } from '../../utils/process.js';
-import { matchProcessesToSessions, generateAgentName } from '../../utils/matching.js';
-import * as crypto from 'crypto';
+import { GeminiCliAdapter } from "../../adapters/GeminiCliAdapter.js";
+import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { AgentRegistry, type RegistryEntry } from "../../utils/AgentRegistry.js";
+import {
+  listAgentProcesses,
+  enrichProcesses,
+  captureProcessSnapshot,
+} from "../../utils/process.js";
+import { matchProcessesToSessions, generateAgentName } from "../../utils/matching.js";
+import * as crypto from "crypto";
 
-vi.mock('../../utils/process.js', async (importOriginal) => {
-    const actual = await importOriginal() as typeof import('../../utils/process.js');
-    return {
-        ...actual,
-        listAgentProcesses: vi.fn(),
-        enrichProcesses: vi.fn(),
-        captureProcessSnapshot: vi.fn(),
-    };
+vi.mock("../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
+  return {
+    ...actual,
+    listAgentProcesses: vi.fn(),
+    enrichProcesses: vi.fn(),
+    captureProcessSnapshot: vi.fn(),
+  };
 });
 
-vi.mock('../../utils/matching.js', () => ({
-    matchProcessesToSessions: vi.fn(),
-    generateAgentName: vi.fn(),
+vi.mock("../../utils/matching.js", () => ({
+  matchProcessesToSessions: vi.fn(),
+  generateAgentName: vi.fn(),
 }));
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
-const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<typeof captureProcessSnapshot>;
-const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<typeof matchProcessesToSessions>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<
+  typeof captureProcessSnapshot
+>;
+const mockedMatchProcessesToSessions = matchProcessesToSessions as MockedFunction<
+  typeof matchProcessesToSessions
+>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
-describe('GeminiCliAdapter', () => {
-    let adapter: GeminiCliAdapter;
-    let tmpHome: string;
+describe("GeminiCliAdapter", () => {
+  let adapter: GeminiCliAdapter;
+  let tmpHome: string;
+
+  beforeEach(() => {
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-adapter-test-"));
+    process.env.HOME = tmpHome;
+
+    adapter = new GeminiCliAdapter(new AgentRegistry(path.join(tmpHome, "agents.json")));
+    mockedListAgentProcesses.mockReset();
+    mockedEnrichProcesses.mockReset();
+    mockedCaptureProcessSnapshot.mockReset();
+    mockedMatchProcessesToSessions.mockReset();
+    mockedGenerateAgentName.mockReset();
+
+    mockedEnrichProcesses.mockImplementation((procs) => procs);
+    // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
+    mockedCaptureProcessSnapshot.mockImplementation(async (names) =>
+      enrichProcesses(names.flatMap((name) => listAgentProcesses(name))),
+    );
+    mockedMatchProcessesToSessions.mockReturnValue([]);
+    mockedGenerateAgentName.mockImplementation((cwd: string, pid: number) => {
+      const folder = path.basename(cwd) || "unknown";
+      return `${folder} (${pid})`;
+    });
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  });
+
+  describe("initialization", () => {
+    it("should expose gemini_cli type", () => {
+      expect(adapter.type).toBe("gemini_cli");
+    });
+  });
+
+  describe("canHandle", () => {
+    it("should return true for plain gemini command", () => {
+      expect(adapter.canHandle({ pid: 1, command: "gemini", cwd: "/repo", tty: "ttys001" })).toBe(
+        true,
+      );
+    });
+
+    it("should return true for gemini with full path (case-insensitive)", () => {
+      expect(
+        adapter.canHandle({
+          pid: 2,
+          command: "/usr/local/bin/GEMINI --yolo",
+          cwd: "/repo",
+          tty: "ttys002",
+        }),
+      ).toBe(true);
+    });
+
+    it("should return false for non-gemini processes", () => {
+      expect(
+        adapter.canHandle({ pid: 3, command: "node app.js", cwd: "/repo", tty: "ttys003" }),
+      ).toBe(false);
+    });
+
+    it('should return false when "gemini" appears only in path arguments', () => {
+      expect(
+        adapter.canHandle({
+          pid: 4,
+          command: "node /path/to/gemini-runner.js",
+          cwd: "/repo",
+          tty: "ttys004",
+        }),
+      ).toBe(false);
+    });
+
+    it("should return true for Node-invoked gemini script (real install layout)", () => {
+      expect(
+        adapter.canHandle({
+          pid: 5,
+          command: "node /Users/foo/.volta/tools/image/node/24.14.0/bin/gemini --help",
+          cwd: "/repo",
+          tty: "ttys005",
+        }),
+      ).toBe(true);
+    });
+
+    it("should return true for Node-invoked gemini.js bundle entrypoint", () => {
+      expect(
+        adapter.canHandle({
+          pid: 6,
+          command: "node /opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js",
+          cwd: "/repo",
+          tty: "ttys006",
+        }),
+      ).toBe(true);
+    });
+
+    it("should recognize Windows executable and entrypoint paths", () => {
+      expect(
+        adapter.canHandle({
+          pid: 7,
+          command: "C:\\tools\\node.exe C:\\lib\\gemini.js",
+          cwd: "C:\\repo",
+          tty: "",
+        }),
+      ).toBe(true);
+    });
+  });
+
+  describe("detectAgents", () => {
+    it("should return empty array when no gemini processes are running", async () => {
+      mockedListAgentProcesses.mockReturnValue([]);
+      const agents = await adapter.detectAgents();
+      expect(agents).toEqual([]);
+    });
+
+    it("should filter non-gemini Node processes out of the node process pool", async () => {
+      const geminiProc: ProcessInfo = {
+        pid: 100,
+        command: "node /Users/foo/.volta/tools/image/node/24.14.0/bin/gemini --help",
+        cwd: "/repo",
+        tty: "ttys001",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+      const unrelatedNodeProc: ProcessInfo = {
+        pid: 200,
+        command: "node /usr/local/bin/eslint src/",
+        cwd: "/other-repo",
+        tty: "ttys002",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+      mockedListAgentProcesses.mockReturnValue([geminiProc, unrelatedNodeProc]);
+
+      const agents = await adapter.detectAgents();
+      expect(agents).toHaveLength(1);
+      expect(agents[0].pid).toBe(100);
+    });
+
+    it("should return process-only agents when no session files exist for the process", async () => {
+      const proc: ProcessInfo = {
+        pid: 1234,
+        command: "node /usr/local/bin/gemini",
+        cwd: "/repo",
+        tty: "ttys001",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
+
+      const agents = await adapter.detectAgents();
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        type: "gemini_cli",
+        pid: 1234,
+        projectPath: "/repo",
+        status: AgentStatus.RUNNING,
+        sessionId: "pid-1234",
+      });
+    });
+
+    it("should suppress Gemini wrapper process-only agents before a session file exists", async () => {
+      const wrapperProc: ProcessInfo = {
+        pid: 20452,
+        ppid: 17530,
+        command: "/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini",
+        cwd: "/repo",
+        tty: "ttys007",
+        startTime: new Date("2026-06-13T08:25:21Z"),
+      };
+      const childProc: ProcessInfo = {
+        pid: 21373,
+        ppid: 20452,
+        command:
+          "/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini",
+        cwd: "/repo",
+        tty: "ttys007",
+        startTime: new Date("2026-06-13T08:25:26Z"),
+      };
+      mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        pid: 21373,
+        sessionId: "pid-21373",
+        summary: "Gemini CLI process running",
+      });
+    });
+
+    it("should carry the managed wrapper name to a process-only child before a session file exists", async () => {
+      const regPath = path.join(tmpHome, "agents.json");
+      const registry = new AgentRegistry(regPath);
+      const namedAdapter = new GeminiCliAdapter(registry);
+      const wrapperProc: ProcessInfo = {
+        pid: 35792,
+        ppid: 33068,
+        command: "/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini",
+        cwd: "/repo",
+        tty: "ttys002",
+        startTime: new Date("2026-06-13T19:15:16Z"),
+      };
+      const childProc: ProcessInfo = {
+        pid: 36514,
+        ppid: 35792,
+        command:
+          "/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini",
+        cwd: "/repo",
+        tty: "ttys002",
+        startTime: new Date("2026-06-13T19:15:18Z"),
+      };
+      registry.register({
+        name: "cli-mqcqj469",
+        type: "gemini_cli",
+        pid: wrapperProc.pid,
+        runtime: "tmux",
+        runtimeRef: { session: "cli-mqcqj469" },
+        cwd: wrapperProc.cwd,
+        startedAt: "2026-06-13T19:15:16.211Z",
+        sessionId: `pid-${wrapperProc.pid}`,
+        sessionFilePath: "",
+      });
+      mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+
+      const agents = await namedAdapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        name: "cli-mqcqj469",
+        pid: childProc.pid,
+        sessionId: `pid-${childProc.pid}`,
+      });
+    });
+
+    it("should map a process to its matching session file via projectHash", async () => {
+      const cwd = "/repo/project-a";
+      const projectHash = hashProjectRoot(cwd);
+      const shortId = "abc123";
+      const chatsDir = path.join(tmpHome, ".gemini", "tmp", shortId, "chats");
+      fs.mkdirSync(chatsDir, { recursive: true });
+      const sessionPath = path.join(chatsDir, "session-2026-04-18T00-00-session1.json");
+      const sessionStart = new Date("2026-04-18T00:00:00Z").toISOString();
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "session1",
+          projectHash,
+          startTime: sessionStart,
+          lastUpdated: sessionStart,
+          kind: "main",
+          messages: [{ id: "m1", timestamp: sessionStart, type: "user", content: "hello gemini" }],
+        }),
+      );
+
+      const proc: ProcessInfo = {
+        pid: 42,
+        command: "node /usr/local/bin/gemini",
+        cwd,
+        tty: "ttys001",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
+      mockedMatchProcessesToSessions.mockReturnValue([
+        {
+          process: proc,
+          session: {
+            sessionId: "session1",
+            filePath: sessionPath,
+            projectDir: chatsDir,
+            birthtimeMs: Date.now(),
+            resolvedCwd: cwd,
+          },
+          deltaMs: 0,
+        },
+      ]);
+
+      const agents = await adapter.detectAgents();
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        type: "gemini_cli",
+        pid: 42,
+        projectPath: cwd,
+        sessionId: "session1",
+        sessionFilePath: sessionPath,
+      });
+      expect(agents[0].summary).toContain("hello gemini");
+    });
+
+    it("should collapse Gemini wrapper and child processes matched to the same session", async () => {
+      const cwd = "/repo/project-a";
+      const projectHash = hashProjectRoot(cwd);
+      const shortId = "abc123";
+      const chatsDir = path.join(tmpHome, ".gemini", "tmp", shortId, "chats");
+      fs.mkdirSync(chatsDir, { recursive: true });
+      const sessionPath = path.join(chatsDir, "session-2026-04-18T00-00-session1.json");
+      const sessionStart = new Date("2026-04-18T00:00:00Z").toISOString();
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "session1",
+          projectHash,
+          startTime: sessionStart,
+          lastUpdated: sessionStart,
+          kind: "main",
+          directories: [cwd],
+          messages: [{ id: "m1", timestamp: sessionStart, type: "user", content: "hello gemini" }],
+        }),
+      );
+
+      const wrapperProc: ProcessInfo = {
+        pid: 88394,
+        command: "node /Users/foo/.nvm/versions/node/v23.9.0/bin/gemini",
+        cwd,
+        tty: "ttys015",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+      const childProc: ProcessInfo = {
+        pid: 88460,
+        command:
+          "/Users/foo/.nvm/versions/node/v24.13.1/bin/node /Users/foo/.nvm/versions/node/v23.9.0/bin/gemini",
+        cwd,
+        tty: "ttys015",
+        startTime: new Date("2026-04-18T00:00:01Z"),
+      };
+      mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+      mockedMatchProcessesToSessions.mockReturnValue([
+        {
+          process: wrapperProc,
+          session: {
+            sessionId: "session1",
+            filePath: sessionPath,
+            projectDir: chatsDir,
+            birthtimeMs: Date.now(),
+            resolvedCwd: cwd,
+          },
+          deltaMs: 0,
+        },
+        {
+          process: childProc,
+          session: {
+            sessionId: "session1",
+            filePath: sessionPath,
+            projectDir: chatsDir,
+            birthtimeMs: Date.now(),
+            resolvedCwd: cwd,
+          },
+          deltaMs: 0,
+        },
+      ]);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        pid: 88460,
+        sessionId: "session1",
+        sessionFilePath: sessionPath,
+      });
+    });
+
+    it("should not match sessions from other projects", async () => {
+      const procCwd = "/repo/project-a";
+      const otherCwd = "/repo/project-b";
+      const otherHash = hashProjectRoot(otherCwd);
+      const chatsDir = path.join(tmpHome, ".gemini", "tmp", "other", "chats");
+      fs.mkdirSync(chatsDir, { recursive: true });
+      const sessionPath = path.join(chatsDir, "session-2026-04-18T00-00-other.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "other-session",
+          projectHash: otherHash,
+          startTime: new Date().toISOString(),
+          lastUpdated: new Date().toISOString(),
+          kind: "main",
+          messages: [],
+        }),
+      );
+
+      const proc: ProcessInfo = {
+        pid: 7,
+        command: "node /usr/local/bin/gemini",
+        cwd: procCwd,
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
+
+      const agents = await adapter.detectAgents();
+
+      const candidateSessions = mockedMatchProcessesToSessions.mock.calls[0]?.[1] ?? [];
+      expect(candidateSessions).toHaveLength(0);
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0].sessionId).toBe(`pid-${proc.pid}`);
+    });
+  });
+
+  describe("detectAgents — registry cache short-circuit", () => {
+    let regPath: string;
+    let registry: AgentRegistry;
+    let cachedAdapter: GeminiCliAdapter;
+    let sessionFilePath: string;
+
+    function registerEntry(over: Partial<RegistryEntry> = {}): void {
+      registry.register({
+        name: "gemini-100",
+        type: "gemini_cli",
+        pid: 100,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/repo-a",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "s-cached",
+        sessionFilePath,
+        ...over,
+      });
+    }
 
     beforeEach(() => {
-        tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-adapter-test-'));
-        process.env.HOME = tmpHome;
+      regPath = path.join(tmpHome, "agents.json");
+      registry = new AgentRegistry(regPath);
+      cachedAdapter = new GeminiCliAdapter(registry);
 
-        adapter = new GeminiCliAdapter(new AgentRegistry(path.join(tmpHome, 'agents.json')));
-        mockedListAgentProcesses.mockReset();
-        mockedEnrichProcesses.mockReset();
-        mockedCaptureProcessSnapshot.mockReset();
-        mockedMatchProcessesToSessions.mockReset();
-        mockedGenerateAgentName.mockReset();
-
-        mockedEnrichProcesses.mockImplementation((procs) => procs);
-        // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
-        mockedCaptureProcessSnapshot.mockImplementation(async (names) => (
-            enrichProcesses(names.flatMap((name) => listAgentProcesses(name)))
-        ));
-        mockedMatchProcessesToSessions.mockReturnValue([]);
-        mockedGenerateAgentName.mockImplementation((cwd: string, pid: number) => {
-            const folder = path.basename(cwd) || 'unknown';
-            return `${folder} (${pid})`;
-        });
+      const now = new Date().toISOString();
+      sessionFilePath = path.join(tmpHome, "gemini-session.json");
+      fs.writeFileSync(
+        sessionFilePath,
+        JSON.stringify({
+          sessionId: "s-cached",
+          projectHash: "h",
+          startTime: now,
+          lastUpdated: now,
+          directories: ["/repo-a"],
+          messages: [
+            { id: "m1", timestamp: now, type: "user", content: "Hello from gemini cache" },
+          ],
+        }),
+      );
     });
 
-    afterEach(() => {
-        fs.rmSync(tmpHome, { recursive: true, force: true });
+    it("short-circuits matching when registry has a valid entry", async () => {
+      registerEntry();
+      const proc: ProcessInfo = {
+        pid: 100,
+        command: "node /path/to/gemini --help",
+        cwd: "/repo-a",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
+
+      const agents = await cachedAdapter.detectAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        type: "gemini_cli",
+        pid: 100,
+        sessionId: "s-cached",
+        summary: "Hello from gemini cache",
+      });
+      expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
     });
 
-    describe('initialization', () => {
-        it('should expose gemini_cli type', () => {
-            expect(adapter.type).toBe('gemini_cli');
-        });
+    it("falls through when no registry entry exists for the pid", async () => {
+      const proc: ProcessInfo = {
+        pid: 100,
+        command: "node /path/to/gemini --help",
+        cwd: "/repo-a",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
+
+      const agents = await cachedAdapter.detectAgents();
+
+      expect(agents[0].sessionId).toBe("pid-100");
     });
 
-    describe('canHandle', () => {
-        it('should return true for plain gemini command', () => {
-            expect(adapter.canHandle({ pid: 1, command: 'gemini', cwd: '/repo', tty: 'ttys001' })).toBe(true);
-        });
+    it("falls through when registry entry type does not match", async () => {
+      registerEntry({ type: "claude" });
+      const proc: ProcessInfo = {
+        pid: 100,
+        command: "node /path/to/gemini --help",
+        cwd: "/repo-a",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
 
-        it('should return true for gemini with full path (case-insensitive)', () => {
-            expect(adapter.canHandle({
-                pid: 2,
-                command: '/usr/local/bin/GEMINI --yolo',
-                cwd: '/repo',
-                tty: 'ttys002',
-            })).toBe(true);
-        });
+      const agents = await cachedAdapter.detectAgents();
 
-        it('should return false for non-gemini processes', () => {
-            expect(adapter.canHandle({ pid: 3, command: 'node app.js', cwd: '/repo', tty: 'ttys003' })).toBe(false);
-        });
-
-        it('should return false when "gemini" appears only in path arguments', () => {
-            expect(adapter.canHandle({
-                pid: 4,
-                command: 'node /path/to/gemini-runner.js',
-                cwd: '/repo',
-                tty: 'ttys004',
-            })).toBe(false);
-        });
-
-        it('should return true for Node-invoked gemini script (real install layout)', () => {
-            expect(adapter.canHandle({
-                pid: 5,
-                command: 'node /Users/foo/.volta/tools/image/node/24.14.0/bin/gemini --help',
-                cwd: '/repo',
-                tty: 'ttys005',
-            })).toBe(true);
-        });
-
-        it('should return true for Node-invoked gemini.js bundle entrypoint', () => {
-            expect(adapter.canHandle({
-                pid: 6,
-                command: 'node /opt/homebrew/lib/node_modules/@google/gemini-cli/bundle/gemini.js',
-                cwd: '/repo',
-                tty: 'ttys006',
-            })).toBe(true);
-        });
-
-        it('should recognize Windows executable and entrypoint paths', () => {
-            expect(adapter.canHandle({
-                pid: 7,
-                command: 'C:\\tools\\node.exe C:\\lib\\gemini.js',
-                cwd: 'C:\\repo',
-                tty: '',
-            })).toBe(true);
-        });
+      expect(agents[0].sessionId).toBe("pid-100");
     });
 
-    describe('detectAgents', () => {
-        it('should return empty array when no gemini processes are running', async () => {
-            mockedListAgentProcesses.mockReturnValue([]);
-            const agents = await adapter.detectAgents();
-            expect(agents).toEqual([]);
-        });
+    it("falls through when the cached session file no longer exists", async () => {
+      registerEntry({ sessionFilePath: path.join(tmpHome, "deleted.json") });
+      const proc: ProcessInfo = {
+        pid: 100,
+        command: "node /path/to/gemini --help",
+        cwd: "/repo-a",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      mockedListAgentProcesses.mockReturnValue([proc]);
 
-        it('should filter non-gemini Node processes out of the node process pool', async () => {
-            const geminiProc: ProcessInfo = {
-                pid: 100,
-                command: 'node /Users/foo/.volta/tools/image/node/24.14.0/bin/gemini --help',
-                cwd: '/repo',
-                tty: 'ttys001',
-                startTime: new Date('2026-04-18T00:00:00Z'),
-            };
-            const unrelatedNodeProc: ProcessInfo = {
-                pid: 200,
-                command: 'node /usr/local/bin/eslint src/',
-                cwd: '/other-repo',
-                tty: 'ttys002',
-                startTime: new Date('2026-04-18T00:00:00Z'),
-            };
-            mockedListAgentProcesses.mockReturnValue([geminiProc, unrelatedNodeProc]);
+      const agents = await cachedAdapter.detectAgents();
 
-            const agents = await adapter.detectAgents();
-            expect(agents).toHaveLength(1);
-            expect(agents[0].pid).toBe(100);
-        });
-
-        it('should return process-only agents when no session files exist for the process', async () => {
-            const proc: ProcessInfo = {
-                pid: 1234,
-                command: 'node /usr/local/bin/gemini',
-                cwd: '/repo',
-                tty: 'ttys001',
-                startTime: new Date('2026-04-18T00:00:00Z'),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-
-            const agents = await adapter.detectAgents();
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                type: 'gemini_cli',
-                pid: 1234,
-                projectPath: '/repo',
-                status: AgentStatus.RUNNING,
-                sessionId: 'pid-1234',
-            });
-        });
-
-        it('should suppress Gemini wrapper process-only agents before a session file exists', async () => {
-            const wrapperProc: ProcessInfo = {
-                pid: 20452,
-                ppid: 17530,
-                command: '/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini',
-                cwd: '/repo',
-                tty: 'ttys007',
-                startTime: new Date('2026-06-13T08:25:21Z'),
-            };
-            const childProc: ProcessInfo = {
-                pid: 21373,
-                ppid: 20452,
-                command: '/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini',
-                cwd: '/repo',
-                tty: 'ttys007',
-                startTime: new Date('2026-06-13T08:25:26Z'),
-            };
-            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                pid: 21373,
-                sessionId: 'pid-21373',
-                summary: 'Gemini CLI process running',
-            });
-        });
-
-        it('should carry the managed wrapper name to a process-only child before a session file exists', async () => {
-            const regPath = path.join(tmpHome, 'agents.json');
-            const registry = new AgentRegistry(regPath);
-            const namedAdapter = new GeminiCliAdapter(registry);
-            const wrapperProc: ProcessInfo = {
-                pid: 35792,
-                ppid: 33068,
-                command: '/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini',
-                cwd: '/repo',
-                tty: 'ttys002',
-                startTime: new Date('2026-06-13T19:15:16Z'),
-            };
-            const childProc: ProcessInfo = {
-                pid: 36514,
-                ppid: 35792,
-                command: '/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini',
-                cwd: '/repo',
-                tty: 'ttys002',
-                startTime: new Date('2026-06-13T19:15:18Z'),
-            };
-            registry.register({
-                name: 'cli-mqcqj469',
-                type: 'gemini_cli',
-                pid: wrapperProc.pid,
-                runtime: 'tmux',
-                runtimeRef: { session: 'cli-mqcqj469' },
-                cwd: wrapperProc.cwd,
-                startedAt: '2026-06-13T19:15:16.211Z',
-                sessionId: `pid-${wrapperProc.pid}`,
-                sessionFilePath: '',
-            });
-            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
-
-            const agents = await namedAdapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                name: 'cli-mqcqj469',
-                pid: childProc.pid,
-                sessionId: `pid-${childProc.pid}`,
-            });
-        });
-
-        it('should map a process to its matching session file via projectHash', async () => {
-            const cwd = '/repo/project-a';
-            const projectHash = hashProjectRoot(cwd);
-            const shortId = 'abc123';
-            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', shortId, 'chats');
-            fs.mkdirSync(chatsDir, { recursive: true });
-            const sessionPath = path.join(chatsDir, 'session-2026-04-18T00-00-session1.json');
-            const sessionStart = new Date('2026-04-18T00:00:00Z').toISOString();
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'session1',
-                    projectHash,
-                    startTime: sessionStart,
-                    lastUpdated: sessionStart,
-                    kind: 'main',
-                    messages: [
-                        { id: 'm1', timestamp: sessionStart, type: 'user', content: 'hello gemini' },
-                    ],
-                }),
-            );
-
-            const proc: ProcessInfo = {
-                pid: 42,
-                command: 'node /usr/local/bin/gemini',
-                cwd,
-                tty: 'ttys001',
-                startTime: new Date('2026-04-18T00:00:00Z'),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-            mockedMatchProcessesToSessions.mockReturnValue([
-                {
-                    process: proc,
-                    session: {
-                        sessionId: 'session1',
-                        filePath: sessionPath,
-                        projectDir: chatsDir,
-                        birthtimeMs: Date.now(),
-                        resolvedCwd: cwd,
-                    },
-                    deltaMs: 0,
-                },
-            ]);
-
-            const agents = await adapter.detectAgents();
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                type: 'gemini_cli',
-                pid: 42,
-                projectPath: cwd,
-                sessionId: 'session1',
-                sessionFilePath: sessionPath,
-            });
-            expect(agents[0].summary).toContain('hello gemini');
-        });
-
-        it('should collapse Gemini wrapper and child processes matched to the same session', async () => {
-            const cwd = '/repo/project-a';
-            const projectHash = hashProjectRoot(cwd);
-            const shortId = 'abc123';
-            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', shortId, 'chats');
-            fs.mkdirSync(chatsDir, { recursive: true });
-            const sessionPath = path.join(chatsDir, 'session-2026-04-18T00-00-session1.json');
-            const sessionStart = new Date('2026-04-18T00:00:00Z').toISOString();
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'session1',
-                    projectHash,
-                    startTime: sessionStart,
-                    lastUpdated: sessionStart,
-                    kind: 'main',
-                    directories: [cwd],
-                    messages: [
-                        { id: 'm1', timestamp: sessionStart, type: 'user', content: 'hello gemini' },
-                    ],
-                }),
-            );
-
-            const wrapperProc: ProcessInfo = {
-                pid: 88394,
-                command: 'node /Users/foo/.nvm/versions/node/v23.9.0/bin/gemini',
-                cwd,
-                tty: 'ttys015',
-                startTime: new Date('2026-04-18T00:00:00Z'),
-            };
-            const childProc: ProcessInfo = {
-                pid: 88460,
-                command: '/Users/foo/.nvm/versions/node/v24.13.1/bin/node /Users/foo/.nvm/versions/node/v23.9.0/bin/gemini',
-                cwd,
-                tty: 'ttys015',
-                startTime: new Date('2026-04-18T00:00:01Z'),
-            };
-            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
-            mockedMatchProcessesToSessions.mockReturnValue([
-                {
-                    process: wrapperProc,
-                    session: {
-                        sessionId: 'session1',
-                        filePath: sessionPath,
-                        projectDir: chatsDir,
-                        birthtimeMs: Date.now(),
-                        resolvedCwd: cwd,
-                    },
-                    deltaMs: 0,
-                },
-                {
-                    process: childProc,
-                    session: {
-                        sessionId: 'session1',
-                        filePath: sessionPath,
-                        projectDir: chatsDir,
-                        birthtimeMs: Date.now(),
-                        resolvedCwd: cwd,
-                    },
-                    deltaMs: 0,
-                },
-            ]);
-
-            const agents = await adapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                pid: 88460,
-                sessionId: 'session1',
-                sessionFilePath: sessionPath,
-            });
-        });
-
-        it('should not match sessions from other projects', async () => {
-            const procCwd = '/repo/project-a';
-            const otherCwd = '/repo/project-b';
-            const otherHash = hashProjectRoot(otherCwd);
-            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', 'other', 'chats');
-            fs.mkdirSync(chatsDir, { recursive: true });
-            const sessionPath = path.join(chatsDir, 'session-2026-04-18T00-00-other.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'other-session',
-                    projectHash: otherHash,
-                    startTime: new Date().toISOString(),
-                    lastUpdated: new Date().toISOString(),
-                    kind: 'main',
-                    messages: [],
-                }),
-            );
-
-            const proc: ProcessInfo = {
-                pid: 7,
-                command: 'node /usr/local/bin/gemini',
-                cwd: procCwd,
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-
-            const agents = await adapter.detectAgents();
-
-            const candidateSessions = mockedMatchProcessesToSessions.mock.calls[0]?.[1] ?? [];
-            expect(candidateSessions).toHaveLength(0);
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0].sessionId).toBe(`pid-${proc.pid}`);
-        });
+      expect(agents[0].sessionId).toBe("pid-100");
     });
 
-    describe('detectAgents — registry cache short-circuit', () => {
-        let regPath: string;
-        let registry: AgentRegistry;
-        let cachedAdapter: GeminiCliAdapter;
-        let sessionFilePath: string;
+    it("carries the managed wrapper name to the detected child process", async () => {
+      const wrapperProc: ProcessInfo = {
+        pid: 20339,
+        ppid: 17570,
+        command: "/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini",
+        cwd: "/repo-a",
+        tty: "ttys002",
+        startTime: new Date("2026-06-13T19:00:53Z"),
+      };
+      const childProc: ProcessInfo = {
+        pid: 21038,
+        ppid: 20339,
+        command:
+          "/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini",
+        cwd: "/repo-a",
+        tty: "ttys002",
+        startTime: new Date("2026-06-13T19:00:57Z"),
+      };
+      const now = new Date().toISOString();
+      sessionFilePath = writeSession(tmpHome, "cli-2", "session-2026-06-13T19-00-s-cached", {
+        sessionId: "s-cached",
+        projectHash: hashProjectRoot("/repo-a"),
+        startTime: now,
+        lastUpdated: now,
+        directories: ["/repo-a"],
+        messages: [{ id: "m1", timestamp: now, type: "user", content: "Hello from child process" }],
+      });
+      registerEntry({
+        name: "cli-mqcq0mg5",
+        pid: wrapperProc.pid,
+        runtimeRef: { session: "cli-mqcq0mg5" },
+        sessionId: "s-cached",
+        sessionFilePath,
+      });
+      mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
+      mockedMatchProcessesToSessions.mockReturnValue([
+        {
+          process: childProc,
+          session: {
+            sessionId: "s-cached",
+            filePath: sessionFilePath,
+            projectDir: path.dirname(sessionFilePath),
+            birthtimeMs: Date.now(),
+            resolvedCwd: "/repo-a",
+          },
+          deltaMs: 0,
+        },
+      ]);
 
-        function registerEntry(over: Partial<RegistryEntry> = {}): void {
-            registry.register({
-                name: 'gemini-100',
-                type: 'gemini_cli',
-                pid: 100,
-                runtime: 'tmux',
-                runtimeRef: null,
-                cwd: '/repo-a',
-                startedAt: '2026-05-30T00:00:00.000Z',
-                sessionId: 's-cached',
-                sessionFilePath,
-                ...over,
-            });
-        }
+      const agents = await cachedAdapter.detectAgents();
 
-        beforeEach(() => {
-            regPath = path.join(tmpHome, 'agents.json');
-            registry = new AgentRegistry(regPath);
-            cachedAdapter = new GeminiCliAdapter(registry);
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        name: "cli-mqcq0mg5",
+        pid: childProc.pid,
+        sessionId: "s-cached",
+      });
+    });
+  });
 
-            const now = new Date().toISOString();
-            sessionFilePath = path.join(tmpHome, 'gemini-session.json');
-            fs.writeFileSync(sessionFilePath, JSON.stringify({
-                sessionId: 's-cached',
-                projectHash: 'h',
-                startTime: now,
-                lastUpdated: now,
-                directories: ['/repo-a'],
-                messages: [
-                    { id: 'm1', timestamp: now, type: 'user', content: 'Hello from gemini cache' },
-                ],
-            }));
-        });
-
-        it('short-circuits matching when registry has a valid entry', async () => {
-            registerEntry();
-            const proc: ProcessInfo = {
-                pid: 100,
-                command: 'node /path/to/gemini --help',
-                cwd: '/repo-a',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-
-            const agents = await cachedAdapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                type: 'gemini_cli',
-                pid: 100,
-                sessionId: 's-cached',
-                summary: 'Hello from gemini cache',
-            });
-            expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
-        });
-
-        it('falls through when no registry entry exists for the pid', async () => {
-            const proc: ProcessInfo = {
-                pid: 100,
-                command: 'node /path/to/gemini --help',
-                cwd: '/repo-a',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-
-            const agents = await cachedAdapter.detectAgents();
-
-            expect(agents[0].sessionId).toBe('pid-100');
-        });
-
-        it('falls through when registry entry type does not match', async () => {
-            registerEntry({ type: 'claude' });
-            const proc: ProcessInfo = {
-                pid: 100,
-                command: 'node /path/to/gemini --help',
-                cwd: '/repo-a',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-
-            const agents = await cachedAdapter.detectAgents();
-
-            expect(agents[0].sessionId).toBe('pid-100');
-        });
-
-        it('falls through when the cached session file no longer exists', async () => {
-            registerEntry({ sessionFilePath: path.join(tmpHome, 'deleted.json') });
-            const proc: ProcessInfo = {
-                pid: 100,
-                command: 'node /path/to/gemini --help',
-                cwd: '/repo-a',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            mockedListAgentProcesses.mockReturnValue([proc]);
-
-            const agents = await cachedAdapter.detectAgents();
-
-            expect(agents[0].sessionId).toBe('pid-100');
-        });
-
-        it('carries the managed wrapper name to the detected child process', async () => {
-            const wrapperProc: ProcessInfo = {
-                pid: 20339,
-                ppid: 17570,
-                command: '/opt/homebrew/opt/node/bin/node /opt/homebrew/bin/gemini',
-                cwd: '/repo-a',
-                tty: 'ttys002',
-                startTime: new Date('2026-06-13T19:00:53Z'),
-            };
-            const childProc: ProcessInfo = {
-                pid: 21038,
-                ppid: 20339,
-                command: '/opt/homebrew/Cellar/node/26.0.0/bin/node --max-old-space-size=8192 /opt/homebrew/bin/gemini',
-                cwd: '/repo-a',
-                tty: 'ttys002',
-                startTime: new Date('2026-06-13T19:00:57Z'),
-            };
-            const now = new Date().toISOString();
-            sessionFilePath = writeSession(tmpHome, 'cli-2', 'session-2026-06-13T19-00-s-cached', {
-                sessionId: 's-cached',
-                projectHash: hashProjectRoot('/repo-a'),
-                startTime: now,
-                lastUpdated: now,
-                directories: ['/repo-a'],
-                messages: [
-                    { id: 'm1', timestamp: now, type: 'user', content: 'Hello from child process' },
-                ],
-            });
-            registerEntry({
-                name: 'cli-mqcq0mg5',
-                pid: wrapperProc.pid,
-                runtimeRef: { session: 'cli-mqcq0mg5' },
-                sessionId: 's-cached',
-                sessionFilePath,
-            });
-            mockedListAgentProcesses.mockReturnValue([wrapperProc, childProc]);
-            mockedMatchProcessesToSessions.mockReturnValue([
-                {
-                    process: childProc,
-                    session: {
-                        sessionId: 's-cached',
-                        filePath: sessionFilePath,
-                        projectDir: path.dirname(sessionFilePath),
-                        birthtimeMs: Date.now(),
-                        resolvedCwd: '/repo-a',
-                    },
-                    deltaMs: 0,
-                },
-            ]);
-
-            const agents = await cachedAdapter.detectAgents();
-
-            expect(agents).toHaveLength(1);
-            expect(agents[0]).toMatchObject({
-                name: 'cli-mqcq0mg5',
-                pid: childProc.pid,
-                sessionId: 's-cached',
-            });
-        });
+  describe("discoverSessions", () => {
+    it("should return empty when ~/.gemini/tmp does not exist", () => {
+      const proc: ProcessInfo = {
+        pid: 1,
+        command: "gemini",
+        cwd: "/repo",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      // tmp dir absent by default
+      const result = (adapter as any).discoverSessions([proc]);
+      expect(result.sessions).toEqual([]);
+      expect(result.contentCache.size).toBe(0);
     });
 
-    describe('discoverSessions', () => {
-        it('should return empty when ~/.gemini/tmp does not exist', () => {
-            const proc: ProcessInfo = {
-                pid: 1,
-                command: 'gemini',
-                cwd: '/repo',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            // tmp dir absent by default
-            const result = (adapter as any).discoverSessions([proc]);
-            expect(result.sessions).toEqual([]);
-            expect(result.contentCache.size).toBe(0);
-        });
+    it("should skip processes with empty cwd when building the hash map", () => {
+      const proc: ProcessInfo = {
+        pid: 1,
+        command: "gemini",
+        cwd: "",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      writeSession(tmpHome, "abc", "session-x", {
+        sessionId: "s1",
+        projectHash: hashProjectRoot("/some/where"),
+        startTime: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        kind: "main",
+        messages: [],
+      });
 
-        it('should skip processes with empty cwd when building the hash map', () => {
-            const proc: ProcessInfo = {
-                pid: 1,
-                command: 'gemini',
-                cwd: '',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            writeSession(tmpHome, 'abc', 'session-x', {
-                sessionId: 's1',
-                projectHash: hashProjectRoot('/some/where'),
-                startTime: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                kind: 'main',
-                messages: [],
-            });
-
-            const result = (adapter as any).discoverSessions([proc]);
-            expect(result.sessions).toEqual([]);
-        });
-
-        it('should ignore sessions whose projectHash does not match any process cwd', () => {
-            const proc: ProcessInfo = {
-                pid: 1,
-                command: 'gemini',
-                cwd: '/repo/a',
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            writeSession(tmpHome, 'other', 'session-other', {
-                sessionId: 's-other',
-                projectHash: hashProjectRoot('/repo/different'),
-                startTime: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                kind: 'main',
-                messages: [],
-            });
-
-            const result = (adapter as any).discoverSessions([proc]);
-            expect(result.sessions).toEqual([]);
-        });
-
-        it('should skip malformed JSON files and still return valid ones', () => {
-            const cwd = '/repo/valid';
-            const proc: ProcessInfo = {
-                pid: 1,
-                command: 'gemini',
-                cwd,
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-
-            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', 'abc', 'chats');
-            fs.mkdirSync(chatsDir, { recursive: true });
-            fs.writeFileSync(path.join(chatsDir, 'session-bad.json'), '{ not valid');
-            writeSession(tmpHome, 'abc', 'session-good', {
-                sessionId: 's-good',
-                projectHash: hashProjectRoot(cwd),
-                startTime: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                kind: 'main',
-                messages: [],
-            });
-
-            const result = (adapter as any).discoverSessions([proc]);
-            expect(result.sessions).toHaveLength(1);
-            expect(result.sessions[0].sessionId).toBe('s-good');
-        });
-
-        it('should match sessions whose projectHash is a parent of the process cwd (git root case)', () => {
-            const gitRoot = '/repo/monorepo';
-            const procCwd = '/repo/monorepo/packages/inner';
-            const proc: ProcessInfo = {
-                pid: 1,
-                command: 'gemini',
-                cwd: procCwd,
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-            writeSession(tmpHome, 'abc', 'session-rootmatch', {
-                sessionId: 's-root',
-                // Gemini CLI stores the hash of the walked-up project root,
-                // not the process CWD.
-                projectHash: hashProjectRoot(gitRoot),
-                startTime: new Date().toISOString(),
-                lastUpdated: new Date().toISOString(),
-                kind: 'main',
-                messages: [],
-            });
-
-            const result = (adapter as any).discoverSessions([proc]);
-            expect(result.sessions).toHaveLength(1);
-            expect(result.sessions[0].resolvedCwd).toBe(procCwd);
-        });
-
-        it('should skip files that do not start with "session-"', () => {
-            const cwd = '/repo/keep';
-            const proc: ProcessInfo = {
-                pid: 1,
-                command: 'gemini',
-                cwd,
-                tty: 'ttys001',
-                startTime: new Date(),
-            };
-
-            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', 'abc', 'chats');
-            fs.mkdirSync(chatsDir, { recursive: true });
-            fs.writeFileSync(
-                path.join(chatsDir, 'notsession.json'),
-                JSON.stringify({
-                    sessionId: 'skip',
-                    projectHash: hashProjectRoot(cwd),
-                    messages: [],
-                }),
-            );
-
-            const result = (adapter as any).discoverSessions([proc]);
-            expect(result.sessions).toEqual([]);
-        });
+      const result = (adapter as any).discoverSessions([proc]);
+      expect(result.sessions).toEqual([]);
     });
 
-    describe('helper methods', () => {
-        describe('determineStatus', () => {
-            it('should return "waiting" when the last message is from gemini', () => {
-                const session = {
-                    sessionId: 's', projectPath: '', summary: '',
-                    sessionStart: new Date(), lastActive: new Date(),
-                    lastMessageType: 'gemini',
-                };
-                expect((adapter as any).determineStatus(session)).toBe(AgentStatus.WAITING);
-            });
+    it("should ignore sessions whose projectHash does not match any process cwd", () => {
+      const proc: ProcessInfo = {
+        pid: 1,
+        command: "gemini",
+        cwd: "/repo/a",
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      writeSession(tmpHome, "other", "session-other", {
+        sessionId: "s-other",
+        projectHash: hashProjectRoot("/repo/different"),
+        startTime: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        kind: "main",
+        messages: [],
+      });
 
-            it('should return "waiting" when the last message is from assistant', () => {
-                const session = {
-                    sessionId: 's', projectPath: '', summary: '',
-                    sessionStart: new Date(), lastActive: new Date(),
-                    lastMessageType: 'assistant',
-                };
-                expect((adapter as any).determineStatus(session)).toBe(AgentStatus.WAITING);
-            });
-
-            it('should return "running" when the last message is from the user', () => {
-                const session = {
-                    sessionId: 's', projectPath: '', summary: '',
-                    sessionStart: new Date(), lastActive: new Date(),
-                    lastMessageType: 'user',
-                };
-                expect((adapter as any).determineStatus(session)).toBe(AgentStatus.RUNNING);
-            });
-
-            it('should return "idle" when last activity is older than the threshold', () => {
-                const session = {
-                    sessionId: 's', projectPath: '', summary: '',
-                    sessionStart: new Date(),
-                    lastActive: new Date(Date.now() - 10 * 60 * 1000),
-                    lastMessageType: 'gemini',
-                };
-                expect((adapter as any).determineStatus(session)).toBe(AgentStatus.IDLE);
-            });
-        });
-
-        describe('parseSession', () => {
-            it('should parse a valid session file', () => {
-                const filePath = writeSession(tmpHome, 'p', 'session-a', {
-                    sessionId: 's1',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:05:00Z',
-                    kind: 'main',
-                    directories: ['/repo'],
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'user', content: 'hello' },
-                    ],
-                });
-
-                const result = (adapter as any).parseSession(undefined, filePath);
-                expect(result).toMatchObject({
-                    sessionId: 's1',
-                    projectPath: '/repo',
-                    summary: 'hello',
-                });
-            });
-
-            it('should parse from cached content without reading disk', () => {
-                const content = JSON.stringify({
-                    sessionId: 's2',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    messages: [],
-                });
-
-                const result = (adapter as any).parseSession(content, '/does/not/exist.json');
-                expect(result?.sessionId).toBe('s2');
-            });
-
-            it('should return null for a missing file with no cached content', () => {
-                expect((adapter as any).parseSession(undefined, '/missing.json')).toBeNull();
-            });
-
-            it('should return null when the file is not valid JSON', () => {
-                const filePath = path.join(tmpHome, 'broken.json');
-                fs.writeFileSync(filePath, 'not json');
-                expect((adapter as any).parseSession(undefined, filePath)).toBeNull();
-            });
-
-            it('should return null when sessionId is missing', () => {
-                const filePath = path.join(tmpHome, 'no-id.json');
-                fs.writeFileSync(filePath, JSON.stringify({ messages: [] }));
-                expect((adapter as any).parseSession(undefined, filePath)).toBeNull();
-            });
-
-            it('should default the summary when no user message has content', () => {
-                const filePath = writeSession(tmpHome, 'p', 'session-empty', {
-                    sessionId: 's3',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'gemini', content: 'only assistant' },
-                    ],
-                });
-
-                const result = (adapter as any).parseSession(undefined, filePath);
-                expect(result?.summary).toBe('Gemini CLI session active');
-            });
-
-            it('should truncate long summaries to 120 characters', () => {
-                const longContent = 'x'.repeat(200);
-                const filePath = writeSession(tmpHome, 'p', 'session-long', {
-                    sessionId: 's4',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'user', content: longContent },
-                    ],
-                });
-
-                const result = (adapter as any).parseSession(undefined, filePath);
-                expect(result?.summary.length).toBe(120);
-                expect(result?.summary.endsWith('...')).toBe(true);
-            });
-
-            it('should extract summary when user content is an array of parts (real Gemini shape)', () => {
-                const filePath = writeSession(tmpHome, 'p', 'session-parts', {
-                    sessionId: 's-parts',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    messages: [
-                        {
-                            id: 'm1',
-                            timestamp: '2026-04-18T00:00:01Z',
-                            type: 'user',
-                            content: [{ text: 'hello from part' }, { text: ' continued' }],
-                        },
-                    ],
-                });
-
-                const result = (adapter as any).parseSession(undefined, filePath);
-                expect(result?.summary).toBe('hello from part continued');
-            });
-
-            it('should not throw when user content is an array and there is no displayContent', () => {
-                const filePath = writeSession(tmpHome, 'p', 'session-parts-only', {
-                    sessionId: 's-parts-only',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    messages: [
-                        {
-                            id: 'm1',
-                            timestamp: '2026-04-18T00:00:01Z',
-                            type: 'user',
-                            content: [{ text: 'only via parts' }],
-                        },
-                    ],
-                });
-
-                expect(() => (adapter as any).parseSession(undefined, filePath)).not.toThrow();
-            });
-
-            it('should drop non-text parts (data/file) when resolving user content', () => {
-                const filePath = writeSession(tmpHome, 'p', 'session-mixed-parts', {
-                    sessionId: 's-mixed',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    messages: [
-                        {
-                            id: 'm1',
-                            timestamp: '2026-04-18T00:00:01Z',
-                            type: 'user',
-                            content: [
-                                { text: 'readable text' },
-                                { inlineData: { mimeType: 'image/png', data: 'base64...' } },
-                                { text: ' + more' },
-                            ],
-                        },
-                    ],
-                });
-
-                const result = (adapter as any).parseSession(undefined, filePath);
-                expect(result?.summary).toBe('readable text + more');
-            });
-
-            it('should prefer lastUpdated over entry timestamp for lastActive', () => {
-                const filePath = writeSession(tmpHome, 'p', 'session-last', {
-                    sessionId: 's5',
-                    projectHash: 'h',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:10:00Z',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'user', content: 'hi' },
-                    ],
-                });
-
-                const result = (adapter as any).parseSession(undefined, filePath);
-                expect(result?.lastActive.toISOString()).toBe('2026-04-18T00:10:00.000Z');
-            });
-        });
+      const result = (adapter as any).discoverSessions([proc]);
+      expect(result.sessions).toEqual([]);
     });
 
-    describe('getConversation', () => {
-        it('should return messages from a valid Gemini session file', () => {
-            const sessionPath = path.join(tmpHome, 'session-2026-04-18T00-00-id.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    projectHash: 'hash',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    kind: 'main',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'user', content: 'hi' },
-                        { id: 'm2', timestamp: '2026-04-18T00:00:02Z', type: 'gemini', content: 'hello' },
-                        { id: 'm3', timestamp: '2026-04-18T00:00:03Z', type: 'tool', content: 'unused' },
-                    ],
-                }),
-            );
+    it("should skip malformed JSON files and still return valid ones", () => {
+      const cwd = "/repo/valid";
+      const proc: ProcessInfo = {
+        pid: 1,
+        command: "gemini",
+        cwd,
+        tty: "ttys001",
+        startTime: new Date(),
+      };
 
-            const messages = adapter.getConversation(sessionPath);
-            expect(messages).toEqual([
-                { role: 'user', content: 'hi', timestamp: '2026-04-18T00:00:01Z' },
-                { role: 'assistant', content: 'hello', timestamp: '2026-04-18T00:00:02Z' },
-            ]);
-        });
+      const chatsDir = path.join(tmpHome, ".gemini", "tmp", "abc", "chats");
+      fs.mkdirSync(chatsDir, { recursive: true });
+      fs.writeFileSync(path.join(chatsDir, "session-bad.json"), "{ not valid");
+      writeSession(tmpHome, "abc", "session-good", {
+        sessionId: "s-good",
+        projectHash: hashProjectRoot(cwd),
+        startTime: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        kind: "main",
+        messages: [],
+      });
 
-        it('should include tool entries when verbose is true', () => {
-            const sessionPath = path.join(tmpHome, 'session-verbose.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    projectHash: 'hash',
-                    startTime: '2026-04-18T00:00:00Z',
-                    lastUpdated: '2026-04-18T00:00:00Z',
-                    kind: 'main',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'tool', content: 'tool call' },
-                    ],
-                }),
-            );
-
-            const messages = adapter.getConversation(sessionPath, { verbose: true });
-            expect(messages).toEqual([
-                { role: 'system', content: 'tool call', timestamp: '2026-04-18T00:00:01Z' },
-            ]);
-        });
-
-        it('should return empty array for missing or malformed files', () => {
-            expect(adapter.getConversation('/nonexistent/file.json')).toEqual([]);
-
-            const brokenPath = path.join(tmpHome, 'broken.json');
-            fs.writeFileSync(brokenPath, '{ not valid json');
-            expect(adapter.getConversation(brokenPath)).toEqual([]);
-        });
-
-        it('should prefer displayContent over content when both are present', () => {
-            const sessionPath = path.join(tmpHome, 'session-display.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    messages: [
-                        {
-                            id: 'm1',
-                            timestamp: '2026-04-18T00:00:01Z',
-                            type: 'user',
-                            content: 'raw',
-                            displayContent: 'rendered',
-                        },
-                    ],
-                }),
-            );
-
-            const messages = adapter.getConversation(sessionPath);
-            expect(messages[0].content).toBe('rendered');
-        });
-
-        it('should skip entries with empty content', () => {
-            const sessionPath = path.join(tmpHome, 'session-empty.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', type: 'user', content: '' },
-                        { id: 'm2', timestamp: '2026-04-18T00:00:02Z', type: 'user', content: 'real' },
-                    ],
-                }),
-            );
-
-            const messages = adapter.getConversation(sessionPath);
-            expect(messages).toHaveLength(1);
-            expect(messages[0].content).toBe('real');
-        });
-
-        it('should skip entries without a type', () => {
-            const sessionPath = path.join(tmpHome, 'session-no-type.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    messages: [
-                        { id: 'm1', timestamp: '2026-04-18T00:00:01Z', content: 'typeless' },
-                    ],
-                }),
-            );
-
-            expect(adapter.getConversation(sessionPath)).toEqual([]);
-        });
-
-        it('should resolve user messages whose content is an array of text parts', () => {
-            const sessionPath = path.join(tmpHome, 'session-user-parts.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    messages: [
-                        {
-                            id: 'm1',
-                            timestamp: '2026-04-18T00:00:01Z',
-                            type: 'user',
-                            content: [{ text: 'hello' }, { text: ' world' }],
-                        },
-                        {
-                            id: 'm2',
-                            timestamp: '2026-04-18T00:00:02Z',
-                            type: 'gemini',
-                            content: 'hi there',
-                        },
-                    ],
-                }),
-            );
-
-            const messages = adapter.getConversation(sessionPath);
-            expect(messages).toEqual([
-                { role: 'user', content: 'hello world', timestamp: '2026-04-18T00:00:01Z' },
-                { role: 'assistant', content: 'hi there', timestamp: '2026-04-18T00:00:02Z' },
-            ]);
-        });
-
-        it('should not throw when content is an array but no part carries text', () => {
-            const sessionPath = path.join(tmpHome, 'session-no-text-parts.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({
-                    sessionId: 'abc',
-                    messages: [
-                        {
-                            id: 'm1',
-                            timestamp: '2026-04-18T00:00:01Z',
-                            type: 'user',
-                            content: [{ inlineData: { mimeType: 'image/png' } }],
-                        },
-                    ],
-                }),
-            );
-
-            expect(() => adapter.getConversation(sessionPath)).not.toThrow();
-            expect(adapter.getConversation(sessionPath)).toEqual([]);
-        });
-
-        it('should return empty array when messages is not an array', () => {
-            const sessionPath = path.join(tmpHome, 'session-bad-messages.json');
-            fs.writeFileSync(
-                sessionPath,
-                JSON.stringify({ sessionId: 'abc', messages: 'not-an-array' }),
-            );
-
-            expect(adapter.getConversation(sessionPath)).toEqual([]);
-        });
+      const result = (adapter as any).discoverSessions([proc]);
+      expect(result.sessions).toHaveLength(1);
+      expect(result.sessions[0].sessionId).toBe("s-good");
     });
 
-    describe('listSessions', () => {
-        it('returns empty when ~/.gemini/tmp does not exist', async () => {
-            // tmpHome has no .gemini dir by default
-            const result = await adapter.listSessions();
-            expect(result).toEqual([]);
-        });
+    it("should match sessions whose projectHash is a parent of the process cwd (git root case)", () => {
+      const gitRoot = "/repo/monorepo";
+      const procCwd = "/repo/monorepo/packages/inner";
+      const proc: ProcessInfo = {
+        pid: 1,
+        command: "gemini",
+        cwd: procCwd,
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+      writeSession(tmpHome, "abc", "session-rootmatch", {
+        sessionId: "s-root",
+        // Gemini CLI stores the hash of the walked-up project root,
+        // not the process CWD.
+        projectHash: hashProjectRoot(gitRoot),
+        startTime: new Date().toISOString(),
+        lastUpdated: new Date().toISOString(),
+        kind: "main",
+        messages: [],
+      });
 
-        it('walks every shortId/chats dir and returns sessions', async () => {
-            writeSession(tmpHome, 'aaa', 'session-1', {
-                sessionId: 's-1',
-                projectHash: hashProjectRoot('/repo-a'),
-                startTime: '2025-01-01T00:00:00Z',
-                lastUpdated: '2025-01-01T00:01:00Z',
-                directories: ['/repo-a'],
-                messages: [
-                    { type: 'user', timestamp: '2025-01-01T00:00:00Z', content: [{ text: 'hello a' }] },
-                ],
-            });
-            writeSession(tmpHome, 'bbb', 'session-2', {
-                sessionId: 's-2',
-                projectHash: hashProjectRoot('/repo-b'),
-                startTime: '2025-01-02T00:00:00Z',
-                lastUpdated: '2025-01-02T00:01:00Z',
-                directories: ['/repo-b'],
-                messages: [
-                    { type: 'user', timestamp: '2025-01-02T00:00:00Z', content: [{ text: 'hello b' }] },
-                ],
-            });
-
-            const result = await adapter.listSessions();
-
-            expect(result).toHaveLength(2);
-            const byId = Object.fromEntries(result.map((r) => [r.sessionId, r]));
-            expect(byId['s-1']).toMatchObject({
-                type: 'gemini_cli',
-                cwd: '/repo-a',
-                firstUserMessage: 'hello a',
-            });
-            expect(byId['s-2']).toMatchObject({
-                type: 'gemini_cli',
-                cwd: '/repo-b',
-                firstUserMessage: 'hello b',
-            });
-        });
-
-        it('applies strict-equality cwd filter against directories[0]', async () => {
-            writeSession(tmpHome, 'aaa', 'session-keep', {
-                sessionId: 'keep',
-                projectHash: hashProjectRoot('/repo'),
-                startTime: '2025-01-01T00:00:00Z',
-                directories: ['/repo'],
-                messages: [{ type: 'user', timestamp: '2025-01-01T00:00:00Z', content: 'yes' }],
-            });
-            writeSession(tmpHome, 'bbb', 'session-drop', {
-                sessionId: 'drop',
-                projectHash: hashProjectRoot('/other'),
-                startTime: '2025-01-01T00:00:00Z',
-                directories: ['/other'],
-                messages: [{ type: 'user', timestamp: '2025-01-01T00:00:00Z', content: 'no' }],
-            });
-
-            const result = await adapter.listSessions({ cwd: '/repo' });
-
-            expect(result).toHaveLength(1);
-            expect(result[0].sessionId).toBe('keep');
-        });
-
-        it('skips malformed JSON files', async () => {
-            const chatsDir = path.join(tmpHome, '.gemini', 'tmp', 'aaa', 'chats');
-            fs.mkdirSync(chatsDir, { recursive: true });
-            fs.writeFileSync(path.join(chatsDir, 'session-bad.json'), '{ not json');
-            writeSession(tmpHome, 'aaa', 'session-good', {
-                sessionId: 'good',
-                projectHash: hashProjectRoot('/repo'),
-                startTime: '2025-01-01T00:00:00Z',
-                directories: ['/repo'],
-                messages: [{ type: 'user', timestamp: '2025-01-01T00:00:00Z', content: 'ok' }],
-            });
-
-            const result = await adapter.listSessions();
-            expect(result).toHaveLength(1);
-            expect(result[0].sessionId).toBe('good');
-        });
-
-        it('skips files missing sessionId', async () => {
-            writeSession(tmpHome, 'aaa', 'session-no-id', {
-                projectHash: hashProjectRoot('/repo'),
-                startTime: '2025-01-01T00:00:00Z',
-                directories: ['/repo'],
-                messages: [],
-            });
-
-            const result = await adapter.listSessions();
-            expect(result).toEqual([]);
-        });
-
-        it('captures the first user-typed message as firstUserMessage', async () => {
-            writeSession(tmpHome, 'aaa', 'session-x', {
-                sessionId: 's',
-                projectHash: hashProjectRoot('/repo'),
-                startTime: '2025-01-01T00:00:00Z',
-                directories: ['/repo'],
-                messages: [
-                    { type: 'gemini', timestamp: '2025-01-01T00:00:00Z', content: 'preamble' },
-                    { type: 'user', timestamp: '2025-01-01T00:00:01Z', content: [{ text: 'first user' }] },
-                    { type: 'user', timestamp: '2025-01-01T00:00:02Z', content: 'second user' },
-                ],
-            });
-
-            const result = await adapter.listSessions({ cwd: '/repo' });
-
-            expect(result).toHaveLength(1);
-            expect(result[0].firstUserMessage).toBe('first user');
-        });
-
-        it('returns empty firstUserMessage when no user message exists', async () => {
-            writeSession(tmpHome, 'aaa', 'session-x', {
-                sessionId: 's',
-                projectHash: hashProjectRoot('/repo'),
-                startTime: '2025-01-01T00:00:00Z',
-                directories: ['/repo'],
-                messages: [
-                    { type: 'gemini', timestamp: '2025-01-01T00:00:00Z', content: 'agent only' },
-                ],
-            });
-
-            const result = await adapter.listSessions({ cwd: '/repo' });
-
-            expect(result).toHaveLength(1);
-            expect(result[0].firstUserMessage).toBe('');
-        });
+      const result = (adapter as any).discoverSessions([proc]);
+      expect(result.sessions).toHaveLength(1);
+      expect(result.sessions[0].resolvedCwd).toBe(procCwd);
     });
+
+    it('should skip files that do not start with "session-"', () => {
+      const cwd = "/repo/keep";
+      const proc: ProcessInfo = {
+        pid: 1,
+        command: "gemini",
+        cwd,
+        tty: "ttys001",
+        startTime: new Date(),
+      };
+
+      const chatsDir = path.join(tmpHome, ".gemini", "tmp", "abc", "chats");
+      fs.mkdirSync(chatsDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(chatsDir, "notsession.json"),
+        JSON.stringify({
+          sessionId: "skip",
+          projectHash: hashProjectRoot(cwd),
+          messages: [],
+        }),
+      );
+
+      const result = (adapter as any).discoverSessions([proc]);
+      expect(result.sessions).toEqual([]);
+    });
+  });
+
+  describe("helper methods", () => {
+    describe("determineStatus", () => {
+      it('should return "waiting" when the last message is from gemini', () => {
+        const session = {
+          sessionId: "s",
+          projectPath: "",
+          summary: "",
+          sessionStart: new Date(),
+          lastActive: new Date(),
+          lastMessageType: "gemini",
+        };
+        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.WAITING);
+      });
+
+      it('should return "waiting" when the last message is from assistant', () => {
+        const session = {
+          sessionId: "s",
+          projectPath: "",
+          summary: "",
+          sessionStart: new Date(),
+          lastActive: new Date(),
+          lastMessageType: "assistant",
+        };
+        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.WAITING);
+      });
+
+      it('should return "running" when the last message is from the user', () => {
+        const session = {
+          sessionId: "s",
+          projectPath: "",
+          summary: "",
+          sessionStart: new Date(),
+          lastActive: new Date(),
+          lastMessageType: "user",
+        };
+        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.RUNNING);
+      });
+
+      it('should return "idle" when last activity is older than the threshold', () => {
+        const session = {
+          sessionId: "s",
+          projectPath: "",
+          summary: "",
+          sessionStart: new Date(),
+          lastActive: new Date(Date.now() - 10 * 60 * 1000),
+          lastMessageType: "gemini",
+        };
+        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.IDLE);
+      });
+    });
+
+    describe("parseSession", () => {
+      it("should parse a valid session file", () => {
+        const filePath = writeSession(tmpHome, "p", "session-a", {
+          sessionId: "s1",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:05:00Z",
+          kind: "main",
+          directories: ["/repo"],
+          messages: [
+            { id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "user", content: "hello" },
+          ],
+        });
+
+        const result = (adapter as any).parseSession(undefined, filePath);
+        expect(result).toMatchObject({
+          sessionId: "s1",
+          projectPath: "/repo",
+          summary: "hello",
+        });
+      });
+
+      it("should parse from cached content without reading disk", () => {
+        const content = JSON.stringify({
+          sessionId: "s2",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          messages: [],
+        });
+
+        const result = (adapter as any).parseSession(content, "/does/not/exist.json");
+        expect(result?.sessionId).toBe("s2");
+      });
+
+      it("should return null for a missing file with no cached content", () => {
+        expect((adapter as any).parseSession(undefined, "/missing.json")).toBeNull();
+      });
+
+      it("should return null when the file is not valid JSON", () => {
+        const filePath = path.join(tmpHome, "broken.json");
+        fs.writeFileSync(filePath, "not json");
+        expect((adapter as any).parseSession(undefined, filePath)).toBeNull();
+      });
+
+      it("should return null when sessionId is missing", () => {
+        const filePath = path.join(tmpHome, "no-id.json");
+        fs.writeFileSync(filePath, JSON.stringify({ messages: [] }));
+        expect((adapter as any).parseSession(undefined, filePath)).toBeNull();
+      });
+
+      it("should default the summary when no user message has content", () => {
+        const filePath = writeSession(tmpHome, "p", "session-empty", {
+          sessionId: "s3",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "gemini",
+              content: "only assistant",
+            },
+          ],
+        });
+
+        const result = (adapter as any).parseSession(undefined, filePath);
+        expect(result?.summary).toBe("Gemini CLI session active");
+      });
+
+      it("should truncate long summaries to 120 characters", () => {
+        const longContent = "x".repeat(200);
+        const filePath = writeSession(tmpHome, "p", "session-long", {
+          sessionId: "s4",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          messages: [
+            { id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "user", content: longContent },
+          ],
+        });
+
+        const result = (adapter as any).parseSession(undefined, filePath);
+        expect(result?.summary.length).toBe(120);
+        expect(result?.summary.endsWith("...")).toBe(true);
+      });
+
+      it("should extract summary when user content is an array of parts (real Gemini shape)", () => {
+        const filePath = writeSession(tmpHome, "p", "session-parts", {
+          sessionId: "s-parts",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "user",
+              content: [{ text: "hello from part" }, { text: " continued" }],
+            },
+          ],
+        });
+
+        const result = (adapter as any).parseSession(undefined, filePath);
+        expect(result?.summary).toBe("hello from part continued");
+      });
+
+      it("should not throw when user content is an array and there is no displayContent", () => {
+        const filePath = writeSession(tmpHome, "p", "session-parts-only", {
+          sessionId: "s-parts-only",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "user",
+              content: [{ text: "only via parts" }],
+            },
+          ],
+        });
+
+        expect(() => (adapter as any).parseSession(undefined, filePath)).not.toThrow();
+      });
+
+      it("should drop non-text parts (data/file) when resolving user content", () => {
+        const filePath = writeSession(tmpHome, "p", "session-mixed-parts", {
+          sessionId: "s-mixed",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "user",
+              content: [
+                { text: "readable text" },
+                { inlineData: { mimeType: "image/png", data: "base64..." } },
+                { text: " + more" },
+              ],
+            },
+          ],
+        });
+
+        const result = (adapter as any).parseSession(undefined, filePath);
+        expect(result?.summary).toBe("readable text + more");
+      });
+
+      it("should prefer lastUpdated over entry timestamp for lastActive", () => {
+        const filePath = writeSession(tmpHome, "p", "session-last", {
+          sessionId: "s5",
+          projectHash: "h",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:10:00Z",
+          messages: [{ id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "user", content: "hi" }],
+        });
+
+        const result = (adapter as any).parseSession(undefined, filePath);
+        expect(result?.lastActive.toISOString()).toBe("2026-04-18T00:10:00.000Z");
+      });
+    });
+  });
+
+  describe("getConversation", () => {
+    it("should return messages from a valid Gemini session file", () => {
+      const sessionPath = path.join(tmpHome, "session-2026-04-18T00-00-id.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          projectHash: "hash",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          kind: "main",
+          messages: [
+            { id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "user", content: "hi" },
+            { id: "m2", timestamp: "2026-04-18T00:00:02Z", type: "gemini", content: "hello" },
+            { id: "m3", timestamp: "2026-04-18T00:00:03Z", type: "tool", content: "unused" },
+          ],
+        }),
+      );
+
+      const messages = adapter.getConversation(sessionPath);
+      expect(messages).toEqual([
+        { role: "user", content: "hi", timestamp: "2026-04-18T00:00:01Z" },
+        { role: "assistant", content: "hello", timestamp: "2026-04-18T00:00:02Z" },
+      ]);
+    });
+
+    it("should include tool entries when verbose is true", () => {
+      const sessionPath = path.join(tmpHome, "session-verbose.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          projectHash: "hash",
+          startTime: "2026-04-18T00:00:00Z",
+          lastUpdated: "2026-04-18T00:00:00Z",
+          kind: "main",
+          messages: [
+            { id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "tool", content: "tool call" },
+          ],
+        }),
+      );
+
+      const messages = adapter.getConversation(sessionPath, { verbose: true });
+      expect(messages).toEqual([
+        { role: "system", content: "tool call", timestamp: "2026-04-18T00:00:01Z" },
+      ]);
+    });
+
+    it("should return empty array for missing or malformed files", () => {
+      expect(adapter.getConversation("/nonexistent/file.json")).toEqual([]);
+
+      const brokenPath = path.join(tmpHome, "broken.json");
+      fs.writeFileSync(brokenPath, "{ not valid json");
+      expect(adapter.getConversation(brokenPath)).toEqual([]);
+    });
+
+    it("should prefer displayContent over content when both are present", () => {
+      const sessionPath = path.join(tmpHome, "session-display.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "user",
+              content: "raw",
+              displayContent: "rendered",
+            },
+          ],
+        }),
+      );
+
+      const messages = adapter.getConversation(sessionPath);
+      expect(messages[0].content).toBe("rendered");
+    });
+
+    it("should skip entries with empty content", () => {
+      const sessionPath = path.join(tmpHome, "session-empty.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          messages: [
+            { id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "user", content: "" },
+            { id: "m2", timestamp: "2026-04-18T00:00:02Z", type: "user", content: "real" },
+          ],
+        }),
+      );
+
+      const messages = adapter.getConversation(sessionPath);
+      expect(messages).toHaveLength(1);
+      expect(messages[0].content).toBe("real");
+    });
+
+    it("should skip entries without a type", () => {
+      const sessionPath = path.join(tmpHome, "session-no-type.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          messages: [{ id: "m1", timestamp: "2026-04-18T00:00:01Z", content: "typeless" }],
+        }),
+      );
+
+      expect(adapter.getConversation(sessionPath)).toEqual([]);
+    });
+
+    it("should resolve user messages whose content is an array of text parts", () => {
+      const sessionPath = path.join(tmpHome, "session-user-parts.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "user",
+              content: [{ text: "hello" }, { text: " world" }],
+            },
+            {
+              id: "m2",
+              timestamp: "2026-04-18T00:00:02Z",
+              type: "gemini",
+              content: "hi there",
+            },
+          ],
+        }),
+      );
+
+      const messages = adapter.getConversation(sessionPath);
+      expect(messages).toEqual([
+        { role: "user", content: "hello world", timestamp: "2026-04-18T00:00:01Z" },
+        { role: "assistant", content: "hi there", timestamp: "2026-04-18T00:00:02Z" },
+      ]);
+    });
+
+    it("should not throw when content is an array but no part carries text", () => {
+      const sessionPath = path.join(tmpHome, "session-no-text-parts.json");
+      fs.writeFileSync(
+        sessionPath,
+        JSON.stringify({
+          sessionId: "abc",
+          messages: [
+            {
+              id: "m1",
+              timestamp: "2026-04-18T00:00:01Z",
+              type: "user",
+              content: [{ inlineData: { mimeType: "image/png" } }],
+            },
+          ],
+        }),
+      );
+
+      expect(() => adapter.getConversation(sessionPath)).not.toThrow();
+      expect(adapter.getConversation(sessionPath)).toEqual([]);
+    });
+
+    it("should return empty array when messages is not an array", () => {
+      const sessionPath = path.join(tmpHome, "session-bad-messages.json");
+      fs.writeFileSync(sessionPath, JSON.stringify({ sessionId: "abc", messages: "not-an-array" }));
+
+      expect(adapter.getConversation(sessionPath)).toEqual([]);
+    });
+  });
+
+  describe("listSessions", () => {
+    it("returns empty when ~/.gemini/tmp does not exist", async () => {
+      // tmpHome has no .gemini dir by default
+      const result = await adapter.listSessions();
+      expect(result).toEqual([]);
+    });
+
+    it("walks every shortId/chats dir and returns sessions", async () => {
+      writeSession(tmpHome, "aaa", "session-1", {
+        sessionId: "s-1",
+        projectHash: hashProjectRoot("/repo-a"),
+        startTime: "2025-01-01T00:00:00Z",
+        lastUpdated: "2025-01-01T00:01:00Z",
+        directories: ["/repo-a"],
+        messages: [
+          { type: "user", timestamp: "2025-01-01T00:00:00Z", content: [{ text: "hello a" }] },
+        ],
+      });
+      writeSession(tmpHome, "bbb", "session-2", {
+        sessionId: "s-2",
+        projectHash: hashProjectRoot("/repo-b"),
+        startTime: "2025-01-02T00:00:00Z",
+        lastUpdated: "2025-01-02T00:01:00Z",
+        directories: ["/repo-b"],
+        messages: [
+          { type: "user", timestamp: "2025-01-02T00:00:00Z", content: [{ text: "hello b" }] },
+        ],
+      });
+
+      const result = await adapter.listSessions();
+
+      expect(result).toHaveLength(2);
+      const byId = Object.fromEntries(result.map((r) => [r.sessionId, r]));
+      expect(byId["s-1"]).toMatchObject({
+        type: "gemini_cli",
+        cwd: "/repo-a",
+        firstUserMessage: "hello a",
+      });
+      expect(byId["s-2"]).toMatchObject({
+        type: "gemini_cli",
+        cwd: "/repo-b",
+        firstUserMessage: "hello b",
+      });
+    });
+
+    it("applies strict-equality cwd filter against directories[0]", async () => {
+      writeSession(tmpHome, "aaa", "session-keep", {
+        sessionId: "keep",
+        projectHash: hashProjectRoot("/repo"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/repo"],
+        messages: [{ type: "user", timestamp: "2025-01-01T00:00:00Z", content: "yes" }],
+      });
+      writeSession(tmpHome, "bbb", "session-drop", {
+        sessionId: "drop",
+        projectHash: hashProjectRoot("/other"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/other"],
+        messages: [{ type: "user", timestamp: "2025-01-01T00:00:00Z", content: "no" }],
+      });
+
+      const result = await adapter.listSessions({ cwd: "/repo" });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].sessionId).toBe("keep");
+    });
+
+    it("skips malformed JSON files", async () => {
+      const chatsDir = path.join(tmpHome, ".gemini", "tmp", "aaa", "chats");
+      fs.mkdirSync(chatsDir, { recursive: true });
+      fs.writeFileSync(path.join(chatsDir, "session-bad.json"), "{ not json");
+      writeSession(tmpHome, "aaa", "session-good", {
+        sessionId: "good",
+        projectHash: hashProjectRoot("/repo"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/repo"],
+        messages: [{ type: "user", timestamp: "2025-01-01T00:00:00Z", content: "ok" }],
+      });
+
+      const result = await adapter.listSessions();
+      expect(result).toHaveLength(1);
+      expect(result[0].sessionId).toBe("good");
+    });
+
+    it("skips files missing sessionId", async () => {
+      writeSession(tmpHome, "aaa", "session-no-id", {
+        projectHash: hashProjectRoot("/repo"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/repo"],
+        messages: [],
+      });
+
+      const result = await adapter.listSessions();
+      expect(result).toEqual([]);
+    });
+
+    it("captures the first user-typed message as firstUserMessage", async () => {
+      writeSession(tmpHome, "aaa", "session-x", {
+        sessionId: "s",
+        projectHash: hashProjectRoot("/repo"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/repo"],
+        messages: [
+          { type: "gemini", timestamp: "2025-01-01T00:00:00Z", content: "preamble" },
+          { type: "user", timestamp: "2025-01-01T00:00:01Z", content: [{ text: "first user" }] },
+          { type: "user", timestamp: "2025-01-01T00:00:02Z", content: "second user" },
+        ],
+      });
+
+      const result = await adapter.listSessions({ cwd: "/repo" });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].firstUserMessage).toBe("first user");
+    });
+
+    it("returns empty firstUserMessage when no user message exists", async () => {
+      writeSession(tmpHome, "aaa", "session-x", {
+        sessionId: "s",
+        projectHash: hashProjectRoot("/repo"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/repo"],
+        messages: [{ type: "gemini", timestamp: "2025-01-01T00:00:00Z", content: "agent only" }],
+      });
+
+      const result = await adapter.listSessions({ cwd: "/repo" });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].firstUserMessage).toBe("");
+    });
+  });
 });
 
 /**
@@ -1239,16 +1269,16 @@ describe('GeminiCliAdapter', () => {
  * ~/.gemini/tmp/<shortId>/chats/<fileName>.json layout. Returns the full path.
  */
 function writeSession(
-    home: string,
-    shortId: string,
-    fileName: string,
-    body: Record<string, unknown>,
+  home: string,
+  shortId: string,
+  fileName: string,
+  body: Record<string, unknown>,
 ): string {
-    const chatsDir = path.join(home, '.gemini', 'tmp', shortId, 'chats');
-    fs.mkdirSync(chatsDir, { recursive: true });
-    const filePath = path.join(chatsDir, `${fileName}.json`);
-    fs.writeFileSync(filePath, JSON.stringify(body));
-    return filePath;
+  const chatsDir = path.join(home, ".gemini", "tmp", shortId, "chats");
+  fs.mkdirSync(chatsDir, { recursive: true });
+  const filePath = path.join(chatsDir, `${fileName}.json`);
+  fs.writeFileSync(filePath, JSON.stringify(body));
+  return filePath;
 }
 
 /**
@@ -1256,6 +1286,6 @@ function writeSession(
  * sha256(projectRoot) as hex.
  */
 function hashProjectRoot(projectRoot: string): string {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return crypto.createHash('sha256').update(projectRoot).digest('hex');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  return crypto.createHash("sha256").update(projectRoot).digest("hex");
 }

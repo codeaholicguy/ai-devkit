@@ -1,13 +1,25 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import { DevKitConfig, Phase, EnvironmentCode, ConfigSkill, DEFAULT_DOCS_DIR, DEFAULT_PHASES } from '../types.js';
-import { filterStringRecord, type AgentRuntimeProvider } from '../util/config.js';
-import { ConfigNotFoundError } from '../util/errors.js';
-import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../services/skill/registry/skill-registry-source.js';
-import { GlobalConfigManager } from './GlobalConfig.js';
-import packageJson from '../../package.json' with { type: 'json' };
+import fs from "fs-extra";
+import * as path from "path";
+import {
+  DevKitConfig,
+  Phase,
+  EnvironmentCode,
+  ConfigSkill,
+  DEFAULT_DOCS_DIR,
+  DEFAULT_PHASES,
+} from "../types.js";
+import { filterStringRecord, type AgentRuntimeProvider } from "../util/config.js";
+import { ConfigNotFoundError } from "../util/errors.js";
+import {
+  AddSkillRegistryOptions,
+  normalizeRegistrySources,
+  planSkillRegistryAdd,
+  planSkillRegistryRemove,
+} from "../services/skill/registry/skill-registry-source.js";
+import { GlobalConfigManager } from "./GlobalConfig.js";
+import packageJson from "../../package.json" with { type: "json" };
 
-const CONFIG_FILE_NAME = '.ai-devkit.json';
+const CONFIG_FILE_NAME = ".ai-devkit.json";
 
 export class ConfigManager {
   private configPath: string;
@@ -37,7 +49,7 @@ export class ConfigManager {
       environments: [],
       phases: [],
       memory: { semantic: false },
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
 
     await fs.writeJson(this.configPath, config, { spaces: 2 });
@@ -47,12 +59,12 @@ export class ConfigManager {
   async update(updates: Partial<DevKitConfig>): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
 
     const updated = {
       ...config,
-      ...updates
+      ...updates,
     };
 
     if (JSON.stringify(updated) === JSON.stringify(config)) {
@@ -66,7 +78,7 @@ export class ConfigManager {
   async addPhase(phase: Phase): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
 
     const phases = Array.isArray(config.phases) ? [...config.phases] : [];
@@ -110,7 +122,7 @@ export class ConfigManager {
   async getMemorySemanticEnabled(): Promise<boolean> {
     const config = await this.read();
     const projectValue = config?.memory?.semantic;
-    if (typeof projectValue === 'boolean') {
+    if (typeof projectValue === "boolean") {
       return projectValue;
     }
 
@@ -123,7 +135,7 @@ export class ConfigManager {
   }
 
   private resolveConfiguredPath(configuredPath: unknown): string | undefined {
-    if (typeof configuredPath !== 'string') {
+    if (typeof configuredPath !== "string") {
       return undefined;
     }
 
@@ -142,7 +154,7 @@ export class ConfigManager {
   async setDocsDir(docsDir: string): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
     return this.update({ paths: { ...config.paths, docs: docsDir } });
   }
@@ -164,13 +176,13 @@ export class ConfigManager {
   async addSkill(skill: ConfigSkill): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
 
     const installed = Array.isArray(config.skills) ? [...config.skills] : [];
 
     const exists = installed.some(
-      entry => entry.registry === skill.registry && entry.name === skill.name
+      (entry) => entry.registry === skill.registry && entry.name === skill.name,
     );
 
     if (exists) {
@@ -184,27 +196,34 @@ export class ConfigManager {
   async removeSkill(skillName: string): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
 
     const installed = Array.isArray(config.skills) ? config.skills : [];
-    return this.update({ skills: installed.filter(entry => entry.name !== skillName) });
+    return this.update({ skills: installed.filter((entry) => entry.name !== skillName) });
   }
 
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
-    return normalizeRegistrySources(filterStringRecord(config?.registries), path.dirname(this.configPath));
+    return normalizeRegistrySources(
+      filterStringRecord(config?.registries),
+      path.dirname(this.configPath),
+    );
   }
 
-  async addSkillRegistry(id: string, url: string, options: AddSkillRegistryOptions = {}): Promise<DevKitConfig> {
+  async addSkillRegistry(
+    id: string,
+    url: string,
+    options: AddSkillRegistryOptions = {},
+  ): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
 
     const mutation = planSkillRegistryAdd(filterStringRecord(config.registries), id, url, options);
 
-    if (mutation.status === 'already-registered') {
+    if (mutation.status === "already-registered") {
       return config;
     }
 
@@ -214,10 +233,10 @@ export class ConfigManager {
   async removeSkillRegistry(id: string): Promise<DevKitConfig> {
     const config = await this.read();
     if (!config) {
-      throw new ConfigNotFoundError('Config file not found. Run ai-devkit init first.');
+      throw new ConfigNotFoundError("Config file not found. Run ai-devkit init first.");
     }
     const mutation = planSkillRegistryRemove(filterStringRecord(config.registries), id);
-    return mutation.status === 'removed'
+    return mutation.status === "removed"
       ? this.update({ registries: mutation.registries })
       : config;
   }

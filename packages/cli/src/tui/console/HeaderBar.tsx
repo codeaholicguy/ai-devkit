@@ -1,19 +1,24 @@
-import React from 'react';
-import { Box, Text } from 'ink';
-import { useConsoleAgentContext } from './state/ConsoleContext.js';
-import { TUI_COLORS } from '../design-system/index.js';
+import React from "react";
+import { Box, Text } from "ink";
+import { useConsoleAgentContext } from "./state/ConsoleContext.js";
+import { TUI_COLORS } from "../design-system/index.js";
 
 const HeaderBarInner: React.FC = () => {
-    const { agents, isLoading } = useConsoleAgentContext();
-    const totalLabel = isLoading && agents.length === 0 ? 'scanning…' : `${agents.length} agent${agents.length === 1 ? '' : 's'}`;
-    return (
-        <Box paddingX={1}>
-            <Text bold color={TUI_COLORS.accent}>ai-devkit</Text>
-            <Text dimColor> · </Text>
-            <Text>agent console</Text>
-            <Text dimColor>   {totalLabel}</Text>
-        </Box>
-    );
+  const { agents, isLoading } = useConsoleAgentContext();
+  const totalLabel =
+    isLoading && agents.length === 0
+      ? "scanning…"
+      : `${agents.length} agent${agents.length === 1 ? "" : "s"}`;
+  return (
+    <Box paddingX={1}>
+      <Text bold color={TUI_COLORS.accent}>
+        ai-devkit
+      </Text>
+      <Text dimColor> · </Text>
+      <Text>agent console</Text>
+      <Text dimColor> {totalLabel}</Text>
+    </Box>
+  );
 };
 
 export const HeaderBar = React.memo(HeaderBarInner);

@@ -7,6 +7,7 @@ description: Define the technical architecture, components, and data models
 # System Design & Architecture
 
 ## Architecture Overview
+
 **What is the high-level system structure?**
 
 - Include a mermaid diagram that captures the main components and their relationships. Example:
@@ -21,6 +22,7 @@ description: Define the technical architecture, components, and data models
 - Technology stack choices and rationale
 
 ## Data Models
+
 **What data do we need to manage?**
 
 - Core entities and their relationships
@@ -28,6 +30,7 @@ description: Define the technical architecture, components, and data models
 - Data flow between components
 
 ## API Design
+
 **How do components communicate?**
 
 - External APIs (if applicable)
@@ -36,6 +39,7 @@ description: Define the technical architecture, components, and data models
 - Authentication/authorization approach
 
 ## Component Breakdown
+
 **What are the major building blocks?**
 
 - Frontend components (if applicable)
@@ -44,6 +48,7 @@ description: Define the technical architecture, components, and data models
 - Third-party integrations
 
 ## Design Decisions
+
 **Why did we choose this approach?**
 
 - Key architectural decisions and trade-offs
@@ -51,10 +56,10 @@ description: Define the technical architecture, components, and data models
 - Patterns and principles applied
 
 ## Non-Functional Requirements
+
 **How should the system perform?**
 
 - Performance targets
 - Scalability considerations
 - Security requirements
 - Reliability/availability needs
-

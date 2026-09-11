@@ -20,7 +20,7 @@ export interface AddSkillOptions {
   environments?: string[];
 }
 
-export type SkillInstallAction = 'symlinked' | 'copied' | 'skipped';
+export type SkillInstallAction = "symlinked" | "copied" | "skipped";
 
 export interface SkillInstallItem {
   skillName: string;
@@ -29,9 +29,9 @@ export interface SkillInstallItem {
 }
 
 export interface SkillInstallResult {
-  status: 'installed' | 'matched';
+  status: "installed" | "matched";
   registryId: string;
-  installMode: 'global' | 'project';
+  installMode: "global" | "project";
   environments: string[];
   items: SkillInstallItem[];
 }
@@ -43,7 +43,7 @@ export interface RemoveSkillOptions {
 
 export interface SkillRemoveResult {
   skillName: string;
-  scope: 'global' | 'project';
+  scope: "global" | "project";
   removedTargets: string[];
   failures: string[];
 }

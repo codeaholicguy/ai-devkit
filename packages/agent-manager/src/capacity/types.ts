@@ -1,4 +1,4 @@
-export type Availability = 'yes' | 'no' | 'unknown';
+export type Availability = "yes" | "no" | "unknown";
 
 export interface CapacityWindow {
   id: string;

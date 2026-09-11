@@ -1,6 +1,6 @@
-import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from '../types.js';
-import { ui } from '../util/terminal-ui.js';
-import { checkbox } from '@inquirer/prompts';
+import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from "../types.js";
+import { ui } from "../util/terminal-ui.js";
+import { checkbox } from "@inquirer/prompts";
 
 export class PhaseSelector {
   async selectPhases(all?: boolean, phases?: string): Promise<Phase[]> {
@@ -15,7 +15,7 @@ export class PhaseSelector {
     }
 
     if (selectedPhases.length === 0) {
-      ui.warning('No phases selected.');
+      ui.warning("No phases selected.");
       return [];
     }
 
@@ -24,26 +24,26 @@ export class PhaseSelector {
 
   private async promptPhaseSelection(): Promise<Phase[]> {
     return checkbox({
-      message: 'Which phases do you want to initialize? (or use --all flag)',
-      choices: AVAILABLE_PHASES.map(phase => ({
+      message: "Which phases do you want to initialize? (or use --all flag)",
+      choices: AVAILABLE_PHASES.map((phase) => ({
         name: PHASE_DISPLAY_NAMES[phase],
         value: phase,
-        checked: true
-      }))
+        checked: true,
+      })),
     });
   }
 
   private parsePhaseString(phases: string): Phase[] {
-    return phases.split(',').map(p => p.trim()) as Phase[];
+    return phases.split(",").map((p) => p.trim()) as Phase[];
   }
   displaySelectionSummary(selected: Phase[]): void {
     if (selected.length === 0) {
-      ui.warning('No phases selected.');
+      ui.warning("No phases selected.");
       return;
     }
 
-    ui.text('\nSelected phases:');
-    selected.forEach(phase => {
+    ui.text("\nSelected phases:");
+    selected.forEach((phase) => {
       ui.text(`  ${PHASE_DISPLAY_NAMES[phase]}`);
     });
     ui.breakline();

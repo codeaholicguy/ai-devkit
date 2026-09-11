@@ -1,59 +1,61 @@
-import type { ConsoleFocus } from './types.js';
+import type { ConsoleFocus } from "./types.js";
 
 interface ConsoleKeyLike {
-    upArrow?: boolean;
-    downArrow?: boolean;
-    leftArrow?: boolean;
-    escape?: boolean;
+  upArrow?: boolean;
+  downArrow?: boolean;
+  leftArrow?: boolean;
+  escape?: boolean;
 }
 
 interface ResolveConsoleKeyActionParams {
-    focus: ConsoleFocus;
-    input: string;
-    key: ConsoleKeyLike;
-    hasSelectedAgent: boolean;
-    previewVisible: boolean;
-    filterActive: boolean;
+  focus: ConsoleFocus;
+  input: string;
+  key: ConsoleKeyLike;
+  hasSelectedAgent: boolean;
+  previewVisible: boolean;
+  filterActive: boolean;
 }
 
 export type ConsoleKeyAction =
-    | { type: 'noop' }
-    | { type: 'focus-list' }
-    | { type: 'focus-detail' }
-    | { type: 'focus-input' }
-    | { type: 'toggle-pin' }
-    | { type: 'scroll-detail'; delta: number }
-    | { type: 'select-agent'; delta: number }
-    | { type: 'open-filter' }
-    | { type: 'clear-filter' };
+  | { type: "noop" }
+  | { type: "focus-list" }
+  | { type: "focus-detail" }
+  | { type: "focus-input" }
+  | { type: "toggle-pin" }
+  | { type: "scroll-detail"; delta: number }
+  | { type: "select-agent"; delta: number }
+  | { type: "open-filter" }
+  | { type: "clear-filter" };
 
 export function resolveConsoleKeyAction({
-    focus,
-    input,
-    key,
-    hasSelectedAgent,
-    previewVisible,
-    filterActive,
+  focus,
+  input,
+  key,
+  hasSelectedAgent,
+  previewVisible,
+  filterActive,
 }: ResolveConsoleKeyActionParams): ConsoleKeyAction {
-    if (focus === 'detail') {
-        if (key.escape || key.leftArrow) return { type: 'focus-list' };
-        if (input === 'i' || input === 'm') return hasSelectedAgent ? { type: 'focus-input' } : { type: 'noop' };
-        if (key.downArrow || input === 'j') return { type: 'scroll-detail', delta: -1 };
-        if (key.upArrow || input === 'k') return { type: 'scroll-detail', delta: 1 };
-        return { type: 'noop' };
-    }
+  if (focus === "detail") {
+    if (key.escape || key.leftArrow) return { type: "focus-list" };
+    if (input === "i" || input === "m")
+      return hasSelectedAgent ? { type: "focus-input" } : { type: "noop" };
+    if (key.downArrow || input === "j") return { type: "scroll-detail", delta: -1 };
+    if (key.upArrow || input === "k") return { type: "scroll-detail", delta: 1 };
+    return { type: "noop" };
+  }
 
-    if (focus === 'list') {
-        if (input === 'p') return hasSelectedAgent ? { type: 'toggle-pin' } : { type: 'noop' };
-        if (key.escape && filterActive) return { type: 'clear-filter' };
-        if (input === '/') return { type: 'open-filter' };
-        if (input === 'v') {
-            return hasSelectedAgent && previewVisible ? { type: 'focus-detail' } : { type: 'noop' };
-        }
-        if (input === 'i' || input === 'm') return hasSelectedAgent ? { type: 'focus-input' } : { type: 'noop' };
-        if (key.downArrow || input === 'j') return { type: 'select-agent', delta: 1 };
-        if (key.upArrow || input === 'k') return { type: 'select-agent', delta: -1 };
+  if (focus === "list") {
+    if (input === "p") return hasSelectedAgent ? { type: "toggle-pin" } : { type: "noop" };
+    if (key.escape && filterActive) return { type: "clear-filter" };
+    if (input === "/") return { type: "open-filter" };
+    if (input === "v") {
+      return hasSelectedAgent && previewVisible ? { type: "focus-detail" } : { type: "noop" };
     }
+    if (input === "i" || input === "m")
+      return hasSelectedAgent ? { type: "focus-input" } : { type: "noop" };
+    if (key.downArrow || input === "j") return { type: "select-agent", delta: 1 };
+    if (key.upArrow || input === "k") return { type: "select-agent", delta: -1 };
+  }
 
-    return { type: 'noop' };
+  return { type: "noop" };
 }

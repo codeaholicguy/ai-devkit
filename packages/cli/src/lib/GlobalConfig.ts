@@ -1,11 +1,20 @@
-import fs from 'fs-extra';
-import * as os from 'os';
-import * as path from 'path';
-import { GlobalDevKitConfig } from '../types.js';
-import { filterStringRecord, resolveAgentRuntimeProvider, type AgentRuntimeProvider } from '../util/config.js';
-import { CliError } from '../util/errors.js';
-import { AddSkillRegistryOptions, normalizeRegistrySources, planSkillRegistryAdd, planSkillRegistryRemove } from '../services/skill/registry/skill-registry-source.js';
-import { ui } from '../util/terminal-ui.js';
+import fs from "fs-extra";
+import * as os from "os";
+import * as path from "path";
+import { GlobalDevKitConfig } from "../types.js";
+import {
+  filterStringRecord,
+  resolveAgentRuntimeProvider,
+  type AgentRuntimeProvider,
+} from "../util/config.js";
+import { CliError } from "../util/errors.js";
+import {
+  AddSkillRegistryOptions,
+  normalizeRegistrySources,
+  planSkillRegistryAdd,
+  planSkillRegistryRemove,
+} from "../services/skill/registry/skill-registry-source.js";
+import { ui } from "../util/terminal-ui.js";
 
 export class GlobalConfigManager {
   async exists(): Promise<boolean> {
@@ -13,14 +22,14 @@ export class GlobalConfigManager {
   }
 
   async read(): Promise<GlobalDevKitConfig | null> {
-    if (!await this.exists()) {
+    if (!(await this.exists())) {
       return null;
     }
 
     try {
       return await fs.readJson(this.getGlobalConfigPath());
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
+      const message = error instanceof Error ? error.message : "Unknown error";
       ui.warning(`Failed to read global config at ${this.getGlobalConfigPath()}. ${message}`);
       return null;
     }
@@ -28,16 +37,23 @@ export class GlobalConfigManager {
 
   async getSkillRegistries(): Promise<Record<string, string>> {
     const config = await this.read();
-    return normalizeRegistrySources(filterStringRecord(config?.registries), path.dirname(this.getGlobalConfigPath()));
+    return normalizeRegistrySources(
+      filterStringRecord(config?.registries),
+      path.dirname(this.getGlobalConfigPath()),
+    );
   }
 
-  async addSkillRegistry(id: string, url: string, options: AddSkillRegistryOptions = {}): Promise<GlobalDevKitConfig> {
+  async addSkillRegistry(
+    id: string,
+    url: string,
+    options: AddSkillRegistryOptions = {},
+  ): Promise<GlobalDevKitConfig> {
     const configExists = await this.exists();
     const config = await this.read();
     if (configExists && !config) {
       throw new CliError(
         `Cannot update global config because the existing file could not be read: ${this.getGlobalConfigPath()}`,
-        'GLOBAL_CONFIG_UNREADABLE',
+        "GLOBAL_CONFIG_UNREADABLE",
         { configPath: this.getGlobalConfigPath() },
       );
     }
@@ -45,7 +61,7 @@ export class GlobalConfigManager {
     const existingConfig = config ?? {};
     const registries = filterStringRecord(existingConfig.registries);
     const mutation = planSkillRegistryAdd(registries, id, url, options);
-    if (mutation.status === 'already-registered') {
+    if (mutation.status === "already-registered") {
       return existingConfig;
     }
 
@@ -61,13 +77,13 @@ export class GlobalConfigManager {
     if (configExists && !config) {
       throw new CliError(
         `Cannot update global config because the existing file could not be read: ${this.getGlobalConfigPath()}`,
-        'GLOBAL_CONFIG_UNREADABLE',
+        "GLOBAL_CONFIG_UNREADABLE",
         { configPath: this.getGlobalConfigPath() },
       );
     }
     const existingConfig = config ?? {};
     const mutation = planSkillRegistryRemove(filterStringRecord(existingConfig.registries), id);
-    if (mutation.status === 'not-registered') return existingConfig;
+    if (mutation.status === "not-registered") return existingConfig;
     return this.write({ ...existingConfig, registries: mutation.registries });
   }
 
@@ -82,7 +98,7 @@ export class GlobalConfigManager {
   }
 
   async addPlugin(pluginName: string): Promise<GlobalDevKitConfig> {
-    const config = await this.read() ?? {};
+    const config = (await this.read()) ?? {};
     const plugins = normalizePlugins(config.plugins);
 
     if (!plugins.includes(pluginName)) {
@@ -91,22 +107,22 @@ export class GlobalConfigManager {
 
     return this.write({
       ...config,
-      plugins
+      plugins,
     });
   }
 
   async removePlugin(pluginName: string): Promise<GlobalDevKitConfig> {
-    const config = await this.read() ?? {};
-    const plugins = normalizePlugins(config.plugins).filter(plugin => plugin !== pluginName);
+    const config = (await this.read()) ?? {};
+    const plugins = normalizePlugins(config.plugins).filter((plugin) => plugin !== pluginName);
 
     return this.write({
       ...config,
-      plugins
+      plugins,
     });
   }
 
   private getGlobalConfigPath(): string {
-    return path.join(os.homedir(), '.ai-devkit', '.ai-devkit.json');
+    return path.join(os.homedir(), ".ai-devkit", ".ai-devkit.json");
   }
 
   private async write(config: GlobalDevKitConfig): Promise<GlobalDevKitConfig> {
@@ -121,8 +137,12 @@ function normalizePlugins(rawPlugins: unknown): string[] {
     return [];
   }
 
-  return [...new Set(rawPlugins
-    .filter((plugin): plugin is string => typeof plugin === 'string')
-    .map(plugin => plugin.trim())
-    .filter(plugin => plugin.length > 0))];
+  return [
+    ...new Set(
+      rawPlugins
+        .filter((plugin): plugin is string => typeof plugin === "string")
+        .map((plugin) => plugin.trim())
+        .filter((plugin) => plugin.length > 0),
+    ),
+  ];
 }

@@ -35,6 +35,7 @@ ai-devkit init --template ./ai-devkit.init.yaml
 ```
 
 This will:
+
 1. Create a `.ai-devkit.json` configuration file
 2. Set up your AI coding agent environment, including skills and MCP servers where supported
 3. Generate `docs/ai/` workflow docs for requirements, design, planning, implementation, and testing

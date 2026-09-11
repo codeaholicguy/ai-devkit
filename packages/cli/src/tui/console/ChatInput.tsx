@@ -1,84 +1,86 @@
-import { memo, useEffect, useRef, useState } from 'react';
-import type { FC } from 'react';
-import { Box, Text } from 'ink';
-import TextInput from 'ink-text-input';
-import { TUI_COLORS } from '../design-system/index.js';
+import { memo, useEffect, useRef, useState } from "react";
+import type { FC } from "react";
+import { Box, Text } from "ink";
+import TextInput from "ink-text-input";
+import { TUI_COLORS } from "../design-system/index.js";
 
 interface ChatInputProps {
-    focused: boolean;
-    onSubmit: (text: string) => void;
-    onCancel: () => void;
-    /** Inner width available for text content (after borders + padding + "> "). */
-    innerWidth: number;
-    /** Called with the rendered line count whenever it changes. */
-    onLineCountChange: (lines: number) => void;
+  focused: boolean;
+  onSubmit: (text: string) => void;
+  onCancel: () => void;
+  /** Inner width available for text content (after borders + padding + "> "). */
+  innerWidth: number;
+  /** Called with the rendered line count whenever it changes. */
+  onLineCountChange: (lines: number) => void;
 }
 
 const MIN_LINES = 1;
 const MAX_LINES = 6;
 
 function computeLines(value: string, usableWidth: number): number {
-    if (usableWidth <= 0) return MIN_LINES;
-    const len = Math.max(1, value.length + 1);
-    return Math.min(MAX_LINES, Math.max(MIN_LINES, Math.ceil(len / usableWidth)));
+  if (usableWidth <= 0) return MIN_LINES;
+  const len = Math.max(1, value.length + 1);
+  return Math.min(MAX_LINES, Math.max(MIN_LINES, Math.ceil(len / usableWidth)));
 }
 
 const ChatInputInner: FC<ChatInputProps> = ({
-    focused,
-    onSubmit,
-    onCancel,
-    innerWidth,
-    onLineCountChange,
+  focused,
+  onSubmit,
+  onCancel,
+  innerWidth,
+  onLineCountChange,
 }) => {
-    const [value, setValue] = useState('');
-    const lastLinesRef = useRef(MIN_LINES);
-    const onLineCountChangeRef = useRef(onLineCountChange);
-    onLineCountChangeRef.current = onLineCountChange;
+  const [value, setValue] = useState("");
+  const lastLinesRef = useRef(MIN_LINES);
+  const onLineCountChangeRef = useRef(onLineCountChange);
+  onLineCountChangeRef.current = onLineCountChange;
 
-    useEffect(() => {
-        if (!focused) setValue('');
-    }, [focused]);
+  useEffect(() => {
+    if (!focused) setValue("");
+  }, [focused]);
 
-    useEffect(() => {
-        const promptWidth = 2; // "> "
-        const usable = Math.max(1, innerWidth - promptWidth);
-        const lines = computeLines(value, usable);
-        if (lines !== lastLinesRef.current) {
-            lastLinesRef.current = lines;
-            onLineCountChangeRef.current(lines);
-        }
-    }, [value, innerWidth]);
-
-    const handleSubmit = (text: string): void => {
-        const trimmed = text.trim();
-        setValue('');
-        if (trimmed.length === 0) {
-            onCancel();
-            return;
-        }
-        onSubmit(trimmed);
-    };
-
-    if (!focused) {
-        return (
-            <Box>
-                <Text dimColor>{'> '}</Text>
-                <Text dimColor>press i to type a message</Text>
-            </Box>
-        );
+  useEffect(() => {
+    const promptWidth = 2; // "> "
+    const usable = Math.max(1, innerWidth - promptWidth);
+    const lines = computeLines(value, usable);
+    if (lines !== lastLinesRef.current) {
+      lastLinesRef.current = lines;
+      onLineCountChangeRef.current(lines);
     }
+  }, [value, innerWidth]);
 
+  const handleSubmit = (text: string): void => {
+    const trimmed = text.trim();
+    setValue("");
+    if (trimmed.length === 0) {
+      onCancel();
+      return;
+    }
+    onSubmit(trimmed);
+  };
+
+  if (!focused) {
     return (
-        <Box>
-            <Text color={TUI_COLORS.accent} bold>{'> '}</Text>
-            <TextInput
-                value={value}
-                onChange={setValue}
-                onSubmit={handleSubmit}
-                placeholder="type a message · ⏎ send · esc cancel"
-            />
-        </Box>
+      <Box>
+        <Text dimColor>{"> "}</Text>
+        <Text dimColor>press i to type a message</Text>
+      </Box>
     );
+  }
+
+  return (
+    <Box>
+      <Text color={TUI_COLORS.accent} bold>
+        {"> "}
+      </Text>
+      <TextInput
+        value={value}
+        onChange={setValue}
+        onSubmit={handleSubmit}
+        placeholder="type a message · ⏎ send · esc cancel"
+      />
+    </Box>
+  );
 };
 
 export const ChatInput = memo(ChatInputInner);

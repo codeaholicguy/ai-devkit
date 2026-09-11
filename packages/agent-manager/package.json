@@ -1,8 +1,21 @@
 {
   "name": "@ai-devkit/agent-manager",
   "version": "0.32.0",
-  "type": "module",
   "description": "Standalone agent detection and management utilities for AI DevKit",
+  "keywords": [
+    "agent",
+    "ai",
+    "claude",
+    "manager"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/agent-manager"
+  },
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -18,21 +31,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "ai",
-    "agent",
-    "manager",
-    "claude"
-  ],
-  "author": "",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
-    "directory": "packages/agent-manager"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",

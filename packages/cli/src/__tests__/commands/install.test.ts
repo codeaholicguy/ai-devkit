@@ -1,5 +1,3 @@
-
-
 const {
   mockLoadAndValidateInstallConfig,
   mockLoadConfigFile,
@@ -21,26 +19,26 @@ const {
   } as any,
 }));
 
-vi.mock('../../services/install/install.service.js', () => ({
+vi.mock("../../services/install/install.service.js", () => ({
   reconcileAndInstall: (...args: unknown[]) => mockReconcileAndInstall(...args),
-  getInstallExitCode: (...args: unknown[]) => mockGetInstallExitCode(...args)
+  getInstallExitCode: (...args: unknown[]) => mockGetInstallExitCode(...args),
 }));
 
-vi.mock('../../services/config/config.service.js', () => ({
-  loadConfigFile: (...args: unknown[]) => mockLoadConfigFile(...args)
+vi.mock("../../services/config/config.service.js", () => ({
+  loadConfigFile: (...args: unknown[]) => mockLoadConfigFile(...args),
 }));
 
-vi.mock('../../util/config.js', () => ({
-  validateInstallConfig: (...args: unknown[]) => mockLoadAndValidateInstallConfig(...args)
+vi.mock("../../util/config.js", () => ({
+  validateInstallConfig: (...args: unknown[]) => mockLoadAndValidateInstallConfig(...args),
 }));
 
-vi.mock('../../util/terminal-ui.js', () => ({
-  ui: mockUi
+vi.mock("../../util/terminal-ui.js", () => ({
+  ui: mockUi,
 }));
 
-import { installCommand } from '../../commands/install.js';
+import { installCommand } from "../../commands/install.js";
 
-describe('install command', () => {
+describe("install command", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.exitCode = undefined;
@@ -52,8 +50,8 @@ describe('install command', () => {
       skills: { installed: 1, skipped: 0, failed: 0 },
       mcpServers: { installed: 0, skipped: 0, conflicts: 0, failed: 0, items: [] },
       warnings: [],
-      items: [{ section: 'environment', name: 'codex', status: 'installed' }],
-      complete: true
+      items: [{ section: "environment", name: "codex", status: "installed" }],
+      complete: true,
     });
   });
 
@@ -61,44 +59,46 @@ describe('install command', () => {
     process.exitCode = undefined;
   });
 
-  it('fails with non-zero exit code when config loading fails', async () => {
-    mockLoadConfigFile.mockRejectedValue(new Error('Config file not found: /tmp/.ai-devkit.json'));
+  it("fails with non-zero exit code when config loading fails", async () => {
+    mockLoadConfigFile.mockRejectedValue(new Error("Config file not found: /tmp/.ai-devkit.json"));
 
     await installCommand({});
 
-    expect(mockUi.error).toHaveBeenCalledWith('Config file not found: /tmp/.ai-devkit.json');
+    expect(mockUi.error).toHaveBeenCalledWith("Config file not found: /tmp/.ai-devkit.json");
     expect(process.exitCode).toBe(1);
     expect(mockReconcileAndInstall).not.toHaveBeenCalled();
   });
 
-  it('fails when config has no installable sections', async () => {
+  it("fails when config has no installable sections", async () => {
     mockLoadConfigFile.mockResolvedValue({
-      configPath: '/tmp/.ai-devkit.json',
-      data: {}
+      configPath: "/tmp/.ai-devkit.json",
+      data: {},
     });
     mockLoadAndValidateInstallConfig.mockReturnValue({
       environments: [],
       phases: [],
       skills: [],
-      mcpServers: {}
+      mcpServers: {},
     });
 
     await installCommand({});
 
-    expect(mockUi.warning).toHaveBeenCalledWith('No installable entries found in /tmp/.ai-devkit.json.');
+    expect(mockUi.warning).toHaveBeenCalledWith(
+      "No installable entries found in /tmp/.ai-devkit.json.",
+    );
     expect(process.exitCode).toBe(1);
     expect(mockReconcileAndInstall).not.toHaveBeenCalled();
   });
 
-  it('runs install and sets exit code from orchestrator', async () => {
+  it("runs install and sets exit code from orchestrator", async () => {
     mockLoadConfigFile.mockResolvedValue({
-      configPath: '/tmp/.ai-devkit.json',
-      data: {}
+      configPath: "/tmp/.ai-devkit.json",
+      data: {},
     });
     mockLoadAndValidateInstallConfig.mockReturnValue({
-      environments: ['codex'],
-      phases: ['requirements'],
-      skills: [{ registry: 'codeaholicguy/ai-devkit', name: 'debug' }]
+      environments: ["codex"],
+      phases: ["requirements"],
+      skills: [{ registry: "codeaholicguy/ai-devkit", name: "debug" }],
     });
     mockGetInstallExitCode.mockReturnValue(0);
 
@@ -106,48 +106,52 @@ describe('install command', () => {
 
     expect(mockReconcileAndInstall).toHaveBeenCalledWith(
       expect.objectContaining({
-        environments: ['codex'],
-        phases: ['requirements']
+        environments: ["codex"],
+        phases: ["requirements"],
       }),
-      { overwrite: true }
+      { overwrite: true },
     );
     expect(mockUi.summary).toHaveBeenCalled();
     expect(process.exitCode).toBe(0);
   });
 
-  it('loads a custom desired config and applies it through the canonical project service', async () => {
+  it("loads a custom desired config and applies it through the canonical project service", async () => {
     mockLoadConfigFile.mockResolvedValue({
-      configPath: '/project/team.json',
-      data: {}
+      configPath: "/project/team.json",
+      data: {},
     });
     mockLoadAndValidateInstallConfig.mockReturnValue({
-      environments: ['codex'], phases: [], registries: {}, skills: [], mcpServers: {}
+      environments: ["codex"],
+      phases: [],
+      registries: {},
+      skills: [],
+      mcpServers: {},
     });
 
-    await installCommand({ config: './team.json' });
+    await installCommand({ config: "./team.json" });
 
-    expect(mockLoadConfigFile).toHaveBeenCalledWith('./team.json');
+    expect(mockLoadConfigFile).toHaveBeenCalledWith("./team.json");
     expect(mockReconcileAndInstall).toHaveBeenCalledWith(
-      expect.objectContaining({ environments: ['codex'] }),
-      { overwrite: undefined }
+      expect.objectContaining({ environments: ["codex"] }),
+      { overwrite: undefined },
     );
   });
 
-  it('fails with non-zero exit code when reconcile step throws', async () => {
+  it("fails with non-zero exit code when reconcile step throws", async () => {
     mockLoadConfigFile.mockResolvedValue({
-      configPath: '/tmp/.ai-devkit.json',
-      data: {}
+      configPath: "/tmp/.ai-devkit.json",
+      data: {},
     });
     mockLoadAndValidateInstallConfig.mockReturnValue({
-      environments: ['codex'],
-      phases: ['requirements'],
-      skills: []
+      environments: ["codex"],
+      phases: ["requirements"],
+      skills: [],
     });
-    mockReconcileAndInstall.mockRejectedValue(new Error('install failed'));
+    mockReconcileAndInstall.mockRejectedValue(new Error("install failed"));
 
     await installCommand({});
 
-    expect(mockUi.error).toHaveBeenCalledWith('install failed');
+    expect(mockUi.error).toHaveBeenCalledWith("install failed");
     expect(process.exitCode).toBe(1);
   });
 });

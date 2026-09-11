@@ -8,6 +8,8 @@
     "prepare": "husky",
     "build": "nx run-many -t build",
     "lint": "nx run-many -t lint",
+    "fmt": "oxfmt packages",
+    "fmt:check": "oxfmt --check packages",
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test --watch",
     "test:coverage": "nx run-many -t test --coverage",
@@ -31,6 +33,7 @@
     "@nx/js": "^22.4.0",
     "husky": "^9.1.7",
     "nx": "^22.4.0",
+    "oxfmt": "^0.67.0",
     "vitest": "^4.1.8"
   },
   "engines": {

@@ -1,4 +1,4 @@
-import { ValidationError } from '../../util/errors.js';
+import { ValidationError } from "../../util/errors.js";
 
 /**
  * Validates registry ID format
@@ -7,11 +7,14 @@ import { ValidationError } from '../../util/errors.js';
  */
 export function validateRegistryId(registryId: string): void {
   if (!/^[a-zA-Z0-9_-]+\/[a-zA-Z0-9_-]+$/.test(registryId)) {
-    throw new ValidationError(`Invalid registry ID format: "${registryId}". Expected format: "org/repo"`, { registryId });
+    throw new ValidationError(
+      `Invalid registry ID format: "${registryId}". Expected format: "org/repo"`,
+      { registryId },
+    );
   }
 
-  if (registryId.includes('..') || registryId.includes('~')) {
-    throw new ValidationError('Invalid characters in registry ID', { registryId });
+  if (registryId.includes("..") || registryId.includes("~")) {
+    throw new ValidationError("Invalid characters in registry ID", { registryId });
   }
 }
 
@@ -24,16 +27,16 @@ export function validateSkillName(skillName: string): void {
   if (!/^[a-z0-9-]+$/.test(skillName)) {
     throw new ValidationError(
       `Invalid skill name: "${skillName}". Must contain only lowercase letters, numbers, and hyphens.`,
-      { skillName }
+      { skillName },
     );
   }
 
-  if (skillName.startsWith('-') || skillName.endsWith('-')) {
-    throw new ValidationError('Skill name cannot start or end with a hyphen.', { skillName });
+  if (skillName.startsWith("-") || skillName.endsWith("-")) {
+    throw new ValidationError("Skill name cannot start or end with a hyphen.", { skillName });
   }
 
-  if (skillName.includes('--')) {
-    throw new ValidationError('Skill name cannot contain consecutive hyphens.', { skillName });
+  if (skillName.includes("--")) {
+    throw new ValidationError("Skill name cannot contain consecutive hyphens.", { skillName });
   }
 }
 

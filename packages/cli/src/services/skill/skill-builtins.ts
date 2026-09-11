@@ -1,34 +1,34 @@
-import { isValidSkillName } from './skill-validation.js';
+import { isValidSkillName } from "./skill-validation.js";
 
 const BUILTIN_SKILLS_URL =
-  'https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/built-in.json';
+  "https://raw.githubusercontent.com/codeaholicguy/ai-devkit/main/skills/built-in.json";
 
-export const BUILTIN_SKILL_REGISTRY = 'codeaholicguy/ai-devkit';
+export const BUILTIN_SKILL_REGISTRY = "codeaholicguy/ai-devkit";
 
 const FALLBACK_BUILTIN_SKILL_NAMES = [
-  'agent-communication',
-  'agent-management',
-  'ai-devkit-setup',
-  'remote-from-slack',
-  'remote-from-telegram',
-  'dev-commit',
-  'dev-lifecycle',
-  'dev-worktree',
-  'dev-requirements',
-  'dev-design',
-  'dev-planning',
-  'dev-implementation',
-  'dev-testing',
-  'dev-review',
-  'dev-pr',
-  'structured-debug',
-  'document-code',
-  'memory',
-  'task',
-  'simplify-implementation',
-  'brainstorm',
-  'verify',
-  'tdd',
+  "agent-communication",
+  "agent-management",
+  "ai-devkit-setup",
+  "remote-from-slack",
+  "remote-from-telegram",
+  "dev-commit",
+  "dev-lifecycle",
+  "dev-worktree",
+  "dev-requirements",
+  "dev-design",
+  "dev-planning",
+  "dev-implementation",
+  "dev-testing",
+  "dev-review",
+  "dev-pr",
+  "structured-debug",
+  "document-code",
+  "memory",
+  "task",
+  "simplify-implementation",
+  "brainstorm",
+  "verify",
+  "tdd",
 ] as const;
 
 let builtInSkillNamesPromise: Promise<readonly string[]> | undefined;
@@ -48,13 +48,13 @@ async function loadBuiltinSkillNames(): Promise<readonly string[]> {
 
     const manifest: unknown = await response.json();
     if (!Array.isArray(manifest) || manifest.length === 0) {
-      throw new Error('manifest must be a non-empty array');
+      throw new Error("manifest must be a non-empty array");
     }
-    if (!manifest.every(name => typeof name === 'string' && isValidSkillName(name))) {
-      throw new Error('manifest entries must be valid, non-empty skill names');
+    if (!manifest.every((name) => typeof name === "string" && isValidSkillName(name))) {
+      throw new Error("manifest entries must be valid, non-empty skill names");
     }
     if (new Set(manifest).size !== manifest.length) {
-      throw new Error('manifest skill names must be unique');
+      throw new Error("manifest skill names must be unique");
     }
 
     return manifest;

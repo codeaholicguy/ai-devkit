@@ -1,18 +1,22 @@
-import type {
-    AgentType,
-    ListSessionsOptions,
-    SessionSummary,
-} from '@ai-devkit/agent-manager';
-import { truncate } from './text.js';
+import type { AgentType, ListSessionsOptions, SessionSummary } from "@ai-devkit/agent-manager";
+import { truncate } from "./text.js";
 
 const FIRST_MESSAGE_MAX_WIDTH = 80;
-const FIRST_MESSAGE_PLACEHOLDER = '(no message yet)';
-const VALID_AGENT_TYPES: AgentType[] = ['claude', 'codex', 'gemini_cli', 'grok_cli', 'opencode', 'copilot', 'pi'];
+const FIRST_MESSAGE_PLACEHOLDER = "(no message yet)";
+const VALID_AGENT_TYPES: AgentType[] = [
+  "claude",
+  "codex",
+  "gemini_cli",
+  "grok_cli",
+  "opencode",
+  "copilot",
+  "pi",
+];
 
 export interface ResolvedListSessionsOptions {
-    adapterOptions: ListSessionsOptions;
-    /** True when the cwd filter fell back to process.cwd() (no --all/--cwd given). */
-    usedDefaultCwd: boolean;
+  adapterOptions: ListSessionsOptions;
+  /** True when the cwd filter fell back to process.cwd() (no --all/--cwd given). */
+  usedDefaultCwd: boolean;
 }
 
 /**
@@ -21,32 +25,32 @@ export interface ResolvedListSessionsOptions {
  * defaults — adapters apply what they receive.
  */
 export function resolveListSessionsOptions(options: {
-    all?: boolean;
-    cwd?: string;
-    type?: string;
+  all?: boolean;
+  cwd?: string;
+  type?: string;
 }): ResolvedListSessionsOptions {
-    let cwd: string | undefined;
-    let usedDefaultCwd = false;
-    if (options.all) {
-        cwd = undefined;
-    } else if (typeof options.cwd === 'string' && options.cwd.length > 0) {
-        cwd = options.cwd;
-    } else {
-        cwd = process.cwd();
-        usedDefaultCwd = true;
-    }
+  let cwd: string | undefined;
+  let usedDefaultCwd = false;
+  if (options.all) {
+    cwd = undefined;
+  } else if (typeof options.cwd === "string" && options.cwd.length > 0) {
+    cwd = options.cwd;
+  } else {
+    cwd = process.cwd();
+    usedDefaultCwd = true;
+  }
 
-    let type: AgentType | undefined;
-    if (typeof options.type === 'string' && options.type.length > 0) {
-        if (!VALID_AGENT_TYPES.includes(options.type as AgentType)) {
-            throw new Error(
-                `Invalid --type "${options.type}". Expected one of: ${VALID_AGENT_TYPES.join(', ')}.`,
-            );
-        }
-        type = options.type as AgentType;
+  let type: AgentType | undefined;
+  if (typeof options.type === "string" && options.type.length > 0) {
+    if (!VALID_AGENT_TYPES.includes(options.type as AgentType)) {
+      throw new Error(
+        `Invalid --type "${options.type}". Expected one of: ${VALID_AGENT_TYPES.join(", ")}.`,
+      );
     }
+    type = options.type as AgentType;
+  }
 
-    return { adapterOptions: { cwd, type }, usedDefaultCwd };
+  return { adapterOptions: { cwd, type }, usedDefaultCwd };
 }
 
 /**
@@ -57,12 +61,12 @@ export function resolveListSessionsOptions(options: {
  * Throws on negative or non-numeric input.
  */
 export function parseLimit(raw: string | number | undefined): number | undefined {
-    if (raw === undefined) return 50;
-    const n = typeof raw === 'number' ? raw : parseInt(raw, 10);
-    if (Number.isNaN(n) || n < 0) {
-        throw new Error(`--limit must be a non-negative integer (got "${raw}")`);
-    }
-    return n === 0 ? undefined : n;
+  if (raw === undefined) return 50;
+  const n = typeof raw === "number" ? raw : parseInt(raw, 10);
+  if (Number.isNaN(n) || n < 0) {
+    throw new Error(`--limit must be a non-negative integer (got "${raw}")`);
+  }
+  return n === 0 ? undefined : n;
 }
 
 /**
@@ -72,8 +76,8 @@ export function parseLimit(raw: string | number | undefined): number | undefined
  * JSON output keeps the raw string; this is render-only.
  */
 export function formatFirstMessage(text: string): string {
-    const display = text.length > 0 ? text : FIRST_MESSAGE_PLACEHOLDER;
-    return truncate(display, FIRST_MESSAGE_MAX_WIDTH, '…');
+  const display = text.length > 0 ? text : FIRST_MESSAGE_PLACEHOLDER;
+  return truncate(display, FIRST_MESSAGE_MAX_WIDTH, "…");
 }
 
 /**
@@ -82,13 +86,13 @@ export function formatFirstMessage(text: string): string {
  * other field is passed through unchanged.
  */
 export function toJsonSession(session: SessionSummary): Record<string, unknown> {
-    return {
-        type: session.type,
-        sessionId: session.sessionId,
-        cwd: session.cwd,
-        firstUserMessage: session.firstUserMessage,
-        lastActive: session.lastActive.toISOString(),
-        startedAt: session.startedAt.toISOString(),
-        sessionFilePath: session.sessionFilePath,
-    };
+  return {
+    type: session.type,
+    sessionId: session.sessionId,
+    cwd: session.cwd,
+    firstUserMessage: session.firstUserMessage,
+    lastActive: session.lastActive.toISOString(),
+    startedAt: session.startedAt.toISOString(),
+    sessionFilePath: session.sessionFilePath,
+  };
 }

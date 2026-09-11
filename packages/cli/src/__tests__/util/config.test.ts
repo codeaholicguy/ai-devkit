@@ -1,98 +1,111 @@
-import { resolveAgentRuntimeProvider, validateInstallConfig } from '../../util/config.js';
+import { resolveAgentRuntimeProvider, validateInstallConfig } from "../../util/config.js";
 
-describe('config util', () => {
-  it('validates and normalizes valid install config', () => {
-    const result = validateInstallConfig({
-      environments: ['codex', 'codex'],
-      phases: ['requirements', 'requirements', 'design'],
-      registries: {
-        'codeaholicguy/ai-devkit': 'https://github.com/codeaholicguy/ai-devkit.git'
+describe("config util", () => {
+  it("validates and normalizes valid install config", () => {
+    const result = validateInstallConfig(
+      {
+        environments: ["codex", "codex"],
+        phases: ["requirements", "requirements", "design"],
+        registries: {
+          "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
+        },
+        skills: [
+          { registry: "codeaholicguy/ai-devkit", name: "debug" },
+          { registry: "codeaholicguy/ai-devkit", skill: "memory" },
+          { registry: "codeaholicguy/ai-devkit", name: "debug" },
+        ],
       },
-      skills: [
-        { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
-        { registry: 'codeaholicguy/ai-devkit', skill: 'memory' },
-        { registry: 'codeaholicguy/ai-devkit', name: 'debug' }
-      ]
-    }, '/tmp/.ai-devkit.json');
+      "/tmp/.ai-devkit.json",
+    );
 
-    expect(result.environments).toEqual(['codex']);
-    expect(result.phases).toEqual(['requirements', 'design']);
+    expect(result.environments).toEqual(["codex"]);
+    expect(result.phases).toEqual(["requirements", "design"]);
     expect(result.registries).toEqual({
-      'codeaholicguy/ai-devkit': 'https://github.com/codeaholicguy/ai-devkit.git'
+      "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
     });
     expect(result.skills).toEqual([
-      { registry: 'codeaholicguy/ai-devkit', name: 'debug' },
-      { registry: 'codeaholicguy/ai-devkit', name: 'memory' }
+      { registry: "codeaholicguy/ai-devkit", name: "debug" },
+      { registry: "codeaholicguy/ai-devkit", name: "memory" },
     ]);
   });
 
-  it('fails on invalid root value', () => {
-    expect(() => validateInstallConfig([], '/tmp/.ai-devkit.json')).toThrow('expected a JSON object at root');
+  it("fails on invalid root value", () => {
+    expect(() => validateInstallConfig([], "/tmp/.ai-devkit.json")).toThrow(
+      "expected a JSON object at root",
+    );
   });
 
-  it('accepts Junie as a supported environment code', () => {
-    const result = validateInstallConfig({ environments: ['junie'] }, '/tmp/.ai-devkit.json');
+  it("accepts Junie as a supported environment code", () => {
+    const result = validateInstallConfig({ environments: ["junie"] }, "/tmp/.ai-devkit.json");
 
-    expect(result.environments).toEqual(['junie']);
+    expect(result.environments).toEqual(["junie"]);
   });
 
-  it('accepts Cline as a supported environment code', () => {
-    const result = validateInstallConfig({ environments: ['cline'] }, '/tmp/.ai-devkit.json');
+  it("accepts Cline as a supported environment code", () => {
+    const result = validateInstallConfig({ environments: ["cline"] }, "/tmp/.ai-devkit.json");
 
-    expect(result.environments).toEqual(['cline']);
+    expect(result.environments).toEqual(["cline"]);
   });
 
-  it('accepts Devin as a supported environment code', () => {
-    const result = validateInstallConfig({ environments: ['devin'] }, '/tmp/.ai-devkit.json');
+  it("accepts Devin as a supported environment code", () => {
+    const result = validateInstallConfig({ environments: ["devin"] }, "/tmp/.ai-devkit.json");
 
-    expect(result.environments).toEqual(['devin']);
+    expect(result.environments).toEqual(["devin"]);
   });
 
-  it('fails on invalid environment code', () => {
-    expect(() => validateInstallConfig({ environments: ['bad-env'] }, '/tmp/.ai-devkit.json')).toThrow('environments[0] has unsupported value "bad-env"');
+  it("fails on invalid environment code", () => {
+    expect(() =>
+      validateInstallConfig({ environments: ["bad-env"] }, "/tmp/.ai-devkit.json"),
+    ).toThrow('environments[0] has unsupported value "bad-env"');
   });
 
-  it('fails when skills entry is invalid', () => {
-    expect(() => validateInstallConfig({ skills: [{ registry: '', name: 'debug' }] }, '/tmp/.ai-devkit.json')).toThrow('skills[0].registry');
+  it("fails when skills entry is invalid", () => {
+    expect(() =>
+      validateInstallConfig({ skills: [{ registry: "", name: "debug" }] }, "/tmp/.ai-devkit.json"),
+    ).toThrow("skills[0].registry");
   });
 
-  it('defaults registries to empty object when not provided', () => {
-    const result = validateInstallConfig({
-      environments: ['claude'],
-      skills: [
-        { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
-      ]
-    }, '/tmp/.ai-devkit.json');
+  it("defaults registries to empty object when not provided", () => {
+    const result = validateInstallConfig(
+      {
+        environments: ["claude"],
+        skills: [{ registry: "codeaholicguy/ai-devkit", name: "dev-lifecycle" }],
+      },
+      "/tmp/.ai-devkit.json",
+    );
 
     expect(result.registries).toEqual({});
-    expect(result.skills).toEqual([
-      { registry: 'codeaholicguy/ai-devkit', name: 'dev-lifecycle' }
-    ]);
+    expect(result.skills).toEqual([{ registry: "codeaholicguy/ai-devkit", name: "dev-lifecycle" }]);
   });
 
-  it('does not include project-level agent runtime in install config', () => {
-    const result = validateInstallConfig({}, '/tmp/.ai-devkit.json');
+  it("does not include project-level agent runtime in install config", () => {
+    const result = validateInstallConfig({}, "/tmp/.ai-devkit.json");
 
-    expect(result).not.toHaveProperty('agentRuntime');
+    expect(result).not.toHaveProperty("agentRuntime");
   });
 
-  it('ignores project-level agent runtime because runtime is global-only', () => {
-    const result = validateInstallConfig({
-      agentRuntime: { provider: 'herdr' },
-    }, '/tmp/.ai-devkit.json');
+  it("ignores project-level agent runtime because runtime is global-only", () => {
+    const result = validateInstallConfig(
+      {
+        agentRuntime: { provider: "herdr" },
+      },
+      "/tmp/.ai-devkit.json",
+    );
 
-    expect(result).not.toHaveProperty('agentRuntime');
+    expect(result).not.toHaveProperty("agentRuntime");
   });
 
-  it('defaults agent runtime provider to tmux when global config omits it', () => {
-    expect(resolveAgentRuntimeProvider(undefined)).toBe('tmux');
+  it("defaults agent runtime provider to tmux when global config omits it", () => {
+    expect(resolveAgentRuntimeProvider(undefined)).toBe("tmux");
   });
 
-  it('accepts herdr as a global agent runtime provider', () => {
-    expect(resolveAgentRuntimeProvider('herdr')).toBe('herdr');
+  it("accepts herdr as a global agent runtime provider", () => {
+    expect(resolveAgentRuntimeProvider("herdr")).toBe("herdr");
   });
 
-  it('rejects unknown global agent runtime providers with supported values', () => {
-    expect(() => resolveAgentRuntimeProvider('screen')).toThrow('agentRuntime.provider has unsupported value "screen"; supported values: tmux, herdr');
+  it("rejects unknown global agent runtime providers with supported values", () => {
+    expect(() => resolveAgentRuntimeProvider("screen")).toThrow(
+      'agentRuntime.provider has unsupported value "screen"; supported values: tmux, herdr',
+    );
   });
 });

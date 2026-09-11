@@ -1,30 +1,30 @@
-import { CliError } from '../../../util/errors.js';
-import fs from 'fs-extra';
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { CliError } from "../../../util/errors.js";
+import fs from "fs-extra";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export function parseLocalRegistryPath(value: string): string | null {
-  if (!value.toLowerCase().startsWith('file:')) {
+  if (!value.toLowerCase().startsWith("file:")) {
     return null;
   }
 
   try {
     const url = new URL(value);
-    if (url.protocol !== 'file:') {
-      throw new Error('invalid protocol');
+    if (url.protocol !== "file:") {
+      throw new Error("invalid protocol");
     }
-    if (url.hostname && url.hostname !== 'localhost') {
-      throw new Error('file URL hosts are not supported');
+    if (url.hostname && url.hostname !== "localhost") {
+      throw new Error("file URL hosts are not supported");
     }
     const localPath = fileURLToPath(url);
     if (!path.isAbsolute(localPath)) {
-      throw new Error('path must be absolute');
+      throw new Error("path must be absolute");
     }
     return localPath;
   } catch (error: unknown) {
     throw new CliError(
       `Invalid local registry source "${value}": ${error instanceof Error ? error.message : String(error)}`,
-      'INVALID_LOCAL_REGISTRY',
+      "INVALID_LOCAL_REGISTRY",
       { value },
     );
   }
@@ -34,7 +34,10 @@ function isPathShorthand(value: string): boolean {
   return path.isAbsolute(value) || /^\.\.?[\\/]/.test(value);
 }
 
-export async function normalizeRegistrySourceInput(value: string, baseDir: string): Promise<string> {
+export async function normalizeRegistrySourceInput(
+  value: string,
+  baseDir: string,
+): Promise<string> {
   const localPath = parseLocalRegistryPath(value);
   if (localPath === null && !isPathShorthand(value)) {
     return value;
@@ -47,7 +50,7 @@ export async function normalizeRegistrySourceInput(value: string, baseDir: strin
   } catch {
     throw new CliError(
       `Local registry source not found: ${requestedPath}`,
-      'LOCAL_REGISTRY_NOT_FOUND',
+      "LOCAL_REGISTRY_NOT_FOUND",
       { path: requestedPath },
     );
   }
@@ -55,7 +58,7 @@ export async function normalizeRegistrySourceInput(value: string, baseDir: strin
   if (!stat.isDirectory()) {
     throw new CliError(
       `Local registry source is not a directory: ${canonicalPath}`,
-      'INVALID_LOCAL_REGISTRY',
+      "INVALID_LOCAL_REGISTRY",
       { path: canonicalPath },
     );
   }
@@ -76,7 +79,7 @@ export async function normalizeRegistrySources(
       if (existingId && existingId !== id) {
         throw new CliError(
           `Local folder is already registered as "${existingId}": ${localPath}`,
-          'REGISTRY_SOURCE_CONFLICT',
+          "REGISTRY_SOURCE_CONFLICT",
           { id, existingId, path: localPath },
         );
       }
@@ -91,14 +94,14 @@ export interface AddSkillRegistryOptions {
   force?: boolean;
 }
 
-export type SkillRegistryAddStatus = 'added' | 'already-registered' | 'updated';
+export type SkillRegistryAddStatus = "added" | "already-registered" | "updated";
 
 export interface SkillRegistryMutation {
   registries: Record<string, string>;
   status: SkillRegistryAddStatus;
 }
 
-export type SkillRegistryRemoveStatus = 'removed' | 'not-registered';
+export type SkillRegistryRemoveStatus = "removed" | "not-registered";
 
 export interface SkillRegistryRemoveMutation {
   registries: Record<string, string>;
@@ -114,20 +117,20 @@ export function planSkillRegistryAdd(
   const existingUrl = registries[id];
 
   if (existingUrl === url) {
-    return { registries, status: 'already-registered' };
+    return { registries, status: "already-registered" };
   }
 
   if (existingUrl !== undefined && !options.force) {
     throw new CliError(
       `Registry "${id}" is already registered with a different URL. Use --force to overwrite it.`,
-      'REGISTRY_CONFLICT',
+      "REGISTRY_CONFLICT",
       { id, existingUrl, requestedUrl: url },
     );
   }
 
   return {
     registries: { ...registries, [id]: url },
-    status: existingUrl === undefined ? 'added' : 'updated',
+    status: existingUrl === undefined ? "added" : "updated",
   };
 }
 
@@ -137,9 +140,9 @@ export function planSkillRegistryRemove(
 ): SkillRegistryRemoveMutation {
   const nextRegistries = { ...registries };
   if (!Object.prototype.hasOwnProperty.call(registries, id)) {
-    return { registries: nextRegistries, status: 'not-registered' };
+    return { registries: nextRegistries, status: "not-registered" };
   }
 
   delete nextRegistries[id];
-  return { registries: nextRegistries, status: 'removed' };
+  return { registries: nextRegistries, status: "removed" };
 }

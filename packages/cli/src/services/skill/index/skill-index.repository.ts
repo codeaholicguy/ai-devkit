@@ -1,9 +1,9 @@
-import fs from 'fs-extra';
-import * as os from 'os';
-import * as path from 'path';
-import type { SkillIndexData } from './skill-index.service.js';
+import fs from "fs-extra";
+import * as os from "os";
+import * as path from "path";
+import type { SkillIndexData } from "./skill-index.service.js";
 
-export const SKILL_INDEX_PATH = path.join(os.homedir(), '.ai-devkit', 'skills.json');
+export const SKILL_INDEX_PATH = path.join(os.homedir(), ".ai-devkit", "skills.json");
 
 export class SkillIndexRepository {
   readonly defaultPath = SKILL_INDEX_PATH;
@@ -15,7 +15,7 @@ export class SkillIndexRepository {
   async read(indexPath = this.defaultPath): Promise<SkillIndexData | null> {
     try {
       if (await fs.pathExists(indexPath)) {
-        return await fs.readJson(indexPath) as SkillIndexData;
+        return (await fs.readJson(indexPath)) as SkillIndexData;
       }
     } catch {
       // Treat unreadable/corrupt indexes as absent; the service decides fallback behavior.
@@ -25,7 +25,7 @@ export class SkillIndexRepository {
   }
 
   async readRequired(indexPath = this.defaultPath): Promise<SkillIndexData> {
-    return await fs.readJson(indexPath) as SkillIndexData;
+    return (await fs.readJson(indexPath)) as SkillIndexData;
   }
 
   async write(index: SkillIndexData, indexPath = this.defaultPath): Promise<void> {

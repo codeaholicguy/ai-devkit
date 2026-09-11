@@ -44,7 +44,11 @@
     font-size: 0.75rem;
     font-weight: 700;
     padding: 0.5rem 0.75rem;
-    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease,
+      border-color 150ms ease,
+      box-shadow 150ms ease;
   }
 
   .graph-toolbar-button:hover {
@@ -67,7 +71,10 @@
     padding: 0.625rem 0.75rem;
     text-align: left;
     touch-action: manipulation;
-    transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+    transition:
+      border-color 150ms ease,
+      background-color 150ms ease,
+      box-shadow 150ms ease;
   }
 
   .memory-row:hover,
@@ -85,7 +92,9 @@
     font-weight: 700;
     padding: 0.5rem 0.75rem;
     touch-action: manipulation;
-    transition: background-color 150ms ease, color 150ms ease;
+    transition:
+      background-color 150ms ease,
+      color 150ms ease;
   }
 
   .pager-button:hover:not(:disabled) {
@@ -124,7 +133,10 @@
   }
 
   .dashboard-controls-grid {
-    grid-template-columns: minmax(28rem, 1fr) minmax(13rem, 16rem) minmax(13rem, 16rem) minmax(10rem, 12rem);
+    grid-template-columns: minmax(28rem, 1fr) minmax(13rem, 16rem) minmax(13rem, 16rem) minmax(
+        10rem,
+        12rem
+      );
   }
 
   .dashboard-controls-grid label {

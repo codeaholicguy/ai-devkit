@@ -1,4 +1,4 @@
-import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
+import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 
 export interface McpMergePlan {
   agentType: EnvironmentCode;
@@ -14,10 +14,7 @@ export interface McpAgentGenerator {
   /**
    * Read existing agent config, diff against desired servers, return merge plan.
    */
-  plan(
-    servers: Record<string, McpServerDefinition>,
-    projectRoot: string
-  ): Promise<McpMergePlan>;
+  plan(servers: Record<string, McpServerDefinition>, projectRoot: string): Promise<McpMergePlan>;
 
   /**
    * Write the merged config to disk based on the resolved plan.
@@ -25,7 +22,7 @@ export interface McpAgentGenerator {
   apply(
     plan: McpMergePlan,
     servers: Record<string, McpServerDefinition>,
-    projectRoot: string
+    projectRoot: string,
   ): Promise<void>;
 }
 
@@ -37,7 +34,7 @@ export interface McpInstallReport {
   items: Array<{
     name: string;
     target: string;
-    status: 'installed' | 'matched' | 'conflict' | 'failed';
+    status: "installed" | "matched" | "conflict" | "failed";
     message?: string;
   }>;
 }

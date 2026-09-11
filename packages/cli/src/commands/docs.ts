@@ -1,23 +1,24 @@
-import { Command } from 'commander';
-import { ConfigManager } from '../lib/Config.js';
-import { FeatureDoc, TemplateManager } from '../lib/TemplateManager.js';
-import { formatLocalDate } from '../util/time.js';
-import { ui } from '../util/terminal-ui.js';
-import { normalizeFeatureName, validateFeatureNameRule } from '../services/lint/rules/feature-name.rule.js';
+import { Command } from "commander";
+import { ConfigManager } from "../lib/Config.js";
+import { FeatureDoc, TemplateManager } from "../lib/TemplateManager.js";
+import { formatLocalDate } from "../util/time.js";
+import { ui } from "../util/terminal-ui.js";
+import {
+  normalizeFeatureName,
+  validateFeatureNameRule,
+} from "../services/lint/rules/feature-name.rule.js";
 
 interface InitFeatureOptions {
   json?: boolean;
 }
 
 export function registerDocsCommand(program: Command): void {
-  const docs = program
-    .command('docs')
-    .description('Manage AI DevKit documentation');
+  const docs = program.command("docs").description("Manage AI DevKit documentation");
 
   docs
-    .command('init-feature <name>')
-    .description('Initialize date-prefixed feature documentation from phase templates')
-    .option('--json', 'Output generated paths as JSON')
+    .command("init-feature <name>")
+    .description("Initialize date-prefixed feature documentation from phase templates")
+    .option("--json", "Output generated paths as JSON")
     .action(initFeatureDocsCommand);
 }
 
@@ -38,12 +39,15 @@ async function initFeatureDocsCommand(name: string, options: InitFeatureOptions)
 
   try {
     const files = await templateManager.copyFeatureDocTemplates(featureName, { date, phases });
-    renderInitFeatureResult({
-      feature: featureName,
-      date,
-      docsDir,
-      files
-    }, Boolean(options.json));
+    renderInitFeatureResult(
+      {
+        feature: featureName,
+        date,
+        docsDir,
+        files,
+      },
+      Boolean(options.json),
+    );
   } catch (error) {
     ui.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
@@ -57,21 +61,27 @@ function renderInitFeatureResult(
     docsDir: string;
     files: FeatureDoc[];
   },
-  json: boolean
+  json: boolean,
 ): void {
   if (json) {
-    ui.text(JSON.stringify({
-      feature: result.feature,
-      date: result.date,
-      docsDir: result.docsDir,
-      files: result.files.map(file => ({
-        phase: file.phase,
-        path: file.relativePath
-      }))
-    }, null, 2));
+    ui.text(
+      JSON.stringify(
+        {
+          feature: result.feature,
+          date: result.date,
+          docsDir: result.docsDir,
+          files: result.files.map((file) => ({
+            phase: file.phase,
+            path: file.relativePath,
+          })),
+        },
+        null,
+        2,
+      ),
+    );
     return;
   }
 
   ui.success(`Created ${result.files.length} feature doc(s) for ${result.feature}.`);
-  result.files.forEach(file => ui.text(file.relativePath));
+  result.files.forEach((file) => ui.text(file.relativePath));
 }

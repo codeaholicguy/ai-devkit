@@ -1,123 +1,123 @@
 export interface KnowledgeItem {
-    id: string;
-    title: string;
-    content: string;
-    tags: string[];
-    scope: string;
-    normalizedTitle: string;
-    contentHash: string;
-    createdAt: string;
-    updatedAt: string;
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  scope: string;
+  normalizedTitle: string;
+  contentHash: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
-export type KnowledgeScope = 'global' | `project:${string}` | `repo:${string}`;
+export type KnowledgeScope = "global" | `project:${string}` | `repo:${string}`;
 
 export interface StoreKnowledgeInput {
-    title: string;
-    content: string;
-    tags?: string[];
-    scope?: string;
+  title: string;
+  content: string;
+  tags?: string[];
+  scope?: string;
 }
 
 export interface StoreKnowledgeResult {
-    success: boolean;
-    id?: string;
-    message: string;
+  success: boolean;
+  id?: string;
+  message: string;
 }
 
 export interface UpdateKnowledgeInput {
-    id: string;
-    title?: string;
-    content?: string;
-    tags?: string[];
-    scope?: string;
+  id: string;
+  title?: string;
+  content?: string;
+  tags?: string[];
+  scope?: string;
 }
 
 export interface UpdateKnowledgeResult {
-    success: boolean;
-    id: string;
-    message: string;
+  success: boolean;
+  id: string;
+  message: string;
 }
 
 export interface SearchKnowledgeInput {
-    query: string;
-    contextTags?: string[];
-    scope?: string;
-    limit?: number;
-    explain?: boolean;
+  query: string;
+  contextTags?: string[];
+  scope?: string;
+  limit?: number;
+  explain?: boolean;
 }
 
 export interface SearchResultItem {
-    id: string;
-    title: string;
-    content: string;
-    tags: string[];
-    scope: string;
-    score: number;
-    retrieval?: SearchRetrievalExplanation;
+  id: string;
+  title: string;
+  content: string;
+  tags: string[];
+  scope: string;
+  score: number;
+  retrieval?: SearchRetrievalExplanation;
 }
 
 export interface SearchRetrievalExplanation {
-    lexicalRank: number | null;
-    semanticRank: number | null;
-    semanticSimilarity: number | null;
-    rrfScore: number;
+  lexicalRank: number | null;
+  semanticRank: number | null;
+  semanticSimilarity: number | null;
+  rrfScore: number;
 }
 
 export interface SearchKnowledgeResult {
-    results: SearchResultItem[];
-    totalMatches: number;
-    query: string;
-    strategy: 'strict' | 'broad' | 'recent';
-    retrievalMode?: 'lexical' | 'hybrid';
-    semantic?: SemanticSearchStatus;
+  results: SearchResultItem[];
+  totalMatches: number;
+  query: string;
+  strategy: "strict" | "broad" | "recent";
+  retrievalMode?: "lexical" | "hybrid";
+  semantic?: SemanticSearchStatus;
 }
 
 export interface SemanticSearchStatus {
-    status: 'ready' | 'unavailable' | 'corpus-too-large';
-    embeddingVersion: string;
-    eligibleCount: number;
-    reason?: string;
+  status: "ready" | "unavailable" | "corpus-too-large";
+  embeddingVersion: string;
+  eligibleCount: number;
+  reason?: string;
 }
 
-export type ListKnowledgeSort = 'updated-desc' | 'created-desc' | 'title-asc';
+export type ListKnowledgeSort = "updated-desc" | "created-desc" | "title-asc";
 
 export interface ListKnowledgeInput {
-    query?: string;
-    tags?: string[];
-    scope?: string;
-    limit?: number;
-    offset?: number;
-    sort?: ListKnowledgeSort;
+  query?: string;
+  tags?: string[];
+  scope?: string;
+  limit?: number;
+  offset?: number;
+  sort?: ListKnowledgeSort;
 }
 
 export interface ListKnowledgeResult {
-    items: KnowledgeItem[];
-    total: number;
+  items: KnowledgeItem[];
+  total: number;
 }
 
 export interface KnowledgeSummaryResult {
-    totalItems: number;
-    scopes: Array<{ scope: string; count: number }>;
-    tags: Array<{ tag: string; count: number }>;
-    recency: Array<{ bucket: string; count: number }>;
+  totalItems: number;
+  scopes: Array<{ scope: string; count: number }>;
+  tags: Array<{ tag: string; count: number }>;
+  recency: Array<{ bucket: string; count: number }>;
 }
 
 export interface KnowledgeRow {
-    id: string;
-    title: string;
-    content: string;
-    tags: string;
-    scope: string;
-    normalized_title: string;
-    content_hash: string;
-    created_at: string;
-    updated_at: string;
-    embedding?: Buffer | null;
-    embedding_version?: string | null;
+  id: string;
+  title: string;
+  content: string;
+  tags: string;
+  scope: string;
+  normalized_title: string;
+  content_hash: string;
+  created_at: string;
+  updated_at: string;
+  embedding?: Buffer | null;
+  embedding_version?: string | null;
 }
 
 export interface MetaRow {
-    key: string;
-    value: string;
+  key: string;
+  value: string;
 }

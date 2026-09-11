@@ -1,148 +1,152 @@
-import fs from 'fs';
-import os from 'os';
-import path from 'path';
+import fs from "fs";
+import os from "os";
+import path from "path";
 import {
-    AgentGroupConflictError,
-    AgentGroupEmptyMembersError,
-    AgentGroupInvalidMemberError,
-    AgentGroupInvalidNameError,
-    AgentGroupNotFoundError,
-    AgentGroupStorageError,
-    AgentGroupService,
-} from '../../../services/agent/agent-group.service.js';
+  AgentGroupConflictError,
+  AgentGroupEmptyMembersError,
+  AgentGroupInvalidMemberError,
+  AgentGroupInvalidNameError,
+  AgentGroupNotFoundError,
+  AgentGroupStorageError,
+  AgentGroupService,
+} from "../../../services/agent/agent-group.service.js";
 
-describe('AgentGroupService', () => {
-    let tmpDir: string;
-    let groupsPath: string;
-    let service: AgentGroupService;
+describe("AgentGroupService", () => {
+  let tmpDir: string;
+  let groupsPath: string;
+  let service: AgentGroupService;
 
-    beforeEach(() => {
-        tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-group-service-'));
-        groupsPath = path.join(tmpDir, 'nested', 'agent-groups.json');
-        service = new AgentGroupService(groupsPath);
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-group-service-"));
+    groupsPath = path.join(tmpDir, "nested", "agent-groups.json");
+    service = new AgentGroupService(groupsPath);
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function readRaw(): any {
+    return JSON.parse(fs.readFileSync(groupsPath, "utf8"));
+  }
+
+  it("returns an empty list when the file is missing", () => {
+    expect(service.list()).toEqual([]);
+  });
+
+  it("creates the file and parent directory when creating a group", () => {
+    const group = service.create("backend-team", ["api", "worker"]);
+
+    expect(group.name).toBe("backend-team");
+    expect(group.members).toEqual(["api", "worker"]);
+    expect(fs.existsSync(groupsPath)).toBe(true);
+    expect(readRaw()).toMatchObject({
+      version: 1,
+      groups: [{ name: "backend-team", members: ["api", "worker"] }],
     });
+  });
 
-    afterEach(() => {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
-    });
+  it("writes atomically without leaving a temp file on success", () => {
+    service.create("backend-team", ["api"]);
 
-    function readRaw(): any {
-        return JSON.parse(fs.readFileSync(groupsPath, 'utf8'));
-    }
+    expect(fs.existsSync(`${groupsPath}.tmp`)).toBe(false);
+  });
 
-    it('returns an empty list when the file is missing', () => {
-        expect(service.list()).toEqual([]);
-    });
+  it("gets a group by name", () => {
+    service.create("backend-team", ["api"]);
 
-    it('creates the file and parent directory when creating a group', () => {
-        const group = service.create('backend-team', ['api', 'worker']);
+    expect(service.get("backend-team")?.members).toEqual(["api"]);
+    expect(service.get("missing")).toBeUndefined();
+  });
 
-        expect(group.name).toBe('backend-team');
-        expect(group.members).toEqual(['api', 'worker']);
-        expect(fs.existsSync(groupsPath)).toBe(true);
-        expect(readRaw()).toMatchObject({
-            version: 1,
-            groups: [{ name: 'backend-team', members: ['api', 'worker'] }],
-        });
-    });
+  it("rejects invalid group names when getting a group", () => {
+    expect(() => service.get("Bad_Name")).toThrow(AgentGroupInvalidNameError);
+  });
 
-    it('writes atomically without leaving a temp file on success', () => {
-        service.create('backend-team', ['api']);
+  it("rejects invalid group names", () => {
+    expect(() => service.create("Bad_Name", ["api"])).toThrow(AgentGroupInvalidNameError);
+  });
 
-        expect(fs.existsSync(`${groupsPath}.tmp`)).toBe(false);
-    });
+  it("rejects empty member lists", () => {
+    expect(() => service.create("backend-team", [])).toThrow(AgentGroupEmptyMembersError);
+  });
 
-    it('gets a group by name', () => {
-        service.create('backend-team', ['api']);
+  it("rejects blank members", () => {
+    expect(() => service.create("backend-team", ["api", "  "])).toThrow(
+      AgentGroupInvalidMemberError,
+    );
+  });
 
-        expect(service.get('backend-team')?.members).toEqual(['api']);
-        expect(service.get('missing')).toBeUndefined();
-    });
+  it("rejects duplicate members after trimming", () => {
+    expect(() => service.create("backend-team", ["api", " api "])).toThrow(
+      AgentGroupInvalidMemberError,
+    );
+  });
 
-    it('rejects invalid group names when getting a group', () => {
-        expect(() => service.get('Bad_Name')).toThrow(AgentGroupInvalidNameError);
-    });
+  it("rejects creating an existing group", () => {
+    service.create("backend-team", ["api"]);
 
-    it('rejects invalid group names', () => {
-        expect(() => service.create('Bad_Name', ['api'])).toThrow(AgentGroupInvalidNameError);
-    });
+    expect(() => service.create("backend-team", ["worker"])).toThrow(AgentGroupConflictError);
+  });
 
-    it('rejects empty member lists', () => {
-        expect(() => service.create('backend-team', [])).toThrow(AgentGroupEmptyMembersError);
-    });
+  it("updates a group by replacing all members", () => {
+    service.create("backend-team", ["api"]);
+    const updated = service.update("backend-team", ["worker", "docs"]);
 
-    it('rejects blank members', () => {
-        expect(() => service.create('backend-team', ['api', '  '])).toThrow(AgentGroupInvalidMemberError);
-    });
+    expect(updated.members).toEqual(["worker", "docs"]);
+    expect(service.get("backend-team")?.members).toEqual(["worker", "docs"]);
+  });
 
-    it('rejects duplicate members after trimming', () => {
-        expect(() => service.create('backend-team', ['api', ' api '])).toThrow(AgentGroupInvalidMemberError);
-    });
+  it("throws when updating a missing group", () => {
+    expect(() => service.update("missing", ["api"])).toThrow(AgentGroupNotFoundError);
+  });
 
-    it('rejects creating an existing group', () => {
-        service.create('backend-team', ['api']);
+  it("adds a new member to an existing group", () => {
+    service.create("backend-team", ["api"]);
+    const updated = service.addMember("backend-team", "worker");
 
-        expect(() => service.create('backend-team', ['worker'])).toThrow(AgentGroupConflictError);
-    });
+    expect(updated.members).toEqual(["api", "worker"]);
+  });
 
-    it('updates a group by replacing all members', () => {
-        service.create('backend-team', ['api']);
-        const updated = service.update('backend-team', ['worker', 'docs']);
+  it("treats adding an existing member as idempotent", () => {
+    service.create("backend-team", ["api"]);
+    const updated = service.addMember("backend-team", " api ");
 
-        expect(updated.members).toEqual(['worker', 'docs']);
-        expect(service.get('backend-team')?.members).toEqual(['worker', 'docs']);
-    });
+    expect(updated.members).toEqual(["api"]);
+  });
 
-    it('throws when updating a missing group', () => {
-        expect(() => service.update('missing', ['api'])).toThrow(AgentGroupNotFoundError);
-    });
+  it("removes one member from an existing group", () => {
+    service.create("backend-team", ["api", "worker"]);
+    const updated = service.removeMember("backend-team", "api");
 
-    it('adds a new member to an existing group', () => {
-        service.create('backend-team', ['api']);
-        const updated = service.addMember('backend-team', 'worker');
+    expect(updated.members).toEqual(["worker"]);
+  });
 
-        expect(updated.members).toEqual(['api', 'worker']);
-    });
+  it("rejects removing the last member", () => {
+    service.create("backend-team", ["api"]);
 
-    it('treats adding an existing member as idempotent', () => {
-        service.create('backend-team', ['api']);
-        const updated = service.addMember('backend-team', ' api ');
+    expect(() => service.removeMember("backend-team", "api")).toThrow(AgentGroupEmptyMembersError);
+    expect(service.get("backend-team")?.members).toEqual(["api"]);
+  });
 
-        expect(updated.members).toEqual(['api']);
-    });
+  it("removes a group", () => {
+    service.create("backend-team", ["api"]);
+    service.remove("backend-team");
 
-    it('removes one member from an existing group', () => {
-        service.create('backend-team', ['api', 'worker']);
-        const updated = service.removeMember('backend-team', 'api');
+    expect(service.list()).toEqual([]);
+  });
 
-        expect(updated.members).toEqual(['worker']);
-    });
+  it("throws a storage error for malformed JSON", () => {
+    fs.mkdirSync(path.dirname(groupsPath), { recursive: true });
+    fs.writeFileSync(groupsPath, "not json", "utf8");
 
-    it('rejects removing the last member', () => {
-        service.create('backend-team', ['api']);
+    expect(() => service.list()).toThrow(AgentGroupStorageError);
+  });
 
-        expect(() => service.removeMember('backend-team', 'api')).toThrow(AgentGroupEmptyMembersError);
-        expect(service.get('backend-team')?.members).toEqual(['api']);
-    });
+  it("throws a storage error for unsupported file versions", () => {
+    fs.mkdirSync(path.dirname(groupsPath), { recursive: true });
+    fs.writeFileSync(groupsPath, JSON.stringify({ version: 2, groups: [] }), "utf8");
 
-    it('removes a group', () => {
-        service.create('backend-team', ['api']);
-        service.remove('backend-team');
-
-        expect(service.list()).toEqual([]);
-    });
-
-    it('throws a storage error for malformed JSON', () => {
-        fs.mkdirSync(path.dirname(groupsPath), { recursive: true });
-        fs.writeFileSync(groupsPath, 'not json', 'utf8');
-
-        expect(() => service.list()).toThrow(AgentGroupStorageError);
-    });
-
-    it('throws a storage error for unsupported file versions', () => {
-        fs.mkdirSync(path.dirname(groupsPath), { recursive: true });
-        fs.writeFileSync(groupsPath, JSON.stringify({ version: 2, groups: [] }), 'utf8');
-
-        expect(() => service.list()).toThrow(AgentGroupStorageError);
-    });
+    expect(() => service.list()).toThrow(AgentGroupStorageError);
+  });
 });

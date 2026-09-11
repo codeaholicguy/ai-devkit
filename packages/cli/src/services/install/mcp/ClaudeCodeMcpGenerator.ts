@@ -1,7 +1,7 @@
-import fs from 'fs-extra';
-import * as path from 'path';
-import { EnvironmentCode, McpServerDefinition } from '../../../types.js';
-import { BaseMcpGenerator } from './BaseMcpGenerator.js';
+import fs from "fs-extra";
+import * as path from "path";
+import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
+import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 
 interface ClaudeMcpConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
@@ -9,12 +9,12 @@ interface ClaudeMcpConfig {
 }
 
 export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = 'claude';
+  readonly agentType: EnvironmentCode = "claude";
 
   private fullConfig: ClaudeMcpConfig = {};
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
-    if (def.transport === 'stdio') {
+    if (def.transport === "stdio") {
       const entry: Record<string, unknown> = { command: def.command! };
       if (def.args && def.args.length > 0) entry.args = def.args;
       if (def.env && Object.keys(def.env).length > 0) entry.env = def.env;
@@ -28,7 +28,7 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, '.mcp.json');
+    const configPath = path.join(projectRoot, ".mcp.json");
     if (await fs.pathExists(configPath)) {
       this.fullConfig = await fs.readJson(configPath);
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
@@ -39,9 +39,9 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
 
   protected async writeServers(
     projectRoot: string,
-    mergedServers: Record<string, unknown>
+    mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcpServers: mergedServers };
-    await fs.writeJson(path.join(projectRoot, '.mcp.json'), output, { spaces: 2 });
+    await fs.writeJson(path.join(projectRoot, ".mcp.json"), output, { spaces: 2 });
   }
 }

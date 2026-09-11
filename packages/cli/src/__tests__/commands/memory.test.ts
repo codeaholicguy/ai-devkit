@@ -1,7 +1,7 @@
-import type { MockedFunction } from 'vitest';
-import { Command } from 'commander';
+import type { MockedFunction } from "vitest";
+import { Command } from "commander";
 
-import { registerMemoryCommand } from '../../commands/memory.js';
+import { registerMemoryCommand } from "../../commands/memory.js";
 import {
   memoryDownloadSemanticCommand,
   memoryReembedCommand,
@@ -12,8 +12,8 @@ import {
   memoryStoreCommandAsync,
   memoryUpdateCommand,
   memoryUpdateCommandAsync,
-} from '@ai-devkit/memory';
-import { ui } from '../../util/terminal-ui.js';
+} from "@ai-devkit/memory";
+import { ui } from "../../util/terminal-ui.js";
 
 const mockGetMemoryDbPath = vi.fn<() => Promise<string | undefined>>();
 const mockGetMemorySemanticEnabled = vi.fn<() => Promise<boolean>>();
@@ -22,34 +22,44 @@ const mockConfigManager = {
   getMemorySemanticEnabled: mockGetMemorySemanticEnabled,
 };
 
-vi.mock('@ai-devkit/memory', () => ({
-  memoryStoreCommand: vi.fn(),
-  memoryStoreCommandAsync: vi.fn(),
-  memorySearchCommand: vi.fn(),
-  memorySearchCommandAsync: vi.fn(),
-  memoryUpdateCommand: vi.fn(),
-  memoryUpdateCommandAsync: vi.fn(),
-  memorySemanticStatusCommand: vi.fn(),
-  memoryDownloadSemanticCommand: vi.fn(),
-  memoryReembedCommand: vi.fn(),
-}), { virtual: true });
+vi.mock(
+  "@ai-devkit/memory",
+  () => ({
+    memoryStoreCommand: vi.fn(),
+    memoryStoreCommandAsync: vi.fn(),
+    memorySearchCommand: vi.fn(),
+    memorySearchCommandAsync: vi.fn(),
+    memoryUpdateCommand: vi.fn(),
+    memoryUpdateCommandAsync: vi.fn(),
+    memorySemanticStatusCommand: vi.fn(),
+    memoryDownloadSemanticCommand: vi.fn(),
+    memoryReembedCommand: vi.fn(),
+  }),
+  { virtual: true },
+);
 
-vi.mock('../../lib/Config.js', () => ({
-  ConfigManager: vi.fn(function () { return mockConfigManager; })
+vi.mock("../../lib/Config.js", () => ({
+  ConfigManager: vi.fn(function () {
+    return mockConfigManager;
+  }),
 }));
 
-vi.mock('../../util/terminal-ui.js', () => ({
+vi.mock("../../util/terminal-ui.js", () => ({
   ui: {
     error: vi.fn(),
     warning: vi.fn(),
-    table: vi.fn()
+    table: vi.fn(),
   },
 }));
 
-describe('memory command', () => {
-  const mockedMemorySearchCommand = memorySearchCommand as MockedFunction<typeof memorySearchCommand>;
+describe("memory command", () => {
+  const mockedMemorySearchCommand = memorySearchCommand as MockedFunction<
+    typeof memorySearchCommand
+  >;
   const mockedMemoryStoreCommand = memoryStoreCommand as MockedFunction<typeof memoryStoreCommand>;
-  const mockedMemoryUpdateCommand = memoryUpdateCommand as MockedFunction<typeof memoryUpdateCommand>;
+  const mockedMemoryUpdateCommand = memoryUpdateCommand as MockedFunction<
+    typeof memoryUpdateCommand
+  >;
   const mockedUi = vi.mocked(ui);
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
@@ -57,72 +67,74 @@ describe('memory command', () => {
     vi.clearAllMocks();
     mockGetMemoryDbPath.mockResolvedValue(undefined);
     mockGetMemorySemanticEnabled.mockResolvedValue(false);
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
   });
 
-  it('prints JSON for memory store', async () => {
+  it("prints JSON for memory store", async () => {
     const result = {
       success: true,
-      id: 'mem-1',
-      message: 'stored'
+      id: "mem-1",
+      message: "stored",
     };
     mockedMemoryStoreCommand.mockReturnValue(result);
 
     const program = new Command();
     registerMemoryCommand(program);
     await program.parseAsync([
-      'node',
-      'test',
-      'memory',
-      'store',
-      '--title',
-      'A valid title 123',
-      '--content',
-      'This is a valid content body long enough to satisfy constraints.'
+      "node",
+      "test",
+      "memory",
+      "store",
+      "--title",
+      "A valid title 123",
+      "--content",
+      "This is a valid content body long enough to satisfy constraints.",
     ]);
 
     expect(mockedMemoryStoreCommand).toHaveBeenCalledWith({
-      title: 'A valid title 123',
-      content: 'This is a valid content body long enough to satisfy constraints.',
+      title: "A valid title 123",
+      content: "This is a valid content body long enough to satisfy constraints.",
       tags: undefined,
-      scope: 'global',
-      dbPath: undefined
+      scope: "global",
+      dbPath: undefined,
     });
     expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
   });
 
-  it('passes resolved project dbPath to memory store', async () => {
-    mockGetMemoryDbPath.mockResolvedValue('/repo/.ai-devkit/project-memory.db');
+  it("passes resolved project dbPath to memory store", async () => {
+    mockGetMemoryDbPath.mockResolvedValue("/repo/.ai-devkit/project-memory.db");
     mockedMemoryStoreCommand.mockReturnValue({
       success: true,
-      id: 'mem-1',
-      message: 'stored'
+      id: "mem-1",
+      message: "stored",
     });
 
     const program = new Command();
     registerMemoryCommand(program);
     await program.parseAsync([
-      'node',
-      'test',
-      'memory',
-      'store',
-      '--title',
-      'A valid title 123',
-      '--content',
-      'This is a valid content body long enough to satisfy constraints.'
+      "node",
+      "test",
+      "memory",
+      "store",
+      "--title",
+      "A valid title 123",
+      "--content",
+      "This is a valid content body long enough to satisfy constraints.",
     ]);
 
-    expect(mockedMemoryStoreCommand).toHaveBeenCalledWith(expect.objectContaining({
-      dbPath: '/repo/.ai-devkit/project-memory.db'
-    }));
+    expect(mockedMemoryStoreCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dbPath: "/repo/.ai-devkit/project-memory.db",
+      }),
+    );
   });
 
-  it('handles store errors by showing error and exiting', async () => {
+  it("handles store errors by showing error and exiting", async () => {
     mockedMemoryStoreCommand.mockImplementation(() => {
-      throw new Error('store failed');
+      throw new Error("store failed");
     });
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit');
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit");
     }) as never);
 
     const program = new Command();
@@ -130,59 +142,59 @@ describe('memory command', () => {
 
     await expect(
       program.parseAsync([
-        'node',
-        'test',
-        'memory',
-        'store',
-        '--title',
-        'A valid title 123',
-        '--content',
-        'This is a valid content body long enough to satisfy constraints.'
-      ])
-    ).rejects.toThrow('process.exit');
+        "node",
+        "test",
+        "memory",
+        "store",
+        "--title",
+        "A valid title 123",
+        "--content",
+        "This is a valid content body long enough to satisfy constraints.",
+      ]),
+    ).rejects.toThrow("process.exit");
 
-    expect(mockedUi.error).toHaveBeenCalledWith('Failed to store knowledge: store failed');
+    expect(mockedUi.error).toHaveBeenCalledWith("Failed to store knowledge: store failed");
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('prints JSON for memory update', async () => {
+  it("prints JSON for memory update", async () => {
     const result = {
       success: true,
-      id: 'mem-1',
-      message: 'Knowledge updated successfully'
+      id: "mem-1",
+      message: "Knowledge updated successfully",
     };
     mockedMemoryUpdateCommand.mockReturnValue(result);
 
     const program = new Command();
     registerMemoryCommand(program);
     await program.parseAsync([
-      'node',
-      'test',
-      'memory',
-      'update',
-      '--id',
-      'mem-1',
-      '--title',
-      'Updated title for testing',
+      "node",
+      "test",
+      "memory",
+      "update",
+      "--id",
+      "mem-1",
+      "--title",
+      "Updated title for testing",
     ]);
 
     expect(mockedMemoryUpdateCommand).toHaveBeenCalledWith({
-      id: 'mem-1',
-      title: 'Updated title for testing',
+      id: "mem-1",
+      title: "Updated title for testing",
       content: undefined,
       tags: undefined,
       scope: undefined,
-      dbPath: undefined
+      dbPath: undefined,
     });
     expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
   });
 
-  it('handles update errors by showing error and exiting', async () => {
+  it("handles update errors by showing error and exiting", async () => {
     mockedMemoryUpdateCommand.mockImplementation(() => {
-      throw new Error('update failed');
+      throw new Error("update failed");
     });
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit');
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit");
     }) as never);
 
     const program = new Command();
@@ -190,211 +202,294 @@ describe('memory command', () => {
 
     await expect(
       program.parseAsync([
-        'node',
-        'test',
-        'memory',
-        'update',
-        '--id',
-        'mem-1',
-        '--title',
-        'Updated title for testing',
-      ])
-    ).rejects.toThrow('process.exit');
+        "node",
+        "test",
+        "memory",
+        "update",
+        "--id",
+        "mem-1",
+        "--title",
+        "Updated title for testing",
+      ]),
+    ).rejects.toThrow("process.exit");
 
-    expect(mockedUi.error).toHaveBeenCalledWith('Failed to update knowledge: update failed');
+    expect(mockedUi.error).toHaveBeenCalledWith("Failed to update knowledge: update failed");
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('prints JSON by default for memory search', async () => {
+  it("prints JSON by default for memory search", async () => {
     const result = {
       results: [
         {
-          id: 'mem-1',
-          title: 'Use DTOs for API responses',
-          content: 'Always use DTOs',
-          tags: ['api'],
-          scope: 'global',
-          score: 1
-        }
+          id: "mem-1",
+          title: "Use DTOs for API responses",
+          content: "Always use DTOs",
+          tags: ["api"],
+          scope: "global",
+          score: 1,
+        },
       ],
       totalMatches: 1,
-      query: 'dto'
+      query: "dto",
     };
     mockedMemorySearchCommand.mockReturnValue(result);
 
     const program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'dto']);
+    await program.parseAsync(["node", "test", "memory", "search", "--query", "dto"]);
 
     expect(mockedMemorySearchCommand).toHaveBeenCalledWith({
-      query: 'dto',
+      query: "dto",
       tags: undefined,
       scope: undefined,
       limit: 5,
-      dbPath: undefined
+      dbPath: undefined,
     });
     expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
     expect(mockedUi.table).not.toHaveBeenCalled();
   });
 
-  it('renders table output with id, title, and scope when --table is used', async () => {
+  it("renders table output with id, title, and scope when --table is used", async () => {
     mockedMemorySearchCommand.mockReturnValue({
       results: [
         {
-          id: 'mem-1',
-          title: 'A very long memory title that should be truncated for narrow terminals when displayed',
-          content: 'x',
-          tags: ['cli'],
-          scope: 'project:ai-devkit',
-          score: 1
-        }
+          id: "mem-1",
+          title:
+            "A very long memory title that should be truncated for narrow terminals when displayed",
+          content: "x",
+          tags: ["cli"],
+          scope: "project:ai-devkit",
+          score: 1,
+        },
       ],
       totalMatches: 1,
-      query: 'memory'
+      query: "memory",
     });
 
     const program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'memory', '--table', '--limit', '3']);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "search",
+      "--query",
+      "memory",
+      "--table",
+      "--limit",
+      "3",
+    ]);
 
     expect(mockedMemorySearchCommand).toHaveBeenCalledWith({
-      query: 'memory',
+      query: "memory",
       tags: undefined,
       scope: undefined,
       limit: 3,
-      dbPath: undefined
+      dbPath: undefined,
     });
     expect(mockedUi.table).toHaveBeenCalledWith({
-      headers: ['id', 'title', 'scope'],
-      rows: [['mem-1', 'A very long memory title that should be truncated for nar...', 'project:ai-devkit']]
+      headers: ["id", "title", "scope"],
+      rows: [
+        [
+          "mem-1",
+          "A very long memory title that should be truncated for nar...",
+          "project:ai-devkit",
+        ],
+      ],
     });
     expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('"results"'));
   });
 
-  it('passes resolved project dbPath to memory search and update', async () => {
-    mockGetMemoryDbPath.mockResolvedValue('/repo/.ai-devkit/project-memory.db');
+  it("passes resolved project dbPath to memory search and update", async () => {
+    mockGetMemoryDbPath.mockResolvedValue("/repo/.ai-devkit/project-memory.db");
     mockedMemorySearchCommand.mockReturnValue({
       results: [],
       totalMatches: 0,
-      query: 'dto'
+      query: "dto",
     });
     mockedMemoryUpdateCommand.mockReturnValue({
       success: true,
-      id: 'mem-1',
-      message: 'Knowledge updated successfully'
+      id: "mem-1",
+      message: "Knowledge updated successfully",
     });
 
     let program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'dto']);
+    await program.parseAsync(["node", "test", "memory", "search", "--query", "dto"]);
 
-    expect(mockedMemorySearchCommand).toHaveBeenCalledWith(expect.objectContaining({
-      dbPath: '/repo/.ai-devkit/project-memory.db'
-    }));
+    expect(mockedMemorySearchCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dbPath: "/repo/.ai-devkit/project-memory.db",
+      }),
+    );
 
     program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'update', '--id', 'mem-1', '--title', 'Updated title for testing']);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "update",
+      "--id",
+      "mem-1",
+      "--title",
+      "Updated title for testing",
+    ]);
 
-    expect(mockedMemoryUpdateCommand).toHaveBeenCalledWith(expect.objectContaining({
-      dbPath: '/repo/.ai-devkit/project-memory.db'
-    }));
+    expect(mockedMemoryUpdateCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        dbPath: "/repo/.ai-devkit/project-memory.db",
+      }),
+    );
   });
 
-  it('shows a warning when --table has no matching results', async () => {
+  it("shows a warning when --table has no matching results", async () => {
     mockedMemorySearchCommand.mockReturnValue({
       results: [],
       totalMatches: 0,
-      query: 'missing'
+      query: "missing",
     });
 
     const program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'missing', '--table']);
+    await program.parseAsync(["node", "test", "memory", "search", "--query", "missing", "--table"]);
 
     expect(mockedUi.warning).toHaveBeenCalledWith('No memory items found matching "missing"');
     expect(mockedUi.table).not.toHaveBeenCalled();
   });
 
-  it('handles search errors by showing error and exiting', async () => {
+  it("handles search errors by showing error and exiting", async () => {
     mockedMemorySearchCommand.mockImplementation(() => {
-      throw new Error('search failed');
+      throw new Error("search failed");
     });
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
-      throw new Error('process.exit');
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit");
     }) as never);
 
     const program = new Command();
     registerMemoryCommand(program);
 
     await expect(
-      program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'memory'])
-    ).rejects.toThrow('process.exit');
+      program.parseAsync(["node", "test", "memory", "search", "--query", "memory"]),
+    ).rejects.toThrow("process.exit");
 
-    expect(mockedUi.error).toHaveBeenCalledWith('Failed to search knowledge: search failed');
+    expect(mockedUi.error).toHaveBeenCalledWith("Failed to search knowledge: search failed");
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('uses hybrid search and explanations when semantic config is enabled', async () => {
+  it("uses hybrid search and explanations when semantic config is enabled", async () => {
     mockGetMemorySemanticEnabled.mockResolvedValue(true);
     vi.mocked(memorySearchCommandAsync).mockResolvedValue({
-      results: [], totalMatches: 0, query: 'wire contracts', strategy: 'broad',
-      retrievalMode: 'hybrid',
-      semantic: { status: 'ready', embeddingVersion: 'model', eligibleCount: 2 },
+      results: [],
+      totalMatches: 0,
+      query: "wire contracts",
+      strategy: "broad",
+      retrievalMode: "hybrid",
+      semantic: { status: "ready", embeddingVersion: "model", eligibleCount: 2 },
     });
 
     const program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'search', '--query', 'wire contracts', '--explain']);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "search",
+      "--query",
+      "wire contracts",
+      "--explain",
+    ]);
 
-    expect(memorySearchCommandAsync).toHaveBeenCalledWith(expect.objectContaining({
-      query: 'wire contracts', semantic: true, explain: true,
-    }));
+    expect(memorySearchCommandAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        query: "wire contracts",
+        semantic: true,
+        explain: true,
+      }),
+    );
     expect(mockedMemorySearchCommand).not.toHaveBeenCalled();
   });
 
-  it('awaits semantic-enabled stores before printing their result', async () => {
+  it("awaits semantic-enabled stores before printing their result", async () => {
     mockGetMemorySemanticEnabled.mockResolvedValue(true);
-    const result = { success: true, id: 'semantic-1', message: 'stored' };
+    const result = { success: true, id: "semantic-1", message: "stored" };
     vi.mocked(memoryStoreCommandAsync).mockResolvedValue(result);
 
-    const program = new Command(); registerMemoryCommand(program);
+    const program = new Command();
+    registerMemoryCommand(program);
     await program.parseAsync([
-      'node', 'test', 'memory', 'store', '--title', 'Semantic store title',
-      '--content', 'This semantic store content is long enough to pass all memory validation constraints.',
+      "node",
+      "test",
+      "memory",
+      "store",
+      "--title",
+      "Semantic store title",
+      "--content",
+      "This semantic store content is long enough to pass all memory validation constraints.",
     ]);
 
     expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
   });
 
-  it('awaits semantic-enabled updates before printing their result', async () => {
+  it("awaits semantic-enabled updates before printing their result", async () => {
     mockGetMemorySemanticEnabled.mockResolvedValue(true);
-    const result = { success: true, id: 'semantic-1', message: 'updated' };
+    const result = { success: true, id: "semantic-1", message: "updated" };
     vi.mocked(memoryUpdateCommandAsync).mockResolvedValue(result);
 
-    const program = new Command(); registerMemoryCommand(program);
-    await program.parseAsync(['node', 'test', 'memory', 'update', '--id', 'semantic-1', '--title', 'Updated title']);
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "update",
+      "--id",
+      "semantic-1",
+      "--title",
+      "Updated title",
+    ]);
 
-    expect(memoryUpdateCommandAsync).toHaveBeenCalledWith(expect.objectContaining({ id: 'semantic-1', semantic: true }));
+    expect(memoryUpdateCommandAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "semantic-1", semantic: true }),
+    );
     expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
   });
 
-  it('exposes semantic status, download, and force reembed commands', async () => {
+  it("exposes semantic status, download, and force reembed commands", async () => {
     vi.mocked(memorySemanticStatusCommand).mockResolvedValue({
-      modelReady: false, modelDirectory: '/models', embeddingVersion: 'model', total: 0, current: 0, missing: 0, stale: 0,
+      modelReady: false,
+      modelDirectory: "/models",
+      embeddingVersion: "model",
+      total: 0,
+      current: 0,
+      missing: 0,
+      stale: 0,
     });
     vi.mocked(memoryDownloadSemanticCommand).mockResolvedValue({
-      modelReady: true, modelDirectory: '/models', embeddingVersion: 'model', total: 0, current: 0, missing: 0, stale: 0,
+      modelReady: true,
+      modelDirectory: "/models",
+      embeddingVersion: "model",
+      total: 0,
+      current: 0,
+      missing: 0,
+      stale: 0,
     });
-    vi.mocked(memoryReembedCommand).mockResolvedValue({ total: 0, embedded: 0, skipped: 0, failed: 0, embeddingVersion: 'model' });
+    vi.mocked(memoryReembedCommand).mockResolvedValue({
+      total: 0,
+      embedded: 0,
+      skipped: 0,
+      failed: 0,
+      embeddingVersion: "model",
+    });
 
     for (const args of [
-      ['memory', 'semantic', 'status'],
-      ['memory', 'semantic', 'download'],
-      ['memory', 'reembed', '--force'],
+      ["memory", "semantic", "status"],
+      ["memory", "semantic", "download"],
+      ["memory", "reembed", "--force"],
     ]) {
-      const program = new Command(); registerMemoryCommand(program);
-      await program.parseAsync(['node', 'test', ...args]);
+      const program = new Command();
+      registerMemoryCommand(program);
+      await program.parseAsync(["node", "test", ...args]);
     }
 
     expect(memorySemanticStatusCommand).toHaveBeenCalledWith({ dbPath: undefined });

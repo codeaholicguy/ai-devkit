@@ -1,5 +1,5 @@
-import { ui } from './terminal-ui.js';
-import { getErrorMessage } from './text.js';
+import { ui } from "./terminal-ui.js";
+import { getErrorMessage } from "./text.js";
 
 /**
  * Base error for the ai-devkit CLI.
@@ -10,10 +10,10 @@ export class CliError extends Error {
   constructor(
     message: string,
     public readonly code: string,
-    public readonly details?: Record<string, unknown>
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
-    this.name = 'CliError';
+    this.name = "CliError";
     Object.setPrototypeOf(this, new.target.prototype);
   }
 
@@ -29,42 +29,42 @@ export class CliError extends Error {
 /** Thrown when a required config file is missing. */
 export class ConfigNotFoundError extends CliError {
   constructor(message: string, configPath?: string) {
-    super(message, 'CONFIG_NOT_FOUND', configPath ? { configPath } : undefined);
-    this.name = 'ConfigNotFoundError';
+    super(message, "CONFIG_NOT_FOUND", configPath ? { configPath } : undefined);
+    this.name = "ConfigNotFoundError";
   }
 }
 
 /** Thrown when user input or configuration values fail validation. */
 export class ValidationError extends CliError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'VALIDATION_ERROR', details);
-    this.name = 'ValidationError';
+    super(message, "VALIDATION_ERROR", details);
+    this.name = "ValidationError";
   }
 }
 
 /** Thrown when a referenced resource (registry, skill, template) does not exist. */
 export class NotFoundError extends CliError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'NOT_FOUND', details);
-    this.name = 'NotFoundError';
+    super(message, "NOT_FOUND", details);
+    this.name = "NotFoundError";
   }
 }
 
 /** Thrown when a git or network operation fails. */
 export class GitError extends CliError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super(message, 'GIT_ERROR', details);
-    this.name = 'GitError';
+    super(message, "GIT_ERROR", details);
+    this.name = "GitError";
   }
 }
 
 export function isPromptCancelled(error: unknown): boolean {
-  return error instanceof Error && error.name === 'ExitPromptError';
+  return error instanceof Error && error.name === "ExitPromptError";
 }
 
 export async function handleCliError(label: string, error: unknown): Promise<void> {
   if (isPromptCancelled(error)) {
-    ui.warning('Cancelled.');
+    ui.warning("Cancelled.");
     process.exit(130);
     return;
   }

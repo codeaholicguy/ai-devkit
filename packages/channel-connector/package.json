@@ -1,11 +1,22 @@
 {
   "name": "@ai-devkit/channel-connector",
-  "nx": {
-    "name": "channel-connector"
-  },
   "version": "0.13.3",
-  "type": "module",
   "description": "Generic messaging bridge for connecting to external communication platforms",
+  "keywords": [
+    "ai",
+    "channel",
+    "connector",
+    "messaging",
+    "telegram"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "packages/channel-connector"
+  },
+  "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
@@ -21,22 +32,10 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src --ext .ts",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "ai",
-    "channel",
-    "connector",
-    "telegram",
-    "messaging"
-  ],
-  "author": "",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
-    "directory": "packages/channel-connector"
   },
   "dependencies": {
     "@slack/socket-mode": "^3.0.0",
@@ -58,5 +57,8 @@
   },
   "engines": {
     "node": ">=20.20.0"
+  },
+  "nx": {
+    "name": "channel-connector"
   }
 }
