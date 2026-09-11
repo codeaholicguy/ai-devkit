@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/agent-manager",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "Standalone agent detection and management utilities for AI DevKit",
   "keywords": [
     "agent",
