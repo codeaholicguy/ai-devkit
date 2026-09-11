@@ -47,7 +47,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/**/*.ts",
+    "lint": "oxlint src",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "clean": "rm -rf dist",
@@ -56,8 +56,6 @@
   "dependencies": {
     "@huggingface/tokenizers": "0.1.3",
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "@typescript-eslint/eslint-plugin": "8.60.1",
-    "@typescript-eslint/parser": "8.60.1",
     "better-sqlite3": "12.11.1",
     "onnxruntime-web": "1.22.0",
     "uuid": "^14.0.0"

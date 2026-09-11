@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "env": {
+    "node": true,
+    "browser": true,
+    "es6": true
+  },
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-var-requires": "error",
+    "no-unused-vars": ["warn", { "caughtErrorsIgnorePattern": "^ignore" }]
+  },
+  "overrides": [
+    {
+      "files": ["**/__tests__/**/*.ts", "**/__tests__/**/*.cjs", "**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-var-requires": "off"
+      }
+    }
+  ]
+}

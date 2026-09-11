@@ -3,6 +3,20 @@
   "version": "0.61.0",
   "private": true,
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
+  "keywords": [
+    "ai",
+    "claude",
+    "cli",
+    "cursor",
+    "development",
+    "templates"
+  ],
+  "license": "MIT",
+  "author": "",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "nx": "nx",
     "prepare": "husky",
@@ -15,25 +29,12 @@
     "test:coverage": "nx run-many -t test --coverage",
     "test:e2e": "vitest run --config e2e/vitest.config.ts"
   },
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "keywords": [
-    "ai",
-    "development",
-    "cli",
-    "templates",
-    "cursor",
-    "claude"
-  ],
-  "author": "",
-  "license": "MIT",
   "devDependencies": {
     "@nx/js": "^22.4.0",
     "husky": "^9.1.7",
     "nx": "^22.4.0",
     "oxfmt": "^0.67.0",
+    "oxlint": "^1.82.0",
     "vitest": "^4.1.8"
   },
   "engines": {
