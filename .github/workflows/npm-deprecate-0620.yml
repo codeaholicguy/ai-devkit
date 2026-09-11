@@ -1,10 +1,12 @@
-name: Remove broken 0.62.0 from npm
+name: Deprecate broken ai-devkit@0.62.0
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/npm-deprecate-0620.yml']
 
 jobs:
-  remove:
+  deprecate:
     name: Deprecate ai-devkit@0.62.0
     runs-on: ubuntu-latest
 
