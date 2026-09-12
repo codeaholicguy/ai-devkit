@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ~/.codex/hooks/codex-session-mapping.cjs",
+            "command": "node \"$PLUGIN_ROOT/hooks/codex-session-mapping.cjs\"",
             "timeout": 5
           }
         ]
