@@ -36,7 +36,7 @@ Prefer the installed `ai-devkit` binary; if unavailable, use `npx ai-devkit@late
 
    Stop after giving that action.
 
-5. Choose a channel. Use the requested channel or the only available Telegram channel. If multiple Telegram channels are available, ask the user which one to use. Available means Telegram, enabled, authorized, and not already running.
+5. Choose a channel. Use the requested channel or the only available Telegram channel. If multiple Telegram channels are available, ask the user which one to use. Available means Telegram, enabled, configured with bot credentials, and not already running. Do not reject a Telegram channel only because it is not authorized yet; Telegram authorization cannot complete until after the bridge is started and the user sends a message to the bot.
 
 6. If no Telegram channel is available because bridges are already running, ask before stopping one. After confirmation:
 
@@ -50,7 +50,7 @@ Prefer the installed `ai-devkit` binary; if unavailable, use `npx ai-devkit@late
    ai-devkit channel start <channel> --agent <agent-name> --daemon
    ```
 
-8. Report the connected channel, agent name, and how to stop it: `ai-devkit channel stop <channel>`.
+8. Report the connected channel, agent name, and how to stop it: `ai-devkit channel stop <channel>`. If the channel was not authorized before start, explicitly tell the user the bridge is running and they must now send any message to the Telegram bot to authorize that chat before using it.
 
 ## Boundaries
 
