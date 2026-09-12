@@ -5,7 +5,7 @@
   },
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "homepage": "https://ai-devkit.com/",
-  "hooks": "./hooks/",
+  "hooks": "./hooks/hooks.json",
   "interface": {
     "capabilities": [
       "Skills",
@@ -15,7 +15,8 @@
     "composerIcon": "./.codex-plugin/assets/composer-icon.png",
     "defaultPrompt": [
       "Use AI DevKit to run a structured development lifecycle for this feature.",
-      "Use AI DevKit to debug this issue, capture the root cause, and verify the fix."
+      "Use AI DevKit to debug this issue, capture the root cause, and verify the fix.",
+      "Remote this session from Telegram"
     ],
     "developerName": "Hoang Nguyen",
     "displayName": "AI DevKit",
@@ -40,5 +41,5 @@
   "name": "ai-devkit",
   "repository": "https://github.com/codeaholicguy/ai-devkit",
   "skills": "./skills/",
-  "version": "0.61.0"
+  "version": "0.62.1"
 }
