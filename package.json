@@ -27,7 +27,8 @@
     "test": "nx run-many -t test",
     "test:watch": "nx run-many -t test --watch",
     "test:coverage": "nx run-many -t test --coverage",
-    "test:e2e": "vitest run --config e2e/vitest.config.ts"
+    "test:e2e": "vitest run --config e2e/vitest.config.ts",
+    "build:codex-plugin": "node scripts/build-codex-plugin.mjs"
   },
   "devDependencies": {
     "@nx/js": "^22.4.0",
