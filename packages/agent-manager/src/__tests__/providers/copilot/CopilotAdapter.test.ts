@@ -7,19 +7,19 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { CopilotAdapter } from "../../adapters/CopilotAdapter.js";
-import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { CopilotAdapter } from "../../../providers/copilot/CopilotAdapter.js";
+import type { ProcessInfo } from "../../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../../adapters/AgentAdapter.js";
 import {
   listAgentProcesses,
   enrichProcesses,
   captureProcessSnapshot,
-} from "../../utils/process.js";
-import { generateAgentName } from "../../utils/matching.js";
-import { AgentRegistry } from "../../utils/AgentRegistry.js";
+} from "../../../utils/process.js";
+import { generateAgentName } from "../../../utils/matching.js";
+import { AgentRegistry } from "../../../utils/AgentRegistry.js";
 
-vi.mock("../../utils/process.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
+vi.mock("../../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/process.js");
   return {
     ...actual,
     listAgentProcesses: vi.fn(),
@@ -28,7 +28,7 @@ vi.mock("../../utils/process.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../utils/matching.js", () => ({
+vi.mock("../../../utils/matching.js", () => ({
   generateAgentName: vi.fn(),
 }));
 
@@ -45,11 +45,10 @@ describe("CopilotAdapter", () => {
   let sessionStateDir: string;
 
   beforeEach(() => {
-    adapter = new CopilotAdapter();
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "copilot-test-"));
     sessionStateDir = path.join(tmpDir, "session-state");
     fs.mkdirSync(sessionStateDir, { recursive: true });
-    (adapter as any).sessionStateDir = sessionStateDir;
+    adapter = new CopilotAdapter(undefined, { sessionStateDir });
 
     mockedListAgentProcesses.mockReset();
     mockedEnrichProcesses.mockReset();
@@ -296,8 +295,7 @@ describe("CopilotAdapter", () => {
 
     it("carries the managed wrapper name to a process-only child before the session lock exists", async () => {
       const registry = new AgentRegistry(path.join(tmpDir, "agents.json"));
-      adapter = new CopilotAdapter(registry);
-      (adapter as any).sessionStateDir = sessionStateDir;
+      adapter = new CopilotAdapter(registry, { sessionStateDir });
       const processes: ProcessInfo[] = [
         { pid: 86800, command: "copilot", cwd: "/repo", tty: "ttys001", ppid: 84174 },
         {
@@ -363,8 +361,7 @@ describe("CopilotAdapter", () => {
 
     it("carries the managed wrapper name to a lock-backed child process", async () => {
       const registry = new AgentRegistry(path.join(tmpDir, "agents.json"));
-      adapter = new CopilotAdapter(registry);
-      (adapter as any).sessionStateDir = sessionStateDir;
+      adapter = new CopilotAdapter(registry, { sessionStateDir });
       const processes: ProcessInfo[] = [
         { pid: 14095, command: "copilot", cwd: "/repo", tty: "ttys001", ppid: 84174 },
         {
@@ -597,7 +594,7 @@ describe("CopilotAdapter", () => {
     });
 
     it("returns empty when session-state directory does not exist", async () => {
-      (adapter as any).sessionStateDir = path.join(tmpDir, "missing");
+      adapter = new CopilotAdapter(undefined, { sessionStateDir: path.join(tmpDir, "missing") });
 
       await expect(adapter.listSessions()).resolves.toEqual([]);
     });
