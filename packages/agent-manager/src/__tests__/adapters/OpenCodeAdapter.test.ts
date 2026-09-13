@@ -141,6 +141,7 @@ describe("OpenCodeAdapter", () => {
   });
 
   afterEach(() => {
+    adapter.close();
     fs.rmSync(tmpDir, { recursive: true, force: true });
     vi.restoreAllMocks();
   });

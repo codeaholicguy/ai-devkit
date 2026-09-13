@@ -65,17 +65,21 @@ export class OpenCodeAdapter implements AgentAdapter {
   private static readonly IDLE_THRESHOLD_MINUTES = 5;
 
   private readonly dbPath: string;
+  private readonly cleanup = (): void => this.close();
   private db: Database.Database | null = null;
 
   constructor() {
     this.dbPath = OpenCodeAdapter.resolveDbPath();
-    const cleanup = (): void => this.close();
-    process.once("exit", cleanup);
-    process.once("SIGINT", cleanup);
-    process.once("SIGTERM", cleanup);
+    process.once("exit", this.cleanup);
+    process.once("SIGINT", this.cleanup);
+    process.once("SIGTERM", this.cleanup);
   }
 
   close(): void {
+    process.off("exit", this.cleanup);
+    process.off("SIGINT", this.cleanup);
+    process.off("SIGTERM", this.cleanup);
+
     if (this.db) {
       try {
         this.db.close();
