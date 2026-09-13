@@ -23,7 +23,7 @@ export type {
 export { ClaudeCodeAdapter } from "./providers/claude/ClaudeCodeAdapter.js";
 export { CodexAdapter } from "./providers/codex/CodexAdapter.js";
 export { CopilotAdapter } from "./providers/copilot/CopilotAdapter.js";
-export { GeminiCliAdapter } from "./adapters/GeminiCliAdapter.js";
+export { GeminiCliAdapter } from "./providers/gemini/GeminiCliAdapter.js";
 export { GrokCliAdapter } from "./adapters/GrokCliAdapter.js";
 export { OpenCodeAdapter } from "./adapters/OpenCodeAdapter.js";
 export { PiAdapter } from "./providers/pi/PiAdapter.js";

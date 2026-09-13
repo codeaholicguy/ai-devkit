@@ -7,20 +7,22 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { GeminiCliAdapter } from "../../adapters/GeminiCliAdapter.js";
-import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
-import { AgentRegistry, type RegistryEntry } from "../../utils/AgentRegistry.js";
+import { GeminiCliAdapter } from "../../../providers/gemini/GeminiCliAdapter.js";
+import { GeminiSessionLocator } from "../../../providers/gemini/GeminiSessionLocator.js";
+import { GeminiSessionParser } from "../../../providers/gemini/GeminiSessionParser.js";
+import type { ProcessInfo } from "../../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../../adapters/AgentAdapter.js";
+import { AgentRegistry, type RegistryEntry } from "../../../utils/AgentRegistry.js";
 import {
   listAgentProcesses,
   enrichProcesses,
   captureProcessSnapshot,
-} from "../../utils/process.js";
-import { matchProcessesToSessions, generateAgentName } from "../../utils/matching.js";
+} from "../../../utils/process.js";
+import { matchProcessesToSessions, generateAgentName } from "../../../utils/matching.js";
 import * as crypto from "crypto";
 
-vi.mock("../../utils/process.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
+vi.mock("../../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/process.js");
   return {
     ...actual,
     listAgentProcesses: vi.fn(),
@@ -29,7 +31,7 @@ vi.mock("../../utils/process.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../utils/matching.js", () => ({
+vi.mock("../../../utils/matching.js", () => ({
   matchProcessesToSessions: vi.fn(),
   generateAgentName: vi.fn(),
 }));
@@ -47,12 +49,18 @@ const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof gener
 describe("GeminiCliAdapter", () => {
   let adapter: GeminiCliAdapter;
   let tmpHome: string;
+  let parser: GeminiSessionParser;
+  let locator: GeminiSessionLocator;
 
   beforeEach(() => {
     tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "gemini-adapter-test-"));
     process.env.HOME = tmpHome;
 
     adapter = new GeminiCliAdapter(new AgentRegistry(path.join(tmpHome, "agents.json")));
+    parser = new GeminiSessionParser();
+    locator = new GeminiSessionLocator({
+      geminiTmpDir: path.join(tmpHome, ".gemini", "tmp"),
+    });
     mockedListAgentProcesses.mockReset();
     mockedEnrichProcesses.mockReset();
     mockedCaptureProcessSnapshot.mockReset();
@@ -621,7 +629,7 @@ describe("GeminiCliAdapter", () => {
         startTime: new Date(),
       };
       // tmp dir absent by default
-      const result = (adapter as any).discoverSessions([proc]);
+      const result = locator.discoverSessions([proc]);
       expect(result.sessions).toEqual([]);
       expect(result.contentCache.size).toBe(0);
     });
@@ -643,7 +651,7 @@ describe("GeminiCliAdapter", () => {
         messages: [],
       });
 
-      const result = (adapter as any).discoverSessions([proc]);
+      const result = locator.discoverSessions([proc]);
       expect(result.sessions).toEqual([]);
     });
 
@@ -664,7 +672,7 @@ describe("GeminiCliAdapter", () => {
         messages: [],
       });
 
-      const result = (adapter as any).discoverSessions([proc]);
+      const result = locator.discoverSessions([proc]);
       expect(result.sessions).toEqual([]);
     });
 
@@ -690,7 +698,7 @@ describe("GeminiCliAdapter", () => {
         messages: [],
       });
 
-      const result = (adapter as any).discoverSessions([proc]);
+      const result = locator.discoverSessions([proc]);
       expect(result.sessions).toHaveLength(1);
       expect(result.sessions[0].sessionId).toBe("s-good");
     });
@@ -716,7 +724,7 @@ describe("GeminiCliAdapter", () => {
         messages: [],
       });
 
-      const result = (adapter as any).discoverSessions([proc]);
+      const result = locator.discoverSessions([proc]);
       expect(result.sessions).toHaveLength(1);
       expect(result.sessions[0].resolvedCwd).toBe(procCwd);
     });
@@ -742,12 +750,12 @@ describe("GeminiCliAdapter", () => {
         }),
       );
 
-      const result = (adapter as any).discoverSessions([proc]);
+      const result = locator.discoverSessions([proc]);
       expect(result.sessions).toEqual([]);
     });
   });
 
-  describe("helper methods", () => {
+  describe("GeminiSessionParser", () => {
     describe("determineStatus", () => {
       it('should return "waiting" when the last message is from gemini', () => {
         const session = {
@@ -758,7 +766,7 @@ describe("GeminiCliAdapter", () => {
           lastActive: new Date(),
           lastMessageType: "gemini",
         };
-        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.WAITING);
+        expect(parser.determineStatus(session)).toBe(AgentStatus.WAITING);
       });
 
       it('should return "waiting" when the last message is from assistant', () => {
@@ -770,7 +778,7 @@ describe("GeminiCliAdapter", () => {
           lastActive: new Date(),
           lastMessageType: "assistant",
         };
-        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.WAITING);
+        expect(parser.determineStatus(session)).toBe(AgentStatus.WAITING);
       });
 
       it('should return "running" when the last message is from the user', () => {
@@ -782,7 +790,7 @@ describe("GeminiCliAdapter", () => {
           lastActive: new Date(),
           lastMessageType: "user",
         };
-        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.RUNNING);
+        expect(parser.determineStatus(session)).toBe(AgentStatus.RUNNING);
       });
 
       it('should return "idle" when last activity is older than the threshold', () => {
@@ -794,7 +802,7 @@ describe("GeminiCliAdapter", () => {
           lastActive: new Date(Date.now() - 10 * 60 * 1000),
           lastMessageType: "gemini",
         };
-        expect((adapter as any).determineStatus(session)).toBe(AgentStatus.IDLE);
+        expect(parser.determineStatus(session)).toBe(AgentStatus.IDLE);
       });
     });
 
@@ -812,7 +820,7 @@ describe("GeminiCliAdapter", () => {
           ],
         });
 
-        const result = (adapter as any).parseSession(undefined, filePath);
+        const result = parser.parseSession(undefined, filePath);
         expect(result).toMatchObject({
           sessionId: "s1",
           projectPath: "/repo",
@@ -829,24 +837,24 @@ describe("GeminiCliAdapter", () => {
           messages: [],
         });
 
-        const result = (adapter as any).parseSession(content, "/does/not/exist.json");
+        const result = parser.parseSession(content, "/does/not/exist.json");
         expect(result?.sessionId).toBe("s2");
       });
 
       it("should return null for a missing file with no cached content", () => {
-        expect((adapter as any).parseSession(undefined, "/missing.json")).toBeNull();
+        expect(parser.parseSession(undefined, "/missing.json")).toBeNull();
       });
 
       it("should return null when the file is not valid JSON", () => {
         const filePath = path.join(tmpHome, "broken.json");
         fs.writeFileSync(filePath, "not json");
-        expect((adapter as any).parseSession(undefined, filePath)).toBeNull();
+        expect(parser.parseSession(undefined, filePath)).toBeNull();
       });
 
       it("should return null when sessionId is missing", () => {
         const filePath = path.join(tmpHome, "no-id.json");
         fs.writeFileSync(filePath, JSON.stringify({ messages: [] }));
-        expect((adapter as any).parseSession(undefined, filePath)).toBeNull();
+        expect(parser.parseSession(undefined, filePath)).toBeNull();
       });
 
       it("should default the summary when no user message has content", () => {
@@ -865,7 +873,7 @@ describe("GeminiCliAdapter", () => {
           ],
         });
 
-        const result = (adapter as any).parseSession(undefined, filePath);
+        const result = parser.parseSession(undefined, filePath);
         expect(result?.summary).toBe("Gemini CLI session active");
       });
 
@@ -881,7 +889,7 @@ describe("GeminiCliAdapter", () => {
           ],
         });
 
-        const result = (adapter as any).parseSession(undefined, filePath);
+        const result = parser.parseSession(undefined, filePath);
         expect(result?.summary.length).toBe(120);
         expect(result?.summary.endsWith("...")).toBe(true);
       });
@@ -902,7 +910,7 @@ describe("GeminiCliAdapter", () => {
           ],
         });
 
-        const result = (adapter as any).parseSession(undefined, filePath);
+        const result = parser.parseSession(undefined, filePath);
         expect(result?.summary).toBe("hello from part continued");
       });
 
@@ -922,7 +930,7 @@ describe("GeminiCliAdapter", () => {
           ],
         });
 
-        expect(() => (adapter as any).parseSession(undefined, filePath)).not.toThrow();
+        expect(() => parser.parseSession(undefined, filePath)).not.toThrow();
       });
 
       it("should drop non-text parts (data/file) when resolving user content", () => {
@@ -945,7 +953,7 @@ describe("GeminiCliAdapter", () => {
           ],
         });
 
-        const result = (adapter as any).parseSession(undefined, filePath);
+        const result = parser.parseSession(undefined, filePath);
         expect(result?.summary).toBe("readable text + more");
       });
 
@@ -958,7 +966,7 @@ describe("GeminiCliAdapter", () => {
           messages: [{ id: "m1", timestamp: "2026-04-18T00:00:01Z", type: "user", content: "hi" }],
         });
 
-        const result = (adapter as any).parseSession(undefined, filePath);
+        const result = parser.parseSession(undefined, filePath);
         expect(result?.lastActive.toISOString()).toBe("2026-04-18T00:10:00.000Z");
       });
     });
