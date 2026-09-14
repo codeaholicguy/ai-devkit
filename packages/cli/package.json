@@ -38,7 +38,7 @@
   "dependencies": {
     "@ai-devkit/agent-manager": "0.33.1",
     "@ai-devkit/channel-connector": "0.13.3",
-    "@ai-devkit/memory": "0.20.0",
+    "@ai-devkit/memory": "0.20.1",
     "@inquirer/prompts": "^8.5.2",
     "chalk": "^5.6.0",
     "commander": "^11.1.0",
