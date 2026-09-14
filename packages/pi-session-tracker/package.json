@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/pi-session-tracker",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Pi extension that tracks active sessions by PID in a shared JSON registry (~/.pi/agent/sessions.json)",
   "keywords": [
     "agent",
