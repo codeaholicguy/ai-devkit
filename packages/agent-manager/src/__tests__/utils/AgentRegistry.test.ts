@@ -92,24 +92,34 @@ describe("AgentRegistry", () => {
       });
     });
 
-    it("lets a Herdr managed start replace an existing same-pid name", () => {
+    it("preserves existing identity and routing fields for same-pid refreshes", () => {
       const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "requested-name" };
 
-      registry.register(makeEntry({ name: "old-name", pid: process.pid }));
+      registry.register(
+        makeEntry({
+          name: "old-name",
+          pid: process.pid,
+          runtime: "tmux",
+          runtimeRef: { session: "old-name" },
+          cwd: "/original",
+        }),
+      );
       registry.register(
         makeEntry({
           name: "requested-name",
           pid: process.pid,
           runtime: "herdr",
           runtimeRef,
+          cwd: "/incoming",
         }),
       );
 
-      expect(registry.lookup("old-name")).toBeNull();
-      expect(registry.lookup("requested-name")).toMatchObject({
+      expect(registry.lookup("requested-name")).toBeNull();
+      expect(registry.lookup("old-name")).toMatchObject({
         pid: process.pid,
-        runtime: "herdr",
-        runtimeRef,
+        runtime: "tmux",
+        runtimeRef: { session: "old-name" },
+        cwd: "/original",
       });
     });
 
@@ -127,11 +137,11 @@ describe("AgentRegistry", () => {
       expect(registry.lookup("a")?.runtimeRef).toBeNull();
     });
 
-    it("lets a managed start entry replace a generated fallback for the same pid", () => {
+    it("preserves an existing generated fallback for the same pid", () => {
       registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, runtimeRef: null }));
       registry.register(makeEntry({ name: "custom-name", runtimeRef: { session: "custom-name" } }));
-      expect(registry.lookup("custom-name")?.runtimeRef).toEqual({ session: "custom-name" });
-      expect(registry.lookup(`ai-devkit-${process.pid}`)).toBeNull();
+      expect(registry.lookup("custom-name")).toBeNull();
+      expect(registry.lookup(`ai-devkit-${process.pid}`)?.runtimeRef).toBeNull();
       expect(registry.list()).toHaveLength(1);
     });
 
@@ -186,7 +196,7 @@ describe("AgentRegistry", () => {
       registry.register(makeEntry({ name: `ai-devkit-${process.pid}`, runtimeRef: null }));
 
       expect(registry.list()).toHaveLength(1);
-      expect(registry.lookup("custom-name")?.pid).toBe(process.pid);
+      expect(registry.lookup(`ai-devkit-${process.pid}`)?.pid).toBe(process.pid);
     });
 
     it("cleans up a cross-type row when its pid has been reused", () => {

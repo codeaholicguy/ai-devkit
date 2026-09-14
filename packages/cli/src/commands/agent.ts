@@ -66,6 +66,7 @@ import { select } from "@inquirer/prompts";
 import { resolveTmuxInstallInstructions } from "../util/tmux.js";
 import { createTmuxInspectionDeps } from "../util/tmux-deps.js";
 import { ConfigManager } from "../lib/Config.js";
+import { getErrorMessage } from "../util/text.js";
 
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -195,7 +196,15 @@ function findSessionById(
 }
 
 function createAgentManager(): AgentManager {
-  const manager = new AgentManager(AgentRegistry.default());
+  const configManager = new ConfigManager();
+  const manager = new AgentManager(AgentRegistry.default(), undefined, {
+    runtimeProvider: () => configManager.getAgentRuntimeProvider(),
+    onRuntimeDiscoveryError: (error) => {
+      createLogger("agent")(
+        `Herdr pane discovery unavailable for live agent enrichment: ${getErrorMessage(error)}`,
+      );
+    },
+  });
   manager.registerAdapter(new ClaudeCodeAdapter());
   manager.registerAdapter(new CodexAdapter());
   manager.registerAdapter(new CopilotAdapter());

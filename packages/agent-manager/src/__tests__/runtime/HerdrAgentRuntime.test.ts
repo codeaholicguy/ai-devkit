@@ -186,9 +186,28 @@ describe("HerdrAgentRuntime", () => {
       agentResponse(),
       processInfoResponse({ shellPid: 12000 }),
     ]);
-    const runtime = new HerdrAgentRuntime({ runner, env: {} });
+    const runtime = new HerdrAgentRuntime({ runner, env: {}, processInfoPollMs: 0 });
 
     await expect(runtime.startAgent(startInput)).resolves.toMatchObject({ pid: 12000 });
+  });
+
+  it("waits for a foreground process pid before falling back to the pane shell pid", async () => {
+    const runner = createRunner([
+      workspaceResponse(),
+      agentResponse(),
+      processInfoResponse({ shellPid: 12000 }),
+      processInfoResponse({ shellPid: 12000, pid: 12345, processName: "node" }),
+    ]);
+    const runtime = new HerdrAgentRuntime({
+      runner,
+      env: {},
+      processInfoPollMs: 100,
+      processInfoPollIntervalMs: 0,
+    });
+
+    await expect(runtime.startAgent(startInput)).resolves.toMatchObject({ pid: 12345 });
+    expect(runner).toHaveBeenNthCalledWith(3, "herdr", ["pane", "process-info", "--pane", "w1:p1"]);
+    expect(runner).toHaveBeenNthCalledWith(4, "herdr", ["pane", "process-info", "--pane", "w1:p1"]);
   });
 
   it("passes only explicit extra agent args after the Herdr start separator", async () => {

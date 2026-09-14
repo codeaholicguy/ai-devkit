@@ -13,8 +13,19 @@ import type {
   ProcessInfo,
 } from "./adapters/AgentAdapter.js";
 import { sortAgents, type AgentSortKey } from "./utils/sortAgents.js";
-import { AgentRegistry, type RegistryEntry } from "./utils/AgentRegistry.js";
+import {
+  AgentRegistry,
+  parseTmuxRuntimeRef,
+  type AgentRuntimeProvider,
+  type RegistryEntry,
+} from "./utils/AgentRegistry.js";
 import { captureProcessSnapshot, filterByProcessNames } from "./utils/process.js";
+import {
+  findMatchingHerdrPane,
+  fetchHerdrAgentPanes,
+  herdrPaneToRuntimeRef,
+  type HerdrAgentPane,
+} from "./runtime/herdr/HerdrAgentDiscovery.js";
 
 type ProcessSnapshotCapture = (namePatterns: readonly string[]) => Promise<ProcessInfo[]>;
 
@@ -24,6 +35,14 @@ export interface ListAgentsOptions {
    * waiting → running → idle → unknown, then by name for stability.
    */
   sortBy?: AgentSortKey;
+}
+
+export interface AgentManagerOptions {
+  runtimeProvider?:
+    | AgentRuntimeProvider
+    | (() => AgentRuntimeProvider | Promise<AgentRuntimeProvider>);
+  fetchHerdrAgentPanes?: () => Promise<readonly HerdrAgentPane[]>;
+  onRuntimeDiscoveryError?: (error: unknown) => void;
 }
 
 export class AgentNotRunningError extends Error {
@@ -55,6 +74,7 @@ export class AgentManager {
   constructor(
     registry: AgentRegistry = AgentRegistry.default(),
     private readonly captureSnapshot: ProcessSnapshotCapture = captureProcessSnapshot,
+    private readonly options: AgentManagerOptions = {},
   ) {
     this.registry = registry;
   }
@@ -193,8 +213,13 @@ export class AgentManager {
     const preExistingByIdentity = new Map(
       this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
     );
+    const herdrPanes = allAgents.length > 0 ? await this.resolveHerdrPanes() : [];
     const entries = allAgents.map((agent) =>
-      this.toRegistryEntry(agent, preExistingByIdentity.get(identityKey(agent.type, agent.pid))),
+      this.toRegistryEntry(
+        agent,
+        preExistingByIdentity.get(identityKey(agent.type, agent.pid)),
+        herdrPanes,
+      ),
     );
     if (entries.length > 0) this.registry.registerBatch(entries);
     this.registry.pruneIfDue();
@@ -212,9 +237,33 @@ export class AgentManager {
     return sortAgents(allAgents, sortKey);
   }
 
-  private toRegistryEntry(agent: AgentInfo, existing?: RegistryEntry): RegistryEntry {
-    return {
-      name: existing?.name ?? agent.name,
+  private async resolveHerdrPanes(): Promise<readonly HerdrAgentPane[]> {
+    const runtimeProvider = await this.resolveRuntimeProvider();
+    if (runtimeProvider !== "herdr") return [];
+
+    try {
+      return await (this.options.fetchHerdrAgentPanes ?? fetchHerdrAgentPanes)();
+    } catch (error) {
+      this.options.onRuntimeDiscoveryError?.(error);
+      return [];
+    }
+  }
+
+  private async resolveRuntimeProvider(): Promise<AgentRuntimeProvider | undefined> {
+    const runtimeProvider = this.options.runtimeProvider;
+    return typeof runtimeProvider === "function" ? await runtimeProvider() : runtimeProvider;
+  }
+
+  private toRegistryEntry(
+    agent: AgentInfo,
+    existing?: RegistryEntry,
+    herdrPanes: readonly HerdrAgentPane[] = [],
+  ): RegistryEntry {
+    const name = existing?.name ?? agent.name;
+    const existingHasAuthoritativeRuntimeRef =
+      existing?.runtime === "herdr" || Boolean(parseTmuxRuntimeRef(existing?.runtimeRef));
+    const baseEntry: RegistryEntry = {
+      name,
       type: agent.type,
       pid: agent.pid,
       runtime: existing?.runtime ?? "tmux",
@@ -225,6 +274,19 @@ export class AgentManager {
       sessionFilePath: agent.sessionFilePath ?? "",
       pinned: existing?.pinned ?? agent.pinned ?? false,
     };
+
+    if (!existingHasAuthoritativeRuntimeRef) {
+      const herdrPane = findMatchingHerdrPane(agent, herdrPanes);
+      if (herdrPane) {
+        return {
+          ...baseEntry,
+          runtime: "herdr",
+          runtimeRef: herdrPaneToRuntimeRef(herdrPane, name),
+        };
+      }
+    }
+
+    return baseEntry;
   }
 
   togglePin(agentName: string): boolean {

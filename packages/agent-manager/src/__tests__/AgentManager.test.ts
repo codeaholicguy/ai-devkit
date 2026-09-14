@@ -16,6 +16,7 @@ import type {
 } from "../adapters/AgentAdapter.js";
 import { AgentStatus } from "../adapters/AgentAdapter.js";
 import { AgentRegistry, type RegistryEntry } from "../utils/AgentRegistry.js";
+import type { HerdrAgentPane } from "../runtime/herdr/HerdrAgentDiscovery.js";
 
 // Mock adapter for testing
 class MockAdapter implements AgentAdapter {
@@ -360,6 +361,15 @@ describe("AgentManager", () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
 
+    function useHerdrPanes(panes: readonly HerdrAgentPane[]): ReturnType<typeof vi.fn> {
+      const fetchHerdrPanes = vi.fn().mockResolvedValue(panes);
+      scopedManager = new AgentManager(registry, undefined, {
+        runtimeProvider: "herdr",
+        fetchHerdrAgentPanes: fetchHerdrPanes,
+      });
+      return fetchHerdrPanes;
+    }
+
     it("persists every detected agent to the registry", async () => {
       scopedManager.registerAdapter(
         new MockAdapter("claude", [
@@ -388,6 +398,223 @@ describe("AgentManager", () => {
         runtimeRef: null,
       });
       expect(entries[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it("persists a Herdr runtime ref for manually discovered agents matched by session id", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          agentSessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w31:p1",
+          workspaceId: "w31",
+          tabId: "w31:t1",
+        },
+      ]);
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-44290",
+            type: "codex",
+            pid: process.pid,
+            sessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+            sessionFilePath: "/path/codex.jsonl",
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.list()[0]).toMatchObject({
+        name: "ai-devkit-44290",
+        type: "codex",
+        pid: process.pid,
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w31:p1",
+          workspaceId: "w31",
+          tabId: "w31:t1",
+          agentName: "ai-devkit-44290",
+        },
+      });
+    });
+
+    it("upgrades an existing tmux fallback row when Herdr later matches by session id", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          agentSessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w31:p1",
+        },
+      ]);
+      registry.register({
+        name: "ai-devkit-44290",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/ai-devkit",
+        startedAt: "2026-09-14T00:00:00.000Z",
+        sessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+        sessionFilePath: "/path/codex.jsonl",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-44290",
+            type: "codex",
+            pid: process.pid,
+            sessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+            sessionFilePath: "/path/codex.jsonl",
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.lookup("ai-devkit-44290")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w31:p1",
+          agentName: "ai-devkit-44290",
+        },
+      });
+    });
+
+    it("upgrades an existing tmux fallback row when Herdr matches by foreground pid", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w31:p1",
+          foregroundPids: [44290],
+        },
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w32:p1",
+          foregroundPids: [process.pid],
+        },
+      ]);
+      registry.register({
+        name: "ai-devkit-64904",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/ai-devkit",
+        startedAt: "2026-09-14T00:00:00.000Z",
+        sessionId: `pid-${process.pid}`,
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-64904",
+            type: "codex",
+            pid: process.pid,
+            sessionId: `pid-${process.pid}`,
+            sessionFilePath: undefined,
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w32:p1",
+          agentName: "ai-devkit-64904",
+        },
+      });
+    });
+
+    it("fetches Herdr panes automatically when the configured runtime is Herdr", async () => {
+      const fetchHerdrPanes = useHerdrPanes([
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w32:p1",
+          foregroundPids: [process.pid],
+        },
+      ]);
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-64904",
+            type: "codex",
+            pid: process.pid,
+            sessionId: `pid-${process.pid}`,
+            sessionFilePath: undefined,
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(fetchHerdrPanes).toHaveBeenCalledOnce();
+      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w32:p1",
+          agentName: "ai-devkit-64904",
+        },
+      });
+    });
+
+    it("upgrades an existing tmux row with a malformed runtime ref when Herdr matches", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w32:p1",
+          foregroundPids: [process.pid],
+        },
+      ]);
+      registry.register({
+        name: "ai-devkit-64904",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: {},
+        cwd: "/cwd/ai-devkit",
+        startedAt: "2026-09-14T00:00:00.000Z",
+        sessionId: `pid-${process.pid}`,
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-64904",
+            type: "codex",
+            pid: process.pid,
+            sessionId: `pid-${process.pid}`,
+            sessionFilePath: undefined,
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w32:p1",
+          agentName: "ai-devkit-64904",
+        },
+      });
     });
 
     it("prunes entries for dead pids", async () => {
@@ -620,7 +847,7 @@ describe("AgentManager", () => {
       expect(agents[0].lastActive.toISOString()).toBe("2026-01-01T00:00:00.000Z");
     });
 
-    it("persists changed fields once in one write transaction", async () => {
+    it("does not persist passive cwd changes when an existing cwd is present", async () => {
       const adapter = new MockAdapter("claude", [
         createMockAgent({ name: "changing", pid: process.pid, projectPath: "/cwd/before" }),
       ]);
@@ -636,10 +863,9 @@ describe("AgentManager", () => {
 
       const upserts = databaseOperations.filter((sql) => /^\s*INSERT INTO agents/i.test(sql));
       const transactions = databaseOperations.filter((sql) => /^\s*(BEGIN|COMMIT)/i.test(sql));
-      expect(upserts).toHaveLength(1);
-      expect(upserts[0]).toContain("'2026-08-14T10:00:01.000Z'");
-      expect(transactions).toHaveLength(2);
-      expect(registry.lookup("changing")?.cwd).toBe("/cwd/after");
+      expect(upserts).toHaveLength(0);
+      expect(transactions).toHaveLength(0);
+      expect(registry.lookup("changing")?.cwd).toBe("/cwd/before");
     });
 
     it("prunes newly dead entries only when the passive cadence is due", async () => {

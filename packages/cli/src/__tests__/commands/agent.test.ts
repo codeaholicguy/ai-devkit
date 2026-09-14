@@ -543,7 +543,14 @@ describe("agent command", () => {
     registerAgentCommand(program);
     await program.parseAsync(["node", "test", "agent", "list", "--json"]);
 
-    expect(AgentManager).toHaveBeenCalled();
+    expect(AgentManager).toHaveBeenCalledWith(
+      mockRegistry,
+      undefined,
+      expect.objectContaining({
+        runtimeProvider: expect.any(Function),
+        onRuntimeDiscoveryError: expect.any(Function),
+      }),
+    );
     expect(mockManager.registerAdapter).toHaveBeenCalledTimes(7);
     expect(logSpy).toHaveBeenCalledWith(
       JSON.stringify([{ ...agents[0], mode: "interactive" }], null, 2),
@@ -1308,6 +1315,35 @@ Waiting on user input`,
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
     expect(mockTtyWriterSend).toHaveBeenCalledWith(location, "continue");
     expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
+  });
+
+  it("lets AgentManager handle Herdr enrichment during interactive send resolution", async () => {
+    const agent = {
+      name: "repo-a",
+      type: "codex",
+      status: AgentStatus.WAITING,
+      summary: "Waiting",
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: "session-1",
+      sessionFilePath: "/tmp/session.jsonl",
+    };
+    const runtimeRef = { session: "default", paneId: "w31:p1", agentName: "repo-a" };
+    mockAgentRuntimeProvider.mockResolvedValue("herdr");
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockRegistry.lookup.mockReturnValue({ name: "repo-a", runtime: "herdr", runtimeRef, pid: 10 });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(["node", "test", "agent", "send", "continue", "--id", "repo-a"]);
+
+    const managerOptions = (AgentManager as unknown as Mock).mock.calls[0][2];
+    await expect(managerOptions.runtimeProvider()).resolves.toBe("herdr");
+    expect(mockManager.listAgents).toHaveBeenCalledWith();
+    expect(mockHerdrSend).toHaveBeenCalledWith({ runtimeRef, prompt: "continue" });
+    expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
+    expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
 
   it("sends Herdr-backed prompts and waits through the AI DevKit session transcript", async () => {

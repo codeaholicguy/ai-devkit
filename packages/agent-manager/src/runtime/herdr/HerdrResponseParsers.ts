@@ -30,15 +30,25 @@ export function extractAgentRuntimeRef(
 }
 
 export function extractProcessInfoPid(value: unknown): number | null {
+  return extractForegroundProcessInfoPid(value) ?? extractShellPid(value);
+}
+
+export function extractForegroundProcessInfoPid(value: unknown): number | null {
   const processInfo = getObject(value, ["result", "process_info"]);
   if (!processInfo) return null;
   const processes = processInfo.foreground_processes;
-  if (!Array.isArray(processes)) return numberOrNull(processInfo.shell_pid);
+  if (!Array.isArray(processes)) return null;
   for (const processInfo of processes) {
     if (!processInfo || typeof processInfo !== "object") continue;
     const pid = numberOrNull((processInfo as { pid?: unknown }).pid);
     if (pid !== null) return pid;
   }
+  return null;
+}
+
+export function extractShellPid(value: unknown): number | null {
+  const processInfo = getObject(value, ["result", "process_info"]);
+  if (!processInfo) return null;
   return numberOrNull(processInfo.shell_pid);
 }
 

@@ -3,6 +3,7 @@ import { HerdrRuntimeError } from "./HerdrErrors.js";
 import { parseHerdrRuntimeRef } from "./HerdrRuntimeRef.js";
 import {
   extractAgentRuntimeRef,
+  extractForegroundProcessInfoPid,
   extractProcessInfoPid,
   extractWorkspaceStart,
 } from "./HerdrResponseParsers.js";
@@ -18,12 +19,16 @@ import type {
 
 const AGENT_START_BUSY_RETRY_MS = 5000;
 const AGENT_START_BUSY_RETRY_INTERVAL_MS = 100;
+const PROCESS_INFO_POLL_MS = 3000;
+const PROCESS_INFO_POLL_INTERVAL_MS = 100;
 
 export interface HerdrRuntimeOptions {
   runner?: HerdrCommandRunner;
   env?: NodeJS.ProcessEnv;
   agentStartBusyRetryMs?: number;
   agentStartBusyRetryIntervalMs?: number;
+  processInfoPollMs?: number;
+  processInfoPollIntervalMs?: number;
 }
 
 export class HerdrAgentRuntime implements InteractiveAgentRuntime {
@@ -33,6 +38,8 @@ export class HerdrAgentRuntime implements InteractiveAgentRuntime {
   private readonly env: NodeJS.ProcessEnv;
   private readonly agentStartBusyRetryMs: number;
   private readonly agentStartBusyRetryIntervalMs: number;
+  private readonly processInfoPollMs: number;
+  private readonly processInfoPollIntervalMs: number;
 
   constructor(options: HerdrRuntimeOptions = {}) {
     this.client = new HerdrCliClient(options.runner);
@@ -40,6 +47,9 @@ export class HerdrAgentRuntime implements InteractiveAgentRuntime {
     this.agentStartBusyRetryMs = options.agentStartBusyRetryMs ?? AGENT_START_BUSY_RETRY_MS;
     this.agentStartBusyRetryIntervalMs =
       options.agentStartBusyRetryIntervalMs ?? AGENT_START_BUSY_RETRY_INTERVAL_MS;
+    this.processInfoPollMs = options.processInfoPollMs ?? PROCESS_INFO_POLL_MS;
+    this.processInfoPollIntervalMs =
+      options.processInfoPollIntervalMs ?? PROCESS_INFO_POLL_INTERVAL_MS;
   }
 
   async isAvailable(): Promise<AgentRuntimeAvailability> {
@@ -99,13 +109,7 @@ export class HerdrAgentRuntime implements InteractiveAgentRuntime {
       paneId: workspace.paneId,
       workspaceId: workspace.workspaceId,
     });
-    const processInfoResponse = await this.client.runJson([
-      "pane",
-      "process-info",
-      "--pane",
-      runtimeRef.paneId,
-    ]);
-    const pid = extractProcessInfoPid(processInfoResponse);
+    const pid = await this.readStartedAgentPid(runtimeRef.paneId);
     if (pid === null) {
       throw new HerdrRuntimeError("Herdr pane process-info response did not include process pid.");
     }
@@ -177,6 +181,28 @@ export class HerdrAgentRuntime implements InteractiveAgentRuntime {
         code: "agent_pane_busy",
       })
     );
+  }
+
+  private async readStartedAgentPid(paneId: string): Promise<number | null> {
+    const deadline = Date.now() + this.processInfoPollMs;
+    let fallbackPid: number | null = null;
+
+    do {
+      const processInfoResponse = await this.client.runJson([
+        "pane",
+        "process-info",
+        "--pane",
+        paneId,
+      ]);
+      const foregroundPid = extractForegroundProcessInfoPid(processInfoResponse);
+      if (foregroundPid !== null) return foregroundPid;
+      fallbackPid ??= extractProcessInfoPid(processInfoResponse);
+
+      if (Date.now() >= deadline) break;
+      await sleep(this.processInfoPollIntervalMs);
+    } while (Date.now() < deadline);
+
+    return fallbackPid;
   }
 }
 

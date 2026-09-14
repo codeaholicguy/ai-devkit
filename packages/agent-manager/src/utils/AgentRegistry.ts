@@ -130,14 +130,16 @@ export class AgentRegistry {
 
   private mergeEntry(incoming: RegistryEntry, existing: RegistryEntry | undefined): RegistryEntry {
     if (!existing) return incoming;
-    const incomingIsManaged =
-      incoming.runtime === "herdr" || Boolean(parseTmuxRuntimeRef(incoming.runtimeRef));
+    const keepExistingRuntime =
+      existing.runtime === "herdr" ||
+      Boolean(parseTmuxRuntimeRef(existing.runtimeRef)) ||
+      incoming.runtime !== "herdr";
     return {
       ...existing,
-      name: incomingIsManaged ? incoming.name : existing.name,
-      runtime: incoming.runtime ?? existing.runtime,
-      runtimeRef: incoming.runtimeRef ?? existing.runtimeRef,
-      cwd: incoming.cwd || existing.cwd,
+      name: existing.name,
+      runtime: keepExistingRuntime ? existing.runtime : incoming.runtime,
+      runtimeRef: keepExistingRuntime ? existing.runtimeRef : incoming.runtimeRef,
+      cwd: existing.cwd || incoming.cwd,
       startedAt: existing.startedAt || incoming.startedAt,
       sessionId: incoming.sessionId || existing.sessionId,
       sessionFilePath: incoming.sessionFilePath || existing.sessionFilePath,

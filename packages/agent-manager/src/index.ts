@@ -43,7 +43,14 @@ export { TerminalFocusManager, TerminalType } from "./terminal/TerminalFocusMana
 export type { TerminalLocation } from "./terminal/TerminalFocusManager.js";
 export { TtyWriter } from "./terminal/TtyWriter.js";
 
-export type { ListAgentsOptions } from "./AgentManager.js";
+export type { AgentManagerOptions, ListAgentsOptions } from "./AgentManager.js";
+export {
+  extractHerdrAgentPanes,
+  fetchHerdrAgentPanes,
+  findMatchingHerdrPane,
+  herdrPaneToRuntimeRef,
+} from "./runtime/herdr/HerdrAgentDiscovery.js";
+export type { HerdrAgentPane } from "./runtime/herdr/HerdrAgentDiscovery.js";
 
 export {
   AgentRegistry,
