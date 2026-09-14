@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.62.2] - 2026-09-14
+
+- [7af9864](https://github.com/codeaholicguy/ai-devkit/commit/7af9864) Fixed agent status losing registry routing when the agent list is refreshed, and cleaned up opencode process listeners on stop ([1a3a002](https://github.com/codeaholicguy/ai-devkit/commit/1a3a002)) via `@ai-devkit/agent-manager` 0.33.1 (pinned in this release; also moves the copilot and gemini adapters into the provider structure with no public API changes).
+- Re-pinned `@ai-devkit/memory` to 0.20.1 and `@ai-devkit/channel-connector` to 0.13.4 — parity patch releases with no functional changes (tooling/format only).
+- Published previously unreleased package versions and added their missing publish workflows: `@ai-devkit/task-manager` 0.4.0 (WAL concurrency fix, #206), `@ai-devkit/memory-dashboard` 0.1.3, `@ai-devkit/pi-session-tracker` 0.1.1.
+- Clarified the Telegram channel authorization flow in the remote skill docs ([26fff09](https://github.com/codeaholicguy/ai-devkit/commit/26fff09)) and added a release smoke-test script plus a Codex plugin build script.
+
 ## [0.62.1] - 2026-09-11
 
 - Fixed the published package composition: 0.62.0 shipped importing `AGENT_RUNTIME_PROVIDERS` and other exports from `@ai-devkit/agent-manager` 0.33.0 while pinning 0.32.0, breaking fresh installs. 0.62.1 pins `@ai-devkit/agent-manager` 0.33.0 (published with this release). 0.62.0 has been removed from npm.
