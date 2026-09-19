@@ -3,6 +3,7 @@ export { CodexAdapter } from "../providers/codex/CodexAdapter.js";
 export { CopilotAdapter } from "../providers/copilot/CopilotAdapter.js";
 export { GeminiCliAdapter } from "../providers/gemini/GeminiCliAdapter.js";
 export { GrokCliAdapter } from "./GrokCliAdapter.js";
+export { KiroAdapter } from "./KiroAdapter.js";
 export { OpenCodeAdapter } from "../providers/opencode/OpenCodeAdapter.js";
 export { PiAdapter } from "../providers/pi/PiAdapter.js";
 export { AgentStatus } from "./AgentAdapter.js";
