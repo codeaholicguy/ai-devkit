@@ -100,6 +100,7 @@ Supported start types:
 | `grok_cli` | Grok CLI |
 | `opencode` | opencode |
 | `pi` | Pi |
+| `kiro` | Kiro CLI |
 
 Starting an agent from the console uses a managed tmux session. If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 
