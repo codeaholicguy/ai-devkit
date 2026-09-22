@@ -67,6 +67,15 @@ import { resolveTmuxInstallInstructions } from "../util/tmux.js";
 import { createTmuxInspectionDeps } from "../util/tmux-deps.js";
 import { ConfigManager } from "../lib/Config.js";
 import { getErrorMessage } from "../util/text.js";
+import {
+  compactSession,
+  renderSessionCompactMarkdown,
+} from "../services/session-compact/session-compact.service.js";
+import { createJevSessionEventClassifier } from "../services/session-compact/jev-classifier.js";
+import {
+  JEV_UNAVAILABLE_MESSAGE,
+  JEV_UNAVAILABLE_REASON,
+} from "../services/session-compact/session-compact.types.js";
 
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -604,6 +613,68 @@ export function registerAgentCommand(program: Command): void {
         ui.text(`  ${chalk.bold("File:")}        ${session.sessionFilePath}`);
         ui.breakline();
         renderConversationDetail(displayMessages, conversation.length, isTruncated);
+      }),
+    );
+
+  sessionCommand
+    .command("compact")
+    .description("Compact a historical session into a Jev-classified continuation artifact")
+    .requiredOption("--id <sessionId>", "Session ID (as shown in agent sessions)")
+    .option(
+      "--type <type>",
+      "Filter to one of: claude, codex, gemini_cli, grok_cli, opencode, copilot, pi",
+    )
+    .option("--format <format>", "Output format: markdown or json", "markdown")
+    .action(
+      withErrorHandler("compact session", async (options) => {
+        if (options.format !== "markdown" && options.format !== "json") {
+          throw new Error("Invalid --format. Expected markdown or json.");
+        }
+
+        const apiKey = process.env.TYPESAFE_API_KEY?.trim();
+        if (!apiKey) {
+          if (options.format === "json") {
+            console.log(
+              JSON.stringify(
+                { jev: { available: false, reason: JEV_UNAVAILABLE_REASON } },
+                null,
+                2,
+              ),
+            );
+          } else {
+            console.log(JEV_UNAVAILABLE_MESSAGE);
+          }
+          return;
+        }
+
+        const manager = createAgentManager();
+        const listOptions = resolveListSessionsOptions({
+          all: true,
+          type: options.type,
+        }).adapterOptions;
+        const sessions = await manager.listSessions(listOptions);
+        const resolved = findSessionById(sessions, options.id);
+
+        if (!resolved) {
+          throw new Error(`No session found matching "${options.id}".`);
+        }
+        if (Array.isArray(resolved)) {
+          throw new Error(
+            `Multiple sessions match "${options.id}". Use --type to choose the intended session source.`,
+          );
+        }
+
+        const adapter = manager.getAdapter(resolved.type);
+        if (!adapter) throw new Error(`Unsupported agent type: ${resolved.type}`);
+
+        const conversation = adapter.getConversation(resolved.sessionFilePath, { verbose: true });
+        const classifier = createJevSessionEventClassifier(apiKey);
+        const result = await compactSession(conversation, classifier);
+        console.log(
+          options.format === "json"
+            ? JSON.stringify(result, null, 2)
+            : renderSessionCompactMarkdown(result),
+        );
       }),
     );
 

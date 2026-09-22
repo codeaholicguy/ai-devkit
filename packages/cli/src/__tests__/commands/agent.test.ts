@@ -59,6 +59,12 @@ const mockSpinner: any = {
 };
 
 const mockSelect: any = vi.fn();
+const { mockCompactSession, mockRenderSessionCompactMarkdown, mockCreateJevClassifier } =
+  vi.hoisted(() => ({
+    mockCompactSession: vi.fn(),
+    mockRenderSessionCompactMarkdown: vi.fn(),
+    mockCreateJevClassifier: vi.fn(),
+  }));
 
 const mockTtyWriterSend = vi
   .fn<(location: any, message: string) => Promise<void>>()
@@ -295,6 +301,15 @@ vi.mock("../../util/debug.js", () => ({
   createLogger: () => mockDebugLogger,
 }));
 
+vi.mock("../../services/session-compact/session-compact.service.js", () => ({
+  compactSession: mockCompactSession,
+  renderSessionCompactMarkdown: mockRenderSessionCompactMarkdown,
+}));
+
+vi.mock("../../services/session-compact/jev-classifier.js", () => ({
+  createJevSessionEventClassifier: mockCreateJevClassifier,
+}));
+
 vi.mock("../../util/tmux.js", () => ({
   resolveTmuxInstallInstructions: mockTmuxInstructions,
 }));
@@ -379,6 +394,9 @@ describe("agent command", () => {
     mockManager.resolveAgent.mockReset();
     mockManager.getAdapter.mockReset();
     mockAgentAdapter.getConversation.mockReset();
+    mockCompactSession.mockReset();
+    mockRenderSessionCompactMarkdown.mockReset();
+    mockCreateJevClassifier.mockReset();
     mockDurableRepository.list.mockReset().mockResolvedValue([]);
     mockDurableRepository.resolve.mockReset().mockResolvedValue(null);
     mockDurableService.create.mockReset();
@@ -2767,6 +2785,179 @@ Waiting on user input`,
       ]);
 
       expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: "opencode" });
+    });
+  });
+
+  describe("session compact", () => {
+    const session = {
+      type: "codex",
+      sessionId: "sess-compact",
+      cwd: "/repo",
+      firstUserMessage: "implement it",
+      lastActive: new Date("2026-09-22T01:00:00Z"),
+      startedAt: new Date("2026-09-22T00:00:00Z"),
+      sessionFilePath: "/tmp/sess-compact.jsonl",
+    };
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("returns the exact Markdown unavailable result before reading sessions", async () => {
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "compact",
+        "--id",
+        "sess-compact",
+      ]);
+
+      expect(logSpy).toHaveBeenCalledWith(
+        "Jev is unavailable because TYPESAFE_API_KEY is not set.",
+      );
+      expect(mockManager.listSessions).not.toHaveBeenCalled();
+      expect(mockCreateJevClassifier).not.toHaveBeenCalled();
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+
+    it("returns a structured unavailable result in JSON mode", async () => {
+      vi.stubEnv("TYPESAFE_API_KEY", "");
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "compact",
+        "--id",
+        "sess-compact",
+        "--format",
+        "json",
+      ]);
+
+      expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toEqual({
+        jev: { available: false, reason: "TYPESAFE_API_KEY is not set" },
+      });
+      expect(mockManager.listSessions).not.toHaveBeenCalled();
+    });
+
+    it("resolves the historical session and renders a Jev compact", async () => {
+      vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+      const messages = [{ role: "user", content: "implement it" }];
+      const classifier = { model: "jev-test", classify: vi.fn() };
+      const compact = {
+        intent: "implement it",
+        currentState: "done",
+        decisions: [],
+        changedFiles: [],
+        commands: [],
+        validation: [],
+        openQuestions: [],
+        nextStep: "review",
+        memoryCandidates: [],
+        resumePrompt: "review",
+        jev: { available: true, model: "jev-test", classifiedEvents: 1 },
+      };
+      mockManager.listSessions.mockResolvedValue([session]);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue(messages);
+      mockCreateJevClassifier.mockReturnValue(classifier);
+      mockCompactSession.mockResolvedValue(compact);
+      mockRenderSessionCompactMarkdown.mockReturnValue("# Session Compact\n");
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "compact",
+        "--id",
+        "sess-compact",
+        "--type",
+        "codex",
+      ]);
+
+      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: "codex" });
+      expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith("/tmp/sess-compact.jsonl", {
+        verbose: true,
+      });
+      expect(mockCreateJevClassifier).toHaveBeenCalledWith("test-key");
+      expect(mockCompactSession).toHaveBeenCalledWith(messages, classifier);
+      expect(logSpy).toHaveBeenCalledWith("# Session Compact\n");
+    });
+
+    it("emits the successful compact as JSON without Markdown rendering", async () => {
+      vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+      const classifier = { model: "jev-test", classify: vi.fn() };
+      const compact = {
+        intent: "implement it",
+        currentState: "done",
+        decisions: [],
+        changedFiles: [],
+        commands: [],
+        validation: [],
+        openQuestions: [],
+        nextStep: "review",
+        memoryCandidates: [],
+        resumePrompt: "review",
+        jev: { available: true, model: "jev-test", classifiedEvents: 1 },
+      };
+      mockManager.listSessions.mockResolvedValue([session]);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([]);
+      mockCreateJevClassifier.mockReturnValue(classifier);
+      mockCompactSession.mockResolvedValue(compact);
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "compact",
+        "--id",
+        "sess-compact",
+        "--format",
+        "json",
+      ]);
+
+      expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toEqual(compact);
+      expect(mockRenderSessionCompactMarkdown).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unsupported format before reading sessions", async () => {
+      vi.stubEnv("TYPESAFE_API_KEY", "test-key");
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "compact",
+        "--id",
+        "sess-compact",
+        "--format",
+        "yaml",
+      ]);
+
+      expect(ui.error).toHaveBeenCalledWith(
+        "Failed to compact session: Invalid --format. Expected markdown or json.",
+      );
+      expect(mockManager.listSessions).not.toHaveBeenCalled();
+      expect(process.exit).toHaveBeenCalledWith(1);
     });
   });
 
