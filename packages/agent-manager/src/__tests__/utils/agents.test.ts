@@ -21,4 +21,11 @@ describe("AGENTS", () => {
     expect(AGENTS.grok_cli.matches("/Users/dev/.grok/bin/grok --always-approve")).toBe(true);
     expect(AGENTS.grok_cli.matches("node /repo/feature-grok-cli/script.js")).toBe(false);
   });
+
+  it("includes Kiro as a startable agent", () => {
+    expect(AGENTS.kiro.command).toBe("kiro-cli");
+    expect(AGENTS.kiro.matches("kiro-cli")).toBe(true);
+    expect(AGENTS.kiro.matches("/usr/local/bin/kiro --model x")).toBe(true);
+    expect(AGENTS.kiro.matches("node /repo/feature-kiro-adapter/script.js")).toBe(false);
+  });
 });
