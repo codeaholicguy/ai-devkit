@@ -85,6 +85,13 @@ vi.mock("../../util/terminal.js", () => ({
     mockIsInteractiveTerminal(...args),
 }));
 
+// ui.text receives chalk-formatted strings; assertions must hold with or
+// without color support (piped vs TTY, FORCE_COLOR in CI).
+const ANSI_PATTERN =
+  /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+const textCalls = (): string[] =>
+  vi.mocked(ui.text).mock.calls.map(([text]) => text.replace(ANSI_PATTERN, ""));
+
 vi.mock("@inquirer/prompts", () => ({
   checkbox: (...args: unknown[]) => mockCheckbox(...args),
 }));
@@ -576,17 +583,12 @@ describe("skill command", () => {
     expect(ui.success).toHaveBeenCalledWith(
       "Installed frontend-design from anthropics/skills",
     );
-    expect(ui.text).toHaveBeenNthCalledWith(1, "  Source: anthropics/skills");
-    expect(ui.text).toHaveBeenNthCalledWith(
-      2,
-      "  Installed to (global): claude, codex",
-    );
-    expect(ui.text).toHaveBeenNthCalledWith(
-      3,
+    expect(textCalls()[0]).toBe("  Source: anthropics/skills");
+    expect(textCalls()[1]).toBe("  Installed to (global): claude, codex");
+    expect(textCalls()[2]).toBe(
       "✔ ~/.claude/skills/frontend-design/SKILL.md — symlinked",
     );
-    expect(ui.text).toHaveBeenNthCalledWith(
-      4,
+    expect(textCalls()[3]).toBe(
       "⚠ ~/.codex/skills/frontend-design/SKILL.md — already exists, skipped",
     );
     expect(ui.info).not.toHaveBeenCalledWith(
@@ -854,16 +856,13 @@ describe("skill command", () => {
     expect(ui.success).toHaveBeenCalledWith(
       "Removed frontend-design from 2 locations",
     );
-    expect(ui.text).toHaveBeenNthCalledWith(
-      1,
+    expect(textCalls()[0]).toBe(
       "  Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.",
     );
-    expect(ui.text).toHaveBeenNthCalledWith(
-      2,
+    expect(textCalls()[1]).toBe(
       "✔ /workspace/.claude/skills/frontend-design — removed",
     );
-    expect(ui.text).toHaveBeenNthCalledWith(
-      3,
+    expect(textCalls()[2]).toBe(
       "✔ /workspace/.codex/skills/frontend-design — removed",
     );
   });
