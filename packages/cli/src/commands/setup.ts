@@ -1,4 +1,5 @@
 import type { Command } from "commander";
+import chalk from "chalk";
 import {
   createSetupService,
   SUPPORTED_SETUP_AGENTS,
@@ -21,7 +22,9 @@ export function registerSetupCommand(program: Command): void {
     .action(setupCommand);
 }
 
-export async function setupCommand(options: SetupCommandOptions = {}): Promise<void> {
+export async function setupCommand(
+  options: SetupCommandOptions = {},
+): Promise<void> {
   const agents = parseAgents(options.agent);
 
   if (agents === null) {
@@ -38,9 +41,21 @@ export async function setupCommand(options: SetupCommandOptions = {}): Promise<v
   ui.summary({
     title: "Setup Summary",
     items: [
-      { type: "success", count: counts.installed, label: "step(s) installed" },
-      { type: "warning", count: counts.skipped, label: "step(s) skipped" },
-      { type: "error", count: counts.failed, label: "step(s) failed" },
+      {
+        type: "success",
+        count: counts.installed,
+        label: stepLabel(counts.installed, "installed"),
+      },
+      {
+        type: "warning",
+        count: counts.skipped,
+        label: stepLabel(counts.skipped, "skipped"),
+      },
+      {
+        type: "error",
+        count: counts.failed,
+        label: stepLabel(counts.failed, "failed"),
+      },
     ],
   });
 
@@ -55,25 +70,45 @@ export async function setupCommand(options: SetupCommandOptions = {}): Promise<v
   });
 
   if (tmux.state === "available") {
-    ui.text("Host Prerequisites");
-    ui.success(tmux.version ? `tmux ${tmux.version} available` : `${tmux.rawVersion} available`);
+    renderSectionHeader("Host Prerequisites");
+    ui.success(
+      tmux.version
+        ? `tmux ${tmux.version} available`
+        : `${tmux.rawVersion} available`,
+    );
   } else if (tmux.state === "missing") {
     const instructions = await resolveTmuxInstallInstructions(tmuxDeps);
-    ui.text("Next steps");
+    renderSectionHeader("Next steps");
     ui.warning(
       `Next step: install tmux (${instructions.command}), then run ai-devkit setup again to start managed agents.`,
     );
   } else {
-    ui.text("Next steps");
+    renderSectionHeader("Next steps");
     ui.warning(
       `tmux check could not run (${tmux.rawVersion}) — verify tmux works before starting agents.`,
     );
   }
 
   process.exitCode = counts.failed > 0 ? 1 : 0;
+  if (process.exitCode === 0) {
+    ui.success("Setup completed successfully.");
+  }
 }
 
-function parseAgents(value: string | undefined): SetupAgent[] | undefined | null {
+function renderSectionHeader(label: string): void {
+  ui.text(chalk.bold(`${label}:`));
+}
+
+function stepLabel(
+  count: number,
+  status: "installed" | "skipped" | "failed",
+): string {
+  return `${count === 1 ? "step" : "steps"} ${status}`;
+}
+
+function parseAgents(
+  value: string | undefined,
+): SetupAgent[] | undefined | null {
   if (!value?.trim()) {
     return undefined;
   }
@@ -99,7 +134,9 @@ function isSetupAgent(agent: string): agent is SetupAgent {
   return SUPPORTED_SETUP_AGENTS.includes(agent as SetupAgent);
 }
 
-function countStatuses(statuses: SetupStepStatus[]): Record<SetupStepStatus, number> {
+function countStatuses(
+  statuses: SetupStepStatus[],
+): Record<SetupStepStatus, number> {
   return statuses.reduce<Record<SetupStepStatus, number>>(
     (counts, status) => {
       counts[status] += 1;
