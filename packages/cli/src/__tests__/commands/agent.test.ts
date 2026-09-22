@@ -66,7 +66,11 @@ const mockTtyWriterSend = vi
 const mockStartAgent = vi.fn<(...args: any[]) => Promise<any>>();
 const mockStopAgent = vi.fn<(...args: any[]) => Promise<any>>();
 const mockFocusAgent =
-  vi.fn<(...args: any[]) => Promise<{ focused: true } | { focused: false; reason: string }>>();
+  vi.fn<
+    (
+      ...args: any[]
+    ) => Promise<{ focused: true } | { focused: false; reason: string }>
+  >();
 const mockSendAgentPrompt = vi.fn<(...args: any[]) => Promise<any>>();
 const {
   mockEnableDebug,
@@ -87,10 +91,13 @@ const {
   mockTmuxIsAvailable: vi.fn().mockResolvedValue(true),
   mockTmuxInstructions: vi.fn().mockResolvedValue({
     command: "sudo apt-get update && sudo apt-get install tmux",
-    message: "Install it with: sudo apt-get update && sudo apt-get install tmux.",
+    message:
+      "Install it with: sudo apt-get update && sudo apt-get install tmux.",
   }),
   mockAgentRuntimeProvider: vi.fn().mockResolvedValue("tmux"),
-  mockHerdrIsAvailable: vi.fn().mockResolvedValue({ ok: true, insideRuntime: false }),
+  mockHerdrIsAvailable: vi
+    .fn()
+    .mockResolvedValue({ ok: true, insideRuntime: false }),
   mockHerdrStartAgent: vi.fn().mockResolvedValue({
     pid: 12345,
     runtimeRef: { session: "default", paneId: "w1:p2", agentName: "agent1" },
@@ -231,7 +238,10 @@ vi.mock(
     TerminalFocusManager: vi.fn(function () {
       return mockFocusManager;
     }),
-    TtyWriter: { send: (location: any, message: string) => mockTtyWriterSend(location, message) },
+    TtyWriter: {
+      send: (location: any, message: string) =>
+        mockTtyWriterSend(location, message),
+    },
     AgentStatus: {
       RUNNING: "running",
       WAITING: "waiting",
@@ -254,7 +264,8 @@ vi.mock(
     AgentTerminalNotFoundError,
     DEFAULT_PID_POLL_TIMEOUT_MS: 15_000,
     parseTmuxRuntimeRef: vi.fn((value: unknown) => {
-      if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+      if (!value || typeof value !== "object" || Array.isArray(value))
+        return null;
       const session = (value as { session?: unknown }).session;
       return typeof session === "string" && session ? { session } : null;
     }),
@@ -299,7 +310,9 @@ vi.mock("../../util/tmux.js", () => ({
   resolveTmuxInstallInstructions: mockTmuxInstructions,
 }));
 
-vi.mock("../../util/tmux-deps.js", () => ({ createTmuxInspectionDeps: () => ({}) }));
+vi.mock("../../util/tmux-deps.js", () => ({
+  createTmuxInspectionDeps: () => ({}),
+}));
 
 vi.mock("../../lib/Config.js", () => ({
   ConfigManager: vi.fn(function () {
@@ -392,7 +405,11 @@ describe("agent command", () => {
       if (opts.runtimeProvider === "herdr") {
         const availability = await mockHerdrIsAvailable();
         if (!availability.ok) {
-          throw new AgentRuntimeUnavailableError("herdr", availability.reason, availability.detail);
+          throw new AgentRuntimeUnavailableError(
+            "herdr",
+            availability.reason,
+            availability.detail,
+          );
         }
         const result = await mockHerdrStartAgent({
           name: opts.name,
@@ -428,35 +445,41 @@ describe("agent command", () => {
         pinned: false,
       };
     });
-    mockStopAgent.mockReset().mockImplementation(async (agent: any, deps: any) => {
-      const registryEntry = deps.registry.lookup(agent.name);
-      if (registryEntry?.runtime === "herdr") {
-        await mockHerdrStop({ runtimeRef: registryEntry.runtimeRef });
+    mockStopAgent
+      .mockReset()
+      .mockImplementation(async (agent: any, deps: any) => {
+        const registryEntry = deps.registry.lookup(agent.name);
+        if (registryEntry?.runtime === "herdr") {
+          await mockHerdrStop({ runtimeRef: registryEntry.runtimeRef });
+          return {
+            agentName: agent.name,
+            pid: agent.pid,
+            runtime: "herdr",
+            runtimeRef: registryEntry.runtimeRef,
+          };
+        }
         return {
           agentName: agent.name,
           pid: agent.pid,
-          runtime: "herdr",
-          runtimeRef: registryEntry.runtimeRef,
+          runtime: "tmux",
+          runtimeRef: { session: agent.name },
         };
-      }
-      return {
-        agentName: agent.name,
-        pid: agent.pid,
-        runtime: "tmux",
-        runtimeRef: { session: agent.name },
-      };
-    });
-    mockFocusAgent.mockReset().mockImplementation(async (_agent: any, deps: any) => {
-      const registryEntry = deps.registry.lookup(_agent.name);
-      if (registryEntry?.runtime === "herdr") {
-        await mockHerdrFocus({ runtimeRef: registryEntry.runtimeRef });
-        return { focused: true };
-      }
-      const location = await deps.focusManager.findTerminal(_agent.pid);
-      if (!location) return { focused: false, reason: "terminal-not-found" };
-      const focused = await deps.focusManager.focusTerminal(location);
-      return focused ? { focused: true } : { focused: false, reason: "focus-failed" };
-    });
+      });
+    mockFocusAgent
+      .mockReset()
+      .mockImplementation(async (_agent: any, deps: any) => {
+        const registryEntry = deps.registry.lookup(_agent.name);
+        if (registryEntry?.runtime === "herdr") {
+          await mockHerdrFocus({ runtimeRef: registryEntry.runtimeRef });
+          return { focused: true };
+        }
+        const location = await deps.focusManager.findTerminal(_agent.pid);
+        if (!location) return { focused: false, reason: "terminal-not-found" };
+        const focused = await deps.focusManager.focusTerminal(location);
+        return focused
+          ? { focused: true }
+          : { focused: false, reason: "focus-failed" };
+      });
     mockSendAgentPrompt
       .mockReset()
       .mockImplementation(async (agent: any, prompt: string, deps: any) => {
@@ -479,7 +502,9 @@ describe("agent command", () => {
     mockRegistry.rename.mockReset();
     mockTmuxIsAvailable.mockReset().mockResolvedValue(true);
     mockAgentRuntimeProvider.mockReset().mockResolvedValue("tmux");
-    mockHerdrIsAvailable.mockReset().mockResolvedValue({ ok: true, insideRuntime: false });
+    mockHerdrIsAvailable
+      .mockReset()
+      .mockResolvedValue({ ok: true, insideRuntime: false });
     mockHerdrStartAgent.mockReset().mockResolvedValue({
       pid: 12345,
       runtimeRef: { session: "default", paneId: "w1:p2", agentName: "agent1" },
@@ -491,20 +516,27 @@ describe("agent command", () => {
     mockHerdrStop.mockReset().mockResolvedValue(undefined);
     mockTmuxInstructions.mockReset().mockResolvedValue({
       command: "sudo apt-get update && sudo apt-get install tmux",
-      message: "Install it with: sudo apt-get update && sudo apt-get install tmux.",
+      message:
+        "Install it with: sudo apt-get update && sudo apt-get install tmux.",
     });
     Object.values(mockGroupStore).forEach((method) => method.mockReset());
     mockGroupStore.list.mockReturnValue([]);
     process.exitCode = undefined;
     logSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    stdoutSpy = vi
+      .spyOn(process.stdout, "write")
+      .mockImplementation(() => true);
+    stderrSpy = vi
+      .spyOn(process.stderr, "write")
+      .mockImplementation(() => true);
     vi.spyOn(process, "exit").mockImplementation((() => {}) as any);
   });
 
   function mockReadableStdin(input: string): void {
     const originalIsTTY = process.stdin.isTTY;
-    const setEncodingSpy = vi.spyOn(process.stdin, "setEncoding").mockReturnValue(process.stdin);
+    const setEncodingSpy = vi
+      .spyOn(process.stdin, "setEncoding")
+      .mockReturnValue(process.stdin);
 
     Object.defineProperty(process.stdin, "isTTY", {
       configurable: true,
@@ -642,7 +674,9 @@ describe("agent command", () => {
     ]);
 
     expect(mockEnableDebug).toHaveBeenCalledTimes(1);
-    expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (claude, PID 12345)');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Agent "agent1" started (claude, PID 12345)',
+    );
   });
 
   it("shows the platform-aware tmux install hint when interactive start is unavailable", async () => {
@@ -694,9 +728,13 @@ describe("agent command", () => {
       timeoutMs: DEFAULT_PID_POLL_TIMEOUT_MS,
     });
     expect(mockTmuxIsAvailable).not.toHaveBeenCalled();
-    expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (codex, PID 12345)');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Agent "agent1" started (codex, PID 12345)',
+    );
     expect(ui.text).toHaveBeenCalledWith("Runtime: herdr");
-    expect(ui.text).not.toHaveBeenCalledWith(expect.stringContaining("tmux attach"));
+    expect(ui.text).not.toHaveBeenCalledWith(
+      expect.stringContaining("tmux attach"),
+    );
   });
 
   it("reports Herdr runtime availability errors during interactive start", async () => {
@@ -739,7 +777,9 @@ describe("agent command", () => {
   });
 
   it("renders table and waiting summary for list", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-02-26T10:00:00.000Z").getTime());
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date("2026-02-26T10:00:00.000Z").getTime(),
+    );
     mockManager.listAgents.mockResolvedValue([
       {
         name: "repo-a",
@@ -778,10 +818,105 @@ describe("agent command", () => {
     expect(tableArg.rows[1][2]).toBe("Codex");
     expect(tableArg.rows[0][3]).toBe("interactive");
     expect(tableArg.rows[1][3]).toBe("interactive");
-    expect(tableArg.rows[0][4]).toContain("wait");
+    expect(tableArg.rows[0][4]).toBe("Waiting");
     expect(tableArg.rows[0][6]).toBe("just now");
     expect(tableArg.maxWidth).toBe(process.stdout.columns ?? 120);
-    expect(ui.warning).toHaveBeenCalledWith("1 agent(s) waiting for input.");
+    expect(ui.warning).toHaveBeenCalledWith("1 agent waiting for input.");
+  });
+
+  it("pluralizes the waiting summary for multiple waiting agents", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date("2026-02-26T10:00:00.000Z").getTime(),
+    );
+    mockManager.listAgents.mockResolvedValue([
+      {
+        name: "repo-a",
+        type: "claude",
+        status: AgentStatus.WAITING,
+        summary: "Need input",
+        lastActive: new Date("2026-02-26T10:00:00.000Z"),
+        pid: 100,
+      },
+      {
+        name: "repo-b",
+        type: "codex",
+        status: AgentStatus.WAITING,
+        summary: "Need input",
+        lastActive: new Date("2026-02-26T09:55:00.000Z"),
+        pid: 101,
+      },
+    ]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(["node", "test", "agent", "list"]);
+
+    expect(ui.warning).toHaveBeenCalledWith("2 agents waiting for input.");
+  });
+
+  it("renders interactive and durable agents in separate tables", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date("2026-02-26T10:00:00.000Z").getTime(),
+    );
+    mockManager.listAgents.mockResolvedValue([
+      {
+        name: "repo-a",
+        type: "claude",
+        status: AgentStatus.RUNNING,
+        summary: "Investigating",
+        lastActive: new Date("2026-02-26T09:55:00.000Z"),
+        pid: 100,
+      },
+    ]);
+    mockDurableRepository.list.mockResolvedValue([
+      {
+        id: "11111111-1111-4111-8111-111111111111",
+        name: "reviewer",
+        provider: "claude",
+        mode: "durable",
+        cwd: "/project",
+        providerSessionId: "22222222-2222-4222-8222-222222222222",
+        state: "ready",
+        sessionHealth: "uninitialized",
+        lastActiveAt: "2026-02-26T10:05:00.000Z",
+        lastResult: null,
+      },
+    ]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(["node", "test", "agent", "list"]);
+
+    expect(ui.text).toHaveBeenCalledWith("Interactive Agents:", {
+      breakline: true,
+    });
+    expect(ui.text).toHaveBeenCalledWith("Durable Agents:", {
+      breakline: true,
+    });
+    expect(ui.table).toHaveBeenCalledTimes(2);
+    const interactiveTable: any = (ui.table as any).mock.calls[0][0];
+    const durableTable: any = (ui.table as any).mock.calls[1][0];
+    expect(interactiveTable.headers).toEqual([
+      "Agent",
+      "Project",
+      "Type",
+      "Mode",
+      "Status",
+      "Working On",
+      "Active",
+    ]);
+    expect(durableTable.headers).toEqual([
+      "Agent",
+      "Project",
+      "Provider",
+      "Mode",
+      "State",
+      "Session",
+      "Active",
+    ]);
+    expect(interactiveTable.rows[0][4]).toBe("Running");
+    expect(durableTable.rows[0][4]).toBe("ready");
+    expect(durableTable.rows[0][6]).toBe("in 5m");
   });
 
   it("renders durable agents as durable without leaking the internal print mode", async () => {
@@ -812,7 +947,9 @@ describe("agent command", () => {
   });
 
   it("formats all agent types with human-friendly labels", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-02-26T10:00:00.000Z").getTime());
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date("2026-02-26T10:00:00.000Z").getTime(),
+    );
     mockManager.listAgents.mockResolvedValue([
       {
         name: "a",
@@ -869,7 +1006,9 @@ describe("agent command", () => {
   });
 
   it("truncates working-on text to first line", async () => {
-    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-02-26T10:00:00.000Z").getTime());
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date("2026-02-26T10:00:00.000Z").getTime(),
+    );
     mockManager.listAgents.mockResolvedValue([
       {
         name: "repo-a",
@@ -887,13 +1026,83 @@ Waiting on user input`,
     await program.parseAsync(["node", "test", "agent", "list"]);
 
     const tableArg: any = (ui.table as any).mock.calls[0][0];
-    expect(tableArg.rows[0][5]).toBe("Investigating parser bug");
+    expect(tableArg.rows[0][5]).toBe(
+      "Investigating parser bug … Use `ai-devkit agent detail --id repo-a`.",
+    );
+  });
+
+  it("renders agent detail with local timestamps and a width-derived separator", async () => {
+    Object.defineProperty(process.stdout, "columns", {
+      configurable: true,
+      value: 72,
+    });
+    vi.spyOn(Date, "now").mockReturnValue(
+      new Date("2026-02-26T10:00:00.000Z").getTime(),
+    );
+    const lastActive = new Date("2026-02-26T09:58:00.000Z");
+    const agent = {
+      name: "repo-a",
+      type: "claude",
+      status: AgentStatus.RUNNING,
+      summary: "Investigating",
+      lastActive,
+      pid: 100,
+      sessionId: "sess-1",
+      projectPath: "/project",
+      sessionFilePath: "/tmp/sess-1.jsonl",
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockAgentAdapter.getConversation.mockReturnValue([
+      {
+        role: "user",
+        content: "hello",
+        timestamp: "2026-02-26T09:57:00.000Z",
+      },
+    ]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "detail",
+      "--id",
+      "repo-a",
+    ]);
+
+    expect(ui.text).toHaveBeenCalledWith("Agent Detail", { breakline: true });
+    expect(ui.text).toHaveBeenCalledWith(
+      expect.stringContaining("─".repeat(70)),
+    );
+    expect(ui.text).toHaveBeenCalledWith(
+      expect.stringContaining(
+        new Date("2026-02-26T09:57:00.000Z").toLocaleString(),
+      ),
+    );
+    expect(ui.text).toHaveBeenCalledWith(
+      expect.stringContaining(`${lastActive.toLocaleString()} (2m ago)`),
+    );
   });
 
   it("shows available agents when open target is not found", async () => {
     mockManager.listAgents.mockResolvedValue([
-      { name: "repo-a", status: AgentStatus.RUNNING, summary: "A", lastActive: new Date(), pid: 1 },
-      { name: "repo-b", status: AgentStatus.WAITING, summary: "B", lastActive: new Date(), pid: 2 },
+      {
+        name: "repo-a",
+        status: AgentStatus.RUNNING,
+        summary: "A",
+        lastActive: new Date(),
+        pid: 1,
+      },
+      {
+        name: "repo-b",
+        status: AgentStatus.WAITING,
+        summary: "B",
+        lastActive: new Date(),
+        pid: 2,
+      },
     ]);
     mockManager.resolveAgent.mockReturnValue(null);
 
@@ -917,7 +1126,10 @@ Waiting on user input`,
     };
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "1:1" });
+    mockFocusManager.findTerminal.mockResolvedValue({
+      type: "tmux",
+      identifier: "1:1",
+    });
     mockFocusManager.focusTerminal.mockResolvedValue(true);
     mockSelect.mockResolvedValue(agent);
 
@@ -965,7 +1177,10 @@ Waiting on user input`,
     };
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "1:1" });
+    mockFocusManager.findTerminal.mockResolvedValue({
+      type: "tmux",
+      identifier: "1:1",
+    });
     mockFocusManager.focusTerminal.mockResolvedValue(false);
 
     const program = new Command();
@@ -974,7 +1189,9 @@ Waiting on user input`,
 
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
     expect(mockFocusManager.focusTerminal).toHaveBeenCalled();
-    expect(mockSpinner.fail).toHaveBeenCalledWith('Failed to switch focus to "repo-a".');
+    expect(mockSpinner.fail).toHaveBeenCalledWith(
+      'Failed to switch focus to "repo-a".',
+    );
   });
 
   it("focuses Herdr-backed agents through Herdr instead of terminal PID lookup", async () => {
@@ -985,10 +1202,19 @@ Waiting on user input`,
       lastActive: new Date(),
       pid: 10,
     };
-    const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "repo-a" };
+    const runtimeRef = {
+      session: "default",
+      paneId: "w1:p2",
+      agentName: "repo-a",
+    };
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockRegistry.lookup.mockReturnValue({ name: "repo-a", runtime: "herdr", runtimeRef, pid: 10 });
+    mockRegistry.lookup.mockReturnValue({
+      name: "repo-a",
+      runtime: "herdr",
+      runtimeRef,
+      pid: 10,
+    });
 
     const program = new Command();
     registerAgentCommand(program);
@@ -1009,12 +1235,22 @@ Waiting on user input`,
     };
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockFocusManager.findTerminal.mockResolvedValue({ type: "wezterm", identifier: "7" });
+    mockFocusManager.findTerminal.mockResolvedValue({
+      type: "wezterm",
+      identifier: "7",
+    });
     mockFocusManager.focusTerminal.mockResolvedValue(true);
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "open", "repo-a", "--debug"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "open",
+      "repo-a",
+      "--debug",
+    ]);
 
     expect(mockEnableDebug).toHaveBeenCalledTimes(1);
     // A debug logger callback is passed into TerminalFocusManager so its
@@ -1067,10 +1303,19 @@ Waiting on user input`,
       lastActive: new Date(),
       pid: 10,
     };
-    const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "repo-a" };
+    const runtimeRef = {
+      session: "default",
+      paneId: "w1:p2",
+      agentName: "repo-a",
+    };
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockRegistry.lookup.mockReturnValue({ name: "repo-a", runtime: "herdr", runtimeRef, pid: 10 });
+    mockRegistry.lookup.mockReturnValue({
+      name: "repo-a",
+      runtime: "herdr",
+      runtimeRef,
+      pid: 10,
+    });
 
     const program = new Command();
     registerAgentCommand(program);
@@ -1078,7 +1323,9 @@ Waiting on user input`,
 
     expect(mockHerdrStop).toHaveBeenCalledWith({ runtimeRef });
     expect(mockStopAgent).toHaveBeenCalled();
-    expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 10) and Herdr pane.');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Stopped agent "repo-a" (PID 10) and Herdr pane.',
+    );
   });
 
   it("does not kill when target is ambiguous", async () => {
@@ -1152,8 +1399,13 @@ Waiting on user input`,
       "worker",
     ]);
 
-    expect(mockGroupStore.create).toHaveBeenCalledWith("backend-team", ["api", "worker"]);
-    expect(ui.success).toHaveBeenCalledWith('Created agent group "backend-team" with 2 member(s).');
+    expect(mockGroupStore.create).toHaveBeenCalledWith("backend-team", [
+      "api",
+      "worker",
+    ]);
+    expect(ui.success).toHaveBeenCalledWith(
+      'Created agent group "backend-team" with 2 member(s).',
+    );
   });
 
   it("updates an agent group by replacing members", async () => {
@@ -1177,8 +1429,13 @@ Waiting on user input`,
       "worker-v2",
     ]);
 
-    expect(mockGroupStore.update).toHaveBeenCalledWith("backend-team", ["api-v2", "worker-v2"]);
-    expect(ui.success).toHaveBeenCalledWith('Updated agent group "backend-team" with 2 member(s).');
+    expect(mockGroupStore.update).toHaveBeenCalledWith("backend-team", [
+      "api-v2",
+      "worker-v2",
+    ]);
+    expect(ui.success).toHaveBeenCalledWith(
+      'Updated agent group "backend-team" with 2 member(s).',
+    );
   });
 
   it("adds a member to an agent group", async () => {
@@ -1189,10 +1446,23 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "group", "add", "backend-team", "docs"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "group",
+      "add",
+      "backend-team",
+      "docs",
+    ]);
 
-    expect(mockGroupStore.addMember).toHaveBeenCalledWith("backend-team", "docs");
-    expect(ui.success).toHaveBeenCalledWith('Agent group "backend-team" now has 2 member(s).');
+    expect(mockGroupStore.addMember).toHaveBeenCalledWith(
+      "backend-team",
+      "docs",
+    );
+    expect(ui.success).toHaveBeenCalledWith(
+      'Agent group "backend-team" now has 2 member(s).',
+    );
   });
 
   it("removes a member from an agent group", async () => {
@@ -1213,17 +1483,31 @@ Waiting on user input`,
       "api",
     ]);
 
-    expect(mockGroupStore.removeMember).toHaveBeenCalledWith("backend-team", "api");
-    expect(ui.success).toHaveBeenCalledWith('Agent group "backend-team" now has 1 member(s).');
+    expect(mockGroupStore.removeMember).toHaveBeenCalledWith(
+      "backend-team",
+      "api",
+    );
+    expect(ui.success).toHaveBeenCalledWith(
+      'Agent group "backend-team" now has 1 member(s).',
+    );
   });
 
   it("removes an agent group", async () => {
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "group", "remove", "backend-team"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "group",
+      "remove",
+      "backend-team",
+    ]);
 
     expect(mockGroupStore.remove).toHaveBeenCalledWith("backend-team");
-    expect(ui.success).toHaveBeenCalledWith('Removed agent group "backend-team".');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Removed agent group "backend-team".',
+    );
   });
 
   it("lists configured agent groups", async () => {
@@ -1255,10 +1539,19 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "group", "detail", "backend-team"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "group",
+      "detail",
+      "backend-team",
+    ]);
 
     expect(mockGroupStore.get).toHaveBeenCalledWith("backend-team");
-    expect(ui.text).toHaveBeenCalledWith("Agent Group: backend-team", { breakline: true });
+    expect(ui.text).toHaveBeenCalledWith("Agent Group: backend-team", {
+      breakline: true,
+    });
     expect(ui.text).toHaveBeenCalledWith("  - api");
     expect(ui.text).toHaveBeenCalledWith("  - worker");
   });
@@ -1270,7 +1563,14 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "group", "detail", "Bad_Name"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "group",
+      "detail",
+      "Bad_Name",
+    ]);
 
     expect(ui.error).toHaveBeenCalledWith(
       'Failed to manage agent group: Invalid agent group name "Bad_Name".',
@@ -1285,7 +1585,14 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "group", "remove", "missing"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "group",
+      "remove",
+      "missing",
+    ]);
 
     expect(ui.error).toHaveBeenCalledWith(
       'Failed to manage agent group: Agent group "missing" not found.',
@@ -1309,7 +1616,15 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "continue", "--id", "repo-a"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "continue",
+      "--id",
+      "repo-a",
+    ]);
 
     expect(mockManager.resolveAgent).toHaveBeenCalledWith("repo-a", [agent]);
     expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(10);
@@ -1328,20 +1643,40 @@ Waiting on user input`,
       sessionId: "session-1",
       sessionFilePath: "/tmp/session.jsonl",
     };
-    const runtimeRef = { session: "default", paneId: "w31:p1", agentName: "repo-a" };
+    const runtimeRef = {
+      session: "default",
+      paneId: "w31:p1",
+      agentName: "repo-a",
+    };
     mockAgentRuntimeProvider.mockResolvedValue("herdr");
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
-    mockRegistry.lookup.mockReturnValue({ name: "repo-a", runtime: "herdr", runtimeRef, pid: 10 });
+    mockRegistry.lookup.mockReturnValue({
+      name: "repo-a",
+      runtime: "herdr",
+      runtimeRef,
+      pid: 10,
+    });
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "continue", "--id", "repo-a"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "continue",
+      "--id",
+      "repo-a",
+    ]);
 
     const managerOptions = (AgentManager as unknown as Mock).mock.calls[0][2];
     await expect(managerOptions.runtimeProvider()).resolves.toBe("herdr");
     expect(mockManager.listAgents).toHaveBeenCalledWith();
-    expect(mockHerdrSend).toHaveBeenCalledWith({ runtimeRef, prompt: "continue" });
+    expect(mockHerdrSend).toHaveBeenCalledWith({
+      runtimeRef,
+      prompt: "continue",
+    });
     expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
@@ -1357,16 +1692,28 @@ Waiting on user input`,
       sessionId: "session-1",
       sessionFilePath: "/tmp/session.jsonl",
     };
-    const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "repo-a" };
+    const runtimeRef = {
+      session: "default",
+      paneId: "w1:p2",
+      agentName: "repo-a",
+    };
     const historical = [{ role: "assistant", content: "old response" }];
-    const withNewResponse = [...historical, { role: "assistant", content: "done" }];
+    const withNewResponse = [
+      ...historical,
+      { role: "assistant", content: "done" },
+    ];
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
     mockAgentAdapter.getConversation
       .mockReturnValueOnce(historical)
       .mockReturnValueOnce(withNewResponse);
-    mockRegistry.lookup.mockReturnValue({ name: "repo-a", runtime: "herdr", runtimeRef, pid: 10 });
+    mockRegistry.lookup.mockReturnValue({
+      name: "repo-a",
+      runtime: "herdr",
+      runtimeRef,
+      pid: 10,
+    });
 
     const program = new Command();
     registerAgentCommand(program);
@@ -1383,14 +1730,20 @@ Waiting on user input`,
       "2000",
     ]);
 
-    expect(mockHerdrSend).toHaveBeenCalledWith({ runtimeRef, prompt: "continue" });
-    expect(mockManager.getAdapter).toHaveBeenCalledWith("codex");
-    expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith("/tmp/session.jsonl", {
-      verbose: false,
+    expect(mockHerdrSend).toHaveBeenCalledWith({
+      runtimeRef,
+      prompt: "continue",
     });
-    expect(mockAgentAdapter.getConversation.mock.invocationCallOrder[0]).toBeLessThan(
-      mockHerdrSend.mock.invocationCallOrder[0],
+    expect(mockManager.getAdapter).toHaveBeenCalledWith("codex");
+    expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith(
+      "/tmp/session.jsonl",
+      {
+        verbose: false,
+      },
     );
+    expect(
+      mockAgentAdapter.getConversation.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockHerdrSend.mock.invocationCallOrder[0]);
     expect(mockHerdrWait).not.toHaveBeenCalled();
     expect(mockHerdrReadOutput).not.toHaveBeenCalled();
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
@@ -1490,7 +1843,9 @@ Waiting on user input`,
       name: "reviewer",
       cwd: process.cwd(),
     });
-    expect(ui.text).toHaveBeenCalledWith("State: ready (Codex session not started)");
+    expect(ui.text).toHaveBeenCalledWith(
+      "State: ready (Codex session not started)",
+    );
   });
 
   it("selects the persisted Codex provider for send JSON", async () => {
@@ -1525,8 +1880,13 @@ Waiting on user input`,
       "--json",
     ]);
 
-    expect(mockCodexPrintService.send).toHaveBeenCalledWith(durableAgent.id, "review");
-    expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe("codex");
+    expect(mockCodexPrintService.send).toHaveBeenCalledWith(
+      durableAgent.id,
+      "review",
+    );
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe(
+      "codex",
+    );
   });
 
   it("starts a durable Pi agent without tmux", async () => {
@@ -1559,7 +1919,9 @@ Waiting on user input`,
       name: "reviewer",
       cwd: process.cwd(),
     });
-    expect(ui.text).toHaveBeenCalledWith("State: ready (Pi session not started)");
+    expect(ui.text).toHaveBeenCalledWith(
+      "State: ready (Pi session not started)",
+    );
   });
 
   it("dispatches durable send to the persisted Pi provider", async () => {
@@ -1591,8 +1953,13 @@ Waiting on user input`,
       durableAgent.id,
       "--json",
     ]);
-    expect(mockPiPrintService.send).toHaveBeenCalledWith(durableAgent.id, "review");
-    expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe("pi");
+    expect(mockPiPrintService.send).toHaveBeenCalledWith(
+      durableAgent.id,
+      "review",
+    );
+    expect(JSON.parse(logSpy.mock.calls[0][0] as string).target.provider).toBe(
+      "pi",
+    );
   });
 
   it("sends synchronously to an exact durable-agent id without terminal injection", async () => {
@@ -1623,7 +1990,10 @@ Waiting on user input`,
       durableAgent.id,
     ]);
 
-    expect(mockDurableService.send).toHaveBeenCalledWith(durableAgent.id, "review this");
+    expect(mockDurableService.send).toHaveBeenCalledWith(
+      durableAgent.id,
+      "review this",
+    );
     expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
     expect(ui.text).toHaveBeenCalledWith("review complete");
   });
@@ -1655,7 +2025,9 @@ Waiting on user input`,
     ]);
 
     expect(mockDurableService.send).not.toHaveBeenCalled();
-    expect(ui.error).toHaveBeenCalledWith(expect.stringContaining("--timeout is not supported"));
+    expect(ui.error).toHaveBeenCalledWith(
+      expect.stringContaining("--timeout is not supported"),
+    );
     expect(process.exit).toHaveBeenCalledWith(1);
   });
 
@@ -1676,9 +2048,20 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "--id", "repo-a", "--stdin"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "--id",
+      "repo-a",
+      "--stdin",
+    ]);
 
-    expect(mockTtyWriterSend).toHaveBeenCalledWith(location, "line 1\nline 2\n");
+    expect(mockTtyWriterSend).toHaveBeenCalledWith(
+      location,
+      "line 1\nline 2\n",
+    );
     expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
   });
 
@@ -1699,9 +2082,19 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "--id", "repo-a"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "--id",
+      "repo-a",
+    ]);
 
-    expect(mockTtyWriterSend).toHaveBeenCalledWith(location, "npm test output\nfailed assertion\n");
+    expect(mockTtyWriterSend).toHaveBeenCalledWith(
+      location,
+      "npm test output\nfailed assertion\n",
+    );
     expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
   });
 
@@ -1813,7 +2206,15 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--group", "Bad_Name"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--group",
+      "Bad_Name",
+    ]);
 
     expect(ui.error).toHaveBeenCalledWith(
       'Failed to send message: Invalid agent group name "Bad_Name".',
@@ -1839,8 +2240,16 @@ Waiting on user input`,
       pid: 11,
     };
     const duplicateApi = { ...api };
-    const apiLocation = { type: "tmux", identifier: "0:1.0", tty: "/dev/ttys030" };
-    const workerLocation = { type: "tmux", identifier: "0:1.1", tty: "/dev/ttys031" };
+    const apiLocation = {
+      type: "tmux",
+      identifier: "0:1.0",
+      tty: "/dev/ttys030",
+    };
+    const workerLocation = {
+      type: "tmux",
+      identifier: "0:1.1",
+      tty: "/dev/ttys031",
+    };
     const agents = [api, worker];
     mockGroupStore.get.mockReturnValue({
       name: "backend-team",
@@ -1869,15 +2278,33 @@ Waiting on user input`,
     ]);
 
     expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(1, "api", agents);
-    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(2, "worker", agents);
-    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(3, "api-alias", agents);
+    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(
+      2,
+      "worker",
+      agents,
+    );
+    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(
+      3,
+      "api-alias",
+      agents,
+    );
     expect(mockFocusManager.findTerminal).toHaveBeenCalledTimes(2);
-    expect(mockTtyWriterSend).toHaveBeenNthCalledWith(1, apiLocation, "status update");
-    expect(mockTtyWriterSend).toHaveBeenNthCalledWith(2, workerLocation, "status update");
+    expect(mockTtyWriterSend).toHaveBeenNthCalledWith(
+      1,
+      apiLocation,
+      "status update",
+    );
+    expect(mockTtyWriterSend).toHaveBeenNthCalledWith(
+      2,
+      workerLocation,
+      "status update",
+    );
     expect(ui.info).toHaveBeenCalledWith(
       'Skipped duplicate target "api" from group member "api-alias".',
     );
-    expect(ui.success).toHaveBeenCalledWith('Sent message to 2 agent(s) in group "backend-team".');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Sent message to 2 agent(s) in group "backend-team".',
+    );
   });
 
   it("fails before delivery when any group member is missing or ambiguous", async () => {
@@ -1916,12 +2343,22 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--group", "backend-team"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--group",
+      "backend-team",
+    ]);
 
     expect(ui.error).toHaveBeenCalledWith(
       'Cannot send to group "backend-team" because some members could not be resolved.',
     );
-    expect(ui.error).toHaveBeenCalledWith("  - missing: no running agent matched");
+    expect(ui.error).toHaveBeenCalledWith(
+      "  - missing: no running agent matched",
+    );
     expect(ui.error).toHaveBeenCalledWith(
       "  - worker: matched multiple agents (worker-a, worker-b)",
     );
@@ -1944,11 +2381,24 @@ Waiting on user input`,
       lastActive: new Date(),
       pid: 11,
     };
-    const apiLocation = { type: "tmux", identifier: "0:1.0", tty: "/dev/ttys030" };
-    const workerLocation = { type: "tmux", identifier: "0:1.1", tty: "/dev/ttys031" };
-    mockGroupStore.get.mockReturnValue({ name: "backend-team", members: ["api", "worker"] });
+    const apiLocation = {
+      type: "tmux",
+      identifier: "0:1.0",
+      tty: "/dev/ttys030",
+    };
+    const workerLocation = {
+      type: "tmux",
+      identifier: "0:1.1",
+      tty: "/dev/ttys031",
+    };
+    mockGroupStore.get.mockReturnValue({
+      name: "backend-team",
+      members: ["api", "worker"],
+    });
     mockManager.listAgents.mockResolvedValue([api, worker]);
-    mockManager.resolveAgent.mockReturnValueOnce(api).mockReturnValueOnce(worker);
+    mockManager.resolveAgent
+      .mockReturnValueOnce(api)
+      .mockReturnValueOnce(worker);
     mockFocusManager.findTerminal
       .mockResolvedValueOnce(apiLocation)
       .mockResolvedValueOnce(workerLocation);
@@ -1958,7 +2408,15 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--group", "backend-team"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--group",
+      "backend-team",
+    ]);
 
     expect(ui.warning).toHaveBeenCalledWith(
       'Agent "api" is not waiting for input (status: running). Sending anyway.',
@@ -1985,7 +2443,10 @@ Waiting on user input`,
     };
     const location = { type: "tmux", identifier: "0:1.0", tty: "/dev/ttys030" };
     const historical = [{ role: "assistant", content: "old response" }];
-    const withNewResponse = [...historical, { role: "assistant", content: "new response" }];
+    const withNewResponse = [
+      ...historical,
+      { role: "assistant", content: "new response" },
+    ];
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
@@ -2009,12 +2470,15 @@ Waiting on user input`,
     ]);
 
     expect(mockManager.getAdapter).toHaveBeenCalledWith("claude");
-    expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith("/tmp/session.jsonl", {
-      verbose: false,
-    });
-    expect(mockAgentAdapter.getConversation.mock.invocationCallOrder[0]).toBeLessThan(
-      mockTtyWriterSend.mock.invocationCallOrder[0],
+    expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith(
+      "/tmp/session.jsonl",
+      {
+        verbose: false,
+      },
     );
+    expect(
+      mockAgentAdapter.getConversation.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockTtyWriterSend.mock.invocationCallOrder[0]);
     expect(stdoutSpy).toHaveBeenCalledWith("new response\n");
     expect(ui.success).not.toHaveBeenCalled();
     expect(stderrSpy).not.toHaveBeenCalled();
@@ -2145,13 +2609,23 @@ Waiting on user input`,
     };
     const location = { type: "tmux", identifier: "0:1.0", tty: "/dev/ttys030" };
     const messages = [
-      { role: "assistant", content: "first response", timestamp: "2026-05-14T00:00:01.000Z" },
-      { role: "assistant", content: "second response", timestamp: "2026-05-14T00:00:02.000Z" },
+      {
+        role: "assistant",
+        content: "first response",
+        timestamp: "2026-05-14T00:00:01.000Z",
+      },
+      {
+        role: "assistant",
+        content: "second response",
+        timestamp: "2026-05-14T00:00:02.000Z",
+      },
     ];
     mockManager.listAgents.mockResolvedValue([agent]);
     mockManager.resolveAgent.mockReturnValue(agent);
     mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
-    mockAgentAdapter.getConversation.mockReturnValueOnce([]).mockReturnValueOnce(messages);
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce([])
+      .mockReturnValueOnce(messages);
     mockFocusManager.findTerminal.mockResolvedValue(location);
     mockTtyWriterSend.mockResolvedValue(undefined);
 
@@ -2252,7 +2726,9 @@ Waiting on user input`,
       "--wait",
     ]);
 
-    expect(ui.error).toHaveBeenCalledWith("Failed to send message: Unsupported agent type: claude");
+    expect(ui.error).toHaveBeenCalledWith(
+      "Failed to send message: Unsupported agent type: claude",
+    );
     expect(process.exit).toHaveBeenCalledWith(1);
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
@@ -2298,20 +2774,40 @@ Waiting on user input`,
 
   it("shows error when send target agent is not found", async () => {
     mockManager.listAgents.mockResolvedValue([
-      { name: "repo-a", status: AgentStatus.RUNNING, summary: "A", lastActive: new Date(), pid: 1 },
+      {
+        name: "repo-a",
+        status: AgentStatus.RUNNING,
+        summary: "A",
+        lastActive: new Date(),
+        pid: 1,
+      },
     ]);
     mockManager.resolveAgent.mockReturnValue(null);
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--id", "missing"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--id",
+      "missing",
+    ]);
 
     expect(ui.error).toHaveBeenCalledWith('No agent found matching "missing".');
   });
 
   it("shows error when send matches multiple agents", async () => {
     const agents = [
-      { name: "repo-a", status: AgentStatus.WAITING, summary: "A", lastActive: new Date(), pid: 1 },
+      {
+        name: "repo-a",
+        status: AgentStatus.WAITING,
+        summary: "A",
+        lastActive: new Date(),
+        pid: 1,
+      },
       {
         name: "repo-ab",
         status: AgentStatus.RUNNING,
@@ -2325,10 +2821,20 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--id", "repo"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--id",
+      "repo",
+    ]);
 
     expect(ui.error).toHaveBeenCalledWith('Multiple agents match "repo":');
-    expect(ui.info).toHaveBeenCalledWith("Please use a more specific identifier.");
+    expect(ui.info).toHaveBeenCalledWith(
+      "Please use a more specific identifier.",
+    );
   });
 
   it("warns when agent is not waiting but still sends", async () => {
@@ -2347,7 +2853,15 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "continue", "--id", "repo-a"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "continue",
+      "--id",
+      "repo-a",
+    ]);
 
     expect(ui.warning).toHaveBeenCalledWith(
       'Agent "repo-a" is not waiting for input (status: running). Sending anyway.',
@@ -2372,7 +2886,15 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "continue", "--id", "repo-a"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "continue",
+      "--id",
+      "repo-a",
+    ]);
 
     expect(ui.warning).not.toHaveBeenCalled();
     expect(mockTtyWriterSend).toHaveBeenCalled();
@@ -2477,9 +2999,19 @@ Waiting on user input`,
 
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--id", "repo-a"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--id",
+      "repo-a",
+    ]);
 
-    expect(ui.error).toHaveBeenCalledWith('Cannot find terminal for agent "repo-a" (PID: 10).');
+    expect(ui.error).toHaveBeenCalledWith(
+      'Cannot find terminal for agent "repo-a" (PID: 10).',
+    );
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
 
@@ -2505,7 +3037,10 @@ Waiting on user input`,
       registerAgentCommand(program);
       await program.parseAsync(["node", "test", "agent", "sessions"]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd, type: undefined });
+      expect(mockManager.listSessions).toHaveBeenCalledWith({
+        cwd,
+        type: undefined,
+      });
     });
 
     it("clears the cwd filter when --all is set", async () => {
@@ -2515,7 +3050,10 @@ Waiting on user input`,
       registerAgentCommand(program);
       await program.parseAsync(["node", "test", "agent", "sessions", "--all"]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: undefined });
+      expect(mockManager.listSessions).toHaveBeenCalledWith({
+        cwd: undefined,
+        type: undefined,
+      });
     });
 
     it("forwards --type to the manager", async () => {
@@ -2523,9 +3061,20 @@ Waiting on user input`,
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "sessions", "--all", "--type", "codex"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "sessions",
+        "--all",
+        "--type",
+        "codex",
+      ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: "codex" });
+      expect(mockManager.listSessions).toHaveBeenCalledWith({
+        cwd: undefined,
+        type: "codex",
+      });
     });
 
     it("emits JSON with ISO date strings for --json", async () => {
@@ -2534,7 +3083,14 @@ Waiting on user input`,
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "sessions", "--all", "--json"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "sessions",
+        "--all",
+        "--json",
+      ]);
 
       const printed = (logSpy.mock.calls[0]?.[0] ?? "") as string;
       const parsed = JSON.parse(printed);
@@ -2584,31 +3140,50 @@ Waiting on user input`,
       registerAgentCommand(program);
       await program.parseAsync(["node", "test", "agent", "sessions"]);
 
-      const infoCalls = (ui.info as Mock).mock.calls.map((c: unknown[]) => c[0]);
-      expect(infoCalls.some((m: unknown) => typeof m === "string" && m.includes("--all"))).toBe(
-        true,
+      const infoCalls = (ui.info as Mock).mock.calls.map(
+        (c: unknown[]) => c[0],
       );
+      expect(
+        infoCalls.some(
+          (m: unknown) => typeof m === "string" && m.includes("--all"),
+        ),
+      ).toBe(true);
     });
 
     it('substitutes "(no message yet)" placeholder in the table for empty firstUserMessage', async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession({ firstUserMessage: "" })]);
+      mockManager.listSessions.mockResolvedValue([
+        makeSession({ firstUserMessage: "" }),
+      ]);
 
       const program = new Command();
       registerAgentCommand(program);
       await program.parseAsync(["node", "test", "agent", "sessions", "--all"]);
 
-      const tableArg = (ui.table as Mock).mock.calls[0][0] as { rows: string[][] };
+      const tableArg = (ui.table as Mock).mock.calls[0][0] as {
+        rows: string[][];
+      };
       expect(tableArg.rows[0][3]).toBe("(no message yet)");
     });
 
     it("keeps empty firstUserMessage raw in --json output", async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession({ firstUserMessage: "" })]);
+      mockManager.listSessions.mockResolvedValue([
+        makeSession({ firstUserMessage: "" }),
+      ]);
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "sessions", "--all", "--json"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "sessions",
+        "--all",
+        "--json",
+      ]);
 
-      const parsed = JSON.parse((logSpy.mock.calls[0]?.[0] ?? "") as string) as Array<{
+      const parsed = JSON.parse(
+        (logSpy.mock.calls[0]?.[0] ?? "") as string,
+      ) as Array<{
         firstUserMessage: string;
       }>;
       expect(parsed[0].firstUserMessage).toBe("");
@@ -2635,7 +3210,9 @@ Waiting on user input`,
         "--json",
       ]);
 
-      const parsed = JSON.parse((logSpy.mock.calls[0]?.[0] ?? "") as string) as Array<{
+      const parsed = JSON.parse(
+        (logSpy.mock.calls[0]?.[0] ?? "") as string,
+      ) as Array<{
         sessionId: string;
       }>;
       expect(parsed.map((s) => s.sessionId)).toEqual(["s1", "s2"]);
@@ -2660,21 +3237,42 @@ Waiting on user input`,
       mockManager.listSessions.mockResolvedValue([makeSession()]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([
-        { role: "user", content: "first", timestamp: "2025-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "second", timestamp: "2025-01-01T00:00:01.000Z" },
+        {
+          role: "user",
+          content: "first",
+          timestamp: "2025-01-01T00:00:00.000Z",
+        },
+        {
+          role: "assistant",
+          content: "second",
+          timestamp: "2025-01-01T00:00:01.000Z",
+        },
       ]);
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "session", "detail", "--id", "sess-1"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "detail",
+        "--id",
+        "sess-1",
+      ]);
 
       expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined });
       expect(mockManager.listAgents).not.toHaveBeenCalled();
       expect(mockManager.getAdapter).toHaveBeenCalledWith("claude");
-      expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith("/tmp/sess-1.jsonl", {
-        verbose: undefined,
+      expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith(
+        "/tmp/sess-1.jsonl",
+        {
+          verbose: undefined,
+        },
+      );
+      expect(ui.text).toHaveBeenCalledWith("Session Detail", {
+        breakline: true,
       });
-      expect(ui.text).toHaveBeenCalledWith("Session Detail", { breakline: true });
     });
 
     it("emits JSON for a historical session detail and honors --tail", async () => {
@@ -2682,7 +3280,11 @@ Waiting on user input`,
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([
         { role: "user", content: "one", timestamp: "2025-01-01T00:00:00.000Z" },
-        { role: "assistant", content: "two", timestamp: "2025-01-01T00:00:01.000Z" },
+        {
+          role: "assistant",
+          content: "two",
+          timestamp: "2025-01-01T00:00:01.000Z",
+        },
       ]);
 
       const program = new Command();
@@ -2709,7 +3311,11 @@ Waiting on user input`,
         type: "claude",
         sessionFilePath: "/tmp/sess-1.jsonl",
         conversation: [
-          { role: "assistant", content: "two", timestamp: "2025-01-01T00:00:01.000Z" },
+          {
+            role: "assistant",
+            content: "two",
+            timestamp: "2025-01-01T00:00:01.000Z",
+          },
         ],
       });
     });
@@ -2719,14 +3325,26 @@ Waiting on user input`,
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "session", "detail", "--id", "missing"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "detail",
+        "--id",
+        "missing",
+      ]);
 
-      expect(ui.error).toHaveBeenCalledWith('No session found matching "missing".');
+      expect(ui.error).toHaveBeenCalledWith(
+        'No session found matching "missing".',
+      );
       expect(mockManager.getAdapter).not.toHaveBeenCalled();
     });
 
     it("forwards --type when resolving a historical session", async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession({ type: "codex" })]);
+      mockManager.listSessions.mockResolvedValue([
+        makeSession({ type: "codex" }),
+      ]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([]);
 
@@ -2744,11 +3362,16 @@ Waiting on user input`,
         "codex",
       ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: "codex" });
+      expect(mockManager.listSessions).toHaveBeenCalledWith({
+        cwd: undefined,
+        type: "codex",
+      });
     });
 
     it("accepts opencode as a historical session detail type filter", async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession({ type: "opencode" })]);
+      mockManager.listSessions.mockResolvedValue([
+        makeSession({ type: "opencode" }),
+      ]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([]);
 
@@ -2766,7 +3389,10 @@ Waiting on user input`,
         "opencode",
       ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: "opencode" });
+      expect(mockManager.listSessions).toHaveBeenCalledWith({
+        cwd: undefined,
+        type: "opencode",
+      });
     });
   });
 
@@ -2776,16 +3402,32 @@ Waiting on user input`,
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "rename", "old-name", "new-name"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "rename",
+        "old-name",
+        "new-name",
+      ]);
 
       expect(mockRegistry.rename).toHaveBeenCalledWith("old-name", "new-name");
-      expect(ui.success).toHaveBeenCalledWith('Agent "old-name" renamed to "new-name".');
+      expect(ui.success).toHaveBeenCalledWith(
+        'Agent "old-name" renamed to "new-name".',
+      );
     });
 
     it("exits with error when new name has invalid format", async () => {
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "rename", "old-name", "INVALID NAME"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "rename",
+        "old-name",
+        "INVALID NAME",
+      ]);
 
       expect(mockRegistry.rename).not.toHaveBeenCalled();
       expect(ui.error).toHaveBeenCalled();
@@ -2795,7 +3437,14 @@ Waiting on user input`,
     it("prints info and exits 0 when current and new name are the same", async () => {
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "rename", "same-name", "same-name"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "rename",
+        "same-name",
+        "same-name",
+      ]);
 
       expect(mockRegistry.rename).not.toHaveBeenCalled();
       expect(ui.info).toHaveBeenCalled();
@@ -2808,9 +3457,18 @@ Waiting on user input`,
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "rename", "old-name", "new-name"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "rename",
+        "old-name",
+        "new-name",
+      ]);
 
-      expect(ui.error).toHaveBeenCalledWith('Agent "old-name" not found in registry.');
+      expect(ui.error).toHaveBeenCalledWith(
+        'Agent "old-name" not found in registry.',
+      );
       expect(process.exit).toHaveBeenCalledWith(1);
     });
 
@@ -2821,7 +3479,14 @@ Waiting on user input`,
 
       const program = new Command();
       registerAgentCommand(program);
-      await program.parseAsync(["node", "test", "agent", "rename", "old-name", "new-name"]);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "rename",
+        "old-name",
+        "new-name",
+      ]);
 
       expect(ui.error).toHaveBeenCalledWith(
         'Agent "new-name" is already in use. Choose a different name.',
