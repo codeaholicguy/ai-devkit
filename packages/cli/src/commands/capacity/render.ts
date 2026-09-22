@@ -1,24 +1,18 @@
 import chalk from "chalk";
 import { ui } from "../../util/terminal-ui.js";
+import {
+  colorStatus,
+  getStatusDisplay,
+  getStatusKeyByLabel,
+  type StatusKey,
+} from "../../util/status.js";
+import { formatRelativeOrAbsoluteTime } from "../../util/time-format.js";
+import { pluralize } from "../../util/pluralize.js";
 import type { CapacityReport, CapacityWindow } from "@ai-devkit/agent-manager";
 
 const BAR_WIDTH = 10;
 const ELEVATED_USAGE = 70;
 const HIGH_USAGE = 90;
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
 const PROVIDER_LABELS: Record<string, string> = {
   zai: "z.ai",
   openai: "OpenAI",
@@ -35,30 +29,19 @@ function percent(value: number | null): string {
   return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
 }
 
-type ReportStatus = keyof typeof STATUS_STYLES;
-
-const STATUS_STYLES = {
-  OK: chalk.green,
-  LIMITED: chalk.yellow,
-  "NOT AUTHENTICATED": chalk.yellow,
-  EXHAUSTED: chalk.red,
-  UNKNOWN: chalk.dim,
-} as const;
-
-function reportStatus(report: CapacityReport): ReportStatus {
-  if (report.authenticated === false) return "NOT AUTHENTICATED";
-  if (report.available === "no") return "EXHAUSTED";
-  if (report.available === "unknown") return "UNKNOWN";
+function reportStatus(report: CapacityReport): StatusKey {
+  if (report.authenticated === false) return "not-authenticated";
+  if (report.available === "no") return "exhausted";
+  if (report.available === "unknown") return "unknown";
   const maxUsed = report.windows.reduce(
     (max, window) => Math.max(max, window.usedPercent ?? 0),
     0,
   );
-  return maxUsed >= HIGH_USAGE ? "LIMITED" : "OK";
+  return maxUsed >= HIGH_USAGE ? "limited" : "ok";
 }
 
 function statusStyle(text: string): string {
-  const style = STATUS_STYLES[text.trim() as ReportStatus] ?? chalk.dim;
-  return style(text);
+  return colorStatus(getStatusKeyByLabel(text), text);
 }
 
 function usageStyle(text: string): string {
@@ -90,24 +73,10 @@ function usageCell(window: CapacityWindow): string {
   return cell;
 }
 
-function localClock(date: Date): string {
-  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
-}
-
 function resetLabel(resetsAt: string | null | undefined, now: Date): string {
   if (!resetsAt) return "—";
-  const target = new Date(resetsAt);
-  if (Number.isNaN(target.getTime())) return "—";
-  const remainingMs = target.getTime() - now.getTime();
-  if (remainingMs <= 0) return "now";
-  const minutes = Math.round(remainingMs / 60000);
-  const clock = localClock(target);
-  if (minutes < 60) return `in ${minutes}m · ${clock}`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (minutes < 24 * 60)
-    return `in ${hours}h${rest ? ` ${rest}m` : ""} · ${clock}`;
-  return `${MONTHS[target.getMonth()]} ${target.getDate()} · ${clock}`;
+  if (new Date(resetsAt).getTime() <= now.getTime()) return "now";
+  return formatRelativeOrAbsoluteTime(resetsAt, { now: () => now });
 }
 
 function sortedWindows(windows: CapacityWindow[]): CapacityWindow[] {
@@ -122,16 +91,24 @@ function sortedWindows(windows: CapacityWindow[]): CapacityWindow[] {
 
 function reportRows(report: CapacityReport, now: Date): string[][] {
   const status = reportStatus(report);
+  const statusLabel = getStatusDisplay(status).label;
   const windows = sortedWindows(report.windows);
   if (windows.length === 0) {
     return [
-      [report.harness, providerLabel(report.provider), status, "—", "—", "—"],
+      [
+        report.harness,
+        providerLabel(report.provider),
+        statusLabel,
+        "—",
+        "—",
+        "—",
+      ],
     ];
   }
   return windows.map((window) => [
     report.harness,
     providerLabel(report.provider),
-    status,
+    statusLabel,
     window.label,
     usageCell(window),
     resetLabel(window.resetsAt, now),
@@ -172,7 +149,12 @@ export function renderCapacityReports(
       `${report.harness} · ${providerLabel(report.provider)}`,
     );
     ui.breakline();
-    ui.text(`${identity} capacity · ${STATUS_STYLES[status](status)}`);
+    ui.text(
+      `${identity} capacity · ${colorStatus(
+        status,
+        getStatusDisplay(status).label,
+      )}`,
+    );
     if (report.windows.length === 0) {
       ui.text(chalk.dim("  No usage windows reported."));
     } else {
@@ -196,7 +178,7 @@ export function renderCapacityReports(
   }
 
   ui.breakline();
-  ui.text(chalk.bold(`Capacity · ${reports.length} providers`));
+  ui.text(chalk.bold(`Capacity · ${pluralize(reports.length, "provider")}`));
   ui.table({
     headers: ["Harness", "Provider", "Status", "Quota", "Usage", "Resets"],
     rows: reports.flatMap((report) => reportRows(report, now)),
