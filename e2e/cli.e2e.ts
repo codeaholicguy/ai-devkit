@@ -280,9 +280,9 @@ describe('memory commands', () => {
 
     const result = run(`memory search -q "E2E Component Architecture ${uid}" --table`, { cwd: projectDir });
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('id');
-    expect(result.stdout).toContain('title');
-    expect(result.stdout).toContain('scope');
+    expect(result.stdout).toContain('ID');
+    expect(result.stdout).toContain('Title');
+    expect(result.stdout).toContain('Scope');
   });
 
   it('should reject invalid store input', () => {
