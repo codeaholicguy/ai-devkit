@@ -14,6 +14,9 @@ export interface CapacityWindow {
 }
 
 export interface CapacityReport {
+  /** Harness whose quota pool is measured, e.g. "pi" or "codex". */
+  harness: string;
+  /** Model provider backing the harness, e.g. "zai" or "openai". */
   provider: string;
   generatedAt: string;
   authenticated: boolean | null;

@@ -6,7 +6,8 @@ const checkedAt = "2026-08-09T10:00:00.000Z";
 describe("getCodexCapacityReport", () => {
   it("checks Codex installation before probing", async () => {
     const probe = vi.fn(async (context) => ({
-      provider: "codex",
+      harness: "codex",
+      provider: "openai",
       generatedAt: context.checkedAt,
       authenticated: true,
       available: "yes" as const,
@@ -24,7 +25,12 @@ describe("getCodexCapacityReport", () => {
     });
 
     expect(probe).toHaveBeenCalledWith({ installed: true, checkedAt });
-    expect(report).toMatchObject({ provider: "codex", generatedAt: checkedAt, available: "yes" });
+    expect(report).toMatchObject({
+      harness: "codex",
+      provider: "openai",
+      generatedAt: checkedAt,
+      available: "yes",
+    });
   });
 
   it("redacts unexpected probe failures into a stable unknown result", async () => {
@@ -37,7 +43,8 @@ describe("getCodexCapacityReport", () => {
     });
 
     expect(report).toMatchObject({
-      provider: "codex",
+      harness: "codex",
+      provider: "openai",
       available: "unknown",
       authenticated: null,
       windows: [],

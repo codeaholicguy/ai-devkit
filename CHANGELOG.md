@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Redesigned the `capacity` command output into a single per-quota table with usage bars, threshold colors, humanized reset times (`in 4h 40m · 20:25`), and `used/total` amounts instead of duplicated window summaries with truncated ISO timestamps.
+- Split capacity identity into harness and provider (`codex | OpenAI`, `pi | z.ai`) via a new `harness` field on `CapacityReport`; the Codex probe now reports `provider: "openai"`.
+- `ai-devkit capacity` without arguments now probes every supported provider and renders one Harness/Provider/Status table; `--json` emits a single object for one provider and an array for many, and per-provider probe failures warn instead of aborting the whole listing.
+
 ## [0.62.2] - 2026-09-14
 
 - [7af9864](https://github.com/codeaholicguy/ai-devkit/commit/7af9864) Fixed agent status losing registry routing when the agent list is refreshed, and cleaned up opencode process listeners on stop ([1a3a002](https://github.com/codeaholicguy/ai-devkit/commit/1a3a002)) via `@ai-devkit/agent-manager` 0.33.1 (pinned in this release; also moves the copilot and gemini adapters into the provider structure with no public API changes).

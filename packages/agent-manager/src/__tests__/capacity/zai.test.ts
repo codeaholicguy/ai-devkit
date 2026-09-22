@@ -1,17 +1,27 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
-import { parseZaiQuota, probeZaiCapacity, resolveZaiApiKey } from "../../capacity/zai.js";
+import {
+  parseZaiQuota,
+  probeZaiCapacity,
+  resolveZaiApiKey,
+} from "../../capacity/zai.js";
 
 const checkedAt = "2026-08-20T10:00:00.000Z";
 const fixture = (name: string) =>
-  readFile(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
+  readFile(
+    fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)),
+    "utf8",
+  );
 
 describe("z.ai credential resolution", () => {
   it("prefers Z_AI_API_KEY without reading Pi auth", async () => {
     const readAuth = vi.fn(async () => fixture("zai-auth.json"));
     await expect(
-      resolveZaiApiKey({ env: { Z_AI_API_KEY: "env-zai-test-key" }, readFile: readAuth }),
+      resolveZaiApiKey({
+        env: { Z_AI_API_KEY: "env-zai-test-key" },
+        readFile: readAuth,
+      }),
     ).resolves.toBe("env-zai-test-key");
     expect(readAuth).not.toHaveBeenCalled();
   });
@@ -21,28 +31,42 @@ describe("z.ai credential resolution", () => {
     await expect(
       resolveZaiApiKey({ env: { HOME: "/users/test" }, readFile: readAuth }),
     ).resolves.toBe("pi-zai-test-key");
-    expect(readAuth).toHaveBeenCalledWith("/users/test/.pi/agent/auth.json", "utf8");
+    expect(readAuth).toHaveBeenCalledWith(
+      "/users/test/.pi/agent/auth.json",
+      "utf8",
+    );
   });
 
   it.each([
     [
       "missing",
-      async () => Promise.reject(Object.assign(new Error("missing"), { code: "ENOENT" })),
+      async () =>
+        Promise.reject(Object.assign(new Error("missing"), { code: "ENOENT" })),
     ],
     ["invalid JSON", async () => "{"],
-    ["wrong credential type", async () => JSON.stringify({ zai: { type: "oauth", key: "x" } })],
+    [
+      "wrong credential type",
+      async () => JSON.stringify({ zai: { type: "oauth", key: "x" } }),
+    ],
     ["missing key", async () => JSON.stringify({ zai: { type: "api_key" } })],
-  ])("fails clearly for %s credentials without exposing file content", async (_name, readAuth) => {
-    await expect(
-      resolveZaiApiKey({ env: { HOME: "/users/test" }, readFile: readAuth }),
-    ).rejects.toThrow(/z\.ai API key|z\.ai Pi auth file/);
-  });
+  ])(
+    "fails clearly for %s credentials without exposing file content",
+    async (_name, readAuth) => {
+      await expect(
+        resolveZaiApiKey({ env: { HOME: "/users/test" }, readFile: readAuth }),
+      ).rejects.toThrow(/z\.ai API key|z\.ai Pi auth file/);
+    },
+  );
 });
 
 describe("z.ai quota mapping", () => {
   it("maps token, credit, and monthly MCP windows with recomputed usage", async () => {
-    const report = parseZaiQuota(JSON.parse(await fixture("zai-quota.json")), checkedAt);
+    const report = parseZaiQuota(
+      JSON.parse(await fixture("zai-quota.json")),
+      checkedAt,
+    );
     expect(report).toMatchObject({
+      harness: "pi",
       provider: "zai",
       generatedAt: checkedAt,
       authenticated: true,
@@ -100,13 +124,24 @@ describe("z.ai quota mapping", () => {
       },
       checkedAt,
     );
-    expect(report.windows.map((window) => window.usedPercent)).toEqual([100, 0]);
+    expect(report.windows.map((window) => window.usedPercent)).toEqual([
+      100, 0,
+    ]);
   });
 
   it.each([
-    ["invalid fixture", async () => JSON.parse(await fixture("zai-quota-invalid.json"))],
-    ["unsuccessful envelope", async () => ({ success: false, code: 401, data: { limits: [] } })],
-    ["invalid entry", async () => ({ success: true, code: 200, data: { limits: [{}] } })],
+    [
+      "invalid fixture",
+      async () => JSON.parse(await fixture("zai-quota-invalid.json")),
+    ],
+    [
+      "unsuccessful envelope",
+      async () => ({ success: false, code: 401, data: { limits: [] } }),
+    ],
+    [
+      "invalid entry",
+      async () => ({ success: true, code: 200, data: { limits: [{}] } }),
+    ],
   ])("rejects %s", async (_name, input) => {
     const value = await input();
     expect(() => parseZaiQuota(value, checkedAt)).toThrow(/z\.ai quota/);

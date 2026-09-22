@@ -1,7 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { Availability, CapacityLimitType, CapacityReport, CapacityWindow } from "./types.js";
+import type {
+  Availability,
+  CapacityLimitType,
+  CapacityReport,
+  CapacityWindow,
+} from "./types.js";
 
 const ZAI_QUOTA_URL = "https://api.z.ai/api/monitor/usage/quota/limit";
 const MISSING_API_KEY_MESSAGE =
@@ -60,14 +65,25 @@ function isCapacityLimitType(value: string): value is CapacityLimitType {
   return Object.hasOwn(LIMIT_METADATA, value);
 }
 
-function durationMinutes(unit: number, number: number, type: CapacityLimitType): number | null {
+function durationMinutes(
+  unit: number,
+  number: number,
+  type: CapacityLimitType,
+): number | null {
   if (type === "TIME_LIMIT" && unit === 5 && number === 1) return 30 * 24 * 60;
   const metadata = UNIT_METADATA.get(unit);
-  return metadata === undefined || number <= 0 ? null : metadata.minutes * number;
+  return metadata === undefined || number <= 0
+    ? null
+    : metadata.minutes * number;
 }
 
-function windowLabel(type: CapacityLimitType, unit: number, number: number): string {
-  if (type === "TIME_LIMIT" && unit === 5 && number === 1) return "MCP · monthly";
+function windowLabel(
+  type: CapacityLimitType,
+  unit: number,
+  number: number,
+): string {
+  if (type === "TIME_LIMIT" && unit === 5 && number === 1)
+    return "MCP · monthly";
   const kind = LIMIT_METADATA[type].label;
   const unitLabel = UNIT_METADATA.get(unit)?.label;
   if (!unitLabel) return kind;
@@ -78,13 +94,18 @@ function resetTime(value: unknown): string | null {
   const milliseconds = optionalNumber(value, "limit nextResetTime");
   if (milliseconds === null) return null;
   const date = new Date(milliseconds);
-  if (Number.isNaN(date.getTime())) throw new Error("Invalid z.ai quota limit nextResetTime");
+  if (Number.isNaN(date.getTime()))
+    throw new Error("Invalid z.ai quota limit nextResetTime");
   return date.toISOString();
 }
 
 function availability(windows: CapacityWindow[]): Availability {
   if (windows.length === 0) return "unknown";
-  if (windows.some((window) => window.usedPercent !== null && window.usedPercent < 100)) {
+  if (
+    windows.some(
+      (window) => window.usedPercent !== null && window.usedPercent < 100,
+    )
+  ) {
     return "yes";
   }
   return "no";
@@ -99,13 +120,15 @@ function parseLimit(value: unknown, index: number): CapacityWindow | null {
     throw new Error("Invalid z.ai quota limit entry");
   }
   const serverPercent = optionalNumber(limit.percentage, "limit percentage");
-  if (serverPercent === null) throw new Error("Invalid z.ai quota limit percentage");
+  if (serverPercent === null)
+    throw new Error("Invalid z.ai quota limit percentage");
   if (!isCapacityLimitType(limit.type)) return null;
 
   const total = optionalNumber(limit.usage, "limit usage");
   const current = optionalNumber(limit.currentValue, "limit currentValue");
   const remaining = optionalNumber(limit.remaining, "limit remaining");
-  let consumed = total !== null && remaining !== null ? total - remaining : null;
+  let consumed =
+    total !== null && remaining !== null ? total - remaining : null;
   if (current !== null) consumed = Math.max(consumed ?? current, current);
 
   let usedPercent = serverPercent;
@@ -127,7 +150,9 @@ function parseLimit(value: unknown, index: number): CapacityWindow | null {
   };
 }
 
-export async function resolveZaiApiKey(options: ZaiCredentialOptions = {}): Promise<string> {
+export async function resolveZaiApiKey(
+  options: ZaiCredentialOptions = {},
+): Promise<string> {
   const env = options.env ?? process.env;
   const environmentKey = nonEmptyText(env.Z_AI_API_KEY);
   if (environmentKey) return environmentKey;
@@ -150,7 +175,8 @@ export async function resolveZaiApiKey(options: ZaiCredentialOptions = {}): Prom
   if (!credential) {
     throw new Error(MISSING_API_KEY_MESSAGE);
   }
-  const key = credential.type === "api_key" ? nonEmptyText(credential.key) : null;
+  const key =
+    credential.type === "api_key" ? nonEmptyText(credential.key) : null;
   if (!key) throw new Error("z.ai Pi auth file has a malformed zai credential");
   return key;
 }
@@ -158,13 +184,19 @@ export async function resolveZaiApiKey(options: ZaiCredentialOptions = {}): Prom
 export function parseZaiQuota(raw: unknown, checkedAt: string): CapacityReport {
   const root = record(raw);
   const data = record(root?.data);
-  if (root?.success !== true || root.code !== 200 || !data || !Array.isArray(data.limits)) {
+  if (
+    root?.success !== true ||
+    root.code !== 200 ||
+    !data ||
+    !Array.isArray(data.limits)
+  ) {
     throw new Error("Invalid z.ai quota response");
   }
   const windows = data.limits
     .map(parseLimit)
     .filter((window): window is CapacityWindow => window !== null);
   return {
+    harness: "pi",
     provider: "zai",
     generatedAt: checkedAt,
     authenticated: true,
@@ -174,7 +206,9 @@ export function parseZaiQuota(raw: unknown, checkedAt: string): CapacityReport {
   };
 }
 
-export async function probeZaiCapacity(options: ZaiProbeOptions): Promise<CapacityReport> {
+export async function probeZaiCapacity(
+  options: ZaiProbeOptions,
+): Promise<CapacityReport> {
   const key = await resolveZaiApiKey(options);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 5000);

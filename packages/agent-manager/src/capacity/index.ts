@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
-import { probeCodexCapacity } from "./codex.js";
+import { codexUnavailableReport, probeCodexCapacity } from "./codex.js";
 import { probeZaiCapacity } from "./zai.js";
 import type { CapacityReport } from "./types.js";
 
@@ -55,18 +55,17 @@ export async function getCodexCapacityReport(
   options: CapacityProbeOptions = {},
 ): Promise<CapacityReport> {
   const generatedAt = (options.now?.() ?? new Date()).toISOString();
-  const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? "", options.access);
+  const installed = await isCodexInstalled(
+    options.path ?? process.env.PATH ?? "",
+    options.access,
+  );
   try {
-    return await (options.probe ?? probeCodexCapacity)({ installed, checkedAt: generatedAt });
+    return await (options.probe ?? probeCodexCapacity)({
+      installed,
+      checkedAt: generatedAt,
+    });
   } catch {
-    return {
-      provider: "codex",
-      generatedAt,
-      authenticated: null,
-      available: "unknown",
-      windows: [],
-      creditsRemaining: null,
-    };
+    return codexUnavailableReport(generatedAt);
   }
 }
 
