@@ -161,6 +161,16 @@ import { registerChannelCommand } from "../../commands/channel.js";
 import { startOutputPolling } from "../../services/channel/channel-runner.js";
 
 const POLL_INTERVAL_MS = 2000;
+const ANSI_ESCAPE = String.fromCharCode(27);
+
+function stripAnsi(value: string): string {
+  return value
+    .split(ANSI_ESCAPE)
+    .map((part, index) =>
+      index === 0 ? part : part.replace(/^\[[0-9;]*m/, ""),
+    )
+    .join("");
+}
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
   return {
@@ -1011,7 +1021,9 @@ describe("channel command", () => {
     registerChannelCommand(program);
     await program.parseAsync(["node", "test", "channel", "status"]);
 
-    const textCalls = vi.mocked(ui.text).mock.calls.map(([message]) => message);
+    const textCalls = vi
+      .mocked(ui.text)
+      .mock.calls.map(([message]) => stripAnsi(message));
     expect(textCalls).toEqual(expect.arrayContaining(["  Configured: May 23"]));
     expect(textCalls).toEqual(expect.arrayContaining(["  Configured: Jun 4"]));
     expect(textCalls).not.toContain("  Configured: 2026-05-23T00:00:00.000Z");
