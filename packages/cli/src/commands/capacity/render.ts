@@ -26,6 +26,15 @@ function windowPair(
   return [known[0], known.length > 1 ? known[known.length - 1] : undefined];
 }
 
+function amount(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : String(value);
+}
+
+function percent(value: number | null): string {
+  if (value === null) return "unknown";
+  return `${Number.isInteger(value) ? value : value.toFixed(1)}%`;
+}
+
 export function renderCapacityReport(
   report: CapacityReport,
   options: { json?: boolean } = {},
@@ -63,4 +72,30 @@ export function renderCapacityReport(
       (text) => chalk.dim(text),
     ],
   });
+
+  const quotaWindows = report.windows.filter((window) => window.limitType !== undefined);
+  if (quotaWindows.length > 0) {
+    ui.table({
+      headers: ["Quota", "Type", "Used", "Total", "Current", "Remaining", "Reset"],
+      rows: quotaWindows.map((window) => [
+        window.label,
+        window.limitType ?? "—",
+        percent(window.usedPercent),
+        amount(window.total),
+        amount(window.current),
+        amount(window.remaining),
+        window.resetsAt ?? "—",
+      ]),
+      maxWidth: process.stdout.columns ?? 120,
+      columnStyles: [
+        (text) => chalk.cyan(text),
+        (text) => chalk.dim(text),
+        (text) => text,
+        (text) => chalk.dim(text),
+        (text) => chalk.dim(text),
+        (text) => chalk.dim(text),
+        (text) => chalk.dim(text),
+      ],
+    });
+  }
 }

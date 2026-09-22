@@ -1,4 +1,5 @@
 export type Availability = "yes" | "no" | "unknown";
+export type CapacityLimitType = "TOKENS_LIMIT" | "CREDIT_LIMIT" | "TIME_LIMIT";
 
 export interface CapacityWindow {
   id: string;
@@ -6,6 +7,10 @@ export interface CapacityWindow {
   durationMinutes: number | null;
   usedPercent: number | null;
   resetsAt: string | null;
+  limitType?: CapacityLimitType;
+  total?: number | null;
+  current?: number | null;
+  remaining?: number | null;
 }
 
 export interface CapacityReport {

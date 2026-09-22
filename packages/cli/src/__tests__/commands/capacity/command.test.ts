@@ -70,15 +70,57 @@ describe("capacity command", () => {
     registerCapacityCommand(program, getReport);
     await program.parseAsync(["node", "test", "capacity", "codex", "--json"]);
 
-    expect(getReport).toHaveBeenCalledWith();
+    expect(getReport).toHaveBeenCalledWith("codex");
     expect(ui.table).not.toHaveBeenCalled();
+  });
+
+  it("dispatches the global z.ai provider and accepts its dotted alias", async () => {
+    const getReport = vi.fn(async () => ({ ...report, provider: "zai" }));
+    await capacityCommand("z.ai", { json: true }, getReport);
+    expect(getReport).toHaveBeenCalledWith("zai");
   });
 
   it("rejects non-Codex providers before probing", async () => {
     const getReport = vi.fn(async () => report);
     await expect(capacityCommand("claude", {}, getReport)).rejects.toThrow(
-      'Only "codex" is supported',
+      'Supported providers: "codex", "zai"',
     );
     expect(getReport).not.toHaveBeenCalled();
+  });
+
+  it("renders z.ai quota kinds and amounts", () => {
+    renderCapacityReport({
+      ...report,
+      provider: "zai",
+      windows: [
+        {
+          id: "zai:tokens:1",
+          label: "Tokens · 5 hours",
+          limitType: "TOKENS_LIMIT",
+          durationMinutes: 300,
+          usedPercent: 30,
+          resetsAt: "2026-08-20T10:00:00.000Z",
+          total: 1000,
+          current: 200,
+          remaining: 700,
+        },
+      ],
+    });
+    expect(ui.table).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        headers: ["Quota", "Type", "Used", "Total", "Current", "Remaining", "Reset"],
+        rows: [
+          [
+            "Tokens · 5 hours",
+            "TOKENS_LIMIT",
+            "30%",
+            "1000",
+            "200",
+            "700",
+            "2026-08-20T10:00:00.000Z",
+          ],
+        ],
+      }),
+    );
   });
 });
