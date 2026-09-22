@@ -13,7 +13,11 @@ const context = { installed: true, checkedAt };
 function apiUsage(overrides: Record<string, unknown> = {}) {
   return {
     rate_limit: {
-      primary_window: { used_percent: 20, limit_window_seconds: 18_000, reset_at: 1_787_220_000 },
+      primary_window: {
+        used_percent: 20,
+        limit_window_seconds: 18_000,
+        reset_at: 1_787_220_000,
+      },
       secondary_window: {
         used_percent: 60,
         limit_window_seconds: 604_800,
@@ -39,13 +43,18 @@ function apiUsage(overrides: Record<string, unknown> = {}) {
 
 describe("Codex auth resolution", () => {
   it("uses CODEX_HOME before HOME", () => {
-    expect(resolveCodexAuthPath({ CODEX_HOME: "/custom/codex", HOME: "/users/test" })).toBe(
-      "/custom/codex/auth.json",
-    );
+    expect(
+      resolveCodexAuthPath({
+        CODEX_HOME: "/custom/codex",
+        HOME: "/users/test",
+      }),
+    ).toBe("/custom/codex/auth.json");
   });
 
   it("falls back to ~/.codex/auth.json", () => {
-    expect(resolveCodexAuthPath({ HOME: "/users/test" })).toBe("/users/test/.codex/auth.json");
+    expect(resolveCodexAuthPath({ HOME: "/users/test" })).toBe(
+      "/users/test/.codex/auth.json",
+    );
   });
 });
 
@@ -53,7 +62,11 @@ describe("Codex API usage mapping", () => {
   it("converts an API window without treating missing data as zero", () => {
     expect(
       toRateWindow(
-        { used_percent: 25, limit_window_seconds: 18_000, reset_at: 1_787_220_000 },
+        {
+          used_percent: 25,
+          limit_window_seconds: 18_000,
+          reset_at: 1_787_220_000,
+        },
         "session",
         "Session",
       ),
@@ -64,7 +77,9 @@ describe("Codex API usage mapping", () => {
       usedPercent: 25,
       resetsAt: "2026-08-20T10:00:00.000Z",
     });
-    expect(toRateWindow({}, "session", "Session")).toMatchObject({ usedPercent: null });
+    expect(toRateWindow({}, "session", "Session")).toMatchObject({
+      usedPercent: null,
+    });
   });
 
   it("maps session, weekly, credits, and extra limits", () => {
@@ -89,16 +104,23 @@ describe("tiered Codex probing", () => {
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ chatgpt_account_id: "acct-1" }), { status: 200 }),
+        new Response(JSON.stringify({ chatgpt_account_id: "acct-1" }), {
+          status: 200,
+        }),
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify(apiUsage()), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(apiUsage()), { status: 200 }),
+      );
     const rpc = vi.fn();
     const result = await probeCodexCapacity({
       ...context,
       readFile: async () =>
         JSON.stringify({
           personal_access_token: "pat-secret",
-          tokens: { access_token: "ignored-oauth", account_id: "ignored-account" },
+          tokens: {
+            access_token: "ignored-oauth",
+            account_id: "ignored-account",
+          },
         }),
       fetch,
       rpc,
@@ -107,14 +129,17 @@ describe("tiered Codex probing", () => {
     expect(fetch.mock.calls[0][0]).toBe(
       "https://auth.openai.com/api/accounts/v1/user-auth-credential/whoami",
     );
-    expect(fetch.mock.calls[1][0]).toBe("https://chatgpt.com/backend-api/wham/usage");
+    expect(fetch.mock.calls[1][0]).toBe(
+      "https://chatgpt.com/backend-api/wham/usage",
+    );
     expect(fetch.mock.calls[1][1].headers).toMatchObject({
       Authorization: "Bearer pat-secret",
       "ChatGPT-Account-Id": "acct-1",
     });
     expect(rpc).not.toHaveBeenCalled();
     expect(result).toMatchObject({
-      provider: "codex",
+      harness: "codex",
+      provider: "openai",
       available: "yes",
       creditsRemaining: 12.5,
       authenticated: true,
@@ -129,12 +154,18 @@ describe("tiered Codex probing", () => {
   it("selects a fresh OAuth token without calling whoami", async () => {
     const fetch = vi
       .fn()
-      .mockResolvedValue(new Response(JSON.stringify(apiUsage()), { status: 200 }));
+      .mockResolvedValue(
+        new Response(JSON.stringify(apiUsage()), { status: 200 }),
+      );
     const result = await probeCodexCapacity({
       ...context,
       readFile: async () =>
         JSON.stringify({
-          tokens: { access_token: "oauth-secret", account_id: "acct-2", expires_at: 1_800_000_000 },
+          tokens: {
+            access_token: "oauth-secret",
+            account_id: "acct-2",
+            expires_at: 1_800_000_000,
+          },
         }),
       fetch,
       now: () => new Date("2026-08-20T10:00:00.000Z"),
@@ -158,23 +189,35 @@ describe("tiered Codex probing", () => {
       "stale OAuth token",
       async () =>
         JSON.stringify({
-          tokens: { access_token: "stale-secret", account_id: "acct", expires_at: 1 },
+          tokens: {
+            access_token: "stale-secret",
+            account_id: "acct",
+            expires_at: 1,
+          },
         }),
     ],
     [
       "OAuth 401",
       async () =>
         JSON.stringify({
-          tokens: { access_token: "oauth-secret", account_id: "acct", expires_at: 1_800_000_000 },
+          tokens: {
+            access_token: "oauth-secret",
+            account_id: "acct",
+            expires_at: 1_800_000_000,
+          },
         }),
     ],
   ])("falls back to the CLI for %s", async (name, readFile) => {
     const fetch = vi
       .fn()
-      .mockResolvedValue(new Response("", { status: name === "OAuth 401" ? 401 : 200 }));
+      .mockResolvedValue(
+        new Response("", { status: name === "OAuth 401" ? 401 : 200 }),
+      );
     const rpc = vi.fn(async () => ({
       rateLimits: {
-        rateLimits: { primary: { usedPercent: 5, windowDurationMins: 300, resetsAt: null } },
+        rateLimits: {
+          primary: { usedPercent: 5, windowDurationMins: 300, resetsAt: null },
+        },
       },
       account: { account: { type: "chatgpt" } },
     }));
@@ -190,10 +233,14 @@ describe("tiered Codex probing", () => {
   });
 
   it("falls back to CLI if PAT requests fail", async () => {
-    const rpc = vi.fn(async () => ({ rateLimits: {}, account: { account: null } }));
+    const rpc = vi.fn(async () => ({
+      rateLimits: {},
+      account: { account: null },
+    }));
     const result = await probeCodexCapacity({
       ...context,
-      readFile: async () => JSON.stringify({ personal_access_token: "pat-secret" }),
+      readFile: async () =>
+        JSON.stringify({ personal_access_token: "pat-secret" }),
       fetch: vi.fn().mockRejectedValue(new Error("network failure pat-secret")),
       rpc,
     });
@@ -205,14 +252,20 @@ describe("tiered Codex probing", () => {
     const fetch = vi
       .fn()
       .mockRejectedValueOnce(new Error("PAT failed"))
-      .mockResolvedValueOnce(new Response(JSON.stringify(apiUsage()), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify(apiUsage()), { status: 200 }),
+      );
     const rpc = vi.fn();
     const result = await probeCodexCapacity({
       ...context,
       readFile: async () =>
         JSON.stringify({
           personal_access_token: "pat-secret",
-          tokens: { access_token: "oauth-secret", account_id: "acct", expires_at: 1_800_000_000 },
+          tokens: {
+            access_token: "oauth-secret",
+            account_id: "acct",
+            expires_at: 1_800_000_000,
+          },
         }),
       fetch,
       rpc,
@@ -226,7 +279,9 @@ describe("tiered Codex probing", () => {
   it("uses hardened read-only app-server arguments and both account methods", async () => {
     const rpc = vi.fn(async () => ({
       rateLimits: {
-        rateLimits: { primary: { usedPercent: 5, windowDurationMins: 300, resetsAt: null } },
+        rateLimits: {
+          primary: { usedPercent: 5, windowDurationMins: 300, resetsAt: null },
+        },
       },
       account: { account: { type: "chatgpt" } },
     }));
@@ -239,7 +294,13 @@ describe("tiered Codex probing", () => {
       "account/read",
     ]);
     expect(JSON.stringify(messages)).not.toMatch(/prompt|turn\/start/);
-    expect(CODEX_APP_SERVER_ARGS).toEqual(["-s", "read-only", "-a", "untrusted", "app-server"]);
+    expect(CODEX_APP_SERVER_ARGS).toEqual([
+      "-s",
+      "read-only",
+      "-a",
+      "untrusted",
+      "app-server",
+    ]);
   });
 
   it("uses account/read to distinguish logged-out CLI state", async () => {
@@ -248,11 +309,18 @@ describe("tiered Codex probing", () => {
       readFile: async () => "{}",
       rpc: async () => ({ rateLimits: {}, account: { account: null } }),
     });
-    expect(result).toMatchObject({ authenticated: false, available: "unknown" });
+    expect(result).toMatchObject({
+      authenticated: false,
+      available: "unknown",
+    });
   });
 
   it("never exposes tokens or raw auth content through failures", async () => {
-    const secrets = ["pat-secret-value", "oauth-secret-value", "refresh-secret-value"];
+    const secrets = [
+      "pat-secret-value",
+      "oauth-secret-value",
+      "refresh-secret-value",
+    ];
     const result = await probeCodexCapacity({
       ...context,
       readFile: async () =>

@@ -86,10 +86,13 @@ ai-devkit lint --feature lint-command
 # Emit machine-readable output for CI
 ai-devkit lint --feature lint-command --json
 
-# Probe current AI provider capacity (currently Codex)
+# Probe capacity for every supported provider (codex, z.ai)
 ai-devkit capacity
 
-# Emit the JSON report
+# Probe a single provider's capacity
+ai-devkit capacity zai
+
+# Emit the JSON report (single object for one provider, array for many)
 ai-devkit capacity codex --json
 
 # Install a skill

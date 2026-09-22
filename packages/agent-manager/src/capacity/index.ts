@@ -1,7 +1,8 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
-import { probeCodexCapacity } from "./codex.js";
+import { codexUnavailableReport, probeCodexCapacity } from "./codex.js";
+import { probeZaiCapacity } from "./zai.js";
 import type { CapacityReport } from "./types.js";
 
 export type { CapacityReport, CapacityWindow } from "./types.js";
@@ -11,6 +12,14 @@ export type CapacityProbeOptions = {
   path?: string;
   access?: (target: string) => Promise<void>;
   probe?: typeof probeCodexCapacity;
+};
+
+export type ZaiCapacityOptions = {
+  now?: () => Date;
+  env?: NodeJS.ProcessEnv;
+  readFile?: (path: string, encoding: BufferEncoding) => Promise<string>;
+  fetch?: typeof globalThis.fetch;
+  timeoutMs?: number;
 };
 
 async function canAccess(target: string, mode: number): Promise<boolean> {
@@ -46,17 +55,26 @@ export async function getCodexCapacityReport(
   options: CapacityProbeOptions = {},
 ): Promise<CapacityReport> {
   const generatedAt = (options.now?.() ?? new Date()).toISOString();
-  const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? "", options.access);
+  const installed = await isCodexInstalled(
+    options.path ?? process.env.PATH ?? "",
+    options.access,
+  );
   try {
-    return await (options.probe ?? probeCodexCapacity)({ installed, checkedAt: generatedAt });
+    return await (options.probe ?? probeCodexCapacity)({
+      installed,
+      checkedAt: generatedAt,
+    });
   } catch {
-    return {
-      provider: "codex",
-      generatedAt,
-      authenticated: null,
-      available: "unknown",
-      windows: [],
-      creditsRemaining: null,
-    };
+    return codexUnavailableReport(generatedAt);
   }
+}
+
+export async function getZaiCapacityReport(
+  options: ZaiCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeZaiCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+  });
 }

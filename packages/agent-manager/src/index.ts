@@ -1,6 +1,11 @@
 export { AgentManager, AgentNotRunningError } from "./AgentManager.js";
-export { getCodexCapacityReport } from "./capacity/index.js";
-export type { CapacityProbeOptions, CapacityReport, CapacityWindow } from "./capacity/index.js";
+export { getCodexCapacityReport, getZaiCapacityReport } from "./capacity/index.js";
+export type {
+  CapacityProbeOptions,
+  CapacityReport,
+  CapacityWindow,
+  ZaiCapacityOptions,
+} from "./capacity/index.js";
 export {
   getAgentReadinessReport,
   getAgentReadinessReports,
