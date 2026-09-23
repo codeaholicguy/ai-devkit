@@ -1,10 +1,13 @@
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-const mockGetBuiltinSkillNames = vi.hoisted(() => vi.fn(async () => ["remote-one", "remote-two"]));
+const mockGetBuiltinSkillNames = vi.hoisted(() =>
+  vi.fn(async () => ["remote-one", "remote-two"]),
+);
 
 vi.mock("../../../services/skill/skill-builtins.js", () => ({
-  getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
+  getBuiltinSkillNames: (...args: unknown[]) =>
+    mockGetBuiltinSkillNames(...args),
 }));
 
 import {
@@ -28,7 +31,8 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
       registries: {
         project: "https://example.test/project.git",
         local: "file:///work/local-registry",
-        private: "https://user:registry-secret@example.test/private.git?token=query-secret",
+        private:
+          "https://user:registry-secret@example.test/private.git?token=query-secret",
       },
     }),
     [path.join(homeDir, ".ai-devkit", ".ai-devkit.json")]: JSON.stringify({
@@ -61,27 +65,42 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
         },
       },
     }),
-    [path.join(homeDir, ".codex", "hooks", "codex-session-mapping.cjs")]: "codex-hook",
+    [path.join(homeDir, ".codex", "hooks", "codex-session-mapping.cjs")]:
+      "codex-hook",
     [path.join(assetRoot, "codex", "codex-session-mapping.cjs")]: "codex-hook",
     [path.join(homeDir, ".codex", "hooks.json")]: JSON.stringify({
       hooks: {
         SessionStart: [
           {
-            hooks: [{ type: "command", command: "node ~/.codex/hooks/codex-session-mapping.cjs" }],
+            hooks: [
+              {
+                type: "command",
+                command: "node ~/.codex/hooks/codex-session-mapping.cjs",
+              },
+            ],
           },
         ],
       },
     }),
-    [path.join(homeDir, ".codex", "ai-devkit", "sessions.json")]: JSON.stringify({
-      "123": "/sessions/codex.jsonl",
-    }),
+    [path.join(homeDir, ".codex", "ai-devkit", "sessions.json")]:
+      JSON.stringify({
+        "123": "/sessions/codex.jsonl",
+      }),
     "/sessions/codex.jsonl": "",
-    [path.join(homeDir, ".claude", "hooks", "claude-prompt-hook.js")]: "claude-hook",
+    [path.join(homeDir, ".claude", "hooks", "claude-prompt-hook.js")]:
+      "claude-hook",
     [path.join(assetRoot, "claude", "claude-prompt-hook.js")]: "claude-hook",
     [path.join(homeDir, ".claude", "settings.json")]: JSON.stringify({
       hooks: {
         PreToolUse: [
-          { hooks: [{ type: "command", command: "node ~/.claude/hooks/claude-prompt-hook.js" }] },
+          {
+            hooks: [
+              {
+                type: "command",
+                command: "node ~/.claude/hooks/claude-prompt-hook.js",
+              },
+            ],
+          },
         ],
       },
     }),
@@ -89,7 +108,9 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
       "456": "/sessions/pi.jsonl",
     }),
     "/sessions/pi.jsonl": "",
-    [path.join(homeDir, ".pi", "agent", "auth.json")]: JSON.stringify({ provider: "anthropic" }),
+    [path.join(homeDir, ".pi", "agent", "auth.json")]: JSON.stringify({
+      provider: "anthropic",
+    }),
   };
   for (const directory of [
     ".codex",
@@ -111,7 +132,8 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     ["opencode", path.join(homeDir, ".config", "opencode", "skills")],
   ] as const) {
     void agent;
-    for (const skill of builtIns) files[path.join(skillRoot, skill, "SKILL.md")] = "# skill";
+    for (const skill of builtIns)
+      files[path.join(skillRoot, skill, "SKILL.md")] = "# skill";
   }
   const executablePaths: Record<string, string> = {
     codex: "/bin/codex",
@@ -130,20 +152,27 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     installedVersion: "0.55.0",
     now: () => new Date("2026-08-23T00:00:00.000Z"),
     readFile: async (target) => {
-      if (!(target in files)) throw Object.assign(new Error("missing"), { code: "ENOENT" });
+      if (!(target in files))
+        throw Object.assign(new Error("missing"), { code: "ENOENT" });
       return files[target];
     },
     access: async (target, mode) => {
       expect(mode).toBeTypeOf("number");
-      if (Object.values(executablePaths).includes(target) || target in files) return;
+      if (Object.values(executablePaths).includes(target) || target in files)
+        return;
       throw Object.assign(new Error("missing"), { code: "ENOENT" });
     },
     runCommand: vi.fn(async (command, args) => {
       if (command === "tmux") return { stdout: "tmux 3.4\n", stderr: "" };
-      if (command === "pi") return { stdout: "@ai-devkit/pi-session-tracker\n", stderr: "" };
-      if (command === "claude") return { stdout: JSON.stringify({ loggedIn: true }), stderr: "" };
+      if (command === "pi")
+        return { stdout: "@ai-devkit/pi-session-tracker\n", stderr: "" };
+      if (command === "claude")
+        return { stdout: JSON.stringify({ loggedIn: true }), stderr: "" };
       if (command === "gh")
-        return { stdout: "github.com\n  Logged in to github.com account test-user\n", stderr: "" };
+        return {
+          stdout: "github.com\n  Logged in to github.com account test-user\n",
+          stderr: "",
+        };
       if (command === "opencode")
         return { stdout: "●  litellm api\n●  OpenAI oauth\n", stderr: "" };
       if (command === "npm") return { stdout: "0.56.0\n", stderr: "" };
@@ -190,14 +219,23 @@ describe("getStatusReport", () => {
     expect(report.agents).not.toHaveProperty("gemini_cli");
     expect(report.agents.opencode.auth?.status).toBe("pass");
     expect(report.agents.copilot.auth?.status).toBe("pass");
-    expect(report.tmux).toMatchObject({ path: "tmux", available: true, version: "3.4" });
+    expect(report.tmux).toMatchObject({
+      path: "tmux",
+      available: true,
+      version: "3.4",
+    });
     expect(report.registries.project.configured).toMatchObject({
       project: "https://example.test/project.git",
     });
-    expect(report.registries.project.configured.local).toBe("local: /work/local-registry");
+    expect(report.registries.project.configured.local).toBe(
+      "local: /work/local-registry",
+    );
     expect(report.registries.global.configured).toEqual({
       global: "https://example.test/global.git",
     });
+    expect(report.registries.global.source).toBe(
+      path.join(options.homeDir!, ".ai-devkit", ".ai-devkit.json"),
+    );
     expect(report.aiDevkit).toMatchObject({
       installedVersion: "0.55.0",
       latestVersion: "0.56.0",
@@ -214,8 +252,13 @@ describe("getStatusReport", () => {
         expect.objectContaining({ name: "slack", ready: true }),
       ]),
     );
+    expect(report.channels.config.path).toBe(
+      path.join(options.homeDir!, ".ai-devkit", "channels.json"),
+    );
     expect(report.checks.warnings).toBe(0);
-    expect(report.registries.project.configured.private).toBe("https://example.test/private.git");
+    expect(report.registries.project.configured.private).toBe(
+      "https://example.test/private.git",
+    );
     expect(JSON.stringify(report)).not.toContain("registry-secret");
     expect(JSON.stringify(report)).not.toContain("query-secret");
   });
@@ -253,14 +296,17 @@ describe("getStatusReport", () => {
       path: "",
       runCommand: vi.fn(async (command, args) => {
         if (command === "tmux") return { stdout: "tmux 3.5\n", stderr: "" };
-        if (command === "pi") return { stdout: "@ai-devkit/pi-session-tracker\n", stderr: "" };
-        if (command === "claude") return { stdout: JSON.stringify({ loggedIn: true }), stderr: "" };
+        if (command === "pi")
+          return { stdout: "@ai-devkit/pi-session-tracker\n", stderr: "" };
+        if (command === "claude")
+          return { stdout: JSON.stringify({ loggedIn: true }), stderr: "" };
         if (command === "gh")
           return {
             stdout: "github.com\n  Logged in to github.com account test-user\n",
             stderr: "",
           };
-        if (command === "opencode") return { stdout: "●  litellm api\n", stderr: "" };
+        if (command === "opencode")
+          return { stdout: "●  litellm api\n", stderr: "" };
         if (command === "npm") return { stdout: "0.56.0\n", stderr: "" };
         throw new Error(`unexpected command ${command} ${args.join(" ")}`);
       }),
@@ -280,7 +326,10 @@ describe("getStatusReport", () => {
     const { options } = fixture();
     const baseAccess = options.access!;
     const access: StatusServiceOptions["access"] = async (target, mode) => {
-      if (target === "/bin/grok" || target === path.join(options.homeDir!, ".grok")) {
+      if (
+        target === "/bin/grok" ||
+        target === path.join(options.homeDir!, ".grok")
+      ) {
         throw new Error("missing");
       }
       return baseAccess(target, mode);
@@ -288,7 +337,10 @@ describe("getStatusReport", () => {
 
     const report = await getStatusReport({ ...options, access });
 
-    expect(report.agents.grok_cli.executable).toMatchObject({ path: null, status: "fail" });
+    expect(report.agents.grok_cli.executable).toMatchObject({
+      path: null,
+      status: "fail",
+    });
     expect(report.agents.grok_cli.globalConfig.status).toBe("fail");
     expect(report.overall).toBe("pass");
     expect(report.checks.failed).toBe(0);
@@ -339,12 +391,16 @@ describe("getStatusReport", () => {
 
   it("reports malformed mappings and channel config without exposing their contents", async () => {
     const { options, files } = fixture();
-    files[path.join(options.homeDir!, ".codex", "ai-devkit", "sessions.json")] = "{token-secret";
-    files[path.join(options.homeDir!, ".ai-devkit", "channels.json")] = "{channel-secret";
+    files[path.join(options.homeDir!, ".codex", "ai-devkit", "sessions.json")] =
+      "{token-secret";
+    files[path.join(options.homeDir!, ".ai-devkit", "channels.json")] =
+      "{channel-secret";
 
     const report = await getStatusReport(options);
     const serialized = JSON.stringify(report);
-    expect(report.agents.codex.integration?.details?.mappingFile).toMatchObject({ status: "fail" });
+    expect(report.agents.codex.integration?.details?.mappingFile).toMatchObject(
+      { status: "fail" },
+    );
     expect(report.channels.config).toMatchObject({
       present: true,
       validJson: false,
@@ -356,11 +412,21 @@ describe("getStatusReport", () => {
 
   it("reports channel schema as informational when an entry is structurally incomplete", async () => {
     const { options, files } = fixture();
-    files[path.join(options.homeDir!, ".ai-devkit", "channels.json")] = JSON.stringify({
-      channels: { broken: { type: "slack", enabled: true, config: { appToken: "xapp-secret" } } },
-    });
+    files[path.join(options.homeDir!, ".ai-devkit", "channels.json")] =
+      JSON.stringify({
+        channels: {
+          broken: {
+            type: "slack",
+            enabled: true,
+            config: { appToken: "xapp-secret" },
+          },
+        },
+      });
     const report = await getStatusReport(options);
-    expect(report.channels.config).toMatchObject({ validJson: true, validSchema: false });
+    expect(report.channels.config).toMatchObject({
+      validJson: true,
+      validSchema: false,
+    });
     expect(report.channels.connections[0]).toMatchObject({
       ready: false,
       errors: ["channel configuration is not ready"],
