@@ -260,7 +260,7 @@ export function registerChannelCommand(program: Command): void {
           return;
         }
 
-        ui.text("Configured Channels:", { breakline: true });
+        ui.text("Configured Channels:");
 
         const runningChannelNames = channels
           .map(([name]) => name)

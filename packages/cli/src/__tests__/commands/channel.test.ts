@@ -789,6 +789,7 @@ describe("channel command", () => {
     registerChannelCommand(program);
     await program.parseAsync(["node", "test", "channel", "list"]);
 
+    expect(ui.text).toHaveBeenCalledWith("Configured Channels:");
     expect(ui.table).toHaveBeenCalledWith(
       expect.objectContaining({
         rows: [
