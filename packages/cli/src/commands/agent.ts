@@ -60,7 +60,10 @@ import {
   createDefaultAgentGroupService,
 } from "../services/agent/agent-group.service.js";
 import { registerAgentGroupCommand } from "./agent/group.command.js";
-import { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp } from "../tui/console/ConsoleApp.js";
+import {
+  AGENT_CONSOLE_RENDER_OPTIONS,
+  ConsoleApp,
+} from "../tui/console/ConsoleApp.js";
 import { generateAgentName } from "../util/agent.js";
 import { select } from "@inquirer/prompts";
 import { resolveTmuxInstallInstructions } from "../util/tmux.js";
@@ -71,16 +74,26 @@ import { getErrorMessage } from "../util/text.js";
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
 
-const STATUS_DISPLAY: Record<AgentStatus, { emoji: string; label: string }> = {
-  [AgentStatus.RUNNING]: { emoji: "🟢", label: "run" },
-  [AgentStatus.WAITING]: { emoji: "🟡", label: "wait" },
-  [AgentStatus.IDLE]: { emoji: "⚪", label: "idle" },
-  [AgentStatus.UNKNOWN]: { emoji: "❓", label: "unknown" },
+const STATUS_DISPLAY: Record<
+  AgentStatus,
+  { label: string; color: (text: string) => string }
+> = {
+  [AgentStatus.RUNNING]: { label: "Running", color: chalk.green },
+  [AgentStatus.WAITING]: { label: "Waiting", color: chalk.yellow },
+  [AgentStatus.IDLE]: { label: "Idle", color: chalk.dim },
+  [AgentStatus.UNKNOWN]: { label: "Unknown", color: chalk.gray },
 };
 
 function formatStatus(status: AgentStatus): string {
   const config = STATUS_DISPLAY[status] || STATUS_DISPLAY[AgentStatus.UNKNOWN];
-  return `${config.emoji} ${config.label}`;
+  return config.label;
+}
+
+function colorStatus(statusLabel: string): string {
+  const display = Object.values(STATUS_DISPLAY).find(
+    (value) => value.label === statusLabel,
+  );
+  return (display ?? STATUS_DISPLAY[AgentStatus.UNKNOWN]).color(statusLabel);
 }
 
 function sanitizeProviderOutput(value: string): string {
@@ -89,22 +102,36 @@ function sanitizeProviderOutput(value: string): string {
   const withoutOsc = value.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "");
   return Array.from(withoutOsc, (character) => {
     const code = character.charCodeAt(0);
-    return (code < 32 && code !== 9 && code !== 10) || code === 127 ? "" : character;
+    return (code < 32 && code !== 9 && code !== 10) || code === 127
+      ? ""
+      : character;
   }).join("");
 }
 
-function formatRelativeTime(timestamp: Date): string {
-  const diffMs = Date.now() - new Date(timestamp).getTime();
-  const diffMinutes = Math.floor(diffMs / 60000);
+function formatRelativeTime(
+  timestamp: Date,
+  now = new Date(Date.now()),
+): string {
+  const diffMs = new Date(timestamp).getTime() - now.getTime();
+  const future = diffMs > 0;
+  const absMs = Math.abs(diffMs);
+  const diffMinutes = future
+    ? Math.ceil(absMs / 60000)
+    : Math.floor(absMs / 60000);
 
   if (diffMinutes < 1) return "just now";
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  if (diffMinutes < 60)
+    return future ? `in ${diffMinutes}m` : `${diffMinutes}m ago`;
 
-  const diffHours = Math.floor(diffMinutes / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffHours = future
+    ? Math.ceil(diffMinutes / 60)
+    : Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return future ? `in ${diffHours}h` : `${diffHours}h ago`;
 
-  const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}d ago`;
+  const diffDays = future
+    ? Math.ceil(diffHours / 24)
+    : Math.floor(diffHours / 24);
+  return future ? `in ${diffDays}d` : `${diffDays}d ago`;
 }
 
 const TYPE_LABELS: Record<AgentType, string> = {
@@ -131,8 +158,38 @@ function formatCwd(projectPath?: string): string {
   return projectPath;
 }
 
-function formatWorkOn(summary?: string): string {
-  const firstLine = (summary ?? "").split(/\r?\n/, 1)[0] || "";
+function formatLocalTimestamp(timestamp: Date): string {
+  return new Date(timestamp).toLocaleString();
+}
+
+function formatLocalTimestampWithRelative(
+  timestamp: Date,
+  now = new Date(Date.now()),
+): string {
+  return `${formatLocalTimestamp(timestamp)} (${formatRelativeTime(timestamp, now)})`;
+}
+
+function formatSeparator(): string {
+  const width = process.stdout.columns ?? 80;
+  return "─".repeat(Math.max(40, Math.min(120, width - 2)));
+}
+
+function pluralize(
+  count: number,
+  singular: string,
+  plural = `${singular}s`,
+): string {
+  return count === 1 ? singular : plural;
+}
+
+function formatWorkOn(summary: string | undefined, agentName?: string): string {
+  const lines = (summary ?? "").split(/\r?\n/);
+  const firstLine = lines[0] || "";
+  const hasHiddenLines =
+    lines.length > 1 && lines.slice(1).some((line) => line.trim() !== "");
+  if (firstLine && hasHiddenLines && agentName) {
+    return `${firstLine} … Use \`ai-devkit agent detail --id ${agentName}\`.`;
+  }
   return firstLine || "No active task";
 }
 
@@ -145,7 +202,9 @@ function selectConversationMessages(
   conversation: ConversationMessage[],
   options: { full?: boolean; tail?: string },
 ): { displayMessages: ConversationMessage[]; isTruncated: boolean } {
-  const tailCount = options.full ? conversation.length : resolveTailCount(options.tail);
+  const tailCount = options.full
+    ? conversation.length
+    : resolveTailCount(options.tail);
   const displayMessages = conversation.slice(-tailCount);
   return {
     displayMessages,
@@ -157,19 +216,30 @@ function renderConversationDetail(
   displayMessages: ConversationMessage[],
   totalMessages: number,
   isTruncated: boolean,
+  options: { localClock?: boolean; widthDerivedSeparator?: boolean } = {},
 ): void {
   const label = isTruncated
-    ? `Conversation (last ${displayMessages.length} of ${totalMessages} messages)`
-    : `Conversation (${displayMessages.length} messages)`;
+    ? `Conversation (last ${displayMessages.length} of ${totalMessages} ${pluralize(totalMessages, "message")})`
+    : `Conversation (${displayMessages.length} ${pluralize(displayMessages.length, "message")})`;
   ui.text(label, { breakline: false });
-  ui.text(chalk.dim("─".repeat(40)));
+  ui.text(
+    chalk.dim(
+      options.widthDerivedSeparator ? formatSeparator() : "─".repeat(40),
+    ),
+  );
 
   for (const msg of displayMessages) {
     const time = msg.timestamp
-      ? chalk.dim(`[${new Date(msg.timestamp).toLocaleTimeString()}]`)
+      ? chalk.dim(
+          `[${options.localClock ? formatLocalTimestamp(new Date(msg.timestamp)) : new Date(msg.timestamp).toLocaleTimeString()}]`,
+        )
       : "";
     const roleColor =
-      msg.role === "user" ? chalk.green : msg.role === "assistant" ? chalk.cyan : chalk.yellow;
+      msg.role === "user"
+        ? chalk.green
+        : msg.role === "assistant"
+          ? chalk.cyan
+          : chalk.yellow;
     ui.text(`${time} ${roleColor(msg.role + ":")}`);
     const lines = msg.content.split("\n");
     for (const line of lines) {
@@ -276,7 +346,9 @@ async function resolveSendMessage(
   }
 
   if (message === undefined) {
-    throw new Error("Message is required unless --stdin is used or stdin is piped.");
+    throw new Error(
+      "Message is required unless --stdin is used or stdin is piped.",
+    );
   }
 
   return message;
@@ -297,13 +369,23 @@ export function registerAgentCommand(program: Command): void {
   agentCommand
     .command("start")
     .description("Start a new agent in the configured interactive runtime")
-    .requiredOption("--type <type>", `Agent type: ${Object.keys(AGENTS).join(", ")}`)
-    .option("--mode <mode>", "Agent mode: interactive or durable", "interactive")
+    .requiredOption(
+      "--type <type>",
+      `Agent type: ${Object.keys(AGENTS).join(", ")}`,
+    )
+    .option(
+      "--mode <mode>",
+      "Agent mode: interactive or durable",
+      "interactive",
+    )
     .option(
       "--name <name>",
       "Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})",
     )
-    .option("--cwd <path>", "Working directory for the agent (default: current directory)")
+    .option(
+      "--cwd <path>",
+      "Working directory for the agent (default: current directory)",
+    )
     .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("start agent", async (options) => {
@@ -313,7 +395,8 @@ export function registerAgentCommand(program: Command): void {
         const agentType = options.type as string;
         const mode = options.mode as string;
         const cwd = path.resolve(options.cwd ?? process.cwd());
-        const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
+        const agentName =
+          (options.name as string | undefined) ?? generateAgentName(cwd);
 
         if (!(agentType in AGENTS)) {
           ui.error(
@@ -322,9 +405,12 @@ export function registerAgentCommand(program: Command): void {
           process.exit(1);
         }
         if (!["interactive", "durable"].includes(mode)) {
-          throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, durable.`);
+          throw new Error(
+            `Unsupported agent mode "${mode}". Supported: interactive, durable.`,
+          );
         }
-        const internalMode = mode === "durable" ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
+        const internalMode =
+          mode === "durable" ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
         if (
           internalMode === AGENT_MODES.DURABLE &&
           !["claude", "codex", "pi"].includes(agentType)
@@ -347,21 +433,35 @@ export function registerAgentCommand(program: Command): void {
 
         try {
           if (internalMode === AGENT_MODES.DURABLE) {
-            const entry = await createDurableAgentService(agentType as DurableProvider).create({
+            const entry = await createDurableAgentService(
+              agentType as DurableProvider,
+            ).create({
               name: agentName,
               cwd,
             });
-            ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
+            ui.success(
+              `Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`,
+            );
             ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-            ui.text(`State: ready (${formatPrintProvider(entry.provider)} session not started)`);
+            ui.text(
+              `State: ready (${formatPrintProvider(entry.provider)} session not started)`,
+            );
             return;
           }
-          const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
+          const runtimeProvider =
+            await new ConfigManager().getAgentRuntimeProvider();
           const entry = await startAgent(
-            { type: agentType as StartableAgentType, name: agentName, cwd, runtimeProvider },
+            {
+              type: agentType as StartableAgentType,
+              name: agentName,
+              cwd,
+              runtimeProvider,
+            },
             { onWarning: (msg: string) => ui.warning(msg) },
           );
-          ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
+          ui.success(
+            `Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`,
+          );
           ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
           if (entry.runtime === "herdr") {
             ui.text("Runtime: herdr");
@@ -371,10 +471,16 @@ export function registerAgentCommand(program: Command): void {
           }
         } catch (err) {
           if (err instanceof TmuxUnavailableError) {
-            const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
-            ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
+            const instructions = await resolveTmuxInstallInstructions(
+              createTmuxInspectionDeps(),
+            );
+            ui.error(
+              `tmux is not installed or not in PATH. ${instructions.message}`,
+            );
           } else if (err instanceof AgentRuntimeUnavailableError) {
-            ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
+            ui.error(
+              `Herdr runtime is unavailable (${err.reason}): ${err.detail}`,
+            );
           } else if (err instanceof AgentNameInUseError) {
             ui.error(
               `Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`,
@@ -400,12 +506,19 @@ export function registerAgentCommand(program: Command): void {
       withErrorHandler("list agents", async (options) => {
         const manager = createAgentManager();
         const agents = await manager.listAgents();
-        const durableAgents = await createDurableAgentService().repository.list();
+        const durableAgents =
+          await createDurableAgentService().repository.list();
 
         if (options.json) {
           const output = [
-            ...agents.map((agent) => ({ ...agent, mode: AGENT_MODES.INTERACTIVE })),
-            ...durableAgents.map((agent) => ({ ...agent, mode: AGENT_MODES.DURABLE })),
+            ...agents.map((agent) => ({
+              ...agent,
+              mode: AGENT_MODES.INTERACTIVE,
+            })),
+            ...durableAgents.map((agent) => ({
+              ...agent,
+              mode: AGENT_MODES.DURABLE,
+            })),
           ];
           console.log(JSON.stringify(output, null, 2));
           return;
@@ -416,69 +529,116 @@ export function registerAgentCommand(program: Command): void {
           return;
         }
 
-        ui.text("Agents:", { breakline: true });
+        const maxWidth = process.stdout.columns ?? 120;
+        const now = new Date(Date.now());
 
-        const rows = [
-          ...agents.map((agent) => [
-            agent.name,
-            agent.projectPath ? path.basename(agent.projectPath) : "",
-            formatType(agent.type),
-            AGENT_MODES.INTERACTIVE,
-            formatStatus(agent.status),
-            formatWorkOn(agent.summary),
-            formatRelativeTime(agent.lastActive),
-          ]),
-          ...durableAgents.map((agent) => [
-            agent.name,
-            path.basename(agent.cwd),
-            formatType(agent.provider),
-            AGENT_MODES.DURABLE,
-            agent.state,
-            agent.lastResult?.summary ?? agent.sessionHealth,
-            agent.lastActiveAt ? formatRelativeTime(new Date(agent.lastActiveAt)) : "never",
-          ]),
-        ];
+        if (agents.length > 0) {
+          ui.text("Interactive Agents:", { breakline: true });
+          ui.table({
+            headers: [
+              "Agent",
+              "Project",
+              "Type",
+              "Mode",
+              "Status",
+              "Working On",
+              "Active",
+            ],
+            rows: agents.map((agent) => [
+              agent.name,
+              agent.projectPath ? path.basename(agent.projectPath) : "",
+              formatType(agent.type),
+              AGENT_MODES.INTERACTIVE,
+              formatStatus(agent.status),
+              formatWorkOn(agent.summary, agent.name),
+              formatRelativeTime(agent.lastActive, now),
+            ]),
+            maxWidth,
+            columnStyles: [
+              (text) => chalk.cyan(text),
+              (text) => chalk.dim(text),
+              (text) => chalk.dim(text),
+              (text) => chalk.dim(text),
+              colorStatus,
+              (text) => text,
+              (text) => chalk.dim(text),
+            ],
+          });
+        }
 
-        ui.table({
-          headers: ["Agent", "Project", "Type", "Mode", "Status", "Working On", "Active"],
-          rows: rows,
-          maxWidth: process.stdout.columns ?? 120,
-          columnStyles: [
-            (text) => chalk.cyan(text),
-            (text) => chalk.dim(text),
-            (text) => chalk.dim(text),
-            (text) => chalk.dim(text),
-            (text) => {
-              if (text.includes(STATUS_DISPLAY[AgentStatus.RUNNING].label))
-                return chalk.green(text);
-              if (text.includes(STATUS_DISPLAY[AgentStatus.WAITING].label))
-                return chalk.yellow(text);
-              if (text.includes(STATUS_DISPLAY[AgentStatus.IDLE].label)) return chalk.dim(text);
-              return chalk.gray(text);
-            },
-            (text) => text,
-            (text) => chalk.dim(text),
-          ],
-        });
+        if (durableAgents.length > 0) {
+          if (agents.length > 0) {
+            ui.breakline();
+          }
+          ui.text("Durable Agents:", { breakline: true });
+          ui.table({
+            headers: [
+              "Agent",
+              "Project",
+              "Provider",
+              "Mode",
+              "State",
+              "Session",
+              "Active",
+            ],
+            rows: durableAgents.map((agent) => [
+              agent.name,
+              path.basename(agent.cwd),
+              formatType(agent.provider),
+              AGENT_MODES.DURABLE,
+              agent.state,
+              agent.lastResult?.summary ?? agent.sessionHealth,
+              agent.lastActiveAt
+                ? formatRelativeTime(new Date(agent.lastActiveAt), now)
+                : "never",
+            ]),
+            maxWidth,
+            columnStyles: [
+              (text) => chalk.cyan(text),
+              (text) => chalk.dim(text),
+              (text) => chalk.dim(text),
+              (text) => chalk.dim(text),
+              (text) => text,
+              (text) => text,
+              (text) => chalk.dim(text),
+            ],
+          });
+        }
 
-        const waitingCount = agents.filter((a) => a.status === AgentStatus.WAITING).length;
+        const waitingCount = agents.filter(
+          (a) => a.status === AgentStatus.WAITING,
+        ).length;
         if (waitingCount > 0) {
           ui.breakline();
-          ui.warning(`${waitingCount} agent(s) waiting for input.`);
+          ui.warning(
+            `${waitingCount} ${pluralize(waitingCount, "agent")} waiting for input.`,
+          );
         }
       }),
     );
 
   agentCommand
     .command("sessions")
-    .description("List historical Claude/Codex/Gemini/Grok/OpenCode sessions for resume")
-    .option("--all", "Include sessions from every cwd (default: only current cwd)")
-    .option("--cwd <path>", "Override the cwd filter (implies non-default scope)")
+    .description(
+      "List historical Claude/Codex/Gemini/Grok/OpenCode sessions for resume",
+    )
+    .option(
+      "--all",
+      "Include sessions from every cwd (default: only current cwd)",
+    )
+    .option(
+      "--cwd <path>",
+      "Override the cwd filter (implies non-default scope)",
+    )
     .option(
       "--type <type>",
       "Filter to one of: claude, codex, gemini_cli, grok_cli, opencode, copilot, pi",
     )
-    .option("--limit <n>", "Max rows to print (default: 50; 0 = no limit)", "50")
+    .option(
+      "--limit <n>",
+      "Max rows to print (default: 50; 0 = no limit)",
+      "50",
+    )
     .option("-j, --json", "Output as JSON")
     .action(
       withErrorHandler("list sessions", async (options) => {
@@ -507,7 +667,13 @@ export function registerAgentCommand(program: Command): void {
 
         ui.text("Sessions:", { breakline: true });
         ui.table({
-          headers: ["Type", "Session ID", "CWD", "First Message", "Last Active"],
+          headers: [
+            "Type",
+            "Session ID",
+            "CWD",
+            "First Message",
+            "Last Active",
+          ],
           rows: sessions.map((s) => [
             formatType(s.type),
             s.sessionId,
@@ -535,7 +701,10 @@ export function registerAgentCommand(program: Command): void {
   sessionCommand
     .command("detail")
     .description("Show detailed information about a historical session")
-    .requiredOption("--id <sessionId>", "Session ID (as shown in agent sessions)")
+    .requiredOption(
+      "--id <sessionId>",
+      "Session ID (as shown in agent sessions)",
+    )
     .option("-j, --json", "Output as JSON")
     .option(
       "--type <type>",
@@ -562,7 +731,9 @@ export function registerAgentCommand(program: Command): void {
         if (Array.isArray(resolved)) {
           ui.error(`Multiple sessions match "${options.id}":`);
           resolved.forEach((session) => {
-            ui.text(`  - ${formatType(session.type)} ${formatCwd(session.cwd)}`);
+            ui.text(
+              `  - ${formatType(session.type)} ${formatCwd(session.cwd)}`,
+            );
           });
           ui.info("Use --type to choose the intended session source.");
           return;
@@ -578,7 +749,10 @@ export function registerAgentCommand(program: Command): void {
         const conversation = adapter.getConversation(session.sessionFilePath, {
           verbose: options.verbose,
         });
-        const { displayMessages, isTruncated } = selectConversationMessages(conversation, options);
+        const { displayMessages, isTruncated } = selectConversationMessages(
+          conversation,
+          options,
+        );
 
         if (options.json) {
           const output = {
@@ -598,12 +772,21 @@ export function registerAgentCommand(program: Command): void {
         ui.text(chalk.dim("─".repeat(40)));
         ui.text(`  ${chalk.bold("Session ID:")}  ${session.sessionId}`);
         ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(session.cwd)}`);
-        ui.text(`  ${chalk.bold("Start Time:")}  ${session.startedAt.toLocaleString()}`);
-        ui.text(`  ${chalk.bold("Last Active:")} ${formatRelativeTime(session.lastActive)}`);
+        ui.text(
+          `  ${chalk.bold("Start Time:")}  ${session.startedAt.toLocaleString()}`,
+        );
+        ui.text(
+          `  ${chalk.bold("Last Active:")} ${formatRelativeTime(session.lastActive)}`,
+        );
         ui.text(`  ${chalk.bold("Type:")}        ${formatType(session.type)}`);
         ui.text(`  ${chalk.bold("File:")}        ${session.sessionFilePath}`);
         ui.breakline();
-        renderConversationDetail(displayMessages, conversation.length, isTruncated);
+        renderConversationDetail(
+          displayMessages,
+          conversation.length,
+          isTruncated,
+          { localClock: true, widthDerivedSeparator: true },
+        );
       }),
     );
 
@@ -613,7 +796,9 @@ export function registerAgentCommand(program: Command): void {
     .option("--debug", "Trace how the agent terminal is resolved and focused")
     .action(
       withErrorHandler("open agent", async (name, options) => {
-        const terminalLogger = options.debug ? createLogger("terminal") : undefined;
+        const terminalLogger = options.debug
+          ? createLogger("terminal")
+          : undefined;
         if (options.debug) {
           enableDebug();
         }
@@ -622,7 +807,9 @@ export function registerAgentCommand(program: Command): void {
         // the ai-devkit:terminal debug logger (enabled above) so users can
         // see which terminal matched and how focus was attempted.
         const focusManager = new TerminalFocusManager(
-          terminalLogger ? (message: string) => terminalLogger(message) : undefined,
+          terminalLogger
+            ? (message: string) => terminalLogger(message)
+            : undefined,
         );
 
         const agents = await manager.listAgents();
@@ -668,7 +855,10 @@ export function registerAgentCommand(program: Command): void {
           registry: AgentRegistry.default(),
           focusManager,
         });
-        if (!focusResult.focused && focusResult.reason === "terminal-not-found") {
+        if (
+          !focusResult.focused &&
+          focusResult.reason === "terminal-not-found"
+        ) {
           spinner.fail(
             `Could not find terminal window for agent "${agent.name}" (PID: ${agent.pid}).`,
           );
@@ -690,7 +880,10 @@ export function registerAgentCommand(program: Command): void {
     .option("--group <name>", "Agent group name")
     .option("--stdin", "Read the message from stdin")
     .option("--wait", "Wait for and print the agent response")
-    .option("--timeout <milliseconds>", "Maximum time to wait with --wait, in milliseconds")
+    .option(
+      "--timeout <milliseconds>",
+      "Maximum time to wait with --wait, in milliseconds",
+    )
     .option("-j, --json", "Output wait result as JSON")
     .action(
       withErrorHandler("send message", async (message, options) => {
@@ -714,14 +907,19 @@ export function registerAgentCommand(program: Command): void {
           throw new Error(`Multiple durable agents match "${options.id}".`);
         }
         if (durableResolved) {
-          const providerService = createDurableAgentService(durableResolved.provider);
+          const providerService = createDurableAgentService(
+            durableResolved.provider,
+          );
           if (options.timeout !== undefined) {
-            throw new Error("--timeout is not supported for synchronous durable agents.");
+            throw new Error(
+              "--timeout is not supported for synchronous durable agents.",
+            );
           }
           if (options.id !== durableResolved.id) {
             const liveAgents = await manager.listAgents();
             const liveExact = liveAgents.filter(
-              (agent) => agent.name.toLowerCase() === String(options.id).toLowerCase(),
+              (agent) =>
+                agent.name.toLowerCase() === String(options.id).toLowerCase(),
             );
             if (liveExact.length > 0) {
               throw new Error(
@@ -792,7 +990,9 @@ export function registerAgentCommand(program: Command): void {
 
         if (Array.isArray(resolved)) {
           ui.error(`Multiple agents match "${name}":`);
-          resolved.forEach((a) => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
+          resolved.forEach((a) =>
+            ui.text(`  - ${a.name} (${formatStatus(a.status)})`),
+          );
           ui.info("Please use a more specific name.");
           return;
         }
@@ -802,13 +1002,17 @@ export function registerAgentCommand(program: Command): void {
           registry,
         });
         if (result.runtime === "herdr") {
-          ui.success(`Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`);
+          ui.success(
+            `Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`,
+          );
           return;
         }
 
         const tmuxRef = parseTmuxRuntimeRef(result.runtimeRef);
         const suffix = tmuxRef ? ` and tmux session "${tmuxRef.session}"` : "";
-        ui.success(`Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`);
+        ui.success(
+          `Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`,
+        );
       }),
     );
 
@@ -824,13 +1028,15 @@ export function registerAgentCommand(program: Command): void {
       withErrorHandler("get agent detail", async (options) => {
         const manager = createAgentManager();
         const agents = await manager.listAgents();
-        const durableResolved = await createDurableAgentService().repository.resolve(options.id);
+        const durableResolved =
+          await createDurableAgentService().repository.resolve(options.id);
         if (Array.isArray(durableResolved)) {
           throw new Error(`Multiple durable agents match "${options.id}".`);
         }
         if (durableResolved) {
           const liveExact = agents.filter(
-            (agent) => agent.name.toLowerCase() === String(options.id).toLowerCase(),
+            (agent) =>
+              agent.name.toLowerCase() === String(options.id).toLowerCase(),
           );
           if (options.id !== durableResolved.id && liveExact.length > 0) {
             throw new Error(
@@ -842,7 +1048,7 @@ export function registerAgentCommand(program: Command): void {
             return;
           }
           ui.text("Durable Agent Detail", { breakline: true });
-          ui.text(chalk.dim("─".repeat(40)));
+          ui.text(chalk.dim(formatSeparator()));
           ui.text(`  ${chalk.bold("Agent ID:")}    ${durableResolved.id}`);
           ui.text(
             `  ${chalk.bold("Session ID:")}  ${durableResolved.providerSessionId ?? "not started"}`,
@@ -852,14 +1058,20 @@ export function registerAgentCommand(program: Command): void {
             `  ${chalk.bold("Provider:")}    ${formatPrintProvider(durableResolved.provider)}`,
           );
           ui.text(`  ${chalk.bold("Mode:")}        ${AGENT_MODES.DURABLE}`);
-          ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(durableResolved.cwd)}`);
-          ui.text(`  ${chalk.bold("State:")}       ${durableResolved.state}`);
-          ui.text(`  ${chalk.bold("Session:")}     ${durableResolved.sessionHealth}`);
           ui.text(
-            `  ${chalk.bold("Last Active:")} ${durableResolved.lastActiveAt ? formatRelativeTime(new Date(durableResolved.lastActiveAt)) : "never"}`,
+            `  ${chalk.bold("CWD:")}         ${formatCwd(durableResolved.cwd)}`,
+          );
+          ui.text(`  ${chalk.bold("State:")}       ${durableResolved.state}`);
+          ui.text(
+            `  ${chalk.bold("Session:")}     ${durableResolved.sessionHealth}`,
+          );
+          ui.text(
+            `  ${chalk.bold("Last Active:")} ${durableResolved.lastActiveAt ? formatLocalTimestampWithRelative(new Date(durableResolved.lastActiveAt)) : "never"}`,
           );
           if (durableResolved.lastResult)
-            ui.text(`  ${chalk.bold("Last Result:")} ${durableResolved.lastResult.summary}`);
+            ui.text(
+              `  ${chalk.bold("Last Result:")} ${durableResolved.lastResult.summary}`,
+            );
           return;
         }
 
@@ -874,7 +1086,9 @@ export function registerAgentCommand(program: Command): void {
 
         if (Array.isArray(resolved)) {
           ui.error(`Multiple agents match "${options.id}":`);
-          resolved.forEach((a) => ui.text(`  - ${a.name} (${formatStatus(a.status)})`));
+          resolved.forEach((a) =>
+            ui.text(`  - ${a.name} (${formatStatus(a.status)})`),
+          );
           ui.info("Please use a more specific name.");
           return;
         }
@@ -896,7 +1110,10 @@ export function registerAgentCommand(program: Command): void {
           verbose: options.verbose,
         });
 
-        const { displayMessages, isTruncated } = selectConversationMessages(conversation, options);
+        const { displayMessages, isTruncated } = selectConversationMessages(
+          conversation,
+          options,
+        );
 
         const startTime =
           conversation.length > 0 && conversation[0].timestamp
@@ -919,15 +1136,27 @@ export function registerAgentCommand(program: Command): void {
         }
 
         ui.text("Agent Detail", { breakline: true });
-        ui.text(chalk.dim("─".repeat(40)));
+        ui.text(chalk.dim(formatSeparator()));
         ui.text(`  ${chalk.bold("Session ID:")}  ${agent.sessionId}`);
-        ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(agent.projectPath)}`);
-        ui.text(`  ${chalk.bold("Start Time:")}  ${new Date(startTime).toLocaleString()}`);
-        ui.text(`  ${chalk.bold("Last Active:")} ${formatRelativeTime(agent.lastActive)}`);
-        ui.text(`  ${chalk.bold("Status:")}      ${formatStatus(agent.status)}`);
+        ui.text(
+          `  ${chalk.bold("CWD:")}         ${formatCwd(agent.projectPath)}`,
+        );
+        ui.text(
+          `  ${chalk.bold("Start Time:")}  ${formatLocalTimestamp(new Date(startTime))}`,
+        );
+        ui.text(
+          `  ${chalk.bold("Last Active:")} ${formatLocalTimestampWithRelative(agent.lastActive)}`,
+        );
+        ui.text(
+          `  ${chalk.bold("Status:")}      ${formatStatus(agent.status)}`,
+        );
         ui.text(`  ${chalk.bold("Type:")}        ${formatType(agent.type)}`);
         ui.breakline();
-        renderConversationDetail(displayMessages, conversation.length, isTruncated);
+        renderConversationDetail(
+          displayMessages,
+          conversation.length,
+          isTruncated,
+        );
       }),
     );
 
@@ -935,35 +1164,40 @@ export function registerAgentCommand(program: Command): void {
     .command("rename <current-name> <new-name>")
     .description("Rename an agent in the registry")
     .action(
-      withErrorHandler("rename agent", async (currentName: string, newName: string) => {
-        if (!NAME_REGEX.test(newName)) {
-          ui.error(
-            `Invalid name "${newName}". Use lowercase letters, digits, and hyphens only. ` +
-              "Must start and end with a letter or digit, 2–64 characters.",
-          );
-          process.exit(1);
-          return;
-        }
-
-        if (currentName === newName) {
-          ui.info(`Agent "${currentName}" already has that name.`);
-          return;
-        }
-
-        try {
-          AgentRegistry.default().rename(currentName, newName);
-          ui.success(`Agent "${currentName}" renamed to "${newName}".`);
-        } catch (err) {
-          if (err instanceof RenameNotFoundError) {
-            ui.error(err.message);
-          } else if (err instanceof RenameConflictError) {
-            ui.error(`Agent "${err.agentName}" is already in use. Choose a different name.`);
-          } else {
-            throw err;
+      withErrorHandler(
+        "rename agent",
+        async (currentName: string, newName: string) => {
+          if (!NAME_REGEX.test(newName)) {
+            ui.error(
+              `Invalid name "${newName}". Use lowercase letters, digits, and hyphens only. ` +
+                "Must start and end with a letter or digit, 2–64 characters.",
+            );
+            process.exit(1);
+            return;
           }
-          process.exit(1);
-        }
-      }),
+
+          if (currentName === newName) {
+            ui.info(`Agent "${currentName}" already has that name.`);
+            return;
+          }
+
+          try {
+            AgentRegistry.default().rename(currentName, newName);
+            ui.success(`Agent "${currentName}" renamed to "${newName}".`);
+          } catch (err) {
+            if (err instanceof RenameNotFoundError) {
+              ui.error(err.message);
+            } else if (err instanceof RenameConflictError) {
+              ui.error(
+                `Agent "${err.agentName}" is already in use. Choose a different name.`,
+              );
+            } else {
+              throw err;
+            }
+            process.exit(1);
+          }
+        },
+      ),
     );
 
   agentCommand
