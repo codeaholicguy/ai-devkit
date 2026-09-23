@@ -108,6 +108,14 @@ ai-devkit skill list --global --env claude codex
 ai-devkit memory store
 ```
 
+## UI Formatting Standards
+
+Shared CLI presentation helpers live in `src/util/`. Commands should use
+`status.ts` for status labels and chalk colors, `time-format.ts` for relative
+or `Mon D · HH:mm` time labels with an injectable `now` clock, and
+`pluralize.ts` for count labels. Keep JSON output independent from these
+terminal-only helpers so machine-readable shapes stay stable.
+
 Template example:
 
 ```yaml
