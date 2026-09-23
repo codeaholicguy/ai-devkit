@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.63.0] - 2026-09-23
 
 - Redesigned the `capacity` command output into a single per-quota table with usage bars, threshold colors, humanized reset times (`in 4h 40m · 20:25`), and `used/total` amounts instead of duplicated window summaries with truncated ISO timestamps ([3c65af7](https://github.com/codeaholicguy/ai-devkit/commit/3c65af7)).
 - Split capacity identity into harness and provider (`codex | OpenAI`, `pi | z.ai`) via a new `harness` field on `CapacityReport`; the Codex probe now reports `provider: "openai"` ([3c65af7](https://github.com/codeaholicguy/ai-devkit/commit/3c65af7)).

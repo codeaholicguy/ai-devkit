@@ -41,5 +41,5 @@
   "name": "ai-devkit",
   "repository": "https://github.com/codeaholicguy/ai-devkit",
   "skills": "./skills/",
-  "version": "0.62.2"
+  "version": "0.63.0"
 }
