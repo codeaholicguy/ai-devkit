@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import type { MockedFunction } from "vitest";
 import { ui } from "../../util/terminal-ui.js";
 import { lintCommand, renderLintReport } from "../../commands/lint.js";
@@ -7,7 +8,9 @@ vi.mock("../../lib/Config.js", () => ({
   ConfigManager: vi.fn(function () {
     return {
       getDocsDir: vi.fn<() => Promise<string>>().mockResolvedValue("docs/ai"),
-      getPhases: vi.fn<() => Promise<string[]>>().mockResolvedValue(["requirements", "design"]),
+      getPhases: vi
+        .fn<() => Promise<string[]>>()
+        .mockResolvedValue(["requirements", "design"]),
     };
   }),
 }));
@@ -31,7 +34,9 @@ vi.mock("../../util/terminal-ui.js", () => ({
 }));
 
 describe("lint command", () => {
-  const mockedRunLintChecks = runLintChecks as MockedFunction<typeof runLintChecks>;
+  const mockedRunLintChecks = runLintChecks as MockedFunction<
+    typeof runLintChecks
+  >;
   const mockedUi = vi.mocked(ui);
 
   beforeEach(() => {
@@ -61,6 +66,7 @@ describe("lint command", () => {
       ["requirements", "design"],
     );
     expect(mockedUi.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
+    expect(mockedUi.text).toHaveBeenCalledTimes(1);
     expect(process.exitCode).toBe(0);
   });
 
@@ -77,7 +83,9 @@ describe("lint command", () => {
     await lintCommand({});
 
     expect(process.exitCode).toBe(1);
-    expect(mockedUi.text).toHaveBeenCalledWith("1 required check(s) failed.");
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.red("1 required check failed."),
+    );
   });
 
   it("renders human-readable output by category", () => {
@@ -102,6 +110,7 @@ describe("lint command", () => {
           category: "feature-docs",
           required: true,
           message: "docs/ai/design/feature-lint-command.md",
+          fix: "Run: npx ai-devkit@latest docs new feature-lint-command",
         },
         {
           id: "git",
@@ -109,6 +118,7 @@ describe("lint command", () => {
           category: "git-worktree",
           required: false,
           message: "No dedicated worktree registered",
+          fix: "Suggested: git worktree add ../feature-lint-command feature-lint-command",
         },
       ],
       summary: { ok: 1, miss: 1, warn: 1, requiredFailures: 1 },
@@ -118,9 +128,86 @@ describe("lint command", () => {
 
     renderLintReport(report, {});
 
-    expect(mockedUi.text).toHaveBeenCalledWith("=== Base Structure ===");
-    expect(mockedUi.text).toHaveBeenCalledWith("=== Feature: lint-command ===");
-    expect(mockedUi.text).toHaveBeenCalledWith("=== Git: feature-lint-command ===");
-    expect(mockedUi.text).toHaveBeenCalledWith("1 warning(s) reported.");
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.bold("Base Structure"));
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.bold("Feature: lint-command"),
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.bold("Git: feature-lint-command"),
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      `${chalk.green("✓")} ${chalk.dim("docs/ai/requirements/README.md")}`,
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      `${chalk.red("✖")} docs/ai/design/feature-lint-command.md`,
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.dim(
+        "  Fix: Run: npx ai-devkit@latest docs new feature-lint-command",
+      ),
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      `${chalk.yellow("⚠")} No dedicated worktree registered`,
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.dim(
+        "  Fix: Suggested: git worktree add ../feature-lint-command feature-lint-command",
+      ),
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.red("1 required check failed."),
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.yellow("1 warning reported."),
+    );
+    expect(mockedUi.text).not.toHaveBeenCalledWith(
+      expect.stringContaining("==="),
+    );
+  });
+
+  it("pluralizes passing and warning summaries", () => {
+    const report: LintReport = {
+      cwd: "/repo",
+      checks: [
+        {
+          id: "base-requirements",
+          level: "ok",
+          category: "base-docs",
+          required: false,
+          message: "docs/ai/requirements/README.md",
+        },
+        {
+          id: "base-design",
+          level: "ok",
+          category: "base-docs",
+          required: false,
+          message: "docs/ai/design/README.md",
+        },
+        {
+          id: "base-extra",
+          level: "warn",
+          category: "base-docs",
+          required: false,
+          message: "Optional docs are missing",
+        },
+        {
+          id: "base-stale",
+          level: "warn",
+          category: "base-docs",
+          required: false,
+          message: "Docs may be stale",
+        },
+      ],
+      summary: { ok: 2, miss: 0, warn: 2, requiredFailures: 0 },
+      pass: true,
+      exitCode: 0,
+    };
+
+    renderLintReport(report, {});
+
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.green("2 checks passed."));
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      chalk.yellow("2 warnings reported."),
+    );
   });
 });
