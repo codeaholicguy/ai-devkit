@@ -1,28 +1,40 @@
 import { Command } from "commander";
 
-const { mockSetupService, mockInspectTmux, mockResolveTmuxInstallInstructions, mockUi } =
-  vi.hoisted(() => ({
-    mockSetupService: {
-      run: vi.fn(),
-    },
-    mockInspectTmux: vi.fn(),
-    mockResolveTmuxInstallInstructions: vi.fn(),
-    mockUi: {
-      error: vi.fn(),
-      success: vi.fn(),
-      warning: vi.fn(),
-      text: vi.fn(),
-      summary: vi.fn(),
-      table: vi.fn(),
-    },
-  }));
+const {
+  mockSetupService,
+  mockInspectTmux,
+  mockResolveTmuxInstallInstructions,
+  mockUi,
+} = vi.hoisted(() => ({
+  mockSetupService: {
+    run: vi.fn(),
+  },
+  mockInspectTmux: vi.fn(),
+  mockResolveTmuxInstallInstructions: vi.fn(),
+  mockUi: {
+    error: vi.fn(),
+    success: vi.fn(),
+    warning: vi.fn(),
+    text: vi.fn(),
+    summary: vi.fn(),
+    table: vi.fn(),
+  },
+}));
+
+vi.mock("chalk", () => ({
+  default: {
+    bold: (text: string) => `[bold]${text}[/bold]`,
+  },
+}));
 
 vi.mock("../../util/tmux.js", () => ({
   inspectTmux: mockInspectTmux,
   resolveTmuxInstallInstructions: mockResolveTmuxInstallInstructions,
 }));
 
-vi.mock("../../util/tmux-deps.js", () => ({ createTmuxInspectionDeps: () => ({}) }));
+vi.mock("../../util/tmux-deps.js", () => ({
+  createTmuxInspectionDeps: () => ({}),
+}));
 
 vi.mock("../../services/setup/setup.service.js", () => ({
   createSetupService: () => mockSetupService,
@@ -77,20 +89,30 @@ describe("setup command", () => {
     await program.parseAsync(["node", "test", "setup"]);
 
     expect(mockSetupService.run).toHaveBeenCalledWith({ agents: undefined });
-    expect(mockUi.text).toHaveBeenCalledWith("Host Prerequisites");
+    expect(mockUi.success).toHaveBeenCalledWith(
+      "Setup completed successfully.",
+    );
+    expect(mockUi.text).toHaveBeenCalledWith(
+      "[bold]Host Prerequisites:[/bold]",
+    );
     expect(mockUi.success).toHaveBeenCalledWith("tmux 3.4 available");
     expect(mockUi.summary).toHaveBeenCalledWith({
       title: "Setup Summary",
       items: [
-        { type: "success", count: 1, label: "step(s) installed" },
-        { type: "warning", count: 1, label: "step(s) skipped" },
-        { type: "error", count: 0, label: "step(s) failed" },
+        { type: "success", count: 1, label: "step installed" },
+        { type: "warning", count: 1, label: "step skipped" },
+        { type: "error", count: 0, label: "steps failed" },
       ],
     });
     expect(mockUi.table).toHaveBeenCalledWith({
       headers: ["agent", "step", "status", "message"],
       rows: [
-        ["codex", "codex-session-hook", "installed", "Installed Codex SessionStart hook."],
+        [
+          "codex",
+          "codex-session-hook",
+          "installed",
+          "Installed Codex SessionStart hook.",
+        ],
         ["pi", "pi-session-tracker", "skipped", "~/.pi does not exist."],
       ],
     });
@@ -98,17 +120,25 @@ describe("setup command", () => {
   });
 
   it("warns with platform-aware instructions and continues setup when tmux is missing", async () => {
-    mockInspectTmux.mockResolvedValue({ state: "missing", version: null, rawVersion: null });
+    mockInspectTmux.mockResolvedValue({
+      state: "missing",
+      version: null,
+      rawVersion: null,
+    });
     mockResolveTmuxInstallInstructions.mockResolvedValue({
       command: "sudo apt-get update && sudo apt-get install tmux",
-      message: "Install it with: sudo apt-get update && sudo apt-get install tmux.",
+      message:
+        "Install it with: sudo apt-get update && sudo apt-get install tmux.",
     });
     const program = new Command();
     registerSetupCommand(program);
 
     await program.parseAsync(["node", "test", "setup"]);
 
-    expect(mockUi.text).toHaveBeenCalledWith("Next steps");
+    expect(mockUi.success).toHaveBeenCalledWith(
+      "Setup completed successfully.",
+    );
+    expect(mockUi.text).toHaveBeenCalledWith("[bold]Next steps:[/bold]");
     expect(mockUi.warning).toHaveBeenCalledWith(
       "Next step: install tmux (sudo apt-get update && sudo apt-get install tmux), then run ai-devkit setup again to start managed agents.",
     );
@@ -136,7 +166,10 @@ describe("setup command", () => {
 
     await program.parseAsync(["node", "test", "setup"]);
 
-    expect(mockUi.text).toHaveBeenCalledWith("Next steps");
+    expect(mockUi.success).toHaveBeenCalledWith(
+      "Setup completed successfully.",
+    );
+    expect(mockUi.text).toHaveBeenCalledWith("[bold]Next steps:[/bold]");
     expect(mockUi.warning).toHaveBeenCalledWith(
       "tmux check could not run (permission denied) — verify tmux works before starting agents.",
     );
@@ -156,7 +189,9 @@ describe("setup command", () => {
 
     await program.parseAsync(["node", "test", "setup", "--agent", "codex,pi"]);
 
-    expect(mockSetupService.run).toHaveBeenCalledWith({ agents: ["codex", "pi"] });
+    expect(mockSetupService.run).toHaveBeenCalledWith({
+      agents: ["codex", "pi"],
+    });
   });
 
   it("fails for unsupported agents before running setup", async () => {

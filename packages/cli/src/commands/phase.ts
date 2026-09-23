@@ -1,4 +1,5 @@
 import { ConfigManager } from "../lib/Config.js";
+import chalk from "chalk";
 import { TemplateManager } from "../lib/TemplateManager.js";
 import { Phase, AVAILABLE_PHASES, PHASE_DISPLAY_NAMES } from "../types.js";
 import { ui } from "../util/terminal-ui.js";
@@ -19,11 +20,15 @@ export async function phaseCommand(phaseName?: string) {
   if (phaseName && AVAILABLE_PHASES.includes(phaseName as Phase)) {
     phase = phaseName as Phase;
   } else if (phaseName) {
-    ui.error(`Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(", ")}`);
+    ui.error(
+      `Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(", ")}`,
+    );
     return;
   } else {
     const config = await configManager.read();
-    const availableToAdd = AVAILABLE_PHASES.filter((p) => !config?.phases.includes(p));
+    const availableToAdd = AVAILABLE_PHASES.filter(
+      (p) => !config?.phases.includes(p),
+    );
 
     if (availableToAdd.length === 0) {
       ui.warning("All phases are already initialized.");
@@ -66,6 +71,6 @@ export async function phaseCommand(phaseName?: string) {
   const file = await templateManager.copyPhaseTemplate(phase);
   await configManager.addPhase(phase);
 
-  ui.success(`${PHASE_DISPLAY_NAMES[phase]} created successfully!`);
-  ui.info(`  Location: ${file}\n`);
+  ui.success(`${PHASE_DISPLAY_NAMES[phase]} created successfully.`);
+  ui.text(chalk.dim(`  - ${file}`));
 }
