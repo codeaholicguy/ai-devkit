@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import chalk from "chalk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registerStatusCommand } from "../../commands/status.js";
 import { renderStatusReport } from "../../commands/status/render.js";
@@ -16,7 +17,12 @@ function agent(
     auth?: boolean;
     integration?: { label: string; installed: boolean };
     executablePath?: string | null;
-    builtInSkills?: { status: "info"; present: number; required: number; missing: string[] };
+    builtInSkills?: {
+      status: "info";
+      present: number;
+      required: number;
+      missing: string[];
+    };
   } = {},
 ) {
   return {
@@ -24,9 +30,13 @@ function agent(
     status,
     executable: {
       status: options.executablePath === null ? "fail" : "pass",
-      errors: options.executablePath === null ? ["agent was not found on PATH"] : [],
+      errors:
+        options.executablePath === null ? ["agent was not found on PATH"] : [],
       command: "agent",
-      path: options.executablePath === undefined ? "/bin/agent" : options.executablePath,
+      path:
+        options.executablePath === undefined
+          ? "/bin/agent"
+          : options.executablePath,
     },
     globalConfig: { ...base, path: "~/.agent", present: true, readable: true },
     builtInSkills: options.builtInSkills
@@ -55,7 +65,9 @@ function agent(
           },
         }
       : {}),
-    ...(options.integration ? { integration: { ...base, ...options.integration } } : {}),
+    ...(options.integration
+      ? { integration: { ...base, ...options.integration } }
+      : {}),
   };
 }
 const report = {
@@ -81,11 +93,17 @@ const report = {
   },
   agents: {
     codex: {
-      ...agent("pass", { auth: true, integration: { label: "ai-devkit hook", installed: true } }),
+      ...agent("pass", {
+        auth: true,
+        integration: { label: "ai-devkit hook", installed: true },
+      }),
       type: "codex",
     },
     pi: {
-      ...agent("warn", { auth: true, integration: { label: "ai-devkit plugin", installed: true } }),
+      ...agent("warn", {
+        auth: true,
+        integration: { label: "ai-devkit plugin", installed: true },
+      }),
       type: "pi",
       auth: {
         ...base,
@@ -96,7 +114,10 @@ const report = {
       },
     },
     claude: {
-      ...agent("fail", { auth: true, integration: { label: "ai-devkit hook", installed: true } }),
+      ...agent("fail", {
+        auth: true,
+        integration: { label: "ai-devkit hook", installed: true },
+      }),
       type: "claude",
     },
     copilot: { ...agent("pass"), type: "copilot" },
@@ -104,7 +125,12 @@ const report = {
     opencode: {
       ...agent("pass", {
         auth: true,
-        builtInSkills: { status: "info", present: 1, required: 2, missing: ["remote-two"] },
+        builtInSkills: {
+          status: "info",
+          present: 1,
+          required: 2,
+          missing: ["remote-two"],
+        },
       }),
       type: "opencode",
       auth: {
@@ -119,7 +145,11 @@ const report = {
   tmux: { ...base, path: "/bin/tmux", available: true, version: "3.4" },
   registries: {
     project: { source: "/repo/.ai-devkit.json", configured: {}, errors: [] },
-    global: { source: "~/.ai-devkit/.ai-devkit.json", configured: {}, errors: [] },
+    global: {
+      source: "~/.ai-devkit/.ai-devkit.json",
+      configured: {},
+      errors: [],
+    },
   },
   channels: {
     config: {
@@ -139,17 +169,36 @@ describe("status command", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("renders canonical JSON exactly", () => {
-    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     renderStatusReport(report, { json: true });
-    expect(log).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
+    expect(ui.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
     expect(ui.table).not.toHaveBeenCalled();
-    log.mockRestore();
   });
 
   it("renders human status with shared terminal tables", () => {
-    renderStatusReport(report);
-    expect(ui.text).toHaveBeenCalledWith("AI DevKit Status:", { breakline: true });
+    const homeDir = process.env.HOME ?? "/home/test";
+    renderStatusReport({
+      ...report,
+      project: {
+        ...report.project,
+        config: {
+          ...report.project.config,
+          path: `${homeDir}/repo/.ai-devkit.json`,
+        },
+      },
+    });
+    expect(ui.text).toHaveBeenCalledWith("AI DevKit Status:", {
+      breakline: true,
+    });
     expect(ui.text).toHaveBeenCalledWith("Checks:", { breakline: true });
+    expect(ui.table).toHaveBeenCalledWith(
+      expect.objectContaining({
+        headers: ["Scope", "Status", "Details"],
+        rows: expect.arrayContaining([
+          ["overall", "not ready", "17 ready · 0 not ready · 0 fail · 7 info"],
+          ["project", "ready", "~/repo/.ai-devkit.json"],
+        ]),
+      }),
+    );
     expect(ui.table).toHaveBeenCalledWith(
       expect.objectContaining({
         headers: ["Agent", "Status"],
@@ -176,12 +225,41 @@ describe("status command", () => {
         ]),
       }),
     );
-    const checkRows = (vi.mocked(ui.table).mock.calls[2][0].rows ?? []) as Array<
-      [string, string, string]
-    >;
-    expect(checkRows.some(([label]) => label.startsWith("grok_cli:"))).toBe(false);
-    expect(checkRows).not.toContainEqual(["codex: ai-devkit built-in skills", "pass", "2/2"]);
-    expect(ui.warning).not.toHaveBeenCalledWith(expect.stringContaining("missing built-in skills"));
+    const checkRows = (vi.mocked(ui.table).mock.calls[2][0].rows ??
+      []) as Array<[string, string, string]>;
+    expect(checkRows.some(([label]) => label.startsWith("grok_cli:"))).toBe(
+      false,
+    );
+    expect(checkRows).not.toContainEqual([
+      "codex: ai-devkit built-in skills",
+      "pass",
+      "2/2",
+    ]);
+    expect(ui.warning).not.toHaveBeenCalledWith(
+      expect.stringContaining("missing built-in skills"),
+    );
+  });
+
+  it("explains when no executable agents are visible", () => {
+    renderStatusReport({
+      ...report,
+      agents: {
+        grok_cli: {
+          ...agent("fail", { executablePath: null }),
+          type: "grok_cli",
+        },
+      },
+    } as unknown as StatusReport);
+
+    expect(ui.text).toHaveBeenCalledWith(
+      chalk.dim("No executable agents found on PATH."),
+      {
+        breakline: true,
+      },
+    );
+    expect(ui.table).not.toHaveBeenCalledWith(
+      expect.objectContaining({ headers: ["Agent", "Status"] }),
+    );
   });
 
   it("registers the top-level status command and passes json intent", async () => {
@@ -191,7 +269,7 @@ describe("status command", () => {
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     await program.parseAsync(["node", "test", "status", "--json"]);
     expect(readReport).toHaveBeenCalledOnce();
-    expect(log).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
+    expect(ui.text).toHaveBeenCalledWith(JSON.stringify(report, null, 2));
     log.mockRestore();
   });
 });

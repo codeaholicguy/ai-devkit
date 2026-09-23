@@ -1,6 +1,10 @@
 import type { Mocked, Mock } from "vitest";
 import { Command } from "commander";
-import type { AgentAdapter, AgentInfo, ConversationMessage } from "@ai-devkit/agent-manager";
+import type {
+  AgentAdapter,
+  AgentInfo,
+  ConversationMessage,
+} from "@ai-devkit/agent-manager";
 import { AgentStatus } from "@ai-devkit/agent-manager";
 import type { TelegramAdapter } from "@ai-devkit/channel-connector";
 import { ui } from "../../util/terminal-ui.js";
@@ -79,8 +83,10 @@ vi.mock(
     }),
     TELEGRAM_CHANNEL_TYPE: "telegram",
     SLACK_CHANNEL_TYPE: "slack",
-    validateSlackCredentials: (...args: unknown[]) => mockValidateSlackCredentials(...args),
-    validateSlackAppToken: (...args: unknown[]) => mockValidateSlackAppToken(...args),
+    validateSlackCredentials: (...args: unknown[]) =>
+      mockValidateSlackCredentials(...args),
+    validateSlackAppToken: (...args: unknown[]) =>
+      mockValidateSlackAppToken(...args),
   }),
   { virtual: true },
 );
@@ -155,6 +161,16 @@ import { registerChannelCommand } from "../../commands/channel.js";
 import { startOutputPolling } from "../../services/channel/channel-runner.js";
 
 const POLL_INTERVAL_MS = 2000;
+const ANSI_ESCAPE = String.fromCharCode(27);
+
+function stripAnsi(value: string): string {
+  return value
+    .split(ANSI_ESCAPE)
+    .map((part, index) =>
+      index === 0 ? part : part.replace(/^\[[0-9;]*m/, ""),
+    )
+    .join("");
+}
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
   return {
@@ -171,7 +187,9 @@ function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
   };
 }
 
-function makeMessage(overrides: Partial<ConversationMessage> = {}): ConversationMessage {
+function makeMessage(
+  overrides: Partial<ConversationMessage> = {},
+): ConversationMessage {
   return {
     role: "assistant",
     content: "agent reply",
@@ -182,7 +200,9 @@ function makeMessage(overrides: Partial<ConversationMessage> = {}): Conversation
 
 describe("startOutputPolling", () => {
   let agentAdapter: Mocked<Pick<AgentAdapter, "getConversation">>;
-  let telegram: { sendMessage: Mock<(chatId: string, text: string) => Promise<void>> };
+  let telegram: {
+    sendMessage: Mock<(chatId: string, text: string) => Promise<void>>;
+  };
   let chatIdRef: { value: string | null };
   let interval: NodeJS.Timeout | null;
 
@@ -341,7 +361,10 @@ describe("startOutputPolling", () => {
 
     chatIdRef.value = "419354621";
     agentAdapter.getConversation.mockReturnValueOnce([
-      makeMessage({ role: "user", content: "inbound — already delivered to terminal" }),
+      makeMessage({
+        role: "user",
+        content: "inbound — already delivered to terminal",
+      }),
       makeMessage({ role: "assistant", content: "outbound" }),
     ]);
 
@@ -363,14 +386,20 @@ describe("startOutputPolling", () => {
     chatIdRef.value = "419354621";
     agentAdapter.getConversation.mockReturnValueOnce([
       makeMessage({ role: "assistant", content: "" }),
-      makeMessage({ role: "assistant", content: undefined as unknown as string }),
+      makeMessage({
+        role: "assistant",
+        content: undefined as unknown as string,
+      }),
       makeMessage({ role: "assistant", content: "has content" }),
     ]);
 
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
     expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
-    expect(telegram.sendMessage).toHaveBeenCalledWith("419354621", "has content");
+    expect(telegram.sendMessage).toHaveBeenCalledWith(
+      "419354621",
+      "has content",
+    );
   });
 
   it("does not crash if getConversation throws (agent terminated)", async () => {
@@ -393,7 +422,9 @@ describe("startOutputPolling", () => {
     expect(ui.error).not.toHaveBeenCalled(); // getConversation throws stay silent
 
     // Loop must keep running — next tick succeeds
-    agentAdapter.getConversation.mockReturnValueOnce([makeMessage({ content: "recovered" })]);
+    agentAdapter.getConversation.mockReturnValueOnce([
+      makeMessage({ content: "recovered" }),
+    ]);
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
     expect(telegram.sendMessage).toHaveBeenCalledTimes(1);
@@ -422,7 +453,9 @@ describe("startOutputPolling", () => {
 
     expect(telegram.sendMessage).toHaveBeenCalledTimes(2);
     expect(ui.error).toHaveBeenCalledWith(
-      expect.stringContaining("Failed to send agent response to Telegram: Telegram down"),
+      expect.stringContaining(
+        "Failed to send agent response to Telegram: Telegram down",
+      ),
     );
 
     // Next tick: conversation grows by one — failed message is NOT retried
@@ -433,7 +466,9 @@ describe("startOutputPolling", () => {
     ]);
     await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS);
 
-    expect(telegram.sendMessage.mock.calls.some((c) => c[1] === "next-tick reply")).toBe(true);
+    expect(
+      telegram.sendMessage.mock.calls.some((c) => c[1] === "next-tick reply"),
+    ).toBe(true);
   });
 });
 
@@ -529,7 +564,9 @@ describe("channel command", () => {
       "personal",
     ]);
 
-    expect(mockChannelService.resolveConnectChannelName).toHaveBeenCalledWith("personal");
+    expect(mockChannelService.resolveConnectChannelName).toHaveBeenCalledWith(
+      "personal",
+    );
     expect(mockChannelService.assertUniqueTelegramToken).toHaveBeenCalledWith(
       { channels: {} },
       "personal",
@@ -547,7 +584,9 @@ describe("channel command", () => {
         },
       }),
     );
-    expect(ui.success).toHaveBeenCalledWith('Telegram channel "personal" configured successfully!');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Telegram channel "personal" configured successfully!',
+    );
   });
 
   it("connects the default Telegram channel when --name is omitted", async () => {
@@ -557,9 +596,17 @@ describe("channel command", () => {
 
     const program = new Command();
     registerChannelCommand(program);
-    await program.parseAsync(["node", "test", "channel", "connect", "telegram"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "channel",
+      "connect",
+      "telegram",
+    ]);
 
-    expect(mockChannelService.resolveConnectChannelName).toHaveBeenCalledWith(undefined);
+    expect(mockChannelService.resolveConnectChannelName).toHaveBeenCalledWith(
+      undefined,
+    );
     expect(mockConfigStore.saveChannel).toHaveBeenCalledWith(
       "telegram",
       expect.objectContaining({
@@ -573,7 +620,9 @@ describe("channel command", () => {
   });
 
   it("connects a named Slack channel using validated app and bot tokens", async () => {
-    mockPassword.mockResolvedValueOnce("xapp-fake").mockResolvedValueOnce("xoxb-fake");
+    mockPassword
+      .mockResolvedValueOnce("xapp-fake")
+      .mockResolvedValueOnce("xoxb-fake");
     mockConfigStore.getChannel.mockResolvedValue(undefined);
     mockChannelService.resolveConnectChannelName.mockReturnValue("work-slack");
     const program = new Command();
@@ -606,11 +655,15 @@ describe("channel command", () => {
         },
       }),
     );
-    expect(ui.success).toHaveBeenCalledWith('Slack channel "work-slack" configured successfully!');
+    expect(ui.success).toHaveBeenCalledWith(
+      'Slack channel "work-slack" configured successfully!',
+    );
   });
 
   it("enables debug logging while connecting a Slack channel", async () => {
-    mockPassword.mockResolvedValueOnce("xapp-fake").mockResolvedValueOnce("xoxb-fake");
+    mockPassword
+      .mockResolvedValueOnce("xapp-fake")
+      .mockResolvedValueOnce("xoxb-fake");
     mockConfigStore.getChannel.mockResolvedValue(undefined);
     mockChannelService.resolveConnectChannelName.mockReturnValue("work-slack");
     const program = new Command().exitOverride();
@@ -635,7 +688,9 @@ describe("channel command", () => {
   it("debugs the failed Slack validation stage without logging credentials", async () => {
     const appToken = "xapp-sensitive-app-token";
     const botToken = "xoxb-sensitive-bot-token";
-    mockPassword.mockResolvedValueOnce(appToken).mockResolvedValueOnce(botToken);
+    mockPassword
+      .mockResolvedValueOnce(appToken)
+      .mockResolvedValueOnce(botToken);
     mockConfigStore.getChannel.mockResolvedValue(undefined);
     mockChannelService.resolveConnectChannelName.mockReturnValue("work-slack");
     mockValidateSlackAppToken.mockRejectedValueOnce(
@@ -684,7 +739,15 @@ describe("channel command", () => {
 
     expect(ui.table).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: ["Name", "Type", "Status", "Identity", "Authorized", "Bridge", "Created"],
+        headers: [
+          "Name",
+          "Type",
+          "Status",
+          "Identity",
+          "Authorized",
+          "Bridge",
+          "Created",
+        ],
         rows: expect.arrayContaining([
           expect.arrayContaining([
             "personal",
@@ -693,9 +756,71 @@ describe("channel command", () => {
             "@personal_bot",
             "no",
           ]),
-          expect.arrayContaining(["work", "telegram", expect.any(String), "@work_bot", "yes"]),
+          expect.arrayContaining([
+            "work",
+            "telegram",
+            expect.any(String),
+            "@work_bot",
+            "yes",
+          ]),
         ]),
       }),
+    );
+  });
+
+  it("renders channel list dates consistently and hints at running bridge details", async () => {
+    mockConfigStore.getConfig.mockResolvedValue({
+      channels: {
+        personal: personalEntry,
+      },
+    });
+    mockChannelService.getLiveBridges.mockResolvedValue([
+      {
+        channelName: "personal",
+        channelType: "telegram",
+        agentName: "codex-main",
+        agentPid: 4321,
+        bridgePid: 9876,
+        startedAt: "2026-05-24T00:00:00.000Z",
+      },
+    ]);
+
+    const program = new Command();
+    registerChannelCommand(program);
+    await program.parseAsync(["node", "test", "channel", "list"]);
+
+    expect(ui.text).toHaveBeenCalledWith("Configured Channels:");
+    expect(ui.table).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          expect.arrayContaining([
+            "personal",
+            "telegram",
+            expect.any(String),
+            "@personal_bot",
+          ]),
+        ],
+        columnStyles: expect.any(Array),
+        maxWidth: process.stdout.columns ?? 120,
+      }),
+    );
+    const rows = vi.mocked(ui.table).mock.calls[0][0].rows;
+    expect(rows[0]).toEqual([
+      "personal",
+      "telegram",
+      "enabled",
+      "@personal_bot",
+      "no",
+      "running",
+      "May 23",
+    ]);
+    expect(rows[0]).toContain("May 23");
+    expect(rows[0]).not.toContain("5/23/2026");
+    expect(rows[0]).not.toContain("2026-05-23T00:00:00.000Z");
+    expect(ui.text).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Run "ai-devkit channel status personal" for bridge details.',
+      ),
     );
   });
 
@@ -705,7 +830,13 @@ describe("channel command", () => {
 
     const program = new Command();
     registerChannelCommand(program);
-    await program.parseAsync(["node", "test", "channel", "disconnect", "personal"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "channel",
+      "disconnect",
+      "personal",
+    ]);
 
     expect(mockConfigStore.getChannel).toHaveBeenCalledWith("personal");
     expect(mockConfigStore.removeChannel).toHaveBeenCalledWith("personal");
@@ -739,7 +870,9 @@ describe("channel command", () => {
       "codex-main",
     ]);
 
-    expect(ui.error).toHaveBeenCalledWith('No channel configured with name "missing".');
+    expect(ui.error).toHaveBeenCalledWith(
+      'No channel configured with name "missing".',
+    );
     expect(ui.info).toHaveBeenCalledWith("Available channels: personal, work");
   });
 
@@ -775,7 +908,11 @@ describe("channel command", () => {
       "codex-main",
     ]);
 
-    for (let i = 0; i < 10 && mockChannelManager.startAll.mock.calls.length === 0; i += 1) {
+    for (
+      let i = 0;
+      i < 10 && mockChannelManager.startAll.mock.calls.length === 0;
+      i += 1
+    ) {
       await Promise.resolve();
     }
 
@@ -789,9 +926,9 @@ describe("channel command", () => {
       }),
     );
     expect(mockAgentManager.registerAdapter).toHaveBeenCalledTimes(6);
-    expect(mockChannelService.registerBridge.mock.invocationCallOrder[0]).toBeLessThan(
-      mockChannelManager.startAll.mock.invocationCallOrder[0],
-    );
+    expect(
+      mockChannelService.registerBridge.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockChannelManager.startAll.mock.invocationCallOrder[0]);
 
     vi.clearAllTimers();
     vi.useRealTimers();
@@ -823,11 +960,17 @@ describe("channel command", () => {
         channelType: "telegram",
         agentName: "codex-main",
         command: process.execPath,
-        args: expect.arrayContaining(["--channel", "personal", "--agent", "codex-main"]),
+        args: expect.arrayContaining([
+          "--channel",
+          "personal",
+          "--agent",
+          "codex-main",
+        ]),
         cwd: process.cwd(),
       }),
     );
-    const daemonInput = mockChannelService.startDaemonBridge.mock.calls[0][0] as { args: string[] };
+    const daemonInput = mockChannelService.startDaemonBridge.mock
+      .calls[0][0] as { args: string[] };
     expect(daemonInput.args).toContain("--loader");
     expect(daemonInput.args).toContain("ts-node/esm");
     expect(daemonInput.args).toEqual(
@@ -837,7 +980,9 @@ describe("channel command", () => {
     expect(ui.success).toHaveBeenCalledWith(
       'Channel bridge daemon started for "personal" (PID: 9876).',
     );
-    expect(ui.info).toHaveBeenCalledWith("Logs: /tmp/channel-logs/personal.log");
+    expect(ui.info).toHaveBeenCalledWith(
+      "Logs: /tmp/channel-logs/personal.log",
+    );
   });
 
   it("shows the daemon log path in channel status", async () => {
@@ -862,7 +1007,46 @@ describe("channel command", () => {
     registerChannelCommand(program);
     await program.parseAsync(["node", "test", "channel", "status", "personal"]);
 
-    expect(ui.text).toHaveBeenCalledWith("  Logs: /tmp/channel-logs/personal.log");
+    expect(ui.text).toHaveBeenCalledWith(
+      "  Logs: /tmp/channel-logs/personal.log",
+    );
+  });
+
+  it("renders status dates, authorization emphasis, and one spacer between entries", async () => {
+    mockConfigStore.getConfig.mockResolvedValue({
+      channels: {
+        personal: personalEntry,
+        work: {
+          ...personalEntry,
+          createdAt: "2026-06-04T19:18:06.962Z",
+          config: {
+            botToken: "456:def",
+            botUsername: "work_bot",
+            authorizedChatId: 222,
+          },
+        },
+      },
+    });
+
+    const program = new Command();
+    registerChannelCommand(program);
+    await program.parseAsync(["node", "test", "channel", "status"]);
+
+    const textCalls = vi
+      .mocked(ui.text)
+      .mock.calls.map(([message]) => stripAnsi(message));
+    expect(textCalls).toEqual(expect.arrayContaining(["  Configured: May 23"]));
+    expect(textCalls).toEqual(expect.arrayContaining(["  Configured: Jun 4"]));
+    expect(textCalls).not.toContain("  Configured: 2026-05-23T00:00:00.000Z");
+    expect(textCalls).not.toContain("  Configured: 2026-06-04T19:18:06.962Z");
+    expect(
+      textCalls.some((message) => message.includes("  Authorized: no")),
+    ).toBe(true);
+    expect(
+      textCalls.some((message) => message.includes("  Authorized: yes")),
+    ).toBe(true);
+    expect(textCalls.filter((message) => message === "")).toHaveLength(1);
+    expect(ui.breakline).not.toHaveBeenCalled();
   });
 
   it("stops a running channel bridge", async () => {
@@ -871,7 +1055,9 @@ describe("channel command", () => {
     await program.parseAsync(["node", "test", "channel", "stop", "personal"]);
 
     expect(mockChannelService.stopBridge).toHaveBeenCalledWith("personal");
-    expect(ui.success).toHaveBeenCalledWith("Channel bridge stopped: personal (PID: 9876).");
+    expect(ui.success).toHaveBeenCalledWith(
+      "Channel bridge stopped: personal (PID: 9876).",
+    );
   });
 
   it("reports when no channel bridge is running during stop", async () => {
