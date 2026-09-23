@@ -31,7 +31,7 @@ describe("JevSessionEventClassifier", () => {
     const classifier = new JevSessionEventClassifier({ systemOne }, "jev-latest");
     const message: ConversationMessage = {
       role: "assistant",
-      content: "Authorization: Bearer secret-token\nChanged agent.ts",
+      content: "Changed agent.ts",
       timestamp: "2026-09-22T00:00:00.000Z",
     };
 
@@ -39,7 +39,7 @@ describe("JevSessionEventClassifier", () => {
 
     expect(result).toEqual({
       role: "assistant",
-      content: "Authorization: Bearer [REDACTED]\nChanged agent.ts",
+      content: "Changed agent.ts",
       timestamp: "2026-09-22T00:00:00.000Z",
       category: "code_change",
       importance: "critical",
@@ -51,7 +51,7 @@ describe("JevSessionEventClassifier", () => {
     expect(request.model).toBe("jev-latest");
     expect(request.state).toEqual({
       role: "assistant",
-      content: "Authorization: Bearer [REDACTED]\nChanged agent.ts",
+      content: "Changed agent.ts",
       timestamp: "2026-09-22T00:00:00.000Z",
     });
     expect(Object.keys(request.questions)).toEqual(["category", "importance", "keep", "sensitive"]);
@@ -59,7 +59,6 @@ describe("JevSessionEventClassifier", () => {
     expect(request.questions.importance.type).toBe("choice");
     expect(request.questions.keep.type).toBe("noul");
     expect(request.questions.sensitive.type).toBe("noul");
-    expect(JSON.stringify(request)).not.toContain("secret-token");
   });
 
   it.each([

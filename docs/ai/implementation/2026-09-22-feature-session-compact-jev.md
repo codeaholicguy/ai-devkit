@@ -65,7 +65,7 @@ description: Technical implementation notes, patterns, and code guidelines
 
 **How do we keep it fast?**
 
-- Classification defaults to eight concurrent requests and accepts an internal concurrency override for deterministic tests or future tuning.
+- Classification uses eight concurrent requests; the fixed internal limit keeps the public service contract small.
 - Each source message produces exactly one Jev request.
 
 ## Security Notes

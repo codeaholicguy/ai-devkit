@@ -101,12 +101,12 @@ description: Coverage for explicit availability, typed classification, rendering
 
 ## Validation Results
 
-- CLI package: 98 test files and 1178 tests passed.
+- CLI package: 98 test files and 1177 tests passed.
 - Focused feature coverage: 97.1% statements, 96.77% branches, 90.9% functions, and 98.36% lines across the session-compaction service files.
 - Workspace: all six lint, build, and test targets completed successfully. Lint retains four unrelated pre-existing warnings in channel/preview code.
 - Compiled CLI: help lists `agent session compact`; missing-key Markdown and JSON outputs match the required contracts and exit successfully.
 - Skill: `quick_validate.py skills/session-compact` passed; built-in manifest/fallback tests passed.
 - Formatting: all nine changed TypeScript files pass `oxfmt --check`. The repository-wide formatter still reports two unrelated pre-existing agent-manager files, which were not modified.
 - Lifecycle: base and `session-compact-jev` feature lint passed; `git diff --check` passed.
-- Performance follow-up focused suites: 8 agent-manager files / 254 tests and 2 CLI files / 100 tests passed; both package typechecks and lints passed (only unrelated existing CLI warnings remain).
+- Performance follow-up focused suites: 8 agent-manager files / 254 tests and 2 CLI files / 99 tests passed; both package typechecks and lints passed (only unrelated existing CLI warnings remain).
 - Live Jev call: not run because no paid credential is required for automated validation. SDK request construction and response handling are covered with mocked boundary tests.

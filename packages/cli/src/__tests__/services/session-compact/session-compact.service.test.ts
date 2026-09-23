@@ -1,7 +1,6 @@
 import type { ConversationMessage } from "@ai-devkit/agent-manager";
 import {
   compactSession,
-  redactSensitiveText,
   renderSessionCompactMarkdown,
   type SessionEventClassifier,
 } from "../../../services/session-compact/session-compact.service.js";
@@ -105,32 +104,7 @@ describe("session compaction", () => {
     expect(result.currentState).toBe("");
   });
 
-  it("classifies with bounded concurrency while preserving source order", async () => {
-    const messages: ConversationMessage[] = Array.from({ length: 6 }, (_, index) => ({
-      role: "assistant",
-      content: `message-${index}`,
-    }));
-    let active = 0;
-    let maxActive = 0;
-    const boundedClassifier: SessionEventClassifier = {
-      model: "jev-test",
-      classify: vi.fn(async (message) => {
-        active += 1;
-        maxActive = Math.max(maxActive, active);
-        const index = Number(message.content.split("-").at(-1));
-        await new Promise((resolve) => setTimeout(resolve, (6 - index) * 2));
-        active -= 1;
-        return event("decision", message.content);
-      }),
-    };
-
-    const result = await compactSession(messages, boundedClassifier, { concurrency: 2 });
-
-    expect(maxActive).toBe(2);
-    expect(result.decisions).toEqual(messages.map((message) => message.content));
-  });
-
-  it("defaults to eight concurrent classifications", async () => {
+  it("classifies eight messages concurrently while preserving source order", async () => {
     const messages: ConversationMessage[] = Array.from({ length: 10 }, (_, index) => ({
       role: "assistant",
       content: `message-${index}`,
@@ -142,30 +116,36 @@ describe("session compaction", () => {
       classify: vi.fn(async (message) => {
         active += 1;
         maxActive = Math.max(maxActive, active);
-        await new Promise((resolve) => setTimeout(resolve, 2));
+        const index = Number(message.content.split("-").at(-1));
+        await new Promise((resolve) => setTimeout(resolve, (10 - index) * 2));
         active -= 1;
         return event("decision", message.content);
       }),
     };
 
-    await compactSession(messages, boundedClassifier);
+    const result = await compactSession(messages, boundedClassifier);
 
     expect(maxActive).toBe(8);
+    expect(result.decisions).toEqual(messages.map((message) => message.content));
   });
 
-  it("redacts common credentials before classification", () => {
+  it("redacts common credentials before classification", async () => {
     const content = [
       "Authorization: Bearer abc.def.ghi",
       "TYPESAFE_API_KEY=jv_live_example",
       "-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----",
     ].join("\n");
+    const classify = vi.fn(async (message: ConversationMessage) =>
+      event("decision", message.content),
+    );
 
-    const redacted = redactSensitiveText(content);
+    await compactSession([{ role: "assistant", content }], { model: "jev-test", classify });
 
-    expect(redacted).not.toContain("abc.def.ghi");
-    expect(redacted).not.toContain("jv_live_example");
-    expect(redacted).not.toContain("private-material");
-    expect(redacted.match(/\[REDACTED\]/g)?.length).toBeGreaterThanOrEqual(3);
+    const classifiedContent = classify.mock.calls[0][0].content;
+    expect(classifiedContent).not.toContain("abc.def.ghi");
+    expect(classifiedContent).not.toContain("jv_live_example");
+    expect(classifiedContent).not.toContain("private-material");
+    expect(classifiedContent.match(/\[REDACTED\]/g)?.length).toBeGreaterThanOrEqual(3);
   });
 
   it("renders all required Markdown sections", async () => {

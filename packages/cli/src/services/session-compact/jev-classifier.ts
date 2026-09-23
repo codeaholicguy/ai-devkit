@@ -1,6 +1,6 @@
 import type { ConversationMessage } from "@ai-devkit/agent-manager";
 import { choice, noul, TypeSafeClient, type SystemOneResult } from "@typesafe-ai/sdk";
-import { redactSensitiveText, type SessionEventClassifier } from "./session-compact.service.js";
+import type { SessionEventClassifier } from "./session-compact.service.js";
 import {
   COMPACT_CATEGORIES,
   COMPACT_IMPORTANCE,
@@ -60,10 +60,9 @@ export class JevSessionEventClassifier implements SessionEventClassifier {
   ) {}
 
   async classify(message: ConversationMessage): Promise<ClassifiedSessionEvent> {
-    const redactedMessage = { ...message, content: redactSensitiveText(message.content) };
     const response = await this.client.systemOne({
       model: this.model,
-      state: redactedMessage,
+      state: message,
       questions: classificationQuestions,
     });
 
@@ -77,7 +76,7 @@ export class JevSessionEventClassifier implements SessionEventClassifier {
     const sensitive = requireProbability("sensitive", response.answers.sensitive.noul);
 
     return {
-      ...redactedMessage,
+      ...message,
       category,
       importance,
       keep: keep >= 0.5,

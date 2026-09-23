@@ -96,10 +96,8 @@ interface SessionEventClassifier {
 async function compactSession(
   messages: ConversationMessage[],
   classifier: SessionEventClassifier,
-  options?: { concurrency?: number },
 ): Promise<SessionCompact>;
 
-function redactSensitiveText(content: string): string;
 function renderSessionCompactMarkdown(result: SessionCompact): string;
 ```
 

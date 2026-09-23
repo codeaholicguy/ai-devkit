@@ -6,11 +6,7 @@ export interface SessionEventClassifier {
   classify(message: ConversationMessage): Promise<ClassifiedSessionEvent>;
 }
 
-export interface CompactSessionOptions {
-  concurrency?: number;
-}
-
-export const DEFAULT_SESSION_COMPACT_CONCURRENCY = 8;
+const SESSION_COMPACT_CONCURRENCY = 8;
 
 const PRIVATE_KEY_PATTERN =
   /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g;
@@ -18,7 +14,7 @@ const BEARER_PATTERN = /(Authorization\s*:\s*Bearer\s+)[^\s]+/gi;
 const SECRET_ASSIGNMENT_PATTERN =
   /\b([A-Z][A-Z0-9_]*(?:API_KEY|TOKEN|SECRET|PASSWORD|PRIVATE_KEY))\s*=\s*([^\s]+)/g;
 
-export function redactSensitiveText(content: string): string {
+function redactSensitiveText(content: string): string {
   return content
     .replace(PRIVATE_KEY_PATTERN, "[REDACTED]")
     .replace(BEARER_PATTERN, "$1[REDACTED]")
@@ -52,13 +48,7 @@ function buildResumePrompt(intent: string, currentState: string, nextStep: strin
 export async function compactSession(
   messages: ConversationMessage[],
   classifier: SessionEventClassifier,
-  options: CompactSessionOptions = {},
 ): Promise<SessionCompact> {
-  const concurrency = options.concurrency ?? DEFAULT_SESSION_COMPACT_CONCURRENCY;
-  if (!Number.isInteger(concurrency) || concurrency < 1) {
-    throw new Error("Session compact concurrency must be a positive integer.");
-  }
-
   const classified: ClassifiedSessionEvent[] = [];
   let nextIndex = 0;
   const classifyNext = async (): Promise<void> => {
@@ -72,7 +62,7 @@ export async function compactSession(
       });
     }
   };
-  const workerCount = Math.min(concurrency, messages.length);
+  const workerCount = Math.min(SESSION_COMPACT_CONCURRENCY, messages.length);
   await Promise.all(Array.from({ length: workerCount }, () => classifyNext()));
 
   const retained = classified.filter(includeEvent);
