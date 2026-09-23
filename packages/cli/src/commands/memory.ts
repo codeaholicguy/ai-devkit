@@ -151,6 +151,7 @@ export function registerMemoryCommand(program: Command): void {
 
             ui.table({
               headers: ["ID", "Title", "Scope"],
+              maxWidth: process.stdout.columns ?? 120,
               rows: result.results.map((item) => [
                 item.id.slice(0, TABLE_ID_LENGTH),
                 truncate(item.title, TITLE_MAX_LENGTH, "..."),

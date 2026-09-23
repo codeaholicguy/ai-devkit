@@ -306,6 +306,7 @@ describe("memory command", () => {
     });
     expect(mockedUi.table).toHaveBeenCalledWith({
       headers: ["ID", "Title", "Scope"],
+      maxWidth: process.stdout.columns ?? 120,
       rows: [
         [
           "b47ce05b",
