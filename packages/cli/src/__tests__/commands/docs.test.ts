@@ -38,6 +38,9 @@ vi.mock("../../util/terminal-ui.js", () => ({
 vi.mock("chalk", () => ({
   default: {
     dim: (text: string) => `[dim]${text}[/dim]`,
+    green: (text: string) => text,
+    red: (text: string) => text,
+    yellow: (text: string) => text,
   },
 }));
 
