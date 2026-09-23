@@ -16,6 +16,7 @@ const mockManager: any = {
   registerAdapter: vi.fn(),
   listAgents: vi.fn(),
   listSessions: vi.fn(),
+  findSessionsById: vi.fn(),
   resolveAgent: vi.fn(),
   getAdapter: vi.fn(),
 };
@@ -391,6 +392,7 @@ describe("agent command", () => {
     mockManager.registerAdapter.mockReset();
     mockManager.listAgents.mockReset();
     mockManager.listSessions.mockReset();
+    mockManager.findSessionsById.mockReset();
     mockManager.resolveAgent.mockReset();
     mockManager.getAdapter.mockReset();
     mockAgentAdapter.getConversation.mockReset();
@@ -2822,6 +2824,7 @@ Waiting on user input`,
         "Jev is unavailable because TYPESAFE_API_KEY is not set.",
       );
       expect(mockManager.listSessions).not.toHaveBeenCalled();
+      expect(mockManager.findSessionsById).not.toHaveBeenCalled();
       expect(mockCreateJevClassifier).not.toHaveBeenCalled();
       expect(process.exit).not.toHaveBeenCalled();
     });
@@ -2847,6 +2850,7 @@ Waiting on user input`,
         jev: { available: false, reason: "TYPESAFE_API_KEY is not set" },
       });
       expect(mockManager.listSessions).not.toHaveBeenCalled();
+      expect(mockManager.findSessionsById).not.toHaveBeenCalled();
     });
 
     it("resolves the historical session and renders a Jev compact", async () => {
@@ -2866,7 +2870,7 @@ Waiting on user input`,
         resumePrompt: "review",
         jev: { available: true, model: "jev-test", classifiedEvents: 1 },
       };
-      mockManager.listSessions.mockResolvedValue([session]);
+      mockManager.findSessionsById.mockResolvedValue([session]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue(messages);
       mockCreateJevClassifier.mockReturnValue(classifier);
@@ -2887,7 +2891,9 @@ Waiting on user input`,
         "codex",
       ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined, type: "codex" });
+      expect(mockManager.findSessionsById).toHaveBeenCalledWith("sess-compact", {
+        type: "codex",
+      });
       expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith("/tmp/sess-compact.jsonl", {
         verbose: true,
       });
@@ -2912,7 +2918,7 @@ Waiting on user input`,
         resumePrompt: "review",
         jev: { available: true, model: "jev-test", classifiedEvents: 1 },
       };
-      mockManager.listSessions.mockResolvedValue([session]);
+      mockManager.findSessionsById.mockResolvedValue([session]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([]);
       mockCreateJevClassifier.mockReturnValue(classifier);
@@ -2957,6 +2963,7 @@ Waiting on user input`,
         "Failed to compact session: Invalid --format. Expected markdown or json.",
       );
       expect(mockManager.listSessions).not.toHaveBeenCalled();
+      expect(mockManager.findSessionsById).not.toHaveBeenCalled();
       expect(process.exit).toHaveBeenCalledWith(1);
     });
   });

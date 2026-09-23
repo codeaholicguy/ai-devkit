@@ -36,6 +36,17 @@ export function isDirectory(p: string): boolean {
   return safeStat(p)?.isDirectory() ?? false;
 }
 
+/** Return whether a value can be safely appended as one filesystem path segment. */
+export function isSafePathSegment(value: string): boolean {
+  return (
+    value.length > 0 &&
+    value !== "." &&
+    value !== ".." &&
+    !value.includes("\0") &&
+    path.basename(value) === value
+  );
+}
+
 /**
  * `fs.statSync` that swallows errors and returns `undefined` on failure.
  * Callers can pull whichever fields they need (mtime, birthtime, ...).

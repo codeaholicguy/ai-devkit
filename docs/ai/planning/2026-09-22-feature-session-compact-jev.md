@@ -11,6 +11,7 @@ description: Ordered implementation and validation tasks for session compaction
 - [x] Milestone 1: Typed compaction domain and Jev adapter are covered by unit tests.
 - [x] Milestone 2: `agent session compact` implements explicit unavailable and successful output flows.
 - [x] Milestone 3: Built-in skill, lifecycle docs, and repository verification are complete.
+- [x] Milestone 4: Measured performance bottlenecks are addressed with adapter-wide direct lookup and bounded Jev concurrency.
 
 ## Task Breakdown
 
@@ -64,6 +65,17 @@ description: Ordered implementation and validation tasks for session compaction
   - Dependencies: all preceding tasks.
   - Evidence: fresh command outputs recorded in testing docs and durable task.
 
+### Phase 4: Measured compaction performance
+
+- [x] Task 4.1: Benchmark a representative Codex session and isolate lookup, parsing, classification, and rendering costs.
+  - Outcome: full historical enumeration and sequential remote classification identified as the dominant avoidable costs.
+- [x] Task 4.2: Add exact-ID lookup to `AgentManager` and every built-in adapter, retaining fallback compatibility for external adapters.
+  - Outcome: the compact command no longer builds every historical session summary before opening one transcript.
+- [x] Task 4.3: Replace sequential classification with an order-preserving bounded worker pool using default concurrency eight.
+  - Outcome: independent Jev round trips overlap without changing artifact order.
+- [x] Task 4.4: Add adapter, manager, command, and concurrency regression tests and rerun repository verification.
+  - Outcome: direct lookup, provider narrowing, ambiguity, fallback compatibility, concurrency bounds, and ordering are executable contracts.
+
 ## Dependencies
 
 ```mermaid
@@ -94,7 +106,7 @@ flowchart LR
 ## Risks & Mitigation
 
 - SDK/API schema changes: isolate in `JevSessionEventClassifier`, validate labels, pin via lockfile.
-- Long sessions cause many sequential calls: accept for MVP, measure before adding concurrency.
+- Long sessions can still require many API calls: cap concurrency at eight, preserve ordering, and leave adaptive throttling/batching as a measured follow-up.
 - Secret leakage: early key gate, local redaction before calls, sensitive-event exclusion, synthetic security tests.
 - Command namespace confusion: reuse existing `agent session` and document discovery via `agent sessions`.
 - Command tests are already broad: add focused cases and avoid changing shared behavior.

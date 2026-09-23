@@ -109,4 +109,8 @@ export class OpenCodeAdapter implements AgentAdapter {
   async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
     return this.locator.listSessions(opts);
   }
+
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    return this.locator.findSessionsById(sessionId);
+  }
 }

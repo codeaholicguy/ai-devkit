@@ -30,7 +30,7 @@ description: Technical implementation notes, patterns, and code guidelines
 
 ### Core Features
 
-- Messages are locally redacted, classified sequentially, filtered, and grouped without generative rewriting.
+- Messages are locally redacted, classified by an eight-worker bounded pool, filtered, and grouped without generative rewriting. Indexed result placement preserves source order.
 - Jev asks typed category/importance choice questions and retention/sensitivity noul questions.
 - Unknown category or importance labels throw explicit integration errors.
 
@@ -50,7 +50,8 @@ description: Technical implementation notes, patterns, and code guidelines
 - CLI wiring will pass adapter-normalized `ConversationMessage[]` to `compactSession`.
 - `agent session compact --id <id> [--type <provider>] [--format markdown|json]` is registered beside historical session detail.
 - The missing-key branch returns before `createAgentManager`, so it cannot list sessions or read a transcript.
-- Successful resolution reuses `resolveListSessionsOptions`, `findSessionById`, adapter lookup, and `getConversation(..., { verbose: true })`.
+- Successful resolution calls `AgentManager.findSessionsById`. Every built-in adapter implements provider-native lookup; optional adapter-method semantics preserve list-and-filter compatibility for external adapters.
+- Codex, Claude, Grok, Copilot, Pi, and OpenCode exploit ID-addressable paths or SQL. Gemini metadata does not encode IDs in filenames, so it scans until the exact embedded ID is found without building summaries for later files.
 
 ## Error Handling
 
@@ -64,7 +65,7 @@ description: Technical implementation notes, patterns, and code guidelines
 
 **How do we keep it fast?**
 
-- MVP classification is sequential and uncached; measure before adding concurrency or caching.
+- Classification defaults to eight concurrent requests and accepts an internal concurrency override for deterministic tests or future tuning.
 - Each source message produces exactly one Jev request.
 
 ## Security Notes
@@ -84,4 +85,4 @@ description: Technical implementation notes, patterns, and code guidelines
 
 ## Design Alignment
 
-The implementation matches the reviewed design with no material deviations. The only review-driven addition was stricter validation of Jev probabilities and blank model configuration. No provider/session discovery code, database state, automatic memory/task mutation, fallback summarizer, or output-file behavior was added.
+The implementation now includes the measured performance follow-up: adapter-wide exact-ID lookup and bounded concurrent classification. It adds no persistent index/database state, automatic memory/task mutation, fallback summarizer, or output-file behavior.

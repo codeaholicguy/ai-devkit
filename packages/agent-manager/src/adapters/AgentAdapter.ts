@@ -208,4 +208,13 @@ export interface AgentAdapter {
    * @returns Array of sessions discovered on disk
    */
   listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]>;
+
+  /**
+   * Resolve exact historical session matches without enumerating every summary.
+   *
+   * Built-in adapters implement this using their provider-native storage shape.
+   * The method remains optional so external adapters can fall back to
+   * {@link listSessions} until they adopt direct lookup.
+   */
+  findSessionsById?(sessionId: string): Promise<SessionSummary[]>;
 }

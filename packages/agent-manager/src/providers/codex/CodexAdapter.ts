@@ -95,6 +95,14 @@ export class CodexAdapter implements AgentAdapter {
     return summaries;
   }
 
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    const sessionFile = this.createLocator().findSessionFileById(sessionId);
+    if (!sessionFile) return [];
+
+    const summary = this.parser.fileToSessionSummary(sessionFile.filePath);
+    return summary?.sessionId === sessionId ? [summary] : [];
+  }
+
   private async getCodexProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
     const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
     const relevant = filterByProcessNames(snapshot, this.processNames);

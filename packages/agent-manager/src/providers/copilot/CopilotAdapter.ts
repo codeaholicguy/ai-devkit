@@ -29,7 +29,7 @@ import {
 import { AgentRegistry, type RegistryEntry } from "../../utils/AgentRegistry.js";
 import { CopilotAgentMapper } from "./CopilotAgentMapper.js";
 import { CopilotSessionLocator } from "./CopilotSessionLocator.js";
-import { CopilotSessionParser } from "./CopilotSessionParser.js";
+import { CopilotSessionParser, type CopilotSession } from "./CopilotSessionParser.js";
 
 export interface CopilotAdapterOptions {
   sessionStateDir?: string;
@@ -111,18 +111,34 @@ export class CopilotAdapter implements AgentAdapter {
       if (!session) continue;
       if (opts?.cwd !== undefined && session.projectPath !== opts.cwd) continue;
 
-      summaries.push({
-        type: this.type,
-        sessionId: session.sessionId,
-        cwd: session.projectPath,
-        firstUserMessage: session.firstUserMessage,
-        lastActive: session.lastActive,
-        startedAt: session.sessionStart,
-        sessionFilePath: session.eventsFilePath,
-      });
+      summaries.push(this.toSessionSummary(session));
     }
 
     return summaries;
+  }
+
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    const match = this.locator.findSessionDirById(sessionId);
+    if (match) {
+      const session = this.parser.readSessionDir(match.sessionDir, match.sessionId);
+      if (session?.sessionId === sessionId) {
+        return [this.toSessionSummary(session)];
+      }
+    }
+
+    return (await this.listSessions()).filter((session) => session.sessionId === sessionId);
+  }
+
+  private toSessionSummary(session: CopilotSession): SessionSummary {
+    return {
+      type: this.type,
+      sessionId: session.sessionId,
+      cwd: session.projectPath,
+      firstUserMessage: session.firstUserMessage,
+      lastActive: session.lastActive,
+      startedAt: session.sessionStart,
+      sessionFilePath: session.eventsFilePath,
+    };
   }
 
   private applyWrapperRegistryName(

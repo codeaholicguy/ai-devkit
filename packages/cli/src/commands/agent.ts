@@ -648,21 +648,16 @@ export function registerAgentCommand(program: Command): void {
         }
 
         const manager = createAgentManager();
-        const listOptions = resolveListSessionsOptions({
-          all: true,
-          type: options.type,
-        }).adapterOptions;
-        const sessions = await manager.listSessions(listOptions);
-        const resolved = findSessionById(sessions, options.id);
-
-        if (!resolved) {
+        const matches = await manager.findSessionsById(options.id, { type: options.type });
+        if (matches.length === 0) {
           throw new Error(`No session found matching "${options.id}".`);
         }
-        if (Array.isArray(resolved)) {
+        if (matches.length > 1) {
           throw new Error(
             `Multiple sessions match "${options.id}". Use --type to choose the intended session source.`,
           );
         }
+        const resolved = matches[0];
 
         const adapter = manager.getAdapter(resolved.type);
         if (!adapter) throw new Error(`Unsupported agent type: ${resolved.type}`);

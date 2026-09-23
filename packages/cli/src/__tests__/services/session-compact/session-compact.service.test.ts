@@ -105,6 +105,54 @@ describe("session compaction", () => {
     expect(result.currentState).toBe("");
   });
 
+  it("classifies with bounded concurrency while preserving source order", async () => {
+    const messages: ConversationMessage[] = Array.from({ length: 6 }, (_, index) => ({
+      role: "assistant",
+      content: `message-${index}`,
+    }));
+    let active = 0;
+    let maxActive = 0;
+    const boundedClassifier: SessionEventClassifier = {
+      model: "jev-test",
+      classify: vi.fn(async (message) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        const index = Number(message.content.split("-").at(-1));
+        await new Promise((resolve) => setTimeout(resolve, (6 - index) * 2));
+        active -= 1;
+        return event("decision", message.content);
+      }),
+    };
+
+    const result = await compactSession(messages, boundedClassifier, { concurrency: 2 });
+
+    expect(maxActive).toBe(2);
+    expect(result.decisions).toEqual(messages.map((message) => message.content));
+  });
+
+  it("defaults to eight concurrent classifications", async () => {
+    const messages: ConversationMessage[] = Array.from({ length: 10 }, (_, index) => ({
+      role: "assistant",
+      content: `message-${index}`,
+    }));
+    let active = 0;
+    let maxActive = 0;
+    const boundedClassifier: SessionEventClassifier = {
+      model: "jev-test",
+      classify: vi.fn(async (message) => {
+        active += 1;
+        maxActive = Math.max(maxActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        active -= 1;
+        return event("decision", message.content);
+      }),
+    };
+
+    await compactSession(messages, boundedClassifier);
+
+    expect(maxActive).toBe(8);
+  });
+
   it("redacts common credentials before classification", () => {
     const content = [
       "Authorization: Bearer abc.def.ghi",

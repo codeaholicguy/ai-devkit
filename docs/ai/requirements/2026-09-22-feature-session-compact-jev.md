@@ -24,7 +24,7 @@ The feature serves developers and agent harnesses handing work to another agent,
 
 - No non-Jev summarization fallback.
 - No automatic memory writes, task mutation, daemon, context-pressure hook, or session mutation.
-- No new session-file discovery implementation or general provider abstraction.
+- No persistent session index, cache, or provider storage migration.
 - No `--current`, `--agent`, arbitrary `--input`, or output-file option in the MVP.
 - No generative model call; retained event content is organized deterministically.
 
@@ -53,6 +53,8 @@ The feature serves developers and agent harnesses handing work to another agent,
 - With no `TYPESAFE_API_KEY`, the command exits with status 0, does not read the session or call Jev, and prints exactly `Jev is unavailable because TYPESAFE_API_KEY is not set.` in Markdown mode.
 - JSON unavailable output contains `{ "jev": { "available": false, "reason": "TYPESAFE_API_KEY is not set" } }`.
 - With a key, each normalized message is evaluated for retention, category, importance, and sensitivity using Jev typed questions.
+- Exact ID resolution uses provider-native lookup in every built-in adapter instead of constructing every historical session summary; third-party adapters remain compatible through a list-and-filter fallback.
+- Jev classification runs with bounded concurrency (eight requests by default) while preserving source-message order in the artifact.
 - The result contains intent, current state, decisions, changed files, commands, validation, open questions, next step, memory candidates, resume prompt, and Jev metadata.
 - Markdown contains the required `# Session Compact` and section headings.
 - Unit tests cover unavailable behavior, classification mapping, secret redaction/exclusion, rendering, option validation, and command wiring.
@@ -62,7 +64,7 @@ The feature serves developers and agent harnesses handing work to another agent,
 ## Constraints & Assumptions
 
 - Node.js 20+ and Commander conventions remain unchanged.
-- Historical-session discovery and provider parsing remain owned by `@ai-devkit/agent-manager`; the CLI resolves an ID, then calls the adapter's `getConversation(..., { verbose: true })`.
+- Historical-session discovery and provider parsing remain owned by `@ai-devkit/agent-manager`; its adapter contract optionally supports exact-ID lookup, and the CLI then calls the selected adapter's `getConversation(..., { verbose: true })`.
 - `@typesafe-ai/sdk` is the narrow Jev integration dependency. `TypeSafeClient` reads `TYPESAFE_API_KEY`; production code still performs its own presence check first.
 - Jev is classification-only. A deterministic builder groups retained source content into the output schema and builds the resume prompt.
 - Secret redaction is defense in depth, not a complete data-loss-prevention system; users remain responsible for the transcript they send to the hosted service.
@@ -70,4 +72,4 @@ The feature serves developers and agent harnesses handing work to another agent,
 
 ## Questions & Open Items
 
-All MVP decisions are resolved. Potential follow-ups are `--current`, agent-name resolution, arbitrary normalized input, `--out`, bounded concurrency/batching after measurement, and optional non-Jev compaction under an explicitly different mode.
+All current decisions are resolved. Potential follow-ups are `--current`, agent-name resolution, arbitrary normalized input, `--out`, provider-native indexes for stores without ID-addressable paths, adaptive concurrency/rate-limit handling, and optional non-Jev compaction under an explicitly different mode.
