@@ -82,6 +82,14 @@ function styleAuthorization(value: string): string {
   return chalk.dim(value);
 }
 
+function styleChannelStatus(value: string): string {
+  return value === "enabled" ? chalk.green(value) : chalk.dim(value);
+}
+
+function styleBridgeStatus(value: string): string {
+  return value === "running" ? chalk.green(value) : chalk.dim(value);
+}
+
 export function registerChannelCommand(program: Command): void {
   const channelService = new ChannelService();
   const channelCommand = program
@@ -280,12 +288,10 @@ export function registerChannelCommand(program: Command): void {
           return [
             name,
             entry.type,
-            entry.enabled ? chalk.green("enabled") : chalk.dim("disabled"),
+            entry.enabled ? "enabled" : "disabled",
             identity || "-",
             authorization,
-            liveByChannel.has(name)
-              ? chalk.green("running")
-              : chalk.dim("stopped"),
+            liveByChannel.has(name) ? "running" : "stopped",
             formatChannelDate(entry.createdAt, "-"),
           ];
         });
@@ -304,10 +310,10 @@ export function registerChannelCommand(program: Command): void {
           columnStyles: [
             (text) => text,
             (text) => text,
-            (text) => text,
+            styleChannelStatus,
             (text) => text,
             styleAuthorization,
-            (text) => text,
+            styleBridgeStatus,
             (text) => text,
           ],
           maxWidth: process.stdout.columns ?? 120,

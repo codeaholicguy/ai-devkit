@@ -805,6 +805,15 @@ describe("channel command", () => {
       }),
     );
     const rows = vi.mocked(ui.table).mock.calls[0][0].rows;
+    expect(rows[0]).toEqual([
+      "personal",
+      "telegram",
+      "enabled",
+      "@personal_bot",
+      "no",
+      "running",
+      "May 23",
+    ]);
     expect(rows[0]).toContain("May 23");
     expect(rows[0]).not.toContain("5/23/2026");
     expect(rows[0]).not.toContain("2026-05-23T00:00:00.000Z");
