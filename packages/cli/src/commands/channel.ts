@@ -310,6 +310,7 @@ export function registerChannelCommand(program: Command): void {
             (text) => text,
             (text) => text,
           ],
+          maxWidth: process.stdout.columns ?? 120,
         });
         if (runningChannelNames.length === 1) {
           ui.text(

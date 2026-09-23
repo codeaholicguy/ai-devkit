@@ -800,6 +800,7 @@ describe("channel command", () => {
           ]),
         ],
         columnStyles: expect.any(Array),
+        maxWidth: process.stdout.columns ?? 120,
       }),
     );
     const rows = vi.mocked(ui.table).mock.calls[0][0].rows;
