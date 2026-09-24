@@ -14,7 +14,13 @@ import {
   executableBasename,
   filterByProcessNames,
 } from "../utils/process.js";
-import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../utils/session.js";
+import {
+  isDirectory,
+  isSafePathSegment,
+  safeReadFile,
+  safeReaddir,
+  safeStat,
+} from "../utils/session.js";
 import { generateAgentName } from "../utils/matching.js";
 
 /**
@@ -240,19 +246,44 @@ export class GrokCliAdapter implements AgentAdapter {
         const cwd = session.projectPath || decodedCwd;
         if (filterCwd !== undefined && cwd !== filterCwd) continue;
 
-        summaries.push({
-          type: this.type,
-          sessionId: session.sessionId,
-          cwd,
-          firstUserMessage: session.firstUserMessage || "",
-          lastActive: session.lastActive,
-          startedAt: session.sessionStart,
-          sessionFilePath: path.join(sessionDir, CHAT_HISTORY_FILE),
-        });
+        summaries.push(this.toSessionSummary(session, sessionDir, cwd));
       }
     }
 
     return summaries;
+  }
+
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    if (!isSafePathSegment(sessionId) || !isDirectory(this.sessionsDir)) {
+      return [];
+    }
+
+    const summaries: SessionSummary[] = [];
+    for (const groupName of safeReaddir(this.sessionsDir)) {
+      const groupDir = path.join(this.sessionsDir, groupName);
+      if (!isDirectory(groupDir)) continue;
+
+      const sessionDir = path.join(groupDir, sessionId);
+      if (!isDirectory(sessionDir)) continue;
+      const decodedCwd = this.decodeGroupCwd(groupName, groupDir);
+      const session = this.readSession(sessionDir, decodedCwd);
+      if (!session || session.sessionId !== sessionId) continue;
+
+      summaries.push(this.toSessionSummary(session, sessionDir, session.projectPath || decodedCwd));
+    }
+    return summaries;
+  }
+
+  private toSessionSummary(session: GrokSession, sessionDir: string, cwd: string): SessionSummary {
+    return {
+      type: this.type,
+      sessionId: session.sessionId,
+      cwd,
+      firstUserMessage: session.firstUserMessage || "",
+      lastActive: session.lastActive,
+      startedAt: session.sessionStart,
+      sessionFilePath: path.join(sessionDir, CHAT_HISTORY_FILE),
+    };
   }
 
   // --- Session parsing (chat_history.jsonl) ---

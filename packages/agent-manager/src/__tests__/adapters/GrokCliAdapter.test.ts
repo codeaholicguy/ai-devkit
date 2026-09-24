@@ -335,6 +335,15 @@ describe("GrokCliAdapter", () => {
       );
     });
 
+    it("finds an exact session ID across project groups", async () => {
+      writeSession({});
+      writeSession({ sessionCwd: "/Users/dev/other", id: "other-session" });
+
+      await expect(adapter.findSessionsById(SESSION_ID)).resolves.toEqual([
+        expect.objectContaining({ sessionId: SESSION_ID, cwd }),
+      ]);
+    });
+
     it("applies the cwd filter against the decoded cwd", async () => {
       writeSession({
         sessionCwd: "/Users/dev/project-a",

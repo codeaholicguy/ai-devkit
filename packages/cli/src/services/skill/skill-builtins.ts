@@ -29,6 +29,7 @@ const FALLBACK_BUILTIN_SKILL_NAMES = [
   "brainstorm",
   "verify",
   "tdd",
+  "session-compact",
 ] as const;
 
 let builtInSkillNamesPromise: Promise<readonly string[]> | undefined;

@@ -21,5 +21,6 @@
   "simplify-implementation",
   "brainstorm",
   "verify",
-  "tdd"
+  "tdd",
+  "session-compact"
 ]

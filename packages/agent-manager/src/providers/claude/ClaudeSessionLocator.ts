@@ -6,6 +6,7 @@ import { matchProcessesToSessions, type MatchResult } from "../../utils/matching
 import {
   batchGetSessionFileBirthtimes,
   isDirectory,
+  isSafePathSegment,
   listJsonl,
   safeReaddir,
   safeStat,
@@ -128,6 +129,25 @@ export class ClaudeSessionLocator {
     }
 
     return out;
+  }
+
+  findHistoricalSessionFilesById(
+    sessionId: string,
+  ): Array<{ filePath: string; defaultCwd: string }> {
+    if (!isSafePathSegment(sessionId) || !isDirectory(this.projectsDir)) {
+      return [];
+    }
+
+    const matches: Array<{ filePath: string; defaultCwd: string }> = [];
+    for (const dirName of safeReaddir(this.projectsDir)) {
+      const projectDir = path.join(this.projectsDir, dirName);
+      if (!isDirectory(projectDir)) continue;
+
+      const filePath = path.join(projectDir, `${sessionId}.jsonl`);
+      if (!safeStat(filePath)?.isFile()) continue;
+      matches.push({ filePath, defaultCwd: dirName.replace(/-/g, "/") });
+    }
+    return matches;
   }
 
   /**

@@ -138,31 +138,36 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     const summaries: SessionSummary[] = [];
 
     for (const { filePath, defaultCwd } of candidates) {
-      const session = this.parser.readSession(filePath, defaultCwd);
-      if (!session) continue;
-
-      // Drop sessions whose JSONL had no parseable conversation entries.
-      // readSession is permissive (returns a shell record even when every
-      // line fails to parse); listSessions needs at least one real entry
-      // so we don't surface garbage files.
-      if (!session.lastEntryType) continue;
-
-      const recordedCwd = session.lastCwd || defaultCwd;
-      if (filterCwd !== undefined && recordedCwd !== filterCwd) continue;
-
-      const stat = safeStat(filePath);
-
-      summaries.push({
-        type: "claude",
-        sessionId: session.sessionId,
-        cwd: recordedCwd,
-        firstUserMessage: session.firstUserMessage || "",
-        lastActive: session.lastActive ?? stat?.mtime ?? new Date(),
-        startedAt: session.sessionStart ?? stat?.birthtime ?? stat?.mtime ?? new Date(),
-        sessionFilePath: filePath,
-      });
+      const summary = this.toSessionSummary(filePath, defaultCwd);
+      if (!summary) continue;
+      if (filterCwd !== undefined && summary.cwd !== filterCwd) continue;
+      summaries.push(summary);
     }
 
     return summaries;
+  }
+
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    return this.createLocator()
+      .findHistoricalSessionFilesById(sessionId)
+      .map(({ filePath, defaultCwd }) => this.toSessionSummary(filePath, defaultCwd))
+      .filter((summary): summary is SessionSummary => summary?.sessionId === sessionId);
+  }
+
+  private toSessionSummary(filePath: string, defaultCwd: string): SessionSummary | null {
+    const session = this.parser.readSession(filePath, defaultCwd);
+    if (!session?.lastEntryType) return null;
+
+    const recordedCwd = session.lastCwd || defaultCwd;
+    const stat = safeStat(filePath);
+    return {
+      type: "claude",
+      sessionId: session.sessionId,
+      cwd: recordedCwd,
+      firstUserMessage: session.firstUserMessage || "",
+      lastActive: session.lastActive ?? stat?.mtime ?? new Date(),
+      startedAt: session.sessionStart ?? stat?.birthtime ?? stat?.mtime ?? new Date(),
+      sessionFilePath: filePath,
+    };
   }
 }

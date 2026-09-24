@@ -16,6 +16,12 @@ export interface OpenCodeSession {
   timeCreated: number;
 }
 
+interface OpenCodeSessionRow {
+  id: string;
+  directory: string;
+  timeCreated: number;
+}
+
 export class OpenCodeSessionLocator {
   private readonly dbPath: string;
   private db: Database.Database | null = null;
@@ -82,7 +88,7 @@ export class OpenCodeSessionLocator {
 
     try {
       const rows = db
-        .prepare<[], { id: string; directory: string; timeCreated: number }>(`
+        .prepare<[], OpenCodeSessionRow>(`
                 SELECT id, directory, time_created AS timeCreated
                 FROM session
                 ORDER BY time_created DESC
@@ -94,20 +100,7 @@ export class OpenCodeSessionLocator {
       for (const row of rows) {
         if (opts?.cwd !== undefined && row.directory !== opts.cwd) continue;
 
-        const stats = this.parser.getSessionStats(db, row.id);
-        const lastActive =
-          stats.lastTimeUpdated > 0 ? new Date(stats.lastTimeUpdated) : new Date(row.timeCreated);
-        const startedAt = new Date(row.timeCreated);
-
-        summaries.push({
-          type: "opencode",
-          sessionId: row.id,
-          cwd: row.directory,
-          firstUserMessage: stats.summary,
-          lastActive,
-          startedAt,
-          sessionFilePath: encodeOpenCodeSessionRef(this.dbPath, row.id),
-        });
+        summaries.push(this.toSessionSummary(db, row));
       }
 
       return summaries;
@@ -115,6 +108,41 @@ export class OpenCodeSessionLocator {
       this.close();
       return [];
     }
+  }
+
+  findSessionsById(sessionId: string): SessionSummary[] {
+    const db = this.openDb();
+    if (!db) return [];
+
+    try {
+      const row = db
+        .prepare<[string], OpenCodeSessionRow>(`
+                SELECT id, directory, time_created AS timeCreated
+                FROM session
+                WHERE id = ?
+            `)
+        .get(sessionId);
+      return row ? [this.toSessionSummary(db, row)] : [];
+    } catch {
+      this.close();
+      return [];
+    }
+  }
+
+  private toSessionSummary(db: Database.Database, row: OpenCodeSessionRow): SessionSummary {
+    const stats = this.parser.getSessionStats(db, row.id);
+    const lastActive =
+      stats.lastTimeUpdated > 0 ? new Date(stats.lastTimeUpdated) : new Date(row.timeCreated);
+
+    return {
+      type: "opencode",
+      sessionId: row.id,
+      cwd: row.directory,
+      firstUserMessage: stats.summary,
+      lastActive,
+      startedAt: new Date(row.timeCreated),
+      sessionFilePath: encodeOpenCodeSessionRef(this.dbPath, row.id),
+    };
   }
 
   get dbFilePath(): string {

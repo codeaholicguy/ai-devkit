@@ -21,6 +21,7 @@ import type { HerdrAgentPane } from "../runtime/herdr/HerdrAgentDiscovery.js";
 // Mock adapter for testing
 class MockAdapter implements AgentAdapter {
   public lastListSessionsOpts: unknown = undefined;
+  public findSessionsByIdCalls: string[] = [];
 
   constructor(
     public readonly type: AgentType,
@@ -51,6 +52,11 @@ class MockAdapter implements AgentAdapter {
       throw new Error(`Mock adapter ${this.type} listSessions failed`);
     }
     return this.mockSessions;
+  }
+
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    this.findSessionsByIdCalls.push(sessionId);
+    return this.mockSessions.filter((session) => session.sessionId === sessionId);
   }
 
   setAgents(agents: AgentInfo[]): void {
@@ -1116,6 +1122,60 @@ describe("AgentManager", () => {
 
       expect(a.lastListSessionsOpts).toEqual({ cwd: "/Users/test/proj" });
       expect(b.lastListSessionsOpts).toEqual({ cwd: "/Users/test/proj" });
+    });
+  });
+
+  describe("findSessionsById", () => {
+    const session = (type: AgentType, sessionId: string): SessionSummary => ({
+      type,
+      sessionId,
+      cwd: "/repo",
+      firstUserMessage: "hello",
+      lastActive: new Date("2025-01-01T00:00:00Z"),
+      startedAt: new Date("2025-01-01T00:00:00Z"),
+      sessionFilePath: `/tmp/${sessionId}`,
+    });
+
+    it("uses each built-in adapter direct lookup and preserves cross-provider ambiguity", async () => {
+      const claude = new MockAdapter("claude", [], false, [session("claude", "shared")]);
+      const codex = new MockAdapter("codex", [], false, [session("codex", "shared")]);
+      manager.registerAdapter(claude);
+      manager.registerAdapter(codex);
+
+      const result = await manager.findSessionsById("shared");
+
+      expect(result).toHaveLength(2);
+      expect(claude.findSessionsByIdCalls).toEqual(["shared"]);
+      expect(codex.findSessionsByIdCalls).toEqual(["shared"]);
+      expect(claude.lastListSessionsOpts).toBeUndefined();
+      expect(codex.lastListSessionsOpts).toBeUndefined();
+    });
+
+    it("skips non-matching providers when type is supplied", async () => {
+      const claude = new MockAdapter("claude", [], false, [session("claude", "target")]);
+      const codex = new MockAdapter("codex", [], false, [session("codex", "target")]);
+      manager.registerAdapter(claude);
+      manager.registerAdapter(codex);
+
+      const result = await manager.findSessionsById("target", { type: "codex" });
+
+      expect(result).toEqual([expect.objectContaining({ type: "codex", sessionId: "target" })]);
+      expect(claude.findSessionsByIdCalls).toEqual([]);
+      expect(codex.findSessionsByIdCalls).toEqual(["target"]);
+    });
+
+    it("falls back to filtered listing for external adapters without direct lookup", async () => {
+      const external = new MockAdapter("other", [], false, [
+        session("other", "target"),
+        session("other", "different"),
+      ]);
+      (external as Partial<AgentAdapter>).findSessionsById = undefined;
+      manager.registerAdapter(external);
+
+      const result = await manager.findSessionsById("target");
+
+      expect(result).toEqual([expect.objectContaining({ sessionId: "target" })]);
+      expect(external.lastListSessionsOpts).toEqual(undefined);
     });
   });
 

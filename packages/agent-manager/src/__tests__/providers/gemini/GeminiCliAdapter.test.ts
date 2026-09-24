@@ -1185,6 +1185,27 @@ describe("GeminiCliAdapter", () => {
       });
     });
 
+    it("finds an exact session ID from Gemini metadata", async () => {
+      const wantedPath = writeSession(tmpHome, "aaa", "session-one", {
+        sessionId: "wanted",
+        projectHash: hashProjectRoot("/repo"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/repo"],
+        messages: [{ type: "user", content: "wanted prompt" }],
+      });
+      writeSession(tmpHome, "bbb", "session-two", {
+        sessionId: "other",
+        projectHash: hashProjectRoot("/other"),
+        startTime: "2025-01-01T00:00:00Z",
+        directories: ["/other"],
+        messages: [{ type: "user", content: "other prompt" }],
+      });
+
+      await expect(adapter.findSessionsById("wanted")).resolves.toEqual([
+        expect.objectContaining({ sessionId: "wanted", sessionFilePath: wantedPath }),
+      ]);
+    });
+
     it("applies strict-equality cwd filter against directories[0]", async () => {
       writeSession(tmpHome, "aaa", "session-keep", {
         sessionId: "keep",

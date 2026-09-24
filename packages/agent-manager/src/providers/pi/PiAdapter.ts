@@ -92,6 +92,18 @@ export class PiAdapter implements AgentAdapter {
     return summaries;
   }
 
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    const summaries: SessionSummary[] = [];
+    const filePaths = this.createLocator().findHistoricalSessionFilesById(sessionId);
+    for (const filePath of filePaths) {
+      const summary = this.parser.fileToSessionSummary(filePath);
+      if (summary?.sessionId === sessionId) summaries.push(summary);
+    }
+
+    if (summaries.length > 0) return summaries;
+    return (await this.listSessions()).filter((summary) => summary.sessionId === sessionId);
+  }
+
   private async getPiProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
     const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
     const relevant = filterByProcessNames(snapshot, this.processNames);

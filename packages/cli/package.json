@@ -40,6 +40,7 @@
     "@ai-devkit/channel-connector": "0.13.4",
     "@ai-devkit/memory": "0.20.1",
     "@inquirer/prompts": "^8.5.2",
+    "@typesafe-ai/sdk": "^0.6.0",
     "chalk": "^5.6.0",
     "commander": "^11.1.0",
     "debug": "^4.4.3",
