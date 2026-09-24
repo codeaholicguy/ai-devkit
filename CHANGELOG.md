@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.64.0] - 2026-09-24
 
 - Added `ai-devkit agent session compact` — Jev-backed compaction of a historical session into a structured continuation artifact (durable continuation facts, memory candidates), with a new `session-compact` built-in skill ([#250](https://github.com/codeaholicguy/ai-devkit/pull/250)).
 - Added `AgentManager.findSessionsById()` and the optional `AgentAdapter.findSessionsById()` hook to `@ai-devkit/agent-manager`, resolving exact historical session IDs across providers without enumerating every summary ([9684956](https://github.com/codeaholicguy/ai-devkit/commit/9684956)).
