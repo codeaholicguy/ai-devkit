@@ -37,7 +37,6 @@ import {
   type AgentInfo,
   type AgentType,
   type ConversationMessage,
-  type SessionSummary,
   type DurableProvider,
 } from "@ai-devkit/agent-manager";
 import { ui } from "../util/terminal-ui.js";
@@ -262,16 +261,6 @@ function renderConversationDetail(
       `Showing last ${displayMessages.length} of ${totalMessages} messages. Use --full to see all.`,
     );
   }
-}
-
-function findSessionById(
-  sessions: SessionSummary[],
-  sessionId: string,
-): SessionSummary | undefined | SessionSummary[] {
-  const matches = sessions.filter((session) => session.sessionId === sessionId);
-  if (matches.length === 0) return undefined;
-  if (matches.length === 1) return matches[0];
-  return matches;
 }
 
 function createAgentManager(): AgentManager {
@@ -725,21 +714,21 @@ export function registerAgentCommand(program: Command): void {
     .action(
       withErrorHandler("get session detail", async (options) => {
         const manager = createAgentManager();
-        const listOptions = resolveListSessionsOptions({
+        // Validates --type; the ID lookup avoids listing every session.
+        const { type } = resolveListSessionsOptions({
           all: true,
           type: options.type,
         }).adapterOptions;
-        const sessions = await manager.listSessions(listOptions);
-        const resolved = findSessionById(sessions, options.id);
+        const matches = await manager.findSessionsById(options.id, { type });
 
-        if (!resolved) {
+        if (matches.length === 0) {
           ui.error(`No session found matching "${options.id}".`);
           return;
         }
 
-        if (Array.isArray(resolved)) {
+        if (matches.length > 1) {
           ui.error(`Multiple sessions match "${options.id}":`);
-          resolved.forEach((session) => {
+          matches.forEach((session) => {
             ui.text(
               `  - ${formatType(session.type)} ${formatCwd(session.cwd)}`,
             );
@@ -748,7 +737,7 @@ export function registerAgentCommand(program: Command): void {
           return;
         }
 
-        const session = resolved;
+        const session = matches[0];
         const adapter = manager.getAdapter(session.type);
         if (!adapter) {
           ui.error(`Unsupported agent type: ${session.type}`);

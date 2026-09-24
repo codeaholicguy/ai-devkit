@@ -3254,7 +3254,7 @@ Waiting on user input`,
     }
 
     it("finds a historical session by id and renders detail without requiring a running agent", async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession()]);
+      mockManager.findSessionsById.mockResolvedValue([makeSession()]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([
         {
@@ -3281,7 +3281,10 @@ Waiting on user input`,
         "sess-1",
       ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({ cwd: undefined });
+      expect(mockManager.findSessionsById).toHaveBeenCalledWith("sess-1", {
+        type: undefined,
+      });
+      expect(mockManager.listSessions).not.toHaveBeenCalled();
       expect(mockManager.listAgents).not.toHaveBeenCalled();
       expect(mockManager.getAdapter).toHaveBeenCalledWith("claude");
       expect(mockAgentAdapter.getConversation).toHaveBeenCalledWith(
@@ -3296,7 +3299,7 @@ Waiting on user input`,
     });
 
     it("emits JSON for a historical session detail and honors --tail", async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession()]);
+      mockManager.findSessionsById.mockResolvedValue([makeSession()]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
       mockAgentAdapter.getConversation.mockReturnValue([
         { role: "user", content: "one", timestamp: "2025-01-01T00:00:00.000Z" },
@@ -3341,7 +3344,7 @@ Waiting on user input`,
     });
 
     it("shows a clear error when the session id is not found", async () => {
-      mockManager.listSessions.mockResolvedValue([makeSession()]);
+      mockManager.findSessionsById.mockResolvedValue([]);
 
       const program = new Command();
       registerAgentCommand(program);
@@ -3362,7 +3365,7 @@ Waiting on user input`,
     });
 
     it("forwards --type when resolving a historical session", async () => {
-      mockManager.listSessions.mockResolvedValue([
+      mockManager.findSessionsById.mockResolvedValue([
         makeSession({ type: "codex" }),
       ]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
@@ -3382,14 +3385,13 @@ Waiting on user input`,
         "codex",
       ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({
-        cwd: undefined,
+      expect(mockManager.findSessionsById).toHaveBeenCalledWith("sess-1", {
         type: "codex",
       });
     });
 
     it("accepts opencode as a historical session detail type filter", async () => {
-      mockManager.listSessions.mockResolvedValue([
+      mockManager.findSessionsById.mockResolvedValue([
         makeSession({ type: "opencode" }),
       ]);
       mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
@@ -3409,10 +3411,51 @@ Waiting on user input`,
         "opencode",
       ]);
 
-      expect(mockManager.listSessions).toHaveBeenCalledWith({
-        cwd: undefined,
+      expect(mockManager.findSessionsById).toHaveBeenCalledWith("sess-1", {
         type: "opencode",
       });
+    });
+    it("lists each source when the session id matches several providers", async () => {
+      mockManager.findSessionsById.mockResolvedValue([
+        makeSession({ type: "claude" }),
+        makeSession({ type: "codex" }),
+      ]);
+
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "detail",
+        "--id",
+        "sess-1",
+      ]);
+
+      expect(ui.error).toHaveBeenCalledWith('Multiple sessions match "sess-1":');
+      expect(ui.info).toHaveBeenCalledWith(
+        "Use --type to choose the intended session source.",
+      );
+      expect(mockManager.getAdapter).not.toHaveBeenCalled();
+    });
+
+    it("rejects an unknown --type before looking up the session", async () => {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "detail",
+        "--id",
+        "sess-1",
+        "--type",
+        "wrong",
+      ]);
+
+      expect(mockManager.findSessionsById).not.toHaveBeenCalled();
     });
   });
 
