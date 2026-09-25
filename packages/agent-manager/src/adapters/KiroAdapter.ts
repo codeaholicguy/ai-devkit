@@ -58,10 +58,12 @@ interface KiroLock {
 }
 
 const IDLE_THRESHOLD_MINUTES = 5;
+const KIRO_BASENAMES = new Set(["kiro-cli", "kiro"]);
+const SCRIPT_RUNTIMES = new Set(["node", "bun"]);
 
 export class KiroAdapter implements AgentAdapter {
   readonly type = "kiro" as const;
-  readonly processNames = ["kiro-cli", "kiro", "node"] as const;
+  readonly processNames = ["kiro-cli", "kiro", "kiro-cli-chat", "node"] as const;
 
   private kiroSessionsDir: string;
 
@@ -80,12 +82,12 @@ export class KiroAdapter implements AgentAdapter {
     const processes = relevant.filter((process) => this.canHandle(process));
     if (processes.length === 0) return [];
 
-    const processByPid = new Map(processes.map((proc) => [proc.pid, proc]));
+    const collectedByPid = new Map(relevant.map((proc) => [proc.pid, proc]));
     const matchedPids = new Set<number>();
     const agents: AgentInfo[] = [];
 
     for (const lock of this.discoverActiveLocks()) {
-      const proc = processByPid.get(lock.pid);
+      const proc = this.resolveLockProcess(lock.pid, collectedByPid, processes);
       if (!proc) continue;
 
       const session = this.readSession(lock.sessionId, proc.cwd);
@@ -365,12 +367,50 @@ export class KiroAdapter implements AgentAdapter {
     return AgentStatus.RUNNING;
   }
 
-  private isKiroExecutable(command: string): boolean {
-    for (const token of command.trim().split(/\s+/)) {
-      const base = executableBasename(token).replace(/\.(exe|js)$/, "");
-      if (base === "kiro-cli" || base === "kiro") return true;
+  private resolveLockProcess(
+    lockPid: number,
+    collectedByPid: Map<number, ProcessInfo>,
+    topLevel: ProcessInfo[],
+  ): ProcessInfo | null {
+    let current = collectedByPid.get(lockPid);
+    const seen = new Set<number>();
+    let resolved: ProcessInfo | null = null;
+
+    while (current && !seen.has(current.pid)) {
+      seen.add(current.pid);
+      if (this.canHandle(current)) resolved = current;
+
+      const parentPid = current.ppid;
+      current = parentPid === undefined ? undefined : collectedByPid.get(parentPid);
     }
-    return false;
+
+    if (resolved) return resolved;
+    return this.matchSoleTopLevelOnTty(collectedByPid.get(lockPid)?.tty, topLevel);
+  }
+
+  private matchSoleTopLevelOnTty(
+    tty: string | undefined,
+    topLevel: readonly ProcessInfo[],
+  ): ProcessInfo | null {
+    if (!tty || tty === "??" || tty === "?") return null;
+    const matches = topLevel.filter((proc) => proc.tty === tty);
+    return matches.length === 1 ? matches[0] : null;
+  }
+
+  private isKiroExecutable(command: string): boolean {
+    const tokens = command.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return false;
+
+    const executable = this.kiroBasename(tokens[0]);
+    if (KIRO_BASENAMES.has(executable)) return true;
+    if (!SCRIPT_RUNTIMES.has(executable)) return false;
+
+    const script = tokens.slice(1).find((token) => !token.startsWith("-"));
+    return script !== undefined && KIRO_BASENAMES.has(this.kiroBasename(script));
+  }
+
+  private kiroBasename(token: string): string {
+    return executableBasename(token).replace(/\.(exe|js)$/, "");
   }
 
   private toPid(value: unknown): number | null {

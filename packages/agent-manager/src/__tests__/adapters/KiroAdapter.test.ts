@@ -78,7 +78,7 @@ describe("KiroAdapter", () => {
   describe("initialization", () => {
     it("exposes the kiro type and process names", () => {
       expect(adapter.type).toBe("kiro");
-      expect(adapter.processNames).toEqual(["kiro-cli", "kiro", "node"]);
+      expect(adapter.processNames).toEqual(["kiro-cli", "kiro", "kiro-cli-chat", "node"]);
     });
   });
 
@@ -109,6 +109,46 @@ describe("KiroAdapter", () => {
           command: "node /repo/feature-kiro-adapter/script.js",
           cwd: "/repo",
           tty: "ttys004",
+        }),
+      ).toBe(false);
+      expect(
+        adapter.canHandle({
+          pid: 5,
+          command: "kiro-cli chat",
+          cwd: "/repo",
+          tty: "ttys005",
+        }),
+      ).toBe(true);
+      expect(
+        adapter.canHandle({
+          pid: 6,
+          command: "bun /opt/kiro/bin/kiro-cli.js",
+          cwd: "/repo",
+          tty: "ttys006",
+        }),
+      ).toBe(true);
+      expect(
+        adapter.canHandle({
+          pid: 7,
+          command: "node /usr/local/bin/ai-devkit agent start --type kiro",
+          cwd: "/repo",
+          tty: "ttys007",
+        }),
+      ).toBe(false);
+      expect(
+        adapter.canHandle({
+          pid: 8,
+          command: "node server.js --name kiro",
+          cwd: "/repo",
+          tty: "ttys008",
+        }),
+      ).toBe(false);
+      expect(
+        adapter.canHandle({
+          pid: 9,
+          command: "kiro-cli-chat acp",
+          cwd: "/repo",
+          tty: "ttys009",
         }),
       ).toBe(false);
     });
@@ -146,6 +186,101 @@ describe("KiroAdapter", () => {
         sessionFilePath: sessionFile,
         lastActive: new Date(updatedAt),
       });
+    });
+
+    it("matches a lock held by a kiro-cli-chat acp descendant when bun is not collected", async () => {
+      const cwd = "/repo/project-a";
+      const sessionFile = writeKiroSession(
+        "sess-acp",
+        cwd,
+        [prompt("implement Kiro adapter", 1781098057), assistantText("working on it")],
+        55236,
+      );
+      const kiro = makeProcess({ pid: 55111, command: "kiro-cli", cwd: "/process/cwd", ppid: 1 });
+      const chat = makeProcess({
+        pid: 55168,
+        command: "kiro-cli-chat chat",
+        ppid: 55111,
+        tty: "ttys001",
+      });
+      const acp = makeProcess({
+        pid: 55236,
+        command: "kiro-cli-chat acp",
+        ppid: 55198,
+        tty: "ttys001",
+      });
+      mockedCaptureProcessSnapshot.mockResolvedValue([kiro, chat, acp]);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toEqual([
+        expect.objectContaining({
+          type: "kiro",
+          pid: 55111,
+          projectPath: cwd,
+          sessionId: "sess-acp",
+          summary: "implement Kiro adapter",
+          sessionFilePath: sessionFile,
+        }),
+      ]);
+    });
+
+    it("walks a collected kiro-cli-chat parent chain to the owning kiro-cli", async () => {
+      const sessionFile = writeKiroSession(
+        "sess-owner",
+        "/repo/owner",
+        [prompt("owned session", 1781098057)],
+        55236,
+      );
+      const owner = makeProcess({ pid: 55111, command: "kiro-cli", cwd: "/repo/owner", ppid: 1 });
+      const other = makeProcess({ pid: 66111, command: "kiro-cli", cwd: "/repo/other", ppid: 1 });
+      const chat = makeProcess({ pid: 55168, command: "kiro-cli-chat chat", ppid: 55111 });
+      const acp = makeProcess({ pid: 55236, command: "kiro-cli-chat acp", ppid: 55168 });
+      mockedCaptureProcessSnapshot.mockResolvedValue([owner, other, chat, acp]);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toEqual([
+        expect.objectContaining({
+          pid: 55111,
+          projectPath: "/repo/owner",
+          sessionId: "sess-owner",
+          sessionFilePath: sessionFile,
+        }),
+        expect.objectContaining({ pid: 66111, sessionId: "pid-66111" }),
+      ]);
+    });
+
+    it("does not attach a session through tty ?? or an ambiguous tty", async () => {
+      writeKiroSession("sess-unknown-tty", "/repo/unknown", [prompt("hello", 1781098057)], 55236);
+      const unknownTty = makeProcess({ pid: 55111, command: "kiro-cli", tty: "??", ppid: 1 });
+      const unknownAcp = makeProcess({
+        pid: 55236,
+        command: "kiro-cli-chat acp",
+        tty: "??",
+        ppid: 55198,
+      });
+      mockedCaptureProcessSnapshot.mockResolvedValue([unknownTty, unknownAcp]);
+
+      expect(await adapter.detectAgents()).toEqual([
+        expect.objectContaining({ pid: 55111, sessionId: "pid-55111" }),
+      ]);
+
+      writeKiroSession("sess-shared-tty", "/repo/shared", [prompt("hello", 1781098057)], 66236);
+      const first = makeProcess({ pid: 55111, command: "kiro-cli", tty: "ttys001", ppid: 1 });
+      const second = makeProcess({ pid: 66111, command: "kiro-cli", tty: "ttys001", ppid: 1 });
+      const sharedAcp = makeProcess({
+        pid: 66236,
+        command: "kiro-cli-chat acp",
+        tty: "ttys001",
+        ppid: 55198,
+      });
+      mockedCaptureProcessSnapshot.mockResolvedValue([first, second, sharedAcp]);
+
+      expect(await adapter.detectAgents()).toEqual([
+        expect.objectContaining({ pid: 55111, sessionId: "pid-55111" }),
+        expect.objectContaining({ pid: 66111, sessionId: "pid-66111" }),
+      ]);
     });
 
     it("uses a supplied process snapshot instead of scanning again", async () => {

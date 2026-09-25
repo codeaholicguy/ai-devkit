@@ -120,9 +120,7 @@ async function enrichHerdrAgentPanes(
   );
 }
 
-function extractPaneProcessIds(
-  value: unknown,
-): Pick<HerdrAgentPane, "foregroundPids" | "shellPid"> {
+function extractPaneProcessIds(value: unknown): Pick<HerdrAgentPane, "foregroundPids" | "shellPid"> {
   const processInfo = getObject(value, ["result", "process_info"]);
   if (!processInfo) return {};
 
