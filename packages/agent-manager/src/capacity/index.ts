@@ -2,10 +2,12 @@ import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
 import { codexUnavailableReport, probeCodexCapacity } from "./codex.js";
+import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./claude.js";
 import { probeZaiCapacity } from "./zai.js";
 import type { CapacityReport } from "./types.js";
 
 export type { CapacityReport, CapacityWindow } from "./types.js";
+export type { ClaudeCapacityOptions } from "./claude.js";
 
 export type CapacityProbeOptions = {
   now?: () => Date;
@@ -76,5 +78,16 @@ export async function getZaiCapacityReport(
   return probeZaiCapacity({
     ...probeOptions,
     checkedAt: (now?.() ?? new Date()).toISOString(),
+  });
+}
+
+export async function getClaudeCapacityReport(
+  options: ClaudeCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeClaudeCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+    now,
   });
 }

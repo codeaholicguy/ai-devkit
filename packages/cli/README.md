@@ -86,11 +86,15 @@ ai-devkit lint --feature lint-command
 # Emit machine-readable output for CI
 ai-devkit lint --feature lint-command --json
 
-# Probe capacity for every supported provider (codex, z.ai)
+# Probe capacity for every supported provider (codex, z.ai, Claude)
 ai-devkit capacity
 
 # Probe a single provider's capacity
 ai-devkit capacity zai
+
+# Claude uses CLAUDE_CODE_OAUTH_TOKEN, the active profile file, or the
+# default-profile macOS Claude Code Keychain item
+ai-devkit capacity claude
 
 # Emit the JSON report (single object for one provider, array for many)
 ai-devkit capacity codex --json
@@ -107,6 +111,8 @@ ai-devkit skill list --global --env claude codex
 # Store project knowledge for future agent sessions
 ai-devkit memory store
 ```
+
+On macOS, the operating system may request Keychain access the first time the Claude fallback is used. Custom `CLAUDE_CONFIG_DIR` profiles use only their own credentials file and never the global Keychain item.
 
 ## UI Formatting Standards
 
