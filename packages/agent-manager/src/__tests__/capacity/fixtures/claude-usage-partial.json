@@ -1,0 +1,15 @@
+{
+  "five_hour": {
+    "utilization": 10
+  },
+  "seven_day": {
+    "resets_at": "not-a-date"
+  },
+  "seven_day_sonnet": "invalid",
+  "limits": [null, { "kind": "daily", "group": "daily", "percent": 4 }],
+  "extra_usage": {
+    "is_enabled": true,
+    "monthly_limit": "unknown",
+    "used_credits": 100
+  }
+}

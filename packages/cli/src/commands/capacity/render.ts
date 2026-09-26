@@ -14,6 +14,7 @@ const BAR_WIDTH = 10;
 const ELEVATED_USAGE = 70;
 const HIGH_USAGE = 90;
 const PROVIDER_LABELS: Record<string, string> = {
+  anthropic: "Anthropic",
   zai: "z.ai",
   openai: "OpenAI",
 };

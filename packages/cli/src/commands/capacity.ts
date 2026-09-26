@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import {
+  getClaudeCapacityReport,
   getCodexCapacityReport,
   getZaiCapacityReport,
 } from "@ai-devkit/agent-manager";
@@ -9,7 +10,7 @@ import { ui } from "../util/terminal-ui.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 
 type CapacityOptions = { json?: boolean };
-type SupportedCapacityProvider = "codex" | "zai";
+type SupportedCapacityProvider = "claude" | "codex" | "zai";
 type ReportReader = (
   provider: SupportedCapacityProvider,
 ) => Promise<CapacityReport>;
@@ -17,6 +18,7 @@ type ReportReader = (
 const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
   "codex",
   "zai",
+  "claude",
 ];
 const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map(
   (provider) => `"${provider}"`,
@@ -35,13 +37,17 @@ function reportCapacityFailure(
 async function readCapacityReport(
   provider: SupportedCapacityProvider,
 ): Promise<CapacityReport> {
-  return provider === "zai" ? getZaiCapacityReport() : getCodexCapacityReport();
+  if (provider === "zai") return getZaiCapacityReport();
+  if (provider === "claude") return getClaudeCapacityReport();
+  return getCodexCapacityReport();
 }
 
 function normalizeProvider(provider: string): SupportedCapacityProvider | null {
   const normalized = provider.toLowerCase();
   if (normalized === "z.ai") return "zai";
-  return normalized === "codex" || normalized === "zai" ? normalized : null;
+  return normalized === "claude" || normalized === "codex" || normalized === "zai"
+    ? normalized
+    : null;
 }
 
 export async function capacityCommand(
