@@ -2,6 +2,7 @@ import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
 import { codexUnavailableReport, probeCodexCapacity } from "./codex.js";
+import { probeOpenAiCapacity } from "./openai.js";
 import { probeZaiCapacity } from "./zai.js";
 import type { CapacityReport } from "./types.js";
 
@@ -15,6 +16,14 @@ export type CapacityProbeOptions = {
 };
 
 export type ZaiCapacityOptions = {
+  now?: () => Date;
+  env?: NodeJS.ProcessEnv;
+  readFile?: (path: string, encoding: BufferEncoding) => Promise<string>;
+  fetch?: typeof globalThis.fetch;
+  timeoutMs?: number;
+};
+
+export type OpenAiCapacityOptions = {
   now?: () => Date;
   env?: NodeJS.ProcessEnv;
   readFile?: (path: string, encoding: BufferEncoding) => Promise<string>;
@@ -55,10 +64,7 @@ export async function getCodexCapacityReport(
   options: CapacityProbeOptions = {},
 ): Promise<CapacityReport> {
   const generatedAt = (options.now?.() ?? new Date()).toISOString();
-  const installed = await isCodexInstalled(
-    options.path ?? process.env.PATH ?? "",
-    options.access,
-  );
+  const installed = await isCodexInstalled(options.path ?? process.env.PATH ?? "", options.access);
   try {
     return await (options.probe ?? probeCodexCapacity)({
       installed,
@@ -74,6 +80,16 @@ export async function getZaiCapacityReport(
 ): Promise<CapacityReport> {
   const { now, ...probeOptions } = options;
   return probeZaiCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+  });
+}
+
+export async function getOpenAiCapacityReport(
+  options: OpenAiCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeOpenAiCapacity({
     ...probeOptions,
     checkedAt: (now?.() ?? new Date()).toISOString(),
   });

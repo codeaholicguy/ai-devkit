@@ -1,9 +1,6 @@
 import { Command } from "commander";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  capacityCommand,
-  registerCapacityCommand,
-} from "../../../commands/capacity.js";
+import { capacityCommand, registerCapacityCommand } from "../../../commands/capacity.js";
 import { renderCapacityReports } from "../../../commands/capacity/render.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 import { ui } from "../../../util/terminal-ui.js";
@@ -16,8 +13,7 @@ const now = new Date("2026-08-09T10:00:00.000Z");
 const localClock = (date: Date) =>
   `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
 
-const ANSI_PATTERN =
-  /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+const ANSI_PATTERN = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 // ui.text receives chalk-formatted strings; assertions must hold with or
 // without color support (TTY vs piped output, FORCE_COLOR in hooks).
 const textCalls = (): string[] =>
@@ -81,6 +77,39 @@ const zaiReport: CapacityReport = {
   creditsRemaining: null,
 };
 
+const openaiReport: CapacityReport = {
+  harness: "pi",
+  provider: "openai",
+  generatedAt: "2026-08-09T10:00:00.000Z",
+  authenticated: true,
+  available: "yes",
+  windows: [
+    {
+      id: "openai:tokens:today",
+      label: "Tokens · today (UTC)",
+      limitType: "TOKENS_LIMIT",
+      durationMinutes: 1440,
+      usedPercent: null,
+      resetsAt: "2026-08-10T00:00:00.000Z",
+      total: null,
+      current: 2000,
+      remaining: null,
+    },
+    {
+      id: "openai:tokens:week",
+      label: "Tokens · 7 days",
+      limitType: "TOKENS_LIMIT",
+      durationMinutes: 10080,
+      usedPercent: null,
+      resetsAt: null,
+      total: null,
+      current: 13000,
+      remaining: null,
+    },
+  ],
+  creditsRemaining: null,
+};
+
 describe("capacity rendering", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -97,9 +126,7 @@ describe("capacity rendering", () => {
       json: true,
       now: () => now,
     });
-    expect(log).toHaveBeenCalledWith(
-      JSON.stringify([codexReport, zaiReport], null, 2),
-    );
+    expect(log).toHaveBeenCalledWith(JSON.stringify([codexReport, zaiReport], null, 2));
     log.mockRestore();
   });
 
@@ -191,6 +218,23 @@ describe("capacity rendering", () => {
     );
   });
 
+  it("renders unknown usage for windows without a limit", () => {
+    renderCapacityReports([openaiReport], { now: () => now });
+    expect(textCalls()).toContain("pi · OpenAI capacity · OK");
+    expect(ui.table).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rows: [
+          [
+            "Tokens · today (UTC)",
+            "unknown",
+            `in 14h · ${localClock(new Date("2026-08-10T00:00:00.000Z"))}`,
+          ],
+          ["Tokens · 7 days", "unknown", "—"],
+        ],
+      }),
+    );
+  });
+
   it("reports exhausted and unauthenticated states", () => {
     renderCapacityReports([{ ...codexReport, available: "no" }], {
       now: () => now,
@@ -209,12 +253,13 @@ describe("capacity command", () => {
 
   it("probes every supported provider when none is given", async () => {
     const getReport = vi.fn(async (provider: string) =>
-      provider === "zai" ? zaiReport : codexReport,
+      provider === "zai" ? zaiReport : provider === "openai" ? openaiReport : codexReport,
     );
     await capacityCommand(undefined, {}, getReport);
     expect(getReport).toHaveBeenCalledWith("codex");
     expect(getReport).toHaveBeenCalledWith("zai");
-    expect(textCalls()).toContain("Capacity · 2 providers");
+    expect(getReport).toHaveBeenCalledWith("openai");
+    expect(textCalls()).toContain("Capacity · 3 providers");
   });
 
   it("wires the command surface and normalizes the dotted z.ai alias", async () => {
@@ -225,6 +270,17 @@ describe("capacity command", () => {
     await program.parseAsync(["node", "test", "capacity", "z.ai", "--json"]);
 
     expect(getReport).toHaveBeenCalledWith("zai");
+    expect(ui.table).not.toHaveBeenCalled();
+  });
+
+  it("accepts the openai provider explicitly", async () => {
+    const getReport = vi.fn(async () => openaiReport);
+    const program = new Command();
+    program.exitOverride();
+    registerCapacityCommand(program, getReport);
+    await program.parseAsync(["node", "test", "capacity", "openai", "--json"]);
+
+    expect(getReport).toHaveBeenCalledWith("openai");
     expect(ui.table).not.toHaveBeenCalled();
   });
 
@@ -240,19 +296,19 @@ describe("capacity command", () => {
     const getReport = vi.fn(async () => {
       throw new Error("z.ai API key not found");
     });
-    await expect(capacityCommand(["zai"], {}, getReport)).rejects.toThrow(
-      "z.ai API key not found",
-    );
+    await expect(capacityCommand(["zai"], {}, getReport)).rejects.toThrow("z.ai API key not found");
   });
 
   it("warns instead of failing when one provider of many is unavailable", async () => {
     const getReport = vi.fn(async (provider: string) => {
       if (provider === "zai") throw new Error("z.ai API key not found");
+      if (provider === "openai") throw new Error("OpenAI API key not found");
       return codexReport;
     });
     await capacityCommand(undefined, {}, getReport);
+    expect(ui.warning).toHaveBeenCalledWith("zai capacity unavailable: z.ai API key not found");
     expect(ui.warning).toHaveBeenCalledWith(
-      "zai capacity unavailable: z.ai API key not found",
+      "openai capacity unavailable: OpenAI API key not found",
     );
     expect(textCalls()).toContain("codex · OpenAI capacity · OK");
   });

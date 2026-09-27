@@ -1,0 +1,20 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "item",
+      "id": "usage_day_1790294400",
+      "aggregation_timestamp": 1790294400,
+      "results": [
+        {
+          "object": "item.result",
+          "model": "gpt-5",
+          "input_tokens": 3000,
+          "output_tokens": 2000
+        }
+      ]
+    }
+  ],
+  "has_more": false,
+  "next_page": null
+}

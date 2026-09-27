@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import {
   getCodexCapacityReport,
+  getOpenAiCapacityReport,
   getZaiCapacityReport,
 } from "@ai-devkit/agent-manager";
 import { renderCapacityReports } from "./capacity/render.js";
@@ -9,18 +10,11 @@ import { ui } from "../util/terminal-ui.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 
 type CapacityOptions = { json?: boolean };
-type SupportedCapacityProvider = "codex" | "zai";
-type ReportReader = (
-  provider: SupportedCapacityProvider,
-) => Promise<CapacityReport>;
+type SupportedCapacityProvider = "codex" | "zai" | "openai";
+type ReportReader = (provider: SupportedCapacityProvider) => Promise<CapacityReport>;
 
-const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
-  "codex",
-  "zai",
-];
-const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map(
-  (provider) => `"${provider}"`,
-).join(", ");
+const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = ["codex", "zai", "openai"];
+const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map((provider) => `"${provider}"`).join(", ");
 
 function reportCapacityFailure(
   provider: string,
@@ -32,16 +26,18 @@ function reportCapacityFailure(
   else ui.warning(message);
 }
 
-async function readCapacityReport(
-  provider: SupportedCapacityProvider,
-): Promise<CapacityReport> {
-  return provider === "zai" ? getZaiCapacityReport() : getCodexCapacityReport();
+async function readCapacityReport(provider: SupportedCapacityProvider): Promise<CapacityReport> {
+  if (provider === "zai") return getZaiCapacityReport();
+  if (provider === "openai") return getOpenAiCapacityReport();
+  return getCodexCapacityReport();
 }
 
 function normalizeProvider(provider: string): SupportedCapacityProvider | null {
   const normalized = provider.toLowerCase();
   if (normalized === "z.ai") return "zai";
-  return normalized === "codex" || normalized === "zai" ? normalized : null;
+  return SUPPORTED_PROVIDERS.includes(normalized as SupportedCapacityProvider)
+    ? (normalized as SupportedCapacityProvider)
+    : null;
 }
 
 export async function capacityCommand(
