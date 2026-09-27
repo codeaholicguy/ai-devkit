@@ -28,7 +28,7 @@ description: Break down work into actionable tasks and estimate timeline
 
 - [x] T3.1: Full gates: `npm run lint`, `npm test`, `npm run test:e2e`, hooks (dev-commit) — all green in worktree. Record evidence in implementation doc.
 - [x] T3.2: Manual on-machine validation: build CLI, run default `ai-devkit capacity`, confirm `pi · OpenAI` rows beside `pi · z.ai`; redacted output in implementation doc.
-- [ ] T3.3: Update implementation/testing/planning docs (phases 5-8 flow), grep branch for token substrings (no-leak audit), final PR (dev-pr conventions; do NOT merge).
+- [x] T3.3: Update implementation/testing/planning docs (phases 5-8 flow), grep branch for token substrings (no-leak audit), final PR (dev-pr conventions; do NOT merge).
 
 ## Dependencies
 
@@ -53,4 +53,4 @@ description: Break down work into actionable tasks and estimate timeline
 - 2026-09-27: Initial plan created from requirements/design/testing docs. All testing scenarios mapped to tasks (T1.1↔wham parsing, T2.1↔resolution/staleness, T2.2↔classification/no-leak, T3.1↔gates, T3.2↔manual e2e).
 - 2026-09-27: M1 done. T1.1 wham.ts + wham.test.ts (TDD red→green; note: scoped-window ids reject spaces by safeIdentifier design — test uses `code-review`). T1.2 codex.ts delegates parsing; exported `resetTime`/`safeIdentifier` from wham.ts because codex's CLI-fallback path uses them (caught by 3 codex CLI-fallback tests going red). All 50 capacity tests + 682 agent-manager tests green; hooks passed.
 - 2026-09-27: M2 done via TDD. T2.1: `resolveOpenAiCredential` union + tiers, not-found message now mentions pi login (CLI test uses injected errors — unaffected; openai.test.ts regex updated accordingly). T2.2: OAuth probe with wham fetch/classification; stale no-fetch; JWT fallback. Coverage: openai.ts & wham.ts 100% lines; remaining uncovered branches are the never-network `?? globalThis.fetch`/default-timeout injections, consistent with codex.ts/zai.ts norms. 70 capacity tests + full agent-manager suite green; hooks passed.
-- 2026-09-27: M3 in progress. T3.1 gates green (lint 6 projects, npm test 6 projects, e2e 42). T3.2 live validation green (`pi · OpenAI` rows render; json no-leak scripted check; unrelated oxfmt churn in codex/zai tests reverted). Implementation + testing docs finalized. Remaining: T3.3 no-leak grep + PR.
+- 2026-09-27: M3 done. No-leak audit clean (branch diff + tracked files scanned against real token values). Final gates fresh on HEAD: lint 0 / npm test 0 / e2e 0 (42). Rebased (up to date) onto origin/main, pushed, PR opened: https://github.com/codeaholicguy/ai-devkit/pull/254 (left unmerged for review). Lifecycle complete.
