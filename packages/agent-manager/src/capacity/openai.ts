@@ -25,6 +25,10 @@ export type OpenAiProbeOptions = OpenAiCredentialOptions & {
   timeoutMs?: number;
 };
 type OpenAiRequestContext = OpenAiProbeOptions & { key: string };
+type OpenAiUsageResult =
+  | { status: "ok"; payloads: unknown[] }
+  | { status: "unauthorized" }
+  | { status: "forbidden" };
 
 function record(value: unknown): UnknownRecord | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -91,9 +95,13 @@ export function parseOpenAiUsage(raw: unknown): OpenAiUsageBucket[] {
   if (!Array.isArray(data)) throw new Error("Invalid OpenAI usage response");
   const buckets: OpenAiUsageBucket[] = [];
   for (const entry of data) {
-    const seconds = finiteNumber(record(entry)?.aggregation_timestamp);
+    const item = record(entry);
+    const seconds = finiteNumber(item?.aggregation_timestamp);
     if (seconds === null) continue;
-    buckets.push({ startMs: seconds * 1000, tokens: bucketTokens(record(entry)?.results) });
+    buckets.push({
+      startMs: seconds * 1000,
+      tokens: bucketTokens(item?.results),
+    });
   }
   return buckets;
 }
@@ -156,31 +164,45 @@ export function buildOpenAiReport(buckets: OpenAiUsageBucket[], checkedAt: strin
   return openAiCapacityReport(windows, checkedAt, true);
 }
 
-async function fetchUsage(context: OpenAiRequestContext): Promise<unknown[] | number | null> {
-  const fetcher = context.fetch ?? globalThis.fetch;
+async function fetchWithTimeout(
+  url: string,
+  context: OpenAiRequestContext,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    context.timeoutMs ?? 5000,
+  );
+  try {
+    return await (context.fetch ?? globalThis.fetch)(url, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${context.key}` },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchUsage(
+  context: OpenAiRequestContext,
+): Promise<OpenAiUsageResult> {
   const endSeconds = Math.floor(Date.parse(context.checkedAt) / 1000);
   const startSeconds = endSeconds - USAGE_WINDOW_DAYS * 24 * 60 * 60;
   const query = `start_time=${startSeconds}&end_time=${endSeconds}`;
   const payloads: unknown[] = [];
   for (const endpoint of OPENAI_USAGE_ENDPOINTS) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), context.timeoutMs ?? 5000);
     let response: Response;
     try {
-      response = await fetcher(`${OPENAI_USAGE_BASE_URL}/${endpoint}?${query}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${context.key}`,
-        },
-        signal: controller.signal,
-      });
+      response = await fetchWithTimeout(
+        `${OPENAI_USAGE_BASE_URL}/${endpoint}?${query}`,
+        context,
+      );
     } catch {
       throw new Error("OpenAI usage request failed");
-    } finally {
-      clearTimeout(timer);
     }
-    if (response.status === 401) return null;
-    if (response.status === 403) return response.status;
+    if (response.status === 401) return { status: "unauthorized" };
+    if (response.status === 403) return { status: "forbidden" };
     if (response.status !== 200) {
       throw new Error(`OpenAI usage request failed: HTTP ${response.status}`);
     }
@@ -190,38 +212,32 @@ async function fetchUsage(context: OpenAiRequestContext): Promise<unknown[] | nu
       throw new Error("OpenAI usage response is not valid JSON");
     }
   }
-  return payloads;
+  return { status: "ok", payloads };
 }
 
 async function verifyKey(context: OpenAiRequestContext): Promise<boolean> {
-  const fetcher = context.fetch ?? globalThis.fetch;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), context.timeoutMs ?? 5000);
+  let response: Response;
   try {
-    const response = await fetcher(OPENAI_MODELS_URL, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${context.key}` },
-      signal: controller.signal,
-    });
-    return response.status !== 401;
+    response = await fetchWithTimeout(OPENAI_MODELS_URL, context);
   } catch {
     throw new Error("OpenAI usage request failed");
-  } finally {
-    clearTimeout(timer);
   }
+  return response.status !== 401;
 }
 
-export async function probeOpenAiCapacity(options: OpenAiProbeOptions): Promise<CapacityReport> {
+export async function probeOpenAiCapacity(
+  options: OpenAiProbeOptions,
+): Promise<CapacityReport> {
   const key = await resolveOpenAiApiKey(options);
-  const probe: OpenAiProbeOptions & { key: string } = { ...options, key };
+  const probe: OpenAiRequestContext = { ...options, key };
   const result = await fetchUsage(probe);
-  if (result === null) {
+  if (result.status === "unauthorized") {
     return openAiCapacityReport([], options.checkedAt, false);
   }
-  if (typeof result === "number") {
+  if (result.status === "forbidden") {
     const authenticated = await verifyKey(probe);
     return openAiCapacityReport([], options.checkedAt, authenticated);
   }
-  const buckets = result.flatMap(parseOpenAiUsage);
+  const buckets = result.payloads.flatMap(parseOpenAiUsage);
   return buildOpenAiReport(buckets, options.checkedAt);
 }
