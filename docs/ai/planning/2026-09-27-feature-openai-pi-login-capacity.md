@@ -8,21 +8,21 @@ description: Break down work into actionable tasks and estimate timeline
 
 ## Milestones
 
-- [ ] M1: Shared wham parsing extracted, codex suite green unchanged
-- [ ] M2: Pi OAuth tier resolves + classifies (all unit scenarios green)
+- [x] M1: Shared wham parsing extracted, codex suite green unchanged
+- [x] M2: Pi OAuth tier resolves + classifies (all unit scenarios green)
 - [ ] M3: Full gates green, docs/implementation updated, final PR open
 
 ## Task Breakdown
 
 ### Phase 1: Foundation — shared parser
 
-- [ ] T1.1: Create `capacity/wham.ts` with `parseWhamUsage`, `toRateWindow`, `extraWindows` + guards (TDD: add `wham.test.ts` scenarios from testing doc first; fixtures `wham-usage.json`). Outcome: pure parser module; validation: `npx vitest run src/__tests__/capacity/wham.test.ts` (agent-manager).
-- [ ] T1.2: Delegate `codex.ts` parsing to `wham.ts`; keep `parseUsage`/`toRateWindow` exports. Outcome: codex behavior identical; validation: `codex.test.ts` passes unchanged (no edits to that suite).
+- [x] T1.1: Create `capacity/wham.ts` with `parseWhamUsage`, `toRateWindow`, `extraWindows` + guards (TDD: add `wham.test.ts` scenarios from testing doc first; fixtures `wham-usage.json`). Outcome: pure parser module; validation: `npx vitest run src/__tests__/capacity/wham.test.ts` (agent-manager).
+- [x] T1.2: Delegate `codex.ts` parsing to `wham.ts`; keep `parseUsage`/`toRateWindow` exports. Outcome: codex behavior identical; validation: `codex.test.ts` passes unchanged (no edits to that suite).
 
 ### Phase 2: Core — OAuth tier in openai.ts
 
-- [ ] T2.1: `resolveOpenAiCredential` tiers (env → pi `openai` api_key → pi `openai-codex` oauth → not-found error mentioning pi login); keep `resolveOpenAiApiKey` compat; ms-vs-s + JWT staleness helper. TDD first: extend `openai.test.ts` resolution + staleness scenarios with fixture `openai-codex-auth.json`. Validation: scoped vitest.
-- [ ] T2.2: OAuth probe path: wham GET (Bearer + `ChatGPT-Account-Id`, abort/timeout), classification (200 report / 401-403 unauthenticated / timeout-5xx-badJSON sanitized throw / stale no-fetch), report assembly mirroring codex API-path semantics; no-leak assertions. Validation: scoped vitest; JSON.stringify scan for fake tokens.
+- [x] T2.1: `resolveOpenAiCredential` tiers (env → pi `openai` api_key → pi `openai-codex` oauth → not-found error mentioning pi login); keep `resolveOpenAiApiKey` compat; ms-vs-s + JWT staleness helper. TDD first: extend `openai.test.ts` resolution + staleness scenarios with fixture `openai-codex-auth.json`. Validation: scoped vitest.
+- [x] T2.2: OAuth probe path: wham GET (Bearer + `ChatGPT-Account-Id`, abort/timeout), classification (200 report / 401-403 unauthenticated / timeout-5xx-badJSON sanitized throw / stale no-fetch), report assembly mirroring codex API-path semantics; no-leak assertions. Validation: scoped vitest; JSON.stringify scan for fake tokens.
 
 ### Phase 3: Integration & gates
 
@@ -51,3 +51,4 @@ description: Break down work into actionable tasks and estimate timeline
 ## Progress Log
 
 - 2026-09-27: Initial plan created from requirements/design/testing docs. All testing scenarios mapped to tasks (T1.1↔wham parsing, T2.1↔resolution/staleness, T2.2↔classification/no-leak, T3.1↔gates, T3.2↔manual e2e).
+- 2026-09-27: M2 done via TDD. T2.1: `resolveOpenAiCredential` union + tiers, not-found message now mentions pi login (CLI test uses injected errors — unaffected; openai.test.ts regex updated accordingly). T2.2: OAuth probe with wham fetch/classification; stale no-fetch; JWT fallback. Coverage: openai.ts & wham.ts 100% lines; remaining uncovered branches are the never-network `?? globalThis.fetch`/default-timeout injections, consistent with codex.ts/zai.ts norms. 70 capacity tests + full agent-manager suite green; hooks passed. Next: T3.1 root gates.
