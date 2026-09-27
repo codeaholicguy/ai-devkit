@@ -261,6 +261,58 @@ describe("OpenAI OAuth capacity probe", () => {
     expect(fetch).toHaveBeenCalledOnce();
   });
 
+  it("treats unparseable JWT payloads as unknown expiry and probes anyway", async () => {
+    const auth = JSON.stringify({
+      "openai-codex": {
+        type: "oauth",
+        access: "fixture-header.bm90LWpzb24.fixture-signature",
+        accountId: "fixture-chatgpt-account-id",
+      },
+    });
+    const fetch = vi.fn(async () => whamResponse());
+    await expect(
+      probeOpenAiCapacity({
+        checkedAt,
+        env: { HOME: "/users/test" },
+        readFile: async () => auth,
+        fetch,
+      }),
+    ).resolves.toMatchObject({ authenticated: true, available: "yes" });
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+
+  it("treats non-JWT and exp-less access tokens as unknown expiry and probes anyway", async () => {
+    for (const access of ["opaque-fixture-access", "h.eyJzdWIiOiJ4In0.s"]) {
+      const auth = JSON.stringify({
+        "openai-codex": {
+          type: "oauth",
+          access,
+          accountId: "fixture-chatgpt-account-id",
+        },
+      });
+      const fetch = vi.fn(async () => whamResponse());
+      await expect(
+        probeOpenAiCapacity({
+          checkedAt,
+          env: { HOME: "/users/test" },
+          readFile: async () => auth,
+          fetch,
+        }),
+      ).resolves.toMatchObject({ authenticated: true, available: "yes" });
+      expect(fetch).toHaveBeenCalledOnce();
+    }
+  });
+
+  it("reports unknown availability when wham returns no usable windows", async () => {
+    const report = await probeOpenAiCapacity({
+      checkedAt,
+      env: { HOME: "/users/test" },
+      readFile: async () => freshOauth(),
+      fetch: vi.fn(async () => new Response("{}", { status: 200 })),
+    });
+    expect(report).toMatchObject({ authenticated: true, available: "unknown", windows: [] });
+  });
+
   it("reports unauthenticated when wham rejects the OAuth token", async () => {
     for (const status of [401, 403]) {
       const report = await probeOpenAiCapacity({
@@ -476,6 +528,27 @@ describe("OpenAI request", () => {
       fetch,
     });
     expect(report).toMatchObject({ authenticated: false, windows: [] });
+  });
+
+  it("sanitizes network failures on the platform key path", async () => {
+    await expect(
+      probeOpenAiCapacity({
+        checkedAt,
+        env: { OPENAI_API_KEY: "network-key" },
+        fetch: vi.fn(async () => Promise.reject(new Error("ECONNRESET secret"))),
+      }),
+    ).rejects.toThrow("OpenAI usage request failed");
+    await expect(
+      probeOpenAiCapacity({
+        checkedAt,
+        env: { OPENAI_API_KEY: "network-key" },
+        fetch: vi.fn(async (url: string) =>
+          url.endsWith("/models")
+            ? Promise.reject(new Error("ECONNRESET secret"))
+            : new Response("forbidden", { status: 403 }),
+        ),
+      }),
+    ).rejects.toThrow("OpenAI usage request failed");
   });
 
   it("rejects other statuses and malformed JSON responses with sanitized errors", async () => {

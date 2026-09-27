@@ -58,6 +58,30 @@ describe("wham usage parsing", () => {
     expect(parseWhamUsage({ additional_rate_limits: null }).windows).toEqual([]);
   });
 
+  it("falls back to positional ids and inline windows for degraded extra limits", () => {
+    const scoped = parseWhamUsage({
+      additional_rate_limits: [
+        null,
+        42,
+        { primary_window: { used_percent: 5 } },
+        { limit_name: "not/safe", primary_window: { used_percent: 6 } },
+        { limit_name: "token-123456", primary_window: { used_percent: 7 } },
+        { limit_name: "ok", secondary_window: { used_percent: 8 } },
+      ],
+    });
+    expect(scoped.windows.map((window) => window.id)).toEqual([
+      "extra-3:primary",
+      "extra-4:primary",
+      "extra-5:primary",
+      "ok:secondary",
+    ]);
+  });
+
+  it("parses non-object payloads into an empty snapshot", () => {
+    expect(parseWhamUsage(null)).toEqual({ windows: [], creditsRemaining: null });
+    expect(parseWhamUsage(42)).toEqual({ windows: [], creditsRemaining: null });
+  });
+
   it("never invents usage for windows it cannot parse", () => {
     const snapshot = parseWhamUsage({
       rate_limit: {
