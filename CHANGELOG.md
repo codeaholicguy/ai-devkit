@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Added an OpenAI platform usage provider to `ai-devkit capacity`, resolving `OPENAI_API_KEY` or the Pi OpenAI credential and reporting today and 7-day token windows from the platform Usage API; unqueryable limits render consumption-only ([#252](https://github.com/codeaholicguy/ai-devkit/pull/252)).
+- Added Claude subscription usage to `ai-devkit capacity`, reading quota windows from the local Claude login ([#251](https://github.com/codeaholicguy/ai-devkit/pull/251)).
+- `ai-devkit capacity` now shows OpenAI usage from pi's OpenAI login alongside harness quotas ([#254](https://github.com/codeaholicguy/ai-devkit/pull/254)).
+- Added the Kiro CLI adapter — detects running Kiro CLI agents by matching `~/.kiro/sessions/cli` lock files to session metadata and transcripts, enabling Kiro in `agent list/detail` and channels ([#115](https://github.com/codeaholicguy/ai-devkit/pull/115)).
+- Added the Antigravity CLI adapter — detect, list, and inspect Google Antigravity CLI (`agy`) agents alongside Claude, Codex, Gemini, and Grok ([#133](https://github.com/codeaholicguy/ai-devkit/pull/133)).
+- Resolved `agent session detail` by exact session ID instead of enumerating every provider's history (~5.8s → ~0.45s with ~1.3 GB of Codex sessions), with identical output ([e8a93ea](https://github.com/codeaholicguy/ai-devkit/commit/e8a93ea)).
+
 ## [0.64.0] - 2026-09-24
 
 - Added `ai-devkit agent session compact` — Jev-backed compaction of a historical session into a structured continuation artifact (durable continuation facts, memory candidates), with a new `session-compact` built-in skill ([#250](https://github.com/codeaholicguy/ai-devkit/pull/250)).
