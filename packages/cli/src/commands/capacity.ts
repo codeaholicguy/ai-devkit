@@ -1,5 +1,6 @@
 import type { Command } from "commander";
 import {
+  getClaudeCapacityReport,
   getCodexCapacityReport,
   getOpenAiCapacityReport,
   getZaiCapacityReport,
@@ -10,10 +11,15 @@ import { ui } from "../util/terminal-ui.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 
 type CapacityOptions = { json?: boolean };
-type SupportedCapacityProvider = "codex" | "zai" | "openai";
+type SupportedCapacityProvider = "claude" | "codex" | "openai" | "zai";
 type ReportReader = (provider: SupportedCapacityProvider) => Promise<CapacityReport>;
 
-const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = ["codex", "zai", "openai"];
+const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
+  "codex",
+  "zai",
+  "openai",
+  "claude",
+];
 const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map((provider) => `"${provider}"`).join(", ");
 
 function reportCapacityFailure(
@@ -29,6 +35,7 @@ function reportCapacityFailure(
 async function readCapacityReport(provider: SupportedCapacityProvider): Promise<CapacityReport> {
   if (provider === "zai") return getZaiCapacityReport();
   if (provider === "openai") return getOpenAiCapacityReport();
+  if (provider === "claude") return getClaudeCapacityReport();
   return getCodexCapacityReport();
 }
 
