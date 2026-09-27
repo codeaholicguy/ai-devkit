@@ -8,61 +8,46 @@ description: Break down work into actionable tasks and estimate timeline
 
 ## Milestones
 
-**What are the major checkpoints?**
-
-- [ ] Milestone 1: [Description]
-- [ ] Milestone 2: [Description]
-- [ ] Milestone 3: [Description]
+- [ ] M1: Shared wham parsing extracted, codex suite green unchanged
+- [ ] M2: Pi OAuth tier resolves + classifies (all unit scenarios green)
+- [ ] M3: Full gates green, docs/implementation updated, final PR open
 
 ## Task Breakdown
 
-**What specific work needs to be done?**
+### Phase 1: Foundation — shared parser
 
-### Phase 1: Foundation
+- [ ] T1.1: Create `capacity/wham.ts` with `parseWhamUsage`, `toRateWindow`, `extraWindows` + guards (TDD: add `wham.test.ts` scenarios from testing doc first; fixtures `wham-usage.json`). Outcome: pure parser module; validation: `npx vitest run src/__tests__/capacity/wham.test.ts` (agent-manager).
+- [ ] T1.2: Delegate `codex.ts` parsing to `wham.ts`; keep `parseUsage`/`toRateWindow` exports. Outcome: codex behavior identical; validation: `codex.test.ts` passes unchanged (no edits to that suite).
 
-- [ ] Task 1.1: [Description]
-- [ ] Task 1.2: [Description]
+### Phase 2: Core — OAuth tier in openai.ts
 
-### Phase 2: Core Features
+- [ ] T2.1: `resolveOpenAiCredential` tiers (env → pi `openai` api_key → pi `openai-codex` oauth → not-found error mentioning pi login); keep `resolveOpenAiApiKey` compat; ms-vs-s + JWT staleness helper. TDD first: extend `openai.test.ts` resolution + staleness scenarios with fixture `openai-codex-auth.json`. Validation: scoped vitest.
+- [ ] T2.2: OAuth probe path: wham GET (Bearer + `ChatGPT-Account-Id`, abort/timeout), classification (200 report / 401-403 unauthenticated / timeout-5xx-badJSON sanitized throw / stale no-fetch), report assembly mirroring codex API-path semantics; no-leak assertions. Validation: scoped vitest; JSON.stringify scan for fake tokens.
 
-- [ ] Task 2.1: [Description]
-- [ ] Task 2.2: [Description]
+### Phase 3: Integration & gates
 
-### Phase 3: Integration & Polish
-
-- [ ] Task 3.1: [Description]
-- [ ] Task 3.2: [Description]
+- [ ] T3.1: Full gates: `npm run lint`, `npm test`, `npm run test:e2e`, hooks (dev-commit) — all green in worktree. Record evidence in implementation doc.
+- [ ] T3.2: Manual on-machine validation: build CLI, run default `ai-devkit capacity`, confirm `pi · OpenAI` rows beside `pi · z.ai`; redacted output in implementation doc.
+- [ ] T3.3: Update implementation/testing/planning docs (phases 5-8 flow), grep branch for token substrings (no-leak audit), final PR (dev-pr conventions; do NOT merge).
 
 ## Dependencies
 
-**What needs to happen in what order?**
-
-- Task dependencies and blockers
-- External dependencies (APIs, services, etc.)
-- Team/resource dependencies
+- T1.1 → T1.2 → T2.2 (parser before callers). T2.1 independent of T1 but ordered after for clean diffs.
+- T3.* depend on all of M1+M2.
+- External: none beyond the already-validated wham endpoint (fixtures only from here).
 
 ## Timeline & Estimates
 
-**When will things be done?**
-
-- Estimated effort per task/phase
-- Target dates for milestones
-- Buffer for unknowns
+- Single-session execution: T1 ~30%, T2 ~50%, T3 ~20%. No calendar dates (autonomous run).
 
 ## Risks & Mitigation
 
-**What could go wrong?**
+- wham shape drift vs fixture → mitigated: parser is defensive (null-tolerant), fixtures from verified live payload.
+- Codex test coupling to internal parse functions → mitigated: re-export shims keep imports stable.
+- Coverage thresholds (70% floor, new code ~100%) → mitigated: classification branches enumerated in testing doc.
+- Epoch-ms vs seconds misclassification → heuristic + JWT fallback, explicit tests for both magnitudes.
+- Token leakage → fake fixtures, no-leak assertions, pre-PR grep audit.
 
-- Technical risks
-- Resource risks
-- Dependency risks
-- Mitigation strategies
+## Progress Log
 
-## Resources Needed
-
-**What do we need to succeed?**
-
-- Team members and roles
-- Tools and services
-- Infrastructure
-- Documentation/knowledge
+- 2026-09-27: Initial plan created from requirements/design/testing docs. All testing scenarios mapped to tasks (T1.1↔wham parsing, T2.1↔resolution/staleness, T2.2↔classification/no-leak, T3.1↔gates, T3.2↔manual e2e).
