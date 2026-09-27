@@ -12,6 +12,7 @@ export type AgentType =
   | "claude"
   | "gemini_cli"
   | "grok_cli"
+  | "kiro"
   | "codex"
   | "opencode"
   | "copilot"

@@ -262,5 +262,6 @@ function agentRuntimeKind(type: StartableAgentType, provider: AgentRuntimeProvid
     grok_cli: "grok",
     opencode: "opencode",
     pi: "pi",
+    kiro: "kiro",
   }[type];
 }

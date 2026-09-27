@@ -105,6 +105,7 @@ vi.mock(
     CopilotAdapter: vi.fn(),
     GeminiCliAdapter: vi.fn(),
     GrokCliAdapter: vi.fn(),
+    KiroAdapter: vi.fn(),
     PiAdapter: vi.fn(),
     TerminalFocusManager: vi.fn(function () {
       return mockTerminalFocusManager;
@@ -925,7 +926,7 @@ describe("channel command", () => {
         bridgePid: process.pid,
       }),
     );
-    expect(mockAgentManager.registerAdapter).toHaveBeenCalledTimes(6);
+    expect(mockAgentManager.registerAdapter).toHaveBeenCalledTimes(7);
     expect(
       mockChannelService.registerBridge.mock.invocationCallOrder[0],
     ).toBeLessThan(mockChannelManager.startAll.mock.invocationCallOrder[0]);

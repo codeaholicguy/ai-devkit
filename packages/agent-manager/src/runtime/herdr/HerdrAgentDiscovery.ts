@@ -93,6 +93,7 @@ function herdrAgentMatchesType(herdrAgent: string, agentType: AgentType): boolea
     copilot: ["copilot"],
     gemini_cli: ["gemini", "gemini_cli"],
     grok_cli: ["grok", "grok_cli"],
+    kiro: ["kiro", "kiro_cli", "kiro-cli"],
     opencode: ["opencode"],
     pi: ["pi"],
     other: ["other"],

@@ -6,6 +6,7 @@ import {
   CopilotAdapter,
   GeminiCliAdapter,
   GrokCliAdapter,
+  KiroAdapter,
   PiAdapter,
   TerminalFocusManager,
   TtyWriter,
@@ -49,6 +50,7 @@ function createAgentManager(): AgentManager {
   manager.registerAdapter(new CopilotAdapter());
   manager.registerAdapter(new GeminiCliAdapter());
   manager.registerAdapter(new GrokCliAdapter());
+  manager.registerAdapter(new KiroAdapter());
   manager.registerAdapter(new PiAdapter());
   return manager;
 }

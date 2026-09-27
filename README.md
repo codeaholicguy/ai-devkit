@@ -202,6 +202,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Devin](https://devin.ai/) | yes | — |
 | [opencode](https://opencode.ai/) | yes | testing |
 | [Pi](https://pi.dev) | yes | yes |
+| [Kiro CLI](https://kiro.dev/cli/) | yes | yes |
 | [Cursor](https://cursor.sh/) | yes | — |
 | [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
 | [Antigravity](https://antigravity.google/) | yes | — |

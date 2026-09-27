@@ -12,6 +12,7 @@ import {
   CopilotAdapter,
   GeminiCliAdapter,
   GrokCliAdapter,
+  KiroAdapter,
   OpenCodeAdapter,
   PiAdapter,
   ClaudePrintAgentService,
@@ -148,6 +149,7 @@ const TYPE_LABELS: Record<AgentType, string> = {
   copilot: "Copilot",
   gemini_cli: "Gemini CLI",
   grok_cli: "Grok CLI",
+  kiro: "Kiro",
   opencode: "OpenCode",
   pi: "Pi",
   other: "Other",
@@ -278,6 +280,7 @@ function createAgentManager(): AgentManager {
   manager.registerAdapter(new CopilotAdapter());
   manager.registerAdapter(new GeminiCliAdapter());
   manager.registerAdapter(new GrokCliAdapter());
+  manager.registerAdapter(new KiroAdapter());
   manager.registerAdapter(new OpenCodeAdapter());
   manager.registerAdapter(new PiAdapter());
   return manager;
@@ -618,7 +621,7 @@ export function registerAgentCommand(program: Command): void {
   agentCommand
     .command("sessions")
     .description(
-      "List historical Claude/Codex/Gemini/Grok/OpenCode sessions for resume",
+      "List historical Claude/Codex/Gemini/Grok/Kiro/OpenCode sessions for resume",
     )
     .option(
       "--all",
@@ -630,7 +633,7 @@ export function registerAgentCommand(program: Command): void {
     )
     .option(
       "--type <type>",
-      "Filter to one of: claude, codex, gemini_cli, grok_cli, opencode, copilot, pi",
+      "Filter to one of: claude, codex, gemini_cli, grok_cli, kiro, opencode, copilot, pi",
     )
     .option(
       "--limit <n>",
@@ -706,7 +709,7 @@ export function registerAgentCommand(program: Command): void {
     .option("-j, --json", "Output as JSON")
     .option(
       "--type <type>",
-      "Filter to one of: claude, codex, gemini_cli, grok_cli, opencode, copilot, pi",
+      "Filter to one of: claude, codex, gemini_cli, grok_cli, kiro, opencode, copilot, pi",
     )
     .option("--full", "Show entire conversation history")
     .option("--tail <n>", "Show last N messages (default: 20)", "20")
