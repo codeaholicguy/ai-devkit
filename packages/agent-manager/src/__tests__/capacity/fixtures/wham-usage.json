@@ -1,0 +1,32 @@
+{
+  "user_id": "user-fixture-abc123",
+  "account_id": "account-fixture-uuid",
+  "email": "user@example.test",
+  "plan_type": "pro",
+  "rate_limit": {
+    "primary_window": {
+      "used_percent": 12.5,
+      "limit_window_seconds": 18000,
+      "reset_at": 1790517127
+    },
+    "secondary_window": {
+      "used_percent": 43.2,
+      "limit_window_seconds": 604800,
+      "reset_at": "2026-10-04T08:52:07Z"
+    }
+  },
+  "code_review_rate_limit": {
+    "primary_window": {
+      "used_percent": 0,
+      "limit_window_seconds": 3600,
+      "reset_at": 1790510000
+    }
+  },
+  "additional_rate_limits": null,
+  "model_usage": [],
+  "credits": { "balance": 4.5 },
+  "spend_control": {},
+  "rate_limit_reached_type": "none",
+  "promo": null,
+  "rate_limit_reset_credits": { "availableCount": 0 }
+}

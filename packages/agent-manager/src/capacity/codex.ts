@@ -1,7 +1,10 @@
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { parseWhamUsage, resetTime, safeIdentifier } from "./wham.js";
 import type { CapacityReport, CapacityWindow } from "./types.js";
+
+export { toRateWindow } from "./wham.js";
 
 type CodexUsageSource = "pat" | "oauth" | "cli";
 type UsageSnapshot = {
@@ -15,13 +18,7 @@ type RpcMessage = { id?: number; method: string; params?: UnknownRecord };
 type CliResponses = { rateLimits: unknown; account: unknown };
 type CodexRpc = (messages: RpcMessage[]) => Promise<CliResponses>;
 
-export const CODEX_APP_SERVER_ARGS = [
-  "-s",
-  "read-only",
-  "-a",
-  "untrusted",
-  "app-server",
-] as const;
+export const CODEX_APP_SERVER_ARGS = ["-s", "read-only", "-a", "untrusted", "app-server"] as const;
 
 type CodexProbeOptions = {
   installed: boolean;
@@ -48,91 +45,17 @@ function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
-function resetTime(value: unknown): string | null {
-  const seconds = finiteNumber(value);
-  if (seconds !== null) return new Date(seconds * 1000).toISOString();
-  if (typeof value === "string" && !Number.isNaN(Date.parse(value)))
-    return new Date(value).toISOString();
-  return null;
-}
-
-function safeIdentifier(value: unknown): string | null {
-  const candidate = nonEmptyText(value);
-  if (!candidate || !/^[a-z][a-z0-9_-]{0,63}$/i.test(candidate)) return null;
-  if (/(?:account|token|secret|key)[_-]?\d{6,}/i.test(candidate)) return null;
-  return candidate;
-}
-
-export function resolveCodexAuthPath(
-  env: NodeJS.ProcessEnv = process.env,
-): string {
+export function resolveCodexAuthPath(env: NodeJS.ProcessEnv = process.env): string {
   const root = env.CODEX_HOME || join(env.HOME || "", ".codex");
   return join(root, "auth.json");
 }
 
-export function toRateWindow(
-  value: unknown,
-  id: string,
-  label: string,
-): CapacityWindow | null {
-  const input = record(value);
-  if (!input) return null;
-  const used = finiteNumber(input.used_percent);
-  const seconds = finiteNumber(input.limit_window_seconds);
-  return {
-    id,
-    label,
-    durationMinutes: seconds === null ? null : seconds / 60,
-    usedPercent: used,
-    resetsAt: resetTime(input.reset_at),
-  };
+export function parseUsage(raw: unknown, source: "pat" | "oauth"): UsageSnapshot {
+  const { windows, creditsRemaining } = parseWhamUsage(raw);
+  return { windows, creditsRemaining, source };
 }
 
-function extraWindows(value: unknown): CapacityWindow[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((entry, index) => {
-    const limit = record(entry);
-    if (!limit) return [];
-    const scope = safeIdentifier(limit.limit_name) ?? `extra-${index + 1}`;
-    const windows = record(limit.rate_limit) ?? limit;
-    return [
-      toRateWindow(
-        windows.primary_window,
-        `${scope}:primary`,
-        `${scope} primary`,
-      ),
-      toRateWindow(
-        windows.secondary_window,
-        `${scope}:secondary`,
-        `${scope} secondary`,
-      ),
-    ].filter((window): window is CapacityWindow => window !== null);
-  });
-}
-
-export function parseUsage(
-  raw: unknown,
-  source: "pat" | "oauth",
-): UsageSnapshot {
-  const response = record(raw) ?? {};
-  const limits = record(response.rate_limit) ?? {};
-  const credits = record(response.credits) ?? {};
-  return {
-    windows: [
-      toRateWindow(limits.primary_window, "session", "Session"),
-      toRateWindow(limits.secondary_window, "weekly", "Weekly"),
-      ...extraWindows(response.additional_rate_limits),
-    ].filter((window): window is CapacityWindow => window !== null),
-    creditsRemaining: finiteNumber(credits.balance),
-    source,
-  };
-}
-
-function cliWindow(
-  value: unknown,
-  id: string,
-  label: string,
-): CapacityWindow | null {
+function cliWindow(value: unknown, id: string, label: string): CapacityWindow | null {
   const input = record(value);
   if (!input) return null;
   return {
@@ -144,14 +67,10 @@ function cliWindow(
   };
 }
 
-function cliSnapshotWindows(
-  value: unknown,
-  fallbackId: string,
-): CapacityWindow[] {
+function cliSnapshotWindows(value: unknown, fallbackId: string): CapacityWindow[] {
   const snapshot = record(value);
   if (!snapshot) return [];
-  const scope =
-    safeIdentifier(snapshot.limitId) ?? safeIdentifier(fallbackId) ?? "codex";
+  const scope = safeIdentifier(snapshot.limitId) ?? safeIdentifier(fallbackId) ?? "codex";
   return [
     cliWindow(snapshot.primary, `${scope}:primary`, `${scope} primary`),
     cliWindow(snapshot.secondary, `${scope}:secondary`, `${scope} secondary`),
@@ -167,9 +86,7 @@ export function parseCliUsage(raw: unknown): UsageSnapshot {
     for (const [id, snapshot] of Object.entries(buckets))
       windows.push(...cliSnapshotWindows(snapshot, id));
   }
-  const unique = [
-    ...new Map(windows.map((window) => [window.id, window])).values(),
-  ];
+  const unique = [...new Map(windows.map((window) => [window.id, window])).values()];
   return { windows: unique, creditsRemaining: null, source: "cli" };
 }
 
@@ -178,14 +95,11 @@ function capacityFromSnapshot(
   context: CodexProbeOptions,
   raw?: unknown,
 ): CapacityReport {
-  const hasUsage = snapshot.windows.some(
-    (window) => window.usedPercent !== null,
-  );
+  const hasUsage = snapshot.windows.some((window) => window.usedPercent !== null);
   const rateLimits = record(record(raw)?.rateLimits);
   const reached = nonEmptyText(rateLimits?.rateLimitReachedType);
   const resetCredits =
-    record(record(raw)?.rateLimitResetCredits) ??
-    record(record(raw)?.usageLimitResetCredits);
+    record(record(raw)?.rateLimitResetCredits) ?? record(record(raw)?.usageLimitResetCredits);
   return {
     harness: "codex",
     provider: "openai",
@@ -193,8 +107,7 @@ function capacityFromSnapshot(
     authenticated: true,
     available: reached ? "no" : hasUsage ? "yes" : "unknown",
     windows: snapshot.windows,
-    creditsRemaining:
-      snapshot.creditsRemaining ?? finiteNumber(resetCredits?.availableCount),
+    creditsRemaining: snapshot.creditsRemaining ?? finiteNumber(resetCredits?.availableCount),
   };
 }
 
@@ -202,9 +115,7 @@ function jwtExpiry(token: string): number | null {
   const part = token.split(".")[1];
   if (!part) return null;
   try {
-    return finiteNumber(
-      record(JSON.parse(Buffer.from(part, "base64url").toString("utf8")))?.exp,
-    );
+    return finiteNumber(record(JSON.parse(Buffer.from(part, "base64url").toString("utf8")))?.exp);
   } catch {
     return null;
   }
@@ -231,10 +142,7 @@ async function fetchJson(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetcher(url, { ...init, signal: controller.signal });
-    if (!response.ok)
-      throw new Error(
-        response.status === 401 ? "unauthorized" : "request failed",
-      );
+    if (!response.ok) throw new Error(response.status === 401 ? "unauthorized" : "request failed");
     return await response.json();
   } finally {
     clearTimeout(timer);
@@ -262,10 +170,7 @@ async function apiSnapshot(
   return parseUsage(raw, source);
 }
 
-function appServerRpc(
-  messages: RpcMessage[],
-  timeoutMs = 5000,
-): Promise<CliResponses> {
+function appServerRpc(messages: RpcMessage[], timeoutMs = 5000): Promise<CliResponses> {
   return new Promise((resolve, reject) => {
     const child = spawn("codex", CODEX_APP_SERVER_ARGS, {
       stdio: ["pipe", "pipe", "ignore"],
@@ -281,13 +186,8 @@ function appServerRpc(
       if (error) reject(error);
       else resolve(results as CliResponses);
     };
-    const timer = setTimeout(
-      () => finish(new Error("codex probe timed out")),
-      timeoutMs,
-    );
-    child.once("error", () =>
-      finish(new Error("codex app-server unavailable")),
-    );
+    const timer = setTimeout(() => finish(new Error("codex probe timed out")), timeoutMs);
+    child.once("error", () => finish(new Error("codex app-server unavailable")));
     child.once("exit", () => {
       if (!settled) finish(new Error("codex app-server exited"));
     });
@@ -310,8 +210,7 @@ function appServerRpc(
           for (const request of messages.slice(1))
             child.stdin.write(`${JSON.stringify(request)}\n`);
         } else if (message.id === 2) {
-          if (message.error)
-            finish(new Error("codex rate-limit method failed"));
+          if (message.error) finish(new Error("codex rate-limit method failed"));
           else results.rateLimits = message.result;
         } else if (message.id === 3) {
           if (message.error) finish(new Error("codex account method failed"));
@@ -340,9 +239,7 @@ function unavailable(options: CodexProbeOptions): CapacityReport {
   return codexUnavailableReport(options.checkedAt);
 }
 
-async function cliFallback(
-  options: CodexProbeOptions,
-): Promise<CapacityReport> {
+async function cliFallback(options: CodexProbeOptions): Promise<CapacityReport> {
   if (!options.installed) return unavailable(options);
   const messages: RpcMessage[] = [
     {
@@ -358,8 +255,7 @@ async function cliFallback(
     { id: 3, method: "account/read" },
   ];
   try {
-    const rpc =
-      options.rpc ?? ((requests) => appServerRpc(requests, options.timeoutMs));
+    const rpc = options.rpc ?? ((requests) => appServerRpc(requests, options.timeoutMs));
     const response = await rpc(messages);
     const result = capacityFromSnapshot(
       parseCliUsage(response.rateLimits),
@@ -381,9 +277,7 @@ async function cliFallback(
   }
 }
 
-export async function probeCodexCapacity(
-  options: CodexProbeOptions,
-): Promise<CapacityReport> {
+export async function probeCodexCapacity(options: CodexProbeOptions): Promise<CapacityReport> {
   let parsed: UnknownRecord | null = null;
   try {
     const contents = await (options.readFile ?? readFile)(
@@ -410,10 +304,7 @@ export async function probeCodexCapacity(
       );
       const accountId = nonEmptyText(whoami?.chatgpt_account_id);
       if (!accountId) throw new Error("account unavailable");
-      return capacityFromSnapshot(
-        await apiSnapshot(pat, accountId, "pat", options),
-        options,
-      );
+      return capacityFromSnapshot(await apiSnapshot(pat, accountId, "pat", options), options);
     } catch {
       // Continue to a separately available OAuth credential before using the CLI.
     }
