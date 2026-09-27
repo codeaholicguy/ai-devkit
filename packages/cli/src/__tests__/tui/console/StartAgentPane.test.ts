@@ -15,6 +15,7 @@ describe("StartAgentPane helpers", () => {
       "copilot",
       "gemini_cli",
       "grok_cli",
+      "antigravity_cli",
       "opencode",
       "pi",
       "kiro",

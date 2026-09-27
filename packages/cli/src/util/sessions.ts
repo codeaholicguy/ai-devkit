@@ -9,6 +9,7 @@ const VALID_AGENT_TYPES: AgentType[] = [
   "gemini_cli",
   "grok_cli",
   "kiro",
+  "antigravity_cli",
   "opencode",
   "copilot",
   "pi",

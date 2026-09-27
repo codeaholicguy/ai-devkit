@@ -228,6 +228,7 @@ vi.mock(
     CopilotAdapter: vi.fn(),
     GeminiCliAdapter: vi.fn(),
     GrokCliAdapter: vi.fn(),
+    AntigravityCliAdapter: vi.fn(),
     KiroAdapter: vi.fn(),
     OpenCodeAdapter: vi.fn(),
     PiAdapter: vi.fn(),
@@ -283,6 +284,7 @@ vi.mock(
       copilot: { command: "copilot", matches: () => true },
       gemini_cli: { command: "gemini", matches: () => true },
       grok_cli: { command: "grok", matches: () => true },
+      antigravity_cli: { command: "agy", matches: () => true },
       opencode: { command: "opencode", matches: () => true },
       pi: { command: "pi", matches: () => true },
       kiro: { command: "kiro-cli", matches: () => true },
@@ -605,7 +607,7 @@ describe("agent command", () => {
         onRuntimeDiscoveryError: expect.any(Function),
       }),
     );
-    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(8);
+    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(9);
     expect(logSpy).toHaveBeenCalledWith(
       JSON.stringify([{ ...agents[0], mode: "interactive" }], null, 2),
     );

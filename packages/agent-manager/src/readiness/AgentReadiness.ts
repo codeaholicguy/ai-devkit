@@ -12,7 +12,10 @@ const ANSI_ESCAPE_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-?]*[ -/]
 
 export type ReadinessStatus = "pass" | "warn" | "fail";
 export type ReadinessAuthState = "authenticated" | "unauthenticated" | "unknown";
-export type ReadinessAgentType = Exclude<StartableAgentType, "gemini_cli" | "kiro">;
+export type ReadinessAgentType = Exclude<
+  StartableAgentType,
+  "gemini_cli" | "kiro" | "antigravity_cli"
+>;
 type ReadinessInfoStatus = ReadinessStatus | "info";
 
 type CommandResult = { stdout: string; stderr: string };

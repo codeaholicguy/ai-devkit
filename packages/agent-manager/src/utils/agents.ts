@@ -3,7 +3,15 @@ import type { AgentType } from "../adapters/AgentAdapter.js";
 
 export type StartableAgentType = Extract<
   AgentType,
-  "claude" | "codex" | "copilot" | "gemini_cli" | "grok_cli" | "opencode" | "pi" | "kiro"
+  | "claude"
+  | "codex"
+  | "copilot"
+  | "gemini_cli"
+  | "grok_cli"
+  | "antigravity_cli"
+  | "opencode"
+  | "pi"
+  | "kiro"
 >;
 
 export interface AgentConfig {
@@ -24,6 +32,7 @@ export const AGENTS: Record<StartableAgentType, AgentConfig> = {
   copilot: { command: "copilot", matches: matchArgv0Name("copilot-cli") },
   gemini_cli: { command: "gemini", matches: matchAnyToken("gemini") },
   grok_cli: { command: "grok", matches: matchArgv0("grok") },
+  antigravity_cli: { command: "agy", matches: matchArgv0("agy") },
   opencode: { command: "opencode", matches: matchArgv0("opencode") },
   pi: { command: "pi", matches: matchAnyBasename(["pi"]) },
   kiro: { command: "kiro-cli", matches: matchAnyBasename(["kiro-cli", "kiro"]) },

@@ -13,6 +13,7 @@ export type AgentType =
   | "gemini_cli"
   | "grok_cli"
   | "kiro"
+  | "antigravity_cli"
   | "codex"
   | "opencode"
   | "copilot"
