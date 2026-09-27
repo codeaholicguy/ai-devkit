@@ -108,6 +108,14 @@ export class GeminiCliAdapter implements AgentAdapter {
     return summaries;
   }
 
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    for (const filePath of this.locator.discoverHistoricalSessionFiles()) {
+      const summary = this.parser.fileToSessionSummary(filePath);
+      if (summary?.sessionId === sessionId) return [summary];
+    }
+    return [];
+  }
+
   private async getGeminiProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
     const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
     const relevant = filterByProcessNames(snapshot, this.processNames);

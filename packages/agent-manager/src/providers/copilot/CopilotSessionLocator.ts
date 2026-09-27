@@ -1,5 +1,5 @@
 import * as path from "path";
-import { isDirectory, safeReaddir } from "../../utils/session.js";
+import { isDirectory, isSafePathSegment, safeReaddir } from "../../utils/session.js";
 
 export interface CopilotLock {
   sessionDir: string;
@@ -37,6 +37,12 @@ export class CopilotSessionLocator {
     }
 
     return sessionDirs;
+  }
+
+  findSessionDirById(sessionId: string): CopilotSessionDir | null {
+    if (!isSafePathSegment(sessionId)) return null;
+    const sessionDir = path.join(this.sessionStateDir, sessionId);
+    return isDirectory(sessionDir) ? { sessionDir, sessionId } : null;
   }
 
   discoverActiveLocks(): CopilotLock[] {

@@ -260,6 +260,21 @@ describe("PiAdapter", () => {
     ]);
   });
 
+  it("finds an exact session ID from the filename suffix", async () => {
+    const wanted = writePiSession("/repo/wanted", [
+      { timestamp: "2026-06-10T08:58:20.754Z", sessionId: "sess-wanted", cwd: "/repo/wanted" },
+      { role: "user", content: "wanted" },
+    ]);
+    writePiSession("/repo/other", [
+      { timestamp: "2026-06-10T08:58:20.754Z", sessionId: "sess-other", cwd: "/repo/other" },
+      { role: "user", content: "other" },
+    ]);
+
+    await expect(adapter.findSessionsById("sess-wanted")).resolves.toEqual([
+      expect.objectContaining({ sessionId: "sess-wanted", sessionFilePath: wanted }),
+    ]);
+  });
+
   function makeProcess(overrides: Partial<ProcessInfo>): ProcessInfo {
     return {
       pid: 1,

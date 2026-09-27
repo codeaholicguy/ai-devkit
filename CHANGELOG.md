@@ -5,11 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.64.0] - 2026-09-24
 
-- Redesigned the `capacity` command output into a single per-quota table with usage bars, threshold colors, humanized reset times (`in 4h 40m · 20:25`), and `used/total` amounts instead of duplicated window summaries with truncated ISO timestamps.
-- Split capacity identity into harness and provider (`codex | OpenAI`, `pi | z.ai`) via a new `harness` field on `CapacityReport`; the Codex probe now reports `provider: "openai"`.
-- `ai-devkit capacity` without arguments now probes every supported provider and renders one Harness/Provider/Status table; `--json` emits a single object for one provider and an array for many, and per-provider probe failures warn instead of aborting the whole listing.
+- Added `ai-devkit agent session compact` — Jev-backed compaction of a historical session into a structured continuation artifact (durable continuation facts, memory candidates), with a new `session-compact` built-in skill ([#250](https://github.com/codeaholicguy/ai-devkit/pull/250)).
+- Added `AgentManager.findSessionsById()` and the optional `AgentAdapter.findSessionsById()` hook to `@ai-devkit/agent-manager`, resolving exact historical session IDs across providers without enumerating every summary ([9684956](https://github.com/codeaholicguy/ai-devkit/commit/9684956)).
+- Moved the grok adapter into the agent-manager provider structure with no public API changes ([3256cc3](https://github.com/codeaholicguy/ai-devkit/commit/3256cc3)) via `@ai-devkit/agent-manager` 0.35.0 (released with this version).
+
+## [0.63.0] - 2026-09-23
+
+- Redesigned the `capacity` command output into a single per-quota table with usage bars, threshold colors, humanized reset times (`in 4h 40m · 20:25`), and `used/total` amounts instead of duplicated window summaries with truncated ISO timestamps ([3c65af7](https://github.com/codeaholicguy/ai-devkit/commit/3c65af7)).
+- Split capacity identity into harness and provider (`codex | OpenAI`, `pi | z.ai`) via a new `harness` field on `CapacityReport`; the Codex probe now reports `provider: "openai"` ([3c65af7](https://github.com/codeaholicguy/ai-devkit/commit/3c65af7)).
+- `ai-devkit capacity` without arguments now probes every supported provider and renders one Harness/Provider/Status table; `--json` emits a single object for one provider and an array for many, and per-provider probe failures warn instead of aborting the whole listing ([3c65af7](https://github.com/codeaholicguy/ai-devkit/commit/3c65af7)).
+- Added global z.ai usage limits to `ai-devkit capacity` through a new `getZaiCapacityReport` probe in `@ai-devkit/agent-manager` ([4ea4868](https://github.com/codeaholicguy/ai-devkit/commit/4ea4868)).
+- [d58171c](https://github.com/codeaholicguy/ai-devkit/pull/243) Added shared UI formatting utilities (pluralization, status labels, time formatting) reused across CLI commands.
+- [20e909b](https://github.com/codeaholicguy/ai-devkit/pull/245) Clarified agent list and detail rendering.
+- [e5043dd](https://github.com/codeaholicguy/ai-devkit/pull/246) Polished channel status rendering.
+- [c8d29ba](https://github.com/codeaholicguy/ai-devkit/pull/244) Aligned status output with the visible checks.
+- [6103e40](https://github.com/codeaholicguy/ai-devkit/pull/247) Refreshed lint human output.
+- [0383f02](https://github.com/codeaholicguy/ai-devkit/pull/248) Aligned skill result rendering.
+- [325ce86](https://github.com/codeaholicguy/ai-devkit/pull/242) Capitalized memory `--table` headers and shortened the UUID column.
+- [f6da095](https://github.com/codeaholicguy/ai-devkit/pull/249) Standardized flow success output.
+- Moved the opencode adapter into the agent-manager provider structure with no public API changes ([f34a9a3](https://github.com/codeaholicguy/ai-devkit/commit/f34a9a3)) via `@ai-devkit/agent-manager` 0.34.0 (released with this version).
 
 ## [0.62.2] - 2026-09-14
 

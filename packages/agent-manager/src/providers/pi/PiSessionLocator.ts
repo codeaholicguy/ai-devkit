@@ -1,7 +1,13 @@
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { matchProcessesToSessions, type MatchResult } from "../../utils/matching.js";
-import { isDirectory, safeReaddir, safeStat, type SessionFile } from "../../utils/session.js";
+import {
+  isDirectory,
+  isSafePathSegment,
+  safeReaddir,
+  safeStat,
+  type SessionFile,
+} from "../../utils/session.js";
 import { PiSessionParser } from "./PiSessionParser.js";
 
 export interface PiSessionLocatorOptions {
@@ -62,6 +68,15 @@ export class PiSessionLocator {
 
   discoverHistoricalSessionFiles(): string[] {
     return this.collectJsonlFiles(this.sessionsDir);
+  }
+
+  findHistoricalSessionFilesById(sessionId: string): string[] {
+    if (!isSafePathSegment(sessionId)) return [];
+
+    return this.collectJsonlFiles(this.sessionsDir).filter((filePath) => {
+      const basename = path.basename(filePath, ".jsonl");
+      return basename === sessionId || basename.endsWith(`_${sessionId}`);
+    });
   }
 
   private buildProjectDirCwdMap(processes: ProcessInfo[]): Map<string, string> {

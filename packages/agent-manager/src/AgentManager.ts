@@ -347,6 +347,40 @@ export class AgentManager {
     return merged;
   }
 
+  /** Resolve an exact historical session ID across the selected providers. */
+  async findSessionsById(
+    sessionId: string,
+    opts?: Pick<ListSessionsOptions, "type">,
+  ): Promise<SessionSummary[]> {
+    const targetAdapters = Array.from(this.adapters.values()).filter(
+      (adapter) => opts?.type === undefined || adapter.type === opts.type,
+    );
+    const errors: Array<{ type: string; error: Error }> = [];
+
+    const results = await Promise.all(
+      targetAdapters.map(async (adapter) => {
+        try {
+          if (adapter.findSessionsById) return await adapter.findSessionsById(sessionId);
+          const sessions = await adapter.listSessions(opts);
+          return sessions.filter((session) => session.sessionId === sessionId);
+        } catch (error) {
+          const err = error instanceof Error ? error : new Error(String(error));
+          errors.push({ type: adapter.type, error: err });
+          return [];
+        }
+      }),
+    );
+
+    if (errors.length > 0) {
+      console.error(`Warning: ${errors.length} adapter(s) failed to find session by ID:`);
+      for (const { type, error } of errors) {
+        console.error(`  - ${type}: ${error.message}`);
+      }
+    }
+
+    return results.flat();
+  }
+
   /**
    * Get count of registered adapters
    *

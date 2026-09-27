@@ -1,9 +1,14 @@
 export { AgentManager, AgentNotRunningError } from "./AgentManager.js";
-export { getCodexCapacityReport, getZaiCapacityReport } from "./capacity/index.js";
+export {
+  getCodexCapacityReport,
+  getOpenAiCapacityReport,
+  getZaiCapacityReport,
+} from "./capacity/index.js";
 export type {
   CapacityProbeOptions,
   CapacityReport,
   CapacityWindow,
+  OpenAiCapacityOptions,
   ZaiCapacityOptions,
 } from "./capacity/index.js";
 export {
@@ -29,7 +34,7 @@ export { ClaudeCodeAdapter } from "./providers/claude/ClaudeCodeAdapter.js";
 export { CodexAdapter } from "./providers/codex/CodexAdapter.js";
 export { CopilotAdapter } from "./providers/copilot/CopilotAdapter.js";
 export { GeminiCliAdapter } from "./providers/gemini/GeminiCliAdapter.js";
-export { GrokCliAdapter } from "./adapters/GrokCliAdapter.js";
+export { GrokCliAdapter } from "./providers/grok/GrokCliAdapter.js";
 export { KiroAdapter } from "./adapters/KiroAdapter.js";
 export { OpenCodeAdapter } from "./providers/opencode/OpenCodeAdapter.js";
 export { PiAdapter } from "./providers/pi/PiAdapter.js";

@@ -1,3 +1,4 @@
+import chalk from "chalk";
 import { DEFAULT_PHASES } from "../../types.js";
 
 export const LIFECYCLE_PHASES = DEFAULT_PHASES;
@@ -10,7 +11,7 @@ export const LINT_LEVEL = {
 } as const;
 
 export const LINT_STATUS_LABEL = {
-  [LINT_LEVEL.OK]: "[OK]   ",
-  [LINT_LEVEL.MISS]: "[MISS] ",
-  [LINT_LEVEL.WARN]: "[WARN] ",
+  [LINT_LEVEL.OK]: chalk.green("✓"),
+  [LINT_LEVEL.MISS]: chalk.red("✖"),
+  [LINT_LEVEL.WARN]: chalk.yellow("⚠"),
 } as const;

@@ -1,0 +1,6 @@
+{
+  "openai": {
+    "type": "api_key",
+    "key": "pi-openai-test-key"
+  }
+}

@@ -1624,6 +1624,29 @@ describe("ClaudeCodeAdapter", () => {
       expect(cwds).toEqual([cwdA, cwdB]);
     });
 
+    it("finds an exact session ID without returning other project sessions", async () => {
+      const wantedPath = writeSession(path.join(projectsDir, "-repo-a"), "wanted", [
+        {
+          type: "user",
+          timestamp: "2025-01-01T00:00:00Z",
+          cwd: "/repo-a",
+          message: { content: "wanted prompt" },
+        },
+      ]);
+      writeSession(path.join(projectsDir, "-repo-b"), "other", [
+        {
+          type: "user",
+          timestamp: "2025-01-01T00:00:00Z",
+          cwd: "/repo-b",
+          message: { content: "other prompt" },
+        },
+      ]);
+
+      await expect(adapter.findSessionsById("wanted")).resolves.toEqual([
+        expect.objectContaining({ sessionId: "wanted", sessionFilePath: wantedPath }),
+      ]);
+    });
+
     it("drops sessions whose recorded cwd does not match opts.cwd (strict equality)", async () => {
       const cwdReal = "/Users/test/foo";
       const cwdRequested = "/Users/test/foo/sub";

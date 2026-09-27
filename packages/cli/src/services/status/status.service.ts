@@ -120,21 +120,16 @@ export function worstStatus(statuses: CheckStatus[]): CheckStatus {
   return worstReadinessStatus(statuses);
 }
 
-function displayHome(target: string, homeDir: string): string {
-  return target === homeDir
-    ? "~"
-    : target.startsWith(`${homeDir}/`)
-      ? `~${target.slice(homeDir.length)}`
-      : target;
-}
-
 function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }
 
-async function defaultRunCommand(command: string, args: string[]): Promise<CommandResult> {
+async function defaultRunCommand(
+  command: string,
+  args: string[],
+): Promise<CommandResult> {
   const result = await execFileAsync(command, args, {
     encoding: "utf8",
     timeout: 5000,
@@ -145,7 +140,10 @@ async function defaultRunCommand(command: string, args: string[]): Promise<Comma
 
 function resolveDefaultAssetRoot(): string {
   const serviceDir = dirname(fileURLToPath(import.meta.url));
-  const candidates = [resolve(serviceDir, "../../assets"), resolve(serviceDir, "../../../assets")];
+  const candidates = [
+    resolve(serviceDir, "../../assets"),
+    resolve(serviceDir, "../../../assets"),
+  ];
   return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
 }
 
@@ -158,9 +156,13 @@ function runtime(options: StatusServiceOptions): Runtime {
     installedVersion: options.installedVersion ?? packageJson.version,
     now: options.now ?? (() => new Date()),
     readFile: options.readFile ?? ((target) => fsReadFile(target, "utf8")),
-    access: options.access ?? ((target, mode = constants.R_OK) => fsAccess(target, mode)),
+    access:
+      options.access ??
+      ((target, mode = constants.R_OK) => fsAccess(target, mode)),
     runCommand: options.runCommand ?? defaultRunCommand,
-    codexAuth: options.codexAuth ?? (async () => (await getCodexCapacityReport()).authenticated),
+    codexAuth:
+      options.codexAuth ??
+      (async () => (await getCodexCapacityReport()).authenticated),
   };
 }
 
@@ -206,9 +208,13 @@ async function projectConfigCheck(
     };
   const version = typeof parsed.version === "string" ? parsed.version : null;
   const environments = Array.isArray(parsed.environments)
-    ? parsed.environments.filter((value): value is string => typeof value === "string")
+    ? parsed.environments.filter(
+        (value): value is string => typeof value === "string",
+      )
     : [];
-  const invalidEnvironments = environments.filter((value) => !isValidEnvironmentCode(value));
+  const invalidEnvironments = environments.filter(
+    (value) => !isValidEnvironmentCode(value),
+  );
   const valid =
     version !== null &&
     Array.isArray(parsed.environments) &&
@@ -223,7 +229,9 @@ async function projectConfigCheck(
       version,
       environments,
       status: valid ? "pass" : "fail",
-      errors: valid ? [] : ["project configuration has invalid fields or environment codes"],
+      errors: valid
+        ? []
+        : ["project configuration has invalid fields or environment codes"],
     },
   };
 }
@@ -234,13 +242,13 @@ async function globalRegistries(rt: Runtime): Promise<RegistryScopeCheck> {
     const parsed = record(JSON.parse(await rt.readFile(source)));
     if (!parsed) throw new Error("invalid");
     return {
-      source: displayHome(source, rt.homeDir),
+      source,
       configured: safeRegistries(parsed.registries),
       errors: [],
     };
   } catch {
     return {
-      source: displayHome(source, rt.homeDir),
+      source,
       configured: {},
       errors: ["global AI DevKit configuration is missing or invalid"],
     };
@@ -256,7 +264,9 @@ function projectRegistries(
     : {
         source,
         configured: {},
-        errors: ["project registries are unavailable because project configuration is invalid"],
+        errors: [
+          "project registries are unavailable because project configuration is invalid",
+        ],
       };
 }
 
@@ -265,7 +275,10 @@ function safeRegistries(raw: unknown): Record<string, string> {
     Object.entries(filterStringRecord(raw)).map(([id, value]) => {
       try {
         const url = new URL(value);
-        if (url.protocol === "file:" && (!url.hostname || url.hostname === "localhost")) {
+        if (
+          url.protocol === "file:" &&
+          (!url.hostname || url.hostname === "localhost")
+        ) {
           return [id, `local: ${decodeURIComponent(url.pathname)}`];
         }
         url.username = "";
@@ -274,7 +287,12 @@ function safeRegistries(raw: unknown): Record<string, string> {
         url.hash = "";
         return [id, url.toString()];
       } catch {
-        return [id, /^[\w.-]+@[\w.-]+:[^\s]+$/.test(value) ? value : "[redacted registry URL]"];
+        return [
+          id,
+          /^[\w.-]+@[\w.-]+:[^\s]+$/.test(value)
+            ? value
+            : "[redacted registry URL]",
+        ];
       }
     }),
   );
@@ -367,9 +385,12 @@ function channelConnection(name: string, value: unknown): ChannelConnection {
   const config = record(entry?.config);
   let credentialsPresent = false;
   let authorized: boolean | null = null;
-  let schemaValid = Boolean(entry && config && typeof entry.enabled === "boolean");
+  let schemaValid = Boolean(
+    entry && config && typeof entry.enabled === "boolean",
+  );
   if (type === "telegram") {
-    credentialsPresent = nonEmpty(config?.botToken) && nonEmpty(config?.botUsername);
+    credentialsPresent =
+      nonEmpty(config?.botToken) && nonEmpty(config?.botUsername);
     authorized = typeof config?.authorizedChatId === "number";
     schemaValid = schemaValid && credentialsPresent;
   } else if (type === "slack") {
@@ -397,7 +418,13 @@ function channelConnection(name: string, value: unknown): ChannelConnection {
     credentialsPresent,
     authorized,
     ready,
-    errors: ready ? [] : [enabled ? "channel configuration is not ready" : "channel is disabled"],
+    errors: ready
+      ? []
+      : [
+          enabled
+            ? "channel configuration is not ready"
+            : "channel is disabled",
+        ],
   };
 }
 
@@ -408,7 +435,7 @@ async function channelsCheck(rt: Runtime): Promise<ChannelsCheck> {
     text = await rt.readFile(target);
   } catch {
     const config: ChannelConfigCheck = {
-      path: displayHome(target, rt.homeDir),
+      path: target,
       present: false,
       validJson: false,
       validSchema: false,
@@ -425,7 +452,7 @@ async function channelsCheck(rt: Runtime): Promise<ChannelsCheck> {
   const channelRecord = record(parsed?.channels);
   if (!parsed || !channelRecord) {
     const config: ChannelConfigCheck = {
-      path: displayHome(target, rt.homeDir),
+      path: target,
       present: true,
       validJson: parsed !== null,
       validSchema: false,
@@ -438,7 +465,7 @@ async function channelsCheck(rt: Runtime): Promise<ChannelsCheck> {
   );
   const validSchema = connections.every((item) => item.ready || !item.enabled);
   const config: ChannelConfigCheck = {
-    path: displayHome(target, rt.homeDir),
+    path: target,
     present: true,
     validJson: true,
     validSchema: true,
@@ -452,7 +479,9 @@ async function channelsCheck(rt: Runtime): Promise<ChannelsCheck> {
   };
 }
 
-function leafStatuses(report: Omit<StatusReport, "overall" | "checks">): CheckStatus[] {
+function leafStatuses(
+  report: Omit<StatusReport, "overall" | "checks">,
+): CheckStatus[] {
   const agentStatuses = Object.values(report.agents)
     .filter((agent) => agent.executable.path !== null)
     .flatMap((agent) => [
@@ -469,7 +498,9 @@ function leafStatuses(report: Omit<StatusReport, "overall" | "checks">): CheckSt
   ];
 }
 
-export async function getStatusReport(options: StatusServiceOptions = {}): Promise<StatusReport> {
+export async function getStatusReport(
+  options: StatusServiceOptions = {},
+): Promise<StatusReport> {
   const rt = runtime(options);
   const builtInSkillNames = await getBuiltinSkillNames();
   const projectPromise = projectConfigCheck(rt);
@@ -484,14 +515,15 @@ export async function getStatusReport(options: StatusServiceOptions = {}): Promi
     runCommand: rt.runCommand,
     codexAuth: rt.codexAuth,
   };
-  const [project, agents, aiDevkit, tmux, globalRegistry, channels] = await Promise.all([
-    projectPromise,
-    getAgentReadinessReports(agentOptions),
-    versionCheck(rt),
-    tmuxCheck(rt),
-    globalRegistries(rt),
-    channelsCheck(rt),
-  ]);
+  const [project, agents, aiDevkit, tmux, globalRegistry, channels] =
+    await Promise.all([
+      projectPromise,
+      getAgentReadinessReports(agentOptions),
+      versionCheck(rt),
+      tmuxCheck(rt),
+      globalRegistries(rt),
+      channelsCheck(rt),
+    ]);
   const registries: RegistriesCheck = {
     project: projectRegistries(project.raw, project.check.path),
     global: globalRegistry,

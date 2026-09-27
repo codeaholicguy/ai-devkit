@@ -48,6 +48,7 @@ vi.mock("../../util/terminal-ui.js", () => ({
   ui: {
     error: vi.fn(),
     warning: vi.fn(),
+    text: vi.fn(),
     table: vi.fn(),
   },
 }));
@@ -56,7 +57,9 @@ describe("memory command", () => {
   const mockedMemorySearchCommand = memorySearchCommand as MockedFunction<
     typeof memorySearchCommand
   >;
-  const mockedMemoryStoreCommand = memoryStoreCommand as MockedFunction<typeof memoryStoreCommand>;
+  const mockedMemoryStoreCommand = memoryStoreCommand as MockedFunction<
+    typeof memoryStoreCommand
+  >;
   const mockedMemoryUpdateCommand = memoryUpdateCommand as MockedFunction<
     typeof memoryUpdateCommand
   >;
@@ -67,7 +70,9 @@ describe("memory command", () => {
     vi.clearAllMocks();
     mockGetMemoryDbPath.mockResolvedValue(undefined);
     mockGetMemorySemanticEnabled.mockResolvedValue(false);
-    consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    consoleLogSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => undefined);
   });
 
   it("prints JSON for memory store", async () => {
@@ -93,7 +98,8 @@ describe("memory command", () => {
 
     expect(mockedMemoryStoreCommand).toHaveBeenCalledWith({
       title: "A valid title 123",
-      content: "This is a valid content body long enough to satisfy constraints.",
+      content:
+        "This is a valid content body long enough to satisfy constraints.",
       tags: undefined,
       scope: "global",
       dbPath: undefined,
@@ -153,7 +159,9 @@ describe("memory command", () => {
       ]),
     ).rejects.toThrow("process.exit");
 
-    expect(mockedUi.error).toHaveBeenCalledWith("Failed to store knowledge: store failed");
+    expect(mockedUi.error).toHaveBeenCalledWith(
+      "Failed to store knowledge: store failed",
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -213,7 +221,9 @@ describe("memory command", () => {
       ]),
     ).rejects.toThrow("process.exit");
 
-    expect(mockedUi.error).toHaveBeenCalledWith("Failed to update knowledge: update failed");
+    expect(mockedUi.error).toHaveBeenCalledWith(
+      "Failed to update knowledge: update failed",
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -236,7 +246,14 @@ describe("memory command", () => {
 
     const program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(["node", "test", "memory", "search", "--query", "dto"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "search",
+      "--query",
+      "dto",
+    ]);
 
     expect(mockedMemorySearchCommand).toHaveBeenCalledWith({
       query: "dto",
@@ -249,11 +266,11 @@ describe("memory command", () => {
     expect(mockedUi.table).not.toHaveBeenCalled();
   });
 
-  it("renders table output with id, title, and scope when --table is used", async () => {
+  it("renders table output with capitalized headers and shortened IDs when --table is used", async () => {
     mockedMemorySearchCommand.mockReturnValue({
       results: [
         {
-          id: "mem-1",
+          id: "b47ce05b-89d7-4895-a85a-61225ecfaa44",
           title:
             "A very long memory title that should be truncated for narrow terminals when displayed",
           content: "x",
@@ -288,16 +305,53 @@ describe("memory command", () => {
       dbPath: undefined,
     });
     expect(mockedUi.table).toHaveBeenCalledWith({
-      headers: ["id", "title", "scope"],
+      headers: ["ID", "Title", "Scope"],
+      maxWidth: process.stdout.columns ?? 120,
       rows: [
         [
-          "mem-1",
+          "b47ce05b",
           "A very long memory title that should be truncated for nar...",
           "project:ai-devkit",
         ],
       ],
     });
-    expect(consoleLogSpy).not.toHaveBeenCalledWith(expect.stringContaining('"results"'));
+    expect(consoleLogSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('"results"'),
+    );
+  });
+
+  it("keeps full IDs in JSON search output", async () => {
+    const result = {
+      results: [
+        {
+          id: "b47ce05b-89d7-4895-a85a-61225ecfaa44",
+          title: "Use DTOs for API responses",
+          content: "Always use DTOs",
+          tags: ["api"],
+          scope: "global",
+          score: 1,
+        },
+      ],
+      totalMatches: 1,
+      query: "dto",
+    };
+    mockedMemorySearchCommand.mockReturnValue(result);
+
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "search",
+      "--query",
+      "dto",
+    ]);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
+    expect(consoleLogSpy.mock.calls[0]?.[0]).toContain(
+      "b47ce05b-89d7-4895-a85a-61225ecfaa44",
+    );
   });
 
   it("passes resolved project dbPath to memory search and update", async () => {
@@ -315,7 +369,14 @@ describe("memory command", () => {
 
     let program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(["node", "test", "memory", "search", "--query", "dto"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "search",
+      "--query",
+      "dto",
+    ]);
 
     expect(mockedMemorySearchCommand).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -352,10 +413,44 @@ describe("memory command", () => {
 
     const program = new Command();
     registerMemoryCommand(program);
-    await program.parseAsync(["node", "test", "memory", "search", "--query", "missing", "--table"]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "search",
+      "--query",
+      "missing",
+      "--table",
+    ]);
 
-    expect(mockedUi.warning).toHaveBeenCalledWith('No memory items found matching "missing"');
+    expect(mockedUi.warning).toHaveBeenCalledWith(
+      'No memory items found matching "missing"',
+    );
+    expect(mockedUi.text).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Tip: store knowledge with "ai-devkit memory store".',
+      ),
+    );
     expect(mockedUi.table).not.toHaveBeenCalled();
+  });
+
+  it("describes --table without treating lowercase headers as a contract", () => {
+    const program = new Command();
+    registerMemoryCommand(program);
+
+    const memoryCommand = program.commands.find(
+      (command) => command.name() === "memory",
+    );
+    const searchCommand = memoryCommand?.commands.find(
+      (command) => command.name() === "search",
+    );
+    const tableOption = searchCommand?.options.find(
+      (option) => option.long === "--table",
+    );
+
+    expect(tableOption?.description).toBe(
+      "Display results as a human-readable table",
+    );
   });
 
   it("handles search errors by showing error and exiting", async () => {
@@ -370,10 +465,19 @@ describe("memory command", () => {
     registerMemoryCommand(program);
 
     await expect(
-      program.parseAsync(["node", "test", "memory", "search", "--query", "memory"]),
+      program.parseAsync([
+        "node",
+        "test",
+        "memory",
+        "search",
+        "--query",
+        "memory",
+      ]),
     ).rejects.toThrow("process.exit");
 
-    expect(mockedUi.error).toHaveBeenCalledWith("Failed to search knowledge: search failed");
+    expect(mockedUi.error).toHaveBeenCalledWith(
+      "Failed to search knowledge: search failed",
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -385,7 +489,11 @@ describe("memory command", () => {
       query: "wire contracts",
       strategy: "broad",
       retrievalMode: "hybrid",
-      semantic: { status: "ready", embeddingVersion: "model", eligibleCount: 2 },
+      semantic: {
+        status: "ready",
+        embeddingVersion: "model",
+        eligibleCount: 2,
+      },
     });
 
     const program = new Command();
@@ -492,8 +600,15 @@ describe("memory command", () => {
       await program.parseAsync(["node", "test", ...args]);
     }
 
-    expect(memorySemanticStatusCommand).toHaveBeenCalledWith({ dbPath: undefined });
-    expect(memoryDownloadSemanticCommand).toHaveBeenCalledWith({ dbPath: undefined });
-    expect(memoryReembedCommand).toHaveBeenCalledWith({ dbPath: undefined, force: true });
+    expect(memorySemanticStatusCommand).toHaveBeenCalledWith({
+      dbPath: undefined,
+    });
+    expect(memoryDownloadSemanticCommand).toHaveBeenCalledWith({
+      dbPath: undefined,
+    });
+    expect(memoryReembedCommand).toHaveBeenCalledWith({
+      dbPath: undefined,
+      force: true,
+    });
   });
 });

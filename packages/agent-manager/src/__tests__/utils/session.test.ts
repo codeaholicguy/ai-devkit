@@ -5,7 +5,7 @@
 import type { MockedFunction } from "vitest";
 
 import * as fs from "fs";
-import { batchGetSessionFileBirthtimes } from "../../utils/session.js";
+import { batchGetSessionFileBirthtimes, isSafePathSegment } from "../../utils/session.js";
 
 vi.mock("fs", () => ({
   readdirSync: vi.fn(),
@@ -14,6 +14,16 @@ vi.mock("fs", () => ({
 
 const mockedReaddirSync = fs.readdirSync as MockedFunction<typeof fs.readdirSync>;
 const mockedStatSync = fs.statSync as MockedFunction<typeof fs.statSync>;
+
+describe("isSafePathSegment", () => {
+  it.each(["", ".", "..", "nested/session", "bad\0id"])("rejects unsafe segment %j", (value) => {
+    expect(isSafePathSegment(value)).toBe(false);
+  });
+
+  it.each(["session-id", ".hidden-session"])("accepts safe segment %j", (value) => {
+    expect(isSafePathSegment(value)).toBe(true);
+  });
+});
 
 describe("batchGetSessionFileBirthtimes", () => {
   beforeEach(() => {

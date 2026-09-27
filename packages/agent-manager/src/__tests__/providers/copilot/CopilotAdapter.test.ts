@@ -552,6 +552,18 @@ describe("CopilotAdapter", () => {
       });
     });
 
+    it("finds an exact session ID from its session directory", async () => {
+      writeSession("wanted", { events: [sessionStart("wanted", "/repo")] });
+      writeSession("other", { events: [sessionStart("other", "/other")] });
+
+      await expect(adapter.findSessionsById("wanted")).resolves.toEqual([
+        expect.objectContaining({
+          sessionId: "wanted",
+          sessionFilePath: path.join(sessionStateDir, "wanted", "events.jsonl"),
+        }),
+      ]);
+    });
+
     it("applies strict cwd filter", async () => {
       writeSession("keep", { events: [sessionStart("keep", "/repo")] });
       writeSession("drop", { events: [sessionStart("drop", "/other")] });

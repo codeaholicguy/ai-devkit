@@ -121,6 +121,24 @@ describe("OpenCodeAdapter", () => {
     ]);
     expect(adapter.getConversation("/not-an-opencode-ref")).toEqual([]);
   });
+
+  it("finds an exact session ID with a targeted database query", async () => {
+    const now = Date.now();
+    writeDatabase(dbPath, {
+      sessions: [
+        { id: "wanted", directory: "/repo", timeCreated: now },
+        { id: "other", directory: "/other", timeCreated: now - 1_000 },
+      ],
+    });
+
+    await expect(adapter.findSessionsById("wanted")).resolves.toEqual([
+      expect.objectContaining({
+        type: "opencode",
+        sessionId: "wanted",
+        sessionFilePath: `${dbPath}::wanted`,
+      }),
+    ]);
+  });
 });
 
 function writeDatabase(

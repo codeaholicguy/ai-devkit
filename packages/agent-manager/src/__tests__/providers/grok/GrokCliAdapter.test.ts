@@ -10,18 +10,18 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { GrokCliAdapter } from "../../adapters/GrokCliAdapter.js";
-import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { GrokCliAdapter } from "../../../providers/grok/GrokCliAdapter.js";
+import type { ProcessInfo } from "../../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../../adapters/AgentAdapter.js";
 import {
   listAgentProcesses,
   enrichProcesses,
   captureProcessSnapshot,
-} from "../../utils/process.js";
-import { generateAgentName } from "../../utils/matching.js";
+} from "../../../utils/process.js";
+import { generateAgentName } from "../../../utils/matching.js";
 
-vi.mock("../../utils/process.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
+vi.mock("../../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/process.js");
   return {
     ...actual,
     listAgentProcesses: vi.fn(),
@@ -30,8 +30,8 @@ vi.mock("../../utils/process.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../utils/matching.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/matching.js");
+vi.mock("../../../utils/matching.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/matching.js");
   return {
     ...actual,
     generateAgentName: vi.fn(),
@@ -333,6 +333,15 @@ describe("GrokCliAdapter", () => {
           "chat_history.jsonl",
         ),
       );
+    });
+
+    it("finds an exact session ID across project groups", async () => {
+      writeSession({});
+      writeSession({ sessionCwd: "/Users/dev/other", id: "other-session" });
+
+      await expect(adapter.findSessionsById(SESSION_ID)).resolves.toEqual([
+        expect.objectContaining({ sessionId: SESSION_ID, cwd }),
+      ]);
     });
 
     it("applies the cwd filter against the decoded cwd", async () => {

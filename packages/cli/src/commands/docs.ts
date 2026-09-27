@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import chalk from "chalk";
 import { ConfigManager } from "../lib/Config.js";
 import { FeatureDoc, TemplateManager } from "../lib/TemplateManager.js";
 import { formatLocalDate } from "../util/time.js";
@@ -13,16 +14,23 @@ interface InitFeatureOptions {
 }
 
 export function registerDocsCommand(program: Command): void {
-  const docs = program.command("docs").description("Manage AI DevKit documentation");
+  const docs = program
+    .command("docs")
+    .description("Manage AI DevKit documentation");
 
   docs
     .command("init-feature <name>")
-    .description("Initialize date-prefixed feature documentation from phase templates")
+    .description(
+      "Initialize date-prefixed feature documentation from phase templates",
+    )
     .option("--json", "Output generated paths as JSON")
     .action(initFeatureDocsCommand);
 }
 
-async function initFeatureDocsCommand(name: string, options: InitFeatureOptions): Promise<void> {
+async function initFeatureDocsCommand(
+  name: string,
+  options: InitFeatureOptions,
+): Promise<void> {
   const validation = validateFeatureNameRule(name);
   if (validation.check) {
     ui.error(`Invalid feature name: ${name}`);
@@ -38,7 +46,10 @@ async function initFeatureDocsCommand(name: string, options: InitFeatureOptions)
   const templateManager = new TemplateManager({ docsDir });
 
   try {
-    const files = await templateManager.copyFeatureDocTemplates(featureName, { date, phases });
+    const files = await templateManager.copyFeatureDocTemplates(featureName, {
+      date,
+      phases,
+    });
     renderInitFeatureResult(
       {
         feature: featureName,
@@ -82,6 +93,11 @@ function renderInitFeatureResult(
     return;
   }
 
-  ui.success(`Created ${result.files.length} feature doc(s) for ${result.feature}.`);
-  result.files.forEach((file) => ui.text(file.relativePath));
+  const docLabel = result.files.length === 1 ? "feature doc" : "feature docs";
+  ui.success(
+    `Created ${result.files.length} ${docLabel} for ${result.feature}.`,
+  );
+  result.files.forEach((file) =>
+    ui.text(chalk.dim(`  - ${file.relativePath}`)),
+  );
 }

@@ -339,6 +339,13 @@ describe("CodexAdapter", () => {
         sessionFilePath: sessionFile,
       },
     ]);
+    await expect(adapter.findSessionsById("listed")).resolves.toMatchObject([
+      {
+        type: "codex",
+        sessionId: "listed",
+        sessionFilePath: sessionFile,
+      },
+    ]);
   });
 
   function writeSession(

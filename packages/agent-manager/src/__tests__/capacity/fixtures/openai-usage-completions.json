@@ -1,0 +1,67 @@
+{
+  "object": "list",
+  "data": [
+    {
+      "object": "item",
+      "id": "usage_day_1790380800",
+      "aggregation_timestamp": 1790380800,
+      "results": [
+        {
+          "object": "item.result",
+          "model": "gpt-4o-mini",
+          "input_tokens": 1000,
+          "input_cached_tokens": 400,
+          "output_tokens": 500,
+          "reasoning_tokens": 0
+        },
+        {
+          "object": "item.result",
+          "model": "gpt-4.1",
+          "input_tokens": 200,
+          "output_tokens": 300
+        }
+      ]
+    },
+    {
+      "object": "item",
+      "id": "usage_day_1790294400",
+      "aggregation_timestamp": 1790294400,
+      "results": [
+        {
+          "object": "item.result",
+          "model": "gpt-4o-mini",
+          "input_tokens": 4000,
+          "output_tokens": 1000
+        }
+      ]
+    },
+    {
+      "object": "item",
+      "id": "usage_day_1789862400",
+      "aggregation_timestamp": 1789862400,
+      "results": [
+        {
+          "object": "item.result",
+          "model": "gpt-4o-mini",
+          "input_tokens": 800,
+          "output_tokens": 200
+        }
+      ]
+    },
+    {
+      "object": "item",
+      "id": "usage_day_1789689600",
+      "aggregation_timestamp": 1789689600,
+      "results": [
+        {
+          "object": "item.result",
+          "model": "gpt-4o-mini",
+          "input_tokens": 9999,
+          "output_tokens": 9999
+        }
+      ]
+    }
+  ],
+  "has_more": false,
+  "next_page": null
+}
