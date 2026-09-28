@@ -33,6 +33,8 @@ import { GrokSessionParser, type GrokSession } from "./GrokSessionParser.js";
  *    record of the conversation). The last user turn (the text inside
  *    <user_query>...</user_query>) is the summary; the file's mtime is the last
  *    activity time. summary.json / updates.jsonl are intentionally not used.
+ *    The summary is cached incrementally across refreshes, so an unchanged
+ *    transcript is not re-read and an appended one is read only from its tail.
  */
 export class GrokCliAdapter implements AgentAdapter {
   readonly type = "grok_cli" as const;
@@ -58,6 +60,15 @@ export class GrokCliAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
     const relevant = filterByProcessNames(snapshot, this.processNames);
     const processes = relevant.filter((process) => this.canHandle(process));
@@ -69,7 +80,7 @@ export class GrokCliAdapter implements AgentAdapter {
     for (const { process: proc, cwd, sessionDir } of this.locator.matchRunningProcesses(
       processes,
     )) {
-      const session = sessionDir ? this.parser.readSession(sessionDir, cwd) : null;
+      const session = sessionDir ? this.parser.readSessionIncremental(sessionDir, cwd) : null;
       if (session) {
         agents.push(this.mapper.mapSessionToAgent({ session, processInfo: proc }));
       } else {
