@@ -5,7 +5,6 @@ import { matchProcessesToSessions, type MatchResult } from "../../utils/matching
 import {
   batchGetSessionFileBirthtimes,
   isDirectory,
-  safeReadFile,
   safeReaddir,
   safeStat,
   type SessionFile,
@@ -21,22 +20,63 @@ export interface CodexProcessSessionMatches {
   direct: CodexDirectMatch[];
   legacyMatches: MatchResult[];
   fallback: ProcessInfo[];
-  contentCache: Map<string, string>;
 }
 
 export interface CodexDiscoveredSessions {
   sessions: SessionFile[];
-  contentCache: Map<string, string>;
 }
 
 export interface CodexSessionLocatorOptions {
   sessionsDir?: string;
+  /** Clock used for negative-cache re-checks. Defaults to `Date.now`. */
+  now?: () => number;
 }
 
 const PROCESS_START_DAY_WINDOW_DAYS = 1;
+/** Upper bound of bytes read from a session file to find its `session_meta` line. */
+export const SESSION_META_HEAD_MAX_BYTES = 64 * 1024;
+const SESSION_META_HEAD_CHUNK_BYTES = 16 * 1024;
+/** Unmatched processes are re-scanned at least this often, even when their date dirs are unchanged. */
+export const UNMATCHED_PROCESS_RECHECK_MS = 30_000;
+
+interface SessionMetaHead {
+  id?: string;
+  cwd: string;
+  timestampMs: number | null;
+}
+
+interface SessionMetaCacheEntry {
+  dev: number;
+  ino: number;
+  /** Bytes of the file head the metadata was parsed from. */
+  headBytes: number;
+  /** True once the head can no longer change (newline seen or byte limit reached). */
+  headFinal: boolean;
+  meta: SessionMetaHead | null;
+}
+
+interface UnmatchedProcessEntry {
+  checkedAtMs: number;
+  dateDirSignature: string;
+}
+
+interface FileHead {
+  text: string;
+  /** Bytes consumed by the first line (including its newline), or all bytes read. */
+  bytes: number;
+  /** A newline terminated the first line. */
+  complete: boolean;
+  /** The byte limit was reached before a newline. */
+  truncated: boolean;
+}
 
 export class CodexSessionLocator {
   private readonly sessionsDir: string;
+  private readonly now: () => number;
+  /** `session_meta` is written once at the head of an append-only file, so it is cached by path + inode. */
+  private readonly sessionMetaCache = new Map<string, SessionMetaCacheEntry>();
+  /** `(pid, startTime)` of processes that matched no session, keyed to their date-dir mtimes. */
+  private readonly unmatchedProcesses = new Map<string, UnmatchedProcessEntry>();
 
   constructor(
     options: CodexSessionLocatorOptions = {},
@@ -44,17 +84,28 @@ export class CodexSessionLocator {
   ) {
     const homeDir = process.env.HOME || process.env.USERPROFILE || "";
     this.sessionsDir = options.sessionsDir ?? path.join(homeDir, ".codex", "sessions");
+    this.now = options.now ?? Date.now;
   }
 
   matchRunningProcesses(processes: ProcessInfo[]): CodexProcessSessionMatches {
     const { direct, fallback } = this.tryResumeMatching(processes);
-    const { sessions, contentCache } = this.discoverLiveSessions(fallback);
+    const nowMs = this.now();
+    const signatures = new Map(
+      fallback.map((proc) => [proc, this.getDateDirSignature(proc)] as const),
+    );
+    const candidates = fallback.filter(
+      (proc) => !this.isKnownUnmatched(proc, signatures.get(proc) ?? "", nowMs),
+    );
+
+    const { sessions } = this.discoverLiveSessions(candidates);
     const legacyMatches =
-      fallback.length > 0 && sessions.length > 0
-        ? matchProcessesToSessions(fallback, sessions)
+      candidates.length > 0 && sessions.length > 0
+        ? matchProcessesToSessions(candidates, sessions)
         : [];
 
-    return { direct, legacyMatches, fallback, contentCache };
+    this.updateUnmatchedProcesses(fallback, candidates, legacyMatches, signatures, nowMs);
+
+    return { direct, legacyMatches, fallback };
   }
 
   tryResumeMatching(processes: ProcessInfo[]): {
@@ -84,7 +135,8 @@ export class CodexSessionLocator {
   }
 
   discoverLiveSessions(processes: ProcessInfo[]): CodexDiscoveredSessions {
-    const empty = { sessions: [], contentCache: new Map<string, string>() };
+    const empty = { sessions: [] };
+    if (processes.length === 0) return empty;
     if (!fs.existsSync(this.sessionsDir)) return empty;
 
     const dateDirs = this.getDateDirs(processes);
@@ -95,30 +147,19 @@ export class CodexSessionLocator {
 
   discoverSessionFilesInDateDirs(dateDirs: string[]): CodexDiscoveredSessions {
     const files = batchGetSessionFileBirthtimes(dateDirs);
-    const contentCache = new Map<string, string>();
+    this.pruneSessionMetaCache(dateDirs, files);
 
     for (const file of files) {
-      try {
-        const content = fs.readFileSync(file.filePath, "utf-8");
-        contentCache.set(file.filePath, content);
+      const meta = this.readSessionMeta(file.filePath);
+      if (!meta) continue;
 
-        const firstLine = content.split("\n")[0]?.trim();
-        if (firstLine) {
-          const parsed = JSON.parse(firstLine) as CodexEventEntry;
-          if (parsed.type === "session_meta") {
-            file.resolvedCwd = parsed.payload?.cwd || "";
-            const metaTimestampMs = this.parser.parseMetaTimestampMs(parsed.payload?.timestamp);
-            if (metaTimestampMs !== null) {
-              file.birthtimeMs = metaTimestampMs;
-            }
-          }
-        }
-      } catch {
-        // Skip unreadable files
+      file.resolvedCwd = meta.cwd;
+      if (meta.timestampMs !== null) {
+        file.birthtimeMs = meta.timestampMs;
       }
     }
 
-    return { sessions: files, contentCache };
+    return { sessions: files };
   }
 
   discoverHistoricalSessionFiles(): string[] {
@@ -129,30 +170,19 @@ export class CodexSessionLocator {
     for (const filePath of this.getCandidateSessionFiles(sessionId)) {
       if (!path.basename(filePath).includes(sessionId)) continue;
 
-      const content = safeReadFile(filePath);
-      const firstLine = content?.split("\n")[0]?.trim();
-      if (!firstLine) continue;
+      const meta = this.readSessionMeta(filePath);
+      if (!meta || meta.id !== sessionId) continue;
 
-      try {
-        const parsed = JSON.parse(firstLine) as CodexEventEntry;
-        if (parsed.type !== "session_meta" || parsed.payload?.id !== sessionId) {
-          continue;
-        }
+      const stat = safeStat(filePath);
+      if (!stat) continue;
 
-        const stat = safeStat(filePath);
-        if (!stat) continue;
-        const metaTimestampMs = this.parser.parseMetaTimestampMs(parsed.payload?.timestamp);
-
-        return {
-          sessionId,
-          filePath,
-          projectDir: path.dirname(filePath),
-          birthtimeMs: metaTimestampMs ?? stat.birthtimeMs,
-          resolvedCwd: parsed.payload?.cwd || "",
-        };
-      } catch {
-        continue;
-      }
+      return {
+        sessionId,
+        filePath,
+        projectDir: path.dirname(filePath),
+        birthtimeMs: meta.timestampMs ?? stat.birthtimeMs,
+        resolvedCwd: meta.cwd,
+      };
     }
 
     return null;
@@ -198,19 +228,156 @@ export class CodexSessionLocator {
     );
   }
 
+  /**
+   * Read `session_meta` from at most {@link SESSION_META_HEAD_MAX_BYTES} of the
+   * file head. Cached per path while the inode is unchanged and the file has
+   * not shrunk below the parsed head, so growing session files are not re-read.
+   */
+  private readSessionMeta(filePath: string): SessionMetaHead | null {
+    const stat = safeStat(filePath);
+    if (!stat) return null;
+
+    const cached = this.sessionMetaCache.get(filePath);
+    if (cached && this.isSessionMetaCacheValid(cached, stat)) return cached.meta;
+
+    const head = readFileHead(filePath, SESSION_META_HEAD_MAX_BYTES);
+    if (!head) {
+      this.sessionMetaCache.delete(filePath);
+      return null;
+    }
+
+    const meta = this.parseSessionMetaHead(head);
+    this.sessionMetaCache.set(filePath, {
+      dev: stat.dev,
+      ino: stat.ino,
+      headBytes: head.bytes,
+      headFinal: head.complete || head.truncated,
+      meta,
+    });
+    return meta;
+  }
+
+  private isSessionMetaCacheValid(entry: SessionMetaCacheEntry, stat: fs.Stats): boolean {
+    if (entry.dev !== stat.dev || entry.ino !== stat.ino) return false;
+    return entry.headFinal ? stat.size >= entry.headBytes : stat.size === entry.headBytes;
+  }
+
+  private parseSessionMetaHead(head: FileHead): SessionMetaHead | null {
+    const line = head.text.trim();
+    if (!line) return null;
+
+    try {
+      const parsed = JSON.parse(line) as CodexEventEntry;
+      if (parsed.type !== "session_meta") return null;
+      return {
+        id: parsed.payload?.id,
+        cwd: parsed.payload?.cwd || "",
+        timestampMs: this.parser.parseMetaTimestampMs(parsed.payload?.timestamp),
+      };
+    } catch {
+      return head.truncated ? this.parseTruncatedSessionMeta(line) : null;
+    }
+  }
+
+  /**
+   * Best-effort extraction for a `session_meta` line longer than the head limit
+   * (e.g. large embedded instructions). `id`, `timestamp` and `cwd` precede the
+   * bulky payload fields, so they are read from the payload prefix.
+   */
+  private parseTruncatedSessionMeta(line: string): SessionMetaHead | null {
+    if (!/"type"\s*:\s*"session_meta"/.test(line)) return null;
+
+    const payloadStart = line.search(/"payload"\s*:\s*\{/);
+    if (payloadStart < 0) return null;
+    const payload = line.slice(payloadStart);
+
+    return {
+      id: extractJsonStringField(payload, "id"),
+      cwd: extractJsonStringField(payload, "cwd") || "",
+      timestampMs: this.parser.parseMetaTimestampMs(extractJsonStringField(payload, "timestamp")),
+    };
+  }
+
+  private pruneSessionMetaCache(dateDirs: string[], files: SessionFile[]): void {
+    const scannedDirs = new Set(dateDirs);
+    const present = new Set(files.map((file) => file.filePath));
+    for (const filePath of this.sessionMetaCache.keys()) {
+      if (scannedDirs.has(path.dirname(filePath)) && !present.has(filePath)) {
+        this.sessionMetaCache.delete(filePath);
+      }
+    }
+  }
+
+  private isKnownUnmatched(proc: ProcessInfo, dateDirSignature: string, nowMs: number): boolean {
+    const entry = this.unmatchedProcesses.get(this.toProcessKey(proc));
+    if (!entry) return false;
+    if (nowMs - entry.checkedAtMs >= UNMATCHED_PROCESS_RECHECK_MS) return false;
+    return entry.dateDirSignature === dateDirSignature;
+  }
+
+  private updateUnmatchedProcesses(
+    fallback: ProcessInfo[],
+    scanned: ProcessInfo[],
+    legacyMatches: MatchResult[],
+    signatures: Map<ProcessInfo, string>,
+    nowMs: number,
+  ): void {
+    const liveKeys = new Set(fallback.map((proc) => this.toProcessKey(proc)));
+    for (const key of this.unmatchedProcesses.keys()) {
+      if (!liveKeys.has(key)) this.unmatchedProcesses.delete(key);
+    }
+
+    const matchedPids = new Set(legacyMatches.map((match) => match.process.pid));
+    for (const proc of scanned) {
+      const key = this.toProcessKey(proc);
+      if (matchedPids.has(proc.pid)) {
+        this.unmatchedProcesses.delete(key);
+      } else {
+        this.unmatchedProcesses.set(key, {
+          checkedAtMs: nowMs,
+          dateDirSignature: signatures.get(proc) ?? "",
+        });
+      }
+    }
+  }
+
+  private toProcessKey(proc: ProcessInfo): string {
+    return `${proc.pid}:${proc.startTime?.getTime() ?? "unknown"}`;
+  }
+
+  /** Day-window directories with their mtimes; changes when session files are added or removed. */
+  private getDateDirSignature(proc: ProcessInfo): string {
+    return this.getProcessDayKeys(proc)
+      .map((dayKey) => {
+        const stat = safeStat(path.join(this.sessionsDir, dayKey));
+        return `${dayKey}=${stat?.isDirectory() ? stat.mtimeMs : "-"}`;
+      })
+      .join("|");
+  }
+
+  private getProcessDayKeys(proc: ProcessInfo): string[] {
+    const startTime = proc.startTime || new Date();
+    const dayKeys: string[] = [];
+
+    for (
+      let offset = -PROCESS_START_DAY_WINDOW_DAYS;
+      offset <= PROCESS_START_DAY_WINDOW_DAYS;
+      offset++
+    ) {
+      const day = new Date(startTime.getTime());
+      day.setDate(day.getDate() + offset);
+      dayKeys.push(this.toSessionDayKey(day));
+    }
+
+    return dayKeys;
+  }
+
   private getDateDirs(processes: ProcessInfo[]): string[] {
     const dayKeys = new Set<string>();
 
     for (const proc of processes) {
-      const startTime = proc.startTime || new Date();
-      for (
-        let offset = -PROCESS_START_DAY_WINDOW_DAYS;
-        offset <= PROCESS_START_DAY_WINDOW_DAYS;
-        offset++
-      ) {
-        const day = new Date(startTime.getTime());
-        day.setDate(day.getDate() + offset);
-        dayKeys.add(this.toSessionDayKey(day));
+      for (const dayKey of this.getProcessDayKeys(proc)) {
+        dayKeys.add(dayKey);
       }
     }
 
@@ -275,5 +442,68 @@ export class CodexSessionLocator {
     }
 
     return out;
+  }
+}
+
+/**
+ * Read the first line of a file, consuming at most `maxBytes`.
+ * Returns `null` when the file cannot be opened or read.
+ */
+function readFileHead(filePath: string, maxBytes: number): FileHead | null {
+  let fd: number;
+  try {
+    fd = fs.openSync(filePath, "r");
+  } catch {
+    return null;
+  }
+
+  try {
+    const buffer = Buffer.alloc(maxBytes);
+    let total = 0;
+
+    while (total < maxBytes) {
+      const length = Math.min(SESSION_META_HEAD_CHUNK_BYTES, maxBytes - total);
+      const read = fs.readSync(fd, buffer, total, length, total);
+      if (read <= 0) break;
+
+      const newlineIndex = buffer.indexOf(0x0a, total);
+      total += read;
+      if (newlineIndex >= 0 && newlineIndex < total) {
+        return {
+          text: buffer.toString("utf-8", 0, newlineIndex),
+          bytes: newlineIndex + 1,
+          complete: true,
+          truncated: false,
+        };
+      }
+    }
+
+    return {
+      text: buffer.toString("utf-8", 0, total),
+      bytes: total,
+      complete: false,
+      truncated: total >= maxBytes,
+    };
+  } catch {
+    return null;
+  } finally {
+    try {
+      fs.closeSync(fd);
+    } catch {
+      // Ignore close errors
+    }
+  }
+}
+
+/** Extract the first `"field": "<json string>"` value from a JSON fragment. */
+function extractJsonStringField(fragment: string, field: string): string | undefined {
+  const match = fragment.match(new RegExp(`"${field}"\\s*:\\s*("(?:[^"\\\\]|\\\\.)*")`));
+  if (!match) return undefined;
+
+  try {
+    const value = JSON.parse(match[1]) as unknown;
+    return typeof value === "string" ? value : undefined;
+  } catch {
+    return undefined;
   }
 }

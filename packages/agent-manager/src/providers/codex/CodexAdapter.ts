@@ -113,6 +113,7 @@ export class CodexAdapter implements AgentAdapter {
   private readonly mapper: CodexAgentMapper;
   private readonly codexSessionsDir: string;
   private readonly sessionMappingPath: string;
+  private locator?: CodexSessionLocator;
 
   constructor(registry: AgentRegistry = AgentRegistry.default()) {
     const homeDir = process.env.HOME || process.env.USERPROFILE || "";
@@ -194,8 +195,10 @@ export class CodexAdapter implements AgentAdapter {
     return relevant.filter((processInfo) => this.canHandle(processInfo));
   }
 
+  /** Reused across refreshes so the locator's session_meta and negative caches persist. */
   private createLocator(): CodexSessionLocator {
-    return new CodexSessionLocator({ sessionsDir: this.codexSessionsDir }, this.parser);
+    this.locator ??= new CodexSessionLocator({ sessionsDir: this.codexSessionsDir }, this.parser);
+    return this.locator;
   }
 
   private createSessionMapping(): CodexSessionMapping {
