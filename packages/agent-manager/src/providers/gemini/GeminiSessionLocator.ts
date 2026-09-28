@@ -5,6 +5,7 @@ import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import type { SessionFile } from "../../utils/session.js";
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../../utils/session.js";
 import { fileSignature } from "./fileSignature.js";
+import { isSessionLogPath } from "./GeminiSessionParser.js";
 
 export interface GeminiSessionDiscovery {
   sessions: SessionFile[];
@@ -36,6 +37,10 @@ interface CandidateProjects {
 }
 
 const SESSION_FILE_PREFIX = "session-";
+/** Legacy single-document sessions. */
+const SESSION_DOCUMENT_EXTENSION = ".json";
+/** Gemini CLI 0.46+ append-only session logs; line 1 is the metadata record. */
+const SESSION_LOG_EXTENSION = ".jsonl";
 const CHATS_DIR_NAME = "chats";
 /** Ownership marker Gemini CLI writes into slug-named project temp dirs. */
 const PROJECT_ROOT_MARKER = ".project_root";
@@ -49,7 +54,10 @@ const LEGACY_HASH_DIR_PATTERN = /^[0-9a-f]{64}$/;
 const MATCH_TOLERANCE_MS = 3 * 60 * 1000;
 /** Slack for coarse filesystem timestamp granularity. */
 const MTIME_SLACK_MS = 2 * 1000;
-/** Gemini chat JSON starts with sessionId/projectHash; a small head is enough. */
+/**
+ * Both formats start with sessionId/projectHash (a legacy document's leading
+ * keys, a log's line-1 metadata record); a small head is enough.
+ */
 const METADATA_HEAD_BYTES = 8 * 1024;
 
 export class GeminiSessionLocator {
@@ -65,8 +73,8 @@ export class GeminiSessionLocator {
   /**
    * Discover session files for the given processes.
    *
-   * Gemini CLI writes sessions to ~/.gemini/tmp/<shortId>/chats/session-*.json
-   * where <shortId> is either sha256(projectRoot) (legacy) or a slug whose
+   * Gemini CLI writes sessions to ~/.gemini/tmp/<shortId>/chats/session-*.jsonl
+   * (0.46+; older versions wrote session-*.json) where <shortId> is either sha256(projectRoot) (legacy) or a slug whose
    * owner is recorded in <shortId>/.project_root. Each session's projectHash
    * is matched against sha256 of every candidate project root of a process.
    *
@@ -104,9 +112,7 @@ export class GeminiSessionLocator {
       const chatsDir = path.join(projectDir, CHATS_DIR_NAME);
       if (!isDirectory(chatsDir)) continue;
 
-      for (const fileName of safeReaddir(chatsDir)) {
-        if (!this.isSessionFile(fileName)) continue;
-
+      for (const fileName of this.listSessionFileNames(chatsDir)) {
         const session = this.readCandidateSession(
           chatsDir,
           fileName,
@@ -132,10 +138,8 @@ export class GeminiSessionLocator {
       const chatsDir = path.join(this.geminiTmpDir, shortId, CHATS_DIR_NAME);
       if (!isDirectory(chatsDir)) continue;
 
-      for (const fileName of safeReaddir(chatsDir)) {
-        if (this.isSessionFile(fileName)) {
-          files.push(path.join(chatsDir, fileName));
-        }
+      for (const fileName of this.listSessionFileNames(chatsDir)) {
+        files.push(path.join(chatsDir, fileName));
       }
     }
 
@@ -162,7 +166,7 @@ export class GeminiSessionLocator {
     if (!resolvedCwd) return null;
 
     return {
-      sessionId: metadata.sessionId || fileName.replace(/\.json$/, ""),
+      sessionId: metadata.sessionId || fileName.replace(/\.jsonl?$/, ""),
       filePath,
       projectDir: chatsDir,
       birthtimeMs: stat.birthtimeMs,
@@ -186,6 +190,7 @@ export class GeminiSessionLocator {
   private extractSessionMetadata(filePath: string): GeminiSessionMetadata {
     const head = this.readHead(filePath);
     if (head === null) return {};
+    if (isSessionLogPath(filePath)) return this.extractLogMetadata(head);
     if (head.complete) return this.pickMetadata(this.parseSessionMetadata(head.text));
 
     const sessionId = this.matchStringField(head.text, "sessionId");
@@ -197,6 +202,24 @@ export class GeminiSessionLocator {
     const content = safeReadFile(filePath);
     if (content === undefined) return {};
     return this.pickMetadata(this.parseSessionMetadata(content));
+  }
+
+  /**
+   * A `.jsonl` log's metadata is its first line. Never fall back to reading
+   * the whole log: it only grows, and a log whose first record is not
+   * metadata cannot be attributed from its head anyway.
+   */
+  private extractLogMetadata(head: { text: string; complete: boolean }): GeminiSessionMetadata {
+    const newline = head.text.indexOf("\n");
+    if (newline !== -1 || head.complete) {
+      const firstLine = newline === -1 ? head.text : head.text.slice(0, newline);
+      return this.pickMetadata(this.parseSessionMetadata(firstLine));
+    }
+    // First line longer than the head: pick the leading keys from its prefix.
+    return {
+      sessionId: this.matchStringField(head.text, "sessionId"),
+      projectHash: this.matchStringField(head.text, "projectHash"),
+    };
   }
 
   private readHead(filePath: string): { text: string; complete: boolean } | null {
@@ -337,8 +360,31 @@ export class GeminiSessionLocator {
     return crypto.createHash("sha256").update(projectRoot).digest("hex");
   }
 
+  /**
+   * Session files in a chats dir, in both formats. Resuming a legacy session
+   * makes Gemini CLI continue it in `<name>.jsonl` next to the stale
+   * `<name>.json`, so a `.json` with a `.jsonl` sibling is skipped.
+   */
+  private listSessionFileNames(chatsDir: string): string[] {
+    const sessionFiles = safeReaddir(chatsDir).filter((fileName) => this.isSessionFile(fileName));
+    const names = new Set(sessionFiles);
+    return sessionFiles.filter(
+      (fileName) =>
+        !fileName.endsWith(SESSION_DOCUMENT_EXTENSION) ||
+        !names.has(this.toSessionLogName(fileName)),
+    );
+  }
+
+  private toSessionLogName(documentFileName: string): string {
+    const baseName = documentFileName.slice(0, -SESSION_DOCUMENT_EXTENSION.length);
+    return `${baseName}${SESSION_LOG_EXTENSION}`;
+  }
+
   private isSessionFile(fileName: string): boolean {
-    return fileName.startsWith(SESSION_FILE_PREFIX) && fileName.endsWith(".json");
+    return (
+      fileName.startsWith(SESSION_FILE_PREFIX) &&
+      (fileName.endsWith(SESSION_DOCUMENT_EXTENSION) || fileName.endsWith(SESSION_LOG_EXTENSION))
+    );
   }
 
   private parseSessionMetadata(content: string): GeminiSessionMetadata | null {

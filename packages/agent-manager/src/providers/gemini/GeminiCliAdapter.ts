@@ -4,7 +4,8 @@
  * Detects running Gemini CLI agents by:
  * 1. Filtering Gemini Node processes from a shared asynchronous process snapshot
  * 2. Using snapshot CWD and start-time enrichment
- * 3. Discovering session files from ~/.gemini/tmp/<shortId>/chats/session-*.json
+ * 3. Discovering session files from ~/.gemini/tmp/<shortId>/chats/session-*.jsonl
+ *    (Gemini CLI 0.46+ append-only logs) or legacy session-*.json documents
  * 4. Matching sessions to processes via shared matchProcessesToSessions()
  *    using sha256(cwd) === session.projectHash as the resolvedCwd source
  * 5. Extracting summary from the most recent user message in the session JSON
