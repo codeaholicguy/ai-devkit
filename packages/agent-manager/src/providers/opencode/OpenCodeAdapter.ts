@@ -16,6 +16,7 @@ import type {
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
+  ConversationOptions,
   SessionSummary,
   ListSessionsOptions,
   AgentDetectionContext,
@@ -96,7 +97,7 @@ export class OpenCodeAdapter implements AgentAdapter {
     return agents;
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     const ref = decodeSessionRef(sessionFilePath);
     if (!ref) return [];
 

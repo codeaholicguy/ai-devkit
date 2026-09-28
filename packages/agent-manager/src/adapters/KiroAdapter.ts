@@ -11,6 +11,7 @@ import type {
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
+  ConversationOptions,
   SessionSummary,
   ListSessionsOptions,
   AgentDetectionContext,
@@ -21,6 +22,7 @@ import {
   executableBasename,
   filterByProcessNames,
 } from "../utils/process.js";
+import { JsonlTailReader, normalizeTail } from "../utils/jsonlTail.js";
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../utils/session.js";
 import { generateAgentName } from "../utils/matching.js";
 
@@ -66,6 +68,8 @@ export class KiroAdapter implements AgentAdapter {
   readonly processNames = ["kiro-cli", "kiro", "kiro-cli-chat", "node"] as const;
 
   private kiroSessionsDir: string;
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
 
   constructor() {
     const homeDir = process.env.HOME || process.env.USERPROFILE || "";
@@ -106,8 +110,23 @@ export class KiroAdapter implements AgentAdapter {
     return agents;
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
-    return this.entriesToMessages(this.readJsonl(sessionFilePath), options?.verbose ?? false);
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
+    const verbose = options?.verbose ?? false;
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      return this.tailReader.read(
+        sessionFilePath,
+        tail,
+        {
+          parseLine: (line) => {
+            const entry = this.parseJsonlLine(line);
+            return entry ? this.entryToMessage(entry, verbose) : null;
+          },
+        },
+        String(verbose),
+      );
+    }
+    return this.entriesToMessages(this.readJsonl(sessionFilePath), verbose);
   }
 
   async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
@@ -227,16 +246,20 @@ export class KiroAdapter implements AgentAdapter {
 
     const entries: KiroLine[] = [];
     for (const line of content.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const parsed = this.asRecord(JSON.parse(trimmed));
-        if (parsed) entries.push(parsed as KiroLine);
-      } catch {
-        continue;
-      }
+      const entry = this.parseJsonlLine(line);
+      if (entry) entries.push(entry);
     }
     return entries;
+  }
+
+  private parseJsonlLine(line: string): KiroLine | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+    try {
+      return this.asRecord(JSON.parse(trimmed)) as KiroLine | null;
+    } catch {
+      return null;
+    }
   }
 
   private entriesToMessages(entries: KiroLine[], verbose: boolean): ConversationMessage[] {

@@ -14,6 +14,7 @@ import type {
   AgentAdapter,
   AgentInfo,
   ConversationMessage,
+  ConversationOptions,
   ListSessionsOptions,
   ProcessInfo,
   SessionSummary,
@@ -99,7 +100,7 @@ export class CopilotAdapter implements AgentAdapter {
     return agents;
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     return this.parser.getConversation(sessionFilePath, options);
   }
 

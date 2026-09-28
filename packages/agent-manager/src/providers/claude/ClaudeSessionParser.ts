@@ -1,12 +1,13 @@
 import * as fs from "fs";
 import * as path from "path";
-import type { ConversationMessage } from "../../adapters/AgentAdapter.js";
+import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import {
   IncrementalJsonlSummary,
   reduceJsonlContent,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
+import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 
 /**
  * Content block within a Claude Code JSONL message entry.
@@ -91,6 +92,9 @@ const CONVERSATION_ENTRY_TYPES = new Set(["user", "assistant", "system", "progre
  * event (user turn, assistant response, tool call, etc.).
  */
 export class ClaudeSessionParser {
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
+
   /**
    * Parse a session JSONL file into a ClaudeSession summary.
    *
@@ -242,10 +246,20 @@ export class ClaudeSessionParser {
    * Read the full conversation from a session JSONL file.
    *
    * Default mode returns only text content from user/assistant/system messages.
-   * Verbose mode also includes tool_use and tool_result blocks.
+   * Verbose mode also includes tool_use and tool_result blocks. With `tail`,
+   * only the last N messages are read (from the end of the file).
    */
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     const verbose = options?.verbose ?? false;
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      return this.tailReader.read(
+        sessionFilePath,
+        tail,
+        { parseLine: (line) => this.lineToMessage(line, verbose) },
+        String(verbose),
+      );
+    }
 
     let content: string;
     try {
@@ -258,35 +272,41 @@ export class ClaudeSessionParser {
     const messages: ConversationMessage[] = [];
 
     for (const line of lines) {
-      let entry: SessionEntry;
-      try {
-        entry = JSON.parse(line);
-      } catch {
-        continue;
-      }
-
-      let role: ConversationMessage["role"];
-      if (entry.type === "user") {
-        role = "user";
-      } else if (entry.type === "assistant") {
-        role = "assistant";
-      } else if (entry.type === "system") {
-        role = "system";
-      } else {
-        continue;
-      }
-
-      const text = this.extractConversationContent(entry.message?.content, role, verbose);
-      if (!text) continue;
-
-      messages.push({
-        role,
-        content: text,
-        timestamp: entry.timestamp,
-      });
+      const message = this.lineToMessage(line, verbose);
+      if (message) messages.push(message);
     }
 
     return messages;
+  }
+
+  /** Convert one JSONL line into a conversation message, or null when it is not one. */
+  private lineToMessage(line: string, verbose: boolean): ConversationMessage | null {
+    let entry: SessionEntry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      return null;
+    }
+
+    let role: ConversationMessage["role"];
+    if (entry.type === "user") {
+      role = "user";
+    } else if (entry.type === "assistant") {
+      role = "assistant";
+    } else if (entry.type === "system") {
+      role = "system";
+    } else {
+      return null;
+    }
+
+    const text = this.extractConversationContent(entry.message?.content, role, verbose);
+    if (!text) return null;
+
+    return {
+      role,
+      content: text,
+      timestamp: entry.timestamp,
+    };
   }
 
   /**
