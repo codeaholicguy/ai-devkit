@@ -1,3 +1,4 @@
+import * as fs from "fs";
 import * as path from "path";
 import type {
   ConversationMessage,
@@ -5,6 +6,11 @@ import type {
   SessionSummary,
 } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import {
+  IncrementalJsonlSummary,
+  reduceJsonlContent,
+  type JsonlSummaryReducer,
+} from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 
@@ -37,16 +43,115 @@ interface PiLine {
 
 type PiRecord = Record<string, unknown>;
 
+/**
+ * Session identity read from the start of a file, without parsing the rest.
+ * Fields are undefined when not found in the head.
+ */
+export interface PiSessionHead {
+  sessionId?: string;
+  projectPath?: string;
+  /** Bytes read from the file. */
+  bytesRead: number;
+  /** True when the whole file fit in the head read. */
+  complete: boolean;
+}
+
+/**
+ * O(1) running summary folded from session entries; `toSession` turns it into
+ * a `PiSession`. Timestamps are epoch ms so cached state stays immutable.
+ */
+interface PiSummaryState {
+  entryCount: number;
+  sessionId?: string;
+  projectPath?: string;
+  firstTimestampMs?: number;
+  lastTimestampMs?: number;
+  firstUserMessage?: string;
+  lastUserMessage?: string;
+  lastRole?: ConversationMessage["role"];
+}
+
 const IDLE_THRESHOLD_MINUTES = 5;
+
+/** Upper bound for `readSessionHead`; Pi writes its session header as the first line. */
+export const PI_SESSION_HEAD_MAX_BYTES = 64 * 1024;
+const HEAD_CHUNK_BYTES = 4 * 1024;
 
 export class PiSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
 
   readSession(filePath: string, fallbackCwd = ""): PiSession | null {
-    const entries = this.readJsonl(filePath);
-    if (entries.length === 0) return null;
-    return this.sessionFromEntries(entries, filePath, fallbackCwd);
+    const content = safeReadFile(filePath);
+    if (content === undefined) return null;
+    return this.toSession(filePath, fallbackCwd, reduceJsonlContent(this.summaryReducer, content));
+  }
+
+  /**
+   * Same result as `readSession`, but backed by a per-instance incremental
+   * cache so repeated refreshes only parse bytes appended since the last call.
+   * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   */
+  readSessionIncremental(filePath: string, fallbackCwd = ""): PiSession | null {
+    const result = this.sessionCache.read(filePath);
+    return result ? this.toSession(filePath, fallbackCwd, result.state) : null;
+  }
+
+  /** Evict cached summaries for files not read since the previous prune. */
+  pruneSessionCache(): void {
+    this.sessionCache.prune();
+  }
+
+  /**
+   * Read the session id and project path from the first complete lines of a
+   * file, stopping once both are found or after `maxBytes`. Null if unreadable.
+   */
+  readSessionHead(filePath: string, maxBytes = PI_SESSION_HEAD_MAX_BYTES): PiSessionHead | null {
+    let fd: number;
+    try {
+      fd = fs.openSync(filePath, "r");
+    } catch {
+      return null;
+    }
+
+    try {
+      const head: PiSessionHead = { bytesRead: 0, complete: false };
+      const buffer = Buffer.alloc(maxBytes);
+      let lineStart = 0;
+
+      while (head.bytesRead < maxBytes) {
+        const bytesRead = fs.readSync(
+          fd,
+          buffer,
+          head.bytesRead,
+          Math.min(HEAD_CHUNK_BYTES, maxBytes - head.bytesRead),
+          head.bytesRead,
+        );
+        if (bytesRead === 0) {
+          head.complete = true;
+          break;
+        }
+        head.bytesRead += bytesRead;
+
+        let newline = buffer.indexOf(0x0a, lineStart);
+        while (newline !== -1 && newline < head.bytesRead) {
+          this.applyHeadLine(head, buffer.toString("utf8", lineStart, newline));
+          lineStart = newline + 1;
+          if (head.sessionId && head.projectPath) return head;
+          newline = buffer.indexOf(0x0a, lineStart);
+        }
+      }
+
+      // The unterminated last line is only trusted when it ends the file
+      if (head.complete && lineStart < head.bytesRead) {
+        this.applyHeadLine(head, buffer.toString("utf8", lineStart, head.bytesRead));
+      }
+      return head;
+    } catch {
+      return null;
+    } finally {
+      fs.closeSync(fd);
+    }
   }
 
   determineStatus(session: PiSession): AgentStatus {
@@ -78,17 +183,17 @@ export class PiSessionParser {
   }
 
   fileToSessionSummary(filePath: string): SessionSummary | null {
-    const entries = this.readJsonl(filePath);
-    if (entries.length === 0) return null;
+    const content = safeReadFile(filePath);
+    if (content === undefined) return null;
 
-    const session = this.sessionFromEntries(entries, filePath);
-    const firstUserMessage =
-      this.entriesToMessages(entries, false).find((msg) => msg.role === "user")?.content ?? "";
+    const state = reduceJsonlContent(this.summaryReducer, content);
+    const session = this.toSession(filePath, "", state);
+    if (!session) return null;
     return {
       type: "pi",
       sessionId: session.sessionId,
       cwd: session.projectPath,
-      firstUserMessage,
+      firstUserMessage: state.firstUserMessage ?? "",
       lastActive: session.lastActive,
       startedAt: session.sessionStart,
       sessionFilePath: filePath,
@@ -101,26 +206,83 @@ export class PiSessionParser {
     return underscore >= 0 ? base.slice(underscore + 1) : base;
   }
 
-  private sessionFromEntries(entries: PiLine[], filePath: string, fallbackCwd = ""): PiSession {
-    const stat = safeStat(filePath);
-    const timestamps = entries
-      .map((entry) => this.parseTimestamp(this.entryTimestamp(entry)))
-      .filter((value): value is Date => value !== null);
+  /**
+   * Fold one JSONL entry into the O(1) session summary. Mirrors the previous
+   * whole-file scan: id, cwd and start come from the first entry that has
+   * them; last active, last user message and last role track the latest one.
+   */
+  private readonly summaryReducer: JsonlSummaryReducer<PiSummaryState> = {
+    initial: () => ({ entryCount: 0 }),
+    reduce: (state, value) => {
+      const entry = this.asRecord(value) as PiLine | null;
+      if (!entry) return state;
 
-    const sessionStart = timestamps[0] ?? stat?.birthtime ?? stat?.mtime ?? new Date();
-    const lastActive = timestamps[timestamps.length - 1] ?? stat?.mtime ?? sessionStart;
-    const messages = this.entriesToMessages(entries, true);
-    const lastUser = [...messages].reverse().find((msg) => msg.role === "user");
-    const lastMessage = messages[messages.length - 1];
+      const next: PiSummaryState = { ...state, entryCount: state.entryCount + 1 };
+      next.sessionId ??= this.entrySessionId(entry);
+      next.projectPath ??= this.entryCwd(entry);
+
+      const timestamp = this.parseTimestamp(this.entryTimestamp(entry));
+      if (timestamp) {
+        next.firstTimestampMs ??= timestamp.getTime();
+        next.lastTimestampMs = timestamp.getTime();
+      }
+
+      const message = this.entryToMessage(entry, true);
+      if (message) {
+        next.lastRole = message.role;
+        if (message.role === "user") {
+          next.lastUserMessage = message.content;
+          next.firstUserMessage ??= message.content;
+        }
+      }
+      return next;
+    },
+  };
+
+  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
+
+  private toSession(
+    filePath: string,
+    fallbackCwd: string,
+    state: PiSummaryState,
+  ): PiSession | null {
+    if (state.entryCount === 0) return null;
+
+    const needsStat = state.firstTimestampMs === undefined;
+    const stat = needsStat ? safeStat(filePath) : undefined;
+    const sessionStart =
+      state.firstTimestampMs !== undefined
+        ? new Date(state.firstTimestampMs)
+        : (stat?.birthtime ?? stat?.mtime ?? new Date());
+    const lastActive =
+      state.lastTimestampMs !== undefined
+        ? new Date(state.lastTimestampMs)
+        : (stat?.mtime ?? sessionStart);
 
     return {
-      sessionId: this.sessionIdFromEntries(entries) || this.sessionIdFromFile(filePath),
-      projectPath: this.cwdFromEntries(entries) || fallbackCwd,
-      summary: lastUser?.content ? this.truncate(lastUser.content, 120) : "Pi session active",
+      sessionId: state.sessionId || this.sessionIdFromFile(filePath),
+      projectPath: state.projectPath || fallbackCwd,
+      summary: state.lastUserMessage
+        ? this.truncate(state.lastUserMessage, 120)
+        : "Pi session active",
       sessionStart,
       lastActive,
-      lastRole: lastMessage?.role,
+      lastRole: state.lastRole,
     };
+  }
+
+  private applyHeadLine(head: PiSessionHead, line: string): void {
+    const trimmed = line.trim();
+    if (!trimmed) return;
+    let entry: PiLine | null;
+    try {
+      entry = this.asRecord(JSON.parse(trimmed)) as PiLine | null;
+    } catch {
+      return;
+    }
+    if (!entry) return;
+    head.sessionId ??= this.entrySessionId(entry);
+    head.projectPath ??= this.entryCwd(entry);
   }
 
   private readJsonl(filePath: string): PiLine[] {
@@ -256,40 +418,32 @@ export class PiSessionParser {
     );
   }
 
-  private sessionIdFromEntries(entries: PiLine[]): string | null {
-    for (const entry of entries) {
-      const sessionId = this.firstString(
-        entry.sessionId,
-        entry.session_id,
-        entry.id,
-        entry.payload?.sessionId,
-        entry.payload?.session_id,
-        entry.payload?.id,
-        entry.data?.sessionId,
-        entry.data?.session_id,
-        entry.data?.id,
-      );
-      if (sessionId) return sessionId;
-    }
-    return null;
+  private entrySessionId(entry: PiLine): string | undefined {
+    return this.firstString(
+      entry.sessionId,
+      entry.session_id,
+      entry.id,
+      entry.payload?.sessionId,
+      entry.payload?.session_id,
+      entry.payload?.id,
+      entry.data?.sessionId,
+      entry.data?.session_id,
+      entry.data?.id,
+    );
   }
 
-  private cwdFromEntries(entries: PiLine[]): string {
-    for (const entry of entries) {
-      const cwd = this.firstString(
-        entry.cwd,
-        entry.projectPath,
-        entry.project_path,
-        entry.payload?.cwd,
-        entry.payload?.projectPath,
-        entry.payload?.project_path,
-        entry.data?.cwd,
-        entry.data?.projectPath,
-        entry.data?.project_path,
-      );
-      if (cwd) return cwd;
-    }
-    return "";
+  private entryCwd(entry: PiLine): string | undefined {
+    return this.firstString(
+      entry.cwd,
+      entry.projectPath,
+      entry.project_path,
+      entry.payload?.cwd,
+      entry.payload?.projectPath,
+      entry.payload?.project_path,
+      entry.data?.cwd,
+      entry.data?.projectPath,
+      entry.data?.project_path,
+    );
   }
 
   private firstString(...values: unknown[]): string | undefined {

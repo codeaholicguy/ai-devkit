@@ -177,6 +177,96 @@ describe("PiSessionParser", () => {
     });
   });
 
+  describe("readSessionIncremental", () => {
+    const fixtures: Array<Array<Record<string, unknown> | string>> = [
+      [
+        { type: "session", id: "sess-a", timestamp: "2026-06-10T08:58:20.754Z", cwd: "/repo/a" },
+        { role: "system", timestamp: "2026-06-10T08:58:21.000Z", content: "model changed" },
+        { role: "user", timestamp: "2026-06-10T08:58:22.000Z", content: "first" },
+        { role: "assistant", timestamp: "2026-06-10T08:58:23.000Z", content: "reply" },
+        { role: "user", timestamp: "bad-date", content: "x".repeat(200) },
+        { role: "system", content: "trailing system" },
+      ],
+      [{ role: "user", content: "no timestamps or id" }, "{not json", "[1,2]", "42"],
+      [
+        {
+          payload: { sessionId: "nested", cwd: "/repo/nested", timestamp: "2026-06-10T08:00:00Z" },
+        },
+        { data: { role: "assistant", content: [{ type: "text", text: "nested reply" }] } },
+      ],
+      ["{not json", "   "],
+    ];
+
+    it.each(fixtures.map((entries, index) => [index, entries] as const))(
+      "matches readSession for fixture %i",
+      (_index, entries) => {
+        const filePath = writeJsonl("equivalence.jsonl", entries);
+        expect(parser.readSessionIncremental(filePath, "/fallback")).toEqual(
+          parser.readSession(filePath, "/fallback"),
+        );
+      },
+    );
+
+    it("folds appended lines into the cached summary", () => {
+      const filePath = writeJsonl("append.jsonl", [
+        { type: "session", id: "sess-append", timestamp: "2026-06-10T08:58:20.754Z", cwd: "/r" },
+        { role: "user", timestamp: "2026-06-10T08:58:21.000Z", content: "before" },
+      ]);
+      expect(parser.readSessionIncremental(filePath)?.summary).toBe("before");
+
+      const next = { role: "user", timestamp: "2026-06-10T09:00:00.000Z", content: "after" };
+      fs.appendFileSync(filePath, `\n${JSON.stringify(next)}\n`);
+
+      const session = parser.readSessionIncremental(filePath);
+      expect(session).toEqual(parser.readSession(filePath));
+      expect(session).toMatchObject({ summary: "after", sessionId: "sess-append" });
+    });
+  });
+
+  describe("readSessionHead", () => {
+    it("stops reading once the header gives session id and cwd", () => {
+      const filePath = writeJsonl("head.jsonl", [
+        { type: "session", id: "sess-head", timestamp: "2026-06-10T08:58:20.754Z", cwd: "/repo/h" },
+        ...Array.from({ length: 5000 }, (_, i) => ({ role: "assistant", content: `line ${i}` })),
+      ]);
+
+      const head = parser.readSessionHead(filePath);
+
+      expect(head).toMatchObject({ sessionId: "sess-head", projectPath: "/repo/h" });
+      expect(head?.complete).toBe(false);
+      expect(head!.bytesRead).toBeLessThanOrEqual(4 * 1024);
+    });
+
+    it("never reads more than the byte cap", () => {
+      const filePath = writeJsonl(
+        "no-header.jsonl",
+        Array.from({ length: 5000 }, (_, i) => ({ role: "assistant", content: `line ${i}` })),
+      );
+      expect(fs.statSync(filePath).size).toBeGreaterThan(64 * 1024);
+
+      expect(parser.readSessionHead(filePath)).toEqual({ bytesRead: 64 * 1024, complete: false });
+      expect(parser.readSessionHead(filePath, 1000)?.bytesRead).toBe(1000);
+    });
+
+    it("uses an unterminated last line only when it ends the file", () => {
+      const whole = writeJsonl("whole.jsonl", [{ id: "sess-whole", cwd: "/repo/whole" }]);
+      expect(parser.readSessionHead(whole)).toMatchObject({
+        sessionId: "sess-whole",
+        projectPath: "/repo/whole",
+        complete: true,
+      });
+
+      const cut = writeJsonl("cut.jsonl", [
+        { id: "sess-cut", cwd: "/repo/cut", pad: "y".repeat(50) },
+      ]);
+      expect(parser.readSessionHead(cut, 20)).toEqual({ bytesRead: 20, complete: false });
+    });
+
+    it("returns null for a missing file", () => {
+      expect(parser.readSessionHead(path.join(tmpDir, "missing.jsonl"))).toBeNull();
+    });
+  });
+
   function writeJsonl(name: string, entries: Array<Record<string, unknown> | string>): string {
     const filePath = path.join(tmpDir, name);
     fs.writeFileSync(
