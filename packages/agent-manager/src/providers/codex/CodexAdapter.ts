@@ -14,7 +14,6 @@ import {
   executableBasename,
   filterByProcessNames,
 } from "../../utils/process.js";
-import { safeReadFile } from "../../utils/session.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 import { CodexAgentMapper } from "./CodexAgentMapper.js";
 import { CodexSessionLocator, type CodexDirectMatch } from "./CodexSessionLocator.js";
@@ -51,6 +50,15 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const processes = await this.getCodexProcesses(context);
     if (processes.length === 0) return [];
 
@@ -59,10 +67,7 @@ export class CodexAdapter implements AgentAdapter {
     const locatorResult = this.createLocator().matchRunningProcesses(cacheResult.fallback);
 
     const directResult = this.mapDirectMatches(locatorResult.direct);
-    const legacyResult = this.mapLegacyMatches(
-      locatorResult.legacyMatches,
-      locatorResult.contentCache,
-    );
+    const legacyResult = this.mapLegacyMatches(locatorResult.legacyMatches);
     const unmatchedProcesses = this.findUnmatchedProcesses(locatorResult.fallback, [
       ...directResult.agents,
       ...legacyResult.agents,
@@ -125,7 +130,7 @@ export class CodexAdapter implements AgentAdapter {
     const agents: AgentInfo[] = [];
 
     for (const match of matches) {
-      const session = this.parser.readSession(match.filePath);
+      const session = this.parser.readSessionIncremental(match.filePath);
       if (session) {
         agents.push(this.mapper.mapSessionToAgent(session, match.process, match.filePath));
       } else {
@@ -153,8 +158,7 @@ export class CodexAdapter implements AgentAdapter {
         continue;
       }
 
-      const content = safeReadFile(entry.sessionFilePath);
-      const session = this.parser.readSession(entry.sessionFilePath, content);
+      const session = this.parser.readSessionIncremental(entry.sessionFilePath);
       if (!session) {
         fallback.push(processInfo);
         continue;
@@ -171,7 +175,7 @@ export class CodexAdapter implements AgentAdapter {
     const fallback: ProcessInfo[] = [];
 
     for (const match of matches) {
-      const session = this.parser.readSession(match.sessionFile.filePath);
+      const session = this.parser.readSessionIncremental(match.sessionFile.filePath);
       if (session) {
         agents.push(
           this.mapper.mapSessionToAgent(session, match.process, match.sessionFile.filePath),
@@ -186,16 +190,12 @@ export class CodexAdapter implements AgentAdapter {
 
   private mapLegacyMatches(
     matches: Array<{ process: ProcessInfo; session: { filePath: string } }>,
-    contentCache: Map<string, string>,
   ): MappedAgentResult {
     const agents: AgentInfo[] = [];
     const fallback: ProcessInfo[] = [];
 
     for (const match of matches) {
-      const session = this.parser.readSession(
-        match.session.filePath,
-        contentCache.get(match.session.filePath),
-      );
+      const session = this.parser.readSessionIncremental(match.session.filePath);
       if (session) {
         agents.push(this.mapper.mapSessionToAgent(session, match.process, match.session.filePath));
       } else {
