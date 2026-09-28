@@ -5,7 +5,10 @@
  * 1. Filtering Copilot processes from a shared asynchronous process snapshot
  * 2. Using snapshot CWD and start-time enrichment
  * 3. Mapping active ~/.copilot/session-state/{sessionId}/inuse.{pid}.lock files to processes
- * 4. Reading events.jsonl as the primary session/conversation source
+ *    (only directories modified since the process started are listed, and a
+ *    known lock is re-validated with one stat on later refreshes)
+ * 4. Reading events.jsonl as the primary session/conversation source (incrementally
+ *    cached across refreshes, so unchanged files are not re-read)
  * 5. Reading workspace.yaml as a flat fallback metadata source
  */
 
@@ -63,6 +66,15 @@ export class CopilotAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached event summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
     const relevant = filterByProcessNames(snapshot, this.processNames);
     const processes = relevant.filter((process) => this.canHandle(process));
@@ -74,11 +86,11 @@ export class CopilotAdapter implements AgentAdapter {
     const matchedProcesses: ProcessInfo[] = [];
     const agents: AgentInfo[] = [];
 
-    for (const lock of this.locator.discoverActiveLocks()) {
+    for (const lock of this.locator.discoverActiveLocks(processes)) {
       const proc = processByPid.get(lock.pid);
       if (!proc) continue;
 
-      const session = this.parser.readSessionDir(lock.sessionDir, lock.sessionId);
+      const session = this.parser.readSessionDirIncremental(lock.sessionDir, lock.sessionId);
       if (!session) continue;
 
       const agent = this.mapper.mapSessionToAgent(session, proc);
