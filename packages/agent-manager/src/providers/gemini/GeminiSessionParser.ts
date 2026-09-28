@@ -7,6 +7,7 @@ import type {
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { sliceTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
+import { fileSignature } from "./fileSignature.js";
 
 /**
  * A single Gemini CLI message content part. Mirrors the `{text?: string}`
@@ -59,23 +60,58 @@ export interface GeminiSession {
   lastMessageType?: string;
 }
 
+interface CachedParsedSession {
+  signature: string;
+  session: GeminiSession | null;
+}
+
 const IDLE_THRESHOLD_MINUTES = 5;
+/** Parsed sessions are small (summary is truncated); cap entries, not bytes. */
+const MAX_CACHED_SESSIONS = 256;
 
 export class GeminiSessionParser {
+  private readonly sessionCache = new Map<string, CachedParsedSession>();
+
   /**
    * Parse session file content into GeminiSession.
-   * Uses cached content if available, otherwise reads from disk.
+   * Uses the given content if available; otherwise reads from disk, reusing
+   * the previous result while the file's inode, size and mtime are unchanged.
    */
   parseSession(cachedContent: string | undefined, filePath: string): GeminiSession | null {
-    const content = cachedContent ?? this.readSessionFile(filePath);
-    if (content === null) return null;
+    const fileStat = safeStat(filePath);
+    if (cachedContent !== undefined) return this.buildSession(cachedContent, fileStat);
 
+    if (!fileStat) {
+      this.sessionCache.delete(filePath);
+      return null;
+    }
+
+    const signature = fileSignature(fileStat);
+    const cached = this.sessionCache.get(filePath);
+    if (cached?.signature === signature) return cached.session;
+
+    const content = this.readSessionFile(filePath);
+    const session = content === null ? null : this.buildSession(content, fileStat);
+    this.rememberSession(filePath, { signature, session });
+    return session;
+  }
+
+  private rememberSession(filePath: string, entry: CachedParsedSession): void {
+    this.sessionCache.delete(filePath);
+    this.sessionCache.set(filePath, entry);
+    while (this.sessionCache.size > MAX_CACHED_SESSIONS) {
+      const oldest = this.sessionCache.keys().next().value;
+      if (oldest === undefined) break;
+      this.sessionCache.delete(oldest);
+    }
+  }
+
+  private buildSession(content: string, fileStat: fs.Stats | undefined): GeminiSession | null {
     const parsed = this.parseSessionJson(content);
     if (!parsed?.sessionId) return null;
 
     const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
     const lastEntry = messages.length > 0 ? messages[messages.length - 1] : undefined;
-    const fileStat = safeStat(filePath);
 
     const lastActive =
       this.parseTimestamp(parsed.lastUpdated) ||

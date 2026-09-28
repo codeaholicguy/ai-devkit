@@ -3,11 +3,11 @@ import * as fs from "fs";
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import type { SessionFile } from "../../utils/session.js";
-import { isDirectory, safeReaddir } from "../../utils/session.js";
+import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../../utils/session.js";
+import { fileSignature } from "./fileSignature.js";
 
 export interface GeminiSessionDiscovery {
   sessions: SessionFile[];
-  contentCache: Map<string, string>;
 }
 
 export interface GeminiSessionLocatorOptions {
@@ -19,11 +19,43 @@ interface GeminiSessionMetadata {
   projectHash?: string;
 }
 
+interface CachedSessionMetadata extends GeminiSessionMetadata {
+  signature: string;
+}
+
+interface CachedProjectMarker {
+  signature: string;
+  projectRoot: string;
+}
+
+interface CandidateProjects {
+  /** sha256(projectRoot) -> process CWD that may own sessions for that root. */
+  cwdByHash: Map<string, string>;
+  /** Normalized candidate project roots, compared against `.project_root` markers. */
+  roots: Set<string>;
+}
+
 const SESSION_FILE_PREFIX = "session-";
 const CHATS_DIR_NAME = "chats";
+/** Ownership marker Gemini CLI writes into slug-named project temp dirs. */
+const PROJECT_ROOT_MARKER = ".project_root";
+/** Legacy Gemini CLI temp dirs are named sha256(projectRoot). */
+const LEGACY_HASH_DIR_PATTERN = /^[0-9a-f]{64}$/;
+/**
+ * Mirrors the process-start/session-birth tolerance in utils/matching.ts: a
+ * file last modified before (earliest process start - tolerance) was also
+ * born before it, so it can never be matched to any candidate process.
+ */
+const MATCH_TOLERANCE_MS = 3 * 60 * 1000;
+/** Slack for coarse filesystem timestamp granularity. */
+const MTIME_SLACK_MS = 2 * 1000;
+/** Gemini chat JSON starts with sessionId/projectHash; a small head is enough. */
+const METADATA_HEAD_BYTES = 8 * 1024;
 
 export class GeminiSessionLocator {
   private readonly geminiTmpDir: string;
+  private metadataCache = new Map<string, CachedSessionMetadata>();
+  private markerCache = new Map<string, CachedProjectMarker>();
 
   constructor(options: GeminiSessionLocatorOptions = {}) {
     const homeDir = process.env.HOME || process.env.USERPROFILE || "";
@@ -34,19 +66,24 @@ export class GeminiSessionLocator {
    * Discover session files for the given processes.
    *
    * Gemini CLI writes sessions to ~/.gemini/tmp/<shortId>/chats/session-*.json
-   * where <shortId> is opaque (managed by a project registry). We scan every
-   * shortId directory and filter by matching session.projectHash against
-   * sha256(process.cwd) to bind each session to a candidate process CWD.
+   * where <shortId> is either sha256(projectRoot) (legacy) or a slug whose
+   * owner is recorded in <shortId>/.project_root. Each session's projectHash
+   * is matched against sha256 of every candidate project root of a process.
+   *
+   * To keep each refresh cheap:
+   * - project dirs whose name or marker can't belong to a candidate root are
+   *   skipped without listing or opening their chats;
+   * - chat files last modified before the earliest candidate process start
+   *   (minus the matching tolerance) are skipped after a stat;
+   * - sessionId/projectHash come from a bounded head read, cached by
+   *   inode+size+mtime, so unchanged files are never re-read.
    */
   discoverSessions(processes: ProcessInfo[]): GeminiSessionDiscovery {
-    const empty = { sessions: [] as SessionFile[], contentCache: new Map<string, string>() };
+    const empty: GeminiSessionDiscovery = { sessions: [] };
     if (!fs.existsSync(this.geminiTmpDir)) return empty;
 
-    const cwdHashMap = this.buildCwdHashMap(processes);
-    if (cwdHashMap.size === 0) return empty;
-
-    const contentCache = new Map<string, string>();
-    const sessions: SessionFile[] = [];
+    const candidates = this.buildCandidateProjects(processes);
+    if (candidates.cwdByHash.size === 0) return empty;
 
     let shortIdEntries: string[];
     try {
@@ -55,22 +92,36 @@ export class GeminiSessionLocator {
       return empty;
     }
 
+    const minMtimeMs = this.earliestMatchableMtime(processes);
+    const nextMetadataCache = new Map<string, CachedSessionMetadata>();
+    const nextMarkerCache = new Map<string, CachedProjectMarker>();
+    const sessions: SessionFile[] = [];
+
     for (const shortId of shortIdEntries) {
-      const chatsDir = path.join(this.geminiTmpDir, shortId, CHATS_DIR_NAME);
+      const projectDir = path.join(this.geminiTmpDir, shortId);
+      if (!this.mayBelongToCandidates(projectDir, shortId, candidates, nextMarkerCache)) continue;
+
+      const chatsDir = path.join(projectDir, CHATS_DIR_NAME);
       if (!isDirectory(chatsDir)) continue;
 
       for (const fileName of safeReaddir(chatsDir)) {
         if (!this.isSessionFile(fileName)) continue;
 
-        const session = this.readCandidateSession(chatsDir, fileName, cwdHashMap);
-        if (!session) continue;
-
-        contentCache.set(session.filePath, session.content);
-        sessions.push(session.sessionFile);
+        const session = this.readCandidateSession(
+          chatsDir,
+          fileName,
+          candidates.cwdByHash,
+          minMtimeMs,
+          nextMetadataCache,
+        );
+        if (session) sessions.push(session);
       }
     }
 
-    return { sessions, contentCache };
+    // Keep metadata only for files still in scope so the caches stay bounded.
+    this.metadataCache = nextMetadataCache;
+    this.markerCache = nextMarkerCache;
+    return { sessions };
   }
 
   discoverHistoricalSessionFiles(): string[] {
@@ -94,45 +145,155 @@ export class GeminiSessionLocator {
   private readCandidateSession(
     chatsDir: string,
     fileName: string,
-    cwdHashMap: Map<string, string>,
-  ): { filePath: string; content: string; sessionFile: SessionFile } | null {
+    cwdByHash: Map<string, string>,
+    minMtimeMs: number,
+    nextMetadataCache: Map<string, CachedSessionMetadata>,
+  ): SessionFile | null {
     const filePath = path.join(chatsDir, fileName);
 
-    let content: string;
-    try {
-      content = fs.readFileSync(filePath, "utf-8");
-    } catch {
-      return null;
-    }
+    const stat = safeStat(filePath);
+    if (!stat || stat.mtimeMs < minMtimeMs) return null;
 
-    const parsed = this.parseSessionMetadata(content);
-    if (!parsed?.projectHash) return null;
+    const metadata = this.readSessionMetadata(filePath, stat);
+    nextMetadataCache.set(filePath, metadata);
+    if (!metadata.projectHash) return null;
 
-    const resolvedCwd = cwdHashMap.get(parsed.projectHash);
+    const resolvedCwd = cwdByHash.get(metadata.projectHash);
     if (!resolvedCwd) return null;
 
-    let birthtimeMs = 0;
-    try {
-      birthtimeMs = fs.statSync(filePath).birthtimeMs;
-    } catch {
-      return null;
-    }
-
     return {
+      sessionId: metadata.sessionId || fileName.replace(/\.json$/, ""),
       filePath,
-      content,
-      sessionFile: {
-        sessionId: parsed.sessionId || fileName.replace(/\.json$/, ""),
-        filePath,
-        projectDir: chatsDir,
-        birthtimeMs,
-        resolvedCwd,
-      },
+      projectDir: chatsDir,
+      birthtimeMs: stat.birthtimeMs,
+      resolvedCwd,
     };
   }
 
-  private buildCwdHashMap(processes: ProcessInfo[]): Map<string, string> {
-    const map = new Map<string, string>();
+  private readSessionMetadata(filePath: string, stat: fs.Stats): CachedSessionMetadata {
+    const signature = fileSignature(stat);
+    const cached = this.metadataCache.get(filePath);
+    if (cached?.signature === signature) return cached;
+
+    return { signature, ...this.extractSessionMetadata(filePath) };
+  }
+
+  /**
+   * Read sessionId/projectHash from the first METADATA_HEAD_BYTES. Files that
+   * fit in the head are parsed as JSON exactly; larger files are scanned for
+   * the leading keys and only fully parsed when the head lacks them.
+   */
+  private extractSessionMetadata(filePath: string): GeminiSessionMetadata {
+    const head = this.readHead(filePath);
+    if (head === null) return {};
+    if (head.complete) return this.pickMetadata(this.parseSessionMetadata(head.text));
+
+    const sessionId = this.matchStringField(head.text, "sessionId");
+    const projectHash = this.matchStringField(head.text, "projectHash");
+    if (sessionId !== undefined && projectHash !== undefined) {
+      return { sessionId, projectHash };
+    }
+
+    const content = safeReadFile(filePath);
+    if (content === undefined) return {};
+    return this.pickMetadata(this.parseSessionMetadata(content));
+  }
+
+  private readHead(filePath: string): { text: string; complete: boolean } | null {
+    let fd: number | undefined;
+    try {
+      fd = fs.openSync(filePath, "r");
+      // One extra byte tells "exactly METADATA_HEAD_BYTES long" from "longer".
+      const buffer = Buffer.alloc(METADATA_HEAD_BYTES + 1);
+      let length = 0;
+      while (length < buffer.length) {
+        const bytesRead = fs.readSync(fd, buffer, length, buffer.length - length, length);
+        if (bytesRead === 0) break;
+        length += bytesRead;
+      }
+      return {
+        text: buffer.toString("utf-8", 0, Math.min(length, METADATA_HEAD_BYTES)),
+        complete: length <= METADATA_HEAD_BYTES,
+      };
+    } catch {
+      return null;
+    } finally {
+      if (fd !== undefined) {
+        try {
+          fs.closeSync(fd);
+        } catch {
+          // Nothing useful to do if closing a read-only descriptor fails.
+        }
+      }
+    }
+  }
+
+  private matchStringField(text: string, key: string): string | undefined {
+    const match = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(text);
+    if (!match) return undefined;
+    try {
+      return JSON.parse(`"${match[1]}"`) as string;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private pickMetadata(parsed: GeminiSessionMetadata | null): GeminiSessionMetadata {
+    if (!parsed || typeof parsed !== "object") return {};
+    return { sessionId: parsed.sessionId, projectHash: parsed.projectHash };
+  }
+
+  /**
+   * Decide from the directory name or its `.project_root` marker whether a
+   * project temp dir can hold sessions for a candidate root. Dirs with no
+   * recognisable ownership are scanned conservatively.
+   */
+  private mayBelongToCandidates(
+    projectDir: string,
+    shortId: string,
+    candidates: CandidateProjects,
+    nextMarkerCache: Map<string, CachedProjectMarker>,
+  ): boolean {
+    if (LEGACY_HASH_DIR_PATTERN.test(shortId)) return candidates.cwdByHash.has(shortId);
+
+    const projectRoot = this.readProjectMarker(projectDir, nextMarkerCache);
+    if (projectRoot === undefined) return true;
+    return candidates.roots.has(this.normalizeRoot(projectRoot));
+  }
+
+  private readProjectMarker(
+    projectDir: string,
+    nextMarkerCache: Map<string, CachedProjectMarker>,
+  ): string | undefined {
+    const markerPath = path.join(projectDir, PROJECT_ROOT_MARKER);
+    const stat = safeStat(markerPath);
+    if (!stat?.isFile()) return undefined;
+
+    const signature = fileSignature(stat);
+    const cached = this.markerCache.get(markerPath);
+    const projectRoot =
+      cached?.signature === signature ? cached.projectRoot : safeReadFile(markerPath)?.trim();
+    if (!projectRoot) return undefined;
+
+    nextMarkerCache.set(markerPath, { signature, projectRoot });
+    return projectRoot;
+  }
+
+  private earliestMatchableMtime(processes: ProcessInfo[]): number {
+    let earliestStartMs = Number.POSITIVE_INFINITY;
+    for (const proc of processes) {
+      if (!proc.cwd || !proc.startTime) continue;
+      const startMs = proc.startTime.getTime();
+      if (Number.isFinite(startMs)) earliestStartMs = Math.min(earliestStartMs, startMs);
+    }
+    // No start times: nothing can be windowed safely, so scan every file.
+    if (!Number.isFinite(earliestStartMs)) return Number.NEGATIVE_INFINITY;
+    return earliestStartMs - MATCH_TOLERANCE_MS - MTIME_SLACK_MS;
+  }
+
+  private buildCandidateProjects(processes: ProcessInfo[]): CandidateProjects {
+    const cwdByHash = new Map<string, string>();
+    const roots = new Set<string>();
     for (const proc of processes) {
       if (!proc.cwd) continue;
 
@@ -143,13 +304,20 @@ export class GeminiSessionLocator {
       // candidate so subdirectory invocations still line up with the
       // session the Gemini process wrote.
       for (const candidate of this.candidateProjectRoots(proc.cwd)) {
+        roots.add(this.normalizeRoot(candidate));
         const hash = this.hashProjectRoot(candidate);
-        if (!map.has(hash)) {
-          map.set(hash, proc.cwd);
+        if (!cwdByHash.has(hash)) {
+          cwdByHash.set(hash, proc.cwd);
         }
       }
     }
-    return map;
+    return { cwdByHash, roots };
+  }
+
+  /** Match Gemini CLI's project registry normalization (lower-cased on Windows). */
+  private normalizeRoot(projectRoot: string): string {
+    const resolved = path.resolve(projectRoot);
+    return process.platform === "win32" ? resolved.toLowerCase() : resolved;
   }
 
   private candidateProjectRoots(cwd: string): string[] {
