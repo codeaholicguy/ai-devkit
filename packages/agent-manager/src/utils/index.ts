@@ -4,7 +4,9 @@ export {
   batchGetProcessStartTimes,
   enrichProcesses,
   captureProcessSnapshot,
+  createProcessSnapshotCapture,
 } from "./process.js";
+export type { ProcessExec, ProcessSnapshotCapture, ProcessSnapshotOptions } from "./process.js";
 export { getProcessTty } from "./process.js";
 export { batchGetSessionFileBirthtimes } from "./session.js";
 export type { SessionFile } from "./session.js";

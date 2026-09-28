@@ -16,6 +16,7 @@ import type {
 } from "../adapters/AgentAdapter.js";
 import { AgentStatus } from "../adapters/AgentAdapter.js";
 import { AgentRegistry, type RegistryEntry } from "../utils/AgentRegistry.js";
+import { createProcessSnapshotCapture, type ProcessExec } from "../utils/process.js";
 import type { HerdrAgentPane } from "../runtime/herdr/HerdrAgentDiscovery.js";
 
 // Mock adapter for testing
@@ -204,7 +205,9 @@ describe("AgentManager", () => {
       await snapshotManager.listAgents();
 
       expect(captureSnapshot).toHaveBeenCalledTimes(1);
-      expect(captureSnapshot).toHaveBeenCalledWith(["claude", "pi", "node"]);
+      expect(captureSnapshot).toHaveBeenCalledWith(["claude", "pi", "node"], {
+        isCandidate: expect.any(Function),
+      });
       expect(claude.detectAgents).toHaveBeenCalledWith({ processes: [processes[0]] });
       expect(pi.detectAgents).toHaveBeenCalledWith({ processes: [processes[1]] });
     });
@@ -242,11 +245,146 @@ describe("AgentManager", () => {
       await snapshotManager.listAgents();
 
       expect(captureSnapshot).toHaveBeenCalledTimes(1);
-      expect(captureSnapshot).toHaveBeenCalledWith(["node", "codex", "pi", "claude"]);
+      expect(captureSnapshot).toHaveBeenCalledWith(["node", "codex", "pi", "claude"], {
+        isCandidate: expect.any(Function),
+      });
       expect(gemini.detectAgents).toHaveBeenCalledWith({ processes: [processes[0], processes[2]] });
       expect(codex.detectAgents).toHaveBeenCalledWith({ processes: [processes[1]] });
       expect(pi.detectAgents).toHaveBeenCalledWith({ processes: [processes[0], processes[2]] });
       expect(claude.detectAgents).toHaveBeenCalledWith({ processes: [processes[3]] });
+    });
+
+    describe("candidate-only enrichment", () => {
+      const pidsArg = (args: readonly string[]) =>
+        args[args.indexOf("-p") + 1].split(",").map((pid) => parseInt(pid, 10));
+
+      function createExec(psLines: string[]) {
+        const exec = vi.fn<ProcessExec>(async (file, args) => {
+          if (file === "ps" && args.includes("-axo")) return psLines.join("\n");
+          if (file === "lsof")
+            return pidsArg(args)
+              .map((pid) => `p${pid}\nn/w/${pid}`)
+              .join("\n");
+          if (file === "ps") {
+            return pidsArg(args)
+              .map((pid) => `${pid} Wed Mar 18 23:18:01 2026`)
+              .join("\n");
+          }
+          throw new Error(`unexpected command: ${file}`);
+        });
+        const enriched = (kind: "lsof" | "lstart") =>
+          exec.mock.calls
+            .filter(([file, args]) =>
+              kind === "lsof" ? file === "lsof" : args.some((arg) => arg.includes("lstart=")),
+            )
+            .map(([, args]) => pidsArg(args));
+        return { exec, enriched };
+      }
+
+      const createAdapter = (
+        type: AgentType,
+        processNames: string[],
+        canHandle: (process: ProcessInfo) => boolean,
+      ) => ({
+        type,
+        processNames,
+        detectAgents: vi.fn(async () => []),
+        canHandle,
+        getConversation: () => [],
+        listSessions: async () => [],
+      });
+
+      const unrelatedNode = Array.from(
+        { length: 50 },
+        (_, index) => `${1000 + index} 1 ?? node /Applications/Tool${index}.app/helper.js`,
+      );
+
+      it("runs lsof and ps lstart only for PIDs some adapter can handle", async () => {
+        const { exec, enriched } = createExec([
+          ...unrelatedNode,
+          "200 1 s001 node /usr/local/bin/gemini",
+          "300 1 s002 node /usr/local/lib/pi.js",
+          "400 1 s003 codex exec --cd /repos/gemini",
+        ]);
+        const gemini = createAdapter("gemini_cli", ["node"], (p) => p.command.includes("gemini"));
+        const pi = createAdapter("pi", ["pi", "node"], (p) => p.command.includes("pi.js"));
+        const codex = createAdapter("codex", ["codex"], () => false);
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "candidate-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+        snapshotManager.registerAdapter(pi as AgentAdapter);
+        snapshotManager.registerAdapter(codex as AgentAdapter);
+
+        await snapshotManager.listAgents();
+
+        expect(enriched("lsof")).toEqual([[200, 300]]);
+        expect(enriched("lstart")).toEqual([[200, 300]]);
+        const geminiProcesses = gemini.detectAgents.mock.calls[0][0].processes as ProcessInfo[];
+        expect(geminiProcesses).toHaveLength(52);
+        expect(geminiProcesses.find((p) => p.pid === 200)).toMatchObject({ cwd: "/w/200" });
+        expect(geminiProcesses.find((p) => p.pid === 1000)).toMatchObject({ cwd: "" });
+      });
+
+      it("spawns only the base ps on a refresh with no candidate processes", async () => {
+        const { exec } = createExec(unrelatedNode);
+        const gemini = createAdapter("gemini_cli", ["node"], (p) => p.command.includes("gemini"));
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "no-candidate-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+
+        await snapshotManager.listAgents();
+        await snapshotManager.listAgents();
+
+        expect(exec).toHaveBeenCalledTimes(2);
+        for (const [file, args] of exec.mock.calls) {
+          expect(file).toBe("ps");
+          expect(args).toContain("-axo");
+        }
+      });
+
+      it("only checks canHandle for adapters whose executables match", async () => {
+        const { exec, enriched } = createExec(["200 1 s001 node /usr/local/bin/gemini"]);
+        const claude = createAdapter("claude", ["claude"], () => true);
+        const gemini = createAdapter("gemini_cli", ["node"], () => false);
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "scoped-candidate-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(claude as AgentAdapter);
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+
+        await snapshotManager.listAgents();
+
+        expect(enriched("lsof")).toEqual([]);
+      });
+
+      it("fetches start times once per PID across refreshes", async () => {
+        const { exec, enriched } = createExec([
+          ...unrelatedNode,
+          "200 1 s001 node /usr/local/bin/gemini",
+        ]);
+        const gemini = createAdapter("gemini_cli", ["node"], (p) => p.command.includes("gemini"));
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "cached-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+
+        await snapshotManager.listAgents();
+        await snapshotManager.listAgents();
+        await snapshotManager.listAgents();
+
+        expect(enriched("lstart")).toEqual([[200]]);
+        expect(enriched("lsof")).toEqual([[200], [200], [200]]);
+        const lastCall = gemini.detectAgents.mock.calls[2][0].processes as ProcessInfo[];
+        expect(lastCall.find((p) => p.pid === 200)?.startTime).toEqual(
+          new Date("Wed Mar 18 23:18:01 2026"),
+        );
+      });
     });
 
     it("does not pass a snapshot context to legacy adapters", async () => {

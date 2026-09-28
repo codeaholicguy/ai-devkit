@@ -19,15 +19,17 @@ import {
   type AgentRuntimeProvider,
   type RegistryEntry,
 } from "./utils/AgentRegistry.js";
-import { captureProcessSnapshot, filterByProcessNames } from "./utils/process.js";
+import {
+  captureProcessSnapshot,
+  filterByProcessNames,
+  type ProcessSnapshotCapture,
+} from "./utils/process.js";
 import {
   findMatchingHerdrPane,
   fetchHerdrAgentPanes,
   herdrPaneToRuntimeRef,
   type HerdrAgentPane,
 } from "./runtime/herdr/HerdrAgentDiscovery.js";
-
-type ProcessSnapshotCapture = (namePatterns: readonly string[]) => Promise<ProcessInfo[]>;
 
 export interface ListAgentsOptions {
   /**
@@ -169,7 +171,9 @@ export class AgentManager {
     let processes: readonly ProcessInfo[] = [];
     if (processNames.length > 0) {
       try {
-        processes = await this.captureSnapshot(processNames);
+        processes = await this.captureSnapshot(processNames, {
+          isCandidate: (process) => this.isCandidateProcess(adapters, process),
+        });
       } catch {
         processes = [];
       }
@@ -235,6 +239,23 @@ export class AgentManager {
 
     const sortKey: AgentSortKey = options?.sortBy ?? "status";
     return sortAgents(allAgents, sortKey);
+  }
+
+  /**
+   * Only processes some adapter would actually handle are worth enriching
+   * with cwd/start time. Broad matchers such as "node" otherwise pull in
+   * every Node process on the machine.
+   */
+  private isCandidateProcess(adapters: readonly AgentAdapter[], process: ProcessInfo): boolean {
+    return adapters.some((adapter) => {
+      if (!adapter.processNames) return false;
+      if (filterByProcessNames([process], adapter.processNames).length === 0) return false;
+      try {
+        return adapter.canHandle(process);
+      } catch {
+        return false;
+      }
+    });
   }
 
   private async resolveHerdrPanes(): Promise<readonly HerdrAgentPane[]> {
