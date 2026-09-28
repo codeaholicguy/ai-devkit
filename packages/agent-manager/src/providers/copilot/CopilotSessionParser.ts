@@ -1,6 +1,11 @@
 import * as path from "path";
 import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import {
+  IncrementalJsonlSummary,
+  reduceJsonlContent,
+  type JsonlSummaryReducer,
+} from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 
@@ -46,11 +51,17 @@ export interface CopilotSession {
   eventsFilePath: string;
 }
 
-interface CopilotEventSummary {
-  sessionId: string;
-  projectPath: string;
-  sessionStart: Date;
-  lastActive: Date;
+/**
+ * O(1) running summary of events.jsonl. Timestamps are epoch ms so cached
+ * state stays immutable; unset fields fall back to workspace.yaml metadata.
+ */
+interface CopilotEventState {
+  /** Number of lines that parsed as JSON. */
+  entryCount: number;
+  sessionId?: string;
+  projectPath?: string;
+  sessionStartMs?: number;
+  lastActiveMs?: number;
   firstUserMessage: string;
   lastText: string;
   lastEventType?: string;
@@ -77,39 +88,112 @@ export class CopilotSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
 
+  /**
+   * Fold one events.jsonl entry into the O(1) event summary. Mirrors the
+   * original whole-file pass: the latest valid timestamp and event type win,
+   * `session.start` overrides id/cwd/start, and user/assistant text is tracked.
+   */
+  private readonly eventReducer: JsonlSummaryReducer<CopilotEventState> = {
+    initial: () => ({ entryCount: 0, firstUserMessage: "", lastText: "" }),
+    reduce: (state, value) => {
+      if (value === undefined) return state;
+      const next: CopilotEventState = { ...state, entryCount: state.entryCount + 1 };
+      if (!value || typeof value !== "object") return next;
+
+      const entry = value as CopilotEventEntry;
+      const timestampMs = this.parseTimestamp(entry.timestamp)?.getTime();
+      if (timestampMs !== undefined) {
+        next.lastActiveMs = timestampMs;
+      }
+      if (entry.type) {
+        next.lastEventType = entry.type;
+      }
+
+      if (entry.type === "session.start") {
+        next.sessionId = entry.data?.sessionId || next.sessionId;
+        next.projectPath = entry.data?.context?.cwd || next.projectPath;
+        next.sessionStartMs =
+          this.parseTimestamp(entry.data?.startTime)?.getTime() ??
+          timestampMs ??
+          next.sessionStartMs;
+        return next;
+      }
+
+      const text = this.extractEventText(entry, false);
+      if (!text) return next;
+
+      if (!next.firstUserMessage && entry.type === "user.message") {
+        next.firstUserMessage = text;
+      }
+      if (entry.type === "user.message" || entry.type === "assistant.message") {
+        next.lastText = text;
+      }
+      return next;
+    },
+  };
+
+  private readonly eventCache = new IncrementalJsonlSummary(this.eventReducer);
+
   readSessionDir(sessionDir: string, fallbackSessionId: string): CopilotSession | null {
     const eventsFilePath = path.join(sessionDir, "events.jsonl");
+    const content = safeReadFile(eventsFilePath);
+    const events =
+      content === undefined
+        ? this.eventReducer.initial()
+        : reduceJsonlContent(this.eventReducer, content);
+    return this.toSession(sessionDir, fallbackSessionId, events);
+  }
+
+  /**
+   * Same result as `readSessionDir`, but events.jsonl is summarized through a
+   * per-instance incremental cache so repeated refreshes only parse appended
+   * bytes. Call `pruneSessionCache()` once per refresh.
+   */
+  readSessionDirIncremental(sessionDir: string, fallbackSessionId: string): CopilotSession | null {
+    const result = this.eventCache.read(path.join(sessionDir, "events.jsonl"));
+    return this.toSession(
+      sessionDir,
+      fallbackSessionId,
+      result?.state ?? this.eventReducer.initial(),
+    );
+  }
+
+  /** Evict cached event summaries for files not read since the previous prune. */
+  pruneSessionCache(): void {
+    this.eventCache.prune();
+  }
+
+  private toSession(
+    sessionDir: string,
+    fallbackSessionId: string,
+    events: CopilotEventState,
+  ): CopilotSession | null {
+    const eventsFilePath = path.join(sessionDir, "events.jsonl");
     const workspace = this.readWorkspaceMetadata(path.join(sessionDir, "workspace.yaml"));
-    const entries = this.readEventEntries(eventsFilePath);
-    if (entries.length === 0 && !this.hasWorkspaceMetadata(workspace)) {
+    if (events.entryCount === 0 && !this.hasWorkspaceMetadata(workspace)) {
       return null;
     }
 
     const fileStat = safeStat(eventsFilePath);
-    const sessionStart = workspace.createdAt || fileStat?.birthtime || new Date();
-    const eventSummary = this.buildSessionFromEntries(entries, {
-      sessionId: workspace.id || fallbackSessionId,
-      projectPath: workspace.cwd || "",
-      sessionStart,
-      lastActive: workspace.updatedAt || fileStat?.mtime || sessionStart,
-      firstUserMessage: "",
-      lastText: "",
-    });
+    const defaultStart = workspace.createdAt || fileStat?.birthtime || new Date();
+    const sessionStart =
+      events.sessionStartMs !== undefined ? new Date(events.sessionStartMs) : defaultStart;
+    const lastActive =
+      events.lastActiveMs !== undefined
+        ? new Date(events.lastActiveMs)
+        : workspace.updatedAt || fileStat?.mtime || defaultStart;
 
     const summary =
-      eventSummary.firstUserMessage ||
-      eventSummary.lastText ||
-      workspace.name ||
-      "Copilot session active";
+      events.firstUserMessage || events.lastText || workspace.name || "Copilot session active";
 
     return {
-      sessionId: eventSummary.sessionId,
-      projectPath: eventSummary.projectPath,
+      sessionId: events.sessionId || workspace.id || fallbackSessionId,
+      projectPath: events.projectPath || workspace.cwd || "",
       summary: this.truncate(summary, 120),
-      sessionStart: eventSummary.sessionStart,
-      lastActive: eventSummary.lastActive,
-      lastEventType: eventSummary.lastEventType,
-      firstUserMessage: eventSummary.firstUserMessage,
+      sessionStart,
+      lastActive,
+      lastEventType: events.lastEventType,
+      firstUserMessage: events.firstUserMessage,
       eventsFilePath,
     };
   }
@@ -170,48 +254,6 @@ export class CopilotSessionParser {
     }
 
     return AgentStatus.RUNNING;
-  }
-
-  private readEventEntries(eventsFilePath: string): CopilotEventEntry[] {
-    const content = safeReadFile(eventsFilePath);
-    return content === undefined ? [] : this.parseEventLines(content);
-  }
-
-  private buildSessionFromEntries(
-    entries: CopilotEventEntry[],
-    initial: CopilotEventSummary,
-  ): CopilotEventSummary {
-    const summary = { ...initial };
-    for (const entry of entries) {
-      const timestamp = this.parseTimestamp(entry.timestamp);
-      if (timestamp) {
-        summary.lastActive = timestamp;
-      }
-      if (entry.type) {
-        summary.lastEventType = entry.type;
-      }
-
-      if (entry.type === "session.start") {
-        summary.sessionId = entry.data?.sessionId || summary.sessionId;
-        summary.projectPath = entry.data?.context?.cwd || summary.projectPath;
-        summary.sessionStart =
-          this.parseTimestamp(entry.data?.startTime) || timestamp || summary.sessionStart;
-        continue;
-      }
-
-      const text = this.extractEventText(entry, false);
-      if (!text) continue;
-
-      if (!summary.firstUserMessage && entry.type === "user.message") {
-        summary.firstUserMessage = text;
-      }
-
-      if (entry.type === "user.message" || entry.type === "assistant.message") {
-        summary.lastText = text;
-      }
-    }
-
-    return summary;
   }
 
   private hasWorkspaceMetadata(workspace: CopilotWorkspace): boolean {
