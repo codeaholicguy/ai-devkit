@@ -211,6 +211,57 @@ describe("incremental transcript reads across listAgents() refreshes", () => {
     expect(summaryOf(agents, codexPid).summary).toContain("done");
   });
 
+  it("reads at most 5 MiB of a large transcript on a cold refresh, then only appends", async () => {
+    // ~12 MiB of history between the first and the latest turn
+    const history = jsonl(
+      Array.from({ length: 48 }, () => ({
+        type: "assistant",
+        timestamp: startTime.toISOString(),
+        message: { content: "h".repeat(256 * 1024) },
+      })),
+    );
+    const latest = new Date(startTime.getTime() + 60_000).toISOString();
+    fs.appendFileSync(
+      claudeFile,
+      history +
+        jsonl([{ type: "user", timestamp: latest, message: { content: "latest claude task" } }]),
+    );
+    fs.appendFileSync(
+      codexFile,
+      history +
+        jsonl([
+          {
+            type: "event_msg",
+            timestamp: latest,
+            payload: { type: "agent_message", message: "ok" },
+          },
+        ]),
+    );
+    resetReads();
+
+    const agents = await manager.listAgents();
+
+    const limit = 5 * 1024 * 1024;
+    expect(fs.statSync(claudeFile).size).toBeGreaterThan(2 * limit);
+    expect(bytesReadFrom(claudeFile)).toBeLessThanOrEqual(limit);
+    expect(bytesReadFrom(codexFile)).toBeLessThanOrEqual(limit);
+    expect(summaryOf(agents, claudePid)).toMatchObject({
+      sessionId: "11111111-2222-3333-4444-555555555555",
+      summary: expect.stringContaining("latest claude task"),
+    });
+    expect(summaryOf(agents, codexPid).summary).toContain("ok");
+
+    const append = jsonl([
+      { type: "user", timestamp: latest, message: { content: "follow-up after cold start" } },
+    ]);
+    fs.appendFileSync(claudeFile, append);
+    resetReads();
+
+    const refreshed = await manager.listAgents();
+    expect(bytesReadFrom(claudeFile)).toBe(Buffer.byteLength(append));
+    expect(summaryOf(refreshed, claudePid).summary).toContain("follow-up after cold start");
+  });
+
   it("evicts cache entries for transcripts absent from the latest refresh", async () => {
     await manager.listAgents();
     expect((claudeAdapter as any).parser.sessionCache.size).toBe(1);

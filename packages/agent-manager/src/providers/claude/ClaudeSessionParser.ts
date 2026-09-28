@@ -5,6 +5,7 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import {
   IncrementalJsonlSummary,
   reduceJsonlContent,
+  type JsonlSummaryBounds,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
@@ -63,6 +64,8 @@ export interface ClaudeSession {
  */
 interface ClaudeSummaryState {
   seenFirstLine: boolean;
+  /** A bounded cold start skipped the middle: later lines are not the session's first. */
+  pastHead?: boolean;
   sessionStartMs?: number;
   lastActiveMs?: number;
   lastCwd?: string;
@@ -84,6 +87,11 @@ interface ClaudeSummaryState {
  */
 const CONVERSATION_ENTRY_TYPES = new Set(["user", "assistant", "system", "progress", "thinking"]);
 
+export interface ClaudeSessionParserOptions {
+  /** Cold-start scan bounds for `readSessionIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
+}
+
 /**
  * Parses Claude Code session JSONL files into structured data.
  *
@@ -94,6 +102,14 @@ const CONVERSATION_ENTRY_TYPES = new Set(["user", "assistant", "system", "progre
 export class ClaudeSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
+
+  private readonly sessionCache: IncrementalJsonlSummary<ClaudeSummaryState>;
+
+  constructor(options: ClaudeSessionParserOptions = {}) {
+    this.sessionCache = new IncrementalJsonlSummary(this.summaryReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
 
   /**
    * Parse a session JSONL file into a ClaudeSession summary.
@@ -119,6 +135,10 @@ export class ClaudeSessionParser {
    * Same result as `readSession`, but backed by a per-instance incremental
    * cache so repeated refreshes only parse bytes appended since the last call.
    * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   *
+   * The first read of a large transcript is a bounded head + tail scan (see
+   * `summaryReducer.skip`); fields whose entries lie only in the skipped
+   * middle fall back to their defaults instead of forcing a full parse.
    */
   readSessionIncremental(filePath: string, projectPath: string): ClaudeSession | null {
     const result = this.sessionCache.read(filePath);
@@ -134,6 +154,11 @@ export class ClaudeSessionParser {
    * Fold one JSONL entry into the O(1) session summary. Mirrors the fields
    * `readSession` exposes: session start comes from the first line only;
    * everything else tracks the latest matching entry.
+   *
+   * `skip` (bounded cold start) keeps the head's session start and first user
+   * message and clears every "latest" field, so those come from the tail only:
+   * a first user message beyond the head stays undefined, and a last user
+   * message before the tail window stays undefined.
    */
   private readonly summaryReducer: JsonlSummaryReducer<ClaudeSummaryState> = {
     initial: () => ({ seenFirstLine: false, isInterrupted: false }),
@@ -174,7 +199,7 @@ export class ClaudeSessionParser {
           const text = this.extractUserMessageText(msgContent);
           if (text) {
             next.lastUserMessage = text;
-            if (!next.firstUserMessage) {
+            if (!next.firstUserMessage && !state.pastHead) {
               next.firstUserMessage = text;
             }
           }
@@ -185,9 +210,14 @@ export class ClaudeSessionParser {
 
       return next;
     },
+    skip: (state) => ({
+      seenFirstLine: true,
+      pastHead: true,
+      sessionStartMs: state.sessionStartMs,
+      firstUserMessage: state.firstUserMessage,
+      isInterrupted: false,
+    }),
   };
-
-  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
 
   private toSession(
     filePath: string,
