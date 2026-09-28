@@ -40,6 +40,8 @@ export class PiAdapter implements AgentAdapter {
   private readonly registry: AgentRegistry;
   private readonly parser: PiSessionParser;
   private readonly mapper: PiAgentMapper;
+  /** Kept across refreshes so live discovery can reuse its head and no-match caches. */
+  private readonly liveLocator: PiSessionLocator;
 
   constructor(registry: AgentRegistry = AgentRegistry.default()) {
     const homeDir = process.env.HOME || process.env.USERPROFILE || "";
@@ -49,6 +51,7 @@ export class PiAdapter implements AgentAdapter {
     this.registry = registry;
     this.parser = new PiSessionParser();
     this.mapper = new PiAgentMapper(this.parser);
+    this.liveLocator = this.createLocator();
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
@@ -56,12 +59,21 @@ export class PiAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const processes = await this.getPiProcesses(context);
     if (processes.length === 0) return [];
 
     const cacheResult = this.mapRegistryCache(processes);
     const trackerResult = this.mapTrackerMatches(cacheResult.fallback);
-    const locatorResult = this.createLocator().matchRunningProcesses(trackerResult.fallback);
+    const locatorResult = this.liveLocator.matchRunningProcesses(trackerResult.fallback);
     const legacyResult = this.mapLegacyMatches(locatorResult.legacyMatches);
     const unmatchedProcesses = this.findUnmatchedProcesses(
       locatorResult.fallback,
@@ -170,7 +182,7 @@ export class PiAdapter implements AgentAdapter {
     const fallback: ProcessInfo[] = [];
 
     for (const match of matches) {
-      const session = this.parser.readSession(match.filePath, match.process.cwd);
+      const session = this.parser.readSessionIncremental(match.filePath, match.process.cwd);
       if (session) {
         agents.push(this.mapper.mapSessionToAgent(session, match.process, match.filePath));
       } else {
