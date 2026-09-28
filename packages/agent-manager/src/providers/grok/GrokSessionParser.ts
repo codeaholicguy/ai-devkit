@@ -4,6 +4,7 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import {
   IncrementalJsonlSummary,
   reduceJsonlContent,
+  type JsonlSummaryBounds,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
@@ -23,6 +24,8 @@ interface ChatRecord {
  * prompt and the role of the last user/assistant turn, never the turns.
  */
 interface GrokSummaryState {
+  /** A bounded cold start skipped the middle: later lines are not the session's first. */
+  pastHead?: boolean;
   firstUserMessage?: string;
   lastUserMessage?: string;
   lastRole?: ConversationMessage["role"];
@@ -40,9 +43,22 @@ export interface GrokSession {
   lastRole?: ConversationMessage["role"];
 }
 
+export interface GrokSessionParserOptions {
+  /** Cold-start scan bounds for `readSessionIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
+}
+
 export class GrokSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
+
+  private readonly sessionCache: IncrementalJsonlSummary<GrokSummaryState>;
+
+  constructor(options: GrokSessionParserOptions = {}) {
+    this.sessionCache = new IncrementalJsonlSummary(this.summaryReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
 
   /**
    * Parse a session directory into a {@link GrokSession} from its
@@ -63,6 +79,10 @@ export class GrokSessionParser {
    * Same result as `readSession`, but backed by a per-instance incremental
    * cache so repeated refreshes only parse bytes appended since the last call.
    * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   *
+   * The first read of a large transcript is a bounded head + tail scan (see
+   * `summaryReducer.skip`); fields whose entries lie only in the skipped
+   * middle fall back to their defaults instead of forcing a full parse.
    */
   readSessionIncremental(sessionDir: string, defaultCwd: string): GrokSession | null {
     const chatPath = path.join(sessionDir, CHAT_HISTORY_FILE);
@@ -117,6 +137,12 @@ export class GrokSessionParser {
   /**
    * Fold one chat_history.jsonl entry into the O(1) summary. Uses the same
    * record rules as `getConversation` (see `toMessage`), minus system records.
+   *
+   * `skip` (bounded cold start) keeps the head's first user message and
+   * clears the last user message and last role, so those come from the tail
+   * only. A first user message beyond the head stays undefined rather than
+   * being filled from the tail; latest fields before the tail window stay
+   * undefined.
    */
   private readonly summaryReducer: JsonlSummaryReducer<GrokSummaryState> = {
     initial: () => ({}),
@@ -125,16 +151,17 @@ export class GrokSessionParser {
       if (!message) return state;
       if (message.role === "user") {
         return {
-          firstUserMessage: state.firstUserMessage ?? message.content,
+          ...state,
+          firstUserMessage:
+            state.firstUserMessage ?? (state.pastHead ? undefined : message.content),
           lastUserMessage: message.content,
           lastRole: "user",
         };
       }
       return { ...state, lastRole: message.role };
     },
+    skip: (state) => ({ pastHead: true, firstUserMessage: state.firstUserMessage }),
   };
-
-  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
 
   private toSession(
     sessionDir: string,

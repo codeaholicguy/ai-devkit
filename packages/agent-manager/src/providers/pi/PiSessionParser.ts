@@ -9,6 +9,7 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import {
   IncrementalJsonlSummary,
   reduceJsonlContent,
+  type JsonlSummaryBounds,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
@@ -62,6 +63,8 @@ export interface PiSessionHead {
  */
 interface PiSummaryState {
   entryCount: number;
+  /** A bounded cold start skipped the middle: later lines are not the session's first. */
+  pastHead?: boolean;
   sessionId?: string;
   projectPath?: string;
   firstTimestampMs?: number;
@@ -77,9 +80,22 @@ const IDLE_THRESHOLD_MINUTES = 5;
 export const PI_SESSION_HEAD_MAX_BYTES = 64 * 1024;
 const HEAD_CHUNK_BYTES = 4 * 1024;
 
+export interface PiSessionParserOptions {
+  /** Cold-start scan bounds for `readSessionIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
+}
+
 export class PiSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
+
+  private readonly sessionCache: IncrementalJsonlSummary<PiSummaryState>;
+
+  constructor(options: PiSessionParserOptions = {}) {
+    this.sessionCache = new IncrementalJsonlSummary(this.summaryReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
 
   readSession(filePath: string, fallbackCwd = ""): PiSession | null {
     const content = safeReadFile(filePath);
@@ -91,6 +107,10 @@ export class PiSessionParser {
    * Same result as `readSession`, but backed by a per-instance incremental
    * cache so repeated refreshes only parse bytes appended since the last call.
    * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   *
+   * The first read of a large transcript is a bounded head + tail scan (see
+   * `summaryReducer.skip`); fields whose entries lie only in the skipped
+   * middle fall back to their defaults instead of forcing a full parse.
    */
   readSessionIncremental(filePath: string, fallbackCwd = ""): PiSession | null {
     const result = this.sessionCache.read(filePath);
@@ -210,6 +230,14 @@ export class PiSessionParser {
    * Fold one JSONL entry into the O(1) session summary. Mirrors the previous
    * whole-file scan: id, cwd and start come from the first entry that has
    * them; last active, last user message and last role track the latest one.
+   *
+   * `skip` (bounded cold start) keeps the head's first-* fields (id, cwd,
+   * start, first user message) and clears the latest ones, so those come from
+   * the tail only. Tail entries never fill a first-* field: Pi message entries
+   * carry their own `id`, which must not become the session id. A first-*
+   * value beyond the head falls back like a missing one (filename id,
+   * `fallbackCwd`, file birthtime, no first user message); a latest value
+   * before the tail window stays unset (file mtime for last active).
    */
   private readonly summaryReducer: JsonlSummaryReducer<PiSummaryState> = {
     initial: () => ({ entryCount: 0 }),
@@ -218,12 +246,15 @@ export class PiSessionParser {
       if (!entry) return state;
 
       const next: PiSummaryState = { ...state, entryCount: state.entryCount + 1 };
-      next.sessionId ??= this.entrySessionId(entry);
-      next.projectPath ??= this.entryCwd(entry);
+      const inHead = !state.pastHead;
+      if (inHead) {
+        next.sessionId ??= this.entrySessionId(entry);
+        next.projectPath ??= this.entryCwd(entry);
+      }
 
       const timestamp = this.parseTimestamp(this.entryTimestamp(entry));
       if (timestamp) {
-        next.firstTimestampMs ??= timestamp.getTime();
+        if (inHead) next.firstTimestampMs ??= timestamp.getTime();
         next.lastTimestampMs = timestamp.getTime();
       }
 
@@ -232,14 +263,20 @@ export class PiSessionParser {
         next.lastRole = message.role;
         if (message.role === "user") {
           next.lastUserMessage = message.content;
-          next.firstUserMessage ??= message.content;
+          if (inHead) next.firstUserMessage ??= message.content;
         }
       }
       return next;
     },
+    skip: (state) => ({
+      entryCount: state.entryCount,
+      pastHead: true,
+      sessionId: state.sessionId,
+      projectPath: state.projectPath,
+      firstTimestampMs: state.firstTimestampMs,
+      firstUserMessage: state.firstUserMessage,
+    }),
   };
-
-  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
 
   private toSession(
     filePath: string,
@@ -248,7 +285,7 @@ export class PiSessionParser {
   ): PiSession | null {
     if (state.entryCount === 0) return null;
 
-    const needsStat = state.firstTimestampMs === undefined;
+    const needsStat = state.firstTimestampMs === undefined || state.lastTimestampMs === undefined;
     const stat = needsStat ? safeStat(filePath) : undefined;
     const sessionStart =
       state.firstTimestampMs !== undefined

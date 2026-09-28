@@ -4,6 +4,7 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import {
   IncrementalJsonlSummary,
   reduceJsonlContent,
+  type JsonlSummaryBounds,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
@@ -58,6 +59,8 @@ export interface CopilotSession {
 interface CopilotEventState {
   /** Number of lines that parsed as JSON. */
   entryCount: number;
+  /** A bounded cold start skipped the middle: later lines are not the session's first. */
+  pastHead?: boolean;
   sessionId?: string;
   projectPath?: string;
   sessionStartMs?: number;
@@ -84,14 +87,35 @@ const WAITING_EVENTS = new Set([
   "abort",
 ]);
 
+export interface CopilotSessionParserOptions {
+  /** Cold-start scan bounds for `readSessionDirIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
+}
+
 export class CopilotSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
+
+  private readonly eventCache: IncrementalJsonlSummary<CopilotEventState>;
+
+  constructor(options: CopilotSessionParserOptions = {}) {
+    this.eventCache = new IncrementalJsonlSummary(this.eventReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
 
   /**
    * Fold one events.jsonl entry into the O(1) event summary. Mirrors the
    * original whole-file pass: the latest valid timestamp and event type win,
    * `session.start` overrides id/cwd/start, and user/assistant text is tracked.
+   *
+   * `skip` (bounded cold start) keeps the head's first user message and clears
+   * the latest timestamp, event type and text, so those come from the tail
+   * only. Tail entries never fill the first user message: beyond the head it
+   * stays "" and the summary falls back to the tail's latest text. The
+   * `session.start` fields (id, cwd, start) are kept from the head and, as in
+   * a full scan, a later `session.start` in the tail still overrides them; one
+   * only in the skipped middle is not seen.
    */
   private readonly eventReducer: JsonlSummaryReducer<CopilotEventState> = {
     initial: () => ({ entryCount: 0, firstUserMessage: "", lastText: "" }),
@@ -122,7 +146,7 @@ export class CopilotSessionParser {
       const text = this.extractEventText(entry, false);
       if (!text) return next;
 
-      if (!next.firstUserMessage && entry.type === "user.message") {
+      if (!next.firstUserMessage && !state.pastHead && entry.type === "user.message") {
         next.firstUserMessage = text;
       }
       if (entry.type === "user.message" || entry.type === "assistant.message") {
@@ -130,9 +154,16 @@ export class CopilotSessionParser {
       }
       return next;
     },
+    skip: (state) => ({
+      entryCount: state.entryCount,
+      pastHead: true,
+      sessionId: state.sessionId,
+      projectPath: state.projectPath,
+      sessionStartMs: state.sessionStartMs,
+      firstUserMessage: state.firstUserMessage,
+      lastText: "",
+    }),
   };
-
-  private readonly eventCache = new IncrementalJsonlSummary(this.eventReducer);
 
   readSessionDir(sessionDir: string, fallbackSessionId: string): CopilotSession | null {
     const eventsFilePath = path.join(sessionDir, "events.jsonl");
@@ -148,6 +179,10 @@ export class CopilotSessionParser {
    * Same result as `readSessionDir`, but events.jsonl is summarized through a
    * per-instance incremental cache so repeated refreshes only parse appended
    * bytes. Call `pruneSessionCache()` once per refresh.
+   *
+   * The first read of a large events.jsonl is a bounded head + tail scan (see
+   * `eventReducer.skip`); fields whose entries lie only in the skipped middle
+   * fall back to their defaults instead of forcing a full parse.
    */
   readSessionDirIncremental(sessionDir: string, fallbackSessionId: string): CopilotSession | null {
     const result = this.eventCache.read(path.join(sessionDir, "events.jsonl"));
