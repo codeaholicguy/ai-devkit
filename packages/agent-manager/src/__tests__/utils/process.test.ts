@@ -13,8 +13,11 @@ import {
   findWrapperProcess,
   findWrapperProcessPids,
   captureProcessSnapshot,
+  createProcessSnapshotCapture,
   filterByProcessNames,
+  type ProcessExec,
 } from "../../utils/process.js";
+import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 
 vi.mock("child_process", () => ({
   execFile: vi.fn(),
@@ -76,6 +79,167 @@ describe("captureProcessSnapshot", () => {
       expect(options).toMatchObject({ encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 });
       expect(options).not.toHaveProperty("stdio");
     }
+  });
+});
+
+describe("createProcessSnapshotCapture", () => {
+  interface FakeProcess {
+    pid: number;
+    ppid?: number;
+    command: string;
+    cwd?: string;
+    lstart?: string;
+  }
+
+  function createFakeExec(initial: FakeProcess[]) {
+    let table = initial;
+    const calls: Array<{ file: string; args: readonly string[] }> = [];
+    const pidsArg = (args: readonly string[]) =>
+      args[args.indexOf("-p") + 1].split(",").map((pid) => parseInt(pid, 10));
+    const exec: ProcessExec = async (file, args) => {
+      calls.push({ file, args });
+      if (file === "ps" && args.includes("-axo")) {
+        return table.map((p) => `${p.pid} ${p.ppid ?? 1} s001 ${p.command}`).join("\n");
+      }
+      const requested = new Set(pidsArg(args));
+      const rows = table.filter((p) => requested.has(p.pid));
+      if (file === "lsof") {
+        return rows.map((p) => `p${p.pid}\nn${p.cwd ?? "/"}`).join("\n");
+      }
+      if (file === "ps" && args.some((arg) => arg.includes("lstart="))) {
+        return rows.map((p) => `${p.pid} ${p.lstart ?? "Wed Mar 18 23:18:01 2026"}`).join("\n");
+      }
+      throw new Error(`unexpected command: ${file} ${args.join(" ")}`);
+    };
+    return {
+      exec,
+      calls,
+      setTable: (next: FakeProcess[]) => {
+        table = next;
+      },
+      enrichedPids: (file: "lsof" | "lstart") =>
+        calls
+          .filter((call) =>
+            file === "lsof"
+              ? call.file === "lsof"
+              : call.args.some((arg) => arg.includes("lstart=")),
+          )
+          .map((call) => pidsArg(call.args)),
+    };
+  }
+
+  const isGemini = (process: ProcessInfo) => /gemini/.test(process.command);
+
+  it("enriches only candidate PIDs but still returns every name-matched process", async () => {
+    const fake = createFakeExec([
+      { pid: 10, command: "node /opt/gemini.js", cwd: "/g" },
+      { pid: 11, command: "node /opt/vite.js", cwd: "/v" },
+      { pid: 12, command: "/usr/bin/unrelated" },
+    ]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    const snapshot = await capture(["node"], { isCandidate: isGemini });
+
+    expect(snapshot.map((process) => process.pid)).toEqual([10, 11]);
+    expect(snapshot[0]).toMatchObject({ cwd: "/g", startTime: expect.any(Date) });
+    expect(snapshot[1].cwd).toBe("");
+    expect(snapshot[1].startTime).toBeUndefined();
+    expect(fake.enrichedPids("lsof")).toEqual([[10]]);
+    expect(fake.enrichedPids("lstart")).toEqual([[10]]);
+  });
+
+  it("enriches every name-matched process when no candidate predicate is given", async () => {
+    const fake = createFakeExec([
+      { pid: 10, command: "node /opt/gemini.js" },
+      { pid: 11, command: "node /opt/vite.js" },
+    ]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    await capture(["node"]);
+
+    expect(fake.enrichedPids("lsof")).toEqual([[10, 11]]);
+    expect(fake.enrichedPids("lstart")).toEqual([[10, 11]]);
+  });
+
+  it("spawns only the base ps when no process is a candidate", async () => {
+    const fake = createFakeExec([
+      { pid: 11, command: "node /opt/vite.js" },
+      { pid: 12, command: "node /opt/eslint-server.js" },
+    ]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    const snapshot = await capture(["node"], { isCandidate: isGemini });
+
+    expect(snapshot.map((process) => process.pid)).toEqual([11, 12]);
+    expect(fake.calls).toHaveLength(1);
+    expect(fake.calls[0].args).toContain("-axo");
+  });
+
+  it("fetches start times once per live PID across refreshes, but cwd every refresh", async () => {
+    const fake = createFakeExec([
+      { pid: 10, command: "node /opt/gemini.js", lstart: "Wed Mar 18 23:18:01 2026" },
+    ]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    const first = await capture(["node"], { isCandidate: isGemini });
+    fake.setTable([
+      { pid: 10, command: "node /opt/gemini.js", lstart: "Wed Mar 18 23:18:01 2026" },
+      { pid: 20, command: "node /opt/gemini.js", lstart: "Thu Mar 19 10:00:00 2026" },
+    ]);
+    const second = await capture(["node"], { isCandidate: isGemini });
+    const third = await capture(["node"], { isCandidate: isGemini });
+
+    expect(fake.enrichedPids("lstart")).toEqual([[10], [20]]);
+    expect(fake.enrichedPids("lsof")).toEqual([[10], [10, 20], [10, 20]]);
+    expect(second[0].startTime).toEqual(first[0].startTime);
+    expect(third.map((process) => process.startTime)).toEqual([
+      new Date("Wed Mar 18 23:18:01 2026"),
+      new Date("Thu Mar 19 10:00:00 2026"),
+    ]);
+  });
+
+  it("refetches the start time when a PID is reused by a different process", async () => {
+    const fake = createFakeExec([
+      { pid: 10, command: "node /opt/gemini.js", lstart: "Wed Mar 18 23:18:01 2026" },
+    ]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    await capture(["node"], { isCandidate: isGemini });
+    fake.setTable([
+      { pid: 10, command: "node /opt/gemini.js --resume", lstart: "Fri Mar 20 08:00:00 2026" },
+    ]);
+    const reused = await capture(["node"], { isCandidate: isGemini });
+
+    expect(fake.enrichedPids("lstart")).toEqual([[10], [10]]);
+    expect(reused[0].startTime).toEqual(new Date("Fri Mar 20 08:00:00 2026"));
+  });
+
+  it("forgets cached start times once the PID disappears", async () => {
+    const fake = createFakeExec([
+      { pid: 10, command: "node /opt/gemini.js", lstart: "Wed Mar 18 23:18:01 2026" },
+    ]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    await capture(["node"], { isCandidate: isGemini });
+    fake.setTable([]);
+    await capture(["node"], { isCandidate: isGemini });
+    fake.setTable([
+      { pid: 10, command: "node /opt/gemini.js", lstart: "Fri Mar 20 08:00:00 2026" },
+    ]);
+    const restarted = await capture(["node"], { isCandidate: isGemini });
+
+    expect(fake.enrichedPids("lstart")).toEqual([[10], [10]]);
+    expect(restarted[0].startTime).toEqual(new Date("Fri Mar 20 08:00:00 2026"));
+  });
+
+  it("retries start times that could not be read", async () => {
+    const fake = createFakeExec([{ pid: 10, command: "node /opt/gemini.js", lstart: "garbage" }]);
+    const capture = createProcessSnapshotCapture({ exec: fake.exec });
+
+    await capture(["node"], { isCandidate: isGemini });
+    await capture(["node"], { isCandidate: isGemini });
+
+    expect(fake.enrichedPids("lstart")).toEqual([[10], [10]]);
   });
 });
 
