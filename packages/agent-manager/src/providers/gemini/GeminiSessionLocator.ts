@@ -2,6 +2,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
+import { MATCH_TOLERANCE_MS } from "../../utils/matchingConstants.js";
 import type { SessionFile } from "../../utils/session.js";
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../../utils/session.js";
 import { fileSignature } from "./fileSignature.js";
@@ -46,12 +47,6 @@ const CHATS_DIR_NAME = "chats";
 const PROJECT_ROOT_MARKER = ".project_root";
 /** Legacy Gemini CLI temp dirs are named sha256(projectRoot). */
 const LEGACY_HASH_DIR_PATTERN = /^[0-9a-f]{64}$/;
-/**
- * Mirrors the process-start/session-birth tolerance in utils/matching.ts: a
- * file last modified before (earliest process start - tolerance) was also
- * born before it, so it can never be matched to any candidate process.
- */
-const MATCH_TOLERANCE_MS = 3 * 60 * 1000;
 /** Slack for coarse filesystem timestamp granularity. */
 const MTIME_SLACK_MS = 2 * 1000;
 /**
@@ -311,6 +306,8 @@ export class GeminiSessionLocator {
     }
     // No start times: nothing can be windowed safely, so scan every file.
     if (!Number.isFinite(earliestStartMs)) return Number.NEGATIVE_INFINITY;
+    // A file last modified before (earliest start - matcher tolerance) was also
+    // born before it, so it can never be matched to any candidate process.
     return earliestStartMs - MATCH_TOLERANCE_MS - MTIME_SLACK_MS;
   }
 

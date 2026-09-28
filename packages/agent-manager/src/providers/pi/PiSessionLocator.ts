@@ -2,6 +2,7 @@ import type * as fs from "fs";
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { matchProcessesToSessions, type MatchResult } from "../../utils/matching.js";
+import { MATCH_TOLERANCE_MS } from "../../utils/matchingConstants.js";
 import {
   isDirectory,
   isSafePathSegment,
@@ -24,12 +25,6 @@ export interface PiProcessSessionMatches {
   legacyMatches: MatchResult[];
   fallback: ProcessInfo[];
 }
-
-/**
- * Candidate window around a process start time. Must be at least the
- * matcher's birthtime tolerance (3 minutes) so no matchable file is skipped.
- */
-const START_WINDOW_MS = 3 * 60 * 1000;
 
 /** Pi session file names start with their creation time: `2026-06-10T08-58-20-754Z_<id>.jsonl`. */
 const FILE_NAME_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3})Z_/;
@@ -59,7 +54,8 @@ interface NoMatchEntry {
  *
  * Live discovery is scoped so its cost follows live agents, not Pi history:
  * - only the project dir Pi derives from each process cwd is listed;
- * - only files created within START_WINDOW_MS of a process start are opened,
+ * - only files created within MATCH_TOLERANCE_MS (the matcher's tolerance) of a
+ *   process start are opened,
  *   and only their head (<= 64 KiB) is read for session id and cwd;
  * - heads are cached per file (dev/ino/size) across calls on one instance;
  * - a project dir whose scan matched none of its processes is skipped until
@@ -187,8 +183,8 @@ export class PiSessionLocator {
         const createdMs = this.fileNameTimestamp(fileName);
         const inWindow = startTimes.some(
           (startMs) =>
-            Math.abs(startMs - birthtimeMs) <= START_WINDOW_MS ||
-            (createdMs !== undefined && Math.abs(startMs - createdMs) <= START_WINDOW_MS),
+            Math.abs(startMs - birthtimeMs) <= MATCH_TOLERANCE_MS ||
+            (createdMs !== undefined && Math.abs(startMs - createdMs) <= MATCH_TOLERANCE_MS),
         );
         if (!inWindow) continue;
 

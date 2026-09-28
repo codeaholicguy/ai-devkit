@@ -7,10 +7,10 @@
 
 import * as path from "path";
 import type { ProcessInfo } from "../adapters/AgentAdapter.js";
+import { MATCH_TOLERANCE_MS } from "./matchingConstants.js";
 import type { SessionFile } from "./session.js";
 
-/** Maximum allowed delta between process start time and session file birth time. */
-const TOLERANCE_MS = 3 * 60 * 1000; // 3 minutes
+export { MATCH_TOLERANCE_MS };
 
 /**
  * Result of matching a process to a session file.
@@ -55,7 +55,7 @@ export function matchProcessesToSessions(
       if (proc.cwd !== session.resolvedCwd) continue;
 
       const deltaMs = Math.abs(processStartMs - session.birthtimeMs);
-      if (deltaMs > TOLERANCE_MS) continue;
+      if (deltaMs > MATCH_TOLERANCE_MS) continue;
 
       candidates.push({ process: proc, session, deltaMs });
     }
