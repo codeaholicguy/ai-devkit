@@ -191,7 +191,11 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   private async getCodexProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
-    const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
+    const snapshot =
+      context?.processes ??
+      (await captureProcessSnapshot(this.processNames, {
+        isCandidate: (processInfo) => this.canHandle(processInfo),
+      }));
     const relevant = filterByProcessNames(snapshot, this.processNames);
     return relevant.filter((processInfo) => this.canHandle(processInfo));
   }

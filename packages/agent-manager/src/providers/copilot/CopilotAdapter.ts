@@ -63,7 +63,11 @@ export class CopilotAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
+    const snapshot =
+      context?.processes ??
+      (await captureProcessSnapshot(this.processNames, {
+        isCandidate: (process) => this.canHandle(process),
+      }));
     const relevant = filterByProcessNames(snapshot, this.processNames);
     const processes = relevant.filter((process) => this.canHandle(process));
     if (processes.length === 0) return [];
