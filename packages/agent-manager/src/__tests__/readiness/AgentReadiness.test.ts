@@ -137,6 +137,22 @@ describe("agent readiness", () => {
     expect(reports.opencode.integration).toBeUndefined();
   });
 
+  it("resolves agent executables from PATH directories containing spaces", async () => {
+    const spacedBin = "/Applications/Some App.app/Contents/Resources";
+    const codexPath = path.join(spacedBin, AGENTS.codex.command);
+    const { options } = fixture({
+      path: [spacedBin, "/usr/local/bin"].join(path.delimiter),
+      access: async (target) => {
+        if (target === codexPath || target.startsWith("/home/test")) return;
+        throw new Error("missing");
+      },
+    });
+
+    const report = await getAgentReadinessReport("codex", options);
+
+    expect(report.executable).toMatchObject({ command: "codex", path: codexPath, status: "pass" });
+  });
+
   it("parses Pi provider names without returning credential values", async () => {
     const { options } = fixture();
 

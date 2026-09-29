@@ -1,5 +1,6 @@
 import path from "path";
 import type { AgentType } from "../adapters/AgentAdapter.js";
+import { executablePath } from "./process.js";
 
 export type StartableAgentType = Extract<
   AgentType,
@@ -38,38 +39,79 @@ export const AGENTS: Record<StartableAgentType, AgentConfig> = {
   kiro: { command: "kiro-cli", matches: matchAnyBasename(["kiro-cli", "kiro"]) },
 };
 
+/**
+ * Matchers read a `ps` command line, where argv is joined with spaces. argv[0]
+ * is resolved with {@link executablePath} so executables installed under
+ * directories containing spaces are recognised, while arguments are never
+ * folded into the executable path unless that combined path is a real file.
+ *
+ * The filesystem is consulted only when a token after the first could be part
+ * of a matching argv[0]; commands whose first token already decides the match,
+ * or that contain no candidate token at all, are handled with string checks.
+ */
+const ABSOLUTE_PATH = /^(?:\/|[a-zA-Z]:[\\/])/;
+const PATH_SEPARATOR = /[\\/]/;
+
+function basenameOf(token: string): string {
+  return path.basename(token).toLowerCase();
+}
+
+function tokensOf(psCommand: string): string[] {
+  return psCommand.trim().split(/\s+/).filter(Boolean);
+}
+
+/** Split a command line into its resolved argv[0] and the remaining argument tokens. */
+function splitArgv0(psCommand: string): { argv0: string; args: string[] } {
+  const command = psCommand.trim();
+  const argv0 = executablePath(command);
+  return { argv0, args: tokensOf(command.slice(argv0.length)) };
+}
+
+/** Whether argv[0] may span several tokens, i.e. a later path-like token satisfies `test`. */
+function mayContinueArgv0(tokens: string[], test: (token: string) => boolean): boolean {
+  return (
+    ABSOLUTE_PATH.test(tokens[0]) &&
+    tokens.slice(1).some((token) => PATH_SEPARATOR.test(token) && test(token))
+  );
+}
+
 function matchArgv0(name: string): (psCommand: string) => boolean {
   const lower = name.toLowerCase();
+  const test = (token: string) => basenameOf(token) === lower;
   return (psCommand) => {
-    const token = psCommand.trim().split(/\s+/)[0];
-    return token ? path.basename(token).toLowerCase() === lower : false;
+    const tokens = tokensOf(psCommand);
+    if (tokens.length === 0) return false;
+    if (test(tokens[0])) return true;
+    return mayContinueArgv0(tokens, test) && test(executablePath(psCommand));
   };
 }
 
 function matchArgv0Name(name: string): (psCommand: string) => boolean {
   const lower = name.toLowerCase();
+  const test = (token: string) => token.toLowerCase().includes(lower);
   return (psCommand) => {
-    const token = psCommand.trim().split(/\s+/)[0];
-    return token ? token.toLowerCase().includes(lower) : false;
+    const tokens = tokensOf(psCommand);
+    if (tokens.length === 0) return false;
+    if (test(tokens[0])) return true;
+    return mayContinueArgv0(tokens, test) && test(executablePath(psCommand));
   };
 }
 
 function matchAnyToken(name: string): (psCommand: string) => boolean {
-  const lower = name.toLowerCase();
-  return (psCommand) => {
-    for (const token of psCommand.trim().split(/\s+/)) {
-      if (path.basename(token).toLowerCase() === lower) return true;
-    }
-    return false;
-  };
+  return matchAnyBasename([name]);
 }
 
 function matchAnyBasename(names: string[]): (psCommand: string) => boolean {
   const lowers = new Set(names.map((name) => name.toLowerCase()));
+  const test = (token: string) => lowers.has(basenameOf(token));
   return (psCommand) => {
-    for (const token of psCommand.trim().split(/\s+/)) {
-      if (lowers.has(path.basename(token).toLowerCase())) return true;
-    }
-    return false;
+    const tokens = tokensOf(psCommand);
+    if (tokens.length === 0) return false;
+    if (test(tokens[0])) return true;
+    if (!tokens.slice(1).some(test)) return false;
+    if (!ABSOLUTE_PATH.test(tokens[0])) return true;
+
+    const { argv0, args } = splitArgv0(psCommand);
+    return test(argv0) || args.some(test);
   };
 }

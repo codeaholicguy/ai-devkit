@@ -1,3 +1,6 @@
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import {
   AgentNameInUseError,
   AgentPidPollTimeoutError,
@@ -449,6 +452,33 @@ describe("startAgent", () => {
     expect(err).toBeInstanceOf(AgentNameInUseError);
     expect(err.pid).toBe(999);
     expect(tmux.createSession).not.toHaveBeenCalled();
+  });
+
+  it("detects the agent PID when the agent is installed under a path containing spaces", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "managed-runtime-spaces-"));
+    try {
+      const codexPath = path.join(root, "Applications/Some App.app/Contents/Resources/codex");
+      fs.mkdirSync(path.dirname(codexPath), { recursive: true });
+      fs.writeFileSync(codexPath, "");
+      const processTree = [
+        { pid: 100, command: "-zsh" },
+        { pid: 200, command: `${codexPath} --sandbox workspace-write` },
+        { pid: 300, command: "/usr/local/bin/node /opt/mcp/server.js" },
+      ];
+      const findAgentPid = vi.fn(
+        async (_session: string, matches: (psCommand: string) => boolean) =>
+          processTree.filter((proc) => matches(proc.command)).at(-1)?.pid ?? null,
+      );
+      const tmux = makeTmux({ findAgentPid } as Partial<TmuxManager>);
+      const registry = makeRegistry();
+
+      const entry = await startAgent({ ...startOpts, type: "codex" }, { tmux, registry });
+
+      expect(tmux.sendKeys).toHaveBeenCalledWith("agent1", "codex");
+      expect(entry).toMatchObject({ type: "codex", pid: 200 });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it("replaces orphan tmux session and calls onWarning", async () => {
