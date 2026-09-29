@@ -109,12 +109,6 @@ export async function resolveOpenAiCredential(
   throw new Error(MISSING_API_KEY_MESSAGE);
 }
 
-export async function resolveOpenAiApiKey(options: OpenAiCredentialOptions = {}): Promise<string> {
-  const credential = await resolveOpenAiCredential(options);
-  if (credential.kind === "platform") return credential.key;
-  throw new Error(MISSING_API_KEY_MESSAGE);
-}
-
 function bucketTokens(value: unknown): number {
   const results = Array.isArray(value) ? value : [];
   return results.reduce(

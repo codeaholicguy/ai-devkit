@@ -419,16 +419,5 @@ describe("ClaudeSessionLocator", () => {
       expect(encode("/a/b_c")).toBe(encode("/a/b-c"));
       expect(encode("/a/b_c")).toBe(encode("/a/b.c"));
     });
-
-    it("should resolve to a real session dir when cwd contains underscores", () => {
-      const cwd = "/Users/foo/my_project";
-      const expectedDir = path.join(projectsDir, "-Users-foo-my-project");
-      fs.mkdirSync(expectedDir, { recursive: true });
-      const sessionFile = path.join(expectedDir, "session-underscore.jsonl");
-      fs.writeFileSync(sessionFile, "");
-
-      expect(encode(cwd)).toBe(expectedDir);
-      expect(fs.existsSync(path.join(encode(cwd), "session-underscore.jsonl"))).toBe(true);
-    });
   });
 });

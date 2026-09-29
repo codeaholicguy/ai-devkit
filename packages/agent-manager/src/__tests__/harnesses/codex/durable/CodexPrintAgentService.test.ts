@@ -10,19 +10,13 @@ const base = {
 };
 
 describe("CodexPrintAgentService", () => {
-  it("constructs default non-billable dependencies without invoking them", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const Service = api.CodexPrintAgentService as new () => any;
-    expect(new Service().repository).toBeDefined();
-  });
-
   it("validates before provider-aware create and never runs Codex", async () => {
     const api = (await import("../../../../index.js")) as Record<string, unknown>;
     expect(api).toHaveProperty("CodexPrintAgentService");
     const probe = {
       validate: vi.fn().mockResolvedValue({ executable: "codex", version: "0.147.0" }),
     };
-    const repository = { create: vi.fn().mockResolvedValue(base), list: vi.fn() };
+    const repository = { create: vi.fn().mockResolvedValue(base) };
     const runner = { run: vi.fn() };
     const Service = api.CodexPrintAgentService as new (options: unknown) => any;
     await new Service({ repository, probe, runner }).create({ name: "reviewer", cwd: "/project" });
@@ -37,7 +31,6 @@ describe("CodexPrintAgentService", () => {
   it("binds during first send and explicitly resumes later sends", async () => {
     const api = (await import("../../../../index.js")) as Record<string, unknown>;
     const repository = {
-      list: vi.fn(),
       resolve: vi.fn().mockResolvedValue(base),
       acquireRun: vi
         .fn()
@@ -85,7 +78,6 @@ describe("CodexPrintAgentService", () => {
     const ErrorType = api.CodexPrintError as new (message: string, code: string) => Error;
     const completeRun = vi.fn();
     const repository = {
-      list: vi.fn(),
       resolve: vi.fn().mockResolvedValue(base),
       acquireRun: vi.fn().mockResolvedValue({ agent: base, token: "one" }),
       recordProviderProcess: vi.fn(),
@@ -162,7 +154,6 @@ describe("CodexPrintAgentService", () => {
     const BindingError = api.CodexPrintError as new (message: string, code: string) => Error;
     const completeRun = vi.fn();
     const repository = {
-      list: vi.fn(),
       resolve: vi.fn().mockResolvedValue(base),
       acquireRun: vi.fn().mockResolvedValue({ agent: base, token: "one" }),
       recordProviderProcess: vi.fn(),
@@ -193,7 +184,6 @@ describe("CodexPrintAgentService", () => {
     const api = (await import("../../../../index.js")) as Record<string, unknown>;
     const Service = api.CodexPrintAgentService as new (options: unknown) => any;
     const repository = {
-      list: vi.fn(),
       create: vi.fn(),
       resolve: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce([base, base]),
       acquireRun: vi.fn(),

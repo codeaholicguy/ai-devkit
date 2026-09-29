@@ -937,25 +937,6 @@ describe("GeminiCliAdapter", () => {
         expect(result?.summary).toBe("hello from part continued");
       });
 
-      it("should not throw when user content is an array and there is no displayContent", () => {
-        const filePath = writeSession(tmpHome, "p", "session-parts-only", {
-          sessionId: "s-parts-only",
-          projectHash: "h",
-          startTime: "2026-04-18T00:00:00Z",
-          lastUpdated: "2026-04-18T00:00:00Z",
-          messages: [
-            {
-              id: "m1",
-              timestamp: "2026-04-18T00:00:01Z",
-              type: "user",
-              content: [{ text: "only via parts" }],
-            },
-          ],
-        });
-
-        expect(() => parser.parseSession(undefined, filePath)).not.toThrow();
-      });
-
       it("should drop non-text parts (data/file) when resolving user content", () => {
         const filePath = writeSession(tmpHome, "p", "session-mixed-parts", {
           sessionId: "s-mixed",

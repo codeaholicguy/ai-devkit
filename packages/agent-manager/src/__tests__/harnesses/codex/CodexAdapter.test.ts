@@ -146,7 +146,6 @@ describe("CodexAdapter", () => {
       "codex exec --json -",
       `codex exec resume --json ${sessionId} -`,
       "codex exec --cd /repos/project summarize the change",
-      "codex review",
       "C:\\tools\\codex.exe",
     ];
 

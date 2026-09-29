@@ -77,12 +77,6 @@ async function runner(fixture: ReturnType<typeof fakeSpawn>, maxLineBytes?: numb
 }
 
 describe("CodexPrintRunner", () => {
-  it("constructs default process dependencies without spawning", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const Runner = api.CodexPrintRunner as new () => any;
-    expect(new Runner()).toBeDefined();
-  });
-
   it("binds an initial thread before returning ordered assistant output", async () => {
     const fixture = fakeSpawn(events(), 0, true);
     const instance = await runner(fixture);

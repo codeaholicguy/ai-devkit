@@ -1181,7 +1181,6 @@ describe("ClaudeCodeAdapter", () => {
 
     beforeEach(() => {
       tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "claude-test-"));
-      (adapter as any).projectsDir = path.join(tmpDir, "projects");
     });
 
     afterEach(() => {
