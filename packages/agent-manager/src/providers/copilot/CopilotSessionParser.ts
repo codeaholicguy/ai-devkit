@@ -1,6 +1,7 @@
 import * as path from "path";
-import type { ConversationMessage } from "../../adapters/AgentAdapter.js";
+import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 
 interface CopilotEventEntry {
@@ -73,6 +74,9 @@ const WAITING_EVENTS = new Set([
 ]);
 
 export class CopilotSessionParser {
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
+
   readSessionDir(sessionDir: string, fallbackSessionId: string): CopilotSession | null {
     const eventsFilePath = path.join(sessionDir, "events.jsonl");
     const workspace = this.readWorkspaceMetadata(path.join(sessionDir, "workspace.yaml"));
@@ -110,28 +114,48 @@ export class CopilotSessionParser {
     };
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     const verbose = options?.verbose ?? false;
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      return this.tailReader.read(
+        sessionFilePath,
+        tail,
+        {
+          parseLine: (line) => {
+            const entry = this.parseEventLine(line);
+            return entry ? this.eventToMessage(entry, verbose) : null;
+          },
+        },
+        String(verbose),
+      );
+    }
+
     const content = safeReadFile(sessionFilePath);
     if (content === undefined) return [];
 
     const messages: ConversationMessage[] = [];
 
     for (const entry of this.parseEventLines(content)) {
-      const role = this.roleForEvent(entry.type, verbose);
-      if (!role) continue;
-
-      const text = this.extractEventText(entry, verbose);
-      if (!text) continue;
-
-      messages.push({
-        role,
-        content: text,
-        timestamp: entry.timestamp,
-      });
+      const message = this.eventToMessage(entry, verbose);
+      if (message) messages.push(message);
     }
 
     return messages;
+  }
+
+  private eventToMessage(entry: CopilotEventEntry, verbose: boolean): ConversationMessage | null {
+    const role = this.roleForEvent(entry.type, verbose);
+    if (!role) return null;
+
+    const text = this.extractEventText(entry, verbose);
+    if (!text) return null;
+
+    return {
+      role,
+      content: text,
+      timestamp: entry.timestamp,
+    };
   }
 
   determineStatus(session: CopilotSession): AgentStatus {
@@ -235,16 +259,21 @@ export class CopilotSessionParser {
   private parseEventLines(content: string): CopilotEventEntry[] {
     const entries: CopilotEventEntry[] = [];
     for (const line of content.trim().split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-
-      try {
-        entries.push(JSON.parse(trimmed) as CopilotEventEntry);
-      } catch {
-        continue;
-      }
+      const entry = this.parseEventLine(line);
+      if (entry) entries.push(entry);
     }
     return entries;
+  }
+
+  private parseEventLine(line: string): CopilotEventEntry | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+
+    try {
+      return JSON.parse(trimmed) as CopilotEventEntry;
+    } catch {
+      return null;
+    }
   }
 
   private roleForEvent(

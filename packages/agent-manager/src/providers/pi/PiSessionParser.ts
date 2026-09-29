@@ -1,6 +1,11 @@
 import * as path from "path";
-import type { ConversationMessage, SessionSummary } from "../../adapters/AgentAdapter.js";
+import type {
+  ConversationMessage,
+  ConversationOptions,
+  SessionSummary,
+} from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 
 export interface PiSession {
@@ -35,6 +40,9 @@ type PiRecord = Record<string, unknown>;
 const IDLE_THRESHOLD_MINUTES = 5;
 
 export class PiSessionParser {
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
+
   readSession(filePath: string, fallbackCwd = ""): PiSession | null {
     const entries = this.readJsonl(filePath);
     if (entries.length === 0) return null;
@@ -50,8 +58,22 @@ export class PiSessionParser {
     return AgentStatus.RUNNING;
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     const includeSystem = options?.verbose ?? false;
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      return this.tailReader.read(
+        sessionFilePath,
+        tail,
+        {
+          parseLine: (line) => {
+            const entry = this.parseJsonlLine(line);
+            return entry ? this.entryToMessage(entry, includeSystem) : null;
+          },
+        },
+        String(includeSystem),
+      );
+    }
     return this.entriesToMessages(this.readJsonl(sessionFilePath), includeSystem);
   }
 
@@ -107,18 +129,24 @@ export class PiSessionParser {
 
     const entries: PiLine[] = [];
     for (const line of content.split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-          entries.push(parsed as PiLine);
-        }
-      } catch {
-        continue;
-      }
+      const entry = this.parseJsonlLine(line);
+      if (entry) entries.push(entry);
     }
     return entries;
+  }
+
+  private parseJsonlLine(line: string): PiLine | null {
+    const trimmed = line.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as PiLine;
+      }
+    } catch {
+      return null;
+    }
+    return null;
   }
 
   private entriesToMessages(entries: PiLine[], includeSystem: boolean): ConversationMessage[] {

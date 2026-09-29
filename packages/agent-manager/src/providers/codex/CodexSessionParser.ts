@@ -1,6 +1,11 @@
 import * as fs from "fs";
-import type { ConversationMessage, SessionSummary } from "../../adapters/AgentAdapter.js";
+import type {
+  ConversationMessage,
+  ConversationOptions,
+  SessionSummary,
+} from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { JsonlTailReader, normalizeTail, type JsonlTailSource } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 import {
   IncrementalJsonlSummary,
@@ -57,9 +62,20 @@ interface CodexSummaryState {
   summary?: string;
 }
 
+/** A candidate conversation message plus what is needed to de-duplicate mirrors. */
+interface CodexConversationItem {
+  entryType?: string;
+  mirrorKey: string | null;
+  message: ConversationMessage;
+}
+
 const IDLE_THRESHOLD_MINUTES = 5;
+const MIRROR_OVERSCAN = 8;
 
 export class CodexSessionParser {
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
+
   readSession(filePath: string, cachedContent?: string): CodexSession | null {
     let content: string;
     if (cachedContent !== undefined) {
@@ -169,45 +185,66 @@ export class CodexSessionParser {
     return AgentStatus.RUNNING;
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     const verbose = options?.verbose ?? false;
+    const source: JsonlTailSource<CodexConversationItem> = {
+      parseLine: (line) => this.lineToConversationItem(line, verbose),
+      finalize: (items) => this.dedupeMirroredMessages(items),
+    };
+
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      // Mirrored pairs sit next to each other, so a few extra messages of
+      // look-behind keep de-duplication exact for the returned tail.
+      return this.tailReader.read(sessionFilePath, tail, source, String(verbose), MIRROR_OVERSCAN);
+    }
 
     const content = safeReadFile(sessionFilePath);
     if (content === undefined) return [];
 
-    const lines = content.trim().split("\n");
-    const entries: CodexEventEntry[] = [];
-    const messages: ConversationMessage[] = [];
-
-    for (const line of lines) {
-      try {
-        entries.push(JSON.parse(line));
-      } catch {
-        continue;
-      }
+    const items: CodexConversationItem[] = [];
+    for (const line of content.trim().split("\n")) {
+      const item = source.parseLine(line);
+      if (item) items.push(item);
     }
 
+    return this.dedupeMirroredMessages(items);
+  }
+
+  private lineToConversationItem(line: string, verbose: boolean): CodexConversationItem | null {
+    let entry: CodexEventEntry;
+    try {
+      entry = JSON.parse(line);
+    } catch {
+      return null;
+    }
+
+    const message = this.toConversationMessage(entry, verbose);
+    if (!message) return null;
+
+    return { entryType: entry.type, mirrorKey: this.mirroredMessageKey(entry, message), message };
+  }
+
+  /** Drop event_msg messages mirrored by a response_item with the same turn/role/content. */
+  private dedupeMirroredMessages(items: CodexConversationItem[]): ConversationMessage[] {
     const responseItemMirrorKeys = new Set<string>();
-    for (const entry of entries) {
-      if (entry.type !== "response_item") continue;
-
-      const message = this.toConversationMessage(entry, verbose);
-      const mirrorKey = message ? this.mirroredMessageKey(entry, message) : null;
-      if (mirrorKey) responseItemMirrorKeys.add(mirrorKey);
+    for (const item of items) {
+      if (item.entryType === "response_item" && item.mirrorKey) {
+        responseItemMirrorKeys.add(item.mirrorKey);
+      }
     }
 
-    for (const entry of entries) {
-      const message = this.toConversationMessage(entry, verbose);
-      if (!message) continue;
-
-      const mirrorKey = this.mirroredMessageKey(entry, message);
-      if (entry.type === "event_msg" && mirrorKey && responseItemMirrorKeys.has(mirrorKey)) {
+    const messages: ConversationMessage[] = [];
+    for (const item of items) {
+      if (
+        item.entryType === "event_msg" &&
+        item.mirrorKey &&
+        responseItemMirrorKeys.has(item.mirrorKey)
+      ) {
         continue;
       }
-
-      messages.push(message);
+      messages.push(item.message);
     }
-
     return messages;
   }
 

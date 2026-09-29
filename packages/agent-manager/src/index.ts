@@ -48,6 +48,7 @@ export type {
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
+  ConversationOptions,
   SessionSummary,
   ListSessionsOptions,
   AgentDetectionContext,

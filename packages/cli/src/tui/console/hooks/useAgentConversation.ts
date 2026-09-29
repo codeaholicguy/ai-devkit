@@ -1,6 +1,11 @@
 import fs from "fs";
 import { useEffect, useRef, useState } from "react";
-import type { AgentInfo, AgentManager, ConversationMessage } from "@ai-devkit/agent-manager";
+import type {
+  AgentAdapter,
+  AgentInfo,
+  AgentManager,
+  ConversationMessage,
+} from "@ai-devkit/agent-manager";
 
 export interface ConversationFetchError {
   kind: "no-session-file" | "no-adapter" | "parse-error" | "agent-not-found";
@@ -58,6 +63,23 @@ export function cacheSet(key: string, entry: CacheEntry): void {
     conversationCache.delete(conversationCache.keys().next().value!);
   }
   conversationCache.set(key, entry);
+}
+
+/**
+ * Read the preview conversation. Passing `tail` lets JSONL adapters read only
+ * the end of the transcript (and only appended bytes on later polls); the
+ * slice stays as a guard for adapters that ignore the option.
+ */
+export function readPreviewConversation(
+  adapter: Pick<AgentAdapter, "getConversation">,
+  sessionFilePath: string,
+  tail: number,
+): ConversationMessage[] {
+  const conversation = adapter.getConversation(sessionFilePath, {
+    verbose: false,
+    ...(tail > 0 ? { tail } : {}),
+  });
+  return tail > 0 && conversation.length > tail ? conversation.slice(-tail) : conversation;
 }
 
 export function useAgentConversation({
@@ -151,11 +173,9 @@ export function useAgentConversation({
           return;
         }
 
-        const conversation = adapter.getConversation(agent.sessionFilePath, { verbose: false });
+        const sliced = readPreviewConversation(adapter, agent.sessionFilePath, tail);
         if (token !== runTokenRef.current || !mountedRef.current) return;
 
-        const sliced =
-          tail > 0 && conversation.length > tail ? conversation.slice(-tail) : conversation;
         if (mtime !== null) {
           cacheSet(agent.sessionFilePath, { mtime, messages: sliced });
         }

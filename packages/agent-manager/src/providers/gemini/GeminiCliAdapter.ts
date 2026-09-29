@@ -15,6 +15,7 @@ import type {
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
+  ConversationOptions,
   SessionSummary,
   ListSessionsOptions,
   AgentDetectionContext,
@@ -91,7 +92,7 @@ export class GeminiCliAdapter implements AgentAdapter {
     return this.deduplicateSessionAgents([...cachedAgents, ...agents]);
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     return this.parser.getConversation(sessionFilePath, options);
   }
 

@@ -5,11 +5,13 @@ import type {
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
+  ConversationOptions,
   SessionSummary,
   ListSessionsOptions,
 } from "./AgentAdapter.js";
 import { AgentStatus } from "./AgentAdapter.js";
 import { captureProcessSnapshot, filterByProcessNames } from "../utils/process.js";
+import { JsonlTailReader, normalizeTail } from "../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../utils/session.js";
 import { generateAgentName } from "../utils/matching.js";
 
@@ -74,6 +76,8 @@ export class AntigravityCliAdapter implements AgentAdapter {
   readonly processNames = ["agy"] as const;
 
   private base: string;
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
 
   constructor() {
     // ANTIGRAVITY_CLI_HOME overrides the ~/.gemini/antigravity-cli base dir.
@@ -178,11 +182,29 @@ export class AntigravityCliAdapter implements AgentAdapter {
     };
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
-    return this.parseTranscript(
-      this.resolveTranscriptPath(sessionFilePath),
-      options?.verbose ?? false,
-    ).messages;
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
+    const transcriptPath = this.resolveTranscriptPath(sessionFilePath);
+    const verbose = options?.verbose ?? false;
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      return this.tailReader.read(
+        transcriptPath,
+        tail,
+        {
+          parseLine: (line) => {
+            let record: TranscriptRecord;
+            try {
+              record = JSON.parse(line);
+            } catch {
+              return null;
+            }
+            return this.recordToMessage(record, verbose);
+          },
+        },
+        String(verbose),
+      );
+    }
+    return this.parseTranscript(transcriptPath, verbose).messages;
   }
 
   async listSessions(opts?: ListSessionsOptions): Promise<SessionSummary[]> {
@@ -285,25 +307,10 @@ export class AntigravityCliAdapter implements AgentAdapter {
       const at = this.parseTimestamp(record.created_at);
       if (at && (!lastActive || at.getTime() > lastActive.getTime())) lastActive = at;
 
-      const text = this.extractText(record.content);
-      if (record.type === "USER_INPUT") {
-        const request = this.extractUserRequest(text);
-        if (request === null) continue; // not a real prompt
-        messages.push({ role: "user", content: request });
-        lastRole = "user";
-      } else if (record.type === "PLANNER_RESPONSE") {
-        // The model's user-facing reply. Other MODEL records (tool calls
-        // such as RUN_COMMAND, empty planning steps) are execution detail,
-        // not conversation, so they are excluded from the normal view.
-        if (!text) continue;
-        messages.push({ role: "assistant", content: text });
-        lastRole = "assistant";
-      } else if (verbose) {
-        // Tool calls (MODEL/RUN_COMMAND, ...) and SYSTEM records surface
-        // only in verbose mode.
-        if (!text) continue;
-        messages.push({ role: "system", content: text });
-      }
+      const message = this.recordToMessage(record, verbose);
+      if (!message) continue;
+      messages.push(message);
+      if (message.role !== "system") lastRole = message.role;
     }
 
     const userTurns = messages.filter((m) => m.role === "user");
@@ -314,6 +321,28 @@ export class AntigravityCliAdapter implements AgentAdapter {
       lastRole,
       lastActive,
     };
+  }
+
+  /** Convert one transcript record into a message, or null when it is not one. */
+  private recordToMessage(record: TranscriptRecord, verbose: boolean): ConversationMessage | null {
+    const text = this.extractText(record.content);
+    if (record.type === "USER_INPUT") {
+      const request = this.extractUserRequest(text);
+      if (request === null) return null; // not a real prompt
+      return { role: "user", content: request };
+    }
+    if (record.type === "PLANNER_RESPONSE") {
+      // The model's user-facing reply. Other MODEL records (tool calls
+      // such as RUN_COMMAND, empty planning steps) are execution detail,
+      // not conversation, so they are excluded from the normal view.
+      return text ? { role: "assistant", content: text } : null;
+    }
+    if (verbose) {
+      // Tool calls (MODEL/RUN_COMMAND, ...) and SYSTEM records surface
+      // only in verbose mode.
+      return text ? { role: "system", content: text } : null;
+    }
+    return null;
   }
 
   /** Flatten a transcript record's content (string or text-block array) to text. */
