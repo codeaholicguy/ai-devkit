@@ -745,7 +745,7 @@ describe("ClaudeCodeAdapter", () => {
       (adapter as any).projectsDir = projectsDir;
 
       // Simulate JSONL disappearing between existence check and read
-      vi.spyOn((adapter as any).parser, "readSession").mockReturnValueOnce(null);
+      vi.spyOn((adapter as any).parser, "readSessionIncremental").mockReturnValueOnce(null);
 
       const agents = await adapter.detectAgents();
 
@@ -795,7 +795,7 @@ describe("ClaudeCodeAdapter", () => {
       ]);
 
       // Simulate JSONL disappearing between match and read
-      vi.spyOn((adapter as any).parser, "readSession").mockReturnValueOnce(null);
+      vi.spyOn((adapter as any).parser, "readSessionIncremental").mockReturnValueOnce(null);
 
       const agents = await adapter.detectAgents();
 

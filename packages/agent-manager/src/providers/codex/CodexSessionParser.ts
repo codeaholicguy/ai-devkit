@@ -2,6 +2,11 @@ import * as fs from "fs";
 import type { ConversationMessage, SessionSummary } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
+import {
+  IncrementalJsonlSummary,
+  reduceJsonlContent,
+  type JsonlSummaryReducer,
+} from "../../utils/IncrementalJsonlSummary.js";
 
 export interface CodexEventEntry {
   timestamp?: string;
@@ -41,6 +46,17 @@ export interface CodexSession {
   lastPayloadType?: string;
 }
 
+/** O(1) running summary folded from session entries; `toSession` builds a `CodexSession`. */
+interface CodexSummaryState {
+  seenFirstLine: boolean;
+  /** Set only when the first line is a valid `session_meta` entry. */
+  meta?: { id: string; cwd?: string; timestamp?: string };
+  lastEntryTimestamp?: string;
+  lastPayloadType?: string;
+  /** Truncated text of the last entry with displayable content. */
+  summary?: string;
+}
+
 const IDLE_THRESHOLD_MINUTES = 5;
 
 export class CodexSessionParser {
@@ -56,45 +72,81 @@ export class CodexSessionParser {
       }
     }
 
-    const allLines = content.trim().split("\n");
-    if (!allLines[0]) return null;
+    return this.toSession(
+      reduceJsonlContent(this.summaryReducer, content),
+      () => fs.statSync(filePath).mtime,
+    );
+  }
 
-    let metaEntry: CodexEventEntry;
-    try {
-      metaEntry = JSON.parse(allLines[0]);
-    } catch {
-      return null;
-    }
+  /**
+   * Same result as `readSession`, but backed by a per-instance incremental
+   * cache so repeated refreshes only parse bytes appended since the last call.
+   * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   */
+  readSessionIncremental(filePath: string): CodexSession | null {
+    const result = this.sessionCache.read(filePath);
+    return result ? this.toSession(result.state, () => result.mtime) : null;
+  }
 
-    if (metaEntry.type !== "session_meta" || !metaEntry.payload?.id) {
-      return null;
-    }
+  /** Evict cached summaries for files not read since the previous prune. */
+  pruneSessionCache(): void {
+    this.sessionCache.prune();
+  }
 
-    const entries: CodexEventEntry[] = [];
-    for (const line of allLines) {
-      try {
-        entries.push(JSON.parse(line));
-      } catch {
-        continue;
+  /**
+   * Fold one JSONL entry into the O(1) session summary. The first line must
+   * be a `session_meta` entry; the rest track the last typed entry and the
+   * last entry with displayable text.
+   */
+  private readonly summaryReducer: JsonlSummaryReducer<CodexSummaryState> = {
+    initial: () => ({ seenFirstLine: false }),
+    reduce: (state, value) => {
+      const entry = value && typeof value === "object" ? (value as CodexEventEntry) : undefined;
+      const next: CodexSummaryState = { ...state, seenFirstLine: true };
+
+      if (!state.seenFirstLine) {
+        if (entry?.type === "session_meta" && entry.payload?.id) {
+          next.meta = {
+            id: entry.payload.id,
+            cwd: entry.payload.cwd,
+            timestamp: entry.payload.timestamp,
+          };
+        }
       }
-    }
+      // Without a leading session_meta the file is not a Codex session; skip the work
+      if (!entry || !next.meta) return next;
 
-    const lastEntry = this.findLastEventEntry(entries);
-    const lastPayloadType = lastEntry ? this.normalizedPayloadType(lastEntry) : undefined;
+      if (typeof entry.type === "string") {
+        next.lastEntryTimestamp = entry.timestamp;
+        next.lastPayloadType = this.normalizedPayloadType(entry);
+      }
+
+      const text = this.extractEntryText(entry);
+      if (text) next.summary = this.truncate(text, 120);
+
+      return next;
+    },
+  };
+
+  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
+
+  private toSession(state: CodexSummaryState, fileMtime: () => Date): CodexSession | null {
+    const meta = state.meta;
+    if (!meta) return null;
 
     const lastActive =
-      this.parseTimestamp(lastEntry?.timestamp) ||
-      this.parseTimestamp(metaEntry.payload.timestamp) ||
-      fs.statSync(filePath).mtime;
-    const sessionStart = this.parseTimestamp(metaEntry.payload.timestamp) || lastActive;
+      this.parseTimestamp(state.lastEntryTimestamp) ||
+      this.parseTimestamp(meta.timestamp) ||
+      fileMtime();
+    const sessionStart = this.parseTimestamp(meta.timestamp) || lastActive;
 
     return {
-      sessionId: metaEntry.payload.id,
-      projectPath: metaEntry.payload.cwd || "",
-      summary: this.extractSummary(entries),
+      sessionId: meta.id,
+      projectPath: meta.cwd || "",
+      summary: state.summary ?? "Codex session active",
       sessionStart,
       lastActive,
-      lastPayloadType,
+      lastPayloadType: state.lastPayloadType,
     };
   }
 
@@ -239,25 +291,6 @@ export class CodexSessionParser {
 
     const timestampMs = timestamp.getTime();
     return Number.isFinite(timestampMs) ? timestampMs : null;
-  }
-
-  private findLastEventEntry(entries: CodexEventEntry[]): CodexEventEntry | undefined {
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const entry = entries[i];
-      if (entry && typeof entry.type === "string") {
-        return entry;
-      }
-    }
-    return undefined;
-  }
-
-  private extractSummary(entries: CodexEventEntry[]): string {
-    for (let i = entries.length - 1; i >= 0; i--) {
-      const message = this.extractEntryText(entries[i]);
-      if (message) return this.truncate(message, 120);
-    }
-
-    return "Codex session active";
   }
 
   private normalizedPayloadType(entry: CodexEventEntry): string | undefined {

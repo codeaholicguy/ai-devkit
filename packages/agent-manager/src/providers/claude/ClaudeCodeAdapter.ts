@@ -26,7 +26,8 @@ import { ClaudeSessionLocator } from "./ClaudeSessionLocator.js";
  * 2. Using snapshot CWD and start-time enrichment
  * 3. Attempting authoritative PID-file matching via ~/.claude/sessions/<pid>.json
  * 4. Falling back to CWD+birthtime heuristic (matchProcessesToSessions) for processes without a PID file
- * 5. Extracting summary from last user message in session JSONL
+ * 5. Extracting summary from last user message in session JSONL (incrementally
+ *    cached across refreshes, so unchanged transcripts are not re-read)
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly type = "claude" as const;
@@ -55,6 +56,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
     const relevant = filterByProcessNames(snapshot, this.processNames);
     const processes = relevant.filter((process) => this.canHandle(process));
@@ -74,7 +84,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     // Build agents from direct (resume + PID-file) matches
     for (const match of direct) {
       const { process: proc, sessionFile } = match;
-      const sessionData = this.parser.readSession(sessionFile.filePath, sessionFile.resolvedCwd);
+      const sessionData = this.parser.readSessionIncremental(
+        sessionFile.filePath,
+        sessionFile.resolvedCwd,
+      );
       if (sessionData) {
         agents.push(
           this.mapper.mapSessionToAgent({
@@ -94,7 +107,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     // Build agents from legacy matches
     for (const match of legacyMatches) {
-      const sessionData = this.parser.readSession(
+      const sessionData = this.parser.readSessionIncremental(
         match.session.filePath,
         match.session.resolvedCwd,
       );

@@ -2,6 +2,11 @@ import * as fs from "fs";
 import * as path from "path";
 import type { ConversationMessage } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import {
+  IncrementalJsonlSummary,
+  reduceJsonlContent,
+  type JsonlSummaryReducer,
+} from "../../utils/IncrementalJsonlSummary.js";
 
 /**
  * Content block within a Claude Code JSONL message entry.
@@ -52,6 +57,21 @@ export interface ClaudeSession {
 }
 
 /**
+ * O(1) running summary folded from session entries; `toSession` turns it into
+ * a `ClaudeSession`. Timestamps are epoch ms so cached state stays immutable.
+ */
+interface ClaudeSummaryState {
+  seenFirstLine: boolean;
+  sessionStartMs?: number;
+  lastActiveMs?: number;
+  lastCwd?: string;
+  lastEntryType?: string;
+  isInterrupted: boolean;
+  lastUserMessage?: string;
+  firstUserMessage?: string;
+}
+
+/**
  * Top-level JSONL entry types that represent conversation/agent state.
  *
  * Only these types update `lastEntryType` for status determination. All
@@ -81,8 +101,6 @@ export class ClaudeSessionParser {
    * Returns null if the file is unreadable or empty.
    */
   readSession(filePath: string, projectPath: string): ClaudeSession | null {
-    const sessionId = path.basename(filePath, ".jsonl");
-
     let content: string;
     try {
       content = fs.readFileSync(filePath, "utf-8");
@@ -90,74 +108,99 @@ export class ClaudeSessionParser {
       return null;
     }
 
-    const allLines = content.trim().split("\n");
-    if (allLines.length === 0) {
-      return null;
-    }
+    return this.toSession(filePath, projectPath, reduceJsonlContent(this.summaryReducer, content));
+  }
 
-    const sessionStart = this.parseSessionStart(allLines[0]);
+  /**
+   * Same result as `readSession`, but backed by a per-instance incremental
+   * cache so repeated refreshes only parse bytes appended since the last call.
+   * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   */
+  readSessionIncremental(filePath: string, projectPath: string): ClaudeSession | null {
+    const result = this.sessionCache.read(filePath);
+    return result ? this.toSession(filePath, projectPath, result.state) : null;
+  }
 
-    let lastEntryType: string | undefined;
-    let lastActive: Date | undefined;
-    let lastCwd: string | undefined;
-    let isInterrupted = false;
-    let lastUserMessage: string | undefined;
-    let firstUserMessage: string | undefined;
+  /** Evict cached summaries for files not read since the previous prune. */
+  pruneSessionCache(): void {
+    this.sessionCache.prune();
+  }
 
-    for (const line of allLines) {
-      try {
-        const entry: SessionEntry = JSON.parse(line);
-
-        if (entry.timestamp) {
-          const ts = new Date(entry.timestamp);
-          if (!Number.isNaN(ts.getTime())) {
-            lastActive = ts;
-          }
-        }
-
-        if (typeof entry.cwd === "string" && entry.cwd.trim().length > 0) {
-          lastCwd = entry.cwd;
-        }
-
-        if (entry.type && CONVERSATION_ENTRY_TYPES.has(entry.type)) {
-          lastEntryType = entry.type;
-
-          if (entry.type === "user") {
-            const msgContent = entry.message?.content;
-            isInterrupted =
-              Array.isArray(msgContent) &&
-              msgContent.some(
-                (c) =>
-                  (c.type === "text" && c.text?.includes("[Request interrupted")) ||
-                  (c.type === "tool_result" && c.content?.includes("[Request interrupted")),
-              );
-
-            const text = this.extractUserMessageText(msgContent);
-            if (text) {
-              lastUserMessage = text;
-              if (!firstUserMessage) {
-                firstUserMessage = text;
-              }
-            }
-          } else {
-            isInterrupted = false;
-          }
-        }
-      } catch {
-        continue;
+  /**
+   * Fold one JSONL entry into the O(1) session summary. Mirrors the fields
+   * `readSession` exposes: session start comes from the first line only;
+   * everything else tracks the latest matching entry.
+   */
+  private readonly summaryReducer: JsonlSummaryReducer<ClaudeSummaryState> = {
+    initial: () => ({ seenFirstLine: false, isInterrupted: false }),
+    reduce: (state, value) => {
+      const next: ClaudeSummaryState = { ...state, seenFirstLine: true };
+      if (!state.seenFirstLine) {
+        next.sessionStartMs = this.parseSessionStart(value);
       }
-    }
+      if (!value || typeof value !== "object") {
+        return next;
+      }
 
+      const entry = value as SessionEntry;
+      if (entry.timestamp) {
+        const ts = new Date(entry.timestamp).getTime();
+        if (!Number.isNaN(ts)) {
+          next.lastActiveMs = ts;
+        }
+      }
+
+      if (typeof entry.cwd === "string" && entry.cwd.trim().length > 0) {
+        next.lastCwd = entry.cwd;
+      }
+
+      if (entry.type && CONVERSATION_ENTRY_TYPES.has(entry.type)) {
+        next.lastEntryType = entry.type;
+
+        if (entry.type === "user") {
+          const msgContent = entry.message?.content;
+          next.isInterrupted =
+            Array.isArray(msgContent) &&
+            msgContent.some(
+              (c) =>
+                (c.type === "text" && c.text?.includes("[Request interrupted")) ||
+                (c.type === "tool_result" && c.content?.includes("[Request interrupted")),
+            );
+
+          const text = this.extractUserMessageText(msgContent);
+          if (text) {
+            next.lastUserMessage = text;
+            if (!next.firstUserMessage) {
+              next.firstUserMessage = text;
+            }
+          }
+        } else {
+          next.isInterrupted = false;
+        }
+      }
+
+      return next;
+    },
+  };
+
+  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
+
+  private toSession(
+    filePath: string,
+    projectPath: string,
+    state: ClaudeSummaryState,
+  ): ClaudeSession {
+    const sessionStartMs = state.sessionStartMs ?? state.lastActiveMs;
     return {
-      sessionId,
-      projectPath: projectPath || lastCwd || "",
-      lastCwd,
-      sessionStart: sessionStart || lastActive || new Date(),
-      lastActive: lastActive || new Date(),
-      lastEntryType,
-      isInterrupted,
-      lastUserMessage,
-      firstUserMessage,
+      sessionId: path.basename(filePath, ".jsonl"),
+      projectPath: projectPath || state.lastCwd || "",
+      lastCwd: state.lastCwd,
+      sessionStart: sessionStartMs !== undefined ? new Date(sessionStartMs) : new Date(),
+      lastActive: state.lastActiveMs !== undefined ? new Date(state.lastActiveMs) : new Date(),
+      lastEntryType: state.lastEntryType,
+      isInterrupted: state.isInterrupted,
+      lastUserMessage: state.lastUserMessage,
+      firstUserMessage: state.firstUserMessage,
     };
   }
 
@@ -247,26 +290,25 @@ export class ClaudeSessionParser {
   }
 
   /**
-   * Parse session start time from the first JSONL line.
+   * Parse session start time (epoch ms) from the first JSONL entry.
    *
    * Claude Code may emit a "file-history-snapshot" as the first entry,
    * which stores its timestamp inside "snapshot.timestamp" rather than
    * at the root level.
    */
-  private parseSessionStart(firstLine: string): Date | null {
-    try {
-      const firstEntry = JSON.parse(firstLine);
-      const rawTs: string | undefined = firstEntry.timestamp || firstEntry.snapshot?.timestamp;
-      if (rawTs) {
-        const ts = new Date(rawTs);
-        if (!Number.isNaN(ts.getTime())) {
-          return ts;
-        }
-      }
-    } catch {
-      /* malformed first line */
+  private parseSessionStart(firstEntry: unknown): number | undefined {
+    if (!firstEntry || typeof firstEntry !== "object") {
+      return undefined;
     }
-    return null;
+    const entry = firstEntry as { timestamp?: string; snapshot?: { timestamp?: string } };
+    const rawTs = entry.timestamp || entry.snapshot?.timestamp;
+    if (rawTs) {
+      const ts = new Date(rawTs).getTime();
+      if (!Number.isNaN(ts)) {
+        return ts;
+      }
+    }
+    return undefined;
   }
 
   /**
