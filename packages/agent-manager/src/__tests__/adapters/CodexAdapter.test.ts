@@ -200,6 +200,70 @@ describe("CodexAdapter", () => {
     });
   });
 
+  // Verified against Codex CLI 0.157.1 (source tag rust-v0.157.1):
+  // - `codex review` runs as `codex exec review` and writes a local rollout
+  //   (session_meta source `exec`), so it is listed.
+  // - `codex cloud` only talks to Codex Cloud over HTTP and writes no rollout.
+  // - `codex agents` is a dashboard over the shared app-server daemon's sessions
+  //   and starts no thread of its own, so it owns no rollout.
+  describe("review, cloud and agents classification (Codex CLI 0.157.1)", () => {
+    const reviewCommands = [
+      "codex review",
+      "codex review --uncommitted",
+      "codex review --base main",
+      "codex review --commit 0123abc --title fix",
+      "codex review -",
+      "/opt/homebrew/bin/codex -c model=o3 review focus on error handling",
+    ];
+    const sessionlessCommands = [
+      "codex cloud",
+      "codex cloud exec --env env_123 fix the flaky test",
+      "codex cloud list",
+      "codex cloud apply task_123",
+      "codex -c model=o3 cloud",
+      "codex agents",
+      "codex agents --remote ws://127.0.0.1:4500",
+      "codex agents -C /repos/project --no-alt-screen",
+      "codex --remote ws://127.0.0.1:4500 agents",
+      "codex --remote-auth-token-env CODEX_TOKEN --remote wss://host:4500 agents",
+      "codex --enable some_feature agents",
+    ];
+
+    it.each(reviewCommands)("lists review command %s", (command) => {
+      expect(adapter.canHandle({ pid: 20, command, cwd: "/repo", tty: "ttys002" })).toBe(true);
+    });
+
+    it.each(sessionlessCommands)("does not list sessionless command %s", (command) => {
+      expect(adapter.canHandle({ pid: 21, command, cwd: "/repo", tty: "ttys002" })).toBe(false);
+    });
+
+    it("passes review processes to session discovery and never lists cloud or agents", async () => {
+      const locatorSpy = vi.spyOn(CodexSessionLocator.prototype, "matchRunningProcesses");
+      const reviewProcess: ProcessInfo = {
+        pid: 300,
+        command: "codex review --uncommitted",
+        cwd: "/repo-a",
+        tty: "ttys003",
+      };
+      const processes: ProcessInfo[] = [
+        reviewProcess,
+        ...sessionlessCommands.map((command, index) => ({
+          pid: 400 + index,
+          command,
+          cwd: "/repo-a",
+          tty: "ttys004",
+        })),
+      ];
+
+      const agents = await adapter.detectAgents({ processes });
+
+      expect(agents.map((agent) => agent.pid)).toEqual([300]);
+      expect(locatorSpy).toHaveBeenCalledTimes(1);
+      expect(locatorSpy.mock.calls[0]![0]).toEqual([reviewProcess]);
+      locatorSpy.mockRestore();
+    });
+  });
+
   it("returns no agents when no Codex process is running", async () => {
     mockedListAgentProcesses.mockReturnValue([]);
 

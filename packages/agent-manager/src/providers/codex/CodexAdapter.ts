@@ -25,6 +25,17 @@ import { CodexSessionParser } from "./CodexSessionParser.js";
  * Codex subcommands that never own a local agent session: long-running helpers
  * (app-server, sandbox, MCP/exec servers) and short-lived management commands.
  * Interactive `codex`, `resume`, `fork`, `exec` and `review` remain detected.
+ *
+ * Classification of `review`, `cloud` and `agents` checked against Codex CLI
+ * 0.157.1 (source tag rust-v0.157.1, codex-rs/cli/src/main.rs):
+ * - `review` is detected: it runs as `codex exec review`, starting a
+ *   non-ephemeral thread in-process (source `exec`, originator `codex_exec`), so
+ *   it writes a `session_meta` rollout under ~/.codex/sessions like `codex exec`.
+ * - `cloud` is excluded: it browses and applies Codex Cloud tasks over HTTP and
+ *   never starts a local thread or rollout.
+ * - `agents` is excluded: it opens a dashboard over every session on the shared
+ *   app-server daemon without starting a thread of its own; the daemon, not
+ *   this process, owns and writes those sessions' rollouts.
  */
 const CODEX_HELPER_SUBCOMMANDS = new Set([
   "agents",
@@ -76,6 +87,8 @@ const CODEX_VALUE_FLAGS = new Set([
   "--enable",
   "--disable",
   "--local-provider",
+  "--remote",
+  "--remote-auth-token-env",
 ]);
 
 const CODEX_APP_SERVER_DAEMON_DIR = "app-server-daemon";
