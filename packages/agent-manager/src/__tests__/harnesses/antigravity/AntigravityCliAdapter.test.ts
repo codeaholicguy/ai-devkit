@@ -369,4 +369,28 @@ describe("AntigravityCliAdapter", () => {
       expect(filtered[0].cwd).toBe("/Users/dev/project-a");
     });
   });
+
+  describe("findSessionsById", () => {
+    it("finds a registered conversation by id", async () => {
+      writeTranscript({});
+      writeRegistry({ [cwd]: CONVERSATION_ID });
+
+      expect(await adapter.findSessionsById(CONVERSATION_ID)).toEqual([
+        expect.objectContaining({
+          type: "antigravity_cli",
+          sessionId: CONVERSATION_ID,
+          cwd,
+          firstUserMessage: "fix the bug",
+        }),
+      ]);
+    });
+
+    it("ignores transcripts that are not in the registry, like listSessions", async () => {
+      writeTranscript({});
+      writeRegistry({});
+
+      expect(await adapter.findSessionsById(CONVERSATION_ID)).toEqual([]);
+      expect(await adapter.listSessions()).toEqual([]);
+    });
+  });
 });

@@ -88,6 +88,13 @@ export class KiroAdapter implements AgentAdapter {
     return summaries;
   }
 
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    const paths = this.locator.findSession(sessionId);
+    const session = paths ? this.parser.readSession(paths) : null;
+    // listSessions reports the metadata's id, so only an exact match counts.
+    return session?.sessionId === sessionId ? [this.toSessionSummary(session)] : [];
+  }
+
   private toSessionSummary(session: KiroSession): SessionSummary {
     return {
       type: this.type,

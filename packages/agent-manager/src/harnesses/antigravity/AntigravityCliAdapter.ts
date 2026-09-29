@@ -87,6 +87,18 @@ export class AntigravityCliAdapter implements AgentAdapter {
     return summaries;
   }
 
+  /** Only registered conversations are listed, so look the id up in the registry. */
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    const summaries: SessionSummary[] = [];
+    for (const { cwd, conversationId, transcriptPath } of this.locator.listConversations()) {
+      if (conversationId !== sessionId) continue;
+
+      const session = this.parser.readSession(conversationId, transcriptPath, cwd);
+      if (session) summaries.push(this.toSessionSummary(session));
+    }
+    return summaries;
+  }
+
   private toSessionSummary(session: AntigravitySession): SessionSummary {
     return {
       type: this.type,

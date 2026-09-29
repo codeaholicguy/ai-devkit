@@ -1,6 +1,12 @@
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { isDirectory, safeReadFile, safeReaddir } from "../../utils/session.js";
+import {
+  isDirectory,
+  isSafePathSegment,
+  safeReadFile,
+  safeReaddir,
+  safeStat,
+} from "../../utils/session.js";
 import { homeDir } from "../shared.js";
 import { asRecord, type KiroSessionPaths } from "./KiroSessionParser.js";
 
@@ -59,6 +65,13 @@ export class KiroSessionLocator {
     return safeReaddir(this.sessionsDir)
       .filter((entry) => entry.endsWith(".jsonl"))
       .map((entry) => this.sessionPaths(entry.slice(0, -".jsonl".length)));
+  }
+
+  /** The session stored as `<sessionId>.jsonl`, if it exists. */
+  findSession(sessionId: string): KiroSessionPaths | null {
+    if (!isSafePathSegment(sessionId)) return null;
+    const paths = this.sessionPaths(sessionId);
+    return safeStat(paths.transcriptPath)?.isFile() ? paths : null;
   }
 
   private sessionPaths(sessionId: string): KiroSessionPaths {

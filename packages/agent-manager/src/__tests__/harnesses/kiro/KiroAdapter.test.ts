@@ -428,6 +428,32 @@ describe("KiroAdapter", () => {
     });
   });
 
+  describe("findSessionsById", () => {
+    it("reads only the session stored under that id", async () => {
+      const sessionFile = writeKiroSession("sess-find", "/repo/find", [
+        prompt("find me", 1781098057),
+      ]);
+      writeKiroSession("sess-other", "/repo/other", [prompt("not me", 1781098057)]);
+
+      expect(await adapter.findSessionsById("sess-find")).toEqual([
+        expect.objectContaining({
+          type: "kiro",
+          sessionId: "sess-find",
+          cwd: "/repo/find",
+          firstUserMessage: "find me",
+          sessionFilePath: sessionFile,
+        }),
+      ]);
+    });
+
+    it("returns [] for a missing or unsafe id", async () => {
+      writeKiroSession("sess-find", "/repo/find", [prompt("find me", 1781098057)]);
+
+      expect(await adapter.findSessionsById("missing")).toEqual([]);
+      expect(await adapter.findSessionsById("../cli/sess-find")).toEqual([]);
+    });
+  });
+
   function makeProcess(overrides: Partial<ProcessInfo>): ProcessInfo {
     return {
       pid: 1,
