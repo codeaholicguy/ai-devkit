@@ -211,7 +211,7 @@ describe("incremental transcript reads across listAgents() refreshes", () => {
     expect(summaryOf(agents, codexPid).summary).toContain("done");
   });
 
-  it("reads at most 5 MiB of a large transcript on a cold refresh, then only appends", async () => {
+  it("reads at most 5 MiB (+1 byte) of a large transcript on a cold refresh, then only appends", async () => {
     // ~12 MiB of history between the first and the latest turn
     const history = jsonl(
       Array.from({ length: 48 }, () => ({
@@ -241,7 +241,9 @@ describe("incremental transcript reads across listAgents() refreshes", () => {
 
     const agents = await manager.listAgents();
 
-    const limit = 5 * 1024 * 1024;
+    // 1 MiB head + 4 MiB tail, plus the byte before the tail window that tells
+    // whether the window starts on a line boundary
+    const limit = 5 * 1024 * 1024 + 1;
     expect(fs.statSync(claudeFile).size).toBeGreaterThan(2 * limit);
     expect(bytesReadFrom(claudeFile)).toBeLessThanOrEqual(limit);
     expect(bytesReadFrom(codexFile)).toBeLessThanOrEqual(limit);

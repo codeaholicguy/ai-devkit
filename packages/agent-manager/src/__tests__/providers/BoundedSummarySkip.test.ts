@@ -24,15 +24,6 @@ function jsonl(entries: unknown[]): string {
 }
 
 /**
- * Tail window covering exactly `tailText`. The bounded scan drops everything
- * up to the first newline in the tail window (it may start mid-line), so the
- * window also includes the newline that ends the line before `tailText`.
- */
-function tailWindow(tailText: string): number {
-  return Buffer.byteLength(tailText) + 1;
-}
-
-/**
  * Render `[head, padding, tail]` and bounds whose head window ends right
  * after `head` and whose tail window starts right at `tail`.
  */
@@ -43,7 +34,7 @@ function layout(head: unknown[], padLine: unknown, tail: unknown[]) {
   const buffer = Buffer.from(headText + padText + tailText);
   const bounds = {
     headBytes: Math.max(Buffer.byteLength(headText), 1),
-    tailBytes: tailWindow(tailText),
+    tailBytes: Buffer.byteLength(tailText),
   };
   return { buffer, bounds };
 }
@@ -144,7 +135,7 @@ describe("Pi: bounded cold start", () => {
         tailText,
     );
     const parser = new PiSessionParser({
-      summaryBounds: { headBytes: 64, tailBytes: tailWindow(tailText) },
+      summaryBounds: { headBytes: 64, tailBytes: Buffer.byteLength(tailText) },
     });
 
     const result = (parser as any).sessionCache.read(filePath);
@@ -229,7 +220,7 @@ describe("Grok: bounded cold start", () => {
     const parser = new GrokSessionParser({
       summaryBounds: {
         headBytes: Buffer.byteLength(headText),
-        tailBytes: tailWindow(tailText),
+        tailBytes: Buffer.byteLength(tailText),
       },
     });
 
@@ -340,7 +331,7 @@ describe("Copilot: bounded cold start", () => {
     const parser = new CopilotSessionParser({
       summaryBounds: {
         headBytes: Buffer.byteLength(headText),
-        tailBytes: tailWindow(tailText),
+        tailBytes: Buffer.byteLength(tailText),
       },
     });
 
