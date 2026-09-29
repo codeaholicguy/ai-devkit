@@ -41,7 +41,8 @@ export { AntigravityCliAdapter } from "./harnesses/antigravity/AntigravityCliAda
 export { KiroAdapter } from "./harnesses/kiro/KiroAdapter.js";
 export { OpenCodeAdapter } from "./harnesses/opencode/OpenCodeAdapter.js";
 export { PiAdapter } from "./harnesses/pi/PiAdapter.js";
-export { AgentStatus } from "./adapters/AgentAdapter.js";
+export { createBuiltinAdapters } from "./harnesses/index.js";
+export { AGENT_TYPES, AgentStatus } from "./adapters/AgentAdapter.js";
 export type {
   AgentAdapter,
   AgentType,

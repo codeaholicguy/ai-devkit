@@ -7,15 +7,8 @@ import chalk from "chalk";
 import { render } from "ink";
 import {
   AgentManager,
-  ClaudeCodeAdapter,
-  CodexAdapter,
-  CopilotAdapter,
-  GeminiCliAdapter,
-  GrokCliAdapter,
-  KiroAdapter,
-  AntigravityCliAdapter,
-  OpenCodeAdapter,
-  PiAdapter,
+  AGENT_TYPES,
+  createBuiltinAdapters,
   ClaudePrintAgentService,
   CodexPrintAgentService,
   DurableAgentRepository,
@@ -277,15 +270,7 @@ function createAgentManager(): AgentManager {
       );
     },
   });
-  manager.registerAdapter(new ClaudeCodeAdapter());
-  manager.registerAdapter(new CodexAdapter());
-  manager.registerAdapter(new CopilotAdapter());
-  manager.registerAdapter(new GeminiCliAdapter());
-  manager.registerAdapter(new GrokCliAdapter());
-  manager.registerAdapter(new KiroAdapter());
-  manager.registerAdapter(new AntigravityCliAdapter());
-  manager.registerAdapter(new OpenCodeAdapter());
-  manager.registerAdapter(new PiAdapter());
+  for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);
   return manager;
 }
 
@@ -636,7 +621,7 @@ export function registerAgentCommand(program: Command): void {
     )
     .option(
       "--type <type>",
-      "Filter to one of: claude, codex, gemini_cli, grok_cli, kiro, opencode, copilot, pi",
+      `Filter to one of: ${AGENT_TYPES.join(", ")}`,
     )
     .option(
       "--limit <n>",
@@ -712,7 +697,7 @@ export function registerAgentCommand(program: Command): void {
     .option("-j, --json", "Output as JSON")
     .option(
       "--type <type>",
-      "Filter to one of: claude, codex, gemini_cli, grok_cli, kiro, opencode, copilot, pi",
+      `Filter to one of: ${AGENT_TYPES.join(", ")}`,
     )
     .option("--full", "Show entire conversation history")
     .option("--tail <n>", "Show last N messages (default: 20)", "20")
@@ -800,7 +785,7 @@ export function registerAgentCommand(program: Command): void {
     .requiredOption("--id <sessionId>", "Session ID (as shown in agent sessions)")
     .option(
       "--type <type>",
-      "Filter to one of: claude, codex, gemini_cli, grok_cli, opencode, copilot, pi",
+      `Filter to one of: ${AGENT_TYPES.join(", ")}`,
     )
     .option("--format <format>", "Output format: markdown or json", "markdown")
     .action(

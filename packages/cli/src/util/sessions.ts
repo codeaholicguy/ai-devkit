@@ -1,19 +1,14 @@
-import type { AgentType, ListSessionsOptions, SessionSummary } from "@ai-devkit/agent-manager";
+import {
+  AGENT_TYPES,
+  type AgentType,
+  type ListSessionsOptions,
+  type SessionSummary,
+} from "@ai-devkit/agent-manager";
 import { truncate } from "./text.js";
 
 const FIRST_MESSAGE_MAX_WIDTH = 80;
 const FIRST_MESSAGE_PLACEHOLDER = "(no message yet)";
-const VALID_AGENT_TYPES: AgentType[] = [
-  "claude",
-  "codex",
-  "gemini_cli",
-  "grok_cli",
-  "kiro",
-  "antigravity_cli",
-  "opencode",
-  "copilot",
-  "pi",
-];
+const VALID_AGENT_TYPES: readonly AgentType[] = AGENT_TYPES;
 
 export interface ResolvedListSessionsOptions {
   adapterOptions: ListSessionsOptions;

@@ -5,20 +5,23 @@
  * Each adapter is responsible for detecting agents of a specific type (e.g., claude).
  */
 
+/** Every built-in harness type, in the order the CLI lists them. */
+export const AGENT_TYPES = [
+  "claude",
+  "codex",
+  "gemini_cli",
+  "grok_cli",
+  "kiro",
+  "antigravity_cli",
+  "opencode",
+  "copilot",
+  "pi",
+] as const;
+
 /**
  * Type of AI agent
  */
-export type AgentType =
-  | "claude"
-  | "gemini_cli"
-  | "grok_cli"
-  | "kiro"
-  | "antigravity_cli"
-  | "codex"
-  | "opencode"
-  | "copilot"
-  | "pi"
-  | "other";
+export type AgentType = (typeof AGENT_TYPES)[number] | "other";
 
 /**
  * Current status of an agent
@@ -234,7 +237,7 @@ export interface AgentAdapter {
   /**
    * Resolve exact historical session matches without enumerating every summary.
    *
-   * Built-in adapters implement this using their provider-native storage shape.
+   * Built-in adapters implement this using their harness-native storage shape.
    * The method remains optional so external adapters can fall back to
    * {@link listSessions} until they adopt direct lookup.
    */

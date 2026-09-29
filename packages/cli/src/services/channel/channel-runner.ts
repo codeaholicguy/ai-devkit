@@ -1,14 +1,7 @@
 import { homedir } from "os";
 import {
   AgentManager,
-  ClaudeCodeAdapter,
-  CodexAdapter,
-  CopilotAdapter,
-  GeminiCliAdapter,
-  GrokCliAdapter,
-  KiroAdapter,
-  AntigravityCliAdapter,
-  PiAdapter,
+  createBuiltinAdapters,
   TerminalFocusManager,
   TtyWriter,
   readLatestAgentRequest,
@@ -46,14 +39,7 @@ export interface RunChannelBridgeInput {
 
 function createAgentManager(): AgentManager {
   const manager = new AgentManager();
-  manager.registerAdapter(new ClaudeCodeAdapter());
-  manager.registerAdapter(new CodexAdapter());
-  manager.registerAdapter(new CopilotAdapter());
-  manager.registerAdapter(new GeminiCliAdapter());
-  manager.registerAdapter(new GrokCliAdapter());
-  manager.registerAdapter(new KiroAdapter());
-  manager.registerAdapter(new AntigravityCliAdapter());
-  manager.registerAdapter(new PiAdapter());
+  for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);
   return manager;
 }
 
