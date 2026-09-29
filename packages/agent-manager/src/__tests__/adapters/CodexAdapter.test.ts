@@ -268,6 +268,25 @@ describe("CodexAdapter", () => {
     });
   });
 
+  it("does not rescan session files for an unmatched process on the next refresh", async () => {
+    const processInfo: ProcessInfo = {
+      pid: 100,
+      command: "codex",
+      cwd: "/repo-a",
+      tty: "ttys001",
+      startTime: new Date("2026-03-18T15:00:00.000Z"),
+    };
+    writeSession("sess-other", "/repo-other", []);
+    mockedListAgentProcesses.mockReturnValue([processInfo]);
+    mockedBatchGetSessionFileBirthtimes.mockReturnValue([]);
+
+    await adapter.detectAgents();
+    const agents = await adapter.detectAgents();
+
+    expect(mockedBatchGetSessionFileBirthtimes).toHaveBeenCalledTimes(1);
+    expect(agents).toMatchObject([{ pid: 100, sessionId: "pid-100" }]);
+  });
+
   it("maps resumed sessions directly by id", async () => {
     const sessionId = "019eabed-4079-7071-9531-b853ddd9914e";
     const processInfo: ProcessInfo = {
