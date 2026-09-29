@@ -10,6 +10,7 @@ import { safeReadFile, safeStat } from "../../utils/session.js";
 import {
   IncrementalJsonlSummary,
   reduceJsonlContent,
+  type JsonlSummaryBounds,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
 
@@ -72,9 +73,22 @@ interface CodexConversationItem {
 const IDLE_THRESHOLD_MINUTES = 5;
 const MIRROR_OVERSCAN = 8;
 
+export interface CodexSessionParserOptions {
+  /** Cold-start scan bounds for `readSessionIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
+}
+
 export class CodexSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
+
+  private readonly sessionCache: IncrementalJsonlSummary<CodexSummaryState>;
+
+  constructor(options: CodexSessionParserOptions = {}) {
+    this.sessionCache = new IncrementalJsonlSummary(this.summaryReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
 
   readSession(filePath: string, cachedContent?: string): CodexSession | null {
     let content: string;
@@ -98,6 +112,10 @@ export class CodexSessionParser {
    * Same result as `readSession`, but backed by a per-instance incremental
    * cache so repeated refreshes only parse bytes appended since the last call.
    * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   *
+   * The first read of a large transcript is a bounded head + tail scan (see
+   * `summaryReducer.skip`); fields whose entries lie only in the skipped
+   * middle fall back to their defaults instead of forcing a full parse.
    */
   readSessionIncremental(filePath: string): CodexSession | null {
     const result = this.sessionCache.read(filePath);
@@ -113,6 +131,12 @@ export class CodexSessionParser {
    * Fold one JSONL entry into the O(1) session summary. The first line must
    * be a `session_meta` entry; the rest track the last typed entry and the
    * last entry with displayable text.
+   *
+   * `skip` (bounded cold start) keeps the head's `session_meta` and clears the
+   * "latest" fields, so those come from the tail only. Without a typed tail
+   * entry lastActive falls back to the meta timestamp, then the file mtime;
+   * without tail text the summary is the "Codex session active" default. A
+   * `session_meta` line longer than the head window yields no session (null).
    */
   private readonly summaryReducer: JsonlSummaryReducer<CodexSummaryState> = {
     initial: () => ({ seenFirstLine: false }),
@@ -142,9 +166,8 @@ export class CodexSessionParser {
 
       return next;
     },
+    skip: (state) => ({ seenFirstLine: true, meta: state.meta }),
   };
-
-  private readonly sessionCache = new IncrementalJsonlSummary(this.summaryReducer);
 
   private toSession(state: CodexSummaryState, fileMtime: () => Date): CodexSession | null {
     const meta = state.meta;

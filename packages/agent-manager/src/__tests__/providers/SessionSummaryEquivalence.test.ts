@@ -420,3 +420,183 @@ describe("incremental session summaries match the full-file parse", () => {
     }
   });
 });
+
+/**
+ * Bounded cold start: `[fixture, neutral padding, fixture]` is larger than the
+ * head + tail windows, each window covers one full copy of the fixture, and
+ * the padding never changes a summary field. The bounded summary (which skips
+ * the middle) must therefore equal the full-file parse.
+ */
+describe("bounded cold-start summaries match the full-file parse", () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-28T00:00:00Z"));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bounded-equivalence-"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function mirrored(fixture: Fixture, padLine: string) {
+    const window = Buffer.byteLength(fixture.lines.join("\n") + "\n") + 16;
+    const padCount = Math.ceil((2 * window) / padLine.length) + 4;
+    const padding = Array.from({ length: padCount }, () => padLine);
+    const buffer = render({ ...fixture, lines: [...fixture.lines, ...padding, ...fixture.lines] });
+    expect(buffer.length).toBeGreaterThan(2 * window);
+    return { buffer, bounds: { headBytes: window, tailBytes: window } };
+  }
+
+  it.each(variants(claudeFixtures))("Claude: $name", (fixture) => {
+    const { buffer, bounds } = mirrored(fixture, JSON.stringify({ type: "attachment" }));
+    const filePath = path.join(tmpDir, "11111111-2222-3333-4444-555555555555.jsonl");
+    fs.writeFileSync(filePath, buffer);
+
+    const parser = new ClaudeSessionParser({ summaryBounds: bounds });
+    const oracle = legacyClaudeReadSession(parser, filePath, "");
+
+    expect(parser.readSessionIncremental(filePath, "")).toEqual(oracle);
+    expect((parser as any).sessionCache.read(filePath).skippedBytes).toBeGreaterThan(0);
+  });
+
+  it.each(variants(codexFixtures))("Codex: $name", (fixture) => {
+    const { buffer, bounds } = mirrored(fixture, JSON.stringify({ payload: {} }));
+    const filePath = path.join(tmpDir, "rollout.jsonl");
+    fs.writeFileSync(filePath, buffer);
+
+    const parser = new CodexSessionParser({ summaryBounds: bounds });
+    const oracle = legacyCodexReadSession(parser, filePath);
+
+    expect(parser.readSessionIncremental(filePath)).toEqual(oracle);
+    expect((parser as any).sessionCache.read(filePath).skippedBytes).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Documented fallbacks when an entry lies only in the skipped middle of a
+ * bounded cold start: the field stays undefined (or its existing default); it
+ * is never filled from a later entry and never by a full scan.
+ */
+describe("bounded cold start: cap-reached fallbacks", () => {
+  const bounds = { headBytes: 256, tailBytes: 256 };
+  const filler = (n: number, entry: unknown) =>
+    Array.from({ length: n }, () => JSON.stringify(entry));
+  const claudeFile = "11111111-2222-3333-4444-555555555555.jsonl";
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "bounded-fallback-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  function write(name: string, entries: unknown[]): string {
+    const filePath = path.join(tmpDir, name);
+    fs.writeFileSync(filePath, entries.map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+    return filePath;
+  }
+
+  it("Claude: a first user message beyond the head cap stays undefined", () => {
+    const pad = filler(20, { type: "attachment", note: "x".repeat(40) }).map((l) => JSON.parse(l));
+    const filePath = write(claudeFile, [
+      { type: "file-history-snapshot", snapshot: { timestamp: "2026-03-10T09:00:00Z" } },
+      ...pad,
+      { type: "user", timestamp: "2026-03-10T10:00:00Z", message: { content: "first" } },
+      ...pad,
+      { type: "user", timestamp: "2026-03-10T11:00:00Z", message: { content: "latest" } },
+      { type: "assistant", timestamp: "2026-03-10T11:01:00Z", cwd: "/repo" },
+    ]);
+
+    const session = new ClaudeSessionParser({ summaryBounds: bounds }).readSessionIncremental(
+      filePath,
+      "",
+    );
+
+    expect(new ClaudeSessionParser().readSession(filePath, "")?.firstUserMessage).toBe("first");
+    expect(session).toMatchObject({
+      firstUserMessage: undefined,
+      lastUserMessage: "latest",
+      sessionStart: new Date("2026-03-10T09:00:00Z"),
+      lastActive: new Date("2026-03-10T11:01:00Z"),
+      lastEntryType: "assistant",
+      lastCwd: "/repo",
+    });
+  });
+
+  it("Claude: latest fields before the tail window stay undefined", () => {
+    const pad = filler(40, { type: "attachment", note: "x".repeat(40) }).map((l) => JSON.parse(l));
+    const filePath = write(claudeFile, [
+      {
+        type: "user",
+        timestamp: "2026-03-10T10:00:00Z",
+        cwd: "/repo",
+        message: { content: "only" },
+      },
+      ...pad,
+    ]);
+
+    const session = new ClaudeSessionParser({ summaryBounds: bounds }).readSessionIncremental(
+      filePath,
+      "",
+    );
+
+    // The head still supplies the session start and the first user message
+    expect(session).toMatchObject({
+      firstUserMessage: "only",
+      lastUserMessage: undefined,
+      lastEntryType: undefined,
+      lastCwd: undefined,
+      isInterrupted: false,
+      sessionStart: new Date("2026-03-10T10:00:00Z"),
+    });
+  });
+
+  it("Codex: keeps session_meta from the head and defaults fields missing from the tail", () => {
+    const pad = filler(40, { payload: { note: "x".repeat(40) } }).map((l) => JSON.parse(l));
+    const filePath = write("rollout.jsonl", [
+      {
+        type: "session_meta",
+        payload: { id: "sess-1", cwd: "/repo", timestamp: "2026-03-18T15:00:00Z" },
+      },
+      {
+        type: "event_msg",
+        timestamp: "2026-03-18T15:01:00Z",
+        payload: { type: "agent_message", message: "early" },
+      },
+      ...pad,
+    ]);
+
+    const session = new CodexSessionParser({ summaryBounds: bounds }).readSessionIncremental(
+      filePath,
+    );
+
+    expect(session).toMatchObject({
+      sessionId: "sess-1",
+      projectPath: "/repo",
+      summary: "Codex session active",
+      lastPayloadType: undefined,
+      sessionStart: new Date("2026-03-18T15:00:00Z"),
+      lastActive: new Date("2026-03-18T15:00:00Z"),
+    });
+  });
+
+  it("Codex: a session_meta line longer than the head cap yields no session", () => {
+    const pad = filler(40, {
+      type: "event_msg",
+      payload: { type: "agent_message", message: "hi" },
+    });
+    const filePath = write("rollout.jsonl", [
+      { type: "session_meta", payload: { id: "sess-1", base: "x".repeat(400) } },
+      ...pad.map((l) => JSON.parse(l)),
+    ]);
+
+    expect(
+      new CodexSessionParser({ summaryBounds: bounds }).readSessionIncremental(filePath),
+    ).toBeNull();
+  });
+});

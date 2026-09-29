@@ -34,6 +34,7 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
+    "benchmark:cold-start": "npm run build && node scripts/benchmark-cold-start.mjs",
     "clean": "rm -rf dist"
   },
   "dependencies": {
