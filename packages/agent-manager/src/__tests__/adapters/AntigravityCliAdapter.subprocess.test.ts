@@ -15,6 +15,7 @@ import { AntigravityCliAdapter } from "../../adapters/AntigravityCliAdapter.js";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { AgentManager } from "../../AgentManager.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
+import { createProcessSnapshotCapture } from "../../utils/process.js";
 
 vi.mock("child_process", async (importOriginal) => {
   const actual = (await importOriginal()) as typeof import("child_process");
@@ -113,7 +114,11 @@ describe("AntigravityCliAdapter subprocess usage", () => {
   });
 
   it("makes a full listAgents() refresh spawn exactly one ps + lsof + ps lstart set", async () => {
-    const manager = new AgentManager(new AgentRegistry(path.join(base, "agents.json")));
+    // A fresh capture: the shared one caches start times from earlier tests (#266).
+    const manager = new AgentManager(
+      new AgentRegistry(path.join(base, "agents.json")),
+      createProcessSnapshotCapture(),
+    );
     manager.registerAdapter(new AntigravityCliAdapter());
 
     const agents = await manager.listAgents();
