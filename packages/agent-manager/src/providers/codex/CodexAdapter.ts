@@ -20,6 +20,85 @@ import { CodexSessionLocator, type CodexDirectMatch } from "./CodexSessionLocato
 import { CodexSessionMapping } from "./CodexSessionMapping.js";
 import { CodexSessionParser } from "./CodexSessionParser.js";
 
+/**
+ * Codex subcommands that never own a local agent session: long-running helpers
+ * (app-server, sandbox, MCP/exec servers) and short-lived management commands.
+ * Interactive `codex`, `resume`, `fork`, `exec` and `review` remain detected.
+ */
+const CODEX_HELPER_SUBCOMMANDS = new Set([
+  "agents",
+  "app",
+  "app-server",
+  "apply",
+  "a",
+  "archive",
+  "cloud",
+  "completion",
+  "debug",
+  "delete",
+  "doctor",
+  "exec-server",
+  "features",
+  "help",
+  "login",
+  "logout",
+  "mcp",
+  "mcp-server",
+  "migrate-rollouts",
+  "plugin",
+  "queue",
+  "remote-control",
+  "responses-api-proxy",
+  "sandbox",
+  "stdio-to-uds",
+  "unarchive",
+  "update",
+]);
+
+/** Global Codex flags that consume the following argument as their value. */
+const CODEX_VALUE_FLAGS = new Set([
+  "-c",
+  "--config",
+  "-m",
+  "--model",
+  "-p",
+  "--profile",
+  "-s",
+  "--sandbox",
+  "-a",
+  "--ask-for-approval",
+  "-C",
+  "--cd",
+  "-i",
+  "--image",
+  "--add-dir",
+  "--enable",
+  "--disable",
+  "--local-provider",
+]);
+
+const CODEX_APP_SERVER_DAEMON_DIR = "app-server-daemon";
+
+function isCodexHelperCommand(command: string): boolean {
+  const [executable = "", ...args] = command.trim().split(/\s+/);
+  if (executable.replace(/\\/g, "/").split("/").includes(CODEX_APP_SERVER_DAEMON_DIR)) {
+    return true;
+  }
+
+  const subcommand = firstPositionalArgument(args);
+  return subcommand !== undefined && CODEX_HELPER_SUBCOMMANDS.has(subcommand);
+}
+
+function firstPositionalArgument(args: string[]): string | undefined {
+  for (let index = 0; index < args.length; index++) {
+    const arg = args[index];
+    if (arg === "--") return undefined;
+    if (!arg.startsWith("-")) return arg;
+    if (!arg.includes("=") && CODEX_VALUE_FLAGS.has(arg)) index++;
+  }
+  return undefined;
+}
+
 interface MappedAgentResult {
   agents: AgentInfo[];
   fallback: ProcessInfo[];
@@ -46,7 +125,8 @@ export class CodexAdapter implements AgentAdapter {
 
   canHandle(processInfo: ProcessInfo): boolean {
     const base = executableBasename(processInfo.command);
-    return base === "codex" || base === "codex.exe";
+    if (base !== "codex" && base !== "codex.exe") return false;
+    return !isCodexHelperCommand(processInfo.command);
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {

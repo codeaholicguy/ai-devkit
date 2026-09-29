@@ -4,6 +4,7 @@ import * as os from "os";
 import * as path from "path";
 
 import { CodexAdapter } from "../../providers/codex/CodexAdapter.js";
+import { CodexSessionLocator } from "../../providers/codex/CodexSessionLocator.js";
 import { AgentStatus, type ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { AgentRegistry, type RegistryEntry } from "../../utils/AgentRegistry.js";
 import { batchGetSessionFileBirthtimes, type SessionFile } from "../../utils/session.js";
@@ -112,6 +113,91 @@ describe("CodexAdapter", () => {
         tty: "ttys004",
       }),
     ).toBe(false);
+  });
+
+  describe("helper process exclusion", () => {
+    const sessionId = "019a0000-0000-7000-8000-000000000001";
+    const helperCommands = [
+      "/Applications/SomeApp.app/Contents/Resources/codex sandbox -c sandbox_permissions=[] -- node /opt/tools/server.js",
+      "/Applications/SomeApp.app/Contents/Resources/codex debug seatbelt -- node /opt/tools/server.js",
+      "codex app-server --listen stdio://",
+      "/usr/local/bin/codex -c model=o3 app-server --listen stdio://",
+      "/home/user/.codex/packages/app-server-daemon/releases/1.2.3/bin/codex",
+      "/home/user/.codex/packages/app-server-daemon/releases/1.2.3/bin/codex app-server --listen ws://127.0.0.1:4500",
+      "codex mcp-server",
+      "codex exec-server",
+      "codex remote-control start",
+      "codex login",
+      "codex mcp list",
+      "codex completion zsh",
+      "codex apply",
+      "codex features list",
+      "C:\\Users\\user\\.codex\\packages\\app-server-daemon\\releases\\1.2.3\\bin\\codex.exe",
+    ];
+    const agentCommands = [
+      "codex",
+      "/opt/homebrew/bin/codex --model o3",
+      "codex -c model_reasoning_effort=high",
+      "codex --sandbox workspace-write --ask-for-approval on-request",
+      "codex -s danger-full-access fix the failing tests",
+      `codex resume ${sessionId}`,
+      "codex resume --last",
+      `codex fork ${sessionId}`,
+      "codex exec --json -",
+      `codex exec resume --json ${sessionId} -`,
+      "codex exec --cd /repos/project summarize the change",
+      "codex review",
+      "C:\\tools\\codex.exe",
+    ];
+
+    it.each(helperCommands)("does not handle helper command %s", (command) => {
+      expect(adapter.canHandle({ pid: 10, command, cwd: "/repo", tty: "??" })).toBe(false);
+    });
+
+    it.each(agentCommands)("handles agent command %s", (command) => {
+      expect(adapter.canHandle({ pid: 11, command, cwd: "/repo", tty: "ttys001" })).toBe(true);
+    });
+
+    it("does not list helper processes or run session discovery for them", async () => {
+      const locatorSpy = vi.spyOn(CodexSessionLocator.prototype, "matchRunningProcesses");
+      const processes: ProcessInfo[] = helperCommands.map((command, index) => ({
+        pid: 500 + index,
+        command,
+        cwd: "/repo-a",
+        tty: "??",
+      }));
+
+      await expect(adapter.detectAgents({ processes })).resolves.toEqual([]);
+      expect(locatorSpy).not.toHaveBeenCalled();
+      locatorSpy.mockRestore();
+    });
+
+    it("only passes agent processes to session discovery when helpers run alongside", async () => {
+      const locatorSpy = vi.spyOn(CodexSessionLocator.prototype, "matchRunningProcesses");
+      const agentProcess: ProcessInfo = {
+        pid: 100,
+        command: "codex",
+        cwd: "/repo-a",
+        tty: "ttys001",
+      };
+      const processes: ProcessInfo[] = [
+        agentProcess,
+        { pid: 101, command: "codex app-server --listen stdio://", cwd: "/repo-a", tty: "??" },
+        {
+          pid: 102,
+          command: "/Applications/SomeApp.app/Contents/Resources/codex sandbox -- node server.js",
+          cwd: "/repo-a",
+          tty: "??",
+        },
+      ];
+
+      const agents = await adapter.detectAgents({ processes });
+
+      expect(agents.map((agent) => agent.pid)).toEqual([100]);
+      expect(locatorSpy).toHaveBeenCalledTimes(1);
+      expect(locatorSpy.mock.calls[0]![0]).toEqual([agentProcess]);
+      locatorSpy.mockRestore();
+    });
   });
 
   it("returns no agents when no Codex process is running", async () => {
