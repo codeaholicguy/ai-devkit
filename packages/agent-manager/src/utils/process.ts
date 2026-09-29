@@ -91,8 +91,25 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
   }
 }
 
-function execFileText(file: string, args: readonly string[]): Promise<string> {
-  return new Promise((resolve, reject) => {
+/** Runs an executable and resolves with its stdout. Injectable for tests. */
+export type ProcessExec = (file: string, args: readonly string[]) => Promise<string>;
+
+export interface ProcessSnapshotOptions {
+  /**
+   * Decides which name-matched processes are worth enriching with cwd and
+   * start time. Non-candidates are still returned (pid, ppid, tty, command
+   * only) so adapters can walk parent chains. Omitted = enrich everything.
+   */
+  isCandidate?: (process: ProcessInfo) => boolean;
+}
+
+export type ProcessSnapshotCapture = (
+  namePatterns: readonly string[],
+  options?: ProcessSnapshotOptions,
+) => Promise<ProcessInfo[]>;
+
+const execFileText: ProcessExec = (file, args) =>
+  new Promise((resolve, reject) => {
     execFile(
       file,
       args,
@@ -106,10 +123,17 @@ function execFileText(file: string, args: readonly string[]): Promise<string> {
       },
     );
   });
+
+interface ParsedProcessList {
+  /** Every PID in the listing, used to evict cache entries for exited processes. */
+  allPids: Set<number>;
+  /** Processes whose executable matches one of the requested names. */
+  matched: ProcessInfo[];
 }
 
-function parseProcessList(output: string, namePatterns: ReadonlySet<string>): ProcessInfo[] {
-  const processes: ProcessInfo[] = [];
+function parseProcessList(output: string, namePatterns: ReadonlySet<string>): ParsedProcessList {
+  const allPids = new Set<number>();
+  const matched: ProcessInfo[] = [];
 
   for (const line of output.trim().split("\n")) {
     if (!line.trim()) continue;
@@ -120,6 +144,7 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pr
     const pid = parseInt(match[1], 10);
     const ppid = parseInt(match[2], 10);
     if (Number.isNaN(pid) || Number.isNaN(ppid)) continue;
+    allPids.add(pid);
 
     const tty = match[3];
     const command = match[4];
@@ -127,7 +152,7 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pr
     const normalizedBase = normalizeExecutableName(base);
     if (!namePatterns.has(normalizedBase)) continue;
 
-    processes.push({
+    matched.push({
       pid,
       ppid,
       command,
@@ -136,15 +161,18 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pr
     });
   }
 
-  return processes;
+  return { allPids, matched };
 }
 
-async function batchGetProcessCwdsAsync(pids: number[]): Promise<Map<number, string>> {
+async function batchGetProcessCwdsAsync(
+  exec: ProcessExec,
+  pids: number[],
+): Promise<Map<number, string>> {
   const result = new Map<number, string>();
   if (pids.length === 0) return result;
 
   try {
-    const output = await execFileText("lsof", ["-a", "-d", "cwd", "-Fn", "-p", pids.join(",")]);
+    const output = await exec("lsof", ["-a", "-d", "cwd", "-Fn", "-p", pids.join(",")]);
     let currentPid: number | null = null;
     for (const line of output.trim().split("\n")) {
       if (line.startsWith("p")) {
@@ -159,7 +187,7 @@ async function batchGetProcessCwdsAsync(pids: number[]): Promise<Map<number, str
     const entries = await Promise.all(
       pids.map(async (pid) => {
         try {
-          const output = await execFileText("pwdx", [String(pid)]);
+          const output = await exec("pwdx", [String(pid)]);
           const match = output.match(/^\d+:\s*(.+)$/);
           return match ? ([pid, match[1].trim()] as const) : null;
         } catch {
@@ -174,12 +202,15 @@ async function batchGetProcessCwdsAsync(pids: number[]): Promise<Map<number, str
   }
 }
 
-async function batchGetProcessStartTimesAsync(pids: number[]): Promise<Map<number, Date>> {
+async function batchGetProcessStartTimesAsync(
+  exec: ProcessExec,
+  pids: number[],
+): Promise<Map<number, Date>> {
   const result = new Map<number, Date>();
   if (pids.length === 0) return result;
 
   try {
-    const output = await execFileText("ps", ["-o", "pid=,lstart=", "-p", pids.join(",")]);
+    const output = await exec("ps", ["-o", "pid=,lstart=", "-p", pids.join(",")]);
     for (const rawLine of output.split("\n")) {
       const match = rawLine.trim().match(/^(\d+)\s+(.+)$/);
       if (!match) continue;
@@ -193,35 +224,91 @@ async function batchGetProcessStartTimesAsync(pids: number[]): Promise<Map<numbe
   return result;
 }
 
+interface CachedStartTime {
+  /** ppid + command seen when the start time was read; a mismatch means PID reuse. */
+  identity: string;
+  startTime: Date;
+}
+
+function processIdentity(process: ProcessInfo): string {
+  return `${process.ppid ?? ""}\0${process.command}`;
+}
+
+/**
+ * Create a snapshot capture function with its own start-time cache.
+ *
+ * Start times never change for a live process, so each PID is queried with
+ * `ps lstart` once and reused on later refreshes. A cache entry is dropped
+ * when its PID disappears from the base listing, and ignored when the PID's
+ * ppid/command no longer match (PID reuse). cwd is re-read every refresh
+ * because a process can change directory.
+ */
+export function createProcessSnapshotCapture(
+  deps: { exec?: ProcessExec } = {},
+): ProcessSnapshotCapture {
+  const exec = deps.exec ?? execFileText;
+  const startTimeCache = new Map<number, CachedStartTime>();
+
+  const cachedStartTime = (process: ProcessInfo): Date | undefined => {
+    const cached = startTimeCache.get(process.pid);
+    return cached?.identity === processIdentity(process) ? cached.startTime : undefined;
+  };
+
+  return async (namePatterns, options = {}) => {
+    const names = normalizedProcessNames(
+      namePatterns.filter((name) => Boolean(name) && VALID_EXECUTABLE_NAME.test(name)),
+    );
+    if (names.size === 0) return [];
+
+    try {
+      const output = await exec("ps", ["-axo", "pid=,ppid=,tty=,command="]);
+      const { allPids, matched } = parseProcessList(output, names);
+
+      for (const pid of startTimeCache.keys()) {
+        if (!allPids.has(pid)) startTimeCache.delete(pid);
+      }
+
+      const { isCandidate } = options;
+      const candidates = isCandidate ? matched.filter((process) => isCandidate(process)) : matched;
+      const candidatePids = candidates.map((process) => process.pid);
+      const uncachedPids = candidates
+        .filter((process) => cachedStartTime(process) === undefined)
+        .map((process) => process.pid);
+
+      const [cwdMap, startTimeMap] = await Promise.all([
+        batchGetProcessCwdsAsync(exec, candidatePids),
+        batchGetProcessStartTimesAsync(exec, uncachedPids),
+      ]);
+
+      for (const process of candidates) {
+        const startTime = startTimeMap.get(process.pid);
+        if (startTime) {
+          startTimeCache.set(process.pid, { identity: processIdentity(process), startTime });
+        }
+      }
+
+      const candidateSet = new Set(candidatePids);
+      return matched.map((process) =>
+        candidateSet.has(process.pid)
+          ? {
+              ...process,
+              cwd: cwdMap.get(process.pid) || "",
+              startTime: cachedStartTime(process),
+            }
+          : process,
+      );
+    } catch {
+      return [];
+    }
+  };
+}
+
 /**
  * Capture and enrich relevant processes without blocking the event loop.
- * One base process listing is shared by every requested executable name.
+ * One base process listing is shared by every requested executable name;
+ * only processes accepted by `options.isCandidate` are enriched.
  */
-export async function captureProcessSnapshot(
-  namePatterns: readonly string[],
-): Promise<ProcessInfo[]> {
-  const names = normalizedProcessNames(
-    namePatterns.filter((name) => Boolean(name) && VALID_EXECUTABLE_NAME.test(name)),
-  );
-  if (names.size === 0) return [];
-
-  try {
-    const output = await execFileText("ps", ["-axo", "pid=,ppid=,tty=,command="]);
-    const processes = parseProcessList(output, names);
-    const pids = processes.map((process) => process.pid);
-    const [cwdMap, startTimeMap] = await Promise.all([
-      batchGetProcessCwdsAsync(pids),
-      batchGetProcessStartTimesAsync(pids),
-    ]);
-    return processes.map((process) => ({
-      ...process,
-      cwd: cwdMap.get(process.pid) || "",
-      startTime: startTimeMap.get(process.pid),
-    }));
-  } catch {
-    return [];
-  }
-}
+export const captureProcessSnapshot: ProcessSnapshotCapture = createProcessSnapshotCapture();
 
 /**
  * Batch-get current working directories for multiple PIDs.

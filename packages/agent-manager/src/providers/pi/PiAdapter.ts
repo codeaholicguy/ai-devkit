@@ -118,7 +118,11 @@ export class PiAdapter implements AgentAdapter {
   }
 
   private async getPiProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
-    const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
+    const snapshot =
+      context?.processes ??
+      (await captureProcessSnapshot(this.processNames, {
+        isCandidate: (processInfo) => this.canHandle(processInfo),
+      }));
     const relevant = filterByProcessNames(snapshot, this.processNames);
 
     const byPid = new Map<number, ProcessInfo>();

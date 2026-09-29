@@ -119,7 +119,11 @@ export class GeminiCliAdapter implements AgentAdapter {
   }
 
   private async getGeminiProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
-    const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
+    const snapshot =
+      context?.processes ??
+      (await captureProcessSnapshot(this.processNames, {
+        isCandidate: (process) => this.canHandle(process),
+      }));
     const relevant = filterByProcessNames(snapshot, this.processNames);
     return relevant.filter((process) => this.canHandle(process));
   }
