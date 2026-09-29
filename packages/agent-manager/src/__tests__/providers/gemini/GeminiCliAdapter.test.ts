@@ -631,7 +631,7 @@ describe("GeminiCliAdapter", () => {
       // tmp dir absent by default
       const result = locator.discoverSessions([proc]);
       expect(result.sessions).toEqual([]);
-      expect(result.contentCache.size).toBe(0);
+      expect(result).not.toHaveProperty("contentCache");
     });
 
     it("should skip processes with empty cwd when building the hash map", () => {

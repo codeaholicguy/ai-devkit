@@ -135,8 +135,7 @@ export class GeminiCliAdapter implements AgentAdapter {
     const agents: AgentInfo[] = [];
 
     for (const match of matches) {
-      const cachedContent = discovery.contentCache.get(match.session.filePath);
-      const sessionData = this.parser.parseSession(cachedContent, match.session.filePath);
+      const sessionData = this.parser.parseSession(undefined, match.session.filePath);
       if (!sessionData) {
         matchedPids.delete(match.process.pid);
         continue;
