@@ -1,19 +1,9 @@
 import path from "path";
-import type { AgentType } from "../adapters/AgentAdapter.js";
+import type { AGENT_TYPES } from "../adapters/AgentAdapter.js";
 import { executablePath } from "./process.js";
 
-export type StartableAgentType = Extract<
-  AgentType,
-  | "claude"
-  | "codex"
-  | "copilot"
-  | "gemini_cli"
-  | "grok_cli"
-  | "antigravity_cli"
-  | "opencode"
-  | "pi"
-  | "kiro"
->;
+/** Every built-in harness can be started, so each needs an {@link AGENTS} entry. */
+export type StartableAgentType = (typeof AGENT_TYPES)[number];
 
 export interface AgentConfig {
   /** Shell command to launch the agent (sent to tmux via `send-keys`). */
