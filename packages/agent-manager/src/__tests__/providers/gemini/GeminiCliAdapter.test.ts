@@ -187,6 +187,29 @@ describe("GeminiCliAdapter", () => {
       expect(agents[0].pid).toBe(100);
     });
 
+    it("should detect gemini run by a node binary installed under a path containing spaces", async () => {
+      const nodePath = path.join(tmpHome, "Applications", "Dev Tools", "node", "bin", "node");
+      fs.mkdirSync(path.dirname(nodePath), { recursive: true });
+      fs.writeFileSync(nodePath, "");
+      const geminiProc: ProcessInfo = {
+        pid: 100,
+        command: `${nodePath} ${tmpHome}/My Tools/lib/node_modules/.bin/gemini --prompt fix the bug`,
+        cwd: "/repo",
+        tty: "ttys001",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+      const unrelatedNodeProc: ProcessInfo = {
+        pid: 200,
+        command: `${nodePath} /usr/local/bin/eslint src/`,
+        cwd: "/other-repo",
+        tty: "ttys002",
+        startTime: new Date("2026-04-18T00:00:00Z"),
+      };
+
+      const agents = await adapter.detectAgents({ processes: [geminiProc, unrelatedNodeProc] });
+      expect(agents.map((agent) => agent.pid)).toEqual([100]);
+    });
+
     it("should return process-only agents when no session files exist for the process", async () => {
       const proc: ProcessInfo = {
         pid: 1234,

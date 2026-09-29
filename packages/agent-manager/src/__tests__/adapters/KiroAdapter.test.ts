@@ -152,6 +152,30 @@ describe("KiroAdapter", () => {
         }),
       ).toBe(false);
     });
+
+    it("identifies Kiro when the runtime or script path contains spaces", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "kiro-spaces-"));
+      try {
+        const install = (relativePath: string) => {
+          const fullPath = path.join(root, relativePath);
+          fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+          fs.writeFileSync(fullPath, "");
+          return fullPath;
+        };
+        const node = install("Applications/Dev Tools/bin/node");
+        const kiro = install("Applications/Kiro App.app/Contents/Resources/kiro-cli");
+        const script = install("My Tools/kiro/bin/kiro-cli.js");
+        const handles = (command: string) =>
+          adapter.canHandle({ pid: 1, command, cwd: "/repo", tty: "ttys001" });
+
+        expect(handles(`${kiro} chat --trust-all-tools`)).toBe(true);
+        expect(handles(`${node} /opt/kiro/bin/kiro-cli.js`)).toBe(true);
+        expect(handles(`${node} --no-warnings ${script} chat`)).toBe(true);
+        expect(handles(`${node} /repo/server.js --name My Dir/kiro-cli`)).toBe(false);
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    });
   });
 
   describe("detectAgents", () => {

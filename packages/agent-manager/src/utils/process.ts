@@ -6,16 +6,54 @@
  * remain exported for compatibility with existing consumers.
  */
 
+import * as fs from "fs";
 import * as path from "path";
 import { execFile, execFileSync } from "child_process";
 import type { ProcessInfo } from "../adapters/AgentAdapter.js";
 
 const PROCESS_EXEC_MAX_BUFFER = 10 * 1024 * 1024;
 const VALID_EXECUTABLE_NAME = /^[a-zA-Z0-9_-]+$/;
+const ABSOLUTE_PATH = /^(?:\/|[a-zA-Z]:[\\/])/;
+const PATH_SEPARATOR = /[\\/]/;
+
+function pathBasename(executable: string): string {
+  return path.basename(executable.replace(/\\/g, "/")).toLowerCase();
+}
+
+function isFile(filePath: string): boolean {
+  try {
+    return fs.statSync(filePath, { throwIfNoEntry: false })?.isFile() ?? false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve argv[0] from a `ps` command line.
+ *
+ * `ps` joins argv with spaces, so an executable installed under a directory
+ * containing spaces (`/Applications/Some App.app/Contents/Resources/codex`)
+ * spans several whitespace tokens. When the first token of an absolute path
+ * is not itself a file, longer space-joined prefixes ending in a token with a
+ * path separator are tried, and the first one that exists on disk wins.
+ * Otherwise the first token is returned, so arguments are never folded into
+ * the executable path unless that combined path really is a file.
+ */
+export function executablePath(command: string): string {
+  const parts = command.trim().split(/(\s+)/);
+  const first = parts[0] ?? "";
+  if (parts.length === 1 || !ABSOLUTE_PATH.test(first) || isFile(first)) return first;
+
+  let prefix = first;
+  for (let i = 2; i < parts.length; i += 2) {
+    prefix += parts[i - 1] + parts[i];
+    if (PATH_SEPARATOR.test(parts[i]) && isFile(prefix)) return prefix;
+  }
+  return first;
+}
 
 export function executableBasename(command: string): string {
-  const executable = command.trim().split(/\s+/)[0] || "";
-  return path.basename(executable.replace(/\\/g, "/")).toLowerCase();
+  return pathBasename(executablePath(command));
 }
 
 function normalizeExecutableName(name: string): string {
@@ -27,15 +65,36 @@ function normalizedProcessNames(namePatterns: readonly string[]): Set<string> {
   return new Set(namePatterns.filter(Boolean).map(normalizeExecutableName));
 }
 
+/**
+ * Whether argv[0] of `command` is one of `names`.
+ *
+ * The first token is checked with string operations only, as before. The
+ * filesystem is consulted only for absolute commands where a later
+ * path-like token ends in one of the names, i.e. a possible executable under
+ * a directory containing spaces.
+ */
+function matchesExecutableName(command: string, names: ReadonlySet<string>): boolean {
+  const tokens = command.trim().split(/\s+/);
+  const first = tokens[0] ?? "";
+  if (names.has(normalizeExecutableName(pathBasename(first)))) return true;
+  if (!ABSOLUTE_PATH.test(first)) return false;
+
+  const mayContinuePath = tokens
+    .slice(1)
+    .some(
+      (token) =>
+        PATH_SEPARATOR.test(token) && names.has(normalizeExecutableName(pathBasename(token))),
+    );
+  return mayContinuePath && names.has(normalizeExecutableName(executableBasename(command)));
+}
+
 export function filterByProcessNames(
   processes: readonly ProcessInfo[],
   namePatterns: readonly string[],
 ): ProcessInfo[] {
   const names = normalizedProcessNames(namePatterns);
   if (names.size === 0) return [];
-  return processes.filter((process) =>
-    names.has(normalizeExecutableName(executableBasename(process.command))),
-  );
+  return processes.filter((process) => matchesExecutableName(process.command, names));
 }
 
 /**
@@ -72,7 +131,7 @@ export function listAgentProcesses(namePattern: string): ProcessInfo[] {
       const tty = match[3];
       const command = match[4];
 
-      if (!names.has(normalizeExecutableName(executableBasename(command)))) continue;
+      if (!matchesExecutableName(command, names)) continue;
 
       const ttyShort = tty.startsWith("/dev/") ? tty.slice(5) : tty;
 
@@ -148,9 +207,7 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pa
 
     const tty = match[3];
     const command = match[4];
-    const base = executableBasename(command);
-    const normalizedBase = normalizeExecutableName(base);
-    if (!namePatterns.has(normalizedBase)) continue;
+    if (!matchesExecutableName(command, namePatterns)) continue;
 
     matched.push({
       pid,

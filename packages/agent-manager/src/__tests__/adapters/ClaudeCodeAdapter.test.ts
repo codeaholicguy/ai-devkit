@@ -131,6 +131,37 @@ describe("ClaudeCodeAdapter", () => {
       expect(adapter.canHandle(processInfo)).toBe(false);
     });
 
+    it("should return true for claude installed under a path containing spaces", () => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "claude-spaces-"));
+      try {
+        const executable = path.join(root, "Applications", "Some App.app", "Contents", "claude");
+        fs.mkdirSync(path.dirname(executable), { recursive: true });
+        fs.writeFileSync(executable, "");
+
+        expect(
+          adapter.canHandle({
+            pid: 12345,
+            command: `${executable} --resume abc --append-system-prompt be brief/codex`,
+            cwd: "/test",
+            tty: "ttys001",
+          }),
+        ).toBe(true);
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    });
+
+    it("should return false when claude only appears in an argument containing spaces", () => {
+      expect(
+        adapter.canHandle({
+          pid: 12345,
+          command: "/usr/bin/vim My Notes/claude",
+          cwd: "/test",
+          tty: "ttys001",
+        }),
+      ).toBe(false);
+    });
+
     it('should return false for processes with "claude" only in path arguments', () => {
       const processInfo = {
         pid: 12345,

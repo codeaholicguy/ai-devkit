@@ -165,6 +165,15 @@ describe("AntigravityCliAdapter", () => {
       expect(adapter.canHandle(proc({ command: "node app.js" }))).toBe(false);
     });
 
+    it("returns true for agy installed under a path containing spaces", () => {
+      const executable = path.join(base, "Antigravity App.app", "bin", "agy");
+      fs.mkdirSync(path.dirname(executable), { recursive: true });
+      fs.writeFileSync(executable, "");
+
+      expect(adapter.canHandle(proc({ command: `${executable} --prompt fix it` }))).toBe(true);
+      expect(adapter.canHandle(proc({ command: "/usr/bin/vim My Notes/agy" }))).toBe(false);
+    });
+
     it('returns false when "agy" appears only in an argument path', () => {
       expect(adapter.canHandle(proc({ command: "node /path/to/agy-thing.js" }))).toBe(false);
     });

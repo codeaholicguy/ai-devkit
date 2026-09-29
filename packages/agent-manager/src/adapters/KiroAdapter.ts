@@ -17,11 +17,7 @@ import type {
   AgentDetectionContext,
 } from "./AgentAdapter.js";
 import { AgentStatus } from "./AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-} from "../utils/process.js";
+import { captureProcessSnapshot, executablePath, filterByProcessNames } from "../utils/process.js";
 import { JsonlTailReader, normalizeTail } from "../utils/jsonlTail.js";
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../utils/session.js";
 import { generateAgentName } from "../utils/matching.js";
@@ -425,19 +421,27 @@ export class KiroAdapter implements AgentAdapter {
   }
 
   private isKiroExecutable(command: string): boolean {
-    const tokens = command.trim().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return false;
+    const trimmed = command.trim();
+    const executable = executablePath(trimmed);
+    if (!executable) return false;
 
-    const executable = this.kiroBasename(tokens[0]);
-    if (KIRO_BASENAMES.has(executable)) return true;
-    if (!SCRIPT_RUNTIMES.has(executable)) return false;
+    const executableName = this.kiroBasename(executable);
+    if (KIRO_BASENAMES.has(executableName)) return true;
+    if (!SCRIPT_RUNTIMES.has(executableName)) return false;
 
-    const script = tokens.slice(1).find((token) => !token.startsWith("-"));
-    return script !== undefined && KIRO_BASENAMES.has(this.kiroBasename(script));
+    const args = trimmed.slice(executable.length).trim().split(/\s+/);
+    const scriptIndex = args.findIndex((token) => token !== "" && !token.startsWith("-"));
+    if (scriptIndex === -1) return false;
+    // The script path may also contain spaces; resolve it like argv[0].
+    const script = executablePath(args.slice(scriptIndex).join(" "));
+    return KIRO_BASENAMES.has(this.kiroBasename(script));
   }
 
-  private kiroBasename(token: string): string {
-    return executableBasename(token).replace(/\.(exe|js)$/, "");
+  private kiroBasename(executable: string): string {
+    return path
+      .basename(executable.replace(/\\/g, "/"))
+      .toLowerCase()
+      .replace(/\.(exe|js)$/, "");
   }
 
   private toPid(value: unknown): number | null {

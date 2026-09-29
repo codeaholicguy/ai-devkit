@@ -10,7 +10,11 @@ import type {
   ListSessionsOptions,
 } from "./AgentAdapter.js";
 import { AgentStatus } from "./AgentAdapter.js";
-import { captureProcessSnapshot, filterByProcessNames } from "../utils/process.js";
+import {
+  captureProcessSnapshot,
+  executableBasename,
+  filterByProcessNames,
+} from "../utils/process.js";
 import { JsonlTailReader, normalizeTail } from "../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../utils/session.js";
 import { generateAgentName } from "../utils/matching.js";
@@ -91,8 +95,7 @@ export class AntigravityCliAdapter implements AgentAdapter {
   }
 
   private isAgyExecutable(command: string): boolean {
-    const executable = command.trim().split(/\s+/)[0] || "";
-    const base = path.basename(executable).toLowerCase();
+    const base = executableBasename(command);
     return base === "agy" || base === "agy.exe";
   }
 

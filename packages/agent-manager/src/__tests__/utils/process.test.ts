@@ -4,6 +4,9 @@
 
 import type { MockedFunction } from "vitest";
 
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 import { execFile, execFileSync } from "child_process";
 import {
   listAgentProcesses,
@@ -15,6 +18,8 @@ import {
   captureProcessSnapshot,
   createProcessSnapshotCapture,
   filterByProcessNames,
+  executableBasename,
+  executablePath,
   type ProcessExec,
 } from "../../utils/process.js";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
@@ -253,6 +258,91 @@ describe("filterByProcessNames", () => {
 
     expect(filterByProcessNames(processes, ["node"])).toEqual([processes[0], processes[1]]);
     expect(filterByProcessNames(processes, ["node.exe"])).toEqual([processes[0], processes[1]]);
+  });
+});
+
+describe("executables installed under paths containing spaces", () => {
+  let root: string;
+  let codexPath: string;
+  let nodePath: string;
+  let editorPath: string;
+
+  function install(relativePath: string): string {
+    const fullPath = path.join(root, relativePath);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, "");
+    return fullPath;
+  }
+
+  beforeEach(() => {
+    mockedExecFileSync.mockReset();
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "process-spaces-"));
+    codexPath = install("Applications/Some App.app/Contents/Resources/codex");
+    nodePath = install("Applications/Dev Tools/node/bin/node");
+    editorPath = install("usr/bin/vim");
+  });
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  it("recovers argv[0] when its directory contains spaces", () => {
+    expect(executableBasename(`${codexPath} exec --cd /repo`)).toBe("codex");
+    expect(executablePath(`${codexPath} exec --cd /repo`)).toBe(codexPath);
+    expect(executableBasename(`${nodePath} /Users/me/.npm/bin/gemini --yolo`)).toBe("node");
+  });
+
+  it("does not treat arguments containing spaces as part of the executable path", () => {
+    expect(executableBasename(`${editorPath} My Notes/claude`)).toBe("vim");
+    expect(executableBasename(`${codexPath} exec fix the Other Dir/claude bug`)).toBe("codex");
+    expect(executableBasename("/usr/local/bin/node --title my agent/claude")).toBe("node");
+  });
+
+  it("keeps the first-token behaviour for commands without spaces in the path", () => {
+    expect(executableBasename("claude")).toBe("claude");
+    expect(executableBasename("/usr/local/bin/CLAUDE --continue")).toBe("claude");
+    expect(executableBasename("C:\\tools\\node.exe C:\\bin\\pi.js")).toBe("node.exe");
+    expect(executableBasename("  ")).toBe("");
+  });
+
+  it("matches spaced executables by name in filterByProcessNames", () => {
+    const processes: ProcessInfo[] = [
+      { pid: 1, command: `${codexPath} resume --last`, cwd: "", tty: "" },
+      { pid: 2, command: `${nodePath} /opt/gemini.js`, cwd: "", tty: "" },
+      { pid: 3, command: `${editorPath} Some App.app/Contents/Resources/codex`, cwd: "", tty: "" },
+      { pid: 4, command: `${codexPath} exec review My Folder/claude`, cwd: "", tty: "" },
+    ];
+
+    expect(filterByProcessNames(processes, ["codex"])).toEqual([processes[0], processes[3]]);
+    expect(filterByProcessNames(processes, ["node"])).toEqual([processes[1]]);
+    expect(filterByProcessNames(processes, ["claude"])).toEqual([]);
+  });
+
+  it("captures spaced executables with a single base ps call", async () => {
+    const calls: Array<{ file: string; args: readonly string[] }> = [];
+    const exec: ProcessExec = async (file, args) => {
+      calls.push({ file, args });
+      if (file === "ps" && args.includes("-axo")) {
+        return [
+          `100 1 s001 ${codexPath} --sandbox workspace-write`,
+          `200 1 s002 ${editorPath} Some App.app/Contents/Resources/codex`,
+        ].join("\n");
+      }
+      return "";
+    };
+    const capture = createProcessSnapshotCapture({ exec });
+
+    const snapshot = await capture(["codex"]);
+
+    expect(snapshot.map((process) => process.pid)).toEqual([100]);
+    expect(snapshot[0].command).toBe(`${codexPath} --sandbox workspace-write`);
+    expect(calls.filter((call) => call.args.includes("-axo"))).toHaveLength(1);
+  });
+
+  it("lists spaced executables in listAgentProcesses", () => {
+    mockedExecFileSync.mockReturnValue(`100 1 s001 ${codexPath} exec --json\n`);
+
+    expect(listAgentProcesses("codex").map((process) => process.pid)).toEqual([100]);
   });
 });
 
