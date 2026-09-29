@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.65.1] - 2026-09-29
+
+- Cached incremental session summaries across refreshes so repeated agent listings skip rescanning unchanged transcripts ([#267](https://github.com/codeaholicguy/ai-devkit/pull/267)).
+- Used a shared process snapshot in the Antigravity adapter ([#268](https://github.com/codeaholicguy/ai-devkit/pull/268)).
+- Excluded Codex helper processes from agent detection so helper invocations no longer show up as agents ([#270](https://github.com/codeaholicguy/ai-devkit/pull/270)).
+- Read conversation tails from the end of JSONL transcripts instead of whole files when rendering conversation previews ([#271](https://github.com/codeaholicguy/ai-devkit/pull/271)).
+- Read only the session metadata head during Codex session discovery ([#269](https://github.com/codeaholicguy/ai-devkit/pull/269)).
+- Bounded Gemini session discovery I/O ([#274](https://github.com/codeaholicguy/ai-devkit/pull/274)).
+- Detected Gemini `session-*.jsonl` logs ([#284](https://github.com/codeaholicguy/ai-devkit/pull/284)).
+- Bounded the cold-start session summary to a head and tail scan ([#272](https://github.com/codeaholicguy/ai-devkit/pull/272)).
+- Added skip hooks to the Pi, Grok, and Copilot reducers so bounded scans can skip irrelevant transcripts ([#285](https://github.com/codeaholicguy/ai-devkit/pull/285)).
+- Classified Codex review, cloud, and agents sessions by rollout behaviour ([#289](https://github.com/codeaholicguy/ai-devkit/pull/289)).
+- Enriched only candidate PIDs and cached process start times during detection ([#277](https://github.com/codeaholicguy/ai-devkit/pull/277)).
+- Detected executable paths containing spaces ([#286](https://github.com/codeaholicguy/ai-devkit/pull/286)).
+- Shared process/session matching tolerance across locators ([#288](https://github.com/codeaholicguy/ai-devkit/pull/288)).
+- Folded the first tail line correctly when the bounded scan starts on a line boundary ([#299](https://github.com/codeaholicguy/ai-devkit/pull/299)).
+- Resolved spaced argv[0] values in AGENTS matchers ([#300](https://github.com/codeaholicguy/ai-devkit/pull/300)).
+- Consumed variadic Codex `-i`/`--image` values in helper detection ([#301](https://github.com/codeaholicguy/ai-devkit/pull/301)).
+- Moved the Antigravity adapter into the agent-manager provider structure ([29ee399](https://github.com/codeaholicguy/ai-devkit/commit/29ee399)).
+- Moved the Kiro adapter into the agent-manager provider structure ([0ae18de](https://github.com/codeaholicguy/ai-devkit/commit/0ae18de)).
+- Followed Kiro's bundled bun TUI when matching session locks ([6788bd7](https://github.com/codeaholicguy/ai-devkit/commit/6788bd7)).
+- Renamed the internal `providers` structure to `harnesses` with no public API changes ([dd31803](https://github.com/codeaholicguy/ai-devkit/commit/dd31803)).
+- Registered built-in harnesses from one list, exporting `createBuiltinAdapters` and `AGENT_TYPES` ([8f0a3c5](https://github.com/codeaholicguy/ai-devkit/commit/8f0a3c5)).
+- Shared harness boilerplate in `harnesses/shared` ([b60631a](https://github.com/codeaholicguy/ai-devkit/commit/b60631a)).
+- Added `findSessionsById` lookups for Kiro and Antigravity sessions so exact historical IDs resolve without enumerating summaries ([cc43cbe](https://github.com/codeaholicguy/ai-devkit/commit/cc43cbe)).
+- Derived `StartableAgentType` from `AGENT_TYPES` ([cd8a7e7](https://github.com/codeaholicguy/ai-devkit/commit/cd8a7e7)).
+- Cached Kiro and Antigravity session summaries ([532c562](https://github.com/codeaholicguy/ai-devkit/commit/532c562)).
+- Released `@ai-devkit/agent-manager` 0.37.0 with this version, exporting `AGENT_TYPES`, `createBuiltinAdapters`, and the `ConversationOptions` type; the `providers` → `harnesses` rename is internal-only with no public API changes.
+
 ## [0.65.0] - 2026-09-27
 
 - Added an OpenAI platform usage provider to `ai-devkit capacity`, resolving `OPENAI_API_KEY` or the Pi OpenAI credential and reporting today and 7-day token windows from the platform Usage API; unqueryable limits render consumption-only ([#252](https://github.com/codeaholicguy/ai-devkit/pull/252)).

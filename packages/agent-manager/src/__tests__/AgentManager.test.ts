@@ -1289,7 +1289,7 @@ describe("AgentManager", () => {
       expect(codex.lastListSessionsOpts).toBeUndefined();
     });
 
-    it("skips non-matching providers when type is supplied", async () => {
+    it("skips non-matching harnesses when type is supplied", async () => {
       const claude = new MockAdapter("claude", [], false, [session("claude", "target")]);
       const codex = new MockAdapter("codex", [], false, [session("codex", "target")]);
       manager.registerAdapter(claude);

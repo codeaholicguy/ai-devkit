@@ -10,7 +10,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 
 const SRC_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const ADAPTER_DIRS = ["adapters", "providers"];
+const ADAPTER_DIRS = ["adapters", "harnesses"];
 const SYNC_HELPERS = ["listAgentProcesses", "enrichProcesses"];
 
 function listSourceFiles(dir: string): string[] {

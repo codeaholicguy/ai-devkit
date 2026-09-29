@@ -13,8 +13,8 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { ClaudeSessionParser } from "../../providers/claude/ClaudeSessionParser.js";
-import { CodexSessionParser } from "../../providers/codex/CodexSessionParser.js";
+import { ClaudeSessionParser } from "../../harnesses/claude/ClaudeSessionParser.js";
+import { CodexSessionParser } from "../../harnesses/codex/CodexSessionParser.js";
 
 const readBytes = vi.hoisted(() => ({ total: 0 }));
 

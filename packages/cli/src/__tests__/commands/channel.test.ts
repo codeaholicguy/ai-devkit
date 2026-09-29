@@ -38,6 +38,7 @@ const mockChannelManager = {
 const mockAgentAdapter = {
   getConversation: vi.fn(),
 };
+const mockBuiltinAdapters = [{ type: "claude" }, { type: "opencode" }];
 const mockAgentManager = {
   registerAdapter: vi.fn(),
   listAgents: vi.fn<() => Promise<unknown[]>>(),
@@ -100,14 +101,7 @@ vi.mock(
     AgentManager: vi.fn(function () {
       return mockAgentManager;
     }),
-    ClaudeCodeAdapter: vi.fn(),
-    CodexAdapter: vi.fn(),
-    CopilotAdapter: vi.fn(),
-    GeminiCliAdapter: vi.fn(),
-    GrokCliAdapter: vi.fn(),
-    AntigravityCliAdapter: vi.fn(),
-    KiroAdapter: vi.fn(),
-    PiAdapter: vi.fn(),
+    createBuiltinAdapters: vi.fn(() => mockBuiltinAdapters),
     TerminalFocusManager: vi.fn(function () {
       return mockTerminalFocusManager;
     }),
@@ -927,7 +921,9 @@ describe("channel command", () => {
         bridgePid: process.pid,
       }),
     );
-    expect(mockAgentManager.registerAdapter).toHaveBeenCalledTimes(8);
+    expect(mockAgentManager.registerAdapter.mock.calls.map(([adapter]) => adapter)).toEqual(
+      mockBuiltinAdapters,
+    );
     expect(
       mockChannelService.registerBridge.mock.invocationCallOrder[0],
     ).toBeLessThan(mockChannelManager.startAll.mock.invocationCallOrder[0]);

@@ -12,6 +12,7 @@ import { ui } from "../../util/terminal-ui.js";
 
 const SESSION = "22222222-2222-4222-8222-222222222222";
 
+const mockBuiltinAdapters = [{ type: "claude" }, { type: "opencode" }];
 const mockManager: any = {
   registerAdapter: vi.fn(),
   listAgents: vi.fn(),
@@ -223,15 +224,18 @@ vi.mock(
     AgentManager: vi.fn(function () {
       return mockManager;
     }),
-    ClaudeCodeAdapter: vi.fn(),
-    CodexAdapter: vi.fn(),
-    CopilotAdapter: vi.fn(),
-    GeminiCliAdapter: vi.fn(),
-    GrokCliAdapter: vi.fn(),
-    AntigravityCliAdapter: vi.fn(),
-    KiroAdapter: vi.fn(),
-    OpenCodeAdapter: vi.fn(),
-    PiAdapter: vi.fn(),
+    AGENT_TYPES: [
+      "claude",
+      "codex",
+      "gemini_cli",
+      "grok_cli",
+      "kiro",
+      "antigravity_cli",
+      "opencode",
+      "copilot",
+      "pi",
+    ],
+    createBuiltinAdapters: vi.fn(() => mockBuiltinAdapters),
     DurableAgentRepository: vi.fn(function () {
       return mockDurableRepository;
     }),
@@ -607,7 +611,9 @@ describe("agent command", () => {
         onRuntimeDiscoveryError: expect.any(Function),
       }),
     );
-    expect(mockManager.registerAdapter).toHaveBeenCalledTimes(9);
+    expect(mockManager.registerAdapter.mock.calls.map(([adapter]) => adapter)).toEqual(
+      mockBuiltinAdapters,
+    );
     expect(logSpy).toHaveBeenCalledWith(
       JSON.stringify([{ ...agents[0], mode: "interactive" }], null, 2),
     );

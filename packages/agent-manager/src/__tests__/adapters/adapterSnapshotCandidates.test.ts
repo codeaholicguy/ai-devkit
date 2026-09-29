@@ -15,15 +15,15 @@ import * as childProcess from "child_process";
 import type { MockedFunction } from "vitest";
 
 import type { AgentAdapter, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AntigravityCliAdapter } from "../../adapters/AntigravityCliAdapter.js";
-import { KiroAdapter } from "../../adapters/KiroAdapter.js";
-import { ClaudeCodeAdapter } from "../../providers/claude/ClaudeCodeAdapter.js";
-import { CodexAdapter } from "../../providers/codex/CodexAdapter.js";
-import { CopilotAdapter } from "../../providers/copilot/CopilotAdapter.js";
-import { GeminiCliAdapter } from "../../providers/gemini/GeminiCliAdapter.js";
-import { GrokCliAdapter } from "../../providers/grok/GrokCliAdapter.js";
-import { OpenCodeAdapter } from "../../providers/opencode/OpenCodeAdapter.js";
-import { PiAdapter } from "../../providers/pi/PiAdapter.js";
+import { AntigravityCliAdapter } from "../../harnesses/antigravity/AntigravityCliAdapter.js";
+import { KiroAdapter } from "../../harnesses/kiro/KiroAdapter.js";
+import { ClaudeCodeAdapter } from "../../harnesses/claude/ClaudeCodeAdapter.js";
+import { CodexAdapter } from "../../harnesses/codex/CodexAdapter.js";
+import { CopilotAdapter } from "../../harnesses/copilot/CopilotAdapter.js";
+import { GeminiCliAdapter } from "../../harnesses/gemini/GeminiCliAdapter.js";
+import { GrokCliAdapter } from "../../harnesses/grok/GrokCliAdapter.js";
+import { OpenCodeAdapter } from "../../harnesses/opencode/OpenCodeAdapter.js";
+import { PiAdapter } from "../../harnesses/pi/PiAdapter.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 import { captureProcessSnapshot } from "../../utils/process.js";
 
@@ -115,7 +115,10 @@ const CASES: AdapterCase[] = [
     name: "kiro (node)",
     create: () => new KiroAdapter(),
     candidates: ["1301 1 ttys003 kiro-cli"],
-    nonCandidates: ["1302 1301 ttys003 kiro-cli-chat chat"],
+    nonCandidates: [
+      "1302 1301 ttys003 kiro-cli-chat chat",
+      "1303 1302 ttys003 bun --no-env-file /opt/kiro-cli/tui.js chat",
+    ],
   },
   {
     name: "claude",

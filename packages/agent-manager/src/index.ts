@@ -32,16 +32,17 @@ export type {
   ReadinessStatus,
 } from "./readiness/AgentReadiness.js";
 
-export { ClaudeCodeAdapter } from "./providers/claude/ClaudeCodeAdapter.js";
-export { CodexAdapter } from "./providers/codex/CodexAdapter.js";
-export { CopilotAdapter } from "./providers/copilot/CopilotAdapter.js";
-export { GeminiCliAdapter } from "./providers/gemini/GeminiCliAdapter.js";
-export { GrokCliAdapter } from "./providers/grok/GrokCliAdapter.js";
-export { AntigravityCliAdapter } from "./adapters/AntigravityCliAdapter.js";
-export { KiroAdapter } from "./adapters/KiroAdapter.js";
-export { OpenCodeAdapter } from "./providers/opencode/OpenCodeAdapter.js";
-export { PiAdapter } from "./providers/pi/PiAdapter.js";
-export { AgentStatus } from "./adapters/AgentAdapter.js";
+export { ClaudeCodeAdapter } from "./harnesses/claude/ClaudeCodeAdapter.js";
+export { CodexAdapter } from "./harnesses/codex/CodexAdapter.js";
+export { CopilotAdapter } from "./harnesses/copilot/CopilotAdapter.js";
+export { GeminiCliAdapter } from "./harnesses/gemini/GeminiCliAdapter.js";
+export { GrokCliAdapter } from "./harnesses/grok/GrokCliAdapter.js";
+export { AntigravityCliAdapter } from "./harnesses/antigravity/AntigravityCliAdapter.js";
+export { KiroAdapter } from "./harnesses/kiro/KiroAdapter.js";
+export { OpenCodeAdapter } from "./harnesses/opencode/OpenCodeAdapter.js";
+export { PiAdapter } from "./harnesses/pi/PiAdapter.js";
+export { createBuiltinAdapters } from "./harnesses/index.js";
+export { AGENT_TYPES, AgentStatus } from "./adapters/AgentAdapter.js";
 export type {
   AgentAdapter,
   AgentType,
@@ -148,34 +149,34 @@ export type {
   ProcessInspector,
   DurableRunCompletion,
 } from "./durable/DurableAgentRepository.js";
-export { ClaudePrintAgentService } from "./providers/claude/durable/ClaudePrintAgentService.js";
+export { ClaudePrintAgentService } from "./harnesses/claude/durable/ClaudePrintAgentService.js";
 export type {
   ClaudePrintAgentServiceOptions,
   ClaudePrintSendResult,
-} from "./providers/claude/durable/ClaudePrintAgentService.js";
-export { CodexCliProbe } from "./providers/codex/durable/CodexCliProbe.js";
-export type { CodexCliProbeOptions } from "./providers/codex/durable/CodexCliProbe.js";
-export { CodexPrintRunner } from "./providers/codex/durable/CodexPrintRunner.js";
+} from "./harnesses/claude/durable/ClaudePrintAgentService.js";
+export { CodexCliProbe } from "./harnesses/codex/durable/CodexCliProbe.js";
+export type { CodexCliProbeOptions } from "./harnesses/codex/durable/CodexCliProbe.js";
+export { CodexPrintRunner } from "./harnesses/codex/durable/CodexPrintRunner.js";
 export type {
   CodexPrintRunnerOptions,
   CodexPrintRunRequest,
   CodexPrintRunResult,
-} from "./providers/codex/durable/CodexPrintRunner.js";
-export { CodexPrintAgentService } from "./providers/codex/durable/CodexPrintAgentService.js";
+} from "./harnesses/codex/durable/CodexPrintRunner.js";
+export { CodexPrintAgentService } from "./harnesses/codex/durable/CodexPrintAgentService.js";
 export type {
   CodexPrintAgentServiceOptions,
   CodexPrintSendResult,
-} from "./providers/codex/durable/CodexPrintAgentService.js";
-export { PiCliProbe } from "./providers/pi/durable/PiCliProbe.js";
-export type { PiCliProbeOptions } from "./providers/pi/durable/PiCliProbe.js";
-export { PiPrintRunner } from "./providers/pi/durable/PiPrintRunner.js";
+} from "./harnesses/codex/durable/CodexPrintAgentService.js";
+export { PiCliProbe } from "./harnesses/pi/durable/PiCliProbe.js";
+export type { PiCliProbeOptions } from "./harnesses/pi/durable/PiCliProbe.js";
+export { PiPrintRunner } from "./harnesses/pi/durable/PiPrintRunner.js";
 export type {
   PiPrintRunnerOptions,
   PiPrintRunRequest,
   PiPrintRunResult,
-} from "./providers/pi/durable/PiPrintRunner.js";
-export { PiPrintAgentService } from "./providers/pi/durable/PiPrintAgentService.js";
+} from "./harnesses/pi/durable/PiPrintRunner.js";
+export { PiPrintAgentService } from "./harnesses/pi/durable/PiPrintAgentService.js";
 export type {
   PiPrintAgentServiceOptions,
   PiPrintSendResult,
-} from "./providers/pi/durable/PiPrintAgentService.js";
+} from "./harnesses/pi/durable/PiPrintAgentService.js";

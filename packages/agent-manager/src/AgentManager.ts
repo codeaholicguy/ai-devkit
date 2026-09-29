@@ -368,7 +368,7 @@ export class AgentManager {
     return merged;
   }
 
-  /** Resolve an exact historical session ID across the selected providers. */
+  /** Resolve an exact historical session ID across the selected harnesses. */
   async findSessionsById(
     sessionId: string,
     opts?: Pick<ListSessionsOptions, "type">,

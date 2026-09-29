@@ -6,7 +6,6 @@ import {
   buildOpenAiReport,
   parseOpenAiUsage,
   probeOpenAiCapacity,
-  resolveOpenAiApiKey,
   resolveOpenAiCredential,
 } from "../../capacity/openai.js";
 
@@ -20,19 +19,19 @@ describe("OpenAI credential resolution", () => {
   it("prefers OPENAI_API_KEY without reading Pi auth", async () => {
     const readAuth = vi.fn(async () => fixture("openai-auth.json"));
     await expect(
-      resolveOpenAiApiKey({
+      resolveOpenAiCredential({
         env: { OPENAI_API_KEY: "env-openai-test-key" },
         readFile: readAuth,
       }),
-    ).resolves.toBe("env-openai-test-key");
+    ).resolves.toEqual({ kind: "platform", key: "env-openai-test-key" });
     expect(readAuth).not.toHaveBeenCalled();
   });
 
   it("reads the Pi openai api_key credential from ~/.pi/agent/auth.json", async () => {
     const readAuth = vi.fn(async () => fixture("openai-auth.json"));
     await expect(
-      resolveOpenAiApiKey({ env: { HOME: "/users/test" }, readFile: readAuth }),
-    ).resolves.toBe("pi-openai-test-key");
+      resolveOpenAiCredential({ env: { HOME: "/users/test" }, readFile: readAuth }),
+    ).resolves.toEqual({ kind: "platform", key: "pi-openai-test-key" });
     expect(readAuth).toHaveBeenCalledWith("/users/test/.pi/agent/auth.json", "utf8");
   });
 
@@ -46,7 +45,7 @@ describe("OpenAI credential resolution", () => {
     ["missing key", async () => JSON.stringify({ openai: { type: "api_key" } })],
   ])("fails clearly for %s credentials without exposing file content", async (_name, readAuth) => {
     await expect(
-      resolveOpenAiApiKey({
+      resolveOpenAiCredential({
         env: { HOME: "/users/test" },
         readFile: readAuth,
       }),
@@ -130,15 +129,6 @@ describe("OpenAI tiered credential resolution", () => {
       ).rejects.toThrow("OpenAI credentials not found");
     },
   );
-
-  it("still throws for OAuth-only machines on the legacy platform-key resolver", async () => {
-    await expect(
-      resolveOpenAiApiKey({
-        env: { HOME: "/users/test" },
-        readFile: async () => oauthFixture(),
-      }),
-    ).rejects.toThrow("OpenAI credentials not found");
-  });
 });
 
 describe("OpenAI OAuth capacity probe", () => {
