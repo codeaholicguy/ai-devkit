@@ -115,7 +115,10 @@ const CASES: AdapterCase[] = [
     name: "kiro (node)",
     create: () => new KiroAdapter(),
     candidates: ["1301 1 ttys003 kiro-cli"],
-    nonCandidates: ["1302 1301 ttys003 kiro-cli-chat chat"],
+    nonCandidates: [
+      "1302 1301 ttys003 kiro-cli-chat chat",
+      "1303 1302 ttys003 bun --no-env-file /opt/kiro-cli/tui.js chat",
+    ],
   },
   {
     name: "claude",

@@ -31,7 +31,11 @@ const SCRIPT_RUNTIMES = new Set(["node", "bun"]);
  */
 export class KiroAdapter implements AgentAdapter {
   readonly type = "kiro" as const;
-  readonly processNames = ["kiro-cli", "kiro", "kiro-cli-chat", "node"] as const;
+  /**
+   * Also collects the helpers between a lock holder and its kiro-cli, such as
+   * the bundled `bun … tui.js`; `canHandle` still decides which are agents.
+   */
+  readonly processNames = ["kiro-cli", "kiro", "kiro-cli-chat", "node", "bun"] as const;
 
   private parser: KiroSessionParser;
   private mapper: KiroAgentMapper;

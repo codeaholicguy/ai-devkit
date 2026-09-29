@@ -54,7 +54,7 @@ describe("KiroAdapter", () => {
 
   it("exposes the kiro type and process names", () => {
     expect(adapter.type).toBe("kiro");
-    expect(adapter.processNames).toEqual(["kiro-cli", "kiro", "kiro-cli-chat", "node"]);
+    expect(adapter.processNames).toEqual(["kiro-cli", "kiro", "kiro-cli-chat", "node", "bun"]);
   });
 
   describe("canHandle", () => {
@@ -137,7 +137,50 @@ describe("KiroAdapter", () => {
       });
     });
 
-    it("matches a lock held by a kiro-cli-chat acp descendant when bun is not collected", async () => {
+    it("walks through the bundled bun TUI to the kiro-cli that owns an acp lock", async () => {
+      // Real kiro-cli tree: the acp helper has no tty, so only the parent chain links it.
+      const bun = path.join(tmpHome, "Library", "Application Support", "kiro-cli", "bun");
+      fs.mkdirSync(path.dirname(bun), { recursive: true });
+      fs.writeFileSync(bun, "");
+      const sessionFile = writeKiroSession(
+        "sess-bun",
+        "/repo/bun",
+        [prompt("hello", 1781098057)],
+        35355,
+      );
+      const kiro = makeProcess({ pid: 35261, command: "kiro-cli", ppid: 28496, tty: "ttys007" });
+      const chat = makeProcess({
+        pid: 35320,
+        command: "/home/.local/bin/kiro-cli-chat chat",
+        ppid: 35261,
+        tty: "ttys007",
+      });
+      const tui = makeProcess({
+        pid: 35349,
+        command: `${bun} --no-env-file ${path.dirname(bun)}/tui.js chat`,
+        ppid: 35320,
+        tty: "ttys007",
+      });
+      const acp = makeProcess({
+        pid: 35355,
+        command: "/home/.local/bin/kiro-cli-chat acp",
+        ppid: 35349,
+        tty: "??",
+      });
+      mockedCaptureProcessSnapshot.mockResolvedValue([kiro, chat, tui, acp]);
+
+      const agents = await adapter.detectAgents();
+
+      expect(agents).toEqual([
+        expect.objectContaining({
+          pid: 35261,
+          sessionId: "sess-bun",
+          sessionFilePath: sessionFile,
+        }),
+      ]);
+    });
+
+    it("falls back to the sole kiro-cli on the lock holder tty when its parent chain is broken", async () => {
       const cwd = "/repo/project-a";
       const sessionFile = writeKiroSession(
         "sess-acp",
