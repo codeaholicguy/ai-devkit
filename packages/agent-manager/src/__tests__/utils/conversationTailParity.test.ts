@@ -11,13 +11,13 @@ import * as os from "os";
 import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
-import { AntigravityCliAdapter } from "../../providers/antigravity/AntigravityCliAdapter.js";
-import { KiroAdapter } from "../../providers/kiro/KiroAdapter.js";
-import { ClaudeSessionParser } from "../../providers/claude/ClaudeSessionParser.js";
-import { CodexSessionParser } from "../../providers/codex/CodexSessionParser.js";
-import { CopilotSessionParser } from "../../providers/copilot/CopilotSessionParser.js";
-import { GrokSessionParser } from "../../providers/grok/GrokSessionParser.js";
-import { PiSessionParser } from "../../providers/pi/PiSessionParser.js";
+import { AntigravityCliAdapter } from "../../harnesses/antigravity/AntigravityCliAdapter.js";
+import { KiroAdapter } from "../../harnesses/kiro/KiroAdapter.js";
+import { ClaudeSessionParser } from "../../harnesses/claude/ClaudeSessionParser.js";
+import { CodexSessionParser } from "../../harnesses/codex/CodexSessionParser.js";
+import { CopilotSessionParser } from "../../harnesses/copilot/CopilotSessionParser.js";
+import { GrokSessionParser } from "../../harnesses/grok/GrokSessionParser.js";
+import { PiSessionParser } from "../../harnesses/pi/PiSessionParser.js";
 
 type GetConversation = (p: string, o?: ConversationOptions) => ConversationMessage[];
 

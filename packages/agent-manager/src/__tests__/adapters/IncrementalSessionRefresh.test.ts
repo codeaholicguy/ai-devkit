@@ -9,8 +9,8 @@ import * as path from "path";
 
 import { AgentManager } from "../../AgentManager.js";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { ClaudeCodeAdapter } from "../../providers/claude/ClaudeCodeAdapter.js";
-import { CodexAdapter } from "../../providers/codex/CodexAdapter.js";
+import { ClaudeCodeAdapter } from "../../harnesses/claude/ClaudeCodeAdapter.js";
+import { CodexAdapter } from "../../harnesses/codex/CodexAdapter.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 
 vi.mock("fs", async (importOriginal) => {

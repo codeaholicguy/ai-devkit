@@ -15,15 +15,15 @@ import * as childProcess from "child_process";
 import type { MockedFunction } from "vitest";
 
 import type { AgentAdapter, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AntigravityCliAdapter } from "../../providers/antigravity/AntigravityCliAdapter.js";
-import { KiroAdapter } from "../../providers/kiro/KiroAdapter.js";
-import { ClaudeCodeAdapter } from "../../providers/claude/ClaudeCodeAdapter.js";
-import { CodexAdapter } from "../../providers/codex/CodexAdapter.js";
-import { CopilotAdapter } from "../../providers/copilot/CopilotAdapter.js";
-import { GeminiCliAdapter } from "../../providers/gemini/GeminiCliAdapter.js";
-import { GrokCliAdapter } from "../../providers/grok/GrokCliAdapter.js";
-import { OpenCodeAdapter } from "../../providers/opencode/OpenCodeAdapter.js";
-import { PiAdapter } from "../../providers/pi/PiAdapter.js";
+import { AntigravityCliAdapter } from "../../harnesses/antigravity/AntigravityCliAdapter.js";
+import { KiroAdapter } from "../../harnesses/kiro/KiroAdapter.js";
+import { ClaudeCodeAdapter } from "../../harnesses/claude/ClaudeCodeAdapter.js";
+import { CodexAdapter } from "../../harnesses/codex/CodexAdapter.js";
+import { CopilotAdapter } from "../../harnesses/copilot/CopilotAdapter.js";
+import { GeminiCliAdapter } from "../../harnesses/gemini/GeminiCliAdapter.js";
+import { GrokCliAdapter } from "../../harnesses/grok/GrokCliAdapter.js";
+import { OpenCodeAdapter } from "../../harnesses/opencode/OpenCodeAdapter.js";
+import { PiAdapter } from "../../harnesses/pi/PiAdapter.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 import { captureProcessSnapshot } from "../../utils/process.js";
 

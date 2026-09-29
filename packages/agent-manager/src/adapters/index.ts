@@ -1,12 +1,12 @@
-export { ClaudeCodeAdapter } from "../providers/claude/ClaudeCodeAdapter.js";
-export { CodexAdapter } from "../providers/codex/CodexAdapter.js";
-export { CopilotAdapter } from "../providers/copilot/CopilotAdapter.js";
-export { GeminiCliAdapter } from "../providers/gemini/GeminiCliAdapter.js";
-export { GrokCliAdapter } from "../providers/grok/GrokCliAdapter.js";
-export { AntigravityCliAdapter } from "../providers/antigravity/AntigravityCliAdapter.js";
-export { KiroAdapter } from "../providers/kiro/KiroAdapter.js";
-export { OpenCodeAdapter } from "../providers/opencode/OpenCodeAdapter.js";
-export { PiAdapter } from "../providers/pi/PiAdapter.js";
+export { ClaudeCodeAdapter } from "../harnesses/claude/ClaudeCodeAdapter.js";
+export { CodexAdapter } from "../harnesses/codex/CodexAdapter.js";
+export { CopilotAdapter } from "../harnesses/copilot/CopilotAdapter.js";
+export { GeminiCliAdapter } from "../harnesses/gemini/GeminiCliAdapter.js";
+export { GrokCliAdapter } from "../harnesses/grok/GrokCliAdapter.js";
+export { AntigravityCliAdapter } from "../harnesses/antigravity/AntigravityCliAdapter.js";
+export { KiroAdapter } from "../harnesses/kiro/KiroAdapter.js";
+export { OpenCodeAdapter } from "../harnesses/opencode/OpenCodeAdapter.js";
+export { PiAdapter } from "../harnesses/pi/PiAdapter.js";
 export { AgentStatus } from "./AgentAdapter.js";
 export type {
   AgentAdapter,
