@@ -194,7 +194,9 @@ describe("AntigravityCliAdapter", () => {
       mockedCaptureProcessSnapshot.mockResolvedValue([]);
 
       expect(await adapter.detectAgents()).toEqual([]);
-      expect(mockedCaptureProcessSnapshot).toHaveBeenCalledWith(["agy"]);
+      expect(mockedCaptureProcessSnapshot).toHaveBeenCalledWith(["agy"], {
+        isCandidate: expect.any(Function),
+      });
       expect(mockedListAgentProcesses).not.toHaveBeenCalled();
       expect(mockedEnrichProcesses).not.toHaveBeenCalled();
     });
