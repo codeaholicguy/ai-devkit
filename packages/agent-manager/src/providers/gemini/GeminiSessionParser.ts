@@ -1,6 +1,11 @@
 import * as fs from "fs";
-import type { ConversationMessage, SessionSummary } from "../../adapters/AgentAdapter.js";
+import type {
+  ConversationMessage,
+  ConversationOptions,
+  SessionSummary,
+} from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { sliceTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 
 /**
@@ -114,8 +119,12 @@ export class GeminiSessionParser {
    *
    * Gemini sessions store messages in an array with `type` field — typically
    * 'user' or 'gemini' for visible turns, with tool and system entries mixed in.
+   *
+   * `tail` only slices the result: the session is a single JSON document, so
+   * it cannot be read from the end and is always parsed in full. Callers that
+   * poll (the console preview) rely on their mtime cache to skip re-parses.
    */
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     const verbose = options?.verbose ?? false;
     const content = safeReadFile(sessionFilePath);
     if (content === undefined) return [];
@@ -138,7 +147,7 @@ export class GeminiSessionParser {
       });
     }
 
-    return messages;
+    return sliceTail(messages, options?.tail);
   }
 
   /**

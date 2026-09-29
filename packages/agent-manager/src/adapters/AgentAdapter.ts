@@ -98,6 +98,25 @@ export interface ConversationMessage {
 }
 
 /**
+ * Options for {@link AgentAdapter.getConversation}.
+ */
+export interface ConversationOptions {
+  /** Include tool call/result details */
+  verbose?: boolean;
+  /**
+   * Return only the last `tail` messages (after verbose filtering). When
+   * omitted or not a positive integer, the full conversation is returned.
+   *
+   * JSONL-backed adapters read backward from the end of the file and, on
+   * later calls, parse only appended bytes, so cost is proportional to the
+   * tail rather than the transcript size. Adapters backed by a single JSON
+   * document (Gemini) or a database (OpenCode) still read the whole source
+   * and slice; callers should keep an mtime cache for those.
+   */
+  tail?: number;
+}
+
+/**
  * A historical session discovered on disk (running or not).
  *
  * Used by `listSessions` to surface enough context for a user to identify
@@ -192,12 +211,13 @@ export interface AgentAdapter {
   canHandle(processInfo: ProcessInfo): boolean;
 
   /**
-   * Read the full conversation from a session file
+   * Read the conversation from a session file
    * @param sessionFilePath Path to the session JSONL file
    * @param options.verbose Include tool call/result details
+   * @param options.tail Return only the last N messages (see {@link ConversationOptions.tail})
    * @returns Array of conversation messages
    */
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[];
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[];
 
   /**
    * Enumerate historical sessions for this tool from disk.

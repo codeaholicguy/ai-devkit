@@ -1,6 +1,7 @@
 import * as path from "path";
-import type { ConversationMessage } from "../../adapters/AgentAdapter.js";
+import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 
 export const CHAT_HISTORY_FILE = "chat_history.jsonl";
@@ -32,6 +33,9 @@ export interface GrokSession {
 }
 
 export class GrokSessionParser {
+  /** Incremental reader backing `getConversation({ tail })`. */
+  private readonly tailReader = new JsonlTailReader();
+
   /**
    * Parse a session directory into a {@link GrokSession} from its
    * chat_history.jsonl transcript. Returns null when the transcript is
@@ -59,9 +63,19 @@ export class GrokSessionParser {
   }
 
   /** Accepts a session dir or an explicit chat_history.jsonl path. */
-  getConversation(sessionPath: string, options?: { verbose?: boolean }): ConversationMessage[] {
-    return this.parseChatHistory(this.resolveChatPath(sessionPath), options?.verbose ?? false)
-      .messages;
+  getConversation(sessionPath: string, options?: ConversationOptions): ConversationMessage[] {
+    const chatPath = this.resolveChatPath(sessionPath);
+    const verbose = options?.verbose ?? false;
+    const tail = normalizeTail(options?.tail);
+    if (tail !== undefined) {
+      return this.tailReader.read(
+        chatPath,
+        tail,
+        { parseLine: (line) => this.lineToMessage(line, verbose) },
+        String(verbose),
+      );
+    }
+    return this.parseChatHistory(chatPath, verbose).messages;
   }
 
   /**
@@ -99,29 +113,10 @@ export class GrokSessionParser {
     let lastRole: ConversationMessage["role"] | undefined;
 
     for (const line of content.trim().split("\n")) {
-      if (!line.trim()) continue;
-
-      let record: ChatRecord;
-      try {
-        record = JSON.parse(line);
-      } catch {
-        continue;
-      }
-
-      const text = this.extractText(record.content);
-      if (record.type === "user") {
-        const query = this.extractUserQuery(text);
-        if (query === null) continue; // context injection, not a real prompt
-        messages.push({ role: "user", content: query });
-        lastRole = "user";
-      } else if (record.type === "assistant") {
-        if (!text) continue;
-        messages.push({ role: "assistant", content: text });
-        lastRole = "assistant";
-      } else if (verbose && record.type === "system") {
-        if (!text) continue;
-        messages.push({ role: "system", content: text });
-      }
+      const message = this.lineToMessage(line, verbose);
+      if (!message) continue;
+      messages.push(message);
+      if (message.role !== "system") lastRole = message.role;
     }
 
     const userTurns = messages.filter((m) => m.role === "user");
@@ -131,6 +126,32 @@ export class GrokSessionParser {
       lastUserMessage: userTurns[userTurns.length - 1]?.content,
       lastRole,
     };
+  }
+
+  /** Convert one chat_history.jsonl line into a message, or null when it is not one. */
+  private lineToMessage(line: string, verbose: boolean): ConversationMessage | null {
+    if (!line.trim()) return null;
+
+    let record: ChatRecord;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      return null;
+    }
+
+    const text = this.extractText(record.content);
+    if (record.type === "user") {
+      const query = this.extractUserQuery(text);
+      if (query === null) return null; // context injection, not a real prompt
+      return { role: "user", content: query };
+    }
+    if (record.type === "assistant") {
+      return text ? { role: "assistant", content: text } : null;
+    }
+    if (verbose && record.type === "system") {
+      return text ? { role: "system", content: text } : null;
+    }
+    return null;
   }
 
   /** Flatten a chat record's content (string or text-block array) to text. */

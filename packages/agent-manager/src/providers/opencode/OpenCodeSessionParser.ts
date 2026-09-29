@@ -1,4 +1,5 @@
-import type { ConversationMessage } from "../../adapters/AgentAdapter.js";
+import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
+import { sliceTail } from "../../utils/jsonlTail.js";
 import type Database from "better-sqlite3";
 
 export interface OpenCodeSessionStats {
@@ -29,7 +30,7 @@ export class OpenCodeSessionParser {
   getConversation(
     db: Database.Database,
     sessionId: string,
-    options?: { verbose?: boolean },
+    options?: ConversationOptions,
   ): ConversationMessage[] {
     const verbose = options?.verbose ?? false;
 
@@ -65,7 +66,7 @@ export class OpenCodeSessionParser {
         }
       }
 
-      return messages;
+      return sliceTail(messages, options?.tail);
     } catch {
       return [];
     }

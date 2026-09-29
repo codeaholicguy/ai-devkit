@@ -5,6 +5,7 @@ import type {
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
+  ConversationOptions,
   SessionSummary,
   ListSessionsOptions,
   AgentDetectionContext,
@@ -163,7 +164,7 @@ export class CodexAdapter implements AgentAdapter {
     ];
   }
 
-  getConversation(sessionFilePath: string, options?: { verbose?: boolean }): ConversationMessage[] {
+  getConversation(sessionFilePath: string, options?: ConversationOptions): ConversationMessage[] {
     return this.parser.getConversation(sessionFilePath, options);
   }
 

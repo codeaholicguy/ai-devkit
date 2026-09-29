@@ -1,9 +1,11 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   cacheSet,
   conversationCache,
   CACHE_MAX,
   messagesEqual,
+  PREVIEW_TAIL,
+  readPreviewConversation,
 } from "../../../../tui/console/hooks/useAgentConversation.js";
 import type { ConversationMessage } from "@ai-devkit/agent-manager";
 
@@ -90,5 +92,35 @@ describe("messagesEqual", () => {
 
   it("returns true when both timestamps are undefined", () => {
     expect(messagesEqual([msg("user", "x")], [msg("user", "x")])).toBe(true);
+  });
+});
+
+describe("readPreviewConversation", () => {
+  const conversation = Array.from({ length: 30 }, (_, i) =>
+    msg(i % 2 ? "assistant" : "user", `m${i}`),
+  );
+
+  it("passes the preview tail to the adapter", () => {
+    const getConversation = vi.fn().mockReturnValue(conversation.slice(-PREVIEW_TAIL));
+
+    const result = readPreviewConversation({ getConversation }, "/s.jsonl", PREVIEW_TAIL);
+
+    expect(getConversation).toHaveBeenCalledWith("/s.jsonl", { verbose: false, tail: 20 });
+    expect(result).toEqual(conversation.slice(-20));
+  });
+
+  it("still slices when an adapter ignores the tail option", () => {
+    const getConversation = vi.fn().mockReturnValue(conversation);
+
+    expect(readPreviewConversation({ getConversation }, "/s.jsonl", 5)).toEqual(
+      conversation.slice(-5),
+    );
+  });
+
+  it("requests the full conversation when tail is not positive", () => {
+    const getConversation = vi.fn().mockReturnValue(conversation);
+
+    expect(readPreviewConversation({ getConversation }, "/s.jsonl", 0)).toEqual(conversation);
+    expect(getConversation).toHaveBeenCalledWith("/s.jsonl", { verbose: false });
   });
 });
