@@ -13,6 +13,7 @@ import type {
 import {
   captureProcessSnapshot,
   executableBasename,
+  executablePath,
   filterByProcessNames,
 } from "../../utils/process.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
@@ -94,7 +95,10 @@ const CODEX_VALUE_FLAGS = new Set([
 const CODEX_APP_SERVER_DAEMON_DIR = "app-server-daemon";
 
 function isCodexHelperCommand(command: string): boolean {
-  const [executable = "", ...args] = command.trim().split(/\s+/);
+  const trimmed = command.trim();
+  // Resolve argv[0] first so an install path containing spaces is not read as arguments.
+  const executable = executablePath(trimmed);
+  const args = trimmed.slice(executable.length).trim().split(/\s+/).filter(Boolean);
   if (executable.replace(/\\/g, "/").split("/").includes(CODEX_APP_SERVER_DAEMON_DIR)) {
     return true;
   }

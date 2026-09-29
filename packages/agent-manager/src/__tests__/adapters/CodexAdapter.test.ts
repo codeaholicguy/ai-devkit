@@ -295,6 +295,36 @@ describe("CodexAdapter", () => {
     expect(agents.map((agent) => agent.pid)).toEqual([4321]);
   });
 
+  it("still excludes helper subcommands when Codex lives under a path containing spaces", () => {
+    const executable = path.join(
+      tmpHome,
+      "Applications",
+      "Some App.app",
+      "Contents",
+      "Resources",
+      "codex",
+    );
+    fs.mkdirSync(path.dirname(executable), { recursive: true });
+    fs.writeFileSync(executable, "");
+
+    for (const args of [
+      "sandbox -c sandbox_permissions=[] -- node server.js",
+      "app-server --listen stdio://",
+    ]) {
+      expect(
+        adapter.canHandle({ pid: 4323, command: `${executable} ${args}`, cwd: "/repo", tty: "??" }),
+      ).toBe(false);
+    }
+    expect(
+      adapter.canHandle({
+        pid: 4324,
+        command: `${executable} resume --last`,
+        cwd: "/repo",
+        tty: "ttys003",
+      }),
+    ).toBe(true);
+  });
+
   it("returns no agents when no Codex process is running", async () => {
     mockedListAgentProcesses.mockReturnValue([]);
 
