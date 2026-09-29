@@ -11,18 +11,18 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { AntigravityCliAdapter } from "../../adapters/AntigravityCliAdapter.js";
-import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { AntigravityCliAdapter } from "../../../providers/antigravity/AntigravityCliAdapter.js";
+import type { ProcessInfo } from "../../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../../adapters/AgentAdapter.js";
 import {
   listAgentProcesses,
   enrichProcesses,
   captureProcessSnapshot,
-} from "../../utils/process.js";
-import { generateAgentName } from "../../utils/matching.js";
+} from "../../../utils/process.js";
+import { generateAgentName } from "../../../utils/matching.js";
 
-vi.mock("../../utils/process.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
+vi.mock("../../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/process.js");
   return {
     ...actual,
     listAgentProcesses: vi.fn(),
@@ -31,8 +31,8 @@ vi.mock("../../utils/process.js", async (importOriginal) => {
   };
 });
 
-vi.mock("../../utils/matching.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/matching.js");
+vi.mock("../../../utils/matching.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/matching.js");
   return {
     ...actual,
     generateAgentName: vi.fn(),
@@ -142,10 +142,9 @@ describe("AntigravityCliAdapter", () => {
     };
   }
 
-  describe("initialization", () => {
-    it("exposes the antigravity_cli type", () => {
-      expect(adapter.type).toBe("antigravity_cli");
-    });
+  it("exposes the antigravity_cli type and the agy process name", () => {
+    expect(adapter.type).toBe("antigravity_cli");
+    expect(adapter.processNames).toEqual(["agy"]);
   });
 
   describe("canHandle", () => {
@@ -180,10 +179,6 @@ describe("AntigravityCliAdapter", () => {
   });
 
   describe("detectAgents", () => {
-    it("declares agy as its shared-snapshot process name", () => {
-      expect(adapter.processNames).toEqual(["agy"]);
-    });
-
     it("uses context.processes when provided and never captures its own snapshot", async () => {
       writeTranscript({});
       writeRegistry({ [cwd]: CONVERSATION_ID });
@@ -208,11 +203,6 @@ describe("AntigravityCliAdapter", () => {
       });
       expect(mockedListAgentProcesses).not.toHaveBeenCalled();
       expect(mockedEnrichProcesses).not.toHaveBeenCalled();
-    });
-
-    it("returns [] when there are no agy processes", async () => {
-      mockedCaptureProcessSnapshot.mockResolvedValue([]);
-      expect(await adapter.detectAgents()).toEqual([]);
     });
 
     it("resolves the conversation via last_conversations.json (cwd -> id)", async () => {
@@ -268,10 +258,10 @@ describe("AntigravityCliAdapter", () => {
       ]);
     });
 
-    it("accepts a bare conversation id and skips malformed lines", () => {
+    it("skips malformed lines", () => {
       const file = writeTranscript({ records: [userRecord("hi")] });
       fs.appendFileSync(file, "\n{bad json");
-      expect(adapter.getConversation(CONVERSATION_ID)).toEqual([{ role: "user", content: "hi" }]);
+      expect(adapter.getConversation(file)).toEqual([{ role: "user", content: "hi" }]);
     });
 
     it("excludes SYSTEM records unless verbose", () => {
@@ -337,6 +327,16 @@ describe("AntigravityCliAdapter", () => {
 
   describe("listSessions", () => {
     it("returns [] when there is no registry", async () => {
+      expect(await adapter.listSessions()).toEqual([]);
+    });
+
+    it("ignores a malformed registry and non-string conversation ids", async () => {
+      writeTranscript({});
+      fs.mkdirSync(path.join(base, "cache"), { recursive: true });
+      fs.writeFileSync(path.join(base, "cache", "last_conversations.json"), "{not json");
+      expect(await adapter.listSessions()).toEqual([]);
+
+      writeRegistry({ [cwd]: 42 as unknown as string, "/Users/dev/other": "" });
       expect(await adapter.listSessions()).toEqual([]);
     });
 

@@ -11,11 +11,11 @@ import * as os from "os";
 import * as path from "path";
 import * as childProcess from "child_process";
 
-import { AntigravityCliAdapter } from "../../adapters/AntigravityCliAdapter.js";
-import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentManager } from "../../AgentManager.js";
-import { AgentRegistry } from "../../utils/AgentRegistry.js";
-import { createProcessSnapshotCapture } from "../../utils/process.js";
+import { AntigravityCliAdapter } from "../../../providers/antigravity/AntigravityCliAdapter.js";
+import type { ProcessInfo } from "../../../adapters/AgentAdapter.js";
+import { AgentManager } from "../../../AgentManager.js";
+import { AgentRegistry } from "../../../utils/AgentRegistry.js";
+import { createProcessSnapshotCapture } from "../../../utils/process.js";
 
 vi.mock("child_process", async (importOriginal) => {
   const actual = (await importOriginal()) as typeof import("child_process");
