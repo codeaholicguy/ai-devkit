@@ -1,6 +1,7 @@
 import * as path from "path";
 import type {
   AgentAdapter,
+  AgentDetectionContext,
   AgentInfo,
   ProcessInfo,
   ConversationMessage,
@@ -8,7 +9,7 @@ import type {
   ListSessionsOptions,
 } from "./AgentAdapter.js";
 import { AgentStatus } from "./AgentAdapter.js";
-import { listAgentProcesses, enrichProcesses } from "../utils/process.js";
+import { captureProcessSnapshot, filterByProcessNames } from "../utils/process.js";
 import { safeReadFile, safeStat } from "../utils/session.js";
 import { generateAgentName } from "../utils/matching.js";
 
@@ -16,8 +17,9 @@ import { generateAgentName } from "../utils/matching.js";
  * Antigravity CLI Adapter
  *
  * Detects running Antigravity CLI agents (Google's Gemini-family `agy` CLI) by:
- * 1. Finding running `agy` processes via shared listAgentProcesses() — Antigravity
- *    ships a native binary (argv[0] basename `agy`).
+ * 1. Finding running `agy` processes in the shared process snapshot (or an async
+ *    captureProcessSnapshot() when called standalone) — Antigravity ships a
+ *    native binary (argv[0] basename `agy`).
  * 2. Resolving each live process to its conversation via
  *    ~/.gemini/antigravity-cli/cache/last_conversations.json, which the CLI
  *    maintains as a `{ <cwd>: <conversationId> }` map of the current conversation
@@ -69,6 +71,7 @@ interface AntigravitySession {
 
 export class AntigravityCliAdapter implements AgentAdapter {
   readonly type = "antigravity_cli" as const;
+  readonly processNames = ["agy"] as const;
 
   private base: string;
 
@@ -89,8 +92,10 @@ export class AntigravityCliAdapter implements AgentAdapter {
     return base === "agy" || base === "agy.exe";
   }
 
-  async detectAgents(): Promise<AgentInfo[]> {
-    const processes = enrichProcesses(listAgentProcesses("agy"));
+  async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    const snapshot = context?.processes ?? (await captureProcessSnapshot(this.processNames));
+    const relevant = filterByProcessNames(snapshot, this.processNames);
+    const processes = relevant.filter((process) => this.canHandle(process));
     if (processes.length === 0) {
       return [];
     }

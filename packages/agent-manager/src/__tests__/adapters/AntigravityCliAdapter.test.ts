@@ -14,7 +14,11 @@ import * as path from "path";
 import { AntigravityCliAdapter } from "../../adapters/AntigravityCliAdapter.js";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
-import { listAgentProcesses, enrichProcesses } from "../../utils/process.js";
+import {
+  listAgentProcesses,
+  enrichProcesses,
+  captureProcessSnapshot,
+} from "../../utils/process.js";
 import { generateAgentName } from "../../utils/matching.js";
 
 vi.mock("../../utils/process.js", async (importOriginal) => {
@@ -23,6 +27,7 @@ vi.mock("../../utils/process.js", async (importOriginal) => {
     ...actual,
     listAgentProcesses: vi.fn(),
     enrichProcesses: vi.fn(),
+    captureProcessSnapshot: vi.fn(),
   };
 });
 
@@ -36,6 +41,9 @@ vi.mock("../../utils/matching.js", async (importOriginal) => {
 
 const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
 const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
+const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<
+  typeof captureProcessSnapshot
+>;
 const mockedGenerateAgentName = generateAgentName as MockedFunction<typeof generateAgentName>;
 
 const CONVERSATION_ID = "10485e13-2742-4e9e-b286-ac0606f0cb1e";
@@ -82,6 +90,7 @@ describe("AntigravityCliAdapter", () => {
 
     mockedListAgentProcesses.mockReset();
     mockedEnrichProcesses.mockReset();
+    mockedCaptureProcessSnapshot.mockReset();
     mockedGenerateAgentName.mockReset();
 
     mockedEnrichProcesses.mockImplementation((procs) => procs);
@@ -162,15 +171,43 @@ describe("AntigravityCliAdapter", () => {
   });
 
   describe("detectAgents", () => {
+    it("declares agy as its shared-snapshot process name", () => {
+      expect(adapter.processNames).toEqual(["agy"]);
+    });
+
+    it("uses context.processes when provided and never captures its own snapshot", async () => {
+      writeTranscript({});
+      writeRegistry({ [cwd]: CONVERSATION_ID });
+
+      const agents = await adapter.detectAgents({
+        processes: [proc(), proc({ pid: 7, command: "node server.js" })],
+      });
+
+      expect(agents.map((a) => a.pid)).toEqual([4242]);
+      expect(agents[0].sessionId).toBe(CONVERSATION_ID);
+      expect(mockedCaptureProcessSnapshot).not.toHaveBeenCalled();
+      expect(mockedListAgentProcesses).not.toHaveBeenCalled();
+      expect(mockedEnrichProcesses).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the async captureProcessSnapshot without context", async () => {
+      mockedCaptureProcessSnapshot.mockResolvedValue([]);
+
+      expect(await adapter.detectAgents()).toEqual([]);
+      expect(mockedCaptureProcessSnapshot).toHaveBeenCalledWith(["agy"]);
+      expect(mockedListAgentProcesses).not.toHaveBeenCalled();
+      expect(mockedEnrichProcesses).not.toHaveBeenCalled();
+    });
+
     it("returns [] when there are no agy processes", async () => {
-      mockedListAgentProcesses.mockReturnValue([]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([]);
       expect(await adapter.detectAgents()).toEqual([]);
     });
 
     it("resolves the conversation via last_conversations.json (cwd -> id)", async () => {
       writeTranscript({});
       writeRegistry({ [cwd]: CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
 
       const agents = await adapter.detectAgents();
 
@@ -190,7 +227,7 @@ describe("AntigravityCliAdapter", () => {
     it("falls back to a process-only RUNNING agent when the cwd is not in the registry", async () => {
       writeTranscript({});
       writeRegistry({ "/some/other/cwd": CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
 
       const agents = await adapter.detectAgents();
 
@@ -203,7 +240,7 @@ describe("AntigravityCliAdapter", () => {
     it("is process-only when the mapped conversation has no transcript", async () => {
       writeTranscript({ transcript: false });
       writeRegistry({ [cwd]: CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
 
       const agents = await adapter.detectAgents();
 
@@ -260,14 +297,14 @@ describe("AntigravityCliAdapter", () => {
         records: [userRecord("go"), toolRecord("ran: echo hi"), modelRecord("done")],
       });
       writeRegistry({ [cwd]: CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
       expect((await detectFirst()).status).toBe(AgentStatus.WAITING);
     });
 
     it("marks RUNNING when the last transcript turn is a USER_INPUT message", async () => {
       writeTranscript({ records: [userRecord("still there?")] });
       writeRegistry({ [cwd]: CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
       expect((await detectFirst()).status).toBe(AgentStatus.RUNNING);
     });
 
@@ -275,14 +312,14 @@ describe("AntigravityCliAdapter", () => {
       const old = new Date(Date.now() - 10 * 60 * 1000);
       writeTranscript({ records: [userRecord("go", old)] });
       writeRegistry({ [cwd]: CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
       expect((await detectFirst()).status).toBe(AgentStatus.IDLE);
     });
 
     it("uses the last user request as the agent summary", async () => {
       writeTranscript({ records: [userRecord("refactor the parser"), modelRecord("on it")] });
       writeRegistry({ [cwd]: CONVERSATION_ID });
-      mockedListAgentProcesses.mockReturnValue([proc()]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([proc()]);
       expect((await detectFirst()).summary).toBe("refactor the parser");
     });
   });
