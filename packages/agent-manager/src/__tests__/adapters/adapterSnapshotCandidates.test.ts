@@ -16,7 +16,7 @@ import type { MockedFunction } from "vitest";
 
 import type { AgentAdapter, ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { AntigravityCliAdapter } from "../../providers/antigravity/AntigravityCliAdapter.js";
-import { KiroAdapter } from "../../adapters/KiroAdapter.js";
+import { KiroAdapter } from "../../providers/kiro/KiroAdapter.js";
 import { ClaudeCodeAdapter } from "../../providers/claude/ClaudeCodeAdapter.js";
 import { CodexAdapter } from "../../providers/codex/CodexAdapter.js";
 import { CopilotAdapter } from "../../providers/copilot/CopilotAdapter.js";

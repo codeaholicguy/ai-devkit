@@ -1,42 +1,27 @@
-/**
- * Tests for KiroAdapter
- */
-
 import type { MockedFunction } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
-import { KiroAdapter } from "../../adapters/KiroAdapter.js";
-import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
-import {
-  listAgentProcesses,
-  enrichProcesses,
-  captureProcessSnapshot,
-} from "../../utils/process.js";
-import { generateAgentName } from "../../utils/matching.js";
+import { KiroAdapter } from "../../../providers/kiro/KiroAdapter.js";
+import type { ProcessInfo } from "../../../adapters/AgentAdapter.js";
+import { AgentStatus } from "../../../adapters/AgentAdapter.js";
+import { captureProcessSnapshot } from "../../../utils/process.js";
+import { generateAgentName } from "../../../utils/matching.js";
 
-vi.mock("../../utils/process.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/process.js");
-  return {
-    ...actual,
-    listAgentProcesses: vi.fn(),
-    enrichProcesses: vi.fn(),
-    captureProcessSnapshot: vi.fn(),
-  };
+vi.mock("../../../utils/process.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/process.js");
+  return { ...actual, captureProcessSnapshot: vi.fn() };
 });
 
-vi.mock("../../utils/matching.js", async (importOriginal) => {
-  const actual = (await importOriginal()) as typeof import("../../utils/matching.js");
+vi.mock("../../../utils/matching.js", async (importOriginal) => {
+  const actual = (await importOriginal()) as typeof import("../../../utils/matching.js");
   return {
     ...actual,
     generateAgentName: vi.fn(),
   };
 });
 
-const mockedListAgentProcesses = listAgentProcesses as MockedFunction<typeof listAgentProcesses>;
-const mockedEnrichProcesses = enrichProcesses as MockedFunction<typeof enrichProcesses>;
 const mockedCaptureProcessSnapshot = captureProcessSnapshot as MockedFunction<
   typeof captureProcessSnapshot
 >;
@@ -55,16 +40,8 @@ describe("KiroAdapter", () => {
 
     adapter = new KiroAdapter();
 
-    mockedListAgentProcesses.mockReset();
-    mockedEnrichProcesses.mockReset();
     mockedCaptureProcessSnapshot.mockReset();
     mockedGenerateAgentName.mockReset();
-
-    mockedEnrichProcesses.mockImplementation((procs) => procs);
-    // Compatibility shim for standalone adapter discovery; the manager captures once and slices by name.
-    mockedCaptureProcessSnapshot.mockImplementation(async (names) =>
-      enrichProcesses(names.flatMap((name) => listAgentProcesses(name))),
-    );
     mockedGenerateAgentName.mockImplementation((cwd: string, pid: number) => {
       const folder = path.basename(cwd) || "unknown";
       return `${folder} (${pid})`;
@@ -75,82 +52,32 @@ describe("KiroAdapter", () => {
     fs.rmSync(tmpHome, { recursive: true, force: true });
   });
 
-  describe("initialization", () => {
-    it("exposes the kiro type and process names", () => {
-      expect(adapter.type).toBe("kiro");
-      expect(adapter.processNames).toEqual(["kiro-cli", "kiro", "kiro-cli-chat", "node"]);
-    });
+  it("exposes the kiro type and process names", () => {
+    expect(adapter.type).toBe("kiro");
+    expect(adapter.processNames).toEqual(["kiro-cli", "kiro", "kiro-cli-chat", "node"]);
   });
 
   describe("canHandle", () => {
-    it("identifies Kiro commands without matching unrelated paths", () => {
-      expect(adapter.canHandle({ pid: 1, command: "kiro-cli", cwd: "/repo", tty: "ttys001" })).toBe(
-        true,
-      );
-      expect(
-        adapter.canHandle({
-          pid: 2,
-          command: "/usr/local/bin/kiro --model x",
-          cwd: "/repo",
-          tty: "ttys002",
-        }),
-      ).toBe(true);
-      expect(
-        adapter.canHandle({
-          pid: 3,
-          command: "node /opt/kiro/bin/kiro-cli.js",
-          cwd: "/repo",
-          tty: "ttys003",
-        }),
-      ).toBe(true);
-      expect(
-        adapter.canHandle({
-          pid: 4,
-          command: "node /repo/feature-kiro-adapter/script.js",
-          cwd: "/repo",
-          tty: "ttys004",
-        }),
-      ).toBe(false);
-      expect(
-        adapter.canHandle({
-          pid: 5,
-          command: "kiro-cli chat",
-          cwd: "/repo",
-          tty: "ttys005",
-        }),
-      ).toBe(true);
-      expect(
-        adapter.canHandle({
-          pid: 6,
-          command: "bun /opt/kiro/bin/kiro-cli.js",
-          cwd: "/repo",
-          tty: "ttys006",
-        }),
-      ).toBe(true);
-      expect(
-        adapter.canHandle({
-          pid: 7,
-          command: "node /usr/local/bin/ai-devkit agent start --type kiro",
-          cwd: "/repo",
-          tty: "ttys007",
-        }),
-      ).toBe(false);
-      expect(
-        adapter.canHandle({
-          pid: 8,
-          command: "node server.js --name kiro",
-          cwd: "/repo",
-          tty: "ttys008",
-        }),
-      ).toBe(false);
-      expect(
-        adapter.canHandle({
-          pid: 9,
-          command: "kiro-cli-chat acp",
-          cwd: "/repo",
-          tty: "ttys009",
-        }),
-      ).toBe(false);
+    const handles = (command: string) =>
+      adapter.canHandle({ pid: 1, command, cwd: "/repo", tty: "ttys001" });
+
+    it.each([
+      "kiro-cli",
+      "kiro-cli chat",
+      "/usr/local/bin/kiro --model x",
+      "node /opt/kiro/bin/kiro-cli.js",
+      "bun /opt/kiro/bin/kiro-cli.js",
+    ])("handles %s", (command) => {
+      expect(handles(command)).toBe(true);
+    });
+
+    it.each([
+      "node /repo/feature-kiro-adapter/script.js",
+      "node /usr/local/bin/ai-devkit agent start --type kiro",
+      "node server.js --name kiro",
+      "kiro-cli-chat acp",
+    ])("ignores %s", (command) => {
+      expect(handles(command)).toBe(false);
     });
 
     it("identifies Kiro when the runtime or script path contains spaces", () => {
@@ -165,8 +92,6 @@ describe("KiroAdapter", () => {
         const node = install("Applications/Dev Tools/bin/node");
         const kiro = install("Applications/Kiro App.app/Contents/Resources/kiro-cli");
         const script = install("My Tools/kiro/bin/kiro-cli.js");
-        const handles = (command: string) =>
-          adapter.canHandle({ pid: 1, command, cwd: "/repo", tty: "ttys001" });
 
         expect(handles(`${kiro} chat --trust-all-tools`)).toBe(true);
         expect(handles(`${node} /opt/kiro/bin/kiro-cli.js`)).toBe(true);
@@ -180,7 +105,7 @@ describe("KiroAdapter", () => {
 
   describe("detectAgents", () => {
     it("returns [] when there are no Kiro processes", async () => {
-      mockedListAgentProcesses.mockReturnValue([]);
+      mockedCaptureProcessSnapshot.mockResolvedValue([]);
       expect(await adapter.detectAgents()).toEqual([]);
     });
 

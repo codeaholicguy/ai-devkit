@@ -12,7 +12,7 @@ import * as path from "path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AntigravityCliAdapter } from "../../providers/antigravity/AntigravityCliAdapter.js";
-import { KiroAdapter } from "../../adapters/KiroAdapter.js";
+import { KiroAdapter } from "../../providers/kiro/KiroAdapter.js";
 import { ClaudeSessionParser } from "../../providers/claude/ClaudeSessionParser.js";
 import { CodexSessionParser } from "../../providers/codex/CodexSessionParser.js";
 import { CopilotSessionParser } from "../../providers/copilot/CopilotSessionParser.js";

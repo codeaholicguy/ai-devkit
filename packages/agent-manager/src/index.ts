@@ -38,7 +38,7 @@ export { CopilotAdapter } from "./providers/copilot/CopilotAdapter.js";
 export { GeminiCliAdapter } from "./providers/gemini/GeminiCliAdapter.js";
 export { GrokCliAdapter } from "./providers/grok/GrokCliAdapter.js";
 export { AntigravityCliAdapter } from "./providers/antigravity/AntigravityCliAdapter.js";
-export { KiroAdapter } from "./adapters/KiroAdapter.js";
+export { KiroAdapter } from "./providers/kiro/KiroAdapter.js";
 export { OpenCodeAdapter } from "./providers/opencode/OpenCodeAdapter.js";
 export { PiAdapter } from "./providers/pi/PiAdapter.js";
 export { AgentStatus } from "./adapters/AgentAdapter.js";
