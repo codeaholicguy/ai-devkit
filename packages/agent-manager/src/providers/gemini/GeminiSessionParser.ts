@@ -66,6 +66,7 @@ interface CachedParsedSession {
 }
 
 const IDLE_THRESHOLD_MINUTES = 5;
+const SESSION_LOG_EXTENSION = ".jsonl";
 /** Parsed sessions are small (summary is truncated); cap entries, not bytes. */
 const MAX_CACHED_SESSIONS = 256;
 
@@ -79,7 +80,7 @@ export class GeminiSessionParser {
    */
   parseSession(cachedContent: string | undefined, filePath: string): GeminiSession | null {
     const fileStat = safeStat(filePath);
-    if (cachedContent !== undefined) return this.buildSession(cachedContent, fileStat);
+    if (cachedContent !== undefined) return this.buildSession(cachedContent, filePath, fileStat);
 
     if (!fileStat) {
       this.sessionCache.delete(filePath);
@@ -91,7 +92,7 @@ export class GeminiSessionParser {
     if (cached?.signature === signature) return cached.session;
 
     const content = this.readSessionFile(filePath);
-    const session = content === null ? null : this.buildSession(content, fileStat);
+    const session = content === null ? null : this.buildSession(content, filePath, fileStat);
     this.rememberSession(filePath, { signature, session });
     return session;
   }
@@ -106,8 +107,12 @@ export class GeminiSessionParser {
     }
   }
 
-  private buildSession(content: string, fileStat: fs.Stats | undefined): GeminiSession | null {
-    const parsed = this.parseSessionJson(content);
+  private buildSession(
+    content: string,
+    filePath: string,
+    fileStat: fs.Stats | undefined,
+  ): GeminiSession | null {
+    const parsed = this.parseSessionContent(content, filePath);
     if (!parsed?.sessionId) return null;
 
     const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
@@ -165,7 +170,7 @@ export class GeminiSessionParser {
     const content = safeReadFile(sessionFilePath);
     if (content === undefined) return [];
 
-    const parsed = this.parseSessionJson(content);
+    const parsed = this.parseSessionContent(content, sessionFilePath);
     if (!Array.isArray(parsed?.messages)) return [];
 
     const messages: ConversationMessage[] = [];
@@ -195,7 +200,7 @@ export class GeminiSessionParser {
     const content = safeReadFile(filePath);
     if (content === undefined) return null;
 
-    const parsed = this.parseSessionJson(content);
+    const parsed = this.parseSessionContent(content, filePath);
     if (!parsed?.sessionId) return null;
 
     const messages = Array.isArray(parsed.messages) ? parsed.messages : [];
@@ -223,6 +228,85 @@ export class GeminiSessionParser {
       startedAt,
       sessionFilePath: filePath,
     };
+  }
+
+  /**
+   * Parse either session format into the legacy single-document shape:
+   * `session-*.json` is one JSON document, `session-*.jsonl` (Gemini CLI
+   * 0.46+) is an append-only log replayed by {@link replaySessionLog}.
+   */
+  private parseSessionContent(content: string, filePath: string): GeminiSessionFile | null {
+    return isSessionLogPath(filePath)
+      ? this.replaySessionLog(content)
+      : this.parseSessionJson(content);
+  }
+
+  /**
+   * Rebuild a session document from a `.jsonl` log, mirroring Gemini CLI's
+   * own loader (`loadConversationRecord`):
+   * - a record with a string `id` is a message, upserted by id in place;
+   * - `{"$set": {...}}` merges metadata; a `$set.messages` array replaces
+   *   every message;
+   * - `{"$rewindTo": id}` drops that message and all later ones (all
+   *   messages when the id is unknown);
+   * - a record with `sessionId` and `projectHash` (line 1) merges metadata.
+   * Unknown operators, non-object lines and a torn trailing line (a write
+   * in progress) are ignored.
+   */
+  private replaySessionLog(content: string): GeminiSessionFile | null {
+    let metadata: Record<string, unknown> = {};
+    const messages = new Map<string, GeminiMessageEntry>();
+    const upsertAll = (entries: unknown): void => {
+      if (!Array.isArray(entries)) return;
+      for (const entry of entries) {
+        if (isRecord(entry) && typeof entry.id === "string") messages.set(entry.id, entry);
+      }
+    };
+
+    for (const line of content.split("\n")) {
+      if (!line.trim()) continue;
+      const record = this.parseLogRecord(line);
+      if (!record) continue;
+
+      if (typeof record.$rewindTo === "string") {
+        this.rewindMessages(messages, record.$rewindTo);
+      } else if (typeof record.id === "string") {
+        messages.set(record.id, record);
+      } else if (isRecord(record.$set)) {
+        if (Array.isArray(record.$set.messages)) {
+          messages.clear();
+          upsertAll(record.$set.messages);
+        }
+        metadata = { ...metadata, ...record.$set };
+      } else if (typeof record.sessionId === "string" && typeof record.projectHash === "string") {
+        metadata = { ...metadata, ...record };
+        upsertAll(record.messages);
+      }
+    }
+
+    if (typeof metadata.sessionId !== "string") return null;
+    return { ...(metadata as GeminiSessionFile), messages: Array.from(messages.values()) };
+  }
+
+  private rewindMessages(messages: Map<string, GeminiMessageEntry>, messageId: string): void {
+    if (!messages.has(messageId)) {
+      messages.clear();
+      return;
+    }
+    let found = false;
+    for (const id of Array.from(messages.keys())) {
+      if (id === messageId) found = true;
+      if (found) messages.delete(id);
+    }
+  }
+
+  private parseLogRecord(line: string): Record<string, unknown> | null {
+    try {
+      const record: unknown = JSON.parse(line);
+      return isRecord(record) ? record : null;
+    } catch {
+      return null;
+    }
   }
 
   private parseSessionJson(content: string): GeminiSessionFile | null {
@@ -313,4 +397,13 @@ export class GeminiSessionParser {
     if (value.length <= maxLength) return value;
     return `${value.slice(0, maxLength - 3)}...`;
   }
+}
+
+/** Gemini CLI 0.46+ writes sessions as append-only `.jsonl` logs. */
+export function isSessionLogPath(filePath: string): boolean {
+  return filePath.endsWith(SESSION_LOG_EXTENSION);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
