@@ -12,6 +12,7 @@ import * as path from "path";
 
 import { ClaudeSessionParser } from "../../harnesses/claude/ClaudeSessionParser.js";
 import { CodexSessionParser } from "../../harnesses/codex/CodexSessionParser.js";
+import { parseTimestamp, truncate } from "../../harnesses/shared.js";
 
 const CONVERSATION_ENTRY_TYPES = new Set(["user", "assistant", "system", "progress", "thinking"]);
 
@@ -121,16 +122,16 @@ function legacyCodexReadSession(parser: CodexSessionParser, filePath: string) {
   for (let i = entries.length - 1; i >= 0; i--) {
     const message = p.extractEntryText(entries[i]);
     if (message) {
-      summary = p.truncate(message, 120);
+      summary = truncate(message, 120);
       break;
     }
   }
 
   const lastActive =
-    parser.parseTimestamp(lastEntry?.timestamp) ||
-    parser.parseTimestamp(metaEntry.payload.timestamp) ||
+    parseTimestamp(lastEntry?.timestamp) ||
+    parseTimestamp(metaEntry.payload.timestamp) ||
     fs.statSync(filePath).mtime;
-  const sessionStart = parser.parseTimestamp(metaEntry.payload.timestamp) || lastActive;
+  const sessionStart = parseTimestamp(metaEntry.payload.timestamp) || lastActive;
 
   return {
     sessionId: metaEntry.payload.id,

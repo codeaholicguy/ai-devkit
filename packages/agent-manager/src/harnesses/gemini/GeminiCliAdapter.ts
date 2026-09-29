@@ -22,9 +22,7 @@ import type {
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
 import {
-  captureProcessSnapshot,
   executableBasename,
-  filterByProcessNames,
   findWrapperProcess,
   findWrapperProcessPids,
 } from "../../utils/process.js";
@@ -33,6 +31,7 @@ import { AgentRegistry, type RegistryEntry } from "../../utils/AgentRegistry.js"
 import { GeminiAgentMapper } from "./GeminiAgentMapper.js";
 import { GeminiSessionLocator, type GeminiSessionDiscovery } from "./GeminiSessionLocator.js";
 import { GeminiSessionParser } from "./GeminiSessionParser.js";
+import { findHarnessProcesses } from "../shared.js";
 
 export interface GeminiCliAdapterOptions {
   geminiTmpDir?: string;
@@ -119,13 +118,7 @@ export class GeminiCliAdapter implements AgentAdapter {
   }
 
   private async getGeminiProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    return relevant.filter((process) => this.canHandle(process));
+    return (await findHarnessProcesses(this, context)).processes;
   }
 
   private mapSessionDiscovery(

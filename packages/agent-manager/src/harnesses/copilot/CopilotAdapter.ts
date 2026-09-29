@@ -23,17 +23,12 @@ import type {
   SessionSummary,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-  findWrapperProcess,
-  findWrapperProcessPids,
-} from "../../utils/process.js";
+import { findWrapperProcess, findWrapperProcessPids } from "../../utils/process.js";
 import { AgentRegistry, type RegistryEntry } from "../../utils/AgentRegistry.js";
 import { CopilotAgentMapper } from "./CopilotAgentMapper.js";
 import { CopilotSessionLocator } from "./CopilotSessionLocator.js";
 import { CopilotSessionParser, type CopilotSession } from "./CopilotSessionParser.js";
+import { findHarnessProcesses, homeDir, matchesExecutable } from "../shared.js";
 
 export interface CopilotAdapterOptions {
   sessionStateDir?: string;
@@ -52,17 +47,16 @@ export class CopilotAdapter implements AgentAdapter {
     registry: AgentRegistry = AgentRegistry.default(),
     options: CopilotAdapterOptions = {},
   ) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
     this.registry = registry;
     this.parser = new CopilotSessionParser();
     this.mapper = new CopilotAgentMapper(this.parser);
     this.locator = new CopilotSessionLocator({
-      sessionStateDir: options.sessionStateDir ?? path.join(homeDir, ".copilot", "session-state"),
+      sessionStateDir: options.sessionStateDir ?? path.join(homeDir(), ".copilot", "session-state"),
     });
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    return this.isCopilotExecutable(processInfo.command);
+    return matchesExecutable(processInfo.command, "copilot");
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
@@ -75,13 +69,7 @@ export class CopilotAdapter implements AgentAdapter {
   }
 
   private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    const processes = relevant.filter((process) => this.canHandle(process));
+    const { processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) return [];
 
     const processByPid = new Map(processes.map((proc) => [proc.pid, proc]));
@@ -169,10 +157,5 @@ export class CopilotAdapter implements AgentAdapter {
     if (wrapperEntry?.type === this.type) {
       agent.name = wrapperEntry.name;
     }
-  }
-
-  private isCopilotExecutable(command: string): boolean {
-    const base = executableBasename(command);
-    return base === "copilot" || base === "copilot.exe";
   }
 }

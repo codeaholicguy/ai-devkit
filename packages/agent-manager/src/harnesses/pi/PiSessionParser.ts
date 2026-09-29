@@ -14,6 +14,7 @@ import {
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
+import { isIdle, parseTimestamp, SUMMARY_MAX_LENGTH, truncate } from "../shared.js";
 
 export interface PiSession {
   sessionId: string;
@@ -73,8 +74,6 @@ interface PiSummaryState {
   lastUserMessage?: string;
   lastRole?: ConversationMessage["role"];
 }
-
-const IDLE_THRESHOLD_MINUTES = 5;
 
 /** Upper bound for `readSessionHead`; Pi writes its session header as the first line. */
 export const PI_SESSION_HEAD_MAX_BYTES = 64 * 1024;
@@ -175,10 +174,7 @@ export class PiSessionParser {
   }
 
   determineStatus(session: PiSession): AgentStatus {
-    const diffMs = Date.now() - session.lastActive.getTime();
-    const diffMinutes = diffMs / 60000;
-
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) return AgentStatus.IDLE;
+    if (isIdle(session.lastActive)) return AgentStatus.IDLE;
     if (session.lastRole === "assistant") return AgentStatus.WAITING;
     return AgentStatus.RUNNING;
   }
@@ -252,7 +248,7 @@ export class PiSessionParser {
         next.projectPath ??= this.entryCwd(entry);
       }
 
-      const timestamp = this.parseTimestamp(this.entryTimestamp(entry));
+      const timestamp = parseTimestamp(this.entryTimestamp(entry));
       if (timestamp) {
         if (inHead) next.firstTimestampMs ??= timestamp.getTime();
         next.lastTimestampMs = timestamp.getTime();
@@ -300,7 +296,7 @@ export class PiSessionParser {
       sessionId: state.sessionId || this.sessionIdFromFile(filePath),
       projectPath: state.projectPath || fallbackCwd,
       summary: state.lastUserMessage
-        ? this.truncate(state.lastUserMessage, 120)
+        ? truncate(state.lastUserMessage, SUMMARY_MAX_LENGTH)
         : "Pi session active",
       sessionStart,
       lastActive,
@@ -488,16 +484,5 @@ export class PiSessionParser {
       if (typeof value === "string" && value) return value;
     }
     return undefined;
-  }
-
-  private parseTimestamp(value?: string): Date | null {
-    if (!value) return null;
-    const timestamp = new Date(value);
-    return Number.isNaN(timestamp.getTime()) ? null : timestamp;
-  }
-
-  private truncate(value: string, maxLength: number): string {
-    if (value.length <= maxLength) return value;
-    return `${value.slice(0, maxLength - 3)}...`;
   }
 }

@@ -8,11 +8,7 @@ import type {
   ListSessionsOptions,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-} from "../../utils/process.js";
+import { findHarnessProcesses, matchesExecutable } from "../shared.js";
 import { GrokAgentMapper } from "./GrokAgentMapper.js";
 import { GrokSessionLocator } from "./GrokSessionLocator.js";
 import { GrokSessionParser, type GrokSession } from "./GrokSessionParser.js";
@@ -51,12 +47,7 @@ export class GrokCliAdapter implements AgentAdapter {
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    return this.isGrokExecutable(processInfo.command);
-  }
-
-  private isGrokExecutable(command: string): boolean {
-    const base = executableBasename(command);
-    return base === "grok" || base === "grok.exe";
+    return matchesExecutable(processInfo.command, "grok");
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
@@ -69,13 +60,7 @@ export class GrokCliAdapter implements AgentAdapter {
   }
 
   private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    const processes = relevant.filter((process) => this.canHandle(process));
+    const { processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) {
       return [];
     }

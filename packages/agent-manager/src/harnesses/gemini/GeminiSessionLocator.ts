@@ -7,6 +7,7 @@ import type { SessionFile } from "../../utils/session.js";
 import { isDirectory, safeReadFile, safeReaddir, safeStat } from "../../utils/session.js";
 import { fileSignature } from "./fileSignature.js";
 import { isSessionLogPath } from "./GeminiSessionParser.js";
+import { homeDir } from "../shared.js";
 
 export interface GeminiSessionDiscovery {
   sessions: SessionFile[];
@@ -61,8 +62,7 @@ export class GeminiSessionLocator {
   private markerCache = new Map<string, CachedProjectMarker>();
 
   constructor(options: GeminiSessionLocatorOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.geminiTmpDir = options.geminiTmpDir ?? path.join(homeDir, ".gemini", "tmp");
+    this.geminiTmpDir = options.geminiTmpDir ?? path.join(homeDir(), ".gemini", "tmp");
   }
 
   /**

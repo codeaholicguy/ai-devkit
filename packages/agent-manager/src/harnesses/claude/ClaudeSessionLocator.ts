@@ -12,6 +12,7 @@ import {
   safeStat,
   type SessionFile,
 } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 
 /**
  * Entry in ~/.claude/sessions/<pid>.json written by Claude Code.
@@ -68,9 +69,8 @@ export class ClaudeSessionLocator {
   private readonly sessionsDir: string;
 
   constructor(options: ClaudeSessionLocatorOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.projectsDir = options.projectsDir ?? path.join(homeDir, ".claude", "projects");
-    this.sessionsDir = options.sessionsDir ?? path.join(homeDir, ".claude", "sessions");
+    this.projectsDir = options.projectsDir ?? path.join(homeDir(), ".claude", "projects");
+    this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".claude", "sessions");
   }
 
   /**

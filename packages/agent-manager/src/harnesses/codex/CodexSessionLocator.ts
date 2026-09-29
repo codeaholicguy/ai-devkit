@@ -10,6 +10,7 @@ import {
   type SessionFile,
 } from "../../utils/session.js";
 import { CodexSessionParser, type CodexEventEntry } from "./CodexSessionParser.js";
+import { homeDir } from "../shared.js";
 
 export interface CodexDirectMatch {
   process: ProcessInfo;
@@ -82,8 +83,7 @@ export class CodexSessionLocator {
     options: CodexSessionLocatorOptions = {},
     private readonly parser: CodexSessionParser = new CodexSessionParser(),
   ) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.sessionsDir = options.sessionsDir ?? path.join(homeDir, ".codex", "sessions");
+    this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".codex", "sessions");
     this.now = options.now ?? Date.now;
   }
 

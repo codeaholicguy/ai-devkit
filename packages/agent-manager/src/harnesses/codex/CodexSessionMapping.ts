@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { safeReadFile } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 
 export interface CodexSessionMappingOptions {
   mappingPath?: string;
@@ -23,10 +24,9 @@ export class CodexSessionMapping {
   private readonly sessionsDir: string;
 
   constructor(options: CodexSessionMappingOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
     this.mappingPath =
-      options.mappingPath ?? path.join(homeDir, ".codex", "ai-devkit", "sessions.json");
-    this.sessionsDir = options.sessionsDir ?? path.join(homeDir, ".codex", "sessions");
+      options.mappingPath ?? path.join(homeDir(), ".codex", "ai-devkit", "sessions.json");
+    this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".codex", "sessions");
   }
 
   match(processes: ProcessInfo[]): CodexSessionMappingResult {

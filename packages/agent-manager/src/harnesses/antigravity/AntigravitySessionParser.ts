@@ -1,9 +1,8 @@
 import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import { flattenTextBlocks, isIdle, parseTimestamp } from "../shared.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
-
-const IDLE_THRESHOLD_MINUTES = 5;
 
 /** One line of transcript.jsonl. */
 interface TranscriptRecord {
@@ -89,8 +88,7 @@ export class AntigravitySessionParser {
    * - otherwise (last turn was a user message, or unknown) → RUNNING
    */
   determineStatus(session: AntigravitySession): AgentStatus {
-    const diffMinutes = (Date.now() - session.lastActive.getTime()) / 60000;
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) {
+    if (isIdle(session.lastActive)) {
       return AgentStatus.IDLE;
     }
     if (session.lastRole === "assistant") {
@@ -116,7 +114,7 @@ export class AntigravitySessionParser {
       const record = this.parseRecord(line);
       if (!record) continue;
 
-      const at = this.parseTimestamp(record.created_at);
+      const at = parseTimestamp(record.created_at);
       if (at && (!lastActive || at.getTime() > lastActive.getTime())) lastActive = at;
 
       const message = this.recordToMessage(record, verbose);
@@ -151,7 +149,7 @@ export class AntigravitySessionParser {
    * system message only in verbose mode.
    */
   private recordToMessage(record: TranscriptRecord, verbose: boolean): ConversationMessage | null {
-    const text = this.extractText(record.content);
+    const text = flattenTextBlocks(record.content);
     if (record.type === "USER_INPUT") {
       const request = this.extractUserRequest(text);
       return request === null ? null : { role: "user", content: request };
@@ -159,23 +157,6 @@ export class AntigravitySessionParser {
     if (!text) return null;
     if (record.type === "PLANNER_RESPONSE") return { role: "assistant", content: text };
     return verbose ? { role: "system", content: text } : null;
-  }
-
-  /** Flatten a record's content (string or text-block array) to text. */
-  private extractText(content: unknown): string {
-    if (typeof content === "string") return content;
-    if (Array.isArray(content)) {
-      return content
-        .map((block) =>
-          block &&
-          typeof block === "object" &&
-          typeof (block as { text?: unknown }).text === "string"
-            ? (block as { text: string }).text
-            : "",
-        )
-        .join("");
-    }
-    return "";
   }
 
   /**
@@ -186,11 +167,5 @@ export class AntigravitySessionParser {
     const match = text.match(/<USER_REQUEST>\s*([\s\S]*?)\s*<\/USER_REQUEST>/);
     if (match) return match[1].trim();
     return text.trim() || null;
-  }
-
-  private parseTimestamp(value?: string): Date | null {
-    if (!value) return null;
-    const ts = new Date(value);
-    return Number.isNaN(ts.getTime()) ? null : ts;
   }
 }

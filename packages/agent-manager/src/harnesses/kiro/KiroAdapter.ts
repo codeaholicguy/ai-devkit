@@ -9,11 +9,8 @@ import type {
   ListSessionsOptions,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executablePath,
-  filterByProcessNames,
-} from "../../utils/process.js";
+import { executablePath } from "../../utils/process.js";
+import { findHarnessProcesses } from "../shared.js";
 import { KiroAgentMapper } from "./KiroAgentMapper.js";
 import { KiroSessionLocator } from "./KiroSessionLocator.js";
 import { KiroSessionParser, type KiroSession } from "./KiroSessionParser.js";
@@ -52,13 +49,7 @@ export class KiroAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    const processes = relevant.filter((process) => this.canHandle(process));
+    const { relevant, processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) return [];
 
     const agents: AgentInfo[] = [];

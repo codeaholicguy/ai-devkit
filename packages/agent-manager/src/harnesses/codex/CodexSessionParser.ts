@@ -13,6 +13,7 @@ import {
   type JsonlSummaryBounds,
   type JsonlSummaryReducer,
 } from "../../utils/IncrementalJsonlSummary.js";
+import { isIdle, parseTimestamp, SUMMARY_MAX_LENGTH, truncate } from "../shared.js";
 
 export interface CodexEventEntry {
   timestamp?: string;
@@ -70,7 +71,6 @@ interface CodexConversationItem {
   message: ConversationMessage;
 }
 
-const IDLE_THRESHOLD_MINUTES = 5;
 const MIRROR_OVERSCAN = 8;
 
 export interface CodexSessionParserOptions {
@@ -162,7 +162,7 @@ export class CodexSessionParser {
       }
 
       const text = this.extractEntryText(entry);
-      if (text) next.summary = this.truncate(text, 120);
+      if (text) next.summary = truncate(text, SUMMARY_MAX_LENGTH);
 
       return next;
     },
@@ -174,10 +174,8 @@ export class CodexSessionParser {
     if (!meta) return null;
 
     const lastActive =
-      this.parseTimestamp(state.lastEntryTimestamp) ||
-      this.parseTimestamp(meta.timestamp) ||
-      fileMtime();
-    const sessionStart = this.parseTimestamp(meta.timestamp) || lastActive;
+      parseTimestamp(state.lastEntryTimestamp) || parseTimestamp(meta.timestamp) || fileMtime();
+    const sessionStart = parseTimestamp(meta.timestamp) || lastActive;
 
     return {
       sessionId: meta.id,
@@ -190,10 +188,7 @@ export class CodexSessionParser {
   }
 
   determineStatus(session: CodexSession): AgentStatus {
-    const diffMs = Date.now() - session.lastActive.getTime();
-    const diffMinutes = diffMs / 60000;
-
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) {
+    if (isIdle(session.lastActive)) {
       return AgentStatus.IDLE;
     }
 
@@ -300,7 +295,7 @@ export class CodexSessionParser {
         continue;
       }
 
-      const ts = this.parseTimestamp(entry.timestamp);
+      const ts = parseTimestamp(entry.timestamp);
       if (ts) lastTimestamp = ts;
 
       if (!firstUserMessage) {
@@ -319,7 +314,7 @@ export class CodexSessionParser {
     const stat = safeStat(filePath);
 
     const startedAt =
-      this.parseTimestamp(metaEntry.payload.timestamp) ||
+      parseTimestamp(metaEntry.payload.timestamp) ||
       lastTimestamp ||
       stat?.birthtime ||
       stat?.mtime ||
@@ -337,16 +332,10 @@ export class CodexSessionParser {
     };
   }
 
-  parseTimestamp(value?: string): Date | null {
-    if (!value) return null;
-    const timestamp = new Date(value);
-    return Number.isNaN(timestamp.getTime()) ? null : timestamp;
-  }
-
   parseMetaTimestampMs(value?: string): number | null {
     if (typeof value !== "string") return null;
 
-    const timestamp = this.parseTimestamp(value);
+    const timestamp = parseTimestamp(value);
     if (!timestamp) return null;
 
     const timestampMs = timestamp.getTime();
@@ -382,11 +371,6 @@ export class CodexSessionParser {
 
     const conversationMessage = this.toConversationMessage(entry, false);
     return conversationMessage?.content.trim() ?? "";
-  }
-
-  private truncate(value: string, maxLength: number): string {
-    if (value.length <= maxLength) return value;
-    return `${value.slice(0, maxLength - 3)}...`;
   }
 
   private toConversationMessage(

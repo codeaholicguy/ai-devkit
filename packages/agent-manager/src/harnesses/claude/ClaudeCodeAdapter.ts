@@ -9,15 +9,11 @@ import type {
   ListSessionsOptions,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-} from "../../utils/process.js";
 import { safeStat } from "../../utils/session.js";
 import { ClaudeSessionParser } from "./ClaudeSessionParser.js";
 import { ClaudeAgentMapper } from "./ClaudeAgentMapper.js";
 import { ClaudeSessionLocator } from "./ClaudeSessionLocator.js";
+import { findHarnessProcesses, homeDir, matchesExecutable } from "../shared.js";
 
 /**
  * Claude Code Adapter
@@ -40,20 +36,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   private sessionsDir: string;
 
   constructor() {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.projectsDir = path.join(homeDir, ".claude", "projects");
-    this.sessionsDir = path.join(homeDir, ".claude", "sessions");
+    this.projectsDir = path.join(homeDir(), ".claude", "projects");
+    this.sessionsDir = path.join(homeDir(), ".claude", "sessions");
     this.parser = new ClaudeSessionParser();
     this.mapper = new ClaudeAgentMapper(this.parser);
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    return this.isClaudeExecutable(processInfo.command);
-  }
-
-  private isClaudeExecutable(command: string): boolean {
-    const base = executableBasename(command);
-    return base === "claude" || base === "claude.exe";
+    return matchesExecutable(processInfo.command, "claude");
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
@@ -66,13 +56,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   }
 
   private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    const processes = relevant.filter((process) => this.canHandle(process));
+    const { processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) {
       return [];
     }

@@ -1,6 +1,7 @@
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { safeReadFile } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 
 const REGISTRY_FILE = path.join("cache", "last_conversations.json");
 const BRAIN_DIR = "brain";
@@ -29,10 +30,9 @@ export class AntigravitySessionLocator {
   private readonly baseDir: string;
 
   constructor(options: AntigravitySessionLocatorOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
     this.baseDir =
       options.baseDir ??
-      (process.env.ANTIGRAVITY_CLI_HOME || path.join(homeDir, ".gemini", "antigravity-cli"));
+      (process.env.ANTIGRAVITY_CLI_HOME || path.join(homeDir(), ".gemini", "antigravity-cli"));
   }
 
   /** Pair live processes with their conversation, joined on the process cwd. */

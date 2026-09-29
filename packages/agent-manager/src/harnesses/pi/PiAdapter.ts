@@ -10,16 +10,13 @@ import type {
   ListSessionsOptions,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-} from "../../utils/process.js";
+import { executableBasename } from "../../utils/process.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 import { PiAgentMapper } from "./PiAgentMapper.js";
 import { PiSessionLocator } from "./PiSessionLocator.js";
 import { PiSessionParser } from "./PiSessionParser.js";
 import { PiSessionTracker } from "./PiSessionTracker.js";
+import { findHarnessProcesses, homeDir } from "../shared.js";
 
 interface MappedAgentResult {
   agents: AgentInfo[];
@@ -44,8 +41,7 @@ export class PiAdapter implements AgentAdapter {
   private readonly liveLocator: PiSessionLocator;
 
   constructor(registry: AgentRegistry = AgentRegistry.default()) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    const piAgentDir = path.join(homeDir, ".pi", "agent");
+    const piAgentDir = path.join(homeDir(), ".pi", "agent");
     this.piSessionsDir = path.join(piAgentDir, "sessions");
     this.trackerPath = path.join(piAgentDir, "sessions.json");
     this.registry = registry;
@@ -118,18 +114,7 @@ export class PiAdapter implements AgentAdapter {
   }
 
   private async getPiProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (processInfo) => this.canHandle(processInfo),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-
-    const byPid = new Map<number, ProcessInfo>();
-    for (const processInfo of relevant) {
-      if (this.canHandle(processInfo)) byPid.set(processInfo.pid, processInfo);
-    }
-    return Array.from(byPid.values());
+    return (await findHarnessProcesses(this, context)).processes;
   }
 
   private createLocator(): PiSessionLocator {

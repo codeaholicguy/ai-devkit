@@ -1,7 +1,7 @@
 import type { AgentInfo, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
 import { CopilotSessionParser, type CopilotSession } from "./CopilotSessionParser.js";
+import { processOnlyAgent } from "../shared.js";
 
 export class CopilotAgentMapper {
   constructor(private readonly parser: CopilotSessionParser = new CopilotSessionParser()) {}
@@ -22,15 +22,6 @@ export class CopilotAgentMapper {
   }
 
   mapProcessOnlyAgent(processInfo: ProcessInfo): AgentInfo {
-    return {
-      name: generateAgentName(processInfo.cwd || "", processInfo.pid),
-      type: "copilot",
-      status: AgentStatus.RUNNING,
-      summary: "Copilot process running",
-      pid: processInfo.pid,
-      projectPath: processInfo.cwd || "",
-      sessionId: `pid-${processInfo.pid}`,
-      lastActive: new Date(),
-    };
+    return processOnlyAgent("copilot", processInfo, { summary: "Copilot process running" });
   }
 }

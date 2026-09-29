@@ -2,8 +2,7 @@ import type { ConversationMessage, ConversationOptions } from "../../adapters/Ag
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
-
-const IDLE_THRESHOLD_MINUTES = 5;
+import { isIdle, parseTimestamp } from "../shared.js";
 
 type KiroRecord = Record<string, unknown>;
 
@@ -61,7 +60,7 @@ export class KiroSessionParser {
       (message) => message.role === "user",
     );
     const timestamps = entries
-      .map((entry) => this.parseDate(this.entryTimestamp(entry)))
+      .map((entry) => parseTimestamp(this.entryTimestamp(entry)))
       .filter((value): value is Date => value !== null);
     const lastEntry = entries.at(-1);
 
@@ -106,8 +105,7 @@ export class KiroSessionParser {
    * - otherwise (user prompt, tool call or tool result) → RUNNING
    */
   determineStatus(session: KiroSession): AgentStatus {
-    const diffMinutes = (Date.now() - session.lastActive.getTime()) / 60000;
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) return AgentStatus.IDLE;
+    if (isIdle(session.lastActive)) return AgentStatus.IDLE;
     if (session.lastEventKind === "AssistantMessage" && !session.lastAssistantHasToolUse) {
       return AgentStatus.WAITING;
     }
@@ -137,8 +135,8 @@ export class KiroSessionParser {
       sessionId: firstString(parsed.session_id, parsed.sessionId) ?? sessionId,
       cwd: firstString(parsed.cwd) ?? "",
       title: firstString(parsed.title) ?? "",
-      createdAt: this.parseDate(parsed.created_at ?? parsed.createdAt),
-      updatedAt: this.parseDate(parsed.updated_at ?? parsed.updatedAt),
+      createdAt: parseTimestamp(parsed.created_at ?? parsed.createdAt),
+      updatedAt: parseTimestamp(parsed.updated_at ?? parsed.updatedAt),
     };
   }
 
@@ -252,18 +250,7 @@ export class KiroSessionParser {
     if (direct) return direct;
 
     const meta = asRecord(entry.data?.meta);
-    return this.parseDate(meta?.timestamp)?.toISOString();
-  }
-
-  /** Accepts ISO strings and epoch numbers in seconds or milliseconds. */
-  private parseDate(value: unknown): Date | null {
-    if (typeof value === "number") {
-      const date = new Date(value < 1_000_000_000_000 ? value * 1000 : value);
-      return Number.isNaN(date.getTime()) ? null : date;
-    }
-    if (typeof value !== "string" || !value) return null;
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
+    return parseTimestamp(meta?.timestamp)?.toISOString();
   }
 }
 

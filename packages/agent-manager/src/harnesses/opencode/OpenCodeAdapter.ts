@@ -21,14 +21,10 @@ import type {
   ListSessionsOptions,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-} from "../../utils/process.js";
 import { OpenCodeAgentMapper } from "./OpenCodeAgentMapper.js";
 import { OpenCodeSessionLocator } from "./OpenCodeSessionLocator.js";
 import { OpenCodeSessionParser } from "./OpenCodeSessionParser.js";
+import { findHarnessProcesses, matchesExecutable } from "../shared.js";
 
 const SESSION_REF_SEP = "::";
 
@@ -64,18 +60,11 @@ export class OpenCodeAdapter implements AgentAdapter {
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    const base = executableBasename(processInfo.command);
-    return base === "opencode" || base === "opencode.exe";
+    return matchesExecutable(processInfo.command, "opencode");
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    const processes = relevant.filter((process) => this.canHandle(process));
+    const { processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) return [];
 
     const db = this.locator.openDb();

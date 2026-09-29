@@ -3,9 +3,9 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
 import type { OpenCodeSession } from "./OpenCodeSessionLocator.js";
 import type { OpenCodeSessionStats } from "./OpenCodeSessionParser.js";
+import { isIdle, processOnlyAgent } from "../shared.js";
 
 const SESSION_REF_SEP = "::";
-const IDLE_THRESHOLD_MINUTES = 5;
 
 function encodeSessionRef(dbPath: string, sessionId: string): string {
   return `${dbPath}${SESSION_REF_SEP}${sessionId}`;
@@ -36,21 +36,11 @@ export class OpenCodeAgentMapper {
   }
 
   mapProcessOnlyAgent(proc: ProcessInfo): AgentInfo {
-    return {
-      name: generateAgentName(proc.cwd || "", proc.pid),
-      type: "opencode",
-      status: AgentStatus.RUNNING,
-      summary: "OpenCode process running",
-      pid: proc.pid,
-      projectPath: proc.cwd || "",
-      sessionId: `pid-${proc.pid}`,
-      lastActive: new Date(),
-    };
+    return processOnlyAgent("opencode", proc, { summary: "OpenCode process running" });
   }
 
   private determineStatus(stats: OpenCodeSessionStats, lastActive: Date): AgentStatus {
-    const ageMin = (Date.now() - lastActive.getTime()) / 60000;
-    if (ageMin > IDLE_THRESHOLD_MINUTES) return AgentStatus.IDLE;
+    if (isIdle(lastActive)) return AgentStatus.IDLE;
 
     if (stats.lastRole === "assistant" && !stats.lastAssistantCompleted) {
       return AgentStatus.RUNNING;

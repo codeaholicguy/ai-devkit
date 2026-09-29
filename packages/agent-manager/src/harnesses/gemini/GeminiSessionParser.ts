@@ -8,6 +8,7 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { sliceTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 import { fileSignature } from "./fileSignature.js";
+import { isIdle, parseTimestamp, SUMMARY_MAX_LENGTH, truncate } from "../shared.js";
 
 /**
  * A single Gemini CLI message content part. Mirrors the `{text?: string}`
@@ -65,7 +66,6 @@ interface CachedParsedSession {
   session: GeminiSession | null;
 }
 
-const IDLE_THRESHOLD_MINUTES = 5;
 const SESSION_LOG_EXTENSION = ".jsonl";
 /** Parsed sessions are small (summary is truncated); cap entries, not bytes. */
 const MAX_CACHED_SESSIONS = 256;
@@ -119,12 +119,12 @@ export class GeminiSessionParser {
     const lastEntry = messages.length > 0 ? messages[messages.length - 1] : undefined;
 
     const lastActive =
-      this.parseTimestamp(parsed.lastUpdated) ||
-      this.parseTimestamp(lastEntry?.timestamp) ||
+      parseTimestamp(parsed.lastUpdated) ||
+      parseTimestamp(lastEntry?.timestamp) ||
       fileStat?.mtime ||
       new Date();
 
-    const sessionStart = this.parseTimestamp(parsed.startTime) || lastActive;
+    const sessionStart = parseTimestamp(parsed.startTime) || lastActive;
     const projectPath =
       Array.isArray(parsed.directories) && parsed.directories.length > 0
         ? parsed.directories[0]
@@ -141,10 +141,7 @@ export class GeminiSessionParser {
   }
 
   determineStatus(session: GeminiSession): AgentStatus {
-    const diffMs = Date.now() - session.lastActive.getTime();
-    const diffMinutes = diffMs / 60000;
-
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) {
+    if (isIdle(session.lastActive)) {
       return AgentStatus.IDLE;
     }
 
@@ -211,13 +208,13 @@ export class GeminiSessionParser {
         : "";
 
     const stat = safeStat(filePath);
-    const lastEntryTimestamp = this.parseTimestamp(
+    const lastEntryTimestamp = parseTimestamp(
       messages.length > 0 ? messages[messages.length - 1]?.timestamp : undefined,
     );
     const lastActive =
-      this.parseTimestamp(parsed.lastUpdated) || lastEntryTimestamp || stat?.mtime || new Date();
+      parseTimestamp(parsed.lastUpdated) || lastEntryTimestamp || stat?.mtime || new Date();
     const startedAt =
-      this.parseTimestamp(parsed.startTime) || stat?.birthtime || stat?.mtime || lastActive;
+      parseTimestamp(parsed.startTime) || stat?.birthtime || stat?.mtime || lastActive;
 
     return {
       type: "gemini_cli",
@@ -340,7 +337,7 @@ export class GeminiSessionParser {
       const entry = messages[i];
       if (entry?.type !== "user") continue;
       const text = this.messageText(entry).trim();
-      if (text) return this.truncate(text, 120);
+      if (text) return truncate(text, SUMMARY_MAX_LENGTH);
     }
 
     return "Gemini CLI session active";
@@ -385,17 +382,6 @@ export class GeminiSessionParser {
       if (text) return text;
     }
     return "";
-  }
-
-  private parseTimestamp(value?: string): Date | null {
-    if (!value) return null;
-    const timestamp = new Date(value);
-    return Number.isNaN(timestamp.getTime()) ? null : timestamp;
-  }
-
-  private truncate(value: string, maxLength: number): string {
-    if (value.length <= maxLength) return value;
-    return `${value.slice(0, maxLength - 3)}...`;
   }
 }
 

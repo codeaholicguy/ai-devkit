@@ -9,9 +9,9 @@ import {
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
+import { flattenTextBlocks, isIdle } from "../shared.js";
 
 export const CHAT_HISTORY_FILE = "chat_history.jsonl";
-const IDLE_THRESHOLD_MINUTES = 5;
 
 /** One line of chat_history.jsonl. */
 interface ChatRecord {
@@ -124,8 +124,7 @@ export class GrokSessionParser {
    * - otherwise (last turn was a user message, or unknown) → RUNNING
    */
   determineStatus(session: GrokSession): AgentStatus {
-    const diffMinutes = (Date.now() - session.lastActive.getTime()) / 60000;
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) {
+    if (isIdle(session.lastActive)) {
       return AgentStatus.IDLE;
     }
     if (session.lastRole === "assistant") {
@@ -209,7 +208,7 @@ export class GrokSessionParser {
     if (!value || typeof value !== "object") return null;
     const record = value as ChatRecord;
 
-    const text = this.extractText(record.content);
+    const text = flattenTextBlocks(record.content);
     if (record.type === "user") {
       const query = this.extractUserQuery(text);
       return query === null ? null : { role: "user", content: query };
@@ -234,23 +233,6 @@ export class GrokSessionParser {
       return null;
     }
     return this.toMessage(record, verbose);
-  }
-
-  /** Flatten a chat record's content (string or text-block array) to text. */
-  private extractText(content: unknown): string {
-    if (typeof content === "string") return content;
-    if (Array.isArray(content)) {
-      return content
-        .map((block) =>
-          block &&
-          typeof block === "object" &&
-          typeof (block as { text?: unknown }).text === "string"
-            ? (block as { text: string }).text
-            : "",
-        )
-        .join("");
-    }
-    return "";
   }
 
   /**

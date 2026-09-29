@@ -1,9 +1,7 @@
 import type { AgentInfo, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
+import { processOnlyAgent, SUMMARY_MAX_LENGTH, truncate } from "../shared.js";
 import { KiroSessionParser, type KiroSession } from "./KiroSessionParser.js";
-
-const SUMMARY_MAX_LENGTH = 120;
 
 export interface KiroSessionAgentInput {
   session: KiroSession;
@@ -31,20 +29,6 @@ export class KiroAgentMapper {
   }
 
   mapProcessOnlyAgent(processInfo: ProcessInfo): AgentInfo {
-    return {
-      name: generateAgentName(processInfo.cwd, processInfo.pid),
-      type: "kiro",
-      status: AgentStatus.RUNNING,
-      summary: "Kiro process running",
-      pid: processInfo.pid,
-      projectPath: processInfo.cwd,
-      sessionId: `pid-${processInfo.pid}`,
-      lastActive: new Date(),
-    };
+    return processOnlyAgent("kiro", processInfo, { summary: "Kiro process running" });
   }
-}
-
-function truncate(value: string, maxLength: number): string {
-  if (value.length <= maxLength) return value;
-  return `${value.slice(0, maxLength - 3)}...`;
 }

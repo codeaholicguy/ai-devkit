@@ -10,17 +10,13 @@ import type {
   ListSessionsOptions,
   AgentDetectionContext,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  executablePath,
-  filterByProcessNames,
-} from "../../utils/process.js";
+import { executablePath } from "../../utils/process.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 import { CodexAgentMapper } from "./CodexAgentMapper.js";
 import { CodexSessionLocator, type CodexDirectMatch } from "./CodexSessionLocator.js";
 import { CodexSessionMapping } from "./CodexSessionMapping.js";
 import { CodexSessionParser } from "./CodexSessionParser.js";
+import { findHarnessProcesses, homeDir, matchesExecutable } from "../shared.js";
 
 /**
  * Codex subcommands that never own a local agent session: long-running helpers
@@ -164,18 +160,17 @@ export class CodexAdapter implements AgentAdapter {
   private locator?: CodexSessionLocator;
 
   constructor(registry: AgentRegistry = AgentRegistry.default()) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
     this.registry = registry;
     this.parser = new CodexSessionParser();
     this.mapper = new CodexAgentMapper(this.parser);
-    this.codexSessionsDir = path.join(homeDir, ".codex", "sessions");
-    this.sessionMappingPath = path.join(homeDir, ".codex", "ai-devkit", "sessions.json");
+    this.codexSessionsDir = path.join(homeDir(), ".codex", "sessions");
+    this.sessionMappingPath = path.join(homeDir(), ".codex", "ai-devkit", "sessions.json");
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    const base = executableBasename(processInfo.command);
-    if (base !== "codex" && base !== "codex.exe") return false;
-    return !isCodexHelperCommand(processInfo.command);
+    return (
+      matchesExecutable(processInfo.command, "codex") && !isCodexHelperCommand(processInfo.command)
+    );
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
@@ -238,13 +233,7 @@ export class CodexAdapter implements AgentAdapter {
   }
 
   private async getCodexProcesses(context?: AgentDetectionContext): Promise<ProcessInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (processInfo) => this.canHandle(processInfo),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    return relevant.filter((processInfo) => this.canHandle(processInfo));
+    return (await findHarnessProcesses(this, context)).processes;
   }
 
   /** Reused across refreshes so the locator's session_meta and negative caches persist. */

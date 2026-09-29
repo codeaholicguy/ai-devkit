@@ -7,6 +7,7 @@ import {
   safeReaddir,
   safeStat,
 } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 import { CHAT_HISTORY_FILE } from "./GrokSessionParser.js";
 
 const ACTIVE_SESSIONS_FILE = "active_sessions.json";
@@ -45,8 +46,7 @@ export class GrokSessionLocator {
     // GROK_HOME overrides the ~/.grok base directory; sessions live under
     // <base>/sessions/ and the active-session registry at
     // <base>/active_sessions.json.
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.baseDir = options.baseDir ?? (process.env.GROK_HOME || path.join(homeDir, ".grok"));
+    this.baseDir = options.baseDir ?? (process.env.GROK_HOME || path.join(homeDir(), ".grok"));
     this.sessionsDir = path.join(this.baseDir, "sessions");
   }
 

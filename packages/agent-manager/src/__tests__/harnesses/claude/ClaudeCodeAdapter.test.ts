@@ -197,11 +197,11 @@ describe("ClaudeCodeAdapter", () => {
       expect(agents).toHaveLength(1);
       expect(agents[0]).toMatchObject({
         type: "claude",
-        status: AgentStatus.IDLE,
+        status: AgentStatus.RUNNING,
         pid: 777,
         projectPath: "/project/app",
         sessionId: "pid-777",
-        summary: "Unknown",
+        summary: "Claude Code process running",
       });
     });
 
@@ -330,7 +330,7 @@ describe("ClaudeCodeAdapter", () => {
       const unmatched = agents.find((a) => a.pid === 200);
       expect(matched?.sessionId).toBe("only-session");
       expect(unmatched?.sessionId).toBe("pid-200");
-      expect(unmatched?.status).toBe(AgentStatus.IDLE);
+      expect(unmatched?.status).toBe(AgentStatus.RUNNING);
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
     });
@@ -347,7 +347,7 @@ describe("ClaudeCodeAdapter", () => {
       expect(agents[0]).toMatchObject({
         pid: 300,
         sessionId: "pid-300",
-        summary: "Unknown",
+        summary: "Claude Code process running",
         projectPath: "",
       });
     });
@@ -427,7 +427,7 @@ describe("ClaudeCodeAdapter", () => {
 
       expect(agents).toHaveLength(1);
       expect(agents[0].sessionId).toBe("pid-41921");
-      expect(agents[0].status).toBe(AgentStatus.IDLE);
+      expect(agents[0].status).toBe(AgentStatus.RUNNING);
     });
 
     it("should use PID file for direct match and skip legacy matching for that process", async () => {
@@ -783,7 +783,7 @@ describe("ClaudeCodeAdapter", () => {
       // matchedPids.delete called → process falls back to IDLE
       expect(agents).toHaveLength(1);
       expect(agents[0].sessionId).toBe("pid-66001");
-      expect(agents[0].status).toBe(AgentStatus.IDLE);
+      expect(agents[0].status).toBe(AgentStatus.RUNNING);
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
       vi.restoreAllMocks();
@@ -832,7 +832,7 @@ describe("ClaudeCodeAdapter", () => {
 
       expect(agents).toHaveLength(1);
       expect(agents[0].sessionId).toBe("pid-66002");
-      expect(agents[0].status).toBe(AgentStatus.IDLE);
+      expect(agents[0].status).toBe(AgentStatus.RUNNING);
 
       fs.rmSync(tmpDir, { recursive: true, force: true });
       vi.restoreAllMocks();

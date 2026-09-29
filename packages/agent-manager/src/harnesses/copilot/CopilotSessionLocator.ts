@@ -1,5 +1,6 @@
 import * as path from "path";
 import { isDirectory, isSafePathSegment, safeReaddir, safeStat } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 
 export interface CopilotLock {
   sessionDir: string;
@@ -41,9 +42,8 @@ export class CopilotSessionLocator {
   private readonly knownLocks = new Map<number, KnownLock>();
 
   constructor(options: CopilotSessionLocatorOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
     this.sessionStateDir =
-      options.sessionStateDir ?? path.join(homeDir, ".copilot", "session-state");
+      options.sessionStateDir ?? path.join(homeDir(), ".copilot", "session-state");
   }
 
   listSessionDirs(): CopilotSessionDir[] {

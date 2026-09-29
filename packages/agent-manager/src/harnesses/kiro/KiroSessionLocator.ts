@@ -1,6 +1,7 @@
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { isDirectory, safeReadFile, safeReaddir } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 import { asRecord, type KiroSessionPaths } from "./KiroSessionParser.js";
 
 /** A live Kiro process and the session whose lock it holds. */
@@ -23,8 +24,7 @@ export class KiroSessionLocator {
   private readonly sessionsDir: string;
 
   constructor(options: KiroSessionLocatorOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.sessionsDir = options.sessionsDir ?? path.join(homeDir, ".kiro", "sessions", "cli");
+    this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".kiro", "sessions", "cli");
   }
 
   /**

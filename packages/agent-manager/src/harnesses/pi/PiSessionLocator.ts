@@ -16,6 +16,7 @@ import {
   PiSessionParser,
   type PiSessionHead,
 } from "./PiSessionParser.js";
+import { homeDir } from "../shared.js";
 
 export interface PiSessionLocatorOptions {
   sessionsDir?: string;
@@ -74,8 +75,7 @@ export class PiSessionLocator {
     options: PiSessionLocatorOptions = {},
     private readonly parser: PiSessionParser = new PiSessionParser(),
   ) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    this.sessionsDir = options.sessionsDir ?? path.join(homeDir, ".pi", "agent", "sessions");
+    this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".pi", "agent", "sessions");
   }
 
   matchRunningProcesses(processes: ProcessInfo[]): PiProcessSessionMatches {

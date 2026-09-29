@@ -3,6 +3,7 @@ import * as path from "path";
 import Database from "better-sqlite3";
 import type { ListSessionsOptions, SessionSummary } from "../../adapters/AgentAdapter.js";
 import { OpenCodeSessionParser } from "./OpenCodeSessionParser.js";
+import { homeDir } from "../shared.js";
 
 const SESSION_REF_SEP = "::";
 
@@ -35,8 +36,7 @@ export class OpenCodeSessionLocator {
 
   static resolveDbPath(): string {
     const xdg = process.env.XDG_DATA_HOME;
-    const home = process.env.HOME || process.env.USERPROFILE || "";
-    const base = xdg || path.join(home, ".local", "share");
+    const base = xdg || path.join(homeDir(), ".local", "share");
     return path.join(base, "opencode", "opencode.db");
   }
 

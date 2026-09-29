@@ -65,7 +65,7 @@ describe("ClaudeAgentMapper", () => {
     });
   });
 
-  it("maps unmatched processes to the existing process-only fallback shape", () => {
+  it("maps unmatched processes to the shared process-only placeholder", () => {
     const mapper = new ClaudeAgentMapper();
 
     const agent = mapper.mapProcessOnlyAgent(makeProcess({ pid: 456, cwd: "/repo/tooling" }));
@@ -73,8 +73,8 @@ describe("ClaudeAgentMapper", () => {
     expect(agent).toMatchObject({
       name: "tooling-456",
       type: "claude",
-      status: AgentStatus.IDLE,
-      summary: "Unknown",
+      status: AgentStatus.RUNNING,
+      summary: "Claude Code process running",
       pid: 456,
       projectPath: "/repo/tooling",
       sessionId: "pid-456",

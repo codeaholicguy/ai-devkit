@@ -1,7 +1,7 @@
 import type { AgentInfo, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
 import type { CodexSessionParser, CodexSession } from "./CodexSessionParser.js";
+import { processOnlyAgent } from "../shared.js";
 
 export class CodexAgentMapper {
   constructor(private readonly parser: CodexSessionParser) {}
@@ -21,15 +21,6 @@ export class CodexAgentMapper {
   }
 
   mapProcessOnlyAgent(processInfo: ProcessInfo): AgentInfo {
-    return {
-      name: generateAgentName(processInfo.cwd || "", processInfo.pid),
-      type: "codex",
-      status: AgentStatus.RUNNING,
-      summary: "Codex process running",
-      pid: processInfo.pid,
-      projectPath: processInfo.cwd || "",
-      sessionId: `pid-${processInfo.pid}`,
-      lastActive: new Date(),
-    };
+    return processOnlyAgent("codex", processInfo, { summary: "Codex process running" });
   }
 }

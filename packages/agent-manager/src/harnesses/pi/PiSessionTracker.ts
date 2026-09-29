@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { safeReadFile } from "../../utils/session.js";
+import { homeDir } from "../shared.js";
 
 export interface PiTrackerMatch {
   process: ProcessInfo;
@@ -23,8 +24,7 @@ export class PiSessionTracker {
   private readonly trackerPath: string;
 
   constructor(options: PiSessionTrackerOptions = {}) {
-    const homeDir = process.env.HOME || process.env.USERPROFILE || "";
-    const agentDir = path.join(homeDir, ".pi", "agent");
+    const agentDir = path.join(homeDir(), ".pi", "agent");
     this.sessionsDir = options.sessionsDir ?? path.join(agentDir, "sessions");
     this.trackerPath = options.trackerPath ?? path.join(agentDir, "sessions.json");
   }

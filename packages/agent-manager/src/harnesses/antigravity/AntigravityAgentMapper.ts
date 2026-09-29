@@ -1,6 +1,6 @@
 import type { AgentInfo, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
+import { processOnlyAgent } from "../shared.js";
 import { AntigravitySessionParser, type AntigravitySession } from "./AntigravitySessionParser.js";
 
 export interface AntigravitySessionAgentInput {
@@ -26,15 +26,9 @@ export class AntigravityAgentMapper {
   }
 
   mapProcessOnlyAgent(processInfo: ProcessInfo, cwd: string): AgentInfo {
-    return {
-      name: generateAgentName(cwd, processInfo.pid),
-      type: "antigravity_cli",
-      status: AgentStatus.RUNNING,
+    return processOnlyAgent("antigravity_cli", processInfo, {
       summary: "Antigravity CLI process running",
-      pid: processInfo.pid,
-      projectPath: cwd,
-      sessionId: `pid-${processInfo.pid}`,
-      lastActive: new Date(),
-    };
+      cwd,
+    });
   }
 }

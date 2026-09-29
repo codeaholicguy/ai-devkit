@@ -1,7 +1,7 @@
 import type { AgentInfo, ProcessInfo } from "../../adapters/AgentAdapter.js";
-import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
 import { type PiSession, PiSessionParser } from "./PiSessionParser.js";
+import { processOnlyAgent } from "../shared.js";
 
 export class PiAgentMapper {
   constructor(private readonly parser: PiSessionParser = new PiSessionParser()) {}
@@ -22,15 +22,6 @@ export class PiAgentMapper {
   }
 
   mapProcessOnlyAgent(processInfo: ProcessInfo): AgentInfo {
-    return {
-      name: generateAgentName(processInfo.cwd || "", processInfo.pid),
-      type: "pi",
-      status: AgentStatus.RUNNING,
-      summary: "Pi process running",
-      pid: processInfo.pid,
-      projectPath: processInfo.cwd || "",
-      sessionId: `pid-${processInfo.pid}`,
-      lastActive: new Date(),
-    };
+    return processOnlyAgent("pi", processInfo, { summary: "Pi process running" });
   }
 }

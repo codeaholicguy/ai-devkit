@@ -9,6 +9,7 @@ import {
 } from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
+import { isIdle, parseTimestamp, SUMMARY_MAX_LENGTH, truncate } from "../shared.js";
 
 interface CopilotEventEntry {
   type?: string;
@@ -70,7 +71,6 @@ interface CopilotEventState {
   lastEventType?: string;
 }
 
-const IDLE_THRESHOLD_MINUTES = 5;
 const VERBOSE_SYSTEM_EVENTS = new Set([
   "system.message",
   "session.info",
@@ -125,7 +125,7 @@ export class CopilotSessionParser {
       if (!value || typeof value !== "object") return next;
 
       const entry = value as CopilotEventEntry;
-      const timestampMs = this.parseTimestamp(entry.timestamp)?.getTime();
+      const timestampMs = parseTimestamp(entry.timestamp)?.getTime();
       if (timestampMs !== undefined) {
         next.lastActiveMs = timestampMs;
       }
@@ -137,9 +137,7 @@ export class CopilotSessionParser {
         next.sessionId = entry.data?.sessionId || next.sessionId;
         next.projectPath = entry.data?.context?.cwd || next.projectPath;
         next.sessionStartMs =
-          this.parseTimestamp(entry.data?.startTime)?.getTime() ??
-          timestampMs ??
-          next.sessionStartMs;
+          parseTimestamp(entry.data?.startTime)?.getTime() ?? timestampMs ?? next.sessionStartMs;
         return next;
       }
 
@@ -224,7 +222,7 @@ export class CopilotSessionParser {
     return {
       sessionId: events.sessionId || workspace.id || fallbackSessionId,
       projectPath: events.projectPath || workspace.cwd || "",
-      summary: this.truncate(summary, 120),
+      summary: truncate(summary, SUMMARY_MAX_LENGTH),
       sessionStart,
       lastActive,
       lastEventType: events.lastEventType,
@@ -278,9 +276,7 @@ export class CopilotSessionParser {
   }
 
   determineStatus(session: CopilotSession): AgentStatus {
-    const diffMs = Date.now() - session.lastActive.getTime();
-    const diffMinutes = diffMs / 60000;
-    if (diffMinutes > IDLE_THRESHOLD_MINUTES) {
+    if (isIdle(session.lastActive)) {
       return AgentStatus.IDLE;
     }
 
@@ -318,8 +314,8 @@ export class CopilotSessionParser {
       id: values.get("id"),
       cwd: values.get("cwd"),
       name: values.get("name"),
-      createdAt: this.parseTimestamp(values.get("created_at")) || undefined,
-      updatedAt: this.parseTimestamp(values.get("updated_at")) || undefined,
+      createdAt: parseTimestamp(values.get("created_at")) || undefined,
+      updatedAt: parseTimestamp(values.get("updated_at")) || undefined,
     };
   }
 
@@ -380,16 +376,5 @@ export class CopilotSessionParser {
 
     if (typeof raw !== "string") return "";
     return raw.trim();
-  }
-
-  private parseTimestamp(value?: string): Date | null {
-    if (!value) return null;
-    const timestamp = new Date(value);
-    return Number.isNaN(timestamp.getTime()) ? null : timestamp;
-  }
-
-  private truncate(value: string, maxLength: number): string {
-    if (value.length <= maxLength) return value;
-    return `${value.slice(0, maxLength - 3)}...`;
   }
 }

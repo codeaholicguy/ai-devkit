@@ -8,11 +8,7 @@ import type {
   SessionSummary,
   ListSessionsOptions,
 } from "../../adapters/AgentAdapter.js";
-import {
-  captureProcessSnapshot,
-  executableBasename,
-  filterByProcessNames,
-} from "../../utils/process.js";
+import { findHarnessProcesses, matchesExecutable } from "../shared.js";
 import { AntigravityAgentMapper } from "./AntigravityAgentMapper.js";
 import { AntigravitySessionLocator } from "./AntigravitySessionLocator.js";
 import { AntigravitySessionParser, type AntigravitySession } from "./AntigravitySessionParser.js";
@@ -46,22 +42,11 @@ export class AntigravityCliAdapter implements AgentAdapter {
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    return this.isAgyExecutable(processInfo.command);
-  }
-
-  private isAgyExecutable(command: string): boolean {
-    const base = executableBasename(command);
-    return base === "agy" || base === "agy.exe";
+    return matchesExecutable(processInfo.command, "agy");
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
-    const snapshot =
-      context?.processes ??
-      (await captureProcessSnapshot(this.processNames, {
-        isCandidate: (process) => this.canHandle(process),
-      }));
-    const relevant = filterByProcessNames(snapshot, this.processNames);
-    const processes = relevant.filter((process) => this.canHandle(process));
+    const { processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) {
       return [];
     }

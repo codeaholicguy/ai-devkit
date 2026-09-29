@@ -3,6 +3,7 @@ import { AgentStatus } from "../../adapters/AgentAdapter.js";
 import { generateAgentName } from "../../utils/matching.js";
 import type { SessionFile } from "../../utils/session.js";
 import { ClaudeSessionParser, type ClaudeSession } from "./ClaudeSessionParser.js";
+import { processOnlyAgent } from "../shared.js";
 
 export interface ClaudeAgentLiveInfo {
   pidStatus?: AgentStatus;
@@ -49,15 +50,6 @@ export class ClaudeAgentMapper {
   }
 
   mapProcessOnlyAgent(processInfo: ProcessInfo): AgentInfo {
-    return {
-      name: generateAgentName(processInfo.cwd || "", processInfo.pid),
-      type: "claude",
-      status: AgentStatus.IDLE,
-      summary: "Unknown",
-      pid: processInfo.pid,
-      projectPath: processInfo.cwd || "",
-      sessionId: `pid-${processInfo.pid}`,
-      lastActive: new Date(),
-    };
+    return processOnlyAgent("claude", processInfo, { summary: "Claude Code process running" });
   }
 }
