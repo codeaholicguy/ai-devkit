@@ -46,6 +46,7 @@ const CODEX_HELPER_SUBCOMMANDS = new Set([
   "a",
   "archive",
   "cloud",
+  "cloud-tasks",
   "completion",
   "debug",
   "delete",
@@ -68,6 +69,21 @@ const CODEX_HELPER_SUBCOMMANDS = new Set([
   "update",
 ]);
 
+/**
+ * Known root Codex subcommand names and aliases, including the hidden ones in
+ * Codex CLI 0.157.1. A variadic flag's values stop at these, as clap stops there.
+ */
+const CODEX_SUBCOMMANDS = new Set([
+  ...CODEX_HELPER_SUBCOMMANDS,
+  "e",
+  "exec",
+  "execpolicy",
+  "fork",
+  "resume",
+  "review",
+  "tcp-tunnel",
+]);
+
 /** Global Codex flags that consume the following argument as their value. */
 const CODEX_VALUE_FLAGS = new Set([
   "-c",
@@ -82,8 +98,6 @@ const CODEX_VALUE_FLAGS = new Set([
   "--ask-for-approval",
   "-C",
   "--cd",
-  "-i",
-  "--image",
   "--add-dir",
   "--enable",
   "--disable",
@@ -91,6 +105,12 @@ const CODEX_VALUE_FLAGS = new Set([
   "--remote",
   "--remote-auth-token-env",
 ]);
+
+/**
+ * Global Codex flags that take one or more values (clap `num_args = 1..`).
+ * `-i, --image <FILE>...` is the only one in Codex CLI 0.157.1.
+ */
+const CODEX_VARIADIC_VALUE_FLAGS = new Set(["-i", "--image"]);
 
 const CODEX_APP_SERVER_DAEMON_DIR = "app-server-daemon";
 
@@ -112,9 +132,19 @@ function firstPositionalArgument(args: string[]): string | undefined {
     const arg = args[index];
     if (arg === "--") return undefined;
     if (!arg.startsWith("-")) return arg;
-    if (!arg.includes("=") && CODEX_VALUE_FLAGS.has(arg)) index++;
+    if (arg.includes("=")) continue;
+    if (CODEX_VALUE_FLAGS.has(arg)) {
+      index++;
+    } else if (CODEX_VARIADIC_VALUE_FLAGS.has(arg)) {
+      // Like clap, take values until the next flag or subcommand name.
+      while (index + 1 < args.length && isVariadicFlagValue(args[index + 1])) index++;
+    }
   }
   return undefined;
+}
+
+function isVariadicFlagValue(arg: string): boolean {
+  return !arg.startsWith("-") && !CODEX_SUBCOMMANDS.has(arg);
 }
 
 interface MappedAgentResult {

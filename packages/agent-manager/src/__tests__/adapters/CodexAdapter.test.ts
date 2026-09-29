@@ -295,6 +295,42 @@ describe("CodexAdapter", () => {
     expect(agents.map((agent) => agent.pid)).toEqual([4321]);
   });
 
+  // Codex CLI 0.157.1 declares `-i, --image <FILE>...` (clap `num_args = 1..`,
+  // `value_delimiter = ','`), its only variadic root flag. clap keeps taking
+  // image values until a flag or a subcommand name, so a helper subcommand can
+  // follow several images.
+  describe("variadic -i/--image values (Codex CLI 0.157.1)", () => {
+    const helperCommands = [
+      "codex -i a.png b.png cloud",
+      "codex --image a.png b.png app-server",
+      "codex -i a.png -i b.png agents",
+      "codex -i a.png b.png c.png --model o3 mcp list",
+      "codex --image=a.png,b.png cloud",
+      "codex -i a.png,b.png login",
+      "codex -i a.png b.png a",
+      "codex --image a.png b.png cloud-tasks list",
+    ];
+    const agentCommands = [
+      'codex -i a.png "fix the bug"',
+      "codex -i a.png fix the bug",
+      "codex -i a.png b.png",
+      "codex -i a.png resume --last",
+      "codex --image a.png b.png fork --last",
+      "codex -i a.png b.png exec summarize the screenshots",
+      "codex -i a.png b.png e -",
+      "codex -i a.png b.png review",
+      "codex -i a.png --model o3 describe this",
+    ];
+
+    it.each(helperCommands)("does not handle helper command %s", (command) => {
+      expect(adapter.canHandle({ pid: 30, command, cwd: "/repo", tty: "??" })).toBe(false);
+    });
+
+    it.each(agentCommands)("handles agent command %s", (command) => {
+      expect(adapter.canHandle({ pid: 31, command, cwd: "/repo", tty: "ttys003" })).toBe(true);
+    });
+  });
+
   it("still excludes helper subcommands when Codex lives under a path containing spaces", () => {
     const executable = path.join(
       tmpHome,
