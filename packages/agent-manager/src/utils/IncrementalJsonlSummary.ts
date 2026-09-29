@@ -23,11 +23,13 @@
  * A rebuild of a file larger than `headBytes + tailBytes` (default 1 MiB +
  * 4 MiB) is a bounded cold start rather than a full parse: it folds the
  * complete lines in `[0, headBytes)`, calls `reducer.skip(state)`, then folds
- * the lines that start inside `[size - tailBytes, size)`. Lines straddling a
- * window edge are dropped. A field whose entries all sit in the skipped middle
- * keeps whatever `skip` leaves; there is never a hidden full scan. The result's
- * `skippedBytes` reports the unread middle, and the cache is seeded at end of
- * file so later appends stay incremental.
+ * the lines that start inside `[size - tailBytes, size)`, including a line
+ * that starts exactly at `size - tailBytes` (one extra byte before the window
+ * is read to tell). Lines straddling a window edge are dropped. A field whose
+ * entries all sit in the skipped middle keeps whatever `skip` leaves; there is
+ * never a hidden full scan. The result's `skippedBytes` reports the unread
+ * middle, and the cache is seeded at end of file so later appends stay
+ * incremental.
  *
  * An unterminated last line is never folded into the committed state. If it
  * already parses as JSON it is applied to the returned state only, and it is
@@ -217,8 +219,12 @@ export class IncrementalJsonlSummary<S> {
     const tailStart = size - tailBytes;
     const head = entry.committed;
     entry.committed = this.reducer.skip ? this.reducer.skip(head) : head;
-    entry.offset = tailStart;
-    // tailStart may fall mid-line; lines are only folded from their first byte
+    // Lines are only folded from their first byte, and tailStart may fall
+    // mid-line. Discard from one byte earlier (tailStart > headBytes >= 0): if
+    // that byte is the newline ending the previous line, discarding stops there
+    // and the line starting at tailStart is folded; otherwise the partial line
+    // is dropped up to its newline.
+    entry.offset = tailStart - 1;
     entry.discarding = true;
     entry.skippedBytes = tailStart - headBytes;
     this.readRange(fd, entry, size);

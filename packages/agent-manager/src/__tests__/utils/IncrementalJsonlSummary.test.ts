@@ -292,14 +292,15 @@ describe("IncrementalJsonlSummary bounded cold start", () => {
     expect(result?.skippedBytes).toBe(0);
   });
 
-  it("folds head lines, then skip(), then tail lines, reading at most head + tail bytes", () => {
+  it("folds head lines, then skip(), then tail lines, reading at most head + tail + 1 bytes", () => {
     const tail = line({ y: 8 }) + line({ z: 9 });
     const content = line({ a: 1 }) + pad(40) + pad(1000) + pad(40) + tail;
     fs.writeFileSync(filePath, content);
 
     const result = new IncrementalJsonlSummary(gapReducer, { bounds }).read(filePath);
 
-    expect(bytesRead()).toBeLessThanOrEqual(bounds.headBytes + bounds.tailBytes);
+    // +1: the byte before the tail window tells whether it starts on a line boundary
+    expect(bytesRead()).toBeLessThanOrEqual(bounds.headBytes + bounds.tailBytes + 1);
     expect(result?.state.gaps).toBe(1);
     expect(result?.state.entries[0]).toEqual({ a: 1 });
     expect(result?.state.entries.slice(-2)).toEqual([{ y: 8 }, { z: 9 }]);
@@ -313,6 +314,29 @@ describe("IncrementalJsonlSummary bounded cold start", () => {
     fs.writeFileSync(filePath, content);
 
     const result = new IncrementalJsonlSummary(gapReducer, { bounds }).read(filePath);
+
+    expect(result?.state.entries).toEqual([{ a: 1 }, { z: 9 }]);
+  });
+
+  it("folds the first tail line when the tail window starts exactly on a line boundary", () => {
+    const tail = line({ y: 8 }) + line({ z: 9 });
+    fs.writeFileSync(filePath, line({ a: 1 }) + pad(1000) + tail);
+
+    const result = new IncrementalJsonlSummary(gapReducer, {
+      bounds: { headBytes: 64, tailBytes: Buffer.byteLength(tail) },
+    }).read(filePath);
+
+    expect(result?.skippedBytes).toBeGreaterThan(0);
+    expect(result?.state.entries).toEqual([{ a: 1 }, { y: 8 }, { z: 9 }]);
+  });
+
+  it("still drops the partial line when the tail window starts one byte into it", () => {
+    const tail = line({ y: 8 }) + line({ z: 9 });
+    fs.writeFileSync(filePath, line({ a: 1 }) + pad(1000) + tail);
+
+    const result = new IncrementalJsonlSummary(gapReducer, {
+      bounds: { headBytes: 64, tailBytes: Buffer.byteLength(tail) - 1 },
+    }).read(filePath);
 
     expect(result?.state.entries).toEqual([{ a: 1 }, { z: 9 }]);
   });
@@ -364,7 +388,8 @@ describe("IncrementalJsonlSummary bounded cold start", () => {
     mockedReadSync.mockClear();
 
     const result = cache.read(filePath);
-    expect(bytesRead()).toBeLessThanOrEqual(bounds.headBytes + bounds.tailBytes);
+    // +1: the byte before the tail window tells whether it starts on a line boundary
+    expect(bytesRead()).toBeLessThanOrEqual(bounds.headBytes + bounds.tailBytes + 1);
     expect(result?.state.entries).toEqual([{ b: 2 }, { z: 9 }]);
   });
 
