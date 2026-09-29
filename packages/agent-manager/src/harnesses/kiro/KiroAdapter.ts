@@ -49,6 +49,15 @@ export class KiroAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const { relevant, processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) return [];
 
@@ -57,7 +66,7 @@ export class KiroAdapter implements AgentAdapter {
     for (const match of this.locator.matchRunningProcesses(relevant, processes, (process) =>
       this.canHandle(process),
     )) {
-      const session = this.parser.readSession(match.session, match.process.cwd);
+      const session = this.parser.readSessionIncremental(match.session, match.process.cwd);
       if (!session) continue;
 
       agents.push(this.mapper.mapSessionToAgent({ session, processInfo: match.process }));

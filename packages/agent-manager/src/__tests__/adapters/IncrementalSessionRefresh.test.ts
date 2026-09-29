@@ -1,6 +1,6 @@
 /**
- * Refresh-path I/O tests for the Claude and Codex adapters: repeated
- * `listAgents()` calls must only read transcript bytes that changed.
+ * Refresh-path I/O tests for the Claude, Codex, Kiro and Antigravity adapters:
+ * repeated `listAgents()` calls must only read transcript bytes that changed.
  */
 
 import * as fs from "fs";
@@ -11,6 +11,8 @@ import { AgentManager } from "../../AgentManager.js";
 import type { ProcessInfo } from "../../adapters/AgentAdapter.js";
 import { ClaudeCodeAdapter } from "../../harnesses/claude/ClaudeCodeAdapter.js";
 import { CodexAdapter } from "../../harnesses/codex/CodexAdapter.js";
+import { AntigravityCliAdapter } from "../../harnesses/antigravity/AntigravityCliAdapter.js";
+import { KiroAdapter } from "../../harnesses/kiro/KiroAdapter.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 
 vi.mock("fs", async (importOriginal) => {
@@ -274,5 +276,162 @@ describe("incremental transcript reads across listAgents() refreshes", () => {
 
     expect((claudeAdapter as any).parser.sessionCache.size).toBe(0);
     expect((codexAdapter as any).parser.sessionCache.size).toBe(0);
+  });
+});
+
+describe("incremental Kiro and Antigravity transcript reads across listAgents() refreshes", () => {
+  let originalHome: string | undefined;
+  let originalAgyHome: string | undefined;
+  let tmpHome: string;
+  let processes: ProcessInfo[];
+  let manager: AgentManager;
+  let kiroFile: string;
+  let agyFile: string;
+  let kiroAdapter: KiroAdapter;
+  let agyAdapter: AntigravityCliAdapter;
+
+  const startTime = new Date();
+  const kiroPid = 74001;
+  const agyPid = 75001;
+  const kiroPrompt = (text: string, at = startTime) => ({
+    kind: "Prompt",
+    data: { content: [{ kind: "text", data: text }], meta: { timestamp: at.getTime() } },
+  });
+  const kiroReply = (text: string) => ({
+    kind: "AssistantMessage",
+    data: { content: [{ kind: "text", data: text }] },
+  });
+  const agyRequest = (text: string, at = startTime) => ({
+    type: "USER_INPUT",
+    created_at: at.toISOString(),
+    content: `<USER_REQUEST>\n${text}\n</USER_REQUEST>`,
+  });
+  const agyReply = (text: string, at = startTime) => ({
+    type: "PLANNER_RESPONSE",
+    created_at: at.toISOString(),
+    content: text,
+  });
+
+  beforeEach(() => {
+    originalHome = process.env.HOME;
+    originalAgyHome = process.env.ANTIGRAVITY_CLI_HOME;
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "incremental-refresh-kiro-agy-"));
+    process.env.HOME = tmpHome;
+    process.env.ANTIGRAVITY_CLI_HOME = path.join(tmpHome, "antigravity");
+
+    // Kiro: a session lock held by the running kiro-cli
+    const kiroDir = path.join(tmpHome, ".kiro", "sessions", "cli");
+    fs.mkdirSync(kiroDir, { recursive: true });
+    kiroFile = path.join(kiroDir, "kiro-session.jsonl");
+    fs.writeFileSync(kiroFile, jsonl([kiroPrompt("first task"), kiroReply("x".repeat(300_000))]));
+    fs.writeFileSync(
+      path.join(kiroDir, "kiro-session.json"),
+      JSON.stringify({ session_id: "kiro-session", cwd: "/repo/kiro" }),
+    );
+    fs.writeFileSync(path.join(kiroDir, "kiro-session.lock"), JSON.stringify({ pid: kiroPid }));
+
+    // Antigravity: the conversation registry maps the process cwd to the transcript
+    const agyId = "10485e13-2742-4e9e-b286-ac0606f0cb1e";
+    const agyLogs = path.join(tmpHome, "antigravity", "brain", agyId, ".system_generated", "logs");
+    fs.mkdirSync(agyLogs, { recursive: true });
+    fs.mkdirSync(path.join(tmpHome, "antigravity", "cache"), { recursive: true });
+    agyFile = path.join(agyLogs, "transcript.jsonl");
+    fs.writeFileSync(agyFile, jsonl([agyRequest("first task"), agyReply("y".repeat(300_000))]));
+    fs.writeFileSync(
+      path.join(tmpHome, "antigravity", "cache", "last_conversations.json"),
+      JSON.stringify({ "/repo/agy": agyId }),
+    );
+
+    processes = [
+      { pid: kiroPid, command: "kiro-cli", cwd: "/repo/kiro", tty: "ttys003", startTime },
+      { pid: agyPid, command: "agy", cwd: "/repo/agy", tty: "ttys004", startTime },
+    ];
+    manager = new AgentManager(
+      new AgentRegistry(path.join(tmpHome, "agents.json")),
+      async () => processes,
+    );
+    kiroAdapter = new KiroAdapter();
+    agyAdapter = new AntigravityCliAdapter();
+    manager.registerAdapter(kiroAdapter);
+    manager.registerAdapter(agyAdapter);
+    resetReads();
+  });
+
+  afterEach(() => {
+    process.env.HOME = originalHome;
+    if (originalAgyHome === undefined) delete process.env.ANTIGRAVITY_CLI_HOME;
+    else process.env.ANTIGRAVITY_CLI_HOME = originalAgyHome;
+    fs.rmSync(tmpHome, { recursive: true, force: true });
+  });
+
+  function summaryOf(agents: Awaited<ReturnType<AgentManager["listAgents"]>>, pid: number) {
+    const agent = agents.find((candidate) => candidate.pid === pid);
+    return { sessionId: agent?.sessionId, status: agent?.status, summary: agent?.summary };
+  }
+
+  it("reads 0 transcript bytes on a second refresh when nothing changed", async () => {
+    const first = await manager.listAgents();
+    expect(bytesReadFrom(kiroFile)).toBe(fs.statSync(kiroFile).size);
+    expect(bytesReadFrom(agyFile)).toBe(fs.statSync(agyFile).size);
+    expect(summaryOf(first, kiroPid).summary).toBe("first task");
+    expect(summaryOf(first, agyPid).summary).toBe("first task");
+
+    resetReads();
+    const second = await manager.listAgents();
+
+    expect(bytesReadFrom(kiroFile)).toBe(0);
+    expect(bytesReadFrom(agyFile)).toBe(0);
+    expect(summaryOf(second, kiroPid)).toEqual(summaryOf(first, kiroPid));
+    expect(summaryOf(second, agyPid)).toEqual(summaryOf(first, agyPid));
+  });
+
+  it("reads at most the appended bytes plus 64 KiB after an append", async () => {
+    await manager.listAgents();
+
+    const kiroAppend = jsonl([kiroPrompt("follow-up task")]);
+    const agyAppend = jsonl([agyRequest("follow-up task")]);
+    fs.appendFileSync(kiroFile, kiroAppend);
+    fs.appendFileSync(agyFile, agyAppend);
+
+    resetReads();
+    const agents = await manager.listAgents();
+
+    expect(bytesReadFrom(kiroFile)).toBeGreaterThan(0);
+    expect(bytesReadFrom(agyFile)).toBeGreaterThan(0);
+    expect(bytesReadFrom(kiroFile)).toBeLessThanOrEqual(Buffer.byteLength(kiroAppend) + 64 * 1024);
+    expect(bytesReadFrom(agyFile)).toBeLessThanOrEqual(Buffer.byteLength(agyAppend) + 64 * 1024);
+    expect(summaryOf(agents, kiroPid).summary).toBe("follow-up task");
+    expect(summaryOf(agents, agyPid).summary).toBe("follow-up task");
+  });
+
+  it("reads at most 5 MiB (+1 byte) of a large transcript on a cold refresh", async () => {
+    const latest = new Date(startTime.getTime() + 60_000);
+    const kiroHistory = jsonl(Array.from({ length: 48 }, () => kiroReply("h".repeat(256 * 1024))));
+    const agyHistory = jsonl(Array.from({ length: 48 }, () => agyReply("h".repeat(256 * 1024))));
+    fs.appendFileSync(kiroFile, kiroHistory + jsonl([kiroPrompt("latest kiro task", latest)]));
+    fs.appendFileSync(agyFile, agyHistory + jsonl([agyRequest("latest agy task", latest)]));
+    resetReads();
+
+    const agents = await manager.listAgents();
+
+    // 1 MiB head + 4 MiB tail, plus the byte before the tail window
+    const limit = 5 * 1024 * 1024 + 1;
+    expect(fs.statSync(kiroFile).size).toBeGreaterThan(2 * limit);
+    expect(bytesReadFrom(kiroFile)).toBeLessThanOrEqual(limit);
+    expect(bytesReadFrom(agyFile)).toBeLessThanOrEqual(limit);
+    expect(summaryOf(agents, kiroPid).summary).toBe("latest kiro task");
+    expect(summaryOf(agents, agyPid).summary).toBe("latest agy task");
+  });
+
+  it("evicts cache entries for transcripts absent from the latest refresh", async () => {
+    await manager.listAgents();
+    expect((kiroAdapter as any).parser.sessionCache.size).toBe(1);
+    expect((agyAdapter as any).parser.sessionCache.size).toBe(1);
+
+    processes = [];
+    await manager.listAgents();
+
+    expect((kiroAdapter as any).parser.sessionCache.size).toBe(0);
+    expect((agyAdapter as any).parser.sessionCache.size).toBe(0);
   });
 });

@@ -46,6 +46,15 @@ export class AntigravityCliAdapter implements AgentAdapter {
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
+    try {
+      return await this.detectRunningAgents(context);
+    } finally {
+      // Drop cached summaries for sessions that were not part of this refresh
+      this.parser.pruneSessionCache();
+    }
+  }
+
+  private async detectRunningAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const { processes } = await findHarnessProcesses(this, context);
     if (processes.length === 0) {
       return [];
@@ -56,7 +65,11 @@ export class AntigravityCliAdapter implements AgentAdapter {
       processes,
     )) {
       const session = conversation
-        ? this.parser.readSession(conversation.conversationId, conversation.transcriptPath, cwd)
+        ? this.parser.readSessionIncremental(
+            conversation.conversationId,
+            conversation.transcriptPath,
+            cwd,
+          )
         : null;
       if (session) {
         agents.push(this.mapper.mapSessionToAgent({ session, processInfo: proc }));

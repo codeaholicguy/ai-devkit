@@ -1,5 +1,6 @@
 /**
- * Bounded cold start (#261) for the Pi, Grok and Copilot summary reducers (#279).
+ * Bounded cold start (#261) for the Pi, Grok, Copilot, Kiro and Antigravity
+ * summary reducers (#279).
  *
  * Files are laid out as `[head fixture, neutral padding, tail fixture]` with
  * bounds that make each window cover exactly one fixture, so the middle is
@@ -13,8 +14,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { AntigravitySessionParser } from "../../harnesses/antigravity/AntigravitySessionParser.js";
 import { CopilotSessionParser } from "../../harnesses/copilot/CopilotSessionParser.js";
 import { GrokSessionParser } from "../../harnesses/grok/GrokSessionParser.js";
+import { KiroSessionParser } from "../../harnesses/kiro/KiroSessionParser.js";
 import { PiSessionParser } from "../../harnesses/pi/PiSessionParser.js";
 
 const PAD_COUNT = 60;
@@ -368,6 +371,126 @@ describe("Copilot: bounded cold start", () => {
     expect(session).toMatchObject({
       sessionId: "sess-resumed",
       sessionStart: new Date("2026-06-10T09:00:00.000Z"),
+    });
+  });
+});
+
+describe("Kiro: bounded cold start", () => {
+  const pad = { kind: "Checkpoint", note: "x".repeat(60) };
+  const prompt = (text: string, at: string) => ({
+    kind: "Prompt",
+    data: { content: [{ kind: "text", data: text }], meta: { timestamp: at } },
+  });
+  const reply = (text: string) => ({
+    kind: "AssistantMessage",
+    data: { content: [{ kind: "text", data: text }] },
+  });
+
+  function write(buffer: Buffer | string, bounds: { headBytes: number; tailBytes: number }) {
+    const paths = {
+      sessionId: "sess-kiro",
+      transcriptPath: path.join(tmpDir, "sess-kiro.jsonl"),
+      metadataPath: path.join(tmpDir, "sess-kiro.json"),
+    };
+    fs.writeFileSync(paths.transcriptPath, buffer);
+    return { paths, parser: new KiroSessionParser({ summaryBounds: bounds }) };
+  }
+
+  it("takes first fields from the head and latest fields from the tail", () => {
+    const { buffer, bounds } = layout(
+      [prompt("head prompt", "2026-06-10T08:00:00.000Z"), reply("head answer")],
+      pad,
+      [prompt("tail prompt", "2026-06-10T09:00:00.000Z"), reply("tail answer")],
+    );
+    const { paths, parser } = write(buffer, bounds);
+
+    const session = parser.readSessionIncremental(paths, "/repo");
+
+    expect((parser as any).sessionCache.read(paths.transcriptPath).skippedBytes).toBeGreaterThan(0);
+    expect(session).toEqual(new KiroSessionParser().readSession(paths, "/repo"));
+    expect(session).toMatchObject({
+      firstUserMessage: "head prompt",
+      lastUserMessage: "tail prompt",
+      sessionStart: new Date("2026-06-10T08:00:00.000Z"),
+      lastActive: new Date("2026-06-10T09:00:00.000Z"),
+      lastEventKind: "AssistantMessage",
+    });
+  });
+
+  it("cap reached: a first prompt only in the skipped middle falls back to empty", () => {
+    const head = jsonl([pad]);
+    const tail = jsonl([prompt("tail prompt", "2026-06-10T09:00:00.000Z")]);
+    const { paths, parser } = write(
+      head +
+        jsonl([prompt("middle prompt", "2026-06-10T08:30:00.000Z")]) +
+        jsonl(Array.from({ length: PAD_COUNT }, () => pad)) +
+        tail,
+      { headBytes: Buffer.byteLength(head), tailBytes: Buffer.byteLength(tail) },
+    );
+
+    expect(new KiroSessionParser().readSession(paths, "/repo")?.firstUserMessage).toBe(
+      "middle prompt",
+    );
+    expect(parser.readSessionIncremental(paths, "/repo")).toMatchObject({
+      firstUserMessage: "",
+      lastUserMessage: "tail prompt",
+    });
+  });
+});
+
+describe("Antigravity: bounded cold start", () => {
+  const pad = { type: "CHECKPOINT", note: "x".repeat(60) };
+  const request = (text: string, at: string) => ({
+    type: "USER_INPUT",
+    created_at: at,
+    content: `<USER_REQUEST>\n${text}\n</USER_REQUEST>`,
+  });
+  const reply = (text: string, at: string) => ({
+    type: "PLANNER_RESPONSE",
+    created_at: at,
+    content: text,
+  });
+  const filePath = () => path.join(tmpDir, "transcript.jsonl");
+
+  it("takes first fields from the head and latest fields from the tail", () => {
+    const { buffer, bounds } = layout(
+      [
+        request("head prompt", "2026-06-10T08:00:00Z"),
+        reply("head answer", "2026-06-10T08:01:00Z"),
+      ],
+      pad,
+      [
+        request("tail prompt", "2026-06-10T09:00:00Z"),
+        reply("tail answer", "2026-06-10T09:01:00Z"),
+      ],
+    );
+    fs.writeFileSync(filePath(), buffer);
+    const parser = new AntigravitySessionParser({ summaryBounds: bounds });
+
+    const session = parser.readSessionIncremental("conv", filePath(), "/repo");
+
+    expect((parser as any).sessionCache.read(filePath()).skippedBytes).toBeGreaterThan(0);
+    expect(session).toEqual(
+      new AntigravitySessionParser().readSession("conv", filePath(), "/repo"),
+    );
+    expect(session).toMatchObject({
+      firstUserMessage: "head prompt",
+      lastUserMessage: "tail prompt",
+      lastRole: "assistant",
+      lastActive: new Date("2026-06-10T09:01:00Z"),
+    });
+  });
+
+  it("falls back to the file mtime when the tail window has no timestamp", () => {
+    const { buffer, bounds } = layout([request("head prompt", "2026-06-10T08:00:00Z")], pad, [pad]);
+    fs.writeFileSync(filePath(), buffer);
+    const parser = new AntigravitySessionParser({ summaryBounds: bounds });
+
+    expect(parser.readSessionIncremental("conv", filePath(), "/repo")).toMatchObject({
+      firstUserMessage: "head prompt",
+      lastUserMessage: undefined,
+      lastRole: undefined,
+      lastActive: fs.statSync(filePath()).mtime,
     });
   });
 });

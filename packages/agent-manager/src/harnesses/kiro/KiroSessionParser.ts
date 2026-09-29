@@ -1,5 +1,11 @@
 import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
+import {
+  IncrementalJsonlSummary,
+  reduceJsonlContent,
+  type JsonlSummaryBounds,
+  type JsonlSummaryReducer,
+} from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
 import { isIdle, parseTimestamp } from "../shared.js";
@@ -20,6 +26,24 @@ interface KiroMetadata {
   title: string;
   createdAt: Date | null;
   updatedAt: Date | null;
+}
+
+/** O(1) running summary folded from transcript lines, never the entries themselves. */
+interface KiroSummaryState {
+  /** A bounded cold start skipped the middle: later lines are not the session's first. */
+  pastHead?: boolean;
+  firstUserMessage?: string;
+  lastUserMessage?: string;
+  /** First and last entry timestamps in file order, in epoch ms. */
+  firstTimestampMs?: number;
+  lastTimestampMs?: number;
+  lastEventKind?: string;
+  lastAssistantHasToolUse?: boolean;
+}
+
+export interface KiroSessionParserOptions {
+  /** Cold-start scan bounds for `readSessionIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
 }
 
 export interface KiroSessionPaths {
@@ -45,6 +69,14 @@ export class KiroSessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
 
+  private readonly sessionCache: IncrementalJsonlSummary<KiroSummaryState>;
+
+  constructor(options: KiroSessionParserOptions = {}) {
+    this.sessionCache = new IncrementalJsonlSummary(this.summaryReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
+
   /**
    * Parse a session from its transcript and metadata. Metadata wins for the
    * session id, cwd and timestamps; `fallbackCwd` is used when it has no cwd.
@@ -54,29 +86,29 @@ export class KiroSessionParser {
     const stat = safeStat(paths.transcriptPath);
     if (!stat?.isFile()) return null;
 
-    const entries = this.readJsonl(paths.transcriptPath);
-    const metadata = this.readMetadata(paths);
-    const userMessages = this.entriesToMessages(entries, false).filter(
-      (message) => message.role === "user",
-    );
-    const timestamps = entries
-      .map((entry) => parseTimestamp(this.entryTimestamp(entry)))
-      .filter((value): value is Date => value !== null);
-    const lastEntry = entries.at(-1);
+    const content = safeReadFile(paths.transcriptPath);
+    const state = content === undefined ? {} : reduceJsonlContent(this.summaryReducer, content);
+    return this.toSession(paths, fallbackCwd, stat, state);
+  }
 
-    return {
-      sessionId: metadata.sessionId,
-      projectPath: metadata.cwd || fallbackCwd,
-      sessionFilePath: paths.transcriptPath,
-      title: metadata.title,
-      firstUserMessage: userMessages[0]?.content ?? "",
-      lastUserMessage: userMessages.at(-1)?.content,
-      sessionStart: metadata.createdAt ?? timestamps[0] ?? stat.birthtime,
-      lastActive: metadata.updatedAt ?? timestamps.at(-1) ?? stat.mtime,
-      lastEventKind: lastEntry?.kind,
-      lastAssistantHasToolUse:
-        lastEntry?.kind === "AssistantMessage" && this.hasContentKind(lastEntry, "toolUse"),
-    };
+  /**
+   * Same result as `readSession`, but the transcript summary is backed by a
+   * per-instance incremental cache, so repeated refreshes only parse bytes
+   * appended since the last call. The small metadata file is still read each
+   * time. Call `pruneSessionCache()` once per refresh.
+   */
+  readSessionIncremental(paths: KiroSessionPaths, fallbackCwd = ""): KiroSession | null {
+    const stat = safeStat(paths.transcriptPath);
+    if (!stat?.isFile()) return null;
+
+    // Present but unreadable: surface the session without a summary, like readSession.
+    const state = this.sessionCache.read(paths.transcriptPath)?.state ?? {};
+    return this.toSession(paths, fallbackCwd, stat, state);
+  }
+
+  /** Evict cached summaries for files not read since the previous prune. */
+  pruneSessionCache(): void {
+    this.sessionCache.prune();
   }
 
   getConversation(transcriptPath: string, options?: ConversationOptions): ConversationMessage[] {
@@ -110,6 +142,76 @@ export class KiroSessionParser {
       return AgentStatus.WAITING;
     }
     return AgentStatus.RUNNING;
+  }
+
+  /**
+   * Fold one transcript line into the O(1) summary. Uses the same entry rules
+   * as `getConversation` (see `entryToMessage`); non-object lines are ignored.
+   *
+   * `skip` (bounded cold start) keeps the head's first prompt and timestamp and
+   * resets the latest fields, so those come from the tail only.
+   */
+  private readonly summaryReducer: JsonlSummaryReducer<KiroSummaryState> = {
+    initial: () => ({}),
+    reduce: (state, value) => {
+      const entry = asRecord(value) as KiroLine | null;
+      if (!entry) return state;
+
+      const next: KiroSummaryState = {
+        ...state,
+        lastEventKind: entry.kind,
+        lastAssistantHasToolUse:
+          entry.kind === "AssistantMessage" && this.hasContentKind(entry, "toolUse"),
+      };
+
+      const timestampMs = parseTimestamp(this.entryTimestamp(entry))?.getTime();
+      if (timestampMs !== undefined) {
+        next.lastTimestampMs = timestampMs;
+        if (next.firstTimestampMs === undefined && !next.pastHead) {
+          next.firstTimestampMs = timestampMs;
+        }
+      }
+
+      const message = this.entryToMessage(entry, false);
+      if (message?.role === "user") {
+        next.lastUserMessage = message.content;
+        if (next.firstUserMessage === undefined && !next.pastHead) {
+          next.firstUserMessage = message.content;
+        }
+      }
+      return next;
+    },
+    skip: (state) => ({
+      pastHead: true,
+      firstUserMessage: state.firstUserMessage,
+      firstTimestampMs: state.firstTimestampMs,
+    }),
+  };
+
+  private toSession(
+    paths: KiroSessionPaths,
+    fallbackCwd: string,
+    stat: { birthtime: Date; mtime: Date },
+    state: KiroSummaryState,
+  ): KiroSession {
+    const metadata = this.readMetadata(paths);
+    const firstTimestamp =
+      state.firstTimestampMs === undefined ? undefined : new Date(state.firstTimestampMs);
+    const lastTimestamp =
+      state.lastTimestampMs === undefined ? undefined : new Date(state.lastTimestampMs);
+
+    return {
+      sessionId: metadata.sessionId,
+      projectPath: metadata.cwd || fallbackCwd,
+      sessionFilePath: paths.transcriptPath,
+      title: metadata.title,
+      firstUserMessage: state.firstUserMessage ?? "",
+      lastUserMessage: state.lastUserMessage,
+      sessionStart: metadata.createdAt ?? firstTimestamp ?? stat.birthtime,
+      lastActive: metadata.updatedAt ?? lastTimestamp ?? stat.mtime,
+      lastEventKind: state.lastEventKind,
+      lastAssistantHasToolUse: state.lastAssistantHasToolUse ?? false,
+    };
   }
 
   private readMetadata({ sessionId, metadataPath }: KiroSessionPaths): KiroMetadata {

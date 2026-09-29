@@ -1,17 +1,20 @@
 /**
  * Equivalence between the incremental session summaries used on refresh and
- * the original full-file parse of Claude and Codex transcripts.
+ * the full-file parse of Claude, Codex, Kiro and Antigravity transcripts.
  *
  * `legacyClaudeReadSession` / `legacyCodexReadSession` are verbatim copies of
- * the pre-incremental `readSession` algorithms, kept here as an oracle.
+ * the pre-incremental `readSession` algorithms, kept here as an oracle. Kiro
+ * and Antigravity are checked against their own full `readSession`.
  */
 
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 
+import { AntigravitySessionParser } from "../../harnesses/antigravity/AntigravitySessionParser.js";
 import { ClaudeSessionParser } from "../../harnesses/claude/ClaudeSessionParser.js";
 import { CodexSessionParser } from "../../harnesses/codex/CodexSessionParser.js";
+import { KiroSessionParser } from "../../harnesses/kiro/KiroSessionParser.js";
 import { parseTimestamp, truncate } from "../../harnesses/shared.js";
 
 const CONVERSATION_ENTRY_TYPES = new Set(["user", "assistant", "system", "progress", "thinking"]);
@@ -336,6 +339,58 @@ const codexFixtures: Record<string, unknown[]> = {
   empty: [],
 };
 
+const kiroText = (value: string) => [{ kind: "text", data: value }];
+const kiroFixtures: Record<string, unknown[]> = {
+  promptAndReply: [
+    { kind: "Prompt", data: { content: kiroText("first"), meta: { timestamp: 1781098057 } } },
+    {
+      kind: "AssistantMessage",
+      timestamp: "2026-06-10T13:28:00Z",
+      data: { content: kiroText("ok") },
+    },
+    { kind: "Prompt", data: { content: kiroText("second"), meta: { timestamp: 1781098200 } } },
+  ],
+  toolUseLast: [
+    { kind: "Prompt", data: { content: kiroText("read it"), meta: { timestamp: 1781098057 } } },
+    {
+      kind: "AssistantMessage",
+      data: { content: [{ kind: "toolUse", data: { name: "fs_read", input: { path: "a" } } }] },
+    },
+    { kind: "ToolResults", data: { content: [{ kind: "toolResult", data: { result: "x" } }] } },
+  ],
+  untimedWithNonObjects: [
+    { kind: "Prompt", data: { content: kiroText("no clock") } },
+    null,
+    [1, 2],
+    "a string",
+    { kind: "AssistantMessage", data: { content: kiroText("reply") } },
+  ],
+};
+
+const agyFixtures: Record<string, unknown[]> = {
+  requestAndReply: [
+    {
+      type: "USER_INPUT",
+      created_at: "2026-09-28T10:00:00Z",
+      content: "<USER_REQUEST>\nfirst\n</USER_REQUEST>",
+    },
+    { type: "RUN_COMMAND", created_at: "2026-09-28T10:00:05Z", content: "ls" },
+    { type: "PLANNER_RESPONSE", created_at: "2026-09-28T10:00:09Z", content: "done" },
+    { type: "USER_INPUT", created_at: "2026-09-28T10:01:00Z", content: [{ text: "second" }] },
+  ],
+  outOfOrderTimestamps: [
+    { type: "USER_INPUT", created_at: "2026-09-28T10:05:00Z", content: "late" },
+    { type: "PLANNER_RESPONSE", created_at: "2026-09-28T10:01:00Z", content: "early" },
+  ],
+  untimedWithNonObjects: [
+    { type: "USER_INPUT", content: "   " },
+    null,
+    { type: "USER_INPUT", content: "<USER_REQUEST></USER_REQUEST>" },
+    "a string",
+    { type: "PLANNER_RESPONSE", content: "reply" },
+  ],
+};
+
 type Fixture = { name: string; lines: string[]; trailingNewline: boolean };
 
 function variants(fixtures: Record<string, unknown[]>): Fixture[] {
@@ -420,6 +475,44 @@ describe("incremental session summaries match the full-file parse", () => {
       expect(parser.readSessionIncremental(filePath)).toEqual(expected);
     }
   });
+
+  it.each(variants(kiroFixtures))("Kiro: $name", (fixture) => {
+    const buffer = render(fixture);
+    const paths = {
+      sessionId: "kiro-session",
+      transcriptPath: path.join(tmpDir, "kiro-session.jsonl"),
+      metadataPath: path.join(tmpDir, "kiro-session.json"),
+    };
+
+    for (const split of splitPoints(buffer)) {
+      const parser = new KiroSessionParser();
+      fs.writeFileSync(paths.transcriptPath, buffer.subarray(0, split));
+      parser.readSessionIncremental(paths, "/repo");
+      fs.appendFileSync(paths.transcriptPath, buffer.subarray(split));
+      const expected = new KiroSessionParser().readSession(paths, "/repo");
+      expect(parser.readSessionIncremental(paths, "/repo"), `split at ${split}`).toEqual(expected);
+      expect(parser.readSessionIncremental(paths, "/repo")).toEqual(expected);
+    }
+  });
+
+  it.each(variants(agyFixtures))("Antigravity: $name", (fixture) => {
+    const buffer = render(fixture);
+    const filePath = path.join(tmpDir, "transcript.jsonl");
+    const read = (parser: AntigravitySessionParser, incremental: boolean) =>
+      incremental
+        ? parser.readSessionIncremental("conv", filePath, "/repo")
+        : parser.readSession("conv", filePath, "/repo");
+
+    for (const split of splitPoints(buffer)) {
+      const parser = new AntigravitySessionParser();
+      fs.writeFileSync(filePath, buffer.subarray(0, split));
+      read(parser, true);
+      fs.appendFileSync(filePath, buffer.subarray(split));
+      const expected = read(new AntigravitySessionParser(), false);
+      expect(read(parser, true), `split at ${split}`).toEqual(expected);
+      expect(read(parser, true)).toEqual(expected);
+    }
+  });
 });
 
 /**
@@ -472,6 +565,36 @@ describe("bounded cold-start summaries match the full-file parse", () => {
     const oracle = legacyCodexReadSession(parser, filePath);
 
     expect(parser.readSessionIncremental(filePath)).toEqual(oracle);
+    expect((parser as any).sessionCache.read(filePath).skippedBytes).toBeGreaterThan(0);
+  });
+
+  it.each(variants(kiroFixtures))("Kiro: $name", (fixture) => {
+    const { buffer, bounds } = mirrored(fixture, JSON.stringify({ kind: "Checkpoint" }));
+    const paths = {
+      sessionId: "kiro-session",
+      transcriptPath: path.join(tmpDir, "kiro-session.jsonl"),
+      metadataPath: path.join(tmpDir, "kiro-session.json"),
+    };
+    fs.writeFileSync(paths.transcriptPath, buffer);
+
+    const parser = new KiroSessionParser({ summaryBounds: bounds });
+
+    expect(parser.readSessionIncremental(paths, "/repo")).toEqual(
+      new KiroSessionParser().readSession(paths, "/repo"),
+    );
+    expect((parser as any).sessionCache.read(paths.transcriptPath).skippedBytes).toBeGreaterThan(0);
+  });
+
+  it.each(variants(agyFixtures))("Antigravity: $name", (fixture) => {
+    const { buffer, bounds } = mirrored(fixture, JSON.stringify({ type: "CHECKPOINT" }));
+    const filePath = path.join(tmpDir, "transcript.jsonl");
+    fs.writeFileSync(filePath, buffer);
+
+    const parser = new AntigravitySessionParser({ summaryBounds: bounds });
+
+    expect(parser.readSessionIncremental("conv", filePath, "/repo")).toEqual(
+      new AntigravitySessionParser().readSession("conv", filePath, "/repo"),
+    );
     expect((parser as any).sessionCache.read(filePath).skippedBytes).toBeGreaterThan(0);
   });
 });

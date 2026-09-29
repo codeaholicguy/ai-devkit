@@ -1,8 +1,14 @@
 import type { ConversationMessage, ConversationOptions } from "../../adapters/AgentAdapter.js";
 import { AgentStatus } from "../../adapters/AgentAdapter.js";
-import { flattenTextBlocks, isIdle, parseTimestamp } from "../shared.js";
+import {
+  IncrementalJsonlSummary,
+  reduceJsonlContent,
+  type JsonlSummaryBounds,
+  type JsonlSummaryReducer,
+} from "../../utils/IncrementalJsonlSummary.js";
 import { JsonlTailReader, normalizeTail } from "../../utils/jsonlTail.js";
 import { safeReadFile, safeStat } from "../../utils/session.js";
+import { flattenTextBlocks, isIdle, parseTimestamp } from "../shared.js";
 
 /** One line of transcript.jsonl. */
 interface TranscriptRecord {
@@ -12,12 +18,15 @@ interface TranscriptRecord {
   content?: unknown;
 }
 
-interface TranscriptScan {
-  messages: ConversationMessage[];
+/** O(1) running summary folded from transcript records, never the turns themselves. */
+interface AntigravitySummaryState {
+  /** A bounded cold start skipped the middle: later lines are not the session's first. */
+  pastHead?: boolean;
   firstUserMessage?: string;
   lastUserMessage?: string;
   lastRole?: ConversationMessage["role"];
-  lastActive?: Date;
+  /** Latest `created_at` seen, in epoch ms. */
+  lastActiveMs?: number;
 }
 
 /** Parsed state for a single conversation. */
@@ -32,9 +41,22 @@ export interface AntigravitySession {
   lastRole?: ConversationMessage["role"];
 }
 
+export interface AntigravitySessionParserOptions {
+  /** Cold-start scan bounds for `readSessionIncremental` (see IncrementalJsonlSummary). */
+  summaryBounds?: JsonlSummaryBounds | false;
+}
+
 export class AntigravitySessionParser {
   /** Incremental reader backing `getConversation({ tail })`. */
   private readonly tailReader = new JsonlTailReader();
+
+  private readonly sessionCache: IncrementalJsonlSummary<AntigravitySummaryState>;
+
+  constructor(options: AntigravitySessionParserOptions = {}) {
+    this.sessionCache = new IncrementalJsonlSummary(this.summaryReducer, {
+      bounds: options.summaryBounds,
+    });
+  }
 
   /**
    * Parse a conversation's transcript.jsonl into an {@link AntigravitySession}.
@@ -49,24 +71,49 @@ export class AntigravitySessionParser {
     const stat = safeStat(transcriptPath);
     if (!stat) return null;
 
-    const scan = this.parseTranscript(transcriptPath, false);
-    return {
-      sessionId: conversationId,
+    const content = safeReadFile(transcriptPath);
+    const state = content === undefined ? {} : reduceJsonlContent(this.summaryReducer, content);
+    return this.toSession(conversationId, transcriptPath, projectPath, stat, stat.mtime, state);
+  }
+
+  /**
+   * Same result as `readSession`, but backed by a per-instance incremental
+   * cache so repeated refreshes only parse bytes appended since the last call.
+   * Call `pruneSessionCache()` once per refresh to evict files no longer read.
+   *
+   * The first read of a large transcript is a bounded head + tail scan (see
+   * `summaryReducer.skip`).
+   */
+  readSessionIncremental(
+    conversationId: string,
+    transcriptPath: string,
+    projectPath: string,
+  ): AntigravitySession | null {
+    const stat = safeStat(transcriptPath);
+    if (!stat) return null;
+
+    // Present but unreadable: surface the session without a summary, like readSession.
+    const result = this.sessionCache.read(transcriptPath);
+    return this.toSession(
+      conversationId,
+      transcriptPath,
       projectPath,
-      sessionFilePath: transcriptPath,
-      sessionStart: stat.birthtime,
-      lastActive: scan.lastActive ?? stat.mtime,
-      firstUserMessage: scan.firstUserMessage,
-      lastUserMessage: scan.lastUserMessage,
-      lastRole: scan.lastRole,
-    };
+      stat,
+      result?.mtime ?? stat.mtime,
+      result?.state ?? {},
+    );
+  }
+
+  /** Evict cached summaries for files not read since the previous prune. */
+  pruneSessionCache(): void {
+    this.sessionCache.prune();
   }
 
   getConversation(transcriptPath: string, options?: ConversationOptions): ConversationMessage[] {
     const verbose = options?.verbose ?? false;
     const tail = normalizeTail(options?.tail);
     if (tail === undefined) {
-      return this.parseTranscript(transcriptPath, verbose).messages;
+      return this.parseTranscript(transcriptPath, verbose);
     }
 
     return this.tailReader.read(
@@ -98,39 +145,73 @@ export class AntigravitySessionParser {
   }
 
   /**
-   * Single pass over transcript.jsonl. Each line is a
-   * { source, type, created_at, content } record; the latest created_at is the
-   * last-activity time.
+   * Fold one transcript record into the O(1) summary: first/last user request,
+   * the role of the last user/assistant turn, and the latest `created_at`.
+   * Uses the same record rules as `getConversation` (see `recordToMessage`).
+   *
+   * `skip` (bounded cold start) keeps the head's first user request and resets
+   * the latest fields, so those come from the tail only; without a timestamp in
+   * the tail, `lastActive` falls back to the file mtime.
    */
-  private parseTranscript(transcriptPath: string, verbose: boolean): TranscriptScan {
+  private readonly summaryReducer: JsonlSummaryReducer<AntigravitySummaryState> = {
+    initial: () => ({}),
+    reduce: (state, value) => {
+      if (value === null || value === undefined) return state;
+      const record = value as TranscriptRecord;
+
+      let next = state;
+      const atMs = parseTimestamp(record.created_at)?.getTime();
+      if (atMs !== undefined && (next.lastActiveMs === undefined || atMs > next.lastActiveMs)) {
+        next = { ...next, lastActiveMs: atMs };
+      }
+
+      const message = this.recordToMessage(record, false);
+      if (message?.role === "user") {
+        return {
+          ...next,
+          firstUserMessage: next.firstUserMessage ?? (next.pastHead ? undefined : message.content),
+          lastUserMessage: message.content,
+          lastRole: "user",
+        };
+      }
+      if (message?.role === "assistant") return { ...next, lastRole: "assistant" };
+      return next;
+    },
+    skip: (state) => ({ pastHead: true, firstUserMessage: state.firstUserMessage }),
+  };
+
+  private toSession(
+    conversationId: string,
+    transcriptPath: string,
+    projectPath: string,
+    stat: { birthtime: Date },
+    mtime: Date,
+    state: AntigravitySummaryState,
+  ): AntigravitySession {
+    return {
+      sessionId: conversationId,
+      projectPath,
+      sessionFilePath: transcriptPath,
+      sessionStart: stat.birthtime,
+      lastActive: state.lastActiveMs === undefined ? mtime : new Date(state.lastActiveMs),
+      firstUserMessage: state.firstUserMessage,
+      lastUserMessage: state.lastUserMessage,
+      lastRole: state.lastRole,
+    };
+  }
+
+  /** Full pass over transcript.jsonl building every conversation turn. */
+  private parseTranscript(transcriptPath: string, verbose: boolean): ConversationMessage[] {
     const content = safeReadFile(transcriptPath);
-    if (content === undefined) return { messages: [] };
+    if (content === undefined) return [];
 
     const messages: ConversationMessage[] = [];
-    let lastRole: ConversationMessage["role"] | undefined;
-    let lastActive: Date | undefined;
-
     for (const line of content.trim().split("\n")) {
       const record = this.parseRecord(line);
-      if (!record) continue;
-
-      const at = parseTimestamp(record.created_at);
-      if (at && (!lastActive || at.getTime() > lastActive.getTime())) lastActive = at;
-
-      const message = this.recordToMessage(record, verbose);
-      if (!message) continue;
-      messages.push(message);
-      if (message.role !== "system") lastRole = message.role;
+      const message = record ? this.recordToMessage(record, verbose) : null;
+      if (message) messages.push(message);
     }
-
-    const userTurns = messages.filter((m) => m.role === "user");
-    return {
-      messages,
-      firstUserMessage: userTurns[0]?.content,
-      lastUserMessage: userTurns[userTurns.length - 1]?.content,
-      lastRole,
-      lastActive,
-    };
+    return messages;
   }
 
   private parseRecord(line: string): TranscriptRecord | null {
