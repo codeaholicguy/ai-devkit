@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.65.1] - 2026-09-29
 
 - Cached incremental session summaries across refreshes so repeated agent listings skip rescanning unchanged transcripts ([#267](https://github.com/codeaholicguy/ai-devkit/pull/267)).
 - Used a shared process snapshot in the Antigravity adapter ([#268](https://github.com/codeaholicguy/ai-devkit/pull/268)).
@@ -32,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `findSessionsById` lookups for Kiro and Antigravity sessions so exact historical IDs resolve without enumerating summaries ([cc43cbe](https://github.com/codeaholicguy/ai-devkit/commit/cc43cbe)).
 - Derived `StartableAgentType` from `AGENT_TYPES` ([cd8a7e7](https://github.com/codeaholicguy/ai-devkit/commit/cd8a7e7)).
 - Cached Kiro and Antigravity session summaries ([532c562](https://github.com/codeaholicguy/ai-devkit/commit/532c562)).
+- Released `@ai-devkit/agent-manager` 0.37.0 with this version, exporting `AGENT_TYPES`, `createBuiltinAdapters`, and the `ConversationOptions` type; the `providers` → `harnesses` rename is internal-only with no public API changes.
 
 ## [0.65.0] - 2026-09-27
 
