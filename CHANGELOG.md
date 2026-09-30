@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.66.0] - 2026-09-30
 
 - Started the memory MCP server when launched through the bin symlink ([#303](https://github.com/codeaholicguy/ai-devkit/pull/303)).
 - Showed Anthropic usage for the Pi harness ([708e12c](https://github.com/codeaholicguy/ai-devkit/commit/708e12c)).
