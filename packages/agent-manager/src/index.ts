@@ -8,13 +8,16 @@ export {
 } from "./capacity/index.js";
 export type { CapacityReport, CapacityWindow } from "./capacity/index.js";
 
-export { getAgentReadinessReports, worstReadinessStatus } from "./readiness/AgentReadiness.js";
+export {
+  getAgentReadinessReports,
+  worstReadinessStatus,
+} from "./harnesses/readiness/AgentReadiness.js";
 export type {
   AgentReadinessOptions,
   AgentReadinessReport,
   ReadinessAgentType,
   ReadinessStatus,
-} from "./readiness/AgentReadiness.js";
+} from "./harnesses/readiness/AgentReadiness.js";
 
 export { createBuiltinAdapters } from "./harnesses/index.js";
 export { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "./harnesses/runtimeProfiles.js";

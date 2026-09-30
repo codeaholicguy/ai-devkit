@@ -5,8 +5,8 @@ import {
   getAgentReadinessReports,
   type AgentReadinessOptions,
   type ReadinessAgentType,
-} from "../../readiness/AgentReadiness.js";
-import { HARNESS_RUNTIME_PROFILES } from "../../harnesses/runtimeProfiles.js";
+} from "../../../harnesses/readiness/AgentReadiness.js";
+import { HARNESS_RUNTIME_PROFILES } from "../../../harnesses/runtimeProfiles.js";
 
 type Files = Record<string, string>;
 
