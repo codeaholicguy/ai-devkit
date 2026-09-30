@@ -24,3 +24,6 @@ export interface CapacityReport {
   windows: CapacityWindow[];
   creditsRemaining: number | null;
 }
+
+/** Provider quota data before a harness/source identity is attached. */
+export type ProviderCapacitySnapshot = Omit<CapacityReport, "harness" | "provider" | "generatedAt">;

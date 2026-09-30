@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import * as capacity from "../../capacity/index.js";
-import { parseClaudeUsage } from "../../capacity/claude.js";
+import { parseAnthropicCapacity } from "../../capacity/providers/anthropic.js";
 import * as agentManager from "../../index.js";
 
 const fixture = (name: string) =>
@@ -226,10 +226,7 @@ describe("Claude capacity", () => {
   });
 
   it("preserves valid windows in a partial payload", async () => {
-    const report = parseClaudeUsage(
-      JSON.parse(await fixture("claude-usage-partial.json")),
-      "2026-09-25T18:00:00.000Z",
-    );
+    const report = parseAnthropicCapacity(JSON.parse(await fixture("claude-usage-partial.json")));
     expect(report.available).toBe("yes");
     expect(report.windows).toEqual([
       {
@@ -251,9 +248,7 @@ describe("Claude capacity", () => {
 
   it("rejects a non-object usage payload", async () => {
     const raw = JSON.parse(await fixture("claude-usage-malformed.json"));
-    expect(() => parseClaudeUsage(raw, "2026-09-25T18:00:00.000Z")).toThrow(
-      "Claude usage response is malformed",
-    );
+    expect(() => parseAnthropicCapacity(raw)).toThrow("Claude usage response is malformed");
   });
 
   it.each([

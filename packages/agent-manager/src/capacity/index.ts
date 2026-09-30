@@ -1,38 +1,31 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
-import { probeAnthropicCapacity, type AnthropicCapacityOptions } from "./anthropic.js";
-import { codexUnavailableReport, probeCodexCapacity } from "./codex.js";
-import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./claude.js";
-import { probeOpenAiCapacity } from "./openai.js";
-import { probeZaiCapacity } from "./zai.js";
+import { codexUnavailableReport, probeCodexCapacity } from "./sources/codex.js";
+import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./sources/claude.js";
+import {
+  probeOpenAiCapacity,
+  probePiAnthropicCapacity,
+  probeZaiCapacity,
+  type PiAnthropicCapacityOptions,
+  type PiOpenAiCapacityOptions,
+  type PiZaiCapacityOptions,
+} from "./sources/pi.js";
 import type { CapacityReport } from "./types.js";
 
 export type { CapacityReport, CapacityWindow } from "./types.js";
-export type { ClaudeCapacityOptions } from "./claude.js";
-export type { AnthropicCapacityOptions } from "./anthropic.js";
+export type { ClaudeCapacityOptions } from "./sources/claude.js";
+export type { PiAnthropicCapacityOptions as AnthropicCapacityOptions } from "./sources/pi.js";
+export type {
+  PiOpenAiCapacityOptions as OpenAiCapacityOptions,
+  PiZaiCapacityOptions as ZaiCapacityOptions,
+} from "./sources/pi.js";
 
 export type CapacityProbeOptions = {
   now?: () => Date;
   path?: string;
   access?: (target: string) => Promise<void>;
   probe?: typeof probeCodexCapacity;
-};
-
-export type ZaiCapacityOptions = {
-  now?: () => Date;
-  env?: NodeJS.ProcessEnv;
-  readFile?: (path: string, encoding: BufferEncoding) => Promise<string>;
-  fetch?: typeof globalThis.fetch;
-  timeoutMs?: number;
-};
-
-export type OpenAiCapacityOptions = {
-  now?: () => Date;
-  env?: NodeJS.ProcessEnv;
-  readFile?: (path: string, encoding: BufferEncoding) => Promise<string>;
-  fetch?: typeof globalThis.fetch;
-  timeoutMs?: number;
 };
 
 async function canAccess(target: string, mode: number): Promise<boolean> {
@@ -80,7 +73,7 @@ export async function getCodexCapacityReport(
 }
 
 export async function getZaiCapacityReport(
-  options: ZaiCapacityOptions = {},
+  options: PiZaiCapacityOptions = {},
 ): Promise<CapacityReport> {
   const { now, ...probeOptions } = options;
   return probeZaiCapacity({
@@ -90,7 +83,7 @@ export async function getZaiCapacityReport(
 }
 
 export async function getOpenAiCapacityReport(
-  options: OpenAiCapacityOptions = {},
+  options: PiOpenAiCapacityOptions = {},
 ): Promise<CapacityReport> {
   const { now, ...probeOptions } = options;
   return probeOpenAiCapacity({
@@ -111,10 +104,10 @@ export async function getClaudeCapacityReport(
 }
 
 export async function getAnthropicCapacityReport(
-  options: AnthropicCapacityOptions = {},
+  options: PiAnthropicCapacityOptions = {},
 ): Promise<CapacityReport> {
   const { now, ...probeOptions } = options;
-  return probeAnthropicCapacity({
+  return probePiAnthropicCapacity({
     ...probeOptions,
     checkedAt: (now?.() ?? new Date()).toISOString(),
     now,

@@ -2,14 +2,17 @@ import { readFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { probeOpenAiCapacity } from "../../capacity/sources/pi.js";
 import {
-  buildOpenAiReport,
+  buildOpenAiPlatformCapacity,
   parseOpenAiUsage,
-  probeOpenAiCapacity,
-  resolveOpenAiCredential,
-} from "../../capacity/openai.js";
+} from "../../capacity/providers/openai-platform.js";
+import { resolvePiOpenAiCredential as resolveOpenAiCredential } from "../../harnesses/pi/credentials.js";
 
 const checkedAt = "2026-09-26T10:00:00.000Z";
+const fixtureOauthAccess = "sample access value for tests";
+const fakeJwt = (payload: string) =>
+  ["test", Buffer.from(payload).toString("base64url"), "test"].join(".");
 const fixture = (name: string) =>
   readFile(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
 const fixtureString = (name: string) =>
@@ -59,7 +62,7 @@ describe("OpenAI tiered credential resolution", () => {
     openai: { type: "api_key", key: "pi-openai-test-key" },
     "openai-codex": {
       type: "oauth",
-      access: "fixture-header.eyJleHAiOjE3OTMwMDAwMDB9.fixture-signature",
+      access: fixtureOauthAccess,
       refresh: "fixture-refresh-token",
       expires: 1793000000000,
       accountId: "fixture-chatgpt-account-id",
@@ -83,7 +86,7 @@ describe("OpenAI tiered credential resolution", () => {
       }),
     ).resolves.toEqual({
       kind: "oauth",
-      access: "fixture-header.eyJleHAiOjE3OTMwMDAwMDB9.fixture-signature",
+      access: fixtureOauthAccess,
       accountId: "fixture-chatgpt-account-id",
       expiresMs: 1793000000000,
     });
@@ -148,7 +151,7 @@ describe("OpenAI OAuth capacity probe", () => {
       expect.objectContaining({
         method: "GET",
         headers: {
-          Authorization: "Bearer fixture-header.eyJleHAiOjE3OTMwMDAwMDB9.fixture-signature",
+          Authorization: `Bearer ${fixtureOauthAccess}`,
           "ChatGPT-Account-Id": "fixture-chatgpt-account-id",
         },
       }),
@@ -217,7 +220,7 @@ describe("OpenAI OAuth capacity probe", () => {
     const expiredJwtAuth = JSON.stringify({
       "openai-codex": {
         type: "oauth",
-        access: "h.eyJleHAiOjE3ODkwMDAwMDB9.s",
+        access: fakeJwt(JSON.stringify({ exp: 1789000000 })),
         accountId: "fixture-chatgpt-account-id",
       },
     });
@@ -235,7 +238,7 @@ describe("OpenAI OAuth capacity probe", () => {
     const futureJwtAuth = JSON.stringify({
       "openai-codex": {
         type: "oauth",
-        access: "h.eyJleHAiOjE3OTMwMDAwMDB9.s",
+        access: fakeJwt(JSON.stringify({ exp: 1793000000 })),
         accountId: "fixture-chatgpt-account-id",
       },
     });
@@ -255,7 +258,7 @@ describe("OpenAI OAuth capacity probe", () => {
     const auth = JSON.stringify({
       "openai-codex": {
         type: "oauth",
-        access: "fixture-header.bm90LWpzb24.fixture-signature",
+        access: fakeJwt("not-json"),
         accountId: "fixture-chatgpt-account-id",
       },
     });
@@ -391,11 +394,8 @@ describe("OpenAI usage mapping", () => {
       ...parseOpenAiUsage(JSON.parse(await fixture("openai-usage-completions.json"))),
       ...parseOpenAiUsage(JSON.parse(await fixture("openai-usage-responses.json"))),
     ];
-    const report = buildOpenAiReport(buckets, checkedAt);
+    const report = buildOpenAiPlatformCapacity(buckets, checkedAt);
     expect(report).toMatchObject({
-      harness: "pi",
-      provider: "openai",
-      generatedAt: checkedAt,
       authenticated: true,
       available: "yes",
       creditsRemaining: null,
@@ -427,7 +427,7 @@ describe("OpenAI usage mapping", () => {
   });
 
   it("reports zero usage for days without buckets", () => {
-    const report = buildOpenAiReport([], checkedAt);
+    const report = buildOpenAiPlatformCapacity([], checkedAt);
     expect(report.windows.map((window) => window.current)).toEqual([0, 0]);
     expect(report.windows[0].resetsAt).toBe("2026-09-27T00:00:00.000Z");
   });

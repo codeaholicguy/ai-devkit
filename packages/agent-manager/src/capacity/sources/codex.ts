@@ -1,10 +1,16 @@
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { parseWhamUsage, resetTime, safeIdentifier } from "./wham.js";
-import type { CapacityReport, CapacityWindow } from "./types.js";
-
-export { toRateWindow } from "./wham.js";
+import {
+  fetchOpenAiPatAccountId,
+  fetchOpenAiSubscriptionCapacity,
+  parseWhamUsage,
+  resetTime,
+  safeIdentifier,
+} from "../providers/openai-subscription.js";
+import type { CapacityReport, CapacityWindow } from "../types.js";
+import {
+  resolveCodexCredentials,
+  type CodexCredentialOptions,
+} from "../../harnesses/codex/credentials.js";
 
 type CodexUsageSource = "pat" | "oauth" | "cli";
 type UsageSnapshot = {
@@ -18,18 +24,15 @@ type RpcMessage = { id?: number; method: string; params?: UnknownRecord };
 type CliResponses = { rateLimits: unknown; account: unknown };
 type CodexRpc = (messages: RpcMessage[]) => Promise<CliResponses>;
 
-export const CODEX_APP_SERVER_ARGS = ["-s", "read-only", "-a", "untrusted", "app-server"] as const;
-
-type CodexProbeOptions = {
+export type CodexProbeOptions = CodexCredentialOptions & {
   installed: boolean;
   checkedAt: string;
-  readFile?: (path: string, encoding: BufferEncoding) => Promise<string>;
   fetch?: typeof globalThis.fetch;
   rpc?: CodexRpc;
   timeoutMs?: number;
-  env?: NodeJS.ProcessEnv;
-  now?: () => Date;
 };
+
+export const CODEX_APP_SERVER_ARGS = ["-s", "read-only", "-a", "untrusted", "app-server"] as const;
 
 function record(value: unknown): UnknownRecord | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -43,11 +46,6 @@ function finiteNumber(value: unknown): number | null {
 
 function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-export function resolveCodexAuthPath(env: NodeJS.ProcessEnv = process.env): string {
-  const root = env.CODEX_HOME || join(env.HOME || "", ".codex");
-  return join(root, "auth.json");
 }
 
 export function parseUsage(raw: unknown, source: "pat" | "oauth"): UsageSnapshot {
@@ -77,14 +75,15 @@ function cliSnapshotWindows(value: unknown, fallbackId: string): CapacityWindow[
   ].filter((item): item is CapacityWindow => item !== null);
 }
 
-export function parseCliUsage(raw: unknown): UsageSnapshot {
+function parseCliUsage(raw: unknown): UsageSnapshot {
   const response = record(raw) ?? {};
   const primary = record(response.rateLimits);
   const windows = primary ? cliSnapshotWindows(primary, "codex") : [];
   const buckets = record(response.rateLimitsByLimitId);
   if (buckets) {
-    for (const [id, snapshot] of Object.entries(buckets))
+    for (const [id, snapshot] of Object.entries(buckets)) {
       windows.push(...cliSnapshotWindows(snapshot, id));
+    }
   }
   const unique = [...new Map(windows.map((window) => [window.id, window])).values()];
   return { windows: unique, creditsRemaining: null, source: "cli" };
@@ -92,7 +91,7 @@ export function parseCliUsage(raw: unknown): UsageSnapshot {
 
 function capacityFromSnapshot(
   snapshot: UsageSnapshot,
-  context: CodexProbeOptions,
+  options: CodexProbeOptions,
   raw?: unknown,
 ): CapacityReport {
   const hasUsage = snapshot.windows.some((window) => window.usedPercent !== null);
@@ -103,7 +102,7 @@ function capacityFromSnapshot(
   return {
     harness: "codex",
     provider: "openai",
-    generatedAt: context.checkedAt,
+    generatedAt: options.checkedAt,
     authenticated: true,
     available: reached ? "no" : hasUsage ? "yes" : "unknown",
     windows: snapshot.windows,
@@ -111,70 +110,9 @@ function capacityFromSnapshot(
   };
 }
 
-function jwtExpiry(token: string): number | null {
-  const part = token.split(".")[1];
-  if (!part) return null;
-  try {
-    return finiteNumber(record(JSON.parse(Buffer.from(part, "base64url").toString("utf8")))?.exp);
-  } catch {
-    return null;
-  }
-}
-
-function staleOAuth(tokens: UnknownRecord, token: string, now: Date): boolean {
-  const metadata = tokens.expires_at ?? tokens.expiresAt ?? tokens.expiry;
-  let expiry: number | null = finiteNumber(metadata);
-  if (typeof metadata === "string") {
-    const parsed = Date.parse(metadata);
-    expiry = Number.isNaN(parsed) ? null : parsed / 1000;
-  }
-  expiry ??= jwtExpiry(token);
-  return expiry !== null && expiry <= now.getTime() / 1000;
-}
-
-async function fetchJson(
-  fetcher: typeof globalThis.fetch,
-  url: string,
-  init: RequestInit,
-  timeoutMs: number,
-): Promise<unknown> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetcher(url, { ...init, signal: controller.signal });
-    if (!response.ok) throw new Error(response.status === 401 ? "unauthorized" : "request failed");
-    return await response.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-async function apiSnapshot(
-  token: string,
-  accountId: string,
-  source: "pat" | "oauth",
-  options: CodexProbeOptions,
-): Promise<UsageSnapshot> {
-  const fetcher = options.fetch ?? globalThis.fetch;
-  const raw = await fetchJson(
-    fetcher,
-    "https://chatgpt.com/backend-api/wham/usage",
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "ChatGPT-Account-Id": accountId,
-      },
-    },
-    options.timeoutMs ?? 5000,
-  );
-  return parseUsage(raw, source);
-}
-
 function appServerRpc(messages: RpcMessage[], timeoutMs = 5000): Promise<CliResponses> {
   return new Promise((resolve, reject) => {
-    const child = spawn("codex", CODEX_APP_SERVER_ARGS, {
-      stdio: ["pipe", "pipe", "ignore"],
-    });
+    const child = spawn("codex", CODEX_APP_SERVER_ARGS, { stdio: ["pipe", "pipe", "ignore"] });
     const results: Partial<CliResponses> = {};
     let buffer = "";
     let settled = false;
@@ -235,12 +173,8 @@ export function codexUnavailableReport(checkedAt: string): CapacityReport {
   };
 }
 
-function unavailable(options: CodexProbeOptions): CapacityReport {
-  return codexUnavailableReport(options.checkedAt);
-}
-
 async function cliFallback(options: CodexProbeOptions): Promise<CapacityReport> {
-  if (!options.installed) return unavailable(options);
+  if (!options.installed) return codexUnavailableReport(options.checkedAt);
   const messages: RpcMessage[] = [
     {
       id: 1,
@@ -273,57 +207,53 @@ async function cliFallback(options: CodexProbeOptions): Promise<CapacityReport> 
     }
     return result;
   } catch {
-    return unavailable(options);
+    return codexUnavailableReport(options.checkedAt);
   }
 }
 
-export async function probeCodexCapacity(options: CodexProbeOptions): Promise<CapacityReport> {
-  let parsed: UnknownRecord | null = null;
-  try {
-    const contents = await (options.readFile ?? readFile)(
-      resolveCodexAuthPath(options.env),
-      "utf8",
-    );
-    parsed = record(JSON.parse(contents));
-  } catch {
-    return cliFallback(options);
-  }
+async function subscriptionSnapshot(
+  access: string,
+  accountId: string,
+  source: "pat" | "oauth",
+  options: CodexProbeOptions,
+): Promise<UsageSnapshot> {
+  const snapshot = await fetchOpenAiSubscriptionCapacity({ access, accountId }, options);
+  if (snapshot.authenticated === false) throw new Error("unauthorized");
+  return {
+    windows: snapshot.windows,
+    creditsRemaining: snapshot.creditsRemaining,
+    source,
+  };
+}
 
-  const auth = parsed ?? {};
-  const pat = nonEmptyText(auth.personal_access_token);
-  if (pat) {
+export async function probeCodexCapacity(options: CodexProbeOptions): Promise<CapacityReport> {
+  const credentials = await resolveCodexCredentials(options);
+  if (!credentials) return cliFallback(options);
+
+  if (credentials.personalAccessToken) {
     try {
-      const fetcher = options.fetch ?? globalThis.fetch;
-      const whoami = record(
-        await fetchJson(
-          fetcher,
-          "https://auth.openai.com/api/accounts/v1/user-auth-credential/whoami",
-          { headers: { Authorization: `Bearer ${pat}` } },
-          options.timeoutMs ?? 5000,
-        ),
+      const accountId = await fetchOpenAiPatAccountId(credentials.personalAccessToken, options);
+      const snapshot = await subscriptionSnapshot(
+        credentials.personalAccessToken,
+        accountId,
+        "pat",
+        options,
       );
-      const accountId = nonEmptyText(whoami?.chatgpt_account_id);
-      if (!accountId) throw new Error("account unavailable");
-      return capacityFromSnapshot(await apiSnapshot(pat, accountId, "pat", options), options);
+      return capacityFromSnapshot(snapshot, options);
     } catch {
       // Continue to a separately available OAuth credential before using the CLI.
     }
   }
 
-  const tokens = record(auth.tokens);
-  const accessToken = nonEmptyText(tokens?.access_token);
-  const accountId = nonEmptyText(tokens?.account_id);
-  if (
-    tokens &&
-    accessToken &&
-    accountId &&
-    !staleOAuth(tokens, accessToken, (options.now ?? (() => new Date()))())
-  ) {
+  if (credentials.oauth) {
     try {
-      return capacityFromSnapshot(
-        await apiSnapshot(accessToken, accountId, "oauth", options),
+      const snapshot = await subscriptionSnapshot(
+        credentials.oauth.access,
+        credentials.oauth.accountId,
+        "oauth",
         options,
       );
+      return capacityFromSnapshot(snapshot, options);
     } catch {
       return cliFallback(options);
     }

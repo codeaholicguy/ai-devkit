@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { parseWhamUsage, toRateWindow } from "../../capacity/wham.js";
+import { parseWhamUsage, toRateWindow } from "../../capacity/providers/openai-subscription.js";
 
 const fixture = (name: string) =>
   readFile(fileURLToPath(new URL(`./fixtures/${name}`, import.meta.url)), "utf8");
