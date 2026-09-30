@@ -237,7 +237,11 @@ function retryAfterTime(response: Response, now: Date): string | null {
   return Number.isNaN(milliseconds) ? null : new Date(milliseconds).toISOString();
 }
 
-export function parseClaudeUsage(raw: unknown, checkedAt: string): CapacityReport {
+export function parseClaudeUsage(
+  raw: unknown,
+  checkedAt: string,
+  harness = "claude",
+): CapacityReport {
   const input = record(raw);
   if (!input) throw new Error("Claude usage response is malformed");
   const windows = [
@@ -254,7 +258,7 @@ export function parseClaudeUsage(raw: unknown, checkedAt: string): CapacityRepor
     extraUsageWindow(input.extra_usage),
   ].filter((window): window is CapacityWindow => window !== null);
   return {
-    harness: "claude",
+    harness,
     provider: "anthropic",
     generatedAt: checkedAt,
     authenticated: true,
@@ -264,8 +268,11 @@ export function parseClaudeUsage(raw: unknown, checkedAt: string): CapacityRepor
   };
 }
 
-export async function probeClaudeCapacity(options: ClaudeProbeOptions): Promise<CapacityReport> {
-  const token = await resolveToken(options);
+export async function probeAnthropicOAuthCapacity(
+  token: string,
+  harness: string,
+  options: ClaudeProbeOptions,
+): Promise<CapacityReport> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), options.timeoutMs ?? 5000);
   let response: Response;
@@ -309,5 +316,10 @@ export async function probeClaudeCapacity(options: ClaudeProbeOptions): Promise<
   } catch {
     throw new Error("Claude usage response is malformed");
   }
-  return parseClaudeUsage(raw, options.checkedAt);
+  return parseClaudeUsage(raw, options.checkedAt, harness);
+}
+
+export async function probeClaudeCapacity(options: ClaudeProbeOptions): Promise<CapacityReport> {
+  const token = await resolveToken(options);
+  return probeAnthropicOAuthCapacity(token, "claude", options);
 }

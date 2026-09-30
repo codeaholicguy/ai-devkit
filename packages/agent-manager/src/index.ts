@@ -1,11 +1,13 @@
 export { AgentManager, AgentNotRunningError } from "./AgentManager.js";
 export {
+  getAnthropicCapacityReport,
   getClaudeCapacityReport,
   getCodexCapacityReport,
   getOpenAiCapacityReport,
   getZaiCapacityReport,
 } from "./capacity/index.js";
 export type {
+  AnthropicCapacityOptions,
   ClaudeCapacityOptions,
   CapacityProbeOptions,
   CapacityReport,

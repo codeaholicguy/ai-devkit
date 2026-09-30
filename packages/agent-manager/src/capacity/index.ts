@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
+import { probeAnthropicCapacity, type AnthropicCapacityOptions } from "./anthropic.js";
 import { codexUnavailableReport, probeCodexCapacity } from "./codex.js";
 import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./claude.js";
 import { probeOpenAiCapacity } from "./openai.js";
@@ -9,6 +10,7 @@ import type { CapacityReport } from "./types.js";
 
 export type { CapacityReport, CapacityWindow } from "./types.js";
 export type { ClaudeCapacityOptions } from "./claude.js";
+export type { AnthropicCapacityOptions } from "./anthropic.js";
 
 export type CapacityProbeOptions = {
   now?: () => Date;
@@ -102,6 +104,17 @@ export async function getClaudeCapacityReport(
 ): Promise<CapacityReport> {
   const { now, ...probeOptions } = options;
   return probeClaudeCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+    now,
+  });
+}
+
+export async function getAnthropicCapacityReport(
+  options: AnthropicCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeAnthropicCapacity({
     ...probeOptions,
     checkedAt: (now?.() ?? new Date()).toISOString(),
     now,
