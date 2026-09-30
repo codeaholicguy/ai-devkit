@@ -16,6 +16,7 @@ Required phase skills:
 - `dev-implementation` for phases 5 and 7: execute plan and check implementation.
 - `dev-testing` for phase 8: write tests and verify coverage.
 - `dev-review` for phase 9: final code review.
+- `changelog` for phase 10: feature report with auto-generated change log.
 
 Supporting skills:
 
@@ -68,8 +69,19 @@ Before executing any phase:
 | 7. Check Implementation | `dev-implementation` | Verify code matches design and docs |
 | 8. Write Tests | `dev-testing` | Add or verify test coverage |
 | 9. Code Review | `dev-review` | Final pre-push review |
+| 10. Report & Change Log | `changelog` (Feature Report Mode) | Auto-trigger when phase 9 passes with no blocking issues |
 
-Sequential flow: setup -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 after each completed task -> 7 -> 8 -> 9.
+Sequential flow: setup -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 after each completed task -> 7 -> 8 -> 9 -> 10.
+
+## Phase 10: Report & Change Log (automatic)
+
+When phase 9 finishes with no blocking findings, run `changelog` in Feature Report Mode without asking for a separate approval; the approval for the lifecycle run covers it. It writes `<docs>/report/<date>-feature-<name>.md`, where `<date>` is the date prefix already used by the feature's docs (created by `docs init-feature`). Then:
+
+- Include the report path and change-log entry count in the final summary.
+- If phase 9 found blocking issues, do not run phase 10; run it after the issues are fixed and phase 9 is repeated.
+- Rerunning after later commits refreshes only the marked change-log block.
+- Phase 10 also renders the HTML views (`<phase>/html/`) for humans; give the user the `report/html/` page as the place to read. Agents keep working from the `.md` files only.
+- Phase 10 only edits report/html files; it never commits or pushes.
 
 ## Resuming Work
 

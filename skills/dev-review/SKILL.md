@@ -38,4 +38,4 @@ Use for Phase 9. Take a holistic review stance: findings first, ordered by sever
 16. If task tracing is available, add blockers and set `blocked` for blocking findings; if review passes with final evidence, close the task per `task`.
 17. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
 
-Done: if the checklist passes, the feature is ready to push and create a PR. If blocking issues remain, return to `dev-implementation` or `dev-testing`.
+Done: if the checklist passes, the feature is ready to push and create a PR. If running under `dev-lifecycle`, hand off to Phase 10 (`changelog` Feature Report Mode) to write the report and change log. If blocking issues remain, return to `dev-implementation` or `dev-testing`.

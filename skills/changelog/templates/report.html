@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{feature}} · {{date}}</title>
+<!-- Generated from the .md docs by the `changelog` skill. Do not edit by hand; edit the .md and regenerate. -->
+<style>
+  :root { --bg:#fff; --fg:#1f2328; --muted:#656d76; --line:#d0d7de; --accent:#1a73e8; --card:#f6f8fa; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --fg:#e6edf3; --muted:#8b949e; --line:#30363d; --accent:#58a6ff; --card:#161b22; } }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 system-ui,sans-serif; }
+  main { max-width:960px; margin:0 auto; padding:24px 16px 64px; }
+  h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:18px; margin:32px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .meta { color:var(--muted); font-size:13px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 16px; margin:12px 0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; }
+  .grid .card { margin:0; } .grid b { display:block; font-size:12px; color:var(--muted); font-weight:500; }
+  table { border-collapse:collapse; width:100%; } th,td { border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top; }
+  a { color:var(--accent); } code { background:var(--card); padding:1px 4px; border-radius:4px; }
+  .mermaid { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; overflow-x:auto; }
+  nav a { margin-right:12px; font-size:13px; }
+  .bar { height:8px; background:var(--line); border-radius:4px; overflow:hidden; } .bar > i { display:block; height:100%; background:var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>{{feature}}</h1>
+  <div class="meta">{{date}} → {{completed_date}} · branch <code>feature-{{feature}}</code> · review: {{review_result}}</div>
+  <nav><!-- links to the sibling phase html pages: ../../requirements/html/..., etc. --></nav>
+
+  <h2>Tóm tắt</h2>
+  <div class="grid"><!-- 3-5 cards: problem, users, scope, result, risk --></div>
+
+  <h2>Mô hình hoá</h2>
+  <!-- One or more diagrams. Use <pre class="mermaid"> blocks; see SKILL.md for which diagrams to draw. -->
+  <pre class="mermaid">flowchart LR
+    A[Requirement] --> B[Design] --> C[Implementation] --> D[Review]</pre>
+
+  <h2>Tiến độ kế hoạch</h2>
+  <div class="bar"><i style="width:{{plan_percent}}%"></i></div>
+  <p class="meta">{{plan_done}}/{{plan_total}} task hoàn thành</p>
+
+  <h2>Kiểm thử &amp; xác minh</h2>
+  <div class="card">{{test_evidence}} · {{lint_evidence}}</div>
+
+  <h2>Change Log</h2>
+  <!-- changelog:start -->
+  <table><thead><tr><th>Commit</th><th>Mô tả</th></tr></thead><tbody></tbody></table>
+  <!-- changelog:end -->
+</main>
+<script type="module">
+  // Diagram rendering needs network; without it the diagram source stays readable in the <pre>.
+  try {
+    const { default: mermaid } = await import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs');
+    mermaid.initialize({ startOnLoad:false, theme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'default' });
+    await mermaid.run();
+  } catch (e) { console.warn('mermaid unavailable', e); }
+</script>
+</body>
+</html>
