@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Started the memory MCP server when launched through the bin symlink ([#303](https://github.com/codeaholicguy/ai-devkit/pull/303)).
+- Showed Anthropic usage for the Pi harness ([708e12c](https://github.com/codeaholicguy/ai-devkit/commit/708e12c)).
+- Separated harness credentials from capacity providers ([cf1319e](https://github.com/codeaholicguy/ai-devkit/commit/cf1319e)).
+- Simplified the agent-manager runtime and terminal structure ([bd76b05](https://github.com/codeaholicguy/ai-devkit/commit/bd76b05)).
+- Colocated readiness checks with their harnesses ([817302d](https://github.com/codeaholicguy/ai-devkit/commit/817302d)).
+- Reported readiness for all harnesses ([3c0666f](https://github.com/codeaholicguy/ai-devkit/commit/3c0666f)).
+
 ## [0.65.1] - 2026-09-29
 
 - Cached incremental session summaries across refreshes so repeated agent listings skip rescanning unchanged transcripts ([#267](https://github.com/codeaholicguy/ai-devkit/pull/267)).
