@@ -22,9 +22,12 @@ import {
 const READINESS_PROFILES: Record<ReadinessAgentType, HarnessReadinessProfile> = {
   claude: claudeReadiness,
   codex: codexReadiness,
-  copilot: copilotReadiness,
+  gemini_cli: { configDir: ".gemini" },
   grok_cli: { configDir: ".grok" },
+  kiro: { configDir: ".kiro" },
+  antigravity_cli: { configDir: ".gemini/antigravity-cli" },
   opencode: openCodeReadiness,
+  copilot: copilotReadiness,
   pi: piReadiness,
 };
 

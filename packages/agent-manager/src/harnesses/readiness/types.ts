@@ -1,11 +1,6 @@
-export const READINESS_AGENT_TYPES = [
-  "claude",
-  "codex",
-  "copilot",
-  "grok_cli",
-  "opencode",
-  "pi",
-] as const;
+import { AGENT_TYPES } from "../../adapters/AgentAdapter.js";
+
+export const READINESS_AGENT_TYPES = AGENT_TYPES;
 
 export type ReadinessStatus = "pass" | "warn" | "fail";
 export type ReadinessAuthState = "authenticated" | "unauthenticated" | "unknown";

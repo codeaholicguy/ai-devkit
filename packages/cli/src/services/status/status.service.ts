@@ -107,11 +107,14 @@ export interface StatusServiceOptions {
 
 type Runtime = Required<StatusServiceOptions>;
 
-const STATUS_SKILL_ROOTS: Record<ReadinessAgentType, string> = {
+const STATUS_SKILL_ROOTS: Partial<Record<ReadinessAgentType, string>> = {
   claude: getGlobalSkillPath("claude") ?? ".claude/skills",
   codex: getGlobalSkillPath("codex") ?? ".codex/skills",
   copilot: getGlobalSkillPath("github") ?? ".copilot/skills",
+  gemini_cli: getGlobalSkillPath("gemini") ?? ".gemini/skills",
   grok_cli: getGlobalSkillPath("grok") ?? ".grok/skills",
+  antigravity_cli:
+    getGlobalSkillPath("antigravity-cli") ?? ".gemini/config/skills",
   opencode: getGlobalSkillPath("opencode") ?? ".config/opencode/skills",
   pi: getGlobalSkillPath("pi") ?? ".pi/agent/skills",
 };

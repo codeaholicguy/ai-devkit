@@ -11,11 +11,13 @@ import { HARNESS_RUNTIME_PROFILES } from "../../../harnesses/runtimeProfiles.js"
 type Files = Record<string, string>;
 
 const builtInSkillNames = ["agent-management", "memory", "verify"];
-const skillRoots: Record<ReadinessAgentType, string> = {
+const skillRoots: Record<string, string> = {
   claude: ".claude/skills",
   codex: ".codex/skills",
   copilot: ".copilot/skills",
+  gemini_cli: ".gemini/skills",
   grok_cli: ".grok/skills",
+  antigravity_cli: ".gemini/config/skills",
   opencode: ".config/opencode/skill",
   pi: ".pi/agent/skills",
 };
@@ -56,7 +58,17 @@ function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
       litellm: { key: "litellm-secret", env: { LITELLM_BASE_URL: "https://litellm.example.test" } },
     }),
   };
-  for (const directory of [".claude", ".codex", ".copilot", ".grok", ".config/opencode", ".pi"]) {
+  for (const directory of [
+    ".claude",
+    ".codex",
+    ".copilot",
+    ".gemini",
+    ".grok",
+    ".kiro",
+    ".gemini/antigravity-cli",
+    ".config/opencode",
+    ".pi",
+  ]) {
     files[path.join(homeDir, directory)] = "<dir>";
   }
   for (const root of Object.values(skillRoots)) {
@@ -105,20 +117,30 @@ describe("agent readiness", () => {
     expect(Object.keys(reports)).toEqual([
       "claude",
       "codex",
-      "copilot",
+      "gemini_cli",
       "grok_cli",
+      "kiro",
+      "antigravity_cli",
       "opencode",
+      "copilot",
       "pi",
     ]);
-    expect(reports).not.toHaveProperty("gemini_cli");
     for (const [agent, report] of Object.entries(reports) as Array<
       [ReadinessAgentType, (typeof reports)[ReadinessAgentType]]
     >) {
       expect(report.type).toBe(agent);
       expect(report.executable.status).toBe("pass");
       expect(report.globalConfig.status).toBe("pass");
-      expect(report.builtInSkills).toMatchObject({ status: "info", present: 3, required: 3 });
+      expect(report.builtInSkills.status).toBe("info");
     }
+    expect(reports.gemini_cli.builtInSkills).toMatchObject({ present: 3, required: 3 });
+    expect(reports.antigravity_cli.builtInSkills).toMatchObject({ present: 3, required: 3 });
+    expect(reports.kiro.builtInSkills).toMatchObject({
+      path: null,
+      present: 0,
+      required: 3,
+      missing: builtInSkillNames,
+    });
     expect(reports.codex.integration).toMatchObject({
       label: "ai-devkit hook",
       installed: true,
@@ -135,7 +157,10 @@ describe("agent readiness", () => {
       status: "pass",
     });
     expect(reports.copilot.integration).toBeUndefined();
+    expect(reports.gemini_cli.integration).toBeUndefined();
     expect(reports.grok_cli.integration).toBeUndefined();
+    expect(reports.kiro.integration).toBeUndefined();
+    expect(reports.antigravity_cli.integration).toBeUndefined();
     expect(reports.opencode.integration).toBeUndefined();
   });
 
