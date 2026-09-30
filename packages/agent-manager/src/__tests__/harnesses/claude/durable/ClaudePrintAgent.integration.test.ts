@@ -3,10 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  ClaudePrintAgentService,
   DurableAgentRepository,
   type ProcessInspector,
-} from "../../../../index.js";
+} from "../../../../durable/DurableAgentRepository.js";
+import { ClaudePrintAgentService } from "../../../../harnesses/claude/durable/ClaudePrintAgentService.js";
 
 const roots: string[] = [];
 

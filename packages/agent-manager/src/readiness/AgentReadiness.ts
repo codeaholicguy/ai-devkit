@@ -4,7 +4,7 @@ import { execFile } from "node:child_process";
 import { delimiter, join } from "node:path";
 import { promisify } from "node:util";
 import { getCodexCapacityReport } from "../capacity/index.js";
-import { AGENTS, type StartableAgentType } from "../utils/agents.js";
+import { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "../harnesses/runtimeProfiles.js";
 
 const execFileAsync = promisify(execFile);
 const READINESS_AGENT_TYPES = ["claude", "codex", "copilot", "grok_cli", "opencode", "pi"] as const;
@@ -177,7 +177,7 @@ async function executableCheck(
   agent: ReadinessAgentType,
   rt: Runtime,
 ): Promise<ExecutableReadinessCheck> {
-  const command = AGENTS[agent].command;
+  const command = HARNESS_RUNTIME_PROFILES[agent].command;
   const resolvedPath = await resolveExecutable(command, rt);
   return {
     command,

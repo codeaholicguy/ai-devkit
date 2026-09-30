@@ -1,4 +1,5 @@
-import type { AgentInfo, AgentType } from "../../adapters/AgentAdapter.js";
+import type { AgentInfo } from "../../adapters/AgentAdapter.js";
+import { runtimeAgentMatchesHarness } from "../../harnesses/runtimeProfiles.js";
 import { HerdrCliClient, type HerdrCommandRunner } from "./HerdrCliClient.js";
 import type { HerdrRuntimeRef } from "./HerdrRuntimeRef.js";
 
@@ -70,7 +71,7 @@ export function findMatchingHerdrPane(
   if (shellPidMatches.length > 1) return null;
 
   const cwdMatches = panes.filter(
-    (pane) => pane.cwd === agent.projectPath && herdrAgentMatchesType(pane.agent, agent.type),
+    (pane) => pane.cwd === agent.projectPath && runtimeAgentMatchesHarness(pane.agent, agent.type),
   );
   return cwdMatches.length === 1 ? cwdMatches[0]! : null;
 }
@@ -83,23 +84,6 @@ export function herdrPaneToRuntimeRef(pane: HerdrAgentPane, agentName: string): 
     ...(pane.workspaceId ? { workspaceId: pane.workspaceId } : {}),
     ...(pane.tabId ? { tabId: pane.tabId } : {}),
   };
-}
-
-function herdrAgentMatchesType(herdrAgent: string, agentType: AgentType): boolean {
-  const normalized = herdrAgent.toLowerCase();
-  const candidates: Record<AgentType, readonly string[]> = {
-    claude: ["claude"],
-    codex: ["codex"],
-    copilot: ["copilot"],
-    gemini_cli: ["gemini", "gemini_cli"],
-    grok_cli: ["grok", "grok_cli"],
-    antigravity_cli: ["agy", "antigravity", "antigravity_cli"],
-    kiro: ["kiro", "kiro_cli", "kiro-cli"],
-    opencode: ["opencode"],
-    pi: ["pi"],
-    other: ["other"],
-  };
-  return candidates[agentType]?.includes(normalized) ?? false;
 }
 
 async function enrichHerdrAgentPanes(

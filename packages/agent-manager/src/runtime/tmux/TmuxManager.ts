@@ -1,5 +1,5 @@
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
@@ -38,22 +38,6 @@ export class TmuxManager {
     }
   }
 
-  /**
-   * Find the actual agent process PID inside a tmux pane.
-   *
-   * Strategy: BFS the process tree, return the deepest process whose
-   * `ps` command line is accepted by `matches`. The caller supplies the
-   * matcher so this method has no agent-type knowledge.
-   *
-   * This handles two real-world process shapes:
-   * - Wrapper case: shell → claude-wrapper (matches) → claude (matches, deeper)
-   *   → returns the deeper one
-   * - Subprocess case: shell → claude (matches) → MCP server child (doesn't match)
-   *   → returns claude, not the subprocess
-   *
-   * Returns null when no process matches yet (agent still starting); the
-   * caller's poll loop retries.
-   */
   async findAgentPid(
     session: string,
     matches: (psCommand: string) => boolean,
@@ -71,12 +55,8 @@ export class TmuxManager {
       visited.add(pid);
 
       const command = await this.getProcessCommand(pid);
-      if (command && matches(command)) {
-        deepestMatch = pid;
-      }
-
-      const children = await this.pgrepChildren(pid);
-      queue.push(...children);
+      if (command && matches(command)) deepestMatch = pid;
+      queue.push(...(await this.pgrepChildren(pid)));
     }
 
     return deepestMatch;
@@ -91,8 +71,8 @@ export class TmuxManager {
         "-F",
         "#{pane_pid}",
       ]);
-      const panePid = parseInt(stdout.trim().split("\n")[0], 10);
-      return isNaN(panePid) ? null : panePid;
+      const panePid = Number.parseInt(stdout.trim().split("\n")[0], 10);
+      return Number.isNaN(panePid) ? null : panePid;
     } catch {
       return null;
     }
@@ -104,8 +84,8 @@ export class TmuxManager {
       return stdout
         .trim()
         .split("\n")
-        .map((s) => parseInt(s, 10))
-        .filter((n) => !isNaN(n));
+        .map((value) => Number.parseInt(value, 10))
+        .filter((value) => !Number.isNaN(value));
     } catch {
       return [];
     }
@@ -114,8 +94,7 @@ export class TmuxManager {
   private async getProcessCommand(pid: number): Promise<string | null> {
     try {
       const { stdout } = await execFileAsync("ps", ["-p", String(pid), "-o", "command="]);
-      const trimmed = stdout.trim();
-      return trimmed || null;
+      return stdout.trim() || null;
     } catch {
       return null;
     }

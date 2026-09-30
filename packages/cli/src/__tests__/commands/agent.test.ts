@@ -282,7 +282,7 @@ vi.mock(
       const session = (value as { session?: unknown }).session;
       return typeof session === "string" && session ? { session } : null;
     }),
-    AGENTS: {
+    HARNESS_RUNTIME_PROFILES: {
       claude: { command: "claude", matches: () => true },
       codex: { command: "codex", matches: () => true },
       copilot: { command: "copilot", matches: () => true },

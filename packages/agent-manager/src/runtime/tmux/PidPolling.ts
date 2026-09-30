@@ -1,4 +1,4 @@
-import type { TmuxManager } from "../../terminal/TmuxManager.js";
+import type { TmuxManager } from "./TmuxManager.js";
 
 export const DEFAULT_PID_POLL_INTERVAL_MS = 500;
 export const DEFAULT_PID_POLL_TIMEOUT_MS = 15_000;

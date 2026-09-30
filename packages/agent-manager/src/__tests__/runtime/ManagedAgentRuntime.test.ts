@@ -15,7 +15,7 @@ import {
 } from "../../runtime/ManagedAgentRuntime.js";
 import type { AgentInfo } from "../../adapters/AgentAdapter.js";
 import type { AgentRegistry, RegistryEntry } from "../../utils/AgentRegistry.js";
-import type { TmuxManager } from "../../terminal/TmuxManager.js";
+import type { TmuxManager } from "../../runtime/tmux/TmuxManager.js";
 import type { InteractiveAgentRuntime } from "../../runtime/types.js";
 
 function makeAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {

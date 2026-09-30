@@ -1,5 +1,5 @@
 import type { AgentInfo } from "../adapters/AgentAdapter.js";
-import type { TerminalLocation } from "../terminal/TerminalFocusManager.js";
+import type { TerminalLocation } from "../terminal/types.js";
 import type { AgentRuntimeProvider } from "../utils/AgentRegistry.js";
 
 export type AgentRuntimeAvailability =

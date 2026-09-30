@@ -1,4 +1,4 @@
-import { TmuxManager } from "../../terminal/TmuxManager.js";
+import { TmuxManager } from "./TmuxManager.js";
 import { TtyWriter } from "../../terminal/TtyWriter.js";
 import { AgentPidPollTimeoutError, AgentTerminalNotFoundError } from "../errors.js";
 import { pollForPid } from "./PidPolling.js";

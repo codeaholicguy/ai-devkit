@@ -1,12 +1,12 @@
 import type { AgentInfo } from "../adapters/AgentAdapter.js";
-import type { TerminalLocation } from "../terminal/TerminalFocusManager.js";
-import { TmuxManager } from "../terminal/TmuxManager.js";
+import type { TerminalLocation } from "../terminal/types.js";
+import { TmuxManager } from "./tmux/TmuxManager.js";
 import {
   AgentRegistry,
   type AgentRuntimeProvider,
   type RegistryEntry,
 } from "../utils/AgentRegistry.js";
-import { AGENTS, type StartableAgentType } from "../utils/agents.js";
+import { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "../harnesses/runtimeProfiles.js";
 import { createInteractiveRuntime } from "./RuntimeFactory.js";
 import { DEFAULT_PID_POLL_INTERVAL_MS, DEFAULT_PID_POLL_TIMEOUT_MS } from "./tmux/PidPolling.js";
 import { TmuxAgentRuntime } from "./tmux/TmuxAgentRuntime.js";
@@ -91,7 +91,7 @@ export async function startAgent(
   deps: StartAgentDeps = {},
 ): Promise<RegistryEntry> {
   const registry = deps.registry ?? AgentRegistry.default();
-  const agent = AGENTS[opts.type];
+  const profile = HARNESS_RUNTIME_PROFILES[opts.type];
   const intervalMs = opts.pollIntervalMs ?? DEFAULT_PID_POLL_INTERVAL_MS;
   const timeoutMs = opts.pollTimeoutMs ?? DEFAULT_PID_POLL_TIMEOUT_MS;
   const provider = opts.runtimeProvider ?? deps.runtime?.provider ?? "tmux";
@@ -119,13 +119,13 @@ export async function startAgent(
   const result = await runtime.startAgent({
     name: opts.name,
     cwd: opts.cwd,
-    kind: agentRuntimeKind(opts.type, provider),
+    kind: profile.runtimeKind,
     args: [],
     timeoutMs,
     ...(provider === "tmux"
       ? {
-          command: agent.command,
-          matches: agent.matches,
+          command: profile.command,
+          matches: profile.matches,
           pollIntervalMs: intervalMs,
         }
       : {}),
@@ -250,19 +250,4 @@ function isHerdrRegistryEntry(
     (entry as { runtime?: unknown }).runtime === "herdr" &&
     "runtimeRef" in entry
   );
-}
-
-function agentRuntimeKind(type: StartableAgentType, provider: AgentRuntimeProvider): string {
-  if (provider === "tmux") return type;
-  return {
-    claude: "claude",
-    codex: "codex",
-    copilot: "copilot",
-    gemini_cli: "gemini",
-    grok_cli: "grok",
-    antigravity_cli: "agy",
-    opencode: "opencode",
-    pi: "pi",
-    kiro: "kiro",
-  }[type];
 }

@@ -1,6 +1,6 @@
 import { execFile } from "child_process";
 import type { MockedFunction } from "vitest";
-import { TmuxManager } from "../../terminal/TmuxManager.js";
+import { TmuxManager } from "../../runtime/tmux/TmuxManager.js";
 
 vi.mock("child_process", () => ({
   execFile: vi.fn(),

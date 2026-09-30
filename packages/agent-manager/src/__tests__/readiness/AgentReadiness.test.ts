@@ -1,12 +1,12 @@
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
-  AGENTS,
   getAgentReadinessReport,
   getAgentReadinessReports,
   type AgentReadinessOptions,
   type ReadinessAgentType,
-} from "../../index.js";
+} from "../../readiness/AgentReadiness.js";
+import { HARNESS_RUNTIME_PROFILES } from "../../harnesses/runtimeProfiles.js";
 
 type Files = Record<string, string>;
 
@@ -64,7 +64,9 @@ function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
       files[path.join(homeDir, root, skill, "SKILL.md")] = "# skill";
     }
   }
-  const executablePaths = Object.values(AGENTS).map((agent) => path.join("/bin", agent.command));
+  const executablePaths = Object.values(HARNESS_RUNTIME_PROFILES).map((agent) =>
+    path.join("/bin", agent.command),
+  );
   const options: AgentReadinessOptions = {
     homeDir,
     path: "/bin",
@@ -139,7 +141,7 @@ describe("agent readiness", () => {
 
   it("resolves agent executables from PATH directories containing spaces", async () => {
     const spacedBin = "/Applications/Some App.app/Contents/Resources";
-    const codexPath = path.join(spacedBin, AGENTS.codex.command);
+    const codexPath = path.join(spacedBin, HARNESS_RUNTIME_PROFILES.codex.command);
     const { options } = fixture({
       path: [spacedBin, "/usr/local/bin"].join(path.delimiter),
       access: async (target) => {

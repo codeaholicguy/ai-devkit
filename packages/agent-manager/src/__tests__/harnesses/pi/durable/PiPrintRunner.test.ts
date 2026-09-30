@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
 import { PassThrough, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import type { PiDurableAgent } from "../../../../index.js";
+import type { PiDurableAgent } from "../../../../durable/DurableAgent.js";
+import { PiPrintRunner } from "../../../../harnesses/pi/durable/PiPrintRunner.js";
 
 const SESSION = "22222222-2222-4222-8222-222222222222";
 function agent(sessionHealth: PiDurableAgent["sessionHealth"] = "uninitialized"): PiDurableAgent {
@@ -63,10 +64,7 @@ function events(session = SESSION): string[] {
   ];
 }
 async function runner(fixture: ReturnType<typeof fakeSpawn>, maxLineBytes?: number) {
-  const api = (await import("../../../../index.js")) as Record<string, unknown>;
-  expect(api).toHaveProperty("PiPrintRunner");
-  const Runner = api.PiPrintRunner as new (options: unknown) => any;
-  return new Runner({
+  return new PiPrintRunner({
     spawn: fixture.spawn,
     maxLineBytes,
     processInspector: { getIdentity: () => ({ pid: 4242, startedAt: "start" }) },
@@ -154,10 +152,11 @@ describe("PiPrintRunner", () => {
       (await runner(fakeSpawn(events(), 1))).run({ agent: agent(), prompt: "x", onSpawn: vi.fn() }),
     ).rejects.toMatchObject({ code: "PI_PROCESS" });
     const fixture = fakeSpawn([]);
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const Runner = api.PiPrintRunner as new (options: unknown) => any;
     await expect(
-      new Runner({ spawn: fixture.spawn, processInspector: { getIdentity: () => null } }).run({
+      new PiPrintRunner({
+        spawn: fixture.spawn,
+        processInspector: { getIdentity: () => null },
+      }).run({
         agent: agent(),
         prompt: "x",
         onSpawn: vi.fn(),

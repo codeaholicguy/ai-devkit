@@ -2,18 +2,13 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterEach, describe, expect, it } from "vitest";
+import { DurableAgentRepository } from "../../durable/DurableAgentRepository.js";
 
 const tempDirs: string[] = [];
 
 afterEach(() => {
   for (const dir of tempDirs.splice(0)) fs.rmSync(dir, { recursive: true, force: true });
 });
-
-async function loadStore(): Promise<any> {
-  const api = (await import("../../index.js")) as Record<string, unknown>;
-  expect(api).toHaveProperty("DurableAgentRepository");
-  return api.DurableAgentRepository;
-}
 
 function fixture(): { root: string; cwd: string; dbPath: string } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "durable-agent-store-"));
@@ -25,7 +20,6 @@ function fixture(): { root: string; cwd: string; dbPath: string } {
 
 describe("DurableAgentRepository create/list/resolve", () => {
   it("creates distinct durable identities with a canonical cwd and lists them", async () => {
-    const DurableAgentRepository = await loadStore();
     const { cwd, dbPath } = fixture();
     const repository = new DurableAgentRepository({
       dbPath,
@@ -51,7 +45,6 @@ describe("DurableAgentRepository create/list/resolve", () => {
   });
 
   it("resolves exact ids and names and rejects duplicate names", async () => {
-    const DurableAgentRepository = await loadStore();
     const { cwd, dbPath } = fixture();
     const repository = new DurableAgentRepository({ dbPath });
     const agent = await repository.create({ name: "Reviewer", cwd });
@@ -65,7 +58,6 @@ describe("DurableAgentRepository create/list/resolve", () => {
   });
 
   it("rejects a missing cwd", async () => {
-    const DurableAgentRepository = await loadStore();
     const { root, dbPath } = fixture();
     const repository = new DurableAgentRepository({ dbPath });
 
@@ -77,7 +69,6 @@ describe("DurableAgentRepository create/list/resolve", () => {
 
 describe("DurableAgentRepository run ownership", () => {
   it("fails fast when another exact owner is live and completes only for its token", async () => {
-    const DurableAgentRepository = await loadStore();
     const { cwd, dbPath } = fixture();
     const live = new Map<number, string>([[process.pid, "owner-start"]]);
     const processInspector = {
@@ -112,7 +103,6 @@ describe("DurableAgentRepository run ownership", () => {
   });
 
   it("retains busy for a live provider then recovers a dead run without signaling it", async () => {
-    const DurableAgentRepository = await loadStore();
     const { cwd, dbPath } = fixture();
     const live = new Map<number, string>([
       [process.pid, "owner-start"],
@@ -151,7 +141,6 @@ describe("DurableAgentRepository run ownership", () => {
   });
 
   it("reconciles an interrupted run to degraded during list", async () => {
-    const DurableAgentRepository = await loadStore();
     const { cwd, dbPath } = fixture();
     const live = new Map<number, string>([[process.pid, "owner-start"]]);
     const repository = new DurableAgentRepository({
@@ -179,7 +168,6 @@ describe("DurableAgentRepository run ownership", () => {
   });
 
   it("rejects send acquisition when the bound cwd is replaced by a symlink", async () => {
-    const DurableAgentRepository = await loadStore();
     const { root, cwd, dbPath } = fixture();
     const repository = new DurableAgentRepository({ dbPath });
     const agent = await repository.create({ name: "bound", cwd });

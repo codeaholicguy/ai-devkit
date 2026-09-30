@@ -2,12 +2,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { CodexPrintError } from "../../../../durable/DurableAgent.js";
 import {
-  CodexPrintError,
-  CodexPrintAgentService,
   DurableAgentRepository,
   type ProcessInspector,
-} from "../../../../index.js";
+} from "../../../../durable/DurableAgentRepository.js";
+import { CodexPrintAgentService } from "../../../../harnesses/codex/durable/CodexPrintAgentService.js";
 
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const roots: string[] = [];

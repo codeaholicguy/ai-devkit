@@ -18,7 +18,7 @@ import {
   AgentRegistry,
   RenameNotFoundError,
   RenameConflictError,
-  AGENTS,
+  HARNESS_RUNTIME_PROFILES,
   AGENT_MODES,
   parseTmuxRuntimeRef,
   startAgent,
@@ -360,7 +360,7 @@ export function registerAgentCommand(program: Command): void {
     .description("Start a new agent in the configured interactive runtime")
     .requiredOption(
       "--type <type>",
-      `Agent type: ${Object.keys(AGENTS).join(", ")}`,
+      `Agent type: ${Object.keys(HARNESS_RUNTIME_PROFILES).join(", ")}`,
     )
     .option(
       "--mode <mode>",
@@ -387,9 +387,9 @@ export function registerAgentCommand(program: Command): void {
         const agentName =
           (options.name as string | undefined) ?? generateAgentName(cwd);
 
-        if (!(agentType in AGENTS)) {
+        if (!(agentType in HARNESS_RUNTIME_PROFILES)) {
           ui.error(
-            `Unsupported agent type "${agentType}". Supported: ${Object.keys(AGENTS).join(", ")}.`,
+            `Unsupported agent type "${agentType}". Supported: ${Object.keys(HARNESS_RUNTIME_PROFILES).join(", ")}.`,
           );
           process.exit(1);
         }

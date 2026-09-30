@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { CodexPrintError } from "../../../../durable/DurableAgent.js";
+import { CodexPrintAgentService } from "../../../../harnesses/codex/durable/CodexPrintAgentService.js";
 
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const base = {
@@ -11,15 +13,15 @@ const base = {
 
 describe("CodexPrintAgentService", () => {
   it("validates before provider-aware create and never runs Codex", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    expect(api).toHaveProperty("CodexPrintAgentService");
     const probe = {
       validate: vi.fn().mockResolvedValue({ executable: "codex", version: "0.147.0" }),
     };
     const repository = { create: vi.fn().mockResolvedValue(base) };
     const runner = { run: vi.fn() };
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
-    await new Service({ repository, probe, runner }).create({ name: "reviewer", cwd: "/project" });
+    await new CodexPrintAgentService({ repository, probe, runner }).create({
+      name: "reviewer",
+      cwd: "/project",
+    });
     expect(repository.create).toHaveBeenCalledWith({
       name: "reviewer",
       cwd: "/project",
@@ -29,7 +31,6 @@ describe("CodexPrintAgentService", () => {
   });
 
   it("binds during first send and explicitly resumes later sends", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
     const repository = {
       resolve: vi.fn().mockResolvedValue(base),
       acquireRun: vi
@@ -50,8 +51,7 @@ describe("CodexPrintAgentService", () => {
         return { sessionId: SESSION, result: "answer", messages: ["answer"], exitCode: 0 };
       }),
     };
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
-    const service = new Service({
+    const service = new CodexPrintAgentService({
       repository,
       probe: { validate: vi.fn() },
       runner,
@@ -74,8 +74,6 @@ describe("CodexPrintAgentService", () => {
   });
 
   it("records mismatch separately from unknown failures", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const ErrorType = api.CodexPrintError as new (message: string, code: string) => Error;
     const completeRun = vi.fn();
     const repository = {
       resolve: vi.fn().mockResolvedValue(base),
@@ -84,12 +82,11 @@ describe("CodexPrintAgentService", () => {
       bindProviderSession: vi.fn(),
       completeRun,
     };
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
-    const service = new Service({
+    const service = new CodexPrintAgentService({
       repository,
       probe: { validate: vi.fn() },
       runner: {
-        run: vi.fn().mockRejectedValue(new ErrorType("mismatch", "CODEX_SESSION_MISMATCH")),
+        run: vi.fn().mockRejectedValue(new CodexPrintError("mismatch", "CODEX_SESSION_MISMATCH")),
       },
     });
     await expect(service.send("reviewer", "x")).rejects.toMatchObject({
@@ -103,8 +100,6 @@ describe("CodexPrintAgentService", () => {
   });
 
   it("rejects a non-Codex target without acquiring or mutating it", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
     const repository = {
       resolve: vi.fn().mockResolvedValue({ ...base, provider: "claude" }),
       acquireRun: vi.fn(),
@@ -114,18 +109,17 @@ describe("CodexPrintAgentService", () => {
     };
 
     await expect(
-      new Service({ repository, probe: { validate: vi.fn() }, runner: { run: vi.fn() } }).send(
-        "reviewer",
-        "x",
-      ),
+      new CodexPrintAgentService({
+        repository,
+        probe: { validate: vi.fn() },
+        runner: { run: vi.fn() },
+      }).send("reviewer", "x"),
     ).rejects.toMatchObject({ code: "CODEX_UNSUPPORTED" });
     expect(repository.acquireRun).not.toHaveBeenCalled();
     expect(repository.completeRun).not.toHaveBeenCalled();
   });
 
   it("does not turn a successful completion write failure into a second completion", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
     const completionFailure = new Error("completion failed");
     const repository = {
       resolve: vi.fn().mockResolvedValue(base),
@@ -144,14 +138,15 @@ describe("CodexPrintAgentService", () => {
     };
 
     await expect(
-      new Service({ repository, probe: { validate: vi.fn() }, runner }).send("reviewer", "x"),
+      new CodexPrintAgentService({ repository, probe: { validate: vi.fn() }, runner }).send(
+        "reviewer",
+        "x",
+      ),
     ).rejects.toBe(completionFailure);
     expect(repository.completeRun).toHaveBeenCalledOnce();
   });
 
   it("records a repository binding conflict as a session mismatch", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const BindingError = api.CodexPrintError as new (message: string, code: string) => Error;
     const completeRun = vi.fn();
     const repository = {
       resolve: vi.fn().mockResolvedValue(base),
@@ -159,7 +154,7 @@ describe("CodexPrintAgentService", () => {
       recordProviderProcess: vi.fn(),
       bindProviderSession: vi
         .fn()
-        .mockRejectedValue(new BindingError("binding mismatch", "CODEX_SESSION_MISMATCH")),
+        .mockRejectedValue(new CodexPrintError("binding mismatch", "CODEX_SESSION_MISMATCH")),
       completeRun,
     };
     const runner = {
@@ -168,10 +163,11 @@ describe("CodexPrintAgentService", () => {
         return { sessionId: SESSION, result: "x", messages: ["x"], exitCode: 0 };
       }),
     };
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
-
     await expect(
-      new Service({ repository, probe: { validate: vi.fn() }, runner }).send("reviewer", "x"),
+      new CodexPrintAgentService({ repository, probe: { validate: vi.fn() }, runner }).send(
+        "reviewer",
+        "x",
+      ),
     ).rejects.toMatchObject({ code: "CODEX_SESSION_MISMATCH" });
     expect(completeRun).toHaveBeenCalledWith(
       "id",
@@ -181,8 +177,6 @@ describe("CodexPrintAgentService", () => {
   });
 
   it("rejects missing and ambiguous records before acquiring a run", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
-    const Service = api.CodexPrintAgentService as new (options: unknown) => any;
     const repository = {
       create: vi.fn(),
       resolve: vi.fn().mockResolvedValueOnce(null).mockResolvedValueOnce([base, base]),
@@ -191,7 +185,7 @@ describe("CodexPrintAgentService", () => {
       bindProviderSession: vi.fn(),
       completeRun: vi.fn(),
     };
-    const service = new Service({
+    const service = new CodexPrintAgentService({
       repository,
       probe: { validate: vi.fn() },
       runner: { run: vi.fn() },

@@ -47,7 +47,7 @@ export interface AgentManagerOptions {
   onRuntimeDiscoveryError?: (error: unknown) => void;
 }
 
-export class AgentNotRunningError extends Error {
+class AgentNotRunningError extends Error {
   constructor(public agentName: string) {
     super(`Agent "${agentName}" is no longer running.`);
     this.name = "AgentNotRunningError";

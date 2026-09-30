@@ -1,7 +1,8 @@
 import { EventEmitter } from "node:events";
 import { PassThrough, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import type { CodexDurableAgent } from "../../../../index.js";
+import type { CodexDurableAgent } from "../../../../durable/DurableAgent.js";
+import { CodexPrintRunner } from "../../../../harnesses/codex/durable/CodexPrintRunner.js";
 
 const SESSION = "22222222-2222-4222-8222-222222222222";
 
@@ -64,10 +65,7 @@ function events(session = SESSION): string[] {
 }
 
 async function runner(fixture: ReturnType<typeof fakeSpawn>, maxLineBytes?: number) {
-  const api = (await import("../../../../index.js")) as Record<string, unknown>;
-  expect(api).toHaveProperty("CodexPrintRunner");
-  const Runner = api.CodexPrintRunner as new (options: unknown) => any;
-  return new Runner({
+  return new CodexPrintRunner({
     spawn: fixture.spawn,
     maxLineBytes,
     processInspector: {
@@ -262,10 +260,8 @@ describe("CodexPrintRunner", () => {
   });
 
   it("rejects an unverifiable positive PID", async () => {
-    const api = (await import("../../../../index.js")) as Record<string, unknown>;
     const fixture = fakeSpawn([]);
-    const Runner = api.CodexPrintRunner as new (options: unknown) => any;
-    const instance = new Runner({
+    const instance = new CodexPrintRunner({
       spawn: fixture.spawn,
       processInspector: { getIdentity: () => null },
     });

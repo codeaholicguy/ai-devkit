@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { PassThrough, Writable } from "node:stream";
 import { describe, expect, it, vi } from "vitest";
-import type { DurableAgent } from "../../../../index.js";
+import type { DurableAgent } from "../../../../durable/DurableAgent.js";
 import { ClaudePrintRunner } from "../../../../harnesses/claude/durable/ClaudePrintRunner.js";
 
 function agent(): DurableAgent {
