@@ -19,11 +19,13 @@ To use the `agent open` command, your environment must meet these requirements:
 - **Operating System**: macOS is currently the primary supported platform for terminal focusing. Linux detection may work, but terminal focus behavior depends on your terminal and desktop environment.
 - **Terminal Emulator**: The agent must be running in one of the following:
   - **tmux**
+  - **WezTerm** (the `wezterm` command must be on your `PATH`)
+  - **Ghostty** (macOS)
   - **iTerm2**
   - **Apple Terminal**
 
 > [!NOTE]
-> AI DevKit uses process detection and system automation (AppleScript) to locate and focus windows. Ensure you grant necessary permissions when prompted.
+> AI DevKit uses process detection and system automation (AppleScript) to locate and focus windows. Ensure you grant necessary permissions when prompted. An agent running in tmux inside WezTerm or Ghostty is handled as tmux.
 
 ## Supported AI Tools
 
@@ -111,7 +113,7 @@ Focus the terminal window associated with a specific agent.
 ai-devkit agent open <name>
 ```
 
-This command finds the exact window (tmux pane, iTerm2 session, etc.) where the agent is running and brings it to the foreground.
+This command finds the exact window (tmux pane, WezTerm pane, Ghostty tab or split, iTerm2 session, etc.) where the agent is running and brings it to the foreground.
 
 **Features:**
 - **Fuzzy Matching**: `ai-devkit agent open my-proj` will match `my-project-name`.
@@ -190,8 +192,11 @@ Available group commands are:
 
 ### "Could not find terminal window"
 If `agent open` fails to focus the window:
-1. **Check Terminal Support**: Ensure the agent is running in **tmux**, **iTerm2**, or **Apple Terminal**. VS Code terminal is strictly not supported for external focus control.
+1. **Check Terminal Support**: Ensure the agent is running in **tmux**, **WezTerm**, **Ghostty**, **iTerm2**, or **Apple Terminal**. VS Code terminal is strictly not supported for external focus control.
 2. **Check Permissions (macOS)**:
    - Go to **System Settings** > **Privacy & Security** > **Accessibility**.
    - Ensure your terminal (iTerm2, Terminal) or tmux has permission to control your computer.
+   - For Ghostty, also check **System Settings** > **Privacy & Security** > **Automation** and allow the terminal you run `ai-devkit` from to control **Ghostty**.
    - If prompted during execution, click **Allow**.
+3. **WezTerm**: Run `wezterm cli list` in the same shell. If it fails, AI DevKit cannot see your WezTerm panes either.
+4. **Ghostty**: Ghostty does not report which terminal owns a TTY. When several Ghostty terminals are open in the same folder, AI DevKit briefly sets a unique tab title to find the right one, then restores the original title.

@@ -16,7 +16,7 @@ The `channel` command lets you bridge a running AI agent to Telegram or Slack. O
 - **A running AI agent** (Claude Code or Codex) detected by AI DevKit (see [Agent Management](/docs/8-agent-management))
 - **Telegram:** a bot token from [@BotFather](https://t.me/BotFather), or
 - **Slack:** a custom single-workspace app with Socket Mode, an `xapp-` app token, and an `xoxb-` bot token
-- **Terminal environment**: The agent must be running in **tmux**, **iTerm2**, or **Apple Terminal** (same requirements as `agent open`)
+- **Terminal environment**: The agent must be running in **tmux**, **WezTerm**, **Ghostty**, **iTerm2**, or **Apple Terminal** (same requirements as `agent open`)
 
 ## How It Works
 
@@ -287,7 +287,7 @@ Here is a step-by-step guide to set up a Telegram bridge. For full option detail
 Ensure your AI agent (e.g., `claude`) is running. Use `ai-devkit agent list` to verify.
 
 ### "Cannot find terminal for agent"
-The agent must be running in a supported terminal (tmux, iTerm2, or Apple Terminal). VS Code terminal is not supported for external control. See [Agent Management — Troubleshooting](/docs/8-agent-management#troubleshooting) for more details.
+The agent must be running in a supported terminal (tmux, WezTerm, Ghostty, iTerm2, or Apple Terminal). VS Code terminal is not supported for external control. See [Agent Management — Troubleshooting](/docs/8-agent-management#troubleshooting) for more details.
 
 ### "No Telegram channel configured"
 Run `ai-devkit channel connect telegram` first to set up your bot token.

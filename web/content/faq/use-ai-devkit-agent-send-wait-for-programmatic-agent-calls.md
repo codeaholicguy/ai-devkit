@@ -14,7 +14,7 @@ Before using this workflow:
 
 - Install AI DevKit and make sure `ai-devkit` is available in your shell.
 - Start a supported agent in the project you want to control: Claude Code, Codex, GitHub Copilot, Gemini CLI, Grok CLI, opencode, or Pi.
-- Keep that agent running in a supported terminal session such as tmux, iTerm2, or Apple Terminal.
+- Keep that agent running in a supported terminal session: tmux, WezTerm, Ghostty, iTerm2, or Apple Terminal.
 - Run `ai-devkit agent list` and confirm the session appears.
 
 ## Quick Example
@@ -196,7 +196,7 @@ Then pass a more specific `--id`.
 
 ### Cannot find terminal for the agent
 
-AI DevKit needs to find the terminal that owns the running agent process. The most reliable setups are tmux, iTerm2, and Apple Terminal.
+AI DevKit needs to find the terminal that owns the running agent process. Supported terminals are tmux, WezTerm, Ghostty, iTerm2, and Apple Terminal.
 
 On macOS, terminal focusing and sending may require Accessibility permissions for your terminal application.
 

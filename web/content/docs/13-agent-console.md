@@ -118,7 +118,7 @@ Select an agent and press `o` to focus its terminal window. This uses the same t
 ai-devkit agent open <agent-name>
 ```
 
-Terminal focusing works best with tmux, iTerm2, or Apple Terminal. VS Code terminal is not supported for external focus control.
+Terminal focusing works with tmux, WezTerm, Ghostty, iTerm2, and Apple Terminal. VS Code terminal is not supported for external focus control.
 
 ### Stop an Agent
 
