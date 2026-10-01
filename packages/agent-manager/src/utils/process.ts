@@ -221,6 +221,11 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pa
   return { allPids, matched };
 }
 
+/** Working directories of `pids` (async `lsof`); PIDs it cannot read are omitted. */
+export function getProcessCwdsAsync(pids: number[]): Promise<Map<number, string>> {
+  return batchGetProcessCwdsAsync(execFileText, pids);
+}
+
 async function batchGetProcessCwdsAsync(
   exec: ProcessExec,
   pids: number[],

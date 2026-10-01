@@ -33,10 +33,15 @@ export function appleScriptKeyAction(key: string): string {
   return `keystroke "${escapeAppleScript(key)}"`;
 }
 
+/** Whether a `ps` comm value (bare name or full executable path) is `name`. */
+export function isProcessName(comm: string, name: string): boolean {
+  return comm === name || comm.endsWith(`/${name}`);
+}
+
 export async function isProcessRunning(name: string): Promise<boolean> {
   const { stdout } = await execFileAsync("ps", ["-Axo", "comm"]);
   return stdout
     .split("\n")
     .map((line) => line.trim())
-    .some((command) => command === name || command.endsWith(`/${name}`));
+    .some((command) => isProcessName(command, name));
 }

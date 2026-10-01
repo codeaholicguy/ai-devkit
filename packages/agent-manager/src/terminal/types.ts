@@ -1,6 +1,7 @@
 export enum TerminalType {
   TMUX = "tmux",
   WEZTERM = "wezterm",
+  GHOSTTY = "ghostty",
   ITERM2 = "iterm2",
   TERMINAL_APP = "terminal-app",
   UNKNOWN = "unknown",
