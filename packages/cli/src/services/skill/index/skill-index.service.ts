@@ -254,12 +254,31 @@ export class SkillIndexService {
     return { meta, skills };
   }
 
+  /**
+   * Matches ranked best first: exact name, name prefix, name contains, then
+   * description only. Ties sort by name, then registry.
+   */
   private searchSkillIndex(index: SkillIndexData, keyword: string): SkillEntry[] {
-    return index.skills.filter((skill) => {
-      const nameMatch = skill.name.toLowerCase().includes(keyword);
-      const descMatch = skill.description.toLowerCase().includes(keyword);
-      return nameMatch || descMatch;
-    });
+    const NO_MATCH = 4;
+    const rank = (skill: SkillEntry): number => {
+      const name = skill.name.toLowerCase();
+      if (name === keyword) return 0;
+      if (name.startsWith(keyword)) return 1;
+      if (name.includes(keyword)) return 2;
+      if (skill.description.toLowerCase().includes(keyword)) return 3;
+      return NO_MATCH;
+    };
+
+    return index.skills
+      .map((skill) => ({ skill, rank: rank(skill) }))
+      .filter((match) => match.rank !== NO_MATCH)
+      .sort(
+        (a, b) =>
+          a.rank - b.rank ||
+          a.skill.name.localeCompare(b.skill.name) ||
+          a.skill.registry.localeCompare(b.skill.registry),
+      )
+      .map((match) => match.skill);
   }
 
   private async refreshLocalRegistryEntries(index: SkillIndexData): Promise<SkillIndexData> {

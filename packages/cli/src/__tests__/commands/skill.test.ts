@@ -21,6 +21,7 @@ const mockListInstallableSkills = vi.fn();
 const mockListSkills = vi.fn();
 const mockRemoveSkill = vi.fn();
 const mockRemoveRegistry = vi.fn();
+const mockFindSkills = vi.fn();
 
 vi.mock("../../lib/Config.js", () => ({
   ConfigManager: vi.fn(function () {
@@ -56,7 +57,7 @@ vi.mock("../../services/skill/skill.service.js", () => ({
       removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
       removeRegistry: (...args: unknown[]) => mockRemoveRegistry(...args),
       updateSkills: vi.fn(),
-      findSkills: vi.fn(),
+      findSkills: (...args: unknown[]) => mockFindSkills(...args),
       rebuildIndex: vi.fn(),
     };
   }),
@@ -91,6 +92,18 @@ const ANSI_PATTERN =
   /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 const textCalls = (): string[] =>
   vi.mocked(ui.text).mock.calls.map(([text]) => text.replace(ANSI_PATTERN, ""));
+
+/** A program whose commander errors reject `parseAsync` instead of exiting. */
+function strictProgram(): Command {
+  const program = new Command();
+  program.exitOverride();
+  registerSkillCommand(program);
+  program.commands.forEach((command) => {
+    command.exitOverride();
+    command.commands.forEach((sub) => sub.exitOverride());
+  });
+  return program;
+}
 
 vi.mock("@inquirer/prompts", () => ({
   checkbox: (...args: unknown[]) => mockCheckbox(...args),
@@ -580,16 +593,8 @@ describe("skill command", () => {
   });
 
   it("rejects an unknown --mode before installing anything", async () => {
-    const program = new Command();
-    program.exitOverride();
-    registerSkillCommand(program);
-    program.commands.forEach((command) => {
-      command.exitOverride();
-      command.commands.forEach((sub) => sub.exitOverride());
-    });
-
     await expect(
-      program.parseAsync([
+      strictProgram().parseAsync([
         "node",
         "test",
         "skill",
@@ -614,6 +619,88 @@ describe("skill command", () => {
     const help = addCommand?.helpInformation().replace(/\s+/g, " ");
     expect(help).toContain("--mode <mode>");
     expect(help).toContain('(choices: "copy", "link")');
+  });
+
+  describe("skill find", () => {
+    const entry = (name: string, registry: string) => ({
+      name,
+      registry,
+      path: `skills/${name}`,
+      description: "A skill",
+      lastIndexed: 0,
+    });
+    const manyResults = Array.from({ length: 25 }, (_, index) =>
+      entry(`skill-${String(index + 1).padStart(2, "0")}`, "example/skills"),
+    );
+    const commands = () => textCalls().filter((line) => line.includes("ai-devkit skill add"));
+    const tableRows = () => vi.mocked(ui.table).mock.calls[0]?.[0].rows ?? [];
+    const runFind = async (results: unknown[], keyword: string, ...args: string[]) => {
+      mockFindSkills.mockResolvedValue(results);
+      const program = new Command();
+      registerSkillCommand(program);
+      await program.parseAsync(["node", "test", "skill", "find", keyword, ...args]);
+    };
+
+    it("lists the exact skill add command for each result", async () => {
+      await runFind(
+        [entry("frontend-design", "anthropics/skills"), entry("debug", "codeaholicguy/ai-devkit")],
+        "design",
+      );
+
+      const lines = textCalls();
+      const header = lines.findIndex((line) => line.trim() === "Install with:");
+      expect(header).toBeGreaterThan(-1);
+      expect(lines.slice(header + 1, header + 3)).toEqual([
+        "  ai-devkit skill add anthropics/skills frontend-design",
+        "  ai-devkit skill add codeaholicguy/ai-devkit debug",
+      ]);
+      expect(lines.join("\n")).not.toContain("<registry>");
+    });
+
+    it("prints no install commands when there are no results", async () => {
+      await runFind([], "nothing");
+
+      expect(ui.warning).toHaveBeenCalledWith('No skills found matching "nothing"');
+      expect(commands()).toEqual([]);
+    });
+
+    it("shows the top 10 results with their commands and says how to see the rest", async () => {
+      await runFind(manyResults, "skill");
+
+      expect(tableRows()).toHaveLength(10);
+      expect(commands()).toHaveLength(10);
+      expect(commands()[0]).toBe("  ai-devkit skill add example/skills skill-01");
+      expect(textCalls()).toContainEqual(
+        expect.stringContaining('Found 25 skills matching "skill" (showing top 10)'),
+      );
+      expect(textCalls()).toContainEqual(
+        expect.stringContaining("15 more. Narrow the keyword, or use --limit <n> or --all"),
+      );
+    });
+
+    it("shows the requested number of results with --limit", async () => {
+      await runFind(manyResults, "skill", "--limit", "3");
+
+      expect(tableRows()).toHaveLength(3);
+      expect(commands()).toHaveLength(3);
+      expect(textCalls()).toContainEqual(expect.stringContaining("22 more."));
+    });
+
+    it("shows every result with --all and no footer", async () => {
+      await runFind(manyResults, "skill", "--all");
+
+      expect(tableRows()).toHaveLength(25);
+      expect(commands()).toHaveLength(25);
+      expect(textCalls().some((line) => line.includes("more."))).toBe(false);
+      expect(textCalls()).toContainEqual('Found 25 skills matching "skill":');
+    });
+
+    it("rejects a --limit that is not a positive integer", async () => {
+      await expect(
+        strictProgram().parseAsync(["node", "test", "skill", "find", "skill", "--limit", "0"]),
+      ).rejects.toThrow(/positive integer/);
+      expect(mockFindSkills).not.toHaveBeenCalled();
+    });
   });
 
   it("renders skill add results with per-target lines and dim metadata", async () => {

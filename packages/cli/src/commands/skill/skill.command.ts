@@ -1,4 +1,4 @@
-import { Command, Option } from "commander";
+import { Command, InvalidArgumentError, Option } from "commander";
 import { checkbox } from "@inquirer/prompts";
 import { ConfigManager } from "../../lib/Config.js";
 import { EnvironmentSelector } from "../../lib/EnvironmentSelector.js";
@@ -224,16 +224,22 @@ export function registerSkillCommand(program: Command): void {
     .command("find <keyword>")
     .description("Search for skills across all registries")
     .option("--refresh", "Force rebuild the skill index")
+    .option("--limit <n>", "Show at most n of the best matches", parsePositiveInteger, 10)
+    .option("--all", "Show every match")
     .action(
-      withErrorHandler("search skills", async (keyword: string, options: { refresh?: boolean }) => {
-        const configManager = new ConfigManager();
-        const skillService = new SkillService(configManager);
+      withErrorHandler(
+        "search skills",
+        async (keyword: string, options: { refresh?: boolean; limit: number; all?: boolean }) => {
+          const configManager = new ConfigManager();
+          const skillService = new SkillService(configManager);
 
-        renderSkillSearchResults(
-          keyword,
-          await skillService.findSkills(keyword, { refresh: options.refresh }),
-        );
-      }),
+          renderSkillSearchResults(
+            keyword,
+            await skillService.findSkills(keyword, { refresh: options.refresh }),
+            options.all ? undefined : options.limit,
+          );
+        },
+      ),
     );
 
   skillCommand
@@ -248,6 +254,14 @@ export function registerSkillCommand(program: Command): void {
         renderSkillIndexRebuild(await skillService.rebuildIndex(options.output));
       }),
     );
+}
+
+function parsePositiveInteger(value: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new InvalidArgumentError("Must be a positive integer.");
+  }
+  return parsed;
 }
 
 async function resolveSkillInstallOptions(

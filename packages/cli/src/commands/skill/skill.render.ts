@@ -188,9 +188,11 @@ export function renderGlobalSkills(skills: GlobalInstalledSkill[]): void {
   });
 }
 
+/** `results` are ranked best first; `limit` caps how many are shown (all when undefined). */
 export function renderSkillSearchResults(
   keyword: string,
   results: SkillEntry[],
+  limit?: number,
 ): void {
   if (results.length === 0) {
     ui.warning(`No skills found matching "${keyword}"`);
@@ -200,24 +202,32 @@ export function renderSkillSearchResults(
     return;
   }
 
+  const shown = results.slice(0, limit);
+  const hidden = results.length - shown.length;
+  const showing = hidden > 0 ? ` (showing top ${shown.length})` : "";
+
   ui.text(
-    `Found ${formatCount(results.length, "skill")} matching "${keyword}":`,
+    `Found ${formatCount(results.length, "skill")} matching "${keyword}"${showing}:`,
     {
       breakline: true,
     },
   );
   ui.table({
     headers: ["Skill Name", "Registry", "Description"],
-    rows: results.map((skill) => [
+    rows: shown.map((skill) => [
       skill.name,
       skill.registry,
       truncate(skill.description, 60, "..."),
     ]),
     columnStyles: [chalk.cyan, chalk.dim, chalk.white],
   });
-  ui.text("\nInstall with: ai-devkit skill add <registry> [skill-name]", {
-    breakline: true,
-  });
+  ui.text("\nInstall with:");
+  for (const skill of shown) {
+    ui.text(`  ai-devkit skill add ${skill.registry} ${skill.name}`);
+  }
+  if (hidden > 0) {
+    ui.text(`\n${hidden} more. Narrow the keyword, or use --limit <n> or --all to see them.`);
+  }
 }
 
 export function renderSkillIndexRebuild(result: SkillIndexRebuildResult): void {

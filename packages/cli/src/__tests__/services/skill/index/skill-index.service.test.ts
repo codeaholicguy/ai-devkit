@@ -420,6 +420,39 @@ describe("SkillService", () => {
       expect(results[0].name).toBe("frontend-design");
     });
 
+    it("ranks exact, then prefix, then name, then description matches", async () => {
+      const entry = (name: string, registry: string, description = "") => ({
+        name,
+        registry,
+        path: `skills/${name}`,
+        description,
+        lastIndexed: Date.now(),
+      });
+      (mockedFs.pathExists as any).mockResolvedValue(true);
+      (mockedFs.readJson as any).mockResolvedValue({
+        ...mockSkillIndex,
+        skills: [
+          entry("bug-hunter", "z/skills", "Find and debug flaky tests"),
+          entry("remote-debugging", "a/skills"),
+          entry("debugging-tools", "b/skills"),
+          entry("debug", "z/skills"),
+          entry("debug", "a/skills"),
+          entry("debugger", "a/skills"),
+        ],
+      });
+
+      const results = await skillManager.findSkills("Debug");
+
+      expect(results.map((r) => `${r.registry}/${r.name}`)).toEqual([
+        "a/skills/debug",
+        "z/skills/debug",
+        "a/skills/debugger",
+        "b/skills/debugging-tools",
+        "a/skills/remote-debugging",
+        "z/skills/bug-hunter",
+      ]);
+    });
+
     it("should be case-insensitive", async () => {
       (mockedFs.pathExists as any).mockResolvedValue(true);
       (mockedFs.readJson as any).mockResolvedValue(mockSkillIndex);

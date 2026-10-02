@@ -366,6 +366,8 @@ ai-devkit skill find <keyword>
 | Option | Description |
 |--------|-------------|
 | `--refresh` | Force rebuild the skill index before searching |
+| `--limit <n>` | Show at most `n` of the best matches (default: 10) |
+| `--all` | Show every match |
 
 **Example:**
 
@@ -379,8 +381,9 @@ The find command searches a pre-built skill index that aggregates skills from al
 
 1. Checks for a cached local skill index
 2. Matches your keyword against skill names and descriptions
-3. Returns sorted results showing skill name, registry, and description
-4. Provides the install command for easy copy-paste
+3. Ranks matches: exact name first, then names starting with the keyword, then names containing it, then description-only matches
+4. Shows the top 10 (or `--limit <n>`, or `--all`) with skill name, registry, and description, and says how many more matched
+5. Prints the exact `ai-devkit skill add <registry> <skill-name>` command for each result shown, ready to copy
 
 **When to Use `--refresh`:**
 
