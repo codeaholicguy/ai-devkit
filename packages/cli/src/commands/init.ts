@@ -119,7 +119,11 @@ function normalizeSkills(skills: InitTemplateSkill[]): ConfigSkill[] {
     }
     seen.add(dedupeKey);
 
-    results.push({ registry: entry.registry, name: entry.skill });
+    results.push({
+      registry: entry.registry,
+      name: entry.skill,
+      ...(entry.mode ? { mode: entry.mode } : {}),
+    });
   }
 
   return results;

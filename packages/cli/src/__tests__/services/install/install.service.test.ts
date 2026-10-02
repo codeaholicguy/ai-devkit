@@ -119,6 +119,62 @@ describe("install service", () => {
     expect(report.complete).toBe(true);
   });
 
+  it("passes each skill's mode and the overwrite flag to the installer", async () => {
+    await reconcileAndInstall(
+      {
+        ...installConfig,
+        skills: [
+          { registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" as const },
+          { registry: "codeaholicguy/ai-devkit", name: "memory" },
+        ],
+      },
+      { overwrite: true },
+    );
+
+    expect(mockSkillService.addSkill).toHaveBeenCalledWith("codeaholicguy/ai-devkit", "debug", {
+      mode: "copy",
+      overwrite: true,
+    });
+    expect(mockSkillService.addSkill).toHaveBeenCalledWith("codeaholicguy/ai-devkit", "memory", {
+      mode: undefined,
+      overwrite: true,
+    });
+  });
+
+  it("reports a copy-mode skill installed as a symlink as an unresolved conflict", async () => {
+    mockSkillService.addSkill.mockImplementation(async (registryId: string, skillName: string) => ({
+      status: "matched",
+      registryId,
+      installMode: "project",
+      environments: ["codex"],
+      items: [
+        {
+          skillName,
+          target: `.codex/skills/${skillName}`,
+          action: "conflict",
+          reason: "installed as a symlink; run with --overwrite to replace it with a copy",
+        },
+      ],
+    }));
+
+    const report = await reconcileAndInstall(installConfig, {});
+
+    expect(report.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          section: "skill",
+          name: "debug",
+          target: ".codex/skills/debug",
+          status: "conflict",
+          message: expect.stringContaining("--overwrite"),
+        }),
+      ]),
+    );
+    expect(report.skills.skipped).toBe(1);
+    expect(report.complete).toBe(false);
+    expect(getInstallExitCode(report)).toBe(1);
+  });
+
   it("uses one skill manager while reconciling mixed registries", async () => {
     const mixedRegistryConfig = {
       ...installConfig,

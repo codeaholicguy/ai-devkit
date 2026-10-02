@@ -139,17 +139,32 @@ export async function reconcileAndInstall(
 
   for (const skill of config.skills) {
     try {
-      const result = await skillService.addSkill(skill.registry, skill.name);
+      const result = await skillService.addSkill(skill.registry, skill.name, {
+        mode: skill.mode,
+        overwrite: options.overwrite,
+      });
       if (result.status === "matched") {
         report.skills.skipped += 1;
       } else {
         report.skills.installed += 1;
       }
-      report.items.push({
-        section: "skill",
-        name: skill.name,
-        status: result.status === "matched" ? "matched" : "installed",
-      });
+      const conflicts = result.items.filter((item) => item.action === "conflict");
+      if (conflicts.length === 0) {
+        report.items.push({
+          section: "skill",
+          name: skill.name,
+          status: result.status === "matched" ? "matched" : "installed",
+        });
+      }
+      for (const conflict of conflicts) {
+        report.items.push({
+          section: "skill",
+          name: skill.name,
+          target: conflict.target,
+          status: "conflict",
+          message: conflict.reason,
+        });
+      }
     } catch (error) {
       report.skills.failed += 1;
       report.warnings.push(

@@ -169,17 +169,24 @@ Maps custom registry IDs (e.g., `owner/repo`) to Git URLs. These are merged with
 
 #### `skills`
 
-- **Type:** array of `{ registry, name }`
+- **Type:** array of `{ registry, name, mode? }`
 - **Optional**
 
 List of installed skills. Duplicates are automatically deduplicated.
 
+`mode` controls how `ai-devkit install` puts each skill folder into your environments:
+
+- **`link`** (default when `mode` is omitted): symlink to the cached skill. If symlinks cannot be created, AI DevKit copies the folder instead.
+- **`copy`**: a real copy of the skill folder, for example when the files must work without the local skill cache.
+
 ```json
 "skills": [
-  { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug" },
+  { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug", "mode": "copy" },
   { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
 ]
 ```
+
+Existing installs are kept as they are. If a skill set to `copy` is still installed as a symlink, `ai-devkit install` reports a conflict and exits with a non-zero code; run `ai-devkit install --overwrite` to replace the symlink with a copy.
 
 **Modified by:** `ai-devkit skill add`, `ai-devkit skill remove`, `ai-devkit skill update`, `ai-devkit init --built-in`
 

@@ -1,3 +1,5 @@
+import type { SkillInstallMode } from "../../types.js";
+
 export interface InstalledSkill {
   name: string;
   registry: string;
@@ -18,14 +20,20 @@ export interface RegistrySkillChoice {
 export interface AddSkillOptions {
   global?: boolean;
   environments?: string[];
+  /** Copy the skill folder or symlink it (default). */
+  mode?: SkillInstallMode;
+  /** Replace a symlinked install with a copy when `mode` is `copy`. */
+  overwrite?: boolean;
 }
 
-export type SkillInstallAction = "symlinked" | "copied" | "skipped";
+/** `conflict`: a copy was requested but a symlink is installed; `overwrite` resolves it. */
+export type SkillInstallAction = "symlinked" | "copied" | "skipped" | "conflict";
 
 export interface SkillInstallItem {
   skillName: string;
   target: string;
   action: SkillInstallAction;
+  reason?: string;
 }
 
 export interface SkillInstallResult {

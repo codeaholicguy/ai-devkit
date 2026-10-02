@@ -126,6 +126,7 @@ paths:
 skills:
   - registry: codeaholicguy/ai-devkit
     skill: structured-debug
+    mode: copy # optional: copy or link (default)
   - registry: codeaholicguy/ai-devkit
     skill: dev-lifecycle
 ```

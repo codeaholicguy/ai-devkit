@@ -8,6 +8,8 @@ import {
   McpServerDefinition,
   McpTransport,
   Phase,
+  SKILL_INSTALL_MODES,
+  SkillInstallMode,
 } from "../types.js";
 import { isValidEnvironmentCode } from "../util/env.js";
 import { normalizeRegistrySources } from "../services/skill/registry/skill-registry-source.js";
@@ -15,6 +17,7 @@ import { normalizeRegistrySources } from "../services/skill/registry/skill-regis
 export interface InitTemplateSkill {
   registry: string;
   skill: string;
+  mode?: SkillInstallMode;
 }
 
 export interface InitTemplateConfig {
@@ -175,7 +178,7 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
       }
 
       const skillEntry = entry as Record<string, unknown>;
-      const { registry, skill } = skillEntry;
+      const { registry, skill, mode } = skillEntry;
 
       if (typeof registry !== "string" || registry.trim().length === 0) {
         throw validationError(
@@ -188,9 +191,17 @@ function validateTemplate(raw: unknown, resolvedPath: string): InitTemplateConfi
         throw validationError(resolvedPath, `"skills[${index}].skill" must be a non-empty string`);
       }
 
+      if (mode !== undefined && !(SKILL_INSTALL_MODES as unknown[]).includes(mode)) {
+        throw validationError(
+          resolvedPath,
+          `"skills[${index}].mode" must be one of: ${SKILL_INSTALL_MODES.join(", ")}`,
+        );
+      }
+
       return {
         registry: registry.trim(),
         skill: skill.trim(),
+        ...(mode !== undefined ? { mode: mode as SkillInstallMode } : {}),
       };
     });
   }

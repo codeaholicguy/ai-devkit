@@ -55,9 +55,15 @@ export interface DevKitConfig {
   createdAt: string;
 }
 
+/** How a skill folder is installed into an environment; `link` is the default. */
+export type SkillInstallMode = "copy" | "link";
+
+export const SKILL_INSTALL_MODES: SkillInstallMode[] = ["copy", "link"];
+
 export interface ConfigSkill {
   registry: string;
   name: string;
+  mode?: SkillInstallMode;
 }
 
 export type McpTransport = "stdio" | "http" | "sse";

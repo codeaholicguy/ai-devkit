@@ -6,6 +6,7 @@ import {
   McpServerDefinition,
   Phase,
   AVAILABLE_PHASES,
+  SKILL_INSTALL_MODES,
 } from "../types.js";
 import { isValidEnvironmentCode } from "./env.js";
 
@@ -24,6 +25,17 @@ const skillEntrySchema = z
     registry: z.string().trim().min(1, "registry must be a non-empty string"),
     name: z.string().trim().min(1).optional(),
     skill: z.string().trim().min(1).optional(),
+    mode: z
+      .string()
+      .optional()
+      .superRefine((value, ctx) => {
+        if (value !== undefined && !(SKILL_INSTALL_MODES as string[]).includes(value)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `has unsupported value "${value}"; supported values: ${SKILL_INSTALL_MODES.join(", ")}`,
+          });
+        }
+      }),
   })
   .transform((entry, ctx): ConfigSkill => {
     const resolvedName = entry.name ?? entry.skill;
@@ -39,6 +51,7 @@ const skillEntrySchema = z
     return {
       registry: entry.registry,
       name: resolvedName,
+      ...(entry.mode ? { mode: entry.mode as ConfigSkill["mode"] } : {}),
     };
   });
 

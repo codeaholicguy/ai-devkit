@@ -60,9 +60,13 @@ export function renderSkillInstallResult(result: SkillInstallResult): void {
 
   for (const item of result.items) {
     const actionOrReason =
-      item.action === "skipped" ? "already exists, skipped" : item.action;
+      item.action === "skipped"
+        ? "already exists, skipped"
+        : item.action === "conflict"
+          ? (item.reason ?? "conflict")
+          : item.action;
     renderResultLine(
-      item.action === "skipped" ? "warning" : "success",
+      item.action === "skipped" || item.action === "conflict" ? "warning" : "success",
       item.target,
       actionOrReason,
     );

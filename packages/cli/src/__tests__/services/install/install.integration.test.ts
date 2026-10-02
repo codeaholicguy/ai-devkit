@@ -1,6 +1,7 @@
 import fs from "fs-extra";
 import os from "os";
 import path from "path";
+import { pathToFileURL } from "url";
 import { reconcileAndInstall } from "../../../services/install/install.service.js";
 
 describe("project application integration", () => {
@@ -135,5 +136,83 @@ describe("project application integration", () => {
     });
     expect(resolved.complete).toBe(true);
     expect(await fs.readFile(mcpPath, "utf8")).toContain('command = "new"');
+  });
+
+  describe("skill install mode", () => {
+    let registryRoot: string;
+    const registryId = "local/skills";
+
+    beforeEach(async () => {
+      vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
+      registryRoot = await fs.mkdtemp(path.join(os.tmpdir(), "ai-devkit-registry-"));
+      for (const name of ["copied", "linked"]) {
+        await fs.outputFile(
+          path.join(registryRoot, "skills", name, "SKILL.md"),
+          `---\nname: ${name}\ndescription: ${name} skill\n---\n`,
+        );
+      }
+    });
+
+    afterEach(async () => {
+      vi.unstubAllGlobals();
+      await fs.remove(registryRoot);
+    });
+
+    const desired = (copiedMode: "copy" | "link") => ({
+      environments: ["claude" as const],
+      phases: [],
+      registries: { [registryId]: pathToFileURL(registryRoot).href },
+      skills: [
+        { registry: registryId, name: "copied", mode: copiedMode },
+        { registry: registryId, name: "linked" },
+      ],
+      mcpServers: {},
+    });
+    const target = (name: string) => path.join(projectRoot, ".claude", "skills", name);
+
+    it("copies skills in copy mode and symlinks them by default", async () => {
+      const report = await reconcileAndInstall(desired("copy"), { nonInteractive: true });
+
+      expect(report.complete).toBe(true);
+      expect((await fs.lstat(target("copied"))).isSymbolicLink()).toBe(false);
+      expect(await fs.readFile(path.join(target("copied"), "SKILL.md"), "utf8")).toContain(
+        "copied skill",
+      );
+      expect((await fs.lstat(target("linked"))).isSymbolicLink()).toBe(true);
+      expect((await fs.readJson(path.join(projectRoot, ".ai-devkit.json"))).skills).toEqual([
+        { registry: registryId, name: "copied", mode: "copy" },
+        { registry: registryId, name: "linked" },
+      ]);
+
+      const again = await reconcileAndInstall(desired("copy"), { nonInteractive: true });
+      expect(again.complete).toBe(true);
+      expect(again.items.filter((item) => item.section === "skill")).toEqual([
+        expect.objectContaining({ name: "copied", status: "matched" }),
+        expect.objectContaining({ name: "linked", status: "matched" }),
+      ]);
+    });
+
+    it("reports a linked skill switched to copy mode as a conflict until --overwrite", async () => {
+      await reconcileAndInstall(desired("link"), { nonInteractive: true });
+      expect((await fs.lstat(target("copied"))).isSymbolicLink()).toBe(true);
+
+      const conflict = await reconcileAndInstall(desired("copy"), { nonInteractive: true });
+      expect(conflict.complete).toBe(false);
+      expect(conflict.items).toContainEqual(
+        expect.objectContaining({ section: "skill", name: "copied", status: "conflict" }),
+      );
+      expect((await fs.lstat(target("copied"))).isSymbolicLink()).toBe(true);
+
+      const resolved = await reconcileAndInstall(desired("copy"), {
+        nonInteractive: true,
+        overwrite: true,
+      });
+      expect(resolved.complete).toBe(true);
+      expect((await fs.lstat(target("copied"))).isSymbolicLink()).toBe(false);
+      expect((await fs.lstat(target("linked"))).isSymbolicLink()).toBe(true);
+      expect(await fs.pathExists(path.join(registryRoot, "skills", "copied", "SKILL.md"))).toBe(
+        true,
+      );
+    });
   });
 });

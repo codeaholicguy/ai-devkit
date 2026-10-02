@@ -17,13 +17,14 @@ import {
   resolveContainedSkill,
 } from "../registry/registry-skill-discovery.js";
 import { ConfigNotFoundError, NotFoundError, ValidationError } from "../../../util/errors.js";
-import type { EnvironmentCode } from "../../../types.js";
+import type { EnvironmentCode, SkillInstallMode } from "../../../types.js";
 import type {
   AddSkillOptions,
   GlobalInstalledSkill,
   InstalledSkill,
   RegistrySkillChoice,
   RemoveSkillOptions,
+  SkillInstallAction,
   SkillInstallItem,
   SkillInstallResult,
   SkillRemoveResult,
@@ -454,37 +455,39 @@ export class SkillInstallerService {
       ? await resolveContainedSkill(registryId, repoPath, resolvedSkillName)
       : await this.resolveInstallableSkillPath(repoPath, registryId, resolvedSkillName);
 
+    const mode = options.mode ?? "link";
     let installed = false;
     const items: SkillInstallItem[] = [];
     for (const targetDir of installContext.targets) {
       const targetPath = path.join(installContext.baseDir, targetDir, resolvedSkillName);
+      const target = `${targetDir}/${resolvedSkillName}`;
 
       if (await fs.pathExists(targetPath)) {
-        items.push({
-          skillName: resolvedSkillName,
-          target: `${targetDir}/${resolvedSkillName}`,
-          action: "skipped",
-        });
-        continue;
+        // A copy was requested but the skill is still linked: replace it only on overwrite.
+        // Existing copies are kept in either mode; they may hold local edits.
+        const linked = mode === "copy" && (await fs.lstat(targetPath)).isSymbolicLink();
+        if (!linked) {
+          items.push({ skillName: resolvedSkillName, target, action: "skipped" });
+          continue;
+        }
+        if (!options.overwrite) {
+          items.push({
+            skillName: resolvedSkillName,
+            target,
+            action: "conflict",
+            reason: "installed as a symlink; run with --overwrite to replace it with a copy",
+          });
+          continue;
+        }
+        await fs.remove(targetPath);
       }
 
       await fs.ensureDir(path.dirname(targetPath));
-
-      try {
-        await fs.symlink(skillPath, targetPath, "dir");
-        items.push({
-          skillName: resolvedSkillName,
-          target: `${targetDir}/${resolvedSkillName}`,
-          action: "symlinked",
-        });
-      } catch (ignoreError) {
-        await fs.copy(skillPath, targetPath);
-        items.push({
-          skillName: resolvedSkillName,
-          target: `${targetDir}/${resolvedSkillName}`,
-          action: "copied",
-        });
-      }
+      items.push({
+        skillName: resolvedSkillName,
+        target,
+        action: await installSkillFolder(skillPath, targetPath, mode),
+      });
       installed = true;
     }
 
@@ -492,6 +495,7 @@ export class SkillInstallerService {
       await this.configManager.addSkill({
         registry: registryId,
         name: resolvedSkillName,
+        ...(options.mode ? { mode: options.mode } : {}),
       });
     }
 
@@ -571,4 +575,26 @@ function resolveInstallationTargets(
   }
 
   return { targets, capableEnvironments };
+}
+
+/**
+ * Put the skill folder at `targetPath`: a real copy in `copy` mode, otherwise a
+ * symlink, falling back to a copy where symlinks cannot be created.
+ */
+async function installSkillFolder(
+  skillPath: string,
+  targetPath: string,
+  mode: SkillInstallMode,
+): Promise<Extract<SkillInstallAction, "symlinked" | "copied">> {
+  if (mode === "copy") {
+    await fs.copy(skillPath, targetPath, { dereference: true });
+    return "copied";
+  }
+  try {
+    await fs.symlink(skillPath, targetPath, "dir");
+    return "symlinked";
+  } catch (ignoreError) {
+    await fs.copy(skillPath, targetPath);
+    return "copied";
+  }
 }

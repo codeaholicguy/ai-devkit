@@ -568,6 +568,115 @@ describe("SkillService", () => {
       );
     });
 
+    describe("install mode", () => {
+      const target = () => path.join(process.cwd(), ".claude", "skills", mockSkillName);
+      const targetMissing = () =>
+        (mockedFs.pathExists as any).mockImplementation((checkPath: string) =>
+          Promise.resolve(checkPath !== target()),
+        );
+      const targetIs = (kind: "symlink" | "directory") =>
+        (mockedFs.lstat as any).mockResolvedValue({ isSymbolicLink: () => kind === "symlink" });
+
+      it("copies the skill folder in copy mode and records the mode", async () => {
+        targetMissing();
+
+        const result = await skillManager.addSkill(mockRegistryId, mockSkillName, {
+          environments: ["claude"],
+          mode: "copy",
+        });
+
+        expect(mockedFs.copy).toHaveBeenCalledWith(expect.any(String), target(), {
+          dereference: true,
+        });
+        expect(mockedFs.symlink).not.toHaveBeenCalled();
+        expect(result.items).toEqual([expect.objectContaining({ action: "copied" })]);
+        expect(mockConfigManager.addSkill).toHaveBeenCalledWith({
+          registry: mockRegistryId,
+          name: mockSkillName,
+          mode: "copy",
+        });
+      });
+
+      it("symlinks the skill folder in link mode", async () => {
+        targetMissing();
+
+        const result = await skillManager.addSkill(mockRegistryId, mockSkillName, {
+          environments: ["claude"],
+          mode: "link",
+        });
+
+        expect(mockedFs.symlink).toHaveBeenCalledWith(expect.any(String), target(), "dir");
+        expect(mockedFs.copy).not.toHaveBeenCalled();
+        expect(result.items).toEqual([expect.objectContaining({ action: "symlinked" })]);
+        expect(mockConfigManager.addSkill).toHaveBeenCalledWith({
+          registry: mockRegistryId,
+          name: mockSkillName,
+          mode: "link",
+        });
+      });
+
+      it("symlinks by default without writing a mode to the config", async () => {
+        targetMissing();
+
+        await skillManager.addSkill(mockRegistryId, mockSkillName, { environments: ["claude"] });
+
+        expect(mockedFs.symlink).toHaveBeenCalledWith(expect.any(String), target(), "dir");
+        expect(mockConfigManager.addSkill.mock.calls[0][0]).not.toHaveProperty("mode");
+      });
+
+      it("reports a conflict when copy mode finds an existing symlink", async () => {
+        targetIs("symlink");
+
+        const result = await skillManager.addSkill(mockRegistryId, mockSkillName, {
+          environments: ["claude"],
+          mode: "copy",
+        });
+
+        expect(result.status).toBe("matched");
+        expect(result.items).toEqual([
+          expect.objectContaining({
+            action: "conflict",
+            reason: expect.stringContaining("--overwrite"),
+          }),
+        ]);
+        expect(mockedFs.remove).not.toHaveBeenCalled();
+        expect(mockedFs.copy).not.toHaveBeenCalled();
+      });
+
+      it("replaces an existing symlink with a copy when overwrite is set", async () => {
+        targetIs("symlink");
+
+        const result = await skillManager.addSkill(mockRegistryId, mockSkillName, {
+          environments: ["claude"],
+          mode: "copy",
+          overwrite: true,
+        });
+
+        expect(mockedFs.remove).toHaveBeenCalledWith(target());
+        expect(mockedFs.copy).toHaveBeenCalledWith(expect.any(String), target(), {
+          dereference: true,
+        });
+        expect(result.status).toBe("installed");
+        expect(result.items).toEqual([expect.objectContaining({ action: "copied" })]);
+      });
+
+      it.each(["link", "copy"] as const)(
+        "keeps an existing copied folder in %s mode",
+        async (mode) => {
+          targetIs("directory");
+
+          const result = await skillManager.addSkill(mockRegistryId, mockSkillName, {
+            environments: ["claude"],
+            mode,
+            overwrite: true,
+          });
+
+          expect(result.items).toEqual([expect.objectContaining({ action: "skipped" })]);
+          expect(mockedFs.remove).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it("should create config if missing and fail when environments remain unresolved", async () => {
       mockConfigManager.read.mockResolvedValue(null);
       mockConfigManager.create.mockResolvedValue({

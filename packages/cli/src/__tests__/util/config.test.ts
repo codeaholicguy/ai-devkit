@@ -65,6 +65,31 @@ describe("config util", () => {
     ).toThrow("skills[0].registry");
   });
 
+  it("keeps each skill's install mode and rejects unknown modes", () => {
+    const result = validateInstallConfig(
+      {
+        skills: [
+          { registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" },
+          { registry: "codeaholicguy/ai-devkit", name: "memory", mode: "link" },
+          { registry: "codeaholicguy/ai-devkit", name: "verify" },
+        ],
+      },
+      "/tmp/.ai-devkit.json",
+    );
+
+    expect(result.skills).toEqual([
+      { registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" },
+      { registry: "codeaholicguy/ai-devkit", name: "memory", mode: "link" },
+      { registry: "codeaholicguy/ai-devkit", name: "verify" },
+    ]);
+    expect(() =>
+      validateInstallConfig(
+        { skills: [{ registry: "codeaholicguy/ai-devkit", name: "debug", mode: "hardlink" }] },
+        "/tmp/.ai-devkit.json",
+      ),
+    ).toThrow("skills[0].mode");
+  });
+
   it("defaults registries to empty object when not provided", () => {
     const result = validateInstallConfig(
       {

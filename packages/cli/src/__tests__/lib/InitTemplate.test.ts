@@ -41,6 +41,32 @@ skills:
     cwdSpy.mockRestore();
   });
 
+  it("keeps a skill's install mode and rejects unknown modes", async () => {
+    mockFs.pathExists.mockResolvedValue(true as never);
+    mockFs.readFile.mockResolvedValue(
+      JSON.stringify({
+        skills: [
+          { registry: "codeaholicguy/ai-devkit", skill: "memory", mode: "copy" },
+          { registry: "codeaholicguy/ai-devkit", skill: "debug" },
+        ],
+      }) as never,
+    );
+
+    const result = await loadInitTemplate("/tmp/init.json");
+
+    expect(result.skills).toEqual([
+      { registry: "codeaholicguy/ai-devkit", skill: "memory", mode: "copy" },
+      { registry: "codeaholicguy/ai-devkit", skill: "debug" },
+    ]);
+
+    mockFs.readFile.mockResolvedValue(
+      JSON.stringify({
+        skills: [{ registry: "codeaholicguy/ai-devkit", skill: "memory", mode: "hardlink" }],
+      }) as never,
+    );
+    await expect(loadInitTemplate("/tmp/init.json")).rejects.toThrow('"skills[0].mode"');
+  });
+
   it("loads JSON template from absolute path", async () => {
     const templatePath = "/tmp/init.json";
     mockFs.pathExists.mockResolvedValue(true as never);

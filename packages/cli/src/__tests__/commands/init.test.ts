@@ -291,6 +291,24 @@ describe("init command", () => {
       ]);
     });
 
+    it("passes each template skill's install mode through to the config", async () => {
+      mockLoadInitTemplate.mockResolvedValue({
+        environments: ["codex"],
+        phases: ["requirements"],
+        skills: [
+          { registry: "codeaholicguy/ai-devkit", skill: "debug", mode: "copy" },
+          { registry: "codeaholicguy/ai-devkit", skill: "memory" },
+        ],
+      });
+
+      await initCommand({ template: "./init.yaml" });
+
+      expect(appliedConfig().skills).toEqual([
+        { registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" },
+        { registry: "codeaholicguy/ai-devkit", name: "memory" },
+      ]);
+    });
+
     it("falls back to interactive selection when template omits environments and phases", async () => {
       mockLoadInitTemplate.mockResolvedValue({
         skills: [{ registry: "codeaholicguy/ai-devkit", skill: "debug" }],
