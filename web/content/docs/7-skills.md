@@ -146,6 +146,7 @@ ai-devkit skill add [registry-repo] [skill-name]
 | `--built-in` | Install all AI DevKit built-in skills |
 | `-g, --global` | Install the skill into configured global skill paths in your home directory |
 | `-e, --env <environment...>` | Limit a global install to specific environments; only valid with `--global` |
+| `--mode <copy\|link>` | Copy the skill folder or symlink it (default: `link`). For project installs the mode is saved to the skill's entry in `.ai-devkit.json` |
 
 **Examples:**
 
@@ -164,6 +165,9 @@ ai-devkit skill add anthropics/skills frontend-design --global
 
 # Install globally for specific environments only
 ai-devkit skill add anthropics/skills frontend-design --global --env claude codex
+
+# Install a real copy of the skill folder instead of a symlink
+ai-devkit skill add anthropics/skills frontend-design --mode copy
 ```
 
 This command will:
@@ -179,6 +183,7 @@ This command will:
 - If you omit `[skill-name]` in an interactive terminal, AI DevKit shows a multi-select prompt
 - In non-interactive environments, `[skill-name]` is required
 - `--env` can only be used together with `--global`
+- An already-installed skill is not reinstalled. If you pass `--mode copy` for a skill that is installed as a symlink, the mode is saved and AI DevKit tells you to run `ai-devkit install --overwrite` to replace the symlink with a copy
 
 ### `ai-devkit skill add-registry`
 

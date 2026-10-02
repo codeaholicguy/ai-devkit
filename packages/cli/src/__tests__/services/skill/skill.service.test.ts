@@ -636,7 +636,7 @@ describe("SkillService", () => {
         expect(result.items).toEqual([
           expect.objectContaining({
             action: "conflict",
-            reason: expect.stringContaining("--overwrite"),
+            reason: expect.stringContaining("ai-devkit install --overwrite"),
           }),
         ]);
         expect(mockedFs.remove).not.toHaveBeenCalled();

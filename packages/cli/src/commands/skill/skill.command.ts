@@ -1,4 +1,4 @@
-import { Command } from "commander";
+import { Command, Option } from "commander";
 import { checkbox } from "@inquirer/prompts";
 import { ConfigManager } from "../../lib/Config.js";
 import { EnvironmentSelector } from "../../lib/EnvironmentSelector.js";
@@ -11,6 +11,7 @@ import { ui } from "../../util/terminal-ui.js";
 import { ConfigNotFoundError, ValidationError, withErrorHandler } from "../../util/errors.js";
 import { isInteractiveTerminal } from "../../util/terminal.js";
 import { getErrorMessage } from "../../util/text.js";
+import { SKILL_INSTALL_MODES, type SkillInstallMode } from "../../types.js";
 import type { AddSkillOptions, RegistrySkillChoice } from "../../services/skill/skill.types.js";
 import {
   renderGlobalSkills,
@@ -36,15 +37,31 @@ export function registerSkillCommand(program: Command): void {
       "-e, --env <environment...>",
       "Target environment(s) for global install (e.g., --global --env claude)",
     )
+    .addOption(
+      new Option(
+        "--mode <mode>",
+        "Copy the skill folder or symlink it (default: link); saved to .ai-devkit.json",
+      ).choices(SKILL_INSTALL_MODES),
+    )
     .action(
       async (
         registryRepo: string | undefined,
         skillName: string | undefined,
-        options: { builtIn?: boolean; global?: boolean; env?: string[] },
+        options: {
+          builtIn?: boolean;
+          global?: boolean;
+          env?: string[];
+          mode?: SkillInstallMode;
+        },
       ) => {
         try {
           const configManager = new ConfigManager();
           const skillService = new SkillService(configManager);
+          const requested: AddSkillOptions = {
+            global: options.global,
+            environments: options.env,
+            ...(options.mode ? { mode: options.mode } : {}),
+          };
 
           if (options.builtIn) {
             if (registryRepo || skillName) {
@@ -53,10 +70,7 @@ export function registerSkillCommand(program: Command): void {
               );
             }
 
-            const installOptions = await resolveSkillInstallOptions(configManager, {
-              global: options.global,
-              environments: options.env,
-            });
+            const installOptions = await resolveSkillInstallOptions(configManager, requested);
             for (const builtInSkill of await getBuiltinSkillNames()) {
               renderSkillInstallResult(
                 await skillService.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, installOptions),
@@ -75,10 +89,7 @@ export function registerSkillCommand(program: Command): void {
           }
 
           if (skillName) {
-            const installOptions = await resolveSkillInstallOptions(configManager, {
-              global: options.global,
-              environments: options.env,
-            });
+            const installOptions = await resolveSkillInstallOptions(configManager, requested);
             renderSkillInstallResult(
               await skillService.addSkill(registryRepo, skillName, installOptions),
             );
@@ -94,10 +105,7 @@ export function registerSkillCommand(program: Command): void {
           const selectedSkillNames = await promptForSkillSelection(
             await skillService.listInstallableSkills(registryRepo),
           );
-          const installOptions = await resolveSkillInstallOptions(configManager, {
-            global: options.global,
-            environments: options.env,
-          });
+          const installOptions = await resolveSkillInstallOptions(configManager, requested);
           renderSkillInstallResult(
             await skillService.addSkills(registryRepo, selectedSkillNames, installOptions),
           );

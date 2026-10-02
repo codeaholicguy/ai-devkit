@@ -181,15 +181,21 @@ export class ConfigManager {
 
     const installed = Array.isArray(config.skills) ? [...config.skills] : [];
 
-    const exists = installed.some(
+    const index = installed.findIndex(
       (entry) => entry.registry === skill.registry && entry.name === skill.name,
     );
 
-    if (exists) {
+    if (index === -1) {
+      installed.push(skill);
+      return this.update({ skills: installed });
+    }
+
+    // An explicit mode replaces the saved one; no mode keeps it.
+    if (!skill.mode || installed[index].mode === skill.mode) {
       return config;
     }
 
-    installed.push(skill);
+    installed[index] = { ...installed[index], mode: skill.mode };
     return this.update({ skills: installed });
   }
 

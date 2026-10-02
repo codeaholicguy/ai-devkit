@@ -595,6 +595,58 @@ describe("ConfigManager", () => {
       expect(mockFs.writeJson).not.toHaveBeenCalled();
     });
 
+    it("updates the mode of an existing skill when a different mode is given", async () => {
+      const config: DevKitConfig = {
+        version: "1.0.0",
+        environments: ["cursor"],
+        phases: [],
+        skills: [
+          { registry: "codeaholicguy/ai-devkit", name: "debug" },
+          { registry: "codeaholicguy/ai-devkit", name: "memory" },
+        ],
+        createdAt: "2024-01-01T00:00:00.000Z",
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addSkill({
+        registry: "codeaholicguy/ai-devkit",
+        name: "debug",
+        mode: "copy",
+      });
+
+      expect(result.skills).toEqual([
+        { registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" },
+        { registry: "codeaholicguy/ai-devkit", name: "memory" },
+      ]);
+      expect(mockFs.writeJson).toHaveBeenCalled();
+    });
+
+    it("keeps an existing skill's mode when no mode is given", async () => {
+      const config: DevKitConfig = {
+        version: "1.0.0",
+        environments: ["cursor"],
+        phases: [],
+        skills: [{ registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" }],
+        createdAt: "2024-01-01T00:00:00.000Z",
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkill({
+        registry: "codeaholicguy/ai-devkit",
+        name: "debug",
+      });
+
+      expect(result.skills).toEqual([
+        { registry: "codeaholicguy/ai-devkit", name: "debug", mode: "copy" },
+      ]);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
     it("adds skill when skills is undefined", async () => {
       const config: DevKitConfig = {
         version: "1.0.0",

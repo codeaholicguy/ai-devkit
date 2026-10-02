@@ -475,7 +475,8 @@ export class SkillInstallerService {
             skillName: resolvedSkillName,
             target,
             action: "conflict",
-            reason: "installed as a symlink; run with --overwrite to replace it with a copy",
+            reason:
+              "installed as a symlink; run `ai-devkit install --overwrite` to replace it with a copy",
           });
           continue;
         }

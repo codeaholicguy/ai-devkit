@@ -545,6 +545,77 @@ describe("skill command", () => {
     expect(mockAddSkills).not.toHaveBeenCalled();
   });
 
+  it.each(["copy", "link"])("forwards skill add --mode %s to the installer", async (mode) => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync([
+      "node",
+      "test",
+      "skill",
+      "add",
+      "anthropics/skills",
+      "frontend-design",
+      "--mode",
+      mode,
+    ]);
+
+    expect(mockAddSkill).toHaveBeenCalledWith("anthropics/skills", "frontend-design", {
+      global: undefined,
+      environments: ["claude"],
+      mode,
+    });
+  });
+
+  it("applies --mode to every built-in skill", async () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    await program.parseAsync(["node", "test", "skill", "add", "--built-in", "--mode", "copy"]);
+
+    expect(mockAddSkill).toHaveBeenCalledTimes(2);
+    for (const call of mockAddSkill.mock.calls) {
+      expect(call[2]).toMatchObject({ mode: "copy" });
+    }
+  });
+
+  it("rejects an unknown --mode before installing anything", async () => {
+    const program = new Command();
+    program.exitOverride();
+    registerSkillCommand(program);
+    program.commands.forEach((command) => {
+      command.exitOverride();
+      command.commands.forEach((sub) => sub.exitOverride());
+    });
+
+    await expect(
+      program.parseAsync([
+        "node",
+        "test",
+        "skill",
+        "add",
+        "anthropics/skills",
+        "frontend-design",
+        "--mode",
+        "hardlink",
+      ]),
+    ).rejects.toThrow(/Allowed choices are copy, link/);
+    expect(mockAddSkill).not.toHaveBeenCalled();
+  });
+
+  it("documents the --mode choices in skill add help", () => {
+    const program = new Command();
+    registerSkillCommand(program);
+
+    const addCommand = program.commands
+      .find((command) => command.name() === "skill")
+      ?.commands.find((command) => command.name() === "add");
+
+    const help = addCommand?.helpInformation().replace(/\s+/g, " ");
+    expect(help).toContain("--mode <mode>");
+    expect(help).toContain('(choices: "copy", "link")');
+  });
+
   it("renders skill add results with per-target lines and dim metadata", async () => {
     mockAddSkill.mockResolvedValue({
       status: "installed",

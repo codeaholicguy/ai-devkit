@@ -188,6 +188,8 @@ List of installed skills. Duplicates are automatically deduplicated.
 
 Existing installs are kept as they are. If a skill set to `copy` is still installed as a symlink, `ai-devkit install` reports a conflict and exits with a non-zero code; run `ai-devkit install --overwrite` to replace the symlink with a copy.
 
+To set the mode when installing a skill, pass `--mode copy` or `--mode link` to `ai-devkit skill add`.
+
 **Modified by:** `ai-devkit skill add`, `ai-devkit skill remove`, `ai-devkit skill update`, `ai-devkit init --built-in`
 
 #### `mcpServers`
