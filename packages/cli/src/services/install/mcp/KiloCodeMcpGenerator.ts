@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
+import { McpConfigScope } from "./types.js";
 
 interface KiloMcpConfig {
   mcp?: Record<string, Record<string, unknown>>;
@@ -10,6 +11,12 @@ interface KiloMcpConfig {
 
 export class KiloCodeMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "kilocode";
+
+  protected readonly configPaths: { project: string; user?: string } = { project: ".kilo/kilo.jsonc" };
+
+  constructor(scope: McpConfigScope = "project") {
+    super(scope);
+  }
 
   private fullConfig: KiloMcpConfig = {};
 
@@ -35,8 +42,8 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
     return entry;
   }
 
-  protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, ".kilo", "kilo.jsonc");
+  protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
+    const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
       const content = await fs.readFile(configPath, "utf8");
       this.fullConfig = parseJsonc(content);
@@ -47,11 +54,11 @@ export class KiloCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async writeServers(
-    projectRoot: string,
+    baseDir: string,
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcp: mergedServers };
-    const configPath = path.join(projectRoot, ".kilo", "kilo.jsonc");
+    const configPath = this.resolveConfigPath(baseDir);
     await fs.ensureDir(path.dirname(configPath));
     await fs.writeFile(configPath, `${JSON.stringify(output, null, 2)}\n`);
   }

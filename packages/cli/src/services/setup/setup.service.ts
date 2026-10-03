@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from "../skill/skill-builtins.js";
 import { ConfigManager } from "../../lib/Config.js";
 import { SkillService } from "../../services/skill/skill.service.js";
+import { getGlobalMcpWriter, MCP_UNSUPPORTED_AGENTS, MEMORY_MCP_SERVER } from "./memory-mcp/index.js";
 import { getErrorMessage } from "../../util/text.js";
 
 const execFileAsync = promisify(execFile);
@@ -14,7 +15,15 @@ const CODEX_HOOK_COMMAND = "node ~/.codex/hooks/codex-session-mapping.cjs";
 const PI_TRACKER_PACKAGE = "npm:@ai-devkit/pi-session-tracker";
 const CLAUDE_PROMPT_HOOK_COMMAND = "node ~/.claude/hooks/claude-prompt-hook.js";
 
-export const SUPPORTED_SETUP_AGENTS = ["codex", "pi", "claude"] as const;
+export const SUPPORTED_SETUP_AGENTS = [
+  "codex",
+  "pi",
+  "claude",
+  "gemini",
+  "cursor",
+  "opencode",
+  "grok",
+] as const;
 
 export type SetupAgent = (typeof SUPPORTED_SETUP_AGENTS)[number];
 export type SetupStepStatus = "installed" | "skipped" | "failed";
@@ -136,6 +145,7 @@ const setupDefinitions: AgentSetupDefinition[] = [
     steps: [
       { name: "codex-session-hook", run: setupCodexSessionHook },
       { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
     ],
   },
   {
@@ -144,6 +154,7 @@ const setupDefinitions: AgentSetupDefinition[] = [
     steps: [
       { name: "pi-session-tracker", run: setupPiSessionTracker },
       { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
     ],
   },
   {
@@ -152,7 +163,28 @@ const setupDefinitions: AgentSetupDefinition[] = [
     steps: [
       { name: "claude-prompt-hook", run: setupClaudePromptHook },
       { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
     ],
+  },
+  {
+    agent: "gemini",
+    dotFolder: ".gemini",
+    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+  },
+  {
+    agent: "cursor",
+    dotFolder: ".cursor",
+    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+  },
+  {
+    agent: "opencode",
+    dotFolder: ".config/opencode",
+    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+  },
+  {
+    agent: "grok",
+    dotFolder: ".grok",
+    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
   },
 ];
 
@@ -266,6 +298,33 @@ async function setupBuiltInSkills(
 ): Promise<SetupStepResult> {
   await context.installBuiltInSkills(agent);
   return installed(agent, "built-in-skills", `Installed AI DevKit built-in skills for ${agent}.`);
+}
+
+/** Home-relative marker folders used to detect which agents are installed. */
+export const SETUP_AGENT_DOT_FOLDERS: Record<string, string> = Object.fromEntries(
+  setupDefinitions.map((definition) => [definition.agent, definition.dotFolder]),
+);
+
+async function setupMemoryMcp(
+  context: SetupStepContext,
+  agent: SetupAgent,
+): Promise<SetupStepResult> {
+  const writer = getGlobalMcpWriter(agent);
+
+  if (!writer) {
+    const reason = MCP_UNSUPPORTED_AGENTS[agent];
+    return skipped(
+      agent,
+      "memory-mcp",
+      reason ??
+        `${agent} has no verified global MCP config surface; skipping memory MCP wiring.`,
+    );
+  }
+
+  const result = await writer.apply(MEMORY_MCP_SERVER, context.homeDir);
+  return result.status === "installed"
+    ? installed(agent, "memory-mcp", `${result.message} (memory tools: store/search/update)`)
+    : skipped(agent, "memory-mcp", result.message);
 }
 
 async function readHooksJson(hooksJsonPath: string): Promise<CodexHooksJson> {

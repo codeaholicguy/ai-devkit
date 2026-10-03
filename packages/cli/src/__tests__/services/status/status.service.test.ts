@@ -1,5 +1,8 @@
 import path from "node:path";
-import { describe, expect, it, vi } from "vitest";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetBuiltinSkillNames = vi.hoisted(() =>
   vi.fn(async () => ["remote-one", "remote-two"]),
@@ -451,5 +454,72 @@ describe("getStatusReport", () => {
     expect(report.registries).not.toHaveProperty("status");
     expect(report.channels).not.toHaveProperty("status");
     expect(report.channels.connections[0]).not.toHaveProperty("status");
+  });
+});
+
+describe("getStatusReport memory mcp wiring", () => {
+  let homeDir: string;
+
+  beforeEach(() => {
+    homeDir = mkdtempSync(join(tmpdir(), "ai-devkit-status-mcp-"));
+  });
+
+  afterEach(() => {
+    rmSync(homeDir, { recursive: true, force: true });
+  });
+
+  function run() {
+    return getStatusReport({ ...fixture(), homeDir });
+  }
+
+  it("reports no wiring targets when no agent dot-folders exist", async () => {
+    const report = await run();
+    expect(report.memoryMcp.status).toBe("pass");
+    expect(report.memoryMcp.agents).toEqual([]);
+  });
+
+  it("reports unwired for a detected agent without config", async () => {
+    mkdirSync(join(homeDir, ".gemini"), { recursive: true });
+    const report = await run();
+    expect(report.memoryMcp.agents).toContainEqual(
+      expect.objectContaining({ agent: "gemini", state: "unwired" }),
+    );
+    expect(report.memoryMcp.status).toBe("warn");
+  });
+
+  it("reports wired after the config entry exists", async () => {
+    mkdirSync(join(homeDir, ".cursor"), { recursive: true });
+    writeFileSync(
+      join(homeDir, ".cursor", "mcp.json"),
+      JSON.stringify({
+        mcpServers: {
+          "ai-devkit-memory": { command: "npx", args: ["-y", "@ai-devkit/memory"] },
+        },
+      }),
+    );
+    const report = await run();
+    expect(report.memoryMcp.agents).toContainEqual(
+      expect.objectContaining({ agent: "cursor", state: "wired" }),
+    );
+    expect(report.memoryMcp.status).toBe("pass");
+  });
+
+  it("reports unsupported for pi without failing the check", async () => {
+    mkdirSync(join(homeDir, ".pi"), { recursive: true });
+    const report = await run();
+    expect(report.memoryMcp.agents).toContainEqual(
+      expect.objectContaining({ agent: "pi", state: "unsupported" }),
+    );
+    expect(report.memoryMcp.status).toBe("pass");
+  });
+
+  it("reports error state for malformed config", async () => {
+    mkdirSync(join(homeDir, ".grok"), { recursive: true });
+    writeFileSync(join(homeDir, ".grok", "user-settings.json"), "{ broken");
+    const report = await run();
+    expect(report.memoryMcp.agents).toContainEqual(
+      expect.objectContaining({ agent: "grok", state: "error" }),
+    );
+    expect(report.memoryMcp.status).toBe("warn");
   });
 });

@@ -17,6 +17,11 @@ import { getBuiltinSkillNames } from "../skill/skill-builtins.js";
 import { filterStringRecord } from "../../util/config.js";
 import { getGlobalSkillPath, isValidEnvironmentCode } from "../../util/env.js";
 import { inspectTmux } from "../../util/tmux.js";
+import { SETUP_AGENT_DOT_FOLDERS } from "../setup/setup.service.js";
+import {
+  getGlobalMcpWriter,
+  MCP_UNSUPPORTED_AGENTS,
+} from "../setup/memory-mcp/index.js";
 import packageJson from "../../../package.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
@@ -89,7 +94,19 @@ export interface StatusReport {
   tmux: TmuxCheck;
   registries: RegistriesCheck;
   channels: ChannelsCheck;
+  memoryMcp: MemoryMcpCheck;
   checks: { passed: number; warnings: number; failed: number };
+}
+
+export interface MemoryMcpAgentCheck {
+  agent: string;
+  state: "wired" | "unwired" | "unsupported" | "error";
+  detail?: string;
+}
+
+export interface MemoryMcpCheck {
+  status: CheckStatus;
+  agents: MemoryMcpAgentCheck[];
 }
 
 export interface StatusServiceOptions {
@@ -498,7 +515,48 @@ function leafStatuses(
     report.project.config.status,
     ...agentStatuses,
     report.tmux.status,
+    report.memoryMcp.status,
   ];
+}
+
+async function memoryMcpCheck(rt: Runtime): Promise<MemoryMcpCheck> {
+  const agents: MemoryMcpAgentCheck[] = [];
+
+  for (const [agent, dotFolder] of Object.entries(SETUP_AGENT_DOT_FOLDERS)) {
+    const dotFolderPath = join(rt.homeDir, ...dotFolder.split("/"));
+    let detected = true;
+    try {
+      await rt.access(dotFolderPath);
+    } catch {
+      detected = false;
+    }
+    if (!detected) {
+      continue;
+    }
+
+    const writer = getGlobalMcpWriter(agent);
+    if (!writer) {
+      const reason = MCP_UNSUPPORTED_AGENTS[agent];
+      agents.push(
+        reason
+          ? { agent, state: "unsupported", detail: reason }
+          : { agent, state: "unsupported" },
+      );
+      continue;
+    }
+
+    const inspected = await writer.inspect(rt.homeDir);
+    if (inspected.state === "error") {
+      agents.push({ agent, state: "error", detail: inspected.detail });
+      continue;
+    }
+    agents.push({ agent, state: inspected.state, detail: inspected.detail });
+  }
+
+  const degraded = agents.some(
+    (item) => item.state === "unwired" || item.state === "error",
+  );
+  return { status: degraded ? "warn" : "pass", agents };
 }
 
 export async function getStatusReport(
@@ -518,7 +576,7 @@ export async function getStatusReport(
     runCommand: rt.runCommand,
     codexAuth: rt.codexAuth,
   };
-  const [project, agents, aiDevkit, tmux, globalRegistry, channels] =
+  const [project, agents, aiDevkit, tmux, globalRegistry, channels, memoryMcp] =
     await Promise.all([
       projectPromise,
       getAgentReadinessReports(agentOptions),
@@ -526,6 +584,7 @@ export async function getStatusReport(
       tmuxCheck(rt),
       globalRegistries(rt),
       channelsCheck(rt),
+      memoryMcpCheck(rt),
     ]);
   const registries: RegistriesCheck = {
     project: projectRegistries(project.raw, project.check.path),
@@ -539,6 +598,7 @@ export async function getStatusReport(
     tmux,
     registries,
     channels,
+    memoryMcp,
   };
   const statuses = leafStatuses(partial);
   return {

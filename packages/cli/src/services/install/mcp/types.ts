@@ -1,5 +1,8 @@
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 
+/** Config target scope: project root or user home directory. */
+export type McpConfigScope = "project" | "user";
+
 export interface McpMergePlan {
   agentType: EnvironmentCode;
   newServers: string[];

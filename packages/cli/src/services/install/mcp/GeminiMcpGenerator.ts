@@ -1,23 +1,28 @@
 import fs from "fs-extra";
+import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 import { McpConfigScope } from "./types.js";
 
-interface ClaudeMcpConfig {
+interface GeminiSettingsConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 
-export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = "claude";
+/**
+ * Gemini CLI MCP servers live in `settings.json` → `mcpServers`
+ * (user scope: ~/.gemini/settings.json, workspace scope: .gemini/settings.json;
+ * official docs: gemini-cli docs/tools/mcp-server.md + docs/cli/settings.md).
+ */
+export class GeminiMcpGenerator extends BaseMcpGenerator {
+  readonly agentType: EnvironmentCode = "gemini";
 
   protected readonly configPaths: { project: string; user?: string } = {
-    project: ".mcp.json",
-    // Claude Code user-scope servers live in ~/.claude.json (official docs).
-    user: ".claude.json",
+    project: ".gemini/settings.json",
+    user: ".gemini/settings.json",
   };
 
-  private fullConfig: ClaudeMcpConfig = {};
+  private fullConfig: GeminiSettingsConfig = {};
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);
@@ -31,7 +36,6 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
       return entry;
     }
 
-    // http or sse
     const entry: Record<string, unknown> = { type: def.transport, url: def.url! };
     if (def.headers && Object.keys(def.headers).length > 0) entry.headers = def.headers;
     return entry;
@@ -40,7 +44,7 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
   protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
     const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
-      this.fullConfig = (await fs.readJson(configPath)) as ClaudeMcpConfig;
+      this.fullConfig = (await fs.readJson(configPath)) as GeminiSettingsConfig;
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
@@ -52,6 +56,8 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcpServers: mergedServers };
-    await fs.writeJson(this.resolveConfigPath(baseDir), output, { spaces: 2 });
+    const configPath = this.resolveConfigPath(baseDir);
+    await fs.ensureDir(path.dirname(configPath));
+    await fs.writeJson(configPath, output, { spaces: 2 });
   }
 }

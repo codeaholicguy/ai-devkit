@@ -1,23 +1,28 @@
 import fs from "fs-extra";
+import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 import { McpConfigScope } from "./types.js";
 
-interface ClaudeMcpConfig {
+interface CursorMcpConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 
-export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = "claude";
+/**
+ * Cursor MCP config is `mcp.json` → `mcpServers`
+ * (project: .cursor/mcp.json, global: ~/.cursor/mcp.json;
+ * official docs: cursor.com/docs/context/mcp).
+ */
+export class CursorMcpGenerator extends BaseMcpGenerator {
+  readonly agentType: EnvironmentCode = "cursor";
 
   protected readonly configPaths: { project: string; user?: string } = {
-    project: ".mcp.json",
-    // Claude Code user-scope servers live in ~/.claude.json (official docs).
-    user: ".claude.json",
+    project: ".cursor/mcp.json",
+    user: ".cursor/mcp.json",
   };
 
-  private fullConfig: ClaudeMcpConfig = {};
+  private fullConfig: CursorMcpConfig = {};
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);
@@ -31,7 +36,6 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
       return entry;
     }
 
-    // http or sse
     const entry: Record<string, unknown> = { type: def.transport, url: def.url! };
     if (def.headers && Object.keys(def.headers).length > 0) entry.headers = def.headers;
     return entry;
@@ -40,7 +44,7 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
   protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
     const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
-      this.fullConfig = (await fs.readJson(configPath)) as ClaudeMcpConfig;
+      this.fullConfig = (await fs.readJson(configPath)) as CursorMcpConfig;
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
@@ -52,6 +56,8 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcpServers: mergedServers };
-    await fs.writeJson(this.resolveConfigPath(baseDir), output, { spaces: 2 });
+    const configPath = this.resolveConfigPath(baseDir);
+    await fs.ensureDir(path.dirname(configPath));
+    await fs.writeJson(configPath, output, { spaces: 2 });
   }
 }
