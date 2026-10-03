@@ -4,8 +4,6 @@ import { isInteractiveTerminal } from "../../../util/terminal.js";
 import { McpAgentGenerator, McpInstallReport, McpMergePlan } from "./types.js";
 import { ClaudeCodeMcpGenerator } from "./ClaudeCodeMcpGenerator.js";
 import { CodexMcpGenerator } from "./CodexMcpGenerator.js";
-import { GeminiMcpGenerator } from "./GeminiMcpGenerator.js";
-import { CursorMcpGenerator } from "./CursorMcpGenerator.js";
 import { JunieMcpGenerator } from "./JunieMcpGenerator.js";
 import { GitHubCopilotMcpGenerator } from "./GitHubCopilotMcpGenerator.js";
 import { DevinMcpGenerator } from "./DevinMcpGenerator.js";
@@ -22,8 +20,6 @@ export interface McpInstallOptions {
 const GENERATORS: McpAgentGenerator[] = [
   new ClaudeCodeMcpGenerator(),
   new CodexMcpGenerator(),
-  new GeminiMcpGenerator(),
-  new CursorMcpGenerator(),
   new JunieMcpGenerator(),
   new GitHubCopilotMcpGenerator(),
   new DevinMcpGenerator(),

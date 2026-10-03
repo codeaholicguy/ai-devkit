@@ -1,6 +1,5 @@
-import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
-import { McpAgentGenerator, McpConfigScope, McpMergePlan } from "./types.js";
+import { McpAgentGenerator, McpMergePlan } from "./types.js";
 import { deepEqual } from "../../../util/object.js";
 
 /**
@@ -8,35 +7,22 @@ import { deepEqual } from "../../../util/object.js";
  *
  * Subclasses provide format-specific conversion, reading, and writing.
  * The shared plan/apply diff-and-merge logic lives here.
- *
- * Scope: generators write into a base directory (project root or user home).
- * The per-scope relative config path comes from `configPaths`; the default
- * scope is "project" so existing callers keep their behavior.
  */
 export abstract class BaseMcpGenerator implements McpAgentGenerator {
   abstract readonly agentType: EnvironmentCode;
 
-  /** Relative config path per scope, "/"-separated. */
-  protected abstract readonly configPaths: Record<McpConfigScope, string>;
-
-  protected constructor(protected readonly scope: McpConfigScope = "project") {}
-
-  protected resolveConfigPath(baseDir: string): string {
-    return path.join(baseDir, ...this.configPaths[this.scope].split("/"));
-  }
-
   protected abstract toAgentFormat(def: McpServerDefinition): Record<string, unknown>;
-  protected abstract readExistingServers(baseDir: string): Promise<Record<string, unknown>>;
+  protected abstract readExistingServers(projectRoot: string): Promise<Record<string, unknown>>;
   protected abstract writeServers(
-    baseDir: string,
+    projectRoot: string,
     mergedServers: Record<string, unknown>,
   ): Promise<void>;
 
   async plan(
     servers: Record<string, McpServerDefinition>,
-    baseDir: string,
+    projectRoot: string,
   ): Promise<McpMergePlan> {
-    const existingServers = await this.readExistingServers(baseDir);
+    const existingServers = await this.readExistingServers(projectRoot);
 
     const plan: McpMergePlan = {
       agentType: this.agentType,
@@ -65,9 +51,9 @@ export abstract class BaseMcpGenerator implements McpAgentGenerator {
   async apply(
     plan: McpMergePlan,
     servers: Record<string, McpServerDefinition>,
-    baseDir: string,
+    projectRoot: string,
   ): Promise<void> {
-    const existingServers = await this.readExistingServers(baseDir);
+    const existingServers = await this.readExistingServers(projectRoot);
     const toWrite = new Set([...plan.newServers, ...plan.resolvedConflicts]);
 
     for (const name of toWrite) {
@@ -77,6 +63,6 @@ export abstract class BaseMcpGenerator implements McpAgentGenerator {
       }
     }
 
-    await this.writeServers(baseDir, existingServers);
+    await this.writeServers(projectRoot, existingServers);
   }
 }

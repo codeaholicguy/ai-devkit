@@ -45,7 +45,6 @@ describe("Environment Utilities", () => {
         name: "Cursor",
         skillPath: ".cursor/skills",
         globalSkillPath: ".cursor/skills",
-        mcpConfigPath: ".cursor/mcp.json",
       });
     });
 
