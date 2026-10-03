@@ -1,5 +1,4 @@
-import { homedir } from "os";
-import type { McpServerDefinition, EnvironmentCode } from "../../../types.js";
+import type { McpServerDefinition } from "../../../types.js";
 import {
   ClaudeCodeMcpGenerator,
   CodexMcpGenerator,
@@ -9,6 +8,7 @@ import {
 } from "../../install/mcp/generators.js";
 import type { BaseMcpGenerator } from "../../install/mcp/BaseMcpGenerator.js";
 import { grokGlobalMcpWriter } from "./grok-writer.js";
+import { MEMORY_MCP_SERVER } from "./spec.js";
 import type {
   GlobalMcpWriter,
   MemoryMcpApplyResult,
@@ -58,7 +58,7 @@ function generatorAsWriter(generator: BaseMcpGenerator, configPath: string): Glo
 
     async inspect(homeDir: string): Promise<MemoryMcpInspectResult> {
       try {
-        const plan = await generator.plan(serversOf(SPEC), homeDir);
+        const plan = await generator.plan(serversOf(MEMORY_MCP_SERVER), homeDir);
         if (plan.newServers.length > 0) {
           return { state: "unwired" };
         }
@@ -73,8 +73,6 @@ function generatorAsWriter(generator: BaseMcpGenerator, configPath: string): Glo
   };
 }
 
-import { MEMORY_MCP_SERVER as SPEC } from "./spec.js";
-
 const WRITERS: Record<string, GlobalMcpWriter> = {
   claude: generatorAsWriter(new ClaudeCodeMcpGenerator("user"), ".claude.json"),
   codex: generatorAsWriter(new CodexMcpGenerator("user"), ".codex/config.toml"),
@@ -87,5 +85,3 @@ const WRITERS: Record<string, GlobalMcpWriter> = {
 export function getGlobalMcpWriter(agent: string): GlobalMcpWriter | undefined {
   return WRITERS[agent];
 }
-
-export type MemoryMcpEnvironment = EnvironmentCode | "grok";
