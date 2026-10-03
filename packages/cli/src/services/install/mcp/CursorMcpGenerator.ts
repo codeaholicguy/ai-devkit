@@ -4,21 +4,25 @@ import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 import { McpConfigScope } from "./types.js";
 
-interface OpenCodeConfig {
-  mcp?: Record<string, Record<string, unknown>>;
+interface CursorMcpConfig {
+  mcpServers?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 
-export class OpenCodeMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = "opencode";
+/**
+ * Cursor MCP config is `mcp.json` → `mcpServers`
+ * (project: .cursor/mcp.json, global: ~/.cursor/mcp.json;
+ * official docs: cursor.com/docs/context/mcp).
+ */
+export class CursorMcpGenerator extends BaseMcpGenerator {
+  readonly agentType: EnvironmentCode = "cursor";
 
   protected readonly configPaths = {
-    project: "opencode.json",
-    // OpenCode global config (official docs): ~/.config/opencode/opencode.json.
-    user: ".config/opencode/opencode.json",
+    project: ".cursor/mcp.json",
+    user: ".cursor/mcp.json",
   } as const;
 
-  private fullConfig: OpenCodeConfig = {};
+  private fullConfig: CursorMcpConfig = {};
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);
@@ -26,20 +30,13 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
     if (def.transport === "stdio") {
-      const entry: Record<string, unknown> = {
-        type: "local",
-        command: [def.command!, ...(def.args || [])],
-        enabled: true,
-      };
-      if (def.env && Object.keys(def.env).length > 0) entry.environment = def.env;
+      const entry: Record<string, unknown> = { command: def.command! };
+      if (def.args && def.args.length > 0) entry.args = def.args;
+      if (def.env && Object.keys(def.env).length > 0) entry.env = def.env;
       return entry;
     }
 
-    const entry: Record<string, unknown> = {
-      type: "remote",
-      url: def.url!,
-      enabled: true,
-    };
+    const entry: Record<string, unknown> = { type: def.transport, url: def.url! };
     if (def.headers && Object.keys(def.headers).length > 0) entry.headers = def.headers;
     return entry;
   }
@@ -47,9 +44,8 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
   protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
     const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
-      const content = await fs.readFile(configPath, "utf8");
-      this.fullConfig = JSON.parse(content || "{}") as OpenCodeConfig;
-      return (this.fullConfig.mcp || {}) as Record<string, unknown>;
+      this.fullConfig = (await fs.readJson(configPath)) as CursorMcpConfig;
+      return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
     return {};
@@ -59,9 +55,9 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
     baseDir: string,
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
-    const output = { ...this.fullConfig, mcp: mergedServers };
+    const output = { ...this.fullConfig, mcpServers: mergedServers };
     const configPath = this.resolveConfigPath(baseDir);
     await fs.ensureDir(path.dirname(configPath));
-    await fs.writeFile(configPath, `${JSON.stringify(output, null, 2)}\n`);
+    await fs.writeJson(configPath, output, { spaces: 2 });
   }
 }

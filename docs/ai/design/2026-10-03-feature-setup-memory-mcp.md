@@ -8,27 +8,40 @@ description: Validate architecture and key decisions against requirements
 
 ## Architecture Overview
 
-`ai-devkit setup` gains a per-agent `memory-mcp` step backed by a new `MemoryMcpService`. The service owns the launch definition (single source of truth for command/args/name) and one idempotent **global config writer per harness**. Harness support is a verified matrix — wired, or honestly skipped with a reason. `ai-devkit status` reuses the same writers in read-only mode.
+`ai-devkit setup` gains a per-agent `memory-mcp` step backed by a new `MemoryMcpService`. **Reuse first:** the existing MCP generator architecture in `packages/cli/src/services/install/mcp/` (BaseMcpGenerator plan/apply diff-and-merge, per-harness `toAgentFormat`) is extended to be **scope-aware** (`project` vs `user` home) instead of being duplicated. Setup invokes user-scope generators with the canonical memory server definition through a thin facade that maps results to `SetupStepResult`. Grok's array-based config and pi's no-MCP design are handled as documented deviations. `ai-devkit status` reuses the same facade in read-only mode.
 
 ```mermaid
 flowchart TD
     A["ai-devkit setup"] --> S["createSetupService"]
-    S --> D["setupDefinitions<br/>(codex, pi, claude, gemini, cursor, opencode, grok)"]
+    D["setupDefinitions<br/>(codex, pi, claude, gemini, cursor, opencode, grok)"] --> M["memory-mcp step<br/>(per agent)"]
+    S --> D
     D -->|"dot-folder missing"| SKIP1["skipped: agent not detected"]
-    D -->|"dot-folder present"| M["memory-mcp step<br/>(per agent)"]
-    M --> W["MemoryMcpService"]
-    W --> LAUNCH["MEMORY_MCP_SERVER<br/>name=ai-devkit-memory<br/>command=npx -y @ai-devkit/memory"]
-    W --> C1["ClaudeCodeGlobalMcpWriter<br/>~/.claude.json .mcpServers[name]"]
-    W --> C2["CodexGlobalMcpWriter<br/>~/.codex/config.toml [mcp_servers.name] (textual upsert)"]
-    W --> C3["GeminiGlobalMcpWriter<br/>~/.gemini/settings.json .mcpServers[name]"]
-    W --> C4["CursorGlobalMcpWriter<br/>~/.cursor/mcp.json .mcpServers[name]"]
-    W --> C5["OpenCodeGlobalMcpWriter<br/>~/.config/opencode/opencode.json .mcp[name]"]
-    W --> C6["GrokGlobalMcpWriter<br/>~/.grok/user-settings.json .mcp.servers[] (upsert by id)"]
+    D -->|"dot-folder present"| M
+    M --> W["MemoryMcpService facade"]
+    W --> LAUNCH["MEMORY_MCP_SERVER spec<br/>name=ai-devkit-memory<br/>command=npx -y @ai-devkit/memory"]
+    W --> G["install/mcp generators, scope=user<br/>(reuse toAgentFormat + plan/apply)"]
+    G --> C1["ClaudeCode → ~/.claude.json .mcpServers[name]"]
+    G --> C2["Codex → ~/.codex/config.toml<br/>[mcp_servers.name] textual upsert"]
+    G --> C3["Gemini (new) → ~/.gemini/settings.json .mcpServers[name]"]
+    G --> C4["Cursor (new) → ~/.cursor/mcp.json .mcpServers[name]"]
+    G --> C5["OpenCode → ~/.config/opencode/opencode.json .mcp[name]"]
+    W --> C6["Grok standalone writer →<br/>~/.grok/user-settings.json .mcp.servers[] upsert by id"]
     W --> PI["pi: no MCP by design<br/>skipped: use memory skill + ai-devkit memory CLI"]
     C1 & C2 & C3 & C4 & C5 & C6 --> R["SetupStepResult<br/>installed | skipped | failed"]
     R --> OUT["setup report table"]
     ST["ai-devkit status"] -.read-only.-> W
 ```
+
+### Reuse: scope-aware generators (orchestrator-verified opportunity)
+
+The 8 existing generators wrote to `projectRoot` only. The refactor:
+
+- `BaseMcpGenerator` subclasses take an optional constructor scope (`"project"` default → zero behavior change for existing callers and tests) and resolve per-scope relative config paths from the same `baseDir` argument.
+- ClaudeCode: project `.mcp.json` / user `.claude.json` (same `mcpServers` shape).
+- Codex: project `.codex/config.toml` / user `.codex/config.toml` (same rel path; **user write is a textual table upsert**, see deviations).
+- OpenCode: project `opencode.json` / user `.config/opencode/opencode.json` (same `mcp` shape).
+- NEW Gemini + Cursor generators (both trivial `mcpServers` JSON; project and user paths differ only by baseDir for gemini, identical rel path for cursor). Registered in `GENERATORS` + `mcpConfigPath` in `ENVIRONMENT_DEFINITIONS`, so `ai-devkit install` gains working project-scope MCP wiring for gemini/cursor as an additive side effect (tested).
+- Setup facade runs each user-scope generator non-interactively: `plan()` → drift on our namespace resolves to overwrite → `apply()`; mapped to installed/skipped/failed.
 
 ## Data Models
 
@@ -77,17 +90,20 @@ Tool description updates (packages/memory/src/server.ts) — text only, no schem
 
 ## Component Breakdown
 
-1. `packages/cli/src/services/setup/memory-mcp/spec.ts` — `MEMORY_MCP_SERVER` spec + `MCP_CAPABLE_AGENTS`/`MCP_UNSUPPORTED_AGENTS` lists with reasons.
-2. `memory-mcp/writers.ts` — six `GlobalMcpWriter` implementations + JSON read-modify-write helper.
-3. `memory-mcp/codex-toml.ts` — textual TOML table upsert (append or replace `[mcp_servers.ai-devkit-memory]` block, preserving the rest byte-for-byte).
-4. `memory-mcp/memory-mcp.service.ts` — `applyForAgent(agent, homeDir)` → `SetupStepResult`; `inspectAll(homeDir)` for status.
-5. `setup.service.ts` — wire the new step + definitions; keep deps injectable (`homeDir`).
-6. `status.service.ts` — add read-only memory-MCP section.
-7. `packages/memory/src/server.ts` — description text only.
-8. Tests: writer unit tests (temp dirs), setup-service tests (per-agent install/idempotence/skip/fail), status check tests, e2e isolated-HOME test, memory-server description snapshot tests.
+1. `packages/cli/src/services/install/mcp/` — scope-aware refactor of Base/ClaudeCode/Codex/OpenCode generators + NEW Gemini/Cursor generators; Codex user-scope textual TOML upsert helper.
+2. `packages/cli/src/util/env.ts` — `mcpConfigPath` for gemini (`.gemini/settings.json`) and cursor (`.cursor/mcp.json`).
+3. `packages/cli/src/services/setup/memory-mcp/` — `MEMORY_MCP_SERVER` spec, wired/unsupported agent matrix with reasons, `MemoryMcpService` facade over user-scope generators, standalone Grok writer.
+4. `setup.service.ts` — wire the new step + definitions; keep deps injectable (`homeDir`).
+5. `status.service.ts` — add read-only memory-MCP section.
+6. `packages/memory/src/server.ts` — description text only.
+7. Tests: generator scope tests (install/mcp test dir), facade/writer tests (setup/memory-mcp test dir), setup-service tests, status tests, e2e isolated-HOME test, memory-server description tests.
 
 ## Design Decisions
 
+0. **Reuse the install/mcp generator architecture (scope-aware extension) instead of duplicating writers.** `toAgentFormat` format knowledge and plan/apply diff-and-merge idempotence live in one place; setup runs the same code with `scope=user` and a home baseDir. Documented deviations from pure reuse:
+   - **Codex user scope writes textually** (append/replace the `[mcp_servers.ai-devkit-memory]` block). The generator's project path uses a smol-toml parse/stringify round-trip, which reformats and drops comments — unacceptable for a user's global `~/.codex/config.toml`. Reading still parses TOML (drift detection); only writing is textual.
+   - **Grok is a standalone writer**, not a generator: its user-level config (`~/.grok/user-settings.json` → `mcp.servers[]` array, upsert by `id`) does not fit BaseMcpGenerator's map-shaped `readExistingServers`/`writeServers` contract, and grok project-scope wiring is out of scope (unregistered).
+   - **pi skipped honestly** (unchanged): pi documents "No MCP" by design; report points at the `memory` skill + `ai-devkit memory` CLI path.
 1. **Command = `npx -y @ai-devkit/memory`** (floating latest). Alternatives: pinned version (stale memory content between releases; config churn on every release), local `node <repo>/dist` (machine/repo-specific, breaks global availability). npx is the documented stdio convention in every wired harness's docs, resolves from npm cache after first fetch, and means users always run the released server that matches its own migrations. Rejected `ai-devkit-memory` global bin (requires a separate global install step → violates "zero manual steps").
 2. **Global-only scope.** Project-scope wiring already exists (`ai-devkit init` `mcpServers`). Harness precedence means project configs may override ours per repo — acceptable and documented.
 3. **Our namespace only.** Writers touch exactly one key (`ai-devkit-memory` / `mcp_servers.ai-devkit-memory` / array entry with `id:"ai-devkit-memory"`). Drift (user hand-edit) → overwrite that key and report `installed`; we never delete or rewrite other entries.
