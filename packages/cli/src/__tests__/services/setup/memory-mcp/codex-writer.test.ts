@@ -2,7 +2,10 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "fs"
 import { tmpdir } from "os";
 import { join } from "path";
 import * as TOML from "smol-toml";
-import { MEMORY_MCP_SERVER, getGlobalMcpWriter } from "../../../../services/setup/memory-mcp/index.js";
+import {
+  MEMORY_MCP_SERVER,
+  getGlobalMcpWriter,
+} from "../../../../services/setup/memory-mcp/index.js";
 
 const EXISTING_TOML = `# User profile — do not delete
 profile = "default"
@@ -39,11 +42,14 @@ describe("codex global mcp writer (~/.codex/config.toml)", () => {
     // Foreign lines are untouched, including comments.
     expect(output).toContain("# User profile — do not delete");
     expect(output).toContain("# Approval policy for sandboxes");
-    expect(output).toContain('[mcp_servers.context7]');
-    expect(output).toContain('[mcp_servers.ai-devkit-memory]');
+    expect(output).toContain("[mcp_servers.context7]");
+    expect(output).toContain("[mcp_servers.ai-devkit-memory]");
     // The whole file still parses and carries our table.
     const parsed = TOML.parse(output) as Record<string, Record<string, unknown>>;
-    expect(parsed.mcp_servers!["context7"]).toEqual({ command: "npx", args: ["-y", "@upstash/context7-mcp"] });
+    expect(parsed.mcp_servers!["context7"]).toEqual({
+      command: "npx",
+      args: ["-y", "@upstash/context7-mcp"],
+    });
     expect(parsed.mcp_servers!["ai-devkit-memory"]).toEqual({
       command: "npx",
       args: ["-y", "@ai-devkit/memory"],

@@ -138,7 +138,8 @@ function replaceTomlTable(content: string, tablePath: string, body: string): str
   const blockBody = after.slice(0, bodyEnd);
   const blockAfter = after.slice(bodyEnd);
 
-  const keptAfter = blockAfter.startsWith("\n") || blockAfter === "" ? blockAfter : `\n${blockAfter}`;
+  const keptAfter =
+    blockAfter.startsWith("\n") || blockAfter === "" ? blockAfter : `\n${blockAfter}`;
   return `${content.slice(0, start)}[${tablePath}]\n${body}\n${keptAfter}`;
 }
 

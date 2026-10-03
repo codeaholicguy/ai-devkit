@@ -7,10 +7,7 @@ import { promisify } from "util";
 
 const execFileAsync = promisify(execFile);
 
-const CLI_DIST = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../dist/cli.js",
-);
+const CLI_DIST = resolve(dirname(fileURLToPath(import.meta.url)), "../../../dist/cli.js");
 
 /**
  * End-to-end: run the BUILT `ai-devkit setup` command against an isolated
@@ -64,36 +61,32 @@ describe.skipIf(!existsSync(CLI_DIST))("setup e2e — isolated HOME", () => {
       expect(code).toBe(0);
       expect(output).toMatch(/Setup completed successfully/);
 
-    // claude
-    const claude = JSON.parse(readFileSync(join(homeDir, ".claude.json"), "utf-8"));
-    expect(claude.mcpServers["ai-devkit-memory"]).toEqual({
-      command: "npx",
-      args: ["-y", "@ai-devkit/memory"],
-    });
-    // codex (TOML table)
-    expect(readFileSync(join(homeDir, ".codex", "config.toml"), "utf-8")).toContain(
-      "[mcp_servers.ai-devkit-memory]",
-    );
-    // gemini
-    const gemini = JSON.parse(readFileSync(join(homeDir, ".gemini", "settings.json"), "utf-8"));
-    expect(gemini.mcpServers["ai-devkit-memory"]).toBeDefined();
-    // cursor
-    const cursor = JSON.parse(readFileSync(join(homeDir, ".cursor", "mcp.json"), "utf-8"));
-    expect(cursor.mcpServers["ai-devkit-memory"]).toBeDefined();
-    // opencode
-    const opencode = JSON.parse(
-      readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8"),
-    );
-    expect(opencode.mcp["ai-devkit-memory"].command).toEqual([
-      "npx",
-      "-y",
-      "@ai-devkit/memory",
-    ]);
-    // grok
-    const grok = JSON.parse(readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"));
-    expect(grok.mcp.servers.some((s: { id: string }) => s.id === "ai-devkit-memory")).toBe(true);
-    // pi honestly skipped
-    expect(output).toMatch(/pi.*no MCP support/i);
+      // claude
+      const claude = JSON.parse(readFileSync(join(homeDir, ".claude.json"), "utf-8"));
+      expect(claude.mcpServers["ai-devkit-memory"]).toEqual({
+        command: "npx",
+        args: ["-y", "@ai-devkit/memory"],
+      });
+      // codex (TOML table)
+      expect(readFileSync(join(homeDir, ".codex", "config.toml"), "utf-8")).toContain(
+        "[mcp_servers.ai-devkit-memory]",
+      );
+      // gemini
+      const gemini = JSON.parse(readFileSync(join(homeDir, ".gemini", "settings.json"), "utf-8"));
+      expect(gemini.mcpServers["ai-devkit-memory"]).toBeDefined();
+      // cursor
+      const cursor = JSON.parse(readFileSync(join(homeDir, ".cursor", "mcp.json"), "utf-8"));
+      expect(cursor.mcpServers["ai-devkit-memory"]).toBeDefined();
+      // opencode
+      const opencode = JSON.parse(
+        readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8"),
+      );
+      expect(opencode.mcp["ai-devkit-memory"].command).toEqual(["npx", "-y", "@ai-devkit/memory"]);
+      // grok
+      const grok = JSON.parse(readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"));
+      expect(grok.mcp.servers.some((s: { id: string }) => s.id === "ai-devkit-memory")).toBe(true);
+      // pi honestly skipped
+      expect(output).toMatch(/pi.*no MCP support/i);
     },
   );
 
@@ -126,15 +119,11 @@ describe.skipIf(!existsSync(CLI_DIST))("setup e2e — isolated HOME", () => {
     },
   );
 
-  it(
-    "rejects unknown --agent values with the supported list",
-    { timeout: 120_000 },
-    async () => {
-      const { output, code } = await runSetup(["--agent", "nonexistent-agent"]);
+  it("rejects unknown --agent values with the supported list", { timeout: 120_000 }, async () => {
+    const { output, code } = await runSetup(["--agent", "nonexistent-agent"]);
 
-      expect(code).toBe(1);
-      expect(output).toMatch(/Unsupported setup agent: nonexistent-agent/);
-      expect(output).toMatch(/gemini/);
-    },
-  );
+    expect(code).toBe(1);
+    expect(output).toMatch(/Unsupported setup agent: nonexistent-agent/);
+    expect(output).toMatch(/gemini/);
+  });
 });

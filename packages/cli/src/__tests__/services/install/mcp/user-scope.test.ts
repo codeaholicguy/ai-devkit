@@ -41,7 +41,10 @@ describe("user-scope MCP generators", () => {
   });
 
   it("claude user scope writes ~/.claude.json and preserves foreign keys", async () => {
-    writeFileSync(join(homeDir, ".claude.json"), JSON.stringify({ numStartups: 7, tipsHistory: {} }));
+    writeFileSync(
+      join(homeDir, ".claude.json"),
+      JSON.stringify({ numStartups: 7, tipsHistory: {} }),
+    );
     const generator = new ClaudeCodeMcpGenerator("user");
 
     await applyDrift(generator, MEMORY, homeDir);
@@ -118,7 +121,7 @@ describe("user-scope MCP generators", () => {
     const output = readFileSync(join(homeDir, ".codex", "config.toml"), "utf-8");
     expect(output).toContain("# my config");
     expect(output).toContain('[mcp_servers.other]\ncommand = "x"');
-    expect(output).toContain('[mcp_servers.ai-devkit-memory]');
+    expect(output).toContain("[mcp_servers.ai-devkit-memory]");
     const parsed = TOML.parse(output) as { mcp_servers: Record<string, unknown> };
     expect(parsed.mcp_servers["ai-devkit-memory"]).toEqual({
       command: "npx",

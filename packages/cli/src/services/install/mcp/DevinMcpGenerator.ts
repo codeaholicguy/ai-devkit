@@ -12,7 +12,9 @@ interface DevinMcpConfig {
 export class DevinMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "devin";
 
-  protected readonly configPaths: { project: string; user?: string } = { project: ".devin/config.json" };
+  protected readonly configPaths: { project: string; user?: string } = {
+    project: ".devin/config.json",
+  };
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);

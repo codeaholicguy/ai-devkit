@@ -12,7 +12,9 @@ interface KiloMcpConfig {
 export class KiloCodeMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "kilocode";
 
-  protected readonly configPaths: { project: string; user?: string } = { project: ".kilo/kilo.jsonc" };
+  protected readonly configPaths: { project: string; user?: string } = {
+    project: ".kilo/kilo.jsonc",
+  };
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);

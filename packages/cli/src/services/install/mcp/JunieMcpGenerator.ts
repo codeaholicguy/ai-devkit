@@ -12,7 +12,9 @@ interface JunieMcpConfig {
 export class JunieMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "junie";
 
-  protected readonly configPaths: { project: string; user?: string } = { project: ".junie/mcp/mcp.json" };
+  protected readonly configPaths: { project: string; user?: string } = {
+    project: ".junie/mcp/mcp.json",
+  };
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);

@@ -28,7 +28,9 @@ describe("memory MCP tool descriptions (always-loaded prompt surface)", () => {
   });
 
   it("instructs the agent to store verified reusable knowledge after meaningful work", () => {
-    expect(STORE.description).toMatch(/after completing|when you (have )?(just )?(verified|learned|solved)/i);
+    expect(STORE.description).toMatch(
+      /after completing|when you (have )?(just )?(verified|learned|solved)/i,
+    );
     expect(STORE.description).toMatch(/reusable/i);
   });
 

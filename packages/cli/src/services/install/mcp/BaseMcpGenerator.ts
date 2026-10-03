@@ -36,10 +36,7 @@ export abstract class BaseMcpGenerator implements McpAgentGenerator {
     mergedServers: Record<string, unknown>,
   ): Promise<void>;
 
-  async plan(
-    servers: Record<string, McpServerDefinition>,
-    baseDir: string,
-  ): Promise<McpMergePlan> {
+  async plan(servers: Record<string, McpServerDefinition>, baseDir: string): Promise<McpMergePlan> {
     const existingServers = await this.readExistingServers(baseDir);
 
     const plan: McpMergePlan = {

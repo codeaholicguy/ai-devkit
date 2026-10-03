@@ -175,16 +175,25 @@ describe("memory mcp global writers", () => {
       mkdirSync(join(homeDir, ".config", "opencode"), { recursive: true });
       writeFileSync(
         join(homeDir, ".config", "opencode", "opencode.json"),
-        JSON.stringify({ $schema: "https://opencode.ai/config.json", mcp: { docs: { type: "local", command: ["bun", "x", "docs-mcp"], enabled: true } } }),
+        JSON.stringify({
+          $schema: "https://opencode.ai/config.json",
+          mcp: { docs: { type: "local", command: ["bun", "x", "docs-mcp"], enabled: true } },
+        }),
       );
 
       const writer = getGlobalMcpWriter("opencode");
       const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
 
       expect(result.status).toBe("installed");
-      const config = JSON.parse(readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8"));
+      const config = JSON.parse(
+        readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8"),
+      );
       expect(config.$schema).toBe("https://opencode.ai/config.json");
-      expect(config.mcp.docs).toEqual({ type: "local", command: ["bun", "x", "docs-mcp"], enabled: true });
+      expect(config.mcp.docs).toEqual({
+        type: "local",
+        command: ["bun", "x", "docs-mcp"],
+        enabled: true,
+      });
       expect(config.mcp["ai-devkit-memory"]).toEqual({
         type: "local",
         command: ["npx", "-y", "@ai-devkit/memory"],
@@ -197,7 +206,9 @@ describe("memory mcp global writers", () => {
       const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
 
       expect(result.status).toBe("installed");
-      const config = JSON.parse(readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8"));
+      const config = JSON.parse(
+        readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8"),
+      );
       expect(config.mcp["ai-devkit-memory"].enabled).toBe(true);
     });
 
@@ -207,7 +218,9 @@ describe("memory mcp global writers", () => {
       const first = readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8");
       const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
       expect(result.status).toBe("skipped");
-      expect(readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8")).toBe(first);
+      expect(readFileSync(join(homeDir, ".config", "opencode", "opencode.json"), "utf-8")).toBe(
+        first,
+      );
     });
   });
 
@@ -218,7 +231,18 @@ describe("memory mcp global writers", () => {
         join(homeDir, ".grok", "user-settings.json"),
         JSON.stringify({
           apiKey: "sk-test",
-          mcp: { servers: [{ id: "context7", label: "Context7", enabled: true, transport: "stdio", command: "npx", args: ["-y", "@upstash/context7-mcp"] }] },
+          mcp: {
+            servers: [
+              {
+                id: "context7",
+                label: "Context7",
+                enabled: true,
+                transport: "stdio",
+                command: "npx",
+                args: ["-y", "@upstash/context7-mcp"],
+              },
+            ],
+          },
         }),
       );
 
@@ -226,7 +250,9 @@ describe("memory mcp global writers", () => {
       const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
 
       expect(result.status).toBe("installed");
-      const config = JSON.parse(readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"));
+      const config = JSON.parse(
+        readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"),
+      );
       expect(config.apiKey).toBe("sk-test");
       expect(config.mcp.servers).toHaveLength(2);
       expect(config.mcp.servers[0].id).toBe("context7");
@@ -248,7 +274,14 @@ describe("memory mcp global writers", () => {
           mcp: {
             servers: [
               { id: "first", label: "First", enabled: true, transport: "stdio", command: "a" },
-              { id: "ai-devkit-memory", label: "Old", enabled: false, transport: "stdio", command: "node", args: ["old.js"] },
+              {
+                id: "ai-devkit-memory",
+                label: "Old",
+                enabled: false,
+                transport: "stdio",
+                command: "node",
+                args: ["old.js"],
+              },
             ],
           },
         }),
@@ -258,7 +291,9 @@ describe("memory mcp global writers", () => {
       const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
 
       expect(result.status).toBe("installed");
-      const config = JSON.parse(readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"));
+      const config = JSON.parse(
+        readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"),
+      );
       expect(config.mcp.servers).toHaveLength(2);
       expect(config.mcp.servers[0].id).toBe("first");
       expect(config.mcp.servers[1]).toEqual({
@@ -284,7 +319,9 @@ describe("memory mcp global writers", () => {
       const writer = getGlobalMcpWriter("grok");
       const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
       expect(result.status).toBe("installed");
-      const config = JSON.parse(readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"));
+      const config = JSON.parse(
+        readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"),
+      );
       expect(config.mcp.servers[0].id).toBe("ai-devkit-memory");
     });
   });
@@ -293,7 +330,9 @@ describe("memory mcp global writers", () => {
     it("fails with a precise error and leaves the file untouched", async () => {
       writeFileSync(join(homeDir, ".claude.json"), "{ not json");
       const writer = getGlobalMcpWriter("claude");
-      await expect(writer!.apply(MEMORY_MCP_SERVER, homeDir)).rejects.toThrow(/\.claude\.json.*JSON/i);
+      await expect(writer!.apply(MEMORY_MCP_SERVER, homeDir)).rejects.toThrow(
+        /\.claude\.json.*JSON/i,
+      );
       expect(readFileSync(join(homeDir, ".claude.json"), "utf-8")).toBe("{ not json");
     });
   });

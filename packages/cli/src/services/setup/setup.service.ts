@@ -7,7 +7,11 @@ import { promisify } from "util";
 import { BUILTIN_SKILL_REGISTRY, getBuiltinSkillNames } from "../skill/skill-builtins.js";
 import { ConfigManager } from "../../lib/Config.js";
 import { SkillService } from "../../services/skill/skill.service.js";
-import { getGlobalMcpWriter, MCP_UNSUPPORTED_AGENTS, MEMORY_MCP_SERVER } from "./memory-mcp/index.js";
+import {
+  getGlobalMcpWriter,
+  MCP_UNSUPPORTED_AGENTS,
+  MEMORY_MCP_SERVER,
+} from "./memory-mcp/index.js";
 import { getErrorMessage } from "../../util/text.js";
 
 const execFileAsync = promisify(execFile);
@@ -316,8 +320,7 @@ async function setupMemoryMcp(
     return skipped(
       agent,
       "memory-mcp",
-      reason ??
-        `${agent} has no verified global MCP config surface; skipping memory MCP wiring.`,
+      reason ?? `${agent} has no verified global MCP config surface; skipping memory MCP wiring.`,
     );
   }
 
