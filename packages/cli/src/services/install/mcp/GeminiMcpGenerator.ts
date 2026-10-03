@@ -4,23 +4,29 @@ import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 import { McpConfigScope } from "./types.js";
 
-interface DevinMcpConfig {
+interface GeminiSettingsConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 
-export class DevinMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = "devin";
+/**
+ * Gemini CLI MCP servers live in `settings.json` → `mcpServers`
+ * (user scope: ~/.gemini/settings.json, workspace scope: .gemini/settings.json;
+ * official docs: gemini-cli docs/tools/mcp-server.md + docs/cli/settings.md).
+ */
+export class GeminiMcpGenerator extends BaseMcpGenerator {
+  readonly agentType: EnvironmentCode = "gemini";
 
   protected readonly configPaths: { project: string; user?: string } = {
-    project: ".devin/config.json",
+    project: ".gemini/settings.json",
+    user: ".gemini/settings.json",
   };
+
+  private fullConfig: GeminiSettingsConfig = {};
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);
   }
-
-  private fullConfig: DevinMcpConfig = {};
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
     if (def.transport === "stdio") {
@@ -38,7 +44,7 @@ export class DevinMcpGenerator extends BaseMcpGenerator {
   protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
     const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
-      this.fullConfig = await fs.readJson(configPath);
+      this.fullConfig = (await fs.readJson(configPath)) as GeminiSettingsConfig;
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};

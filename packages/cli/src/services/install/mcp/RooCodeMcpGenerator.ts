@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
+import { McpConfigScope } from "./types.js";
 
 interface RooMcpConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
@@ -10,6 +11,12 @@ interface RooMcpConfig {
 
 export class RooCodeMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "roo";
+
+  protected readonly configPaths: { project: string; user?: string } = { project: ".roo/mcp.json" };
+
+  constructor(scope: McpConfigScope = "project") {
+    super(scope);
+  }
 
   private fullConfig: RooMcpConfig = {};
 
@@ -26,8 +33,8 @@ export class RooCodeMcpGenerator extends BaseMcpGenerator {
     return entry;
   }
 
-  protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, ".roo", "mcp.json");
+  protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
+    const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
       this.fullConfig = await fs.readJson(configPath);
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
@@ -37,11 +44,11 @@ export class RooCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async writeServers(
-    projectRoot: string,
+    baseDir: string,
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcpServers: mergedServers };
-    const configPath = path.join(projectRoot, ".roo", "mcp.json");
+    const configPath = this.resolveConfigPath(baseDir);
     await fs.ensureDir(path.dirname(configPath));
     await fs.writeJson(configPath, output, { spaces: 2 });
   }

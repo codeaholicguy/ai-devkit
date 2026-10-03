@@ -6,6 +6,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: "Cursor",
     skillPath: ".cursor/skills",
     globalSkillPath: ".cursor/skills",
+    mcpConfigPath: ".cursor/mcp.json",
   },
   claude: {
     code: "claude",
@@ -26,6 +27,7 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     name: "Google Gemini",
     skillPath: ".gemini/skills",
     globalSkillPath: ".gemini/skills",
+    mcpConfigPath: ".gemini/settings.json",
   },
   grok: {
     code: "grok",
