@@ -13,21 +13,18 @@ const CLI_DIST = resolve(dirname(fileURLToPath(import.meta.url)), "../../../dist
  * End-to-end: run the BUILT `ai-devkit setup` command against an isolated
  * $HOME and assert the memory MCP wiring lands in every detected harness's
  * global config. Never touches the real environment configs.
+ *
+ * Note: `~/.pi` is intentionally NOT created here. Detecting pi would run the
+ * pre-existing pi-session-tracker step, which requires the `pi` binary on
+ * PATH — unavailable on CI runners and unrelated to memory wiring. pi's
+ * honest no-MCP skip is covered by the setup service unit tests.
  */
 describe.skipIf(!existsSync(CLI_DIST))("setup e2e — isolated HOME", () => {
   let homeDir: string;
 
   beforeEach(() => {
     homeDir = mkdtempSync(join(tmpdir(), "ai-devkit-setup-e2e-"));
-    for (const dir of [
-      ".codex",
-      ".pi",
-      ".claude",
-      ".gemini",
-      ".cursor",
-      ".config/opencode",
-      ".grok",
-    ]) {
+    for (const dir of [".codex", ".claude", ".gemini", ".cursor", ".config/opencode", ".grok"]) {
       mkdirSync(join(homeDir, ...dir.split("/")), { recursive: true });
     }
   });
@@ -85,8 +82,8 @@ describe.skipIf(!existsSync(CLI_DIST))("setup e2e — isolated HOME", () => {
       // grok
       const grok = JSON.parse(readFileSync(join(homeDir, ".grok", "user-settings.json"), "utf-8"));
       expect(grok.mcp.servers.some((s: { id: string }) => s.id === "ai-devkit-memory")).toBe(true);
-      // pi honestly skipped
-      expect(output).toMatch(/pi.*no MCP support/i);
+      // pi (not present in this HOME) is skipped honestly at detection level
+      expect(output).toMatch(/pi[\s\S]*~\/\.pi does not exist\./);
     },
   );
 
