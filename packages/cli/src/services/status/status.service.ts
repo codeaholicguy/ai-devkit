@@ -117,6 +117,7 @@ const STATUS_SKILL_ROOTS: Partial<Record<ReadinessAgentType, string>> = {
     getGlobalSkillPath("antigravity-cli") ?? ".gemini/config/skills",
   opencode: getGlobalSkillPath("opencode") ?? ".config/opencode/skills",
   pi: getGlobalSkillPath("pi") ?? ".pi/agent/skills",
+  devin: getGlobalSkillPath("devin") ?? ".config/devin/skills",
 };
 
 export function worstStatus(statuses: CheckStatus[]): CheckStatus {

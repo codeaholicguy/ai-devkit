@@ -147,6 +147,7 @@ const TYPE_LABELS: Record<AgentType, string> = {
   antigravity_cli: "Antigravity CLI",
   opencode: "OpenCode",
   pi: "Pi",
+  devin: "Devin",
   other: "Other",
 };
 
@@ -609,7 +610,7 @@ export function registerAgentCommand(program: Command): void {
   agentCommand
     .command("sessions")
     .description(
-      "List historical Claude/Codex/Gemini/Grok/Kiro/OpenCode sessions for resume",
+      "List historical Claude/Codex/Gemini/Grok/Kiro/OpenCode/Devin sessions for resume",
     )
     .option(
       "--all",

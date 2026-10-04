@@ -67,6 +67,7 @@ function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
     ".kiro",
     ".gemini/antigravity-cli",
     ".config/opencode",
+    ".config/devin",
     ".pi",
   ]) {
     files[path.join(homeDir, directory)] = "<dir>";
@@ -100,6 +101,8 @@ function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
         return { stdout: "github.com\n  Logged in to github.com account test-user\n", stderr: "" };
       if (command === "opencode")
         return { stdout: "●  litellm api\n●  OpenAI oauth\n", stderr: "" };
+      if (command === "devin")
+        return { stdout: "Logged in (via Devin).\n\nUser:\n  Name: test-user\n", stderr: "" };
       throw new Error(`unexpected command ${command}`);
     }),
     codexAuth: async () => true,
@@ -124,6 +127,7 @@ describe("agent readiness", () => {
       "opencode",
       "copilot",
       "pi",
+      "devin",
     ]);
     for (const [agent, report] of Object.entries(reports) as Array<
       [ReadinessAgentType, (typeof reports)[ReadinessAgentType]]
@@ -281,5 +285,42 @@ describe("agent readiness", () => {
       availableProviders: ["GitHub"],
       status: "pass",
     });
+  });
+
+  it("checks Devin auth from devin auth status output", async () => {
+    const { options } = fixture({
+      runCommand: vi.fn(async (command) => {
+        if (command === "devin")
+          return { stdout: "Logged in (via Devin).\n\nUser:\n  Name: test-user\n", stderr: "" };
+        if (command === "pi") return { stdout: "npm:@ai-devkit/pi-session-tracker\n", stderr: "" };
+        if (command === "claude") return { stdout: JSON.stringify({ loggedIn: true }), stderr: "" };
+        throw new Error(`unexpected command ${command}`);
+      }),
+    });
+
+    const report = await getAgentReadinessReport("devin", options);
+
+    expect(report.auth).toMatchObject({
+      state: "authenticated",
+      source: "devin auth status",
+      provider: null,
+      availableProviders: ["devin"],
+      status: "pass",
+    });
+  });
+
+  it("reports Devin as unauthenticated without a login line", async () => {
+    const { options } = fixture({
+      runCommand: vi.fn(async (command) => {
+        if (command === "devin") return { stdout: "Not logged in\n", stderr: "" };
+        if (command === "pi") return { stdout: "npm:@ai-devkit/pi-session-tracker\n", stderr: "" };
+        if (command === "claude") return { stdout: JSON.stringify({ loggedIn: true }), stderr: "" };
+        throw new Error(`unexpected command ${command}`);
+      }),
+    });
+
+    const report = await getAgentReadinessReport("devin", options);
+
+    expect(report.auth).toMatchObject({ state: "unauthenticated", status: "fail" });
   });
 });

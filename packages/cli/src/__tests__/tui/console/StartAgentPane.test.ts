@@ -19,6 +19,7 @@ describe("StartAgentPane helpers", () => {
       "opencode",
       "pi",
       "kiro",
+      "devin",
     ]);
   });
 
@@ -28,7 +29,8 @@ describe("StartAgentPane helpers", () => {
     expect(nextStartAgentType("copilot")).toBe("gemini_cli");
     expect(nextStartAgentType("opencode")).toBe("pi");
     expect(nextStartAgentType("pi")).toBe("kiro");
-    expect(nextStartAgentType("kiro")).toBe("claude");
+    expect(nextStartAgentType("kiro")).toBe("devin");
+    expect(nextStartAgentType("devin")).toBe("claude");
   });
 
   it("cycles to the previous agent type", () => {
@@ -36,7 +38,8 @@ describe("StartAgentPane helpers", () => {
     expect(previousStartAgentType("gemini_cli")).toBe("copilot");
     expect(previousStartAgentType("pi")).toBe("opencode");
     expect(previousStartAgentType("kiro")).toBe("pi");
-    expect(previousStartAgentType("claude")).toBe("kiro");
+    expect(previousStartAgentType("devin")).toBe("kiro");
+    expect(previousStartAgentType("claude")).toBe("devin");
   });
 
   it("normalizes submitted name and cwd without changing the selected type", () => {
