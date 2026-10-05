@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Added the Devin CLI harness adapter ([#309](https://github.com/codeaholicguy/ai-devkit/pull/309)).
+- Ranked skill find results and showed install commands ([be4e7be](https://github.com/codeaholicguy/ai-devkit/commit/be4e7be)).
+- Added `--mode` to `skill add` ([24427c6](https://github.com/codeaholicguy/ai-devkit/commit/24427c6)).
+- Configured per-skill install mode with copy or link ([362569c](https://github.com/codeaholicguy/ai-devkit/commit/362569c)).
+- Documented WezTerm and Ghostty as supported terminals ([0534cd3](https://github.com/codeaholicguy/ai-devkit/commit/0534cd3)).
+- Added a Ghostty terminal backend ([a5cf236](https://github.com/codeaholicguy/ai-devkit/commit/a5cf236)).
+
 ## [0.66.0] - 2026-09-30
 
 - Started the memory MCP server when launched through the bin symlink ([#303](https://github.com/codeaholicguy/ai-devkit/pull/303)).
