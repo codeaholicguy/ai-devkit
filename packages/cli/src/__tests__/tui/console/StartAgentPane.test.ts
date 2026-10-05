@@ -3,7 +3,9 @@ import {
   STARTABLE_AGENT_TYPES,
   getStartPaneHints,
   getStartTypeRows,
+  isModeAllowedForType,
   isTextFieldFocus,
+  nextAgentMode,
   nextFocus,
   nextStartAgentType,
   normalizeStartAgentValues,
@@ -62,11 +64,13 @@ describe("StartAgentPane helpers", () => {
         type: "gemini_cli",
         name: "  feature-agent  ",
         cwd: "  /tmp/project  ",
+        mode: "interactive",
       }),
     ).toEqual({
       type: "gemini_cli",
       name: "feature-agent",
       cwd: "/tmp/project",
+      mode: "interactive",
     });
   });
 
@@ -75,7 +79,8 @@ describe("StartAgentPane helpers", () => {
     expect(getStartPaneHints("submit")).toContain("enter start");
     expect(getStartPaneHints("cancel")).toContain("enter cancel");
     expect(getStartPaneHints("name")).toContain("enter next");
-    for (const focus of ["type", "cwd", "name", "submit", "cancel"] as const) {
+    expect(getStartPaneHints("mode")).toContain("←/→/h/l mode");
+    for (const focus of ["type", "mode", "cwd", "name", "submit", "cancel"] as const) {
       expect(getStartPaneHints(focus)).toContain("esc back");
     }
   });
@@ -89,7 +94,7 @@ describe("StartAgentPane helpers", () => {
   });
 
   it("moves focus forward and backward across the field order", () => {
-    expect(nextFocus("type")).toBe("cwd");
+    expect(nextFocus("type")).toBe("mode");
     expect(nextFocus("cancel")).toBe("type");
     expect(previousFocus("type")).toBe("cancel");
     expect(previousFocus("submit")).toBe("name");
@@ -110,6 +115,24 @@ describe("StartAgentPane helpers", () => {
   it("does not treat j/k as navigation on text input fields", () => {
     expect(resolveFieldNav("cwd", { input: "j" })).toBeNull();
     expect(resolveFieldNav("name", { input: "k" })).toBeNull();
+  });
+
+  it("restricts durable mode to claude, codex and pi", () => {
+    expect(isModeAllowedForType("durable", "codex")).toBe(true);
+    expect(isModeAllowedForType("durable", "gemini_cli")).toBe(false);
+    expect(isModeAllowedForType("interactive", "gemini_cli")).toBe(true);
+  });
+
+  it("does not cycle to durable mode for unsupported types", () => {
+    expect(nextAgentMode("interactive", "codex")).toBe("durable");
+    expect(nextAgentMode("durable", "codex")).toBe("interactive");
+    expect(nextAgentMode("interactive", "gemini_cli")).toBe("interactive");
+  });
+
+  it("falls back to interactive when durable is normalized for an unsupported type", () => {
+    expect(
+      normalizeStartAgentValues({ type: "kiro", name: "x", cwd: "/tmp", mode: "durable" }).mode,
+    ).toBe("interactive");
   });
 
   it("keeps short error messages unchanged", () => {

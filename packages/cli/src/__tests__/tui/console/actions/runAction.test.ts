@@ -96,6 +96,19 @@ describe("runAction", () => {
     );
   });
 
+  it("passes --mode for start action when provided", async () => {
+    vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
+    await runAction({
+      type: "start",
+      agentType: "claude",
+      name: "my-agent",
+      cwd: "/tmp/project",
+      mode: "durable",
+    });
+    const [, argv] = vi.mocked(spawn).mock.calls[0];
+    expect(argv).toEqual(expect.arrayContaining(["--mode", "durable"]));
+  });
+
   it("passes correct argv for kill action", async () => {
     vi.mocked(spawn).mockReturnValue(makeChild(0) as ReturnType<typeof spawn>);
     await runAction({ type: "kill", agentName: "my-agent" });
