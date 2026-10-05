@@ -4,6 +4,7 @@ import {
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
+  resolveFieldNav,
   trimStartAgentError,
 } from "../../../tui/console/StartAgentPane.js";
 
@@ -54,6 +55,18 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("moves focus with j/k on non-text fields", () => {
+    expect(resolveFieldNav("type", { input: "j" })).toBe("next");
+    expect(resolveFieldNav("type", { input: "k" })).toBe("previous");
+    expect(resolveFieldNav("submit", { input: "j" })).toBe("next");
+    expect(resolveFieldNav("cancel", { input: "k" })).toBe("previous");
+  });
+
+  it("does not treat j/k as navigation on text input fields", () => {
+    expect(resolveFieldNav("cwd", { input: "j" })).toBeNull();
+    expect(resolveFieldNav("name", { input: "k" })).toBeNull();
   });
 
   it("keeps short error messages unchanged", () => {
