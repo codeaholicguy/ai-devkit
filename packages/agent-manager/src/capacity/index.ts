@@ -3,6 +3,7 @@ import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
 import { codexUnavailableReport, probeCodexCapacity } from "./sources/codex.js";
 import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./sources/claude.js";
+import { probeDevinCapacity, type DevinCapacityOptions } from "./sources/devin.js";
 import {
   probeOpenAiCapacity,
   probePiAnthropicCapacity,
@@ -15,6 +16,7 @@ import type { CapacityReport } from "./types.js";
 
 export type { CapacityReport, CapacityWindow } from "./types.js";
 export type { ClaudeCapacityOptions } from "./sources/claude.js";
+export type { DevinCapacityOptions } from "./sources/devin.js";
 export type { PiAnthropicCapacityOptions as AnthropicCapacityOptions } from "./sources/pi.js";
 export type {
   PiOpenAiCapacityOptions as OpenAiCapacityOptions,
@@ -100,6 +102,16 @@ export async function getClaudeCapacityReport(
     ...probeOptions,
     checkedAt: (now?.() ?? new Date()).toISOString(),
     now,
+  });
+}
+
+export async function getDevinCapacityReport(
+  options: DevinCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeDevinCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
   });
 }
 

@@ -15,6 +15,7 @@ const ELEVATED_USAGE = 70;
 const HIGH_USAGE = 90;
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
+  devin: "Devin",
   zai: "z.ai",
   openai: "OpenAI",
 };
