@@ -59,16 +59,19 @@ export function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
+export function isTextFieldFocus(focus: Focus): boolean {
+  return focus === "cwd" || focus === "name";
+}
+
 type FieldNav = "next" | "previous" | null;
 
 export function resolveFieldNav(
   focus: Focus,
   key: { down?: boolean; up?: boolean; tab?: boolean; shift?: boolean; input?: string },
 ): FieldNav {
-  const textFieldFocused = focus === "cwd" || focus === "name";
   if (key.tab && key.shift) return "previous";
-  if (key.tab || key.down || (key.input === "j" && !textFieldFocused)) return "next";
-  if (key.up || (key.input === "k" && !textFieldFocused)) return "previous";
+  if (key.tab || key.down || (key.input === "j" && !isTextFieldFocus(focus))) return "next";
+  if (key.up || (key.input === "k" && !isTextFieldFocus(focus))) return "previous";
   return null;
 }
 
@@ -150,6 +153,11 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       return;
     }
     if (isSubmitting) return;
+
+    if (input === "q" && !isTextFieldFocus(focus)) {
+      onCancel();
+      return;
+    }
 
     if (focus === "type") {
       if (key.upArrow || input === "k" || key.leftArrow) {

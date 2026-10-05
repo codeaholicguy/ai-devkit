@@ -3,6 +3,7 @@ import {
   STARTABLE_AGENT_TYPES,
   getStartPaneHints,
   getStartTypeRows,
+  isTextFieldFocus,
   nextFocus,
   nextStartAgentType,
   normalizeStartAgentValues,
@@ -77,6 +78,14 @@ describe("StartAgentPane helpers", () => {
     for (const focus of ["type", "cwd", "name", "submit", "cancel"] as const) {
       expect(getStartPaneHints(focus)).toContain("esc back");
     }
+  });
+
+  it("identifies text-input fields so pane-level char bindings stay guarded", () => {
+    expect(isTextFieldFocus("cwd")).toBe(true);
+    expect(isTextFieldFocus("name")).toBe(true);
+    expect(isTextFieldFocus("type")).toBe(false);
+    expect(isTextFieldFocus("submit")).toBe(false);
+    expect(isTextFieldFocus("cancel")).toBe(false);
   });
 
   it("moves focus forward and backward across the field order", () => {
