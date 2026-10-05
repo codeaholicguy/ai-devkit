@@ -4,7 +4,18 @@ import { runAction } from "../actions/runAction.js";
 import { generateAgentName } from "../../../util/agent.js";
 import type { ConsoleFocus, RightPaneMode, TransientMessage } from "../types.js";
 
-type StartDefaults = { name: string; cwd: string };
+type StartDefaults = { type: StartableAgentType; name: string; cwd: string };
+
+// Remembered across pane opens for the lifetime of the console session.
+let lastUsedStart: { type: StartableAgentType; cwd: string } | null = null;
+
+export function rememberStartDefaults(values: { type: StartableAgentType; cwd: string }): void {
+  lastUsedStart = { type: values.type, cwd: values.cwd };
+}
+
+export function clearRememberedStartDefaults(): void {
+  lastUsedStart = null;
+}
 
 interface UseStartAgentPaneOptions {
   refresh: () => Promise<void>;
@@ -19,9 +30,9 @@ interface StartAgentValues {
   cwd: string;
 }
 
-function createStartDefaults(): StartDefaults {
-  const cwd = process.cwd();
-  return { name: generateAgentName(cwd), cwd };
+export function createStartDefaults(): StartDefaults {
+  const cwd = lastUsedStart?.cwd ?? process.cwd();
+  return { type: lastUsedStart?.type ?? "codex", name: generateAgentName(cwd), cwd };
 }
 
 export function useStartAgentPane({
@@ -58,6 +69,7 @@ export function useStartAgentPane({
             setStartPaneError(result.error ?? `start exited ${result.exitCode}`);
             return;
           }
+          rememberStartDefaults({ type: values.type, cwd: values.cwd });
           setRightPaneMode({ type: "preview" });
           setTransient({ kind: "info", text: `Started ${values.name}` });
           await refresh();
