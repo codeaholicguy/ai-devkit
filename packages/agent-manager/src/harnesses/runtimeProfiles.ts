@@ -21,6 +21,7 @@ export const HARNESS_RUNTIME_PROFILES: Record<StartableAgentType, HarnessRuntime
   opencode: profile("opencode", matchArgv0("opencode")),
   pi: profile("pi", matchAnyBasename(["pi"])),
   kiro: profile("kiro", matchAnyBasename(["kiro-cli", "kiro"]), ["kiro_cli", "kiro-cli"]),
+  devin: profile("devin", matchArgv0("devin")),
 };
 
 export function runtimeAgentMatchesHarness(runtimeAgent: string, type: AgentType): boolean {

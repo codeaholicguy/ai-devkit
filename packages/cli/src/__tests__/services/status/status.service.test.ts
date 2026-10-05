@@ -224,6 +224,7 @@ describe("getStatusReport", () => {
       "opencode",
       "copilot",
       "pi",
+      "devin",
     ]);
     expect(report.agents.copilot.integration).toBeUndefined();
     expect(report.agents.gemini_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });

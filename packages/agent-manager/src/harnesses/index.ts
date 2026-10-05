@@ -8,6 +8,7 @@ import { GrokCliAdapter } from "./grok/GrokCliAdapter.js";
 import { KiroAdapter } from "./kiro/KiroAdapter.js";
 import { OpenCodeAdapter } from "./opencode/OpenCodeAdapter.js";
 import { PiAdapter } from "./pi/PiAdapter.js";
+import { DevinAdapter } from "./devin/DevinAdapter.js";
 
 /**
  * One instance of every built-in harness adapter, in registration order
@@ -24,5 +25,6 @@ export function createBuiltinAdapters(): AgentAdapter[] {
     new AntigravityCliAdapter(),
     new OpenCodeAdapter(),
     new PiAdapter(),
+    new DevinAdapter(),
   ];
 }
