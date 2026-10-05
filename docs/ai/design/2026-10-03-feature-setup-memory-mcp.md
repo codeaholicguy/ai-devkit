@@ -100,7 +100,7 @@ Tool description updates (packages/memory/src/server.ts) — text only, no schem
 
 ## Design Decisions
 
-0. **Reuse the install/mcp generator architecture (scope-aware extension) instead of duplicating writers.** `toAgentFormat` format knowledge and plan/apply diff-and-merge idempotence live in one place; setup runs the same code with `scope=user` and a home baseDir. Documented deviations from pure reuse:
+0. **Reuse the install/mcp generator architecture (scope-aware extension) instead of duplicating writers.** `toAgentFormat` format knowledge and plan/apply diff-and-merge idempotence live in one place; setup runs the same code with `scope=user` and a home baseDir. With this feature, `install/mcp` is now a two-consumer config-format library (project `install mcp` + global `setup` memory wiring); relocating it to a neutral module is a known follow-up, deferred to keep this branch scoped. Documented deviations from pure reuse:
    - **Codex user scope writes textually** (append/replace the `[mcp_servers.ai-devkit-memory]` block). The generator's project path uses a smol-toml parse/stringify round-trip, which reformats and drops comments — unacceptable for a user's global `~/.codex/config.toml`. Reading still parses TOML (drift detection); only writing is textual.
    - **Grok is a standalone writer**, not a generator: its user-level config (`~/.grok/user-settings.json` → `mcp.servers[]` array, upsert by `id`) does not fit BaseMcpGenerator's map-shaped `readExistingServers`/`writeServers` contract, and grok project-scope wiring is out of scope (unregistered).
    - **pi skipped honestly** (unchanged): pi documents "No MCP" by design; report points at the `memory` skill + `ai-devkit memory` CLI path.

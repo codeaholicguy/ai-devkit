@@ -1,12 +1,11 @@
 import type { McpServerDefinition } from "../../../types.js";
-import {
-  ClaudeCodeMcpGenerator,
-  CodexMcpGenerator,
-  CursorMcpGenerator,
-  GeminiMcpGenerator,
-  OpenCodeMcpGenerator,
-} from "../../install/mcp/generators.js";
+import { ClaudeCodeMcpGenerator } from "../../install/mcp/ClaudeCodeMcpGenerator.js";
+import { CodexMcpGenerator } from "../../install/mcp/CodexMcpGenerator.js";
+import { CursorMcpGenerator } from "../../install/mcp/CursorMcpGenerator.js";
+import { GeminiMcpGenerator } from "../../install/mcp/GeminiMcpGenerator.js";
+import { OpenCodeMcpGenerator } from "../../install/mcp/OpenCodeMcpGenerator.js";
 import type { BaseMcpGenerator } from "../../install/mcp/BaseMcpGenerator.js";
+import type { McpMergePlan } from "../../install/mcp/types.js";
 import { grokGlobalMcpWriter } from "./grok-writer.js";
 import { MEMORY_MCP_SERVER } from "./spec.js";
 import type {
@@ -30,6 +29,25 @@ function toDefinition(spec: MemoryMcpServerSpec): McpServerDefinition {
   return { transport: "stdio", command: spec.command, args: [...spec.args] };
 }
 
+/** Shared interpretation of a single-server merge plan in our namespace. */
+type PlanState = "present" | "missing" | "conflict";
+
+/**
+ * Interpret a merge plan for OUR server name only: `missing` (not
+ * configured), `conflict` (configured with a custom entry), or `present`
+ * (already matches the canonical memory server definition). Single source
+ * of truth for both apply (skip vs install) and inspect (wired vs unwired).
+ */
+function planToState(plan: McpMergePlan): PlanState {
+  if (plan.newServers.length > 0) {
+    return "missing";
+  }
+  if (plan.conflictServers.length > 0) {
+    return "conflict";
+  }
+  return "present";
+}
+
 /**
  * Adapts a user-scope install/mcp generator to the setup-facing
  * GlobalMcpWriter contract. Reuses toAgentFormat + plan/apply diff-and-merge;
@@ -47,7 +65,7 @@ function generatorAsWriter(generator: BaseMcpGenerator, configPath: string): Glo
       const servers = serversOf(spec);
       const plan = await generator.plan(servers, homeDir);
 
-      if (plan.newServers.length === 0 && plan.conflictServers.length === 0) {
+      if (planToState(plan) === "present") {
         return { status: "skipped", message: `Already configured in ~/${configPath}.` };
       }
 
@@ -58,11 +76,11 @@ function generatorAsWriter(generator: BaseMcpGenerator, configPath: string): Glo
 
     async inspect(homeDir: string): Promise<MemoryMcpInspectResult> {
       try {
-        const plan = await generator.plan(serversOf(MEMORY_MCP_SERVER), homeDir);
-        if (plan.newServers.length > 0) {
+        const state = planToState(await generator.plan(serversOf(MEMORY_MCP_SERVER), homeDir));
+        if (state === "missing") {
           return { state: "unwired" };
         }
-        if (plan.conflictServers.length > 0) {
+        if (state === "conflict") {
           return { state: "unwired", detail: "configured with a custom entry" };
         }
         return { state: "wired" };
