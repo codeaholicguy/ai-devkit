@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  getStartPaneHints,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
@@ -54,6 +55,16 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("shows contextual key hints per focused field", () => {
+    expect(getStartPaneHints("type")).toContain("←/→ type");
+    expect(getStartPaneHints("submit")).toContain("enter start");
+    expect(getStartPaneHints("cancel")).toContain("enter cancel");
+    expect(getStartPaneHints("name")).toContain("enter next");
+    for (const focus of ["type", "cwd", "name", "submit", "cancel"] as const) {
+      expect(getStartPaneHints(focus)).toContain("esc back");
+    }
   });
 
   it("keeps short error messages unchanged", () => {
