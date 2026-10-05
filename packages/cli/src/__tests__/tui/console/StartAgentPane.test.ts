@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  nextFocus,
   nextStartAgentType,
   normalizeStartAgentValues,
+  previousFocus,
   previousStartAgentType,
   trimStartAgentError,
 } from "../../../tui/console/StartAgentPane.js";
@@ -54,6 +56,13 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("moves focus forward and backward across the field order", () => {
+    expect(nextFocus("type")).toBe("cwd");
+    expect(nextFocus("cancel")).toBe("type");
+    expect(previousFocus("type")).toBe("cancel");
+    expect(previousFocus("submit")).toBe("name");
   });
 
   it("keeps short error messages unchanged", () => {

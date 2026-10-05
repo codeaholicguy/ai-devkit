@@ -40,11 +40,11 @@ interface StartAgentValues {
 
 const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
 
-function nextFocus(focus: Focus): Focus {
+export function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
 }
 
-function previousFocus(focus: Focus): Focus {
+export function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
@@ -100,6 +100,10 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       }
     }
 
+    if (key.tab && key.shift) {
+      setFocus(previousFocus(focus));
+      return;
+    }
     if (key.tab || key.downArrow) {
       setFocus(nextFocus(focus));
       return;
