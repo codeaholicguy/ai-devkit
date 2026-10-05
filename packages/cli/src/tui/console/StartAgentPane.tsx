@@ -42,7 +42,7 @@ export function getStartTypeRows(selected: StartableAgentType): {
   }));
 }
 
-type Focus = "type" | "mode" | "cwd" | "name" | "submit" | "cancel";
+type Focus = "type" | "mode" | "cwd" | "name" | "prompt" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
   initialType?: StartableAgentType;
@@ -53,6 +53,7 @@ interface StartAgentPaneProps {
     name: string;
     cwd: string;
     mode: AgentMode;
+    prompt: string;
   }) => void;
   onCancel: () => void;
   error?: string | null;
@@ -66,9 +67,10 @@ interface StartAgentValues {
   name: string;
   cwd: string;
   mode: AgentMode;
+  prompt: string;
 }
 
-const FOCUS_ORDER: Focus[] = ["type", "mode", "cwd", "name", "submit", "cancel"];
+const FOCUS_ORDER: Focus[] = ["type", "mode", "cwd", "name", "prompt", "submit", "cancel"];
 
 export function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
@@ -79,7 +81,7 @@ export function previousFocus(focus: Focus): Focus {
 }
 
 export function isTextFieldFocus(focus: Focus): boolean {
-  return focus === "cwd" || focus === "name";
+  return focus === "cwd" || focus === "name" || focus === "prompt";
 }
 
 type FieldNav = "next" | "previous" | null;
@@ -100,6 +102,7 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
     name: values.name.trim(),
     cwd: values.cwd.trim(),
     mode: isModeAllowedForType(values.mode, values.type) ? values.mode : "interactive",
+    prompt: values.prompt?.trim() ?? "",
   };
 }
 
@@ -111,6 +114,8 @@ export function getStartPaneHints(focus: Focus): string[] {
       return ["←/→/h/l mode", "tab next", "esc back"];
     case "cwd":
     case "name":
+      return ["tab next", "enter next", "esc back"];
+    case "prompt":
       return ["tab next", "enter next", "esc back"];
     case "submit":
       return ["enter start", "tab next", "esc back"];
@@ -142,6 +147,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [mode, setMode] = useState<AgentMode>("interactive");
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
+  const [prompt, setPrompt] = useState("");
   const [focus, setFocus] = useState<Focus>("type");
 
   const submittedRef = useRef(false);
@@ -159,7 +165,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     // form submits once per keypress.
     if (isSubmitting || submittedRef.current) return;
     submittedRef.current = true;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd, mode }));
+    onSubmit(normalizeStartAgentValues({ type, name, cwd, mode, prompt }));
   };
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -304,6 +310,20 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
           <TextInput value={name} onChange={setName} onSubmit={submit} />
         ) : (
           <Text>{name}</Text>
+        )}
+      </Box>
+
+      <Box marginTop={1} width={innerWidth}>
+        <Text color={focus === "prompt" ? TUI_COLORS.accent : undefined}>Task: </Text>
+        {focus === "prompt" ? (
+          <TextInput
+            value={prompt}
+            onChange={setPrompt}
+            onSubmit={() => setFocus("submit")}
+            placeholder="optional first message"
+          />
+        ) : (
+          <Text dimColor={!prompt}>{prompt || "(none)"}</Text>
         )}
       </Box>
 
