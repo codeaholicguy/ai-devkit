@@ -3,6 +3,7 @@ import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "@ai-devkit/agent-manager";
 import { KeyHints, Panel, SectionTitle, TUI_COLORS } from "../design-system/index.js";
+import { agentTypeLabel } from "../../util/agent.js";
 
 export const STARTABLE_AGENT_TYPES = Object.keys(HARNESS_RUNTIME_PROFILES) as StartableAgentType[];
 
@@ -137,7 +138,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
             color={agentType === type ? TUI_COLORS.accent : undefined}
             inverse={focus === "type" && agentType === type}
           >
-            {` ${agentType} `}
+            {` ${agentTypeLabel(agentType)} `}
           </Text>
         ))}
       </Box>
