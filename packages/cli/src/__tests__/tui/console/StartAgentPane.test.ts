@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
   getStartPaneHints,
+  getStartTypeAvailability,
   getStartTypeRows,
   isModeAllowedForType,
   isTextFieldFocus,
@@ -146,6 +147,13 @@ describe("StartAgentPane helpers", () => {
     expect(
       normalizeStartAgentValues({ type: "kiro", name: "x", cwd: "/tmp", mode: "durable" }).mode,
     ).toBe("interactive");
+  });
+
+  it("marks types as available only when their harness binary exists", () => {
+    const availability = getStartTypeAvailability((command) => command === "codex");
+    expect(availability.codex).toBe(true);
+    expect(availability.claude).toBe(false);
+    expect(availability.devin).toBe(false);
   });
 
   it("keeps short error messages unchanged", () => {

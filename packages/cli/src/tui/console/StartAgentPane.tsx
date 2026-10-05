@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "@ai-devkit/agent-manager";
 import { KeyHints, Panel, SectionTitle, TUI_COLORS } from "../design-system/index.js";
 import { agentTypeLabel } from "../../util/agent.js";
+import { commandExistsOnPath } from "../../util/executable.js";
 
 export const STARTABLE_AGENT_TYPES = Object.keys(HARNESS_RUNTIME_PROFILES) as StartableAgentType[];
 
@@ -124,6 +125,16 @@ export function getStartPaneHints(focus: Focus): string[] {
   }
 }
 
+export function getStartTypeAvailability(
+  exists: (command: string) => boolean = commandExistsOnPath,
+): Record<StartableAgentType, boolean> {
+  const availability = {} as Record<StartableAgentType, boolean>;
+  for (const type of STARTABLE_AGENT_TYPES) {
+    availability[type] = exists(HARNESS_RUNTIME_PROFILES[type].command);
+  }
+  return availability;
+}
+
 export function trimStartAgentError(error: string, width: number, maxLines = 4): string {
   const max = Math.max(20, width - 6);
   const clip = (line: string) => (line.length > max ? `${line.slice(0, max - 1)}...` : line);
@@ -149,6 +160,8 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [name, setName] = useState(initialName);
   const [prompt, setPrompt] = useState("");
   const [focus, setFocus] = useState<Focus>("type");
+  const typeAvailability = useMemo(() => getStartTypeAvailability(), []);
+  const tmuxAvailable = useMemo(() => commandExistsOnPath("tmux"), []);
 
   const submittedRef = useRef(false);
   useEffect(() => {
@@ -270,9 +283,9 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
             <Text
               color={row.marker.trim() ? TUI_COLORS.accent : undefined}
               bold={row.marker.trim().length > 0}
-              dimColor={focus !== "type" && row.type !== type}
+              dimColor={!typeAvailability[row.type] || (focus !== "type" && row.type !== type)}
             >
-              {agentTypeLabel(row.type)}
+              {`${agentTypeLabel(row.type)}${typeAvailability[row.type] ? "" : " (missing)"}`}
             </Text>
           </Box>
         ))}
@@ -326,6 +339,22 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
           <Text dimColor={!prompt}>{prompt || "(none)"}</Text>
         )}
       </Box>
+
+      {!tmuxAvailable ? (
+        <Box marginTop={1}>
+          <Text color={TUI_COLORS.warning}>
+            tmux is not installed — starting an agent will fail until it is.
+          </Text>
+        </Box>
+      ) : null}
+
+      {!typeAvailability[type] ? (
+        <Box marginTop={1}>
+          <Text color={TUI_COLORS.warning}>
+            {`"${HARNESS_RUNTIME_PROFILES[type].command}" was not found on PATH.`}
+          </Text>
+        </Box>
+      ) : null}
 
       {error ? (
         <Box marginTop={1}>
