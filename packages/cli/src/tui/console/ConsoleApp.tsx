@@ -175,6 +175,7 @@ const ConsoleAppShell: React.FC<{
     setFocus,
     setRightPaneMode,
     setTransient,
+    selectAgent: setSelectedName,
   });
 
   const { pendingKillName, openKillConfirm, handleKillInput } = useKillAgentAction({
