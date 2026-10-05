@@ -4,23 +4,29 @@ import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
 import { McpConfigScope } from "./types.js";
 
-interface DevinMcpConfig {
+interface CursorMcpConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
   [key: string]: unknown;
 }
 
-export class DevinMcpGenerator extends BaseMcpGenerator {
-  readonly agentType: EnvironmentCode = "devin";
+/**
+ * Cursor MCP config is `mcp.json` → `mcpServers`
+ * (project: .cursor/mcp.json, global: ~/.cursor/mcp.json;
+ * official docs: cursor.com/docs/context/mcp).
+ */
+export class CursorMcpGenerator extends BaseMcpGenerator {
+  readonly agentType: EnvironmentCode = "cursor";
 
   protected readonly configPaths: { project: string; user?: string } = {
-    project: ".devin/config.json",
+    project: ".cursor/mcp.json",
+    user: ".cursor/mcp.json",
   };
+
+  private fullConfig: CursorMcpConfig = {};
 
   constructor(scope: McpConfigScope = "project") {
     super(scope);
   }
-
-  private fullConfig: DevinMcpConfig = {};
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
     if (def.transport === "stdio") {
@@ -38,7 +44,7 @@ export class DevinMcpGenerator extends BaseMcpGenerator {
   protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
     const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
-      this.fullConfig = await fs.readJson(configPath);
+      this.fullConfig = (await fs.readJson(configPath)) as CursorMcpConfig;
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
