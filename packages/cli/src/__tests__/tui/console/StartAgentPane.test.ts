@@ -63,4 +63,10 @@ describe("StartAgentPane helpers", () => {
   it("clips long error messages to fit the pane width", () => {
     expect(trimStartAgentError("x".repeat(100), 30)).toBe(`${"x".repeat(23)}...`);
   });
+
+  it("keeps multi-line errors up to the last N lines", () => {
+    const error = ["line one", "line two", "line three", "line four", "line five"].join("\n");
+    expect(trimStartAgentError(error, 80, 3)).toBe("line three\nline four\nline five");
+    expect(trimStartAgentError("first\nsecond", 80)).toBe("first\nsecond");
+  });
 });

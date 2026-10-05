@@ -56,9 +56,12 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
   };
 }
 
-export function trimStartAgentError(error: string, width: number): string {
+export function trimStartAgentError(error: string, width: number, maxLines = 4): string {
   const max = Math.max(20, width - 6);
-  return error.length > max ? `${error.slice(0, max - 1)}...` : error;
+  const clip = (line: string) => (line.length > max ? `${line.slice(0, max - 1)}...` : line);
+  const lines = error.split("\n").map((line) => line.trimEnd());
+  const visible = lines.slice(-maxLines);
+  return visible.map(clip).join("\n");
 }
 
 export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
