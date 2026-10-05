@@ -76,6 +76,7 @@ describe("StartAgentPane helpers", () => {
       cwd: "/tmp/project",
       mode: "interactive",
       prompt: "",
+      args: [],
     });
   });
 
@@ -90,13 +91,36 @@ describe("StartAgentPane helpers", () => {
     ).toBe("fix the tests");
   });
 
+  it("splits extra args respecting quotes", () => {
+    expect(
+      normalizeStartAgentValues({
+        type: "codex",
+        name: "x",
+        cwd: "/tmp",
+        args: `--debug --profile "work env" --flag='some value'`,
+      }).args,
+    ).toEqual(["--debug", "--profile", "work env", "--flag=some value"]);
+    expect(
+      normalizeStartAgentValues({ type: "codex", name: "x", cwd: "/tmp" }).args,
+    ).toEqual([]);
+  });
+
   it("shows contextual key hints per focused field", () => {
     expect(getStartPaneHints("type")).toContain("↑/↓/j/k type");
     expect(getStartPaneHints("submit")).toContain("enter start");
     expect(getStartPaneHints("cancel")).toContain("enter cancel");
     expect(getStartPaneHints("name")).toContain("enter next");
     expect(getStartPaneHints("mode")).toContain("←/→/h/l mode");
-    for (const focus of ["type", "mode", "cwd", "name", "prompt", "submit", "cancel"] as const) {
+    for (const focus of [
+      "type",
+      "mode",
+      "cwd",
+      "name",
+      "prompt",
+      "args",
+      "submit",
+      "cancel",
+    ] as const) {
       expect(getStartPaneHints(focus)).toContain("esc back");
     }
   });
@@ -105,6 +129,7 @@ describe("StartAgentPane helpers", () => {
     expect(isTextFieldFocus("cwd")).toBe(true);
     expect(isTextFieldFocus("name")).toBe(true);
     expect(isTextFieldFocus("prompt")).toBe(true);
+    expect(isTextFieldFocus("args")).toBe(true);
     expect(isTextFieldFocus("type")).toBe(false);
     expect(isTextFieldFocus("submit")).toBe(false);
     expect(isTextFieldFocus("cancel")).toBe(false);
@@ -114,7 +139,7 @@ describe("StartAgentPane helpers", () => {
     expect(nextFocus("type")).toBe("mode");
     expect(nextFocus("cancel")).toBe("type");
     expect(previousFocus("type")).toBe("cancel");
-    expect(previousFocus("submit")).toBe("prompt");
+    expect(previousFocus("submit")).toBe("args");
   });
 
   it("moves focus backward on Shift+Tab", () => {
