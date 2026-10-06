@@ -45,7 +45,7 @@ const INPUT_BOX_CHROME_ROWS = 2;
 
 export const AGENT_CONSOLE_RENDER_OPTIONS: RenderOptions = {
   alternateScreen: true,
-  exitOnCtrlC: true,
+  exitOnCtrlC: false,
   incrementalRendering: true,
   maxFps: 60,
 };
@@ -229,6 +229,23 @@ const ConsoleAppShell: React.FC<{
 
   useInput((input, key) => {
     if (handleKillInput(input, key)) return;
+
+    if (key.ctrl && input === "c") {
+      if (startPaneActive) {
+        handleStartCancel();
+        return;
+      }
+      if (renamePaneActive) {
+        handleRenameCancel();
+        return;
+      }
+      if (channelSelectPaneActive || memoryListPaneActive || helpPaneActive) {
+        setRightPaneMode({ type: "preview" });
+        return;
+      }
+      exit();
+      return;
+    }
 
     if (startPaneActive || renamePaneActive || channelSelectPaneActive) return;
 
