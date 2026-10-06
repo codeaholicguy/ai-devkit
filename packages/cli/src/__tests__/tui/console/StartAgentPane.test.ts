@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
   getStartPaneHints,
+  getStartTypeRows,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
+  resolveFieldNav,
   trimStartAgentError,
 } from "../../../tui/console/StartAgentPane.js";
 
@@ -43,6 +45,14 @@ describe("StartAgentPane helpers", () => {
     expect(previousStartAgentType("claude")).toBe("devin");
   });
 
+  it("renders one row per type with a marker on the selected type", () => {
+    const rows = getStartTypeRows("gemini_cli");
+    expect(rows).toHaveLength(STARTABLE_AGENT_TYPES.length);
+    expect(rows.filter((row) => row.marker === "▶ ").map((row) => row.type)).toEqual([
+      "gemini_cli",
+    ]);
+  });
+
   it("normalizes submitted name and cwd without changing the selected type", () => {
     expect(
       normalizeStartAgentValues({
@@ -58,7 +68,7 @@ describe("StartAgentPane helpers", () => {
   });
 
   it("shows contextual key hints per focused field", () => {
-    expect(getStartPaneHints("type")).toContain("←/→ type");
+    expect(getStartPaneHints("type")).toContain("↑/↓/j/k type");
     expect(getStartPaneHints("submit")).toContain("enter start");
     expect(getStartPaneHints("cancel")).toContain("enter cancel");
     expect(getStartPaneHints("name")).toContain("enter next");
@@ -67,11 +77,29 @@ describe("StartAgentPane helpers", () => {
     }
   });
 
+  it("moves focus with j/k on non-text fields", () => {
+    expect(resolveFieldNav("type", { input: "j" })).toBe("next");
+    expect(resolveFieldNav("type", { input: "k" })).toBe("previous");
+    expect(resolveFieldNav("submit", { input: "j" })).toBe("next");
+    expect(resolveFieldNav("cancel", { input: "k" })).toBe("previous");
+  });
+
+  it("does not treat j/k as navigation on text input fields", () => {
+    expect(resolveFieldNav("cwd", { input: "j" })).toBeNull();
+    expect(resolveFieldNav("name", { input: "k" })).toBeNull();
+  });
+
   it("keeps short error messages unchanged", () => {
     expect(trimStartAgentError("cwd does not exist", 80)).toBe("cwd does not exist");
   });
 
   it("clips long error messages to fit the pane width", () => {
     expect(trimStartAgentError("x".repeat(100), 30)).toBe(`${"x".repeat(23)}...`);
+  });
+
+  it("keeps multi-line errors up to the last N lines", () => {
+    const error = ["line one", "line two", "line three", "line four", "line five"].join("\n");
+    expect(trimStartAgentError(error, 80, 3)).toBe("line three\nline four\nline five");
+    expect(trimStartAgentError("first\nsecond", 80)).toBe("first\nsecond");
   });
 });

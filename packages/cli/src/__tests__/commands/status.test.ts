@@ -162,6 +162,7 @@ const report = {
     connections: [],
     readyCount: 0,
   },
+  memoryMcp: { status: "pass", agents: [] },
   checks: { passed: 20, warnings: 1, failed: 1 },
 } as unknown as StatusReport;
 

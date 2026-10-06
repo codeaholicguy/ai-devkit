@@ -2,6 +2,7 @@ import fs from "fs-extra";
 import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
+import { McpConfigScope } from "./types.js";
 
 interface OpenCodeConfig {
   mcp?: Record<string, Record<string, unknown>>;
@@ -11,7 +12,17 @@ interface OpenCodeConfig {
 export class OpenCodeMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "opencode";
 
+  protected readonly configPaths: { project: string; user?: string } = {
+    project: "opencode.json",
+    // OpenCode global config (official docs): ~/.config/opencode/opencode.json.
+    user: ".config/opencode/opencode.json",
+  };
+
   private fullConfig: OpenCodeConfig = {};
+
+  constructor(scope: McpConfigScope = "project") {
+    super(scope);
+  }
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
     if (def.transport === "stdio") {
@@ -33,8 +44,8 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
     return entry;
   }
 
-  protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, "opencode.json");
+  protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
+    const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
       const content = await fs.readFile(configPath, "utf8");
       this.fullConfig = JSON.parse(content || "{}") as OpenCodeConfig;
@@ -45,11 +56,11 @@ export class OpenCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async writeServers(
-    projectRoot: string,
+    baseDir: string,
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcp: mergedServers };
-    const configPath = path.join(projectRoot, "opencode.json");
+    const configPath = this.resolveConfigPath(baseDir);
     await fs.ensureDir(path.dirname(configPath));
     await fs.writeFile(configPath, `${JSON.stringify(output, null, 2)}\n`);
   }

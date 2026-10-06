@@ -168,6 +168,26 @@ export function renderStatusReport(
         "info",
         `${report.channels.readyCount}/${report.channels.connections.length} ready`,
       ],
+      [
+        "memory mcp",
+        statusLabel(report.memoryMcp.status),
+        report.memoryMcp.agents.length === 0
+          ? "no detected MCP-capable agents"
+          : report.memoryMcp.agents
+              .map(
+                (item) =>
+                  `${item.agent}: ${
+                    item.state === "unsupported"
+                      ? "unsupported (no MCP)"
+                      : item.state === "wired"
+                        ? "wired"
+                        : item.state === "error"
+                          ? `error (${item.detail ?? "unknown"})`
+                          : `not wired${item.detail ? ` (${item.detail})` : ""}`
+                  }`,
+              )
+              .join(" · "),
+      ],
     ],
     maxWidth: process.stdout.columns ?? 120,
     columnStyles: [chalk.cyan, statusStyle, chalk.dim],

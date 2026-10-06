@@ -3,6 +3,7 @@ export {
   getAnthropicCapacityReport,
   getClaudeCapacityReport,
   getCodexCapacityReport,
+  getDevinCapacityReport,
   getOpenAiCapacityReport,
   getZaiCapacityReport,
 } from "./capacity/index.js";
