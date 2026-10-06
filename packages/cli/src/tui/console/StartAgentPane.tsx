@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
@@ -135,6 +137,35 @@ export function getStartTypeAvailability(
   return availability;
 }
 
+const START_NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
+
+export interface StartAgentFieldErrors {
+  name?: string;
+  cwd?: string;
+}
+
+export function validateStartAgentValues(
+  values: StartAgentValues,
+  cwdExists: (dir: string) => boolean = (dir) => fs.existsSync(dir),
+): StartAgentFieldErrors {
+  const errors: StartAgentFieldErrors = {};
+  if (!values.name) {
+    errors.name = "Name is required.";
+  } else if (!START_NAME_REGEX.test(values.name)) {
+    errors.name = "Lowercase letters, digits and hyphens; start/end alphanumeric, 2-64 chars.";
+  }
+  if (!values.cwd) {
+    errors.cwd = "Working directory is required.";
+  } else if (!cwdExists(path.resolve(values.cwd))) {
+    errors.cwd = `Directory "${values.cwd}" does not exist.`;
+  }
+  return errors;
+}
+
+export function hasStartAgentErrors(errors: StartAgentFieldErrors): boolean {
+  return Object.keys(errors).length > 0;
+}
+
 export function trimStartAgentError(error: string, width: number, maxLines = 4): string {
   const max = Math.max(20, width - 6);
   const clip = (line: string) => (line.length > max ? `${line.slice(0, max - 1)}...` : line);
@@ -162,6 +193,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [focus, setFocus] = useState<Focus>("type");
   const typeAvailability = useMemo(() => getStartTypeAvailability(), []);
   const tmuxAvailable = useMemo(() => commandExistsOnPath("tmux"), []);
+  const [fieldErrors, setFieldErrors] = useState<StartAgentFieldErrors>({});
 
   const submittedRef = useRef(false);
   useEffect(() => {
@@ -177,8 +209,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     // Both this useInput and TextInput's onSubmit fire on Enter; guard so the
     // form submits once per keypress.
     if (isSubmitting || submittedRef.current) return;
+    const values = normalizeStartAgentValues({ type, name, cwd, mode, prompt });
+    const errors = validateStartAgentValues(values);
+    setFieldErrors(errors);
+    if (hasStartAgentErrors(errors)) return;
     submittedRef.current = true;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd, mode, prompt }));
+    onSubmit(values);
   };
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -308,22 +344,50 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         })}
       </Box>
 
-      <Box marginTop={1} width={innerWidth}>
-        <Text color={focus === "cwd" ? TUI_COLORS.accent : undefined}>Cwd: </Text>
-        {focus === "cwd" ? (
-          <TextInput value={cwd} onChange={setCwd} onSubmit={() => setFocus("name")} />
-        ) : (
-          <Text>{cwd}</Text>
-        )}
+      <Box marginTop={1} width={innerWidth} flexDirection="column">
+        <Box>
+          <Text color={focus === "cwd" ? TUI_COLORS.accent : undefined}>Cwd: </Text>
+          {focus === "cwd" ? (
+            <TextInput
+              value={cwd}
+              onChange={(value) => {
+                setCwd(value);
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.cwd;
+                  return next;
+                });
+              }}
+              onSubmit={() => setFocus("name")}
+            />
+          ) : (
+            <Text>{cwd}</Text>
+          )}
+        </Box>
+        {fieldErrors.cwd ? <Text color={TUI_COLORS.danger}>{fieldErrors.cwd}</Text> : null}
       </Box>
 
-      <Box marginTop={1} width={innerWidth}>
-        <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
-        {focus === "name" ? (
-          <TextInput value={name} onChange={setName} onSubmit={submit} />
-        ) : (
-          <Text>{name}</Text>
-        )}
+      <Box marginTop={1} width={innerWidth} flexDirection="column">
+        <Box>
+          <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
+          {focus === "name" ? (
+            <TextInput
+              value={name}
+              onChange={(value) => {
+                setName(value);
+                setFieldErrors((prev) => {
+                  const next = { ...prev };
+                  delete next.name;
+                  return next;
+                });
+              }}
+              onSubmit={submit}
+            />
+          ) : (
+            <Text>{name}</Text>
+          )}
+        </Box>
+        {fieldErrors.name ? <Text color={TUI_COLORS.danger}>{fieldErrors.name}</Text> : null}
       </Box>
 
       <Box marginTop={1} width={innerWidth}>
