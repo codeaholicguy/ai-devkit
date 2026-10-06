@@ -3,6 +3,7 @@ import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "@ai-devkit/agent-manager";
 import { KeyHints, Panel, SectionTitle, TUI_COLORS } from "../design-system/index.js";
+import { agentTypeLabel } from "../../util/agent.js";
 
 export const STARTABLE_AGENT_TYPES = Object.keys(HARNESS_RUNTIME_PROFILES) as StartableAgentType[];
 
@@ -50,11 +51,11 @@ interface StartAgentValues {
 
 const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
 
-function nextFocus(focus: Focus): Focus {
+export function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
 }
 
-function previousFocus(focus: Focus): Focus {
+export function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
@@ -62,9 +63,10 @@ type FieldNav = "next" | "previous" | null;
 
 export function resolveFieldNav(
   focus: Focus,
-  key: { down?: boolean; up?: boolean; tab?: boolean; input?: string },
+  key: { down?: boolean; up?: boolean; tab?: boolean; shift?: boolean; input?: string },
 ): FieldNav {
   const textFieldFocused = focus === "cwd" || focus === "name";
+  if (key.tab && key.shift) return "previous";
   if (key.tab || key.down || (key.input === "j" && !textFieldFocused)) return "next";
   if (key.up || (key.input === "k" && !textFieldFocused)) return "previous";
   return null;
@@ -129,12 +131,25 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     onSubmit(normalizeStartAgentValues({ type, name, cwd }));
   };
 
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useEffect(() => {
+    if (!isSubmitting) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - started) / 1000));
+    }, 500);
+    return () => clearInterval(timer);
+  }, [isSubmitting]);
+
   useInput((input, key) => {
-    if (isSubmitting) return;
     if (key.escape || input === "\u001b") {
       onCancel();
       return;
     }
+    if (isSubmitting) return;
 
     if (focus === "type") {
       if (key.upArrow || input === "k" || key.leftArrow) {
@@ -145,6 +160,10 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         setType(nextStartAgentType(type));
         return;
       }
+      if (key.tab && key.shift) {
+        setFocus(previousFocus(focus));
+        return;
+      }
       if (key.tab || key.return) {
         setFocus(nextFocus(focus));
         return;
@@ -152,7 +171,13 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       return;
     }
 
-    const nav = resolveFieldNav(focus, { down: key.downArrow, up: key.upArrow, tab: key.tab, input });
+    const nav = resolveFieldNav(focus, {
+      down: key.downArrow,
+      up: key.upArrow,
+      tab: key.tab,
+      shift: key.shift,
+      input,
+    });
     if (nav === "next") {
       setFocus(nextFocus(focus));
       return;
@@ -183,7 +208,9 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     <Panel width={width} height={height} focused paddingX={1} flexDirection="column" flexShrink={0}>
       <Box>
         <SectionTitle>START AN AGENT</SectionTitle>
-        {isSubmitting ? <Text color={TUI_COLORS.accent}> starting...</Text> : null}
+        {isSubmitting ? (
+          <Text color={TUI_COLORS.accent}> starting... {elapsedSeconds}s (esc to cancel)</Text>
+        ) : null}
       </Box>
 
       <Box marginTop={1} flexDirection="column">
@@ -196,7 +223,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
               bold={row.marker.trim().length > 0}
               dimColor={focus !== "type" && row.type !== type}
             >
-              {row.type}
+              {agentTypeLabel(row.type)}
             </Text>
           </Box>
         ))}

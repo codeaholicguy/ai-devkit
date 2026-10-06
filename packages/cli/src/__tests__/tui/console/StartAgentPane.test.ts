@@ -3,8 +3,10 @@ import {
   STARTABLE_AGENT_TYPES,
   getStartPaneHints,
   getStartTypeRows,
+  nextFocus,
   nextStartAgentType,
   normalizeStartAgentValues,
+  previousFocus,
   previousStartAgentType,
   resolveFieldNav,
   trimStartAgentError,
@@ -75,6 +77,18 @@ describe("StartAgentPane helpers", () => {
     for (const focus of ["type", "cwd", "name", "submit", "cancel"] as const) {
       expect(getStartPaneHints(focus)).toContain("esc back");
     }
+  });
+
+  it("moves focus forward and backward across the field order", () => {
+    expect(nextFocus("type")).toBe("cwd");
+    expect(nextFocus("cancel")).toBe("type");
+    expect(previousFocus("type")).toBe("cancel");
+    expect(previousFocus("submit")).toBe("name");
+  });
+
+  it("moves focus backward on Shift+Tab", () => {
+    expect(resolveFieldNav("cwd", { tab: true, shift: true })).toBe("previous");
+    expect(resolveFieldNav("name", { tab: true, shift: true })).toBe("previous");
   });
 
   it("moves focus with j/k on non-text fields", () => {

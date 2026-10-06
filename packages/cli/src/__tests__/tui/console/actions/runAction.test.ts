@@ -139,4 +139,25 @@ describe("runAction", () => {
     const [, , opts] = vi.mocked(spawn).mock.calls[0];
     expect(opts?.stdio).toEqual(["ignore", "pipe", "pipe"]);
   });
+
+  it("kills the child and resolves cancelled when the signal aborts", async () => {
+    const child = new EventEmitter() as EventEmitter & {
+      stderr: EventEmitter;
+      kill: ReturnType<typeof vi.fn>;
+    };
+    child.stderr = new EventEmitter();
+    child.kill = vi.fn();
+    vi.mocked(spawn).mockReturnValue(child as unknown as ReturnType<typeof spawn>);
+
+    const abort = new AbortController();
+    const pending = runAction(
+      { type: "start", agentType: "codex", name: "x", cwd: "/tmp/project" },
+      { signal: abort.signal },
+    );
+    abort.abort();
+    const result = await pending;
+    expect(child.kill).toHaveBeenCalledWith("SIGTERM");
+    expect(result.cancelled).toBe(true);
+    expect(result.exitCode).toBeNull();
+  });
 });
