@@ -51,11 +51,11 @@ interface StartAgentValues {
 
 const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
 
-function nextFocus(focus: Focus): Focus {
+export function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
 }
 
-function previousFocus(focus: Focus): Focus {
+export function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
@@ -63,9 +63,10 @@ type FieldNav = "next" | "previous" | null;
 
 export function resolveFieldNav(
   focus: Focus,
-  key: { down?: boolean; up?: boolean; tab?: boolean; input?: string },
+  key: { down?: boolean; up?: boolean; tab?: boolean; shift?: boolean; input?: string },
 ): FieldNav {
   const textFieldFocused = focus === "cwd" || focus === "name";
+  if (key.tab && key.shift) return "previous";
   if (key.tab || key.down || (key.input === "j" && !textFieldFocused)) return "next";
   if (key.up || (key.input === "k" && !textFieldFocused)) return "previous";
   return null;
@@ -132,6 +133,10 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         setType(nextStartAgentType(type));
         return;
       }
+      if (key.tab && key.shift) {
+        setFocus(previousFocus(focus));
+        return;
+      }
       if (key.tab || key.return) {
         setFocus(nextFocus(focus));
         return;
@@ -139,7 +144,13 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       return;
     }
 
-    const nav = resolveFieldNav(focus, { down: key.downArrow, up: key.upArrow, tab: key.tab, input });
+    const nav = resolveFieldNav(focus, {
+      down: key.downArrow,
+      up: key.upArrow,
+      tab: key.tab,
+      shift: key.shift,
+      input,
+    });
     if (nav === "next") {
       setFocus(nextFocus(focus));
       return;

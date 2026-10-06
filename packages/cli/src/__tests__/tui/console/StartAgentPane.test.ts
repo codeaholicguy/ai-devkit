@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
   getStartTypeRows,
+  nextFocus,
   nextStartAgentType,
   normalizeStartAgentValues,
+  previousFocus,
   previousStartAgentType,
   resolveFieldNav,
   trimStartAgentError,
@@ -64,6 +66,18 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
     });
+  });
+
+  it("moves focus forward and backward across the field order", () => {
+    expect(nextFocus("type")).toBe("cwd");
+    expect(nextFocus("cancel")).toBe("type");
+    expect(previousFocus("type")).toBe("cancel");
+    expect(previousFocus("submit")).toBe("name");
+  });
+
+  it("moves focus backward on Shift+Tab", () => {
+    expect(resolveFieldNav("cwd", { tab: true, shift: true })).toBe("previous");
+    expect(resolveFieldNav("name", { tab: true, shift: true })).toBe("previous");
   });
 
   it("moves focus with j/k on non-text fields", () => {
