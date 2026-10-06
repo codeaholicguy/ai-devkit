@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
 import TextInput from "ink-text-input";
 import { HARNESS_RUNTIME_PROFILES, type StartableAgentType } from "@ai-devkit/agent-manager";
@@ -99,8 +99,16 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [name, setName] = useState(initialName);
   const [focus, setFocus] = useState<Focus>("type");
 
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    if (!isSubmitting) submittedRef.current = false;
+  }, [isSubmitting]);
+
   const submit = (): void => {
-    if (isSubmitting) return;
+    // Both this useInput and TextInput's onSubmit fire on Enter; guard so the
+    // form submits once per keypress.
+    if (isSubmitting || submittedRef.current) return;
+    submittedRef.current = true;
     onSubmit(normalizeStartAgentValues({ type, name, cwd }));
   };
 
@@ -142,6 +150,8 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         submit();
       } else if (focus === "cancel") {
         onCancel();
+      } else if (focus === "name") {
+        submit();
       } else {
         setFocus(nextFocus(focus));
       }
@@ -187,7 +197,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       <Box marginTop={1} width={innerWidth}>
         <Text color={focus === "name" ? TUI_COLORS.accent : undefined}>Name: </Text>
         {focus === "name" ? (
-          <TextInput value={name} onChange={setName} onSubmit={() => setFocus("submit")} />
+          <TextInput value={name} onChange={setName} onSubmit={submit} />
         ) : (
           <Text>{name}</Text>
         )}
