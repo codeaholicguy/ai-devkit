@@ -30,6 +30,7 @@ interface StartAgentValues {
   name: string;
   cwd: string;
   mode?: "interactive" | "durable";
+  prompt?: string;
 }
 
 export function createStartDefaults(): StartDefaults {
@@ -97,6 +98,20 @@ export function useStartAgentPane({
           setTransient({ kind: "info", text: `Started ${values.name}` });
           await refresh();
           selectAgent(values.name);
+          const prompt = values.prompt?.trim();
+          if (prompt) {
+            const sendResult = await runAction({
+              type: "send",
+              agentName: values.name,
+              message: prompt,
+            });
+            if (sendResult.error || (sendResult.exitCode !== 0 && sendResult.exitCode !== null)) {
+              setTransient({
+                kind: "error",
+                text: sendResult.error ?? `send exited ${sendResult.exitCode}`,
+              });
+            }
+          }
         })
         .finally(() => {
           startAbortRef.current = null;

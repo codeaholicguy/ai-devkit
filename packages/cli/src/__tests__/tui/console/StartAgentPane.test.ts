@@ -71,7 +71,19 @@ describe("StartAgentPane helpers", () => {
       name: "feature-agent",
       cwd: "/tmp/project",
       mode: "interactive",
+      prompt: "",
     });
+  });
+
+  it("trims the optional initial prompt", () => {
+    expect(
+      normalizeStartAgentValues({
+        type: "codex",
+        name: "x",
+        cwd: "/tmp",
+        prompt: "  fix the tests  ",
+      }).prompt,
+    ).toBe("fix the tests");
   });
 
   it("shows contextual key hints per focused field", () => {
@@ -80,7 +92,7 @@ describe("StartAgentPane helpers", () => {
     expect(getStartPaneHints("cancel")).toContain("enter cancel");
     expect(getStartPaneHints("name")).toContain("enter next");
     expect(getStartPaneHints("mode")).toContain("←/→/h/l mode");
-    for (const focus of ["type", "mode", "cwd", "name", "submit", "cancel"] as const) {
+    for (const focus of ["type", "mode", "cwd", "name", "prompt", "submit", "cancel"] as const) {
       expect(getStartPaneHints(focus)).toContain("esc back");
     }
   });
@@ -88,6 +100,7 @@ describe("StartAgentPane helpers", () => {
   it("identifies text-input fields so pane-level char bindings stay guarded", () => {
     expect(isTextFieldFocus("cwd")).toBe(true);
     expect(isTextFieldFocus("name")).toBe(true);
+    expect(isTextFieldFocus("prompt")).toBe(true);
     expect(isTextFieldFocus("type")).toBe(false);
     expect(isTextFieldFocus("submit")).toBe(false);
     expect(isTextFieldFocus("cancel")).toBe(false);
@@ -97,7 +110,7 @@ describe("StartAgentPane helpers", () => {
     expect(nextFocus("type")).toBe("mode");
     expect(nextFocus("cancel")).toBe("type");
     expect(previousFocus("type")).toBe("cancel");
-    expect(previousFocus("submit")).toBe("name");
+    expect(previousFocus("submit")).toBe("prompt");
   });
 
   it("moves focus backward on Shift+Tab", () => {
