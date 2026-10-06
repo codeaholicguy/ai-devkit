@@ -18,6 +18,16 @@ export function previousStartAgentType(type: StartableAgentType): StartableAgent
   ];
 }
 
+export function getStartTypeRows(selected: StartableAgentType): {
+  marker: string;
+  type: StartableAgentType;
+}[] {
+  return STARTABLE_AGENT_TYPES.map((type) => ({
+    marker: type === selected ? "▶ " : "  ",
+    type,
+  }));
+}
+
 type Focus = "type" | "cwd" | "name" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
@@ -90,14 +100,19 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     }
 
     if (focus === "type") {
-      if (key.leftArrow || input === "h") {
+      if (key.upArrow || input === "k" || key.leftArrow) {
         setType(previousStartAgentType(type));
         return;
       }
-      if (key.rightArrow || input === "l") {
+      if (key.downArrow || input === "j" || key.rightArrow) {
         setType(nextStartAgentType(type));
         return;
       }
+      if (key.tab || key.return) {
+        setFocus(nextFocus(focus));
+        return;
+      }
+      return;
     }
 
     if (key.tab || key.downArrow) {
@@ -120,6 +135,8 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     }
   });
 
+  const typeRows = getStartTypeRows(type);
+
   const innerWidth = Math.max(24, width - 4);
 
   return (
@@ -129,16 +146,19 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         {isSubmitting ? <Text color={TUI_COLORS.accent}> starting...</Text> : null}
       </Box>
 
-      <Box marginTop={1}>
-        <Text color={focus === "type" ? TUI_COLORS.accent : undefined}>Type: </Text>
-        {STARTABLE_AGENT_TYPES.map((agentType) => (
-          <Text
-            key={agentType}
-            color={agentType === type ? TUI_COLORS.accent : undefined}
-            inverse={focus === "type" && agentType === type}
-          >
-            {` ${agentType} `}
-          </Text>
+      <Box marginTop={1} flexDirection="column">
+        <Text color={focus === "type" ? TUI_COLORS.accent : undefined}>Type:</Text>
+        {typeRows.map((row) => (
+          <Box key={row.type} width={innerWidth}>
+            <Text color={row.marker.trim() ? TUI_COLORS.accent : undefined}>{row.marker}</Text>
+            <Text
+              color={row.marker.trim() ? TUI_COLORS.accent : undefined}
+              bold={row.marker.trim().length > 0}
+              dimColor={focus !== "type" && row.type !== type}
+            >
+              {row.type}
+            </Text>
+          </Box>
         ))}
       </Box>
 

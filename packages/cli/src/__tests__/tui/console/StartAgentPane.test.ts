@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   STARTABLE_AGENT_TYPES,
+  getStartTypeRows,
   nextStartAgentType,
   normalizeStartAgentValues,
   previousStartAgentType,
@@ -40,6 +41,14 @@ describe("StartAgentPane helpers", () => {
     expect(previousStartAgentType("kiro")).toBe("pi");
     expect(previousStartAgentType("devin")).toBe("kiro");
     expect(previousStartAgentType("claude")).toBe("devin");
+  });
+
+  it("renders one row per type with a marker on the selected type", () => {
+    const rows = getStartTypeRows("gemini_cli");
+    expect(rows).toHaveLength(STARTABLE_AGENT_TYPES.length);
+    expect(rows.filter((row) => row.marker === "▶ ").map((row) => row.type)).toEqual([
+      "gemini_cli",
+    ]);
   });
 
   it("normalizes submitted name and cwd without changing the selected type", () => {
