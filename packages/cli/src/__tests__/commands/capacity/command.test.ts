@@ -288,7 +288,8 @@ describe("capacity command", () => {
     expect(getReport).toHaveBeenCalledWith("openai");
     expect(getReport).toHaveBeenCalledWith("anthropic");
     expect(getReport).toHaveBeenCalledWith("claude");
-    expect(textCalls()).toContain("Capacity · 5 providers");
+    expect(getReport).toHaveBeenCalledWith("devin");
+    expect(textCalls()).toContain("Capacity · 6 providers");
   });
 
   it("wires the command surface and normalizes the dotted z.ai alias", async () => {
@@ -330,7 +331,7 @@ describe("capacity command", () => {
   it("rejects unknown providers before probing", async () => {
     const getReport = vi.fn(async () => codexReport);
     await expect(capacityCommand(["gemini"], {}, getReport)).rejects.toThrow(
-      'Supported providers: "codex", "zai", "openai", "anthropic", "claude"',
+      'Supported providers: "codex", "zai", "openai", "anthropic", "claude", "devin"',
     );
     expect(getReport).not.toHaveBeenCalled();
   });
@@ -353,7 +354,7 @@ describe("capacity command", () => {
     expect(ui.warning).toHaveBeenCalledWith(
       "openai capacity unavailable: OpenAI API key not found",
     );
-    expect(textCalls()).toContain("Capacity · 3 providers");
+    expect(textCalls()).toContain("Capacity · 4 providers");
   });
 
   it("preserves other reports when Claude is unavailable", async () => {
@@ -366,6 +367,6 @@ describe("capacity command", () => {
     expect(ui.warning).toHaveBeenCalledWith(
       "claude capacity unavailable: Claude OAuth credentials expired",
     );
-    expect(textCalls()).toContain("Capacity · 4 providers");
+    expect(textCalls()).toContain("Capacity · 5 providers");
   });
 });

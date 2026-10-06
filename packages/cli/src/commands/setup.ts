@@ -18,7 +18,10 @@ export function registerSetupCommand(program: Command): void {
   program
     .command("setup")
     .description("Set up AI DevKit integrations for detected local agents")
-    .option("--agent <agents>", "Comma-separated agents to set up (codex|pi)")
+    .option(
+      "--agent <agents>",
+      "Comma-separated agents to set up (codex|pi|claude|gemini|cursor|opencode|grok)",
+    )
     .action(setupCommand);
 }
 

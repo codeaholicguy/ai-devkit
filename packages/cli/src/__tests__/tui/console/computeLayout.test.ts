@@ -15,7 +15,7 @@ describe("agent console render options", () => {
   it("uses incremental 60 FPS rendering for responsive scrolling", () => {
     expect(AGENT_CONSOLE_RENDER_OPTIONS).toEqual({
       alternateScreen: true,
-      exitOnCtrlC: true,
+      exitOnCtrlC: false,
       incrementalRendering: true,
       maxFps: 60,
     });
