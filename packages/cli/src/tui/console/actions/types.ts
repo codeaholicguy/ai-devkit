@@ -9,6 +9,7 @@ export type ConsoleAction =
       name: string;
       cwd: string;
       mode?: "interactive" | "durable";
+      args?: string[];
     }
   | { type: "kill"; agentName: string }
   | { type: "rename"; currentName: string; newName: string }

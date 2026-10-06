@@ -31,6 +31,7 @@ interface StartAgentValues {
   cwd: string;
   mode?: "interactive" | "durable";
   prompt?: string;
+  args?: string[];
 }
 
 export function createStartDefaults(): StartDefaults {
@@ -80,6 +81,7 @@ export function useStartAgentPane({
           name: values.name,
           cwd: values.cwd,
           mode: values.mode,
+          args: values.args,
         },
         { signal: abort.signal },
       )

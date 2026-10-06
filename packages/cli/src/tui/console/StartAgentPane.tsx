@@ -46,7 +46,7 @@ export function getStartTypeRows(selected: StartableAgentType): {
   }));
 }
 
-type Focus = "type" | "mode" | "cwd" | "name" | "prompt" | "submit" | "cancel";
+type Focus = "type" | "mode" | "cwd" | "name" | "prompt" | "args" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
   initialType?: StartableAgentType;
@@ -59,6 +59,7 @@ interface StartAgentPaneProps {
     cwd: string;
     mode: AgentMode;
     prompt: string;
+    args: string[];
   }) => void;
   onCancel: () => void;
   error?: string | null;
@@ -73,9 +74,10 @@ interface StartAgentValues {
   cwd: string;
   mode: AgentMode;
   prompt: string;
+  args?: string;
 }
 
-const FOCUS_ORDER: Focus[] = ["type", "mode", "cwd", "name", "prompt", "submit", "cancel"];
+const FOCUS_ORDER: Focus[] = ["type", "mode", "cwd", "name", "prompt", "args", "submit", "cancel"];
 
 export function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
@@ -86,7 +88,7 @@ export function previousFocus(focus: Focus): Focus {
 }
 
 export function isTextFieldFocus(focus: Focus): boolean {
-  return focus === "cwd" || focus === "name" || focus === "prompt";
+  return focus === "cwd" || focus === "name" || focus === "prompt" || focus === "args";
 }
 
 type FieldNav = "next" | "previous" | null;
@@ -114,13 +116,52 @@ export function nextRecentCwd(current: string, recents: readonly string[]): stri
   return list[(index + 1 + list.length) % list.length] ?? null;
 }
 
-export function normalizeStartAgentValues(values: StartAgentValues): StartAgentValues {
+export function splitArgString(input: string): string[] {
+  const args: string[] = [];
+  let current = "";
+  let quote: string | null = null;
+  let hasToken = false;
+  for (const ch of input) {
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+      continue;
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch;
+      hasToken = true;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (hasToken) {
+        args.push(current);
+        current = "";
+        hasToken = false;
+      }
+      continue;
+    }
+    current += ch;
+    hasToken = true;
+  }
+  if (hasToken) args.push(current);
+  return args;
+}
+
+export function normalizeStartAgentValues(values: StartAgentValues): {
+  type: StartableAgentType;
+  name: string;
+  cwd: string;
+  mode: AgentMode;
+  prompt: string;
+  args: string[];
+} {
   return {
     type: values.type,
     name: values.name.trim(),
     cwd: expandHomePath(values.cwd.trim()),
     mode: isModeAllowedForType(values.mode, values.type) ? values.mode : "interactive",
     prompt: values.prompt?.trim() ?? "",
+    args: splitArgString(values.args ?? ""),
   };
 }
 
@@ -134,6 +175,7 @@ export function getStartPaneHints(focus: Focus): string[] {
     case "name":
       return ["tab next", "enter next", "esc back"];
     case "prompt":
+    case "args":
       return ["tab next", "enter next", "esc back"];
     case "submit":
       return ["enter start", "tab next", "esc back"];
@@ -160,7 +202,7 @@ export interface StartAgentFieldErrors {
 }
 
 export function validateStartAgentValues(
-  values: StartAgentValues,
+  values: Pick<StartAgentValues, "name" | "cwd">,
   cwdExists: (dir: string) => boolean = (dir) => fs.existsSync(dir),
 ): StartAgentFieldErrors {
   const errors: StartAgentFieldErrors = {};
@@ -206,6 +248,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
   const [prompt, setPrompt] = useState("");
+  const [args, setArgs] = useState("");
   const [focus, setFocus] = useState<Focus>("type");
   const typeAvailability = useMemo(() => getStartTypeAvailability(), []);
   const tmuxAvailable = useMemo(() => commandExistsOnPath("tmux"), []);
@@ -225,7 +268,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     // Both this useInput and TextInput's onSubmit fire on Enter; guard so the
     // form submits once per keypress.
     if (isSubmitting || submittedRef.current) return;
-    const values = normalizeStartAgentValues({ type, name, cwd, mode, prompt });
+    const values = normalizeStartAgentValues({ type, name, cwd, mode, prompt, args });
     const errors = validateStartAgentValues(values);
     setFieldErrors(errors);
     if (hasStartAgentErrors(errors)) return;
@@ -424,7 +467,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
           <TextInput
             value={prompt}
             onChange={setPrompt}
-            onSubmit={() => setFocus("submit")}
+            onSubmit={() => setFocus("args")}
             placeholder="optional first message"
           />
         ) : (
@@ -447,6 +490,20 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
           </Text>
         </Box>
       ) : null}
+
+      <Box marginTop={1} width={innerWidth}>
+        <Text color={focus === "args" ? TUI_COLORS.accent : undefined}>Args: </Text>
+        {focus === "args" ? (
+          <TextInput
+            value={args}
+            onChange={setArgs}
+            onSubmit={() => setFocus("submit")}
+            placeholder="optional extra CLI args"
+          />
+        ) : (
+          <Text dimColor={!args}>{args || "(none)"}</Text>
+        )}
+      </Box>
 
       {error ? (
         <Box marginTop={1}>
