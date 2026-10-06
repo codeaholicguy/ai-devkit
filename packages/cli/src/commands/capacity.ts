@@ -3,6 +3,7 @@ import {
   getAnthropicCapacityReport,
   getClaudeCapacityReport,
   getCodexCapacityReport,
+  getDevinCapacityReport,
   getOpenAiCapacityReport,
   getZaiCapacityReport,
 } from "@ai-devkit/agent-manager";
@@ -12,7 +13,13 @@ import { ui } from "../util/terminal-ui.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 
 type CapacityOptions = { json?: boolean };
-type SupportedCapacityProvider = "anthropic" | "claude" | "codex" | "openai" | "zai";
+type SupportedCapacityProvider =
+  | "anthropic"
+  | "claude"
+  | "codex"
+  | "devin"
+  | "openai"
+  | "zai";
 type ReportReader = (provider: SupportedCapacityProvider) => Promise<CapacityReport>;
 
 const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
@@ -21,6 +28,7 @@ const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
   "openai",
   "anthropic",
   "claude",
+  "devin",
 ];
 const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map((provider) => `"${provider}"`).join(", ");
 
@@ -39,6 +47,7 @@ async function readCapacityReport(provider: SupportedCapacityProvider): Promise<
   if (provider === "openai") return getOpenAiCapacityReport();
   if (provider === "anthropic") return getAnthropicCapacityReport();
   if (provider === "claude") return getClaudeCapacityReport();
+  if (provider === "devin") return getDevinCapacityReport();
   return getCodexCapacityReport();
 }
 
