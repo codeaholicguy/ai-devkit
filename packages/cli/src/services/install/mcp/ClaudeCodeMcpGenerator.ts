@@ -1,7 +1,7 @@
 import fs from "fs-extra";
-import * as path from "path";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
+import { McpConfigScope } from "./types.js";
 
 interface ClaudeMcpConfig {
   mcpServers?: Record<string, Record<string, unknown>>;
@@ -11,7 +11,17 @@ interface ClaudeMcpConfig {
 export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
   readonly agentType: EnvironmentCode = "claude";
 
+  protected readonly configPaths: { project: string; user?: string } = {
+    project: ".mcp.json",
+    // Claude Code user-scope servers live in ~/.claude.json (official docs).
+    user: ".claude.json",
+  };
+
   private fullConfig: ClaudeMcpConfig = {};
+
+  constructor(scope: McpConfigScope = "project") {
+    super(scope);
+  }
 
   protected toAgentFormat(def: McpServerDefinition): Record<string, unknown> {
     if (def.transport === "stdio") {
@@ -27,10 +37,10 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
     return entry;
   }
 
-  protected async readExistingServers(projectRoot: string): Promise<Record<string, unknown>> {
-    const configPath = path.join(projectRoot, ".mcp.json");
+  protected async readExistingServers(baseDir: string): Promise<Record<string, unknown>> {
+    const configPath = this.resolveConfigPath(baseDir);
     if (await fs.pathExists(configPath)) {
-      this.fullConfig = await fs.readJson(configPath);
+      this.fullConfig = (await fs.readJson(configPath)) as ClaudeMcpConfig;
       return (this.fullConfig.mcpServers || {}) as Record<string, unknown>;
     }
     this.fullConfig = {};
@@ -38,10 +48,10 @@ export class ClaudeCodeMcpGenerator extends BaseMcpGenerator {
   }
 
   protected async writeServers(
-    projectRoot: string,
+    baseDir: string,
     mergedServers: Record<string, unknown>,
   ): Promise<void> {
     const output = { ...this.fullConfig, mcpServers: mergedServers };
-    await fs.writeJson(path.join(projectRoot, ".mcp.json"), output, { spaces: 2 });
+    await fs.writeJson(this.resolveConfigPath(baseDir), output, { spaces: 2 });
   }
 }

@@ -98,9 +98,11 @@ Supported start types:
 | `copilot` | GitHub Copilot |
 | `gemini_cli` | Gemini CLI |
 | `grok_cli` | Grok CLI |
+| `antigravity_cli` | Antigravity CLI |
 | `opencode` | opencode |
 | `pi` | Pi |
 | `kiro` | Kiro CLI |
+| `devin` | Devin |
 
 Starting an agent from the console uses a managed tmux session. If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 

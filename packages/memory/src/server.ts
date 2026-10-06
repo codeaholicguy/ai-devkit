@@ -25,7 +25,7 @@ type ToolResponse = {
 const STORE_TOOL = {
   name: "memory_storeKnowledge",
   description:
-    "Store a new knowledge item. Use this to save actionable guidelines, rules, or patterns for future reference.",
+    "Persist verified, reusable knowledge for future sessions. After completing meaningful work, store decisions, conventions, gotchas, or fixes that a future agent would otherwise rediscover the hard way (e.g. 'This repo pins better-sqlite3 to 12.x; native builds fail on newer versions'). Prefer updating an existing item over storing a near-duplicate.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -56,7 +56,7 @@ const STORE_TOOL = {
 const UPDATE_TOOL = {
   name: "memory_updateKnowledge",
   description:
-    "Update an existing knowledge item by ID. Use this to correct outdated or inaccurate knowledge.",
+    "Correct an existing knowledge item by ID when you learn it is outdated or inaccurate — update it instead of storing a duplicate. First run memory_searchKnowledge to find the item and its ID; pass only the fields that change.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -89,7 +89,8 @@ const UPDATE_TOOL = {
 
 const SEARCH_TOOL = {
   name: "memory_searchKnowledge",
-  description: "Search for relevant knowledge based on a task description. Returns ranked results.",
+  description:
+    "Call BEFORE starting any non-trivial task to check for prior knowledge — this is cheap and prevents redoing solved work. Pass a short description of what you are about to do (e.g. 'wire MCP server into Gemini CLI settings' or 'fix vitest flaky teardown in cli package') and apply relevant results. Also call it when a task reveals a convention worth remembering later.",
   inputSchema: {
     type: "object" as const,
     properties: {
