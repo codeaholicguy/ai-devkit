@@ -11,6 +11,7 @@ interface UseStartAgentPaneOptions {
   setFocus: Dispatch<SetStateAction<ConsoleFocus>>;
   setRightPaneMode: Dispatch<SetStateAction<RightPaneMode>>;
   setTransient: Dispatch<SetStateAction<TransientMessage | null>>;
+  selectAgent: (name: string) => void;
 }
 
 interface StartAgentValues {
@@ -29,6 +30,7 @@ export function useStartAgentPane({
   setFocus,
   setRightPaneMode,
   setTransient,
+  selectAgent,
 }: UseStartAgentPaneOptions) {
   const [startPaneError, setStartPaneError] = useState<string | null>(null);
   const [isStartingAgent, setIsStartingAgent] = useState(false);
@@ -61,12 +63,13 @@ export function useStartAgentPane({
           setRightPaneMode({ type: "preview" });
           setTransient({ kind: "info", text: `Started ${values.name}` });
           await refresh();
+          selectAgent(values.name);
         })
         .finally(() => {
           setIsStartingAgent(false);
         });
     },
-    [isStartingAgent, refresh, setRightPaneMode, setTransient],
+    [isStartingAgent, refresh, selectAgent, setRightPaneMode, setTransient],
   );
 
   return {
