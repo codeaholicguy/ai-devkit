@@ -58,6 +58,18 @@ function previousFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) - 1 + FOCUS_ORDER.length) % FOCUS_ORDER.length];
 }
 
+type FieldNav = "next" | "previous" | null;
+
+export function resolveFieldNav(
+  focus: Focus,
+  key: { down?: boolean; up?: boolean; tab?: boolean; input?: string },
+): FieldNav {
+  const textFieldFocused = focus === "cwd" || focus === "name";
+  if (key.tab || key.down || (key.input === "j" && !textFieldFocused)) return "next";
+  if (key.up || (key.input === "k" && !textFieldFocused)) return "previous";
+  return null;
+}
+
 export function normalizeStartAgentValues(values: StartAgentValues): StartAgentValues {
   return {
     type: values.type,
@@ -115,11 +127,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
       return;
     }
 
-    if (key.tab || key.downArrow) {
+    const nav = resolveFieldNav(focus, { down: key.downArrow, up: key.upArrow, tab: key.tab, input });
+    if (nav === "next") {
       setFocus(nextFocus(focus));
       return;
     }
-    if (key.upArrow) {
+    if (nav === "previous") {
       setFocus(previousFocus(focus));
       return;
     }
