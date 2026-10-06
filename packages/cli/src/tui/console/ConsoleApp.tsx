@@ -390,6 +390,7 @@ const ConsoleAppShell: React.FC<{
   const dialog = computeCenteredDialog(cols, rows);
   const startPane = (
     <StartAgentPane
+      initialType={startDefaults.type}
       initialName={startDefaults.name}
       initialCwd={startDefaults.cwd}
       onSubmit={handleStartSubmit}
