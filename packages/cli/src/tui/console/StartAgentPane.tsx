@@ -80,6 +80,20 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
   };
 }
 
+export function getStartPaneHints(focus: Focus): string[] {
+  switch (focus) {
+    case "type":
+      return ["↑/↓/j/k type", "tab next", "esc back"];
+    case "cwd":
+    case "name":
+      return ["tab next", "enter next", "esc back"];
+    case "submit":
+      return ["enter start", "tab next", "esc back"];
+    case "cancel":
+      return ["enter cancel", "tab next", "esc back"];
+  }
+}
+
 export function trimStartAgentError(error: string, width: number, maxLines = 4): string {
   const max = Math.max(20, width - 6);
   const clip = (line: string) => (line.length > max ? `${line.slice(0, max - 1)}...` : line);
@@ -254,7 +268,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
           {" Cancel "}
         </Text>
         <Text> </Text>
-        <KeyHints hints={["tab move", "esc back"]} />
+        <KeyHints hints={getStartPaneHints(focus)} />
       </Box>
     </Panel>
   );
