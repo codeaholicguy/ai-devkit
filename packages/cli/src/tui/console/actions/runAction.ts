@@ -4,13 +4,17 @@ import type { ConsoleAction } from "./types.js";
 export interface ActionResult {
   exitCode: number | null;
   error?: string;
+  cancelled?: boolean;
 }
 
 function resolveCliEntry(): { command: string; baseArgs: string[] } {
   return { command: process.execPath, baseArgs: [...process.execArgv, process.argv[1]] };
 }
 
-export async function runAction(action: ConsoleAction): Promise<ActionResult> {
+export async function runAction(
+  action: ConsoleAction,
+  options?: { signal?: AbortSignal },
+): Promise<ActionResult> {
   const { command, baseArgs } = resolveCliEntry();
   const argv = (() => {
     switch (action.type) {
@@ -53,11 +57,27 @@ export async function runAction(action: ConsoleAction): Promise<ActionResult> {
     // Use pipe so the subprocess never takes over the TUI's terminal.
     const child = spawn(command, argv, { stdio: ["ignore", "pipe", "pipe"] });
     const stderrChunks: Buffer[] = [];
+    let settled = false;
+    const settle = (result: ActionResult) => {
+      if (settled) return;
+      settled = true;
+      options?.signal?.removeEventListener("abort", onAbort);
+      resolve(result);
+    };
+    const onAbort = () => {
+      child.kill("SIGTERM");
+      settle({ exitCode: null, cancelled: true });
+    };
+    if (options?.signal?.aborted) {
+      onAbort();
+      return;
+    }
+    options?.signal?.addEventListener("abort", onAbort, { once: true });
     child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
-    child.once("error", (err) => resolve({ exitCode: null, error: err.message }));
+    child.once("error", (err) => settle({ exitCode: null, error: err.message }));
     child.once("exit", (code) => {
       const stderr = Buffer.concat(stderrChunks).toString().trim();
-      resolve({ exitCode: code, error: code !== 0 && stderr ? stderr : undefined });
+      settle({ exitCode: code, error: code !== 0 && stderr ? stderr : undefined });
     });
   });
 }

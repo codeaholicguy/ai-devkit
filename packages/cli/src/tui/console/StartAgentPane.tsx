@@ -117,12 +117,25 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     onSubmit(normalizeStartAgentValues({ type, name, cwd }));
   };
 
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  useEffect(() => {
+    if (!isSubmitting) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const started = Date.now();
+    const timer = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - started) / 1000));
+    }, 500);
+    return () => clearInterval(timer);
+  }, [isSubmitting]);
+
   useInput((input, key) => {
-    if (isSubmitting) return;
     if (key.escape || input === "\u001b") {
       onCancel();
       return;
     }
+    if (isSubmitting) return;
 
     if (focus === "type") {
       if (key.upArrow || input === "k" || key.leftArrow) {
@@ -181,7 +194,9 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     <Panel width={width} height={height} focused paddingX={1} flexDirection="column" flexShrink={0}>
       <Box>
         <SectionTitle>START AN AGENT</SectionTitle>
-        {isSubmitting ? <Text color={TUI_COLORS.accent}> starting...</Text> : null}
+        {isSubmitting ? (
+          <Text color={TUI_COLORS.accent}> starting... {elapsedSeconds}s (esc to cancel)</Text>
+        ) : null}
       </Box>
 
       <Box marginTop={1} flexDirection="column">
