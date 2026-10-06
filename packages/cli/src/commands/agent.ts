@@ -58,7 +58,7 @@ import {
   AGENT_CONSOLE_RENDER_OPTIONS,
   ConsoleApp,
 } from "../tui/console/ConsoleApp.js";
-import { generateAgentName } from "../util/agent.js";
+import { generateAgentName, agentTypeLabel } from "../util/agent.js";
 import { select } from "@inquirer/prompts";
 import { resolveTmuxInstallInstructions } from "../util/tmux.js";
 import { createTmuxInspectionDeps } from "../util/tmux-deps.js";
@@ -137,22 +137,8 @@ function formatRelativeTime(
   return future ? `in ${diffDays}d` : `${diffDays}d ago`;
 }
 
-const TYPE_LABELS: Record<AgentType, string> = {
-  claude: "Claude Code",
-  codex: "Codex",
-  copilot: "Copilot",
-  gemini_cli: "Gemini CLI",
-  grok_cli: "Grok CLI",
-  kiro: "Kiro",
-  antigravity_cli: "Antigravity CLI",
-  opencode: "OpenCode",
-  pi: "Pi",
-  devin: "Devin",
-  other: "Other",
-};
-
 function formatType(type: AgentType): string {
-  return TYPE_LABELS[type] ?? type;
+  return agentTypeLabel(type);
 }
 
 function formatCwd(projectPath?: string): string {

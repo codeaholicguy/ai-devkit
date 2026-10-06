@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import { generateAgentName } from "../../util/agent.js";
+import { agentTypeLabel, generateAgentName } from "../../util/agent.js";
 
 describe("generateAgentName", () => {
   afterEach(() => {
@@ -25,5 +25,14 @@ describe("generateAgentName", () => {
     expect(generateAgentName(`/tmp/${"a".repeat(80)}`)).toBe(
       `${prefix}-${Date.now().toString(36)}`,
     );
+  });
+});
+
+describe("agentTypeLabel", () => {
+  it("returns friendly display names for known agent types", () => {
+    expect(agentTypeLabel("gemini_cli")).toBe("Gemini CLI");
+    expect(agentTypeLabel("antigravity_cli")).toBe("Antigravity CLI");
+    expect(agentTypeLabel("devin")).toBe("Devin");
+    expect(agentTypeLabel("other")).toBe("Other");
   });
 });
