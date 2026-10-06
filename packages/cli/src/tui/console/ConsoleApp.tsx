@@ -90,6 +90,19 @@ export function getVisibleSelection(
     : agents[0].name;
 }
 
+export function collectRecentCwds(
+  agents: readonly { name: string; projectPath?: string }[],
+  selectedName: string | null,
+): string[] {
+  const paths = [
+    ...agents.filter((a) => a.name === selectedName),
+    ...agents.filter((a) => a.name !== selectedName),
+  ]
+    .map((a) => a.projectPath)
+    .filter((p): p is string => Boolean(p));
+  return [...new Set(paths)].slice(0, 5);
+}
+
 export function isAgentFilterInPlay(filterText: string, filterEditing: boolean): boolean {
   return filterEditing || filterText.length > 0;
 }
@@ -388,11 +401,16 @@ const ConsoleAppShell: React.FC<{
     previewContentWidth,
   } = layout;
   const dialog = computeCenteredDialog(cols, rows);
+  const recentCwds = useMemo(
+    () => collectRecentCwds(orderedAgents, selectedName),
+    [orderedAgents, selectedName],
+  );
   const startPane = (
     <StartAgentPane
       initialType={startDefaults.type}
       initialName={startDefaults.name}
       initialCwd={startDefaults.cwd}
+      recentCwds={recentCwds}
       onSubmit={handleStartSubmit}
       onCancel={handleStartCancel}
       error={startPaneError}

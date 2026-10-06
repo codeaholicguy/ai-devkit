@@ -1,4 +1,5 @@
 import fs from "fs";
+import os from "os";
 import path from "path";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Text, useInput } from "ink";
@@ -51,6 +52,7 @@ interface StartAgentPaneProps {
   initialType?: StartableAgentType;
   initialName: string;
   initialCwd: string;
+  recentCwds?: string[];
   onSubmit: (values: {
     type: StartableAgentType;
     name: string;
@@ -99,11 +101,24 @@ export function resolveFieldNav(
   return null;
 }
 
+export function expandHomePath(input: string, home: string = os.homedir()): string {
+  if (input === "~") return home;
+  if (input.startsWith("~/")) return `${home}${input.slice(1)}`;
+  return input;
+}
+
+export function nextRecentCwd(current: string, recents: readonly string[]): string | null {
+  const list = recents.filter(Boolean);
+  if (!list.length) return null;
+  const index = list.indexOf(current);
+  return list[(index + 1 + list.length) % list.length] ?? null;
+}
+
 export function normalizeStartAgentValues(values: StartAgentValues): StartAgentValues {
   return {
     type: values.type,
     name: values.name.trim(),
-    cwd: values.cwd.trim(),
+    cwd: expandHomePath(values.cwd.trim()),
     mode: isModeAllowedForType(values.mode, values.type) ? values.mode : "interactive",
     prompt: values.prompt?.trim() ?? "",
   };
@@ -178,6 +193,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   initialType = "codex",
   initialName,
   initialCwd,
+  recentCwds = [],
   onSubmit,
   onCancel,
   error = null,
@@ -267,6 +283,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         setMode(nextAgentMode(mode, type));
         return;
       }
+    }
+
+    if (focus === "cwd" && key.ctrl && input === "r") {
+      const next = nextRecentCwd(cwd, recentCwds);
+      if (next) setCwd(next);
+      return;
     }
 
     const nav = resolveFieldNav(focus, {
@@ -389,6 +411,12 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         </Box>
         {fieldErrors.name ? <Text color={TUI_COLORS.danger}>{fieldErrors.name}</Text> : null}
       </Box>
+
+      {focus === "cwd" && recentCwds.length ? (
+        <Box width={innerWidth}>
+          <Text dimColor>{`recent: ${recentCwds.slice(0, 3).join(" · ")} (ctrl+r)`}</Text>
+        </Box>
+      ) : null}
 
       <Box marginTop={1} width={innerWidth}>
         <Text color={focus === "prompt" ? TUI_COLORS.accent : undefined}>Task: </Text>

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 // Import pure console configuration helpers without rendering the component tree.
 import {
   AGENT_CONSOLE_RENDER_OPTIONS,
+  collectRecentCwds,
   computeCenteredDialog,
   computeLayout,
 } from "../../../tui/console/ConsoleApp.js";
@@ -114,5 +115,20 @@ describe("computeCenteredDialog", () => {
     expect(dialog.width).toBe(24);
     expect(dialog.left).toBe(2);
     expect(dialog.top).toBe(2);
+  });
+});
+
+describe("collectRecentCwds", () => {
+  const agents = [
+    { name: "a", projectPath: "/proj/a" },
+    { name: "b", projectPath: "/proj/b" },
+    { name: "c", projectPath: "/proj/a" },
+    { name: "d" },
+  ];
+
+  it("dedupes project paths with the selected agent first", () => {
+    expect(collectRecentCwds(agents, "b")).toEqual(["/proj/b", "/proj/a"]);
+    expect(collectRecentCwds(agents, null)).toEqual(["/proj/a", "/proj/b"]);
+    expect(collectRecentCwds([], null)).toEqual([]);
   });
 });
