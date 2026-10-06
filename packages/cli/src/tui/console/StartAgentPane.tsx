@@ -19,6 +19,19 @@ export function previousStartAgentType(type: StartableAgentType): StartableAgent
   ];
 }
 
+export type AgentMode = "interactive" | "durable";
+
+export const DURABLE_CAPABLE_TYPES: readonly StartableAgentType[] = ["claude", "codex", "pi"];
+
+export function isModeAllowedForType(mode: AgentMode, type: StartableAgentType): boolean {
+  return mode === "interactive" || DURABLE_CAPABLE_TYPES.includes(type);
+}
+
+export function nextAgentMode(mode: AgentMode, type: StartableAgentType): AgentMode {
+  const next: AgentMode = mode === "interactive" ? "durable" : "interactive";
+  return isModeAllowedForType(next, type) ? next : mode;
+}
+
 export function getStartTypeRows(selected: StartableAgentType): {
   marker: string;
   type: StartableAgentType;
@@ -29,13 +42,18 @@ export function getStartTypeRows(selected: StartableAgentType): {
   }));
 }
 
-type Focus = "type" | "cwd" | "name" | "submit" | "cancel";
+type Focus = "type" | "mode" | "cwd" | "name" | "submit" | "cancel";
 
 interface StartAgentPaneProps {
   initialType?: StartableAgentType;
   initialName: string;
   initialCwd: string;
-  onSubmit: (values: { type: StartableAgentType; name: string; cwd: string }) => void;
+  onSubmit: (values: {
+    type: StartableAgentType;
+    name: string;
+    cwd: string;
+    mode: AgentMode;
+  }) => void;
   onCancel: () => void;
   error?: string | null;
   isSubmitting?: boolean;
@@ -47,9 +65,10 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  mode: AgentMode;
 }
 
-const FOCUS_ORDER: Focus[] = ["type", "cwd", "name", "submit", "cancel"];
+const FOCUS_ORDER: Focus[] = ["type", "mode", "cwd", "name", "submit", "cancel"];
 
 export function nextFocus(focus: Focus): Focus {
   return FOCUS_ORDER[(FOCUS_ORDER.indexOf(focus) + 1) % FOCUS_ORDER.length];
@@ -80,6 +99,7 @@ export function normalizeStartAgentValues(values: StartAgentValues): StartAgentV
     type: values.type,
     name: values.name.trim(),
     cwd: values.cwd.trim(),
+    mode: isModeAllowedForType(values.mode, values.type) ? values.mode : "interactive",
   };
 }
 
@@ -87,6 +107,8 @@ export function getStartPaneHints(focus: Focus): string[] {
   switch (focus) {
     case "type":
       return ["↑/↓/j/k type", "tab next", "esc back"];
+    case "mode":
+      return ["←/→/h/l mode", "tab next", "esc back"];
     case "cwd":
     case "name":
       return ["tab next", "enter next", "esc back"];
@@ -117,6 +139,7 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
   height,
 }) => {
   const [type, setType] = useState<StartableAgentType>(initialType);
+  const [mode, setMode] = useState<AgentMode>("interactive");
   const [cwd, setCwd] = useState(initialCwd);
   const [name, setName] = useState(initialName);
   const [focus, setFocus] = useState<Focus>("type");
@@ -126,12 +149,17 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
     if (!isSubmitting) submittedRef.current = false;
   }, [isSubmitting]);
 
+  const changeType = (next: StartableAgentType): void => {
+    setType(next);
+    if (!isModeAllowedForType(mode, next)) setMode("interactive");
+  };
+
   const submit = (): void => {
     // Both this useInput and TextInput's onSubmit fire on Enter; guard so the
     // form submits once per keypress.
     if (isSubmitting || submittedRef.current) return;
     submittedRef.current = true;
-    onSubmit(normalizeStartAgentValues({ type, name, cwd }));
+    onSubmit(normalizeStartAgentValues({ type, name, cwd, mode }));
   };
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -161,11 +189,11 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
 
     if (focus === "type") {
       if (key.upArrow || input === "k" || key.leftArrow) {
-        setType(previousStartAgentType(type));
+        changeType(previousStartAgentType(type));
         return;
       }
       if (key.downArrow || input === "j" || key.rightArrow) {
-        setType(nextStartAgentType(type));
+        changeType(nextStartAgentType(type));
         return;
       }
       if (key.tab && key.shift) {
@@ -177,6 +205,13 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
         return;
       }
       return;
+    }
+
+    if (focus === "mode") {
+      if (key.leftArrow || key.rightArrow || input === "h" || input === "l") {
+        setMode(nextAgentMode(mode, type));
+        return;
+      }
     }
 
     const nav = resolveFieldNav(focus, {
@@ -235,6 +270,23 @@ export const StartAgentPane: React.FC<StartAgentPaneProps> = ({
             </Text>
           </Box>
         ))}
+      </Box>
+
+      <Box marginTop={1} width={innerWidth}>
+        <Text color={focus === "mode" ? TUI_COLORS.accent : undefined}>Mode: </Text>
+        {(["interactive", "durable"] as const).map((candidate) => {
+          const allowed = isModeAllowedForType(candidate, type);
+          return (
+            <Text
+              key={candidate}
+              color={candidate === mode ? TUI_COLORS.accent : undefined}
+              inverse={focus === "mode" && candidate === mode}
+              dimColor={!allowed}
+            >
+              {` ${candidate}${allowed ? "" : " (n/a)"} `}
+            </Text>
+          );
+        })}
       </Box>
 
       <Box marginTop={1} width={innerWidth}>

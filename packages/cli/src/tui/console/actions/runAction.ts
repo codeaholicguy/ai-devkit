@@ -33,6 +33,7 @@ export async function runAction(
           action.name,
           "--cwd",
           action.cwd,
+          ...(action.mode ? ["--mode", action.mode] : []),
         ];
       case "kill":
         return [...baseArgs, "agent", "kill", action.agentName];

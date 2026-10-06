@@ -29,6 +29,7 @@ interface StartAgentValues {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  mode?: "interactive" | "durable";
 }
 
 export function createStartDefaults(): StartDefaults {
@@ -72,7 +73,13 @@ export function useStartAgentPane({
       setIsStartingAgent(true);
       setStartPaneError(null);
       void runAction(
-        { type: "start", agentType: values.type, name: values.name, cwd: values.cwd },
+        {
+          type: "start",
+          agentType: values.type,
+          name: values.name,
+          cwd: values.cwd,
+          mode: values.mode,
+        },
         { signal: abort.signal },
       )
         .then(async (result) => {
