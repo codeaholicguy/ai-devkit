@@ -15,8 +15,9 @@ export type AgentResolution =
 export async function resolveAgentByName(
   manager: AgentResolver,
   identifier: string,
+  knownAgents?: AgentInfo[],
 ): Promise<AgentResolution> {
-  const agents = await manager.listAgents();
+  const agents = knownAgents ?? (await manager.listAgents());
   if (agents.length === 0) return { kind: "empty", agents };
 
   const resolved = manager.resolveAgent(identifier, agents);

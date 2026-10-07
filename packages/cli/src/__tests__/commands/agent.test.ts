@@ -7,7 +7,7 @@ import {
   DEFAULT_PID_POLL_TIMEOUT_MS,
   TerminalFocusManager,
 } from "@ai-devkit/agent-manager";
-import { registerAgentCommand } from "../../commands/agent.js";
+import { registerAgentCommand } from "../../commands/agent/index.js";
 import { ui } from "../../util/terminal-ui.js";
 
 const SESSION = "22222222-2222-4222-8222-222222222222";
