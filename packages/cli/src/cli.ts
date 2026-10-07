@@ -14,6 +14,7 @@ import { registerPluginCommand } from "./commands/plugin.js";
 import { registerSetupCommand } from "./commands/setup.js";
 import { registerCapacityCommand } from "./commands/capacity.js";
 import { registerStatusCommand } from "./commands/status.js";
+import { registerDaemonCommand } from "./commands/daemon.js";
 import { registerConfiguredPluginCommands } from "./services/plugin/plugin-loader.service.js";
 import { createAiDevkitRuntime } from "./services/plugin/runtime.js";
 import { handleCliError } from "./util/errors.js";
@@ -76,6 +77,7 @@ registerPluginCommand(program);
 registerSetupCommand(program);
 registerCapacityCommand(program);
 registerStatusCommand(program);
+registerDaemonCommand(program);
 
 await registerConfiguredPluginCommands(program, createAiDevkitRuntime());
 
