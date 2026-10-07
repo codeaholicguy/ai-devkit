@@ -23,6 +23,30 @@ import { ConfigManager } from "../../lib/Config.js";
 import { createDurableAgentService } from "./factory.js";
 import { formatCwd, formatPrintProvider } from "./render.js";
 
+async function reportStartError(err: unknown): Promise<void> {
+  if (err instanceof TmuxUnavailableError) {
+    const instructions = await resolveTmuxInstallInstructions(
+      createTmuxInspectionDeps(),
+    );
+    ui.error(
+      `tmux is not installed or not in PATH. ${instructions.message}`,
+    );
+  } else if (err instanceof AgentRuntimeUnavailableError) {
+    ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
+  } else if (err instanceof AgentNameInUseError) {
+    ui.error(
+      `Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`,
+    );
+  } else if (err instanceof AgentPidPollTimeoutError) {
+    ui.error(
+      `Agent process not found after ${err.timeoutMs / 1000}s. ` +
+        `Verify that "${err.command}" is in PATH inside the tmux environment.`,
+    );
+  } else {
+    throw err;
+  }
+}
+
 export function registerAgentStartCommand(agentCommand: Command): void {
   agentCommand
     .command("start")
@@ -128,29 +152,7 @@ export function registerAgentStartCommand(agentCommand: Command): void {
             if (tmuxRef) ui.text(`Attach: tmux attach -t ${tmuxRef.session}`);
           }
         } catch (err) {
-          if (err instanceof TmuxUnavailableError) {
-            const instructions = await resolveTmuxInstallInstructions(
-              createTmuxInspectionDeps(),
-            );
-            ui.error(
-              `tmux is not installed or not in PATH. ${instructions.message}`,
-            );
-          } else if (err instanceof AgentRuntimeUnavailableError) {
-            ui.error(
-              `Herdr runtime is unavailable (${err.reason}): ${err.detail}`,
-            );
-          } else if (err instanceof AgentNameInUseError) {
-            ui.error(
-              `Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`,
-            );
-          } else if (err instanceof AgentPidPollTimeoutError) {
-            ui.error(
-              `Agent process not found after ${err.timeoutMs / 1000}s. ` +
-                `Verify that "${err.command}" is in PATH inside the tmux environment.`,
-            );
-          } else {
-            throw err;
-          }
+          await reportStartError(err);
           process.exit(1);
         }
       }),

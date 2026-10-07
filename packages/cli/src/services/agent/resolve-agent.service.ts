@@ -1,4 +1,8 @@
-import type { AgentInfo, AgentManager } from "@ai-devkit/agent-manager";
+import {
+  DurableAgentRepository,
+  type AgentInfo,
+  type AgentManager,
+} from "@ai-devkit/agent-manager";
 
 type AgentResolver = Pick<AgentManager, "listAgents" | "resolveAgent">;
 
@@ -81,4 +85,31 @@ export function assertDurableNameUnambiguous(
       `Agent name "${identifier}" is ambiguous across interactive and durable modes. Use the durable agent ID.`,
     );
   }
+}
+
+export type DurableAgentResolution = Exclude<
+  Awaited<ReturnType<DurableAgentRepository["resolve"]>>,
+  null | unknown[]
+>;
+
+/**
+ * Resolve a durable agent by name or id. Throws on multiple matches and on
+ * cross-mode ambiguity; `getLiveAgents` is only consulted when the identifier
+ * is a non-exact match, so callers that already listed agents can pass a
+ * constant and interactive-only callers avoid an extra listAgents call.
+ */
+export async function resolveDurableAgentEntry(
+  identifier: string,
+  getLiveAgents: () => Promise<AgentInfo[]>,
+  repository = new DurableAgentRepository(),
+): Promise<DurableAgentResolution | null> {
+  const resolved = await repository.resolve(identifier);
+  if (Array.isArray(resolved)) {
+    throw new Error(`Multiple durable agents match "${identifier}".`);
+  }
+  if (!resolved) return null;
+  if (resolved.id !== identifier) {
+    assertDurableNameUnambiguous(identifier, resolved.id, await getLiveAgents());
+  }
+  return resolved;
 }

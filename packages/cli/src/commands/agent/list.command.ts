@@ -5,13 +5,13 @@ import { AGENT_MODES, AgentStatus } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
 import { agentTypeLabel } from "../../util/agent.js";
+import { pluralize } from "../../util/pluralize.js";
 import { formatRelativeTime } from "../../util/time-format.js";
 import { createAgentManager, createDurableAgentService } from "./factory.js";
 import {
   colorStatus,
   formatStatus,
   formatWorkOn,
-  pluralize,
 } from "./render.js";
 
 export function registerAgentListCommand(agentCommand: Command): void {
@@ -128,7 +128,7 @@ export function registerAgentListCommand(agentCommand: Command): void {
         if (waitingCount > 0) {
           ui.breakline();
           ui.warning(
-            `${waitingCount} ${pluralize(waitingCount, "agent")} waiting for input.`,
+            `${pluralize(waitingCount, "agent")} waiting for input.`,
           );
         }
       }),

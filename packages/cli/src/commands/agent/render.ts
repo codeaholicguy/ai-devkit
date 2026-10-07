@@ -1,6 +1,7 @@
 import os from "os";
 import chalk from "chalk";
 import {
+  AGENT_MODES,
   AgentStatus,
   type ConversationMessage,
   type DurableProvider,
@@ -8,8 +9,9 @@ import {
 import { ui } from "../../util/terminal-ui.js";
 import {
   formatLocalTimestamp,
-  formatRelativeTime,
+  formatLocalTimestampWithRelative,
 } from "../../util/time-format.js";
+import type { DurableAgentResolution } from "../../services/agent/resolve-agent.service.js";
 
 const STATUS_DISPLAY: Record<
   AgentStatus,
@@ -47,7 +49,7 @@ export function formatSeparator(): string {
   return "─".repeat(Math.max(40, Math.min(120, width - 2)));
 }
 
-export function pluralize(
+function pluralizeNoun(
   count: number,
   singular: string,
   plural = `${singular}s`,
@@ -69,21 +71,16 @@ export function formatWorkOn(
   return firstLine || "No active task";
 }
 
-export function resolveTailCount(
-  raw: string | undefined,
-  fallback = 20,
-): number {
-  const parsed = parseInt(raw ?? String(fallback), 10);
-  return Number.isNaN(parsed) || parsed < 1 ? fallback : parsed;
-}
-
 export function selectConversationMessages(
   conversation: ConversationMessage[],
   options: { full?: boolean; tail?: string },
 ): { displayMessages: ConversationMessage[]; isTruncated: boolean } {
+  const parsed = parseInt(options.tail ?? "20", 10);
   const tailCount = options.full
     ? conversation.length
-    : resolveTailCount(options.tail);
+    : Number.isNaN(parsed) || parsed < 1
+      ? 20
+      : parsed;
   const displayMessages = conversation.slice(-tailCount);
   return {
     displayMessages,
@@ -98,8 +95,8 @@ export function renderConversationDetail(
   options: { localClock?: boolean; widthDerivedSeparator?: boolean } = {},
 ): void {
   const label = isTruncated
-    ? `Conversation (last ${displayMessages.length} of ${totalMessages} ${pluralize(totalMessages, "message")})`
-    : `Conversation (${displayMessages.length} ${pluralize(displayMessages.length, "message")})`;
+    ? `Conversation (last ${displayMessages.length} of ${totalMessages} ${pluralizeNoun(totalMessages, "message")})`
+    : `Conversation (${displayMessages.length} ${pluralizeNoun(displayMessages.length, "message")})`;
   ui.text(label, { breakline: false });
   ui.text(
     chalk.dim(
@@ -137,4 +134,28 @@ export function renderConversationDetail(
 export function formatPrintProvider(provider: DurableProvider): string {
   if (provider === "codex") return "Codex";
   return provider === "pi" ? "Pi" : "Claude Code";
+}
+
+export function renderDurableAgentDetail(
+  agent: DurableAgentResolution,
+): void {
+  ui.text("Durable Agent Detail", { breakline: true });
+  ui.text(chalk.dim(formatSeparator()));
+  ui.text(`  ${chalk.bold("Agent ID:")}    ${agent.id}`);
+  ui.text(
+    `  ${chalk.bold("Session ID:")}  ${agent.providerSessionId ?? "not started"}`,
+  );
+  ui.text(`  ${chalk.bold("Name:")}        ${agent.name}`);
+  ui.text(
+    `  ${chalk.bold("Provider:")}    ${formatPrintProvider(agent.provider)}`,
+  );
+  ui.text(`  ${chalk.bold("Mode:")}        ${AGENT_MODES.DURABLE}`);
+  ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(agent.cwd)}`);
+  ui.text(`  ${chalk.bold("State:")}       ${agent.state}`);
+  ui.text(`  ${chalk.bold("Session:")}     ${agent.sessionHealth}`);
+  ui.text(
+    `  ${chalk.bold("Last Active:")} ${agent.lastActiveAt ? formatLocalTimestampWithRelative(new Date(agent.lastActiveAt)) : "never"}`,
+  );
+  if (agent.lastResult)
+    ui.text(`  ${chalk.bold("Last Result:")} ${agent.lastResult.summary}`);
 }

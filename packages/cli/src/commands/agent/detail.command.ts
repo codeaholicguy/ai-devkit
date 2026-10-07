@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { AGENT_MODES } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
 import { agentTypeLabel } from "../../util/agent.js";
@@ -9,17 +8,17 @@ import {
   formatLocalTimestampWithRelative,
 } from "../../util/time-format.js";
 import {
-  assertDurableNameUnambiguous,
   reportAgentResolution,
   resolveAgentByName,
+  resolveDurableAgentEntry,
 } from "../../services/agent/resolve-agent.service.js";
-import { createAgentManager, createDurableAgentService } from "./factory.js";
+import { createAgentManager } from "./factory.js";
 import {
   formatCwd,
-  formatPrintProvider,
   formatSeparator,
   formatStatus,
   renderConversationDetail,
+  renderDurableAgentDetail,
   selectConversationMessages,
 } from "./render.js";
 
@@ -36,46 +35,16 @@ export function registerAgentDetailCommand(agentCommand: Command): void {
       withErrorHandler("get agent detail", async (options) => {
         const manager = createAgentManager();
         const agents = await manager.listAgents();
-        const durableResolved =
-          await createDurableAgentService().repository.resolve(options.id);
-        if (Array.isArray(durableResolved)) {
-          throw new Error(`Multiple durable agents match "${options.id}".`);
-        }
+        const durableResolved = await resolveDurableAgentEntry(
+          options.id,
+          async () => agents,
+        );
         if (durableResolved) {
-          assertDurableNameUnambiguous(
-            options.id,
-            durableResolved.id,
-            agents,
-          );
           if (options.json) {
             console.log(JSON.stringify(durableResolved, null, 2));
             return;
           }
-          ui.text("Durable Agent Detail", { breakline: true });
-          ui.text(chalk.dim(formatSeparator()));
-          ui.text(`  ${chalk.bold("Agent ID:")}    ${durableResolved.id}`);
-          ui.text(
-            `  ${chalk.bold("Session ID:")}  ${durableResolved.providerSessionId ?? "not started"}`,
-          );
-          ui.text(`  ${chalk.bold("Name:")}        ${durableResolved.name}`);
-          ui.text(
-            `  ${chalk.bold("Provider:")}    ${formatPrintProvider(durableResolved.provider)}`,
-          );
-          ui.text(`  ${chalk.bold("Mode:")}        ${AGENT_MODES.DURABLE}`);
-          ui.text(
-            `  ${chalk.bold("CWD:")}         ${formatCwd(durableResolved.cwd)}`,
-          );
-          ui.text(`  ${chalk.bold("State:")}       ${durableResolved.state}`);
-          ui.text(
-            `  ${chalk.bold("Session:")}     ${durableResolved.sessionHealth}`,
-          );
-          ui.text(
-            `  ${chalk.bold("Last Active:")} ${durableResolved.lastActiveAt ? formatLocalTimestampWithRelative(new Date(durableResolved.lastActiveAt)) : "never"}`,
-          );
-          if (durableResolved.lastResult)
-            ui.text(
-              `  ${chalk.bold("Last Result:")} ${durableResolved.lastResult.summary}`,
-            );
+          renderDurableAgentDetail(durableResolved);
           return;
         }
 
