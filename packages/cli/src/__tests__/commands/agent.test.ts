@@ -2863,7 +2863,7 @@ Waiting on user input`,
 
     expect(ui.error).toHaveBeenCalledWith('Multiple agents match "repo":');
     expect(ui.info).toHaveBeenCalledWith(
-      "Please use a more specific identifier.",
+      "Please use a more specific name.",
     );
   });
 

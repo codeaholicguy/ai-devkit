@@ -3,7 +3,7 @@ import { Box, Text } from "ink";
 import TextInput from "ink-text-input";
 import type { AgentInfo } from "@ai-devkit/agent-manager";
 import { FormatStatus } from "./render/formatStatus.js";
-import { AGENT_TYPE_LABEL } from "./render/agentTypeLabel.js";
+import { agentTypeLabelCompact } from "../../util/agent.js";
 import { Panel, SectionTitle, TUI_COLORS } from "../design-system/index.js";
 import type { AgentChannelStatusMap, AgentChannelStatus } from "./types.js";
 import {
@@ -116,7 +116,7 @@ const AgentRow: React.FC<AgentRowProps> = ({
   const summaryW = Math.max(4, innerWidth - MARKER_W);
   const rawSummary = agent.summary?.trim() ? agent.summary : shortPath(agent.projectPath);
   const accent = isSelected ? TUI_COLORS.accent : undefined;
-  const typeLabel = AGENT_TYPE_LABEL[agent.type] ?? agent.type;
+  const typeLabel = agentTypeLabelCompact(agent.type);
 
   return (
     <Box flexDirection="column" width={innerWidth}>

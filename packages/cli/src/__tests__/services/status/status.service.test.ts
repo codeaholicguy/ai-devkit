@@ -1,5 +1,6 @@
 import path from "node:path";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { access as fsAccess, readFile as fsReadFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -470,7 +471,20 @@ describe("getStatusReport memory mcp wiring", () => {
   });
 
   function run() {
-    return getStatusReport({ ...fixture(), homeDir });
+    const { options } = fixture();
+    const { access, readFile } = options;
+    return getStatusReport({
+      ...options,
+      homeDir,
+      access: async (target, mode) => {
+        if (target.startsWith(homeDir)) return fsAccess(target, mode);
+        return access?.(target, mode);
+      },
+      readFile: async (target) => {
+        if (target.startsWith(homeDir)) return fsReadFile(target, "utf8");
+        return readFile?.(target) ?? "";
+      },
+    });
   }
 
   it("reports no wiring targets when no agent dot-folders exist", async () => {
