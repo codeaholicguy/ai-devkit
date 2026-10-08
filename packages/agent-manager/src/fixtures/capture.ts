@@ -22,6 +22,12 @@ export const FIXTURES_ROOT = path.join(repoRoot, "fixtures", "harness");
 const HARNESS_DIRS: Record<string, string[]> = {
   claude: [".claude/sessions", ".claude/projects"],
   codex: [".codex/sessions", ".codex/archived_sessions", ".codex/ai-devkit"],
+  pi: [".pi/agent/sessions"],
+};
+
+/** Individual files (not dirs) each harness consults during detection. */
+const HARNESS_FILES: Record<string, string[]> = {
+  pi: [".pi/agent/sessions.json"],
 };
 
 /**
@@ -54,6 +60,12 @@ function collectHomeFiles(
         home[rel] = sanitize(fs.readFileSync(file, "utf8"), realHome);
       }
     });
+  }
+  for (const relFile of HARNESS_FILES[adapterType] ?? []) {
+    const file = path.join(realHome, relFile);
+    if (fs.existsSync(file) && fileSize(file) < 64 * 1024) {
+      home[relFile] = sanitize(fs.readFileSync(file, "utf8"), realHome);
+    }
   }
   return home;
 }

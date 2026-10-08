@@ -364,16 +364,16 @@ mod tests {
         // Live sweep may surface real claude processes on the dev machine —
         // the contract is the shape, not emptiness.
         assert!(r["result"]["agents"].is_array());
-        assert_eq!(r["result"]["ported"], json!(["claude", "codex"]));
+        assert_eq!(r["result"]["ported"], json!(["claude", "codex", "pi"]));
 
         // A registered adapter would surface through the same cache; I0
         // verifies the cache is what apply_sweep refreshes.
         *d.enriched.write().unwrap() = devkit_core::agent::EnrichedAgentsResult {
             agents: vec![],
-            ported: vec!["claude".into(), "codex".into()],
+            ported: vec!["claude".into(), "codex".into(), "pi".into()],
         };
         let r = rpc(&sock, r#"{"id":2,"method":"agent.enriched"}"#).await;
-        assert_eq!(r["result"]["ported"], json!(["claude", "codex"]));
+        assert_eq!(r["result"]["ported"], json!(["claude", "codex", "pi"]));
     }
 
     #[tokio::test]

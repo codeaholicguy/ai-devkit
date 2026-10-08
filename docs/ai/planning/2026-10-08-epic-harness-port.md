@@ -26,10 +26,10 @@ the repo convention `docs/ai/<phase>/2026-10-08-feature-harness-<name>.md`.
 
 | # | Scope | Feature slug | Exit criteria |
 |---|-------|--------------|---------------|
-| I0 | Foundation: fixture tool, `devkit-harness` crate, `agent.enriched` RPC + ts-rs schema, TS fallback client | `harness-port-foundation` | daemon serves enriched schema; client falls back; fixtures dump for all 11 harnesses |
-| I1 | claude (1649 LOC, transcript parsing — hardest first) | `harness-claude` | fixture parity 100% |
-| I2 | codex (1944) | `harness-codex` | parity |
-| I3 | pi (1683) | `harness-pi` | parity |
+| I0 | Foundation: fixture tool, `devkit-harness` crate, `agent.enriched` RPC + ts-rs schema, TS fallback client | `harness-port-foundation` | daemon serves enriched schema; client falls back; fixtures dump for all 11 harnesses | ✅ `545625dd`
+| I1 | claude (1649 LOC, transcript parsing — hardest first) | `harness-claude` | fixture parity 100% | ✅ `12b6ded2`
+| I2 | codex (1944) | `harness-codex` | parity | ✅ `7cfecd9b`
+| I3 | pi (1683) | `harness-pi` | parity | ✅ `d778d634` |
 | I4 | gemini (1098) | `harness-gemini` | parity |
 | I5 | copilot (762) | `harness-copilot` | parity |
 | I6 | grok (588) | `harness-grok` | parity |

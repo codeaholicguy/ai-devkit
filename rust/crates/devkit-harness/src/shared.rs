@@ -10,7 +10,7 @@ use std::path::Path;
 pub const MATCH_TOLERANCE_MS: i64 = 3 * 60 * 1000;
 
 /// `pathBasename` — basename after '\'→'/', lowercased.
-fn path_basename(p: &str) -> String {
+pub fn path_basename(p: &str) -> String {
     p.replace('\\', "/")
         .rsplit('/')
         .next()
@@ -228,9 +228,10 @@ pub fn local_day_key(epoch_ms: i64) -> String {
     }
 }
 
-/// `isIdle` — untouched for more than 5 minutes.
+/// `isIdle` — untouched for more than 5 minutes. TS compares
+/// `(now - last) / 60000 > 5` in floats ⟺ `now - last > 300_000`.
 pub fn is_idle(last_active_ms: i64, now_ms: i64) -> bool {
-    (now_ms - last_active_ms) / 60_000 > 5
+    now_ms - last_active_ms > 300_000
 }
 
 /// `truncate` — `...`-suffix at `max` UTF-16 code units (JS `length`/`slice`

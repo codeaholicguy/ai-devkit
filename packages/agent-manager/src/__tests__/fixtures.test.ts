@@ -13,6 +13,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { createBuiltinAdapters } from "../harnesses/index.js";
 import { CodexAdapter } from "../harnesses/codex/CodexAdapter.js";
+import { PiAdapter } from "../harnesses/pi/PiAdapter.js";
 import { AgentRegistry, type RegistryEntry } from "../utils/AgentRegistry.js";
 import { expand, expandNow, normalizeAgents, withFrozenClock } from "../fixtures/bundle.js";
 import type { FixtureBundle } from "../fixtures/bundle.js";
@@ -31,10 +32,14 @@ const bundlePaths = fs.existsSync(FIXTURES_ROOT)
       )
   : [];
 
+/** Adapters whose detect path consults AgentRegistry. */
+const REGISTRY_AWARE = new Set(["codex", "pi"]);
+
 function adapterFor(type: string, registry?: AgentRegistry) {
   // Adapters that consult the registry during detection get the seeded
   // isolated instance so replay never reads real ~/.ai-devkit state.
   if (type === "codex" && registry) return new CodexAdapter(registry);
+  if (type === "pi" && registry) return new PiAdapter(registry);
   const adapter = createBuiltinAdapters().find((a) => a.type === type);
   if (!adapter) throw new Error(`no builtin adapter for "${type}"`);
   return adapter;
@@ -42,9 +47,9 @@ function adapterFor(type: string, registry?: AgentRegistry) {
 
 /** Seed an isolated registry at `<home>/.ai-devkit/agents.json`. */
 function seedRegistry(bundle: FixtureBundle, home: string, nowIso: string): AgentRegistry | undefined {
-  if (!bundle.registry?.length) return undefined;
+  if (!REGISTRY_AWARE.has(bundle.adapter)) return undefined;
   const registry = new AgentRegistry(path.join(home, ".ai-devkit", "agents.json"));
-  const entries = bundle.registry.map(
+  const entries = (bundle.registry ?? []).map(
     (e) =>
       ({
         name: "",
@@ -159,6 +164,11 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
 
   it("captures codex bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("codex"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures pi bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("pi"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });

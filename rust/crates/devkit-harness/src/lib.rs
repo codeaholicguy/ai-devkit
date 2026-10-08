@@ -9,6 +9,7 @@ pub mod claude;
 pub mod codex;
 #[cfg(test)]
 mod fixtures;
+pub mod pi;
 pub mod shared;
 
 /// Build a registry with every ported adapter for `home` registered.
@@ -16,6 +17,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     let mut r = Registry::new();
     r.register(Box::new(claude::ClaudeAdapter::new(home)));
     r.register(Box::new(codex::CodexAdapter::new(home)));
+    r.register(Box::new(pi::PiAdapter::new(home)));
     r
 }
 
@@ -157,5 +159,13 @@ mod tests {
             Box::new(crate::codex::CodexAdapter::new(home))
         });
         assert!(n > 0, "no codex fixture bundles found");
+    }
+
+    #[test]
+    fn pi_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("pi", |home| {
+            Box::new(crate::pi::PiAdapter::new(home))
+        });
+        assert!(n > 0, "no pi fixture bundles found");
     }
 }

@@ -1,0 +1,113 @@
+{
+  "adapter": "pi",
+  "capturedAt": "2026-10-09T08:00:00.000Z",
+  "frozenNow": 1791532800000,
+  "processes": [
+    {
+      "pid": 30001,
+      "ppid": 1,
+      "tty": "s001",
+      "command": "pi",
+      "cwd": "/Users/fixture/proj",
+      "startTime": "2026-10-09T07:00:00.000Z"
+    },
+    {
+      "pid": 30002,
+      "ppid": 1,
+      "tty": "s002",
+      "command": "node /usr/local/bin/pi.js",
+      "cwd": "/Users/fixture/other",
+      "startTime": "2026-10-09T06:30:00.000Z"
+    },
+    {
+      "pid": 30003,
+      "ppid": 1,
+      "tty": "s003",
+      "command": "pi",
+      "cwd": "/Users/fixture/legproj",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 30004,
+      "ppid": 1,
+      "tty": "s004",
+      "command": "pi",
+      "cwd": "/Users/fixture/proj",
+      "startTime": "2026-10-09T07:59:00.000Z"
+    },
+    {
+      "pid": 30005,
+      "ppid": 1,
+      "tty": "s005",
+      "command": "pilot run",
+      "cwd": "/Users/fixture/proj",
+      "startTime": "2026-10-09T07:59:00.000Z"
+    }
+  ],
+  "registry": [
+    {
+      "name": "seeded-pi",
+      "type": "pi",
+      "pid": 30002,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/other",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "regsess",
+      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-other--/2026-10-09T06-30-00-000Z_regsess.jsonl",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    }
+  ],
+  "home": {
+    ".pi/agent/sessions.json": "{\"30001\":\"$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-proj--/tracker-sess.jsonl\"}",
+    ".pi/agent/sessions/--Users-fixture-proj--/tracker-sess.jsonl": "{\"sessionId\":\"tracker-sess\",\"cwd\":\"/Users/fixture/proj\",\"timestamp\":\"2026-10-09T06:55:00Z\"}\n{\"timestamp\":\"2026-10-09T06:56:00Z\",\"role\":\"user\",\"content\":\"summarize the build\"}\n{\"timestamp\":\"2026-10-09T07:58:00Z\",\"role\":\"assistant\",\"content\":\"build summary here\"}\n",
+    ".pi/agent/sessions/--Users-fixture-other--/2026-10-09T06-30-00-000Z_regsess.jsonl": "{\"sessionId\":\"regsess\",\"cwd\":\"/Users/fixture/other\",\"timestamp\":\"2026-10-09T06:30:00Z\"}\n{\"timestamp\":\"2026-10-09T06:31:00Z\",\"role\":\"user\",\"content\":\"deploy the thing\"}\n{\"timestamp\":\"2026-10-09T07:56:00Z\",\"role\":\"user\",\"content\":\"and now?\"}\n",
+    ".pi/agent/sessions/--Users-fixture-legproj--/legacysess.jsonl": "{\"sessionId\":\"legacysess\",\"cwd\":\"/Users/fixture/legproj\",\"timestamp\":\"2026-10-09T07:58:00Z\"}\n{\"timestamp\":\"2026-10-09T06:30:00Z\",\"role\":\"user\",\"content\":\"old prompt\"}\n"
+  },
+  "expected": [
+    {
+      "name": "other-30002",
+      "type": "pi",
+      "status": "running",
+      "summary": "and now?",
+      "pid": 30002,
+      "projectPath": "/Users/fixture/other",
+      "sessionId": "regsess",
+      "lastActive": "2026-10-09T07:56:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-other--/2026-10-09T06-30-00-000Z_regsess.jsonl"
+    },
+    {
+      "name": "proj-30001",
+      "type": "pi",
+      "status": "waiting",
+      "summary": "summarize the build",
+      "pid": 30001,
+      "projectPath": "/Users/fixture/proj",
+      "sessionId": "tracker-sess",
+      "lastActive": "2026-10-09T07:58:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-proj--/tracker-sess.jsonl"
+    },
+    {
+      "name": "legproj-30003",
+      "type": "pi",
+      "status": "idle",
+      "summary": "old prompt",
+      "pid": 30003,
+      "projectPath": "/Users/fixture/legproj",
+      "sessionId": "legacysess",
+      "lastActive": "2026-10-09T06:30:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-legproj--/legacysess.jsonl"
+    },
+    {
+      "name": "proj-30004",
+      "type": "pi",
+      "status": "running",
+      "summary": "Pi process running",
+      "pid": 30004,
+      "projectPath": "/Users/fixture/proj",
+      "sessionId": "pid-30004",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    }
+  ]
+}
