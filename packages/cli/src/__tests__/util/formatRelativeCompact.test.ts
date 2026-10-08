@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { formatRelative } from "../../../../tui/console/render/formatRelative.js";
+import { formatRelativeCompact as formatRelative } from "../../util/time-format.js";
 
 describe("formatRelative", () => {
   beforeEach(() => {

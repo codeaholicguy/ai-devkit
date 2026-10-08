@@ -16,6 +16,10 @@ import {
 import { parseMilliseconds, sleep } from "../../util/time.js";
 import { ui } from "../../util/terminal-ui.js";
 import type { AgentGroup } from "./agent-group.service.js";
+import {
+  reportAgentResolution,
+  resolveAgentByName,
+} from "./resolve-agent.service.js";
 
 export interface AgentSendWaitTarget {
   id: string;
@@ -244,28 +248,18 @@ export async function sendToAgent({
   writeJson = (value) => console.log(JSON.stringify(value, null, 2)),
 }: SendToAgentOptions): Promise<void> {
   const waitTimeout = parseSendWaitTimeout(timeout);
-  const agents = await manager.listAgents();
-  if (agents.length === 0) {
-    reporter.error("No running agents found.");
+  const resolution = await resolveAgentByName(manager, id);
+  if (resolution.kind !== "resolved") {
+    reportAgentResolution(
+      resolution,
+      id,
+      { error: reporter.error, info: reporter.info, text: reporter.info },
+      (agent) => `${agent.name} (${formatStatus(agent.status)})`,
+    );
     return;
   }
 
-  const resolved = manager.resolveAgent(id, agents);
-  if (!resolved) {
-    reporter.error(`No agent found matching "${id}".`);
-    reporter.info("Available agents:");
-    agents.forEach((agent) => reporter.info(`  - ${agent.name}`));
-    return;
-  }
-
-  if (Array.isArray(resolved)) {
-    reporter.error(`Multiple agents match "${id}":`);
-    resolved.forEach((agent) => reporter.info(`  - ${agent.name} (${formatStatus(agent.status)})`));
-    reporter.info("Please use a more specific identifier.");
-    return;
-  }
-
-  const agent = resolved;
+  const agent = resolution.agent;
   if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
     const warning = `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`;
     if (wait) {

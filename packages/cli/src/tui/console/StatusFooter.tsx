@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Text } from "ink";
 import { AgentStatus, type AgentInfo } from "@ai-devkit/agent-manager";
-import { formatRelative } from "./render/formatRelative.js";
+import { formatRelativeCompact } from "../../util/time-format.js";
 import { getConsoleHotkeyHints } from "./HelpPane.js";
 import { TUI_COLORS, formatKeyHints } from "../design-system/index.js";
 
@@ -43,7 +43,7 @@ const StatusFooterInner: React.FC<StatusFooterProps> = ({
   const updated =
     isLoading && !lastUpdated
       ? "loading…"
-      : `updated ${lastUpdated ? formatRelative(lastUpdated) : "—"}`;
+      : `updated ${lastUpdated ? formatRelativeCompact(lastUpdated) : "—"}`;
 
   return (
     <Box flexDirection="column">
