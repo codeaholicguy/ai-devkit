@@ -30,7 +30,7 @@ the repo convention `docs/ai/<phase>/2026-10-08-feature-harness-<name>.md`.
 | I1 | claude (1649 LOC, transcript parsing — hardest first) | `harness-claude` | fixture parity 100% | ✅ `12b6ded2`
 | I2 | codex (1944) | `harness-codex` | parity | ✅ `7cfecd9b`
 | I3 | pi (1683) | `harness-pi` | parity | ✅ `d778d634` |
-| I4 | gemini (1098) | `harness-gemini` | parity |
+| I4 | gemini (1098) | `harness-gemini` | parity | ✅ `ad9de6ce` |
 | I5 | copilot (762) | `harness-copilot` | parity |
 | I6 | grok (588) | `harness-grok` | parity |
 | I7 | opencode (506) | `harness-opencode` | parity |

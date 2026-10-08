@@ -9,6 +9,7 @@ pub mod claude;
 pub mod codex;
 #[cfg(test)]
 mod fixtures;
+pub mod gemini;
 pub mod pi;
 pub mod shared;
 
@@ -18,6 +19,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(claude::ClaudeAdapter::new(home)));
     r.register(Box::new(codex::CodexAdapter::new(home)));
     r.register(Box::new(pi::PiAdapter::new(home)));
+    r.register(Box::new(gemini::GeminiAdapter::new(home)));
     r
 }
 
@@ -64,6 +66,13 @@ impl Registry {
             .iter()
             .map(|a| a.type_id().to_string())
             .collect()
+    }
+
+    /// Whether any registered adapter claims this process — the daemon's
+    /// candidate gate for script-runtime processes (mirrors TS
+    /// `isCandidateProcess`).
+    pub fn any_can_handle(&self, proc: &AgentProc) -> bool {
+        self.adapters.iter().any(|a| a.can_handle(proc))
     }
 
     pub fn enrich(&self, ctx: &SweepContext) -> EnrichedAgentsResult {
@@ -167,5 +176,13 @@ mod tests {
             Box::new(crate::pi::PiAdapter::new(home))
         });
         assert!(n > 0, "no pi fixture bundles found");
+    }
+
+    #[test]
+    fn gemini_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("gemini_cli", |home| {
+            Box::new(crate::gemini::GeminiAdapter::new(home))
+        });
+        assert!(n > 0, "no gemini fixture bundles found");
     }
 }

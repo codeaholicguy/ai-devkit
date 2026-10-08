@@ -14,6 +14,7 @@ import * as path from "node:path";
 import { createBuiltinAdapters } from "../harnesses/index.js";
 import { CodexAdapter } from "../harnesses/codex/CodexAdapter.js";
 import { PiAdapter } from "../harnesses/pi/PiAdapter.js";
+import { GeminiCliAdapter } from "../harnesses/gemini/GeminiCliAdapter.js";
 import { AgentRegistry, type RegistryEntry } from "../utils/AgentRegistry.js";
 import { expand, expandNow, normalizeAgents, withFrozenClock } from "../fixtures/bundle.js";
 import type { FixtureBundle } from "../fixtures/bundle.js";
@@ -33,13 +34,14 @@ const bundlePaths = fs.existsSync(FIXTURES_ROOT)
   : [];
 
 /** Adapters whose detect path consults AgentRegistry. */
-const REGISTRY_AWARE = new Set(["codex", "pi"]);
+const REGISTRY_AWARE = new Set(["codex", "pi", "gemini_cli"]);
 
 function adapterFor(type: string, registry?: AgentRegistry) {
   // Adapters that consult the registry during detection get the seeded
   // isolated instance so replay never reads real ~/.ai-devkit state.
   if (type === "codex" && registry) return new CodexAdapter(registry);
   if (type === "pi" && registry) return new PiAdapter(registry);
+  if (type === "gemini_cli" && registry) return new GeminiCliAdapter(registry);
   const adapter = createBuiltinAdapters().find((a) => a.type === type);
   if (!adapter) throw new Error(`no builtin adapter for "${type}"`);
   return adapter;
@@ -169,6 +171,11 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
 
   it("captures pi bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("pi"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures gemini_cli bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("gemini_cli"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });

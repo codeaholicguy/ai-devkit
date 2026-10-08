@@ -135,8 +135,26 @@ impl Daemon {
 
     /// Apply a discovery sweep, refresh the enriched cache, and emit
     /// appear/vanish events.
+    ///
+    /// Runtime-named procs (node/bun — script-distributed harnesses) are
+    /// swept but only visible when some adapter claims them, mirroring TS
+    /// `isCandidateProcess` gating; dedicated-binary procs stay raw-visible
+    /// so unported harnesses still surface.
     pub fn apply_sweep(&self) {
-        let mut procs = devkit_core::discover::sweep();
+        let all = devkit_core::discover::sweep();
+        let candidate_pids: std::collections::HashSet<i64> = all
+            .iter()
+            .filter(|p| self.enricher.any_can_handle(p))
+            .map(|p| p.pid)
+            .collect();
+        let mut procs: Vec<_> = all
+            .iter()
+            .filter(|p| {
+                !devkit_core::discover::is_runtime_command(p.command.as_deref().unwrap_or(""))
+                    || candidate_pids.contains(&p.pid)
+            })
+            .cloned()
+            .collect();
         devkit_core::discover::enrich_agents(&mut procs);
         let ctx = devkit_harness::SweepContext {
             processes: &procs,
@@ -364,16 +382,22 @@ mod tests {
         // Live sweep may surface real claude processes on the dev machine —
         // the contract is the shape, not emptiness.
         assert!(r["result"]["agents"].is_array());
-        assert_eq!(r["result"]["ported"], json!(["claude", "codex", "pi"]));
+        assert_eq!(
+            r["result"]["ported"],
+            json!(["claude", "codex", "pi", "gemini_cli"])
+        );
 
         // A registered adapter would surface through the same cache; I0
         // verifies the cache is what apply_sweep refreshes.
         *d.enriched.write().unwrap() = devkit_core::agent::EnrichedAgentsResult {
             agents: vec![],
-            ported: vec!["claude".into(), "codex".into(), "pi".into()],
+            ported: vec!["claude".into(), "codex".into(), "pi".into(), "gemini_cli".into()],
         };
         let r = rpc(&sock, r#"{"id":2,"method":"agent.enriched"}"#).await;
-        assert_eq!(r["result"]["ported"], json!(["claude", "codex", "pi"]));
+        assert_eq!(
+            r["result"]["ported"],
+            json!(["claude", "codex", "pi", "gemini_cli"])
+        );
     }
 
     #[tokio::test]

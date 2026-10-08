@@ -23,6 +23,9 @@ const HARNESS_DIRS: Record<string, string[]> = {
   claude: [".claude/sessions", ".claude/projects"],
   codex: [".codex/sessions", ".codex/archived_sessions", ".codex/ai-devkit"],
   pi: [".pi/agent/sessions"],
+  // tmp/<shortId>/{.project_root,chats/*} — small tree; index-style capture
+  // keeps the ownership markers replay needs for slug-dir attribution.
+  gemini_cli: [".gemini/tmp"],
 };
 
 /** Individual files (not dirs) each harness consults during detection. */

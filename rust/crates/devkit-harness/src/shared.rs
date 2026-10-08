@@ -488,6 +488,53 @@ fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
     era * 146097 + doe - 719468
 }
 
+/// `isSameTerminalProcess` — same non-empty/non-"?" tty and same cwd
+/// (or either side's cwd unknown/empty).
+pub fn is_same_terminal_process(a: &AgentProc, b: &AgentProc) -> bool {
+    let tty_a = a.tty.as_deref().unwrap_or("");
+    let tty_b = b.tty.as_deref().unwrap_or("");
+    if tty_a.is_empty() || tty_a == "?" || tty_a != tty_b {
+        return false;
+    }
+    let cwd_a = a.cwd.as_deref().unwrap_or("");
+    let cwd_b = b.cwd.as_deref().unwrap_or("");
+    cwd_a == cwd_b || cwd_a.is_empty() || cwd_b.is_empty()
+}
+
+/// `findWrapperProcess` — the first proc that is `child`'s parent and
+/// shares its terminal/cwd identity.
+pub fn find_wrapper_pid(procs: &[&AgentProc], child: &AgentProc) -> Option<i64> {
+    procs.iter().find_map(|p| {
+        (p.pid != child.pid
+            && child.ppid == Some(p.pid)
+            && is_same_terminal_process(p, child))
+        .then_some(p.pid)
+    })
+}
+
+/// `findWrapperProcessPids` — parents of candidates sharing a terminal,
+/// plus every proc sharing a terminal with an already-matched process.
+pub fn wrapper_pids(
+    procs: &[&AgentProc],
+    matched: &[&AgentProc],
+) -> std::collections::HashSet<i64> {
+    let mut wrappers = std::collections::HashSet::new();
+    for child in procs {
+        if let Some(pid) = find_wrapper_pid(procs, child) {
+            wrappers.insert(pid);
+        }
+    }
+    for proc in procs {
+        if matched
+            .iter()
+            .any(|m| proc.pid != m.pid && is_same_terminal_process(proc, m))
+        {
+            wrappers.insert(proc.pid);
+        }
+    }
+    wrappers
+}
+
 /// pid → sessionFilePath rows for `agent_type` from the shared
 /// `<home>/.ai-devkit/agents.db` registry — mirrors `AgentRegistry.list()`
 /// filtered the way `mapRegistryCache` does (type + non-empty path;
@@ -522,6 +569,44 @@ pub fn registry_session_paths(
             .collect(),
         None => std::collections::HashMap::new(),
     }
+}
+
+/// One `agents` row — the fields adapters consult (`AgentRegistry.list`
+/// entry subset).
+#[derive(Debug, Clone)]
+pub struct RegistryRow {
+    pub agent_type: String,
+    pub pid: i64,
+    pub name: String,
+    pub session_file_path: String,
+}
+
+/// Full registry rows in `AgentRegistry.list()` order
+/// (`started_at ASC, name ASC`) so pid-keyed maps mirror JS Map last-wins.
+pub fn registry_agent_rows(home: &Path) -> Vec<RegistryRow> {
+    let db = home.join(".ai-devkit").join("agents.db");
+    let Ok(conn) = rusqlite::Connection::open_with_flags(
+        &db,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ) else {
+        return Vec::new();
+    };
+    let mut stmt = match conn.prepare(
+        "SELECT type, pid, name, session_file_path FROM agents ORDER BY started_at ASC, name ASC",
+    ) {
+        Ok(s) => s,
+        Err(_) => return Vec::new(),
+    };
+    stmt.query_map([], |r| {
+        Ok(RegistryRow {
+            agent_type: r.get::<_, String>(0)?,
+            pid: r.get::<_, i64>(1)?,
+            name: r.get::<_, String>(2)?,
+            session_file_path: r.get::<_, String>(3)?,
+        })
+    })
+    .map(|rows| rows.flatten().collect())
+    .unwrap_or_default()
 }
 
 #[cfg(test)]

@@ -136,10 +136,14 @@ fn seed_registry(home: &Path, rows: &[Value], home_s: &str, now_iso: &str) {
 /// time, so static dirs would drift across replay days/timezones.
 fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String) {
     let today_key = crate::shared::local_day_key(now_ms());
+    // Parallel adapter tests can materialize same-named bundles in the same
+    // millisecond — a counter keeps dirs (and their seeded agents.db) disjoint.
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let dir = std::env::temp_dir().join(format!(
-        "devkit-fixture-{}-{}-{tag}",
+        "devkit-fixture-{}-{}-{}-{tag}",
         std::process::id(),
-        now_ms()
+        now_ms(),
+        SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     ));
     let home_s = dir.to_string_lossy().into_owned();
     for (rel, content) in &bundle.home {

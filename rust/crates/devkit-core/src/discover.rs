@@ -25,19 +25,36 @@ const AGENT_BINARIES: &[&str] = &[
     "opencode",
     "pi",
     "kiro-cli-chat",
+    "kiro-cli",
+    "kiro",
     "devin",
     "kimi",
     "cursor-agent",
     "droid",
+    "agy",
 ];
 
-fn is_agent_command(cmd: &str) -> bool {
-    let base = cmd
-        .split_whitespace()
+/// Script runtimes that host harnesses (`node …/gemini.js`, `bun`, …).
+/// Swept so adapters can claim them, but a runtime proc no adapter accepts
+/// is excluded from the visible pool — otherwise every node/bun process
+/// would spam agent.list and the event stream.
+const RUNTIME_BINARIES: &[&str] = &["node", "bun"];
+
+fn argv0_basename(cmd: &str) -> &str {
+    cmd.split_whitespace()
         .next()
         .and_then(|p| p.rsplit('/').next())
-        .unwrap_or("");
-    AGENT_BINARIES.contains(&base)
+        .unwrap_or("")
+}
+
+fn is_agent_command(cmd: &str) -> bool {
+    let base = argv0_basename(cmd);
+    AGENT_BINARIES.contains(&base) || RUNTIME_BINARIES.contains(&base)
+}
+
+/// Whether argv0 is a script runtime — the apply_sweep visibility gate.
+pub fn is_runtime_command(cmd: &str) -> bool {
+    RUNTIME_BINARIES.contains(&argv0_basename(cmd))
 }
 
 /// Single `ps -axo` sweep — replaces the per-invocation shell-outs the CLI does
@@ -238,10 +255,9 @@ mod tests {
     fn fixture_keeps_agents_drops_noise() {
         let procs = parse_ps_output(PS_FIXTURE, false);
         let pids: Vec<i64> = procs.iter().map(|p| p.pid).collect();
-        // 881121 (`node .../codex-linux.js`) is dropped: basename `node` is not
-        // an agent binary. Known limitation vs the TS adapters, which match on
-        // richer process metadata — recorded as a phase-2 knowledge-port item.
-        assert_eq!(pids, vec![3164590, 881120, 991000]);
+        // 881121 (`node .../codex-linux.js`) is now swept as a runtime proc;
+        // apply_sweep drops it from the visible pool when no adapter claims it.
+        assert_eq!(pids, vec![3164590, 881120, 881121, 991000]);
     }
 
     #[test]
