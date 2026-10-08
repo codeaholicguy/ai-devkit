@@ -38,7 +38,7 @@ the repo convention `docs/ai/<phase>/2026-10-08-feature-harness-<name>.md`.
 | I9 | kiro (696) | `harness-kiro` | parity | ✅ `9c0e9ba5` |
 | I10 | antigravity (487) | `harness-antigravity` | parity | ✅ `d7de3221` |
 | I11 | readiness — shared lib, `devkit-harness::readiness` internal + `agent.readiness` RPC + status daemon-primary | `harness-readiness` | fixture parity | ✅ `c42b79cf` |
-| I12 | Cutover + efficiency report | `harness-port-cutover` | `agent list` daemon-primary; local adapters = fallback only; metrics table published |
+| I12 | Cutover + efficiency report | `harness-port-cutover` | `agent list` daemon-primary; local adapters = fallback only; metrics table published | ✅ `I12-HASH` |
 
 Order rationale: claude/codex/pi first — highest usage and hardest parsing, so
 port-cost and risk data arrive early enough to change the plan.

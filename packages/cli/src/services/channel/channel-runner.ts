@@ -19,6 +19,7 @@ import {
   SLACK_CHANNEL_TYPE,
   TELEGRAM_CHANNEL_TYPE,
 } from "@ai-devkit/channel-connector";
+import { ensureDaemon } from "@ai-devkit/daemon-client";
 import { ui } from "../../util/terminal-ui.js";
 import { getErrorMessage } from "../../util/text.js";
 import { createLogger } from "../../util/debug.js";
@@ -38,7 +39,17 @@ export interface RunChannelBridgeInput {
 }
 
 function createAgentManager(): AgentManager {
-  const manager = new AgentManager();
+  const manager = new AgentManager(undefined, undefined, {
+    fetchEnrichedAgents: async () => {
+      const client = await ensureDaemon();
+      if (!client) return null;
+      try {
+        return await client.enrichedAgents();
+      } finally {
+        client.close();
+      }
+    },
+  });
   for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);
   return manager;
 }
