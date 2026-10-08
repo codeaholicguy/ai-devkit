@@ -12,8 +12,13 @@ import { resolveDaemonBinary } from "./binary.js";
  */
 export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<DaemonClient | null> {
   const waitMs = opts.waitMs ?? 3000;
+  // Test runs must never spawn a real daemon. Callers that want to exercise
+  // autostart do so by pointing AI_DEVKITD_BIN at a real binary in an explicit
+  // integration test — the env below is checked there too via VITEST_SKIP.
+  if (process.env.AI_DEVKIT_NO_DAEMON) return null;
   const existing = await DaemonClient.tryConnect();
   if (existing) return existing;
+  if (process.env.VITEST && !process.env.AI_DEVKITD_BIN) return null;
 
   const bin = resolveDaemonBinary();
   if (!bin) return null;

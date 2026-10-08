@@ -42,6 +42,15 @@ description: What is tested, how, and what is verified live vs deferred
 `channel-connector` (existing suite, unchanged expectations): custom
 `configPath` ⇒ file semantics — daemon path never engaged in tests.
 
+`cli` console migration:
+- `agentListSubscription.test.ts` — the seam is unit-tested directly: no-daemon
+  → null (caller keeps polling); subscribed → events forwarded + client
+  returned; subscribe failure → client closed, null returned.
+- Hermeticity: `ensureDaemon` never spawns under `VITEST` unless
+  `AI_DEVKITD_BIN` is explicitly set.
+- Note: `PreviewActivityIndicator.test.tsx` is dead — vitest's include glob
+  covers `*.test.ts` only; .tsx tests never run. Recorded, not fixed here.
+
 ## Live-verified (not automated)
 
 `daemon start` autospawn, `status`, `logs -n`, registry roundtrip over socket,

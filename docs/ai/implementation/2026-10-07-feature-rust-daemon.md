@@ -35,6 +35,12 @@ Branch `feature/rust-daemon`, PR #351.
 - `pi-session-tracker` — inline 20-line socket client (no dep possible inside
   the pi extension); daemon-first with sessions.json fallback.
 - `cli/src/commands/daemon.ts` — status/start/stop/logs/install.
+- `cli/src/tui/console/hooks/agentListSubscription.ts` — `attachDaemonRefresh`:
+  the testable seam between the daemon event stream and the console.
+  `useAgentList` delegates to it; on a live subscription the 3s blind poll
+  relaxes to a 60s fallback covering attribution drift. No daemon / failed
+  subscribe ⇒ today's exact behavior. `ensureDaemon` refuses to spawn under
+  `VITEST` without an explicit `AI_DEVKITD_BIN`, keeping the suite hermetic.
 
 ## Notable decisions taken in-flight
 

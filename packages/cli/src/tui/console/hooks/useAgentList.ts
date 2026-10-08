@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentInfo, AgentManager } from "@ai-devkit/agent-manager";
+import type { DaemonClient } from "@ai-devkit/daemon-client";
+import { attachDaemonRefresh } from "./agentListSubscription.js";
 
 export interface UseAgentListResult {
   agents: AgentInfo[];
@@ -12,6 +14,9 @@ export interface UseAgentListResult {
 type AgentListState = Omit<UseAgentListResult, "refresh">;
 
 export const LIST_POLL_INTERVAL_MS = 3000;
+/** Slow safety-net poll once the daemon event stream drives refresh — covers
+ *  attribution drift (status text, session files) the daemon can't see. */
+export const LIST_FALLBACK_INTERVAL_MS = 60_000;
 
 export function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {
   if (a.length !== b.length) return false;
@@ -99,13 +104,37 @@ export function useAgentList(
       };
     }
     void refresh();
-    const handle = setInterval(() => {
+    let handle = setInterval(() => {
       void refresh();
     }, intervalMs);
 
+    // Daemon event stream → immediate refresh on agent lifecycle/registry
+    // changes; on success the blind poll relaxes to the slow fallback. Any
+    // failure leaves today's interval behavior untouched.
+    let client: DaemonClient | null = null;
+    let disposed = false;
+    void attachDaemonRefresh(
+      () => void refresh(),
+      () => {
+        if (disposed) return;
+        clearInterval(handle);
+        handle = setInterval(() => {
+          void refresh();
+        }, LIST_FALLBACK_INTERVAL_MS);
+      },
+    ).then((c) => {
+      if (disposed) {
+        c?.close();
+        return;
+      }
+      client = c;
+    });
+
     return () => {
+      disposed = true;
       mountedRef.current = false;
       clearInterval(handle);
+      client?.close();
     };
   }, [intervalMs, paused, refresh]);
 
