@@ -33,7 +33,7 @@ the repo convention `docs/ai/<phase>/2026-10-08-feature-harness-<name>.md`.
 | I4 | gemini (1098) | `harness-gemini` | parity | ✅ `48fc9a87` |
 | I5 | copilot (762) | `harness-copilot` | parity | ✅ `22d6fd2f` |
 | I6 | grok (588) | `harness-grok` | parity | ✅ `8298101a` |
-| I7 | opencode (506) | `harness-opencode` | parity | ✅ `I7-HASH` |
+| I7 | opencode (506) | `harness-opencode` | parity | ✅ `cdf1cc6c` |
 | I8 | devin (857) | `harness-devin` | parity |
 | I9 | kiro (696) | `harness-kiro` | parity |
 | I10 | antigravity (487) | `harness-antigravity` | parity |
