@@ -234,6 +234,38 @@ pub fn is_idle(last_active_ms: i64, now_ms: i64) -> bool {
     now_ms - last_active_ms > 300_000
 }
 
+/// `flattenTextBlocks` — a string is used as-is; an array joins each
+/// block's `text` when the block is an object with a string `text`;
+/// anything else yields "".
+pub fn flatten_text_blocks(content: &serde_json::Value) -> String {
+    match content {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Array(blocks) => blocks
+            .iter()
+            .map(|b| {
+                b.get("text")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or_default()
+            })
+            .collect(),
+        _ => String::new(),
+    }
+}
+
+/// `encodeURIComponent` — UTF-8 percent-encoding; unreserved set is
+/// `A-Z a-z 0-9 - _ . ! ~ * ' ( )` (Grok session group dir names).
+pub fn encode_uri_component(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for &b in s.as_bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'!' | b'~' | b'*'
+            | b'\'' | b'(' | b')' => out.push(b as char),
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
+}
+
 /// `truncate` — `...`-suffix at `max` UTF-16 code units (JS `length`/`slice`
 /// semantics; SUMMARY_MAX_LENGTH = 120).
 pub fn truncate(value: &str, max: usize) -> String {

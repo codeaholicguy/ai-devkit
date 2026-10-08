@@ -93,6 +93,13 @@ function materialize(bundle: FixtureBundle) {
   // cwd+birthtime matching compares process start times against real file
   // creation times, so a static timestamp would drift out of tolerance.
   const nowIso = new Date().toISOString();
+  // Deterministic mtimes for adapters that read them (Grok lastActive /
+  // latest-session pick) — "$NOW" resolves like the process sentinel.
+  for (const [rel, mt] of Object.entries(bundle.mtimes ?? {})) {
+    const p = path.join(home, expand(rel.split("$TODAY").join(todayKey), home));
+    const ms = mt === "$NOW" ? Date.parse(nowIso) : mt;
+    fs.utimesSync(p, ms / 1000, ms / 1000);
+  }
   // JSON round-tripped Date fields (e.g. ProcessInfo.startTime) come back as
   // ISO strings — adapters expect real Date instances.
   const processes = expandNow(expand(bundle.processes, home), nowIso).map((p) => ({
@@ -183,6 +190,11 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
 
   it("captures copilot bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("copilot"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures grok_cli bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("grok_cli"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });

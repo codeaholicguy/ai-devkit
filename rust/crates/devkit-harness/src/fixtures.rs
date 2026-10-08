@@ -65,6 +65,7 @@ struct FixtureBundle {
     frozen_now: Value,
     processes: Vec<Value>,
     home: Vec<(String, String)>,
+    mtimes: Vec<(String, Value)>,
     registry: Vec<Value>,
     expected: Value,
 }
@@ -82,6 +83,10 @@ fn load_bundle(path: &Path) -> FixtureBundle {
                     .map(|(k, v)| (k.clone(), v.as_str().unwrap_or_default().to_string()))
                     .collect()
             })
+            .unwrap_or_default(),
+        mtimes: raw["mtimes"]
+            .as_object()
+            .map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default(),
         registry: raw["registry"].as_array().cloned().unwrap_or_default(),
         expected: raw["expected"].clone(),
@@ -151,7 +156,20 @@ fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String)
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         std::fs::write(&p, expand_str(&content.replace("$TODAY", &today_key), &home_s, "")).unwrap();
     }
-    (dir, now_ms(), today_key)
+    let written_ms = now_ms();
+    // Deterministic mtimes for adapters that read them (Grok lastActive /
+    // latest-session pick) — "$NOW" resolves to the materialization instant.
+    for (rel, mt) in &bundle.mtimes {
+        let p = dir.join(rel.replace("$TODAY", &today_key));
+        let ms = match mt {
+            Value::String(s) if s == NOW_PLACEHOLDER => written_ms,
+            v => v.as_i64().unwrap(),
+        };
+        let file = std::fs::File::open(&p).unwrap();
+        file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms as u64))
+            .unwrap();
+    }
+    (dir, written_ms, today_key)
 }
 
 /// Replay every committed (and any local live) bundle for `adapter_type`

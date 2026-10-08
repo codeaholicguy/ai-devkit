@@ -11,6 +11,7 @@ pub mod copilot;
 #[cfg(test)]
 mod fixtures;
 pub mod gemini;
+pub mod grok;
 pub mod pi;
 pub mod shared;
 
@@ -22,6 +23,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(pi::PiAdapter::new(home)));
     r.register(Box::new(gemini::GeminiAdapter::new(home)));
     r.register(Box::new(copilot::CopilotAdapter::new(home)));
+    r.register(Box::new(grok::GrokAdapter::new(home)));
     r
 }
 
@@ -194,5 +196,13 @@ mod tests {
             Box::new(crate::copilot::CopilotAdapter::new(home))
         });
         assert!(n > 0, "no copilot fixture bundles found");
+    }
+
+    #[test]
+    fn grok_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("grok_cli", |home| {
+            Box::new(crate::grok::GrokAdapter::new(home))
+        });
+        assert!(n > 0, "no grok fixture bundles found");
     }
 }

@@ -29,6 +29,12 @@ export interface FixtureBundle {
   /** Files under the fixture HOME; content may embed HOME_PLACEHOLDER. */
   home: Record<string, string>;
   /**
+   * mtime overrides keyed by `home` relpath — epoch ms, or "$NOW" for the
+   * materialization instant. Adapters whose output derives from file mtimes
+   * (Grok's lastActive / latest-session pick) need deterministic mtimes.
+   */
+  mtimes?: Record<string, number | string>;
+  /**
    * AgentRegistry rows (pid→sessionFilePath etc.) visible at capture time,
    * restricted to captured process pids — adapters' registry caches read
    * this state, so replay seeds an isolated registry with it.

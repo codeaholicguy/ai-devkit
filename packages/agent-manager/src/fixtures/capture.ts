@@ -29,11 +29,13 @@ const HARNESS_DIRS: Record<string, string[]> = {
   // session-state/<id>/{inuse.*.lock,events.jsonl,workspace.yaml} — the lock
   // files drive attribution, so the whole tree must materialize on replay.
   copilot: [".copilot/session-state"],
+  grok_cli: [".grok/sessions"],
 };
 
 /** Individual files (not dirs) each harness consults during detection. */
 const HARNESS_FILES: Record<string, string[]> = {
   pi: [".pi/agent/sessions.json"],
+  grok_cli: [".grok/active_sessions.json"],
 };
 
 /**
@@ -46,11 +48,19 @@ function collectHomeFiles(
   adapterType: string,
   realHome: string,
   agents: AgentInfo[],
-): Record<string, string> {
+): { home: Record<string, string>; mtimes: Record<string, number> } {
   const home: Record<string, string> = {};
+  const mtimes: Record<string, number> = {};
   const referenced = new Set(
     agents.map((a) => a.sessionFilePath).filter((p): p is string => Boolean(p)),
   );
+
+  const put = (rel: string, file: string) => {
+    home[rel] = sanitize(fs.readFileSync(file, "utf8"), realHome);
+    // Real mtimes are captured too — adapters that read them (Grok
+    // lastActive, latest-session pick) replay deterministically.
+    mtimes[rel] = fs.statSync(file).mtimeMs;
+  };
 
   for (const relDir of HARNESS_DIRS[adapterType] ?? []) {
     const dir = path.join(realHome, relDir);
@@ -63,17 +73,17 @@ function collectHomeFiles(
       const rel = path.join(relDir, path.relative(dir, file));
       const isAuxIndex = rel.endsWith("sessions.json") || rel.endsWith(".json");
       if (isIndexDir || referenced.has(file) || (isAuxIndex && fileSize(file) < 64 * 1024)) {
-        home[rel] = sanitize(fs.readFileSync(file, "utf8"), realHome);
+        put(rel, file);
       }
     });
   }
   for (const relFile of HARNESS_FILES[adapterType] ?? []) {
     const file = path.join(realHome, relFile);
     if (fs.existsSync(file) && fileSize(file) < 64 * 1024) {
-      home[relFile] = sanitize(fs.readFileSync(file, "utf8"), realHome);
+      put(relFile, file);
     }
   }
-  return home;
+  return { home, mtimes };
 }
 
 /**
@@ -132,12 +142,14 @@ export async function captureLive(adapter: AgentAdapter, caseName = "live"): Pro
     return { processes: snapshot, agents: detected, registry: registryBefore };
   });
 
+  const { home, mtimes } = collectHomeFiles(adapter.type, realHome, agents);
   const bundle: FixtureBundle = {
     adapter: adapter.type,
     capturedAt: new Date(frozenNow).toISOString(),
     frozenNow,
     processes: sanitize(processes, realHome),
-    home: collectHomeFiles(adapter.type, realHome, agents),
+    home,
+    mtimes,
     registry,
     expected: normalizeAgents(agents, realHome),
   };
