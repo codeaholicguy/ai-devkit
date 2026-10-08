@@ -239,3 +239,111 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::{json, Value};
+    use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+    use tokio::net::UnixStream;
+
+    async fn test_daemon() -> (Arc<Daemon>, PathBuf) {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "aidk-srv-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let sock = dir.join("d.sock");
+        let d = Arc::new(Daemon::new(&dir, sock.clone()).unwrap());
+        let d2 = d.clone();
+        tokio::spawn(async move {
+            let _ = serve(d2).await;
+        });
+        for _ in 0..100 {
+            if sock.exists() {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        (d, sock)
+    }
+
+    async fn rpc(sock: &PathBuf, line: &str) -> Value {
+        let mut s = UnixStream::connect(sock).await.unwrap();
+        s.write_all(line.as_bytes()).await.unwrap();
+        s.write_all(b"\n").await.unwrap();
+        let mut lines = BufReader::new(s).lines();
+        serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap()
+    }
+
+    #[tokio::test]
+    async fn end_to_end_rpc_subscribe_replay_and_live() {
+        let (d, sock) = test_daemon().await;
+
+        let r = rpc(&sock, r#"{"id":1,"method":"registry.put","params":{"scope":"channels","name":"a","value":{"t":1}}}"#).await;
+        assert_eq!(r["result"]["ok"], true);
+
+        // Subscribe from seq 0: the persisted event replays before live frames.
+        let mut s = UnixStream::connect(&sock).await.unwrap();
+        s.write_all(br#"{"id":2,"method":"subscribe","params":{"afterSeq":0}}"#.as_ref())
+            .await
+            .unwrap();
+        s.write_all(b"\n").await.unwrap();
+        let mut lines = BufReader::new(s).lines();
+        // Replay may include discovery events (the sweep ticks immediately);
+        // read until the subscribe ack, collecting replayed events.
+        let mut saw_registry_changed = false;
+        loop {
+            let line: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            if line["result"]["subscribed"] == true {
+                break;
+            }
+            if line["event"]["kind"] == "registry.changed" {
+                saw_registry_changed = true;
+            }
+        }
+        assert!(saw_registry_changed);
+
+        let d2 = d.clone();
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            let seq = d2.store.emit("test.ping", &json!({})).unwrap();
+            let _ = d2.events.send(crate::proto::Event {
+                seq,
+                ts: 0,
+                kind: "test.ping".into(),
+                payload: json!({}),
+            });
+        });
+        // Live stream may interleave discovery events; wait for ours.
+        let mut saw_ping = false;
+        for _ in 0..50 {
+            let line: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            if line["event"]["kind"] == "test.ping" {
+                saw_ping = true;
+                break;
+            }
+        }
+        assert!(saw_ping);
+    }
+
+    #[tokio::test]
+    async fn malformed_line_and_unknown_method_error_without_killing_conn() {
+        let (_d, sock) = test_daemon().await;
+        let mut s = UnixStream::connect(&sock).await.unwrap();
+        s.write_all(b"not json\n").await.unwrap();
+        s.write_all(br#"{"id":9,"method":"nope"}"#.as_ref())
+            .await
+            .unwrap();
+        s.write_all(b"\n").await.unwrap();
+        let mut lines = BufReader::new(s).lines();
+        let e1: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(e1["error"].is_string());
+        let e2: Value = serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+        assert!(e2["error"].as_str().unwrap().contains("unknown method"));
+    }
+}

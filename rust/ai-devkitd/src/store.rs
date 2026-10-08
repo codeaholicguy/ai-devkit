@@ -259,6 +259,54 @@ mod tests {
         let agents = s.list_agents().unwrap();
         assert_eq!(agents.len(), 2);
     }
+
+    #[test]
+    fn concurrent_sole_writer_loses_no_updates() {
+        // The property the RMW JSON files lacked: N threads racing puts on the
+        // same scope must all land — the store serializes via the mutex.
+        let (s, _p) = tmp_store();
+        let s = std::sync::Arc::new(s);
+        let mut handles = Vec::new();
+        for i in 0..32 {
+            let s = s.clone();
+            handles.push(std::thread::spawn(move || {
+                s.registry_put("pi-sessions", &format!("pid-{i}"), &json!(i))
+                    .unwrap();
+                s.registry_put("shared", "counter", &json!(i)).unwrap();
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        let all = s.registry_get("pi-sessions", None).unwrap();
+        assert_eq!(all.as_object().unwrap().len(), 32);
+        assert!(s
+            .registry_get("shared", Some("counter"))
+            .unwrap()
+            .is_number());
+    }
+
+    #[test]
+    fn events_survive_reopen() {
+        let (s, p) = tmp_store();
+        let seq = s.emit("agent.appeared", &json!({"pid": 7})).unwrap();
+        drop(s);
+        let s2 = Store::open(&p).unwrap();
+        let events = s2.events_after(0, 100).unwrap();
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].seq, seq);
+        assert_eq!(events[0].kind, "agent.appeared");
+        assert_eq!(events[0].payload["pid"], 7);
+    }
+
+    #[test]
+    fn registry_get_missing_scope_returns_empty_object() {
+        let (s, _p) = tmp_store();
+        assert_eq!(
+            s.registry_get("no-such-scope", None).unwrap(),
+            Value::Object(serde_json::Map::new())
+        );
+    }
 }
 
 pub fn chrono_now() -> i64 {

@@ -28,8 +28,6 @@ describe("resolveDaemonBinary", () => {
 
 describe("daemonSocketPath", () => {
   it("lives under ~/.ai-devkit", () => {
-    expect(daemonSocketPath()).toBe(
-      path.join(os.homedir(), ".ai-devkit", "daemon.sock"),
-    );
+    expect(daemonSocketPath()).toBe(path.join(os.homedir(), ".ai-devkit", "daemon.sock"));
   });
 });

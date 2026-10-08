@@ -22,13 +22,13 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
   const dir = path.dirname(sockPath);
   fs.mkdirSync(dir, { recursive: true });
 
-  // flock-guarded single spawn: O_EXCL lockfile serializes concurrent starters.
+  // Single-spawner lockfile: O_EXCL create serializes concurrent starters, and
+  // the holder unlinks it when done. A stale lock (crashed spawner) is reclaimed
+  // after STALE_LOCK_MS so a dead starter can't wedge autostart forever.
+  const STALE_LOCK_MS = 30_000;
   const lockPath = `${sockPath}.spawn.lock`;
-  let lockFd: number;
-  try {
-    lockFd = fs.openSync(lockPath, "wx", 0o600);
-    fs.closeSync(lockFd);
-  } catch {
+  const acquired = acquireSpawnLock(lockPath, STALE_LOCK_MS);
+  if (!acquired) {
     // Another process is spawning; just wait for the socket.
     return waitForSocket(waitMs);
   }
@@ -43,8 +43,34 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
     fs.closeSync(logFd);
   } catch {
     return null;
+  } finally {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* already gone */
+    }
   }
   return waitForSocket(waitMs);
+}
+
+function acquireSpawnLock(lockPath: string, staleMs: number): boolean {
+  try {
+    fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
+    return true;
+  } catch {
+    // Lock held — reclaim it only if the holder plausibly died.
+    try {
+      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+      if (age > staleMs) {
+        fs.unlinkSync(lockPath);
+        fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
+        return true;
+      }
+    } catch {
+      /* races with the holder are fine — losing means we wait */
+    }
+    return false;
+  }
 }
 
 async function waitForSocket(waitMs: number): Promise<DaemonClient | null> {
