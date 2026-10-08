@@ -1,10 +1,11 @@
 use anyhow::Result;
+use devkit_core::agent::EnrichedAgentsResult;
 use devkit_core::proto::{Event, Request, Response};
 use devkit_core::store::{chrono_now, Store};
 use serde_json::{json, Value};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::broadcast;
@@ -14,6 +15,10 @@ pub struct Daemon {
     pub events: broadcast::Sender<Event>,
     pub started_at: i64,
     pub socket_path: PathBuf,
+    pub enricher: devkit_harness::Registry,
+    /// Enriched agents for ported harness types, refreshed per sweep so
+    /// `agent.enriched` is O(1) over a prebuilt list.
+    pub enriched: RwLock<EnrichedAgentsResult>,
 }
 
 impl Daemon {
@@ -26,6 +31,11 @@ impl Daemon {
             events: tx,
             started_at: chrono_now(),
             socket_path,
+            enricher: devkit_harness::Registry::new(),
+            enriched: RwLock::new(EnrichedAgentsResult {
+                agents: vec![],
+                ported: vec![],
+            }),
         })
     }
 
@@ -96,6 +106,10 @@ impl Daemon {
                 Ok(v) => Response::ok(id, Value::Array(v)),
                 Err(e) => Response::err(id, e.to_string()),
             },
+            "agent.enriched" => {
+                let cached = self.enriched.read().unwrap().clone();
+                Response::ok(id, serde_json::to_value(cached).unwrap())
+            }
             "events.replay" => {
                 let after = req.params["afterSeq"].as_u64().unwrap_or(0);
                 let limit = req.params["limit"].as_u64().unwrap_or(1000) as u32;
@@ -116,9 +130,15 @@ impl Daemon {
         }
     }
 
-    /// Apply a discovery sweep and emit appear/vanish events.
+    /// Apply a discovery sweep, refresh the enriched cache, and emit
+    /// appear/vanish events.
     pub fn apply_sweep(&self) {
         let procs = devkit_core::discover::sweep();
+        let ctx = devkit_harness::SweepContext {
+            processes: &procs,
+            now: chrono_now(),
+        };
+        *self.enriched.write().unwrap() = self.enricher.enrich(&ctx);
         if let Ok((appeared, gone)) = self.store.apply_agent_snapshot(&procs) {
             for pid in appeared {
                 self.emit("agent.appeared", json!({"pid": pid}));
@@ -329,6 +349,23 @@ mod tests {
             }
         }
         assert!(saw_ping);
+    }
+
+    #[tokio::test]
+    async fn agent_enriched_returns_cached_result() {
+        let (d, sock) = test_daemon().await;
+        let r = rpc(&sock, r#"{"id":1,"method":"agent.enriched"}"#).await;
+        assert_eq!(r["result"]["agents"], json!([]));
+        assert_eq!(r["result"]["ported"], json!([]));
+
+        // A registered adapter would surface through the same cache; I0
+        // verifies the cache is what apply_sweep refreshes.
+        *d.enriched.write().unwrap() = devkit_core::agent::EnrichedAgentsResult {
+            agents: vec![],
+            ported: vec!["claude".into()],
+        };
+        let r = rpc(&sock, r#"{"id":2,"method":"agent.enriched"}"#).await;
+        assert_eq!(r["result"]["ported"], json!(["claude"]));
     }
 
     #[tokio::test]

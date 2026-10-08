@@ -72,6 +72,16 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
     expect(Date.now() - started).toBeLessThan(2000);
     client!.close();
   });
+
+  it("enrichedAgents returns agents + ported over the real socket", async () => {
+    const client = await ensureDaemon({ waitMs: 8000 });
+    expect(client).not.toBeNull();
+    const result = await client!.enrichedAgents();
+    // I0: no harness ported yet — the contract is the shape, not content.
+    expect(Array.isArray(result.agents)).toBe(true);
+    expect(Array.isArray(result.ported)).toBe(true);
+    client!.close();
+  }, 15000);
 });
 
 describe.runIf(fs.existsSync(sock))("live daemon", () => {

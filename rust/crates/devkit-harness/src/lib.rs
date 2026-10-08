@@ -1,0 +1,127 @@
+//! Harness knowledge port: per-harness process→session attribution and
+//! enrichment, ported from packages/agent-manager adapters. The daemon owns
+//! this so every client renders identical agent state.
+
+use devkit_core::agent::{EnrichedAgent, EnrichedAgentsResult};
+use devkit_core::discover::AgentProc;
+
+/// One discovery sweep's inputs, shared across all adapters. `now` is frozen
+/// per sweep so status derivation is consistent within a refresh.
+pub struct SweepContext<'a> {
+    pub processes: &'a [AgentProc],
+    pub now: i64,
+}
+
+/// One ported harness adapter — the Rust mirror of the TS `AgentAdapter`
+/// surface used by `listAgents` (canHandle + detectAgents).
+pub trait HarnessAdapter: Send + Sync {
+    /// Harness type id, matching the TS `AgentType` wire value
+    /// ("claude", "codex", "gemini_cli", ...).
+    fn type_id(&self) -> &'static str;
+    /// Whether this process belongs to the harness.
+    fn can_handle(&self, proc: &AgentProc) -> bool;
+    /// Attribute+enrich this sweep's processes into `AgentInfo` rows.
+    fn detect(&self, ctx: &SweepContext) -> Vec<EnrichedAgent>;
+}
+
+/// All ported adapters. `enrich` aggregates each sweep; `ported_types`
+/// tells clients which harness types the daemon covers so they can fall
+/// back to local adapters for the rest.
+#[derive(Default)]
+pub struct Registry {
+    adapters: Vec<Box<dyn HarnessAdapter>>,
+}
+
+impl Registry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn register(&mut self, adapter: Box<dyn HarnessAdapter>) {
+        self.adapters.push(adapter);
+    }
+
+    pub fn ported_types(&self) -> Vec<String> {
+        self.adapters
+            .iter()
+            .map(|a| a.type_id().to_string())
+            .collect()
+    }
+
+    pub fn enrich(&self, ctx: &SweepContext) -> EnrichedAgentsResult {
+        let agents = self.adapters.iter().flat_map(|a| a.detect(ctx)).collect();
+        EnrichedAgentsResult {
+            agents,
+            ported: self.ported_types(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct MockAdapter;
+
+    impl HarnessAdapter for MockAdapter {
+        fn type_id(&self) -> &'static str {
+            "claude"
+        }
+        fn can_handle(&self, proc: &AgentProc) -> bool {
+            proc.command.as_deref() == Some("claude")
+        }
+        fn detect(&self, ctx: &SweepContext) -> Vec<EnrichedAgent> {
+            ctx.processes
+                .iter()
+                .filter(|p| self.can_handle(p))
+                .map(|p| EnrichedAgent {
+                    name: "mock".into(),
+                    agent_type: self.type_id().into(),
+                    status: "running".into(),
+                    summary: String::new(),
+                    pid: p.pid as u64,
+                    project_path: p.cwd.clone().unwrap_or_default(),
+                    session_id: format!("pid-{}", p.pid),
+                    last_active: "2026-10-08T00:00:00.000Z".into(),
+                    pinned: None,
+                    session_file_path: None,
+                })
+                .collect()
+        }
+    }
+
+    fn proc(command: &str) -> AgentProc {
+        AgentProc {
+            pid: 7,
+            ppid: None,
+            tty: None,
+            command: Some(command.into()),
+            cwd: Some("/proj".into()),
+            session_file: None,
+        }
+    }
+
+    #[test]
+    fn registry_reports_ported_types() {
+        let mut r = Registry::new();
+        assert!(r.ported_types().is_empty());
+        r.register(Box::new(MockAdapter));
+        assert_eq!(r.ported_types(), vec!["claude"]);
+    }
+
+    #[test]
+    fn enrich_aggregates_matching_processes() {
+        let mut r = Registry::new();
+        r.register(Box::new(MockAdapter));
+        let procs = vec![proc("claude"), proc("codex")];
+        let ctx = SweepContext {
+            processes: &procs,
+            now: 0,
+        };
+        let out = r.enrich(&ctx);
+        assert_eq!(out.agents.len(), 1);
+        assert_eq!(out.agents[0].agent_type, "claude");
+        assert_eq!(out.agents[0].project_path, "/proj");
+        assert_eq!(out.ported, vec!["claude"]);
+    }
+}

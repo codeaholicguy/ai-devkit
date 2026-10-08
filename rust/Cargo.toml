@@ -9,6 +9,7 @@ license = "MIT"
 
 [workspace.dependencies]
 devkit-core = { path = "crates/devkit-core" }
+devkit-harness = { path = "crates/devkit-harness" }
 anyhow = "1"
 libc = "0.2"
 rusqlite = { version = "0.32", features = ["bundled"] }

@@ -1,6 +1,7 @@
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { EnrichedAgentsResult } from "./gen/EnrichedAgentsResult.js";
 import type { Event } from "./gen/Event.js";
 
 /** Wire event pushed by the daemon — generated from devkit-core via ts-rs. */
@@ -70,6 +71,16 @@ export class DaemonClient {
   async subscribe(handler: (e: DaemonEvent) => void, afterSeq = 0): Promise<void> {
     this.onEvent = handler;
     await this.request("subscribe", { afterSeq });
+  }
+
+  /**
+   * Fully attributed agents for the harness types the daemon has ported.
+   * `ported` tells callers which types the result covers — everything else
+   * stays on the local adapter path. Throws on RPC error: callers fall back
+   * for the whole call, not per-agent.
+   */
+  async enrichedAgents(): Promise<EnrichedAgentsResult> {
+    return (await this.request("agent.enriched")) as EnrichedAgentsResult;
   }
 
   private onData(chunk: Buffer) {

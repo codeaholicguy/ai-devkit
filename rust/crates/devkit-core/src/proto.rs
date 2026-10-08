@@ -74,6 +74,8 @@ mod tests {
         Request::export(&cfg).unwrap();
         Response::export(&cfg).unwrap();
         Event::export(&cfg).unwrap();
+        crate::agent::EnrichedAgent::export(&cfg).unwrap();
+        crate::agent::EnrichedAgentsResult::export(&cfg).unwrap();
     }
 
     #[test]

@@ -69,11 +69,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "devkit-harness"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "devkit-core",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "devkitd"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "devkit-core",
+ "devkit-harness",
  "libc",
  "serde_json",
  "tokio",
