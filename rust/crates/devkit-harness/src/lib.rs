@@ -5,6 +5,7 @@
 use devkit_core::agent::{EnrichedAgent, EnrichedAgentsResult};
 use devkit_core::discover::AgentProc;
 
+pub mod antigravity;
 pub mod claude;
 pub mod codex;
 pub mod copilot;
@@ -30,6 +31,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(opencode::OpenCodeAdapter::new(home)));
     r.register(Box::new(devin::DevinAdapter::new(home)));
     r.register(Box::new(kiro::KiroAdapter::new(home)));
+    r.register(Box::new(antigravity::AntigravityCliAdapter::new(home)));
     r
 }
 
@@ -242,5 +244,17 @@ mod tests {
             ))
         });
         assert!(n > 0, "no kiro fixture bundles found");
+    }
+
+    #[test]
+    fn antigravity_adapter_matches_committed_fixtures() {
+        // Pin the canonical base dir — ambient ANTIGRAVITY_CLI_HOME must
+        // not leak the real registry into replay.
+        let n = crate::fixtures::assert_parity("antigravity_cli", |home| {
+            Box::new(crate::antigravity::AntigravityCliAdapter::at_base_dir(
+                home.join(".gemini/antigravity-cli"),
+            ))
+        });
+        assert!(n > 0, "no antigravity fixture bundles found");
     }
 }

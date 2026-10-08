@@ -1,0 +1,173 @@
+{
+  "adapter": "antigravity_cli",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 3001,
+      "ppid": 900,
+      "tty": "ttys001",
+      "command": "agy",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T11:00:00.000Z"
+    },
+    {
+      "pid": 3002,
+      "ppid": 900,
+      "tty": "ttys002",
+      "command": "agy",
+      "cwd": "/proj/beta",
+      "startTime": "2025-10-09T11:05:00.000Z"
+    },
+    {
+      "pid": 3003,
+      "ppid": 900,
+      "tty": "ttys003",
+      "command": "/usr/local/bin/agy",
+      "cwd": "/proj/idle",
+      "startTime": "2025-10-09T11:10:00.000Z"
+    },
+    {
+      "pid": 3004,
+      "ppid": 900,
+      "tty": "ttys004",
+      "command": "agy",
+      "cwd": "/proj/missing",
+      "startTime": "2025-10-09T11:15:00.000Z"
+    },
+    {
+      "pid": 3005,
+      "ppid": 900,
+      "tty": "ttys005",
+      "command": "agy",
+      "cwd": "/proj/noreg",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    },
+    {
+      "pid": 3006,
+      "ppid": 900,
+      "tty": "ttys006",
+      "command": "agy",
+      "startTime": "2025-10-09T11:25:00.000Z"
+    },
+    {
+      "pid": 3007,
+      "ppid": 900,
+      "tty": "ttys007",
+      "command": "agy --verbose --model x",
+      "cwd": "/proj/args",
+      "startTime": "2025-10-09T11:30:00.000Z"
+    },
+    {
+      "pid": 3008,
+      "ppid": 900,
+      "tty": "ttys008",
+      "command": "agy.exe",
+      "cwd": "/proj/win",
+      "startTime": "2025-10-09T11:35:00.000Z"
+    },
+    {
+      "pid": 3009,
+      "ppid": 900,
+      "tty": "ttys009",
+      "command": "notagy",
+      "cwd": "/proj/noise",
+      "startTime": "2025-10-09T11:40:00.000Z"
+    }
+  ],
+  "home": {
+    ".gemini/antigravity-cli/cache/last_conversations.json": "{\n  \"/proj/alpha\": \"conv-alpha\",\n  \"/proj/beta\": \"conv-beta\",\n  \"/proj/idle\": \"conv-idle\",\n  \"/proj/missing\": \"conv-missing\",\n  \"\": \"conv-empty\",\n  \"/proj/noid\": \"\",\n  \"/proj/num\": 42\n}",
+    ".gemini/antigravity-cli/brain/conv-alpha/.system_generated/logs/transcript.jsonl": "{\"source\":\"user\",\"type\":\"USER_INPUT\",\"created_at\":\"2025-10-09T12:15:00.000Z\",\"content\":[{\"text\":\"task:\\n<USER_REQUEST>\\n  fix the alpha bug\\n</USER_REQUEST>\"}]}\n{\"source\":\"model\",\"type\":\"PLANNER_RESPONSE\",\"created_at\":\"2025-10-09T12:16:00.000Z\",\"content\":\"on it\"}\n{\"source\":\"user\",\"type\":\"USER_INPUT\",\"created_at\":\"2025-10-09T12:18:00.000Z\",\"content\":\"run it again\"}\n{\"source\":\"model\",\"type\":\"PLANNER_RESPONSE\",\"created_at\":\"2025-10-09T12:19:00.000Z\",\"content\":[{\"text\":\"I will look at the wrapper logic now.\"}]}\n",
+    ".gemini/antigravity-cli/brain/conv-beta/.system_generated/logs/transcript.jsonl": "{\"source\":\"model\",\"type\":\"PLANNER_RESPONSE\",\"created_at\":\"2025-10-09T12:19:45.000Z\",\"content\":\"done earlier\"}\n{\"source\":\"user\",\"type\":\"USER_INPUT\",\"created_at\":\"2025-10-09T12:19:30.000Z\",\"content\":\"ship beta\"}\n",
+    ".gemini/antigravity-cli/brain/conv-idle/.system_generated/logs/transcript.jsonl": "{\"source\":\"model\",\"type\":\"PLANNER_RESPONSE\",\"content\":\"old stuff\"}\n",
+    ".gemini/antigravity-cli/brain/conv-empty/.system_generated/logs/transcript.jsonl": "{\"type\":\"USER_INPUT\",\"content\":\"unreachable\"}\n"
+  },
+  "mtimes": {
+    ".gemini/antigravity-cli/brain/conv-idle/.system_generated/logs/transcript.jsonl": 1760012040000
+  },
+  "expected": [
+    {
+      "name": "alpha-3001",
+      "type": "antigravity_cli",
+      "status": "waiting",
+      "summary": "run it again",
+      "pid": 3001,
+      "projectPath": "/proj/alpha",
+      "sessionId": "conv-alpha",
+      "lastActive": "2025-10-09T12:19:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/antigravity-cli/brain/conv-alpha/.system_generated/logs/transcript.jsonl"
+    },
+    {
+      "name": "beta-3002",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "ship beta",
+      "pid": 3002,
+      "projectPath": "/proj/beta",
+      "sessionId": "conv-beta",
+      "lastActive": "2025-10-09T12:19:45.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/antigravity-cli/brain/conv-beta/.system_generated/logs/transcript.jsonl"
+    },
+    {
+      "name": "idle-3003",
+      "type": "antigravity_cli",
+      "status": "idle",
+      "summary": "Antigravity CLI session active",
+      "pid": 3003,
+      "projectPath": "/proj/idle",
+      "sessionId": "conv-idle",
+      "lastActive": "2025-10-09T12:14:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/antigravity-cli/brain/conv-idle/.system_generated/logs/transcript.jsonl"
+    },
+    {
+      "name": "missing-3004",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3004,
+      "projectPath": "/proj/missing",
+      "sessionId": "pid-3004",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "noreg-3005",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3005,
+      "projectPath": "/proj/noreg",
+      "sessionId": "pid-3005",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "unknown-3006",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3006,
+      "projectPath": "",
+      "sessionId": "pid-3006",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "args-3007",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3007,
+      "projectPath": "/proj/args",
+      "sessionId": "pid-3007",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "win-3008",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3008,
+      "projectPath": "/proj/win",
+      "sessionId": "pid-3008",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}

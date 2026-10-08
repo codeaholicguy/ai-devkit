@@ -162,9 +162,13 @@ describe("fixture replay (TS parity oracle)", () => {
       // Pin XDG to the fixture's canonical share dir — an ambient
       // XDG_DATA_HOME would resolve the real opencode.db into replay.
       const savedXdg = process.env.XDG_DATA_HOME;
+      // Same for ANTIGRAVITY_CLI_HOME — clearing it falls the adapter
+      // back to the pinned HOME's canonical base dir.
+      const savedAgy = process.env.ANTIGRAVITY_CLI_HOME;
       try {
         process.env.HOME = home;
         process.env.XDG_DATA_HOME = path.join(home, ".local", "share");
+        delete process.env.ANTIGRAVITY_CLI_HOME;
         const registry = seedRegistry(bundle, home, nowIso);
         const agents = await withFrozenClock(frozenNow, () =>
           adapterFor(bundle.adapter, registry).detectAgents({ processes }),
@@ -181,6 +185,8 @@ describe("fixture replay (TS parity oracle)", () => {
       } finally {
         if (savedXdg === undefined) delete process.env.XDG_DATA_HOME;
         else process.env.XDG_DATA_HOME = savedXdg;
+        if (savedAgy === undefined) delete process.env.ANTIGRAVITY_CLI_HOME;
+        else process.env.ANTIGRAVITY_CLI_HOME = savedAgy;
         cleanup();
       }
     });
@@ -231,6 +237,11 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
 
   it("captures kiro bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("kiro"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures antigravity_cli bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("antigravity_cli"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });

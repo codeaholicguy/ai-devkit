@@ -63,33 +63,40 @@ pub fn matches_executable(command: &str, name: &str) -> bool {
     base == name || base == format!("{name}.exe")
 }
 
-fn normalize_executable_name(name: &str) -> &str {
-    let lower = name.strip_suffix(".exe").unwrap_or(name);
-    let _ = lower;
-    // Names passed in are already lowercase; strip a trailing .exe.
-    name.strip_suffix(".exe").unwrap_or(name)
+/// `normalizeExecutableName` — lowercase + strip a `.exe` suffix; applied to
+/// both the pattern names and each candidate basename (TS does both, so a
+/// `agy.exe` proc still matches the `agy` pool).
+fn normalize_executable_name(name: &str) -> String {
+    let lower = name.to_lowercase();
+    lower.strip_suffix(".exe").unwrap_or(&lower).to_string()
 }
 
 /// `matchesExecutableName` — first-token basename match, else (absolute first
 /// token only) a later path-like token whose basename matches, confirmed by
 /// the on-disk-resolved `executablePath`.
 pub fn matches_executable_name(command: &str, names: &[&str]) -> bool {
-    let norm: Vec<String> = names
-        .iter()
-        .map(|n| normalize_executable_name(n).to_lowercase())
-        .collect();
+    let norm: Vec<String> = names.iter().map(|n| normalize_executable_name(n)).collect();
     let tokens: Vec<&str> = command.split_whitespace().collect();
     let first = tokens.first().copied().unwrap_or("");
-    if norm.iter().any(|n| *n == path_basename(first)) {
+    if norm
+        .iter()
+        .any(|n| *n == normalize_executable_name(&path_basename(first)))
+    {
         return true;
     }
     if !is_absolute(first) {
         return false;
     }
     let may_continue = tokens[1..].iter().any(|t| {
-        (t.contains('/') || t.contains('\\')) && norm.iter().any(|n| *n == path_basename(t))
+        (t.contains('/') || t.contains('\\'))
+            && norm
+                .iter()
+                .any(|n| *n == normalize_executable_name(&path_basename(t)))
     });
-    may_continue && norm.iter().any(|n| *n == executable_basename(command))
+    may_continue
+        && norm
+            .iter()
+            .any(|n| *n == normalize_executable_name(&executable_basename(command)))
 }
 
 /// `generateAgentName`: kebab(basename(cwd))-pid, "unknown" fallback.

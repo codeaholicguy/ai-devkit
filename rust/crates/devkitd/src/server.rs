@@ -384,19 +384,19 @@ mod tests {
         assert!(r["result"]["agents"].is_array());
         assert_eq!(
             r["result"]["ported"],
-            json!(["claude", "codex", "pi", "gemini_cli", "copilot", "grok_cli", "opencode", "devin", "kiro"])
+            json!(["claude", "codex", "pi", "gemini_cli", "copilot", "grok_cli", "opencode", "devin", "kiro", "antigravity_cli"])
         );
 
         // A registered adapter would surface through the same cache; I0
         // verifies the cache is what apply_sweep refreshes.
         *d.enriched.write().unwrap() = devkit_core::agent::EnrichedAgentsResult {
             agents: vec![],
-            ported: vec!["claude".into(), "codex".into(), "pi".into(), "gemini_cli".into(), "copilot".into(), "grok_cli".into(), "opencode".into(), "devin".into(), "kiro".into()],
+            ported: vec!["claude".into(), "codex".into(), "pi".into(), "gemini_cli".into(), "copilot".into(), "grok_cli".into(), "opencode".into(), "devin".into(), "kiro".into(), "antigravity_cli".into()],
         };
         let r = rpc(&sock, r#"{"id":2,"method":"agent.enriched"}"#).await;
         assert_eq!(
             r["result"]["ported"],
-            json!(["claude", "codex", "pi", "gemini_cli", "copilot", "grok_cli", "opencode", "devin", "kiro"])
+            json!(["claude", "codex", "pi", "gemini_cli", "copilot", "grok_cli", "opencode", "devin", "kiro", "antigravity_cli"])
         );
     }
 

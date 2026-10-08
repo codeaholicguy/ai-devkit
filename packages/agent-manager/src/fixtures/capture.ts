@@ -36,7 +36,25 @@ const HARNESS_DIRS: Record<string, string[]> = {
   // sessions/cli/<id>.{lock,json,jsonl} — locks drive attribution; the
   // whole flat dir is lightweight enough for index-style capture.
   kiro: [".kiro/sessions/cli"],
+  // antigravity-cli/{cache,brain} — last_conversations.json (small .json
+  // aux) plus only the transcripts referenced by matched agents; the
+  // brain tree is tens of MB so it stays referenced-only (not index).
+  antigravity_cli: [".gemini/antigravity-cli"],
 };
+
+/**
+ * Dirs captured wholesale (lock/index trees where every file matters —
+ * copilot lock dirs, kiro/devin locks, the codex mapping dir, the gemini
+ * tmp tree). Everything else captures agent-referenced session files
+ * plus small .json aux files.
+ */
+const HARNESS_INDEX_DIRS = new Set([
+  ".gemini/tmp",
+  ".copilot/session-state",
+  ".codex/ai-devkit",
+  ".local/share/devin/cli/session_locks",
+  ".kiro/sessions/cli",
+]);
 
 /** Individual files (not dirs) each harness consults during detection. */
 const HARNESS_FILES: Record<string, string[]> = {
@@ -74,7 +92,7 @@ function collectHomeFiles(
     // Session trees can hold months of transcripts; files that produced no
     // agent cannot influence replayed output, so only agent-referenced
     // session files plus small aux/index files are copied.
-    const isIndexDir = !relDir.endsWith("projects") && !relDir.endsWith("sessions");
+    const isIndexDir = HARNESS_INDEX_DIRS.has(relDir);
     walk(dir, (file) => {
       const rel = path.join(relDir, path.relative(dir, file));
       const isAuxIndex = rel.endsWith("sessions.json") || rel.endsWith(".json");
