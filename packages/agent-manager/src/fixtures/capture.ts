@@ -26,6 +26,9 @@ const HARNESS_DIRS: Record<string, string[]> = {
   // tmp/<shortId>/{.project_root,chats/*} — small tree; index-style capture
   // keeps the ownership markers replay needs for slug-dir attribution.
   gemini_cli: [".gemini/tmp"],
+  // session-state/<id>/{inuse.*.lock,events.jsonl,workspace.yaml} — the lock
+  // files drive attribution, so the whole tree must materialize on replay.
+  copilot: [".copilot/session-state"],
 };
 
 /** Individual files (not dirs) each harness consults during detection. */

@@ -15,6 +15,7 @@ import { createBuiltinAdapters } from "../harnesses/index.js";
 import { CodexAdapter } from "../harnesses/codex/CodexAdapter.js";
 import { PiAdapter } from "../harnesses/pi/PiAdapter.js";
 import { GeminiCliAdapter } from "../harnesses/gemini/GeminiCliAdapter.js";
+import { CopilotAdapter } from "../harnesses/copilot/CopilotAdapter.js";
 import { AgentRegistry, type RegistryEntry } from "../utils/AgentRegistry.js";
 import { expand, expandNow, normalizeAgents, withFrozenClock } from "../fixtures/bundle.js";
 import type { FixtureBundle } from "../fixtures/bundle.js";
@@ -34,7 +35,7 @@ const bundlePaths = fs.existsSync(FIXTURES_ROOT)
   : [];
 
 /** Adapters whose detect path consults AgentRegistry. */
-const REGISTRY_AWARE = new Set(["codex", "pi", "gemini_cli"]);
+const REGISTRY_AWARE = new Set(["codex", "pi", "gemini_cli", "copilot"]);
 
 function adapterFor(type: string, registry?: AgentRegistry) {
   // Adapters that consult the registry during detection get the seeded
@@ -42,6 +43,7 @@ function adapterFor(type: string, registry?: AgentRegistry) {
   if (type === "codex" && registry) return new CodexAdapter(registry);
   if (type === "pi" && registry) return new PiAdapter(registry);
   if (type === "gemini_cli" && registry) return new GeminiCliAdapter(registry);
+  if (type === "copilot" && registry) return new CopilotAdapter(registry);
   const adapter = createBuiltinAdapters().find((a) => a.type === type);
   if (!adapter) throw new Error(`no builtin adapter for "${type}"`);
   return adapter;
@@ -176,6 +178,11 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
 
   it("captures gemini_cli bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("gemini_cli"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures copilot bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("copilot"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });
