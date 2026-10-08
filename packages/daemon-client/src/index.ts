@@ -1,5 +1,18 @@
 export { DaemonClient, daemonSocketPath, connectDaemon } from "./client.js";
 export type { DaemonEvent } from "./client.js";
-export type { EnrichedAgent, EnrichedAgentsResult, Event, Request, Response } from "./gen/index.js";
+export type {
+  AgentReadinessReport,
+  AgentReadinessResult,
+  AuthReadinessCheck,
+  BuiltInSkillsReadinessCheck,
+  DirectoryReadinessCheck,
+  EnrichedAgent,
+  EnrichedAgentsResult,
+  Event,
+  ExecutableReadinessCheck,
+  IntegrationReadinessCheck,
+  Request,
+  Response,
+} from "./gen/index.js";
 export { resolveDaemonBinary } from "./binary.js";
 export { ensureDaemon } from "./autostart.js";

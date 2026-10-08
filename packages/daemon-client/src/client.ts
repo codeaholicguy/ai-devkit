@@ -1,6 +1,7 @@
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { AgentReadinessResult } from "./gen/AgentReadinessResult.js";
 import type { EnrichedAgentsResult } from "./gen/EnrichedAgentsResult.js";
 import type { Event } from "./gen/Event.js";
 
@@ -81,6 +82,22 @@ export class DaemonClient {
    */
   async enrichedAgents(): Promise<EnrichedAgentsResult> {
     return (await this.request("agent.enriched")) as EnrichedAgentsResult;
+  }
+
+  /**
+   * Daemon-computed readiness reports. `reports` is ordered per
+   * AGENT_TYPES — rebuild a keyed map with `Object.fromEntries`.
+   * Params mirror the serializable half of `AgentReadinessOptions`;
+   * the daemon owns fs/command probing.
+   */
+  async agentReadiness(params: {
+    homeDir?: string;
+    path?: string;
+    assetRoot?: string;
+    builtInSkillNames?: string[];
+    skillRoots?: Record<string, string>;
+  } = {}): Promise<AgentReadinessResult> {
+    return (await this.request("agent.readiness", params)) as AgentReadinessResult;
   }
 
   private onData(chunk: Buffer) {

@@ -17,6 +17,7 @@ pub mod grok;
 pub mod kiro;
 pub mod opencode;
 pub mod pi;
+pub mod readiness;
 pub mod shared;
 
 /// Build a registry with every ported adapter for `home` registered.

@@ -113,6 +113,47 @@ impl Daemon {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
             }
+            "agent.readiness" => {
+                let p = &req.params;
+                let home_dir = p["homeDir"]
+                    .as_str()
+                    .map(String::from)
+                    .unwrap_or_else(|| self.home.to_string_lossy().into_owned());
+                let path = p["path"]
+                    .as_str()
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| std::env::var("PATH").unwrap_or_default());
+                let asset_root = p["assetRoot"].as_str().map(|s| s.to_string());
+                let built_in_skill_names: Vec<String> = p["builtInSkillNames"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                let skill_roots: std::collections::BTreeMap<String, String> = p["skillRoots"]
+                    .as_object()
+                    .map(|m| {
+                        m.iter()
+                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
+                            .collect()
+                    })
+                    .unwrap_or_else(devkit_harness::readiness::default_skill_roots);
+                let host = devkit_harness::readiness::SystemHost::new(&home_dir);
+                let rt = devkit_harness::readiness::ReadinessRuntime {
+                    home_dir,
+                    path,
+                    asset_root,
+                    built_in_skill_names,
+                    skill_roots,
+                    host: &host,
+                };
+                let reports = devkit_harness::readiness::readiness_reports(&rt);
+                Response::ok(
+                    id,
+                    serde_json::to_value(devkit_core::readiness::AgentReadinessResult {
+                        reports,
+                    })
+                    .unwrap(),
+                )
+            }
             "events.replay" => {
                 let after = req.params["afterSeq"].as_u64().unwrap_or(0);
                 let limit = req.params["limit"].as_u64().unwrap_or(1000) as u32;

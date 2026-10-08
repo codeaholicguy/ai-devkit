@@ -12,3 +12,4 @@ anyhow.workspace = true
 libc.workspace = true
 rusqlite.workspace = true
 sha2.workspace = true
+regex.workspace = true
