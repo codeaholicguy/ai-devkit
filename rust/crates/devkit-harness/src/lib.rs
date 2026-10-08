@@ -13,6 +13,7 @@ pub mod devin;
 mod fixtures;
 pub mod gemini;
 pub mod grok;
+pub mod kiro;
 pub mod opencode;
 pub mod pi;
 pub mod shared;
@@ -28,6 +29,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(grok::GrokAdapter::new(home)));
     r.register(Box::new(opencode::OpenCodeAdapter::new(home)));
     r.register(Box::new(devin::DevinAdapter::new(home)));
+    r.register(Box::new(kiro::KiroAdapter::new(home)));
     r
 }
 
@@ -230,5 +232,15 @@ mod tests {
             ))
         });
         assert!(n > 0, "no devin fixture bundles found");
+    }
+
+    #[test]
+    fn kiro_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("kiro", |home| {
+            Box::new(crate::kiro::KiroAdapter::at_sessions_dir(
+                home.join(".kiro/sessions/cli"),
+            ))
+        });
+        assert!(n > 0, "no kiro fixture bundles found");
     }
 }

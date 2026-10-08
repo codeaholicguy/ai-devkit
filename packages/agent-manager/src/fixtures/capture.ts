@@ -33,6 +33,9 @@ const HARNESS_DIRS: Record<string, string[]> = {
   grok_cli: [".grok/sessions"],
   // session_locks/<slug>.lock — pid-holder files read on every detect.
   devin: [".local/share/devin/cli/session_locks"],
+  // sessions/cli/<id>.{lock,json,jsonl} — locks drive attribution; the
+  // whole flat dir is lightweight enough for index-style capture.
+  kiro: [".kiro/sessions/cli"],
 };
 
 /** Individual files (not dirs) each harness consults during detection. */

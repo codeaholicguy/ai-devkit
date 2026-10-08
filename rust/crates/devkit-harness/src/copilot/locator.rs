@@ -114,12 +114,8 @@ impl CopilotSessionLocator {
         include_pid: impl Fn(i64) -> bool,
     ) -> Vec<CopilotLock> {
         let mut locks = Vec::new();
-        let Ok(rd) = std::fs::read_dir(&self.session_state_dir) else {
-            return locks;
-        };
-        for entry in rd.flatten() {
-            let session_id = entry.file_name().to_string_lossy().into_owned();
-            let session_dir = entry.path();
+        for session_id in crate::shared::list_dir_names(&self.session_state_dir) {
+            let session_dir = self.session_state_dir.join(&session_id);
             let Ok(stat) = std::fs::metadata(&session_dir) else {
                 continue;
             };
@@ -137,11 +133,7 @@ impl CopilotSessionLocator {
                     continue;
                 }
             }
-            let Ok(rd2) = std::fs::read_dir(&session_dir) else {
-                continue;
-            };
-            for e2 in rd2.flatten() {
-                let name = e2.file_name().to_string_lossy().into_owned();
+            for name in crate::shared::list_dir_names(&session_dir) {
                 let Some(pid) = lock_pid(&name) else { continue };
                 if !include_pid(pid) {
                     continue;

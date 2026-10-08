@@ -102,15 +102,11 @@ impl<'a> ClaudeLocator<'a> {
 
         let mut out = Vec::new();
         for (dir, cwd) in dir_to_cwd {
-            let Ok(entries) = std::fs::read_dir(&dir) else {
-                continue;
-            };
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().into_owned();
+            for name in crate::shared::list_dir_names(&dir) {
                 if !name.ends_with(".jsonl") {
                     continue;
                 }
-                let file_path = entry.path();
+                let file_path = dir.join(&name);
                 let Some(birthtime_ms) = stat_birthtime_ms(&file_path) else {
                     continue;
                 };

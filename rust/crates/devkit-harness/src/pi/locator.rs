@@ -119,16 +119,13 @@ impl PiSessionLocator {
             let procs = &scans[&dir_key];
             let cwd = procs[0].cwd.as_deref().unwrap_or_default();
             let starts: Vec<i64> = procs.iter().filter_map(|p| p.start_time_ms).collect();
-            let Ok(rd) = std::fs::read_dir(&dir_key) else {
-                continue;
-            };
-            for e in rd.flatten() {
-                let name = e.file_name().to_string_lossy().into_owned();
+            for name in crate::shared::list_dir_names(std::path::Path::new(&dir_key)) {
                 if !name.ends_with(".jsonl") {
                     continue;
                 }
-                let file_path = e.path().to_string_lossy().into_owned();
-                let Ok(meta) = e.path().metadata() else {
+                let path = std::path::Path::new(&dir_key).join(&name);
+                let file_path = path.to_string_lossy().into_owned();
+                let Ok(meta) = path.metadata() else {
                     continue;
                 };
                 if !meta.is_file() {

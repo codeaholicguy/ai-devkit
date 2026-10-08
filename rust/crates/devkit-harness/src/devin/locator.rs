@@ -67,21 +67,17 @@ fn parse_int_prefix(raw: &str) -> Option<i64> {
 
 /// `listActiveLocks` — `session_locks/*.lock`; file name minus `.lock` is
 /// the session slug, body parses via `parseInt` and must be > 0. Malformed
-/// files are skipped; entries come back in readdir order.
+/// files are skipped; entries come back in (sorted) readdir order.
 pub fn list_active_locks(locks_dir: &Path) -> Vec<SessionLock> {
     let mut locks = Vec::new();
-    let Ok(rd) = std::fs::read_dir(locks_dir) else {
-        return locks;
-    };
-    for entry in rd.flatten() {
-        let name = entry.file_name().to_string_lossy().into_owned();
+    for name in crate::shared::list_dir_names(locks_dir) {
         let Some(session_id) = name.strip_suffix(LOCK_FILE_SUFFIX) else {
             continue;
         };
         if session_id.is_empty() {
             continue;
         }
-        let Ok(raw) = std::fs::read_to_string(entry.path()) else {
+        let Ok(raw) = std::fs::read_to_string(locks_dir.join(&name)) else {
             continue;
         };
         if let Some(pid) = parse_int_prefix(&raw).filter(|p| *p > 0) {

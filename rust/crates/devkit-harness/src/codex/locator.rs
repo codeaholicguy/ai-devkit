@@ -254,12 +254,9 @@ impl CodexSessionLocator {
     fn collect_jsonl_in_dirs(&self, dirs: &[PathBuf]) -> Vec<PathBuf> {
         let mut out = Vec::new();
         for dir in dirs {
-            if let Ok(rd) = std::fs::read_dir(dir) {
-                for e in rd.flatten() {
-                    let name = e.file_name().to_string_lossy().into_owned();
-                    if name.ends_with(".jsonl") {
-                        out.push(e.path());
-                    }
+            for name in shared::list_dir_names(dir) {
+                if name.ends_with(".jsonl") {
+                    out.push(dir.join(&name));
                 }
             }
         }
@@ -270,9 +267,8 @@ impl CodexSessionLocator {
         let mut out = Vec::new();
         let mut stack = vec![self.sessions_dir.clone()];
         while let Some(dir) = stack.pop() {
-            let Ok(rd) = std::fs::read_dir(&dir) else { continue };
-            for e in rd.flatten() {
-                let p = e.path();
+            for name in shared::list_dir_names(&dir) {
+                let p = dir.join(&name);
                 if p.is_dir() {
                     stack.push(p);
                 } else if p.to_string_lossy().ends_with(".jsonl") {
@@ -295,13 +291,11 @@ struct SessionMetaHead {
 fn batch_birthtimes(dirs: &[PathBuf]) -> Vec<SessionFile> {
     let mut out = Vec::new();
     for dir in dirs {
-        let Ok(rd) = std::fs::read_dir(dir) else { continue };
-        for e in rd.flatten() {
-            let name = e.file_name().to_string_lossy().into_owned();
+        for name in shared::list_dir_names(dir) {
             if !name.ends_with(".jsonl") {
                 continue;
             }
-            let file_path = e.path().to_string_lossy().into_owned();
+            let file_path = dir.join(&name).to_string_lossy().into_owned();
             let Some(bt) = shared::birthtime_ms(&file_path) else {
                 continue;
             };

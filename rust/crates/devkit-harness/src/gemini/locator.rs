@@ -52,14 +52,10 @@ impl GeminiSessionLocator {
         if candidates.cwd_by_hash.is_empty() || !self.tmp_dir.is_dir() {
             return Vec::new();
         }
-        let Ok(short_ids) = std::fs::read_dir(&self.tmp_dir) else {
-            return Vec::new();
-        };
         let min_mtime = earliest_matchable_mtime(processes);
         let mut sessions = Vec::new();
 
-        for entry in short_ids.flatten() {
-            let short_id = entry.file_name().to_string_lossy().into_owned();
+        for short_id in crate::shared::list_dir_names(&self.tmp_dir) {
             let project_dir = self.tmp_dir.join(&short_id);
             if !self.may_belong(&project_dir, &short_id, &candidates) {
                 continue;
@@ -224,12 +220,8 @@ fn is_legacy_hash_dir(name: &str) -> bool {
 /// `listSessionFileNames` — `session-*.{json,jsonl}`, a `.json` being
 /// shadowed by a same-name `.jsonl` (resumed sessions) is skipped.
 fn list_session_file_names(chats_dir: &Path) -> Vec<String> {
-    let Ok(rd) = std::fs::read_dir(chats_dir) else {
-        return Vec::new();
-    };
-    let names: Vec<String> = rd
-        .flatten()
-        .map(|e| e.file_name().to_string_lossy().into_owned())
+    let names: Vec<String> = crate::shared::list_dir_names(chats_dir)
+        .into_iter()
         .filter(|n| {
             n.starts_with(SESSION_FILE_PREFIX)
                 && (n.ends_with(SESSION_DOC_EXT) || n.ends_with(SESSION_LOG_EXT))

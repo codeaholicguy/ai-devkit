@@ -198,6 +198,21 @@ pub fn process_only_agent(
     }
 }
 
+/// `safeReaddir` — directory entry names; empty on error. Node ≥20.1's
+/// `fs.readdirSync` returns names in sorted order, so adapters that mirror
+/// `safeReaddir` must sort too or output order diverges on raw `read_dir`.
+pub fn list_dir_names(dir: &Path) -> Vec<String> {
+    let Ok(rd) = std::fs::read_dir(dir) else {
+        return Vec::new();
+    };
+    let mut names: Vec<String> = rd
+        .flatten()
+        .map(|e| e.file_name().to_string_lossy().into_owned())
+        .collect();
+    names.sort();
+    names
+}
+
 /// File birth time in epoch ms (`statSync().birthtimeMs`), via `st_birthtime`.
 /// Returns None when unreadable or non-positive — TS skips those entries.
 pub fn birthtime_ms(path: &str) -> Option<i64> {

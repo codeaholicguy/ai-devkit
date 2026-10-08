@@ -94,9 +94,8 @@ impl GrokSessionLocator {
             return None;
         }
         let mut best: Option<(PathBuf, i64)> = None;
-        let rd = std::fs::read_dir(&group_dir).ok()?;
-        for entry in rd.flatten() {
-            let session_dir = entry.path();
+        for name in crate::shared::list_dir_names(&group_dir) {
+            let session_dir = group_dir.join(&name);
             if !session_dir.is_dir() {
                 continue;
             }
