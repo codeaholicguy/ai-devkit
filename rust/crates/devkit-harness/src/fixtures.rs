@@ -183,7 +183,8 @@ fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String)
         let p = dir.join(rel.replace("$TODAY", &today_key));
         let ms = match mt {
             Value::String(s) if s == NOW_PLACEHOLDER => written_ms,
-            v => v.as_i64().unwrap(),
+            // Live-captured mtimes are `fs.statSync().mtimeMs` — floats.
+            v => v.as_f64().unwrap() as i64,
         };
         let file = std::fs::File::open(&p).unwrap();
         file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms as u64))

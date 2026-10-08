@@ -34,7 +34,7 @@ the repo convention `docs/ai/<phase>/2026-10-08-feature-harness-<name>.md`.
 | I5 | copilot (762) | `harness-copilot` | parity | ✅ `22d6fd2f` |
 | I6 | grok (588) | `harness-grok` | parity | ✅ `8298101a` |
 | I7 | opencode (506) | `harness-opencode` | parity | ✅ `cdf1cc6c` |
-| I8 | devin (857) | `harness-devin` | parity |
+| I8 | devin (857) | `harness-devin` | parity | ✅ `I8-HASH` |
 | I9 | kiro (696) | `harness-kiro` | parity |
 | I10 | antigravity (487) | `harness-antigravity` | parity |
 | I11 | readiness — shared lib (~515 LOC), ported with the harness that needs it or as `devkit-harness` internal; decide in I0 design | — | — |

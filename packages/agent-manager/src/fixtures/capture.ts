@@ -31,6 +31,8 @@ const HARNESS_DIRS: Record<string, string[]> = {
   // files drive attribution, so the whole tree must materialize on replay.
   copilot: [".copilot/session-state"],
   grok_cli: [".grok/sessions"],
+  // session_locks/<slug>.lock — pid-holder files read on every detect.
+  devin: [".local/share/devin/cli/session_locks"],
 };
 
 /** Individual files (not dirs) each harness consults during detection. */
@@ -101,52 +103,141 @@ function collectSqliteDumps(
   realHome: string,
   processes: { cwd?: string | null }[],
 ): Record<string, string[]> {
-  if (adapterType !== "opencode") return {};
-  const xdg = process.env.XDG_DATA_HOME;
-  const dbPath = path.join(
-    xdg || path.join(realHome, ".local", "share"),
-    "opencode",
-    "opencode.db",
-  );
-  if (!fs.existsSync(dbPath)) return {};
+  const share = process.env.XDG_DATA_HOME || path.join(realHome, ".local", "share");
+  if (adapterType === "opencode") {
+    return dumpSqliteDb(
+      path.join(share, "opencode", "opencode.db"),
+      ".local/share/opencode/opencode.db",
+      realHome,
+      (dump) => {
+        const dirs = uniqueCwds(processes);
+        if (dirs.length === 0) return;
+        const sessions = dump.rows("session", `WHERE directory IN ${dump.inList(dirs)} ORDER BY rowid`, dirs);
+        const sids = sessions.map((s) => s.id);
+        dump.insertRows("session", sessions);
+        if (sids.length === 0) return;
+        dump.insertRows("message", dump.rows("message", `WHERE session_id IN ${dump.inList(sids)} ORDER BY rowid`, sids));
+        dump.insertRows("part", dump.rows("part", `WHERE session_id IN ${dump.inList(sids)} ORDER BY rowid`, sids));
+      },
+      ["session", "message", "part"],
+    );
+  }
+  if (adapterType === "devin") {
+    const dbPath = path.join(share, "devin", "cli", "sessions.db");
+    // Locks are captured separately as text files; slugs here widen the
+    // session row set so lock-slug lookups resolve identically on replay.
+    const lockSids = fs.existsSync(path.join(path.dirname(dbPath), "session_locks"))
+      ? fs
+          .readdirSync(path.join(path.dirname(dbPath), "session_locks"))
+          .filter((f) => f.endsWith(".lock"))
+          .map((f) => f.slice(0, -".lock".length))
+          .filter(Boolean)
+      : [];
+    return dumpSqliteDb(
+      dbPath,
+      ".local/share/devin/cli/sessions.db",
+      realHome,
+      (dump) => {
+        const dirs = uniqueCwds(processes);
+        const clauses: string[] = [];
+        const args: unknown[] = [];
+        if (dirs.length) {
+          clauses.push(`working_directory IN ${dump.inList(dirs)}`);
+          args.push(...dirs);
+        }
+        if (lockSids.length) {
+          clauses.push(`id IN ${dump.inList(lockSids)}`);
+          args.push(...lockSids);
+        }
+        const sessions = clauses.length ? dump.rows("sessions", `WHERE ${clauses.join(" OR ")} ORDER BY rowid`, args) : [];
+        const sids = sessions.map((s) => s.id);
+        dump.insertRows("sessions", sessions);
+        if (sids.length === 0) return;
+        // Only the rows getSessionStats can reach: the frontier node, the
+        // MAX(created_at) node, the 8 newest role='user' nodes, and the
+        // newest non-shell non-slash prompt — identical query results on
+        // replay without hauling full transcripts into the bundle.
+        for (const sid of sids) {
+          const reachable = [
+            ...dump.rows("message_nodes", "WHERE session_id = ? ORDER BY node_id DESC LIMIT 1", [sid]),
+            // The newest-created_at row — `MAX(created_at)` reads only the
+            // value, and `= MAX(...)` unbounded explodes when batch-written
+            // nodes share a timestamp.
+            ...dump.rows("message_nodes", "WHERE session_id = ? ORDER BY created_at DESC, node_id DESC LIMIT 1", [sid]),
+            ...dump.rows(
+              "message_nodes",
+              "WHERE session_id = ? AND json_extract(chat_message, '$.role') = 'user' ORDER BY node_id DESC LIMIT 8",
+              [sid],
+            ),
+          ];
+          const seen = new Set<unknown>();
+          dump.insertRows(
+            "message_nodes",
+            reachable.filter((r) => (seen.has(r.node_id) ? false : (seen.add(r.node_id), true))),
+          );
+          dump.insertRows(
+            "prompt_history",
+            dump.rows(
+              "prompt_history",
+              "WHERE session_id = ? AND is_shell = 0 AND content NOT LIKE '/%' ORDER BY timestamp DESC LIMIT 1",
+              [sid],
+            ),
+          );
+        }
+      },
+      ["sessions", "message_nodes", "prompt_history"],
+    );
+  }
+  return {};
+}
 
+function uniqueCwds(processes: { cwd?: string | null }[]): string[] {
+  return [...new Set(processes.map((p) => p.cwd).filter((c): c is string => Boolean(c)))];
+}
+
+/**
+ * Dump `dbPath`'s tables (DDL + caller-selected rows) as executable SQL,
+ * keyed under `relKey`. `fill` receives helpers that append INSERTs for
+ * the rows the adapter's detection can reach.
+ */
+function dumpSqliteDb(
+  dbPath: string,
+  relKey: string,
+  realHome: string,
+  fill: (dump: {
+    inList: (xs: unknown[]) => string;
+    rows: (table: string, where: string, args: unknown[]) => Record<string, unknown>[];
+    insertRows: (table: string, rs: Record<string, unknown>[]) => void;
+  }) => void,
+  tables: string[],
+): Record<string, string[]> {
+  if (!fs.existsSync(dbPath)) return {};
   const db = new Database(dbPath, { readonly: true });
   try {
     const stmts = (
       db
         .prepare(
-          "SELECT sql FROM sqlite_master WHERE type='table' AND name IN ('session','message','part')",
+          `SELECT sql FROM sqlite_master WHERE type='table' AND name IN (${tables.map(() => "?").join(",")})`,
         )
-        .all() as { sql: string }[]
+        .all(...tables) as { sql: string }[]
     ).map((r) => `${r.sql};`);
-
-    const dirs = [
-      ...new Set(processes.map((p) => p.cwd).filter((c): c is string => Boolean(c))),
-    ];
-    if (dirs.length === 0) {
-      return { ".local/share/opencode/opencode.db": stmts };
-    }
-    const inList = (xs: unknown[]) => `(${xs.map(() => "?").join(",")})`;
-    const rows = (table: string, where: string, args: unknown[]) =>
-      db.prepare(`SELECT * FROM "${table}" ${where} ORDER BY rowid`).all(...args) as Record<
-        string,
-        unknown
-      >[];
-    const sessions = rows("session", `WHERE directory IN ${inList(dirs)}`, dirs);
-    const sids = sessions.map((s) => s.id);
-    if (sids.length === 0) {
-      return { ".local/share/opencode/opencode.db": stmts };
-    }
-    const messages = rows("message", `WHERE session_id IN ${inList(sids)}`, sids);
-    const parts = rows("part", `WHERE session_id IN ${inList(sids)}`, sids);
-    const inserts = (table: string, rs: Record<string, unknown>[]) =>
-      rs.map(
-        (r) => `INSERT INTO "${table}" VALUES (${Object.values(r).map(sqlLit).join(",")});`,
-      );
-    const all = [...stmts, ...inserts("session", sessions), ...inserts("message", messages), ...inserts("part", parts)];
-    return {
-      ".local/share/opencode/opencode.db": all.map((s) => sanitize(s, realHome)),
+    const dump = {
+      inList: (xs: unknown[]) => `(${xs.map(() => "?").join(",")})`,
+      rows: (table: string, clause: string, args: unknown[]) =>
+        db.prepare(`SELECT * FROM "${table}" ${clause}`).all(...args) as Record<
+          string,
+          unknown
+        >[],
+      insertRows: (table: string, rs: Record<string, unknown>[]) => {
+        for (const r of rs) {
+          stmts.push(
+            `INSERT INTO "${table}" VALUES (${Object.values(r).map(sqlLit).join(",")});`,
+          );
+        }
+      },
     };
+    fill(dump);
+    return { [relKey]: stmts.map((s) => sanitize(s, realHome)) };
   } finally {
     db.close();
   }

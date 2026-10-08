@@ -8,6 +8,7 @@ use devkit_core::discover::AgentProc;
 pub mod claude;
 pub mod codex;
 pub mod copilot;
+pub mod devin;
 #[cfg(test)]
 mod fixtures;
 pub mod gemini;
@@ -26,6 +27,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(copilot::CopilotAdapter::new(home)));
     r.register(Box::new(grok::GrokAdapter::new(home)));
     r.register(Box::new(opencode::OpenCodeAdapter::new(home)));
+    r.register(Box::new(devin::DevinAdapter::new(home)));
     r
 }
 
@@ -218,5 +220,15 @@ mod tests {
             ))
         });
         assert!(n > 0, "no opencode fixture bundles found");
+    }
+
+    #[test]
+    fn devin_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("devin", |home| {
+            Box::new(crate::devin::DevinAdapter::at_db(
+                home.join(".local/share/devin/cli/sessions.db"),
+            ))
+        });
+        assert!(n > 0, "no devin fixture bundles found");
     }
 }

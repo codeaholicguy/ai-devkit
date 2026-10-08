@@ -223,4 +223,9 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
     const out = await captureLive(adapterFor("opencode"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
+
+  it("captures devin bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("devin"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
 });

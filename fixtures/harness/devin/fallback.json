@@ -1,0 +1,74 @@
+{
+  "adapter": "devin",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 8201,
+      "ppid": 1,
+      "tty": "ttys030",
+      "command": "devin",
+      "cwd": "/proj/x",
+      "startTime": "2025-10-09T12:00:00.000Z"
+    },
+    {
+      "pid": 8202,
+      "ppid": 8201,
+      "tty": null,
+      "command": "devin acp",
+      "cwd": "/proj/x",
+      "startTime": "2025-10-09T12:00:05.000Z"
+    },
+    {
+      "pid": 8203,
+      "ppid": 1,
+      "tty": "ttys031",
+      "command": "devin",
+      "cwd": "/proj/y",
+      "startTime": "2025-10-09T12:05:00.000Z"
+    },
+    {
+      "pid": 8204,
+      "ppid": 1,
+      "tty": "ttys032",
+      "command": "devin",
+      "startTime": "2025-10-09T12:06:00.000Z"
+    }
+  ],
+  "home": {
+    ".local/share/devin/cli/session_locks/y-slug.lock": "8203\n",
+    ".local/share/devin/cli/session_locks/dead-slug.lock": "99991\n"
+  },
+  "expected": [
+    {
+      "name": "x-8201",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8201,
+      "projectPath": "/proj/x",
+      "sessionId": "pid-8201",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "y-8203",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8203,
+      "projectPath": "/proj/y",
+      "sessionId": "pid-8203",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "unknown-8204",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8204,
+      "projectPath": "",
+      "sessionId": "pid-8204",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}
