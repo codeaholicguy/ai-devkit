@@ -19,10 +19,12 @@ pub struct Daemon {
     /// Enriched agents for ported harness types, refreshed per sweep so
     /// `agent.enriched` is O(1) over a prebuilt list.
     pub enriched: RwLock<EnrichedAgentsResult>,
+    /// User home dir adapters resolve session trees (~/.claude, …) against.
+    pub home: PathBuf,
 }
 
 impl Daemon {
-    pub fn new(data_dir: &Path, socket_path: PathBuf) -> Result<Self> {
+    pub fn new(data_dir: &Path, socket_path: PathBuf, home: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(data_dir)?;
         let store = Store::open(&data_dir.join("daemon.db"))?;
         let (tx, _) = broadcast::channel(1024);
@@ -31,11 +33,12 @@ impl Daemon {
             events: tx,
             started_at: chrono_now(),
             socket_path,
-            enricher: devkit_harness::Registry::new(),
+            enricher: devkit_harness::default_registry(&home),
             enriched: RwLock::new(EnrichedAgentsResult {
                 agents: vec![],
                 ported: vec![],
             }),
+            home,
         })
     }
 
@@ -133,10 +136,12 @@ impl Daemon {
     /// Apply a discovery sweep, refresh the enriched cache, and emit
     /// appear/vanish events.
     pub fn apply_sweep(&self) {
-        let procs = devkit_core::discover::sweep();
+        let mut procs = devkit_core::discover::sweep();
+        devkit_core::discover::enrich_agents(&mut procs);
         let ctx = devkit_harness::SweepContext {
             processes: &procs,
             now: chrono_now(),
+            home: &self.home,
         };
         *self.enriched.write().unwrap() = self.enricher.enrich(&ctx);
         if let Ok((appeared, gone)) = self.store.apply_agent_snapshot(&procs) {
@@ -276,7 +281,8 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let sock = dir.join("d.sock");
-        let d = Arc::new(Daemon::new(&dir, sock.clone()).unwrap());
+        // Tests use the temp dir as home — no harness session trees there.
+        let d = Arc::new(Daemon::new(&dir, sock.clone(), dir.clone()).unwrap());
         let d2 = d.clone();
         tokio::spawn(async move {
             let _ = serve(d2).await;
@@ -355,8 +361,10 @@ mod tests {
     async fn agent_enriched_returns_cached_result() {
         let (d, sock) = test_daemon().await;
         let r = rpc(&sock, r#"{"id":1,"method":"agent.enriched"}"#).await;
-        assert_eq!(r["result"]["agents"], json!([]));
-        assert_eq!(r["result"]["ported"], json!([]));
+        // Live sweep may surface real claude processes on the dev machine —
+        // the contract is the shape, not emptiness.
+        assert!(r["result"]["agents"].is_array());
+        assert_eq!(r["result"]["ported"], json!(["claude"]));
 
         // A registered adapter would surface through the same cache; I0
         // verifies the cache is what apply_sweep refreshes.

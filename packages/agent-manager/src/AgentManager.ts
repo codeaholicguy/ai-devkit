@@ -8,6 +8,8 @@
 import type {
   AgentAdapter,
   AgentInfo,
+  AgentStatus,
+  AgentType,
   SessionSummary,
   ListSessionsOptions,
   ProcessInfo,
@@ -45,6 +47,21 @@ export interface AgentManagerOptions {
     | (() => AgentRuntimeProvider | Promise<AgentRuntimeProvider>);
   fetchHerdrAgentPanes?: () => Promise<readonly HerdrAgentPane[]>;
   onRuntimeDiscoveryError?: (error: unknown) => void;
+  /**
+   * Daemon-side enriched agents ({@link DaemonClient.enrichedAgents} shape:
+   * wire `AgentInfo[]` + the harness types covered). Returning null forces
+   * the local adapter path; omitting it disables daemon consumption.
+   */
+  fetchEnrichedAgents?: () => Promise<{
+    agents: Array<
+      Omit<AgentInfo, "lastActive" | "type" | "status"> & {
+        type: string;
+        status: string;
+        lastActive: string;
+      }
+    >;
+    ported: string[];
+  } | null>;
 }
 
 class AgentNotRunningError extends Error {
@@ -162,7 +179,33 @@ export class AgentManager {
     const allAgents: AgentInfo[] = [];
     const errors: Array<{ type: string; error: Error }> = [];
 
-    const adapters = Array.from(this.adapters.values());
+    // Daemon-owned enrichment: `ported` types come from devkitd's sweep
+    // cache; every other type stays on the local adapter path.
+    let portedTypes = new Set<string>();
+    if (this.options.fetchEnrichedAgents) {
+      try {
+        const enriched = await this.options.fetchEnrichedAgents();
+        if (enriched) {
+          portedTypes = new Set(enriched.ported);
+          for (const a of enriched.agents) {
+            if (portedTypes.has(a.type)) {
+              allAgents.push({
+                ...a,
+                type: a.type as AgentType,
+                status: a.status as AgentStatus,
+                lastActive: new Date(a.lastActive),
+              });
+            }
+          }
+        }
+      } catch {
+        portedTypes = new Set();
+      }
+    }
+
+    const adapters = Array.from(this.adapters.values()).filter(
+      (adapter) => !portedTypes.has(adapter.type),
+    );
     const processNames = Array.from(
       new Set(
         adapters.flatMap((adapter) => (adapter.processNames ? [...adapter.processNames] : [])),

@@ -30,7 +30,7 @@ async fn main() -> Result<()> {
     let cmd = std::env::args().nth(1).unwrap_or_else(|| "serve".into());
     match cmd.as_str() {
         "serve" => {
-            let daemon = Arc::new(Daemon::new(&data_dir(), socket_path())?);
+            let daemon = Arc::new(Daemon::new(&data_dir(), socket_path(), dirs_home())?);
             daemon.apply_sweep(); // warm the cache before accepting clients
             server::serve(daemon).await
         }

@@ -5,11 +5,25 @@
 use devkit_core::agent::{EnrichedAgent, EnrichedAgentsResult};
 use devkit_core::discover::AgentProc;
 
+pub mod claude;
+#[cfg(test)]
+mod fixtures;
+pub mod shared;
+
+/// Build a registry with every ported adapter for `home` registered.
+pub fn default_registry(home: &std::path::Path) -> Registry {
+    let mut r = Registry::new();
+    r.register(Box::new(claude::ClaudeAdapter::new(home)));
+    r
+}
+
 /// One discovery sweep's inputs, shared across all adapters. `now` is frozen
-/// per sweep so status derivation is consistent within a refresh.
+/// per sweep so status derivation is consistent within a refresh. `home` is
+/// the user home dir adapters resolve session trees against.
 pub struct SweepContext<'a> {
     pub processes: &'a [AgentProc],
     pub now: i64,
+    pub home: &'a std::path::Path,
 }
 
 /// One ported harness adapter — the Rust mirror of the TS `AgentAdapter`
@@ -98,6 +112,7 @@ mod tests {
             command: Some(command.into()),
             cwd: Some("/proj".into()),
             session_file: None,
+            start_time_ms: None,
         }
     }
 
@@ -117,11 +132,20 @@ mod tests {
         let ctx = SweepContext {
             processes: &procs,
             now: 0,
+            home: std::path::Path::new("/"),
         };
         let out = r.enrich(&ctx);
         assert_eq!(out.agents.len(), 1);
         assert_eq!(out.agents[0].agent_type, "claude");
         assert_eq!(out.agents[0].project_path, "/proj");
         assert_eq!(out.ported, vec!["claude"]);
+    }
+
+    #[test]
+    fn claude_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("claude", |home| {
+            Box::new(crate::claude::ClaudeAdapter::new(home))
+        });
+        assert!(n > 0, "no claude fixture bundles found");
     }
 }

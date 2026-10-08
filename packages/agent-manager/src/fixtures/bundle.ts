@@ -15,12 +15,14 @@
 import type { AgentInfo, ProcessInfo } from "../adapters/AgentAdapter.js";
 
 export const HOME_PLACEHOLDER = "$FIXTURE_HOME";
+/** Resolves to the instant home files were written (birthtime matching). */
+export const NOW_PLACEHOLDER = "$NOW";
 
 export interface FixtureBundle {
   adapter: string;
   capturedAt: string;
-  /** Epoch ms the clock was frozen at during capture/replay. */
-  frozenNow: number;
+  /** Epoch ms the clock was frozen at; `"$NOW"` = materialization instant. */
+  frozenNow: number | string;
   processes: ProcessInfo[];
   /** Files under the fixture HOME; content may embed HOME_PLACEHOLDER. */
   home: Record<string, string>;
@@ -58,6 +60,20 @@ export function expand<T>(value: T, fixtureHome: string): T {
   if (value && typeof value === "object" && !(value instanceof Date)) {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) out[k] = expand(v, fixtureHome);
+    return out as T;
+  }
+  return value;
+}
+
+/** Replace NOW_PLACEHOLDER strings with a resolved ISO instant. */
+export function expandNow<T>(value: T, isoInstant: string): T {
+  if (typeof value === "string") {
+    return value.split(NOW_PLACEHOLDER).join(isoInstant) as T;
+  }
+  if (Array.isArray(value)) return value.map((v) => expandNow(v, isoInstant)) as T;
+  if (value && typeof value === "object" && !(value instanceof Date)) {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = expandNow(v, isoInstant);
     return out as T;
   }
   return value;

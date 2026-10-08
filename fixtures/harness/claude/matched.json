@@ -1,0 +1,71 @@
+{
+  "adapter": "claude",
+  "capturedAt": "synthetic",
+  "frozenNow": 1760000400000,
+  "processes": [
+    {
+      "pid": 1001,
+      "ppid": 1,
+      "tty": "pts/0",
+      "command": "/usr/bin/claude --resume 11111111-2222-3333-4444-555566667777",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    },
+    {
+      "pid": 1002,
+      "ppid": 1,
+      "tty": "pts/1",
+      "command": "claude",
+      "cwd": "/proj/beta",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 1004,
+      "ppid": 1,
+      "tty": "pts/3",
+      "command": "claude",
+      "cwd": "/proj/delta",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    }
+  ],
+  "home": {
+    ".claude/sessions/1001.json": "{\"pid\":1001,\"sessionId\":\"11111111-2222-3333-4444-555566667777\",\"cwd\":\"/proj/alpha\",\"startedAt\":1760000280500,\"kind\":\"cli\",\"entrypoint\":\"cli\",\"status\":\"waiting\",\"waitingFor\":\"approve Edit\"}",
+    ".claude/sessions/1002.json": "{\"pid\":1002,\"sessionId\":\"deadbeef-0000-0000-0000-000000000000\",\"cwd\":\"/elsewhere\",\"startedAt\":1759996280000,\"kind\":\"cli\",\"entrypoint\":\"cli\",\"status\":\"idle\"}",
+    ".claude/projects/-proj-alpha/11111111-2222-3333-4444-555566667777.jsonl": "{\"type\":\"user\",\"timestamp\":\"2025-10-09T08:58:30.000Z\",\"cwd\":\"/proj/alpha\",\"message\":{\"content\":\"review the diff\"}}\n{\"type\":\"assistant\",\"timestamp\":\"2025-10-09T08:59:00.000Z\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}}\n",
+    ".claude/projects/-proj-beta/b2222222-2222-3333-4444-555566667777.jsonl": "{\"type\":\"user\",\"timestamp\":\"2025-10-09T08:55:00.000Z\",\"cwd\":\"/proj/beta\",\"message\":{\"content\":\"write tests\"}}\n{\"type\":\"progress\",\"timestamp\":\"2025-10-09T08:55:30.000Z\"}\n"
+  },
+  "expected": [
+    {
+      "name": "alpha-1001",
+      "type": "claude",
+      "status": "waiting",
+      "summary": "review the diff \u2014 waiting for approve Edit",
+      "pid": 1001,
+      "projectPath": "/proj/alpha",
+      "sessionId": "11111111-2222-3333-4444-555566667777",
+      "lastActive": "2025-10-09T08:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-proj-alpha/11111111-2222-3333-4444-555566667777.jsonl"
+    },
+    {
+      "name": "beta-1002",
+      "type": "claude",
+      "status": "running",
+      "summary": "write tests",
+      "pid": 1002,
+      "projectPath": "/proj/beta",
+      "sessionId": "b2222222-2222-3333-4444-555566667777",
+      "lastActive": "2025-10-09T08:55:30.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-proj-beta/b2222222-2222-3333-4444-555566667777.jsonl"
+    },
+    {
+      "name": "delta-1004",
+      "type": "claude",
+      "status": "running",
+      "summary": "Claude Code process running",
+      "pid": 1004,
+      "projectPath": "/proj/delta",
+      "sessionId": "pid-1004",
+      "lastActive": "2025-10-09T09:00:00.000Z"
+    }
+  ]
+}

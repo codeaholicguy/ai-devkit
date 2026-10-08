@@ -12,7 +12,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createBuiltinAdapters } from "../harnesses/index.js";
-import { expand, normalizeAgents, withFrozenClock } from "../fixtures/bundle.js";
+import { expand, expandNow, normalizeAgents, withFrozenClock } from "../fixtures/bundle.js";
 import type { FixtureBundle } from "../fixtures/bundle.js";
 import { captureLive, FIXTURES_ROOT } from "../fixtures/capture.js";
 
@@ -43,15 +43,24 @@ function materialize(bundle: FixtureBundle) {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, expand(content, home));
   }
+  // "$NOW" resolves to the instant home files were written — legacy
+  // cwd+birthtime matching compares process start times against real file
+  // creation times, so a static timestamp would drift out of tolerance.
+  const nowIso = new Date().toISOString();
   // JSON round-tripped Date fields (e.g. ProcessInfo.startTime) come back as
   // ISO strings — adapters expect real Date instances.
-  const processes = expand(bundle.processes, home).map((p) => ({
+  const processes = expandNow(expand(bundle.processes, home), nowIso).map((p) => ({
     ...p,
     startTime: p.startTime ? new Date(p.startTime) : undefined,
   }));
+  const frozenNow = bundle.frozenNow === "$NOW" ? Date.parse(nowIso) : bundle.frozenNow;
   return {
     home,
     processes,
+    frozenNow,
+    // Only $NOW resolves — $FIXTURE_HOME stays literal to match the
+    // placeholder form normalizeAgents produces.
+    expected: expandNow(bundle.expected, nowIso),
     cleanup: () => fs.rmSync(home, { recursive: true, force: true }),
   };
 }
@@ -71,13 +80,13 @@ describe("fixture replay (TS parity oracle)", () => {
   for (const bundlePath of bundlePaths) {
     it(`replays ${path.relative(FIXTURES_ROOT, bundlePath)}`, async () => {
       const bundle: FixtureBundle = JSON.parse(fs.readFileSync(bundlePath, "utf8"));
-      const { home, processes, cleanup } = materialize(bundle);
+      const { home, processes, frozenNow, expected, cleanup } = materialize(bundle);
       try {
         process.env.HOME = home;
-        const agents = await withFrozenClock(bundle.frozenNow, () =>
+        const agents = await withFrozenClock(frozenNow, () =>
           adapterFor(bundle.adapter).detectAgents({ processes }),
         );
-        expect(normalizeAgents(agents, home)).toEqual(bundle.expected);
+        expect(normalizeAgents(agents, home)).toEqual(expected);
       } finally {
         cleanup();
       }

@@ -76,6 +76,26 @@ mod tests {
         Event::export(&cfg).unwrap();
         crate::agent::EnrichedAgent::export(&cfg).unwrap();
         crate::agent::EnrichedAgentsResult::export(&cfg).unwrap();
+
+        // ts-rs emits `import ... from "./X"` without the `.js` extension
+        // this package's nodenext resolution requires — rewrite in place.
+        for entry in std::fs::read_dir(&out).unwrap() {
+            let path = entry.unwrap().path();
+            if path.extension().and_then(|e| e.to_str()) != Some("ts") {
+                continue;
+            }
+            let src = std::fs::read_to_string(&path).unwrap();
+            let mut fixed = String::with_capacity(src.len() + 16);
+            for line in src.lines() {
+                if line.contains("from \"./") && !line.contains(".js\"") {
+                    fixed.push_str(&line.replacen("\";", ".js\";", 1));
+                } else {
+                    fixed.push_str(line);
+                }
+                fixed.push('\n');
+            }
+            std::fs::write(&path, fixed).unwrap();
+        }
     }
 
     #[test]

@@ -1,0 +1,116 @@
+{
+  "adapter": "claude",
+  "capturedAt": "synthetic",
+  "frozenNow": 1760000400000,
+  "processes": [
+    {
+      "pid": 2001,
+      "ppid": 1,
+      "tty": "pts/0",
+      "command": "claude",
+      "cwd": "/w/a",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    },
+    {
+      "pid": 2002,
+      "ppid": 1,
+      "tty": "pts/1",
+      "command": "claude",
+      "cwd": "/w/b",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    },
+    {
+      "pid": 2003,
+      "ppid": 1,
+      "tty": "pts/2",
+      "command": "claude",
+      "cwd": "/w/c",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    },
+    {
+      "pid": 2004,
+      "ppid": 1,
+      "tty": "pts/3",
+      "command": "claude",
+      "cwd": "/w/d",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    },
+    {
+      "pid": 2005,
+      "ppid": 1,
+      "tty": "pts/4",
+      "command": "claude",
+      "cwd": "/w/e",
+      "startTime": "2025-10-09T08:58:00.000Z"
+    }
+  ],
+  "home": {
+    ".claude/sessions/2001.json": "{\"pid\":2001,\"sessionId\":\"sess-a\",\"cwd\":\"/w/a\",\"startedAt\":1760000280000,\"kind\":\"cli\",\"entrypoint\":\"cli\"}",
+    ".claude/sessions/2002.json": "{\"pid\":2002,\"sessionId\":\"sess-b\",\"cwd\":\"/w/b\",\"startedAt\":1760000280000,\"kind\":\"cli\",\"entrypoint\":\"cli\"}",
+    ".claude/sessions/2003.json": "{\"pid\":2003,\"sessionId\":\"sess-c\",\"cwd\":\"/w/c\",\"startedAt\":1760000280000,\"kind\":\"cli\",\"entrypoint\":\"cli\"}",
+    ".claude/sessions/2004.json": "{\"pid\":2004,\"sessionId\":\"sess-d\",\"cwd\":\"/w/d\",\"startedAt\":1760000280000,\"kind\":\"cli\",\"entrypoint\":\"cli\"}",
+    ".claude/sessions/2005.json": "{\"pid\":2005,\"sessionId\":\"sess-e\",\"cwd\":\"/w/e\",\"startedAt\":1760000280000,\"kind\":\"cli\",\"entrypoint\":\"cli\"}",
+    ".claude/projects/-w-a/sess-a.jsonl": "{\"type\":\"user\",\"timestamp\":\"2025-10-09T08:58:30.000Z\",\"cwd\":\"/w/a\",\"message\":{\"content\":\"deploy it\"}}\n{\"type\":\"assistant\",\"timestamp\":\"2025-10-09T08:59:00.000Z\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"shipped\"}]}}\n",
+    ".claude/projects/-w-b/sess-b.jsonl": "{\"type\":\"user\",\"timestamp\":\"2025-10-09T08:58:10.000Z\",\"cwd\":\"/w/b\",\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"[Request interrupted by user]\"}]}}\n",
+    ".claude/projects/-w-c/sess-c.jsonl": "{\"type\":\"user\",\"timestamp\":\"2025-10-09T08:58:05.000Z\",\"cwd\":\"/w/c\",\"message\":{\"content\":\"write tests\"}}\n{\"type\":\"progress\",\"timestamp\":\"2025-10-09T08:58:40.000Z\"}\n",
+    ".claude/projects/-w-d/sess-d.jsonl": "{\"type\":\"system\",\"timestamp\":\"2025-10-09T08:58:15.000Z\",\"cwd\":\"/w/d\",\"content\":\"init\"}\n",
+    ".claude/projects/-w-e/sess-e.jsonl": ""
+  },
+  "expected": [
+    {
+      "name": "a-2001",
+      "type": "claude",
+      "status": "waiting",
+      "summary": "deploy it",
+      "pid": 2001,
+      "projectPath": "/w/a",
+      "sessionId": "sess-a",
+      "lastActive": "2025-10-09T08:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-w-a/sess-a.jsonl"
+    },
+    {
+      "name": "b-2002",
+      "type": "claude",
+      "status": "waiting",
+      "summary": "Session started",
+      "pid": 2002,
+      "projectPath": "/w/b",
+      "sessionId": "sess-b",
+      "lastActive": "2025-10-09T08:58:10.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-w-b/sess-b.jsonl"
+    },
+    {
+      "name": "c-2003",
+      "type": "claude",
+      "status": "running",
+      "summary": "write tests",
+      "pid": 2003,
+      "projectPath": "/w/c",
+      "sessionId": "sess-c",
+      "lastActive": "2025-10-09T08:58:40.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-w-c/sess-c.jsonl"
+    },
+    {
+      "name": "d-2004",
+      "type": "claude",
+      "status": "idle",
+      "summary": "Session started",
+      "pid": 2004,
+      "projectPath": "/w/d",
+      "sessionId": "sess-d",
+      "lastActive": "2025-10-09T08:58:15.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-w-d/sess-d.jsonl"
+    },
+    {
+      "name": "e-2005",
+      "type": "claude",
+      "status": "unknown",
+      "summary": "Session started",
+      "pid": 2005,
+      "projectPath": "/w/e",
+      "sessionId": "sess-e",
+      "lastActive": "2025-10-09T09:00:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.claude/projects/-w-e/sess-e.jsonl"
+    }
+  ]
+}

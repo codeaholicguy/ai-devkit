@@ -34,6 +34,7 @@ import {
   type ConversationMessage,
   type DurableProvider,
 } from "@ai-devkit/agent-manager";
+import { ensureDaemon } from "@ai-devkit/daemon-client";
 import { ui } from "../util/terminal-ui.js";
 import { withErrorHandler } from "../util/errors.js";
 import { enableDebug, createLogger } from "../util/debug.js";
@@ -255,6 +256,15 @@ function createAgentManager(): AgentManager {
       createLogger("agent")(
         `Herdr pane discovery unavailable for live agent enrichment: ${getErrorMessage(error)}`,
       );
+    },
+    fetchEnrichedAgents: async () => {
+      const client = await ensureDaemon();
+      if (!client) return null;
+      try {
+        return await client.enrichedAgents();
+      } finally {
+        client.close();
+      }
     },
   });
   for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);

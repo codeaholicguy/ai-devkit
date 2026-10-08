@@ -10,6 +10,8 @@ pub struct AgentProc {
     pub command: Option<String>,
     pub cwd: Option<String>,
     pub session_file: Option<String>,
+    /// Epoch ms when the process started — populated by `enrich_agents`.
+    pub start_time_ms: Option<i64>,
 }
 
 /// Executable basenames we treat as agent harnesses. Mirrors the adapter
@@ -74,6 +76,7 @@ fn parse_ps_output(text: &str, resolve_cwd: bool) -> Vec<AgentProc> {
                 command: Some(command),
                 cwd: if resolve_cwd { cwd_of(pid) } else { None },
                 session_file: None,
+                start_time_ms: None,
             })
         })
         .collect()
@@ -84,6 +87,133 @@ fn cwd_of(pid: i64) -> Option<String> {
     std::fs::read_link(format!("/proc/{pid}/cwd"))
         .ok()
         .map(|p| p.to_string_lossy().into_owned())
+}
+
+/// Fill `cwd` and `start_time_ms` for every proc — mirrors agent-manager's
+/// `enrichProcesses`: one `lsof` batch for cwds (works on macOS, where /proc
+/// doesn't exist), one `ps lstart` batch for start times. Partial results
+/// are fine; failed pids keep `None`.
+pub fn enrich_agents(procs: &mut [AgentProc]) {
+    if procs.is_empty() {
+        return;
+    }
+    let pids: Vec<String> = procs.iter().map(|p| p.pid.to_string()).collect();
+    let cwd_map = batch_cwds(&pids);
+    let start_map = batch_start_times(&pids);
+    for proc in procs.iter_mut() {
+        if proc.cwd.is_none() {
+            proc.cwd = cwd_map.get(&proc.pid).cloned();
+        }
+        proc.start_time_ms = start_map.get(&proc.pid).copied();
+    }
+}
+
+/// `lsof -a -d cwd -Fn -p <pids>` → {pid: cwd}. Output format: `p<pid>\nn<path>`…
+fn batch_cwds(pids: &[String]) -> std::collections::HashMap<i64, String> {
+    let mut out = std::collections::HashMap::new();
+    let Ok(res) = Command::new("lsof")
+        .args(["-a", "-d", "cwd", "-Fn", "-p", &pids.join(",")])
+        .output()
+    else {
+        return out;
+    };
+    let mut current: Option<i64> = None;
+    for line in String::from_utf8_lossy(&res.stdout).lines() {
+        if let Some(rest) = line.strip_prefix('p') {
+            current = rest.parse().ok();
+        } else if let (Some(pid), Some(rest)) = (current, line.strip_prefix('n')) {
+            out.insert(pid, rest.to_string());
+            current = None;
+        }
+    }
+    out
+}
+
+/// `ps -o pid=,lstart= -p <pids>` → {pid: epoch_ms}. lstart format is fixed:
+/// `Wed Mar 18 23:18:01 2026` (day-of-week, month, day, time, year).
+fn batch_start_times(pids: &[String]) -> std::collections::HashMap<i64, i64> {
+    let mut out = std::collections::HashMap::new();
+    let Ok(res) = Command::new("ps")
+        .args(["-o", "pid=,lstart=", "-p", &pids.join(",")])
+        .output()
+    else {
+        return out;
+    };
+    for line in String::from_utf8_lossy(&res.stdout).lines() {
+        let line = line.trim();
+        let Some((pid_s, date_s)) = line.split_once(char::is_whitespace) else {
+            continue;
+        };
+        let Ok(pid) = pid_s.parse::<i64>() else {
+            continue;
+        };
+        if let Some(ms) = parse_lstart(date_s.trim()) {
+            out.insert(pid, ms);
+        }
+    }
+    out
+}
+
+/// Parse `Wed Mar 18 23:18:01 2026` → epoch ms (local time, matching the
+/// platform `ps` output — same interpretation JS `new Date(str)` applies).
+fn parse_lstart(s: &str) -> Option<i64> {
+    let mut it = s.split_whitespace();
+    it.next()?; // weekday — ignored
+    let month = match it.next()? {
+        "Jan" => 1,
+        "Feb" => 2,
+        "Mar" => 3,
+        "Apr" => 4,
+        "May" => 5,
+        "Jun" => 6,
+        "Jul" => 7,
+        "Aug" => 8,
+        "Sep" => 9,
+        "Oct" => 10,
+        "Nov" => 11,
+        "Dec" => 12,
+        _ => return None,
+    };
+    let day: u32 = it.next()?.parse().ok()?;
+    let time = it.next()?;
+    let year: i32 = it.next()?.parse().ok()?;
+    let mut t = time.split(':');
+    let (h, m, sec): (u32, u32, u32) = (
+        t.next()?.parse().ok()?,
+        t.next()?.parse().ok()?,
+        t.next()?.parse().ok()?,
+    );
+    // Days-since-epoch for y/m/d (Howard Hinnant algorithm), then offset by
+    // the local timezone the same way libc's mktime does.
+    let days = days_from_civil(year, month, day);
+    let utc_secs = days * 86400 + (h as i64) * 3600 + (m as i64) * 60 + sec as i64;
+    Some((utc_secs + local_utc_offset_secs(utc_secs)) * 1000)
+}
+
+fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y } as i64;
+    let era = if y >= 0 { y } else { y - 399 } / 400;
+    let yoe = y - era * 400;
+    let mp = ((m as i64) + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + (d as i64) - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146097 + doe - 719468
+}
+
+/// Local UTC offset in seconds at `utc_secs`, via libc localtime.
+fn local_utc_offset_secs(utc_secs: i64) -> i64 {
+    unsafe {
+        let t = utc_secs as libc::time_t;
+        let mut tm: libc::tm = std::mem::zeroed();
+        if libc::localtime_r(&t, &mut tm).is_null() {
+            return 0;
+        }
+        // tm_gmtoff is seconds east of UTC; local time = utc + offset, so the
+        // inverse (utc = local - offset) needs -offset... but ps lstart is
+        // already LOCAL time we converted as if UTC, so subtract the offset
+        // to recover the true UTC instant.
+        -(tm.tm_gmtoff as i64)
+    }
 }
 
 #[cfg(test)]

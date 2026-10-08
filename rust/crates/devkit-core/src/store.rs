@@ -224,6 +224,7 @@ mod tests {
             command: Some("codex".into()),
             cwd: Some("/tmp".into()),
             session_file: None,
+            start_time_ms: None,
         }
     }
 
