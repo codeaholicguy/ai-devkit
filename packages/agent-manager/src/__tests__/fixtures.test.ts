@@ -12,6 +12,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { createBuiltinAdapters } from "../harnesses/index.js";
+import { CodexAdapter } from "../harnesses/codex/CodexAdapter.js";
+import { AgentRegistry, type RegistryEntry } from "../utils/AgentRegistry.js";
 import { expand, expandNow, normalizeAgents, withFrozenClock } from "../fixtures/bundle.js";
 import type { FixtureBundle } from "../fixtures/bundle.js";
 import { captureLive, FIXTURES_ROOT } from "../fixtures/capture.js";
@@ -29,19 +31,54 @@ const bundlePaths = fs.existsSync(FIXTURES_ROOT)
       )
   : [];
 
-function adapterFor(type: string) {
+function adapterFor(type: string, registry?: AgentRegistry) {
+  // Adapters that consult the registry during detection get the seeded
+  // isolated instance so replay never reads real ~/.ai-devkit state.
+  if (type === "codex" && registry) return new CodexAdapter(registry);
   const adapter = createBuiltinAdapters().find((a) => a.type === type);
   if (!adapter) throw new Error(`no builtin adapter for "${type}"`);
   return adapter;
 }
 
+/** Seed an isolated registry at `<home>/.ai-devkit/agents.json`. */
+function seedRegistry(bundle: FixtureBundle, home: string, nowIso: string): AgentRegistry | undefined {
+  if (!bundle.registry?.length) return undefined;
+  const registry = new AgentRegistry(path.join(home, ".ai-devkit", "agents.json"));
+  const entries = bundle.registry.map(
+    (e) =>
+      ({
+        name: "",
+        type: bundle.adapter,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "",
+        startedAt: nowIso,
+        sessionId: "",
+        sessionFilePath: "",
+        pinned: false,
+        ...expand(expandNow(e as Record<string, unknown>, nowIso), home),
+      }) as RegistryEntry,
+  );
+  registry.registerBatch(entries);
+  return registry;
+}
+
 /** Materialize a bundle into a temp HOME; returns cleanup + replay inputs. */
 function materialize(bundle: FixtureBundle) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), "fixture-home-"));
+  // "$TODAY" resolves to the local `YYYY/MM/DD` day key at write time — Codex
+  // date-dir discovery derives day keys from process start times in local
+  // time, so static dirs would drift across replay days/timezones.
+  const now = new Date();
+  const todayKey = [
+    String(now.getFullYear()).padStart(4, "0"),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("/");
   for (const [rel, content] of Object.entries(bundle.home)) {
-    const p = path.join(home, rel);
+    const p = path.join(home, expand(rel.split("$TODAY").join(todayKey), home));
     fs.mkdirSync(path.dirname(p), { recursive: true });
-    fs.writeFileSync(p, expand(content, home));
+    fs.writeFileSync(p, expand(content.split("$TODAY").join(todayKey), home));
   }
   // "$NOW" resolves to the instant home files were written — legacy
   // cwd+birthtime matching compares process start times against real file
@@ -54,14 +91,23 @@ function materialize(bundle: FixtureBundle) {
     startTime: p.startTime ? new Date(p.startTime) : undefined,
   }));
   const frozenNow = bundle.frozenNow === "$NOW" ? Date.parse(nowIso) : bundle.frozenNow;
+  // Pids whose startTime resolves to the materialization instant — Codex
+  // derives session day-dirs from start times, so only these paths contain
+  // the replay-day key and normalize to $TODAY.
+  const nowPids = new Set(
+    bundle.processes.filter((p) => p.startTime === "$NOW").map((p) => p.pid),
+  );
   return {
     home,
     processes,
     frozenNow,
-    // Only $NOW resolves — $FIXTURE_HOME stays literal to match the
-    // placeholder form normalizeAgents produces.
+    todayKey,
+    // Only $NOW resolves — $FIXTURE_HOME and $TODAY stay literal to match
+    // the normalized actual form.
     expected: expandNow(bundle.expected, nowIso),
     cleanup: () => fs.rmSync(home, { recursive: true, force: true }),
+    nowIso,
+    nowPids,
   };
 }
 
@@ -80,13 +126,23 @@ describe("fixture replay (TS parity oracle)", () => {
   for (const bundlePath of bundlePaths) {
     it(`replays ${path.relative(FIXTURES_ROOT, bundlePath)}`, async () => {
       const bundle: FixtureBundle = JSON.parse(fs.readFileSync(bundlePath, "utf8"));
-      const { home, processes, frozenNow, expected, cleanup } = materialize(bundle);
+      const { home, processes, frozenNow, expected, cleanup, todayKey, nowIso, nowPids } =
+        materialize(bundle);
       try {
         process.env.HOME = home;
+        const registry = seedRegistry(bundle, home, nowIso);
         const agents = await withFrozenClock(frozenNow, () =>
-          adapterFor(bundle.adapter).detectAgents({ processes }),
+          adapterFor(bundle.adapter, registry).detectAgents({ processes }),
         );
-        expect(normalizeAgents(agents, home)).toEqual(expected);
+        // Day-key dirs normalize back to $TODAY only for agents whose
+        // process startTime was $NOW — static-start agents keep concrete
+        // dates so live bundles stay replayable on any day.
+        const actual = JSON.parse(JSON.stringify(normalizeAgents(agents, home))).map((a) =>
+          nowPids.has(a.pid)
+            ? JSON.parse(JSON.stringify(a).split(todayKey).join("$TODAY"))
+            : a,
+        );
+        expect(actual).toEqual(expected);
       } finally {
         cleanup();
       }
@@ -98,6 +154,11 @@ describe("fixture replay (TS parity oracle)", () => {
 describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (live)", () => {
   it("captures claude bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("claude"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures codex bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("codex"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });

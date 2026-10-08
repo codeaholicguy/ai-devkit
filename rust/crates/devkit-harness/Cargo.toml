@@ -9,3 +9,5 @@ devkit-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 anyhow.workspace = true
+libc.workspace = true
+rusqlite.workspace = true

@@ -198,6 +198,200 @@ pub fn process_only_agent(
     }
 }
 
+/// File birth time in epoch ms (`statSync().birthtimeMs`), via `st_birthtime`.
+/// Returns None when unreadable or non-positive — TS skips those entries.
+pub fn birthtime_ms(path: &str) -> Option<i64> {
+    let meta = std::fs::metadata(path).ok()?;
+    let created = meta.created().ok()?;
+    let ms = created
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?
+        .as_millis() as i64;
+    if ms > 0 { Some(ms) } else { None }
+}
+
+/// `toSessionDayKey` — `YYYY/MM/DD` in **local** civil time (Codex date dirs
+/// are local, matching JS `getFullYear()/getMonth()/getDate()`).
+pub fn local_day_key(epoch_ms: i64) -> String {
+    let secs = (epoch_ms / 1000) as libc::time_t;
+    unsafe {
+        let mut tm: libc::tm = std::mem::zeroed();
+        if libc::localtime_r(&secs, &mut tm).is_null() {
+            return String::new();
+        }
+        format!(
+            "{:04}/{:02}/{:02}",
+            tm.tm_year + 1900,
+            tm.tm_mon + 1,
+            tm.tm_mday
+        )
+    }
+}
+
+/// `isIdle` — untouched for more than 5 minutes.
+pub fn is_idle(last_active_ms: i64, now_ms: i64) -> bool {
+    (now_ms - last_active_ms) / 60_000 > 5
+}
+
+/// `truncate` — `...`-suffix at `max` UTF-16 code units (JS `length`/`slice`
+/// semantics; SUMMARY_MAX_LENGTH = 120).
+pub fn truncate(value: &str, max: usize) -> String {
+    if value.encode_utf16().count() <= max {
+        return value.to_string();
+    }
+    let units: Vec<u16> = value.encode_utf16().take(max - 3).collect();
+    format!("{}...", String::from_utf16_lossy(&units))
+}
+
+/// `parseTimestamp` — numbers in seconds or ms, or ISO-8601 strings.
+pub fn parse_timestamp_ms(value: &serde_json::Value) -> Option<i64> {
+    match value {
+        serde_json::Value::Number(n) => {
+            let v = n.as_f64()?;
+            if !v.is_finite() {
+                return None;
+            }
+            Some(if v.abs() < 1_000_000_000_000.0 {
+                (v * 1000.0) as i64
+            } else {
+                v as i64
+            })
+        }
+        serde_json::Value::String(s) => parse_iso_ms(s),
+        _ => None,
+    }
+}
+
+/// Cold-start bounds for bounded JSONL summary reads (IncrementalJsonlSummary).
+pub const JSONL_HEAD_BYTES: usize = 1024 * 1024;
+pub const JSONL_TAIL_BYTES: usize = 4 * 1024 * 1024;
+
+/// Fold an append-only JSONL file with the IncrementalJsonlSummary semantics:
+/// full file when ≤ head+tail, else complete head lines + `skip()` + lines
+/// starting inside the tail window; an unterminated last line applies
+/// tentatively when it already parses.
+pub fn fold_jsonl_bounded<S>(
+    path: &str,
+    initial: S,
+    mut reduce: impl FnMut(S, Option<&serde_json::Value>) -> S,
+    mut skip: impl FnMut(S) -> S,
+) -> Option<S> {
+    let meta = std::fs::metadata(path).ok()?;
+    if !meta.is_file() {
+        return None;
+    }
+    let bytes = std::fs::read(path).ok()?;
+    let size = meta.len() as usize;
+
+    if size > JSONL_HEAD_BYTES + JSONL_TAIL_BYTES {
+        let head_end = bytes[..JSONL_HEAD_BYTES]
+            .iter()
+            .rposition(|&b| b == b'\n')
+            .map(|p| p + 1)
+            .unwrap_or(0);
+        let (head_state, _) = fold_lines_with(initial, &bytes[..head_end], false, &mut reduce);
+        let skipped = skip(head_state);
+        let tail_start = size - JSONL_TAIL_BYTES;
+        let from = bytes[tail_start - 1..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|p| tail_start + p)
+            .unwrap_or(bytes.len());
+        let (tail_state, consumed) = fold_lines_with(skipped, &bytes[from..], false, &mut reduce);
+        Some(reduce_tentative_jsonl(
+            tail_state,
+            &bytes[from + consumed..],
+            &mut reduce,
+        ))
+    } else {
+        let (s, consumed) = fold_lines_with(initial, &bytes, false, &mut reduce);
+        Some(reduce_tentative_jsonl(s, &bytes[consumed..], &mut reduce))
+    }
+}
+
+fn fold_lines_with<S>(
+    mut state: S,
+    bytes: &[u8],
+    discarding_first: bool,
+    reduce: &mut impl FnMut(S, Option<&serde_json::Value>) -> S,
+) -> (S, usize) {
+    let mut i = 0usize;
+    let mut discarding = discarding_first;
+    while i < bytes.len() {
+        let Some(nl) = bytes[i..].iter().position(|&b| b == b'\n').map(|p| i + p) else {
+            break;
+        };
+        if discarding {
+            discarding = false;
+        } else if let Ok(s) = std::str::from_utf8(&bytes[i..nl]) {
+            state = reduce_jsonl_line(state, s, reduce);
+        } else {
+            state = reduce(state, None);
+        }
+        i = nl + 1;
+    }
+    (state, i)
+}
+
+/// `reduceTentative` — apply an unterminated last line only when it already
+/// parses as complete JSON.
+fn reduce_tentative_jsonl<S>(
+    state: S,
+    rest: &[u8],
+    reduce: &mut impl FnMut(S, Option<&serde_json::Value>) -> S,
+) -> S {
+    match std::str::from_utf8(rest) {
+        Ok(s) if !s.chars().any(|c| !c.is_whitespace()) => state,
+        Ok(s) => match serde_json::from_str::<serde_json::Value>(s) {
+            Ok(v) => reduce(state, Some(&v)),
+            Err(_) => state,
+        },
+        Err(_) => state,
+    }
+}
+
+/// `reduceLine` — blank lines and unparseable JSON fold as `undefined`.
+fn reduce_jsonl_line<S>(
+    state: S,
+    line: &str,
+    reduce: &mut impl FnMut(S, Option<&serde_json::Value>) -> S,
+) -> S {
+    if !line.chars().any(|c| !c.is_whitespace()) {
+        return state;
+    }
+    match serde_json::from_str::<serde_json::Value>(line) {
+        Ok(v) => reduce(state, Some(&v)),
+        Err(_) => reduce(state, None),
+    }
+}
+
+/// `readFileHead` — the first line of a file, at most `max_bytes`.
+/// Returns (text, bytes_consumed, complete, truncated).
+pub fn read_file_head(path: &str, max_bytes: usize) -> Option<(String, usize, bool, bool)> {
+    use std::io::Read;
+    let mut f = std::fs::File::open(path).ok()?;
+    let mut buf = Vec::with_capacity(max_bytes.min(64 * 1024));
+    let mut chunk = [0u8; 16 * 1024];
+    loop {
+        if buf.len() >= max_bytes {
+            break;
+        }
+        let want = chunk.len().min(max_bytes - buf.len());
+        let n = match f.read(&mut chunk[..want]) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => n,
+        };
+        let start = buf.len();
+        buf.extend_from_slice(&chunk[..n]);
+        if let Some(p) = buf[start..].iter().position(|&b| b == b'\n').map(|i| start + i) {
+            let text = String::from_utf8_lossy(&buf[..p]).into_owned();
+            return Some((text, p + 1, true, false));
+        }
+    }
+    let text = String::from_utf8_lossy(&buf).into_owned();
+    Some((text, buf.len(), false, buf.len() >= max_bytes))
+}
+
 /// ISO-8601 UTC for an epoch-ms instant — the wire shape of `Date`.
 pub fn iso_utc(epoch_ms: i64) -> String {
     let secs = epoch_ms.div_euclid(1000);
@@ -291,6 +485,42 @@ fn days_from_civil(y: i32, m: u32, d: u32) -> i64 {
     let doy = (153 * mp + 2) / 5 + (d as i64) - 1;
     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
     era * 146097 + doe - 719468
+}
+
+/// pid → sessionFilePath rows for `agent_type` from the shared
+/// `<home>/.ai-devkit/agents.db` registry — mirrors `AgentRegistry.list()`
+/// filtered the way `mapRegistryCache` does (type + non-empty path;
+/// existence is checked by the caller). Readonly open: a missing or
+/// unreadable db yields an empty map and never creates the file.
+pub fn registry_session_paths(
+    home: &Path,
+    agent_type: &str,
+) -> std::collections::HashMap<i64, String> {
+    let db = home.join(".ai-devkit").join("agents.db");
+    let Ok(conn) = rusqlite::Connection::open_with_flags(
+        &db,
+        rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    ) else {
+        return std::collections::HashMap::new();
+    };
+    let mut stmt = match conn
+        .prepare("SELECT pid, session_file_path FROM agents WHERE type = ?1")
+    {
+        Ok(s) => s,
+        Err(_) => return std::collections::HashMap::new(),
+    };
+    let rows = stmt
+        .query_map([agent_type], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })
+        .ok();
+    match rows {
+        Some(it) => it
+            .flatten()
+            .filter(|(_, p)| !p.is_empty())
+            .collect(),
+        None => std::collections::HashMap::new(),
+    }
 }
 
 #[cfg(test)]

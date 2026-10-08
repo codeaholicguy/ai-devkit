@@ -1,0 +1,98 @@
+{
+  "adapter": "codex",
+  "capturedAt": "synthetic",
+  "frozenNow": 1760000400000,
+  "processes": [
+    {
+      "pid": 3001,
+      "ppid": 1,
+      "tty": "pts/0",
+      "command": "/usr/bin/codex resume 0199c82c-c000-7abc-8def-0123456789ab",
+      "cwd": "/proj/cx-alpha",
+      "startTime": "2025-10-09T08:53:30.000Z"
+    },
+    {
+      "pid": 3002,
+      "ppid": 1,
+      "tty": "pts/1",
+      "command": "codex",
+      "cwd": "/proj/cx-beta",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 3003,
+      "ppid": 1,
+      "tty": "pts/2",
+      "command": "codex",
+      "cwd": "/proj/cx-gamma",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 3004,
+      "ppid": 1,
+      "tty": "pts/3",
+      "command": "codex app-server --listen unix://x",
+      "cwd": "/proj/cx-helper",
+      "startTime": "2025-10-09T08:50:00.000Z"
+    },
+    {
+      "pid": 3005,
+      "ppid": 1,
+      "tty": "pts/4",
+      "command": "codex",
+      "cwd": "/proj/cx-mapped",
+      "startTime": "2025-10-09T08:56:30.000Z"
+    }
+  ],
+  "home": {
+    ".codex/ai-devkit/sessions.json": "{\"3005\": \"$FIXTURE_HOME/.codex/sessions/fixed/mapped-aaaa.jsonl\"}",
+    ".codex/sessions/2025/10/09/rollout-2025-10-09T08-53-20-0199c82c-c000-7abc-8def-0123456789ab.jsonl": "{\"timestamp\":\"2025-10-09T08:53:20.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"0199c82c-c000-7abc-8def-0123456789ab\",\"cwd\":\"/proj/cx-alpha\",\"timestamp\":\"2025-10-09T08:53:20.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:54:00.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"fix the flaky test\"}]}}\n{\"timestamp\":\"2025-10-09T08:55:00.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"patched retry loop\"}]}}\n",
+    ".codex/sessions/$TODAY/rollout-b7b7-b7b7b7b7-0000-0000-0000-000000000000.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"b7b7b7b7-0000-0000-0000-000000000000\",\"cwd\":\"/proj/cx-beta\"}}\n{\"timestamp\":\"2025-10-09T08:58:00.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"item_completed\",\"item\":{\"type\":\"UserMessage\",\"content\":\"ship the patch\"}}}\n",
+    ".codex/sessions/fixed/mapped-aaaa.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"cccccccc-0000-0000-0000-000000000000\",\"cwd\":\"/proj/cx-mapped\",\"timestamp\":\"2025-10-09T08:56:00.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:57:00.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"agent_message\",\"message\":\"mapping hit\"}}\n"
+  },
+  "expected": [
+    {
+      "name": "cx-mapped-3005",
+      "type": "codex",
+      "status": "waiting",
+      "summary": "mapping hit",
+      "pid": 3005,
+      "projectPath": "/proj/cx-mapped",
+      "sessionId": "cccccccc-0000-0000-0000-000000000000",
+      "lastActive": "2025-10-09T08:57:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/fixed/mapped-aaaa.jsonl"
+    },
+    {
+      "name": "cx-alpha-3001",
+      "type": "codex",
+      "status": "waiting",
+      "summary": "patched retry loop",
+      "pid": 3001,
+      "projectPath": "/proj/cx-alpha",
+      "sessionId": "0199c82c-c000-7abc-8def-0123456789ab",
+      "lastActive": "2025-10-09T08:55:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/2025/10/09/rollout-2025-10-09T08-53-20-0199c82c-c000-7abc-8def-0123456789ab.jsonl"
+    },
+    {
+      "name": "cx-beta-3002",
+      "type": "codex",
+      "status": "running",
+      "summary": "ship the patch",
+      "pid": 3002,
+      "projectPath": "/proj/cx-beta",
+      "sessionId": "b7b7b7b7-0000-0000-0000-000000000000",
+      "lastActive": "2025-10-09T08:58:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/$TODAY/rollout-b7b7-b7b7b7b7-0000-0000-0000-000000000000.jsonl"
+    },
+    {
+      "name": "cx-gamma-3003",
+      "type": "codex",
+      "status": "running",
+      "summary": "Codex process running",
+      "pid": 3003,
+      "projectPath": "/proj/cx-gamma",
+      "sessionId": "pid-3003",
+      "lastActive": "2025-10-09T09:00:00.000Z"
+    }
+  ]
+}

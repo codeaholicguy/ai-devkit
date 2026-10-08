@@ -11,6 +11,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentAdapter, AgentInfo } from "../adapters/AgentAdapter.js";
+import { AgentRegistry } from "../utils/AgentRegistry.js";
 import { captureProcessSnapshot } from "../utils/process.js";
 import { FixtureBundle, normalizeAgents, sanitize, withFrozenClock } from "./bundle.js";
 
@@ -20,7 +21,7 @@ export const FIXTURES_ROOT = path.join(repoRoot, "fixtures", "harness");
 /** Session-file trees each harness consults during detection. */
 const HARNESS_DIRS: Record<string, string[]> = {
   claude: [".claude/sessions", ".claude/projects"],
-  codex: [".codex/sessions", ".codex/archived_sessions"],
+  codex: [".codex/sessions", ".codex/archived_sessions", ".codex/ai-devkit"],
 };
 
 /**
@@ -42,15 +43,47 @@ function collectHomeFiles(
   for (const relDir of HARNESS_DIRS[adapterType] ?? []) {
     const dir = path.join(realHome, relDir);
     if (!fs.existsSync(dir)) continue;
-    const isIndexDir = !relDir.endsWith("projects");
+    // Session trees can hold months of transcripts; files that produced no
+    // agent cannot influence replayed output, so only agent-referenced
+    // session files plus small aux/index files are copied.
+    const isIndexDir = !relDir.endsWith("projects") && !relDir.endsWith("sessions");
     walk(dir, (file) => {
       const rel = path.join(relDir, path.relative(dir, file));
-      if (isIndexDir || referenced.has(file)) {
+      const isAuxIndex = rel.endsWith("sessions.json") || rel.endsWith(".json");
+      if (isIndexDir || referenced.has(file) || (isAuxIndex && fileSize(file) < 64 * 1024)) {
         home[rel] = sanitize(fs.readFileSync(file, "utf8"), realHome);
       }
     });
   }
   return home;
+}
+
+/**
+ * Registry rows keyed to captured pids — adapters' registry caches consult
+ * them during detection, so replay must see the same view (otherwise
+ * ordering/attribution diverges: cache hits precede locator matches).
+ */
+function collectRegistryEntries(
+  realHome: string,
+  processes: { pid: number }[],
+): Record<string, unknown>[] {
+  const pids = new Set(processes.map((p) => p.pid));
+  try {
+    return AgentRegistry.default()
+      .list()
+      .filter((e) => pids.has(e.pid))
+      .map((e) => sanitize({ ...e }, realHome) as Record<string, unknown>);
+  } catch {
+    return [];
+  }
+}
+
+function fileSize(file: string): number {
+  try {
+    return fs.statSync(file).size;
+  } catch {
+    return Infinity;
+  }
 }
 
 function walk(dir: string, visit: (file: string) => void, depth = 0) {
@@ -70,12 +103,15 @@ export async function captureLive(adapter: AgentAdapter, caseName = "live"): Pro
     throw new Error(`adapter ${adapter.type} has no processNames — can't snapshot`);
   }
 
-  const { processes, agents } = await withFrozenClock(frozenNow, async () => {
+  const { processes, agents, registry } = await withFrozenClock(frozenNow, async () => {
     const snapshot = await captureProcessSnapshot([...names], {
       isCandidate: (p) => adapter.canHandle(p),
     });
+    // Registry read must precede detection — detectAgents persists its own
+    // results, which would poison the captured view.
+    const registryBefore = collectRegistryEntries(realHome, snapshot);
     const detected = await adapter.detectAgents({ processes: snapshot });
-    return { processes: snapshot, agents: detected };
+    return { processes: snapshot, agents: detected, registry: registryBefore };
   });
 
   const bundle: FixtureBundle = {
@@ -84,6 +120,7 @@ export async function captureLive(adapter: AgentAdapter, caseName = "live"): Pro
     frozenNow,
     processes: sanitize(processes, realHome),
     home: collectHomeFiles(adapter.type, realHome, agents),
+    registry,
     expected: normalizeAgents(agents, realHome),
   };
 

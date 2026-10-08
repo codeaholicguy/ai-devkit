@@ -540,6 +540,28 @@ describe("AgentManager", () => {
       expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
     });
 
+    it("serves every ported type from the daemon in one sweep", async () => {
+      const claudeLocal = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const codexLocal = new MockAdapter("codex", [
+        createMockAgent({ name: "local-codex", type: "codex" }),
+      ]);
+      const claudeSpy = vi.spyOn(claudeLocal, "detectAgents");
+      const codexSpy = vi.spyOn(codexLocal, "detectAgents");
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => ({
+          agents: [wireAgent(), wireAgent({ type: "codex", name: "daemon-codex", pid: 888 })],
+          ported: ["claude", "codex"],
+        }),
+      });
+      m.registerAdapter(claudeLocal);
+      m.registerAdapter(codexLocal);
+
+      const agents = await m.listAgents();
+      expect(claudeSpy).not.toHaveBeenCalled();
+      expect(codexSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name).sort()).toEqual(["daemon-claude", "daemon-codex"]);
+    });
+
     it("drops daemon rows whose type is not in `ported`", async () => {
       const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
         fetchEnrichedAgents: async () => ({

@@ -65,6 +65,7 @@ struct FixtureBundle {
     frozen_now: Value,
     processes: Vec<Value>,
     home: Vec<(String, String)>,
+    registry: Vec<Value>,
     expected: Value,
 }
 
@@ -82,12 +83,59 @@ fn load_bundle(path: &Path) -> FixtureBundle {
                     .collect()
             })
             .unwrap_or_default(),
+        registry: raw["registry"].as_array().cloned().unwrap_or_default(),
         expected: raw["expected"].clone(),
     }
 }
 
+/// Seed `<home>/.ai-devkit/agents.db` with the captured rows — registry-aware
+/// adapters (codex) read it during detect; replay must never see the real db.
+fn seed_registry(home: &Path, rows: &[Value], home_s: &str, now_iso: &str) {
+    if rows.is_empty() {
+        return;
+    }
+    let db = home.join(".ai-devkit").join("agents.db");
+    std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+    let conn = rusqlite::Connection::open(&db).unwrap();
+    conn.execute_batch(
+        "CREATE TABLE agents (
+            type TEXT NOT NULL, pid INTEGER NOT NULL, name TEXT NOT NULL,
+            tmux_session TEXT NOT NULL DEFAULT '', cwd TEXT NOT NULL DEFAULT '',
+            started_at TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT '',
+            session_file_path TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL,
+            pinned INTEGER NOT NULL DEFAULT 0, runtime TEXT NOT NULL DEFAULT 'tmux',
+            runtime_ref TEXT NOT NULL DEFAULT '', PRIMARY KEY (type, pid));",
+    )
+    .unwrap();
+    for row in rows {
+        let v = expand_value(row, home_s, now_iso);
+        conn.execute(
+            "INSERT OR REPLACE INTO agents
+             (type, pid, name, tmux_session, cwd, started_at, session_id,
+              session_file_path, updated_at, pinned, runtime, runtime_ref)
+             VALUES (?1,?2,?3,'',?4,?5,?6,?7,?8,?9,'tmux','')",
+            rusqlite::params![
+                v["type"].as_str().unwrap_or_default(),
+                v["pid"].as_i64().unwrap_or_default(),
+                v["name"].as_str().unwrap_or_default(),
+                v["cwd"].as_str().unwrap_or_default(),
+                v["startedAt"].as_str().unwrap_or_default(),
+                v["sessionId"].as_str().unwrap_or_default(),
+                v["sessionFilePath"].as_str().unwrap_or_default(),
+                now_iso,
+                v["pinned"].as_bool().unwrap_or(false) as i64,
+            ],
+        )
+        .unwrap();
+    }
+}
+
 /// Write `home` files into a fresh temp dir; returns (dir, write instant ms).
-fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64) {
+/// `$TODAY` in keys and contents resolves to the local `YYYY/MM/DD` day key —
+/// Codex date-dir discovery derives day keys from process starts in local
+/// time, so static dirs would drift across replay days/timezones.
+fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String) {
+    let today_key = crate::shared::local_day_key(now_ms());
     let dir = std::env::temp_dir().join(format!(
         "devkit-fixture-{}-{}-{tag}",
         std::process::id(),
@@ -95,11 +143,11 @@ fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64) {
     ));
     let home_s = dir.to_string_lossy().into_owned();
     for (rel, content) in &bundle.home {
-        let p = dir.join(rel);
+        let p = dir.join(rel.replace("$TODAY", &today_key));
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-        std::fs::write(&p, expand_str(content, &home_s, "")).unwrap();
+        std::fs::write(&p, expand_str(&content.replace("$TODAY", &today_key), &home_s, "")).unwrap();
     }
-    (dir, now_ms())
+    (dir, now_ms(), today_key)
 }
 
 /// Replay every committed (and any local live) bundle for `adapter_type`
@@ -124,7 +172,7 @@ pub fn assert_parity(
         let bundle = load_bundle(path);
         assert_eq!(bundle.adapter, adapter_type, "{name}: adapter mismatch");
 
-        let (home, written_ms) = materialize_home(&bundle, &name);
+        let (home, written_ms, today_key) = materialize_home(&bundle, &name);
         let home_s = home.to_string_lossy().into_owned();
         let now_iso = crate::shared::iso_utc(written_ms);
 
@@ -153,15 +201,45 @@ pub fn assert_parity(
             })
             .collect();
 
+        seed_registry(&home, &bundle.registry, &home_s, &now_iso);
+        // Pids whose startTime resolves to the materialization instant — only
+        // their session paths contain the replay-day key and normalize to
+        // $TODAY; static-start agents keep concrete dates.
+        let now_pids: std::collections::HashSet<i64> = bundle
+            .processes
+            .iter()
+            .filter(|p| p["startTime"].as_str() == Some(NOW_PLACEHOLDER))
+            .map(|p| p["pid"].as_i64().unwrap())
+            .collect();
+
         let ctx = crate::SweepContext {
             processes: &processes,
             now: frozen_now,
             home: &home,
         };
         let agents = make(&home).detect(&ctx);
-        let actual = sanitize_value(&serde_json::to_value(&agents).unwrap(), &home_s);
-        // $FIXTURE_HOME stays literal in expected (actual is sanitized to the
-        // same form); only $NOW resolves.
+        let actual_list: Vec<Value> = serde_json::to_value(&agents)
+            .unwrap()
+            .as_array()
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|a| {
+                if now_pids.contains(&a["pid"].as_i64().unwrap_or(-1)) {
+                    serde_json::from_str(
+                        &serde_json::to_string(&a)
+                            .unwrap()
+                            .replace(&today_key, "$TODAY"),
+                    )
+                    .unwrap()
+                } else {
+                    a
+                }
+            })
+            .collect();
+        let actual = sanitize_value(&Value::Array(actual_list), &home_s);
+        // $FIXTURE_HOME and $TODAY stay literal in expected — actual is
+        // normalized to the same placeholder form. Only $NOW resolves.
         let expected = expand_value(&bundle.expected, HOME_PLACEHOLDER, &now_iso);
         if actual != expected {
             std::fs::remove_dir_all(&home).ok();

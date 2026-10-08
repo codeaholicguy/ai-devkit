@@ -6,6 +6,7 @@ use devkit_core::agent::{EnrichedAgent, EnrichedAgentsResult};
 use devkit_core::discover::AgentProc;
 
 pub mod claude;
+pub mod codex;
 #[cfg(test)]
 mod fixtures;
 pub mod shared;
@@ -14,6 +15,7 @@ pub mod shared;
 pub fn default_registry(home: &std::path::Path) -> Registry {
     let mut r = Registry::new();
     r.register(Box::new(claude::ClaudeAdapter::new(home)));
+    r.register(Box::new(codex::CodexAdapter::new(home)));
     r
 }
 
@@ -147,5 +149,13 @@ mod tests {
             Box::new(crate::claude::ClaudeAdapter::new(home))
         });
         assert!(n > 0, "no claude fixture bundles found");
+    }
+
+    #[test]
+    fn codex_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("codex", |home| {
+            Box::new(crate::codex::CodexAdapter::new(home))
+        });
+        assert!(n > 0, "no codex fixture bundles found");
     }
 }

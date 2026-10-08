@@ -17,6 +17,8 @@ import type { AgentInfo, ProcessInfo } from "../adapters/AgentAdapter.js";
 export const HOME_PLACEHOLDER = "$FIXTURE_HOME";
 /** Resolves to the instant home files were written (birthtime matching). */
 export const NOW_PLACEHOLDER = "$NOW";
+/** Resolves to the local `YYYY/MM/DD` day dir at replay (Codex sessions). */
+export const TODAY_PLACEHOLDER = "$TODAY";
 
 export interface FixtureBundle {
   adapter: string;
@@ -26,6 +28,12 @@ export interface FixtureBundle {
   processes: ProcessInfo[];
   /** Files under the fixture HOME; content may embed HOME_PLACEHOLDER. */
   home: Record<string, string>;
+  /**
+   * AgentRegistry rows (pid→sessionFilePath etc.) visible at capture time,
+   * restricted to captured process pids — adapters' registry caches read
+   * this state, so replay seeds an isolated registry with it.
+   */
+  registry?: Record<string, unknown>[];
   expected: Record<string, unknown>[];
 }
 
