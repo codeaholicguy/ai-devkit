@@ -32,7 +32,7 @@ the repo convention `docs/ai/<phase>/2026-10-08-feature-harness-<name>.md`.
 | I3 | pi (1683) | `harness-pi` | parity | ✅ `d778d634` |
 | I4 | gemini (1098) | `harness-gemini` | parity | ✅ `48fc9a87` |
 | I5 | copilot (762) | `harness-copilot` | parity | ✅ `22d6fd2f` |
-| I6 | grok (588) | `harness-grok` | parity | ✅ `I6_COMMIT` |
+| I6 | grok (588) | `harness-grok` | parity | ✅ `8298101a` |
 | I7 | opencode (506) | `harness-opencode` | parity |
 | I8 | devin (857) | `harness-devin` | parity |
 | I9 | kiro (696) | `harness-kiro` | parity |
