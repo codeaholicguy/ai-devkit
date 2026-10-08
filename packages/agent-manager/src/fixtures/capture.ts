@@ -10,6 +10,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
+import Database from "better-sqlite3";
 import type { AgentAdapter, AgentInfo } from "../adapters/AgentAdapter.js";
 import { AgentRegistry } from "../utils/AgentRegistry.js";
 import { captureProcessSnapshot } from "../utils/process.js";
@@ -87,6 +88,78 @@ function collectHomeFiles(
 }
 
 /**
+ * SQLite stores adapters consult (OpenCode's opencode.db). Sessions are
+ * reachable only through captured processes' cwds, so the dump keeps the
+ * table DDL plus every session row for those directories and their
+ * message/part rows — replay answers identical queries against the same
+ * view. Rows are serialized as executable SQL (binary dbs can't travel in
+ * the JSON `home` map); the key is the canonical `~/.local/share` relpath,
+ * which replay pins via XDG_DATA_HOME.
+ */
+function collectSqliteDumps(
+  adapterType: string,
+  realHome: string,
+  processes: { cwd?: string | null }[],
+): Record<string, string[]> {
+  if (adapterType !== "opencode") return {};
+  const xdg = process.env.XDG_DATA_HOME;
+  const dbPath = path.join(
+    xdg || path.join(realHome, ".local", "share"),
+    "opencode",
+    "opencode.db",
+  );
+  if (!fs.existsSync(dbPath)) return {};
+
+  const db = new Database(dbPath, { readonly: true });
+  try {
+    const stmts = (
+      db
+        .prepare(
+          "SELECT sql FROM sqlite_master WHERE type='table' AND name IN ('session','message','part')",
+        )
+        .all() as { sql: string }[]
+    ).map((r) => `${r.sql};`);
+
+    const dirs = [
+      ...new Set(processes.map((p) => p.cwd).filter((c): c is string => Boolean(c))),
+    ];
+    if (dirs.length === 0) {
+      return { ".local/share/opencode/opencode.db": stmts };
+    }
+    const inList = (xs: unknown[]) => `(${xs.map(() => "?").join(",")})`;
+    const rows = (table: string, where: string, args: unknown[]) =>
+      db.prepare(`SELECT * FROM "${table}" ${where} ORDER BY rowid`).all(...args) as Record<
+        string,
+        unknown
+      >[];
+    const sessions = rows("session", `WHERE directory IN ${inList(dirs)}`, dirs);
+    const sids = sessions.map((s) => s.id);
+    if (sids.length === 0) {
+      return { ".local/share/opencode/opencode.db": stmts };
+    }
+    const messages = rows("message", `WHERE session_id IN ${inList(sids)}`, sids);
+    const parts = rows("part", `WHERE session_id IN ${inList(sids)}`, sids);
+    const inserts = (table: string, rs: Record<string, unknown>[]) =>
+      rs.map(
+        (r) => `INSERT INTO "${table}" VALUES (${Object.values(r).map(sqlLit).join(",")});`,
+      );
+    const all = [...stmts, ...inserts("session", sessions), ...inserts("message", messages), ...inserts("part", parts)];
+    return {
+      ".local/share/opencode/opencode.db": all.map((s) => sanitize(s, realHome)),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function sqlLit(v: unknown): string {
+  if (v === null || v === undefined) return "NULL";
+  if (typeof v === "number" || typeof v === "bigint") return String(v);
+  if (v instanceof Uint8Array) return `X'${Buffer.from(v).toString("hex")}'`;
+  return `'${String(v).split("'").join("''")}'`;
+}
+
+/**
  * Registry rows keyed to captured pids — adapters' registry caches consult
  * them during detection, so replay must see the same view (otherwise
  * ordering/attribution diverges: cache hits precede locator matches).
@@ -143,6 +216,7 @@ export async function captureLive(adapter: AgentAdapter, caseName = "live"): Pro
   });
 
   const { home, mtimes } = collectHomeFiles(adapter.type, realHome, agents);
+  const sqlite = collectSqliteDumps(adapter.type, realHome, processes);
   const bundle: FixtureBundle = {
     adapter: adapter.type,
     capturedAt: new Date(frozenNow).toISOString(),
@@ -151,6 +225,7 @@ export async function captureLive(adapter: AgentAdapter, caseName = "live"): Pro
     home,
     mtimes,
     registry,
+    sqlite: Object.keys(sqlite).length > 0 ? sqlite : undefined,
     expected: normalizeAgents(agents, realHome),
   };
 

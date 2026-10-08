@@ -11,6 +11,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import Database from "better-sqlite3";
 import { createBuiltinAdapters } from "../harnesses/index.js";
 import { CodexAdapter } from "../harnesses/codex/CodexAdapter.js";
 import { PiAdapter } from "../harnesses/pi/PiAdapter.js";
@@ -89,6 +90,20 @@ function materialize(bundle: FixtureBundle) {
     fs.mkdirSync(path.dirname(p), { recursive: true });
     fs.writeFileSync(p, expand(content.split("$TODAY").join(todayKey), home));
   }
+  // SQLite stores (OpenCode's opencode.db) materialize from ordered SQL
+  // statements — binary dbs can't travel in the JSON `home` map.
+  for (const [rel, stmts] of Object.entries(bundle.sqlite ?? {})) {
+    const p = path.join(home, expand(rel.split("$TODAY").join(todayKey), home));
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    const db = new Database(p);
+    try {
+      for (const stmt of stmts) {
+        db.exec(expand(stmt.split("$TODAY").join(todayKey), home));
+      }
+    } finally {
+      db.close();
+    }
+  }
   // "$NOW" resolves to the instant home files were written — legacy
   // cwd+birthtime matching compares process start times against real file
   // creation times, so a static timestamp would drift out of tolerance.
@@ -144,8 +159,12 @@ describe("fixture replay (TS parity oracle)", () => {
       const bundle: FixtureBundle = JSON.parse(fs.readFileSync(bundlePath, "utf8"));
       const { home, processes, frozenNow, expected, cleanup, todayKey, nowIso, nowPids } =
         materialize(bundle);
+      // Pin XDG to the fixture's canonical share dir — an ambient
+      // XDG_DATA_HOME would resolve the real opencode.db into replay.
+      const savedXdg = process.env.XDG_DATA_HOME;
       try {
         process.env.HOME = home;
+        process.env.XDG_DATA_HOME = path.join(home, ".local", "share");
         const registry = seedRegistry(bundle, home, nowIso);
         const agents = await withFrozenClock(frozenNow, () =>
           adapterFor(bundle.adapter, registry).detectAgents({ processes }),
@@ -160,6 +179,8 @@ describe("fixture replay (TS parity oracle)", () => {
         );
         expect(actual).toEqual(expected);
       } finally {
+        if (savedXdg === undefined) delete process.env.XDG_DATA_HOME;
+        else process.env.XDG_DATA_HOME = savedXdg;
         cleanup();
       }
     });
@@ -195,6 +216,11 @@ describe.runIf(process.env.AI_DEVKIT_FIXTURE_CAPTURE === "1")("fixture capture (
 
   it("captures grok_cli bundle from the live machine", async () => {
     const out = await captureLive(adapterFor("grok_cli"), "live");
+    expect(fs.existsSync(out)).toBe(true);
+  }, 30000);
+
+  it("captures opencode bundle from the live machine", async () => {
+    const out = await captureLive(adapterFor("opencode"), "live");
     expect(fs.existsSync(out)).toBe(true);
   }, 30000);
 });

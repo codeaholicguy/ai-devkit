@@ -67,6 +67,7 @@ struct FixtureBundle {
     home: Vec<(String, String)>,
     mtimes: Vec<(String, Value)>,
     registry: Vec<Value>,
+    sqlite: Vec<(String, Vec<String>)>,
     expected: Value,
 }
 
@@ -89,6 +90,25 @@ fn load_bundle(path: &Path) -> FixtureBundle {
             .map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             .unwrap_or_default(),
         registry: raw["registry"].as_array().cloned().unwrap_or_default(),
+        sqlite: raw["sqlite"]
+            .as_object()
+            .map(|o| {
+                o.iter()
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            v.as_array()
+                                .map(|a| {
+                                    a.iter()
+                                        .map(|s| s.as_str().unwrap_or_default().to_string())
+                                        .collect()
+                                })
+                                .unwrap_or_default(),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or_default(),
         expected: raw["expected"].clone(),
     }
 }
@@ -168,6 +188,17 @@ fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String)
         let file = std::fs::File::open(&p).unwrap();
         file.set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_millis(ms as u64))
             .unwrap();
+    }
+    // SQLite stores (OpenCode's opencode.db) materialize from ordered SQL
+    // statements — binary dbs can't travel in the JSON `home` map.
+    for (rel, stmts) in &bundle.sqlite {
+        let p = dir.join(rel.replace("$TODAY", &today_key));
+        std::fs::create_dir_all(p.parent().unwrap()).unwrap();
+        let conn = rusqlite::Connection::open(&p).unwrap();
+        for stmt in stmts {
+            conn.execute_batch(&expand_str(&stmt.replace("$TODAY", &today_key), &home_s, ""))
+                .unwrap();
+        }
     }
     (dir, written_ms, today_key)
 }

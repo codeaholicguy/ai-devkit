@@ -12,6 +12,7 @@ pub mod copilot;
 mod fixtures;
 pub mod gemini;
 pub mod grok;
+pub mod opencode;
 pub mod pi;
 pub mod shared;
 
@@ -24,6 +25,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(gemini::GeminiAdapter::new(home)));
     r.register(Box::new(copilot::CopilotAdapter::new(home)));
     r.register(Box::new(grok::GrokAdapter::new(home)));
+    r.register(Box::new(opencode::OpenCodeAdapter::new(home)));
     r
 }
 
@@ -204,5 +206,17 @@ mod tests {
             Box::new(crate::grok::GrokAdapter::new(home))
         });
         assert!(n > 0, "no grok fixture bundles found");
+    }
+
+    #[test]
+    fn opencode_adapter_matches_committed_fixtures() {
+        // Pin the canonical db path — ambient XDG_DATA_HOME must not leak
+        // the real opencode.db into replay.
+        let n = crate::fixtures::assert_parity("opencode", |home| {
+            Box::new(crate::opencode::OpenCodeAdapter::at_db(
+                home.join(".local/share/opencode/opencode.db"),
+            ))
+        });
+        assert!(n > 0, "no opencode fixture bundles found");
     }
 }

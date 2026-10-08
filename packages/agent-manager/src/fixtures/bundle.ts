@@ -40,6 +40,12 @@ export interface FixtureBundle {
    * this state, so replay seeds an isolated registry with it.
    */
   registry?: Record<string, unknown>[];
+  /**
+   * SQLite stores adapters consult (OpenCode's opencode.db), keyed by
+   * relpath under $FIXTURE_HOME: SQL statements (DDL + INSERTs) executed
+   * in order to materialize each db. Statements may embed HOME_PLACEHOLDER.
+   */
+  sqlite?: Record<string, string[]>;
   expected: Record<string, unknown>[];
 }
 
