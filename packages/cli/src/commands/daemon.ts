@@ -11,12 +11,12 @@ import {
 import { withErrorHandler } from "../util/errors.js";
 
 /**
- * `ai-devkit daemon` — manage the ai-devkitd coordination daemon.
+ * `ai-devkit daemon` — manage the devkitd coordination daemon.
  * Normal operation needs no daemon command at all: any client auto-spawns it.
  * This command exists for status, logs, restart, and systemd persistence.
  */
 export function registerDaemonCommand(program: Command): void {
-  const cmd = program.command("daemon").description("Manage the ai-devkitd coordination daemon");
+  const cmd = program.command("daemon").description("Manage the devkitd coordination daemon");
 
   cmd
     .command("status")
@@ -59,7 +59,7 @@ export function registerDaemonCommand(program: Command): void {
         const client = await ensureDaemon();
         if (!client) {
           throw new Error(
-            "could not start daemon — binary not found (AI_DEVKITD_BIN, platform package, or cargo build)",
+            "could not start daemon — binary not found (DEVKITD_BIN, platform package, or cargo build)",
           );
         }
         console.log("daemon running");

@@ -8,7 +8,7 @@ description: What was built, where, and notable decisions taken during implement
 
 Branch `feature/rust-daemon`, PR #351.
 
-## Rust daemon (`rust/ai-devkitd/src/`)
+## Rust daemon (`rust/crates/devkitd/src/`, libs in `rust/crates/devkit-core/src/`)
 
 - `proto.rs` — Request/Response/Event types. Events carry `seq` for
   at-least-once replay.

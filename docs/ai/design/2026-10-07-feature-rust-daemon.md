@@ -88,20 +88,20 @@ aren't matched by basename — recorded for the phase-2 knowledge port.
 tmux-style implicit spawn, implemented in `@ai-devkit/daemon-client`:
 `ensureDaemon()` tries the socket; on miss it takes an `O_EXCL` lockfile
 (single spawner; locks older than 30s are reclaimed so a crashed starter can't
-wedge autostart), spawns `ai-devkitd serve` detached with output appended to
+wedge autostart), spawns `devkitd serve` detached with output appended to
 `~/.ai-devkit/daemon.log`, and polls the socket for readiness (≤3s). Socket
 existence is liveness — no PID files, so the stale-PID/`kill(pid,0)` hazard
-class cannot recur here. `ai-devkitd install` writes a systemd `--user` unit
+class cannot recur here. `devkitd install` writes a systemd `--user` unit
 for boot persistence; the daemon also runs fine with pure implicit spawn.
 
 ## Distribution
 
 Rust lives in `rust/` inside the monorepo. npm keeps shipping the JS `ai-devkit`
 bin; `@ai-devkit/daemon-client` resolves the daemon binary in order:
-`AI_DEVKITD_BIN` env → `@ai-devkit/daemon-<platform>-<arch>` optional-dep
+`DEVKITD_BIN` env → `@ai-devkit/devkitd-<platform>-<arch>` optional-dep
 package (esbuild-style per-platform binary packages; the packages themselves
-are wired in the release workflow later) → `~/.ai-devkit/bin/ai-devkitd` →
-`rust/target/{release,debug}/ai-devkitd` in a dev checkout. Nothing found ⇒
+are wired in the release workflow later) → `~/.ai-devkit/bin/devkitd` →
+`rust/target/{release,debug}/devkitd` in a dev checkout. Nothing found ⇒
 callers degrade to pre-daemon behavior.
 
 ## The five settled decisions

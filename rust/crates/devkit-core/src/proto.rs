@@ -1,22 +1,28 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
 
 /// One JSON-RPC-ish request per line on the unix socket.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, TS)]
 pub struct Request {
+    #[ts(optional, type = "number")]
     pub id: Option<u64>,
     pub method: String,
     #[serde(default)]
+    #[ts(optional, type = "unknown")]
     pub params: Value,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, TS)]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
     pub id: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "unknown")]
     pub result: Option<Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub error: Option<String>,
 }
 
@@ -39,11 +45,14 @@ impl Response {
 
 /// Event pushed to subscribers. `seq` is the persisted log sequence number —
 /// subscribers ack by seq to get at-least-once delivery.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Event {
+    #[ts(type = "number")]
     pub seq: u64,
+    #[ts(type = "number")]
     pub ts: i64,
     pub kind: String,
+    #[ts(type = "unknown")]
     pub payload: Value,
 }
 
@@ -53,6 +62,19 @@ mod tests {
     use serde_json::json;
 
     // The wire contract TS clients depend on — one JSON object per line.
+
+    /// Regenerate packages/daemon-client/src/gen/*.ts. Deterministic: the
+    /// output dir is anchored at CARGO_MANIFEST_DIR, not the test CWD, and
+    /// `cargo test -p devkit-core` is the documented regen command.
+    #[test]
+    fn export_ts_bindings() {
+        let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../../packages/daemon-client/src/gen");
+        let cfg = ts_rs::Config::default().with_out_dir(&out);
+        Request::export(&cfg).unwrap();
+        Response::export(&cfg).unwrap();
+        Event::export(&cfg).unwrap();
+    }
 
     #[test]
     fn request_parses_minimal_and_full() {

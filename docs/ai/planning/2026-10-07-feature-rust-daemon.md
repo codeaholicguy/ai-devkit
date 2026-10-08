@@ -10,7 +10,7 @@ description: Milestones for the v1 daemon; existing branch code reconciled again
 
 | # | Milestone | Deliverable | Status |
 |---|---|---|---|
-| M1 | Daemon core | `rust/ai-devkitd`: socket + SO_PEERCRED, SQLite sole-writer store, event log, verbs | Done (pre-plan code, reconciled) |
+| M1 | Daemon core | `rust/crates/devkitd`: socket + SO_PEERCRED, SQLite sole-writer store, event log, verbs | Done (pre-plan code, reconciled) |
 | M2 | Discovery + events | 2s `ps` sweep, snapshot diff, `agent.appeared/disappeared`, subscribe replay | Done (pre-plan code, reconciled) |
 | M3 | Client package | `@ai-devkit/daemon-client`: line RPC client, autostart, binary resolution | Done (pre-plan code, reconciled) |
 | M4 | Registry absorption | ChannelConfigRepository + pi-session-tracker daemon-first, file fallback | Done (pre-plan code, reconciled) |

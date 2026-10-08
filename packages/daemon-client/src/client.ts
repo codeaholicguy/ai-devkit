@@ -1,13 +1,10 @@
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { Event } from "./gen/Event.js";
 
-export interface DaemonEvent {
-  seq: number;
-  ts: number;
-  kind: string;
-  payload: unknown;
-}
+/** Wire event pushed by the daemon — generated from devkit-core via ts-rs. */
+export type DaemonEvent = Event;
 
 export function daemonSocketPath(): string {
   return path.join(os.homedir(), ".ai-devkit", "daemon.sock");
@@ -19,7 +16,7 @@ interface Pending {
 }
 
 /**
- * Line-delimited JSON-RPC client for ai-devkitd. One request per line;
+ * Line-delimited JSON-RPC client for devkitd. One request per line;
  * events arrive as `{"event": {...}}` frames after `subscribe`.
  */
 export class DaemonClient {

@@ -10,7 +10,7 @@ const DEFAULT_CONFIG: ChannelConfig = { channels: {} };
 /**
  * Persists channel configurations.
  *
- * Daemon-first: when ai-devkitd is reachable (auto-spawned if the binary is
+ * Daemon-first: when devkitd is reachable (auto-spawned if the binary is
  * present), registry writes go through the daemon's sole-writer SQLite store,
  * which eliminates the read-modify-write races this JSON file had.
  * Fallback: the original ~/.ai-devkit/channels.json behavior is preserved so

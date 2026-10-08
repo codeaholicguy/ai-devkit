@@ -18,23 +18,23 @@ describe("socket fallback", () => {
 });
 
 // Autostart against the real binary when available (dev box sets
-// AI_DEVKITD_BIN, or rust/target/{release,debug} exists). Skipped otherwise.
+// DEVKITD_BIN, or rust/target/{release,debug} exists). Skipped otherwise.
 const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../../..");
 const devBin = [
-  path.join(repoRoot, "rust/target/release/ai-devkitd"),
-  path.join(repoRoot, "rust/target/debug/ai-devkitd"),
+  path.join(repoRoot, "rust/target/release/devkitd"),
+  path.join(repoRoot, "rust/target/debug/devkitd"),
 ].find((p) => fs.existsSync(p));
-const bin = process.env.AI_DEVKITD_BIN ?? devBin;
+const bin = process.env.DEVKITD_BIN ?? process.env.AI_DEVKITD_BIN ?? devBin;
 const sock = path.join(os.homedir(), ".ai-devkit", "daemon.sock");
 
 describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
   const spawned = bin!;
-  const previousBin = process.env.AI_DEVKITD_BIN;
-  process.env.AI_DEVKITD_BIN = spawned;
+  const previousBin = process.env.DEVKITD_BIN;
+  process.env.DEVKITD_BIN = spawned;
 
   afterAll(async () => {
-    if (previousBin === undefined) delete process.env.AI_DEVKITD_BIN;
-    else process.env.AI_DEVKITD_BIN = previousBin;
+    if (previousBin === undefined) delete process.env.DEVKITD_BIN;
+    else process.env.DEVKITD_BIN = previousBin;
     // Leave the daemon running only if we didn't start it — send shutdown
     // regardless is safer for test machines than leaking a process.
     const c = await DaemonClient.tryConnect();

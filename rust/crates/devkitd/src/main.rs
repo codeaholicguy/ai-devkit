@@ -1,7 +1,4 @@
-mod discover;
-mod proto;
 mod server;
-mod store;
 
 use anyhow::Result;
 use server::Daemon;
@@ -44,7 +41,7 @@ async fn main() -> Result<()> {
             Ok(())
         }
         other => {
-            eprintln!("usage: ai-devkitd [serve|install|status] (got {other})");
+            eprintln!("usage: devkitd [serve|install|status] (got {other})");
             std::process::exit(2);
         }
     }
@@ -60,9 +57,9 @@ fn install_systemd() -> Result<()> {
         "[Unit]\nDescription=ai-devkit daemon\n\n[Service]\nExecStart={} serve\nRestart=on-failure\n\n[Install]\nWantedBy=default.target\n",
         exe.display()
     );
-    let path = dir.join("ai-devkitd.service");
+    let path = dir.join("devkitd.service");
     std::fs::write(&path, unit)?;
     println!("wrote {}", path.display());
-    println!("enable with: systemctl --user enable --now ai-devkitd.service");
+    println!("enable with: systemctl --user enable --now devkitd.service");
     Ok(())
 }

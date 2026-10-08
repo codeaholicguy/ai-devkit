@@ -35,7 +35,7 @@ description: What is tested, how, and what is verified live vs deferred
 - binary resolution: env override honored, missing paths ignored.
 - socket path under `~/.ai-devkit`.
 - integration: `ensureDaemon` spawns the real binary (when resolvable via
-  `AI_DEVKITD_BIN`) and returns a working client; `tryConnect` returns null on
+  `DEVKITD_BIN`, or the legacy `AI_DEVKITD_BIN` alias) and returns a working client; `tryConnect` returns null on
   a missing socket (fallback contract); request/response roundtrip over a real
   unix socket.
 
@@ -47,7 +47,7 @@ description: What is tested, how, and what is verified live vs deferred
   → null (caller keeps polling); subscribed → events forwarded + client
   returned; subscribe failure → client closed, null returned.
 - Hermeticity: `ensureDaemon` never spawns under `VITEST` unless
-  `AI_DEVKITD_BIN` is explicitly set.
+  `DEVKITD_BIN` is explicitly set.
 - Note: `PreviewActivityIndicator.test.tsx` is dead — vitest's include glob
   covers `*.test.ts` only; .tsx tests never run. Recorded, not fixed here.
 

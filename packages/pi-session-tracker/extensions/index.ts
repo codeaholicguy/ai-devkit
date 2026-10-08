@@ -22,7 +22,7 @@ function writeRegistry(data: SessionRegistry): void {
   fs.writeFileSync(registryFile, JSON.stringify(data, null, 2), "utf8");
 }
 
-// Daemon-first store: when ai-devkitd is listening, registry entries go through
+// Daemon-first store: when devkitd is listening, registry entries go through
 // its sole-writer SQLite — two pi agents starting together can't lose entries.
 // Falls back to the legacy sessions.json RMW when the daemon is absent.
 function daemonRequest(method: string, params: Record<string, unknown>): Promise<boolean> {

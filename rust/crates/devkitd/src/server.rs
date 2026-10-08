@@ -1,6 +1,6 @@
-use crate::proto::{Event, Request, Response};
-use crate::store::{chrono_now, Store};
 use anyhow::Result;
+use devkit_core::proto::{Event, Request, Response};
+use devkit_core::store::{chrono_now, Store};
 use serde_json::{json, Value};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
@@ -118,7 +118,7 @@ impl Daemon {
 
     /// Apply a discovery sweep and emit appear/vanish events.
     pub fn apply_sweep(&self) {
-        let procs = crate::discover::sweep();
+        let procs = devkit_core::discover::sweep();
         if let Ok((appeared, gone)) = self.store.apply_agent_snapshot(&procs) {
             for pid in appeared {
                 self.emit("agent.appeared", json!({"pid": pid}));
@@ -311,7 +311,7 @@ mod tests {
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_millis(20)).await;
             let seq = d2.store.emit("test.ping", &json!({})).unwrap();
-            let _ = d2.events.send(crate::proto::Event {
+            let _ = d2.events.send(devkit_core::proto::Event {
                 seq,
                 ts: 0,
                 kind: "test.ping".into(),
