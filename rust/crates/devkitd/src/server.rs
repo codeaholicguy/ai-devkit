@@ -208,7 +208,13 @@ fn peer_is_same_user(_stream: &UnixStream) -> bool {
 
 pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
     if daemon.socket_path.exists() {
-        std::fs::remove_file(&daemon.socket_path)?;
+        // Refuse to displace a live daemon: unlinking the socket file leaves
+        // the old process sweeping and writing daemon.db invisibly — two
+        // daemons, one reachable. Only a dead owner's file is unlinked.
+        match std::os::unix::net::UnixStream::connect(&daemon.socket_path) {
+            Ok(_) => anyhow::bail!("devkitd already running"),
+            Err(_) => std::fs::remove_file(&daemon.socket_path)?,
+        }
     }
     let listener = UnixListener::bind(&daemon.socket_path)?;
     std::fs::set_permissions(&daemon.socket_path, std::fs::Permissions::from_mode(0o600))?;
@@ -455,6 +461,17 @@ mod tests {
             }
         }
         assert!(saw_ping);
+    }
+
+    #[tokio::test]
+    async fn serve_refuses_to_displace_a_live_daemon() {
+        let (d, sock) = test_daemon().await;
+        let d2 = Arc::new(Daemon::new(&d.home, sock.clone(), d.home.clone()).unwrap());
+        let err = serve(d2).await.unwrap_err();
+        assert!(err.to_string().contains("already running"));
+        // The original daemon still answers on the socket.
+        let resp = rpc(&sock, r#"{"id":9,"method":"ping"}"#).await;
+        assert_eq!(resp["result"]["pong"], true);
     }
 
     #[tokio::test]
