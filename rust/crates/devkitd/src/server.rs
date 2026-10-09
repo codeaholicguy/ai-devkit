@@ -24,15 +24,9 @@ pub struct Daemon {
     /// Fully attributed agents refreshed per sweep so `agent.list` is
     /// O(1) over a prebuilt list.
     pub enriched: RwLock<Vec<EnrichedAgent>>,
-    /// Readiness probes run subprocesses for seconds and change slowly —
-    /// cache the serialized result per request-params key for a short TTL.
-    pub readiness_cache: RwLock<Option<(String, std::time::Instant, Value)>>,
     /// User home dir adapters resolve session trees (~/.claude, …) against.
     pub home: PathBuf,
 }
-
-/// Freshness window for cached `agent.readiness` results.
-const READINESS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30);
 
 impl Daemon {
     pub fn new(data_dir: &Path, socket_path: PathBuf, home: PathBuf) -> Result<Self> {
@@ -71,7 +65,6 @@ impl Daemon {
             socket_path,
             enricher: devkit_harness::default_registry(&home),
             enriched: RwLock::new(Vec::new()),
-            readiness_cache: RwLock::new(None),
             home,
         })
     }
@@ -109,53 +102,6 @@ impl Daemon {
             "agent.list" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
-            }
-            "agent.readiness" => {
-                let cache_key = serde_json::to_string(&req.params).unwrap_or_default();
-                if let Some((key, at, v)) = &*self.readiness_cache.read().unwrap() {
-                    if key == &cache_key && at.elapsed() < READINESS_CACHE_TTL {
-                        return Response::ok(id, v.clone());
-                    }
-                }
-                let p = &req.params;
-                let home_dir = p["homeDir"]
-                    .as_str()
-                    .map(String::from)
-                    .unwrap_or_else(|| self.home.to_string_lossy().into_owned());
-                let path = p["path"]
-                    .as_str()
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| std::env::var("PATH").unwrap_or_default());
-                let asset_root = p["assetRoot"].as_str().map(|s| s.to_string());
-                let built_in_skill_names: Vec<String> = p["builtInSkillNames"]
-                    .as_array()
-                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
-                    .unwrap_or_default();
-                let skill_roots: std::collections::BTreeMap<String, String> = p["skillRoots"]
-                    .as_object()
-                    .map(|m| {
-                        m.iter()
-                            .filter_map(|(k, v)| v.as_str().map(|s| (k.clone(), s.to_string())))
-                            .collect()
-                    })
-                    .unwrap_or_else(devkit_harness::readiness::default_skill_roots);
-                let host = devkit_harness::readiness::SystemHost::new(&home_dir, &path);
-                let rt = devkit_harness::readiness::ReadinessRuntime {
-                    home_dir,
-                    path,
-                    asset_root,
-                    built_in_skill_names,
-                    skill_roots,
-                    host: &host,
-                };
-                let reports = devkit_harness::readiness::readiness_reports(&rt);
-                let result = serde_json::to_value(devkit_core::readiness::AgentReadinessResult {
-                    reports,
-                })
-                .unwrap();
-                *self.readiness_cache.write().unwrap() =
-                    Some((cache_key, std::time::Instant::now(), result.clone()));
-                Response::ok(id, result)
             }
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
@@ -359,10 +305,9 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                         write.write_all(b"\n").await?;
                     }
                     Ok(req) => {
-                        // Heavy methods are synchronous — some RPCs
-                        // (agent.readiness) run subprocess probes for
-                        // seconds; keep them off the async workers so other
-                        // connections stay responsive.
+                        // Keep synchronous dispatch off the async workers —
+                        // the blocking pool absorbs any method that does
+                        // real work so connections stay responsive.
                         let d = daemon.clone();
                         let resp = if INLINE_METHODS.contains(&req.method.as_str()) {
                             d.dispatch(req)

@@ -1,15 +1,8 @@
 export { DaemonClient, daemonSocketPath, connectDaemon } from "./client.js";
 export type { DaemonEvent } from "./client.js";
 export type {
-  AgentReadinessReport,
-  AgentReadinessResult,
-  AuthReadinessCheck,
-  BuiltInSkillsReadinessCheck,
-  DirectoryReadinessCheck,
   EnrichedAgent,
   Event,
-  ExecutableReadinessCheck,
-  IntegrationReadinessCheck,
   Request,
   Response,
 } from "./gen/index.js";

@@ -75,13 +75,6 @@ mod tests {
         Response::export(&cfg).unwrap();
         Event::export(&cfg).unwrap();
         crate::agent::EnrichedAgent::export(&cfg).unwrap();
-        crate::readiness::AgentReadinessReport::export(&cfg).unwrap();
-        crate::readiness::AgentReadinessResult::export(&cfg).unwrap();
-        crate::readiness::AuthReadinessCheck::export(&cfg).unwrap();
-        crate::readiness::BuiltInSkillsReadinessCheck::export(&cfg).unwrap();
-        crate::readiness::DirectoryReadinessCheck::export(&cfg).unwrap();
-        crate::readiness::ExecutableReadinessCheck::export(&cfg).unwrap();
-        crate::readiness::IntegrationReadinessCheck::export(&cfg).unwrap();
 
         // ts-rs emits `import ... from "./X"` without the `.js` extension
         // this package's nodenext resolution requires — rewrite in place.

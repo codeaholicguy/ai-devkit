@@ -13,7 +13,6 @@ import {
   type ReadinessAgentType,
   type ReadinessStatus,
 } from "@ai-devkit/agent-manager";
-import { ensureDaemon } from "@ai-devkit/daemon-client";
 import { getBuiltinSkillNames } from "../skill/skill-builtins.js";
 import { filterStringRecord } from "../../util/config.js";
 import { getGlobalSkillPath, isValidEnvironmentCode } from "../../util/env.js";
@@ -561,50 +560,6 @@ async function memoryMcpCheck(rt: Runtime): Promise<MemoryMcpCheck> {
   return { status: degraded ? "warn" : "pass", agents };
 }
 
-/**
- * Daemon-primary readiness: devkitd computes reports when no injectable
- * seams (readFile/access/runCommand/codexAuth — functions can't cross
- * the wire) are present in the caller options. Serializable context
- * (homeDir/path/assetRoot/skill roots/names) rides as RPC params.
- * Any failure falls back to the local path — never a hard break.
- */
-async function agentReadinessReports(
-  agentOptions: AgentReadinessOptions,
-  options: StatusServiceOptions,
-): Promise<Record<ReadinessAgentType, AgentReadinessReport>> {
-  const hasSeams = Boolean(
-    options.readFile ?? options.access ?? options.runCommand ?? options.codexAuth,
-  );
-  if (!hasSeams) {
-    try {
-      const client = await ensureDaemon();
-      if (client) {
-        try {
-          const result = await client.agentReadiness({
-            homeDir: agentOptions.homeDir,
-            path: agentOptions.path,
-            assetRoot: agentOptions.assetRoot,
-            builtInSkillNames: [...(agentOptions.builtInSkillNames ?? [])],
-            skillRoots: Object.fromEntries(
-              Object.entries(agentOptions.skillRoots ?? {}).filter(
-                (entry): entry is [string, string] => typeof entry[1] === "string",
-              ),
-            ),
-          });
-          return Object.fromEntries(
-            result.reports.map((report) => [report.type, report]),
-          ) as Record<ReadinessAgentType, AgentReadinessReport>;
-        } finally {
-          client.close();
-        }
-      }
-    } catch {
-      // Local path below.
-    }
-  }
-  return getAgentReadinessReports(agentOptions);
-}
-
 export async function getStatusReport(
   options: StatusServiceOptions = {},
 ): Promise<StatusReport> {
@@ -625,7 +580,7 @@ export async function getStatusReport(
   const [project, agents, aiDevkit, tmux, globalRegistry, channels, memoryMcp] =
     await Promise.all([
       projectPromise,
-      agentReadinessReports(agentOptions, options),
+      getAgentReadinessReports(agentOptions),
       versionCheck(rt),
       tmuxCheck(rt),
       globalRegistries(rt),
