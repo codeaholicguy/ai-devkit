@@ -1,0 +1,17 @@
+{
+  "name": "@ai-devkit/devkitd-linux-x64",
+  "version": "0.0.0",
+  "description": "devkitd binary for Linux x64 (static musl — runs on glibc and musl)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "npm/devkitd-linux-x64"
+  },
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "files": ["devkitd"],
+  "publishConfig": {
+    "access": "public"
+  }
+}

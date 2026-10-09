@@ -96,10 +96,18 @@ for boot persistence; the daemon also runs fine with pure implicit spawn.
 Rust lives in `rust/` inside the monorepo. npm keeps shipping the JS `ai-devkit`
 bin; `@ai-devkit/daemon-client` resolves the daemon binary in order:
 `DEVKITD_BIN` env → `@ai-devkit/devkitd-<platform>-<arch>` optional-dep
-package (esbuild-style per-platform binary packages; the packages themselves
-are wired in the release workflow later) → `~/.ai-devkit/bin/devkitd` →
+package → `~/.ai-devkit/bin/devkitd` →
 `rust/target/{release,debug}/devkitd` in a dev checkout. Nothing found ⇒
 callers degrade to pre-daemon behavior.
+
+Platform packages live as stubs under `npm/devkitd-{darwin,linux}-{arm64,x64}/`
+(version `0.0.0` placeholders — stamped from `packages/daemon-client/package.json`
+at publish). Linux binaries are musl-static so one build covers glibc and Alpine.
+`publish-devkitd.yml` builds a four-target matrix (darwin arm64/x64 on
+macos-latest, linux musl x64 native + arm64 via `cross`); `publish-daemon-client.yml`
+injects the `optionalDependencies` pins at publish time so dev installs never
+resolve the unpublished platform packages. Windows has no daemon (unix-only
+sockets) — the resolver returns null and clients fall back.
 
 ## The five settled decisions
 
