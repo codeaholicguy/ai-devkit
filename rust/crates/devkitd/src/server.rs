@@ -232,11 +232,13 @@ impl Daemon {
         let enriched = self.enricher.enrich(&ctx);
         *self.enriched.write().unwrap() = enriched;
         if let Ok((appeared, gone)) = self.store.apply_agent_snapshot(&procs) {
-            for pid in appeared {
-                self.emit("agent.appeared", json!({"pid": pid}));
-            }
+            // Disappeared first: on pid reuse the stale identity must leave
+            // before the fresh one arrives or subscribers see them inverted.
             for pid in gone {
                 self.emit("agent.disappeared", json!({"pid": pid}));
+            }
+            for pid in appeared {
+                self.emit("agent.appeared", json!({"pid": pid}));
             }
         }
     }

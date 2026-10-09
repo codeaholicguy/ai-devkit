@@ -5,6 +5,11 @@ use serde_json::Value;
 use std::path::Path;
 use std::sync::Mutex;
 
+/// Newest events kept before retention pruning kicks in.
+const EVENT_RETENTION: i64 = 10_000;
+/// Prune/checkpoint cadence in emitted events.
+const PRUNE_EVERY: i64 = 512;
+
 /// Daemon-owned store. The daemon is the sole writer — this type is the only
 /// code path that mutates registries, which is what eliminates the
 /// read-modify-write races the JSON files had.
@@ -37,10 +42,22 @@ impl Store {
                 command          TEXT,
                 cwd              TEXT,
                 session_file     TEXT,
+                start_time_ms    INTEGER,
                 first_seen       INTEGER NOT NULL,
                 last_seen        INTEGER NOT NULL
             );",
         )?;
+        // Migration: databases created before start_time-keyed identity lack
+        // the column — add it in place.
+        {
+            let mut s = conn.prepare("PRAGMA table_info(agents)")?;
+            let cols = s
+                .query_map([], |r| r.get::<_, String>(1))?
+                .collect::<std::result::Result<Vec<String>, _>>()?;
+            if !cols.iter().any(|c| c == "start_time_ms") {
+                conn.execute("ALTER TABLE agents ADD COLUMN start_time_ms INTEGER", [])?;
+            }
+        }
         Ok(Self {
             conn: Mutex::new(conn),
         })
@@ -93,13 +110,27 @@ impl Store {
     }
 
     /// Append an event; returns its sequence number.
+    ///
+    /// The table is bounded to the newest [`EVENT_RETENTION`] rows and the WAL
+    /// is checkpointed, both amortised to every [`PRUNE_EVERY`] emits so the
+    /// hot path stays a single insert.
     pub fn emit(&self, kind: &str, payload: &Value) -> Result<u64> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO events (ts,kind,payload) VALUES (?1,?2,?3)",
             params![chrono_now(), kind, serde_json::to_string(payload)?],
         )?;
-        Ok(conn.last_insert_rowid() as u64)
+        let seq = conn.last_insert_rowid();
+        if seq % PRUNE_EVERY == 0 {
+            conn.execute(
+                "DELETE FROM events WHERE seq < ?1",
+                params![seq - EVENT_RETENTION],
+            )?;
+            // Single connection ⇒ no competing readers; TRUNCATE reclaims the
+            // WAL file synchronously.
+            let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE)");
+        }
+        Ok(seq as u64)
     }
 
     /// Replay events after `after_seq` (for crash-recovery / late subscribers).
@@ -128,33 +159,51 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let now = chrono_now();
         let tx = conn.unchecked_transaction()?;
-        let known: std::collections::HashSet<i64> = {
-            let mut s = tx.prepare("SELECT pid FROM agents")?;
+        // Identity is (pid, start_time_ms) — pid alone breaks under reuse: a
+        // recycled pid would silently inherit the dead process's first_seen
+        // and emit no appeared/disappeared events at all.
+        let known: std::collections::HashSet<(i64, Option<i64>)> = {
+            let mut s = tx.prepare("SELECT pid, start_time_ms FROM agents")?;
             let v = s
-                .query_map([], |r| r.get(0))?
-                .collect::<std::result::Result<std::collections::HashSet<i64>, _>>()?;
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect::<std::result::Result<
+                    std::collections::HashSet<(i64, Option<i64>)>,
+                    _,
+                >>()?;
             v
         };
-        let current: std::collections::HashSet<i64> = agents.iter().map(|a| a.pid).collect();
+        let current: std::collections::HashSet<(i64, Option<i64>)> = agents
+            .iter()
+            .map(|a| (a.pid, a.start_time_ms))
+            .collect();
 
-        let mut appeared: Vec<i64> = current.difference(&known).copied().collect();
-        let mut gone: Vec<i64> = known.difference(&current).copied().collect();
+        let mut appeared: Vec<i64> = current
+            .difference(&known)
+            .map(|(pid, _)| *pid)
+            .collect();
+        let mut gone: Vec<i64> = known
+            .difference(&current)
+            .map(|(pid, _)| *pid)
+            .collect();
         appeared.sort_unstable();
         gone.sort_unstable();
 
+        // Delete first so a reused pid drops its stale row (first_seen resets)
+        // and reappears via insert rather than an in-place update.
+        for pid in &gone {
+            tx.execute("DELETE FROM agents WHERE pid=?1", params![pid])?;
+        }
         for a in agents {
             tx.execute(
-                "INSERT INTO agents (pid,ppid,tty,command,cwd,session_file,first_seen,last_seen)
-                 VALUES (?1,?2,?3,?4,?5,?6,?7,?7)
+                "INSERT INTO agents (pid,ppid,tty,command,cwd,session_file,start_time_ms,first_seen,last_seen)
+                 VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?8)
                  ON CONFLICT(pid) DO UPDATE SET
                    ppid=excluded.ppid, tty=excluded.tty, command=excluded.command,
                    cwd=excluded.cwd, session_file=excluded.session_file,
+                   start_time_ms=excluded.start_time_ms,
                    last_seen=excluded.last_seen",
-                params![a.pid, a.ppid, a.tty, a.command, a.cwd, a.session_file, now],
+                params![a.pid, a.ppid, a.tty, a.command, a.cwd, a.session_file, a.start_time_ms, now],
             )?;
-        }
-        for pid in &gone {
-            tx.execute("DELETE FROM agents WHERE pid=?1", params![pid])?;
         }
         tx.commit()?;
         Ok((appeared, gone))
@@ -163,7 +212,7 @@ impl Store {
     pub fn list_agents(&self) -> Result<Vec<Value>> {
         let conn = self.conn.lock().unwrap();
         let mut s = conn.prepare(
-            "SELECT pid,ppid,tty,command,cwd,session_file,first_seen,last_seen FROM agents ORDER BY pid",
+            "SELECT pid,ppid,tty,command,cwd,session_file,start_time_ms,first_seen,last_seen FROM agents ORDER BY pid",
         )?;
         let rows = s.query_map([], |r| {
             Ok(serde_json::json!({
@@ -173,8 +222,9 @@ impl Store {
                 "command": r.get::<_, Option<String>>(3)?,
                 "cwd": r.get::<_, Option<String>>(4)?,
                 "sessionFilePath": r.get::<_, Option<String>>(5)?,
-                "firstSeen": r.get::<_, i64>(6)?,
-                "lastSeen": r.get::<_, i64>(7)?,
+                "startTime": r.get::<_, Option<i64>>(6)?,
+                "firstSeen": r.get::<_, i64>(7)?,
+                "lastSeen": r.get::<_, i64>(8)?,
             }))
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()
@@ -220,6 +270,13 @@ mod tests {
         }
     }
 
+    fn proc_started(pid: i64, start: i64) -> AgentProc {
+        AgentProc {
+            start_time_ms: Some(start),
+            ..proc(pid)
+        }
+    }
+
     #[test]
     fn registry_roundtrip() {
         let (s, _p) = tmp_store();
@@ -258,6 +315,42 @@ mod tests {
         assert_eq!(gone, vec![10]);
         let agents = s.list_agents().unwrap();
         assert_eq!(agents.len(), 2);
+    }
+
+    #[test]
+    fn pid_reuse_is_disappear_plus_appear_and_resets_first_seen() {
+        let (s, _p) = tmp_store();
+        let (app, gone) = s.apply_agent_snapshot(&[proc_started(10, 1000)]).unwrap();
+        assert_eq!(app, vec![10]);
+        assert!(gone.is_empty());
+        let first_seen = s.list_agents().unwrap()[0]["firstSeen"].as_i64().unwrap();
+
+        // Same pid, different start time → the OS reused it. Must read as a
+        // disappear+appear pair, not a silent continuation.
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let (app, gone) = s.apply_agent_snapshot(&[proc_started(10, 2000)]).unwrap();
+        assert_eq!(app, vec![10]);
+        assert_eq!(gone, vec![10]);
+        let row = &s.list_agents().unwrap()[0];
+        assert_eq!(row["startTime"], serde_json::json!(2000));
+        assert!(row["firstSeen"].as_i64().unwrap() > first_seen);
+    }
+
+    #[test]
+    fn events_table_is_bounded_by_retention() {
+        let (s, _p) = tmp_store();
+        for i in 0..(EVENT_RETENTION + 2 * PRUNE_EVERY) {
+            s.emit("tick", &serde_json::json!({"i": i})).unwrap();
+        }
+        let conn = s.conn.lock().unwrap();
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM events", [], |r| r.get(0))
+            .unwrap();
+        let min_seq: i64 = conn
+            .query_row("SELECT MIN(seq) FROM events", [], |r| r.get(0))
+            .unwrap();
+        assert!(count <= EVENT_RETENTION + PRUNE_EVERY);
+        assert!(min_seq > 0);
     }
 
     #[test]
