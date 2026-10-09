@@ -1,7 +1,7 @@
 import { DaemonClient, ensureDaemon } from "@ai-devkit/daemon-client";
 
 /**
- * Attach to the daemon event stream so agent lifecycle/registry changes
+ * Attach to the daemon event stream so agent lifecycle changes
  * trigger a console refresh. Returns the live client on success (caller owns
  * close()); null when the daemon is absent or subscribe fails — callers then
  * keep interval polling. `onSubscribed` fires once the stream is live so the

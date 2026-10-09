@@ -39,11 +39,10 @@ changes.
 | `ping` | — | `{pong, startedAt}` |
 | `daemon.status` | — | `{version, startedAt, socket}` |
 | `registry.get` | `{scope, name?}` | single value, or `{name: value}` map for the scope |
-| `registry.put` | `{scope, name, value}` | `{ok}`; emits `registry.changed` |
-| `registry.delete` | `{scope, name}` | `{ok}`; emits `registry.changed` |
+| `registry.put` | `{scope, name, value}` | `{ok}` |
+| `registry.delete` | `{scope, name}` | `{ok}` |
 | `agent.list` | — | array of fully attributed `AgentInfo` rows — authoritative for all harness types |
-| `subscribe` | `{afterSeq?}` | ack `{subscribed}`, then event frames; replays persisted events after `afterSeq` first |
-| `events.replay` | `{afterSeq?, limit?}` | array of events |
+| `subscribe` | `{afterSeq?, liveOnly?}` | ack `{subscribed}`, then event frames; replays persisted events after `afterSeq` first unless `liveOnly` |
 | `shutdown` | — | `{ok}`; daemon exits after the response flushes |
 
 Registry scopes in use: `channel-bridges` (channel.service — live bridge
@@ -72,7 +71,7 @@ rusqlite (bundled), WAL journal, `synchronous=NORMAL`. Three tables:
 
 Mutations append to `events` and publish to a `tokio::broadcast` channel.
 `subscribe` first drains persisted events with `seq > afterSeq` (at-least-once
-across reconnects), acks, then streams live frames. Kinds: `registry.changed`,
+across reconnects), acks, then streams live frames. Kinds:
 `agent.appeared`, `agent.disappeared`. Lifecycle payloads carry
 `{pid, agents: EnrichedAgent[]}` — appeared looks up the fresh sweep cache,
 disappeared the previous one (last-known info; unattributed procs get `[]`).
@@ -135,8 +134,8 @@ callers degrade to pre-daemon behavior.
 `useAgentList` (`cli/src/tui/console/hooks/useAgentList.ts`) currently re-runs
 `manager.listAgents` every 3s regardless of whether anything changed. Migrated
 design: on mount the hook calls `DaemonClient.tryConnect` / `ensureDaemon`; on
-success it `subscribe`s and each `agent.appeared` / `agent.disappeared` /
-`registry.changed` frame triggers an immediate `refresh()`. The interval drops
+success it `subscribe`s and each `agent.appeared` / `agent.disappeared`
+frame triggers an immediate `refresh()`. The interval drops
 to a slow fallback (60s) covering attribution drift the daemon can't see
 (session-file paths, model, status text — all harness knowledge). On subscribe
 failure the hook keeps today's 3s interval — zero behavior change without a

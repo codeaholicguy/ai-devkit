@@ -121,10 +121,7 @@ impl Daemon {
                 };
                 let value = &req.params["value"];
                 match self.store.registry_put(scope, name, value) {
-                    Ok(()) => {
-                        self.emit("registry.changed", json!({"scope": scope, "name": name}));
-                        Response::ok(id, json!({"ok": true}))
-                    }
+                    Ok(()) => Response::ok(id, json!({"ok": true})),
                     Err(e) => Response::err(id, e.to_string()),
                 }
             }
@@ -134,13 +131,7 @@ impl Daemon {
                     return Response::err(id, "params.name required");
                 };
                 match self.store.registry_delete(scope, name) {
-                    Ok(()) => {
-                        self.emit(
-                            "registry.changed",
-                            json!({"scope": scope, "name": name, "deleted": true}),
-                        );
-                        Response::ok(id, json!({"ok": true}))
-                    }
+                    Ok(()) => Response::ok(id, json!({"ok": true})),
                     Err(e) => Response::err(id, e.to_string()),
                 }
             }
@@ -194,17 +185,6 @@ impl Daemon {
                 *self.readiness_cache.write().unwrap() =
                     Some((cache_key, std::time::Instant::now(), result.clone()));
                 Response::ok(id, result)
-            }
-            "events.replay" => {
-                let after = req.params["afterSeq"].as_u64().unwrap_or(0);
-                // Clamp instead of truncating — `as u32` would wrap a large
-                // u64 back to a small replay window.
-                let limit = u32::try_from(req.params["limit"].as_u64().unwrap_or(1000))
-                    .unwrap_or(u32::MAX);
-                match self.store.events_after(after, limit) {
-                    Ok(v) => Response::ok(id, serde_json::to_value(v).unwrap()),
-                    Err(e) => Response::err(id, e.to_string()),
-                }
             }
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
@@ -511,8 +491,9 @@ mod tests {
     async fn end_to_end_rpc_subscribe_replay_and_live() {
         let (d, sock) = test_daemon().await;
 
-        let r = rpc(&sock, r#"{"id":1,"method":"registry.put","params":{"scope":"channels","name":"a","value":{"t":1}}}"#).await;
-        assert_eq!(r["result"]["ok"], true);
+        // Persisted directly so subscribe replays it — registry writes no
+        // longer emit events of their own.
+        d.store.emit("test.base", &json!({})).unwrap();
 
         // Subscribe from seq 0: the persisted event replays before live frames.
         let mut s = UnixStream::connect(&sock).await.unwrap();
@@ -523,18 +504,18 @@ mod tests {
         let mut lines = BufReader::new(s).lines();
         // Replay may include discovery events (the sweep ticks immediately);
         // read until the subscribe ack, collecting replayed events.
-        let mut saw_registry_changed = false;
+        let mut saw_base = false;
         loop {
             let line: Value =
                 serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
             if line["result"]["subscribed"] == true {
                 break;
             }
-            if line["event"]["kind"] == "registry.changed" {
-                saw_registry_changed = true;
+            if line["event"]["kind"] == "test.base" {
+                saw_base = true;
             }
         }
-        assert!(saw_registry_changed);
+        assert!(saw_base);
 
         let d2 = d.clone();
         tokio::spawn(async move {
