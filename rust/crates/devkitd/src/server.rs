@@ -202,7 +202,12 @@ impl Daemon {
     /// `isCandidateProcess` gating; dedicated-binary procs stay raw-visible
     /// so unported harnesses still surface.
     pub fn apply_sweep(&self) {
-        let all = devkit_core::discover::sweep();
+        let Some(all) = devkit_core::discover::sweep() else {
+            // ps failed — keep the last good snapshot rather than wiping the
+            // agent table and storming phantom disappeared/appeared events.
+            tracing::warn!("discovery sweep failed; keeping previous snapshot");
+            return;
+        };
         let candidate_pids: std::collections::HashSet<i64> = all
             .iter()
             .filter(|p| self.enricher.any_can_handle(p))

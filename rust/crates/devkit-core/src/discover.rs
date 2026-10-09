@@ -59,17 +59,22 @@ pub fn is_runtime_command(cmd: &str) -> bool {
 
 /// Single `ps -axo` sweep — replaces the per-invocation shell-outs the CLI does
 /// today. Runs once per interval for all subscribers.
-pub fn sweep() -> Vec<AgentProc> {
-    let Ok(out) = Command::new("ps")
+///
+/// Returns `None` when `ps` fails — the caller must NOT apply an empty
+/// snapshot in that case or a transient failure would wipe the agent table
+/// and emit a mass of phantom disappeared/appeared events.
+pub fn sweep() -> Option<Vec<AgentProc>> {
+    let out = Command::new("ps")
         .args(["-axo", "pid=,ppid=,tty=,command="])
         .output()
-    else {
-        return Vec::new();
-    };
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
     let text = String::from_utf8_lossy(&out.stdout);
     let mut procs = parse_ps_output(&text, true);
     procs.sort_by_key(|p| p.pid);
-    procs
+    Some(procs)
 }
 
 /// Parse `ps -axo pid=,ppid=,tty=,command=` output into agent procs.
