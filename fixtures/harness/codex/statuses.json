@@ -1,0 +1,112 @@
+{
+  "adapter": "codex",
+  "capturedAt": "synthetic",
+  "frozenNow": 1760000400000,
+  "processes": [
+    {
+      "pid": 4001,
+      "ppid": 1,
+      "tty": "pts/0",
+      "command": "codex",
+      "cwd": "/proj/st-run",
+      "startTime": "2025-10-09T08:50:30.000Z"
+    },
+    {
+      "pid": 4002,
+      "ppid": 1,
+      "tty": "pts/1",
+      "command": "codex",
+      "cwd": "/proj/st-msg",
+      "startTime": "2025-10-09T08:50:30.000Z"
+    },
+    {
+      "pid": 4003,
+      "ppid": 1,
+      "tty": "pts/2",
+      "command": "codex",
+      "cwd": "/proj/st-complete",
+      "startTime": "2025-10-09T08:50:30.000Z"
+    },
+    {
+      "pid": 4004,
+      "ppid": 1,
+      "tty": "pts/3",
+      "command": "codex",
+      "cwd": "/proj/st-aborted",
+      "startTime": "2025-10-09T08:50:30.000Z"
+    },
+    {
+      "pid": 4005,
+      "ppid": 1,
+      "tty": "pts/4",
+      "command": "codex",
+      "cwd": "/proj/st-idle",
+      "startTime": "2025-10-09T08:50:30.000Z"
+    }
+  ],
+  "home": {
+    ".codex/ai-devkit/sessions.json": "{\"4001\": \"$FIXTURE_HOME/.codex/sessions/fixed/run.jsonl\", \"4002\": \"$FIXTURE_HOME/.codex/sessions/fixed/wait_msg.jsonl\", \"4003\": \"$FIXTURE_HOME/.codex/sessions/fixed/wait_complete.jsonl\", \"4004\": \"$FIXTURE_HOME/.codex/sessions/fixed/wait_aborted.jsonl\", \"4005\": \"$FIXTURE_HOME/.codex/sessions/fixed/idle.jsonl\"}",
+    ".codex/sessions/fixed/run.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"d0000000-0000-0000-0000-000000000001\",\"cwd\":\"/proj/st-run\",\"timestamp\":\"2025-10-09T08:50:00.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:59:00.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"item_completed\",\"item\":{\"type\":\"UserMessage\",\"content\":\"keep working\"}}}\n",
+    ".codex/sessions/fixed/wait_msg.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"d0000000-0000-0000-0000-000000000002\",\"cwd\":\"/proj/st-wait\",\"timestamp\":\"2025-10-09T08:50:00.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:59:00.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"done, waiting\"}]}}\n",
+    ".codex/sessions/fixed/wait_complete.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"d0000000-0000-0000-0000-000000000003\",\"cwd\":\"/proj/st-done\",\"timestamp\":\"2025-10-09T08:50:00.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:59:00.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"task_complete\",\"message\":\"task done\"}}\n",
+    ".codex/sessions/fixed/wait_aborted.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"d0000000-0000-0000-0000-000000000004\",\"cwd\":\"/proj/st-abort\",\"timestamp\":\"2025-10-09T08:50:00.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:59:00.000Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"turn_aborted\"}}\n",
+    ".codex/sessions/fixed/idle.jsonl": "{\"timestamp\":\"2025-10-09T08:50:00.000Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"d0000000-0000-0000-0000-000000000005\",\"cwd\":\"/proj/st-idle\",\"timestamp\":\"2025-10-09T08:50:00.000Z\"}}\n{\"timestamp\":\"2025-10-09T08:40:00.000Z\",\"type\":\"response_item\",\"payload\":{\"type\":\"message\",\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"old reply\"}]}}\n"
+  },
+  "expected": [
+    {
+      "name": "st-run-4001",
+      "type": "codex",
+      "status": "running",
+      "summary": "keep working",
+      "pid": 4001,
+      "projectPath": "/proj/st-run",
+      "sessionId": "d0000000-0000-0000-0000-000000000001",
+      "lastActive": "2025-10-09T08:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/fixed/run.jsonl"
+    },
+    {
+      "name": "st-wait-4002",
+      "type": "codex",
+      "status": "waiting",
+      "summary": "done, waiting",
+      "pid": 4002,
+      "projectPath": "/proj/st-wait",
+      "sessionId": "d0000000-0000-0000-0000-000000000002",
+      "lastActive": "2025-10-09T08:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/fixed/wait_msg.jsonl"
+    },
+    {
+      "name": "st-done-4003",
+      "type": "codex",
+      "status": "waiting",
+      "summary": "task done",
+      "pid": 4003,
+      "projectPath": "/proj/st-done",
+      "sessionId": "d0000000-0000-0000-0000-000000000003",
+      "lastActive": "2025-10-09T08:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/fixed/wait_complete.jsonl"
+    },
+    {
+      "name": "st-abort-4004",
+      "type": "codex",
+      "status": "waiting",
+      "summary": "Codex session active",
+      "pid": 4004,
+      "projectPath": "/proj/st-abort",
+      "sessionId": "d0000000-0000-0000-0000-000000000004",
+      "lastActive": "2025-10-09T08:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/fixed/wait_aborted.jsonl"
+    },
+    {
+      "name": "st-idle-4005",
+      "type": "codex",
+      "status": "idle",
+      "summary": "old reply",
+      "pid": 4005,
+      "projectPath": "/proj/st-idle",
+      "sessionId": "d0000000-0000-0000-0000-000000000005",
+      "lastActive": "2025-10-09T08:40:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.codex/sessions/fixed/idle.jsonl"
+    }
+  ]
+}

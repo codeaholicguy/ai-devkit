@@ -1,0 +1,93 @@
+{
+  "adapter": "grok_cli",
+  "capturedAt": "2026-10-09T08:03:00.000Z",
+  "frozenNow": 1791532980000,
+  "processes": [
+    {
+      "pid": 80001,
+      "ppid": 1000,
+      "tty": "ttys020",
+      "command": "grok",
+      "cwd": "/proj/proc-cwd",
+      "startTime": "2026-10-09T07:50:00.000Z"
+    },
+    {
+      "pid": 80002,
+      "ppid": 1000,
+      "tty": "ttys021",
+      "command": "grok",
+      "cwd": "/proj/nosess",
+      "startTime": "2026-10-09T07:51:00.000Z"
+    },
+    {
+      "pid": 80003,
+      "ppid": 1000,
+      "tty": "ttys022",
+      "command": "/home/u/.grok/bin/grok",
+      "cwd": "/proj/active-cwd",
+      "startTime": "2026-10-09T07:52:00.000Z"
+    },
+    {
+      "pid": 80030,
+      "ppid": 1000,
+      "tty": "ttys023",
+      "command": "node server.js",
+      "cwd": "/proj/d",
+      "startTime": "2026-10-09T07:53:00.000Z"
+    },
+    {
+      "pid": 80031,
+      "ppid": 1000,
+      "tty": "ttys023",
+      "command": "grok-helper",
+      "cwd": "/proj/d",
+      "startTime": "2026-10-09T07:53:00.000Z"
+    }
+  ],
+  "home": {
+    ".grok/active_sessions.json": "[{\"pid\":80001,\"cwd\":\"/proj/x\",\"opened_at\":1791532000000}]",
+    ".grok/sessions/%2Fproj%2Fx/sess-old/chat_history.jsonl": "{\"type\":\"user\",\"content\":\"<user_query>older task</user_query>\"}\n{\"type\":\"assistant\",\"content\":\"done\"}\n",
+    ".grok/sessions/%2Fproj%2Fx/sess-new/chat_history.jsonl": "{\"type\":\"user\",\"content\":\"<user_info>context blob</user_info>\"}\n{\"type\":\"user\",\"content\":\"<user_query>fix the flaky test</user_query>\"}\n{\"type\":\"assistant\",\"content\":[{\"type\":\"text\",\"text\":\"working on \"},{\"type\":\"text\",\"text\":\"it\"}]}\n",
+    ".grok/sessions/%2Fproj%2Factive-cwd/sess-2/chat_history.jsonl": "{\"type\":\"user\",\"content\":\"<user_query>second task</user_query>\"}\n"
+  },
+  "mtimes": {
+    ".grok/sessions/%2Fproj%2Fx/sess-old/chat_history.jsonl": 1791532000000,
+    ".grok/sessions/%2Fproj%2Fx/sess-new/chat_history.jsonl": 1791532800000,
+    ".grok/sessions/%2Fproj%2Factive-cwd/sess-2/chat_history.jsonl": 1791532920000
+  },
+  "registry": [],
+  "expected": [
+    {
+      "name": "x-80001",
+      "type": "grok_cli",
+      "status": "waiting",
+      "summary": "fix the flaky test",
+      "pid": 80001,
+      "projectPath": "/proj/x",
+      "sessionId": "sess-new",
+      "lastActive": "2026-10-09T08:00:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.grok/sessions/%2Fproj%2Fx/sess-new/chat_history.jsonl"
+    },
+    {
+      "name": "nosess-80002",
+      "type": "grok_cli",
+      "status": "running",
+      "summary": "Grok CLI process running",
+      "pid": 80002,
+      "projectPath": "/proj/nosess",
+      "sessionId": "pid-80002",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    },
+    {
+      "name": "active-cwd-80003",
+      "type": "grok_cli",
+      "status": "running",
+      "summary": "second task",
+      "pid": 80003,
+      "projectPath": "/proj/active-cwd",
+      "sessionId": "sess-2",
+      "lastActive": "2026-10-09T08:02:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.grok/sessions/%2Fproj%2Factive-cwd/sess-2/chat_history.jsonl"
+    }
+  ]
+}

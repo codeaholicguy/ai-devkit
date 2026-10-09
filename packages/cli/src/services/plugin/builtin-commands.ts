@@ -1,0 +1,16 @@
+export const BUILT_IN_COMMAND_NAMES = new Set([
+  "init",
+  "phase",
+  "lint",
+  "install",
+  "memory",
+  "skill",
+  "agent",
+  "channel",
+  "docs",
+  "plugin",
+  "setup",
+  "capacity",
+  "status",
+  "daemon",
+]);

@@ -1,0 +1,111 @@
+{
+  "adapter": "copilot",
+  "capturedAt": "2026-10-09T08:03:00.000Z",
+  "frozenNow": 1791532980000,
+  "processes": [
+    {
+      "pid": 60001,
+      "ppid": 1000,
+      "tty": "ttys001",
+      "command": "copilot --resume",
+      "cwd": "/proj/a",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60010,
+      "ppid": 1000,
+      "tty": "ttys002",
+      "command": "copilot",
+      "cwd": "/proj/b",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60011,
+      "ppid": 60010,
+      "tty": "ttys002",
+      "command": "copilot",
+      "cwd": "/proj/b",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60020,
+      "ppid": 1000,
+      "tty": "ttys003",
+      "command": "/usr/local/bin/copilot",
+      "cwd": "/proj/c",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60030,
+      "ppid": 1000,
+      "tty": "ttys004",
+      "command": "node server.js",
+      "cwd": "/proj/d",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60031,
+      "ppid": 1000,
+      "tty": "ttys004",
+      "command": "copilot-helper --daemon",
+      "cwd": "/proj/d",
+      "startTime": "$NOW"
+    }
+  ],
+  "home": {
+    ".copilot/session-state/dir-aaa/inuse.60001.lock": "",
+    ".copilot/session-state/dir-aaa/events.jsonl": "{\"type\":\"session.start\",\"data\":{\"sessionId\":\"sess-evt-aaa\",\"startTime\":\"2026-10-09T07:58:30.000Z\",\"context\":{\"cwd\":\"/proj/a\",\"gitRoot\":\"/proj/a\",\"branch\":\"main\"}},\"timestamp\":\"2026-10-09T07:58:30.000Z\"}\n{\"type\":\"user.message\",\"data\":{\"content\":\"check the logs\"},\"timestamp\":\"2026-10-09T08:00:00.000Z\"}\n{\"type\":\"assistant.message\",\"data\":{\"content\":\"looking now\"},\"timestamp\":\"2026-10-09T08:01:00.000Z\"}\n",
+    ".copilot/session-state/dir-aaa/workspace.yaml": "id: ws-ignored\ncwd: /proj/ignored\nname: ignored name\n",
+    ".copilot/session-state/dir-bbb/inuse.60001.lock": "",
+    ".copilot/session-state/dir-ccc/inuse.99999.lock": "",
+    ".copilot/session-state/dir-ccc/events.jsonl": "{\"type\":\"session.start\",\"data\":{\"sessionId\":\"sess-dead\",\"context\":{\"cwd\":\"/proj/dead\"}},\"timestamp\":\"2026-10-09T07:00:00.000Z\"}\n{\"type\":\"user.message\",\"data\":{\"content\":\"old session\"},\"timestamp\":\"2026-10-09T07:01:00.000Z\"}\n"
+  },
+  "registry": [
+    {
+      "name": "wrapped-copilot",
+      "type": "copilot",
+      "pid": 60010,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/proj/b",
+      "startedAt": "2026-10-09T07:58:00.000Z",
+      "sessionId": "",
+      "sessionFilePath": "",
+      "pinned": false,
+      "updatedAt": "2026-10-09T07:59:00.000Z"
+    }
+  ],
+  "expected": [
+    {
+      "name": "a-60001",
+      "type": "copilot",
+      "status": "waiting",
+      "summary": "check the logs",
+      "pid": 60001,
+      "projectPath": "/proj/a",
+      "sessionId": "sess-evt-aaa",
+      "lastActive": "2026-10-09T08:01:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.copilot/session-state/dir-aaa/events.jsonl"
+    },
+    {
+      "name": "wrapped-copilot",
+      "type": "copilot",
+      "status": "running",
+      "summary": "Copilot process running",
+      "pid": 60011,
+      "projectPath": "/proj/b",
+      "sessionId": "pid-60011",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    },
+    {
+      "name": "c-60020",
+      "type": "copilot",
+      "status": "running",
+      "summary": "Copilot process running",
+      "pid": 60020,
+      "projectPath": "/proj/c",
+      "sessionId": "pid-60020",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    }
+  ]
+}

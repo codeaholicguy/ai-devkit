@@ -1,0 +1,113 @@
+---
+phase: requirements
+title: Polyglot monorepo structure — devkitd rename, devkit-core split, Nx cargo wiring
+description: Restructure the repo so Rust and TypeScript are first-class citizens in one task graph; rename ai-devkitd to devkitd; split devkit-core; generate TS protocol types from Rust
+---
+
+# Requirements — devkitd-monorepo
+
+## Problem Statement
+
+The rust-daemon feature landed `rust/ai-devkitd` as a single crate while the
+rest of the repo is an Nx-managed npm workspace. Three structural seams will
+hurt as the daemon absorbs more logic (dumb-console direction, harness
+knowledge port, scheduled work):
+
+1. **Two build graphs.** Nx has no project for the Rust workspace. The
+   `@ai-devkit/daemon-client` dependency on the compiled daemon binary
+   (`rust/target/{release,debug}/ai-devkitd`) cannot be expressed, cached, or
+   enforced — a stale or missing binary degrades silently to fallback behavior.
+2. **Drifting wire contract.** `proto.rs` serde structs and the daemon-client
+   TS types are hand-mirrored in two languages; only tests keep them honest.
+3. **No room to grow.** The daemon is one binary crate; the planned knowledge
+   port (harness parsers in Rust, golden-fixture corpus) and any future Rust
+   tools have no library target to build against.
+
+Additionally `ai-devkitd` is an awkward name (9 chars, unpronounceable); the
+rename surface is small now and grows once per-platform npm binary packages
+ship.
+
+## Goals & Objectives
+
+**Primary:**
+
+- Rename the daemon crate/binary `ai-devkitd` → `devkitd` everywhere it is
+  referenced (cargo, daemon-client binary resolution, CLI daemon command, docs).
+- Split `rust/` into a multi-crate workspace: `crates/devkitd` (binary) and
+  `crates/devkit-core` (proto, store, discovery as a library).
+- Wire cargo into the Nx graph via `nx:run-commands` targets (`build`, `test`,
+  `lint`/`clippy`, `fmt`) with proper inputs/outputs so builds cache correctly.
+- Generate TypeScript protocol types from `devkit-core` via `ts-rs` into
+  `packages/daemon-client/src/gen/`, eliminating hand-mirrored types.
+
+**Secondary:**
+
+- Express `daemon-client:build`'s dependency on the daemon binary in Nx.
+- Record the longer-term layout (`apps/` split, `devkit-harness` crates,
+  `fixtures/` corpus, per-platform binary packages) as decisions so follow-on
+  work has a target.
+
+**Non-goals:**
+
+- Moving `packages/*` under `libs/` or splitting `apps/cli` now — deferred
+  until the console is actually dumb.
+- Moving `web/` into the workspace/Nx — it has its own lockfile and deploy.
+- Harness parser port, `devkit-harness` crates, fixtures corpus (v1.5+).
+- Bridge supervision, scheduler/cron in the daemon (v1.5+).
+- Switching orchestrators (moonrepo/Bazel) or protocols (gRPC/protobuf).
+- Renaming the npm package `@ai-devkit/daemon-client` or the socket path
+  (`~/.ai-devkit/daemon.sock` stays — it's already product-scoped).
+
+## User Stories & Use Cases
+
+- As a maintainer, I run `nx run-many -t build` and the Rust daemon builds in
+  the same task graph as TS packages, cached by content hash.
+- As a maintainer, I change `proto.rs` and the generated TS types update —
+  the wire contract cannot drift silently.
+- As a developer adding a Rust harness-parser crate later, I depend on
+  `devkit-core` instead of forking the daemon binary crate.
+- As a user, `ai-devkit daemon status` and autostart resolve a binary named
+  `devkitd` transparently.
+
+## Success Criteria
+
+- `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test` green in the
+  restructured workspace.
+- `nx run-many -t build,test,lint` green including the new rust project(s);
+  rerunning `nx build rust` hits cache (Nx cache hit reported).
+- `devkit-client` build/typecheck passes against generated types; no
+  hand-maintained copies of `Request`/`Response`/`Event` field shapes remain.
+- Binary resolution order (`AI_DEVKITD_BIN` env → platform pkg →
+  `~/.ai-devkit/bin/` → `rust/target/...`) works with the new name; the
+  existing daemon integration tests pass unmodified in behavior.
+- Repo still degrades gracefully when the daemon binary is absent.
+
+## Constraints & Assumptions
+
+- Keep Nx (no orchestrator migration). Cargo owns Rust compilation; Nx wraps
+  it via `nx:run-commands` with declared inputs (`rust/**/*.rs`,
+  `Cargo.toml`, `Cargo.lock`) and outputs (`rust/target`).
+- `ts-rs` added as a dev-dependency of `devkit-core`; generated files are
+  checked in or generated pre-build — decide in design (prefer generated at
+  build time via a cargo test/`xtask`-style command to avoid stale checkins).
+- Binary rename: `DEVKITD_BIN` becomes the primary env var;
+  `AI_DEVKITD_BIN` kept as a deprecated alias (pre-release feature, low
+  cost).
+- Assumption: user wants the staged Option B from the brainstorm (crate split +
+  Nx wiring + ts-rs now; apps/ split and harness crates later).
+
+## Questions & Open Items — resolved
+
+- **Generated TS types**: checked into `packages/daemon-client/src/gen/`,
+  regenerated by `cargo test -p devkit-core` (ts-rs export bindings). Keeps
+  pure-TS builds free of a cargo toolchain requirement; drift is caught
+  because tests dirty the tree in CI.
+- **Env var**: primary `DEVKITD_BIN`; `AI_DEVKITD_BIN` accepted as a
+  deprecated alias. The rust-daemon feature is unreleased, so no back-compat
+  for the binary *filename* itself.
+- **cli → rust edge**: runtime binary resolution only. No `dependsOn` from
+  TS packages onto cargo builds; shipping uses platform binary packages, and
+  dev uses `rust/target`. Only `daemon-client:build` depends on the
+  `codegen` step, expressed via input files, not a cargo invocation.
+- **Crate layout**: `rust/crates/{devkitd,devkit-core}` — matches cargo
+  conventions and leaves room for `devkit-harness` later.

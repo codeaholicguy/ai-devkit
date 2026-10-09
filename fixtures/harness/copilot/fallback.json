@@ -1,0 +1,84 @@
+{
+  "adapter": "copilot",
+  "capturedAt": "2026-10-09T08:03:00.000Z",
+  "frozenNow": 1791532980000,
+  "processes": [
+    {
+      "pid": 70002,
+      "ppid": 1000,
+      "tty": "ttys011",
+      "command": "copilot",
+      "cwd": "/proj/ev",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 70003,
+      "ppid": 1000,
+      "tty": "ttys012",
+      "command": "copilot",
+      "cwd": "/proj/free",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 70011,
+      "ppid": 70010,
+      "tty": "ttys013",
+      "command": "copilot",
+      "cwd": "/proj/child",
+      "startTime": "$NOW"
+    }
+  ],
+  "home": {
+    ".copilot/session-state/dir-aaa/inuse.70002.lock": "",
+    ".copilot/session-state/dir-aaa/events.jsonl": "{\"type\":\"session.start\",\"data\":{\"sessionId\":\"sess-ev\",\"context\":{\"cwd\":\"/proj/ev\"}},\"timestamp\":\"2026-10-09T07:56:00.000Z\"}\n{\"type\":\"user.message\",\"data\":{\"content\":\"second prompt\"},\"timestamp\":\"2026-10-09T08:02:00.000Z\"}\n",
+    ".copilot/session-state/dir-bbb/inuse.70011.lock": ""
+  },
+  "registry": [
+    {
+      "name": "wrong-type-row",
+      "type": "pi",
+      "pid": 70003,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/proj/free",
+      "startedAt": "2026-10-09T07:57:00.000Z",
+      "sessionId": "",
+      "sessionFilePath": "",
+      "pinned": false,
+      "updatedAt": "2026-10-09T07:57:00.000Z"
+    }
+  ],
+  "expected": [
+    {
+      "name": "ev-70002",
+      "type": "copilot",
+      "status": "running",
+      "summary": "second prompt",
+      "pid": 70002,
+      "projectPath": "/proj/ev",
+      "sessionId": "sess-ev",
+      "lastActive": "2026-10-09T08:02:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.copilot/session-state/dir-aaa/events.jsonl"
+    },
+    {
+      "name": "free-70003",
+      "type": "copilot",
+      "status": "running",
+      "summary": "Copilot process running",
+      "pid": 70003,
+      "projectPath": "/proj/free",
+      "sessionId": "pid-70003",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    },
+    {
+      "name": "child-70011",
+      "type": "copilot",
+      "status": "running",
+      "summary": "Copilot process running",
+      "pid": 70011,
+      "projectPath": "/proj/child",
+      "sessionId": "pid-70011",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@ai-devkit/devkitd-darwin-x64",
+  "version": "0.0.0",
+  "description": "devkitd binary for macOS x64",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
+    "directory": "npm/devkitd-darwin-x64"
+  },
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "files": ["devkitd"],
+  "publishConfig": {
+    "access": "public"
+  }
+}

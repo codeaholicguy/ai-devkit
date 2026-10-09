@@ -1,0 +1,97 @@
+name: Publish devkitd Platform Packages
+
+on:
+  release:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build and publish from (e.g., cli@0.67.0)'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-publish:
+    name: Build and publish @ai-devkit/devkitd-${{ matrix.pkg }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux targets are musl-static so one binary covers glibc and
+          # Alpine/musl hosts.
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            pkg: darwin-arm64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            pkg: darwin-x64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            pkg: linux-x64
+            musl-tools: true
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            pkg: linux-arm64
+            cross: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.sha }}
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install musl toolchain
+        if: matrix.musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Install cross
+        if: matrix.cross
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+
+      - name: Build devkitd
+        working-directory: ./rust
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }} -p devkitd
+          else
+            cargo build --release --target ${{ matrix.target }} -p devkitd
+          fi
+          BIN=target/${{ matrix.target }}/release/devkitd
+          file "$BIN" 2>/dev/null || true
+          test -x "$BIN"
+
+      - name: Stage platform package
+        run: |
+          OUT=out/devkitd-${{ matrix.pkg }}
+          mkdir -p "$OUT"
+          cp npm/devkitd-${{ matrix.pkg }}/package.json "$OUT/"
+          cp rust/target/${{ matrix.target }}/release/devkitd "$OUT/devkitd"
+          chmod +x "$OUT/devkitd"
+
+      - name: Stamp version
+        working-directory: ./out/devkitd-${{ matrix.pkg }}
+        # Platform packages version in lockstep with daemon-client — its
+        # optionalDependencies pin the same version.
+        run: npm pkg set version="$(node -p "require('$GITHUB_WORKSPACE/packages/daemon-client/package.json').version")"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish to NPM
+        working-directory: ./out/devkitd-${{ matrix.pkg }}
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

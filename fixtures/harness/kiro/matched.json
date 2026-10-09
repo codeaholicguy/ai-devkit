@@ -1,0 +1,233 @@
+{
+  "adapter": "kiro",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 1001,
+      "ppid": 900,
+      "tty": "ttys001",
+      "command": "kiro-cli",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T11:00:00.000Z"
+    },
+    {
+      "pid": 1101,
+      "ppid": 1001,
+      "tty": "ttys001",
+      "command": "kiro-cli-chat acp",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T11:00:05.000Z"
+    },
+    {
+      "pid": 1002,
+      "ppid": 900,
+      "tty": "ttys002",
+      "command": "kiro",
+      "cwd": "/proj/beta",
+      "startTime": "2025-10-09T11:05:00.000Z"
+    },
+    {
+      "pid": 1003,
+      "ppid": 900,
+      "tty": "ttys003",
+      "command": "kiro",
+      "cwd": "/proj/gamma",
+      "startTime": "2025-10-09T11:10:00.000Z"
+    },
+    {
+      "pid": 1102,
+      "ppid": 9999,
+      "tty": "ttys003",
+      "command": "kiro-cli-chat",
+      "cwd": "/proj/gamma",
+      "startTime": "2025-10-09T11:10:05.000Z"
+    },
+    {
+      "pid": 1004,
+      "ppid": 900,
+      "tty": "ttys004",
+      "command": "kiro",
+      "cwd": "/proj/delta",
+      "startTime": "2025-10-09T11:15:00.000Z"
+    },
+    {
+      "pid": 1005,
+      "ppid": 900,
+      "tty": "ttys004",
+      "command": "kiro",
+      "cwd": "/proj/delta2",
+      "startTime": "2025-10-09T11:15:10.000Z"
+    },
+    {
+      "pid": 1103,
+      "ppid": 9998,
+      "tty": "ttys004",
+      "command": "kiro-cli-chat",
+      "cwd": "/proj/delta",
+      "startTime": "2025-10-09T11:15:05.000Z"
+    },
+    {
+      "pid": 1104,
+      "ppid": 9997,
+      "tty": "??",
+      "command": "kiro-cli-chat",
+      "cwd": "/proj/orph",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    },
+    {
+      "pid": 1006,
+      "ppid": 900,
+      "tty": "??",
+      "command": "node /x/kiro-cli.js",
+      "cwd": "/proj/eps",
+      "startTime": "2025-10-09T11:25:00.000Z"
+    },
+    {
+      "pid": 1105,
+      "ppid": 900,
+      "tty": "??",
+      "command": "node /x/other.js",
+      "cwd": "/proj/other",
+      "startTime": "2025-10-09T11:26:00.000Z"
+    },
+    {
+      "pid": 1007,
+      "ppid": 900,
+      "tty": "ttys005",
+      "command": "kiro",
+      "cwd": "/proj/zeta",
+      "startTime": "2025-10-09T11:30:00.000Z"
+    },
+    {
+      "pid": 1008,
+      "ppid": 900,
+      "tty": "ttys006",
+      "command": "/usr/local/bin/kiro-cli",
+      "cwd": "/proj/eta",
+      "startTime": "2025-10-09T11:35:00.000Z"
+    }
+  ],
+  "home": {
+    ".kiro/sessions/cli/s1.lock": "{\"pid\":1101}",
+    ".kiro/sessions/cli/s1.json": "{\"session_id\":\"sess-alpha\",\"cwd\":\"/proj/alpha\",\"title\":\"alpha chat\",\"updated_at\":\"2025-10-09T12:19:00.000Z\"}",
+    ".kiro/sessions/cli/s1.jsonl": "{\"version\":\"v1\",\"kind\":\"Prompt\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"fix the alpha bug\"}],\"meta\":{\"timestamp\":1760012280}}}\n{\"version\":\"v1\",\"kind\":\"AssistantMessage\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"on it\"}],\"meta\":{\"timestamp\":1760012340}}}\n",
+    ".kiro/sessions/cli/s2.lock": "{\"pid\":1002}",
+    ".kiro/sessions/cli/s2.json": "{\"session_id\":\"sess-beta\",\"cwd\":\"/proj/beta\",\"title\":\"beta\",\"created_at\":\"2025-10-09T11:05:00.000Z\"}",
+    ".kiro/sessions/cli/s2.jsonl": "{\"version\":\"v1\",\"kind\":\"AssistantMessage\",\"timestamp\":\"2025-10-09T12:15:00.000Z\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"done\"},{\"kind\":\"toolUse\",\"data\":{\"name\":\"exec\"}}]}}\n{\"version\":\"v1\",\"kind\":\"Prompt\",\"timestamp\":\"2025-10-09T12:19:30.000Z\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"run beta tests\"}]}}\n",
+    ".kiro/sessions/cli/s3.lock": "{\"pid\":1102}",
+    ".kiro/sessions/cli/s3.jsonl": "{\"version\":\"v1\",\"kind\":\"ToolResults\",\"data\":{\"content\":[{\"kind\":\"toolResult\",\"data\":{\"status\":\"success\"}}]}}\n",
+    ".kiro/sessions/cli/s4.lock": "{\"pid\":1103}",
+    ".kiro/sessions/cli/s4.jsonl": "{\"version\":\"v1\",\"kind\":\"Prompt\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"delta\"}]}}\n",
+    ".kiro/sessions/cli/s5.lock": "{\"pid\":1006}",
+    ".kiro/sessions/cli/s5.json": "{\"title\":\"Epsilon notes\",\"cwd\":\"\",\"updated_at\":\"2025-10-09T12:14:00.000Z\"}",
+    ".kiro/sessions/cli/s5.jsonl": "{\"version\":\"v1\",\"kind\":\"AssistantMessage\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"eps reply\"},{\"kind\":\"toolUse\",\"data\":{\"name\":\"x\"}}],\"meta\":{\"timestamp\":1760012040}}}\n{\"version\":\"v1\",\"kind\":\"ToolResults\",\"data\":{\"content\":[]},\"meta\":{\"timestamp\":1760012040}}}\n",
+    ".kiro/sessions/cli/s6.lock": "{\"pid\":1007}",
+    ".kiro/sessions/cli/s7.lock": "{pid:",
+    ".kiro/sessions/cli/s8.lock": "{\"pid\":\"1101\"}",
+    ".kiro/sessions/cli/s8.json": "{\"session_id\":\"sess-alpha2\",\"title\":\"second\",\"updated_at\":\"2025-10-09T12:19:50.000Z\"}",
+    ".kiro/sessions/cli/s8.jsonl": "{\"version\":\"v1\",\"kind\":\"Prompt\",\"data\":{\"content\":[{\"kind\":\"text\",\"data\":\"another alpha ask\"}],\"meta\":{\"timestamp\":1760012370}}}\n",
+    ".kiro/sessions/cli/s9.lock": "{\"pid\":\"abc\"}",
+    ".kiro/sessions/cli/notes.txt": "ignored"
+  },
+  "mtimes": {
+    ".kiro/sessions/cli/s3.jsonl": 1760012280000
+  },
+  "expected": [
+    {
+      "name": "alpha-1001",
+      "type": "kiro",
+      "status": "waiting",
+      "summary": "fix the alpha bug",
+      "pid": 1001,
+      "projectPath": "/proj/alpha",
+      "sessionId": "sess-alpha",
+      "lastActive": "2025-10-09T12:19:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.kiro/sessions/cli/s1.jsonl"
+    },
+    {
+      "name": "beta-1002",
+      "type": "kiro",
+      "status": "running",
+      "summary": "run beta tests",
+      "pid": 1002,
+      "projectPath": "/proj/beta",
+      "sessionId": "sess-beta",
+      "lastActive": "2025-10-09T12:19:30.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.kiro/sessions/cli/s2.jsonl"
+    },
+    {
+      "name": "gamma-1003",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro session active",
+      "pid": 1003,
+      "projectPath": "/proj/gamma",
+      "sessionId": "s3",
+      "lastActive": "2025-10-09T12:18:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.kiro/sessions/cli/s3.jsonl"
+    },
+    {
+      "name": "eps-1006",
+      "type": "kiro",
+      "status": "idle",
+      "summary": "Epsilon notes",
+      "pid": 1006,
+      "projectPath": "/proj/eps",
+      "sessionId": "s5",
+      "lastActive": "2025-10-09T12:14:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.kiro/sessions/cli/s5.jsonl"
+    },
+    {
+      "name": "alpha-1001",
+      "type": "kiro",
+      "status": "running",
+      "summary": "another alpha ask",
+      "pid": 1001,
+      "projectPath": "/proj/alpha",
+      "sessionId": "sess-alpha2",
+      "lastActive": "2025-10-09T12:19:50.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.kiro/sessions/cli/s8.jsonl"
+    },
+    {
+      "name": "delta-1004",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 1004,
+      "projectPath": "/proj/delta",
+      "sessionId": "pid-1004",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "delta2-1005",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 1005,
+      "projectPath": "/proj/delta2",
+      "sessionId": "pid-1005",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "zeta-1007",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 1007,
+      "projectPath": "/proj/zeta",
+      "sessionId": "pid-1007",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "eta-1008",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 1008,
+      "projectPath": "/proj/eta",
+      "sessionId": "pid-1008",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}

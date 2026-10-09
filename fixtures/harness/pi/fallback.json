@@ -1,0 +1,83 @@
+{
+  "adapter": "pi",
+  "capturedAt": "2026-10-09T08:00:00.000Z",
+  "frozenNow": 1791532800000,
+  "processes": [
+    {
+      "pid": 40001,
+      "ppid": 1,
+      "tty": "s001",
+      "command": "pi",
+      "cwd": "/Users/fixture/stale",
+      "startTime": "2026-10-09T07:00:00.000Z"
+    },
+    {
+      "pid": 40002,
+      "ppid": 1,
+      "tty": "s002",
+      "command": "pi",
+      "cwd": "/Users/fixture/untrusted",
+      "startTime": "2026-10-09T07:10:00.000Z"
+    },
+    {
+      "pid": 40003,
+      "ppid": 1,
+      "tty": "s003",
+      "command": "pi",
+      "cwd": "/Users/fixture/broken",
+      "startTime": "2026-10-09T07:20:00.000Z"
+    }
+  ],
+  "registry": [
+    {
+      "name": "stale-claude-row",
+      "type": "claude",
+      "pid": 40001,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/stale",
+      "startedAt": "2026-10-09T07:00:00.000Z",
+      "sessionId": "s-stale",
+      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-stale--/stale.jsonl",
+      "pinned": false,
+      "updatedAt": "2026-10-09T07:05:00.000Z"
+    }
+  ],
+  "home": {
+    ".pi/agent/sessions.json": "{\"40002\":\"/tmp/outside-fixture-sessions.jsonl\",\"40003\":\"$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-broken--/broken.jsonl\"}",
+    ".pi/agent/sessions/--Users-fixture-stale--/stale.jsonl": "{\"sessionId\":\"s-stale\",\"cwd\":\"/Users/fixture/stale\",\"timestamp\":\"2026-10-09T07:00:00Z\"}\n",
+    ".pi/agent/sessions/--Users-fixture-broken--/broken.jsonl": "not json\n\n[1,2]\n"
+  },
+  "expected": [
+    {
+      "name": "stale-40001",
+      "type": "pi",
+      "status": "running",
+      "summary": "Pi process running",
+      "pid": 40001,
+      "projectPath": "/Users/fixture/stale",
+      "sessionId": "pid-40001",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    },
+    {
+      "name": "untrusted-40002",
+      "type": "pi",
+      "status": "running",
+      "summary": "Pi process running",
+      "pid": 40002,
+      "projectPath": "/Users/fixture/untrusted",
+      "sessionId": "pid-40002",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    },
+    {
+      "name": "broken-40003",
+      "type": "pi",
+      "status": "running",
+      "summary": "Pi process running",
+      "pid": 40003,
+      "projectPath": "/Users/fixture/broken",
+      "sessionId": "pid-40003",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    }
+  ]
+}
