@@ -103,14 +103,8 @@ export class ChannelService {
   }
 
   async getLiveBridges(): Promise<ChannelBridgeProcess[]> {
-    const registry = await this.readBridgeRegistry();
-    const liveEntries = Object.entries(registry.bridges).filter(([, bridge]) =>
-      this.isPidAlive(bridge.bridgePid),
-    );
-
-    const next: ChannelBridgeFile = { bridges: Object.fromEntries(liveEntries) };
-    await this.writeBridgeRegistry(next);
-    return Object.values(next.bridges);
+    const bridges = await this.listBridges();
+    return bridges.filter((bridge) => this.isPidAlive(bridge.bridgePid));
   }
 
   async getLiveBridgeByChannel(channelName: string): Promise<ChannelBridgeProcess | undefined> {
@@ -197,7 +191,18 @@ export class ChannelService {
   async unregisterBridge(channelName: string): Promise<void> {
     const registry = await this.readBridgeRegistry();
     delete registry.bridges[channelName];
+    this.pruneFileRegistry(registry);
     await this.writeBridgeRegistry(registry);
+  }
+
+  private async listBridges(): Promise<ChannelBridgeProcess[]> {
+    return Object.values((await this.readBridgeRegistry()).bridges);
+  }
+
+  private pruneFileRegistry(registry: ChannelBridgeFile): void {
+    for (const [name, bridge] of Object.entries(registry.bridges)) {
+      if (!this.isPidAlive(bridge.bridgePid)) delete registry.bridges[name];
+    }
   }
 
   private async readBridgeRegistry(): Promise<ChannelBridgeFile> {

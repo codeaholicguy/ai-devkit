@@ -7,11 +7,6 @@ import { resolveListSessionsOptions } from "../../util/sessions.js";
 import { agentTypeLabel } from "../../util/agent.js";
 import { formatRelativeTime } from "../../util/time-format.js";
 import {
-  compactSession,
-  renderSessionCompactMarkdown,
-} from "../../services/session-compact/session-compact.service.js";
-import { createJevSessionEventClassifier } from "../../services/session-compact/jev-classifier.js";
-import {
   JEV_UNAVAILABLE_MESSAGE,
   JEV_UNAVAILABLE_REASON,
 } from "../../services/session-compact/session-compact.types.js";
@@ -166,6 +161,13 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
         if (!adapter) throw new Error(`Unsupported agent type: ${resolved.type}`);
 
         const conversation = adapter.getConversation(resolved.sessionFilePath, { verbose: true });
+        // The Jev classifier pulls in the TypeSafe SDK (undici) — lazy-load
+        // so plain session browsing skips it.
+        const [{ compactSession, renderSessionCompactMarkdown }, { createJevSessionEventClassifier }] =
+          await Promise.all([
+            import("../../services/session-compact/session-compact.service.js"),
+            import("../../services/session-compact/jev-classifier.js"),
+          ]);
         const classifier = createJevSessionEventClassifier(apiKey);
         const result = await compactSession(conversation, classifier);
         console.log(

@@ -2,7 +2,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { Command } from "commander";
 import chalk from "chalk";
-import { Telegraf } from "telegraf";
+
 import {
   TELEGRAM_CHANNEL_TYPE,
   SLACK_CHANNEL_TYPE,
@@ -204,6 +204,7 @@ export function registerChannelCommand(program: Command): void {
 
           let botUsername: string;
           try {
+            const { Telegraf } = await import("telegraf");
             const bot = new Telegraf(botToken.trim());
             const me = await bot.telegram.getMe();
             botUsername = me.username;

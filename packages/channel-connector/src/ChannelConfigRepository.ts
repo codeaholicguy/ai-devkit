@@ -7,9 +7,9 @@ const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".ai-devkit", "channels.json
 const DEFAULT_CONFIG: ChannelConfig = { channels: {} };
 
 /**
- * Persists channel configurations to disk.
- * Default location: ~/.ai-devkit/channels.json
- * File permissions are set to 0600 to protect tokens.
+ * Persists channel configurations to ~/.ai-devkit/channels.json (mode 0600).
+ * Channel credentials stay file-backed on purpose — the daemon registry is
+ * not used for them.
  */
 export class ChannelConfigRepository {
   private configPath: string;

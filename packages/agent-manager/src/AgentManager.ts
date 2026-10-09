@@ -8,6 +8,8 @@
 import type {
   AgentAdapter,
   AgentInfo,
+  AgentStatus,
+  AgentType,
   SessionSummary,
   ListSessionsOptions,
   ProcessInfo,
@@ -45,6 +47,20 @@ export interface AgentManagerOptions {
     | (() => AgentRuntimeProvider | Promise<AgentRuntimeProvider>);
   fetchHerdrAgentPanes?: () => Promise<readonly HerdrAgentPane[]>;
   onRuntimeDiscoveryError?: (error: unknown) => void;
+  /**
+   * Daemon-side enriched agents ({@link DaemonClient.listAgents} wire
+   * shape: `AgentInfo` with `lastActive` as an ISO string). A non-null
+   * result is authoritative for every harness type — all local adapters
+   * are skipped. Returning null or throwing forces the local path;
+   * omitting it disables daemon consumption.
+   */
+  fetchEnrichedAgents?: () => Promise<Array<
+    Omit<AgentInfo, "lastActive" | "type" | "status"> & {
+      type: string;
+      status: string;
+      lastActive: string;
+    }
+  > | null>;
 }
 
 class AgentNotRunningError extends Error {
@@ -162,7 +178,27 @@ export class AgentManager {
     const allAgents: AgentInfo[] = [];
     const errors: Array<{ type: string; error: Error }> = [];
 
-    const adapters = Array.from(this.adapters.values());
+    // A non-null daemon answer is authoritative for every harness type, so
+    // local adapters only run when the daemon is absent.
+    let daemonAgents: AgentInfo[] | null = null;
+    if (this.options.fetchEnrichedAgents) {
+      try {
+        const enriched = await this.options.fetchEnrichedAgents();
+        if (enriched) {
+          daemonAgents = enriched.map((a) => ({
+            ...a,
+            type: a.type as AgentType,
+            status: a.status as AgentStatus,
+            lastActive: new Date(a.lastActive),
+          }));
+        }
+      } catch {
+        daemonAgents = null;
+      }
+    }
+    if (daemonAgents) allAgents.push(...daemonAgents);
+
+    const adapters = daemonAgents ? [] : Array.from(this.adapters.values());
     const processNames = Array.from(
       new Set(
         adapters.flatMap((adapter) => (adapter.processNames ? [...adapter.processNames] : [])),

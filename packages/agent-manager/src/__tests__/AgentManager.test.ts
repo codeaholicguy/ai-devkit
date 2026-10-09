@@ -478,6 +478,90 @@ describe("AgentManager", () => {
     });
   });
 
+  describe("listAgents — daemon enrichment", () => {
+    const wireAgent = (overrides: Record<string, unknown> = {}) => ({
+      name: "daemon-claude",
+      type: "claude",
+      status: "waiting",
+      summary: "daemon summary",
+      pid: 777,
+      projectPath: "/daemon/proj",
+      sessionId: "daemon-sid",
+      lastActive: "2026-10-08T12:00:00.000Z",
+      ...overrides,
+    });
+
+    it("serves agents from the daemon and skips all local adapters", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [wireAgent()],
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents();
+      expect(detectSpy).not.toHaveBeenCalled();
+      expect(agents).toHaveLength(1);
+      expect(agents[0].name).toBe("daemon-claude");
+      expect(agents[0].lastActive).toEqual(new Date("2026-10-08T12:00:00.000Z"));
+    });
+
+    it("falls back to all-local when the daemon returns null", async () => {
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => null,
+      });
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+      const agents = await m.listAgents();
+      expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+    });
+
+    it("falls back to all-local when the daemon call throws", async () => {
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => {
+          throw new Error("socket gone");
+        },
+      });
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+      const agents = await m.listAgents();
+      expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+    });
+
+    it("serves every type from the daemon in one sweep", async () => {
+      const claudeLocal = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const codexLocal = new MockAdapter("codex", [
+        createMockAgent({ name: "local-codex", type: "codex" }),
+      ]);
+      const claudeSpy = vi.spyOn(claudeLocal, "detectAgents");
+      const codexSpy = vi.spyOn(codexLocal, "detectAgents");
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [
+          wireAgent(),
+          wireAgent({ type: "codex", name: "daemon-codex", pid: 888 }),
+        ],
+      });
+      m.registerAdapter(claudeLocal);
+      m.registerAdapter(codexLocal);
+
+      const agents = await m.listAgents();
+      expect(claudeSpy).not.toHaveBeenCalled();
+      expect(codexSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name).sort()).toEqual(["daemon-claude", "daemon-codex"]);
+    });
+
+    it("treats an empty daemon answer as authoritative", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [],
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents();
+      expect(detectSpy).not.toHaveBeenCalled();
+      expect(agents).toEqual([]);
+    });
+  });
+
   describe("listAgents — registry persistence", () => {
     let tmpDir: string;
     let regPath: string;
