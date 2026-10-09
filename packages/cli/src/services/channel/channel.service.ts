@@ -3,10 +3,8 @@ import * as os from "os";
 import * as path from "path";
 import { spawn } from "child_process";
 import type { ChannelConfig, TelegramConfig } from "@ai-devkit/channel-connector";
-import { DaemonClient, ensureDaemon } from "@ai-devkit/daemon-client";
 
 const DEFAULT_REGISTRY_PATH = path.join(os.homedir(), ".ai-devkit", "channel-bridges.json");
-const BRIDGE_REGISTRY_SCOPE = "channel-bridges";
 const DEFAULT_TELEGRAM_CHANNEL_NAME = "telegram";
 const CHANNEL_NAME_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
@@ -115,21 +113,6 @@ export class ChannelService {
   }
 
   async registerBridge(processInfo: ChannelBridgeProcess): Promise<void> {
-    const client = await this.client();
-    if (client) {
-      try {
-        await client.request("registry.put", {
-          scope: BRIDGE_REGISTRY_SCOPE,
-          name: processInfo.channelName,
-          value: processInfo,
-        });
-        return;
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     const registry = await this.readBridgeRegistry();
     registry.bridges[processInfo.channelName] = processInfo;
     await this.writeBridgeRegistry(registry);
@@ -206,83 +189,14 @@ export class ChannelService {
   }
 
   async unregisterBridge(channelName: string): Promise<void> {
-    const client = await this.client();
-    if (client) {
-      try {
-        await client.request("registry.delete", {
-          scope: BRIDGE_REGISTRY_SCOPE,
-          name: channelName,
-        });
-        await this.pruneDeadBridges(client);
-        return;
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     const registry = await this.readBridgeRegistry();
     delete registry.bridges[channelName];
     this.pruneFileRegistry(registry);
     await this.writeBridgeRegistry(registry);
   }
 
-  /**
-   * Lazily get a daemon client; null when the daemon can't be spawned.
-   * Connections are scoped to a single request — a cached client would pin
-   * the event loop in short-lived commands and the agent console.
-   */
-  private client(): Promise<DaemonClient | null> {
-    // Daemon path is skipped when a custom registryPath was injected (tests,
-    // alternate profiles) — those callers want file semantics.
-    if (this.registryPath !== DEFAULT_REGISTRY_PATH) return Promise.resolve(null);
-    return ensureDaemon().catch(() => null);
-  }
-
   private async listBridges(): Promise<ChannelBridgeProcess[]> {
-    const client = await this.client();
-    if (client) {
-      try {
-        const result = (await client.request("registry.get", {
-          scope: BRIDGE_REGISTRY_SCOPE,
-        })) as Record<string, ChannelBridgeProcess>;
-        return this.mergeFileBridges(Object.values(result ?? {}));
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     return Object.values((await this.readBridgeRegistry()).bridges);
-  }
-
-  // Read-time union so a bridge registered under the old file scheme stays
-  // visible and stoppable during transition. The file is never written on
-  // this path — stale entries age out as their pids die.
-  private async mergeFileBridges(
-    bridges: ChannelBridgeProcess[],
-  ): Promise<ChannelBridgeProcess[]> {
-    const seen = new Set(bridges.map((b) => b.channelName));
-    const file = await this.readBridgeRegistry();
-    for (const [name, bridge] of Object.entries(file.bridges)) {
-      if (!seen.has(name)) bridges.push(bridge);
-    }
-    return bridges;
-  }
-
-  private async pruneDeadBridges(client: DaemonClient): Promise<void> {
-    try {
-      const result = (await client.request("registry.get", {
-        scope: BRIDGE_REGISTRY_SCOPE,
-      })) as Record<string, ChannelBridgeProcess>;
-      for (const [name, bridge] of Object.entries(result ?? {})) {
-        if (!this.isPidAlive(bridge.bridgePid)) {
-          await client.request("registry.delete", { scope: BRIDGE_REGISTRY_SCOPE, name });
-        }
-      }
-    } catch {
-      /* pruning is best-effort */
-    }
   }
 
   private pruneFileRegistry(registry: ChannelBridgeFile): void {

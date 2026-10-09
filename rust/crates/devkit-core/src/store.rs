@@ -10,9 +10,8 @@ const EVENT_RETENTION: i64 = 10_000;
 /// Prune/checkpoint cadence in emitted events.
 const PRUNE_EVERY: i64 = 512;
 
-/// Daemon-owned store. The daemon is the sole writer — this type is the only
-/// code path that mutates registries, which is what eliminates the
-/// read-modify-write races the JSON files had.
+/// Daemon-owned store: the persisted agent snapshot (for diff/events across
+/// restarts) and the durable event log. The daemon is the sole writer.
 pub struct Store {
     conn: Mutex<Connection>,
 }
@@ -23,12 +22,7 @@ impl Store {
         conn.pragma_update(None, "journal_mode", "WAL")?;
         conn.pragma_update(None, "synchronous", "NORMAL")?;
         conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS registry (
-                scope TEXT NOT NULL,
-                name  TEXT NOT NULL,
-                value TEXT NOT NULL,
-                PRIMARY KEY (scope, name)
-            );
+            "DROP TABLE IF EXISTS registry;
             CREATE TABLE IF NOT EXISTS events (
                 seq     INTEGER PRIMARY KEY AUTOINCREMENT,
                 ts      INTEGER NOT NULL,
@@ -61,52 +55,6 @@ impl Store {
         Ok(Self {
             conn: Mutex::new(conn),
         })
-    }
-
-    pub fn registry_get(&self, scope: &str, name: Option<&str>) -> Result<Value> {
-        let conn = self.conn.lock().unwrap();
-        match name {
-            Some(n) => {
-                let mut s =
-                    conn.prepare("SELECT value FROM registry WHERE scope=?1 AND name=?2")?;
-                let v: Option<String> = s.query_row(params![scope, n], |r| r.get(0)).ok();
-                Ok(
-                    v.map(|x| serde_json::from_str(&x).unwrap_or(Value::String(x)))
-                        .unwrap_or(Value::Null),
-                )
-            }
-            None => {
-                let mut s = conn.prepare("SELECT name, value FROM registry WHERE scope=?1")?;
-                let rows = s.query_map(params![scope], |r| {
-                    Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-                })?;
-                let mut map = serde_json::Map::new();
-                for row in rows {
-                    let (k, v) = row?;
-                    map.insert(k, serde_json::from_str(&v).unwrap_or(Value::String(v)));
-                }
-                Ok(Value::Object(map))
-            }
-        }
-    }
-
-    pub fn registry_put(&self, scope: &str, name: &str, value: &Value) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "INSERT INTO registry (scope,name,value) VALUES (?1,?2,?3)
-             ON CONFLICT(scope,name) DO UPDATE SET value=excluded.value",
-            params![scope, name, serde_json::to_string(value)?],
-        )?;
-        Ok(())
-    }
-
-    pub fn registry_delete(&self, scope: &str, name: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "DELETE FROM registry WHERE scope=?1 AND name=?2",
-            params![scope, name],
-        )?;
-        Ok(())
     }
 
     /// Append an event; returns its sequence number.
@@ -278,22 +226,6 @@ mod tests {
     }
 
     #[test]
-    fn registry_roundtrip() {
-        let (s, _p) = tmp_store();
-        s.registry_put("channels", "tg-main", &json!({"type":"telegram"}))
-            .unwrap();
-        let one = s.registry_get("channels", Some("tg-main")).unwrap();
-        assert_eq!(one["type"], "telegram");
-        let all = s.registry_get("channels", None).unwrap();
-        assert!(all["tg-main"].is_object());
-        s.registry_delete("channels", "tg-main").unwrap();
-        assert_eq!(
-            s.registry_get("channels", Some("tg-main")).unwrap(),
-            Value::Null
-        );
-    }
-
-    #[test]
     fn events_are_ordered_and_replayable() {
         let (s, _p) = tmp_store();
         let a = s.emit("registry.changed", &json!({"name":"a"})).unwrap();
@@ -355,28 +287,21 @@ mod tests {
 
     #[test]
     fn concurrent_sole_writer_loses_no_updates() {
-        // The property the RMW JSON files lacked: N threads racing puts on the
-        // same scope must all land — the store serializes via the mutex.
+        // N threads racing writes must all land — the store serializes via
+        // the mutex and every emit gets its own seq.
         let (s, _p) = tmp_store();
         let s = std::sync::Arc::new(s);
         let mut handles = Vec::new();
         for i in 0..32 {
             let s = s.clone();
             handles.push(std::thread::spawn(move || {
-                s.registry_put("pi-sessions", &format!("pid-{i}"), &json!(i))
-                    .unwrap();
-                s.registry_put("shared", "counter", &json!(i)).unwrap();
+                s.emit("tick", &json!(i)).unwrap();
             }));
         }
         for h in handles {
             h.join().unwrap();
         }
-        let all = s.registry_get("pi-sessions", None).unwrap();
-        assert_eq!(all.as_object().unwrap().len(), 32);
-        assert!(s
-            .registry_get("shared", Some("counter"))
-            .unwrap()
-            .is_number());
+        assert_eq!(s.events_after(0, 100).unwrap().len(), 32);
     }
 
     #[test]
@@ -392,12 +317,4 @@ mod tests {
         assert_eq!(events[0].payload["pid"], 7);
     }
 
-    #[test]
-    fn registry_get_missing_scope_returns_empty_object() {
-        let (s, _p) = tmp_store();
-        assert_eq!(
-            s.registry_get("no-such-scope", None).unwrap(),
-            Value::Object(serde_json::Map::new())
-        );
-    }
 }

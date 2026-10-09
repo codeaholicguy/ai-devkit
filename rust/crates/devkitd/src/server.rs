@@ -37,7 +37,7 @@ const READINESS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(
 impl Daemon {
     pub fn new(data_dir: &Path, socket_path: PathBuf, home: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(data_dir)?;
-        // The db/registry may one day hold sensitive state — the socket is
+        // The db may one day hold sensitive state — the socket is
         // already 0600, tighten the directory so wal/shm sidecars (created
         // per open with default umask) aren't world-readable either.
         let _ = std::fs::set_permissions(
@@ -106,35 +106,6 @@ impl Daemon {
                     "socket": self.socket_path,
                 }),
             ),
-            "registry.get" => {
-                let scope = req.params["scope"].as_str().unwrap_or("channels");
-                let name = req.params["name"].as_str();
-                match self.store.registry_get(scope, name) {
-                    Ok(v) => Response::ok(id, v),
-                    Err(e) => Response::err(id, e.to_string()),
-                }
-            }
-            "registry.put" => {
-                let scope = req.params["scope"].as_str().unwrap_or("channels");
-                let Some(name) = req.params["name"].as_str() else {
-                    return Response::err(id, "params.name required");
-                };
-                let value = &req.params["value"];
-                match self.store.registry_put(scope, name, value) {
-                    Ok(()) => Response::ok(id, json!({"ok": true})),
-                    Err(e) => Response::err(id, e.to_string()),
-                }
-            }
-            "registry.delete" => {
-                let scope = req.params["scope"].as_str().unwrap_or("channels");
-                let Some(name) = req.params["name"].as_str() else {
-                    return Response::err(id, "params.name required");
-                };
-                match self.store.registry_delete(scope, name) {
-                    Ok(()) => Response::ok(id, json!({"ok": true})),
-                    Err(e) => Response::err(id, e.to_string()),
-                }
-            }
             "agent.list" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())

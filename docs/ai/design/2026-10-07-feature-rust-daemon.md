@@ -38,27 +38,20 @@ changes.
 |---|---|---|
 | `ping` | — | `{pong, startedAt}` |
 | `daemon.status` | — | `{version, startedAt, socket}` |
-| `registry.get` | `{scope, name?}` | single value, or `{name: value}` map for the scope |
-| `registry.put` | `{scope, name, value}` | `{ok}` |
-| `registry.delete` | `{scope, name}` | `{ok}` |
 | `agent.list` | — | array of fully attributed `AgentInfo` rows — authoritative for all harness types |
 | `subscribe` | `{afterSeq?, liveOnly?}` | ack `{subscribed}`, then event frames; replays persisted events after `afterSeq` first unless `liveOnly` |
 | `shutdown` | — | `{ok}`; daemon exits after the response flushes |
 
-Registry scopes in use: `channel-bridges` (channel.service — live bridge
-process registry), `test` (integration tests). Channel config was
-briefly routed through the registry but reverted — `~/.ai-devkit/channels.json`
-stays the owner of channel credentials; the registry holds non-secret
-coordinated state only.
+The scoped `registry` KV table was removed: its only consumer
+(channel-bridge bookkeeping) already had a complete JSON-file path, and
+daemon rows had to be unioned with file rows at read time — the two-store
+merge was worse than the file alone. `~/.ai-devkit/channel-bridges.json`
+is again the single store; `~/.ai-devkit/channels.json` owns credentials.
 
 ## State: SQLite, daemon sole writer
 
-rusqlite (bundled), WAL journal, `synchronous=NORMAL`. Three tables:
+rusqlite (bundled), WAL journal, `synchronous=NORMAL`. Two tables:
 
-- `registry(scope, name, value)` — absorbs the RMW JSON registries. All writes
-  serialize through the daemon's single connection behind a mutex, so the
-  lost-update class the JSON files had is eliminated structurally — there is
-  literally no code path where two clients can each hold a stale copy.
 - `events(seq, ts, kind, payload)` — append-only log; `seq` is AUTOINCREMENT.
   This is the pub/sub substrate: subscribers ack by `seq`, replay survives
   daemon restarts, and the log doubles as an audit trail.

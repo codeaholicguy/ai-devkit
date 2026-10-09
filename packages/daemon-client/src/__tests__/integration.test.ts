@@ -102,17 +102,8 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
     expect(client).not.toBeNull();
     const pong = (await client!.request("ping")) as { pong: boolean };
     expect(pong.pong).toBe(true);
-    const put = await client!.request("registry.put", {
-      scope: "test",
-      name: "it",
-      value: { ok: true },
-    });
-    expect((put as { ok: boolean }).ok).toBe(true);
-    const got = await client!.request("registry.get", {
-      scope: "test",
-      name: "it",
-    });
-    expect((got as { ok: boolean }).ok).toBe(true);
+    const agents = (await client!.request("agent.list")) as unknown[];
+    expect(Array.isArray(agents)).toBe(true);
     client!.close();
   }, 30000);
 
