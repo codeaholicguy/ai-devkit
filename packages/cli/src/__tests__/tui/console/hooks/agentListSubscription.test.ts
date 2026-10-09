@@ -46,7 +46,7 @@ describe("attachDaemonRefresh", () => {
     expect(client).toBe(daemonClient);
     expect(onSubscribed).toHaveBeenCalledOnce();
     eventHandler!(evt("agent.appeared"));
-    eventHandler!(evt("registry.changed"));
+    eventHandler!(evt("agent.disappeared"));
     expect(onEvent).toHaveBeenCalledTimes(2);
   });
 

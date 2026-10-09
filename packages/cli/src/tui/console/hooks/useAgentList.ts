@@ -108,7 +108,7 @@ export function useAgentList(
       void refresh();
     }, intervalMs);
 
-    // Daemon event stream → immediate refresh on agent lifecycle/registry
+    // Daemon event stream → immediate refresh on agent lifecycle
     // changes; on success the blind poll relaxes to the slow fallback. Any
     // failure leaves today's interval behavior untouched. If the stream
     // dies mid-session (daemon restart) the fast poll resumes and the
