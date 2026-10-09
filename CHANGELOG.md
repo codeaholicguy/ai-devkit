@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.69.1] - 2026-10-09
+
+- [c085143](https://github.com/codeaholicguy/ai-devkit/commit/c085143) Fixed the bundled agent console crashing on load: esbuild code splitting exposes only the default export on the lazy React chunk, so destructured `createElement` was `undefined` in the published bundle.
+- [3b60a74](https://github.com/codeaholicguy/ai-devkit/commit/3b60a74) Fixed the audit configuration.
+
 ## [0.69.0] - 2026-10-09
 
 - Introduced `devkitd`, a Rust coordination daemon with auto-spawning unix-socket server, harness ports for every agent type, per-platform binary packages, and a `daemon` command group in the CLI ([#352](https://github.com/codeaholicguy/ai-devkit/pull/352)).
