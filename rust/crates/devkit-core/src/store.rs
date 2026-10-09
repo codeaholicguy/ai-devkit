@@ -128,27 +128,19 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let now = chrono_now();
         let tx = conn.unchecked_transaction()?;
-        let mut known: Vec<i64> = {
+        let known: std::collections::HashSet<i64> = {
             let mut s = tx.prepare("SELECT pid FROM agents")?;
             let v = s
                 .query_map([], |r| r.get(0))?
-                .collect::<std::result::Result<Vec<i64>, _>>()?;
+                .collect::<std::result::Result<std::collections::HashSet<i64>, _>>()?;
             v
         };
-        known.sort_unstable();
-        let mut current: Vec<i64> = agents.iter().map(|a| a.pid).collect();
-        current.sort_unstable();
+        let current: std::collections::HashSet<i64> = agents.iter().map(|a| a.pid).collect();
 
-        let appeared: Vec<i64> = current
-            .iter()
-            .copied()
-            .filter(|p| !known.contains(p))
-            .collect();
-        let gone: Vec<i64> = known
-            .iter()
-            .copied()
-            .filter(|p| !current.contains(p))
-            .collect();
+        let mut appeared: Vec<i64> = current.difference(&known).copied().collect();
+        let mut gone: Vec<i64> = known.difference(&current).copied().collect();
+        appeared.sort_unstable();
+        gone.sort_unstable();
 
         for a in agents {
             tx.execute(
