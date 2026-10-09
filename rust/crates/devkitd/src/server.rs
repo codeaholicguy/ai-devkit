@@ -255,22 +255,35 @@ impl Daemon {
         // Compute outside the lock: `*w = f()` evaluates the write guard first
         // and would hold it for the entire enrich pass.
         let enriched = self.enricher.enrich(&ctx);
-        *self.enriched.write().unwrap() = enriched;
+        // Keep the previous list: a disappeared pid is absent from the fresh
+        // one, so its event payload carries last-known agent info.
+        let prev = std::mem::replace(&mut *self.enriched.write().unwrap(), enriched);
         match self.store.apply_agent_snapshot(&procs) {
             Ok((appeared, gone)) => {
+                let cur = self.enriched.read().unwrap();
                 // Disappeared first: on pid reuse the stale identity must
                 // leave before the fresh one arrives or subscribers see them
                 // inverted.
                 for pid in gone {
-                    self.emit("agent.disappeared", json!({"pid": pid}));
+                    self.emit("agent.disappeared", lifecycle_payload(pid, &prev));
                 }
                 for pid in appeared {
-                    self.emit("agent.appeared", json!({"pid": pid}));
+                    self.emit("agent.appeared", lifecycle_payload(pid, &cur));
                 }
             }
             Err(e) => tracing::warn!("agent snapshot apply failed: {e:#}"),
         }
     }
+}
+
+/// Payload for agent lifecycle events: the pid plus every enriched row the
+/// sweep attributed to it (one proc can map to several sessions; unattributed
+/// procs get an empty `agents`).
+fn lifecycle_payload(pid: i64, agents: &[EnrichedAgent]) -> Value {
+    json!({
+        "pid": pid,
+        "agents": agents.iter().filter(|a| a.pid as i64 == pid).collect::<Vec<_>>(),
+    })
 }
 
 /// SO_PEERCRED check: same-uid only. Returns true if the peer is us.
@@ -635,6 +648,32 @@ mod tests {
         let r = rpc(&sock, r#"{"id":2,"method":"agent.list"}"#).await;
         assert_eq!(r["result"].as_array().unwrap().len(), 1);
         assert_eq!(r["result"][0]["type"], "claude");
+    }
+
+    #[test]
+    fn lifecycle_payload_carries_agent_rows_for_the_pid() {
+        let row = |pid: u64, sid: &str| EnrichedAgent {
+            name: "n".into(),
+            agent_type: "claude".into(),
+            status: "idle".into(),
+            summary: String::new(),
+            pid,
+            project_path: "/p".into(),
+            session_id: sid.into(),
+            last_active: "t".into(),
+            pinned: None,
+            session_file_path: None,
+        };
+        let list = vec![row(7, "s-1"), row(7, "s-2"), row(9, "other")];
+
+        // Multi-session procs surface every attributed row.
+        let p = lifecycle_payload(7, &list);
+        assert_eq!(p["pid"], json!(7));
+        assert_eq!(p["agents"].as_array().unwrap().len(), 2);
+        assert_eq!(p["agents"][0]["sessionId"], "s-1");
+
+        // Unattributed procs still emit — with an empty agent list.
+        assert_eq!(lifecycle_payload(5, &list)["agents"], json!([]));
     }
 
     #[tokio::test]

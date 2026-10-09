@@ -73,7 +73,9 @@ rusqlite (bundled), WAL journal, `synchronous=NORMAL`. Three tables:
 Mutations append to `events` and publish to a `tokio::broadcast` channel.
 `subscribe` first drains persisted events with `seq > afterSeq` (at-least-once
 across reconnects), acks, then streams live frames. Kinds: `registry.changed`,
-`agent.appeared`, `agent.disappeared`.
+`agent.appeared`, `agent.disappeared`. Lifecycle payloads carry
+`{pid, agents: EnrichedAgent[]}` — appeared looks up the fresh sweep cache,
+disappeared the previous one (last-known info; unattributed procs get `[]`).
 
 ## Discovery loop
 
