@@ -69,6 +69,7 @@ async fn main() -> Result<()> {
 
 /// Write a systemd --user unit for boot persistence. Optional — clients
 /// auto-spawn the daemon on socket-miss, so this is persistence, not startup.
+#[cfg(target_os = "linux")]
 fn install_systemd() -> Result<()> {
     let dir = dirs_home().join(".config/systemd/user");
     std::fs::create_dir_all(&dir)?;
