@@ -18,19 +18,21 @@ const DEFAULT_CONFIG: ChannelConfig = { channels: {} };
  */
 export class ChannelConfigRepository {
   private configPath: string;
-  private clientPromise: Promise<DaemonClient | null> | null = null;
 
   constructor(configPath?: string) {
     this.configPath = configPath ?? DEFAULT_CONFIG_PATH;
   }
 
-  /** Lazily get a daemon client; null when the daemon can't be spawned. */
+  /**
+   * Lazily get a daemon client; null when the daemon can't be spawned.
+   * Connections are scoped to a single request — a cached client would pin
+   * the event loop in short-lived commands and the agent console.
+   */
   private client(): Promise<DaemonClient | null> {
     // Daemon path is skipped when a custom configPath was injected (tests,
     // alternate profiles) — those callers want file semantics.
     if (this.configPath !== DEFAULT_CONFIG_PATH) return Promise.resolve(null);
-    this.clientPromise ??= ensureDaemon().catch(() => null);
-    return this.clientPromise;
+    return ensureDaemon().catch(() => null);
   }
 
   /**
@@ -46,6 +48,8 @@ export class ChannelConfigRepository {
         return { channels: result ?? {} };
       } catch {
         /* fall through to file */
+      } finally {
+        client.close();
       }
     }
     try {
@@ -71,6 +75,8 @@ export class ChannelConfigRepository {
         return;
       } catch {
         /* fall through to file */
+      } finally {
+        client.close();
       }
     }
     const config = await this.getConfig();
@@ -92,6 +98,8 @@ export class ChannelConfigRepository {
         return;
       } catch {
         /* fall through to file */
+      } finally {
+        client.close();
       }
     }
     const config = await this.getConfig();
@@ -113,6 +121,8 @@ export class ChannelConfigRepository {
         return v ?? undefined;
       } catch {
         /* fall through to file */
+      } finally {
+        client.close();
       }
     }
     const config = await this.getConfig();
