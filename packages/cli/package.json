@@ -18,13 +18,13 @@
     "directory": "packages/cli"
   },
   "bin": {
-    "ai-devkit": "dist/cli.js"
+    "ai-devkit": "dist/bundle/cli.js"
   },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates && cp -R assets dist/assets",
+    "build": "rm -rf dist && swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates && cp -R assets dist/assets && node scripts/bundle-cli.mjs",
     "dev:build": "swc src -d dist --strip-leading-paths --watch",
     "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
     "lint": "oxlint src",
@@ -66,6 +66,7 @@
     "@types/node": "^20.11.5",
     "@types/react": "^19.2.0",
     "@vitest/coverage-v8": "^4.1.8",
+    "esbuild": "^0.28.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.0",
     "vitest": "^4.1.8"
