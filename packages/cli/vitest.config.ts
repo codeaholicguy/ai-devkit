@@ -5,17 +5,10 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["src/**/__tests__/**/*.test.ts"],
-    setupFiles: ["./vitest.setup.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
-      exclude: [
-        "src/cli.ts",
-        "src/main.ts",
-        "src/**/*.d.ts",
-        "src/types.ts",
-        "src/**/types.ts",
-      ],
+      exclude: ["src/cli.ts", "src/**/*.d.ts", "src/types.ts", "src/**/types.ts"],
       thresholds: {
         branches: 60,
         functions: 60,

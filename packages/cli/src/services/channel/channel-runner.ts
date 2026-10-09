@@ -19,12 +19,15 @@ import {
   SLACK_CHANNEL_TYPE,
   TELEGRAM_CHANNEL_TYPE,
 } from "@ai-devkit/channel-connector";
-import { ensureDaemon } from "@ai-devkit/daemon-client";
 import { ui } from "../../util/terminal-ui.js";
 import { getErrorMessage } from "../../util/text.js";
 import { createLogger } from "../../util/debug.js";
 import { select } from "@inquirer/prompts";
 import { ChannelService } from "./channel.service.js";
+import {
+  reportAgentResolution,
+  resolveAgentByName,
+} from "../agent/resolve-agent.service.js";
 import { AskUserQuestionService } from "./ask-user-question.js";
 import { SlackQuestionService } from "./slack-question.js";
 
@@ -39,17 +42,7 @@ export interface RunChannelBridgeInput {
 }
 
 function createAgentManager(): AgentManager {
-  const manager = new AgentManager(undefined, undefined, {
-    fetchEnrichedAgents: async () => {
-      const client = await ensureDaemon();
-      if (!client) return null;
-      try {
-        return await client.listAgents();
-      } finally {
-        client.close();
-      }
-    },
-  });
+  const manager = new AgentManager();
   for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);
   return manager;
 }
@@ -58,25 +51,14 @@ async function resolveTargetAgent(
   agentManager: AgentManager,
   agentName: string,
 ): Promise<AgentInfo | null> {
-  const agents = await agentManager.listAgents();
+  const resolution = await resolveAgentByName(agentManager, agentName);
 
-  if (agents.length === 0) {
-    ui.error("No running agents detected.");
-    return null;
-  }
+  if (resolution.kind === "resolved") return resolution.agent;
 
-  const resolved = agentManager.resolveAgent(agentName, agents);
-  if (!resolved) {
-    ui.error(`No agent found matching "${agentName}".`);
-    ui.info("Available agents:");
-    agents.forEach((a) => ui.text(`  - ${a.name}`));
-    return null;
-  }
-
-  if (Array.isArray(resolved)) {
+  if (resolution.kind === "ambiguous") {
     const selectedAgent = await select({
       message: "Multiple agents match. Select one:",
-      choices: resolved.map((a) => ({
+      choices: resolution.matches.map((a) => ({
         name: `${a.name} (PID: ${a.pid})`,
         value: a,
       })),
@@ -84,7 +66,8 @@ async function resolveTargetAgent(
     return selectedAgent;
   }
 
-  return resolved as AgentInfo;
+  reportAgentResolution(resolution, agentName, ui);
+  return null;
 }
 
 export function setupInputHandler(

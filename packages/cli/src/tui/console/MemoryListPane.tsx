@@ -2,7 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 import { truncate } from "../../util/text.js";
 import { Panel, SectionTitle, TUI_COLORS } from "../design-system/index.js";
-import { formatRelative } from "./render/formatRelative.js";
+import { formatRelativeCompact } from "../../util/time-format.js";
 import { useMemoryList } from "./hooks/useMemoryList.js";
 import type { ConsoleMemoryItem } from "./types.js";
 
@@ -89,7 +89,7 @@ export const MemoryListPane: React.FC<MemoryListPaneProps> = ({ width, height })
         {lastUpdated ? (
           <>
             <Text dimColor> · </Text>
-            <Text dimColor>updated {formatRelative(lastUpdated)}</Text>
+            <Text dimColor>updated {formatRelativeCompact(lastUpdated)}</Text>
           </>
         ) : null}
       </Box>

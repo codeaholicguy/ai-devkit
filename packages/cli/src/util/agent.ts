@@ -19,6 +19,28 @@ export function agentTypeLabel(type: AgentType): string {
   return AGENT_TYPE_LABELS[type] ?? type;
 }
 
+/** Compact lowercase labels for dense UI rows (agent list, status lines). */
+export const AGENT_TYPE_LABELS_COMPACT: Record<AgentType, string> = {
+  claude: "claude",
+  codex: "codex",
+  copilot: "copilot",
+  gemini_cli: "gemini",
+  grok_cli: "grok",
+  kiro: "kiro",
+  antigravity_cli: "antigravity",
+  opencode: "opencode",
+  pi: "pi",
+  devin: "devin",
+  other: "other",
+};
+
+export function agentTypeLabelCompact(type: string): string {
+  return (AGENT_TYPE_LABELS_COMPACT as Record<string, string>)[type] ?? type;
+}
+
+/** Agent (and agent-group) names: lowercase alphanumeric + hyphens, 2-64 chars, no leading/trailing hyphen. */
+export const AGENT_NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
+
 export function generateAgentName(cwd: string): string {
   const folder =
     path

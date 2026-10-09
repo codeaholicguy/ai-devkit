@@ -1,5 +1,16 @@
 import type { Command } from "commander";
 import chalk from "chalk";
+import {
+  memoryDownloadSemanticCommand,
+  memoryReembedCommand,
+  memorySearchCommand,
+  memorySearchCommandAsync,
+  memorySemanticStatusCommand,
+  memoryStoreCommand,
+  memoryStoreCommandAsync,
+  memoryUpdateCommand,
+  memoryUpdateCommandAsync,
+} from "@ai-devkit/memory";
 import type {
   MemorySearchOptions,
   MemoryStoreOptions,
@@ -12,10 +23,6 @@ import { truncate } from "../util/text.js";
 
 const TITLE_MAX_LENGTH = 60;
 const TABLE_ID_LENGTH = 8;
-
-// @ai-devkit/memory loads its storage and embedding stack eagerly, so defer it
-// until a memory subcommand actually runs.
-const loadMemory = () => import("@ai-devkit/memory");
 
 export function registerMemoryCommand(program: Command): void {
   const resolveMemoryDbPath = async (): Promise<string | undefined> => {
@@ -53,8 +60,6 @@ export function registerMemoryCommand(program: Command): void {
       withErrorHandler(
         "store knowledge",
         async (options: MemoryStoreOptions) => {
-          const { memoryStoreCommand, memoryStoreCommandAsync } =
-            await loadMemory();
           const commandOptions = {
             ...options,
             dbPath: await resolveMemoryDbPath(),
@@ -85,8 +90,6 @@ export function registerMemoryCommand(program: Command): void {
       withErrorHandler(
         "update knowledge",
         async (options: MemoryUpdateOptions) => {
-          const { memoryUpdateCommand, memoryUpdateCommandAsync } =
-            await loadMemory();
           const commandOptions = {
             ...options,
             dbPath: await resolveMemoryDbPath(),
@@ -121,8 +124,6 @@ export function registerMemoryCommand(program: Command): void {
             explain?: boolean;
           },
         ) => {
-          const { memorySearchCommand, memorySearchCommandAsync } =
-            await loadMemory();
           const { table, limit, explain, ...searchOptions } = options;
           const commandOptions = {
             ...searchOptions,
@@ -174,7 +175,6 @@ export function registerMemoryCommand(program: Command): void {
     .description("Show semantic model and embedding readiness")
     .action(
       withErrorHandler("show semantic status", async () => {
-        const { memorySemanticStatusCommand } = await loadMemory();
         const result = await memorySemanticStatusCommand({
           dbPath: await resolveMemoryDbPath(),
         });
@@ -187,7 +187,6 @@ export function registerMemoryCommand(program: Command): void {
     .description("Download and verify the pinned local semantic model")
     .action(
       withErrorHandler("download semantic model", async () => {
-        const { memoryDownloadSemanticCommand } = await loadMemory();
         const result = await memoryDownloadSemanticCommand({
           dbPath: await resolveMemoryDbPath(),
         });
@@ -203,7 +202,6 @@ export function registerMemoryCommand(program: Command): void {
       withErrorHandler(
         "re-embed memory",
         async (options: { force?: boolean }) => {
-          const { memoryReembedCommand } = await loadMemory();
           const result = await memoryReembedCommand({
             dbPath: await resolveMemoryDbPath(),
             force: options.force === true,

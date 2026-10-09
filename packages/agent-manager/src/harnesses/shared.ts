@@ -67,7 +67,7 @@ export function matchesExecutable(command: string, name: string): boolean {
 export function processOnlyAgent(
   type: AgentType,
   processInfo: ProcessInfo,
-  { summary, cwd = processInfo.cwd ?? "" }: { summary: string; cwd?: string },
+  { summary, cwd = processInfo.cwd }: { summary: string; cwd?: string },
 ): AgentInfo {
   return {
     name: generateAgentName(cwd, processInfo.pid),

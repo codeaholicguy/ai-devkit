@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.68.0] - 2026-10-08
+
+- Wired the memory MCP server globally into all MCP-capable harnesses during setup ([#308](https://github.com/codeaholicguy/ai-devkit/pull/308)).
+- Reported Devin usage in `capacity` ([#348](https://github.com/codeaholicguy/ai-devkit/pull/348)).
+- Documented `antigravity_cli` and Devin in the start-types table ([#347](https://github.com/codeaholicguy/ai-devkit/pull/347)).
+- Rendered the start-agent type selector as a vertical list ([#329](https://github.com/codeaholicguy/ai-devkit/pull/329)).
+- Supported j/k field navigation in the start-agent pane ([#331](https://github.com/codeaholicguy/ai-devkit/pull/331)).
+- Submitted the start-agent form on Enter in the name field ([#334](https://github.com/codeaholicguy/ai-devkit/pull/334)).
+- Showed multiline error output in the start-agent pane ([#336](https://github.com/codeaholicguy/ai-devkit/pull/336)).
+- Made Ctrl+C close the active pane before quitting ([#337](https://github.com/codeaholicguy/ai-devkit/pull/337)).
+- Selected the newly started agent on success ([#344](https://github.com/codeaholicguy/ai-devkit/pull/344)).
+- Remembered the last-used type and cwd across start-agent pane opens ([#345](https://github.com/codeaholicguy/ai-devkit/pull/345)).
+- Showed friendly agent type labels in the start-agent pane ([#330](https://github.com/codeaholicguy/ai-devkit/pull/330)).
+- Supported Shift+Tab reverse focus in the start-agent pane ([#332](https://github.com/codeaholicguy/ai-devkit/pull/332)).
+- Allowed cancelling a pending agent start and showed elapsed time ([#335](https://github.com/codeaholicguy/ai-devkit/pull/335)).
+- Showed contextual key hints per focused field ([#333](https://github.com/codeaholicguy/ai-devkit/pull/333)).
+- Mapped q to cancel in the start-agent pane ([#338](https://github.com/codeaholicguy/ai-devkit/pull/338)).
+- Exposed interactive/durable mode in the start-agent pane ([#339](https://github.com/codeaholicguy/ai-devkit/pull/339)).
+- Added an optional initial prompt field to the start-agent pane ([#340](https://github.com/codeaholicguy/ai-devkit/pull/340)).
+- Pre-checked harness availability in the start-agent pane ([#341](https://github.com/codeaholicguy/ai-devkit/pull/341)).
+- Validated name and cwd client-side before submit ([#342](https://github.com/codeaholicguy/ai-devkit/pull/342)).
+- Expanded `~` in cwd and offered recent project dirs ([#343](https://github.com/codeaholicguy/ai-devkit/pull/343)).
+- Added a passthrough args field to the start-agent pane ([#346](https://github.com/codeaholicguy/ai-devkit/pull/346)).
+- Split agent commands into modules and consolidated shared helpers with no public API changes ([#350](https://github.com/codeaholicguy/ai-devkit/pull/350)).
+
 ## [0.67.0] - 2026-10-05
 
 - Added the Devin CLI harness adapter ([#309](https://github.com/codeaholicguy/ai-devkit/pull/309)).

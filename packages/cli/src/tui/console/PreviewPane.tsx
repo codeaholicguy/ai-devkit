@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef } from "react";
 import { Box, Text } from "ink";
 import { AgentStatus, type AgentInfo, type ConversationMessage } from "@ai-devkit/agent-manager";
 import type { ConversationFetchError } from "./hooks/useAgentConversation.js";
-import { formatRelative } from "./render/formatRelative.js";
-import { AGENT_TYPE_LABEL_DISPLAY } from "./render/agentTypeLabel.js";
+import { formatRelativeCompact } from "../../util/time-format.js";
+import { agentTypeLabel } from "../../util/agent.js";
 import { SectionTitle, TUI_COLORS } from "../design-system/index.js";
 import type { AgentChannelStatus } from "./types.js";
 import type { PanelTone } from "../design-system/tokens.js";
@@ -151,9 +151,9 @@ const MetadataHeader: React.FC<{ agent: AgentInfo; channelStatus?: AgentChannelS
     <Text dimColor> · </Text>
     <Text color={TUI_COLORS.accent}>{agent.name}</Text>
     <Text dimColor> · </Text>
-    <Text dimColor>{AGENT_TYPE_LABEL_DISPLAY[agent.type] ?? agent.type}</Text>
+    <Text dimColor>{agentTypeLabel(agent.type)}</Text>
     <Text dimColor> · </Text>
-    <Text dimColor>{formatRelative(agent.lastActive)}</Text>
+    <Text dimColor>{formatRelativeCompact(agent.lastActive)}</Text>
     <Text dimColor> · </Text>
     <Text dimColor>{shortPath(agent.projectPath)}</Text>
     {channelStatus ? (

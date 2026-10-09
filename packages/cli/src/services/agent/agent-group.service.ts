@@ -1,6 +1,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
+import { AGENT_NAME_REGEX } from "../../util/agent.js";
 
 export interface AgentGroup {
   name: string;
@@ -15,7 +16,6 @@ interface AgentGroupFile {
 }
 
 const DEFAULT_GROUPS_PATH = path.join(os.homedir(), ".ai-devkit", "agent-groups.json");
-const GROUP_NAME_REGEX = /^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/;
 
 let defaultInstance: AgentGroupService | null = null;
 
@@ -195,7 +195,7 @@ export class AgentGroupService {
 
   private validateName(name: string): string {
     const normalized = name.trim();
-    if (!GROUP_NAME_REGEX.test(normalized)) {
+    if (!AGENT_NAME_REGEX.test(normalized)) {
       throw new AgentGroupInvalidNameError(name);
     }
     return normalized;

@@ -426,9 +426,7 @@ describe("SkillService", () => {
       );
     });
 
-    // vi.importActual queues behind the worker's import graph; under the
-    // repo-wide parallel test run this can exceed the default 5s timeout.
-    it("should read custom registries from global config", { timeout: 15000 }, async () => {
+    it("should read custom registries from global config", async () => {
       const customGitUrl = "https://github.com/custom/skills.git";
       const { GlobalConfigManager: RealGlobalConfigManager } = await vi.importActual<
         typeof import("../../../lib/GlobalConfig.js")

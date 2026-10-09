@@ -1,5 +1,6 @@
 import path from "node:path";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { access as fsAccess, readFile as fsReadFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -470,14 +471,27 @@ describe("getStatusReport memory mcp wiring", () => {
   });
 
   function run() {
-    return getStatusReport({ ...fixture(), homeDir });
+    const { options } = fixture();
+    const { access, readFile } = options;
+    return getStatusReport({
+      ...options,
+      homeDir,
+      access: async (target, mode) => {
+        if (target.startsWith(homeDir)) return fsAccess(target, mode);
+        return access?.(target, mode);
+      },
+      readFile: async (target) => {
+        if (target.startsWith(homeDir)) return fsReadFile(target, "utf8");
+        return readFile?.(target) ?? "";
+      },
+    });
   }
 
   it("reports no wiring targets when no agent dot-folders exist", async () => {
     const report = await run();
     expect(report.memoryMcp.status).toBe("pass");
     expect(report.memoryMcp.agents).toEqual([]);
-  }, 15000);
+  });
 
   it("reports unwired for a detected agent without config", async () => {
     mkdirSync(join(homeDir, ".gemini"), { recursive: true });
@@ -486,7 +500,7 @@ describe("getStatusReport memory mcp wiring", () => {
       expect.objectContaining({ agent: "gemini", state: "unwired" }),
     );
     expect(report.memoryMcp.status).toBe("warn");
-  }, 15000);
+  });
 
   it("reports wired after the config entry exists", async () => {
     mkdirSync(join(homeDir, ".cursor"), { recursive: true });
@@ -503,7 +517,7 @@ describe("getStatusReport memory mcp wiring", () => {
       expect.objectContaining({ agent: "cursor", state: "wired" }),
     );
     expect(report.memoryMcp.status).toBe("pass");
-  }, 15000);
+  });
 
   it("reports unsupported for pi without failing the check", async () => {
     mkdirSync(join(homeDir, ".pi"), { recursive: true });
@@ -512,7 +526,7 @@ describe("getStatusReport memory mcp wiring", () => {
       expect.objectContaining({ agent: "pi", state: "unsupported" }),
     );
     expect(report.memoryMcp.status).toBe("pass");
-  }, 15000);
+  });
 
   it("reports error state for malformed config", async () => {
     mkdirSync(join(homeDir, ".grok"), { recursive: true });
@@ -522,5 +536,5 @@ describe("getStatusReport memory mcp wiring", () => {
       expect.objectContaining({ agent: "grok", state: "error" }),
     );
     expect(report.memoryMcp.status).toBe("warn");
-  }, 15000);
+  });
 });

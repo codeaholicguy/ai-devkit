@@ -47,7 +47,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-devkit/memory": "0.20.2",
+    "@ai-devkit/memory": "0.20.3",
     "commander": "^11.1.0",
     "cytoscape": "^3.34.0"
   },
