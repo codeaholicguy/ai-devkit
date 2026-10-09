@@ -46,10 +46,11 @@ changes.
 | `events.replay` | `{afterSeq?, limit?}` | array of events |
 | `shutdown` | — | `{ok}`; daemon exits after the response flushes |
 
-Registry scopes in use: `test` (integration tests). Channel config was
+Registry scopes in use: `channel-bridges` (channel.service — live bridge
+process registry), `test` (integration tests). Channel config was
 briefly routed through the registry but reverted — `~/.ai-devkit/channels.json`
-stays the owner of channel credentials; the registry remains for future
-non-secret state.
+stays the owner of channel credentials; the registry holds non-secret
+coordinated state only.
 
 ## State: SQLite, daemon sole writer
 
