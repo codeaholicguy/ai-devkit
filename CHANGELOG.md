@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- Introduced `devkitd`, a Rust coordination daemon with auto-spawning unix-socket server, harness ports for every agent type, per-platform binary packages, and a `daemon` command group in the CLI ([#352](https://github.com/codeaholicguy/ai-devkit/pull/352)).
+
 ## [0.68.0] - 2026-10-08
 
 - Wired the memory MCP server globally into all MCP-capable harnesses during setup ([#308](https://github.com/codeaholicguy/ai-devkit/pull/308)).
