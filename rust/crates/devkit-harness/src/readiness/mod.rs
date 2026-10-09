@@ -70,12 +70,18 @@ pub struct ReadinessRuntime<'a> {
 
 pub struct SystemHost {
     home_dir: String,
+    /// Client-supplied PATH — probes must resolve executables against the
+    /// caller's runtime environment, not the daemon's ambient PATH (a
+    /// harness on the client's PATH but not the daemon's would otherwise
+    /// report `executable: ready` + `auth: fail`).
+    path: String,
 }
 
 impl SystemHost {
-    pub fn new(home_dir: &str) -> Self {
+    pub fn new(home_dir: &str, path: &str) -> Self {
         Self {
             home_dir: home_dir.to_string(),
+            path: path.to_string(),
         }
     }
 }
@@ -93,7 +99,7 @@ impl Host for SystemHost {
     }
 
     fn run_command(&self, command: &str, args: &[&str]) -> io::Result<CommandResult> {
-        run_with_timeout(command, args, COMMAND_TIMEOUT)
+        run_with_timeout(command, args, COMMAND_TIMEOUT, &self.path)
     }
 
     fn codex_auth(&self) -> Option<bool> {
@@ -101,8 +107,14 @@ impl Host for SystemHost {
     }
 }
 
-fn run_with_timeout(command: &str, args: &[&str], timeout: Duration) -> io::Result<CommandResult> {
+fn run_with_timeout(
+    command: &str,
+    args: &[&str],
+    timeout: Duration,
+    path: &str,
+) -> io::Result<CommandResult> {
     let child = Command::new(command)
+        .env("PATH", path)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

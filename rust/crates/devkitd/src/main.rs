@@ -34,10 +34,30 @@ async fn main() -> Result<()> {
             daemon.apply_sweep(); // warm the cache before accepting clients
             server::serve(daemon).await
         }
-        "install" => install_systemd(),
+        "install" => {
+            #[cfg(target_os = "linux")]
+            {
+                install_systemd()
+            }
+            #[cfg(not(target_os = "linux"))]
+            {
+                // The unit is a systemd --user service — writing it on
+                // non-systemd platforms leaves a dead file.
+                eprintln!("install writes a systemd --user unit; only supported on Linux");
+                std::process::exit(2);
+            }
+        }
         "status" => {
             println!("socket: {}", socket_path().display());
             println!("db: {}", data_dir().join("daemon.db").display());
+            // Probe the socket so status means something: a stale socket
+            // file left by a crash reads as "not running", not "up".
+            let state = match tokio::net::UnixStream::connect(&socket_path()).await {
+                Ok(_) => "listening",
+                Err(_) if socket_path().exists() => "stale socket file (daemon down)",
+                Err(_) => "not running",
+            };
+            println!("daemon: {state}");
             Ok(())
         }
         other => {

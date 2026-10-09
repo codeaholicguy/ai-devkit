@@ -37,7 +37,31 @@ const READINESS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(
 impl Daemon {
     pub fn new(data_dir: &Path, socket_path: PathBuf, home: PathBuf) -> Result<Self> {
         std::fs::create_dir_all(data_dir)?;
-        let store = Store::open(&data_dir.join("daemon.db"))?;
+        // The db/registry may one day hold sensitive state — the socket is
+        // already 0600, tighten the directory so wal/shm sidecars (created
+        // per open with default umask) aren't world-readable either.
+        let _ = std::fs::set_permissions(
+            data_dir,
+            std::fs::Permissions::from_mode(0o700),
+        );
+        let db = data_dir.join("daemon.db");
+        // A corrupt db previously killed devkitd on open — and autostart
+        // would respawn it on every call into the same crash. Quarantine
+        // once and start over with a fresh file.
+        let store = match Store::open(&db) {
+            Ok(s) => s,
+            Err(e) => {
+                let backup = format!("daemon.db.corrupt-{}", chrono_now());
+                tracing::warn!("daemon.db failed to open ({e:#}); moving to {backup}");
+                for side in ["", "-wal", "-shm"] {
+                    let src = data_dir.join(format!("daemon.db{side}"));
+                    if src.exists() {
+                        let _ = std::fs::rename(&src, data_dir.join(format!("{backup}{side}")));
+                    }
+                }
+                Store::open(&db)?
+            }
+        };
         let (tx, _) = broadcast::channel(1024);
         Ok(Self {
             store: Arc::new(store),
@@ -57,13 +81,17 @@ impl Daemon {
 
     fn emit(&self, kind: &str, payload: Value) {
         let _g = self.emit_mutex.lock().unwrap();
-        if let Ok(seq) = self.store.emit(kind, &payload) {
-            let _ = self.events.send(Event {
-                seq,
-                ts: chrono_now(),
-                kind: kind.to_string(),
-                payload,
-            });
+        match self.store.emit(kind, &payload) {
+            Ok(seq) => {
+                // send() only fails when there are no subscribers — normal.
+                let _ = self.events.send(Event {
+                    seq,
+                    ts: chrono_now(),
+                    kind: kind.to_string(),
+                    payload,
+                });
+            }
+            Err(e) => tracing::warn!("event emit failed ({kind}): {e:#}"),
         }
     }
 
@@ -156,7 +184,7 @@ impl Daemon {
                             .collect()
                     })
                     .unwrap_or_else(devkit_harness::readiness::default_skill_roots);
-                let host = devkit_harness::readiness::SystemHost::new(&home_dir);
+                let host = devkit_harness::readiness::SystemHost::new(&home_dir, &path);
                 let rt = devkit_harness::readiness::ReadinessRuntime {
                     home_dir,
                     path,
@@ -176,7 +204,10 @@ impl Daemon {
             }
             "events.replay" => {
                 let after = req.params["afterSeq"].as_u64().unwrap_or(0);
-                let limit = req.params["limit"].as_u64().unwrap_or(1000) as u32;
+                // Clamp instead of truncating — `as u32` would wrap a large
+                // u64 back to a small replay window.
+                let limit = u32::try_from(req.params["limit"].as_u64().unwrap_or(1000))
+                    .unwrap_or(u32::MAX);
                 match self.store.events_after(after, limit) {
                     Ok(v) => Response::ok(id, serde_json::to_value(v).unwrap()),
                     Err(e) => Response::err(id, e.to_string()),
@@ -208,6 +239,7 @@ impl Daemon {
             tracing::warn!("discovery sweep failed; keeping previous snapshot");
             return;
         };
+        tracing::trace!(procs = all.len(), "sweep");
         let candidate_pids: std::collections::HashSet<i64> = all
             .iter()
             .filter(|p| self.enricher.any_can_handle(p))
@@ -231,15 +263,19 @@ impl Daemon {
         // and would hold it for the entire enrich pass.
         let enriched = self.enricher.enrich(&ctx);
         *self.enriched.write().unwrap() = enriched;
-        if let Ok((appeared, gone)) = self.store.apply_agent_snapshot(&procs) {
-            // Disappeared first: on pid reuse the stale identity must leave
-            // before the fresh one arrives or subscribers see them inverted.
-            for pid in gone {
-                self.emit("agent.disappeared", json!({"pid": pid}));
+        match self.store.apply_agent_snapshot(&procs) {
+            Ok((appeared, gone)) => {
+                // Disappeared first: on pid reuse the stale identity must
+                // leave before the fresh one arrives or subscribers see them
+                // inverted.
+                for pid in gone {
+                    self.emit("agent.disappeared", json!({"pid": pid}));
+                }
+                for pid in appeared {
+                    self.emit("agent.appeared", json!({"pid": pid}));
+                }
             }
-            for pid in appeared {
-                self.emit("agent.appeared", json!({"pid": pid}));
-            }
+            Err(e) => tracing::warn!("agent snapshot apply failed: {e:#}"),
         }
     }
 }
@@ -285,7 +321,11 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
                 // Sweeps are synchronous fs/process work; run them on the
                 // blocking pool so a long pass never stalls request handlers.
                 let d = d.clone();
-                let _ = tokio::task::spawn_blocking(move || d.apply_sweep()).await;
+                if let Err(e) = tokio::task::spawn_blocking(move || d.apply_sweep()).await {
+                    // A panicking sweep would otherwise kill discovery
+                    // silently — the daemon looks healthy while going stale.
+                    tracing::warn!("sweep task failed: {e}");
+                }
             }
         });
     }
@@ -298,14 +338,26 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
         }
         let d = daemon.clone();
         tokio::spawn(async move {
-            let _ = handle_conn(d, stream).await;
+            if let Err(e) = handle_conn(d, stream).await {
+                tracing::debug!("connection closed with error: {e:#}");
+            }
         });
     }
 }
 
+/// Methods cheap enough to run on the async worker — everything else goes
+/// to the blocking pool so a slow probe can't stall other connections.
+const INLINE_METHODS: &[&str] = &["ping", "daemon.status", "agent.enriched"];
+
+/// Cap on request bytes per connection. Requests are single-line JSON; a
+/// subscription conn sends exactly one. Bounds the line buffer a hostile
+/// or buggy client can grow by streaming without a newline.
+const MAX_REQUEST_BYTES: u64 = 4 << 20;
+
 async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
+    use tokio::io::AsyncReadExt;
     let (read, mut write) = stream.into_split();
-    let mut lines = BufReader::new(read).lines();
+    let mut lines = BufReader::new(read.take(MAX_REQUEST_BYTES)).lines();
     let mut sub: Option<broadcast::Receiver<Event>> = None;
     // Highest seq delivered on this connection — replay sets the floor and
     // live frames advance it, so nothing is sent twice or skipped.
@@ -325,12 +377,17 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                         // delivery floor, so buffered live frames that overlap
                         // the replay are dropped rather than sent twice.
                         let rx = daemon.events.subscribe();
-                        if let Ok(events) = daemon.store.events_after(after, 10_000) {
-                            for ev in events {
-                                last_delivered = last_delivered.max(ev.seq);
-                                let s = serde_json::to_string(&json!({"event": ev}))?;
-                                write.write_all(s.as_bytes()).await?;
-                                write.write_all(b"\n").await?;
+                        match daemon.store.events_after(after, 10_000) {
+                            Ok(events) => {
+                                for ev in events {
+                                    last_delivered = last_delivered.max(ev.seq);
+                                    let s = serde_json::to_string(&json!({"event": ev}))?;
+                                    write.write_all(s.as_bytes()).await?;
+                                    write.write_all(b"\n").await?;
+                                }
+                            }
+                            Err(e) => {
+                                tracing::warn!("subscribe replay failed: {e:#}")
                             }
                         }
                         last_delivered = last_delivered.max(after);
@@ -340,12 +397,16 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                         write.write_all(b"\n").await?;
                     }
                     Ok(req) => {
-                        // dispatch is synchronous — some RPCs (agent.readiness)
-                        // run subprocess probes for seconds; keep them off the
-                        // async workers so other connections stay responsive.
+                        // Heavy methods are synchronous — some RPCs
+                        // (agent.readiness) run subprocess probes for
+                        // seconds; keep them off the async workers so other
+                        // connections stay responsive.
                         let d = daemon.clone();
-                        let resp =
-                            tokio::task::spawn_blocking(move || d.dispatch(req)).await?;
+                        let resp = if INLINE_METHODS.contains(&req.method.as_str()) {
+                            d.dispatch(req)
+                        } else {
+                            tokio::task::spawn_blocking(move || d.dispatch(req)).await?
+                        };
                         write.write_all(serde_json::to_string(&resp)?.as_bytes()).await?;
                         write.write_all(b"\n").await?;
                     }
@@ -358,16 +419,36 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
             }
             ev = async {
                 match sub.as_mut() {
-                    Some(rx) => rx.recv().await.map_err(|_| ()),
+                    Some(rx) => rx.recv().await,
                     None => std::future::pending().await,
                 }
             } => {
-                if let Ok(e) = ev {
-                    if e.seq > last_delivered {
-                        last_delivered = e.seq;
-                        let s = serde_json::to_string(&json!({"event": e}))?;
-                        write.write_all(s.as_bytes()).await?;
+                match ev {
+                    Ok(e) => {
+                        if e.seq > last_delivered {
+                            last_delivered = e.seq;
+                            let s = serde_json::to_string(&json!({"event": e}))?;
+                            write.write_all(s.as_bytes()).await?;
+                            write.write_all(b"\n").await?;
+                        }
+                    }
+                    Err(broadcast::error::RecvError::Lagged(n)) => {
+                        // The 1024-event buffer overflowed — frames are gone.
+                        // Tell the client so it refetches state instead of
+                        // silently missing history. seq=0 keeps it below
+                        // last_delivered so it never counts as delivered.
+                        tracing::warn!("subscriber lagged {n} events behind");
+                        let hint = json!({"event": {
+                            "seq": 0,
+                            "ts": chrono_now(),
+                            "kind": "subscription.lagged",
+                            "payload": {"dropped": n},
+                        }});
+                        write.write_all(serde_json::to_string(&hint)?.as_bytes()).await?;
                         write.write_all(b"\n").await?;
+                    }
+                    Err(broadcast::error::RecvError::Closed) => {
+                        return Ok(());
                     }
                 }
             }
