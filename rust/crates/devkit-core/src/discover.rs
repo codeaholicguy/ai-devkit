@@ -1,5 +1,32 @@
 use std::process::Command;
 
+/// Hard cap on any discovery shell-out — a wedged ps/lsof must never stall
+/// the sweep loop forever (a hung child would silently freeze discovery).
+const SWEEP_CMD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Run a command to completion with a timeout; the child is SIGKILLed on
+/// timeout so no zombie is left behind. `None` on spawn failure/timeout.
+fn run_with_timeout(cmd: &mut Command) -> Option<std::process::Output> {
+    let child = cmd
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .ok()?;
+    let pid = child.id();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(child.wait_with_output());
+    });
+    match rx.recv_timeout(SWEEP_CMD_TIMEOUT) {
+        Ok(Ok(out)) => Some(out),
+        Ok(Err(_)) | Err(_) => {
+            unsafe { libc::kill(pid as i32, libc::SIGKILL) };
+            None
+        }
+    }
+}
+
 /// One discovered agent process. Harness attribution stays client-side
 /// (coordination-only scope) — the daemon reports facts: pid/ppid/tty/command/cwd.
 #[derive(Debug, Clone)]
@@ -64,10 +91,7 @@ pub fn is_runtime_command(cmd: &str) -> bool {
 /// snapshot in that case or a transient failure would wipe the agent table
 /// and emit a mass of phantom disappeared/appeared events.
 pub fn sweep() -> Option<Vec<AgentProc>> {
-    let out = Command::new("ps")
-        .args(["-axo", "pid=,ppid=,tty=,command="])
-        .output()
-        .ok()?;
+    let out = run_with_timeout(Command::new("ps").args(["-axo", "pid=,ppid=,tty=,command="]))?;
     if !out.status.success() {
         return None;
     }
@@ -133,10 +157,9 @@ pub fn enrich_agents(procs: &mut [AgentProc]) {
 /// `lsof -a -d cwd -Fn -p <pids>` → {pid: cwd}. Output format: `p<pid>\nn<path>`…
 fn batch_cwds(pids: &[String]) -> std::collections::HashMap<i64, String> {
     let mut out = std::collections::HashMap::new();
-    let Ok(res) = Command::new("lsof")
-        .args(["-a", "-d", "cwd", "-Fn", "-p", &pids.join(",")])
-        .output()
-    else {
+    let Some(res) = run_with_timeout(
+        Command::new("lsof").args(["-a", "-d", "cwd", "-Fn", "-p", &pids.join(",")]),
+    ) else {
         return out;
     };
     let mut current: Option<i64> = None;
@@ -155,10 +178,9 @@ fn batch_cwds(pids: &[String]) -> std::collections::HashMap<i64, String> {
 /// `Wed Mar 18 23:18:01 2026` (day-of-week, month, day, time, year).
 fn batch_start_times(pids: &[String]) -> std::collections::HashMap<i64, i64> {
     let mut out = std::collections::HashMap::new();
-    let Ok(res) = Command::new("ps")
-        .args(["-o", "pid=,lstart=", "-p", &pids.join(",")])
-        .output()
-    else {
+    let Some(res) = run_with_timeout(
+        Command::new("ps").args(["-o", "pid=,lstart=", "-p", &pids.join(",")]),
+    ) else {
         return out;
     };
     for line in String::from_utf8_lossy(&res.stdout).lines() {
