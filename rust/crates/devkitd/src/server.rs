@@ -202,7 +202,10 @@ impl Daemon {
             now: chrono_now(),
             home: &self.home,
         };
-        *self.enriched.write().unwrap() = self.enricher.enrich(&ctx);
+        // Compute outside the lock: `*w = f()` evaluates the write guard first
+        // and would hold it for the entire enrich pass.
+        let enriched = self.enricher.enrich(&ctx);
+        *self.enriched.write().unwrap() = enriched;
         if let Ok((appeared, gone)) = self.store.apply_agent_snapshot(&procs) {
             for pid in appeared {
                 self.emit("agent.appeared", json!({"pid": pid}));
@@ -252,7 +255,10 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
             let mut tick = tokio::time::interval(std::time::Duration::from_secs(2));
             loop {
                 tick.tick().await;
-                d.apply_sweep();
+                // Sweeps are synchronous fs/process work; run them on the
+                // blocking pool so a long pass never stalls request handlers.
+                let d = d.clone();
+                let _ = tokio::task::spawn_blocking(move || d.apply_sweep()).await;
             }
         });
     }
@@ -342,6 +348,7 @@ mod tests {
         let sock = dir.join("d.sock");
         // Tests use the temp dir as home — no harness session trees there.
         let d = Arc::new(Daemon::new(&dir, sock.clone(), dir.clone()).unwrap());
+        d.apply_sweep(); // warm the cache like main() does before serving
         let d2 = d.clone();
         tokio::spawn(async move {
             let _ = serve(d2).await;

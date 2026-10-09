@@ -47,7 +47,8 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
   it("spawns the daemon on socket miss and returns a working client", async () => {
     // If a daemon is already running from dev, this still passes: ensureDaemon
     // short-circuits on a live socket. Either way we get a working client.
-    const client = await ensureDaemon({ waitMs: 8000 });
+    // Cold spawn under repo-wide parallel test load can exceed 8s.
+    const client = await ensureDaemon({ waitMs: 20000 });
     expect(client).not.toBeNull();
     const pong = (await client!.request("ping")) as { pong: boolean };
     expect(pong.pong).toBe(true);
@@ -63,7 +64,7 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
     });
     expect((got as { ok: boolean }).ok).toBe(true);
     client!.close();
-  }, 15000);
+  }, 30000);
 
   it("a second ensureDaemon is a no-op fast path", async () => {
     const started = Date.now();
@@ -74,14 +75,14 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
   });
 
   it("enrichedAgents returns agents + ported over the real socket", async () => {
-    const client = await ensureDaemon({ waitMs: 8000 });
+    const client = await ensureDaemon({ waitMs: 20000 });
     expect(client).not.toBeNull();
     const result = await client!.enrichedAgents();
     // I0: no harness ported yet — the contract is the shape, not content.
     expect(Array.isArray(result.agents)).toBe(true);
     expect(Array.isArray(result.ported)).toBe(true);
     client!.close();
-  }, 15000);
+  }, 30000);
 });
 
 describe.runIf(fs.existsSync(sock))("live daemon", () => {

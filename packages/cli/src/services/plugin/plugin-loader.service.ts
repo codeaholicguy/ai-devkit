@@ -13,18 +13,9 @@ import {
   type AiDevkitPluginCommand,
 } from "./plugin-manifest.service.js";
 
-export const BUILT_IN_COMMAND_NAMES = new Set([
-  "init",
-  "phase",
-  "lint",
-  "install",
-  "memory",
-  "skill",
-  "agent",
-  "channel",
-  "docs",
-  "plugin",
-]);
+import { BUILT_IN_COMMAND_NAMES } from "./builtin-commands.js";
+
+export { BUILT_IN_COMMAND_NAMES };
 
 export async function validateInstalledPluginManifest(pluginName: string): Promise<void> {
   await loadInstalledPluginCommands(pluginName);

@@ -1,10 +1,8 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { createElement } from "react";
 import { Command } from "commander";
 import chalk from "chalk";
-import { render } from "ink";
 import {
   AgentManager,
   AGENT_TYPES,
@@ -44,36 +42,17 @@ import {
   resolveListSessionsOptions,
   toJsonSession,
 } from "../util/sessions.js";
-import {
-  assertSendTargetOptions,
-  type SendReporter,
-  sendToAgent,
-  sendToAgentGroup,
-} from "../services/agent/agent.service.js";
+import type { SendReporter } from "../services/agent/agent.service.js";
 import {
   AgentGroupNotFoundError,
   createDefaultAgentGroupService,
 } from "../services/agent/agent-group.service.js";
 import { registerAgentGroupCommand } from "./agent/group.command.js";
-import {
-  AGENT_CONSOLE_RENDER_OPTIONS,
-  ConsoleApp,
-} from "../tui/console/ConsoleApp.js";
 import { generateAgentName, agentTypeLabel } from "../util/agent.js";
-import { select } from "@inquirer/prompts";
 import { resolveTmuxInstallInstructions } from "../util/tmux.js";
 import { createTmuxInspectionDeps } from "../util/tmux-deps.js";
 import { ConfigManager } from "../lib/Config.js";
 import { getErrorMessage } from "../util/text.js";
-import {
-  compactSession,
-  renderSessionCompactMarkdown,
-} from "../services/session-compact/session-compact.service.js";
-import { createJevSessionEventClassifier } from "../services/session-compact/jev-classifier.js";
-import {
-  JEV_UNAVAILABLE_MESSAGE,
-  JEV_UNAVAILABLE_REASON,
-} from "../services/session-compact/session-compact.types.js";
 
 // eslint-disable-next-line no-control-regex
 const ANSI_ESCAPE_PATTERN = /\x1b\[[0-9;]*m/g;
@@ -787,6 +766,15 @@ export function registerAgentCommand(program: Command): void {
     .option("--format <format>", "Output format: markdown or json", "markdown")
     .action(
       withErrorHandler("compact session", async (options) => {
+        const [
+          { compactSession, renderSessionCompactMarkdown },
+          { createJevSessionEventClassifier },
+          { JEV_UNAVAILABLE_MESSAGE, JEV_UNAVAILABLE_REASON },
+        ] = await Promise.all([
+          import("../services/session-compact/session-compact.service.js"),
+          import("../services/session-compact/jev-classifier.js"),
+          import("../services/session-compact/session-compact.types.js"),
+        ]);
         if (options.format !== "markdown" && options.format !== "json") {
           throw new Error("Invalid --format. Expected markdown or json.");
         }
@@ -875,6 +863,7 @@ export function registerAgentCommand(program: Command): void {
         if (Array.isArray(resolved)) {
           ui.warning(`Multiple agents match "${name}":`);
 
+          const { select } = await import("@inquirer/prompts");
           const selectedAgent = await select({
             message: "Select an agent to open:",
             choices: resolved.map((a) => ({
@@ -930,6 +919,8 @@ export function registerAgentCommand(program: Command): void {
     .option("-j, --json", "Output wait result as JSON")
     .action(
       withErrorHandler("send message", async (message, options) => {
+        const { assertSendTargetOptions, sendToAgent, sendToAgentGroup } =
+          await import("../services/agent/agent.service.js");
         assertSendTargetOptions(options);
         const prompt = await resolveSendMessage(message, options);
         const manager = createAgentManager();
@@ -1253,6 +1244,15 @@ export function registerAgentCommand(program: Command): void {
           process.exit(1);
         }
         const manager = createAgentManager();
+        const [
+          { createElement },
+          { render },
+          { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp },
+        ] = await Promise.all([
+          import("react"),
+          import("ink"),
+          import("../tui/console/ConsoleApp.js"),
+        ]);
         const { waitUntilExit } = render(
           createElement(ConsoleApp, { manager }),
           AGENT_CONSOLE_RENDER_OPTIONS,
