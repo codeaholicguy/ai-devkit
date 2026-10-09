@@ -2,19 +2,14 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import type { ChannelConfig, ChannelEntry } from "./types.js";
-import { DaemonClient, ensureDaemon } from "@ai-devkit/daemon-client";
 
 const DEFAULT_CONFIG_PATH = path.join(os.homedir(), ".ai-devkit", "channels.json");
 const DEFAULT_CONFIG: ChannelConfig = { channels: {} };
 
 /**
- * Persists channel configurations.
- *
- * Daemon-first: when devkitd is reachable (auto-spawned if the binary is
- * present), registry writes go through the daemon's sole-writer SQLite store,
- * which eliminates the read-modify-write races this JSON file had.
- * Fallback: the original ~/.ai-devkit/channels.json behavior is preserved so
- * environments without the daemon binary degrade transparently.
+ * Persists channel configurations to ~/.ai-devkit/channels.json (mode 0600).
+ * Channel credentials stay file-backed on purpose — the daemon registry is
+ * not used for them.
  */
 export class ChannelConfigRepository {
   private configPath: string;
@@ -24,34 +19,9 @@ export class ChannelConfigRepository {
   }
 
   /**
-   * Lazily get a daemon client; null when the daemon can't be spawned.
-   * Connections are scoped to a single request — a cached client would pin
-   * the event loop in short-lived commands and the agent console.
-   */
-  private client(): Promise<DaemonClient | null> {
-    // Daemon path is skipped when a custom configPath was injected (tests,
-    // alternate profiles) — those callers want file semantics.
-    if (this.configPath !== DEFAULT_CONFIG_PATH) return Promise.resolve(null);
-    return ensureDaemon().catch(() => null);
-  }
-
-  /**
    * Read the full config. Returns default empty config if file is missing or corrupt.
    */
   async getConfig(): Promise<ChannelConfig> {
-    const client = await this.client();
-    if (client) {
-      try {
-        const result = (await client.request("registry.get", {
-          scope: "channels",
-        })) as Record<string, ChannelEntry>;
-        return { channels: result ?? {} };
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     try {
       const raw = fs.readFileSync(this.configPath, "utf-8");
       return JSON.parse(raw) as ChannelConfig;
@@ -64,21 +34,6 @@ export class ChannelConfigRepository {
    * Save a channel entry. Creates the file and parent directory if needed.
    */
   async saveChannel(name: string, entry: ChannelEntry): Promise<void> {
-    const client = await this.client();
-    if (client) {
-      try {
-        await client.request("registry.put", {
-          scope: "channels",
-          name,
-          value: entry,
-        });
-        return;
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     const config = await this.getConfig();
     config.channels[name] = entry;
     await this.writeConfig(config);
@@ -88,20 +43,6 @@ export class ChannelConfigRepository {
    * Remove a channel entry by name.
    */
   async removeChannel(name: string): Promise<void> {
-    const client = await this.client();
-    if (client) {
-      try {
-        await client.request("registry.delete", {
-          scope: "channels",
-          name,
-        });
-        return;
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     const config = await this.getConfig();
     delete config.channels[name];
     await this.writeConfig(config);
@@ -111,20 +52,6 @@ export class ChannelConfigRepository {
    * Get a single channel entry by name.
    */
   async getChannel(name: string): Promise<ChannelEntry | undefined> {
-    const client = await this.client();
-    if (client) {
-      try {
-        const v = (await client.request("registry.get", {
-          scope: "channels",
-          name,
-        })) as ChannelEntry | null;
-        return v ?? undefined;
-      } catch {
-        /* fall through to file */
-      } finally {
-        client.close();
-      }
-    }
     const config = await this.getConfig();
     return config.channels[name];
   }

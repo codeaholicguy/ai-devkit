@@ -38,7 +38,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@ai-devkit/daemon-client": "0.1.0",
     "@slack/socket-mode": "^3.0.0",
     "@slack/web-api": "^8.0.0",
     "marked": "^15.0.12",
