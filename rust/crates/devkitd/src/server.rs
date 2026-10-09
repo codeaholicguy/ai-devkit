@@ -300,6 +300,9 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
     let (read, mut write) = stream.into_split();
     let mut lines = BufReader::new(read).lines();
     let mut sub: Option<broadcast::Receiver<Event>> = None;
+    // Highest seq delivered on this connection — replay sets the floor and
+    // live frames advance it, so nothing is sent twice or skipped.
+    let mut last_delivered: u64 = 0;
 
     loop {
         tokio::select! {
@@ -309,15 +312,22 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                 match parsed {
                     Ok(req) if req.method == "subscribe" => {
                         let after = req.params["afterSeq"].as_u64().unwrap_or(0);
-                        // Replay persisted events first (at-least-once), then live.
+                        // Subscribe BEFORE replaying: events emitted during the
+                        // replay land in the receiver's buffer instead of the
+                        // old replay→subscribe gap. Replayed seqs become the
+                        // delivery floor, so buffered live frames that overlap
+                        // the replay are dropped rather than sent twice.
+                        let rx = daemon.events.subscribe();
                         if let Ok(events) = daemon.store.events_after(after, 10_000) {
                             for ev in events {
+                                last_delivered = last_delivered.max(ev.seq);
                                 let s = serde_json::to_string(&json!({"event": ev}))?;
                                 write.write_all(s.as_bytes()).await?;
                                 write.write_all(b"\n").await?;
                             }
                         }
-                        sub = Some(daemon.events.subscribe());
+                        last_delivered = last_delivered.max(after);
+                        sub = Some(rx);
                         let resp = Response::ok(req.id, json!({"subscribed": true}));
                         write.write_all(serde_json::to_string(&resp)?.as_bytes()).await?;
                         write.write_all(b"\n").await?;
@@ -346,9 +356,12 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                 }
             } => {
                 if let Ok(e) = ev {
-                    let s = serde_json::to_string(&json!({"event": e}))?;
-                    write.write_all(s.as_bytes()).await?;
-                    write.write_all(b"\n").await?;
+                    if e.seq > last_delivered {
+                        last_delivered = e.seq;
+                        let s = serde_json::to_string(&json!({"event": e}))?;
+                        write.write_all(s.as_bytes()).await?;
+                        write.write_all(b"\n").await?;
+                    }
                 }
             }
         }
@@ -446,6 +459,68 @@ mod tests {
             }
         }
         assert!(saw_ping);
+    }
+
+    #[tokio::test]
+    async fn subscribe_filters_live_frames_at_or_below_the_replayed_floor() {
+        let (d, sock) = test_daemon().await;
+
+        // Persist one event so the replay sets a nonzero delivery floor.
+        let replayed_seq = d.store.emit("floor.base", &json!({})).unwrap();
+
+        let mut s = UnixStream::connect(&sock).await.unwrap();
+        s.write_all(br#"{"id":1,"method":"subscribe","params":{"afterSeq":0}}"#.as_ref())
+            .await
+            .unwrap();
+        s.write_all(b"\n").await.unwrap();
+        let mut lines = BufReader::new(s).lines();
+        loop {
+            let line: Value =
+                serde_json::from_str(&lines.next_line().await.unwrap().unwrap()).unwrap();
+            if line["result"]["subscribed"] == true {
+                break;
+            }
+        }
+
+        // A live frame carrying an already-delivered seq — the case the
+        // replay→subscribe overlap produces — must be dropped; a fresh seq
+        // must pass through.
+        let _ = d.events.send(Event {
+            seq: replayed_seq,
+            ts: 0,
+            kind: "floor.stale".into(),
+            payload: json!({}),
+        });
+        let fresh_seq = d.store.emit("floor.fresh", &json!({})).unwrap();
+        let _ = d.events.send(Event {
+            seq: fresh_seq,
+            ts: 0,
+            kind: "floor.fresh".into(),
+            payload: json!({}),
+        });
+
+        let mut saw_stale = false;
+        let mut saw_fresh = false;
+        for _ in 0..50 {
+            let line: Value = serde_json::from_str(
+                &tokio::time::timeout(std::time::Duration::from_secs(2), lines.next_line())
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .unwrap(),
+            )
+            .unwrap();
+            match line["event"]["kind"].as_str() {
+                Some("floor.stale") => saw_stale = true,
+                Some("floor.fresh") => {
+                    saw_fresh = true;
+                    break;
+                }
+                _ => {}
+            }
+        }
+        assert!(saw_fresh);
+        assert!(!saw_stale);
     }
 
     #[tokio::test]
