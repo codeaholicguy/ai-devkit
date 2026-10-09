@@ -2,7 +2,7 @@ import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentReadinessResult } from "./gen/AgentReadinessResult.js";
-import type { EnrichedAgentsResult } from "./gen/EnrichedAgentsResult.js";
+import type { EnrichedAgent } from "./gen/EnrichedAgent.js";
 import type { Event } from "./gen/Event.js";
 
 /** Wire event pushed by the daemon — generated from devkit-core via ts-rs. */
@@ -104,13 +104,12 @@ export class DaemonClient {
   }
 
   /**
-   * Fully attributed agents for the harness types the daemon has ported.
-   * `ported` tells callers which types the result covers — everything else
-   * stays on the local adapter path. Throws on RPC error: callers fall back
-   * for the whole call, not per-agent.
+   * The daemon's fully attributed agent list — authoritative for every
+   * harness type the daemon serves. Throws on RPC error: callers fall back
+   * to local adapters for the whole call, not per-agent.
    */
-  async enrichedAgents(): Promise<EnrichedAgentsResult> {
-    return (await this.request("agent.enriched")) as EnrichedAgentsResult;
+  async enrichedAgents(): Promise<EnrichedAgent[]> {
+    return (await this.request("agent.enriched")) as EnrichedAgent[];
   }
 
   /**

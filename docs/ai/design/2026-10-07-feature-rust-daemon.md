@@ -41,7 +41,7 @@ changes.
 | `registry.get` | `{scope, name?}` | single value, or `{name: value}` map for the scope |
 | `registry.put` | `{scope, name, value}` | `{ok}`; emits `registry.changed` |
 | `registry.delete` | `{scope, name}` | `{ok}`; emits `registry.changed` |
-| `agent.list` | — | array of `{pid, ppid, tty, command, cwd, sessionFilePath, firstSeen, lastSeen}` |
+| `agent.enriched` | — | array of fully attributed `AgentInfo` rows — authoritative for all harness types |
 | `subscribe` | `{afterSeq?}` | ack `{subscribed}`, then event frames; replays persisted events after `afterSeq` first |
 | `events.replay` | `{afterSeq?, limit?}` | array of events |
 | `shutdown` | — | `{ok}`; daemon exits after the response flushes |
@@ -154,10 +154,11 @@ fixture-contracted port), and any network listener.
 
 ## Deviations recorded honestly
 
-- The CLI's `agent list` path was not rewired to the daemon cache: attribution
-  and session-file knowledge are client-side, so a daemon-backed fast path
-  needs the knowledge port to actually pay off. The daemon serves `agent.list`
-  facts; the CLI still does its own discovery today.
+- The CLI's `agent list` path was not rewired to the daemon cache at I0:
+  attribution and session-file knowledge were client-side, so a daemon-backed
+  fast path needed the knowledge port to pay off. (Post-port the raw
+  `agent.list` RPC was removed entirely — `agent.enriched` is the single
+  list API and the agents table is an internal diff ledger.)
 - Bridge supervision and capacity caching were scoped to v1.5 by explicit
   decision; the console's event-driven refresh is in v1 (see above) while
   channel-bridge output polling stays client-side (harness parsing).

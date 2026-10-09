@@ -27,14 +27,6 @@ pub struct EnrichedAgent {
     pub session_file_path: Option<String>,
 }
 
-/// Result of `agent.enriched`: agents for ported harness types plus the list
-/// of types covered — clients fall back to local adapters for the rest.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, TS)]
-pub struct EnrichedAgentsResult {
-    pub agents: Vec<EnrichedAgent>,
-    pub ported: Vec<String>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

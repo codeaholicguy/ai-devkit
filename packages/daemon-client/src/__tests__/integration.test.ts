@@ -124,13 +124,12 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
     client!.close();
   });
 
-  it("enrichedAgents returns agents + ported over the real socket", async () => {
+  it("enrichedAgents returns the attributed list over the real socket", async () => {
     const client = await ensureDaemon({ waitMs: 20000 });
     expect(client).not.toBeNull();
     const result = await client!.enrichedAgents();
-    // I0: no harness ported yet — the contract is the shape, not content.
-    expect(Array.isArray(result.agents)).toBe(true);
-    expect(Array.isArray(result.ported)).toBe(true);
+    // The contract is a bare attributed array, empty or not.
+    expect(Array.isArray(result)).toBe(true);
     client!.close();
   }, 30000);
 });

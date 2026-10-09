@@ -1,5 +1,5 @@
 use anyhow::Result;
-use devkit_core::agent::EnrichedAgentsResult;
+use devkit_core::agent::EnrichedAgent;
 use devkit_core::proto::{Event, Request, Response};
 use devkit_core::store::{chrono_now, Store};
 use serde_json::{json, Value};
@@ -21,9 +21,9 @@ pub struct Daemon {
     pub started_at: i64,
     pub socket_path: PathBuf,
     pub enricher: devkit_harness::Registry,
-    /// Enriched agents for ported harness types, refreshed per sweep so
-    /// `agent.enriched` is O(1) over a prebuilt list.
-    pub enriched: RwLock<EnrichedAgentsResult>,
+    /// Fully attributed agents refreshed per sweep so `agent.enriched` is
+    /// O(1) over a prebuilt list.
+    pub enriched: RwLock<Vec<EnrichedAgent>>,
     /// Readiness probes run subprocesses for seconds and change slowly —
     /// cache the serialized result per request-params key for a short TTL.
     pub readiness_cache: RwLock<Option<(String, std::time::Instant, Value)>>,
@@ -70,10 +70,7 @@ impl Daemon {
             started_at: chrono_now(),
             socket_path,
             enricher: devkit_harness::default_registry(&home),
-            enriched: RwLock::new(EnrichedAgentsResult {
-                agents: vec![],
-                ported: vec![],
-            }),
+            enriched: RwLock::new(Vec::new()),
             readiness_cache: RwLock::new(None),
             home,
         })
@@ -147,10 +144,6 @@ impl Daemon {
                     Err(e) => Response::err(id, e.to_string()),
                 }
             }
-            "agent.list" => match self.store.list_agents() {
-                Ok(v) => Response::ok(id, Value::Array(v)),
-                Err(e) => Response::err(id, e.to_string()),
-            },
             "agent.enriched" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
@@ -621,24 +614,27 @@ mod tests {
         let (d, sock) = test_daemon().await;
         let r = rpc(&sock, r#"{"id":1,"method":"agent.enriched"}"#).await;
         // Live sweep may surface real claude processes on the dev machine —
-        // the contract is the shape, not emptiness.
-        assert!(r["result"]["agents"].is_array());
-        assert_eq!(
-            r["result"]["ported"],
-            json!(["claude", "codex", "pi", "gemini_cli", "copilot", "grok_cli", "opencode", "devin", "kiro", "antigravity_cli"])
-        );
+        // the contract is a bare array, not a wrapper.
+        assert!(r["result"].is_array());
+        assert!(r["result"]["ported"].is_null());
 
-        // A registered adapter would surface through the same cache; I0
-        // verifies the cache is what apply_sweep refreshes.
-        *d.enriched.write().unwrap() = devkit_core::agent::EnrichedAgentsResult {
-            agents: vec![],
-            ported: vec!["claude".into(), "codex".into(), "pi".into(), "gemini_cli".into(), "copilot".into(), "grok_cli".into(), "opencode".into(), "devin".into(), "kiro".into(), "antigravity_cli".into()],
-        };
+        // The cache is what apply_sweep refreshes — write directly and
+        // verify the RPC serves exactly that.
+        *d.enriched.write().unwrap() = vec![EnrichedAgent {
+            name: "t".into(),
+            agent_type: "claude".into(),
+            status: "idle".into(),
+            summary: String::new(),
+            pid: 1,
+            project_path: "/p".into(),
+            session_id: "s".into(),
+            last_active: "2026-10-09T00:00:00.000Z".into(),
+            pinned: None,
+            session_file_path: None,
+        }];
         let r = rpc(&sock, r#"{"id":2,"method":"agent.enriched"}"#).await;
-        assert_eq!(
-            r["result"]["ported"],
-            json!(["claude", "codex", "pi", "gemini_cli", "copilot", "grok_cli", "opencode", "devin", "kiro", "antigravity_cli"])
-        );
+        assert_eq!(r["result"].as_array().unwrap().len(), 1);
+        assert_eq!(r["result"][0]["type"], "claude");
     }
 
     #[tokio::test]

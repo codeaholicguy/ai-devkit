@@ -7,7 +7,6 @@ export type {
   BuiltInSkillsReadinessCheck,
   DirectoryReadinessCheck,
   EnrichedAgent,
-  EnrichedAgentsResult,
   Event,
   ExecutableReadinessCheck,
   IntegrationReadinessCheck,

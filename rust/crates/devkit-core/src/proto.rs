@@ -75,7 +75,6 @@ mod tests {
         Response::export(&cfg).unwrap();
         Event::export(&cfg).unwrap();
         crate::agent::EnrichedAgent::export(&cfg).unwrap();
-        crate::agent::EnrichedAgentsResult::export(&cfg).unwrap();
         crate::readiness::AgentReadinessReport::export(&cfg).unwrap();
         crate::readiness::AgentReadinessResult::export(&cfg).unwrap();
         crate::readiness::AuthReadinessCheck::export(&cfg).unwrap();

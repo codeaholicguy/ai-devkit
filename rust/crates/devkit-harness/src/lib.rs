@@ -2,7 +2,7 @@
 //! enrichment, ported from packages/agent-manager adapters. The daemon owns
 //! this so every client renders identical agent state.
 
-use devkit_core::agent::{EnrichedAgent, EnrichedAgentsResult};
+use devkit_core::agent::EnrichedAgent;
 use devkit_core::discover::AgentProc;
 
 pub mod antigravity;
@@ -57,9 +57,9 @@ pub trait HarnessAdapter: Send + Sync {
     fn detect(&self, ctx: &SweepContext) -> Vec<EnrichedAgent>;
 }
 
-/// All ported adapters. `enrich` aggregates each sweep; `ported_types`
-/// tells clients which harness types the daemon covers so they can fall
-/// back to local adapters for the rest.
+/// All ported adapters. `enrich` aggregates each sweep into the full agent
+/// list — the daemon is authoritative for every registered type, so a
+/// successful answer means clients skip local adapters entirely.
 #[derive(Default)]
 pub struct Registry {
     adapters: Vec<Box<dyn HarnessAdapter>>,
@@ -88,12 +88,8 @@ impl Registry {
         self.adapters.iter().any(|a| a.can_handle(proc))
     }
 
-    pub fn enrich(&self, ctx: &SweepContext) -> EnrichedAgentsResult {
-        let agents = self.adapters.iter().flat_map(|a| a.detect(ctx)).collect();
-        EnrichedAgentsResult {
-            agents,
-            ported: self.ported_types(),
-        }
+    pub fn enrich(&self, ctx: &SweepContext) -> Vec<EnrichedAgent> {
+        self.adapters.iter().flat_map(|a| a.detect(ctx)).collect()
     }
 }
 
@@ -161,10 +157,9 @@ mod tests {
             home: std::path::Path::new("/"),
         };
         let out = r.enrich(&ctx);
-        assert_eq!(out.agents.len(), 1);
-        assert_eq!(out.agents[0].agent_type, "claude");
-        assert_eq!(out.agents[0].project_path, "/proj");
-        assert_eq!(out.ported, vec!["claude"]);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].agent_type, "claude");
+        assert_eq!(out[0].project_path, "/proj");
     }
 
     #[test]

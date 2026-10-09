@@ -48,20 +48,19 @@ export interface AgentManagerOptions {
   fetchHerdrAgentPanes?: () => Promise<readonly HerdrAgentPane[]>;
   onRuntimeDiscoveryError?: (error: unknown) => void;
   /**
-   * Daemon-side enriched agents ({@link DaemonClient.enrichedAgents} shape:
-   * wire `AgentInfo[]` + the harness types covered). Returning null forces
-   * the local adapter path; omitting it disables daemon consumption.
+   * Daemon-side enriched agents ({@link DaemonClient.enrichedAgents} wire
+   * shape: `AgentInfo` with `lastActive` as an ISO string). A non-null
+   * result is authoritative for every harness type — all local adapters
+   * are skipped. Returning null or throwing forces the local path;
+   * omitting it disables daemon consumption.
    */
-  fetchEnrichedAgents?: () => Promise<{
-    agents: Array<
-      Omit<AgentInfo, "lastActive" | "type" | "status"> & {
-        type: string;
-        status: string;
-        lastActive: string;
-      }
-    >;
-    ported: string[];
-  } | null>;
+  fetchEnrichedAgents?: () => Promise<Array<
+    Omit<AgentInfo, "lastActive" | "type" | "status"> & {
+      type: string;
+      status: string;
+      lastActive: string;
+    }
+  > | null>;
 }
 
 class AgentNotRunningError extends Error {
@@ -179,33 +178,27 @@ export class AgentManager {
     const allAgents: AgentInfo[] = [];
     const errors: Array<{ type: string; error: Error }> = [];
 
-    // Daemon-owned enrichment: `ported` types come from devkitd's sweep
-    // cache; every other type stays on the local adapter path.
-    let portedTypes = new Set<string>();
+    // A non-null daemon answer is authoritative for every harness type, so
+    // local adapters only run when the daemon is absent.
+    let daemonAgents: AgentInfo[] | null = null;
     if (this.options.fetchEnrichedAgents) {
       try {
         const enriched = await this.options.fetchEnrichedAgents();
         if (enriched) {
-          portedTypes = new Set(enriched.ported);
-          for (const a of enriched.agents) {
-            if (portedTypes.has(a.type)) {
-              allAgents.push({
-                ...a,
-                type: a.type as AgentType,
-                status: a.status as AgentStatus,
-                lastActive: new Date(a.lastActive),
-              });
-            }
-          }
+          daemonAgents = enriched.map((a) => ({
+            ...a,
+            type: a.type as AgentType,
+            status: a.status as AgentStatus,
+            lastActive: new Date(a.lastActive),
+          }));
         }
       } catch {
-        portedTypes = new Set();
+        daemonAgents = null;
       }
     }
+    if (daemonAgents) allAgents.push(...daemonAgents);
 
-    const adapters = Array.from(this.adapters.values()).filter(
-      (adapter) => !portedTypes.has(adapter.type),
-    );
+    const adapters = daemonAgents ? [] : Array.from(this.adapters.values());
     const processNames = Array.from(
       new Set(
         adapters.flatMap((adapter) => (adapter.processNames ? [...adapter.processNames] : [])),
