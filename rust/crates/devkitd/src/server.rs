@@ -13,6 +13,11 @@ use tokio::sync::broadcast;
 pub struct Daemon {
     pub store: Arc<Store>,
     pub events: broadcast::Sender<Event>,
+    /// Serializes store.emit + broadcast send so subscribers always observe
+    /// events in seq order — seqs are assigned under the store mutex but the
+    /// send happens after emit returns, so two racing emits could otherwise
+    /// broadcast out of order.
+    emit_mutex: std::sync::Mutex<()>,
     pub started_at: i64,
     pub socket_path: PathBuf,
     pub enricher: devkit_harness::Registry,
@@ -37,6 +42,7 @@ impl Daemon {
         Ok(Self {
             store: Arc::new(store),
             events: tx,
+            emit_mutex: std::sync::Mutex::new(()),
             started_at: chrono_now(),
             socket_path,
             enricher: devkit_harness::default_registry(&home),
@@ -50,6 +56,7 @@ impl Daemon {
     }
 
     fn emit(&self, kind: &str, payload: Value) {
+        let _g = self.emit_mutex.lock().unwrap();
         if let Ok(seq) = self.store.emit(kind, &payload) {
             let _ = self.events.send(Event {
                 seq,
