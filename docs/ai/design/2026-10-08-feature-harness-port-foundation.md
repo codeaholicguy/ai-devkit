@@ -1,7 +1,7 @@
 ---
 phase: design
 title: Design — Harness Port Foundation (I0)
-description: Fixtures, devkit-harness crate, agent.enriched RPC, TS fallback client
+description: Fixtures, devkit-harness crate, agent.list RPC, TS fallback client
 ---
 
 # Design — Harness Port Foundation (I0)
@@ -16,7 +16,7 @@ flowchart LR
     subgraph devkitd
         Sweep["2s discovery sweep"] --> Enrich["Enricher (devkit-harness)<br/>adapters: ported harnesses"]
         Enrich --> Cache["enriched cache"]
-        Cache --> RPC["agent.enriched RPC"]
+        Cache --> RPC["agent.list RPC"]
     end
     subgraph daemon-client
         RPC -->|"getAgents()"| Client["enrichedAgents()"]
@@ -51,7 +51,7 @@ pub struct EnrichedAgent {
 Field names serialize with serde camelCase (`agentType`→`type` handled via
 `#[serde(rename = "type")]`) so the wire shape matches TS `AgentInfo` exactly.
 
-`agent.enriched` response:
+`agent.list` response:
 
 ```json
 { "agents": [EnrichedAgent...], "ported": ["claude", ...] }
@@ -65,7 +65,7 @@ daemon data for those types only, local adapters for everything else. In I0,
 
 ### `devkit-core/src/agent.rs`
 
-- `EnrichedAgent` (above) + `EnrichedAgentsResult { agents, ported }`, both
+- `EnrichedAgent` (above) + `EnrichedAgent[] { agents, ported }`, both
   `Serialize + Deserialize + TS`, exported via the existing
   `export_ts_bindings` test → `packages/daemon-client/src/gen/`.
 - Chosen over devkit-harness for the type: `devkitd` serves the RPC without
@@ -88,7 +88,7 @@ pub trait HarnessAdapter: Send + Sync {
 pub struct Registry { adapters: Vec<Box<dyn HarnessAdapter>> }
 impl Registry {
     pub fn ported_types(&self) -> Vec<String>;
-    pub fn enrich(&self, ctx: &SweepContext) -> EnrichedAgentsResult;
+    pub fn enrich(&self, ctx: &SweepContext) -> EnrichedAgent[];
 }
 ```
 
@@ -98,14 +98,14 @@ land in I1+.
 ### `devkitd` wiring
 
 - `Daemon` gains `enricher: devkit_harness::Registry` + `enriched:
-  RwLock<EnrichedAgentsResult>` refreshed inside `apply_sweep` — enrichment
+  RwLock<EnrichedAgent[]>` refreshed inside `apply_sweep` — enrichment
   cost is per-sweep, not per-RPC (requirement: N clients never multiply
   parse work).
-- New method `agent.enriched` → returns cached `EnrichedAgentsResult`.
+- New method `agent.list` → returns cached `EnrichedAgent[]`.
 
 ### daemon-client
 
-- `client.enrichedAgents(): Promise<EnrichedAgentsResult>` using generated
+- `client.enrichedAgents(): Promise<EnrichedAgent[]>` using generated
   types; surfaced as `getAgents()` convenience.
 - AgentManager integration (the ported/local merge) lands in I1 when the
   first real type exists — wiring it now with `ported: []` is dead code.
@@ -149,5 +149,5 @@ land in I1+.
 - No new trust surface: unix socket, same-uid, `0600` — unchanged.
 - Fixture bundles from live capture must sanitize `$HOME` prefixes; a
   pre-commit-style check in the capture tool refuses absolute user paths.
-- Parse cost is per-sweep and cache-served; `agent.enriched` itself is O(1)
+- Parse cost is per-sweep and cache-served; `agent.list` itself is O(1)
   over a prebuilt list.

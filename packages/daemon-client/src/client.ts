@@ -164,8 +164,3 @@ export class DaemonClient {
     }
   }
 }
-
-/** Convenience one-shot: connect, request, close. Null on unreachable. */
-export async function connectDaemon(): Promise<DaemonClient | null> {
-  return DaemonClient.tryConnect();
-}

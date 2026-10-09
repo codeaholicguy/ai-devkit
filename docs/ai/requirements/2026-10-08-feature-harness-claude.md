@@ -12,7 +12,7 @@ Epic: `../planning/2026-10-08-epic-harness-port.md`. First real adapter port.
 
 `detectAgents` for claude (process→session attribution, transcript-derived
 status/summary) runs per-CLI-invocation in TS. Port it into `devkitd` so
-`agent.enriched` serves claude agents; client consumes them for `claude`
+`agent.list` serves claude agents; client consumes them for `claude`
 and falls back to local adapters for all other types.
 
 ## Goals
@@ -24,9 +24,9 @@ and falls back to local adapters for all other types.
 - Extend daemon discovery to enrich agent pids with `cwd` (lsof batch on
   macOS, /proc on Linux) and `start_time_ms` (`ps lstart` batch) — required
   inputs for matching.
-- `agent.enriched` returns real claude agents; `ported: ["claude"]`.
-- AgentManager consumes `agent.enriched` for ported types, local adapters
-  for the rest — parity verified by fixtures.
+- `agent.list` returns real claude agents.
+- AgentManager consumes `agent.list` when the daemon answers, local
+  adapters otherwise — parity verified by fixtures.
 - Synthetic committed fixture cases + the local live bundle must replay
   byte-identical through the Rust adapter.
 

@@ -104,11 +104,12 @@ mod tests {
         assert_eq!(r.method, "ping");
         assert_eq!(r.params, Value::Null); // params is optional
 
-        let r: Request =
-            serde_json::from_str(r#"{"id":7,"method":"registry.put","params":{"scope":"s"}}"#)
-                .unwrap();
+        let r: Request = serde_json::from_str(
+            r#"{"id":7,"method":"subscribe","params":{"afterSeq":3}}"#,
+        )
+        .unwrap();
         assert_eq!(r.id, Some(7));
-        assert_eq!(r.params["scope"], "s");
+        assert_eq!(r.params["afterSeq"], 3);
     }
 
     #[test]

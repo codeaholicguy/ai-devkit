@@ -9,7 +9,7 @@ description: I12 — daemon-primary cutover + efficiency report
 ## In scope
 
 - Every `AgentManager` consumer goes through `fetchEnrichedAgents`
-  (daemon `agent.enriched`) — `channel-runner.ts` was the last
+  (daemon `agent.list`) — `channel-runner.ts` was the last
   local-only callsite.
 - With all ten types ported, `portedTypes` covers the whole adapter
   set: a reachable daemon means zero local `detectAgents` work; an

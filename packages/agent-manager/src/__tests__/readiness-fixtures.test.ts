@@ -2,11 +2,8 @@
  * Readiness fixture replay: each committed bundle under
  * `fixtures/readiness/` provides the injectable seams (files,
  * executables, command outputs, codexAuth) plus `expected` — the
- * byte-identical reports devkit-harness must produce replaying the
- * same bundle through its FixtureHost.
- *
- * This file is the TS↔TS side of the parity oracle; the Rust side
- * lives in `devkit-harness::readiness::fixtures`.
+ * byte-identical reports the readiness probes must produce replaying
+ * the same bundle through their injectable seams.
  */
 
 import { describe, it, expect } from "vitest";

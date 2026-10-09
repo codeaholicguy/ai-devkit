@@ -33,10 +33,10 @@ Primary:
   byte-for-byte test expectations for the Rust port.
 - A `devkit-harness` Rust crate with an adapter trait mirroring
   `canHandle`/`detectAgents`, plus the wire schema for enriched agents.
-- An `agent.enriched` RPC on `devkitd` returning `AgentInfo[]` for the
+- An `agent.list` RPC on `devkitd` returning `AgentInfo[]` for the
   harness types it has ported (initially none/empty), including which types
   it covers so clients can fall back per-harness.
-- `daemon-client` consumes `agent.enriched` for ported types and falls back
+- `daemon-client` consumes `agent.list` for ported types and falls back
   to local adapters for the rest — incremental cutover, never a break.
 
 Secondary:
@@ -67,7 +67,7 @@ Edge cases:
 - Daemon returns `ported: []` (I0) → clients use the full local path; no
   behavior change.
 - Daemon absent/binary missing → same local fallback as today.
-- `agent.enriched` errors mid-call → fall back for the whole call, not
+- `agent.list` errors mid-call → fall back for the whole call, not
   per-agent.
 
 ## Success Criteria
@@ -78,7 +78,7 @@ Edge cases:
   per-harness in I1+.
 - `devkit-harness` compiles with the adapter trait + `EnrichedAgent` type;
   `cargo test` includes a trait-level smoke test.
-- `agent.enriched` round-trips over the socket: response contains
+- `agent.list` round-trips over the socket: response contains
   `{agents: AgentInfo[], ported: string[]}`; `ported` empty in I0.
 - Generated `packages/daemon-client/src/gen/EnrichedAgent.ts` (etc.) exists
   and `client.enrichedAgents()` returns it.

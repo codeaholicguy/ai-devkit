@@ -157,6 +157,7 @@ impl Store {
         Ok((appeared, gone))
     }
 
+    #[cfg(test)]
     pub fn list_agents(&self) -> Result<Vec<Value>> {
         let conn = self.conn.lock().unwrap();
         let mut s = conn.prepare(
