@@ -44,7 +44,7 @@ function createAgentManager(): AgentManager {
       const client = await ensureDaemon();
       if (!client) return null;
       try {
-        return await client.enrichedAgents();
+        return await client.listAgents();
       } finally {
         client.close();
       }

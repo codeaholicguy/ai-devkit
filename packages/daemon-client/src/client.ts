@@ -108,8 +108,8 @@ export class DaemonClient {
    * harness type the daemon serves. Throws on RPC error: callers fall back
    * to local adapters for the whole call, not per-agent.
    */
-  async enrichedAgents(): Promise<EnrichedAgent[]> {
-    return (await this.request("agent.enriched")) as EnrichedAgent[];
+  async listAgents(): Promise<EnrichedAgent[]> {
+    return (await this.request("agent.list")) as EnrichedAgent[];
   }
 
   /**

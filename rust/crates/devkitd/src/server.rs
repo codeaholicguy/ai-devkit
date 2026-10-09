@@ -21,7 +21,7 @@ pub struct Daemon {
     pub started_at: i64,
     pub socket_path: PathBuf,
     pub enricher: devkit_harness::Registry,
-    /// Fully attributed agents refreshed per sweep so `agent.enriched` is
+    /// Fully attributed agents refreshed per sweep so `agent.list` is
     /// O(1) over a prebuilt list.
     pub enriched: RwLock<Vec<EnrichedAgent>>,
     /// Readiness probes run subprocesses for seconds and change slowly —
@@ -144,7 +144,7 @@ impl Daemon {
                     Err(e) => Response::err(id, e.to_string()),
                 }
             }
-            "agent.enriched" => {
+            "agent.list" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
             }
@@ -340,7 +340,7 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
 
 /// Methods cheap enough to run on the async worker — everything else goes
 /// to the blocking pool so a slow probe can't stall other connections.
-const INLINE_METHODS: &[&str] = &["ping", "daemon.status", "agent.enriched"];
+const INLINE_METHODS: &[&str] = &["ping", "daemon.status", "agent.list"];
 
 /// Cap on request bytes per connection. Requests are single-line JSON; a
 /// subscription conn sends exactly one. Bounds the line buffer a hostile
@@ -610,9 +610,9 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn agent_enriched_returns_cached_result() {
+    async fn agent_list_returns_cached_result() {
         let (d, sock) = test_daemon().await;
-        let r = rpc(&sock, r#"{"id":1,"method":"agent.enriched"}"#).await;
+        let r = rpc(&sock, r#"{"id":1,"method":"agent.list"}"#).await;
         // Live sweep may surface real claude processes on the dev machine —
         // the contract is a bare array, not a wrapper.
         assert!(r["result"].is_array());
@@ -632,7 +632,7 @@ mod tests {
             pinned: None,
             session_file_path: None,
         }];
-        let r = rpc(&sock, r#"{"id":2,"method":"agent.enriched"}"#).await;
+        let r = rpc(&sock, r#"{"id":2,"method":"agent.list"}"#).await;
         assert_eq!(r["result"].as_array().unwrap().len(), 1);
         assert_eq!(r["result"][0]["type"], "claude");
     }

@@ -41,7 +41,7 @@ changes.
 | `registry.get` | `{scope, name?}` | single value, or `{name: value}` map for the scope |
 | `registry.put` | `{scope, name, value}` | `{ok}`; emits `registry.changed` |
 | `registry.delete` | `{scope, name}` | `{ok}`; emits `registry.changed` |
-| `agent.enriched` | — | array of fully attributed `AgentInfo` rows — authoritative for all harness types |
+| `agent.list` | — | array of fully attributed `AgentInfo` rows — authoritative for all harness types |
 | `subscribe` | `{afterSeq?}` | ack `{subscribed}`, then event frames; replays persisted events after `afterSeq` first |
 | `events.replay` | `{afterSeq?, limit?}` | array of events |
 | `shutdown` | — | `{ok}`; daemon exits after the response flushes |
@@ -157,8 +157,8 @@ fixture-contracted port), and any network listener.
 - The CLI's `agent list` path was not rewired to the daemon cache at I0:
   attribution and session-file knowledge were client-side, so a daemon-backed
   fast path needed the knowledge port to pay off. (Post-port the raw
-  `agent.list` RPC was removed entirely — `agent.enriched` is the single
-  list API and the agents table is an internal diff ledger.)
+  snapshot RPC was removed — the attributed view took over the `agent.list`
+  name as the single list API; the agents table is an internal diff ledger.)
 - Bridge supervision and capacity caching were scoped to v1.5 by explicit
   decision; the console's event-driven refresh is in v1 (see above) while
   channel-bridge output polling stays client-side (harness parsing).

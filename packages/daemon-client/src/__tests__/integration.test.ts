@@ -124,10 +124,10 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
     client!.close();
   });
 
-  it("enrichedAgents returns the attributed list over the real socket", async () => {
+  it("listAgents returns the attributed list over the real socket", async () => {
     const client = await ensureDaemon({ waitMs: 20000 });
     expect(client).not.toBeNull();
-    const result = await client!.enrichedAgents();
+    const result = await client!.listAgents();
     // The contract is a bare attributed array, empty or not.
     expect(Array.isArray(result)).toBe(true);
     client!.close();

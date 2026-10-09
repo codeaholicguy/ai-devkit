@@ -48,7 +48,7 @@ export interface AgentManagerOptions {
   fetchHerdrAgentPanes?: () => Promise<readonly HerdrAgentPane[]>;
   onRuntimeDiscoveryError?: (error: unknown) => void;
   /**
-   * Daemon-side enriched agents ({@link DaemonClient.enrichedAgents} wire
+   * Daemon-side enriched agents ({@link DaemonClient.listAgents} wire
    * shape: `AgentInfo` with `lastActive` as an ISO string). A non-null
    * result is authoritative for every harness type — all local adapters
    * are skipped. Returning null or throwing forces the local path;
