@@ -1,0 +1,29 @@
+{
+  "name": "daemon-client",
+  "root": "packages/daemon-client",
+  "sourceRoot": "packages/daemon-client/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/daemon-client"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "packages/daemon-client"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run lint",
+        "cwd": "packages/daemon-client"
+      }
+    }
+  }
+}

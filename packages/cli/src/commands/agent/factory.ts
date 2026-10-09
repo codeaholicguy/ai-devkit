@@ -8,6 +8,7 @@ import {
   PiPrintAgentService,
   type DurableProvider,
 } from "@ai-devkit/agent-manager";
+import { ensureDaemon } from "@ai-devkit/daemon-client";
 import { ConfigManager } from "../../lib/Config.js";
 import { createLogger } from "../../util/debug.js";
 import { getErrorMessage } from "../../util/text.js";
@@ -20,6 +21,15 @@ export function createAgentManager(): AgentManager {
       createLogger("agent")(
         `Herdr pane discovery unavailable for live agent enrichment: ${getErrorMessage(error)}`,
       );
+    },
+    fetchEnrichedAgents: async () => {
+      const client = await ensureDaemon();
+      if (!client) return null;
+      try {
+        return await client.listAgents();
+      } finally {
+        client.close();
+      }
     },
   });
   for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);

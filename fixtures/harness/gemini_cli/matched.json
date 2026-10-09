@@ -1,0 +1,142 @@
+{
+  "adapter": "gemini_cli",
+  "capturedAt": "2026-10-09T08:00:00.000Z",
+  "frozenNow": 1791532800000,
+  "processes": [
+    {
+      "pid": 40001,
+      "ppid": 1,
+      "tty": "s001",
+      "command": "node /opt/tools/gemini.js chat",
+      "cwd": "/Users/fixture/proj",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 40002,
+      "ppid": 1,
+      "tty": "s002",
+      "command": "node /opt/tools/gemini.js --sandbox",
+      "cwd": "/Users/fixture/legacy",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 40010,
+      "ppid": 40011,
+      "tty": "s010",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/wrap",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 40011,
+      "ppid": 1,
+      "tty": "s010",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/wrap",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 40020,
+      "ppid": 1,
+      "tty": "s020",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/lonely",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 40030,
+      "ppid": 1,
+      "tty": "s030",
+      "command": "node server.js",
+      "cwd": "/Users/fixture/proj",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 40040,
+      "ppid": 1,
+      "tty": "s040",
+      "command": "gemini chat",
+      "cwd": "/Users/fixture/proj",
+      "startTime": "$NOW"
+    }
+  ],
+  "registry": [
+    {
+      "name": "cached-row",
+      "type": "gemini_cli",
+      "pid": 40002,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/legacy",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "s-cached",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/tmp/d004821982b79997e240af8ebc16920726c3f881f4b95cc4108d8461b54088c4/chats/session-cached.jsonl",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    },
+    {
+      "name": "wrap-name",
+      "type": "gemini_cli",
+      "pid": 40011,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/wrap",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "",
+      "sessionFilePath": "",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    }
+  ],
+  "home": {
+    ".gemini/tmp/43486e99cb26b0ce666e37d21a69385bc11282da3571e4f4fb5587e169ed8419/chats/session-main.jsonl": "{\"sessionId\":\"s-main\",\"projectHash\":\"43486e99cb26b0ce666e37d21a69385bc11282da3571e4f4fb5587e169ed8419\",\"startTime\":\"2026-10-09T07:50:00Z\",\"lastUpdated\":\"2026-10-09T07:59:00Z\",\"directories\":[\"/Users/fixture/proj\"]}\n{\"id\":\"m1\",\"type\":\"user\",\"content\":[{\"text\":\"fix the bug\"}],\"timestamp\":\"2026-10-09T07:55:00Z\"}\n{\"id\":\"m2\",\"type\":\"gemini\",\"content\":\"done\",\"timestamp\":\"2026-10-09T07:58:00Z\"}\n",
+    ".gemini/tmp/d004821982b79997e240af8ebc16920726c3f881f4b95cc4108d8461b54088c4/chats/session-cached.jsonl": "{\"sessionId\":\"s-cached\",\"projectHash\":\"d004821982b79997e240af8ebc16920726c3f881f4b95cc4108d8461b54088c4\",\"startTime\":\"2026-10-09T06:30:00Z\",\"lastUpdated\":\"2026-10-09T07:58:30Z\",\"directories\":[\"/Users/fixture/legacy\"]}\n{\"id\":\"m1\",\"type\":\"user\",\"content\":[{\"text\":\"cached session ask\"}],\"timestamp\":\"2026-10-09T07:58:00Z\"}\n",
+    ".gemini/tmp/b660bf8d645bba04629b1c51b5e8f5aee3ef67b531b9546d134256a0f6e5926f/chats/session-elsewhere.jsonl": "{\"sessionId\":\"s-else\",\"projectHash\":\"b660bf8d645bba04629b1c51b5e8f5aee3ef67b531b9546d134256a0f6e5926f\",\"lastUpdated\":\"2026-10-09T07:59:00Z\",\"directories\":[\"/elsewhere\"]}\n{\"id\":\"m1\",\"type\":\"user\",\"content\":[{\"text\":\"not ours\"}],\"timestamp\":\"2026-10-09T07:59:00Z\"}\n",
+    ".gemini/tmp/mystery-slug/.project_root": "/elsewhere",
+    ".gemini/tmp/mystery-slug/chats/session-mystery.jsonl": "{\"sessionId\":\"s-mystery\",\"projectHash\":\"43486e99cb26b0ce666e37d21a69385bc11282da3571e4f4fb5587e169ed8419\",\"lastUpdated\":\"2026-10-09T07:59:30Z\",\"directories\":[\"/Users/fixture/proj\"]}\n{\"id\":\"m1\",\"type\":\"user\",\"content\":[{\"text\":\"decoy\"}],\"timestamp\":\"2026-10-09T07:59:30Z\"}\n"
+  },
+  "expected": [
+    {
+      "name": "legacy-40002",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "cached session ask",
+      "pid": 40002,
+      "projectPath": "/Users/fixture/legacy",
+      "sessionId": "s-cached",
+      "lastActive": "2026-10-09T07:58:30.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/tmp/d004821982b79997e240af8ebc16920726c3f881f4b95cc4108d8461b54088c4/chats/session-cached.jsonl"
+    },
+    {
+      "name": "proj-40001",
+      "type": "gemini_cli",
+      "status": "waiting",
+      "summary": "fix the bug",
+      "pid": 40001,
+      "projectPath": "/Users/fixture/proj",
+      "sessionId": "s-main",
+      "lastActive": "2026-10-09T07:59:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/tmp/43486e99cb26b0ce666e37d21a69385bc11282da3571e4f4fb5587e169ed8419/chats/session-main.jsonl"
+    },
+    {
+      "name": "wrap-name",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "Gemini CLI process running",
+      "pid": 40010,
+      "projectPath": "/Users/fixture/wrap",
+      "sessionId": "pid-40010",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    },
+    {
+      "name": "lonely-40020",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "Gemini CLI process running",
+      "pid": 40020,
+      "projectPath": "/Users/fixture/lonely",
+      "sessionId": "pid-40020",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    }
+  ]
+}

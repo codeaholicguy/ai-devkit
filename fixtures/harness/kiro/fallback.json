@@ -1,0 +1,79 @@
+{
+  "adapter": "kiro",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 2001,
+      "ppid": 900,
+      "tty": "ttys010",
+      "command": "bun /x/kiro-cli.js",
+      "cwd": "/proj/f1",
+      "startTime": "2025-10-09T11:00:00.000Z"
+    },
+    {
+      "pid": 2002,
+      "ppid": 900,
+      "tty": "ttys011",
+      "command": "kiro",
+      "startTime": "2025-10-09T11:10:00.000Z"
+    },
+    {
+      "pid": 2003,
+      "ppid": 900,
+      "tty": "ttys012",
+      "command": "kiro-cli --verbose",
+      "cwd": "/proj/f3",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    },
+    {
+      "pid": 2101,
+      "ppid": 2001,
+      "tty": "ttys010",
+      "command": "kiro-cli-chat acp",
+      "cwd": "/proj/f1",
+      "startTime": "2025-10-09T11:00:05.000Z"
+    },
+    {
+      "pid": 2102,
+      "ppid": 900,
+      "tty": "??",
+      "command": "node /x/unrelated.js",
+      "cwd": "/proj/other",
+      "startTime": "2025-10-09T11:30:00.000Z"
+    }
+  ],
+  "home": {},
+  "expected": [
+    {
+      "name": "f1-2001",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 2001,
+      "projectPath": "/proj/f1",
+      "sessionId": "pid-2001",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "unknown-2002",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 2002,
+      "projectPath": "",
+      "sessionId": "pid-2002",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "f3-2003",
+      "type": "kiro",
+      "status": "running",
+      "summary": "Kiro process running",
+      "pid": 2003,
+      "projectPath": "/proj/f3",
+      "sessionId": "pid-2003",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}

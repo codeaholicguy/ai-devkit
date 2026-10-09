@@ -1,0 +1,92 @@
+{
+  "adapter": "grok_cli",
+  "capturedAt": "2026-10-09T08:03:00.000Z",
+  "frozenNow": 1791532980000,
+  "processes": [
+    {
+      "pid": 81001,
+      "ppid": 1000,
+      "tty": "ttys030",
+      "command": "grok",
+      "cwd": "/proj/emptygroup",
+      "startTime": "2026-10-09T07:50:00.000Z"
+    },
+    {
+      "pid": 81002,
+      "ppid": 1000,
+      "tty": "ttys031",
+      "command": "grok",
+      "startTime": "2026-10-09T07:51:00.000Z"
+    },
+    {
+      "pid": 81003,
+      "ppid": 1000,
+      "tty": "ttys032",
+      "command": "grok",
+      "cwd": "/proj/hist",
+      "startTime": "2026-10-09T07:52:00.000Z"
+    },
+    {
+      "pid": 81004,
+      "ppid": 1000,
+      "tty": "ttys033",
+      "command": "grok",
+      "cwd": "/proj/idle",
+      "startTime": "2026-10-09T05:50:00.000Z"
+    }
+  ],
+  "home": {
+    ".grok/sessions/%2Fproj%2Femptygroup/sess-void/notes.txt": "no transcript here",
+    ".grok/sessions/%2Fproj%2Fhist/sess-e/chat_history.jsonl": "",
+    ".grok/sessions/%2Fproj%2Fidle/sess-i/chat_history.jsonl": "{\"type\":\"user\",\"content\":\"<user_query>old prompt</user_query>\"}\n{\"type\":\"assistant\",\"content\":\"answered\"}\n"
+  },
+  "mtimes": {
+    ".grok/sessions/%2Fproj%2Fhist/sess-e/chat_history.jsonl": 1791532950000,
+    ".grok/sessions/%2Fproj%2Fidle/sess-i/chat_history.jsonl": 1791525600000
+  },
+  "registry": [],
+  "expected": [
+    {
+      "name": "emptygroup-81001",
+      "type": "grok_cli",
+      "status": "running",
+      "summary": "Grok CLI process running",
+      "pid": 81001,
+      "projectPath": "/proj/emptygroup",
+      "sessionId": "pid-81001",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    },
+    {
+      "name": "unknown-81002",
+      "type": "grok_cli",
+      "status": "running",
+      "summary": "Grok CLI process running",
+      "pid": 81002,
+      "projectPath": "",
+      "sessionId": "pid-81002",
+      "lastActive": "2026-10-09T08:03:00.000Z"
+    },
+    {
+      "name": "hist-81003",
+      "type": "grok_cli",
+      "status": "running",
+      "summary": "Grok CLI session active",
+      "pid": 81003,
+      "projectPath": "/proj/hist",
+      "sessionId": "sess-e",
+      "lastActive": "2026-10-09T08:02:30.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.grok/sessions/%2Fproj%2Fhist/sess-e/chat_history.jsonl"
+    },
+    {
+      "name": "idle-81004",
+      "type": "grok_cli",
+      "status": "idle",
+      "summary": "old prompt",
+      "pid": 81004,
+      "projectPath": "/proj/idle",
+      "sessionId": "sess-i",
+      "lastActive": "2026-10-09T06:00:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.grok/sessions/%2Fproj%2Fidle/sess-i/chat_history.jsonl"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "adapter": "copilot",
+  "capturedAt": "2026-10-09T08:03:00.000Z",
+  "frozenNow": 1791532980000,
+  "processes": [
+    {
+      "pid": 70001,
+      "ppid": 1000,
+      "tty": "ttys010",
+      "command": "copilot",
+      "cwd": "/proj/ws",
+      "startTime": "$NOW"
+    }
+  ],
+  "home": {
+    ".copilot/session-state/dir-aaa/inuse.70001.lock": "",
+    ".copilot/session-state/dir-aaa/workspace.yaml": "id: ws-1\ncwd: /proj/ws\nname: \"yaml session\"\ncreated_at: 2026-10-09T05:55:00Z\nupdated_at: 2026-10-09T06:00:00Z\n"
+  },
+  "registry": [],
+  "expected": [
+    {
+      "name": "ws-70001",
+      "type": "copilot",
+      "status": "idle",
+      "summary": "yaml session",
+      "pid": 70001,
+      "projectPath": "/proj/ws",
+      "sessionId": "ws-1",
+      "lastActive": "2026-10-09T06:00:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.copilot/session-state/dir-aaa/events.jsonl"
+    }
+  ]
+}

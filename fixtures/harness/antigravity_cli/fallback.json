@@ -1,0 +1,55 @@
+{
+  "adapter": "antigravity_cli",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 3101,
+      "ppid": 900,
+      "tty": "ttys010",
+      "command": "agy",
+      "cwd": "/proj/f1",
+      "startTime": "2025-10-09T11:00:00.000Z"
+    },
+    {
+      "pid": 3102,
+      "ppid": 900,
+      "tty": "ttys011",
+      "command": "agy -v",
+      "startTime": "2025-10-09T11:10:00.000Z"
+    },
+    {
+      "pid": 3103,
+      "ppid": 900,
+      "tty": "ttys012",
+      "command": "other-tool",
+      "cwd": "/proj/noise",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    }
+  ],
+  "home": {
+    ".gemini/antigravity-cli/cache/last_conversations.json": "not json {"
+  },
+  "expected": [
+    {
+      "name": "f1-3101",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3101,
+      "projectPath": "/proj/f1",
+      "sessionId": "pid-3101",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "unknown-3102",
+      "type": "antigravity_cli",
+      "status": "running",
+      "summary": "Antigravity CLI process running",
+      "pid": 3102,
+      "projectPath": "",
+      "sessionId": "pid-3102",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}

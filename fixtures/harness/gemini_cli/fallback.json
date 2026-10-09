@@ -1,0 +1,146 @@
+{
+  "adapter": "gemini_cli",
+  "capturedAt": "2026-10-09T08:00:00.000Z",
+  "frozenNow": 1791532800000,
+  "processes": [
+    {
+      "pid": 60001,
+      "ppid": 1,
+      "tty": "s601",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/gone",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60002,
+      "ppid": 1,
+      "tty": "s602",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/stale",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60003,
+      "ppid": 1,
+      "tty": "s603",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/noid",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60004,
+      "ppid": 60005,
+      "tty": "s604",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/wrapfb",
+      "startTime": "$NOW"
+    },
+    {
+      "pid": 60005,
+      "ppid": 1,
+      "tty": "s604",
+      "command": "node /opt/tools/gemini.js",
+      "cwd": "/Users/fixture/wrapfb",
+      "startTime": "$NOW"
+    }
+  ],
+  "registry": [
+    {
+      "name": "gone-row",
+      "type": "gemini_cli",
+      "pid": 60001,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/gone",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "s-gone",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/tmp/nonexistent/chats/session-gone.jsonl",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    },
+    {
+      "name": "stale-pi-row",
+      "type": "pi",
+      "pid": 60002,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/stale",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "s-pi",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/tmp/x/chats/session-stale.jsonl",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    },
+    {
+      "name": "noid-row",
+      "type": "gemini_cli",
+      "pid": 60003,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/noid",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "",
+      "sessionFilePath": "$FIXTURE_HOME/.gemini/tmp/y/chats/session-noid.jsonl",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    },
+    {
+      "name": "wrap-fb",
+      "type": "gemini_cli",
+      "pid": 60005,
+      "runtime": "tmux",
+      "runtimeRef": null,
+      "cwd": "/Users/fixture/wrapfb",
+      "startedAt": "2026-10-09T06:30:00.000Z",
+      "sessionId": "",
+      "sessionFilePath": "",
+      "pinned": false,
+      "updatedAt": "2026-10-09T06:35:00.000Z"
+    }
+  ],
+  "home": {
+    ".gemini/tmp/y/chats/session-noid.jsonl": "{\"projectHash\":\"abc\",\"lastUpdated\":\"2026-10-09T07:59:00Z\"}\n{\"id\":\"m1\",\"type\":\"user\",\"content\":[{\"text\":\"no id\"}],\"timestamp\":\"2026-10-09T07:59:00Z\"}\n"
+  },
+  "expected": [
+    {
+      "name": "gone-60001",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "Gemini CLI process running",
+      "pid": 60001,
+      "projectPath": "/Users/fixture/gone",
+      "sessionId": "pid-60001",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    },
+    {
+      "name": "stale-60002",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "Gemini CLI process running",
+      "pid": 60002,
+      "projectPath": "/Users/fixture/stale",
+      "sessionId": "pid-60002",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    },
+    {
+      "name": "noid-60003",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "Gemini CLI process running",
+      "pid": 60003,
+      "projectPath": "/Users/fixture/noid",
+      "sessionId": "pid-60003",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    },
+    {
+      "name": "wrap-fb",
+      "type": "gemini_cli",
+      "status": "running",
+      "summary": "Gemini CLI process running",
+      "pid": 60004,
+      "projectPath": "/Users/fixture/wrapfb",
+      "sessionId": "pid-60004",
+      "lastActive": "2026-10-09T08:00:00.000Z"
+    }
+  ]
+}

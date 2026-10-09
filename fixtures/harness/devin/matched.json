@@ -1,0 +1,235 @@
+{
+  "adapter": "devin",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 8101,
+      "ppid": 1,
+      "tty": "ttys010",
+      "command": "devin",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T11:40:00.000Z"
+    },
+    {
+      "pid": 8102,
+      "ppid": 8101,
+      "tty": null,
+      "command": "devin acp",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T11:40:10.000Z"
+    },
+    {
+      "pid": 8103,
+      "ppid": 1,
+      "tty": "ttys012",
+      "command": "devin",
+      "cwd": "/proj/beta",
+      "startTime": "2025-10-09T11:50:00.000Z"
+    },
+    {
+      "pid": 8104,
+      "ppid": 1,
+      "tty": "ttys013",
+      "command": "devin",
+      "cwd": "/proj/nolock",
+      "startTime": "2025-10-09T11:30:00.000Z"
+    },
+    {
+      "pid": 8105,
+      "ppid": 1,
+      "tty": "ttys014",
+      "command": "devin list",
+      "cwd": "/proj/list",
+      "startTime": "2025-10-09T12:19:00.000Z"
+    },
+    {
+      "pid": 8106,
+      "ppid": 1,
+      "tty": "ttys015",
+      "command": "devin",
+      "cwd": "/proj/gamma",
+      "startTime": "2025-10-09T12:00:00.000Z"
+    },
+    {
+      "pid": 8107,
+      "ppid": 1,
+      "tty": "ttys016",
+      "command": "devin",
+      "cwd": "/proj/hidden",
+      "startTime": "2025-10-09T12:05:00.000Z"
+    },
+    {
+      "pid": 8108,
+      "ppid": 1,
+      "tty": "ttys017",
+      "command": "devin",
+      "cwd": "/proj/idle",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    },
+    {
+      "pid": 8109,
+      "ppid": 9999,
+      "tty": null,
+      "command": "/Users/hoangnguyen/.local/bin/devin acp",
+      "cwd": "/proj/acp-standalone",
+      "startTime": "2025-10-09T12:10:00.000Z"
+    },
+    {
+      "pid": 8110,
+      "ppid": 1,
+      "tty": "ttys019",
+      "command": "devin --print",
+      "cwd": "/proj/print",
+      "startTime": "2025-10-09T12:15:00.000Z"
+    },
+    {
+      "pid": 8111,
+      "ppid": 1,
+      "tty": "ttys020",
+      "command": "devin -p update",
+      "cwd": "/proj/flagged",
+      "startTime": "2025-10-09T12:16:00.000Z"
+    },
+    {
+      "pid": 8112,
+      "ppid": 1,
+      "tty": "ttys021",
+      "command": "devin ssh build-01",
+      "cwd": "/proj/ssh",
+      "startTime": "2025-10-09T12:17:00.000Z"
+    },
+    {
+      "pid": 8113,
+      "ppid": 1,
+      "tty": "ttys022",
+      "command": "devin --config /tmp/c.json list",
+      "cwd": "/proj/cfg",
+      "startTime": "2025-10-09T12:18:00.000Z"
+    }
+  ],
+  "home": {
+    ".local/share/devin/cli/session_locks/alpha-slug.lock": "8102\n",
+    ".local/share/devin/cli/session_locks/stale-slug.lock": "99999\n",
+    ".local/share/devin/cli/session_locks/locked-slug.lock": "8106\n",
+    ".local/share/devin/cli/session_locks/bad.lock": "notapid\n",
+    ".local/share/devin/cli/session_locks/note.txt": "ignored"
+  },
+  "sqlite": {
+    ".local/share/devin/cli/sessions.db": [
+      "CREATE TABLE \"sessions\" (\"id\" TEXT PRIMARY KEY, \"working_directory\" TEXT NOT NULL, \"title\" TEXT, \"created_at\" INTEGER NOT NULL, \"last_activity_at\" INTEGER NOT NULL, \"hidden\" INTEGER NOT NULL DEFAULT 0);",
+      "CREATE TABLE \"message_nodes\" (\"session_id\" TEXT NOT NULL, \"node_id\" INTEGER NOT NULL, \"chat_message\" TEXT NOT NULL, \"created_at\" INTEGER NOT NULL);",
+      "CREATE TABLE \"prompt_history\" (\"session_id\" TEXT NOT NULL, \"content\" TEXT NOT NULL, \"timestamp\" INTEGER NOT NULL, \"is_shell\" INTEGER NOT NULL DEFAULT 0);",
+      "INSERT INTO \"sessions\" VALUES ('alpha-slug','/proj/alpha',NULL,1760008800,1760012200,0);",
+      "INSERT INTO \"sessions\" VALUES ('beta-slug','/proj/beta',NULL,1760010600,1760012280,0);",
+      "INSERT INTO \"sessions\" VALUES ('beta-old-slug','/proj/beta',NULL,1760000000,1760000000,0);",
+      "INSERT INTO \"sessions\" VALUES ('idle-slug','/proj/idle',NULL,1760008800,1760008800,0);",
+      "INSERT INTO \"sessions\" VALUES ('hidden-slug','/proj/hidden',NULL,1760008800,1760010000,1);",
+      "INSERT INTO \"sessions\" VALUES ('locked-slug','/proj/elsewhere','Locked Session',1760012280,1760012280,0);",
+      "INSERT INTO \"message_nodes\" VALUES ('alpha-slug',1,'{\"role\":\"user\",\"content\":\"alpha prompt\",\"metadata\":{\"is_user_input\":true}}',1760008800);",
+      "INSERT INTO \"message_nodes\" VALUES ('alpha-slug',2,'{\"role\":\"user\",\"content\":\"latest alpha ask\",\"metadata\":{\"is_user_input\":true}}',1760012200);",
+      "INSERT INTO \"message_nodes\" VALUES ('beta-slug',1,'{\"role\":\"user\",\"content\":\"beta question\"}',1760010600);",
+      "INSERT INTO \"message_nodes\" VALUES ('beta-slug',2,'{\"role\":\"assistant\",\"content\":\"working on it\"}',1760012280);",
+      "INSERT INTO \"message_nodes\" VALUES ('idle-slug',1,'{\"role\":\"user\",\"content\":\"old idle ask\"}',1760008800);",
+      "INSERT INTO \"prompt_history\" VALUES ('beta-slug','beta ask',1760012280,0);",
+      "INSERT INTO \"prompt_history\" VALUES ('beta-slug','!ls -la',1760012281,1);",
+      "INSERT INTO \"prompt_history\" VALUES ('beta-slug','/help',1760012282,0);"
+    ]
+  },
+  "expected": [
+    {
+      "name": "alpha-8101",
+      "type": "devin",
+      "status": "running",
+      "summary": "latest alpha ask",
+      "pid": 8101,
+      "projectPath": "/proj/alpha",
+      "sessionId": "alpha-slug",
+      "lastActive": "2025-10-09T12:16:40.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/devin/cli/sessions.db::alpha-slug"
+    },
+    {
+      "name": "beta-8103",
+      "type": "devin",
+      "status": "waiting",
+      "summary": "beta ask",
+      "pid": 8103,
+      "projectPath": "/proj/beta",
+      "sessionId": "beta-slug",
+      "lastActive": "2025-10-09T12:18:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/devin/cli/sessions.db::beta-slug"
+    },
+    {
+      "name": "nolock-8104",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8104,
+      "projectPath": "/proj/nolock",
+      "sessionId": "pid-8104",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "elsewhere-8106",
+      "type": "devin",
+      "status": "running",
+      "summary": "Locked Session",
+      "pid": 8106,
+      "projectPath": "/proj/elsewhere",
+      "sessionId": "locked-slug",
+      "lastActive": "2025-10-09T12:18:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/devin/cli/sessions.db::locked-slug"
+    },
+    {
+      "name": "hidden-8107",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8107,
+      "projectPath": "/proj/hidden",
+      "sessionId": "pid-8107",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "idle-8108",
+      "type": "devin",
+      "status": "idle",
+      "summary": "old idle ask",
+      "pid": 8108,
+      "projectPath": "/proj/idle",
+      "sessionId": "idle-slug",
+      "lastActive": "2025-10-09T11:20:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/devin/cli/sessions.db::idle-slug"
+    },
+    {
+      "name": "acp-standalone-8109",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8109,
+      "projectPath": "/proj/acp-standalone",
+      "sessionId": "pid-8109",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "print-8110",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8110,
+      "projectPath": "/proj/print",
+      "sessionId": "pid-8110",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "flagged-8111",
+      "type": "devin",
+      "status": "running",
+      "summary": "Devin process running",
+      "pid": 8111,
+      "projectPath": "/proj/flagged",
+      "sessionId": "pid-8111",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}

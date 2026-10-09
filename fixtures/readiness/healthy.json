@@ -1,0 +1,488 @@
+{
+  "options": {
+    "homeDir": "/home/test",
+    "path": "/bin",
+    "assetRoot": "/assets",
+    "builtInSkillNames": [
+      "agent-management",
+      "memory",
+      "verify"
+    ],
+    "skillRoots": {
+      "claude": ".claude/skills",
+      "codex": ".codex/skills",
+      "copilot": ".copilot/skills",
+      "gemini_cli": ".gemini/skills",
+      "grok_cli": ".grok/skills",
+      "antigravity_cli": ".gemini/config/skills",
+      "opencode": ".config/opencode/skill",
+      "pi": ".pi/agent/skills"
+    }
+  },
+  "files": {
+    "/home/test/.claude": "<dir>",
+    "/home/test/.codex": "<dir>",
+    "/home/test/.copilot": "<dir>",
+    "/home/test/.gemini": "<dir>",
+    "/home/test/.grok": "<dir>",
+    "/home/test/.kiro": "<dir>",
+    "/home/test/.gemini/antigravity-cli": "<dir>",
+    "/home/test/.config/opencode": "<dir>",
+    "/home/test/.config/devin": "<dir>",
+    "/home/test/.pi": "<dir>",
+    "/home/test/.codex/hooks/codex-session-mapping.cjs": "codex-hook",
+    "/assets/codex/codex-session-mapping.cjs": "codex-hook",
+    "/home/test/.codex/hooks.json": "{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"node ~/.codex/hooks/codex-session-mapping.cjs\"}]}]}}",
+    "/home/test/.codex/ai-devkit/sessions.json": "{\"123\":\"/sessions/codex.jsonl\"}",
+    "/sessions/codex.jsonl": "",
+    "/home/test/.claude/hooks/claude-prompt-hook.js": "claude-hook",
+    "/assets/claude/claude-prompt-hook.js": "claude-hook",
+    "/home/test/.claude/settings.json": "{\"hooks\":{\"PreToolUse\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"node ~/.claude/hooks/claude-prompt-hook.js\"}]}]}}",
+    "/home/test/.pi/agent/sessions.json": "{\"456\":\"/sessions/missing-pi.jsonl\"}",
+    "/home/test/.pi/agent/auth.json": "{\"anthropic\":{\"access\":\"access-secret\",\"refresh\":\"refresh-secret\"},\"litellm\":{\"key\":\"litellm-secret\",\"env\":{\"LITELLM_BASE_URL\":\"https://litellm.example.test\"}}}",
+    "/home/test/.claude/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.claude/skills/memory/SKILL.md": "# skill",
+    "/home/test/.claude/skills/verify/SKILL.md": "# skill",
+    "/home/test/.codex/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.codex/skills/memory/SKILL.md": "# skill",
+    "/home/test/.codex/skills/verify/SKILL.md": "# skill",
+    "/home/test/.copilot/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.copilot/skills/memory/SKILL.md": "# skill",
+    "/home/test/.copilot/skills/verify/SKILL.md": "# skill",
+    "/home/test/.gemini/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.gemini/skills/memory/SKILL.md": "# skill",
+    "/home/test/.gemini/skills/verify/SKILL.md": "# skill",
+    "/home/test/.grok/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.grok/skills/memory/SKILL.md": "# skill",
+    "/home/test/.grok/skills/verify/SKILL.md": "# skill",
+    "/home/test/.gemini/config/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.gemini/config/skills/memory/SKILL.md": "# skill",
+    "/home/test/.gemini/config/skills/verify/SKILL.md": "# skill",
+    "/home/test/.config/opencode/skill/agent-management/SKILL.md": "# skill",
+    "/home/test/.config/opencode/skill/memory/SKILL.md": "# skill",
+    "/home/test/.config/opencode/skill/verify/SKILL.md": "# skill",
+    "/home/test/.pi/agent/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.pi/agent/skills/memory/SKILL.md": "# skill",
+    "/home/test/.pi/agent/skills/verify/SKILL.md": "# skill"
+  },
+  "executables": [
+    "/bin/claude",
+    "/bin/codex",
+    "/bin/gemini",
+    "/bin/grok",
+    "/bin/kiro-cli",
+    "/bin/agy",
+    "/bin/opencode",
+    "/bin/copilot",
+    "/bin/pi",
+    "/bin/devin"
+  ],
+  "commands": {
+    "pi list": {
+      "stdout": "npm:@ai-devkit/pi-session-tracker\n"
+    },
+    "claude auth status --json": {
+      "stdout": "{\"loggedIn\":true}"
+    },
+    "gh auth status --hostname github.com": {
+      "stdout": "github.com\n  Logged in to github.com account test-user\n"
+    },
+    "opencode auth list": {
+      "stdout": "●  litellm api\n●  OpenAI oauth\n"
+    },
+    "devin auth status": {
+      "stdout": "Logged in (via Devin).\n\nUser:\n  Name: test-user\n"
+    }
+  },
+  "codexAuth": true,
+  "expected": {
+    "claude": {
+      "type": "claude",
+      "executable": {
+        "command": "claude",
+        "path": "/bin/claude",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.claude",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.claude/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "claude auth status --json",
+        "provider": null,
+        "availableProviders": [],
+        "status": "pass",
+        "errors": []
+      },
+      "integration": {
+        "label": "ai-devkit hook",
+        "installed": true,
+        "status": "pass",
+        "errors": [],
+        "details": {
+          "promptScript": {
+            "path": "~/.claude/hooks/claude-prompt-hook.js",
+            "present": true,
+            "readable": true,
+            "matchesBundledAsset": true,
+            "status": "pass",
+            "errors": []
+          },
+          "registration": {
+            "path": "~/.claude/settings.json",
+            "event": "PreToolUse",
+            "command": "node ~/.claude/hooks/claude-prompt-hook.js",
+            "present": true,
+            "valid": true,
+            "status": "pass",
+            "errors": []
+          }
+        }
+      },
+      "status": "pass"
+    },
+    "codex": {
+      "type": "codex",
+      "executable": {
+        "command": "codex",
+        "path": "/bin/codex",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.codex",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.codex/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "~/.codex/auth.json",
+        "provider": null,
+        "availableProviders": [],
+        "status": "pass",
+        "errors": []
+      },
+      "integration": {
+        "label": "ai-devkit hook",
+        "installed": true,
+        "status": "pass",
+        "errors": [],
+        "details": {
+          "sessionMappingScript": {
+            "path": "~/.codex/hooks/codex-session-mapping.cjs",
+            "present": true,
+            "readable": true,
+            "matchesBundledAsset": true,
+            "status": "pass",
+            "errors": []
+          },
+          "registration": {
+            "path": "~/.codex/hooks.json",
+            "event": "SessionStart",
+            "command": "node ~/.codex/hooks/codex-session-mapping.cjs",
+            "present": true,
+            "valid": true,
+            "status": "pass",
+            "errors": []
+          },
+          "mappingFile": {
+            "path": "~/.codex/ai-devkit/sessions.json",
+            "present": true,
+            "valid": true,
+            "invalidEntries": 0,
+            "staleEntries": 0,
+            "status": "pass",
+            "errors": []
+          }
+        }
+      },
+      "status": "pass"
+    },
+    "gemini_cli": {
+      "type": "gemini_cli",
+      "executable": {
+        "command": "gemini",
+        "path": "/bin/gemini",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.gemini",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.gemini/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "grok_cli": {
+      "type": "grok_cli",
+      "executable": {
+        "command": "grok",
+        "path": "/bin/grok",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.grok",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.grok/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "kiro": {
+      "type": "kiro",
+      "executable": {
+        "command": "kiro-cli",
+        "path": "/bin/kiro-cli",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.kiro",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": null,
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "antigravity_cli": {
+      "type": "antigravity_cli",
+      "executable": {
+        "command": "agy",
+        "path": "/bin/agy",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.gemini/antigravity-cli",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.gemini/config/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "opencode": {
+      "type": "opencode",
+      "executable": {
+        "command": "opencode",
+        "path": "/bin/opencode",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.config/opencode",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.config/opencode/skill",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "opencode auth list",
+        "provider": null,
+        "availableProviders": [
+          "OpenAI",
+          "litellm"
+        ],
+        "status": "pass",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "copilot": {
+      "type": "copilot",
+      "executable": {
+        "command": "copilot",
+        "path": "/bin/copilot",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.copilot",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.copilot/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "gh auth status --hostname github.com",
+        "provider": "github",
+        "availableProviders": [
+          "GitHub"
+        ],
+        "status": "pass",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "pi": {
+      "type": "pi",
+      "executable": {
+        "command": "pi",
+        "path": "/bin/pi",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.pi",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.pi/agent/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "~/.pi/agent/auth.json",
+        "provider": null,
+        "availableProviders": [
+          "anthropic",
+          "litellm"
+        ],
+        "status": "pass",
+        "errors": []
+      },
+      "integration": {
+        "label": "ai-devkit plugin",
+        "installed": true,
+        "status": "pass",
+        "errors": [],
+        "details": {
+          "package": "@ai-devkit/pi-session-tracker",
+          "registryPath": "~/.pi/agent/sessions.json",
+          "registryValid": true,
+          "invalidEntries": 0,
+          "staleEntries": 1
+        }
+      },
+      "status": "pass"
+    },
+    "devin": {
+      "type": "devin",
+      "executable": {
+        "command": "devin",
+        "path": "/bin/devin",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.config/devin",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": null,
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "devin auth status",
+        "provider": null,
+        "availableProviders": [
+          "devin"
+        ],
+        "status": "pass",
+        "errors": []
+      },
+      "status": "pass"
+    }
+  }
+}

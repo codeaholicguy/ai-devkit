@@ -15,3 +15,6 @@ coverage/
 .github/prompts/
 .github/skills/
 .worktrees/
+rust/target/
+packages/daemon-client/dist/
+fixtures/harness/**/live*.json

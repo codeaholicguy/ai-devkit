@@ -1,0 +1,141 @@
+{
+  "adapter": "opencode",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 71001,
+      "ppid": 1,
+      "tty": "ttys010",
+      "command": "opencode",
+      "cwd": "/proj/alpha",
+      "startTime": "2025-10-09T11:40:00.000Z"
+    },
+    {
+      "pid": 71002,
+      "ppid": 1,
+      "tty": "ttys011",
+      "command": "opencode",
+      "cwd": "/proj/beta",
+      "startTime": "2025-10-09T11:50:00.000Z"
+    },
+    {
+      "pid": 71003,
+      "ppid": 1,
+      "tty": "ttys012",
+      "command": "opencode",
+      "cwd": "/proj/gamma",
+      "startTime": "2025-10-09T11:30:00.000Z"
+    },
+    {
+      "pid": 71004,
+      "ppid": 1,
+      "tty": "ttys013",
+      "command": "opencode",
+      "cwd": "/proj/delta",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    },
+    {
+      "pid": 71005,
+      "ppid": 1,
+      "tty": "ttys014",
+      "command": "opencode",
+      "startTime": "2025-10-09T12:00:00.000Z"
+    },
+    {
+      "pid": 71006,
+      "ppid": 1,
+      "tty": "ttys015",
+      "command": "opencode",
+      "cwd": "/proj/epsilon",
+      "startTime": "2025-10-09T12:18:00.000Z"
+    }
+  ],
+  "home": {},
+  "sqlite": {
+    ".local/share/opencode/opencode.db": [
+      "CREATE TABLE \"session\" (\"id\" TEXT PRIMARY KEY, \"directory\" TEXT NOT NULL, \"time_created\" INTEGER NOT NULL);",
+      "CREATE TABLE \"message\" (\"id\" TEXT PRIMARY KEY, \"session_id\" TEXT NOT NULL, \"time_created\" INTEGER NOT NULL, \"time_updated\" INTEGER NOT NULL, \"data\" TEXT NOT NULL);",
+      "CREATE TABLE \"part\" (\"id\" TEXT PRIMARY KEY, \"message_id\" TEXT NOT NULL, \"session_id\" TEXT NOT NULL, \"time_created\" INTEGER NOT NULL, \"time_updated\" INTEGER NOT NULL, \"data\" TEXT NOT NULL);",
+      "INSERT INTO \"session\" VALUES ('ses-alpha','/proj/alpha',1760010000000);",
+      "INSERT INTO \"session\" VALUES ('ses-beta','/proj/beta',1760010600000);",
+      "INSERT INTO \"session\" VALUES ('ses-delta','/proj/delta',1760008800000);",
+      "INSERT INTO \"session\" VALUES ('ses-epsilon','/proj/epsilon',1760012280000);",
+      "INSERT INTO \"session\" VALUES ('ses-alpha-old','/proj/alpha',1759900000000);",
+      "INSERT INTO \"message\" VALUES ('m-a1','ses-alpha',1760010000000,1760010000000,'{\"role\":\"user\"}');",
+      "INSERT INTO \"message\" VALUES ('m-a2','ses-alpha',1760012200000,1760012200000,'{\"role\":\"assistant\",\"time\":{\"created\":1760012200000}}');",
+      "INSERT INTO \"message\" VALUES ('m-b1','ses-beta',1760010600000,1760010600000,'{\"role\":\"user\"}');",
+      "INSERT INTO \"message\" VALUES ('m-b2','ses-beta',1760012280000,1760012280000,'{\"role\":\"assistant\",\"time\":{\"created\":1760012280000,\"completed\":1760012290000}}');",
+      "INSERT INTO \"message\" VALUES ('m-d1','ses-delta',1760008800000,1760008800000,'{\"role\":\"user\"}');",
+      "INSERT INTO \"part\" VALUES ('p-a1','m-a1','ses-alpha',1760010001000,1760010001000,'{\"type\":\"text\",\"text\":\"first alpha question\"}');",
+      "INSERT INTO \"part\" VALUES ('p-a2','m-a2','ses-alpha',1760012201000,1760012201000,'{\"type\":\"tool\",\"tool\":\"bash\"}');",
+      "INSERT INTO \"part\" VALUES ('p-b1','m-b1','ses-beta',1760010601000,1760010601000,'{\"type\":\"text\",\"text\":\"  beta ask  \"}');"
+    ]
+  },
+  "expected": [
+    {
+      "name": "alpha-71001",
+      "type": "opencode",
+      "status": "running",
+      "summary": "first alpha question",
+      "pid": 71001,
+      "projectPath": "/proj/alpha",
+      "sessionId": "ses-alpha",
+      "lastActive": "2025-10-09T12:16:40.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/opencode/opencode.db::ses-alpha"
+    },
+    {
+      "name": "beta-71002",
+      "type": "opencode",
+      "status": "waiting",
+      "summary": "beta ask",
+      "pid": 71002,
+      "projectPath": "/proj/beta",
+      "sessionId": "ses-beta",
+      "lastActive": "2025-10-09T12:18:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/opencode/opencode.db::ses-beta"
+    },
+    {
+      "name": "gamma-71003",
+      "type": "opencode",
+      "status": "running",
+      "summary": "OpenCode process running",
+      "pid": 71003,
+      "projectPath": "/proj/gamma",
+      "sessionId": "pid-71003",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "delta-71004",
+      "type": "opencode",
+      "status": "idle",
+      "summary": "OpenCode session active",
+      "pid": 71004,
+      "projectPath": "/proj/delta",
+      "sessionId": "ses-delta",
+      "lastActive": "2025-10-09T11:20:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/opencode/opencode.db::ses-delta"
+    },
+    {
+      "name": "unknown-71005",
+      "type": "opencode",
+      "status": "running",
+      "summary": "OpenCode process running",
+      "pid": 71005,
+      "projectPath": "",
+      "sessionId": "pid-71005",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "epsilon-71006",
+      "type": "opencode",
+      "status": "running",
+      "summary": "OpenCode session active",
+      "pid": 71006,
+      "projectPath": "/proj/epsilon",
+      "sessionId": "ses-epsilon",
+      "lastActive": "2025-10-09T12:18:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/opencode/opencode.db::ses-epsilon"
+    }
+  ]
+}

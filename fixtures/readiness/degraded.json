@@ -1,0 +1,526 @@
+{
+  "options": {
+    "homeDir": "/home/test",
+    "path": "/bin",
+    "assetRoot": "/assets",
+    "builtInSkillNames": [
+      "agent-management",
+      "memory",
+      "verify"
+    ],
+    "skillRoots": {
+      "claude": ".claude/skills",
+      "codex": ".codex/skills",
+      "copilot": ".copilot/skills",
+      "gemini_cli": ".gemini/skills",
+      "grok_cli": ".grok/skills",
+      "antigravity_cli": ".gemini/config/skills",
+      "opencode": ".config/opencode/skill",
+      "pi": ".pi/agent/skills"
+    }
+  },
+  "files": {
+    "/home/test/.claude": "<dir>",
+    "/home/test/.codex": "<dir>",
+    "/home/test/.pi": "<dir>",
+    "/home/test/.copilot": "<dir>",
+    "/home/test/.codex/hooks/codex-session-mapping.cjs": "codex-hook",
+    "/assets/codex/codex-session-mapping.cjs": "different-hook",
+    "/home/test/.codex/hooks.json": "{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"node ~/.codex/hooks/codex-session-mapping.cjs\"}]}]}}",
+    "/home/test/.codex/ai-devkit/sessions.json": "{\"abc\":\"/sessions/x.jsonl\",\"123\":\"/sessions/gone.jsonl\",\"456\":\"/sessions/ok.jsonl\"}",
+    "/sessions/ok.jsonl": "",
+    "/home/test/.claude/hooks/claude-prompt-hook.js": "claude-hook",
+    "/assets/claude/claude-prompt-hook.js": "claude-hook",
+    "/home/test/.claude/settings.json": "{\"hooks\":{\"PreToolUse\":[]}}",
+    "/home/test/.pi/agent/sessions.json": "{\"9\":\"/sessions/pi.jsonl\"}",
+    "/sessions/pi.jsonl": "",
+    "/home/test/.pi/agent/auth.json": "{\"provider\":\"\"}",
+    "/home/test/.claude/skills/memory/SKILL.md": "# skill",
+    "/home/test/.codex/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.codex/skills/memory/SKILL.md": "# skill",
+    "/home/test/.codex/skills/verify/SKILL.md": "# skill"
+  },
+  "executables": [
+    "/bin/claude",
+    "/bin/codex",
+    "/bin/pi",
+    "/bin/devin"
+  ],
+  "commands": {
+    "pi list": {
+      "stdout": "npm:@ai-devkit/other-plugin\n"
+    },
+    "claude auth status --json": {
+      "stdout": "{\"loggedIn\":false}"
+    },
+    "gh auth status --hostname github.com": {
+      "ok": false,
+      "stdout": ""
+    },
+    "opencode auth list": {
+      "stdout": ""
+    },
+    "devin auth status": {
+      "stdout": "Not logged in\n"
+    }
+  },
+  "codexAuth": false,
+  "expected": {
+    "claude": {
+      "type": "claude",
+      "executable": {
+        "command": "claude",
+        "path": "/bin/claude",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.claude",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.claude/skills",
+        "required": 3,
+        "present": 1,
+        "missing": [
+          "agent-management",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unauthenticated",
+        "source": "claude auth status --json",
+        "provider": null,
+        "availableProviders": [],
+        "status": "fail",
+        "errors": [
+          "Claude is not authenticated"
+        ]
+      },
+      "integration": {
+        "label": "ai-devkit hook",
+        "installed": false,
+        "status": "fail",
+        "errors": [
+          "required hook registration is missing"
+        ],
+        "details": {
+          "promptScript": {
+            "path": "~/.claude/hooks/claude-prompt-hook.js",
+            "present": true,
+            "readable": true,
+            "matchesBundledAsset": true,
+            "status": "pass",
+            "errors": []
+          },
+          "registration": {
+            "path": "~/.claude/settings.json",
+            "event": "PreToolUse",
+            "command": "node ~/.claude/hooks/claude-prompt-hook.js",
+            "present": true,
+            "valid": false,
+            "status": "fail",
+            "errors": [
+              "required hook registration is missing"
+            ]
+          }
+        }
+      },
+      "status": "fail"
+    },
+    "codex": {
+      "type": "codex",
+      "executable": {
+        "command": "codex",
+        "path": "/bin/codex",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.codex",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.codex/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unauthenticated",
+        "source": "~/.codex/auth.json",
+        "provider": null,
+        "availableProviders": [],
+        "status": "fail",
+        "errors": [
+          "Codex is not authenticated"
+        ]
+      },
+      "integration": {
+        "label": "ai-devkit hook",
+        "installed": false,
+        "status": "fail",
+        "errors": [
+          "hook script differs from the bundled AI DevKit asset",
+          "session mapping contains invalid entries"
+        ],
+        "details": {
+          "sessionMappingScript": {
+            "path": "~/.codex/hooks/codex-session-mapping.cjs",
+            "present": true,
+            "readable": true,
+            "matchesBundledAsset": false,
+            "status": "fail",
+            "errors": [
+              "hook script differs from the bundled AI DevKit asset"
+            ]
+          },
+          "registration": {
+            "path": "~/.codex/hooks.json",
+            "event": "SessionStart",
+            "command": "node ~/.codex/hooks/codex-session-mapping.cjs",
+            "present": true,
+            "valid": true,
+            "status": "pass",
+            "errors": []
+          },
+          "mappingFile": {
+            "path": "~/.codex/ai-devkit/sessions.json",
+            "present": true,
+            "valid": false,
+            "invalidEntries": 1,
+            "staleEntries": 1,
+            "status": "fail",
+            "errors": [
+              "session mapping contains invalid entries"
+            ]
+          }
+        }
+      },
+      "status": "fail"
+    },
+    "gemini_cli": {
+      "type": "gemini_cli",
+      "executable": {
+        "command": "gemini",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "gemini was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.gemini",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": "~/.gemini/skills",
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "status": "fail"
+    },
+    "grok_cli": {
+      "type": "grok_cli",
+      "executable": {
+        "command": "grok",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "grok was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.grok",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": "~/.grok/skills",
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "status": "fail"
+    },
+    "kiro": {
+      "type": "kiro",
+      "executable": {
+        "command": "kiro-cli",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "kiro-cli was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.kiro",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": null,
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "status": "fail"
+    },
+    "antigravity_cli": {
+      "type": "antigravity_cli",
+      "executable": {
+        "command": "agy",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "agy was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.gemini/antigravity-cli",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": "~/.gemini/config/skills",
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "status": "fail"
+    },
+    "opencode": {
+      "type": "opencode",
+      "executable": {
+        "command": "opencode",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "opencode was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.config/opencode",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": "~/.config/opencode/skill",
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unauthenticated",
+        "source": "opencode auth list",
+        "provider": null,
+        "availableProviders": [],
+        "status": "fail",
+        "errors": [
+          "OpenCode has no configured credentials"
+        ]
+      },
+      "status": "fail"
+    },
+    "copilot": {
+      "type": "copilot",
+      "executable": {
+        "command": "copilot",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "copilot was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.copilot",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.copilot/skills",
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unknown",
+        "source": "gh auth status --hostname github.com",
+        "provider": null,
+        "availableProviders": [
+          "GitHub"
+        ],
+        "status": "warn",
+        "errors": [
+          "Copilot authentication could not be verified through GitHub CLI"
+        ]
+      },
+      "status": "fail"
+    },
+    "pi": {
+      "type": "pi",
+      "executable": {
+        "command": "pi",
+        "path": "/bin/pi",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.pi",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.pi/agent/skills",
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unauthenticated",
+        "source": "~/.pi/agent/auth.json",
+        "provider": null,
+        "availableProviders": [],
+        "status": "fail",
+        "errors": [
+          "Pi credential file has no configured model provider"
+        ]
+      },
+      "integration": {
+        "label": "ai-devkit plugin",
+        "installed": false,
+        "status": "fail",
+        "errors": [
+          "Pi session tracker is not registered"
+        ],
+        "details": {
+          "package": "@ai-devkit/pi-session-tracker",
+          "registryPath": "~/.pi/agent/sessions.json",
+          "registryValid": true,
+          "invalidEntries": 0,
+          "staleEntries": 0
+        }
+      },
+      "status": "fail"
+    },
+    "devin": {
+      "type": "devin",
+      "executable": {
+        "command": "devin",
+        "path": "/bin/devin",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.config/devin",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": null,
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unauthenticated",
+        "source": "devin auth status",
+        "provider": null,
+        "availableProviders": [],
+        "status": "fail",
+        "errors": [
+          "Devin is not logged in"
+        ]
+      },
+      "status": "fail"
+    }
+  }
+}

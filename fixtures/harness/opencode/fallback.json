@@ -1,0 +1,53 @@
+{
+  "adapter": "opencode",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 72001,
+      "ppid": 1,
+      "tty": "ttys020",
+      "command": "opencode",
+      "cwd": "/proj/nodb",
+      "startTime": "2025-10-09T12:00:00.000Z"
+    },
+    {
+      "pid": 72002,
+      "ppid": 1,
+      "tty": "ttys021",
+      "command": "opencode",
+      "startTime": "2025-10-09T12:01:00.000Z"
+    },
+    {
+      "pid": 72003,
+      "ppid": 1,
+      "tty": "ttys022",
+      "command": "node /usr/local/bin/other.js",
+      "cwd": "/proj/foreign",
+      "startTime": "2025-10-09T12:02:00.000Z"
+    }
+  ],
+  "home": {},
+  "expected": [
+    {
+      "name": "nodb-72001",
+      "type": "opencode",
+      "status": "running",
+      "summary": "OpenCode process running",
+      "pid": 72001,
+      "projectPath": "/proj/nodb",
+      "sessionId": "pid-72001",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "unknown-72002",
+      "type": "opencode",
+      "status": "running",
+      "summary": "OpenCode process running",
+      "pid": 72002,
+      "projectPath": "",
+      "sessionId": "pid-72002",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}
