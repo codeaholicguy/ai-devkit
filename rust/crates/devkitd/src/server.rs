@@ -19,9 +19,15 @@ pub struct Daemon {
     /// Enriched agents for ported harness types, refreshed per sweep so
     /// `agent.enriched` is O(1) over a prebuilt list.
     pub enriched: RwLock<EnrichedAgentsResult>,
+    /// Readiness probes run subprocesses for seconds and change slowly —
+    /// cache the serialized result per request-params key for a short TTL.
+    pub readiness_cache: RwLock<Option<(String, std::time::Instant, Value)>>,
     /// User home dir adapters resolve session trees (~/.claude, …) against.
     pub home: PathBuf,
 }
+
+/// Freshness window for cached `agent.readiness` results.
+const READINESS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(30);
 
 impl Daemon {
     pub fn new(data_dir: &Path, socket_path: PathBuf, home: PathBuf) -> Result<Self> {
@@ -38,6 +44,7 @@ impl Daemon {
                 agents: vec![],
                 ported: vec![],
             }),
+            readiness_cache: RwLock::new(None),
             home,
         })
     }
@@ -114,6 +121,12 @@ impl Daemon {
                 Response::ok(id, serde_json::to_value(cached).unwrap())
             }
             "agent.readiness" => {
+                let cache_key = serde_json::to_string(&req.params).unwrap_or_default();
+                if let Some((key, at, v)) = &*self.readiness_cache.read().unwrap() {
+                    if key == &cache_key && at.elapsed() < READINESS_CACHE_TTL {
+                        return Response::ok(id, v.clone());
+                    }
+                }
                 let p = &req.params;
                 let home_dir = p["homeDir"]
                     .as_str()
@@ -146,13 +159,13 @@ impl Daemon {
                     host: &host,
                 };
                 let reports = devkit_harness::readiness::readiness_reports(&rt);
-                Response::ok(
-                    id,
-                    serde_json::to_value(devkit_core::readiness::AgentReadinessResult {
-                        reports,
-                    })
-                    .unwrap(),
-                )
+                let result = serde_json::to_value(devkit_core::readiness::AgentReadinessResult {
+                    reports,
+                })
+                .unwrap();
+                *self.readiness_cache.write().unwrap() =
+                    Some((cache_key, std::time::Instant::now(), result.clone()));
+                Response::ok(id, result)
             }
             "events.replay" => {
                 let after = req.params["afterSeq"].as_u64().unwrap_or(0);
@@ -303,7 +316,12 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                         write.write_all(b"\n").await?;
                     }
                     Ok(req) => {
-                        let resp = daemon.dispatch(req);
+                        // dispatch is synchronous — some RPCs (agent.readiness)
+                        // run subprocess probes for seconds; keep them off the
+                        // async workers so other connections stay responsive.
+                        let d = daemon.clone();
+                        let resp =
+                            tokio::task::spawn_blocking(move || d.dispatch(req)).await?;
                         write.write_all(serde_json::to_string(&resp)?.as_bytes()).await?;
                         write.write_all(b"\n").await?;
                     }

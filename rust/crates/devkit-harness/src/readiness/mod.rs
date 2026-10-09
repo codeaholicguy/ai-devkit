@@ -50,7 +50,8 @@ pub struct CommandResult {
 
 /// The four TS injectable seams. `run_command` resolves only on exit 0
 /// (spawn failure / non-zero / timeout are all `Err`, like `execFile`).
-pub trait Host {
+/// `Sync` so reports can fan checks out across scoped threads.
+pub trait Host: Sync {
     fn read_file(&self, path: &Path) -> io::Result<String>;
     fn access(&self, path: &Path, mode: i32) -> bool;
     fn run_command(&self, command: &str, args: &[&str]) -> io::Result<CommandResult>;
@@ -130,42 +131,54 @@ fn run_with_timeout(command: &str, args: &[&str], timeout: Duration) -> io::Resu
     }
 }
 
-/// `getAgentReadinessReport`.
+/// `getAgentReadinessReport`. Checks fan out on scoped threads — mirrors the
+/// TS `Promise.all` so one slow probe can't serialize the whole report.
 pub fn readiness_report(agent_type: &str, rt: &ReadinessRuntime) -> AgentReadinessReport {
     let profile = profiles::profile(agent_type);
-    let executable = checks::executable_check(agent_type, rt);
-    let global_config = checks::directory_check(profile.config_dir, rt);
-    let built_in_skills = checks::built_in_skills_check(agent_type, rt);
-    let auth = (profile.auth)(rt);
-    let integration = (profile.integration)(rt);
-    let status = checks::worst_status(&{
-        let mut v = vec![executable.status.as_str(), global_config.status.as_str()];
-        if let Some(a) = &auth {
-            v.push(a.status.as_str());
+    std::thread::scope(|s| {
+        let executable = s.spawn(|| checks::executable_check(agent_type, rt));
+        let global_config = s.spawn(|| checks::directory_check(profile.config_dir, rt));
+        let built_in_skills = s.spawn(|| checks::built_in_skills_check(agent_type, rt));
+        let auth = s.spawn(|| (profile.auth)(rt));
+        let integration = s.spawn(|| (profile.integration)(rt));
+        let executable = executable.join().unwrap();
+        let global_config = global_config.join().unwrap();
+        let built_in_skills = built_in_skills.join().unwrap();
+        let auth = auth.join().unwrap();
+        let integration = integration.join().unwrap();
+        let status = checks::worst_status(&{
+            let mut v = vec![executable.status.as_str(), global_config.status.as_str()];
+            if let Some(a) = &auth {
+                v.push(a.status.as_str());
+            }
+            if let Some(i) = &integration {
+                v.push(i.status.as_str());
+            }
+            v
+        });
+        AgentReadinessReport {
+            agent_type: agent_type.to_string(),
+            executable,
+            global_config,
+            built_in_skills,
+            auth,
+            integration,
+            status: status.into(),
         }
-        if let Some(i) = &integration {
-            v.push(i.status.as_str());
-        }
-        v
-    });
-    AgentReadinessReport {
-        agent_type: agent_type.to_string(),
-        executable,
-        global_config,
-        built_in_skills,
-        auth,
-        integration,
-        status: status.into(),
-    }
+    })
 }
 
 /// `getAgentReadinessReports` — AGENT_TYPES order (the wire map can't
-/// carry key order, so this is a Vec; clients `fromEntries` it).
+/// carry key order, so this is a Vec; clients `fromEntries` it). Harnesses
+/// run in parallel on scoped threads, matching the TS `Promise.all`.
 pub fn readiness_reports(rt: &ReadinessRuntime) -> Vec<AgentReadinessReport> {
-    READINESS_AGENT_TYPES
-        .iter()
-        .map(|t| readiness_report(t, rt))
-        .collect()
+    std::thread::scope(|s| {
+        let handles: Vec<_> = READINESS_AGENT_TYPES
+            .iter()
+            .map(|t| s.spawn(move || readiness_report(t, rt)))
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    })
 }
 
 /// Default skill roots — the `STATUS_SKILL_ROOTS` fallbacks the CLI
