@@ -371,23 +371,28 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
                 match parsed {
                     Ok(req) if req.method == "subscribe" => {
                         let after = req.params["afterSeq"].as_u64().unwrap_or(0);
+                        // Live UIs pass liveOnly — replaying the persisted
+                        // log would only trigger redundant refreshes.
+                        let live_only = req.params["liveOnly"].as_bool().unwrap_or(false);
                         // Subscribe BEFORE replaying: events emitted during the
                         // replay land in the receiver's buffer instead of the
                         // old replay→subscribe gap. Replayed seqs become the
                         // delivery floor, so buffered live frames that overlap
                         // the replay are dropped rather than sent twice.
                         let rx = daemon.events.subscribe();
-                        match daemon.store.events_after(after, 10_000) {
-                            Ok(events) => {
-                                for ev in events {
-                                    last_delivered = last_delivered.max(ev.seq);
-                                    let s = serde_json::to_string(&json!({"event": ev}))?;
-                                    write.write_all(s.as_bytes()).await?;
-                                    write.write_all(b"\n").await?;
+                        if !live_only {
+                            match daemon.store.events_after(after, 10_000) {
+                                Ok(events) => {
+                                    for ev in events {
+                                        last_delivered = last_delivered.max(ev.seq);
+                                        let s = serde_json::to_string(&json!({"event": ev}))?;
+                                        write.write_all(s.as_bytes()).await?;
+                                        write.write_all(b"\n").await?;
+                                    }
                                 }
-                            }
-                            Err(e) => {
-                                tracing::warn!("subscribe replay failed: {e:#}")
+                                Err(e) => {
+                                    tracing::warn!("subscribe replay failed: {e:#}")
+                                }
                             }
                         }
                         last_delivered = last_delivered.max(after);

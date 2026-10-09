@@ -14,7 +14,9 @@ export async function attachDaemonRefresh(
   const client = await ensureDaemon().catch(() => null);
   if (!client) return null;
   try {
-    await client.subscribe(() => onEvent());
+    // Live only: the console is a UI — replaying the persisted event log
+    // (up to 10k frames) would only trigger redundant refreshes.
+    await client.subscribe(() => onEvent(), { liveOnly: true });
     onSubscribed();
     return client;
   } catch {

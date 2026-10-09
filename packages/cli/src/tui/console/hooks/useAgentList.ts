@@ -110,30 +110,52 @@ export function useAgentList(
 
     // Daemon event stream → immediate refresh on agent lifecycle/registry
     // changes; on success the blind poll relaxes to the slow fallback. Any
-    // failure leaves today's interval behavior untouched.
+    // failure leaves today's interval behavior untouched. If the stream
+    // dies mid-session (daemon restart) the fast poll resumes and the
+    // attach is retried — otherwise the console would silently stay on
+    // the 60s fallback for the rest of its life.
     let client: DaemonClient | null = null;
     let disposed = false;
-    void attachDaemonRefresh(
-      () => void refresh(),
-      () => {
-        if (disposed) return;
-        clearInterval(handle);
-        handle = setInterval(() => {
-          void refresh();
-        }, LIST_FALLBACK_INTERVAL_MS);
-      },
-    ).then((c) => {
+    let reconnect: ReturnType<typeof setTimeout> | null = null;
+    const fastPoll = () => {
+      clearInterval(handle);
+      handle = setInterval(() => {
+        void refresh();
+      }, intervalMs);
+    };
+    const attach = async (): Promise<void> => {
+      const c = await attachDaemonRefresh(
+        () => void refresh(),
+        () => {
+          if (disposed) return;
+          clearInterval(handle);
+          handle = setInterval(() => {
+            void refresh();
+          }, LIST_FALLBACK_INTERVAL_MS);
+        },
+      );
       if (disposed) {
         c?.close();
         return;
       }
       client = c;
-    });
+      if (c) {
+        c.onDisconnect = () => {
+          client = null;
+          fastPoll();
+          reconnect = setTimeout(() => {
+            if (!disposed) void attach();
+          }, 2000);
+        };
+      }
+    };
+    void attach();
 
     return () => {
       disposed = true;
       mountedRef.current = false;
       clearInterval(handle);
+      if (reconnect) clearTimeout(reconnect);
       client?.close();
     };
   }, [intervalMs, paused, refresh]);
