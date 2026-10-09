@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 
 /**
  * Locate the devkitd binary. Resolution order:
@@ -40,13 +41,23 @@ export function resolveDaemonBinary(): string | null {
   const home = path.join(os.homedir(), ".ai-devkit", "bin", "devkitd");
   if (fs.existsSync(home)) return home;
 
-  // Dev checkout: walk up looking for rust/target/<profile>/devkitd.
-  let dir = path.dirname(new URL(import.meta.url).pathname);
+  // Dev checkout: walk up to the nearest rust/target/<profile>/devkitd and
+  // pick the freshest profile — a stale release build otherwise shadows a
+  // freshly-built debug binary forever. fileURLToPath so paths containing
+  // spaces or other escaped chars resolve correctly.
+  let dir = path.dirname(fileURLToPath(import.meta.url));
   for (let i = 0; i < 8; i++) {
+    let best: { file: string; mtime: number } | null = null;
     for (const profile of ["release", "debug"]) {
       const candidate = path.join(dir, "rust", "target", profile, "devkitd");
-      if (fs.existsSync(candidate)) return candidate;
+      try {
+        const mtime = fs.statSync(candidate).mtimeMs;
+        if (!best || mtime > best.mtime) best = { file: candidate, mtime };
+      } catch {
+        /* absent */
+      }
     }
+    if (best) return best.file;
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;

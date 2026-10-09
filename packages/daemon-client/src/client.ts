@@ -15,6 +15,7 @@ export function daemonSocketPath(): string {
 interface Pending {
   resolve: (v: unknown) => void;
   reject: (e: Error) => void;
+  timer: NodeJS.Timeout;
 }
 
 /**
@@ -27,12 +28,25 @@ export class DaemonClient {
   private pending = new Map<number, Pending>();
   private buffer = "";
   private onEvent: ((e: DaemonEvent) => void) | null = null;
+  /**
+   * Fires once when the socket dies after a successful connect (daemon
+   * restart, crash). Consoles use it to resubscribe instead of silently
+   * falling back to polling forever.
+   */
+  onDisconnect: (() => void) | null = null;
 
-  private constructor(private socketPath: string) {}
+  private constructor(
+    private socketPath: string,
+    private requestTimeoutMs = 30_000,
+  ) {}
 
-  static connect(socketPath = daemonSocketPath(), timeoutMs = 1500): Promise<DaemonClient> {
+  static connect(
+    socketPath = daemonSocketPath(),
+    timeoutMs = 1500,
+    requestTimeoutMs = 30_000,
+  ): Promise<DaemonClient> {
     return new Promise((resolve, reject) => {
-      const client = new DaemonClient(socketPath);
+      const client = new DaemonClient(socketPath, requestTimeoutMs);
       const socket = net.createConnection(socketPath);
       const timer = setTimeout(() => {
         socket.destroy();
@@ -42,6 +56,11 @@ export class DaemonClient {
         clearTimeout(timer);
         client.socket = socket;
         socket.on("data", (d) => client.onData(d));
+        // Persistent listeners — a once("error") handler would be consumed
+        // by the first error, leaving later ones unhandled (which crashes
+        // the process). Both paths drain pending and notify onDisconnect.
+        socket.on("error", (e) => client.onSocketDead(e));
+        socket.on("close", () => client.onSocketDead(new Error("daemon socket closed")));
         resolve(client);
       });
       socket.once("error", (e) => {
@@ -64,14 +83,24 @@ export class DaemonClient {
     if (!this.socket) return Promise.reject(new Error("not connected"));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { resolve, reject });
+      // A dead-but-unreported socket or a wedged daemon must not leave
+      // callers awaiting forever.
+      const timer = setTimeout(() => {
+        if (this.pending.delete(id)) {
+          reject(new Error(`daemon request "${method}" timed out`));
+        }
+      }, this.requestTimeoutMs);
+      this.pending.set(id, { resolve, reject, timer });
       this.socket!.write(JSON.stringify({ id, method, params }) + "\n");
     });
   }
 
-  async subscribe(handler: (e: DaemonEvent) => void, afterSeq = 0): Promise<void> {
+  async subscribe(
+    handler: (e: DaemonEvent) => void,
+    opts: { afterSeq?: number; liveOnly?: boolean } = {},
+  ): Promise<void> {
     this.onEvent = handler;
-    await this.request("subscribe", { afterSeq });
+    await this.request("subscribe", { afterSeq: opts.afterSeq ?? 0, liveOnly: opts.liveOnly });
   }
 
   /**
@@ -121,14 +150,36 @@ export class DaemonClient {
       const p = this.pending.get(id);
       if (!p) continue;
       this.pending.delete(id);
+      clearTimeout(p.timer);
       if (msg.error) p.reject(new Error(String(msg.error)));
       else p.resolve(msg.result);
     }
   }
 
-  close() {
-    this.socket?.destroy();
+  /** Reject every in-flight request and mark the socket dead. Idempotent. */
+  private onSocketDead(err: Error) {
+    if (!this.socket) return;
     this.socket = null;
+    const pending = [...this.pending.values()];
+    this.pending.clear();
+    for (const p of pending) {
+      clearTimeout(p.timer);
+      p.reject(err);
+    }
+    this.onDisconnect?.();
+  }
+
+  close() {
+    if (!this.socket) return;
+    const socket = this.socket;
+    this.socket = null;
+    socket.destroy();
+    const pending = [...this.pending.values()];
+    this.pending.clear();
+    for (const p of pending) {
+      clearTimeout(p.timer);
+      p.reject(new Error("client closed"));
+    }
   }
 }
 

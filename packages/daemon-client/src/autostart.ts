@@ -39,7 +39,9 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
   }
 
   try {
-    const logFd = fs.openSync(path.join(dir, "daemon.log"), "a");
+    const logPath = path.join(dir, "daemon.log");
+    capDaemonLog(logPath);
+    const logFd = fs.openSync(logPath, "a");
     const child = spawn(bin, ["serve"], {
       detached: true,
       stdio: ["ignore", logFd, logFd],
@@ -47,7 +49,19 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
     child.unref();
     fs.closeSync(logFd);
   } catch {
+    try {
+      fs.unlinkSync(lockPath);
+    } catch {
+      /* already gone */
+    }
     return null;
+  }
+  // Hold the lock until the daemon is actually serving: a second caller that
+  // arrives while devkitd is still binding its socket must see the lock and
+  // wait — releasing early lets it spawn a twin that clobbers the socket path
+  // and orphans the first daemon forever.
+  try {
+    return await waitForSocket(waitMs);
   } finally {
     try {
       fs.unlinkSync(lockPath);
@@ -55,7 +69,19 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
       /* already gone */
     }
   }
-  return waitForSocket(waitMs);
+}
+
+/** daemon.log is append-only per spawn — rotate to .1 past 1 MiB. */
+const MAX_LOG_BYTES = 1 << 20;
+
+function capDaemonLog(logPath: string): void {
+  try {
+    if (fs.statSync(logPath).size > MAX_LOG_BYTES) {
+      fs.renameSync(logPath, `${logPath}.1`);
+    }
+  } catch {
+    /* missing or unwritable — the open() caller surfaces real problems */
+  }
 }
 
 function acquireSpawnLock(lockPath: string, staleMs: number): boolean {
