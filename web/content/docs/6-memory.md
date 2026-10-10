@@ -147,7 +147,7 @@ ai-devkit memory update \
 
 ### Semantic Search
 
-Memory search is hybrid: lexical matching plus local semantic embeddings. Manage the embedding model and index with:
+Memory search is hybrid: lexical matching plus local semantic embeddings, so related entries surface even when the wording differs. The first semantic search (or `semantic download`) fetches a small embedding model that runs entirely on your machine. Manage the model and index with:
 
 ```bash
 ai-devkit memory semantic status     # model and embedding index state
