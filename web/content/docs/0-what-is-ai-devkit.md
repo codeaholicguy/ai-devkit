@@ -88,7 +88,7 @@ AI DevKit ships with a local coordination daemon (`devkitd`) that runs agent det
 - `ai-devkit capacity` shows remaining quota across your logged-in providers (Codex, z.ai, OpenAI, Anthropic, Claude, Devin) so you can pick the agent with the most headroom
 - `ai-devkit daemon` manages the background daemon; it auto-starts on first use, so no manual step is needed
 
-See [Runtime & Capacity](/docs/15-runtime-and-capacity) for details.
+See [Status & Capacity](/docs/15-capacity) and [Runtime (devkitd)](/docs/16-runtime) for details.
 
 ## A Typical Workflow
 
