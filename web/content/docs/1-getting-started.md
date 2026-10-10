@@ -22,10 +22,6 @@ Before you begin, make sure you have:
 - **tmux** for interactive managed agents (provisional compatibility floor: tmux 2.6+; setup reports but does not reject older versions)
 - At least one [supported AI coding agent or environment](/docs/2-supported-agents)
 
-- **Node.js 20.20.0 or newer**
-- **npm** or **npx**, which comes with Node.js
-- At least one [supported AI coding agent or environment](/docs/2-supported-agents)
-
 Install and launch your coding agent at least once before running `setup`. AI DevKit detects an agent from its home directory, so a newly installed agent that has never started may be reported as skipped.
 
 ## Choose How to Run AI DevKit
