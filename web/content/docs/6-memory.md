@@ -117,10 +117,11 @@ ai-devkit memory search --query "docker m1"
 
 Useful options:
 
-- `--limit <n>` to control how many results are returned
+- `--limit <n>` to control how many results are returned (1–20, default 5)
 - `--scope <scope>` to filter results to one scope
 - `--tags <tags>` to boost matches using context tags
 - `--table` to print a compact table with `id`, `title`, and `scope`
+- `--explain` to include the lexical and semantic rank details behind each result
 
 > **Note:** If no results are found, the `results` array is empty.
 
@@ -142,6 +143,17 @@ ai-devkit memory update \
   --id "<memory-id>" \
   --tags "docker,mac,infra" \
   --scope "global"
+```
+
+### Semantic Search
+
+Memory search is hybrid: lexical matching plus local semantic embeddings. Manage the embedding model and index with:
+
+```bash
+ai-devkit memory semantic status     # model and embedding index state
+ai-devkit memory semantic download   # download the embedding model (also for offline use)
+ai-devkit memory reembed             # recompute stale embeddings
+ai-devkit memory reembed --force     # recompute all embeddings
 ```
 
 ## Using the Memory Skill
