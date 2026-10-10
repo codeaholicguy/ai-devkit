@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [5f8c4a4](https://github.com/codeaholicguy/ai-devkit/pull/355) Fixed stale agent types, durable modes, and supported tools in the docs.
+- [df6fb0c](https://github.com/codeaholicguy/ai-devkit/pull/356) Fixed stale memory MCP setup instructions to match the setup-first wiring.
+- [20ab9a9](https://github.com/codeaholicguy/ai-devkit/pull/357) Rewrote the console start-agent pane docs for the 0.68 UX.
+- [7611135](https://github.com/codeaholicguy/ai-devkit/pull/358) Documented `agent session compact`.
+- [21e6d54](https://github.com/codeaholicguy/ai-devkit/pull/359) Added `session-compact` to the built-in skills docs.
+- [04a9972](https://github.com/codeaholicguy/ai-devkit/pull/360) Documented `memory semantic` and `memory reembed` commands.
+- [72746bf](https://github.com/codeaholicguy/ai-devkit/pull/361) Mentioned the Herdr managed runtime in the docs.
+- [b1f4b79](https://github.com/codeaholicguy/ai-devkit/pull/362) Documented `agent send --stdin`, `--wait`, `--group`, and `--json`.
+- [96204cb](https://github.com/codeaholicguy/ai-devkit/pull/363) Generalized the channel agent prerequisite to any detected harness.
+- [1ce388f](https://github.com/codeaholicguy/ai-devkit/pull/364) Updated the getting-started setup description and first-run checks.
+- [4b513a9](https://github.com/codeaholicguy/ai-devkit/pull/365) Removed the duplicated prerequisites block.
+- [16b6ca2](https://github.com/codeaholicguy/ai-devkit/pull/366) Refreshed the supported-agents example and contributor path.
+- [1ecb476](https://github.com/codeaholicguy/ai-devkit/pull/367) Added the observe-and-operate capability to the overview.
+- [651f080](https://github.com/codeaholicguy/ai-devkit/commit/651f080) Updated the AI lifecycle docs indexes.
+- [d0c42a0](https://github.com/codeaholicguy/ai-devkit/pull/368) Added Muse Code skill install support for project and global installs.
+- [708897d](https://github.com/codeaholicguy/ai-devkit/pull/369) Added the Muse Code harness across agent-manager, the CLI, and the Rust devkitd daemon.
+- [31047e1](https://github.com/codeaholicguy/ai-devkit/commit/31047e1) Gated fmt and lint checks for Rust and TypeScript in CI.
+
 ## [0.69.1] - 2026-10-09
 
 - [c085143](https://github.com/codeaholicguy/ai-devkit/commit/c085143) Fixed the bundled agent console crashing on load: esbuild code splitting exposes only the default export on the lazy React chunk, so destructured `createElement` was `undefined` in the published bundle.
