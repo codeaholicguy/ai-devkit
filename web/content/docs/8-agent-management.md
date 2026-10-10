@@ -131,6 +131,13 @@ Send a message directly to a running agent.
 ai-devkit agent send "continue with the failing tests" --id my-project
 ```
 
+Useful options:
+
+- `--stdin` to read the message from standard input (useful for piping logs or diffs)
+- `--wait` to wait for and print the agent's response
+- `--group <name>` to send to every agent in a group
+- `-j, --json` for machine-readable output
+
 If the agent is not currently waiting for input, AI DevKit warns you and still sends the message.
 
 ### Show Agent Details
