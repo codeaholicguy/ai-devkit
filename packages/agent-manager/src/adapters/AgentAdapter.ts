@@ -17,6 +17,7 @@ export const AGENT_TYPES = [
   "copilot",
   "pi",
   "devin",
+  "muse",
 ] as const;
 
 /**
@@ -200,6 +201,14 @@ export interface AgentAdapter {
 
   /** Executable basenames required for shared process discovery. */
   readonly processNames?: readonly string[];
+
+  /**
+   * Basename prefixes for shared process discovery: an argv[0] basename
+   * matches when it equals the prefix or starts with `<prefix>-`.
+   * For versioned launchers such as `muse-bin-1.4.4-R5419.1`.
+   * Recall-oriented like `processNames`; `canHandle` stays the precision gate.
+   */
+  readonly processNamePrefixes?: readonly string[];
 
   /**
    * Detect running agents of this type

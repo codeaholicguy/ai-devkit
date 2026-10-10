@@ -15,6 +15,7 @@ mod fixtures;
 pub mod gemini;
 pub mod grok;
 pub mod kiro;
+pub mod muse;
 pub mod opencode;
 pub mod pi;
 pub mod shared;
@@ -31,6 +32,7 @@ pub fn default_registry(home: &std::path::Path) -> Registry {
     r.register(Box::new(opencode::OpenCodeAdapter::new(home)));
     r.register(Box::new(devin::DevinAdapter::new(home)));
     r.register(Box::new(kiro::KiroAdapter::new(home)));
+    r.register(Box::new(muse::MuseAdapter::new(home)));
     r.register(Box::new(antigravity::AntigravityCliAdapter::new(home)));
     r
 }
@@ -239,6 +241,14 @@ mod tests {
             ))
         });
         assert!(n > 0, "no kiro fixture bundles found");
+    }
+
+    #[test]
+    fn muse_adapter_matches_committed_fixtures() {
+        let n = crate::fixtures::assert_parity("muse", |home| {
+            Box::new(crate::muse::MuseAdapter::new(home))
+        });
+        assert!(n > 0, "no muse fixture bundles found");
     }
 
     #[test]

@@ -4,6 +4,7 @@ import { copilotReadiness } from "../copilot/readiness.js";
 import { openCodeReadiness } from "../opencode/readiness.js";
 import { piReadiness } from "../pi/readiness.js";
 import { devinReadiness } from "../devin/readiness.js";
+import { museReadiness } from "../muse/readiness.js";
 import {
   builtInSkillsCheck,
   createReadinessRuntime,
@@ -31,6 +32,7 @@ const READINESS_PROFILES: Record<ReadinessAgentType, HarnessReadinessProfile> = 
   copilot: copilotReadiness,
   pi: piReadiness,
   devin: devinReadiness,
+  muse: museReadiness,
 };
 
 export async function getAgentReadinessReport(

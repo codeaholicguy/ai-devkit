@@ -36,6 +36,19 @@ describe("harness runtime profiles", () => {
     expect(runtimeAgentMatchesHarness("gemini", "gemini_cli")).toBe(true);
     expect(runtimeAgentMatchesHarness("codex", "claude")).toBe(false);
   });
+
+  it("profiles the versioned muse launcher", () => {
+    expect(HARNESS_RUNTIME_PROFILES.muse).toMatchObject({
+      command: "muse",
+      runtimeKind: "muse",
+      discoveryAliases: ["muse"],
+    });
+    expect(
+      HARNESS_RUNTIME_PROFILES.muse.matches("/Users/dev/.local/bin/muse-bin-1.4.4-R5419.1"),
+    ).toBe(true);
+    expect(HARNESS_RUNTIME_PROFILES.muse.matches("/usr/local/bin/muse")).toBe(true);
+    expect(runtimeAgentMatchesHarness("muse", "muse")).toBe(true);
+  });
 });
 
 describe("harness matchers with executables under paths containing spaces", () => {

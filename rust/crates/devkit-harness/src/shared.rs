@@ -99,6 +99,18 @@ pub fn matches_executable_name(command: &str, names: &[&str]) -> bool {
             .any(|n| *n == normalize_executable_name(&executable_basename(command)))
 }
 
+/// `matchesExecutablePrefix` — argv[0]'s first-token basename is exactly
+/// `prefix` or starts with `<prefix>-`; covers versioned launchers such as
+/// `muse-bin-1.4.4-R5419.1`. Recall-oriented like the name lists — adapters
+/// keep the precise shape check in `can_handle`.
+pub fn matches_executable_prefix(command: &str, prefix: &str) -> bool {
+    let base = normalize_executable_name(&path_basename(
+        command.split_whitespace().next().unwrap_or(""),
+    ));
+    let prefix = normalize_executable_name(prefix);
+    base == prefix || base.starts_with(&format!("{prefix}-"))
+}
+
 /// `generateAgentName`: kebab(basename(cwd))-pid, "unknown" fallback.
 pub fn generate_agent_name(cwd: &str, pid: i64) -> String {
     let folder = Path::new(cwd)
@@ -666,6 +678,17 @@ pub fn registry_agent_rows(home: &Path) -> Vec<RegistryRow> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prefix_matches_versioned_launcher_only() {
+        assert!(matches_executable_prefix(
+            "/Users/dev/.local/bin/muse-bin-1.4.4-R5419.1",
+            "muse"
+        ));
+        assert!(matches_executable_prefix("/usr/local/bin/muse", "muse"));
+        assert!(!matches_executable_prefix("/usr/bin/museums", "muse"));
+        assert!(!matches_executable_prefix("/usr/local/bin/claude", "muse"));
+    }
 
     #[test]
     fn kebab_names_match_ts() {

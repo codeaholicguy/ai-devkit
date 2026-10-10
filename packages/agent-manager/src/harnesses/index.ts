@@ -9,6 +9,7 @@ import { KiroAdapter } from "./kiro/KiroAdapter.js";
 import { OpenCodeAdapter } from "./opencode/OpenCodeAdapter.js";
 import { PiAdapter } from "./pi/PiAdapter.js";
 import { DevinAdapter } from "./devin/DevinAdapter.js";
+import { MuseAdapter } from "./muse/MuseAdapter.js";
 
 /**
  * One instance of every built-in harness adapter, in registration order
@@ -26,5 +27,6 @@ export function createBuiltinAdapters(): AgentAdapter[] {
     new OpenCodeAdapter(),
     new PiAdapter(),
     new DevinAdapter(),
+    new MuseAdapter(),
   ];
 }

@@ -76,7 +76,12 @@ fn argv0_basename(cmd: &str) -> &str {
 
 fn is_agent_command(cmd: &str) -> bool {
     let base = argv0_basename(cmd);
-    AGENT_BINARIES.contains(&base) || RUNTIME_BINARIES.contains(&base)
+    AGENT_BINARIES.contains(&base)
+        || RUNTIME_BINARIES.contains(&base)
+        // Versioned Muse launcher (`muse-bin-<version>-<build>`); adapters
+        // apply the precise shape check via can_handle.
+        || base == "muse"
+        || base.starts_with("muse-")
 }
 
 /// Whether argv0 is a script runtime — the apply_sweep visibility gate.
@@ -300,5 +305,15 @@ mod tests {
     fn malformed_lines_are_skipped() {
         let procs = parse_ps_output("garbage\n  abc x ? y\n", false);
         assert!(procs.is_empty());
+    }
+
+    #[test]
+    fn versioned_muse_launcher_passes_pool_gate() {
+        let procs = parse_ps_output(
+            "16174 2044 pts/1    /Users/dev/.local/bin/muse-bin-1.4.4-R5419.1\n 16175 2044 pts/1    /usr/bin/museums\n",
+            false,
+        );
+        let pids: Vec<i64> = procs.iter().map(|p| p.pid).collect();
+        assert_eq!(pids, vec![16174]);
     }
 }

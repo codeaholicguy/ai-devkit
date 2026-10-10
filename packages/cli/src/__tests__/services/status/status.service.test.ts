@@ -229,7 +229,9 @@ describe("getStatusReport", () => {
       "copilot",
       "pi",
       "devin",
+      "muse",
     ]);
+    expect(report.agents.muse.integration).toBeUndefined();
     expect(report.agents.copilot.integration).toBeUndefined();
     expect(report.agents.gemini_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });
     expect(report.agents.antigravity_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });

@@ -18,6 +18,8 @@ import {
   captureProcessSnapshot,
   createProcessSnapshotCapture,
   filterByProcessNames,
+  matchesExecutablePrefix,
+  snapshotOptions,
   executableBasename,
   executablePath,
   type ProcessExec,
@@ -258,6 +260,34 @@ describe("filterByProcessNames", () => {
 
     expect(filterByProcessNames(processes, ["node"])).toEqual([processes[0], processes[1]]);
     expect(filterByProcessNames(processes, ["node.exe"])).toEqual([processes[0], processes[1]]);
+  });
+
+  it("matches versioned launchers by basename prefix without leaking to siblings", () => {
+    const processes: ProcessInfo[] = [
+      { pid: 1, command: "/Users/dev/.local/bin/muse-bin-1.4.4-R5419.1", cwd: "", tty: "" },
+      { pid: 2, command: "/usr/local/bin/muse", cwd: "", tty: "" },
+      { pid: 3, command: "/usr/bin/museums", cwd: "", tty: "" },
+      { pid: 4, command: "/usr/local/bin/claude", cwd: "", tty: "" },
+    ];
+
+    expect(filterByProcessNames(processes, ["muse"], ["muse"])).toEqual([
+      processes[0],
+      processes[1],
+    ]);
+    // Exact names alone never match the versioned launcher.
+    expect(filterByProcessNames(processes, ["muse"])).toEqual([processes[1]]);
+    // No prefixes: previous behavior is unchanged.
+    expect(filterByProcessNames(processes, ["claude"])).toEqual([processes[3]]);
+    expect(matchesExecutablePrefix(processes[0].command, new Set(["muse"]))).toBe(true);
+    expect(matchesExecutablePrefix(processes[2].command, new Set(["muse"]))).toBe(false);
+    expect(matchesExecutablePrefix(processes[0].command, new Set())).toBe(false);
+  });
+
+  it("builds snapshot options with prefixes only when present", () => {
+    const isCandidate = () => true;
+    expect(snapshotOptions([], isCandidate)).toEqual({ isCandidate });
+    const withPrefixes = snapshotOptions(["muse"], isCandidate);
+    expect(withPrefixes).toMatchObject({ namePrefixes: ["muse"], isCandidate });
   });
 });
 

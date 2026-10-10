@@ -1,0 +1,53 @@
+{
+  "adapter": "muse",
+  "capturedAt": "2025-10-09T12:20:00.000Z",
+  "frozenNow": 1760012400000,
+  "processes": [
+    {
+      "pid": 4101,
+      "ppid": 900,
+      "tty": "ttys010",
+      "command": "$FIXTURE_HOME/.local/bin/muse-bin-1.4.4-R5419.1",
+      "cwd": "/proj/f1",
+      "startTime": "2025-10-09T11:00:00.000Z"
+    },
+    {
+      "pid": 4102,
+      "ppid": 900,
+      "tty": "ttys011",
+      "command": "muse",
+      "startTime": "2025-10-09T11:10:00.000Z"
+    },
+    {
+      "pid": 4103,
+      "ppid": 900,
+      "tty": "ttys012",
+      "command": "other-tool",
+      "cwd": "/proj/noise",
+      "startTime": "2025-10-09T11:20:00.000Z"
+    }
+  ],
+  "home": {},
+  "expected": [
+    {
+      "name": "f1-4101",
+      "type": "muse",
+      "status": "running",
+      "summary": "Muse process running",
+      "pid": 4101,
+      "projectPath": "/proj/f1",
+      "sessionId": "pid-4101",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    },
+    {
+      "name": "unknown-4102",
+      "type": "muse",
+      "status": "running",
+      "summary": "Muse process running",
+      "pid": 4102,
+      "projectPath": "",
+      "sessionId": "pid-4102",
+      "lastActive": "2025-10-09T12:20:00.000Z"
+    }
+  ]
+}

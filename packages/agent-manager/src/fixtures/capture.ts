@@ -13,7 +13,7 @@ import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import type { AgentAdapter, AgentInfo } from "../adapters/AgentAdapter.js";
 import { AgentRegistry } from "../utils/AgentRegistry.js";
-import { captureProcessSnapshot } from "../utils/process.js";
+import { captureProcessSnapshot, snapshotOptions } from "../utils/process.js";
 import { FixtureBundle, normalizeAgents, sanitize, withFrozenClock } from "./bundle.js";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
@@ -317,9 +317,11 @@ export async function captureLive(adapter: AgentAdapter, caseName = "live"): Pro
   }
 
   const { processes, agents, registry } = await withFrozenClock(frozenNow, async () => {
-    const snapshot = await captureProcessSnapshot([...names], {
-      isCandidate: (p) => adapter.canHandle(p),
-    });
+    const prefixes = adapter.processNamePrefixes ? [...adapter.processNamePrefixes] : [];
+    const snapshot = await captureProcessSnapshot(
+      [...names],
+      snapshotOptions(prefixes, (p) => adapter.canHandle(p)),
+    );
     // Registry read must precede detection — detectAgents persists its own
     // results, which would poison the captured view.
     const registryBefore = collectRegistryEntries(realHome, snapshot);
