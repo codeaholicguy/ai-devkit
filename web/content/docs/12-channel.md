@@ -13,7 +13,7 @@ The `channel` command lets you bridge a running AI agent to Telegram or Slack. O
 ## Prerequisites
 
 - **AI DevKit** installed globally (see [Getting Started](/docs/1-getting-started))
-- **A running AI agent** (Claude Code or Codex) detected by AI DevKit (see [Agent Management](/docs/8-agent-management))
+- **A running AI agent** of any detected harness type — Claude Code, Codex, Gemini CLI, Copilot, opencode, Pi, Grok CLI, Kiro, Antigravity CLI, or Devin — listed by `ai-devkit agent list` (see [Agent Management](/docs/8-agent-management))
 - **Telegram:** a bot token from [@BotFather](https://t.me/BotFather), or
 - **Slack:** a custom single-workspace app with Socket Mode, an `xapp-` app token, and an `xoxb-` bot token
 - **Terminal environment**: The agent must be running in **tmux**, **WezTerm**, **Ghostty**, **iTerm2**, or **Apple Terminal** (same requirements as `agent open`)
