@@ -114,7 +114,7 @@ ai-devkit agent session compact --id <session-id>
 ai-devkit agent session compact --id <session-id> --format json
 ```
 
-Compaction is classified by Jev and requires the `TYPESAFE_API_KEY` environment variable. Use `--format markdown` (default) for a readable summary or `--format json` to splice the artifact into another agent's instructions. The built-in [`session-compact`](/docs/7-skills) skill teaches agents to run this workflow themselves at handoff points.
+Find session IDs with `ai-devkit agent sessions`. Compaction is classified by Jev and requires the `TYPESAFE_API_KEY` environment variable. Use `--format markdown` (default) for a readable summary or `--format json` to splice the artifact into another agent's instructions. The built-in [`session-compact`](/docs/7-skills) skill teaches agents to run this workflow themselves at handoff points.
 
 ### Open Agent
 
