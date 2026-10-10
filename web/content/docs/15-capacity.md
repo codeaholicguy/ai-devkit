@@ -30,6 +30,8 @@ ai-devkit capacity --json
 
 Supported providers: `codex`, `zai` (or `z.ai`), `openai`, `anthropic`, `claude`, `devin`. With no arguments, all providers are queried; pass provider names to check a subset. Output is a per-quota table with usage bars and humanized reset times; `--json` gives the raw report for scripting.
 
+Capacity reads the credentials each provider's own tool already stores on your machine — no extra setup is needed. A provider you have not logged into reports as unauthenticated instead of showing quota.
+
 Before starting a managed agent, check the provider behind your chosen `--type`: if it reports `available: "no"` or a window near exhaustion, pick another agent type whose provider has headroom — `status` shows which alternatives are healthy on your machine.
 
 ## Next Steps
