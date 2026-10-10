@@ -43,20 +43,24 @@ AI DevKit detects active sessions from the following tools:
   ```
 
   The tracker gives AI DevKit better session information than process detection alone.
+- **[Grok CLI](https://x.ai/cli)**: Detects running `grok` sessions and exposes them through the same agent management commands.
+- **[Kiro CLI](https://kiro.dev/)**: Detects Kiro CLI sessions via `~/.kiro/sessions/cli` and exposes them through the same commands.
+- **[Antigravity CLI](https://antigravity.google/)**: Detects `agy` sessions and exposes them through the same commands.
+- **[Devin](https://devin.ai/)**: Detects Devin CLI sessions and exposes them through the same commands.
 
 ## Commands
 
 ### Start an Agent
 
-Start a named agent in a managed tmux session:
+Start a named agent in a managed runtime session (tmux by default; the Herdr runtime is used when configured):
 
 ```bash
 ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 ```
 
-`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `opencode`, or `pi`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
+`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, or `devin`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
 
-The default `--mode interactive` starts the agent in tmux. Claude also supports a durable mode that keeps a named agent available without an interactive terminal:
+The default `--mode interactive` starts the agent in an interactive session. The `durable` mode keeps a named agent available without an interactive terminal:
 
 Run `ai-devkit setup` to check the host prerequisite early. It reports the installed tmux version or prints a platform-aware install command without installing packages or failing setup. tmux 2.6+ is the provisional documented compatibility floor; older versions are reported, not rejected.
 
@@ -64,7 +68,7 @@ Run `ai-devkit setup` to check the host prerequisite early. It reports the insta
 ai-devkit agent start --type claude --mode durable --name backend --cwd ./packages/backend
 ```
 
-Durable mode currently supports only `--type claude`.
+Durable mode supports `--type claude`, `--type codex`, and `--type pi`.
 
 ### List Agents
 
@@ -105,6 +109,17 @@ ai-devkit agent session detail <session-id> --tail 50 --verbose
 
 The detail command supports `--type`, `--tail <n>`, `--full`, `--verbose`, and `--json`.
 
+### Compact a Session
+
+Distill a historical session into a durable continuation artifact — structured facts plus memory candidates — that you can hand to a successor agent or store for later:
+
+```bash
+ai-devkit agent session compact --id <session-id>
+ai-devkit agent session compact --id <session-id> --format json
+```
+
+Compaction is classified by Jev and requires the `TYPESAFE_API_KEY` environment variable. Use `--format markdown` (default) for a readable summary or `--format json` to splice the artifact into another agent's instructions. The built-in [`session-compact`](/docs/7-skills) skill teaches agents to run this workflow themselves at handoff points.
+
 ### Open Agent
 
 Focus the terminal window associated with a specific agent.
@@ -126,6 +141,13 @@ Send a message directly to a running agent.
 ```bash
 ai-devkit agent send "continue with the failing tests" --id my-project
 ```
+
+Useful options:
+
+- `--stdin` to read the message from standard input (useful for piping logs or diffs)
+- `--wait` to wait for and print the agent's response
+- `--group <name>` to send to every agent in a group
+- `-j, --json` for machine-readable output
 
 If the agent is not currently waiting for input, AI DevKit warns you and still sends the message.
 

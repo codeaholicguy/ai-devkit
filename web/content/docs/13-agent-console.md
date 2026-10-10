@@ -87,7 +87,13 @@ If the agent is not waiting for input, AI DevKit may still send the message, but
 
 ### Start a Managed Agent
 
-Press `s` to open the start-agent pane. Use `Left`/`Right` or `h`/`l` to choose the agent type, `Tab` or `Down` to move between fields, `Up` to move back, `Enter` to advance or submit, and `Esc` to cancel.
+Press `s` to open the start-agent pane. Fields are visited in order: **type**, **mode**, **cwd**, **name**, **task**, **args**, then **submit**/**cancel**:
+
+- In the **type** field, move through the vertical list with `Up`/`Down` or `j`/`k`; types whose harness is unavailable are marked so you can pick a working one.
+- In the **mode** field, use `Left`/`Right` or `h`/`l` to switch between `interactive` and `durable` (durable is limited to claude, codex, and pi).
+- **cwd** accepts `~` expansion; press `Ctrl+R` in that field to cycle recently used project directories. **task** sets an initial prompt and **args** passes extra harness CLI arguments.
+- `Tab` or `Down` moves to the next field; `Shift+Tab` or `Up` moves back. `Enter` advances through fields and submits from the name field; `Esc` cancels.
+- While a start is pending, the pane shows elapsed time and lets you cancel. The pane remembers your last type and cwd.
 
 Supported start types:
 
@@ -104,7 +110,7 @@ Supported start types:
 | `kiro` | Kiro CLI |
 | `devin` | Devin |
 
-Starting an agent from the console uses a managed tmux session. If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
+Starting an agent from the console uses the configured managed runtime (tmux by default, or Herdr when configured). If tmux is not installed or the selected agent command is not in `PATH`, the console warns you in the start pane.
 
 ### Rename an Agent
 

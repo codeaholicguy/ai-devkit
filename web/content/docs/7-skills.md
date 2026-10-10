@@ -50,10 +50,13 @@ AI DevKit ships with a core set of skills in its default registry:
 | `brainstorm` | Explore, compare, and refine product or technical ideas |
 | `tdd` | Apply test-driven development by writing a failing test before production code |
 | `verify` | Require fresh terminal evidence before claiming work is complete |
+| `session-compact` | Compact a historical agent session into durable continuation facts and memory candidates |
 
 You can install these skills the same way you install community skills.
 
-The repository also contains skills such as `agent-orchestration`, `technical-writer`, and `security-review`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
+The built-in set is served from a remote manifest, so new built-in skills can ship without a CLI release; an embedded copy is used as an offline fallback.
+
+The repository also contains skills such as `agent-orchestration`, `technical-writer`, `security-review`, `changelog`, and `refactor`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
 
 For more detail on the core workflow skills, see the built-in skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`structured-debug`](/skills/structured-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
 
