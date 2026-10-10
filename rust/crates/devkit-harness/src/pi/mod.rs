@@ -14,9 +14,12 @@ use std::path::{Path, PathBuf};
 
 /// `isPiExecutable` — any whitespace token whose basename is pi/pi.exe/pi.js.
 fn is_pi_executable(command: &str) -> bool {
-    command
-        .split_whitespace()
-        .any(|tok| matches!(shared::path_basename(tok).as_str(), "pi" | "pi.exe" | "pi.js"))
+    command.split_whitespace().any(|tok| {
+        matches!(
+            shared::path_basename(tok).as_str(),
+            "pi" | "pi.exe" | "pi.js"
+        )
+    })
 }
 
 /// `~/.pi/agent/sessions.json` — pid→session filePath written when the CLI
@@ -39,9 +42,7 @@ impl SessionTracker {
         }
         for &proc in processes {
             match tracker.get(&proc.pid) {
-                Some(file_path)
-                    if self.is_trusted(file_path) && Path::new(file_path).exists() =>
-                {
+                Some(file_path) if self.is_trusted(file_path) && Path::new(file_path).exists() => {
                     matches.push((proc, file_path.clone()));
                 }
                 _ => fallback.push(proc),
@@ -60,7 +61,9 @@ impl SessionTracker {
         obj.iter()
             .filter_map(|(k, v)| {
                 let pid = to_pid(k)?;
-                v.as_str().filter(|s| !s.is_empty()).map(|s| (pid, s.to_string()))
+                v.as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| (pid, s.to_string()))
             })
             .collect()
     }

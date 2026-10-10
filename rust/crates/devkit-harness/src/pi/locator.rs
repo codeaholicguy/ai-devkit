@@ -148,9 +148,7 @@ impl PiSessionLocator {
                 let created_ms = file_name_timestamp_ms(&name);
                 let in_window = starts.iter().any(|s| {
                     (s - birthtime_ms).abs() <= shared::MATCH_TOLERANCE_MS
-                        || created_ms.is_some_and(|c| {
-                            (s - c).abs() <= shared::MATCH_TOLERANCE_MS
-                        })
+                        || created_ms.is_some_and(|c| (s - c).abs() <= shared::MATCH_TOLERANCE_MS)
                 });
                 if !in_window {
                     continue;
@@ -190,6 +188,9 @@ mod tests {
         let ms = file_name_timestamp_ms("2026-06-10T08-58-20-754Z_abc.jsonl").unwrap();
         assert_eq!(ms, 1781081900754);
         assert_eq!(file_name_timestamp_ms("plain.jsonl"), None);
-        assert_eq!(file_name_timestamp_ms("2026-06-10T08-58-20-754_abc.jsonl"), None);
+        assert_eq!(
+            file_name_timestamp_ms("2026-06-10T08-58-20-754_abc.jsonl"),
+            None
+        );
     }
 }

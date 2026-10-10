@@ -33,9 +33,7 @@ describe("status util", () => {
 
   it("finds a status key by its display label", () => {
     expect(getStatusKeyByLabel("LIMITED")).toBe("limited");
-    expect(getStatusKeyByLabel(" NOT AUTHENTICATED ")).toBe(
-      "not-authenticated",
-    );
+    expect(getStatusKeyByLabel(" NOT AUTHENTICATED ")).toBe("not-authenticated");
     expect(getStatusKeyByLabel("missing")).toBe("unknown");
   });
 

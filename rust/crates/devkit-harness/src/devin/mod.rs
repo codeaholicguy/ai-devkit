@@ -20,18 +20,43 @@ use std::path::PathBuf;
 /// deliberately absent: a standalone `devin acp` serves an external client
 /// and is itself an agent.
 const UTILITY_SUBCOMMANDS: &[&str] = &[
-    "auth", "cloud", "desktop", "doctor", "forward", "help", "list", "ls", "mcp", "migrate",
-    "models", "plugins", "rm", "rules", "sandbox", "setup", "skills", "ssh", "uninstall",
-    "update", "version",
+    "auth",
+    "cloud",
+    "desktop",
+    "doctor",
+    "forward",
+    "help",
+    "list",
+    "ls",
+    "mcp",
+    "migrate",
+    "models",
+    "plugins",
+    "rm",
+    "rules",
+    "sandbox",
+    "setup",
+    "skills",
+    "ssh",
+    "uninstall",
+    "update",
+    "version",
 ];
 
 /// Flags that always consume the next argv token as their value.
-const REQUIRED_VALUE_FLAGS: &[&str] = &["--prompt-file", "--config", "--permission-mode", "--model"];
+const REQUIRED_VALUE_FLAGS: &[&str] =
+    &["--prompt-file", "--config", "--permission-mode", "--model"];
 
 /// Flags whose value is optional: the next token is consumed only when it
 /// isn't itself a flag (commander `[<VALUE>]` semantics).
-const OPTIONAL_VALUE_FLAGS: &[&str] =
-    &["-p", "--print", "-r", "--resume", "--export", "--respect-workspace-trust"];
+const OPTIONAL_VALUE_FLAGS: &[&str] = &[
+    "-p",
+    "--print",
+    "-r",
+    "--resume",
+    "--export",
+    "--respect-workspace-trust",
+];
 
 /// `firstPositionalToken` — first positional argv token after argv[0].
 /// Flag values are skipped (so `devin -p "update deps"` isn't mistaken
@@ -69,7 +94,8 @@ fn first_positional_token(command: &str) -> Option<String> {
 
 /// `isUtilitySubcommand` gate inside `canHandle`.
 fn is_utility(command: &str) -> bool {
-    first_positional_token(command).is_some_and(|t| UTILITY_SUBCOMMANDS.contains(&t.to_lowercase().as_str()))
+    first_positional_token(command)
+        .is_some_and(|t| UTILITY_SUBCOMMANDS.contains(&t.to_lowercase().as_str()))
 }
 
 pub struct DevinAdapter {
@@ -159,7 +185,9 @@ impl HarnessAdapter for DevinAdapter {
         let processes: Vec<&AgentProc> = ctx
             .processes
             .iter()
-            .filter(|p| shared::matches_executable_name(p.command.as_deref().unwrap_or(""), &["devin"]))
+            .filter(|p| {
+                shared::matches_executable_name(p.command.as_deref().unwrap_or(""), &["devin"])
+            })
             .filter(|p| self.can_handle(p) && seen.insert(p.pid))
             .collect();
         if processes.is_empty() {
@@ -235,7 +263,11 @@ fn is_acp_backend_child(proc: &AgentProc, process_by_pid: &HashMap<i64, &AgentPr
 
 /// `determineStatus` — idle(5min) > lastRole==="assistant" (waiting) >
 /// running.
-fn determine_status(stats: &parser::SessionStats, last_active_ms: i64, now_ms: i64) -> &'static str {
+fn determine_status(
+    stats: &parser::SessionStats,
+    last_active_ms: i64,
+    now_ms: i64,
+) -> &'static str {
     if shared::is_idle(last_active_ms, now_ms) {
         return "idle";
     }

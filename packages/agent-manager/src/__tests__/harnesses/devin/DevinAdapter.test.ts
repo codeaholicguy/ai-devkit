@@ -239,9 +239,7 @@ describe("DevinAdapter", () => {
         { id: "newer", directory: "/repo", timeCreated: now - 200, lastActivityAt: now - 60 },
         { id: "hidden-sess", directory: "/repo", timeCreated: now - 10, hidden: 1 },
       ],
-      nodes: [
-        { sessionId: "newer", nodeId: 1, role: "user", content: "hi", createdAt: now - 60 },
-      ],
+      nodes: [{ sessionId: "newer", nodeId: 1, role: "user", content: "hi", createdAt: now - 60 }],
     });
 
     const agents = await adapter.detectAgents({

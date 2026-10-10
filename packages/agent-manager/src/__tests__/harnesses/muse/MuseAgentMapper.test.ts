@@ -42,7 +42,11 @@ describe("MuseAgentMapper", () => {
   const mapper = new MuseAgentMapper();
 
   it("maps a session to a project-named agent", () => {
-    const agent = mapper.mapSessionToAgent({ session: session(), processInfo: proc(), sessionFile: sessionFile() });
+    const agent = mapper.mapSessionToAgent({
+      session: session(),
+      processInfo: proc(),
+      sessionFile: sessionFile(),
+    });
     expect(agent).toMatchObject({
       name: "proj-16174",
       type: "muse",

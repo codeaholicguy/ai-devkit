@@ -94,8 +94,7 @@ impl HarnessAdapter for CopilotAdapter {
             return Vec::new();
         }
 
-        let proc_by_pid: HashMap<i64, &AgentProc> =
-            processes.iter().map(|p| (p.pid, *p)).collect();
+        let proc_by_pid: HashMap<i64, &AgentProc> = processes.iter().map(|p| (p.pid, *p)).collect();
         let registry_by_pid: HashMap<i64, shared::RegistryRow> =
             shared::registry_agent_rows(&self.home)
                 .into_iter()

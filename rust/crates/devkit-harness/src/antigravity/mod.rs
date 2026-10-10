@@ -101,9 +101,10 @@ impl HarnessAdapter for AntigravityCliAdapter {
 
         let mut agents = Vec::new();
         for m in locator::match_running_processes(&self.base_dir, &processes) {
-            let session = m.conversation.as_ref().and_then(|c| {
-                parser::read_session(&c.conversation_id, &c.transcript_path, &m.cwd)
-            });
+            let session = m
+                .conversation
+                .as_ref()
+                .and_then(|c| parser::read_session(&c.conversation_id, &c.transcript_path, &m.cwd));
             match session {
                 Some(s) => agents.push(self.map_session_to_agent(&s, m.process, ctx.now)),
                 None => agents.push(shared::process_only_agent(

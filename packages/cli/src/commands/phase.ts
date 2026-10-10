@@ -20,15 +20,11 @@ export async function phaseCommand(phaseName?: string) {
   if (phaseName && AVAILABLE_PHASES.includes(phaseName as Phase)) {
     phase = phaseName as Phase;
   } else if (phaseName) {
-    ui.error(
-      `Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(", ")}`,
-    );
+    ui.error(`Unknown phase "${phaseName}". Available phases: ${AVAILABLE_PHASES.join(", ")}`);
     return;
   } else {
     const config = await configManager.read();
-    const availableToAdd = AVAILABLE_PHASES.filter(
-      (p) => !config?.phases.includes(p),
-    );
+    const availableToAdd = AVAILABLE_PHASES.filter((p) => !config?.phases.includes(p));
 
     if (availableToAdd.length === 0) {
       ui.warning("All phases are already initialized.");

@@ -109,8 +109,7 @@ vi.mock("../../services/skill/skill.service.js", () => ({
 
 vi.mock("../../services/skill/skill-builtins.js", () => ({
   BUILTIN_SKILL_REGISTRY: "codeaholicguy/ai-devkit",
-  getBuiltinSkillNames: (...args: unknown[]) =>
-    mockGetBuiltinSkillNames(...args),
+  getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
 }));
 
 vi.mock("../../lib/InitTemplate.js", () => ({
@@ -122,17 +121,14 @@ vi.mock("../../util/terminal-ui.js", () => ({
 }));
 
 vi.mock("../../util/terminal.js", () => ({
-  isInteractiveTerminal: (...args: unknown[]) =>
-    mockIsInteractiveTerminal(...args),
+  isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args),
 }));
 
 import { initCommand } from "../../commands/init.js";
 import { BUILTIN_SKILL_REGISTRY } from "../../services/skill/skill-builtins.js";
 
 function confirmCallsMatching(pattern: RegExp): any[] {
-  return mockConfirm.mock.calls.filter(([config]: any[]) =>
-    pattern.test(config?.message ?? ""),
-  );
+  return mockConfirm.mock.calls.filter(([config]: any[]) => pattern.test(config?.message ?? ""));
 }
 
 function appliedConfig(): any {
@@ -158,13 +154,9 @@ describe("init command", () => {
     mockConfigManager.update.mockResolvedValue({});
 
     mockTemplateManager.checkEnvironmentExists.mockResolvedValue(false);
-    mockTemplateManager.setupMultipleEnvironments.mockResolvedValue([
-      "AGENTS.md",
-    ]);
+    mockTemplateManager.setupMultipleEnvironments.mockResolvedValue(["AGENTS.md"]);
     mockTemplateManager.fileExists.mockResolvedValue(false);
-    mockTemplateManager.copyPhaseTemplate.mockResolvedValue(
-      "docs/ai/requirements/README.md",
-    );
+    mockTemplateManager.copyPhaseTemplate.mockResolvedValue("docs/ai/requirements/README.md");
 
     mockEnvironmentSelector.selectEnvironments.mockResolvedValue(["codex"]);
     mockEnvironmentSelector.confirmOverride.mockResolvedValue(true);
@@ -316,9 +308,7 @@ describe("init command", () => {
 
       await initCommand({ template: "./init.yaml" });
 
-      expect(mockEnvironmentSelector.selectEnvironments).toHaveBeenCalledTimes(
-        1,
-      );
+      expect(mockEnvironmentSelector.selectEnvironments).toHaveBeenCalledTimes(1);
       expect(mockPhaseSelector.selectPhases).toHaveBeenCalledTimes(1);
       expect(appliedConfig().skills).toContainEqual({
         registry: "codeaholicguy/ai-devkit",
@@ -344,9 +334,7 @@ describe("init command", () => {
 
       await initCommand({ template: "/tmp/init.yaml" });
 
-      expect(mockUi.error).toHaveBeenCalledWith(
-        "Invalid template at /tmp/init.yaml: bad field",
-      );
+      expect(mockUi.error).toHaveBeenCalledWith("Invalid template at /tmp/init.yaml: bad field");
       expect(process.exitCode).toBe(1);
       expect(mockConfigManager.setEnvironments).not.toHaveBeenCalled();
     });
@@ -360,9 +348,7 @@ describe("init command", () => {
 
       await initCommand({ template: "./init.yaml", builtIn: true });
 
-      expect(appliedConfig().skills).toHaveLength(
-        BUILTIN_SKILL_FIXTURE.length + 1,
-      );
+      expect(appliedConfig().skills).toHaveLength(BUILTIN_SKILL_FIXTURE.length + 1);
       expect(appliedConfig().skills).toContainEqual({
         registry: BUILTIN_SKILL_REGISTRY,
         name: "debug",
@@ -373,9 +359,7 @@ describe("init command", () => {
           name: skill,
         });
       }
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
 
@@ -394,9 +378,7 @@ describe("init command", () => {
           name: skill,
         });
       }
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
   });
@@ -405,9 +387,7 @@ describe("init command", () => {
     it("prints a success headline and dim next-step list without embedded trailing newlines", async () => {
       await initCommand({});
 
-      expect(mockUi.success).toHaveBeenCalledWith(
-        "AI DevKit project initialized successfully!",
-      );
+      expect(mockUi.success).toHaveBeenCalledWith("AI DevKit project initialized successfully!");
       expect(mockUi.text).toHaveBeenCalledWith("[bold]Next steps:[/bold]");
       expect(mockUi.text).toHaveBeenCalledWith(
         "[dim]  - Review and customize templates in docs/ai/[/dim]",
@@ -422,10 +402,7 @@ describe("init command", () => {
         "[dim]  - Run `ai-devkit init` again to add more environments[/dim]",
       );
       expect(mockUi.breakline).toHaveBeenCalled();
-      for (const call of [
-        ...mockUi.text.mock.calls,
-        ...mockUi.success.mock.calls,
-      ]) {
+      for (const call of [...mockUi.text.mock.calls, ...mockUi.success.mock.calls]) {
         expect(call[0]).not.toMatch(/\n$/);
       }
     });
@@ -449,9 +426,7 @@ describe("init command", () => {
 
       await initCommand({});
 
-      const builtinPromptCalls = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPromptCalls = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPromptCalls.length).toBe(1);
       expect(mockSkillService.addSkill).not.toHaveBeenCalled();
       expect(mockGetBuiltinSkillNames).not.toHaveBeenCalled();
@@ -465,9 +440,7 @@ describe("init command", () => {
 
       await initCommand({ template: "./init.yaml" });
 
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
     });
 
@@ -486,9 +459,7 @@ describe("init command", () => {
 
       await expect(initCommand({})).resolves.toBeUndefined();
       expect(process.exitCode).toBe(1);
-      expect(mockUi.warning).toHaveBeenCalledWith(
-        expect.stringContaining("setup is incomplete"),
-      );
+      expect(mockUi.warning).toHaveBeenCalledWith(expect.stringContaining("setup is incomplete"));
     });
   });
 
@@ -498,15 +469,11 @@ describe("init command", () => {
 
       await initCommand({});
 
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(mockSkillService.addSkill).not.toHaveBeenCalled();
       expect(mockGetBuiltinSkillNames).not.toHaveBeenCalled();
-      expect(mockUi.info).toHaveBeenCalledWith(
-        expect.stringMatching(/non-interactive|--built-in/),
-      );
+      expect(mockUi.info).toHaveBeenCalledWith(expect.stringMatching(/non-interactive|--built-in/));
     });
 
     it("installs built-in skills without prompting when --built-in is passed in a non-interactive environment", async () => {
@@ -514,9 +481,7 @@ describe("init command", () => {
 
       await initCommand({ builtIn: true });
 
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(appliedConfig().skills.length).toBeGreaterThan(0);
     });
@@ -526,9 +491,7 @@ describe("init command", () => {
 
       await initCommand({ builtIn: true });
 
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(appliedConfig().skills.length).toBeGreaterThan(0);
     });
@@ -540,10 +503,7 @@ describe("init command", () => {
 
       expect(mockConfirm).not.toHaveBeenCalled();
       expect(mockEnvironmentSelector.selectEnvironments).not.toHaveBeenCalled();
-      expect(mockPhaseSelector.selectPhases).toHaveBeenCalledWith(
-        true,
-        undefined,
-      );
+      expect(mockPhaseSelector.selectPhases).toHaveBeenCalledWith(true, undefined);
       expect(mockReconcileAndInstall).toHaveBeenCalledWith(
         expect.any(Object),
         expect.objectContaining({ nonInteractive: true }),
@@ -565,9 +525,7 @@ describe("init command", () => {
 
       expect(process.exitCode).toBe(1);
       expect(mockUi.error).toHaveBeenCalledWith(
-        expect.stringMatching(
-          /Non-interactive mode requires --all or --phases/,
-        ),
+        expect.stringMatching(/Non-interactive mode requires --all or --phases/),
       );
       expect(mockPhaseSelector.selectPhases).not.toHaveBeenCalled();
       expect(mockConfigManager.create).not.toHaveBeenCalled();
@@ -578,9 +536,7 @@ describe("init command", () => {
 
       await initCommand({ yes: true, all: true, environment: "claude" });
 
-      const reconfigurePrompts = confirmCallsMatching(
-        /already initialized.*reconfigure/,
-      );
+      const reconfigurePrompts = confirmCallsMatching(/already initialized.*reconfigure/);
       expect(reconfigurePrompts).toHaveLength(0);
       expect(process.exitCode).not.toBe(1);
     });
@@ -591,9 +547,7 @@ describe("init command", () => {
       await initCommand({ yes: true, all: true, environment: "claude" });
 
       expect(mockEnvironmentSelector.confirmOverride).not.toHaveBeenCalled();
-      expect(
-        mockTemplateManager.setupMultipleEnvironments,
-      ).not.toHaveBeenCalled();
+      expect(mockTemplateManager.setupMultipleEnvironments).not.toHaveBeenCalled();
       expect(mockUi.warning).toHaveBeenCalledWith(
         expect.stringMatching(/Skipping overwrite of existing environments/),
       );
@@ -621,9 +575,7 @@ describe("init command", () => {
 
       await initCommand({ yes: true, all: true, environment: "claude" });
 
-      const overwritePrompts = confirmCallsMatching(
-        /already exists\. Overwrite\?/,
-      );
+      const overwritePrompts = confirmCallsMatching(/already exists\. Overwrite\?/);
       expect(overwritePrompts).toHaveLength(0);
       expect(mockTemplateManager.copyPhaseTemplate).not.toHaveBeenCalled();
       expect(mockReconcileAndInstall).toHaveBeenCalledWith(
@@ -645,9 +597,7 @@ describe("init command", () => {
         environment: "claude",
       });
 
-      const overwritePrompts = confirmCallsMatching(
-        /already exists\. Overwrite\?/,
-      );
+      const overwritePrompts = confirmCallsMatching(/already exists\. Overwrite\?/);
       expect(overwritePrompts).toHaveLength(0);
       expect(mockReconcileAndInstall).toHaveBeenCalledWith(
         expect.any(Object),
@@ -663,9 +613,7 @@ describe("init command", () => {
 
       await initCommand({ yes: true, all: true, environment: "claude" });
 
-      const builtinPrompts = confirmCallsMatching(
-        /Install AI DevKit built-in skills/,
-      );
+      const builtinPrompts = confirmCallsMatching(/Install AI DevKit built-in skills/);
       expect(builtinPrompts).toHaveLength(0);
       expect(mockSkillService.addSkill).not.toHaveBeenCalled();
     });

@@ -78,9 +78,7 @@ fn reduce(state: EventState, value: Option<&Value>) -> EventState {
         return next;
     }
 
-    let timestamp_ms = entry
-        .get("timestamp")
-        .and_then(shared::parse_timestamp_ms);
+    let timestamp_ms = entry.get("timestamp").and_then(shared::parse_timestamp_ms);
     if let Some(t) = timestamp_ms {
         next.last_active_ms = Some(t);
     }
@@ -117,9 +115,7 @@ fn reduce(state: EventState, value: Option<&Value>) -> EventState {
     if text.is_empty() {
         return next;
     }
-    if next.first_user_message.is_empty()
-        && !state.past_head
-        && entry_type == Some("user.message")
+    if next.first_user_message.is_empty() && !state.past_head && entry_type == Some("user.message")
     {
         next.first_user_message = text.clone();
     }
@@ -215,7 +211,11 @@ fn mtime_ms(path: &Path) -> Option<i64> {
 /// `readSessionDirIncremental` for a cold read — identical output to the
 /// incremental cache's first read: bounded head+tail fold of events.jsonl
 /// (None when unreadable → empty state), then `toSession`.
-pub fn read_session_dir(session_dir: &Path, fallback_session_id: &str, now_ms: i64) -> Option<Session> {
+pub fn read_session_dir(
+    session_dir: &Path,
+    fallback_session_id: &str,
+    now_ms: i64,
+) -> Option<Session> {
     let events_file = session_dir.join("events.jsonl");
     let events = shared::fold_jsonl_bounded(
         &events_file.to_string_lossy(),
@@ -330,14 +330,8 @@ mod tests {
         assert_eq!(s.project_path, "/p");
         assert_eq!(s.summary, "hello");
         assert_eq!(s.last_event_type.as_deref(), Some("assistant.message"));
-        assert_eq!(
-            determine_status(&s, s.last_active_ms + 60_000),
-            "waiting"
-        );
-        assert_eq!(
-            determine_status(&s, s.last_active_ms + 300_001),
-            "idle"
-        );
+        assert_eq!(determine_status(&s, s.last_active_ms + 60_000), "waiting");
+        assert_eq!(determine_status(&s, s.last_active_ms + 300_001), "idle");
     }
 
     #[test]

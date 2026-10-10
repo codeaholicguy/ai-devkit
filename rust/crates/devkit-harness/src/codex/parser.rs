@@ -137,7 +137,9 @@ fn conversation_message(entry: &Value) -> Option<(String, String)> {
 
 /// `extractEntryText` — legacy `payload.message`, else conversation text.
 fn extract_entry_text(entry: Option<&Value>) -> String {
-    let Some(entry) = entry else { return String::new() };
+    let Some(entry) = entry else {
+        return String::new();
+    };
     if let Some(m) = payload(entry)
         .and_then(|p| get(p, "message"))
         .and_then(Value::as_str)
@@ -154,16 +156,13 @@ fn extract_entry_text(entry: Option<&Value>) -> String {
 /// `readSessionIncremental` (cold start) — bounded fold; None when unreadable
 /// or when the first line is not a `session_meta` with a payload id.
 pub fn read_session(path: &str) -> Option<Session> {
-    let state = shared::fold_jsonl_bounded(
-        path,
-        SummaryState::default(),
-        reduce,
-        |state| SummaryState {
+    let state = shared::fold_jsonl_bounded(path, SummaryState::default(), reduce, |state| {
+        SummaryState {
             seen_first_line: true,
             meta: state.meta,
             ..Default::default()
-        },
-    )?;
+        }
+    })?;
     to_session(state, || {
         std::fs::metadata(path)
             .and_then(|m| m.modified())
@@ -241,7 +240,9 @@ fn to_session(state: SummaryState, file_mtime_ms: impl FnOnce() -> i64) -> Optio
     Some(Session {
         session_id: meta.id,
         project_path: meta.cwd.unwrap_or_default(),
-        summary: state.summary.unwrap_or_else(|| "Codex session active".into()),
+        summary: state
+            .summary
+            .unwrap_or_else(|| "Codex session active".into()),
         session_start_ms: session_start,
         last_active_ms: last_active,
         last_payload_type: state.last_payload_type,
@@ -287,7 +288,9 @@ mod tests {
 
     #[test]
     fn session_meta_required() {
-        let p = write_tmp(&[r#"{"type":"event_msg","payload":{"type":"user_message","message":"hi"}}"#]);
+        let p = write_tmp(&[
+            r#"{"type":"event_msg","payload":{"type":"user_message","message":"hi"}}"#,
+        ]);
         assert!(read_session(&p).is_none());
     }
 

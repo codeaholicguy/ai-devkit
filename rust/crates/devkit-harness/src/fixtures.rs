@@ -174,7 +174,11 @@ fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String)
     for (rel, content) in &bundle.home {
         let p = dir.join(rel.replace("$TODAY", &today_key));
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
-        std::fs::write(&p, expand_str(&content.replace("$TODAY", &today_key), &home_s, "")).unwrap();
+        std::fs::write(
+            &p,
+            expand_str(&content.replace("$TODAY", &today_key), &home_s, ""),
+        )
+        .unwrap();
     }
     let written_ms = now_ms();
     // Deterministic mtimes for adapters that read them (Grok lastActive /
@@ -197,8 +201,12 @@ fn materialize_home(bundle: &FixtureBundle, tag: &str) -> (PathBuf, i64, String)
         std::fs::create_dir_all(p.parent().unwrap()).unwrap();
         let conn = rusqlite::Connection::open(&p).unwrap();
         for stmt in stmts {
-            conn.execute_batch(&expand_str(&stmt.replace("$TODAY", &today_key), &home_s, ""))
-                .unwrap();
+            conn.execute_batch(&expand_str(
+                &stmt.replace("$TODAY", &today_key),
+                &home_s,
+                "",
+            ))
+            .unwrap();
         }
     }
     (dir, written_ms, today_key)

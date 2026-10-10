@@ -137,7 +137,15 @@ describe("MuseSessionLocator", () => {
     writeTranscript(SID, "2026/10/10", [frame(intent("hello", 1791640525332173))]);
     writeTranscript(OTHER_SID, "2026/10/09", [frame(intent("world", 1791640525332173))]);
     // Noise: subagent-style nested dir without session.jsonl, stray files.
-    const noise = path.join(home, ".local", "share", "muse", "sessions", "2026/10/10", "not-a-uuid");
+    const noise = path.join(
+      home,
+      ".local",
+      "share",
+      "muse",
+      "sessions",
+      "2026/10/10",
+      "not-a-uuid",
+    );
     fs.mkdirSync(noise, { recursive: true });
     fs.writeFileSync(path.join(noise, "notes.txt"), "hi");
 
@@ -145,11 +153,16 @@ describe("MuseSessionLocator", () => {
     expect(found.map((f) => f.filePath).sort()).toEqual(
       [
         path.join(
-          home, ".local", "share", "muse", "sessions", "2026/10/09", OTHER_SID, "session.jsonl",
+          home,
+          ".local",
+          "share",
+          "muse",
+          "sessions",
+          "2026/10/09",
+          OTHER_SID,
+          "session.jsonl",
         ),
-        path.join(
-          home, ".local", "share", "muse", "sessions", "2026/10/10", SID, "session.jsonl",
-        ),
+        path.join(home, ".local", "share", "muse", "sessions", "2026/10/10", SID, "session.jsonl"),
       ].sort(),
     );
   });

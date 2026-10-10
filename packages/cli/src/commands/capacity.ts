@@ -13,13 +13,7 @@ import { ui } from "../util/terminal-ui.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 
 type CapacityOptions = { json?: boolean };
-type SupportedCapacityProvider =
-  | "anthropic"
-  | "claude"
-  | "codex"
-  | "devin"
-  | "openai"
-  | "zai";
+type SupportedCapacityProvider = "anthropic" | "claude" | "codex" | "devin" | "openai" | "zai";
 type ReportReader = (provider: SupportedCapacityProvider) => Promise<CapacityReport>;
 
 const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [

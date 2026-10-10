@@ -54,7 +54,9 @@ pub fn match_running_processes<'a>(
 /// empty keys/ids, and non-string ids are all skipped.
 fn list_conversations(base_dir: &Path) -> Vec<ConversationRef> {
     let content = std::fs::read_to_string(base_dir.join("cache/last_conversations.json"));
-    let Ok(content) = content else { return Vec::new() };
+    let Ok(content) = content else {
+        return Vec::new();
+    };
     let Ok(parsed) = serde_json::from_str::<Value>(&content) else {
         return Vec::new();
     };

@@ -1,10 +1,6 @@
 import { Command } from "commander";
 import { select } from "@inquirer/prompts";
-import {
-  AgentRegistry,
-  focusAgent,
-  TerminalFocusManager,
-} from "@ai-devkit/agent-manager";
+import { AgentRegistry, focusAgent, TerminalFocusManager } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
 import { enableDebug, createLogger } from "../../util/debug.js";
@@ -22,9 +18,7 @@ export function registerAgentOpenCommand(agentCommand: Command): void {
     .option("--debug", "Trace how the agent terminal is resolved and focused")
     .action(
       withErrorHandler("open agent", async (name, options) => {
-        const terminalLogger = options.debug
-          ? createLogger("terminal")
-          : undefined;
+        const terminalLogger = options.debug ? createLogger("terminal") : undefined;
         if (options.debug) {
           enableDebug();
         }
@@ -33,9 +27,7 @@ export function registerAgentOpenCommand(agentCommand: Command): void {
         // the ai-devkit:terminal debug logger (enabled above) so users can
         // see which terminal matched and how focus was attempted.
         const focusManager = new TerminalFocusManager(
-          terminalLogger
-            ? (message: string) => terminalLogger(message)
-            : undefined,
+          terminalLogger ? (message: string) => terminalLogger(message) : undefined,
         );
 
         const resolution = await resolveAgentByName(manager, name);
@@ -71,10 +63,7 @@ export function registerAgentOpenCommand(agentCommand: Command): void {
           registry: AgentRegistry.default(),
           focusManager,
         });
-        if (
-          !focusResult.focused &&
-          focusResult.reason === "terminal-not-found"
-        ) {
+        if (!focusResult.focused && focusResult.reason === "terminal-not-found") {
           spinner.fail(
             `Could not find terminal window for agent "${agent.name}" (PID: ${agent.pid}).`,
           );

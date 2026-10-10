@@ -133,12 +133,22 @@ function collectSqliteDumps(
       (dump) => {
         const dirs = uniqueCwds(processes);
         if (dirs.length === 0) return;
-        const sessions = dump.rows("session", `WHERE directory IN ${dump.inList(dirs)} ORDER BY rowid`, dirs);
+        const sessions = dump.rows(
+          "session",
+          `WHERE directory IN ${dump.inList(dirs)} ORDER BY rowid`,
+          dirs,
+        );
         const sids = sessions.map((s) => s.id);
         dump.insertRows("session", sessions);
         if (sids.length === 0) return;
-        dump.insertRows("message", dump.rows("message", `WHERE session_id IN ${dump.inList(sids)} ORDER BY rowid`, sids));
-        dump.insertRows("part", dump.rows("part", `WHERE session_id IN ${dump.inList(sids)} ORDER BY rowid`, sids));
+        dump.insertRows(
+          "message",
+          dump.rows("message", `WHERE session_id IN ${dump.inList(sids)} ORDER BY rowid`, sids),
+        );
+        dump.insertRows(
+          "part",
+          dump.rows("part", `WHERE session_id IN ${dump.inList(sids)} ORDER BY rowid`, sids),
+        );
       },
       ["session", "message", "part"],
     );
@@ -170,7 +180,9 @@ function collectSqliteDumps(
           clauses.push(`id IN ${dump.inList(lockSids)}`);
           args.push(...lockSids);
         }
-        const sessions = clauses.length ? dump.rows("sessions", `WHERE ${clauses.join(" OR ")} ORDER BY rowid`, args) : [];
+        const sessions = clauses.length
+          ? dump.rows("sessions", `WHERE ${clauses.join(" OR ")} ORDER BY rowid`, args)
+          : [];
         const sids = sessions.map((s) => s.id);
         dump.insertRows("sessions", sessions);
         if (sids.length === 0) return;
@@ -180,11 +192,17 @@ function collectSqliteDumps(
         // replay without hauling full transcripts into the bundle.
         for (const sid of sids) {
           const reachable = [
-            ...dump.rows("message_nodes", "WHERE session_id = ? ORDER BY node_id DESC LIMIT 1", [sid]),
+            ...dump.rows("message_nodes", "WHERE session_id = ? ORDER BY node_id DESC LIMIT 1", [
+              sid,
+            ]),
             // The newest-created_at row — `MAX(created_at)` reads only the
             // value, and `= MAX(...)` unbounded explodes when batch-written
             // nodes share a timestamp.
-            ...dump.rows("message_nodes", "WHERE session_id = ? ORDER BY created_at DESC, node_id DESC LIMIT 1", [sid]),
+            ...dump.rows(
+              "message_nodes",
+              "WHERE session_id = ? ORDER BY created_at DESC, node_id DESC LIMIT 1",
+              [sid],
+            ),
             ...dump.rows(
               "message_nodes",
               "WHERE session_id = ? AND json_extract(chat_message, '$.role') = 'user' ORDER BY node_id DESC LIMIT 8",
@@ -245,15 +263,10 @@ function dumpSqliteDb(
     const dump = {
       inList: (xs: unknown[]) => `(${xs.map(() => "?").join(",")})`,
       rows: (table: string, clause: string, args: unknown[]) =>
-        db.prepare(`SELECT * FROM "${table}" ${clause}`).all(...args) as Record<
-          string,
-          unknown
-        >[],
+        db.prepare(`SELECT * FROM "${table}" ${clause}`).all(...args) as Record<string, unknown>[],
       insertRows: (table: string, rs: Record<string, unknown>[]) => {
         for (const r of rs) {
-          stmts.push(
-            `INSERT INTO "${table}" VALUES (${Object.values(r).map(sqlLit).join(",")});`,
-          );
+          stmts.push(`INSERT INTO "${table}" VALUES (${Object.values(r).map(sqlLit).join(",")});`);
         }
       },
     };

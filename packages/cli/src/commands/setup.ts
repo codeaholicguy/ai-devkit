@@ -25,9 +25,7 @@ export function registerSetupCommand(program: Command): void {
     .action(setupCommand);
 }
 
-export async function setupCommand(
-  options: SetupCommandOptions = {},
-): Promise<void> {
+export async function setupCommand(options: SetupCommandOptions = {}): Promise<void> {
   const agents = parseAgents(options.agent);
 
   if (agents === null) {
@@ -74,11 +72,7 @@ export async function setupCommand(
 
   if (tmux.state === "available") {
     renderSectionHeader("Host Prerequisites");
-    ui.success(
-      tmux.version
-        ? `tmux ${tmux.version} available`
-        : `${tmux.rawVersion} available`,
-    );
+    ui.success(tmux.version ? `tmux ${tmux.version} available` : `${tmux.rawVersion} available`);
   } else if (tmux.state === "missing") {
     const instructions = await resolveTmuxInstallInstructions(tmuxDeps);
     renderSectionHeader("Next steps");
@@ -102,16 +96,11 @@ function renderSectionHeader(label: string): void {
   ui.text(chalk.bold(`${label}:`));
 }
 
-function stepLabel(
-  count: number,
-  status: "installed" | "skipped" | "failed",
-): string {
+function stepLabel(count: number, status: "installed" | "skipped" | "failed"): string {
   return `${count === 1 ? "step" : "steps"} ${status}`;
 }
 
-function parseAgents(
-  value: string | undefined,
-): SetupAgent[] | undefined | null {
+function parseAgents(value: string | undefined): SetupAgent[] | undefined | null {
   if (!value?.trim()) {
     return undefined;
   }
@@ -137,9 +126,7 @@ function isSetupAgent(agent: string): agent is SetupAgent {
   return SUPPORTED_SETUP_AGENTS.includes(agent as SetupAgent);
 }
 
-function countStatuses(
-  statuses: SetupStepStatus[],
-): Record<SetupStepStatus, number> {
+function countStatuses(statuses: SetupStepStatus[]): Record<SetupStepStatus, number> {
   return statuses.reduce<Record<SetupStepStatus, number>>(
     (counts, status) => {
       counts[status] += 1;

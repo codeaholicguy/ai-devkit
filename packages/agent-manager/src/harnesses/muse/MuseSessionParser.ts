@@ -399,10 +399,7 @@ export class MuseSessionParser {
     return this.linesToMessages(line, verbose)[0] ?? null;
   }
 
-  private recordToMessage(
-    record: MuseInnerRecord,
-    verbose: boolean,
-  ): ConversationMessage | null {
+  private recordToMessage(record: MuseInnerRecord, verbose: boolean): ConversationMessage | null {
     const payload = record.payload;
     if (!isRecord(payload)) return null;
     const atMs = museTimestampToMs(record.recorded_at);

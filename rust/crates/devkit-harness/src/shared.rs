@@ -241,7 +241,11 @@ pub fn birthtime_ms(path: &str) -> Option<i64> {
         .duration_since(std::time::UNIX_EPOCH)
         .ok()?
         .as_millis() as i64;
-    if ms > 0 { Some(ms) } else { None }
+    if ms > 0 {
+        Some(ms)
+    } else {
+        None
+    }
 }
 
 /// `toSessionDayKey` — `YYYY/MM/DD` in **local** civil time (Codex date dirs
@@ -276,11 +280,7 @@ pub fn flatten_text_blocks(content: &serde_json::Value) -> String {
         serde_json::Value::String(s) => s.clone(),
         serde_json::Value::Array(blocks) => blocks
             .iter()
-            .map(|b| {
-                b.get("text")
-                    .and_then(|t| t.as_str())
-                    .unwrap_or_default()
-            })
+            .map(|b| b.get("text").and_then(|t| t.as_str()).unwrap_or_default())
             .collect(),
         _ => String::new(),
     }
@@ -292,8 +292,18 @@ pub fn encode_uri_component(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     for &b in s.as_bytes() {
         match b {
-            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'!' | b'~' | b'*'
-            | b'\'' | b'(' | b')' => out.push(b as char),
+            b'A'..=b'Z'
+            | b'a'..=b'z'
+            | b'0'..=b'9'
+            | b'-'
+            | b'_'
+            | b'.'
+            | b'!'
+            | b'~'
+            | b'*'
+            | b'\''
+            | b'('
+            | b')' => out.push(b as char),
             _ => out.push_str(&format!("%{b:02X}")),
         }
     }
@@ -450,7 +460,11 @@ pub fn read_file_head(path: &str, max_bytes: usize) -> Option<(String, usize, bo
         };
         let start = buf.len();
         buf.extend_from_slice(&chunk[..n]);
-        if let Some(p) = buf[start..].iter().position(|&b| b == b'\n').map(|i| start + i) {
+        if let Some(p) = buf[start..]
+            .iter()
+            .position(|&b| b == b'\n')
+            .map(|i| start + i)
+        {
             let text = String::from_utf8_lossy(&buf[..p]).into_owned();
             return Some((text, p + 1, true, false));
         }
@@ -571,10 +585,8 @@ pub fn is_same_terminal_process(a: &AgentProc, b: &AgentProc) -> bool {
 /// shares its terminal/cwd identity.
 pub fn find_wrapper_pid(procs: &[&AgentProc], child: &AgentProc) -> Option<i64> {
     procs.iter().find_map(|p| {
-        (p.pid != child.pid
-            && child.ppid == Some(p.pid)
-            && is_same_terminal_process(p, child))
-        .then_some(p.pid)
+        (p.pid != child.pid && child.ppid == Some(p.pid) && is_same_terminal_process(p, child))
+            .then_some(p.pid)
     })
 }
 
@@ -617,9 +629,7 @@ pub fn registry_session_paths(
     ) else {
         return std::collections::HashMap::new();
     };
-    let mut stmt = match conn
-        .prepare("SELECT pid, session_file_path FROM agents WHERE type = ?1")
-    {
+    let mut stmt = match conn.prepare("SELECT pid, session_file_path FROM agents WHERE type = ?1") {
         Ok(s) => s,
         Err(_) => return std::collections::HashMap::new(),
     };
@@ -629,10 +639,7 @@ pub fn registry_session_paths(
         })
         .ok();
     match rows {
-        Some(it) => it
-            .flatten()
-            .filter(|(_, p)| !p.is_empty())
-            .collect(),
+        Some(it) => it.flatten().filter(|(_, p)| !p.is_empty()).collect(),
         None => std::collections::HashMap::new(),
     }
 }

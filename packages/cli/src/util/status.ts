@@ -23,9 +23,9 @@ export function getStatusDisplay(status: string): StatusDisplay {
 
 export function getStatusKeyByLabel(label: string): StatusKey {
   return (
-    (Object.entries(STATUS_DISPLAY).find(
-      ([, display]) => display.label === label.trim(),
-    )?.[0] as StatusKey | undefined) ?? "unknown"
+    (Object.entries(STATUS_DISPLAY).find(([, display]) => display.label === label.trim())?.[0] as
+      | StatusKey
+      | undefined) ?? "unknown"
   );
 }
 

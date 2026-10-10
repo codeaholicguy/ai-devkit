@@ -1,17 +1,4 @@
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 const MINUTE_MS = 60_000;
 const HOUR_MINUTES = 60;
@@ -42,29 +29,19 @@ export function formatRelativeCompact(date: Date | string | undefined): string {
 }
 
 /** Minute-granularity relative time with future support: "just now", "5m ago", "in 5m". */
-export function formatRelativeTime(
-  timestamp: Date,
-  now = new Date(Date.now()),
-): string {
+export function formatRelativeTime(timestamp: Date, now = new Date(Date.now())): string {
   const diffMs = new Date(timestamp).getTime() - now.getTime();
   const future = diffMs > 0;
   const absMs = Math.abs(diffMs);
-  const diffMinutes = future
-    ? Math.ceil(absMs / 60000)
-    : Math.floor(absMs / 60000);
+  const diffMinutes = future ? Math.ceil(absMs / 60000) : Math.floor(absMs / 60000);
 
   if (diffMinutes < 1) return "just now";
-  if (diffMinutes < 60)
-    return future ? `in ${diffMinutes}m` : `${diffMinutes}m ago`;
+  if (diffMinutes < 60) return future ? `in ${diffMinutes}m` : `${diffMinutes}m ago`;
 
-  const diffHours = future
-    ? Math.ceil(diffMinutes / 60)
-    : Math.floor(diffMinutes / 60);
+  const diffHours = future ? Math.ceil(diffMinutes / 60) : Math.floor(diffMinutes / 60);
   if (diffHours < 24) return future ? `in ${diffHours}h` : `${diffHours}h ago`;
 
-  const diffDays = future
-    ? Math.ceil(diffHours / 24)
-    : Math.floor(diffHours / 24);
+  const diffDays = future ? Math.ceil(diffHours / 24) : Math.floor(diffHours / 24);
   return future ? `in ${diffDays}d` : `${diffDays}d ago`;
 }
 
@@ -90,9 +67,7 @@ export function formatRelativeOrAbsoluteTime(
   if (Number.isNaN(target.getTime())) return fallback;
 
   const now = options.now?.() ?? new Date();
-  const deltaMinutes = Math.round(
-    (target.getTime() - now.getTime()) / MINUTE_MS,
-  );
+  const deltaMinutes = Math.round((target.getTime() - now.getTime()) / MINUTE_MS);
   const absoluteMinutes = Math.abs(deltaMinutes);
   const clock = formatClockTime(target);
 
@@ -112,12 +87,6 @@ export function formatRelativeOrAbsoluteTime(
   return `${MONTHS[target.getMonth()]} ${target.getDate()} · ${clock}`;
 }
 
-function relativeLabel(
-  deltaMinutes: number,
-  duration: string,
-  clock: string,
-): string {
-  return deltaMinutes > 0
-    ? `in ${duration} · ${clock}`
-    : `${duration} ago · ${clock}`;
+function relativeLabel(deltaMinutes: number, duration: string, clock: string): string {
+  return deltaMinutes > 0 ? `in ${duration} · ${clock}` : `${duration} ago · ${clock}`;
 }

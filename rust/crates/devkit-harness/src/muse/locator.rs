@@ -124,11 +124,7 @@ fn read_workspace_root_head(path: &Path) -> Option<String> {
 fn transcript_session_file(path: PathBuf, resolved_cwd: String) -> Option<SessionFile> {
     let birth = shared::birthtime_ms(&path.to_string_lossy())?;
     Some(SessionFile {
-        session_id: path
-            .parent()?
-            .file_name()?
-            .to_string_lossy()
-            .into_owned(),
+        session_id: path.parent()?.file_name()?.to_string_lossy().into_owned(),
         file_path: path.to_string_lossy().into_owned(),
         project_dir: path
             .parent()
@@ -164,9 +160,7 @@ fn discover_live_sessions(archive_dir: &Path, cwds: &HashSet<String>) -> Vec<Ses
             if !cwds.contains(&root) {
                 continue;
             }
-            if let Some(file) =
-                transcript_session_file(path, root)
-            {
+            if let Some(file) = transcript_session_file(path, root) {
                 out.push(file);
             }
         }
@@ -209,10 +203,9 @@ pub fn match_running_processes<'a>(
         if (start - birth).abs() > PID_STALENESS_MS {
             continue;
         }
-        let Some(session_file) = transcript_session_file(
-            transcript,
-            proc.cwd.clone().unwrap_or_default(),
-        ) else {
+        let Some(session_file) =
+            transcript_session_file(transcript, proc.cwd.clone().unwrap_or_default())
+        else {
             continue;
         };
         used.insert(proc.pid);
@@ -265,10 +258,7 @@ mod tests {
 
     #[test]
     fn pid_hint_parsing() {
-        assert_eq!(
-            parse_pid_hint(&serde_json::json!("pid=16174")),
-            Some(16174)
-        );
+        assert_eq!(parse_pid_hint(&serde_json::json!("pid=16174")), Some(16174));
         assert_eq!(parse_pid_hint(&serde_json::json!("nonsense")), None);
         assert_eq!(parse_pid_hint(&serde_json::Value::Null), None);
     }

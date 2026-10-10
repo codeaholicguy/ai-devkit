@@ -35,10 +35,7 @@ function reportStatus(report: CapacityReport): StatusKey {
   if (report.authenticated === false) return "not-authenticated";
   if (report.available === "no") return "exhausted";
   if (report.available === "unknown") return "unknown";
-  const maxUsed = report.windows.reduce(
-    (max, window) => Math.max(max, window.usedPercent ?? 0),
-    0,
-  );
+  const maxUsed = report.windows.reduce((max, window) => Math.max(max, window.usedPercent ?? 0), 0);
   return maxUsed >= HIGH_USAGE ? "limited" : "ok";
 }
 
@@ -57,10 +54,7 @@ function usageStyle(text: string): string {
 
 function usageCell(window: CapacityWindow): string {
   if (window.usedPercent === null) return "unknown";
-  const filled = Math.min(
-    BAR_WIDTH,
-    Math.ceil(window.usedPercent / (100 / BAR_WIDTH)),
-  );
+  const filled = Math.min(BAR_WIDTH, Math.ceil(window.usedPercent / (100 / BAR_WIDTH)));
   const bar = `${"█".repeat(filled)}${"░".repeat(BAR_WIDTH - filled)}`;
   let cell = `${bar} ${percent(window.usedPercent)}`;
   if (typeof window.total === "number") {
@@ -96,16 +90,7 @@ function reportRows(report: CapacityReport, now: Date): string[][] {
   const statusLabel = getStatusDisplay(status).label;
   const windows = sortedWindows(report.windows);
   if (windows.length === 0) {
-    return [
-      [
-        report.harness,
-        providerLabel(report.provider),
-        statusLabel,
-        "—",
-        "—",
-        "—",
-      ],
-    ];
+    return [[report.harness, providerLabel(report.provider), statusLabel, "—", "—", "—"]];
   }
   return windows.map((window) => [
     report.harness,
@@ -119,15 +104,9 @@ function reportRows(report: CapacityReport, now: Date): string[][] {
 
 function renderCredits(reports: CapacityReport[]): void {
   for (const report of reports) {
-    if (
-      report.creditsRemaining === null ||
-      report.creditsRemaining === undefined
-    )
-      continue;
+    if (report.creditsRemaining === null || report.creditsRemaining === undefined) continue;
     const identity = `${report.harness} · ${providerLabel(report.provider)}`;
-    ui.text(
-      chalk.dim(`  ${identity}: ${report.creditsRemaining} credits remaining`),
-    );
+    ui.text(chalk.dim(`  ${identity}: ${report.creditsRemaining} credits remaining`));
   }
 }
 
@@ -136,9 +115,7 @@ export function renderCapacityReports(
   options: RenderCapacityOptions = {},
 ): void {
   if (options.json) {
-    console.log(
-      JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2),
-    );
+    console.log(JSON.stringify(reports.length === 1 ? reports[0] : reports, null, 2));
     return;
   }
   if (reports.length === 0) return;
@@ -147,16 +124,9 @@ export function renderCapacityReports(
   if (reports.length === 1) {
     const report = reports[0];
     const status = reportStatus(report);
-    const identity = chalk.bold(
-      `${report.harness} · ${providerLabel(report.provider)}`,
-    );
+    const identity = chalk.bold(`${report.harness} · ${providerLabel(report.provider)}`);
     ui.breakline();
-    ui.text(
-      `${identity} capacity · ${colorStatus(
-        status,
-        getStatusDisplay(status).label,
-      )}`,
-    );
+    ui.text(`${identity} capacity · ${colorStatus(status, getStatusDisplay(status).label)}`);
     if (report.windows.length === 0) {
       ui.text(chalk.dim("  No usage windows reported."));
     } else {
@@ -168,11 +138,7 @@ export function renderCapacityReports(
           resetLabel(window.resetsAt, now),
         ]),
         maxWidth: process.stdout.columns ?? 120,
-        columnStyles: [
-          (text) => chalk.cyan(text),
-          usageStyle,
-          (text) => chalk.dim(text),
-        ],
+        columnStyles: [(text) => chalk.cyan(text), usageStyle, (text) => chalk.dim(text)],
       });
     }
     renderCredits([report]);

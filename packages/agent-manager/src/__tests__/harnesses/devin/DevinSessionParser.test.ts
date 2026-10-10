@@ -59,9 +59,7 @@ describe("DevinSessionParser", () => {
     });
     const db = openDb();
     try {
-      expect(parser.getConversation(db, "s")).toEqual([
-        { role: "assistant", content: "final" },
-      ]);
+      expect(parser.getConversation(db, "s")).toEqual([{ role: "assistant", content: "final" }]);
     } finally {
       db.close();
     }
@@ -99,9 +97,7 @@ describe("DevinSessionParser", () => {
     });
     const db = openDb();
     try {
-      expect(parser.getConversation(db, "s")).toEqual([
-        { role: "assistant", content: "working" },
-      ]);
+      expect(parser.getConversation(db, "s")).toEqual([{ role: "assistant", content: "working" }]);
       expect(parser.getConversation(db, "s", { verbose: true })).toEqual([
         { role: "assistant", content: "[thinking] hmm" },
         { role: "assistant", content: "working" },
@@ -145,9 +141,7 @@ describe("DevinSessionParser", () => {
     });
     const db = openDb();
     try {
-      expect(parser.getConversation(db, "s")).toEqual([
-        { role: "assistant", content: "ok" },
-      ]);
+      expect(parser.getConversation(db, "s")).toEqual([{ role: "assistant", content: "ok" }]);
       expect(parser.getConversation(db, "missing")).toEqual([]);
     } finally {
       db.close();

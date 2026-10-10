@@ -16,10 +16,7 @@ import {
 import { parseMilliseconds, sleep } from "../../util/time.js";
 import { ui } from "../../util/terminal-ui.js";
 import type { AgentGroup } from "./agent-group.service.js";
-import {
-  reportAgentResolution,
-  resolveAgentByName,
-} from "./resolve-agent.service.js";
+import { reportAgentResolution, resolveAgentByName } from "./resolve-agent.service.js";
 
 export interface AgentSendWaitTarget {
   id: string;

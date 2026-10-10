@@ -94,10 +94,7 @@ impl HarnessAdapter for OpenCodeAdapter {
             .processes
             .iter()
             .filter(|p| {
-                shared::matches_executable_name(
-                    p.command.as_deref().unwrap_or(""),
-                    &["opencode"],
-                )
+                shared::matches_executable_name(p.command.as_deref().unwrap_or(""), &["opencode"])
             })
             .filter(|p| self.can_handle(p) && seen.insert(p.pid))
             .collect();
@@ -147,7 +144,11 @@ impl HarnessAdapter for OpenCodeAdapter {
 /// `determineStatus` — idle(5min) short-circuits; last assistant role:
 /// not-completed → running, completed → waiting; anything else running.
 /// (TS's `lastAssistantErrored` flag is likewise unused there.)
-fn determine_status(stats: &parser::SessionStats, last_active_ms: i64, now_ms: i64) -> &'static str {
+fn determine_status(
+    stats: &parser::SessionStats,
+    last_active_ms: i64,
+    now_ms: i64,
+) -> &'static str {
     if shared::is_idle(last_active_ms, now_ms) {
         return "idle";
     }

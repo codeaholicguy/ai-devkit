@@ -97,9 +97,7 @@ fn classify(record: &serde_json::Map<String, Value>) -> RecordKind {
 
 /// Workspace root from one inner record's metadata payload, if present —
 /// the one rule shared by the fold and the locator's bounded head-scan.
-pub(crate) fn record_workspace_root(
-    record: &serde_json::Map<String, Value>,
-) -> Option<String> {
+pub(crate) fn record_workspace_root(record: &serde_json::Map<String, Value>) -> Option<String> {
     if classify(record) != RecordKind::Metadata {
         return None;
     }
@@ -183,22 +181,16 @@ fn intent_text(payload: &serde_json::Map<String, Value>) -> Option<String> {
 
 /// `readSession` — stat must succeed; unreadable transcript → None, empty
 /// summary (no signal, no message) → None, mirroring the TS null contract.
-pub fn read_session(
-    session_id: &str,
-    transcript_path: &str,
-    default_cwd: &str,
-) -> Option<Session> {
+pub fn read_session(session_id: &str, transcript_path: &str, default_cwd: &str) -> Option<Session> {
     let meta = std::fs::metadata(transcript_path).ok()?;
     if !meta.is_file() {
         return None;
     }
-    let state = shared::fold_jsonl_bounded(
-        transcript_path,
-        Summary::default(),
-        reduce,
-        |_: Summary| Summary::default(),
-    )
-    .unwrap_or_default();
+    let state =
+        shared::fold_jsonl_bounded(transcript_path, Summary::default(), reduce, |_: Summary| {
+            Summary::default()
+        })
+        .unwrap_or_default();
     // Null contract mirrors TS `readSession`: None only when nothing folded
     // (missing/unreadable/empty file). Signal-less transcripts still map —
     // to UNKNOWN-status agents, not process-only rows.
@@ -324,7 +316,10 @@ mod tests {
             recorded_at_ms(&serde_json::json!(1791640525332173i64)),
             Some(1791640525332)
         );
-        assert_eq!(recorded_at_ms(&serde_json::json!(1791640525i64)), Some(1791640525));
+        assert_eq!(
+            recorded_at_ms(&serde_json::json!(1791640525i64)),
+            Some(1791640525)
+        );
         assert_eq!(recorded_at_ms(&serde_json::Value::Null), None);
     }
 

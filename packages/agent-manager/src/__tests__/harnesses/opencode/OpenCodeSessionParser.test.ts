@@ -143,6 +143,7 @@ function insertPart(
   db: Database.Database,
   input: { messageId: string; sessionId: string; data: unknown; timeCreated: number },
 ): void {
-  db.prepare("INSERT INTO part (message_id, session_id, data, time_created) VALUES (?, ?, ?, ?)")
-    .run(input.messageId, input.sessionId, JSON.stringify(input.data), input.timeCreated);
+  db.prepare(
+    "INSERT INTO part (message_id, session_id, data, time_created) VALUES (?, ?, ?, ?)",
+  ).run(input.messageId, input.sessionId, JSON.stringify(input.data), input.timeCreated);
 }

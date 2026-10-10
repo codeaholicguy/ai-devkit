@@ -18,10 +18,7 @@ import { filterStringRecord } from "../../util/config.js";
 import { getGlobalSkillPath, isValidEnvironmentCode } from "../../util/env.js";
 import { inspectTmux } from "../../util/tmux.js";
 import { SETUP_AGENT_DOT_FOLDERS } from "../setup/setup.service.js";
-import {
-  getGlobalMcpWriter,
-  MCP_UNSUPPORTED_AGENTS,
-} from "../setup/memory-mcp/index.js";
+import { getGlobalMcpWriter, MCP_UNSUPPORTED_AGENTS } from "../setup/memory-mcp/index.js";
 import packageJson from "../../../package.json" with { type: "json" };
 
 const execFileAsync = promisify(execFile);
@@ -130,8 +127,7 @@ const STATUS_SKILL_ROOTS: Partial<Record<ReadinessAgentType, string>> = {
   copilot: getGlobalSkillPath("github") ?? ".copilot/skills",
   gemini_cli: getGlobalSkillPath("gemini") ?? ".gemini/skills",
   grok_cli: getGlobalSkillPath("grok") ?? ".grok/skills",
-  antigravity_cli:
-    getGlobalSkillPath("antigravity-cli") ?? ".gemini/config/skills",
+  antigravity_cli: getGlobalSkillPath("antigravity-cli") ?? ".gemini/config/skills",
   opencode: getGlobalSkillPath("opencode") ?? ".config/opencode/skills",
   pi: getGlobalSkillPath("pi") ?? ".pi/agent/skills",
   devin: getGlobalSkillPath("devin") ?? ".config/devin/skills",
@@ -147,10 +143,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-async function defaultRunCommand(
-  command: string,
-  args: string[],
-): Promise<CommandResult> {
+async function defaultRunCommand(command: string, args: string[]): Promise<CommandResult> {
   const result = await execFileAsync(command, args, {
     encoding: "utf8",
     timeout: 5000,
@@ -161,10 +154,7 @@ async function defaultRunCommand(
 
 function resolveDefaultAssetRoot(): string {
   const serviceDir = dirname(fileURLToPath(import.meta.url));
-  const candidates = [
-    resolve(serviceDir, "../../assets"),
-    resolve(serviceDir, "../../../assets"),
-  ];
+  const candidates = [resolve(serviceDir, "../../assets"), resolve(serviceDir, "../../../assets")];
   return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
 }
 
@@ -177,13 +167,9 @@ function runtime(options: StatusServiceOptions): Runtime {
     installedVersion: options.installedVersion ?? packageJson.version,
     now: options.now ?? (() => new Date()),
     readFile: options.readFile ?? ((target) => fsReadFile(target, "utf8")),
-    access:
-      options.access ??
-      ((target, mode = constants.R_OK) => fsAccess(target, mode)),
+    access: options.access ?? ((target, mode = constants.R_OK) => fsAccess(target, mode)),
     runCommand: options.runCommand ?? defaultRunCommand,
-    codexAuth:
-      options.codexAuth ??
-      (async () => (await getCodexCapacityReport()).authenticated),
+    codexAuth: options.codexAuth ?? (async () => (await getCodexCapacityReport()).authenticated),
   };
 }
 
@@ -229,13 +215,9 @@ async function projectConfigCheck(
     };
   const version = typeof parsed.version === "string" ? parsed.version : null;
   const environments = Array.isArray(parsed.environments)
-    ? parsed.environments.filter(
-        (value): value is string => typeof value === "string",
-      )
+    ? parsed.environments.filter((value): value is string => typeof value === "string")
     : [];
-  const invalidEnvironments = environments.filter(
-    (value) => !isValidEnvironmentCode(value),
-  );
+  const invalidEnvironments = environments.filter((value) => !isValidEnvironmentCode(value));
   const valid =
     version !== null &&
     Array.isArray(parsed.environments) &&
@@ -250,9 +232,7 @@ async function projectConfigCheck(
       version,
       environments,
       status: valid ? "pass" : "fail",
-      errors: valid
-        ? []
-        : ["project configuration has invalid fields or environment codes"],
+      errors: valid ? [] : ["project configuration has invalid fields or environment codes"],
     },
   };
 }
@@ -285,9 +265,7 @@ function projectRegistries(
     : {
         source,
         configured: {},
-        errors: [
-          "project registries are unavailable because project configuration is invalid",
-        ],
+        errors: ["project registries are unavailable because project configuration is invalid"],
       };
 }
 
@@ -296,10 +274,7 @@ function safeRegistries(raw: unknown): Record<string, string> {
     Object.entries(filterStringRecord(raw)).map(([id, value]) => {
       try {
         const url = new URL(value);
-        if (
-          url.protocol === "file:" &&
-          (!url.hostname || url.hostname === "localhost")
-        ) {
+        if (url.protocol === "file:" && (!url.hostname || url.hostname === "localhost")) {
           return [id, `local: ${decodeURIComponent(url.pathname)}`];
         }
         url.username = "";
@@ -308,12 +283,7 @@ function safeRegistries(raw: unknown): Record<string, string> {
         url.hash = "";
         return [id, url.toString()];
       } catch {
-        return [
-          id,
-          /^[\w.-]+@[\w.-]+:[^\s]+$/.test(value)
-            ? value
-            : "[redacted registry URL]",
-        ];
+        return [id, /^[\w.-]+@[\w.-]+:[^\s]+$/.test(value) ? value : "[redacted registry URL]"];
       }
     }),
   );
@@ -406,12 +376,9 @@ function channelConnection(name: string, value: unknown): ChannelConnection {
   const config = record(entry?.config);
   let credentialsPresent = false;
   let authorized: boolean | null = null;
-  let schemaValid = Boolean(
-    entry && config && typeof entry.enabled === "boolean",
-  );
+  let schemaValid = Boolean(entry && config && typeof entry.enabled === "boolean");
   if (type === "telegram") {
-    credentialsPresent =
-      nonEmpty(config?.botToken) && nonEmpty(config?.botUsername);
+    credentialsPresent = nonEmpty(config?.botToken) && nonEmpty(config?.botUsername);
     authorized = typeof config?.authorizedChatId === "number";
     schemaValid = schemaValid && credentialsPresent;
   } else if (type === "slack") {
@@ -439,13 +406,7 @@ function channelConnection(name: string, value: unknown): ChannelConnection {
     credentialsPresent,
     authorized,
     ready,
-    errors: ready
-      ? []
-      : [
-          enabled
-            ? "channel configuration is not ready"
-            : "channel is disabled",
-        ],
+    errors: ready ? [] : [enabled ? "channel configuration is not ready" : "channel is disabled"],
   };
 }
 
@@ -500,9 +461,7 @@ async function channelsCheck(rt: Runtime): Promise<ChannelsCheck> {
   };
 }
 
-function leafStatuses(
-  report: Omit<StatusReport, "overall" | "checks">,
-): CheckStatus[] {
+function leafStatuses(report: Omit<StatusReport, "overall" | "checks">): CheckStatus[] {
   const agentStatuses = Object.values(report.agents)
     .filter((agent) => agent.executable.path !== null)
     .flatMap((agent) => [
@@ -539,9 +498,7 @@ async function memoryMcpCheck(rt: Runtime): Promise<MemoryMcpCheck> {
     if (!writer) {
       const reason = MCP_UNSUPPORTED_AGENTS[agent];
       agents.push(
-        reason
-          ? { agent, state: "unsupported", detail: reason }
-          : { agent, state: "unsupported" },
+        reason ? { agent, state: "unsupported", detail: reason } : { agent, state: "unsupported" },
       );
       continue;
     }
@@ -554,15 +511,11 @@ async function memoryMcpCheck(rt: Runtime): Promise<MemoryMcpCheck> {
     agents.push({ agent, state: inspected.state, detail: inspected.detail });
   }
 
-  const degraded = agents.some(
-    (item) => item.state === "unwired" || item.state === "error",
-  );
+  const degraded = agents.some((item) => item.state === "unwired" || item.state === "error");
   return { status: degraded ? "warn" : "pass", agents };
 }
 
-export async function getStatusReport(
-  options: StatusServiceOptions = {},
-): Promise<StatusReport> {
+export async function getStatusReport(options: StatusServiceOptions = {}): Promise<StatusReport> {
   const rt = runtime(options);
   const builtInSkillNames = await getBuiltinSkillNames();
   const projectPromise = projectConfigCheck(rt);
@@ -577,16 +530,15 @@ export async function getStatusReport(
     runCommand: rt.runCommand,
     codexAuth: rt.codexAuth,
   };
-  const [project, agents, aiDevkit, tmux, globalRegistry, channels, memoryMcp] =
-    await Promise.all([
-      projectPromise,
-      getAgentReadinessReports(agentOptions),
-      versionCheck(rt),
-      tmuxCheck(rt),
-      globalRegistries(rt),
-      channelsCheck(rt),
-      memoryMcpCheck(rt),
-    ]);
+  const [project, agents, aiDevkit, tmux, globalRegistry, channels, memoryMcp] = await Promise.all([
+    projectPromise,
+    getAgentReadinessReports(agentOptions),
+    versionCheck(rt),
+    tmuxCheck(rt),
+    globalRegistries(rt),
+    channelsCheck(rt),
+    memoryMcpCheck(rt),
+  ]);
   const registries: RegistriesCheck = {
     project: projectRegistries(project.raw, project.check.path),
     global: globalRegistry,

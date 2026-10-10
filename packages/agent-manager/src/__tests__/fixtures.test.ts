@@ -23,16 +23,14 @@ import type { FixtureBundle } from "../fixtures/bundle.js";
 import { captureLive, FIXTURES_ROOT } from "../fixtures/capture.js";
 
 const bundlePaths = fs.existsSync(FIXTURES_ROOT)
-  ? fs
-      .readdirSync(FIXTURES_ROOT, { withFileTypes: true })
-      .flatMap((d) =>
-        d.isDirectory()
-          ? fs
-              .readdirSync(path.join(FIXTURES_ROOT, d.name))
-              .filter((f) => f.endsWith(".json"))
-              .map((f) => path.join(FIXTURES_ROOT, d.name, f))
-          : [],
-      )
+  ? fs.readdirSync(FIXTURES_ROOT, { withFileTypes: true }).flatMap((d) =>
+      d.isDirectory()
+        ? fs
+            .readdirSync(path.join(FIXTURES_ROOT, d.name))
+            .filter((f) => f.endsWith(".json"))
+            .map((f) => path.join(FIXTURES_ROOT, d.name, f))
+        : [],
+    )
   : [];
 
 /** Adapters whose detect path consults AgentRegistry. */
@@ -51,7 +49,11 @@ function adapterFor(type: string, registry?: AgentRegistry) {
 }
 
 /** Seed an isolated registry at `<home>/.ai-devkit/agents.json`. */
-function seedRegistry(bundle: FixtureBundle, home: string, nowIso: string): AgentRegistry | undefined {
+function seedRegistry(
+  bundle: FixtureBundle,
+  home: string,
+  nowIso: string,
+): AgentRegistry | undefined {
   if (!REGISTRY_AWARE.has(bundle.adapter)) return undefined;
   const registry = new AgentRegistry(path.join(home, ".ai-devkit", "agents.json"));
   const entries = (bundle.registry ?? []).map(
@@ -125,9 +127,7 @@ function materialize(bundle: FixtureBundle) {
   // Pids whose startTime resolves to the materialization instant — Codex
   // derives session day-dirs from start times, so only these paths contain
   // the replay-day key and normalize to $TODAY.
-  const nowPids = new Set(
-    bundle.processes.filter((p) => p.startTime === "$NOW").map((p) => p.pid),
-  );
+  const nowPids = new Set(bundle.processes.filter((p) => p.startTime === "$NOW").map((p) => p.pid));
   return {
     home,
     processes,
@@ -177,9 +177,7 @@ describe("fixture replay (TS parity oracle)", () => {
         // process startTime was $NOW — static-start agents keep concrete
         // dates so live bundles stay replayable on any day.
         const actual = JSON.parse(JSON.stringify(normalizeAgents(agents, home))).map((a) =>
-          nowPids.has(a.pid)
-            ? JSON.parse(JSON.stringify(a).split(todayKey).join("$TODAY"))
-            : a,
+          nowPids.has(a.pid) ? JSON.parse(JSON.stringify(a).split(todayKey).join("$TODAY")) : a,
         );
         expect(actual).toEqual(expected);
       } finally {

@@ -1,9 +1,5 @@
 import { Command } from "commander";
-import {
-  AgentRegistry,
-  parseTmuxRuntimeRef,
-  stopAgent,
-} from "@ai-devkit/agent-manager";
+import { AgentRegistry, parseTmuxRuntimeRef, stopAgent } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
 import {
@@ -22,8 +18,11 @@ export function registerAgentKillCommand(agentCommand: Command): void {
         const manager = createAgentManager();
         const resolution = await resolveAgentByName(manager, name);
         if (resolution.kind !== "resolved") {
-          reportAgentResolution(resolution, name, ui, (agent) =>
-            `${agent.name} (${formatStatus(agent.status)})`,
+          reportAgentResolution(
+            resolution,
+            name,
+            ui,
+            (agent) => `${agent.name} (${formatStatus(agent.status)})`,
           );
           return;
         }
@@ -34,17 +33,13 @@ export function registerAgentKillCommand(agentCommand: Command): void {
           registry,
         });
         if (result.runtime === "herdr") {
-          ui.success(
-            `Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`,
-          );
+          ui.success(`Stopped agent "${resolved.name}" (PID ${resolved.pid}) and Herdr pane.`);
           return;
         }
 
         const tmuxRef = parseTmuxRuntimeRef(result.runtimeRef);
         const suffix = tmuxRef ? ` and tmux session "${tmuxRef.session}"` : "";
-        ui.success(
-          `Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`,
-        );
+        ui.success(`Stopped agent "${result.agentName}" (PID ${result.pid})${suffix}.`);
       }),
     );
 }

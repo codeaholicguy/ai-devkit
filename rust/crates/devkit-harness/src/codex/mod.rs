@@ -114,9 +114,7 @@ const CODEX_APP_SERVER_DAEMON_DIR: &str = "app-server-daemon";
 fn is_helper_command(command: &str) -> bool {
     let trimmed = command.trim();
     let executable = shared::executable_path(trimmed);
-    let args: Vec<&str> = trimmed[executable.len()..]
-        .split_whitespace()
-        .collect();
+    let args: Vec<&str> = trimmed[executable.len()..].split_whitespace().collect();
     if executable
         .replace('\\', "/")
         .split('/')
@@ -199,7 +197,9 @@ impl SessionMapping {
         obj.iter()
             .filter_map(|(k, v)| {
                 let pid = to_pid_json(k)?;
-                v.as_str().filter(|s| !s.is_empty()).map(|s| (pid, s.to_string()))
+                v.as_str()
+                    .filter(|s| !s.is_empty())
+                    .map(|s| (pid, s.to_string()))
             })
             .collect()
     }
@@ -310,7 +310,11 @@ impl HarnessAdapter for CodexAdapter {
 
         // 1. sessions.json mapping
         let mapping = SessionMapping {
-            mapping_path: self.home.join(".codex").join("ai-devkit").join("sessions.json"),
+            mapping_path: self
+                .home
+                .join(".codex")
+                .join("ai-devkit")
+                .join("sessions.json"),
             sessions_dir: self.sessions_dir.clone(),
         };
         let mapped: HashMap<i64, String> = mapping

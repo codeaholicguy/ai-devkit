@@ -12,9 +12,7 @@ export function sanitizeProviderOutput(value: string): string {
   const withoutOsc = value.replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, "");
   return Array.from(withoutOsc, (character) => {
     const code = character.charCodeAt(0);
-    return (code < 32 && code !== 9 && code !== 10) || code === 127
-      ? ""
-      : character;
+    return (code < 32 && code !== 9 && code !== 10) || code === 127 ? "" : character;
   }).join("");
 }
 

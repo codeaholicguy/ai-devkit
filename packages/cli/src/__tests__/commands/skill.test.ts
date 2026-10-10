@@ -36,8 +36,7 @@ vi.mock("../../lib/Config.js", () => ({
 vi.mock("../../lib/EnvironmentSelector.js", () => ({
   EnvironmentSelector: vi.fn(function () {
     return {
-      selectSkillEnvironments: (...args: unknown[]) =>
-        mockSelectSkillEnvironments(...args),
+      selectSkillEnvironments: (...args: unknown[]) => mockSelectSkillEnvironments(...args),
       selectGlobalSkillEnvironments: (...args: unknown[]) =>
         mockSelectGlobalSkillEnvironments(...args),
     };
@@ -51,8 +50,7 @@ vi.mock("../../services/skill/skill.service.js", () => ({
       addSkills: (...args: unknown[]) => mockAddSkills(...args),
       addRegistry: (...args: unknown[]) => mockAddRegistry(...args),
       listGlobalSkills: (...args: unknown[]) => mockListGlobalSkills(...args),
-      listInstallableSkills: (...args: unknown[]) =>
-        mockListInstallableSkills(...args),
+      listInstallableSkills: (...args: unknown[]) => mockListInstallableSkills(...args),
       listSkills: (...args: unknown[]) => mockListSkills(...args),
       removeSkill: (...args: unknown[]) => mockRemoveSkill(...args),
       removeRegistry: (...args: unknown[]) => mockRemoveRegistry(...args),
@@ -65,8 +63,7 @@ vi.mock("../../services/skill/skill.service.js", () => ({
 
 vi.mock("../../services/skill/skill-builtins.js", () => ({
   BUILTIN_SKILL_REGISTRY: "codeaholicguy/ai-devkit",
-  getBuiltinSkillNames: (...args: unknown[]) =>
-    mockGetBuiltinSkillNames(...args),
+  getBuiltinSkillNames: (...args: unknown[]) => mockGetBuiltinSkillNames(...args),
 }));
 
 vi.mock("../../util/terminal-ui.js", () => ({
@@ -82,14 +79,12 @@ vi.mock("../../util/terminal-ui.js", () => ({
 }));
 
 vi.mock("../../util/terminal.js", () => ({
-  isInteractiveTerminal: (...args: unknown[]) =>
-    mockIsInteractiveTerminal(...args),
+  isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args),
 }));
 
 // ui.text receives chalk-formatted strings; assertions must hold with or
 // without color support (piped vs TTY, FORCE_COLOR in CI).
-const ANSI_PATTERN =
-  /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
+const ANSI_PATTERN = /[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g;
 const textCalls = (): string[] =>
   vi.mocked(ui.text).mock.calls.map(([text]) => text.replace(ANSI_PATTERN, ""));
 
@@ -180,50 +175,28 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "remove-registry",
-      "example/skills",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "remove-registry", "example/skills"]);
 
     expect(mockRemoveRegistry).toHaveBeenCalledWith("example/skills", {
       global: undefined,
     });
-    expect(ui.success).toHaveBeenCalledWith(
-      'Removed project skill registry "example/skills".',
-    );
+    expect(ui.success).toHaveBeenCalledWith('Removed project skill registry "example/skills".');
   });
 
-  it.each(["-g", "--global"])(
-    "removes the global registry and its cache with %s",
-    async (flag) => {
-      mockRemoveRegistry.mockResolvedValue("global");
-      const program = new Command();
-      registerSkillCommand(program);
-      await program.parseAsync([
-        "node",
-        "test",
-        "skill",
-        "remove-registry",
-        "example/skills",
-        flag,
-      ]);
-      expect(mockRemoveRegistry).toHaveBeenCalledWith("example/skills", {
-        global: true,
-      });
-      expect(ui.success).toHaveBeenCalledWith(
-        'Removed global skill registry "example/skills".',
-      );
-    },
-  );
+  it.each(["-g", "--global"])("removes the global registry and its cache with %s", async (flag) => {
+    mockRemoveRegistry.mockResolvedValue("global");
+    const program = new Command();
+    registerSkillCommand(program);
+    await program.parseAsync(["node", "test", "skill", "remove-registry", "example/skills", flag]);
+    expect(mockRemoveRegistry).toHaveBeenCalledWith("example/skills", {
+      global: true,
+    });
+    expect(ui.success).toHaveBeenCalledWith('Removed global skill registry "example/skills".');
+  });
 
   it("always protects the built-in registry", async () => {
     mockRemoveRegistry.mockRejectedValue(
-      new Error(
-        'Registry "codeaholicguy/ai-devkit" is built in and cannot be unregistered.',
-      ),
+      new Error('Registry "codeaholicguy/ai-devkit" is built in and cannot be unregistered.'),
     );
     const program = new Command();
     registerSkillCommand(program);
@@ -245,13 +218,7 @@ describe("skill command", () => {
     );
     const program = new Command();
     registerSkillCommand(program);
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "remove-registry",
-      "example/skills",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "remove-registry", "example/skills"]);
     expect(ui.error).toHaveBeenCalledWith(
       "Failed to remove registry: Registry example/skills is not registered (try --global).",
     );
@@ -263,14 +230,7 @@ describe("skill command", () => {
     );
     const program = new Command();
     registerSkillCommand(program);
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "remove-registry",
-      "x/missing",
-      "--global",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "remove-registry", "x/missing", "--global"]);
     expect(ui.error).toHaveBeenCalledWith(
       "Failed to remove registry: Registry x/missing is not registered (try --global).",
     );
@@ -278,22 +238,12 @@ describe("skill command", () => {
 
   it("validates removal IDs before reading either scope", async () => {
     mockRemoveRegistry.mockRejectedValue(
-      new Error(
-        'Invalid registry ID format: "invalid". Expected format: "org/repo"',
-      ),
+      new Error('Invalid registry ID format: "invalid". Expected format: "org/repo"'),
     );
     const program = new Command();
     registerSkillCommand(program);
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "remove-registry",
-      "invalid",
-    ]);
-    expect(ui.error).toHaveBeenCalledWith(
-      expect.stringContaining("Invalid registry ID format"),
-    );
+    await program.parseAsync(["node", "test", "skill", "remove-registry", "invalid"]);
+    expect(ui.error).toHaveBeenCalledWith(expect.stringContaining("Invalid registry ID format"));
   });
 
   it("adds an opaque registry URL to project config by default", async () => {
@@ -330,75 +280,53 @@ describe("skill command", () => {
       "same-url",
     ]);
 
-    expect(mockAddRegistry).toHaveBeenCalledWith(
-      "anthropics/skills",
-      "same-url",
-      {
-        force: undefined,
-      },
-    );
-    expect(ui.info).toHaveBeenCalledWith(
-      'Registry "anthropics/skills" is already registered.',
-    );
+    expect(mockAddRegistry).toHaveBeenCalledWith("anthropics/skills", "same-url", {
+      force: undefined,
+    });
+    expect(ui.info).toHaveBeenCalledWith('Registry "anthropics/skills" is already registered.');
     expect(ui.success).not.toHaveBeenCalled();
   });
 
-  it.each(["-g", "--global"])(
-    "routes %s registry writes to global config",
-    async (globalFlag) => {
-      const program = new Command();
-      registerSkillCommand(program);
+  it.each(["-g", "--global"])("routes %s registry writes to global config", async (globalFlag) => {
+    const program = new Command();
+    registerSkillCommand(program);
 
-      await program.parseAsync([
-        "node",
-        "test",
-        "skill",
-        "add-registry",
-        "example/private-skills",
-        "opaque-url",
-        globalFlag,
-      ]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "skill",
+      "add-registry",
+      "example/private-skills",
+      "opaque-url",
+      globalFlag,
+    ]);
 
-      expect(mockAddRegistry).toHaveBeenCalledWith(
-        "example/private-skills",
-        "opaque-url",
-        {
-          global: true,
-          force: undefined,
-        },
-      );
-    },
-  );
+    expect(mockAddRegistry).toHaveBeenCalledWith("example/private-skills", "opaque-url", {
+      global: true,
+      force: undefined,
+    });
+  });
 
-  it.each(["-f", "--force"])(
-    "forwards %s and reports a forced update",
-    async (forceFlag) => {
-      mockAddRegistry.mockResolvedValue("updated");
-      const program = new Command();
-      registerSkillCommand(program);
+  it.each(["-f", "--force"])("forwards %s and reports a forced update", async (forceFlag) => {
+    mockAddRegistry.mockResolvedValue("updated");
+    const program = new Command();
+    registerSkillCommand(program);
 
-      await program.parseAsync([
-        "node",
-        "test",
-        "skill",
-        "add-registry",
-        "example/private-skills",
-        "new-url",
-        forceFlag,
-      ]);
+    await program.parseAsync([
+      "node",
+      "test",
+      "skill",
+      "add-registry",
+      "example/private-skills",
+      "new-url",
+      forceFlag,
+    ]);
 
-      expect(mockAddRegistry).toHaveBeenCalledWith(
-        "example/private-skills",
-        "new-url",
-        {
-          force: true,
-        },
-      );
-      expect(ui.success).toHaveBeenCalledWith(
-        'Updated skill registry "example/private-skills".',
-      );
-    },
-  );
+    expect(mockAddRegistry).toHaveBeenCalledWith("example/private-skills", "new-url", {
+      force: true,
+    });
+    expect(ui.success).toHaveBeenCalledWith('Updated skill registry "example/private-skills".');
+  });
 
   it.each([
     "https://github.com/anthropics/skills.git",
@@ -408,14 +336,7 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "add-registry",
-      "anthropics/skills",
-      url,
-    ]);
+    await program.parseAsync(["node", "test", "skill", "add-registry", "anthropics/skills", url]);
 
     expect(mockAddRegistry).toHaveBeenCalledWith("anthropics/skills", url, {
       force: undefined,
@@ -428,23 +349,12 @@ describe("skill command", () => {
       const program = new Command();
       registerSkillCommand(program);
       mockAddRegistry.mockRejectedValue(
-        new Error(
-          `Invalid registry ID format: "${id}". Expected format: "org/repo"`,
-        ),
+        new Error(`Invalid registry ID format: "${id}". Expected format: "org/repo"`),
       );
 
-      await program.parseAsync([
-        "node",
-        "test",
-        "skill",
-        "add-registry",
-        id,
-        "opaque-url",
-      ]);
+      await program.parseAsync(["node", "test", "skill", "add-registry", id, "opaque-url"]);
 
-      expect(ui.error).toHaveBeenCalledWith(
-        expect.stringContaining("Invalid registry ID format"),
-      );
+      expect(ui.error).toHaveBeenCalledWith(expect.stringContaining("Invalid registry ID format"));
       expect(process.exit).toHaveBeenCalledWith(1);
     },
   );
@@ -476,9 +386,7 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    const skillCommand = program.commands.find(
-      (command) => command.name() === "skill",
-    );
+    const skillCommand = program.commands.find((command) => command.name() === "skill");
     const addRegistryCommand = skillCommand?.commands.find(
       (command) => command.name() === "add-registry",
     );
@@ -493,24 +401,16 @@ describe("skill command", () => {
     expect(removeRegistryCommand?.usage()).toContain("<id>");
     expect(removeRegistryCommand?.helpInformation()).toContain("-g, --global");
     expect(removeRegistryCommand?.helpInformation()).not.toContain("purge");
-    expect(
-      skillCommand?.commands.some(
-        (command) => command.name() === "list-registries",
-      ),
-    ).toBe(false);
+    expect(skillCommand?.commands.some((command) => command.name() === "list-registries")).toBe(
+      false,
+    );
   });
 
   it("prompts for skill add when skill name is omitted", async () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "add",
-      "anthropics/skills",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills"]);
 
     expect(mockListInstallableSkills).toHaveBeenCalledWith("anthropics/skills");
     expect(mockCheckbox).toHaveBeenCalledWith({
@@ -521,14 +421,10 @@ describe("skill command", () => {
       ],
       required: true,
     });
-    expect(mockAddSkills).toHaveBeenCalledWith(
-      "anthropics/skills",
-      ["frontend-design"],
-      {
-        global: undefined,
-        environments: ["claude"],
-      },
-    );
+    expect(mockAddSkills).toHaveBeenCalledWith("anthropics/skills", ["frontend-design"], {
+      global: undefined,
+      environments: ["claude"],
+    });
     expect(mockAddSkill).not.toHaveBeenCalled();
     expect(process.stderr.write).not.toHaveBeenCalled();
   });
@@ -546,14 +442,10 @@ describe("skill command", () => {
       "frontend-design",
     ]);
 
-    expect(mockAddSkill).toHaveBeenCalledWith(
-      "anthropics/skills",
-      "frontend-design",
-      {
-        global: undefined,
-        environments: ["claude"],
-      },
-    );
+    expect(mockAddSkill).toHaveBeenCalledWith("anthropics/skills", "frontend-design", {
+      global: undefined,
+      environments: ["claude"],
+    });
     expect(mockListInstallableSkills).not.toHaveBeenCalled();
     expect(mockAddSkills).not.toHaveBeenCalled();
   });
@@ -738,20 +630,14 @@ describe("skill command", () => {
       "codex",
     ]);
 
-    expect(ui.success).toHaveBeenCalledWith(
-      "Installed frontend-design from anthropics/skills",
-    );
+    expect(ui.success).toHaveBeenCalledWith("Installed frontend-design from anthropics/skills");
     expect(textCalls()[0]).toBe("  Source: anthropics/skills");
     expect(textCalls()[1]).toBe("  Installed to (global): claude, codex");
-    expect(textCalls()[2]).toBe(
-      "✔ ~/.claude/skills/frontend-design/SKILL.md — symlinked",
-    );
+    expect(textCalls()[2]).toBe("✔ ~/.claude/skills/frontend-design/SKILL.md — symlinked");
     expect(textCalls()[3]).toBe(
       "⚠ ~/.codex/skills/frontend-design/SKILL.md — already exists, skipped",
     );
-    expect(ui.info).not.toHaveBeenCalledWith(
-      expect.stringContaining("Source:"),
-    );
+    expect(ui.info).not.toHaveBeenCalledWith(expect.stringContaining("Source:"));
   });
 
   it("shows a warning instead of exiting when skill selection is cancelled", async () => {
@@ -762,13 +648,7 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "add",
-      "anthropics/skills",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills"]);
 
     expect(ui.warning).toHaveBeenCalledWith("Skill selection cancelled.");
     expect(ui.error).not.toHaveBeenCalled();
@@ -781,13 +661,7 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "add",
-      "anthropics/skills",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills"]);
 
     expect(ui.error).toHaveBeenCalledWith(
       "Failed to add skill: Skill name is required in non-interactive mode. Re-run with: ai-devkit skill add <registry> <skill-name>",
@@ -805,22 +679,14 @@ describe("skill command", () => {
     await program.parseAsync(["node", "test", "skill", "add", "--built-in"]);
 
     expect(mockAddSkill).toHaveBeenCalledTimes(2);
-    expect(mockAddSkill).toHaveBeenCalledWith(
-      "codeaholicguy/ai-devkit",
-      "remote-one",
-      {
-        global: undefined,
-        environments: ["claude"],
-      },
-    );
-    expect(mockAddSkill).toHaveBeenCalledWith(
-      "codeaholicguy/ai-devkit",
-      "remote-two",
-      {
-        global: undefined,
-        environments: ["claude"],
-      },
-    );
+    expect(mockAddSkill).toHaveBeenCalledWith("codeaholicguy/ai-devkit", "remote-one", {
+      global: undefined,
+      environments: ["claude"],
+    });
+    expect(mockAddSkill).toHaveBeenCalledWith("codeaholicguy/ai-devkit", "remote-two", {
+      global: undefined,
+      environments: ["claude"],
+    });
     expect(mockGetBuiltinSkillNames).toHaveBeenCalledOnce();
     expect(SkillService).toHaveBeenCalledTimes(1);
   });
@@ -842,12 +708,8 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    const skillCommand = program.commands.find(
-      (command) => command.name() === "skill",
-    );
-    const addCommand = skillCommand?.commands.find(
-      (command) => command.name() === "add",
-    );
+    const skillCommand = program.commands.find((command) => command.name() === "skill");
+    const addCommand = skillCommand?.commands.find((command) => command.name() === "add");
 
     expect(addCommand?.usage()).toContain("[registry-repo]");
     expect(addCommand?.usage()).toContain("[skill-name]");
@@ -864,23 +726,13 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "list",
-      "--global",
-      "--env",
-      "claude",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "list", "--global", "--env", "claude"]);
 
     expect(mockListGlobalSkills).toHaveBeenCalledWith(["claude"]);
     expect(ui.table).toHaveBeenCalledWith(
       expect.objectContaining({
         headers: ["Skill Name", "Environments", "Path"],
-        rows: [
-          ["frontend-design", "claude", "~/.claude/skills/frontend-design"],
-        ],
+        rows: [["frontend-design", "claude", "~/.claude/skills/frontend-design"]],
       }),
     );
   });
@@ -918,14 +770,7 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "list",
-      "--env",
-      "claude",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "list", "--env", "claude"]);
 
     expect(ui.error).toHaveBeenCalledWith(
       "Failed to list skills: --env can only be used with --global",
@@ -938,12 +783,8 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    const skillCommand = program.commands.find(
-      (command) => command.name() === "skill",
-    );
-    const listCommand = skillCommand?.commands.find(
-      (command) => command.name() === "list",
-    );
+    const skillCommand = program.commands.find((command) => command.name() === "skill");
+    const listCommand = skillCommand?.commands.find((command) => command.name() === "list");
 
     expect(listCommand?.helpInformation()).toContain("--global");
     expect(listCommand?.helpInformation()).toContain("--env <environment...>");
@@ -976,13 +817,7 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "remove",
-      "frontend-design",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "remove", "frontend-design"]);
 
     expect(mockRemoveSkill).toHaveBeenCalledWith("frontend-design", {
       global: undefined,
@@ -1003,25 +838,13 @@ describe("skill command", () => {
     const program = new Command();
     registerSkillCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "skill",
-      "remove",
-      "frontend-design",
-    ]);
+    await program.parseAsync(["node", "test", "skill", "remove", "frontend-design"]);
 
-    expect(ui.success).toHaveBeenCalledWith(
-      "Removed frontend-design from 2 locations",
-    );
+    expect(ui.success).toHaveBeenCalledWith("Removed frontend-design from 2 locations");
     expect(textCalls()[0]).toBe(
       "  Note: Cached copy in ~/.ai-devkit/skills/ preserved for other projects.",
     );
-    expect(textCalls()[1]).toBe(
-      "✔ /workspace/.claude/skills/frontend-design — removed",
-    );
-    expect(textCalls()[2]).toBe(
-      "✔ /workspace/.codex/skills/frontend-design — removed",
-    );
+    expect(textCalls()[1]).toBe("✔ /workspace/.claude/skills/frontend-design — removed");
+    expect(textCalls()[2]).toBe("✔ /workspace/.codex/skills/frontend-design — removed");
   });
 });

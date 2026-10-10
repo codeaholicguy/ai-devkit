@@ -4,8 +4,7 @@ import { ui } from "../../util/terminal-ui.js";
 
 const mockGetDocsDir = vi.fn<() => Promise<string>>();
 const mockGetPhases = vi.fn<() => Promise<string[]>>();
-const mockCopyFeatureDocTemplates =
-  vi.fn<(...args: unknown[]) => Promise<any>>();
+const mockCopyFeatureDocTemplates = vi.fn<(...args: unknown[]) => Promise<any>>();
 const mockTemplateManagerConstructor = vi.fn();
 
 vi.mock("../../lib/Config.js", () => ({
@@ -21,8 +20,7 @@ vi.mock("../../lib/TemplateManager.js", () => ({
   TemplateManager: vi.fn(function (...args: unknown[]) {
     mockTemplateManagerConstructor(...args);
     return {
-      copyFeatureDocTemplates: (...copyArgs: unknown[]) =>
-        mockCopyFeatureDocTemplates(...copyArgs),
+      copyFeatureDocTemplates: (...copyArgs: unknown[]) => mockCopyFeatureDocTemplates(...copyArgs),
     };
   }),
 }));
@@ -72,21 +70,13 @@ describe("docs command", () => {
     const program = new Command();
     registerDocsCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "docs",
-      "init-feature",
-      "sample",
-    ]);
+    await program.parseAsync(["node", "test", "docs", "init-feature", "sample"]);
 
     expect(mockCopyFeatureDocTemplates).toHaveBeenCalledWith("sample", {
       date: "2026-05-25",
       phases: ["requirements", "design"],
     });
-    expect(mockedUi.success).toHaveBeenCalledWith(
-      "Created 1 feature doc for sample.",
-    );
+    expect(mockedUi.success).toHaveBeenCalledWith("Created 1 feature doc for sample.");
     expect(mockedUi.text).toHaveBeenCalledWith(
       "[dim]  - docs/ai/requirements/2026-05-25-feature-sample.md[/dim]",
     );
@@ -110,17 +100,9 @@ describe("docs command", () => {
     const program = new Command();
     registerDocsCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "docs",
-      "init-feature",
-      "sample",
-    ]);
+    await program.parseAsync(["node", "test", "docs", "init-feature", "sample"]);
 
-    expect(mockedUi.success).toHaveBeenCalledWith(
-      "Created 2 feature docs for sample.",
-    );
+    expect(mockedUi.success).toHaveBeenCalledWith("Created 2 feature docs for sample.");
     expect(mockedUi.text).toHaveBeenCalledWith(
       "[dim]  - docs/ai/requirements/2026-05-25-feature-sample.md[/dim]",
     );
@@ -135,13 +117,7 @@ describe("docs command", () => {
     const program = new Command();
     registerDocsCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "docs",
-      "init-feature",
-      "sample",
-    ]);
+    await program.parseAsync(["node", "test", "docs", "init-feature", "sample"]);
 
     expect(mockCopyFeatureDocTemplates).toHaveBeenCalledWith("sample", {
       date: "2026-05-25",
@@ -155,14 +131,7 @@ describe("docs command", () => {
     const program = new Command();
     registerDocsCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "docs",
-      "init-feature",
-      "feature-sample",
-      "--json",
-    ]);
+    await program.parseAsync(["node", "test", "docs", "init-feature", "feature-sample", "--json"]);
 
     expect(mockedUi.text).toHaveBeenCalledWith(
       JSON.stringify(
@@ -188,37 +157,21 @@ describe("docs command", () => {
     const program = new Command();
     registerDocsCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "docs",
-      "init-feature",
-      "bad name",
-    ]);
+    await program.parseAsync(["node", "test", "docs", "init-feature", "bad name"]);
 
     expect(process.exitCode).toBe(1);
     expect(mockCopyFeatureDocTemplates).not.toHaveBeenCalled();
-    expect(mockedUi.error).toHaveBeenCalledWith(
-      "Invalid feature name: bad name",
-    );
+    expect(mockedUi.error).toHaveBeenCalledWith("Invalid feature name: bad name");
   });
 
   it("surfaces copy errors and sets a non-zero exit code", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date(2026, 4, 25, 10, 30));
-    mockCopyFeatureDocTemplates.mockRejectedValue(
-      new Error("Feature docs already exist"),
-    );
+    mockCopyFeatureDocTemplates.mockRejectedValue(new Error("Feature docs already exist"));
     const program = new Command();
     registerDocsCommand(program);
 
-    await program.parseAsync([
-      "node",
-      "test",
-      "docs",
-      "init-feature",
-      "sample",
-    ]);
+    await program.parseAsync(["node", "test", "docs", "init-feature", "sample"]);
 
     expect(process.exitCode).toBe(1);
     expect(mockedUi.error).toHaveBeenCalledWith("Feature docs already exist");

@@ -192,8 +192,6 @@ describe("MuseAdapter", () => {
     expect(await adapter.listSessions({ cwd: "/elsewhere" })).toEqual([]);
     const found = await adapter.findSessionsById(SID);
     expect(found.map((s) => s.sessionId)).toEqual([SID]);
-    expect(await adapter.findSessionsById("00000000-0000-0000-0000-000000000000")).toEqual(
-      [],
-    );
+    expect(await adapter.findSessionsById("00000000-0000-0000-0000-000000000000")).toEqual([]);
   });
 });

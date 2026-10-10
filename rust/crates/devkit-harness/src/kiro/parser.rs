@@ -77,7 +77,9 @@ pub fn read_session(
         .unwrap_or(0);
 
     Some(KiroSession {
-        session_id: metadata.session_id.unwrap_or_else(|| session_id.to_string()),
+        session_id: metadata
+            .session_id
+            .unwrap_or_else(|| session_id.to_string()),
         project_path: match metadata.cwd {
             Some(cwd) if !cwd.is_empty() => cwd,
             _ => fallback_cwd.to_string(),

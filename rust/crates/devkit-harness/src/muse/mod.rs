@@ -31,10 +31,7 @@ impl MuseAdapter {
     }
 
     fn runtime_dir(&self) -> PathBuf {
-        self.store_dir
-            .join("runtime")
-            .join("muse")
-            .join("sessions")
+        self.store_dir.join("runtime").join("muse").join("sessions")
     }
 
     fn archive_dir(&self) -> PathBuf {
@@ -52,11 +49,7 @@ impl MuseAdapter {
 
     /// `mapSessionToAgent` — project-based name, last prompt summary,
     /// parser status (no idle override, matching TS).
-    fn map_session_to_agent(
-        &self,
-        session: &parser::Session,
-        proc: &AgentProc,
-    ) -> EnrichedAgent {
+    fn map_session_to_agent(&self, session: &parser::Session, proc: &AgentProc) -> EnrichedAgent {
         let cwd = proc.cwd.clone().unwrap_or_default();
         EnrichedAgent {
             name: shared::generate_agent_name(&cwd, proc.pid),
@@ -101,11 +94,13 @@ impl HarnessAdapter for MuseAdapter {
             .processes
             .iter()
             .filter(|p| {
-                p.command.as_deref().map(|c| {
-                    shared::matches_executable_name(c, &["muse"])
-                        || shared::matches_executable_prefix(c, "muse")
-                })
-                .unwrap_or(false)
+                p.command
+                    .as_deref()
+                    .map(|c| {
+                        shared::matches_executable_name(c, &["muse"])
+                            || shared::matches_executable_prefix(c, "muse")
+                    })
+                    .unwrap_or(false)
             })
             .filter(|p| self.can_handle(p) && seen.insert(p.pid))
             .collect();
@@ -140,10 +135,12 @@ impl HarnessAdapter for MuseAdapter {
 
         // Like TS: unmatched processes plus matches whose transcript fails
         // to parse become process-only rows.
-        for proc in fallback
-            .into_iter()
-            .chain(processes.iter().copied().filter(|p| unmapped.contains(&p.pid)))
-        {
+        for proc in fallback.into_iter().chain(
+            processes
+                .iter()
+                .copied()
+                .filter(|p| unmapped.contains(&p.pid)),
+        ) {
             if mapped.contains(&proc.pid) {
                 continue;
             }

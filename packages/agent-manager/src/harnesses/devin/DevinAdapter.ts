@@ -64,12 +64,7 @@ const UTILITY_SUBCOMMANDS = new Set([
  * Flags that always consume the next argv token as their value.
  * (`devin --help`, main-command options.)
  */
-const REQUIRED_VALUE_FLAGS = new Set([
-  "--prompt-file",
-  "--config",
-  "--permission-mode",
-  "--model",
-]);
+const REQUIRED_VALUE_FLAGS = new Set(["--prompt-file", "--config", "--permission-mode", "--model"]);
 
 /**
  * Flags whose value is optional: the next token is consumed only when it
@@ -91,11 +86,7 @@ const OPTIONAL_VALUE_FLAGS = new Set([
  */
 function firstPositionalToken(command: string): string | null {
   const argv0 = executablePath(command);
-  const tokens = command
-    .trim()
-    .slice(argv0.length)
-    .trim()
-    .split(/\s+/);
+  const tokens = command.trim().slice(argv0.length).trim().split(/\s+/);
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (!token) continue;
@@ -213,10 +204,7 @@ export class DevinAdapter implements AgentAdapter {
    * backend, not a separate agent. Standalone `acp` processes (external ACP
    * clients) keep their own agent entry.
    */
-  private isAcpBackendChild(
-    proc: ProcessInfo,
-    processByPid: Map<number, ProcessInfo>,
-  ): boolean {
+  private isAcpBackendChild(proc: ProcessInfo, processByPid: Map<number, ProcessInfo>): boolean {
     if (firstPositionalToken(proc.command)?.toLowerCase() !== "acp") return false;
     if (proc.ppid === undefined) return false;
     return processByPid.has(proc.ppid);

@@ -88,10 +88,7 @@ impl CodexSessionLocator {
         };
 
         // updateUnmatchedProcesses
-        let live_keys: HashSet<String> = fallback
-            .iter()
-            .map(|p| process_key(p, now_ms))
-            .collect();
+        let live_keys: HashSet<String> = fallback.iter().map(|p| process_key(p, now_ms)).collect();
         unmatched.retain(|k, _| live_keys.contains(k));
         let matched_pids: HashSet<i64> = legacy.iter().map(|m| m.proc.pid).collect();
         for &p in &candidates {
@@ -219,9 +216,7 @@ impl CodexSessionLocator {
                         .and_then(Value::as_str)
                         .unwrap_or_default()
                         .to_string(),
-                    timestamp_ms: p
-                        .get("timestamp")
-                        .and_then(shared::parse_timestamp_ms),
+                    timestamp_ms: p.get("timestamp").and_then(shared::parse_timestamp_ms),
                 })
             }
             Err(_) if truncated => parse_truncated_session_meta(&line),
@@ -355,7 +350,10 @@ pub fn parse_uuid_v7_ms(session_id: &str) -> Option<i64> {
     if b[14] != b'7' {
         return None;
     }
-    let hex: String = session_id[..8].chars().chain(session_id[9..13].chars()).collect();
+    let hex: String = session_id[..8]
+        .chars()
+        .chain(session_id[9..13].chars())
+        .collect();
     let ms = i64::from_str_radix(&hex, 16).ok()?;
     if ms <= 0 {
         return None;
@@ -366,9 +364,7 @@ pub fn parse_uuid_v7_ms(session_id: &str) -> Option<i64> {
 /// `parseTruncatedSessionMeta` — id/cwd/timestamp precede the bulky payload
 /// fields, so they are pulled from the payload prefix of an over-long line.
 fn parse_truncated_session_meta(line: &str) -> Option<SessionMetaHead> {
-    if !line.contains("\"type\":\"session_meta\"")
-        && !line.contains("\"type\": \"session_meta\"")
-    {
+    if !line.contains("\"type\":\"session_meta\"") && !line.contains("\"type\": \"session_meta\"") {
         return None;
     }
     let payload_start = find_payload_start(line)?;
@@ -456,7 +452,10 @@ mod tests {
         // 0x0199ab12 = 2025-10-08-ish
         let ms = parse_uuid_v7_ms("0199ab12-3456-7bcd-8def-0123456789ab").unwrap();
         assert_eq!(ms, 0x0199ab123456);
-        assert_eq!(parse_uuid_v7_ms("0199ab12-3456-6bcd-8def-0123456789ab"), None);
+        assert_eq!(
+            parse_uuid_v7_ms("0199ab12-3456-6bcd-8def-0123456789ab"),
+            None
+        );
         assert_eq!(parse_uuid_v7_ms("not-a-uuid"), None);
     }
 

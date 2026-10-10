@@ -162,9 +162,14 @@ pub fn enrich_agents(procs: &mut [AgentProc]) {
 /// `lsof -a -d cwd -Fn -p <pids>` → {pid: cwd}. Output format: `p<pid>\nn<path>`…
 fn batch_cwds(pids: &[String]) -> std::collections::HashMap<i64, String> {
     let mut out = std::collections::HashMap::new();
-    let Some(res) = run_with_timeout(
-        Command::new("lsof").args(["-a", "-d", "cwd", "-Fn", "-p", &pids.join(",")]),
-    ) else {
+    let Some(res) = run_with_timeout(Command::new("lsof").args([
+        "-a",
+        "-d",
+        "cwd",
+        "-Fn",
+        "-p",
+        &pids.join(","),
+    ])) else {
         return out;
     };
     let mut current: Option<i64> = None;
@@ -183,9 +188,9 @@ fn batch_cwds(pids: &[String]) -> std::collections::HashMap<i64, String> {
 /// `Wed Mar 18 23:18:01 2026` (day-of-week, month, day, time, year).
 fn batch_start_times(pids: &[String]) -> std::collections::HashMap<i64, i64> {
     let mut out = std::collections::HashMap::new();
-    let Some(res) = run_with_timeout(
-        Command::new("ps").args(["-o", "pid=,lstart=", "-p", &pids.join(",")]),
-    ) else {
+    let Some(res) =
+        run_with_timeout(Command::new("ps").args(["-o", "pid=,lstart=", "-p", &pids.join(",")]))
+    else {
         return out;
     };
     for line in String::from_utf8_lossy(&res.stdout).lines() {

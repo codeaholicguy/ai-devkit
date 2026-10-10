@@ -35,39 +35,25 @@ export function registerMemoryCommand(program: Command): void {
   memoryCommand
     .command("store")
     .description("Store a new knowledge item")
-    .requiredOption(
-      "-t, --title <title>",
-      "Title of the knowledge item (10-100 chars)",
-    )
-    .requiredOption(
-      "-c, --content <content>",
-      "Content of the knowledge item (50-5000 chars)",
-    )
+    .requiredOption("-t, --title <title>", "Title of the knowledge item (10-100 chars)")
+    .requiredOption("-c, --content <content>", "Content of the knowledge item (50-5000 chars)")
     .option("--tags <tags>", 'Comma-separated tags (e.g., "api,backend")')
-    .option(
-      "-s, --scope <scope>",
-      "Scope: global, project:<name>, or repo:<name>",
-      "global",
-    )
+    .option("-s, --scope <scope>", "Scope: global, project:<name>, or repo:<name>", "global")
     .action(
-      withErrorHandler(
-        "store knowledge",
-        async (options: MemoryStoreOptions) => {
-          const { memoryStoreCommand, memoryStoreCommandAsync } =
-            await loadMemory();
-          const commandOptions = {
-            ...options,
-            dbPath: await resolveMemoryDbPath(),
-          } as MemoryStoreOptions;
-          const result = (await resolveSemanticEnabled())
-            ? await memoryStoreCommandAsync({
-                ...commandOptions,
-                semantic: true,
-              })
-            : memoryStoreCommand(commandOptions);
-          console.log(JSON.stringify(result, null, 2));
-        },
-      ),
+      withErrorHandler("store knowledge", async (options: MemoryStoreOptions) => {
+        const { memoryStoreCommand, memoryStoreCommandAsync } = await loadMemory();
+        const commandOptions = {
+          ...options,
+          dbPath: await resolveMemoryDbPath(),
+        } as MemoryStoreOptions;
+        const result = (await resolveSemanticEnabled())
+          ? await memoryStoreCommandAsync({
+              ...commandOptions,
+              semantic: true,
+            })
+          : memoryStoreCommand(commandOptions);
+        console.log(JSON.stringify(result, null, 2));
+      }),
     );
 
   memoryCommand
@@ -77,29 +63,22 @@ export function registerMemoryCommand(program: Command): void {
     .option("-t, --title <title>", "New title (10-100 chars)")
     .option("-c, --content <content>", "New content (50-5000 chars)")
     .option("--tags <tags>", "Comma-separated new tags (replaces existing)")
-    .option(
-      "-s, --scope <scope>",
-      "New scope: global, project:<name>, or repo:<name>",
-    )
+    .option("-s, --scope <scope>", "New scope: global, project:<name>, or repo:<name>")
     .action(
-      withErrorHandler(
-        "update knowledge",
-        async (options: MemoryUpdateOptions) => {
-          const { memoryUpdateCommand, memoryUpdateCommandAsync } =
-            await loadMemory();
-          const commandOptions = {
-            ...options,
-            dbPath: await resolveMemoryDbPath(),
-          } as MemoryUpdateOptions;
-          const result = (await resolveSemanticEnabled())
-            ? await memoryUpdateCommandAsync({
-                ...commandOptions,
-                semantic: true,
-              })
-            : memoryUpdateCommand(commandOptions);
-          console.log(JSON.stringify(result, null, 2));
-        },
-      ),
+      withErrorHandler("update knowledge", async (options: MemoryUpdateOptions) => {
+        const { memoryUpdateCommand, memoryUpdateCommandAsync } = await loadMemory();
+        const commandOptions = {
+          ...options,
+          dbPath: await resolveMemoryDbPath(),
+        } as MemoryUpdateOptions;
+        const result = (await resolveSemanticEnabled())
+          ? await memoryUpdateCommandAsync({
+              ...commandOptions,
+              semantic: true,
+            })
+          : memoryUpdateCommand(commandOptions);
+        console.log(JSON.stringify(result, null, 2));
+      }),
     );
 
   memoryCommand
@@ -121,8 +100,7 @@ export function registerMemoryCommand(program: Command): void {
             explain?: boolean;
           },
         ) => {
-          const { memorySearchCommand, memorySearchCommandAsync } =
-            await loadMemory();
+          const { memorySearchCommand, memorySearchCommandAsync } = await loadMemory();
           const { table, limit, explain, ...searchOptions } = options;
           const commandOptions = {
             ...searchOptions,
@@ -140,11 +118,7 @@ export function registerMemoryCommand(program: Command): void {
           if (table) {
             if (result.results.length === 0) {
               ui.warning(`No memory items found matching "${result.query}"`);
-              ui.text(
-                chalk.dim(
-                  'Tip: store knowledge with "ai-devkit memory store".',
-                ),
-              );
+              ui.text(chalk.dim('Tip: store knowledge with "ai-devkit memory store".'));
               return;
             }
 
@@ -200,16 +174,13 @@ export function registerMemoryCommand(program: Command): void {
     .description("Backfill missing or stale semantic embeddings")
     .option("--force", "Recompute all embeddings")
     .action(
-      withErrorHandler(
-        "re-embed memory",
-        async (options: { force?: boolean }) => {
-          const { memoryReembedCommand } = await loadMemory();
-          const result = await memoryReembedCommand({
-            dbPath: await resolveMemoryDbPath(),
-            force: options.force === true,
-          });
-          console.log(JSON.stringify(result, null, 2));
-        },
-      ),
+      withErrorHandler("re-embed memory", async (options: { force?: boolean }) => {
+        const { memoryReembedCommand } = await loadMemory();
+        const result = await memoryReembedCommand({
+          dbPath: await resolveMemoryDbPath(),
+          force: options.force === true,
+        });
+        console.log(JSON.stringify(result, null, 2));
+      }),
     );
 }

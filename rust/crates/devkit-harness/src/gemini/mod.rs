@@ -257,8 +257,12 @@ mod tests {
     #[test]
     fn gemini_executable_tokens() {
         assert!(GeminiAdapter::is_gemini_executable("gemini"));
-        assert!(GeminiAdapter::is_gemini_executable("node /opt/gemini.js --yolo"));
-        assert!(GeminiAdapter::is_gemini_executable("C:\\tools\\gemini.exe chat"));
+        assert!(GeminiAdapter::is_gemini_executable(
+            "node /opt/gemini.js --yolo"
+        ));
+        assert!(GeminiAdapter::is_gemini_executable(
+            "C:\\tools\\gemini.exe chat"
+        ));
         assert!(!GeminiAdapter::is_gemini_executable("geminis"));
         assert!(!GeminiAdapter::is_gemini_executable("node server.js"));
     }

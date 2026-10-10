@@ -18,10 +18,7 @@ export async function lintCommand(options: LintOptions): Promise<void> {
   process.exitCode = report.exitCode;
 }
 
-export function renderLintReport(
-  report: LintReport,
-  options: LintOptions = {},
-): void {
+export function renderLintReport(report: LintReport, options: LintOptions = {}): void {
   if (options.json) {
     ui.text(JSON.stringify(report, null, 2));
     return;
@@ -53,17 +50,11 @@ export function renderLintReport(
   if (report.pass) {
     ui.text(chalk.green(`${pluralize(report.summary.ok, "check")} passed.`));
   } else {
-    ui.text(
-      chalk.red(
-        `${pluralize(report.summary.requiredFailures, "required check")} failed.`,
-      ),
-    );
+    ui.text(chalk.red(`${pluralize(report.summary.requiredFailures, "required check")} failed.`));
   }
 
   if (report.summary.warn > 0) {
-    ui.text(
-      chalk.yellow(`${pluralize(report.summary.warn, "warning")} reported.`),
-    );
+    ui.text(chalk.yellow(`${pluralize(report.summary.warn, "warning")} reported.`));
   }
 }
 

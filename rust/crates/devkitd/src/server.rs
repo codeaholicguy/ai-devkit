@@ -34,10 +34,7 @@ impl Daemon {
         // The db may one day hold sensitive state — the socket is
         // already 0600, tighten the directory so wal/shm sidecars (created
         // per open with default umask) aren't world-readable either.
-        let _ = std::fs::set_permissions(
-            data_dir,
-            std::fs::Permissions::from_mode(0o700),
-        );
+        let _ = std::fs::set_permissions(data_dir, std::fs::Permissions::from_mode(0o700));
         let db = data_dir.join("daemon.db");
         // A corrupt db previously killed devkitd on open — and autostart
         // would respawn it on every call into the same crash. Quarantine

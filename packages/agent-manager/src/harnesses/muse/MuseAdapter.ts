@@ -46,9 +46,7 @@ export class MuseAdapter implements AgentAdapter {
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    const base = path
-      .basename(processInfo.command.trim().split(/\s+/)[0] ?? "")
-      .toLowerCase();
+    const base = path.basename(processInfo.command.trim().split(/\s+/)[0] ?? "").toLowerCase();
     return base === "muse" || base === "muse.exe" || base.startsWith("muse-bin-");
   }
 

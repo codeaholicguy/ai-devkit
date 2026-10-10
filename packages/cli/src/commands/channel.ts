@@ -24,20 +24,7 @@ import { runChannelBridge } from "../services/channel/channel-runner.js";
 const debug = createLogger("channel");
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function resolveDaemonLaunch(): { command: string; args: string[] } {
   if (path.extname(__filename) === ".ts") {
@@ -60,16 +47,12 @@ function resolveDaemonLaunch(): { command: string; args: string[] } {
 
 function redactSecrets(message: string, secrets: string[]): string {
   return secrets.reduce(
-    (redacted, secret) =>
-      secret ? redacted.split(secret).join("[REDACTED]") : redacted,
+    (redacted, secret) => (secret ? redacted.split(secret).join("[REDACTED]") : redacted),
     message,
   );
 }
 
-function formatChannelDate(
-  value: string | undefined,
-  fallback: string,
-): string {
+function formatChannelDate(value: string | undefined, fallback: string): string {
   if (!value) return fallback;
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return fallback;
@@ -115,30 +98,24 @@ export function registerChannelCommand(program: Command): void {
             return;
           }
 
-          const channelName = channelService.resolveConnectChannelName(
-            options.name,
-          );
+          const channelName = channelService.resolveConnectChannelName(options.name);
           const configStore = new ChannelConfigRepository();
           const existing = await configStore.getChannel(channelName);
 
           if (type === SLACK_CHANNEL_TYPE) {
-            ui.info(
-              "Create a single-workspace Slack app from the AI DevKit Socket Mode manifest.",
-            );
+            ui.info("Create a single-workspace Slack app from the AI DevKit Socket Mode manifest.");
             const appToken = String(
               await password({
                 message: "Enter your Slack app-level token (xapp-…):",
                 validate: (input: string) =>
-                  input.trim().startsWith("xapp-") ||
-                  "App token must start with xapp-",
+                  input.trim().startsWith("xapp-") || "App token must start with xapp-",
               }),
             ).trim();
             const botToken = String(
               await password({
                 message: "Enter your Slack bot token (xoxb-…):",
                 validate: (input: string) =>
-                  input.trim().startsWith("xoxb-") ||
-                  "Bot token must start with xoxb-",
+                  input.trim().startsWith("xoxb-") || "Bot token must start with xoxb-",
               }),
             ).trim();
             const spinner = ui.spinner("Validating Slack bot identity...");
@@ -165,36 +142,26 @@ export function registerChannelCommand(program: Command): void {
               spinner.succeed(
                 `Connected to Slack workspace ${identity.workspaceName ?? identity.workspaceId}`,
               );
-              ui.success(
-                `Slack channel "${channelName}" configured successfully!`,
-              );
+              ui.success(`Slack channel "${channelName}" configured successfully!`);
               ui.info(
                 `Run "ai-devkit channel start ${channelName} --agent <name>", then DM the Slack app.`,
               );
             } catch (error: unknown) {
-              const message = redactSecrets(getErrorMessage(error), [
-                appToken,
-                botToken,
-              ]);
+              const message = redactSecrets(getErrorMessage(error), [appToken, botToken]);
               debug(`Slack ${stage} failed: ${message}`);
-              spinner.fail(
-                "Invalid Slack credentials. Please check and try again.",
-              );
+              spinner.fail("Invalid Slack credentials. Please check and try again.");
             }
             return;
           }
 
           ui.info("To connect Telegram, you need a bot token from @BotFather.");
-          ui.info(
-            "Open Telegram, search for @BotFather, and create a new bot.\n",
-          );
+          ui.info("Open Telegram, search for @BotFather, and create a new bot.\n");
 
           const botToken = await password({
             message: "Enter your Telegram bot token:",
             validate: (input: string) => {
               if (!input.trim()) return "Bot token is required";
-              if (!input.includes(":"))
-                return "Invalid token format (expected number:hash)";
+              if (!input.includes(":")) return "Invalid token format (expected number:hash)";
               return true;
             },
           });
@@ -216,11 +183,7 @@ export function registerChannelCommand(program: Command): void {
 
           const trimmedBotToken = botToken.trim();
           const config = await configStore.getConfig();
-          channelService.assertUniqueTelegramToken(
-            config,
-            channelName,
-            trimmedBotToken,
-          );
+          channelService.assertUniqueTelegramToken(config, channelName, trimmedBotToken);
 
           const entry: ChannelEntry = {
             type: TELEGRAM_CHANNEL_TYPE,
@@ -230,17 +193,14 @@ export function registerChannelCommand(program: Command): void {
               botToken: trimmedBotToken,
               botUsername,
               authorizedChatId:
-                (existing?.config as TelegramConfig | undefined)?.botToken ===
-                trimmedBotToken
+                (existing?.config as TelegramConfig | undefined)?.botToken === trimmedBotToken
                   ? (existing?.config as TelegramConfig).authorizedChatId
                   : undefined,
             } as TelegramConfig,
           };
 
           await configStore.saveChannel(channelName, entry);
-          ui.success(
-            `Telegram channel "${channelName}" configured successfully!`,
-          );
+          ui.success(`Telegram channel "${channelName}" configured successfully!`);
           ui.info(`Bot: @${botUsername}`);
           ui.info(
             `Run "ai-devkit channel start ${channelName} --agent <name>" to start the bridge.`,
@@ -258,14 +218,10 @@ export function registerChannelCommand(program: Command): void {
         const config = await configStore.getConfig();
         const channels = Object.entries(config.channels);
         const liveBridges = await channelService.getLiveBridges();
-        const liveByChannel = new Map(
-          liveBridges.map((bridge) => [bridge.channelName, bridge]),
-        );
+        const liveByChannel = new Map(liveBridges.map((bridge) => [bridge.channelName, bridge]));
 
         if (channels.length === 0) {
-          ui.info(
-            'No channels configured. Run "ai-devkit channel connect telegram" to set up.',
-          );
+          ui.info('No channels configured. Run "ai-devkit channel connect telegram" to set up.');
           return;
         }
 
@@ -298,15 +254,7 @@ export function registerChannelCommand(program: Command): void {
         });
 
         ui.table({
-          headers: [
-            "Name",
-            "Type",
-            "Status",
-            "Identity",
-            "Authorized",
-            "Bridge",
-            "Created",
-          ],
+          headers: ["Name", "Type", "Status", "Identity", "Authorized", "Bridge", "Created"],
           rows,
           columnStyles: [
             (text) => text,
@@ -326,11 +274,7 @@ export function registerChannelCommand(program: Command): void {
             ),
           );
         } else if (runningChannelNames.length > 1) {
-          ui.text(
-            chalk.dim(
-              'Run "ai-devkit channel status <name>" for bridge details.',
-            ),
-          );
+          ui.text(chalk.dim('Run "ai-devkit channel status <name>" for bridge details.'));
         }
       }),
     );
@@ -368,103 +312,91 @@ export function registerChannelCommand(program: Command): void {
     .option("--daemon", "Start the channel bridge in the background")
     .option("--debug", "Enable debug logging")
     .action(
-      withErrorHandler(
-        "start channel bridge",
-        async (name: string | undefined, options) => {
-          if (options.debug) {
-            enableDebug();
+      withErrorHandler("start channel bridge", async (name: string | undefined, options) => {
+        if (options.debug) {
+          enableDebug();
+        }
+
+        const configStore = new ChannelConfigRepository();
+        debug("Loading channel configuration from ChannelConfigRepository");
+        const config = await configStore.getConfig();
+        const channelName = channelService.resolveStartChannelName(config, name);
+        debug(`Starting channel bridge: channel=${channelName}, agent=${options.agent}`);
+        const channelEntry = config.channels[channelName];
+        const runningBridge = await channelService.getLiveBridgeByChannel(channelName);
+
+        if (!channelEntry) {
+          ui.error(`No channel configured with name "${channelName}".`);
+          const availableChannels = Object.keys(config.channels);
+          if (availableChannels.length > 0) {
+            ui.info(`Available channels: ${availableChannels.join(", ")}`);
           }
+          return;
+        }
 
-          const configStore = new ChannelConfigRepository();
-          debug("Loading channel configuration from ChannelConfigRepository");
-          const config = await configStore.getConfig();
-          const channelName = channelService.resolveStartChannelName(
-            config,
-            name,
-          );
-          debug(
-            `Starting channel bridge: channel=${channelName}, agent=${options.agent}`,
-          );
-          const channelEntry = config.channels[channelName];
-          const runningBridge =
-            await channelService.getLiveBridgeByChannel(channelName);
-
-          if (!channelEntry) {
-            ui.error(`No channel configured with name "${channelName}".`);
-            const availableChannels = Object.keys(config.channels);
-            if (availableChannels.length > 0) {
-              ui.info(`Available channels: ${availableChannels.join(", ")}`);
-            }
-            return;
-          }
-
-          if (options.daemon) {
-            const daemonLaunch = resolveDaemonLaunch();
-            const daemonArgs = [
-              ...daemonLaunch.args,
-              "--channel",
-              channelName,
-              "--agent",
-              options.agent,
-            ];
-            if (options.debug) {
-              daemonArgs.push("--debug");
-            }
-
-            const bridge = await channelService.startDaemonBridge({
-              channelName,
-              channelType: channelEntry.type,
-              agentName: options.agent,
-              command: daemonLaunch.command,
-              args: daemonArgs,
-              cwd: process.cwd(),
-            });
-
-            ui.success(
-              `Channel bridge daemon started for "${channelName}" (PID: ${bridge.bridgePid}).`,
-            );
-            if (bridge.logPath) {
-              ui.info(`Logs: ${bridge.logPath}`);
-            }
-            ui.info(`Run "ai-devkit channel stop ${channelName}" to stop it.`);
-            return;
-          }
-
-          if (runningBridge) {
-            ui.error(
-              `Channel "${channelName}" bridge is already running (PID: ${runningBridge.bridgePid}).`,
-            );
-            return;
-          }
-
-          await runChannelBridge({
+        if (options.daemon) {
+          const daemonLaunch = resolveDaemonLaunch();
+          const daemonArgs = [
+            ...daemonLaunch.args,
+            "--channel",
             channelName,
+            "--agent",
+            options.agent,
+          ];
+          if (options.debug) {
+            daemonArgs.push("--debug");
+          }
+
+          const bridge = await channelService.startDaemonBridge({
+            channelName,
+            channelType: channelEntry.type,
             agentName: options.agent,
-            configStore,
-            channelService,
+            command: daemonLaunch.command,
+            args: daemonArgs,
+            cwd: process.cwd(),
           });
-        },
-      ),
+
+          ui.success(
+            `Channel bridge daemon started for "${channelName}" (PID: ${bridge.bridgePid}).`,
+          );
+          if (bridge.logPath) {
+            ui.info(`Logs: ${bridge.logPath}`);
+          }
+          ui.info(`Run "ai-devkit channel stop ${channelName}" to stop it.`);
+          return;
+        }
+
+        if (runningBridge) {
+          ui.error(
+            `Channel "${channelName}" bridge is already running (PID: ${runningBridge.bridgePid}).`,
+          );
+          return;
+        }
+
+        await runChannelBridge({
+          channelName,
+          agentName: options.agent,
+          configStore,
+          channelService,
+        });
+      }),
     );
 
   channelCommand
     .command("stop [name]")
     .description("Stop a running channel bridge")
     .action(
-      withErrorHandler(
-        "stop channel bridge",
-        async (name: string | undefined) => {
-          const result = await channelService.stopBridge(name);
-          if (!result.stopped || !result.bridge) {
-            ui.info("No running channel bridge found.");
-            return;
-          }
+      withErrorHandler("stop channel bridge", async (name: string | undefined) => {
+        const result = await channelService.stopBridge(name);
+        if (!result.stopped || !result.bridge) {
+          ui.info("No running channel bridge found.");
+          return;
+        }
 
-          ui.success(
-            `Channel bridge stopped: ${result.bridge.channelName} (PID: ${result.bridge.bridgePid}).`,
-          );
-        },
-      ),
+        ui.success(
+          `Channel bridge stopped: ${result.bridge.channelName} (PID: ${result.bridge.bridgePid}).`,
+        );
+      }),
     );
 
   channelCommand
@@ -474,16 +406,12 @@ export function registerChannelCommand(program: Command): void {
       withErrorHandler("channel status", async (name: string | undefined) => {
         const configStore = new ChannelConfigRepository();
         const config = await configStore.getConfig();
-        const channelFilter = name
-          ? channelService.resolveConnectChannelName(name)
-          : undefined;
+        const channelFilter = name ? channelService.resolveConnectChannelName(name) : undefined;
         const channels = Object.entries(config.channels).filter(
           ([channelName]) => !channelFilter || channelName === channelFilter,
         );
         const liveBridges = await channelService.getLiveBridges();
-        const liveByChannel = new Map(
-          liveBridges.map((bridge) => [bridge.channelName, bridge]),
-        );
+        const liveByChannel = new Map(liveBridges.map((bridge) => [bridge.channelName, bridge]));
 
         if (channels.length === 0) {
           ui.info(
@@ -510,9 +438,7 @@ export function registerChannelCommand(program: Command): void {
                 ? "yes"
                 : "no";
           ui.text(`${chalk.bold(name)} (${entry.type})`);
-          ui.text(
-            `  Enabled: ${entry.enabled ? chalk.green("yes") : chalk.red("no")}`,
-          );
+          ui.text(`  Enabled: ${entry.enabled ? chalk.green("yes") : chalk.red("no")}`);
           ui.text(`  Identity: ${identity}`);
           ui.text(`  Authorized: ${styleAuthorization(authorization)}`);
           ui.text(
@@ -521,9 +447,7 @@ export function registerChannelCommand(program: Command): void {
           if (bridge?.logPath) {
             ui.text(`  Logs: ${bridge.logPath}`);
           }
-          ui.text(
-            `  Configured: ${formatChannelDate(entry.createdAt, "unknown")}`,
-          );
+          ui.text(`  Configured: ${formatChannelDate(entry.createdAt, "unknown")}`);
         }
       }),
     );

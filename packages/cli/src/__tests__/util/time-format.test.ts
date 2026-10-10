@@ -1,7 +1,4 @@
-import {
-  formatClockTime,
-  formatRelativeOrAbsoluteTime,
-} from "../../util/time-format.js";
+import { formatClockTime, formatRelativeOrAbsoluteTime } from "../../util/time-format.js";
 
 const now = new Date("2026-08-09T10:00:00.000Z");
 const localClock = (date: Date) =>

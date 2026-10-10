@@ -67,10 +67,7 @@ fn entry_role(entry: &Value) -> Option<&'static str> {
     let message = message_record(entry);
     let payload = entry.get("payload");
     let data = entry.get("data");
-    let mut candidates = vec![
-        entry.get("role"),
-        message.and_then(|m| m.get("role")),
-    ];
+    let mut candidates = vec![entry.get("role"), message.and_then(|m| m.get("role"))];
     if let Some(t) = entry.get("type") {
         if t.as_str().is_some_and(is_role_like) {
             candidates.push(Some(t));
@@ -102,7 +99,9 @@ fn content_to_string(v: Option<&Value>) -> String {
             .collect::<Vec<_>>()
             .join(""),
         Some(Value::Object(o)) => content_to_string(
-            o.get("content").or_else(|| o.get("text")).or_else(|| o.get("value")),
+            o.get("content")
+                .or_else(|| o.get("text"))
+                .or_else(|| o.get("value")),
         ),
         _ => String::new(),
     }
@@ -280,12 +279,17 @@ pub fn read_session(path: &str, fallback_cwd: &str) -> Option<Session> {
                 .unwrap()
                 .as_millis() as i64
         });
-    let last_active = state.last_timestamp_ms.or(mtime_ms).unwrap_or(session_start);
+    let last_active = state
+        .last_timestamp_ms
+        .or(mtime_ms)
+        .unwrap_or(session_start);
     Some(Session {
         session_id: state
             .session_id
             .unwrap_or_else(|| session_id_from_file(path)),
-        project_path: state.project_path.unwrap_or_else(|| fallback_cwd.to_string()),
+        project_path: state
+            .project_path
+            .unwrap_or_else(|| fallback_cwd.to_string()),
         summary: state
             .last_user_message
             .map(|m| shared::truncate(&m, 120))
@@ -345,7 +349,9 @@ pub fn read_session_head(path: &str, max_bytes: usize) -> Option<SessionHead> {
 }
 
 fn apply_head_line(head: &mut SessionHead, line: &[u8]) {
-    let Ok(text) = std::str::from_utf8(line) else { return };
+    let Ok(text) = std::str::from_utf8(line) else {
+        return;
+    };
     let trimmed = text.trim();
     if trimmed.is_empty() {
         return;
@@ -384,10 +390,8 @@ mod tests {
 
     fn write_tmp(lines: &[&str]) -> String {
         let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let path = std::env::temp_dir().join(format!(
-            "devkit-pi-parser-{}-{n}.jsonl",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("devkit-pi-parser-{}-{n}.jsonl", std::process::id()));
         let mut f = std::fs::File::create(&path).unwrap();
         for l in lines {
             writeln!(f, "{l}").unwrap();
@@ -427,10 +431,9 @@ mod tests {
     #[test]
     fn role_like_type_filters_non_role_types() {
         // `type: "foo"` must not shadow a payload role.
-        let e: Value = serde_json::from_str(
-            r#"{"type":"event","payload":{"role":"user"},"content":"x"}"#,
-        )
-        .unwrap();
+        let e: Value =
+            serde_json::from_str(r#"{"type":"event","payload":{"role":"user"},"content":"x"}"#)
+                .unwrap();
         assert_eq!(entry_role(&e), Some("user"));
         let e2: Value =
             serde_json::from_str(r#"{"type":"assistant","payload":{"role":"user"}}"#).unwrap();

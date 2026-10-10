@@ -1,13 +1,7 @@
 import chalk from "chalk";
-import type {
-  AgentReadinessReport,
-  ReadinessAgentType,
-} from "@ai-devkit/agent-manager";
+import type { AgentReadinessReport, ReadinessAgentType } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
-import type {
-  CheckStatus,
-  StatusReport,
-} from "../../services/status/status.service.js";
+import type { CheckStatus, StatusReport } from "../../services/status/status.service.js";
 
 const STATUS_STYLES: Record<string, (text: string) => string> = {
   ready: chalk.green,
@@ -41,13 +35,9 @@ function authEvidence(auth: NonNullable<AgentReadinessReport["auth"]>): string {
   return auth.provider ?? auth.state;
 }
 
-function agentEntries(
-  report: StatusReport,
-): Array<[ReadinessAgentType, AgentReadinessReport]> {
+function agentEntries(report: StatusReport): Array<[ReadinessAgentType, AgentReadinessReport]> {
   return (
-    Object.entries(report.agents) as Array<
-      [ReadinessAgentType, AgentReadinessReport]
-    >
+    Object.entries(report.agents) as Array<[ReadinessAgentType, AgentReadinessReport]>
   ).filter(([, agent]) => agent.executable.path !== null);
 }
 
@@ -83,17 +73,9 @@ function checkRows(report: StatusReport): Array<[string, string, string]> {
       ],
     );
     if (item.auth) {
-      details.push([
-        `${agent}: auth`,
-        statusLabel(item.auth.status),
-        authEvidence(item.auth),
-      ]);
+      details.push([`${agent}: auth`, statusLabel(item.auth.status), authEvidence(item.auth)]);
       if (item.auth.availableProviders.length) {
-        details.push([
-          `${agent}: providers`,
-          "info",
-          item.auth.availableProviders.join(", "),
-        ]);
+        details.push([`${agent}: providers`, "info", item.auth.availableProviders.join(", ")]);
       }
     }
     if (item.integration) {
@@ -116,17 +98,11 @@ function overallDetails(details: Array<[string, string, string]>): string {
   ].join(" · ");
 }
 
-function reportStatusCount(
-  details: Array<[string, string, string]>,
-  status: string,
-): number {
+function reportStatusCount(details: Array<[string, string, string]>, status: string): number {
   return details.filter(([, itemStatus]) => itemStatus === status).length;
 }
 
-export function renderStatusReport(
-  report: StatusReport,
-  options: { json?: boolean } = {},
-): void {
+export function renderStatusReport(report: StatusReport, options: { json?: boolean } = {}): void {
   if (options.json) {
     ui.text(JSON.stringify(report, null, 2));
     return;

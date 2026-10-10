@@ -127,9 +127,7 @@ impl GeminiSessionLocator {
         let Some((text, complete)) = read_head(file_path, METADATA_HEAD_BYTES) else {
             return Metadata::default();
         };
-        let is_log = file_path
-            .to_string_lossy()
-            .ends_with(SESSION_LOG_EXT);
+        let is_log = file_path.to_string_lossy().ends_with(SESSION_LOG_EXT);
         if is_log {
             return match text.find('\n') {
                 Some(nl) => pick_metadata(text[..nl].parse::<Value>().ok().as_ref()),
@@ -168,7 +166,10 @@ impl GeminiSessionLocator {
         let Ok(content) = std::fs::read_to_string(&marker) else {
             return true;
         };
-        if !std::fs::metadata(&marker).map(|m| m.is_file()).unwrap_or(false) {
+        if !std::fs::metadata(&marker)
+            .map(|m| m.is_file())
+            .unwrap_or(false)
+        {
             return true;
         }
         let root = content.trim();
@@ -214,7 +215,10 @@ fn earliest_matchable_mtime(processes: &[&AgentProc]) -> i64 {
 }
 
 fn is_legacy_hash_dir(name: &str) -> bool {
-    name.len() == 64 && name.bytes().all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+    name.len() == 64
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
 }
 
 /// `listSessionFileNames` — `session-*.{json,jsonl}`, a `.json` being
@@ -298,7 +302,10 @@ fn pick_metadata(v: Option<&Value>) -> Metadata {
         return Metadata::default();
     };
     Metadata {
-        session_id: v.get("sessionId").and_then(|s| s.as_str()).map(String::from),
+        session_id: v
+            .get("sessionId")
+            .and_then(|s| s.as_str())
+            .map(String::from),
         project_hash: v
             .get("projectHash")
             .and_then(|s| s.as_str())

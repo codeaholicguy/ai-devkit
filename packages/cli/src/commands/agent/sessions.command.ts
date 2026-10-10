@@ -17,26 +17,11 @@ import { formatCwd } from "./render.js";
 export function registerAgentSessionsCommand(agentCommand: Command): void {
   agentCommand
     .command("sessions")
-    .description(
-      "List historical Claude/Codex/Gemini/Grok/Kiro/OpenCode/Devin sessions for resume",
-    )
-    .option(
-      "--all",
-      "Include sessions from every cwd (default: only current cwd)",
-    )
-    .option(
-      "--cwd <path>",
-      "Override the cwd filter (implies non-default scope)",
-    )
-    .option(
-      "--type <type>",
-      `Filter to one of: ${AGENT_TYPES.join(", ")}`,
-    )
-    .option(
-      "--limit <n>",
-      "Max rows to print (default: 50; 0 = no limit)",
-      "50",
-    )
+    .description("List historical Claude/Codex/Gemini/Grok/Kiro/OpenCode/Devin sessions for resume")
+    .option("--all", "Include sessions from every cwd (default: only current cwd)")
+    .option("--cwd <path>", "Override the cwd filter (implies non-default scope)")
+    .option("--type <type>", `Filter to one of: ${AGENT_TYPES.join(", ")}`)
+    .option("--limit <n>", "Max rows to print (default: 50; 0 = no limit)", "50")
     .option("-j, --json", "Output as JSON")
     .action(
       withErrorHandler("list sessions", async (options) => {
@@ -65,13 +50,7 @@ export function registerAgentSessionsCommand(agentCommand: Command): void {
 
         ui.text("Sessions:", { breakline: true });
         ui.table({
-          headers: [
-            "Type",
-            "Session ID",
-            "CWD",
-            "First Message",
-            "Last Active",
-          ],
+          headers: ["Type", "Session ID", "CWD", "First Message", "Last Active"],
           rows: sessions.map((s) => [
             agentTypeLabel(s.type),
             s.sessionId,

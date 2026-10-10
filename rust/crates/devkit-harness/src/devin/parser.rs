@@ -85,13 +85,11 @@ fn user_prompt(db: &Connection, session_id: &str, direction: &str) -> String {
     }
 
     let rows = db
-        .prepare(
-            &format!(
-                "SELECT chat_message FROM message_nodes
+        .prepare(&format!(
+            "SELECT chat_message FROM message_nodes
                  WHERE session_id = ?1 AND json_extract(chat_message, '$.role') = 'user'
                  ORDER BY node_id {direction} LIMIT 8"
-            ),
-        )
+        ))
         .and_then(|mut stmt| {
             stmt.query_map([session_id], |r| r.get::<_, String>(0))
                 .map(|m| m.flatten().collect::<Vec<String>>())

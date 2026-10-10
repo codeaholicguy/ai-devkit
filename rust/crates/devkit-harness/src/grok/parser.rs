@@ -137,7 +137,10 @@ mod tests {
             extract_user_query("pre <user_query>  hello world  </user_query> post"),
             Some("hello world".into())
         );
-        assert_eq!(extract_user_query("<user_query></user_query>"), Some("".into()));
+        assert_eq!(
+            extract_user_query("<user_query></user_query>"),
+            Some("".into())
+        );
         assert_eq!(extract_user_query("<user_info>ctx</user_info>"), None);
         assert_eq!(extract_user_query("<user_query>unclosed"), None);
     }

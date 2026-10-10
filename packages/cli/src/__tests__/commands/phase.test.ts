@@ -1,25 +1,24 @@
-const { mockConfigManager, mockTemplateManager, mockConfirm, mockUi } =
-  vi.hoisted(() => ({
-    mockConfigManager: {
-      exists: vi.fn(),
-      getDocsDir: vi.fn(),
-      read: vi.fn(),
-      addPhase: vi.fn(),
-    },
-    mockTemplateManager: {
-      fileExists: vi.fn(),
-      copyPhaseTemplate: vi.fn(),
-    },
-    mockConfirm: vi.fn(),
-    mockUi: {
-      error: vi.fn(),
-      warning: vi.fn(),
-      success: vi.fn(),
-      info: vi.fn(),
-      text: vi.fn(),
-      breakline: vi.fn(),
-    },
-  }));
+const { mockConfigManager, mockTemplateManager, mockConfirm, mockUi } = vi.hoisted(() => ({
+  mockConfigManager: {
+    exists: vi.fn(),
+    getDocsDir: vi.fn(),
+    read: vi.fn(),
+    addPhase: vi.fn(),
+  },
+  mockTemplateManager: {
+    fileExists: vi.fn(),
+    copyPhaseTemplate: vi.fn(),
+  },
+  mockConfirm: vi.fn(),
+  mockUi: {
+    error: vi.fn(),
+    warning: vi.fn(),
+    success: vi.fn(),
+    info: vi.fn(),
+    text: vi.fn(),
+    breakline: vi.fn(),
+  },
+}));
 
 vi.mock("chalk", () => ({
   default: {
@@ -57,9 +56,7 @@ describe("phase command", () => {
     mockConfigManager.getDocsDir.mockResolvedValue("docs/ai");
     mockConfigManager.addPhase.mockResolvedValue(undefined);
     mockTemplateManager.fileExists.mockResolvedValue(false);
-    mockTemplateManager.copyPhaseTemplate.mockResolvedValue(
-      "docs/ai/requirements.md",
-    );
+    mockTemplateManager.copyPhaseTemplate.mockResolvedValue("docs/ai/requirements.md");
   });
 
   it("prints a success headline and dim file location without embedded trailing newlines", async () => {
@@ -68,14 +65,9 @@ describe("phase command", () => {
     expect(mockUi.success).toHaveBeenCalledWith(
       "Requirements & Problem Understanding created successfully.",
     );
-    expect(mockUi.text).toHaveBeenCalledWith(
-      "[dim]  - docs/ai/requirements.md[/dim]",
-    );
+    expect(mockUi.text).toHaveBeenCalledWith("[dim]  - docs/ai/requirements.md[/dim]");
     expect(mockUi.info).not.toHaveBeenCalled();
-    for (const call of [
-      ...mockUi.text.mock.calls,
-      ...mockUi.success.mock.calls,
-    ]) {
+    for (const call of [...mockUi.text.mock.calls, ...mockUi.success.mock.calls]) {
       expect(call[0]).not.toMatch(/\n$/);
     }
   });

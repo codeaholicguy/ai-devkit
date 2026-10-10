@@ -31,4 +31,3 @@ export class MuseAgentMapper {
     return processOnlyAgent("muse", processInfo, { summary: "Muse process running" });
   }
 }
-

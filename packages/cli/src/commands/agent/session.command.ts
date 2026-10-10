@@ -11,11 +11,7 @@ import {
   JEV_UNAVAILABLE_REASON,
 } from "../../services/session-compact/session-compact.types.js";
 import { createAgentManager } from "./factory.js";
-import {
-  formatCwd,
-  renderConversationDetail,
-  selectConversationMessages,
-} from "./render.js";
+import { formatCwd, renderConversationDetail, selectConversationMessages } from "./render.js";
 
 export function registerAgentSessionCommand(agentCommand: Command): void {
   const sessionCommand = agentCommand
@@ -25,15 +21,9 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
   sessionCommand
     .command("detail")
     .description("Show detailed information about a historical session")
-    .requiredOption(
-      "--id <sessionId>",
-      "Session ID (as shown in agent sessions)",
-    )
+    .requiredOption("--id <sessionId>", "Session ID (as shown in agent sessions)")
     .option("-j, --json", "Output as JSON")
-    .option(
-      "--type <type>",
-      `Filter to one of: ${AGENT_TYPES.join(", ")}`,
-    )
+    .option("--type <type>", `Filter to one of: ${AGENT_TYPES.join(", ")}`)
     .option("--full", "Show entire conversation history")
     .option("--tail <n>", "Show last N messages (default: 20)", "20")
     .option("--verbose", "Include tool call/result details")
@@ -55,9 +45,7 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
         if (matches.length > 1) {
           ui.error(`Multiple sessions match "${options.id}":`);
           matches.forEach((session) => {
-            ui.text(
-              `  - ${agentTypeLabel(session.type)} ${formatCwd(session.cwd)}`,
-            );
+            ui.text(`  - ${agentTypeLabel(session.type)} ${formatCwd(session.cwd)}`);
           });
           ui.info("Use --type to choose the intended session source.");
           return;
@@ -73,10 +61,7 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
         const conversation = adapter.getConversation(session.sessionFilePath, {
           verbose: options.verbose,
         });
-        const { displayMessages, isTruncated } = selectConversationMessages(
-          conversation,
-          options,
-        );
+        const { displayMessages, isTruncated } = selectConversationMessages(conversation, options);
 
         if (options.json) {
           const output = {
@@ -96,21 +81,15 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
         ui.text(chalk.dim("─".repeat(40)));
         ui.text(`  ${chalk.bold("Session ID:")}  ${session.sessionId}`);
         ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(session.cwd)}`);
-        ui.text(
-          `  ${chalk.bold("Start Time:")}  ${session.startedAt.toLocaleString()}`,
-        );
-        ui.text(
-          `  ${chalk.bold("Last Active:")} ${formatRelativeTime(session.lastActive)}`,
-        );
+        ui.text(`  ${chalk.bold("Start Time:")}  ${session.startedAt.toLocaleString()}`);
+        ui.text(`  ${chalk.bold("Last Active:")} ${formatRelativeTime(session.lastActive)}`);
         ui.text(`  ${chalk.bold("Type:")}        ${agentTypeLabel(session.type)}`);
         ui.text(`  ${chalk.bold("File:")}        ${session.sessionFilePath}`);
         ui.breakline();
-        renderConversationDetail(
-          displayMessages,
-          conversation.length,
-          isTruncated,
-          { localClock: true, widthDerivedSeparator: true },
-        );
+        renderConversationDetail(displayMessages, conversation.length, isTruncated, {
+          localClock: true,
+          widthDerivedSeparator: true,
+        });
       }),
     );
 
@@ -118,10 +97,7 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
     .command("compact")
     .description("Compact a historical session into a Jev-classified continuation artifact")
     .requiredOption("--id <sessionId>", "Session ID (as shown in agent sessions)")
-    .option(
-      "--type <type>",
-      `Filter to one of: ${AGENT_TYPES.join(", ")}`,
-    )
+    .option("--type <type>", `Filter to one of: ${AGENT_TYPES.join(", ")}`)
     .option("--format <format>", "Output format: markdown or json", "markdown")
     .action(
       withErrorHandler("compact session", async (options) => {
@@ -163,11 +139,13 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
         const conversation = adapter.getConversation(resolved.sessionFilePath, { verbose: true });
         // The Jev classifier pulls in the TypeSafe SDK (undici) — lazy-load
         // so plain session browsing skips it.
-        const [{ compactSession, renderSessionCompactMarkdown }, { createJevSessionEventClassifier }] =
-          await Promise.all([
-            import("../../services/session-compact/session-compact.service.js"),
-            import("../../services/session-compact/jev-classifier.js"),
-          ]);
+        const [
+          { compactSession, renderSessionCompactMarkdown },
+          { createJevSessionEventClassifier },
+        ] = await Promise.all([
+          import("../../services/session-compact/session-compact.service.js"),
+          import("../../services/session-compact/jev-classifier.js"),
+        ]);
         const classifier = createJevSessionEventClassifier(apiKey);
         const result = await compactSession(conversation, classifier);
         console.log(

@@ -41,9 +41,7 @@ program
     "--overwrite",
     "With --yes, overwrite existing environments and phase files instead of skipping them",
   )
-  .action((options) =>
-    import("./commands/init.js").then((m) => m.initCommand(options)),
-  );
+  .action((options) => import("./commands/init.js").then((m) => m.initCommand(options)));
 
 program
   .command("phase [name]")
@@ -82,18 +80,15 @@ registerDaemonCommand(program);
 // or a flag that exits before command routing. Bare invocations and --help
 // still load plugins so they appear in the generated help.
 const requestedCommand = process.argv[2];
-const isEarlyExitFlag =
-  requestedCommand === "-V" || requestedCommand === "--version";
+const isEarlyExitFlag = requestedCommand === "-V" || requestedCommand === "--version";
 if (
   !isEarlyExitFlag &&
-  (requestedCommand === undefined ||
-    !BUILT_IN_COMMAND_NAMES.has(requestedCommand))
+  (requestedCommand === undefined || !BUILT_IN_COMMAND_NAMES.has(requestedCommand))
 ) {
-  const [{ registerConfiguredPluginCommands }, { createAiDevkitRuntime }] =
-    await Promise.all([
-      import("./services/plugin/plugin-loader.service.js"),
-      import("./services/plugin/runtime.js"),
-    ]);
+  const [{ registerConfiguredPluginCommands }, { createAiDevkitRuntime }] = await Promise.all([
+    import("./services/plugin/plugin-loader.service.js"),
+    import("./services/plugin/runtime.js"),
+  ]);
   await registerConfiguredPluginCommands(program, createAiDevkitRuntime());
 }
 

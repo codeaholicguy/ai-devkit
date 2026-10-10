@@ -7,16 +7,10 @@ import {
   type DurableProvider,
 } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
-import {
-  formatLocalTimestamp,
-  formatLocalTimestampWithRelative,
-} from "../../util/time-format.js";
+import { formatLocalTimestamp, formatLocalTimestampWithRelative } from "../../util/time-format.js";
 import type { DurableAgentResolution } from "../../services/agent/resolve-agent.service.js";
 
-const STATUS_DISPLAY: Record<
-  AgentStatus,
-  { label: string; color: (text: string) => string }
-> = {
+const STATUS_DISPLAY: Record<AgentStatus, { label: string; color: (text: string) => string }> = {
   [AgentStatus.RUNNING]: { label: "Running", color: chalk.green },
   [AgentStatus.WAITING]: { label: "Waiting", color: chalk.yellow },
   [AgentStatus.IDLE]: { label: "Idle", color: chalk.dim },
@@ -29,9 +23,7 @@ export function formatStatus(status: AgentStatus): string {
 }
 
 export function colorStatus(statusLabel: string): string {
-  const display = Object.values(STATUS_DISPLAY).find(
-    (value) => value.label === statusLabel,
-  );
+  const display = Object.values(STATUS_DISPLAY).find((value) => value.label === statusLabel);
   return (display ?? STATUS_DISPLAY[AgentStatus.UNKNOWN]).color(statusLabel);
 }
 
@@ -49,22 +41,14 @@ export function formatSeparator(): string {
   return "─".repeat(Math.max(40, Math.min(120, width - 2)));
 }
 
-function pluralizeNoun(
-  count: number,
-  singular: string,
-  plural = `${singular}s`,
-): string {
+function pluralizeNoun(count: number, singular: string, plural = `${singular}s`): string {
   return count === 1 ? singular : plural;
 }
 
-export function formatWorkOn(
-  summary: string | undefined,
-  agentName?: string,
-): string {
+export function formatWorkOn(summary: string | undefined, agentName?: string): string {
   const lines = (summary ?? "").split(/\r?\n/);
   const firstLine = lines[0] || "";
-  const hasHiddenLines =
-    lines.length > 1 && lines.slice(1).some((line) => line.trim() !== "");
+  const hasHiddenLines = lines.length > 1 && lines.slice(1).some((line) => line.trim() !== "");
   if (firstLine && hasHiddenLines && agentName) {
     return `${firstLine} … Use \`ai-devkit agent detail --id ${agentName}\`.`;
   }
@@ -98,11 +82,7 @@ export function renderConversationDetail(
     ? `Conversation (last ${displayMessages.length} of ${totalMessages} ${pluralizeNoun(totalMessages, "message")})`
     : `Conversation (${displayMessages.length} ${pluralizeNoun(displayMessages.length, "message")})`;
   ui.text(label, { breakline: false });
-  ui.text(
-    chalk.dim(
-      options.widthDerivedSeparator ? formatSeparator() : "─".repeat(40),
-    ),
-  );
+  ui.text(chalk.dim(options.widthDerivedSeparator ? formatSeparator() : "─".repeat(40)));
 
   for (const msg of displayMessages) {
     const time = msg.timestamp
@@ -111,11 +91,7 @@ export function renderConversationDetail(
         )
       : "";
     const roleColor =
-      msg.role === "user"
-        ? chalk.green
-        : msg.role === "assistant"
-          ? chalk.cyan
-          : chalk.yellow;
+      msg.role === "user" ? chalk.green : msg.role === "assistant" ? chalk.cyan : chalk.yellow;
     ui.text(`${time} ${roleColor(msg.role + ":")}`);
     const lines = msg.content.split("\n");
     for (const line of lines) {
@@ -136,19 +112,13 @@ export function formatPrintProvider(provider: DurableProvider): string {
   return provider === "pi" ? "Pi" : "Claude Code";
 }
 
-export function renderDurableAgentDetail(
-  agent: DurableAgentResolution,
-): void {
+export function renderDurableAgentDetail(agent: DurableAgentResolution): void {
   ui.text("Durable Agent Detail", { breakline: true });
   ui.text(chalk.dim(formatSeparator()));
   ui.text(`  ${chalk.bold("Agent ID:")}    ${agent.id}`);
-  ui.text(
-    `  ${chalk.bold("Session ID:")}  ${agent.providerSessionId ?? "not started"}`,
-  );
+  ui.text(`  ${chalk.bold("Session ID:")}  ${agent.providerSessionId ?? "not started"}`);
   ui.text(`  ${chalk.bold("Name:")}        ${agent.name}`);
-  ui.text(
-    `  ${chalk.bold("Provider:")}    ${formatPrintProvider(agent.provider)}`,
-  );
+  ui.text(`  ${chalk.bold("Provider:")}    ${formatPrintProvider(agent.provider)}`);
   ui.text(`  ${chalk.bold("Mode:")}        ${AGENT_MODES.DURABLE}`);
   ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(agent.cwd)}`);
   ui.text(`  ${chalk.bold("State:")}       ${agent.state}`);
@@ -156,6 +126,5 @@ export function renderDurableAgentDetail(
   ui.text(
     `  ${chalk.bold("Last Active:")} ${agent.lastActiveAt ? formatLocalTimestampWithRelative(new Date(agent.lastActiveAt)) : "never"}`,
   );
-  if (agent.lastResult)
-    ui.text(`  ${chalk.bold("Last Result:")} ${agent.lastResult.summary}`);
+  if (agent.lastResult) ui.text(`  ${chalk.bold("Last Result:")} ${agent.lastResult.summary}`);
 }

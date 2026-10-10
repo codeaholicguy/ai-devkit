@@ -9,11 +9,7 @@ import { isIdle, processOnlyAgent } from "../shared.js";
 export class DevinAgentMapper {
   constructor(private readonly dbPath: string) {}
 
-  mapSessionToAgent(
-    session: DevinSession,
-    stats: DevinSessionStats,
-    proc: ProcessInfo,
-  ): AgentInfo {
+  mapSessionToAgent(session: DevinSession, stats: DevinSessionStats, proc: ProcessInfo): AgentInfo {
     const lastActive =
       stats.lastTimeUpdated > 0
         ? new Date(stats.lastTimeUpdated)

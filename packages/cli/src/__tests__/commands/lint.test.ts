@@ -8,9 +8,7 @@ vi.mock("../../lib/Config.js", () => ({
   ConfigManager: vi.fn(function () {
     return {
       getDocsDir: vi.fn<() => Promise<string>>().mockResolvedValue("docs/ai"),
-      getPhases: vi
-        .fn<() => Promise<string[]>>()
-        .mockResolvedValue(["requirements", "design"]),
+      getPhases: vi.fn<() => Promise<string[]>>().mockResolvedValue(["requirements", "design"]),
     };
   }),
 }));
@@ -34,9 +32,7 @@ vi.mock("../../util/terminal-ui.js", () => ({
 }));
 
 describe("lint command", () => {
-  const mockedRunLintChecks = runLintChecks as MockedFunction<
-    typeof runLintChecks
-  >;
+  const mockedRunLintChecks = runLintChecks as MockedFunction<typeof runLintChecks>;
   const mockedUi = vi.mocked(ui);
 
   beforeEach(() => {
@@ -83,9 +79,7 @@ describe("lint command", () => {
     await lintCommand({});
 
     expect(process.exitCode).toBe(1);
-    expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.red("1 required check failed."),
-    );
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.red("1 required check failed."));
   });
 
   it("renders human-readable output by category", () => {
@@ -129,12 +123,8 @@ describe("lint command", () => {
     renderLintReport(report, {});
 
     expect(mockedUi.text).toHaveBeenCalledWith(chalk.bold("Base Structure"));
-    expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.bold("Feature: lint-command"),
-    );
-    expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.bold("Git: feature-lint-command"),
-    );
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.bold("Feature: lint-command"));
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.bold("Git: feature-lint-command"));
     expect(mockedUi.text).toHaveBeenCalledWith(
       `${chalk.green("✓")} ${chalk.dim("docs/ai/requirements/README.md")}`,
     );
@@ -142,27 +132,17 @@ describe("lint command", () => {
       `${chalk.red("✖")} docs/ai/design/feature-lint-command.md`,
     );
     expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.dim(
-        "  Fix: Run: npx ai-devkit@latest docs new feature-lint-command",
-      ),
+      chalk.dim("  Fix: Run: npx ai-devkit@latest docs new feature-lint-command"),
     );
     expect(mockedUi.text).toHaveBeenCalledWith(
       `${chalk.yellow("⚠")} No dedicated worktree registered`,
     );
     expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.dim(
-        "  Fix: Suggested: git worktree add ../feature-lint-command feature-lint-command",
-      ),
+      chalk.dim("  Fix: Suggested: git worktree add ../feature-lint-command feature-lint-command"),
     );
-    expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.red("1 required check failed."),
-    );
-    expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.yellow("1 warning reported."),
-    );
-    expect(mockedUi.text).not.toHaveBeenCalledWith(
-      expect.stringContaining("==="),
-    );
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.red("1 required check failed."));
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.yellow("1 warning reported."));
+    expect(mockedUi.text).not.toHaveBeenCalledWith(expect.stringContaining("==="));
   });
 
   it("pluralizes passing and warning summaries", () => {
@@ -206,8 +186,6 @@ describe("lint command", () => {
     renderLintReport(report, {});
 
     expect(mockedUi.text).toHaveBeenCalledWith(chalk.green("2 checks passed."));
-    expect(mockedUi.text).toHaveBeenCalledWith(
-      chalk.yellow("2 warnings reported."),
-    );
+    expect(mockedUi.text).toHaveBeenCalledWith(chalk.yellow("2 warnings reported."));
   });
 });

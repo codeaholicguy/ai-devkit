@@ -13,11 +13,7 @@ import type {
   SkillIndexRebuildResult,
 } from "../../services/skill/index/skill-index.service.js";
 
-function formatCount(
-  count: number,
-  singular: string,
-  plural = `${singular}s`,
-): string {
+function formatCount(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
@@ -32,19 +28,13 @@ function renderResultLine(
 ): void {
   const line = `${outcome === "success" ? "✔" : outcome === "warning" ? "⚠" : "✖"} ${target} — ${actionOrReason}`;
   const color =
-    outcome === "success"
-      ? chalk.green
-      : outcome === "warning"
-        ? chalk.yellow
-        : chalk.red;
+    outcome === "success" ? chalk.green : outcome === "warning" ? chalk.yellow : chalk.red;
 
   ui.text(color(line));
 }
 
 export function renderSkillInstallResult(result: SkillInstallResult): void {
-  const skillNames = [
-    ...new Set(result.items.map((item) => item.skillName)),
-  ].join(", ");
+  const skillNames = [...new Set(result.items.map((item) => item.skillName))].join(", ");
 
   if (result.status === "installed") {
     ui.success(`Installed ${skillNames} from ${result.registryId}`);
@@ -53,10 +43,7 @@ export function renderSkillInstallResult(result: SkillInstallResult): void {
   }
 
   renderMetadataLine("Source", result.registryId);
-  renderMetadataLine(
-    `Installed to (${result.installMode})`,
-    result.environments.join(", "),
-  );
+  renderMetadataLine(`Installed to (${result.installMode})`, result.environments.join(", "));
 
   for (const item of result.items) {
     const actionOrReason =
@@ -120,15 +107,9 @@ export function renderUpdateSummary(summary: UpdateSummary): void {
             items: errors.map((error) => {
               let tip: string | undefined;
 
-              if (
-                error.message.includes("uncommitted") ||
-                error.message.includes("unstaged")
-              ) {
+              if (error.message.includes("uncommitted") || error.message.includes("unstaged")) {
                 tip = `Run 'git status' in ~/.ai-devkit/skills/${error.registryId} to see details.`;
-              } else if (
-                error.message.includes("network") ||
-                error.message.includes("timeout")
-              ) {
+              } else if (error.message.includes("network") || error.message.includes("timeout")) {
                 tip = "Check your internet connection and try again.";
               }
 
@@ -145,20 +126,14 @@ export function renderUpdateSummary(summary: UpdateSummary): void {
 export function renderProjectSkills(skills: InstalledSkill[]): void {
   if (skills.length === 0) {
     ui.warning("No skills installed in this project.");
-    ui.info(
-      "Install a skill with: ai-devkit skill add <registry>/<repo> [skill-name]",
-    );
+    ui.info("Install a skill with: ai-devkit skill add <registry>/<repo> [skill-name]");
     return;
   }
 
   ui.text("Installed Skills:", { breakline: true });
   ui.table({
     headers: ["Skill Name", "Registry", "Environments"],
-    rows: skills.map((skill) => [
-      skill.name,
-      skill.registry,
-      skill.environments.join(", "),
-    ]),
+    rows: skills.map((skill) => [skill.name, skill.registry, skill.environments.join(", ")]),
     columnStyles: [chalk.cyan, chalk.dim, chalk.green],
   });
   ui.text(`Total: ${formatCount(skills.length, "skill")}`, { breakline: true });
@@ -176,11 +151,7 @@ export function renderGlobalSkills(skills: GlobalInstalledSkill[]): void {
   ui.text("Globally Installed Skills:", { breakline: true });
   ui.table({
     headers: ["Skill Name", "Environments", "Path"],
-    rows: skills.map((skill) => [
-      skill.name,
-      skill.environments.join(", "),
-      skill.path,
-    ]),
+    rows: skills.map((skill) => [skill.name, skill.environments.join(", "), skill.path]),
     columnStyles: [chalk.cyan, chalk.green, chalk.dim],
   });
   ui.text(`Total: ${formatCount(skills.length, "skill installation")}`, {
@@ -196,9 +167,7 @@ export function renderSkillSearchResults(
 ): void {
   if (results.length === 0) {
     ui.warning(`No skills found matching "${keyword}"`);
-    ui.info(
-      "Try a different keyword or use --refresh to update the skill index",
-    );
+    ui.info("Try a different keyword or use --refresh to update the skill index");
     return;
   }
 
@@ -206,12 +175,9 @@ export function renderSkillSearchResults(
   const hidden = results.length - shown.length;
   const showing = hidden > 0 ? ` (showing top ${shown.length})` : "";
 
-  ui.text(
-    `Found ${formatCount(results.length, "skill")} matching "${keyword}"${showing}:`,
-    {
-      breakline: true,
-    },
-  );
+  ui.text(`Found ${formatCount(results.length, "skill")} matching "${keyword}"${showing}:`, {
+    breakline: true,
+  });
   ui.table({
     headers: ["Skill Name", "Registry", "Description"],
     rows: shown.map((skill) => [

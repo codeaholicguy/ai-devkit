@@ -78,10 +78,7 @@ export class DevinSessionParser {
       }
 
       for (const { nodeId, message } of parsed) {
-        if (
-          message.message_id &&
-          latestNodeByMessageId.get(message.message_id) !== nodeId
-        ) {
+        if (message.message_id && latestNodeByMessageId.get(message.message_id) !== nodeId) {
           continue;
         }
 
@@ -98,9 +95,7 @@ export class DevinSessionParser {
 
         if (role === "assistant") {
           const thinking =
-            typeof message.thinking === "string"
-              ? message.thinking
-              : message.thinking?.thinking;
+            typeof message.thinking === "string" ? message.thinking : message.thinking?.thinking;
           if (verbose && thinking) {
             messages.push({ role: "assistant", content: `[thinking] ${thinking}` });
           }
@@ -179,11 +174,7 @@ export class DevinSessionParser {
    * shell `!` commands and `/` slash commands are skipped. Falls back to a
    * bounded `is_user_input` node scan in the same direction.
    */
-  private userPrompt(
-    db: Database.Database,
-    sessionId: string,
-    direction: "ASC" | "DESC",
-  ): string {
+  private userPrompt(db: Database.Database, sessionId: string, direction: "ASC" | "DESC"): string {
     try {
       const prompt = db
         .prepare<[string], { content: string }>(`

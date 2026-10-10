@@ -22,12 +22,7 @@ await build({
   banner: {
     js: 'import { createRequire as __cr } from "node:module"; const require = __cr(import.meta.url);',
   },
-  external: [
-    "better-sqlite3",
-    "yoga-layout",
-    "@ai-devkit/memory",
-    "react-devtools-core",
-  ],
+  external: ["better-sqlite3", "yoga-layout", "@ai-devkit/memory", "react-devtools-core"],
   logOverride: { "unsupported-dynamic-import": "silent" },
 });
 

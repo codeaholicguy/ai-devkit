@@ -114,25 +114,15 @@ impl Store {
             let mut s = tx.prepare("SELECT pid, start_time_ms FROM agents")?;
             let v = s
                 .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-                .collect::<std::result::Result<
-                    std::collections::HashSet<(i64, Option<i64>)>,
-                    _,
-                >>()?;
+                .collect::<std::result::Result<std::collections::HashSet<(i64, Option<i64>)>, _>>(
+                )?;
             v
         };
-        let current: std::collections::HashSet<(i64, Option<i64>)> = agents
-            .iter()
-            .map(|a| (a.pid, a.start_time_ms))
-            .collect();
+        let current: std::collections::HashSet<(i64, Option<i64>)> =
+            agents.iter().map(|a| (a.pid, a.start_time_ms)).collect();
 
-        let mut appeared: Vec<i64> = current
-            .difference(&known)
-            .map(|(pid, _)| *pid)
-            .collect();
-        let mut gone: Vec<i64> = known
-            .difference(&current)
-            .map(|(pid, _)| *pid)
-            .collect();
+        let mut appeared: Vec<i64> = current.difference(&known).map(|(pid, _)| *pid).collect();
+        let mut gone: Vec<i64> = known.difference(&current).map(|(pid, _)| *pid).collect();
         appeared.sort_unstable();
         gone.sort_unstable();
 
@@ -317,5 +307,4 @@ mod tests {
         assert_eq!(events[0].kind, "agent.appeared");
         assert_eq!(events[0].payload["pid"], 7);
     }
-
 }

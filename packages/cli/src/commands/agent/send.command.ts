@@ -1,9 +1,5 @@
 import { Command } from "commander";
-import {
-  AGENT_MODES,
-  AgentRegistry,
-  TerminalFocusManager,
-} from "@ai-devkit/agent-manager";
+import { AGENT_MODES, AgentRegistry, TerminalFocusManager } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
 import { ANSI_ESCAPE_PATTERN, sanitizeProviderOutput } from "../../util/text.js";
@@ -18,10 +14,7 @@ import {
   createDefaultAgentGroupService,
 } from "../../services/agent/agent-group.service.js";
 import { resolveDurableAgentEntry } from "../../services/agent/resolve-agent.service.js";
-import {
-  createAgentManager,
-  createDurableAgentService,
-} from "./factory.js";
+import { createAgentManager, createDurableAgentService } from "./factory.js";
 
 function writeWaitStatus(message: string): void {
   process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, "")}\n`);
@@ -68,9 +61,7 @@ async function resolveSendMessage(
   }
 
   if (message === undefined) {
-    throw new Error(
-      "Message is required unless --stdin is used or stdin is piped.",
-    );
+    throw new Error("Message is required unless --stdin is used or stdin is piped.");
   }
 
   return message;
@@ -93,10 +84,7 @@ export function registerAgentSendCommand(agentCommand: Command): void {
     .option("--group <name>", "Agent group name")
     .option("--stdin", "Read the message from stdin")
     .option("--wait", "Wait for and print the agent response")
-    .option(
-      "--timeout <milliseconds>",
-      "Maximum time to wait with --wait, in milliseconds",
-    )
+    .option("--timeout <milliseconds>", "Maximum time to wait with --wait, in milliseconds")
     .option("-j, --json", "Output wait result as JSON")
     .action(
       withErrorHandler("send message", async (message, options) => {
@@ -114,19 +102,14 @@ export function registerAgentSendCommand(agentCommand: Command): void {
           return;
         }
 
-        const durableResolved = await resolveDurableAgentEntry(
-          options.id,
-          () => manager.listAgents(),
+        const durableResolved = await resolveDurableAgentEntry(options.id, () =>
+          manager.listAgents(),
         );
         if (durableResolved) {
           if (options.timeout !== undefined) {
-            throw new Error(
-              "--timeout is not supported for synchronous durable agents.",
-            );
+            throw new Error("--timeout is not supported for synchronous durable agents.");
           }
-          const providerService = createDurableAgentService(
-            durableResolved.provider,
-          );
+          const providerService = createDurableAgentService(durableResolved.provider);
           const result = await providerService.send(options.id, prompt);
           if (options.json) {
             console.log(

@@ -3,10 +3,7 @@ import chalk from "chalk";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
 import { agentTypeLabel } from "../../util/agent.js";
-import {
-  formatLocalTimestamp,
-  formatLocalTimestampWithRelative,
-} from "../../util/time-format.js";
+import { formatLocalTimestamp, formatLocalTimestampWithRelative } from "../../util/time-format.js";
 import {
   reportAgentResolution,
   resolveAgentByName,
@@ -35,10 +32,7 @@ export function registerAgentDetailCommand(agentCommand: Command): void {
       withErrorHandler("get agent detail", async (options) => {
         const manager = createAgentManager();
         const agents = await manager.listAgents();
-        const durableResolved = await resolveDurableAgentEntry(
-          options.id,
-          async () => agents,
-        );
+        const durableResolved = await resolveDurableAgentEntry(options.id, async () => agents);
         if (durableResolved) {
           if (options.json) {
             console.log(JSON.stringify(durableResolved, null, 2));
@@ -50,8 +44,11 @@ export function registerAgentDetailCommand(agentCommand: Command): void {
 
         const resolution = await resolveAgentByName(manager, options.id, agents);
         if (resolution.kind !== "resolved") {
-          reportAgentResolution(resolution, options.id, ui, (agent) =>
-            `${agent.name} (${formatStatus(agent.status)})`,
+          reportAgentResolution(
+            resolution,
+            options.id,
+            ui,
+            (agent) => `${agent.name} (${formatStatus(agent.status)})`,
           );
           return;
         }
@@ -73,10 +70,7 @@ export function registerAgentDetailCommand(agentCommand: Command): void {
           verbose: options.verbose,
         });
 
-        const { displayMessages, isTruncated } = selectConversationMessages(
-          conversation,
-          options,
-        );
+        const { displayMessages, isTruncated } = selectConversationMessages(conversation, options);
 
         const startTime =
           conversation.length > 0 && conversation[0].timestamp
@@ -101,25 +95,15 @@ export function registerAgentDetailCommand(agentCommand: Command): void {
         ui.text("Agent Detail", { breakline: true });
         ui.text(chalk.dim(formatSeparator()));
         ui.text(`  ${chalk.bold("Session ID:")}  ${agent.sessionId}`);
-        ui.text(
-          `  ${chalk.bold("CWD:")}         ${formatCwd(agent.projectPath)}`,
-        );
-        ui.text(
-          `  ${chalk.bold("Start Time:")}  ${formatLocalTimestamp(new Date(startTime))}`,
-        );
+        ui.text(`  ${chalk.bold("CWD:")}         ${formatCwd(agent.projectPath)}`);
+        ui.text(`  ${chalk.bold("Start Time:")}  ${formatLocalTimestamp(new Date(startTime))}`);
         ui.text(
           `  ${chalk.bold("Last Active:")} ${formatLocalTimestampWithRelative(agent.lastActive)}`,
         );
-        ui.text(
-          `  ${chalk.bold("Status:")}      ${formatStatus(agent.status)}`,
-        );
+        ui.text(`  ${chalk.bold("Status:")}      ${formatStatus(agent.status)}`);
         ui.text(`  ${chalk.bold("Type:")}        ${agentTypeLabel(agent.type)}`);
         ui.breakline();
-        renderConversationDetail(
-          displayMessages,
-          conversation.length,
-          isTruncated,
-        );
+        renderConversationDetail(displayMessages, conversation.length, isTruncated);
       }),
     );
 }

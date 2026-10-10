@@ -112,9 +112,7 @@ export function matchesProcessPatterns(
   names: ReadonlySet<string>,
   prefixes: ReadonlySet<string> = new Set(),
 ): boolean {
-  return (
-    matchesExecutableName(command, names) || matchesExecutablePrefix(command, prefixes)
-  );
+  return matchesExecutableName(command, names) || matchesExecutablePrefix(command, prefixes);
 }
 
 export function filterByProcessNames(
@@ -125,9 +123,7 @@ export function filterByProcessNames(
   const names = normalizedProcessNames(namePatterns);
   const prefixes = normalizedProcessNames(namePrefixes);
   if (names.size === 0 && prefixes.size === 0) return [];
-  return processes.filter((process) =>
-    matchesProcessPatterns(process.command, names, prefixes),
-  );
+  return processes.filter((process) => matchesProcessPatterns(process.command, names, prefixes));
 }
 
 /**
@@ -214,7 +210,9 @@ export function snapshotOptions(
   namePrefixes: readonly string[],
   isCandidate: (process: ProcessInfo) => boolean,
 ): ProcessSnapshotOptions {
-  return namePrefixes.length > 0 ? { namePrefixes: [...namePrefixes], isCandidate } : { isCandidate };
+  return namePrefixes.length > 0
+    ? { namePrefixes: [...namePrefixes], isCandidate }
+    : { isCandidate };
 }
 
 const execFileText: ProcessExec = (file, args) =>

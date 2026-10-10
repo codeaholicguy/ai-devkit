@@ -117,7 +117,10 @@ fn parse_session_doc(content: &str) -> Option<SessionDoc> {
 
 fn doc_from_meta(v: &Value) -> SessionDoc {
     SessionDoc {
-        session_id: v.get("sessionId").and_then(|s| s.as_str()).map(String::from),
+        session_id: v
+            .get("sessionId")
+            .and_then(|s| s.as_str())
+            .map(String::from),
         start_time: v.get("startTime").cloned(),
         last_updated: v.get("lastUpdated").cloned(),
         directories: v.get("directories").and_then(|d| d.as_array()).cloned(),
@@ -147,7 +150,11 @@ impl MessageMap {
         let Some(id) = record.get("id").and_then(|v| v.as_str()) else {
             return;
         };
-        if self.entries.insert(id.to_string(), record.clone()).is_none() {
+        if self
+            .entries
+            .insert(id.to_string(), record.clone())
+            .is_none()
+        {
             self.order.push(id.to_string());
         }
     }
@@ -206,25 +213,15 @@ fn replay_session_log(content: &str) -> Option<SessionDoc> {
         } else if record.get("id").and_then(|v| v.as_str()).is_some() {
             messages.upsert(&record);
         } else if let Some(set) = record.get("$set").filter(|v| v.is_object()) {
-            if set
-                .get("messages")
-                .map(|m| m.is_array())
-                .unwrap_or(false)
-            {
+            if set.get("messages").map(|m| m.is_array()).unwrap_or(false) {
                 messages.clear();
                 messages.upsert_all(set.get("messages"));
             }
             for (k, v) in set.as_object().unwrap() {
                 metadata.insert(k.clone(), v.clone());
             }
-        } else if record
-            .get("sessionId")
-            .and_then(|v| v.as_str())
-            .is_some()
-            && record
-                .get("projectHash")
-                .and_then(|v| v.as_str())
-                .is_some()
+        } else if record.get("sessionId").and_then(|v| v.as_str()).is_some()
+            && record.get("projectHash").and_then(|v| v.as_str()).is_some()
         {
             for (k, v) in record.as_object().unwrap() {
                 metadata.insert(k.clone(), v.clone());

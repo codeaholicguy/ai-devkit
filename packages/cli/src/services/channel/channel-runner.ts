@@ -25,10 +25,7 @@ import { getErrorMessage } from "../../util/text.js";
 import { createLogger } from "../../util/debug.js";
 import { select } from "@inquirer/prompts";
 import { ChannelService } from "./channel.service.js";
-import {
-  reportAgentResolution,
-  resolveAgentByName,
-} from "../agent/resolve-agent.service.js";
+import { reportAgentResolution, resolveAgentByName } from "../agent/resolve-agent.service.js";
 import { AskUserQuestionService } from "./ask-user-question.js";
 import { SlackQuestionService } from "./slack-question.js";
 

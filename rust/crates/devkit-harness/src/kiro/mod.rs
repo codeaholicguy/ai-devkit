@@ -148,15 +148,11 @@ impl HarnessAdapter for KiroAdapter {
 
         let mut agents = Vec::new();
         let mut matched_pids = HashSet::new();
-        for m in locator::match_running_processes(
-            &self.sessions_dir,
-            &relevant,
-            &processes,
-            |p| self.can_handle_proc(p),
-        ) {
+        for m in locator::match_running_processes(&self.sessions_dir, &relevant, &processes, |p| {
+            self.can_handle_proc(p)
+        }) {
             let cwd = m.process.cwd.as_deref().unwrap_or("");
-            let Some(session) = parser::read_session(&self.sessions_dir, &m.session_id, cwd)
-            else {
+            let Some(session) = parser::read_session(&self.sessions_dir, &m.session_id, cwd) else {
                 continue;
             };
             agents.push(self.map_session_to_agent(&session, m.process, ctx.now));

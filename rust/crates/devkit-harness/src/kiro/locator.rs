@@ -35,7 +35,10 @@ pub fn match_running_processes<'a>(
             )
         });
         if let Some(proc) = proc {
-            matches.push(LockMatch { process: proc, session_id });
+            matches.push(LockMatch {
+                process: proc,
+                session_id,
+            });
         }
     }
     matches
@@ -112,9 +115,10 @@ fn to_pid(value: &Value) -> Option<i64> {
             let f = n.as_f64()?;
             (f.fract() == 0.0 && f > 0.0 && f <= MAX_SAFE).then_some(f as i64)
         }
-        Value::String(s) if !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) => {
-            s.parse::<i64>().ok().filter(|p| *p > 0 && *p <= 9_007_199_254_740_991)
-        }
+        Value::String(s) if !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()) => s
+            .parse::<i64>()
+            .ok()
+            .filter(|p| *p > 0 && *p <= 9_007_199_254_740_991),
         _ => None,
     }
 }

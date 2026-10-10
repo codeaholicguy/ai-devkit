@@ -181,9 +181,8 @@ mod tests {
 
     #[test]
     fn pi_adapter_matches_committed_fixtures() {
-        let n = crate::fixtures::assert_parity("pi", |home| {
-            Box::new(crate::pi::PiAdapter::new(home))
-        });
+        let n =
+            crate::fixtures::assert_parity("pi", |home| Box::new(crate::pi::PiAdapter::new(home)));
         assert!(n > 0, "no pi fixture bundles found");
     }
 

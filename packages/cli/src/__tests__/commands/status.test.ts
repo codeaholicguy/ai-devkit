@@ -30,13 +30,9 @@ function agent(
     status,
     executable: {
       status: options.executablePath === null ? "fail" : "pass",
-      errors:
-        options.executablePath === null ? ["agent was not found on PATH"] : [],
+      errors: options.executablePath === null ? ["agent was not found on PATH"] : [],
       command: "agent",
-      path:
-        options.executablePath === undefined
-          ? "/bin/agent"
-          : options.executablePath,
+      path: options.executablePath === undefined ? "/bin/agent" : options.executablePath,
     },
     globalConfig: { ...base, path: "~/.agent", present: true, readable: true },
     builtInSkills: options.builtInSkills
@@ -65,9 +61,7 @@ function agent(
           },
         }
       : {}),
-    ...(options.integration
-      ? { integration: { ...base, ...options.integration } }
-      : {}),
+    ...(options.integration ? { integration: { ...base, ...options.integration } } : {}),
   };
 }
 const report = {
@@ -226,19 +220,12 @@ describe("status command", () => {
         ]),
       }),
     );
-    const checkRows = (vi.mocked(ui.table).mock.calls[2][0].rows ??
-      []) as Array<[string, string, string]>;
-    expect(checkRows.some(([label]) => label.startsWith("grok_cli:"))).toBe(
-      false,
-    );
-    expect(checkRows).not.toContainEqual([
-      "codex: ai-devkit built-in skills",
-      "pass",
-      "2/2",
-    ]);
-    expect(ui.warning).not.toHaveBeenCalledWith(
-      expect.stringContaining("missing built-in skills"),
-    );
+    const checkRows = (vi.mocked(ui.table).mock.calls[2][0].rows ?? []) as Array<
+      [string, string, string]
+    >;
+    expect(checkRows.some(([label]) => label.startsWith("grok_cli:"))).toBe(false);
+    expect(checkRows).not.toContainEqual(["codex: ai-devkit built-in skills", "pass", "2/2"]);
+    expect(ui.warning).not.toHaveBeenCalledWith(expect.stringContaining("missing built-in skills"));
   });
 
   it("explains when no executable agents are visible", () => {
@@ -252,12 +239,9 @@ describe("status command", () => {
       },
     } as unknown as StatusReport);
 
-    expect(ui.text).toHaveBeenCalledWith(
-      chalk.dim("No executable agents found on PATH."),
-      {
-        breakline: true,
-      },
-    );
+    expect(ui.text).toHaveBeenCalledWith(chalk.dim("No executable agents found on PATH."), {
+      breakline: true,
+    });
     expect(ui.table).not.toHaveBeenCalledWith(
       expect.objectContaining({ headers: ["Agent", "Status"] }),
     );

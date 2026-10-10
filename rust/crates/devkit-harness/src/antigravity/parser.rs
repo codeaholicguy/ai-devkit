@@ -29,17 +29,15 @@ pub struct Session {
 /// counts, matching TS `!stat`); unreadable transcript → empty summary.
 pub fn read_session(conversation_id: &str, transcript_path: &str, cwd: &str) -> Option<Session> {
     let meta = std::fs::metadata(transcript_path).ok()?;
-    let state = shared::fold_jsonl_bounded(
-        transcript_path,
-        Summary::default(),
-        reduce,
-        |s: Summary| Summary {
-            past_head: true,
-            first_user_message: s.first_user_message,
-            ..Summary::default()
-        },
-    )
-    .unwrap_or_default();
+    let state =
+        shared::fold_jsonl_bounded(transcript_path, Summary::default(), reduce, |s: Summary| {
+            Summary {
+                past_head: true,
+                first_user_message: s.first_user_message,
+                ..Summary::default()
+            }
+        })
+        .unwrap_or_default();
     let mtime = meta
         .modified()
         .ok()

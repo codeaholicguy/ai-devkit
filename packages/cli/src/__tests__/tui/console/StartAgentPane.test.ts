@@ -103,9 +103,7 @@ describe("StartAgentPane helpers", () => {
         args: `--debug --profile "work env" --flag='some value'`,
       }).args,
     ).toEqual(["--debug", "--profile", "work env", "--flag=some value"]);
-    expect(
-      normalizeStartAgentValues({ type: "codex", name: "x", cwd: "/tmp" }).args,
-    ).toEqual([]);
+    expect(normalizeStartAgentValues({ type: "codex", name: "x", cwd: "/tmp" }).args).toEqual([]);
   });
 
   it("shows contextual key hints per focused field", () => {
@@ -217,9 +215,9 @@ describe("StartAgentPane helpers", () => {
     expect(expandHomePath("~", "/home/u")).toBe("/home/u");
     expect(expandHomePath("/abs/path", "/home/u")).toBe("/abs/path");
     expect(expandHomePath("~other/x", "/home/u")).toBe("~other/x");
-    expect(
-      normalizeStartAgentValues({ type: "codex", name: "x", cwd: "~/proj" }).cwd,
-    ).toBe(`${process.env.HOME}/proj`);
+    expect(normalizeStartAgentValues({ type: "codex", name: "x", cwd: "~/proj" }).cwd).toBe(
+      `${process.env.HOME}/proj`,
+    );
   });
 
   it("cycles recent cwds and skips empty input", () => {

@@ -39,10 +39,8 @@ impl CopilotSessionLocator {
     /// single stat; scan only dirs touched at/after the earliest unresolved
     /// process start minus slack (all dirs when any start is unknown).
     pub fn discover_active_locks(&self, processes: &[&AgentProc]) -> Vec<CopilotLock> {
-        let start_times: HashMap<i64, Option<i64>> = processes
-            .iter()
-            .map(|p| (p.pid, p.start_time_ms))
-            .collect();
+        let start_times: HashMap<i64, Option<i64>> =
+            processes.iter().map(|p| (p.pid, p.start_time_ms)).collect();
         let mut known = self.known_locks.lock().unwrap();
         known.retain(|pid, k| start_times.get(pid).copied().flatten() == Some(k.start_time_ms));
 
@@ -50,11 +48,9 @@ impl CopilotSessionLocator {
         let mut unresolved: HashSet<i64> = HashSet::new();
         for p in processes {
             let pid = p.pid;
-            let hit = known.get(&pid).is_some_and(|k| {
-                k.session_dir
-                    .join(lock_file_name(pid))
-                    .is_file()
-            });
+            let hit = known
+                .get(&pid)
+                .is_some_and(|k| k.session_dir.join(lock_file_name(pid)).is_file());
             if hit {
                 let k = known.get(&pid).unwrap();
                 locks.push(CopilotLock {
@@ -71,10 +67,7 @@ impl CopilotSessionLocator {
             return locks;
         }
 
-        let min_mtime_ms = if unresolved
-            .iter()
-            .all(|pid| start_times[pid].is_some())
-        {
+        let min_mtime_ms = if unresolved.iter().all(|pid| start_times[pid].is_some()) {
             unresolved
                 .iter()
                 .filter_map(|pid| start_times[pid])
