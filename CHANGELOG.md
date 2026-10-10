@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.70.0] - 2026-10-10
 
 - [5f8c4a4](https://github.com/codeaholicguy/ai-devkit/pull/355) Fixed stale agent types, durable modes, and supported tools in the docs.
 - [df6fb0c](https://github.com/codeaholicguy/ai-devkit/pull/356) Fixed stale memory MCP setup instructions to match the setup-first wiring.

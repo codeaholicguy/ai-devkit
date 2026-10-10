@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/daemon-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Thin client for the devkitd coordination daemon (unix socket, JSON-RPC, subscribe)",
   "license": "MIT",
   "repository": {
