@@ -105,6 +105,17 @@ ai-devkit agent session detail <session-id> --tail 50 --verbose
 
 The detail command supports `--type`, `--tail <n>`, `--full`, `--verbose`, and `--json`.
 
+### Compact a Session
+
+Distill a historical session into a durable continuation artifact — structured facts plus memory candidates — that you can hand to a successor agent or store for later:
+
+```bash
+ai-devkit agent session compact --id <session-id>
+ai-devkit agent session compact --id <session-id> --format json
+```
+
+Compaction is classified by Jev and requires the `TYPESAFE_API_KEY` environment variable. Use `--format markdown` (default) for a readable summary or `--format json` to splice the artifact into another agent's instructions. The built-in [`session-compact`](/docs/7-skills) skill teaches agents to run this workflow themselves at handoff points.
+
 ### Open Agent
 
 Focus the terminal window associated with a specific agent.
