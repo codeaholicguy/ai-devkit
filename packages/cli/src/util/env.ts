@@ -109,6 +109,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     skillPath: ".pi/skills",
     globalSkillPath: ".pi/agent/skills",
   },
+  muse: {
+    code: "muse",
+    name: "Muse Code",
+    skillPath: ".agents/skills",
+    globalSkillPath: ".config/muse/skills",
+  },
 };
 
 export const ALL_ENVIRONMENT_CODES: EnvironmentCode[] = Object.keys(

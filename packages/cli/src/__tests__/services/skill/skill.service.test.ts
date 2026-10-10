@@ -725,7 +725,7 @@ describe("SkillService", () => {
       } as any);
 
       await expect(skillManager.addSkill(mockRegistryId, mockSkillName)).rejects.toThrow(
-        "Supported: cursor, claude, github, gemini, grok, codex, kilocode, amp, opencode, roo, antigravity, antigravity-cli, junie, cline, devin, pi",
+        "Supported: cursor, claude, github, gemini, grok, codex, kilocode, amp, opencode, roo, antigravity, antigravity-cli, junie, cline, devin, pi, muse",
       );
     });
 
