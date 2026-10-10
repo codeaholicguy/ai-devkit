@@ -172,6 +172,19 @@ describe("EnvironmentSelector", () => {
       expect(getMcpConfigPath("pi")).toBeUndefined();
     });
 
+    it("includes Muse Code with project and global skill paths", () => {
+      expect(isValidEnvironmentCode("muse")).toBe(true);
+      expect(getEnvironment("muse")).toMatchObject({
+        code: "muse",
+        name: "Muse Code",
+        skillPath: ".agents/skills",
+        globalSkillPath: ".config/muse/skills",
+      });
+      expect(getSkillPath("muse")).toBe(".agents/skills");
+      expect(getGlobalSkillPath("muse")).toBe(".config/muse/skills");
+      expect(getMcpConfigPath("muse")).toBeUndefined();
+    });
+
     it("should create choices from all environments", async () => {
       const environments = getAllEnvironments();
       mockCheckbox.mockResolvedValue(["cursor", "claude"]);

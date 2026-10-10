@@ -19,7 +19,7 @@ import { EnvironmentCode } from "../../types.js";
 describe("Environment Utilities", () => {
   describe("ENVIRONMENT_DEFINITIONS", () => {
     it("should contain all all environment definitions", () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(16);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(17);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("cursor");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("claude");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("github");
@@ -36,6 +36,7 @@ describe("Environment Utilities", () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("cline");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("devin");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("pi");
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("muse");
     });
 
     it("should have correct structure for cursor environment", () => {
@@ -66,7 +67,7 @@ describe("Environment Utilities", () => {
 
   describe("ALL_ENVIRONMENT_CODES", () => {
     it("should contain all all environment codes", () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(16);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(17);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           "cursor",
@@ -84,6 +85,7 @@ describe("Environment Utilities", () => {
           "cline",
           "devin",
           "pi",
+          "muse",
         ]),
       );
     });
@@ -97,7 +99,7 @@ describe("Environment Utilities", () => {
   describe("getAllEnvironments", () => {
     it("should return all environment definitions", () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(16);
+      expect(environments).toHaveLength(17);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -280,6 +282,10 @@ describe("Environment Utilities", () => {
       expect(getSkillPath("pi")).toBe(".pi/skills");
     });
 
+    it("should return skill path for muse", () => {
+      expect(getSkillPath("muse")).toBe(".agents/skills");
+    });
+
     it("should return undefined for invalid environment code", () => {
       expect(getSkillPath("invalid" as EnvironmentCode)).toBeUndefined();
     });
@@ -324,6 +330,10 @@ describe("Environment Utilities", () => {
 
     it("should return global skill path for pi", () => {
       expect(getGlobalSkillPath("pi")).toBe(".pi/agent/skills");
+    });
+
+    it("should return global skill path for muse", () => {
+      expect(getGlobalSkillPath("muse")).toBe(".config/muse/skills");
     });
   });
 
@@ -405,7 +415,8 @@ describe("Environment Utilities", () => {
       expect(envCodes).toContain("cline");
       expect(envCodes).toContain("devin");
       expect(envCodes).toContain("pi");
-      expect(skillEnvs).toHaveLength(16);
+      expect(envCodes).toContain("muse");
+      expect(skillEnvs).toHaveLength(17);
     });
   });
 

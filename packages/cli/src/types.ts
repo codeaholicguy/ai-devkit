@@ -34,7 +34,8 @@ export type EnvironmentCode =
   | "junie"
   | "cline"
   | "devin"
-  | "pi";
+  | "pi"
+  | "muse";
 
 export const DEFAULT_DOCS_DIR = "docs/ai";
 

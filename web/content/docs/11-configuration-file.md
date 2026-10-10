@@ -87,6 +87,7 @@ List of AI coding tools to generate configuration files for. Valid values:
 | `cline` | Cline |
 | `devin` | Devin |
 | `pi` | Pi |
+| `muse` | Muse Code |
 
 ```json
 "environments": ["cursor", "claude"]
