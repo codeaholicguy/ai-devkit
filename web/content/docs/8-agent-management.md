@@ -48,7 +48,7 @@ AI DevKit detects active sessions from the following tools:
 
 ### Start an Agent
 
-Start a named agent in a managed runtime session (tmux by default; the Herdr runtime is used when configured):
+Start a named agent in a managed runtime session (tmux by default; set `"agentRuntime": {"provider": "herdr"}` in `.ai-devkit.json` to use the Herdr runtime instead):
 
 ```bash
 ai-devkit agent start --type claude --name backend --cwd ./packages/backend
