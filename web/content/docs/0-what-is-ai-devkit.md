@@ -80,6 +80,16 @@ The [Memory](/docs/6-memory) service gives your coding agents persistent, local 
 
 AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, skills, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, skills, and operating model carry across supported environments.
 
+### Observe And Operate
+
+AI DevKit ships with a local coordination daemon (`devkitd`) that runs agent detection and session routing, plus operational commands for day-to-day checks:
+
+- `ai-devkit status` reports readiness for your whole setup — CLI version, per-agent health, tmux, registries, channels, and memory MCP wiring
+- `ai-devkit capacity` shows remaining quota across your logged-in providers (Codex, z.ai, OpenAI, Anthropic, Claude, Devin) so you can pick the agent with the most headroom
+- `ai-devkit daemon` manages the background daemon; it auto-starts on first use, so no manual step is needed
+
+See [Status & Capacity](/docs/15-capacity) and [Runtime (devkitd)](/docs/16-runtime) for details.
+
 ## A Typical Workflow
 
 Here's what working with AI DevKit looks like in practice:
@@ -98,7 +108,7 @@ Project initialization and lifecycle work produce documentation in `docs/ai/`, g
 
 1. **Connect** - Run `npx ai-devkit@latest setup` once per machine to connect detected agents and install their global workflow skills.
 2. **Initialize** - Run `npx ai-devkit@latest init` once per project to create workflow docs and environment-specific project configuration.
-3. **Operate** - Use `agent list`, `agent console`, and `agent send` to supervise and route work across running local agents.
+3. **Operate** - Use `agent list`, `agent console`, and `agent send` to supervise and route work across running local agents; use `status` and `capacity` to check readiness and provider quota.
 4. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
 5. **Remember** - Store important decisions and patterns in memory so they persist across sessions.
 6. **Extend** - Install skills to give your AI specialized knowledge for your stack and domain.
