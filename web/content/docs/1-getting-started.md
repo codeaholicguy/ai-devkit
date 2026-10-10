@@ -8,7 +8,7 @@ order: 1
 
 Getting started has two scopes:
 
-1. **Once per machine:** run `setup` to connect detected local agents, install their session integrations, and install AI DevKit's built-in skills globally.
+1. **Once per machine:** run `setup` to connect detected local agents, install their session integrations and built-in skills globally, and wire the AI DevKit memory MCP server into MCP-capable agents.
 2. **Once per project:** run `init` to create `.ai-devkit.json`, environment-specific project files, and workflow documentation.
 
 Keeping these steps separate makes it clear which changes affect your machine and which files belong in your project.
@@ -69,7 +69,15 @@ An npx-only installation does not make a permanent `ai-devkit` command available
 
 ### Machine setup
 
-`setup` checks for supported agent home directories. For each detected agent, it installs the available session hook or tracker and the AI DevKit built-in skills in that agent's global skill location.
+`setup` checks for supported agent home directories. For each detected agent, it installs the available session hook or tracker, installs the AI DevKit built-in skills in that agent's global skill location, and wires the `ai-devkit-memory` MCP server into agents with a user-level MCP config (see [Memory](/docs/6-memory)).
+
+To set up only specific agents, pass a comma-separated list:
+
+```bash
+ai-devkit setup --agent claude,codex
+```
+
+Supported values: `codex`, `pi`, `claude`, `gemini`, `cursor`, `opencode`, `grok`.
 
 Read the setup summary carefully. A skipped agent was not changed. If an agent you use is skipped, launch it once and rerun the same setup command.
 
@@ -91,7 +99,13 @@ If the directory is not already a Git repository and Git is available, `init` al
 
 ## Verify the First Run
 
-Restart your coding agent after machine setup, then start an agent session in the initialized project. Check discovery before opening the console:
+Restart your coding agent after machine setup, then start an agent session in the initialized project. First check overall readiness:
+
+```bash
+ai-devkit status
+```
+
+`status` reports the CLI version, project config, per-agent readiness (executable, auth, skills), tmux, skill registries, channels, and memory MCP wiring. Then check discovery before opening the console:
 
 ```bash
 ai-devkit agent list
