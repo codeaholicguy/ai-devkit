@@ -150,11 +150,11 @@ Your selections are saved in `.ai-devkit.json`:
 
 ```json
 {
-  "version": "0.21.1",
+  "version": "0.69.1",
   "environments": ["cursor", "claude", "github"],
   "phases": ["requirements", "design"],
-  "createdAt": "2026-04-04T...",
-  "updatedAt": "2026-04-04T..."
+  "createdAt": "2026-10-10T...",
+  "updatedAt": "2026-10-10T..."
 }
 ```
 
@@ -192,7 +192,7 @@ Existing phase documents use a separate per-phase confirmation. This behavior be
 
 Want to add support for a new AI environment? We welcome contributions!
 
-1. **Create Environment Definition** — Add to `src/util/env.ts`
+1. **Create Environment Definition** — Add to `packages/cli/src/util/env.ts`
 2. **Add Templates** — Create `templates/env/{code}/` directory
 3. **Update Documentation** — Add to this guide
 4. **Test Integration** — Ensure proper initialization and configuration
