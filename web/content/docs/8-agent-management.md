@@ -43,6 +43,10 @@ AI DevKit detects active sessions from the following tools:
   ```
 
   The tracker gives AI DevKit better session information than process detection alone.
+- **[Grok CLI](https://x.ai/cli)**: Detects running `grok` sessions and exposes them through the same agent management commands.
+- **[Kiro CLI](https://kiro.dev/)**: Detects Kiro CLI sessions via `~/.kiro/sessions/cli` and exposes them through the same commands.
+- **[Antigravity CLI](https://antigravity.google/)**: Detects `agy` sessions and exposes them through the same commands.
+- **[Devin](https://devin.ai/)**: Detects Devin CLI sessions and exposes them through the same commands.
 
 ## Commands
 
@@ -54,7 +58,7 @@ Start a named agent in a managed tmux session:
 ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 ```
 
-`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `opencode`, or `pi`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
+`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, or `devin`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
 
 The default `--mode interactive` starts the agent in tmux. Claude also supports a durable mode that keeps a named agent available without an interactive terminal:
 
@@ -64,7 +68,7 @@ Run `ai-devkit setup` to check the host prerequisite early. It reports the insta
 ai-devkit agent start --type claude --mode durable --name backend --cwd ./packages/backend
 ```
 
-Durable mode currently supports only `--type claude`.
+Durable mode supports `--type claude`, `--type codex`, and `--type pi`.
 
 ### List Agents
 
