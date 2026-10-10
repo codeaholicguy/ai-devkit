@@ -40,7 +40,7 @@ Run `ai-devkit setup` once per machine. It wires the memory MCP server — named
 | Claude Code, Codex, Gemini, Cursor, opencode, Grok | Automatic via `setup` |
 | Pi | No MCP support by design — use the `memory` skill or `ai-devkit memory` CLI instead |
 
-`ai-devkit status` reports the wiring state per agent, so you can confirm the server is connected before relying on it.
+`ai-devkit status` reports the wiring state per agent, so you can confirm the server is connected before relying on it. If you install a new agent later, rerun `ai-devkit setup` to wire it too.
 
 If an agent's config is managed manually, you can still add the server yourself:
 
