@@ -104,7 +104,7 @@ Supported start types:
 | `kiro` | Kiro CLI |
 | `devin` | Devin |
 
-Starting an agent from the console uses a managed tmux session. If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
+Starting an agent from the console uses the configured managed runtime (tmux by default, or Herdr when configured). If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 
 ### Rename an Agent
 
