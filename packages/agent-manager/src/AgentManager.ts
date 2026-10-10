@@ -24,6 +24,7 @@ import {
 import {
   captureProcessSnapshot,
   filterByProcessNames,
+  snapshotOptions,
   type ProcessSnapshotCapture,
 } from "./utils/process.js";
 import {
@@ -32,6 +33,17 @@ import {
   herdrPaneToRuntimeRef,
   type HerdrAgentPane,
 } from "./runtime/herdr/HerdrAgentDiscovery.js";
+
+/** Discovery patterns of one adapter: exact names plus basename prefixes. */
+function adapterPatterns(adapter: AgentAdapter): {
+  names: string[];
+  prefixes: string[];
+} {
+  return {
+    names: adapter.processNames ? [...adapter.processNames] : [],
+    prefixes: adapter.processNamePrefixes ? [...adapter.processNamePrefixes] : [],
+  };
+}
 
 export interface ListAgentsOptions {
   /**
@@ -204,12 +216,20 @@ export class AgentManager {
         adapters.flatMap((adapter) => (adapter.processNames ? [...adapter.processNames] : [])),
       ),
     );
+    const namePrefixes = Array.from(
+      new Set(
+        adapters.flatMap((adapter) =>
+          adapter.processNamePrefixes ? [...adapter.processNamePrefixes] : [],
+        ),
+      ),
+    );
     let processes: readonly ProcessInfo[] = [];
-    if (processNames.length > 0) {
+    if (processNames.length > 0 || namePrefixes.length > 0) {
       try {
-        processes = await this.captureSnapshot(processNames, {
-          isCandidate: (process) => this.isCandidateProcess(adapters, process),
-        });
+        processes = await this.captureSnapshot(
+          processNames,
+          snapshotOptions(namePrefixes, (process) => this.isCandidateProcess(adapters, process)),
+        );
       } catch {
         processes = [];
       }
@@ -218,9 +238,12 @@ export class AgentManager {
     // Query all adapters in parallel using executable-scoped slices of the shared snapshot.
     const adapterPromises = adapters.map(async (adapter) => {
       try {
-        const agents = adapter.processNames
+        const hasPatterns =
+          adapter.processNames !== undefined || adapter.processNamePrefixes !== undefined;
+        const { names, prefixes } = adapterPatterns(adapter);
+        const agents = hasPatterns
           ? await adapter.detectAgents({
-              processes: filterByProcessNames(processes, adapter.processNames),
+              processes: filterByProcessNames(processes, names, prefixes),
             })
           : await adapter.detectAgents();
         return { type: adapter.type, agents, error: null };
@@ -284,8 +307,11 @@ export class AgentManager {
    */
   private isCandidateProcess(adapters: readonly AgentAdapter[], process: ProcessInfo): boolean {
     return adapters.some((adapter) => {
-      if (!adapter.processNames) return false;
-      if (filterByProcessNames([process], adapter.processNames).length === 0) return false;
+      if (adapter.processNames === undefined && adapter.processNamePrefixes === undefined) {
+        return false;
+      }
+      const { names, prefixes } = adapterPatterns(adapter);
+      if (filterByProcessNames([process], names, prefixes).length === 0) return false;
       try {
         return adapter.canHandle(process);
       } catch {

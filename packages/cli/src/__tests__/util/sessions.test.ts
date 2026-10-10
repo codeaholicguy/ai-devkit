@@ -63,7 +63,7 @@ describe("sessions util", () => {
 
     it("throws on an invalid --type", () => {
       expect(() => resolveListSessionsOptions({ all: true, type: "wrong" })).toThrow(
-        'Invalid --type "wrong". Expected one of: claude, codex, gemini_cli, grok_cli, kiro, antigravity_cli, opencode, copilot, pi, devin.',
+        'Invalid --type "wrong". Expected one of: claude, codex, gemini_cli, grok_cli, kiro, antigravity_cli, opencode, copilot, pi, devin, muse.',
       );
     });
 

@@ -88,13 +88,46 @@ function matchesExecutableName(command: string, names: ReadonlySet<string>): boo
   return mayContinuePath && names.has(normalizeExecutableName(executableBasename(command)));
 }
 
+/**
+ * Whether argv[0]'s basename is exactly `prefix` or starts with `prefix-`.
+ *
+ * Covers versioned launchers such as `muse-bin-1.4.4-R5419.1` for prefix
+ * `muse`. This is a recall-oriented prefilter: adapters still apply
+ * `canHandle` for precise shaping, so a coincidental `prefix-*` binary
+ * cannot leak into another harness.
+ */
+export function matchesExecutablePrefix(command: string, prefixes: ReadonlySet<string>): boolean {
+  if (prefixes.size === 0) return false;
+  const base = normalizeExecutableName(pathBasename(command.trim().split(/\s+/)[0] ?? ""));
+  if (prefixes.has(base)) return true;
+  for (const prefix of prefixes) {
+    if (base.startsWith(`${prefix}-`)) return true;
+  }
+  return false;
+}
+
+/** Whether argv[0] matches one of `names` exactly or one of `prefixes`. */
+export function matchesProcessPatterns(
+  command: string,
+  names: ReadonlySet<string>,
+  prefixes: ReadonlySet<string> = new Set(),
+): boolean {
+  return (
+    matchesExecutableName(command, names) || matchesExecutablePrefix(command, prefixes)
+  );
+}
+
 export function filterByProcessNames(
   processes: readonly ProcessInfo[],
   namePatterns: readonly string[],
+  namePrefixes: readonly string[] = [],
 ): ProcessInfo[] {
   const names = normalizedProcessNames(namePatterns);
-  if (names.size === 0) return [];
-  return processes.filter((process) => matchesExecutableName(process.command, names));
+  const prefixes = normalizedProcessNames(namePrefixes);
+  if (names.size === 0 && prefixes.size === 0) return [];
+  return processes.filter((process) =>
+    matchesProcessPatterns(process.command, names, prefixes),
+  );
 }
 
 /**
@@ -160,12 +193,29 @@ export interface ProcessSnapshotOptions {
    * only) so adapters can walk parent chains. Omitted = enrich everything.
    */
   isCandidate?: (process: ProcessInfo) => boolean;
+  /**
+   * Basename prefixes matched like `processNamePrefixes`: exact or
+   * `<prefix>-*`. Same validation as namePatterns.
+   */
+  namePrefixes?: readonly string[];
 }
 
 export type ProcessSnapshotCapture = (
   namePatterns: readonly string[],
   options?: ProcessSnapshotOptions,
 ) => Promise<ProcessInfo[]>;
+
+/**
+ * One construction site for snapshot options: `namePrefixes` is sent only
+ * when non-empty, so adapters without prefixes keep the exact legacy call
+ * shape that existing mock assertions pin.
+ */
+export function snapshotOptions(
+  namePrefixes: readonly string[],
+  isCandidate: (process: ProcessInfo) => boolean,
+): ProcessSnapshotOptions {
+  return namePrefixes.length > 0 ? { namePrefixes: [...namePrefixes], isCandidate } : { isCandidate };
+}
 
 const execFileText: ProcessExec = (file, args) =>
   new Promise((resolve, reject) => {
@@ -190,7 +240,11 @@ interface ParsedProcessList {
   matched: ProcessInfo[];
 }
 
-function parseProcessList(output: string, namePatterns: ReadonlySet<string>): ParsedProcessList {
+function parseProcessList(
+  output: string,
+  namePatterns: ReadonlySet<string>,
+  namePrefixes: ReadonlySet<string> = new Set(),
+): ParsedProcessList {
   const allPids = new Set<number>();
   const matched: ProcessInfo[] = [];
 
@@ -207,7 +261,7 @@ function parseProcessList(output: string, namePatterns: ReadonlySet<string>): Pa
 
     const tty = match[3];
     const command = match[4];
-    if (!matchesExecutableName(command, namePatterns)) continue;
+    if (!matchesProcessPatterns(command, namePatterns, namePrefixes)) continue;
 
     matched.push({
       pid,
@@ -317,14 +371,14 @@ export function createProcessSnapshotCapture(
   };
 
   return async (namePatterns, options = {}) => {
-    const names = normalizedProcessNames(
-      namePatterns.filter((name) => Boolean(name) && VALID_EXECUTABLE_NAME.test(name)),
-    );
-    if (names.size === 0) return [];
+    const valid = (name: string) => Boolean(name) && VALID_EXECUTABLE_NAME.test(name);
+    const names = normalizedProcessNames(namePatterns.filter(valid));
+    const prefixes = normalizedProcessNames((options.namePrefixes ?? []).filter(valid));
+    if (names.size === 0 && prefixes.size === 0) return [];
 
     try {
       const output = await exec("ps", ["-axo", "pid=,ppid=,tty=,command="]);
-      const { allPids, matched } = parseProcessList(output, names);
+      const { allPids, matched } = parseProcessList(output, names, prefixes);
 
       for (const pid of startTimeCache.keys()) {
         if (!allPids.has(pid)) startTimeCache.delete(pid);

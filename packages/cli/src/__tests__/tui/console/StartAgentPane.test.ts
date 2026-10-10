@@ -32,6 +32,7 @@ describe("StartAgentPane helpers", () => {
       "pi",
       "kiro",
       "devin",
+      "muse",
     ]);
   });
 
@@ -42,7 +43,8 @@ describe("StartAgentPane helpers", () => {
     expect(nextStartAgentType("opencode")).toBe("pi");
     expect(nextStartAgentType("pi")).toBe("kiro");
     expect(nextStartAgentType("kiro")).toBe("devin");
-    expect(nextStartAgentType("devin")).toBe("claude");
+    expect(nextStartAgentType("devin")).toBe("muse");
+    expect(nextStartAgentType("muse")).toBe("claude");
   });
 
   it("cycles to the previous agent type", () => {
@@ -51,7 +53,8 @@ describe("StartAgentPane helpers", () => {
     expect(previousStartAgentType("pi")).toBe("opencode");
     expect(previousStartAgentType("kiro")).toBe("pi");
     expect(previousStartAgentType("devin")).toBe("kiro");
-    expect(previousStartAgentType("claude")).toBe("devin");
+    expect(previousStartAgentType("muse")).toBe("devin");
+    expect(previousStartAgentType("claude")).toBe("muse");
   });
 
   it("renders one row per type with a marker on the selected type", () => {

@@ -12,6 +12,7 @@ export const AGENT_TYPE_LABELS: Record<AgentType, string> = {
   opencode: "OpenCode",
   pi: "Pi",
   devin: "Devin",
+  muse: "Muse Code",
   other: "Other",
 };
 
@@ -31,6 +32,7 @@ export const AGENT_TYPE_LABELS_COMPACT: Record<AgentType, string> = {
   opencode: "opencode",
   pi: "pi",
   devin: "devin",
+  muse: "muse",
   other: "other",
 };
 

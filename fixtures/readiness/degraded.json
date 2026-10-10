@@ -521,6 +521,49 @@
         ]
       },
       "status": "fail"
+    },
+    "muse": {
+      "type": "muse",
+      "executable": {
+        "command": "muse",
+        "path": null,
+        "status": "fail",
+        "errors": [
+          "muse was not found on PATH"
+        ]
+      },
+      "globalConfig": {
+        "path": "~/.config/muse",
+        "present": false,
+        "readable": false,
+        "status": "fail",
+        "errors": [
+          "global configuration directory is unavailable"
+        ]
+      },
+      "builtInSkills": {
+        "path": null,
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "unauthenticated",
+        "source": "~/.config/muse/auth.json",
+        "provider": null,
+        "availableProviders": [],
+        "status": "fail",
+        "errors": [
+          "Muse credential file is missing or invalid"
+        ]
+      },
+      "status": "fail"
     }
   }
 }

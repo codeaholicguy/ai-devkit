@@ -16,6 +16,7 @@ import {
   captureProcessSnapshot,
   executableBasename,
   filterByProcessNames,
+  snapshotOptions,
 } from "../utils/process.js";
 
 /** A session untouched for longer than this is IDLE. */
@@ -37,15 +38,19 @@ export interface HarnessProcesses {
  * (e.g. a harness's child runtime) that detection may need to walk through.
  */
 export async function findHarnessProcesses(
-  adapter: Pick<AgentAdapter, "canHandle"> & { readonly processNames: readonly string[] },
+  adapter: Pick<AgentAdapter, "canHandle" | "processNamePrefixes"> & {
+    readonly processNames: readonly string[];
+  },
   context?: AgentDetectionContext,
 ): Promise<HarnessProcesses> {
+  const prefixes = adapter.processNamePrefixes ? [...adapter.processNamePrefixes] : [];
   const snapshot =
     context?.processes ??
-    (await captureProcessSnapshot(adapter.processNames, {
-      isCandidate: (process) => adapter.canHandle(process),
-    }));
-  const relevant = filterByProcessNames(snapshot, adapter.processNames);
+    (await captureProcessSnapshot(
+      adapter.processNames,
+      snapshotOptions(prefixes, (process) => adapter.canHandle(process)),
+    ));
+  const relevant = filterByProcessNames(snapshot, adapter.processNames, prefixes);
 
   const byPid = new Map<number, ProcessInfo>();
   for (const process of relevant) {

@@ -68,6 +68,7 @@ function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
     ".gemini/antigravity-cli",
     ".config/opencode",
     ".config/devin",
+    ".config/muse",
     ".pi",
   ]) {
     files[path.join(homeDir, directory)] = "<dir>";
@@ -128,6 +129,7 @@ describe("agent readiness", () => {
       "copilot",
       "pi",
       "devin",
+      "muse",
     ]);
     for (const [agent, report] of Object.entries(reports) as Array<
       [ReadinessAgentType, (typeof reports)[ReadinessAgentType]]
@@ -166,6 +168,7 @@ describe("agent readiness", () => {
     expect(reports.kiro.integration).toBeUndefined();
     expect(reports.antigravity_cli.integration).toBeUndefined();
     expect(reports.opencode.integration).toBeUndefined();
+    expect(reports.muse.integration).toBeUndefined();
   });
 
   it("resolves agent executables from PATH directories containing spaces", async () => {
@@ -307,6 +310,39 @@ describe("agent readiness", () => {
       availableProviders: ["devin"],
       status: "pass",
     });
+  });
+
+  it("checks Muse auth from the muse auth.json file", async () => {
+    const authPath = path.join("/home/test", ".config", "muse", "auth.json");
+    const { options, files } = fixture();
+    files[authPath] = JSON.stringify({ meta: { token: "secret" } });
+
+    const report = await getAgentReadinessReport("muse", options);
+
+    expect(report.auth).toMatchObject({ state: "authenticated", status: "pass" });
+    expect(report.globalConfig).toMatchObject({ status: "pass" });
+  });
+
+  it("reports Muse as unauthenticated with an empty auth file", async () => {
+    const authPath = path.join("/home/test", ".config", "muse", "auth.json");
+    const { options, files } = fixture();
+    files[authPath] = JSON.stringify({});
+
+    const report = await getAgentReadinessReport("muse", options);
+
+    expect(report.auth).toMatchObject({
+      state: "unauthenticated",
+      status: "fail",
+      errors: ["Muse credential file has no entries"],
+    });
+  });
+
+  it("reports Muse as unauthenticated without an auth file", async () => {
+    const { options } = fixture();
+
+    const report = await getAgentReadinessReport("muse", options);
+
+    expect(report.auth).toMatchObject({ state: "unauthenticated", status: "fail" });
   });
 
   it("reports Devin as unauthenticated without a login line", async () => {

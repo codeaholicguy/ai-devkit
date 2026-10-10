@@ -63,7 +63,9 @@
     "/home/test/.config/opencode/skill/verify/SKILL.md": "# skill",
     "/home/test/.pi/agent/skills/agent-management/SKILL.md": "# skill",
     "/home/test/.pi/agent/skills/memory/SKILL.md": "# skill",
-    "/home/test/.pi/agent/skills/verify/SKILL.md": "# skill"
+    "/home/test/.pi/agent/skills/verify/SKILL.md": "# skill",
+    "/home/test/.config/muse": "<dir>",
+    "/home/test/.config/muse/auth.json": "{\"meta\": {\"token\": \"secret\"}}"
   },
   "executables": [
     "/bin/claude",
@@ -75,7 +77,8 @@
     "/bin/opencode",
     "/bin/copilot",
     "/bin/pi",
-    "/bin/devin"
+    "/bin/devin",
+    "/bin/muse"
   ],
   "commands": {
     "pi list": {
@@ -479,6 +482,43 @@
         "availableProviders": [
           "devin"
         ],
+        "status": "pass",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "muse": {
+      "type": "muse",
+      "executable": {
+        "command": "muse",
+        "path": "/bin/muse",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.config/muse",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": null,
+        "required": 3,
+        "present": 0,
+        "missing": [
+          "agent-management",
+          "memory",
+          "verify"
+        ],
+        "status": "info",
+        "errors": []
+      },
+      "auth": {
+        "state": "authenticated",
+        "source": "~/.config/muse/auth.json",
+        "provider": null,
+        "availableProviders": [],
         "status": "pass",
         "errors": []
       },
