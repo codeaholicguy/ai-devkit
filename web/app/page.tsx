@@ -13,12 +13,13 @@ const agents = [
   { name: "Cursor", logo: "/logo/cursor.png", href: "https://cursor.com" },
   { name: "Codex", logo: "/logo/codex.png", href: "https://openai.com/codex" },
   { name: "Gemini CLI", logo: "/logo/gemini-cli.png", href: "https://geminicli.com" },
-  // opencode's mark is a pixel wordmark that turns to mush at this size
-  { name: "opencode", logo: null, href: "https://opencode.ai" },
+  { name: "opencode", logo: "/logo/opencode.svg", href: "https://opencode.ai" },
   { name: "Antigravity", logo: "/logo/antigravity.png", href: "https://antigravity.ai" },
   { name: "Junie", logo: "/logo/junie.png", href: "https://junie.jetbrains.com" },
   { name: "Cline", logo: "/logo/cline.png", href: "https://cline.bot" },
   { name: "Devin", logo: "/logo/devin.png", href: "https://devin.ai" },
+  { name: "Grok CLI", logo: "/logo/grok-cli.svg", href: "https://x.ai/cli" },
+  { name: "Muse Code", logo: "/logo/muse-code.svg", href: "https://dev.meta.ai/products/muse-code/" },
 ];
 
 const beforeAfter = [
@@ -96,7 +97,7 @@ export default function Home() {
           >
             Works with the agents you already run
           </h2>
-          <ul className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-5">
+          <ul className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
             {agents.map((agent) => (
               <li key={agent.name}>
                 <a
@@ -105,18 +106,14 @@ export default function Home() {
                   rel="noopener noreferrer"
                   className="group inline-flex min-h-11 items-center gap-3 rounded-md text-[0.9375rem] font-medium text-on-surface-variant no-underline transition-colors hover:text-on-surface"
                 >
-                  {agent.logo ? (
-                    <Image
-                      src={agent.logo}
-                      alt=""
-                      width={28}
-                      height={28}
-                      className="agent-logo h-7 w-7 object-contain"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <span className="h-7 w-7" aria-hidden="true" />
-                  )}
+                  <Image
+                    src={agent.logo}
+                    alt=""
+                    width={28}
+                    height={28}
+                    className="agent-logo h-7 w-7 object-contain"
+                    loading="lazy"
+                  />
                   {agent.name}
                   <span className="sr-only">(opens in a new tab)</span>
                 </a>
