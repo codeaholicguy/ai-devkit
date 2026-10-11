@@ -67,7 +67,7 @@ export default function Footer() {
         </div>
 
         <p className="mt-8 border-t border-rule pt-8 text-center text-sm text-fg-muted">
-          © {new Date().getFullYear()} AI DevKit. Released under the MIT License.
+          © {new Date().getFullYear()} AI DevKit. Released under the Apache License 2.0.
         </p>
       </div>
     </footer>

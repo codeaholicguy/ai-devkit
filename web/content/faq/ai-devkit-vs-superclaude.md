@@ -22,7 +22,7 @@ The main difference is scope: SuperClaude deepens what one agent (Claude Code) d
 | **Console** | Local console to see and message running agent sessions | No multi-session console |
 | **Agents supported** | Many environments: Claude Code, Cursor, Codex, Copilot, Gemini CLI, opencode, and others | Claude Code only |
 | **Skills** | Built-in workflow skills plus installable skills from registries | Bundled commands, agents, and modes inside one framework |
-| **License** | MIT | MIT |
+| **License** | Apache-2.0 | MIT |
 | **Best for** | Teams running several coding agents that need one operating model | Claude Code users who want a richer single-agent command and persona system |
 
 > Note: Framework contents change between releases. Check each project's repository for current commands and agents.

@@ -200,7 +200,7 @@ export default function Home() {
             Set up in two commands.
           </h2>
           <p className="mt-4 text-base leading-7 text-on-surface-variant">
-            Free and MIT licensed. Needs Node.js 20.20 or newer.
+            Free and Apache-2.0 licensed. Needs Node.js 20.20 or newer.
           </p>
 
           <ol className="mt-12 grid gap-10 md:grid-cols-2 md:gap-8">
