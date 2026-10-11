@@ -3,7 +3,7 @@
 A local MCP-based memory service for AI coding agents. Store project decisions, coding conventions, and reusable fixes so agents can retrieve them across sessions with SQLite full-text search.
 
 [![npm version](https://img.shields.io/npm/v/@ai-devkit/memory.svg)](https://www.npmjs.com/package/@ai-devkit/memory)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Most users get this automatically through `ai-devkit init`. Install `@ai-devkit/memory` directly when you want to wire the MCP memory server into your own MCP client configuration.
 
@@ -98,4 +98,4 @@ Use `ai-devkit memory reembed --force` after troubleshooting a cache or embeddin
 
 ## License
 
-MIT
+Apache License 2.0

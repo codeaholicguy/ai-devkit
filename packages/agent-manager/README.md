@@ -54,4 +54,4 @@ Full guides and workflow examples: **[ai-devkit.com/docs](https://ai-devkit.com/
 
 ## License
 
-MIT
+Apache License 2.0

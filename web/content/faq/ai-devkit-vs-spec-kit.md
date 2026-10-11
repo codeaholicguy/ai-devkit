@@ -25,7 +25,7 @@ The main difference is what each tool focuses on:
 | **Agents supported** | Broad support across many environments (for example Claude Code, Cursor, Codex, Copilot) | Broad support via `specify init --ai ...` and generated slash command packs |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Spec and plan files created by the Spec Kit workflow |
 | **Execution model** | Single agent per feature with persistent memory | Step-by-step flow where each command creates input for the next step |
-| **License** | MIT | MIT |
+| **License** | Apache-2.0 | MIT |
 | **Best for** | Teams that want one control plane across coding agents, plus memory and reusable skills | Teams that want a spec-driven method with tighter process sequencing |
 
 > Note: Supported agents and commands can change over time. Verify current support in each project's repository.

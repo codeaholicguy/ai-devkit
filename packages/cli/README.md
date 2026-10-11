@@ -3,7 +3,7 @@
 The command-line interface for **AI DevKit** — make AI coding agents follow a repeatable engineering workflow in your project.
 
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Use this package when you want the `ai-devkit` command to install agent skills, memory, verification gates, MCP configuration, and `docs/ai/` workflow files into a project.
 
@@ -154,4 +154,4 @@ skills:
 
 ## License
 
-MIT
+Apache License 2.0

@@ -8,7 +8,7 @@
   },
   "homepage": "https://ai-devkit.com",
   "repository": "https://github.com/codeaholicguy/ai-devkit",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "keywords": [
     "ai",
     "development",

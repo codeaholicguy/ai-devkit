@@ -29,7 +29,7 @@ Run `npx ai-devkit@latest init` and your project gets:
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![npm downloads](https://img.shields.io/npm/dt/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![GitHub stars](https://img.shields.io/github/stars/Codeaholicguy/ai-devkit.svg?style=social)](https://github.com/Codeaholicguy/ai-devkit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## Who this is for
 
@@ -230,7 +230,7 @@ Those files are static instructions the agent re-reads. AI DevKit gives agents a
 - **Not a smarter LLM.** Bad models stay bad — this raises the floor on process, not on raw capability.
 - **Not a replacement for Claude Code, Codex, Cursor, Gemini CLI, or opencode.** AI DevKit configures, supervises, and coordinates the agents you already use.
 - **Not a magic "write the feature for me" button.** You still review the requirements doc, accept the design, and read the diff. The workflow makes that review possible because you have artifacts to point at instead of only chat scrollback.
-- **Not a hosted service.** MIT-licensed, runs locally, no telemetry. Memory is a SQLite file on your disk. The agent control plane talks to the agent SDKs you already use.
+- **Not a hosted service.** Apache-2.0-licensed, runs locally, no telemetry. Memory is a SQLite file on your disk. The agent control plane talks to the agent SDKs you already use.
 
 ## Documentation & community
 
@@ -245,7 +245,7 @@ cd ai-devkit && npm install && npm run build
 
 ## License
 
-MIT
+Apache License 2.0
 
 ## Star History
 

@@ -22,7 +22,7 @@ The main difference is the layer: Agent OS manages *what* your agents should fol
 | **Spec workflow** | Phase-based workflow docs under `docs/ai/` plus `dev-lifecycle` skills | `/shape-spec` enhances the agent's native plan mode and saves spec docs |
 | **Console** | Local console to see and message running agent sessions | No agent console |
 | **Agents supported** | Broad support: Claude Code, Cursor, Codex, Copilot, Gemini CLI, opencode, and others | Designed primarily for Claude Code; markdown outputs work with any agent |
-| **License** | MIT | MIT |
+| **License** | Apache-2.0 | MIT |
 | **Best for** | Teams operating several coding agents with one setup, console, memory, and verification model | Teams that want documented, injectable coding standards and better specs |
 
 > Note: Agent OS v3 defers spec writing, task breakdown, and implementation orchestration to modern agents and focuses on standards. Check its repository for the current feature set.

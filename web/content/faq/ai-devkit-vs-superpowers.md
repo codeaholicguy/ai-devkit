@@ -19,7 +19,7 @@ These tools take different paths to fix that.
 | **Agents supported** | Broad setup support across Cursor, Claude Code, Codex, Copilot, Gemini CLI, opencode, Antigravity, and others | 4 (Claude Code, Cursor, Codex, opencode) |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
 | **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
-| **License** | MIT | MIT |
+| **License** | Apache-2.0 | MIT |
 | **Best for** | Teams that want one control plane across coding agents, plus memory and reusable skills | Teams that want strict, opinionated workflow enforcement inside a smaller agent set |
 
 > Note: Agent and skill counts can change over time. Check each project's repository for the latest numbers.

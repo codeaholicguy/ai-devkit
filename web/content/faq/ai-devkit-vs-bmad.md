@@ -22,7 +22,7 @@ The main difference is what each tool orchestrates: BMAD orchestrates *roles and
 | **Memory** | Built-in local SQLite memory service shared across agents via MCP | Durable context carried in briefs, specs, and project documents |
 | **Console** | Local console to see and message running agent sessions | No agent console |
 | **Agents supported** | Broad support: Claude Code, Cursor, Codex, Copilot, Gemini CLI, opencode, and others | Works with the coding agents its skills are installed into |
-| **License** | MIT | MIT |
+| **License** | Apache-2.0 | MIT |
 | **Best for** | Teams running several coding agents that need one setup, console, memory, and verification model | Teams that want a full agile delivery process with role personas inside their agent |
 
 > Note: BMAD is actively evolving with official extension modules. Check its repository for current workflows and agents.

@@ -29,7 +29,7 @@ AI DevKit 为 Claude Code、Codex CLI、Gemini CLI、opencode、Pi、Cursor、Gi
 [![npm version](https://img.shields.io/npm/v/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![npm downloads](https://img.shields.io/npm/dt/ai-devkit.svg)](https://www.npmjs.com/package/ai-devkit)
 [![GitHub stars](https://img.shields.io/github/stars/Codeaholicguy/ai-devkit.svg?style=social)](https://github.com/Codeaholicguy/ai-devkit)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 ## 适合谁
 
@@ -226,7 +226,7 @@ ai-devkit init --template ./senior-engineer.yaml
 - **不是更聪明的 LLM。** 差的模型仍然差。AI DevKit 提升的是流程下限，不是模型原始能力。
 - **不是 Claude Code、Codex、Cursor、Gemini CLI 或 opencode 的替代品。** AI DevKit 配置、监督并协调你已经在使用的智能体。
 - **不是“帮我自动写完整功能”的魔法按钮。** 你仍然要审查需求文档、接受设计、阅读 diff。工作流让这种审查变得可行，因为你有可以指向的工件，而不是只能翻聊天记录。
-- **不是托管服务。** MIT 许可，本地运行，没有遥测。记忆是你磁盘上的 SQLite 文件。智能体控制面与已经在使用的智能体 SDK 通信。
+- **不是托管服务。** Apache-2.0 许可，本地运行，没有遥测。记忆是你磁盘上的 SQLite 文件。智能体控制面与已经在使用的智能体 SDK 通信。
 
 ## 文档与社区
 
@@ -241,4 +241,4 @@ cd ai-devkit && npm install && npm run build
 
 ## 许可证
 
-MIT
+Apache License 2.0
