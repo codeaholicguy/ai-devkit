@@ -1,10 +1,17 @@
 import type { Metadata } from "next";
+import { Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import SkipToContent from "@/components/SkipToContent";
 import { GitHubProvider } from "@/lib/GitHubContext";
 import Script from "next/script";
+
+const geist = Geist({ subsets: ["latin"], variable: "--font-geist" });
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+});
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 
@@ -135,7 +142,8 @@ export default function RootLayout({
   };
 
   return (
-    <html lang="en">
+    // Font variables must be on <html>: theme tokens resolve at :root.
+    <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable}`}>
       <body className="flex flex-col min-h-screen">
         <Script
           async

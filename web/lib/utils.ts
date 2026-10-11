@@ -1,3 +1,5 @@
+export const REPO_URL = "https://github.com/codeaholicguy/ai-devkit";
+
 /**
  * Format star count for display
  * @param count - The number of stars

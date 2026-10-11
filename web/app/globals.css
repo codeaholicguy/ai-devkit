@@ -8,11 +8,17 @@
   --color-surface-container-low: #191b24;
   --color-surface-container: #1d1f29;
   --color-surface-container-high: #282933;
-  --color-surface-container-highest: #32343e;
   --color-on-surface: #e1e1ef;
   --color-on-surface-variant: #c1c9bb;
+  --color-on-surface-dim: #8a8f9e;
+  --color-outline: #6a6e7d;
   --color-primary: #b3f6ab;
+  --color-on-primary: #003909;
+  --color-primary-strong: #96d68f;
   --color-secondary: #bac3ff;
+  --color-signal: #8fd694;
+  --color-console-cyan: #7dcfff;
+  --color-link: #2a3e9a;
   --color-gray-50: #fafafa;
   --color-gray-100: #f5f5f5;
   --color-gray-200: #e5e5e5;
@@ -23,214 +29,197 @@
   --color-gray-700: #404040;
   --color-gray-800: #262626;
   --color-gray-900: #171717;
-  --font-sans: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  --font-sans: var(--font-geist), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 }
 
-body {
-  background: #ffffff;
-  color: #2e303a;
-  font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Page chrome (body, header, footer) follows the page: dark on the homepage. */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-strong: var(--fg-strong);
+  --color-rule: var(--rule);
+  --color-tint: var(--tint);
 }
 
-h1, h2, h3, h4, h5, h6 {
-  font-weight: 700;
-  line-height: 1.2;
-  margin-bottom: 0.5em;
+:root {
+  --canvas: #ffffff;
+  --fg: #2e303a;
+  --fg-muted: #515367;
+  --fg-strong: #11131c;
+  --rule: #dde3da;
+  --tint: #f3f5ff;
 }
 
-h1 { font-size: 2.5rem; }
-h2 { font-size: 2rem; }
-h3 { font-size: 1.75rem; }
-h4 { font-size: 1.5rem; }
-h5 { font-size: 1.25rem; }
-h6 { font-size: 1rem; }
-
-p {
-  line-height: 1.6;
-  margin-bottom: 1em;
+:root:has(.page-home) {
+  --canvas: #0c0e17;
+  --fg: #e1e1ef;
+  --fg-muted: #a8adbb;
+  --fg-strong: #e1e1ef;
+  --rule: #1d1f29;
+  --tint: #1d1f29;
 }
 
-a {
-  transition: opacity 0.2s;
-}
-
-a:hover {
-  opacity: 0.7;
-}
-
-code {
-  padding: 0.2em 0.4em;
-  border-radius: 3px;
-  font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
-  font-size: 0.9em;
-}
-
-pre code {
-  background: transparent;
-  padding: 0;
-}
-
-pre {
-  padding: 1rem;
-  border-radius: 0.5rem;
-  overflow-x: auto;
-  margin: 1.5rem 0;
-}
-
-article pre {
-  background: #0c0e17;
-  color: #e1e1ef;
-}
-
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-
-.focus\:not-sr-only:focus {
-  position: static;
-  width: auto;
-  height: auto;
-  padding: inherit;
-  margin: inherit;
-  overflow: visible;
-  clip: auto;
-  white-space: normal;
-}
-
-*:focus-visible {
-  outline: 2px solid #bac3ff;
-  outline-offset: 2px;
-}
-
-h1, h2, h3, h4, h5, h6, p, span, div {
-  color: inherit;
-}
-
-article ul, article ol {
-  list-style-type: unset;
-  padding-left: 1em;
-  margin-bottom: 1em;
-}
-
-article a {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-/* Table Styles */
-article table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1.5rem 0;
-  font-size: 0.95rem;
-  border-radius: 0.5rem;
-  overflow: hidden;
-  border: 1px solid #d5d9e8;
-}
-
-article thead {
-  background: #f3f5ff;
-}
-
-article th {
-  padding: 0.875rem 1rem;
-  text-align: left;
-  font-weight: 600;
-  color: #2e303a;
-  border-bottom: 2px solid #d5d9e8;
-}
-
-article td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #d5d9e8;
-  color: #515367;
-}
-
-article tbody tr:last-child td {
-  border-bottom: none;
-}
-
-article tbody tr:hover {
-  background: #f8faf7;
-}
-
-article td code {
-  background: #f3f5ff;
-  padding: 0.15em 0.4em;
-  border-radius: 4px;
-  font-size: 0.875em;
-}
-
-@keyframes agent-marquee {
-  0% {
-    transform: translateX(0);
+/* In the base layer so utilities win over these element defaults. */
+@layer base {
+  html {
+    scroll-padding-top: 5rem;
   }
-  100% {
-    transform: translateX(-33.3333%);
+
+  body {
+    background: var(--canvas);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.5em;
+  }
+
+  h1 { font-size: 2.5rem; }
+  h2 { font-size: 2rem; }
+  h3 { font-size: 1.75rem; }
+  h4 { font-size: 1.5rem; }
+  h5 { font-size: 1.25rem; }
+  h6 { font-size: 1rem; }
+
+  p {
+    line-height: 1.6;
+    margin-bottom: 1em;
+  }
+
+  a {
+    transition: opacity 0.2s;
+  }
+
+  a:hover {
+    opacity: 0.7;
+  }
+
+  code {
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+
+  pre code {
+    background: transparent;
+    padding: 0;
+  }
+
+  pre {
+    padding: 1rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+
+  article pre {
+    background: #0c0e17;
+    color: #e1e1ef;
+  }
+
+  *:focus-visible {
+    outline: 2px solid var(--color-secondary);
+    outline-offset: 2px;
+  }
+
+  article ul, article ol {
+    list-style-type: unset;
+    padding-left: 1em;
+    margin-bottom: 1em;
+  }
+
+  article a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* Table Styles */
+  article table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid #d5d9e8;
+  }
+
+  article thead {
+    background: #f3f5ff;
+  }
+
+  article th {
+    padding: 0.875rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #2e303a;
+    border-bottom: 2px solid #d5d9e8;
+  }
+
+  article td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #d5d9e8;
+    color: #515367;
+  }
+
+  article tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  article tbody tr:hover {
+    background: #f8faf7;
+  }
+
+  article td code {
+    background: #f3f5ff;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    font-size: 0.875em;
   }
 }
 
-.agent-marquee {
-  animation: agent-marquee 22s linear infinite;
-  will-change: transform;
+/* The homepage styles its own type with utilities. */
+@layer base {
+  .page-home :where(h1, h2, h3, h4, h5, h6, p) {
+    margin: 0;
+    font: inherit;
+  }
+
+  .page-home :where(a):hover {
+    opacity: 1;
+  }
 }
 
+/* One light silhouette, so dark marks (Cursor, Codex) show on the dark strip. */
 .agent-logo {
-  filter: grayscale(100%);
+  filter: brightness(0) invert(0.8);
   transition: filter 200ms ease;
 }
 
-.agent-marquee a:hover .agent-logo {
-  filter: grayscale(0%);
+a:hover .agent-logo,
+a:focus-visible .agent-logo {
+  filter: brightness(0) invert(0.95);
 }
 
-.operator-grid {
-  background:
-    linear-gradient(rgba(225, 225, 239, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(225, 225, 239, 0.05) 1px, transparent 1px),
-    linear-gradient(135deg, #11131c 0%, #191b24 56%, #11131c 100%);
-  background-size: 32px 32px, 32px 32px, auto;
-}
+@media (prefers-reduced-motion: no-preference) {
+  .rise {
+    animation: rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
 
-.ethereal-grid {
-  background:
-    linear-gradient(rgba(45, 64, 157, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(45, 64, 157, 0.055) 1px, transparent 1px),
-    linear-gradient(135deg, #ffffff 0%, #f8faf7 56%, #f3f5ff 100%);
-  background-size: 32px 32px, 32px 32px, auto;
-}
-
-.ethereal-panel {
-  box-shadow: 0 0 20px rgba(186, 195, 255, 0.12);
-  backdrop-filter: blur(16px);
-}
-
-.console-aura::before {
-  background:
-    radial-gradient(circle at 25% 45%, rgba(179, 246, 171, 0.18), transparent 36%),
-    radial-gradient(circle at 72% 38%, rgba(186, 195, 255, 0.24), transparent 42%);
-  content: "";
-  filter: blur(28px);
-  inset: -12%;
-  opacity: 0.7;
-  pointer-events: none;
-  position: absolute;
-  z-index: -1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .agent-marquee {
-    animation: none;
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
