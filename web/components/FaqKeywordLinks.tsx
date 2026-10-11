@@ -1,7 +1,22 @@
 import Link from "next/link";
-import { seoKeywordEntries } from "@/lib/seo/keywords";
+import { resolveSeoCluster, seoKeywordEntries } from "@/lib/seo/keywords";
 
-export default function FaqKeywordLinks() {
+const MAX_LINKS = 10;
+
+interface FaqKeywordLinksProps {
+  currentSlug?: string;
+}
+
+export default function FaqKeywordLinks({ currentSlug }: FaqKeywordLinksProps) {
+  const currentCluster = currentSlug ? resolveSeoCluster(currentSlug) : null;
+  const candidates = seoKeywordEntries.filter(
+    (entry) => entry.slug !== currentSlug
+  );
+  const related = [
+    ...candidates.filter((entry) => entry.cluster === currentCluster),
+    ...candidates.filter((entry) => entry.cluster !== currentCluster),
+  ].slice(0, MAX_LINKS);
+
   return (
     <section className="mt-12 border-t border-gray-200 pt-8">
       <h2 className="text-2xl font-bold mb-4">More FAQ Topics</h2>
@@ -9,7 +24,7 @@ export default function FaqKeywordLinks() {
         Explore related AI DevKit questions and topics.
       </p>
       <ul className="list-disc pl-5 space-y-2">
-        {seoKeywordEntries.map((entry) => (
+        {related.map((entry) => (
           <li key={entry.slug}>
             <Link
               href={`/faq/${entry.slug}`}
@@ -20,6 +35,14 @@ export default function FaqKeywordLinks() {
           </li>
         ))}
       </ul>
+      <p className="mt-6">
+        <Link
+          href="/faq"
+          className="font-semibold text-[#2a3e9a] no-underline hover:text-[#0c2483]"
+        >
+          Browse all FAQ topics
+        </Link>
+      </p>
     </section>
   );
 }

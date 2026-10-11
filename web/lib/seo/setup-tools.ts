@@ -10,6 +10,12 @@ const rawSetupTools = [
   "Antigravity",
   "opencode",
   "GitHub Copilot",
+  "Gemini CLI",
+  "Junie",
+  "Cline",
+  "Devin",
+  "Pi",
+  "Grok",
 ];
 
 function slugifyTool(tool: string): string {

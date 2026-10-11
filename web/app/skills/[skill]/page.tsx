@@ -87,19 +87,41 @@ export default async function SkillDetailPage({ params }: SkillPageProps) {
     .slice(0, 4);
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "TechArticle",
-    headline: `${skill.title} Skill`,
-    description: skill.description,
-    url: pageUrl,
-    author: {
-      "@type": "Organization",
-      name: "AI DevKit",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "AI DevKit",
-      url: siteUrl,
-    },
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        headline: `${skill.title} Skill`,
+        description: skill.description,
+        url: pageUrl,
+        author: {
+          "@type": "Organization",
+          name: "AI DevKit",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "AI DevKit",
+          url: siteUrl,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Skills",
+            item: `${siteUrl}/skills/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: `${skill.title} Skill`,
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
   };
 
   return (

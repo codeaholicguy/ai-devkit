@@ -37,6 +37,9 @@ export const metadata: Metadata = {
   authors: [{ name: "AI DevKit Team" }],
   creator: "AI DevKit",
   publisher: "AI DevKit",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "AI DevKit - Control Plane for AI Coding Agents",
     description:
@@ -45,12 +48,21 @@ export const metadata: Metadata = {
     siteName: "AI DevKit",
     locale: "en_US",
     type: "website",
+    images: [
+      {
+        url: "/og-image.jpg",
+        width: 1200,
+        height: 630,
+        alt: "AI DevKit agent console managing multiple local AI coding agent sessions",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "AI DevKit - Control Plane for AI Coding Agents",
     description:
       "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
+    images: ["/og-image.jpg"],
   },
   robots: {
     index: true,
@@ -81,6 +93,17 @@ export default function RootLayout({
         url: siteUrl,
       },
       {
+        "@type": "Organization",
+        "@id": `${siteUrl}/#organization`,
+        name: "AI DevKit",
+        url: siteUrl,
+        logo: `${siteUrl}/logo.svg`,
+        sameAs: [
+          "https://github.com/codeaholicguy/ai-devkit",
+          "https://www.npmjs.com/package/ai-devkit",
+        ],
+      },
+      {
         "@type": "SoftwareApplication",
         "@id": `${siteUrl}/#softwareapplication`,
         name: "AI DevKit",
@@ -91,12 +114,17 @@ export default function RootLayout({
           "A control plane for AI coding agents with one config, one console, local-first memory, cross-agent communication, workflow skills, and verification gates.",
         url: siteUrl,
         downloadUrl: "https://www.npmjs.com/package/ai-devkit",
+        codeRepository: "https://github.com/codeaholicguy/ai-devkit",
         softwareHelp: `${siteUrl}/docs`,
-        sourceOrganization: {
-          "@type": "Organization",
-          name: "AI DevKit",
-          url: siteUrl,
+        author: { "@id": `${siteUrl}/#organization` },
+        sourceOrganization: { "@id": `${siteUrl}/#organization` },
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
         },
+        keywords:
+          "AI coding agents, agent control plane, multi-agent orchestration, Claude Code, Cursor, Codex, agent memory, MCP",
         isAccessibleForFree: true,
         sameAs: [
           "https://github.com/codeaholicguy/ai-devkit",

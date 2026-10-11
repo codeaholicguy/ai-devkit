@@ -23,14 +23,24 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <a href="/vision" className="text-gray-600 hover:text-black no-underline">
-                  Vision
-                </a>
+                <Link href="/skills" className="text-gray-600 hover:text-black no-underline">
+                  Skills
+                </Link>
               </li>
               <li>
-                <a href="/roadmap" className="text-gray-600 hover:text-black no-underline">
+                <Link href="/faq" className="text-gray-600 hover:text-black no-underline">
+                  FAQ
+                </Link>
+              </li>
+              <li>
+                <Link href="/vision" className="text-gray-600 hover:text-black no-underline">
+                  Vision
+                </Link>
+              </li>
+              <li>
+                <Link href="/roadmap" className="text-gray-600 hover:text-black no-underline">
                   Roadmap
-                </a>
+                </Link>
               </li>
               <li>
                 <a 

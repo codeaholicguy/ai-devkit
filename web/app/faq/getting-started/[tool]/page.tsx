@@ -119,19 +119,41 @@ export default async function SetupToolPage({ params }: SetupPageProps) {
   const pageUrl = `${siteUrl}/faq/getting-started/${entry.slug}`;
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: buildTitle(entry.tool),
-    description: buildDescription(entry.tool),
-    url: pageUrl,
-    author: {
-      "@type": "Organization",
-      name: "AI DevKit",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "AI DevKit",
-      url: siteUrl,
-    },
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: buildTitle(entry.tool),
+        description: buildDescription(entry.tool),
+        url: pageUrl,
+        author: {
+          "@type": "Organization",
+          name: "AI DevKit",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "AI DevKit",
+          url: siteUrl,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "FAQ",
+            item: `${siteUrl}/faq/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: buildTitle(entry.tool),
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
   };
 
   return (

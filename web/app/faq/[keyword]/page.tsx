@@ -1,15 +1,17 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import type { Metadata } from "next";
 import MarkdownContent from "@/components/MarkdownContent";
 import FaqKeywordLinks from "@/components/FaqKeywordLinks";
 import { getAllFaqPages, getDocPage, getFaqPage } from "@/lib/content/loader";
 import {
+  clusterDocSlugs,
   findSeoKeywordBySlug,
+  getSeoClusterLinks,
   seoKeywordEntries,
 } from "@/lib/seo/keywords";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
-const baseDocSlug = "1-getting-started";
 
 interface SeoPageProps {
   params: Promise<{ keyword: string }>;
@@ -162,7 +164,7 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
             {faqPage.metadata.description}
           </p>
           <MarkdownContent content={faqPage.content} />
-          <FaqKeywordLinks />
+          <FaqKeywordLinks currentSlug={slug} />
         </article>
       </div>
     );
@@ -174,28 +176,41 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
     notFound();
   }
 
-  const baseDoc = getDocPage(baseDocSlug);
+  const baseDoc = getDocPage(clusterDocSlugs[entry.cluster]);
   const baseContent =
     baseDoc?.content ||
     "AI DevKit gives AI coding agents one control plane with setup, console supervision, local-first memory, communication, workflow skills, and verification.";
 
   const content = buildSeoContent(entry.keyword, baseContent);
+  const relatedLinks = getSeoClusterLinks(entry.cluster);
   const pageUrl = `${siteUrl}/faq/${entry.slug}`;
   const structuredData = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: entry.keyword,
-    description: buildDescription(entry.keyword),
-    url: pageUrl,
-    author: {
-      "@type": "Organization",
-      name: "AI DevKit",
-    },
-    publisher: {
-      "@type": "Organization",
-      name: "AI DevKit",
-      url: siteUrl,
-    },
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: entry.keyword,
+        description: buildDescription(entry.keyword),
+        url: pageUrl,
+        author: {
+          "@type": "Organization",
+          name: "AI DevKit",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "AI DevKit",
+          url: siteUrl,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+          { "@type": "ListItem", position: 2, name: "FAQ", item: `${siteUrl}/faq/` },
+          { "@type": "ListItem", position: 3, name: entry.keyword, item: pageUrl },
+        ],
+      },
+    ],
   };
 
   return (
@@ -212,7 +227,22 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
           {buildDescription(entry.keyword)}
         </p>
         <MarkdownContent content={content} />
-        <FaqKeywordLinks />
+        <section className="mt-12">
+          <h2 className="text-2xl font-bold mb-4">Related guides</h2>
+          <ul className="list-disc pl-5 space-y-2">
+            {relatedLinks.map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="text-[#2a3e9a] hover:text-[#0c2483]"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <FaqKeywordLinks currentSlug={entry.slug} />
       </article>
     </div>
   );

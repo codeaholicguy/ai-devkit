@@ -82,9 +82,53 @@ export default async function DocPage({ params }: DocPageProps) {
   const nextDoc =
     currentIndex < allDocs.length - 1 ? allDocs[currentIndex + 1] : null;
 
+  const pageUrl = `${siteUrl}/docs/${slug}`;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "TechArticle",
+        headline: doc.metadata.title,
+        description: doc.metadata.description,
+        url: pageUrl,
+        author: {
+          "@type": "Organization",
+          name: "AI DevKit",
+        },
+        publisher: {
+          "@type": "Organization",
+          name: "AI DevKit",
+          url: siteUrl,
+        },
+      },
+      {
+        "@type": "BreadcrumbList",
+        itemListElement: [
+          { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Documentation",
+            item: `${siteUrl}/docs/`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: doc.metadata.title,
+            item: pageUrl,
+          },
+        ],
+      },
+    ],
+  };
+
   return (
     <div className="bg-white py-16">
       <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
         <nav className="mb-8 text-sm text-gray-600">
           <Link href="/docs" className="hover:text-black transition-colors">
             Documentation
