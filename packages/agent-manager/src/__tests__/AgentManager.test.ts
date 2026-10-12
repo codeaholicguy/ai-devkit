@@ -548,17 +548,42 @@ describe("AgentManager", () => {
       expect(agents.map((a) => a.name).sort()).toEqual(["daemon-claude", "daemon-codex"]);
     });
 
-    it("treats an empty daemon answer as authoritative", async () => {
+    it("falls back to local adapters when the daemon returns an empty list and local finds agents", async () => {
       const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
       const detectSpy = vi.spyOn(local, "detectAgents");
+      const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
       const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
         fetchEnrichedAgents: async () => [],
       });
       m.registerAdapter(local);
 
-      const agents = await m.listAgents();
-      expect(detectSpy).not.toHaveBeenCalled();
-      expect(agents).toEqual([]);
+      try {
+        const agents = await m.listAgents();
+        expect(detectSpy).toHaveBeenCalled();
+        expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("daemon"));
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("returns empty without a warning when the daemon and local adapters are both empty", async () => {
+      const local = new MockAdapter("claude");
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [],
+      });
+      m.registerAdapter(local);
+
+      try {
+        const agents = await m.listAgents();
+        expect(detectSpy).toHaveBeenCalled();
+        expect(agents).toEqual([]);
+        expect(warnSpy).not.toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
     });
   });
 

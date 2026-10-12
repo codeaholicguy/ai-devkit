@@ -10,4 +10,5 @@ serde_json.workspace = true
 rusqlite.workspace = true
 anyhow.workspace = true
 libc.workspace = true
+tracing.workspace = true
 ts-rs = "12"
