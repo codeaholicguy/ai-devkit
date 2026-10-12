@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/channel-connector",
-  "version": "0.13.4",
+  "version": "0.14.0",
   "description": "Generic messaging bridge for connecting to external communication platforms",
   "keywords": [
     "ai",
