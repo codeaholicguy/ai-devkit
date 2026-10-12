@@ -52,6 +52,11 @@
   --tint: #f3f5ff;
 }
 
+/* Header logo: dark-text mark on light pages, light-text mark on the dark homepage. */
+.logo-on-dark { display: none; }
+:root:has(.page-home) .logo-on-light { display: none; }
+:root:has(.page-home) .logo-on-dark { display: block; }
+
 :root:has(.page-home) {
   --canvas: #0c0e17;
   --fg: #e1e1ef;

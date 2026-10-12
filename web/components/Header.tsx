@@ -40,10 +40,11 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between">
           <Link
             href="/"
-            className="flex items-center gap-2 rounded text-xl font-semibold no-underline hover:opacity-100"
+            aria-label="AI DevKit home"
+            className="flex items-center rounded no-underline hover:opacity-100"
           >
-            <Image src="/logo.svg" alt="" width={32} height={32} className="rounded-sm" />
-            AI DevKit
+            <Image src="/logo-full-light.svg" alt="" width={190} height={28} className="logo-on-light h-7 w-auto" priority />
+            <Image src="/logo-full-dark.svg" alt="" width={190} height={28} className="logo-on-dark h-7 w-auto" priority />
           </Link>
 
           <div className="hidden md:flex md:items-center md:space-x-8">
