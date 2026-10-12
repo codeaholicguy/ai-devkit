@@ -8,6 +8,7 @@ import {
   SLACK_CHANNEL_TYPE,
   validateSlackAppToken,
   validateSlackCredentials,
+  validateTelegramBotToken,
   ChannelConfigRepository,
   type ChannelEntry,
   type SlackConfig,
@@ -171,12 +172,12 @@ export function registerChannelCommand(program: Command): void {
 
           let botUsername: string;
           try {
-            const { Telegraf } = await import("telegraf");
-            const bot = new Telegraf(botToken.trim());
-            const me = await bot.telegram.getMe();
-            botUsername = me.username;
+            const identity = await validateTelegramBotToken(botToken.trim());
+            botUsername = identity.username;
             spinner.succeed(`Connected to bot @${botUsername}`);
           } catch (error: unknown) {
+            const message = redactSecrets(getErrorMessage(error), [botToken]);
+            debug(`Telegram bot token validation failed: ${message}`);
             spinner.fail("Invalid bot token. Please check and try again.");
             return;
           }

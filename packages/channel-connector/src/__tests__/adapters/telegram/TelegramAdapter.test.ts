@@ -1,6 +1,9 @@
 import * as telegrafModule from "telegraf";
 import * as telegramHtml from "../../../adapters/telegram/telegramHtml.js";
-import { TelegramAdapter } from "../../../adapters/telegram/TelegramAdapter.js";
+import {
+  TelegramAdapter,
+  validateTelegramBotToken,
+} from "../../../adapters/telegram/TelegramAdapter.js";
 import type { IncomingMessage } from "../../../types.js";
 
 // Mock telegraf
@@ -76,6 +79,28 @@ function expectHtmlChunkWithinLimit(chunk: string): void {
 }
 
 describe("TelegramAdapter", () => {
+  it("returns the bot username for a valid token", async () => {
+    const getMe = vi.fn().mockResolvedValue({ username: "test_bot" });
+    await expect(validateTelegramBotToken("123:abc", { getMe })).resolves.toEqual({
+      username: "test_bot",
+    });
+    expect(getMe).toHaveBeenCalledOnce();
+  });
+
+  it("rejects when the API reports no username", async () => {
+    const getMe = vi.fn().mockResolvedValue({});
+    await expect(validateTelegramBotToken("123:abc", { getMe })).rejects.toThrow(
+      "Telegram bot token returned no username",
+    );
+  });
+
+  it("propagates API errors such as 401 Unauthorized", async () => {
+    const getMe = vi.fn().mockRejectedValue(new Error("401: Unauthorized"));
+    await expect(validateTelegramBotToken("123:abc", { getMe })).rejects.toThrow(
+      "401: Unauthorized",
+    );
+  });
+
   let adapter: TelegramAdapter;
 
   beforeEach(() => {

@@ -14,7 +14,7 @@ const mockConfigStore = {
 
 const mockConfirm = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockPassword = vi.fn<(...args: unknown[]) => Promise<unknown>>();
-const mockGetMe = vi.fn<() => Promise<{ username: string }>>();
+const mockValidateTelegramBotToken = vi.fn<() => Promise<{ username: string }>>();
 const mockValidateSlackCredentials = vi.fn();
 const mockValidateSlackAppToken = vi.fn();
 const { mockDebug, mockEnableDebug } = vi.hoisted(() => ({
@@ -82,6 +82,7 @@ vi.mock(
     SLACK_CHANNEL_TYPE: "slack",
     validateSlackCredentials: (...args: unknown[]) => mockValidateSlackCredentials(...args),
     validateSlackAppToken: (...args: unknown[]) => mockValidateSlackAppToken(...args),
+    validateTelegramBotToken: (...args: unknown[]) => mockValidateTelegramBotToken(...args),
   }),
   { virtual: true },
 );
@@ -110,16 +111,6 @@ vi.mock(
 vi.mock("@inquirer/prompts", () => ({
   confirm: (...args: unknown[]) => mockConfirm(...args),
   password: (...args: unknown[]) => mockPassword(...args),
-}));
-
-vi.mock("telegraf", () => ({
-  Telegraf: vi.fn(function () {
-    return {
-      telegram: {
-        getMe: mockGetMe,
-      },
-    };
-  }),
 }));
 
 vi.mock("../../util/terminal-ui.js", () => ({
@@ -204,7 +195,7 @@ describe("startOutputPolling", () => {
     mockConfigStore.removeChannel.mockReset();
     mockConfirm.mockReset();
     mockPassword.mockReset();
-    mockGetMe.mockReset();
+    mockValidateTelegramBotToken.mockReset();
     mockSpinner.start.mockReset();
     mockSpinner.succeed.mockReset();
     mockSpinner.fail.mockReset();
@@ -244,7 +235,7 @@ describe("startOutputPolling", () => {
         startedAt: "2026-05-24T00:00:00.000Z",
       },
     });
-    mockGetMe.mockResolvedValue({ username: "test_bot" });
+    mockValidateTelegramBotToken.mockResolvedValue({ username: "test_bot" });
     mockValidateSlackCredentials.mockReset();
     mockValidateSlackAppToken.mockReset();
     mockValidateSlackAppToken.mockResolvedValue(undefined);
@@ -502,8 +493,8 @@ describe("channel command", () => {
         startedAt: "2026-05-24T00:00:00.000Z",
       },
     });
-    mockGetMe.mockReset();
-    mockGetMe.mockResolvedValue({ username: "test_bot" });
+    mockValidateTelegramBotToken.mockReset();
+    mockValidateTelegramBotToken.mockResolvedValue({ username: "test_bot" });
     mockSpinner.start.mockReset();
     mockSpinner.succeed.mockReset();
     mockSpinner.fail.mockReset();

@@ -12,6 +12,24 @@ import type {
 export const TELEGRAM_CHANNEL_TYPE = "telegram";
 const TELEGRAM_PARSE_MODE = "HTML" as const;
 
+interface TelegramBotClient {
+  getMe(): Promise<{ username?: string }>;
+}
+
+export interface TelegramIdentity {
+  username: string;
+}
+
+export async function validateTelegramBotToken(
+  botToken: string,
+  client?: TelegramBotClient,
+): Promise<TelegramIdentity> {
+  const telegram = client ?? new Telegraf(botToken).telegram;
+  const me = await telegram.getMe();
+  if (!me.username) throw new Error("Telegram bot token returned no username");
+  return { username: me.username };
+}
+
 export interface TelegramAdapterOptions {
   botToken: string;
 }
