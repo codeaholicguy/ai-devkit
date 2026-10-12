@@ -102,6 +102,12 @@ pub fn sweep() -> Option<Vec<AgentProc>> {
     }
     let text = String::from_utf8_lossy(&out.stdout);
     let mut procs = parse_ps_output(&text, true);
+    if procs.is_empty() && !text.trim().is_empty() {
+        // A non-empty process table that yields zero rows means the parser
+        // regressed against this platform's ps format (see #371) — surface
+        // it instead of silently reporting an empty agent list forever.
+        tracing::warn!("sweep parsed 0 processes from non-empty ps output");
+    }
     procs.sort_by_key(|p| p.pid);
     Some(procs)
 }
@@ -112,11 +118,11 @@ pub fn sweep() -> Option<Vec<AgentProc>> {
 fn parse_ps_output(text: &str, resolve_cwd: bool) -> Vec<AgentProc> {
     text.lines()
         .filter_map(|line| {
-            let mut it = line.trim().splitn(4, char::is_whitespace);
-            let pid: i64 = it.next()?.parse().ok()?;
-            let ppid: i64 = it.next()?.parse().ok()?;
-            let tty = it.next().map(|s| s.to_string());
-            let command = it.next().unwrap_or("").trim().to_string();
+            let (pid, ppid, tty, command) = split_ps_row(line)?;
+            let pid: i64 = pid.parse().ok()?;
+            let ppid: i64 = ppid.parse().ok()?;
+            let tty = Some(tty.to_string());
+            let command = command.trim().to_string();
             if !is_agent_command(&command) {
                 return None;
             }
@@ -131,6 +137,22 @@ fn parse_ps_output(text: &str, resolve_cwd: bool) -> Vec<AgentProc> {
             })
         })
         .collect()
+}
+
+/// Split a `ps` row into pid/ppid/tty plus the raw command remainder.
+/// procps pads columns with runs of spaces, so fields must be split on
+/// whitespace RUNS — a per-char split yields empty fields that fail to
+/// parse and drops the row (issue #371). The command keeps its original
+/// inner spacing.
+fn split_ps_row(line: &str) -> Option<(&str, &str, &str, &str)> {
+    let mut rest = line.trim_start();
+    let mut fields = ["", "", ""];
+    for f in &mut fields {
+        let end = rest.find(char::is_whitespace)?;
+        *f = &rest[..end];
+        rest = rest[end..].trim_start();
+    }
+    Some((fields[0], fields[1], fields[2], rest))
 }
 
 fn cwd_of(pid: i64) -> Option<String> {
@@ -304,6 +326,31 @@ mod tests {
         assert_eq!(claude.tty.as_deref(), Some("pts/2"));
         assert!(claude.command.as_deref().unwrap().contains("claude"));
         // Bare name (pi) and full path (claude) both match via basename.
+    }
+
+    #[test]
+    fn issue_371_padded_column_rows_all_parse() {
+        // The exact matrix from codeaholicguy/ai-devkit#371: Linux procps
+        // right-aligns pid/ppid and pads columns with runs of spaces, so a
+        // per-char whitespace split produces empty fields and drops the row.
+        for line in [
+            "61524 60968 pts/1 claude",
+            " 61524 60968 pts/1 claude",
+            "61524   60968 pts/1    claude",
+            "61524 60968    pts/1 claude",
+            "  61524   60968 pts/1    claude",
+        ] {
+            assert_eq!(parse_ps_output(line, false).len(), 1, "row {line:?}");
+        }
+    }
+
+    #[test]
+    fn command_field_keeps_inner_spacing() {
+        let procs = parse_ps_output("  61524   60968 pts/1    claude --resume   abc123", false);
+        assert_eq!(
+            procs[0].command.as_deref(),
+            Some("claude --resume   abc123")
+        );
     }
 
     #[test]

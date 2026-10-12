@@ -61,10 +61,12 @@ export interface AgentManagerOptions {
   onRuntimeDiscoveryError?: (error: unknown) => void;
   /**
    * Daemon-side enriched agents ({@link DaemonClient.listAgents} wire
-   * shape: `AgentInfo` with `lastActive` as an ISO string). A non-null
+   * shape: `AgentInfo` with `lastActive` as an ISO string). A non-empty
    * result is authoritative for every harness type — all local adapters
-   * are skipped. Returning null or throwing forces the local path;
-   * omitting it disables daemon consumption.
+   * are skipped. An empty result is cross-checked against local detection
+   * (local wins on disagreement, with a warning). Returning null or
+   * throwing forces the local path; omitting it disables daemon
+   * consumption.
    */
   fetchEnrichedAgents?: () => Promise<Array<
     Omit<AgentInfo, "lastActive" | "type" | "status"> & {
@@ -190,9 +192,14 @@ export class AgentManager {
     const allAgents: AgentInfo[] = [];
     const errors: Array<{ type: string; error: Error }> = [];
 
-    // A non-null daemon answer is authoritative for every harness type, so
-    // local adapters only run when the daemon is absent.
+    // A non-empty daemon answer is authoritative for every harness type, so
+    // local adapters only run when the daemon is absent — or when it
+    // returns an empty list. An empty answer must not be authoritative
+    // (issue #371): a daemon-side discovery bug would otherwise mask every
+    // running agent forever. When local adapters disagree with the empty
+    // answer the local result wins, with a warning.
     let daemonAgents: AgentInfo[] | null = null;
+    let daemonAnsweredEmpty = false;
     if (this.options.fetchEnrichedAgents) {
       try {
         const enriched = await this.options.fetchEnrichedAgents();
@@ -203,6 +210,8 @@ export class AgentManager {
             status: a.status as AgentStatus,
             lastActive: new Date(a.lastActive),
           }));
+          daemonAnsweredEmpty = daemonAgents.length === 0;
+          if (daemonAnsweredEmpty) daemonAgents = null;
         }
       } catch {
         daemonAgents = null;
@@ -262,6 +271,13 @@ export class AgentManager {
       if (result.error === null) {
         allAgents.push(...result.agents);
       }
+    }
+
+    if (daemonAnsweredEmpty && allAgents.length > 0) {
+      console.error(
+        `Warning: devkitd reported no agents but local detection found ${allAgents.length} — ` +
+          "the daemon's process sweep may be broken; showing local results.",
+      );
     }
 
     // Log errors if any (but don't throw - partial results are useful)

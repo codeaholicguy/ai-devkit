@@ -37,6 +37,20 @@ jobs:
       - name: Build
         run: npm run build
 
+      # devkitd powers the daemon-client integration tests; without a
+      # binary they silently skip and the daemon path gets no CI coverage
+      # (that's how #371 shipped).
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build devkitd for daemon-client integration tests
+        run: cargo build -p devkitd --manifest-path rust/Cargo.toml
+
       - name: Test
         run: npm run test
 
@@ -66,3 +80,6 @@ jobs:
 
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
