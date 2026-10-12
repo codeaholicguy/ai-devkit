@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Corrected all license references to Apache-2.0: the `LICENSE` file has always been Apache License 2.0, but `package.json` fields, `Cargo.toml`, plugin manifests, READMEs, web content, and FAQ tables incorrectly stated MIT.
+- [70e95fc](https://github.com/codeaholicguy/ai-devkit/commit/70e95fc) Expanded the web FAQ, SEO keywords, and social preview image.
+- [2475c07](https://github.com/codeaholicguy/ai-devkit/commit/2475c07) Redesigned the homepage with Remotion demos and accessibility fixes.
+- [f3379b8](https://github.com/codeaholicguy/ai-devkit/commit/f3379b8) Added Grok CLI and Muse Code to the supported-agents page.
+- [033f1f1](https://github.com/codeaholicguy/ai-devkit/pull/370) Corrected all license references to Apache-2.0: the `LICENSE` file has always been Apache License 2.0, but `package.json` fields, `Cargo.toml`, plugin manifests, READMEs, and web content incorrectly stated MIT.
+- [cdb15b6](https://github.com/codeaholicguy/ai-devkit/commit/cdb15b6) Added the full-logo navbar assets.
+- [d348283](https://github.com/codeaholicguy/ai-devkit/commit/d348283) Rendered the full logo in the navbar.
+- [de852a6](https://github.com/codeaholicguy/ai-devkit/commit/de852a6) Moved Telegram bot token validation into channel-connector's shared `validateTelegramBotToken`, redacting the bot token from debug output.
+- [86d46ac](https://github.com/codeaholicguy/ai-devkit/pull/372) Fixed devkitd parsing `ps` rows with padded columns on Linux, which left `agent list` permanently empty; empty daemon answers are now cross-checked against local detection.
 
 ## [0.70.0] - 2026-10-10
 
