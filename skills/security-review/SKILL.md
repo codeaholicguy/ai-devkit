@@ -5,7 +5,7 @@ description: AI DevKit · Review code, skills, and prompts for security vulnerab
 
 # Security Review
 
-Find vulnerabilities before they ship.
+Find vulnerabilities before they ship. Prefer the installed `ai-devkit` binary for CLI calls; if it is unavailable, use `npx ai-devkit`.
 
 ## Hard Rules
 
@@ -20,7 +20,7 @@ Find vulnerabilities before they ship.
    - Identify stack/framework — adapt the [checklist](references/checklist.md) (skip what the framework handles, add its pitfalls).
    - Trace data flow: request → middleware → handler → service → datastore → response. For prompts: input → template → LLM → tools → output.
    - Map trust boundaries, privilege levels, and threat actors.
-   - Search prior findings: `npx ai-devkit@latest memory search --query "<target>" --tags "security"`
+   - Search prior findings: `npx ai-devkit memory search --query "<target>" --tags "security"`
 
 2. **Scan**
    - Only check relevant categories. Skip sections and items that don't apply. Do not report skipped items.
@@ -60,7 +60,7 @@ Find vulnerabilities before they ship.
 5. **Verify**
    - Use the `verify` skill to confirm each remediation.
    - Re-scan fixed files for regressions.
-   - Store findings: `npx ai-devkit@latest memory store --title "<pattern>" --content "<finding and fix>" --tags "security,<category>"`
+   - Store findings: `npx ai-devkit memory store --title "<pattern>" --content "<finding and fix>" --tags "security,<category>"`
 
 ## Red Flags
 
