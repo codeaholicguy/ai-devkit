@@ -63,4 +63,4 @@ Then pick the next behavior and repeat.
 
 ## Memory Integration
 
-After completing a TDD session, store reusable test patterns (setup, assertions, fixtures): `npx ai-devkit@latest memory store --title "<pattern>" --content "<details>" --tags "tdd,testing"`
+After completing a TDD session, store reusable test patterns (setup, assertions, fixtures): `npx ai-devkit memory store --title "<pattern>" --content "<details>" --tags "tdd,testing"` (prefer the installed `ai-devkit` binary when present)
