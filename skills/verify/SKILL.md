@@ -12,6 +12,7 @@ Prove it works before saying it works.
 - Do not claim completion without fresh terminal evidence from this session.
 - Forbidden words in completion claims: "should", "probably", "seems to", "likely", "I believe", "I think it works". These signal unverified assertions.
 - Cached, remembered, or previous-session output is not evidence. Run it again.
+- Never print, log, store, or relay secrets. Before citing command output, redact values that look like tokens, API keys, passwords, or credentials; cite the exit code and summarized key output rather than raw dumps.
 
 ## Gate Function
 
@@ -21,7 +22,7 @@ Every completion claim must pass all 5 steps in order:
 2. **Run** — Execute the full command now. No partial runs, no skipping.
 3. **Read** — Read complete output. Check exit code. Count pass/fail.
 4. **Confirm** — Does the output prove the exact claim?
-5. **Report** — State the result, cite command, exit code, and key output.
+5. **Report**: State the result, cite command, exit code, and key output with secrets redacted.
 
 If any step fails, stop. Fix the issue and restart from step 1.
 
@@ -64,7 +65,7 @@ If step 4 passes, the test is wrong. Rewrite it.
 
 ## Memory Integration
 
-After a failed verification, store the failure pattern: `npx ai-devkit@latest memory store --title "<failure pattern>" --content "<what failed and how to avoid>" --tags "verify,failure-pattern"`
+After a failed verification, store the failure pattern (redact any secrets from the content first): `npx ai-devkit@latest memory store --title "<failure pattern>" --content "<what failed and how to avoid>" --tags "verify,failure-pattern"`
 
 ## Task Tracing
 
