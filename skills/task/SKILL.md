@@ -8,13 +8,14 @@ description: AI DevKit · Track dev-lifecycle / structured-debug progress on a d
 Record development progress on a durable task: phase, progress, next step,
 blockers, and validation evidence.
 
-Requires the optional task command. Use `npx ai-devkit@latest` for task and
+Requires the optional task command. Prefer the installed `ai-devkit`
+binary; if unavailable, use `npx ai-devkit` for task and
 agent commands. Before recording task events, run a real read probe:
 
 ```bash
-npx ai-devkit@latest task list --json
+npx ai-devkit task list --json
 # or, when a task name is known:
-npx ai-devkit@latest task list --name <task-name> --json
+npx ai-devkit task list --name <task-name> --json
 ```
 
 Only treat task tracing as available when the read probe exits 0. If it fails,
@@ -47,7 +48,7 @@ task tracing is unavailable or unusable.
 
 Use `agent-management` when attribution is needed:
 
-1. Run the `agent-management` self-identification workflow with `npx ai-devkit@latest agent list --json`.
+1. Run the `agent-management` self-identification workflow with `npx ai-devkit agent list --json`.
 2. Match the current agent entry from that list. Prefer an exact session match when available; otherwise use the unambiguous entry for the current project/worktree.
 3. Build actor flags from the matched entry:
    `--agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId>`.
@@ -56,7 +57,7 @@ Use `agent-management` when attribution is needed:
 4. If identity is ambiguous, do not guess. Continue task logging without actor
    flags rather than fabricating attribution.
 5. Add `--agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId>` to every mutation command once known. If a task already
-   exists, run `npx ai-devkit@latest task assign <task-name> --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json` once so
+   exists, run `npx ai-devkit task assign <task-name> --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json` once so
    the task snapshot has current ownership.
 6. If actor identity is unknown, run the same mutation commands without the four
    actor flags.
@@ -68,41 +69,41 @@ When self identity is known, add all four actor flags to every mutation command:
 
 ```bash
 # Create the task once (capture taskId from --json if needed)
-npx ai-devkit@latest task create --title "<title>" --name <task-name> --phase requirements --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task create --title "<title>" --name <task-name> --phase requirements --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # If the task already exists, assign current ownership once when known
-npx ai-devkit@latest task assign <task-name> --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task assign <task-name> --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Mark real work as active after create/resume
-npx ai-devkit@latest task status <task-name> active --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task status <task-name> active --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Advance phase as the lifecycle moves on
-npx ai-devkit@latest task phase <task-name> implementation --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task phase <task-name> implementation --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Progress (use --text; positional text is ignored)
-npx ai-devkit@latest task progress <task-name> --text "Implementing task CLI" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task progress <task-name> --text "Implementing task CLI" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Next step
-npx ai-devkit@latest task next <task-name> "Run validation" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task next <task-name> "Run validation" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Blockers
-npx ai-devkit@latest task status <task-name> blocked --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
-npx ai-devkit@latest task blocker <task-name> add "Waiting for review" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
-npx ai-devkit@latest task blocker <task-name> resolve <blocker-id> --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
-npx ai-devkit@latest task status <task-name> active --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task status <task-name> blocked --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task blocker <task-name> add "Waiting for review" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task blocker <task-name> resolve <blocker-id> --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task status <task-name> active --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Validation evidence - record after a fresh verify/tdd/test run
-npx ai-devkit@latest task evidence <task-name> --passed --command "npm test" --exit-code 0 --summary "tests passed" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task evidence <task-name> --passed --command "npm test" --exit-code 0 --summary "tests passed" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Reference an artifact (never copies the file)
-npx ai-devkit@latest task artifact <task-name> docs/ai/testing/foo.md --kind test-report --description "Testing notes" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task artifact <task-name> docs/ai/testing/foo.md --kind test-report --description "Testing notes" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Read current status / list
-npx ai-devkit@latest task show <task-name> --json
-npx ai-devkit@latest task list --name <task-name> --json
+npx ai-devkit task show <task-name> --json
+npx ai-devkit task list --name <task-name> --json
 
 # Close at lifecycle end
-npx ai-devkit@latest task close <task-name> completed --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit task close <task-name> completed --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 ```
 
 ## When to emit (by workflow)
