@@ -202,9 +202,11 @@ const ConsoleAppShell: React.FC<{
     handleRenameCancel,
     handleRenameSubmit,
   } = useRenameAgentPane({
+    refresh,
     setFocus,
     setRightPaneMode,
     setTransient,
+    selectAgent: setSelectedName,
   });
 
   const { openChannelSelect, startChannel, stopAgentChannel } = useChannelActions({
