@@ -7,6 +7,8 @@ description: AI DevKit · Document a code entry point with structured analysis, 
 
 Build structured understanding of code entry points with an analysis-first workflow.
 
+Prefer the installed `ai-devkit` binary for CLI calls; if it is unavailable, use `npx ai-devkit`.
+
 ## Hard Rule
 - Do not create documentation until the entry point is validated and analysis is complete.
 
@@ -15,7 +17,7 @@ Build structured understanding of code entry points with an analysis-first workf
 1. Gather & Validate
 - Confirm entry point (file, folder, function, API), purpose, and desired depth.
 - Verify it exists; resolve ambiguity or suggest alternatives if not found.
-- Search for existing knowledge before analyzing: `npx ai-devkit@latest memory search --query "<entry point name or purpose>"`
+- Search for existing knowledge before analyzing: `npx ai-devkit memory search --query "<entry point name or purpose>"`
 
 2. Collect Source Context
 - Summarize purpose, exports, key patterns.
