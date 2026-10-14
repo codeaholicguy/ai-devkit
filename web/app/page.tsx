@@ -3,6 +3,7 @@ import Image from "next/image";
 import GitHubButton from "@/components/GitHubButton";
 import CommandBar from "@/components/CommandBar";
 import CommandShowcase from "@/components/CommandShowcase";
+import CompanyLogos from "@/components/CompanyLogos";
 import HeroConsole from "@/components/remotion/HeroConsole";
 
 const SETUP_COMMAND = "npx ai-devkit@latest setup";
@@ -189,6 +190,8 @@ export default function Home() {
           </p>
         </div>
       </section>
+
+      <CompanyLogos />
 
       <section
         id="how-it-works"
