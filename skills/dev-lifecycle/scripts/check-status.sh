@@ -10,7 +10,7 @@ if [[ $# -lt 1 ]]; then
 fi
 
 FEATURE="$1"
-AI_DEVKIT_BIN="${AI_DEVKIT_BIN:-npx ai-devkit@latest}"
+AI_DEVKIT_BIN="${AI_DEVKIT_BIN:-npx ai-devkit}"
 
 if [[ ! "$FEATURE" =~ ^[a-zA-Z0-9_-]+$ ]]; then
   echo "Error: feature name must contain only letters, digits, hyphens, and underscores"
