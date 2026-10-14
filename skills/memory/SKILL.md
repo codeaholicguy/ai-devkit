@@ -5,13 +5,13 @@ description: AI DevKit · Use the memory CLI as a durable knowledge layer. Searc
 
 # AI DevKit Memory CLI
 
-Use `npx ai-devkit@latest memory ...` as the durable knowledge layer.
+Use the installed `ai-devkit memory ...` binary as the durable knowledge layer; if it is unavailable, use `npx ai-devkit memory ...`.
 
 ## Workflow
 
 1. For implementation, debugging, review, planning, or documentation tasks, search before deep work unless the task is trivial:
    ```bash
-   npx ai-devkit@latest memory search --query "<task, subsystem, error, or convention>" --limit 5
+   npx ai-devkit memory search --query "<task, subsystem, error, or convention>" --limit 5
    ```
    For broad or risky tasks, search multiple angles: subsystem, error text, framework, command, and task intent.
 
@@ -22,7 +22,7 @@ Use `npx ai-devkit@latest memory ...` as the durable knowledge layer.
 
 3. Search before storing:
    ```bash
-   npx ai-devkit@latest memory search --query "<knowledge to store>" --table
+   npx ai-devkit memory search --query "<knowledge to store>" --table
    ```
 
 4. Store or update only after the quality gate passes.
@@ -53,7 +53,7 @@ Do not store:
 ### Search
 
 ```bash
-npx ai-devkit@latest memory search \
+npx ai-devkit memory search \
   --query "<query>" \
   --tags "<tags>" \
   --scope "<scope>" \
@@ -63,7 +63,7 @@ npx ai-devkit@latest memory search \
 Use `--table` to get IDs for updates:
 
 ```bash
-npx ai-devkit@latest memory search --query "<query>" --table
+npx ai-devkit memory search --query "<query>" --table
 ```
 
 Options: `--query/-q` required; `--tags`; `--scope/-s`; `--limit/-l` from 1-20; `--table`.
@@ -71,7 +71,7 @@ Options: `--query/-q` required; `--tags`; `--scope/-s`; `--limit/-l` from 1-20; 
 ### Store
 
 ```bash
-npx ai-devkit@latest memory store \
+npx ai-devkit memory store \
   --title "<actionable title, 10-100 chars>" \
   --content "<context, guidance, evidence, exceptions>" \
   --tags "<lowercase,tags>" \
@@ -92,7 +92,7 @@ Exceptions: When not to apply it.
 Find the ID with `search --table`, then update only changed fields:
 
 ```bash
-npx ai-devkit@latest memory update \
+npx ai-devkit memory update \
   --id "<memory-id>" \
   --title "<updated title>" \
   --content "<updated content>" \
@@ -114,7 +114,7 @@ If unsure, use a narrower scope.
 
 ## Troubleshooting
 
-- CLI missing: run `npx ai-devkit@latest --version`.
+- CLI missing: run `npx ai-devkit --version`.
 - Duplicate title: search, then update the existing item if it is the same knowledge.
 - Empty results: broaden terms, remove filters, or search symptoms and subsystem names separately.
 - Validation error: check title/content lengths, query length, and `--limit` range.
