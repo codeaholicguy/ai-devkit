@@ -5,7 +5,7 @@ description: AI DevKit · Manage running AI agents with ai-devkit agent commands
 
 # Agent Management
 
-Use `ai-devkit agent ...`; if unavailable, use `npx ai-devkit@latest agent ...`.
+Use `ai-devkit agent ...`; if unavailable, use `npx ai-devkit agent ...`.
 
 ## Workflow
 
