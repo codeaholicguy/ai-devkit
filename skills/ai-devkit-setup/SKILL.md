@@ -7,11 +7,11 @@ description: AI DevKit · Check local AI DevKit readiness and run setup only whe
 
 Use this skill when a user wants to onboard AI DevKit, prepare a harness, repair local AI DevKit integration, or check whether setup is needed.
 
-Keep the workflow status-driven and simple. Prefer the installed `ai-devkit` binary; if it is unavailable, use `npx ai-devkit@latest`.
+Keep the workflow status-driven and simple. Prefer the installed `ai-devkit` binary; if it is unavailable, use `npx ai-devkit`.
 
 ## Execution Notes
 
-- Under filesystem sandboxing, run `ai-devkit status --json` and any `ai-devkit setup` command outside the sandbox. These commands inspect and modify host-level agent configuration; sandboxed runs can produce false failures or block setup writes, especially for integrations that execute harness commands and access paths like `~/.pi/agent`.
+- Under filesystem sandboxing, run only the `ai-devkit status --json` and `ai-devkit setup` commands listed in this skill outside the sandbox. These commands inspect and modify host-level agent configuration; sandboxed runs can produce false failures or block setup writes, especially for integrations that execute harness commands and access paths like `~/.pi/agent`. Tell the user why unsandboxed execution is needed, and do not run other commands outside the sandbox.
 
 ## Workflow
 
