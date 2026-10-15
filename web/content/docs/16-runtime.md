@@ -2,7 +2,8 @@
 title: Runtime (devkitd)
 description: How the devkitd coordination daemon works, how it auto-starts, and the daemon commands for status, logs, and persistence.
 slug: runtime
-order: 16
+section: reference
+order: 3
 ---
 
 Agent detection and session coordination run through `devkitd`, a small daemon written in Rust. You normally never manage it: any AI DevKit command that needs it auto-spawns it and connects over a Unix socket.

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import matter from 'gray-matter';
 import { Page, PageMetadata, RoadmapItem, RoadmapItemMetadata } from './types';
+import { sectionIndex } from '../docs/sections';
 
 const contentDirectory = path.join(process.cwd(), 'content');
 const docsDirectory = path.join(contentDirectory, 'docs');
@@ -123,8 +124,11 @@ export function getAllDocPages(): Page[] {
     };
   });
   
-  // Sort by order if specified
+  // Sort by section, then by order within the section
   return pages.sort((a, b) => {
+    const sectionA = sectionIndex(a.metadata.section);
+    const sectionB = sectionIndex(b.metadata.section);
+    if (sectionA !== sectionB) return sectionA - sectionB;
     const orderA = a.metadata.order ?? 999;
     const orderB = b.metadata.order ?? 999;
     return orderA - orderB;

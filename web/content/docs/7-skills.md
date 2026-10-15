@@ -2,7 +2,8 @@
 title: Skills
 description: Install reusable skills that teach AI coding agents team workflows, coding standards, testing patterns, and domain-specific practices.
 slug: skills
-order: 7
+section: features
+order: 1
 ---
 
 **Skills** are reusable instruction packs that extend what your AI coding agents can do. Each skill teaches an agent a specific workflow or domain practice, such as frontend design, database optimization, security review, or multi-agent coordination.

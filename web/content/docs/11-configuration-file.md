@@ -2,7 +2,8 @@
 title: Configuration File
 description: Complete reference for the .ai-devkit.json configuration file used by AI DevKit.
 slug: configuration-reference
-order: 11
+section: reference
+order: 1
 ---
 
 AI DevKit stores your project settings in a `.ai-devkit.json` file at your project root. This file is created by `ai-devkit init` and read by most other commands.

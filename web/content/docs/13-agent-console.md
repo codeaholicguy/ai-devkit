@@ -2,7 +2,8 @@
 title: Agent Console
 description: Monitor, message, start, rename, kill, and connect running AI agents from one multi-agent terminal UI.
 slug: agent-console
-order: 13
+section: features
+order: 4
 ---
 
 > ⚠️ **WARNING**

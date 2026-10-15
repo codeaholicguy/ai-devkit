@@ -2,7 +2,8 @@
 title: Channel
 description: Connect AI agents with Telegram or a private Slack Socket Mode app
 slug: channel
-order: 12
+section: features
+order: 5
 ---
 
 > ⚠️ **WARNING**

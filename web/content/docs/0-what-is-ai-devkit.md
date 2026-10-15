@@ -2,7 +2,8 @@
 title: What is AI DevKit?
 description: An overview of AI DevKit, the control plane for AI coding agents.
 slug: what-is-ai-devkit
-order: 0
+section: start
+order: 1
 ---
 
 AI DevKit is an open-source control plane for AI coding agents. It works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, opencode, Pi, and other tools, giving them shared setup, local-first memory, skills, communication, and verification gates.

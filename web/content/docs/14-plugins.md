@@ -2,7 +2,8 @@
 title: Plugins
 description: Install global AI DevKit plugins from npm and author packages that add CLI commands.
 slug: plugins
-order: 14
+section: features
+order: 6
 ---
 
 AI DevKit plugins are npm packages that add commands to the `ai-devkit` CLI.

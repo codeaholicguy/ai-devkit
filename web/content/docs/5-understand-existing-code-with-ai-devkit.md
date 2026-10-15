@@ -1,7 +1,8 @@
 ---
 title: Understanding Existing Code with AI DevKit
 description: Learn how to analyze and document existing codebases using AI DevKit's document-code command
-order: 5
+section: workflows
+order: 4
 ---
 
 ## What is Document Code?

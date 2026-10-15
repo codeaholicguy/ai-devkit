@@ -2,7 +2,8 @@
 title: Status & Capacity
 description: Check setup health with status and monitor provider quota with capacity before starting agents.
 slug: capacity
-order: 15
+section: reference
+order: 2
 ---
 
 Two operational commands answer the questions you hit every day: is my setup healthy (`status`), and which agent has quota left (`capacity`).

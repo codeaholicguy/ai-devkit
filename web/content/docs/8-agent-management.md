@@ -2,7 +2,8 @@
 title: Agent Management
 description: Manage and interact with other AI agents running on your system
 slug: agent-management
-order: 8
+section: features
+order: 3
 ---
 
 > **Experimental**

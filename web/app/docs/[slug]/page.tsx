@@ -1,12 +1,25 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getDocPage, getAllDocPages } from "@/lib/content/loader";
-import MarkdownContent from "@/components/MarkdownContent";
+import { extractHeadings, getDocsNav } from "@/lib/docs/nav";
+import { getSection } from "@/lib/docs/sections";
+import { REPO_URL } from "@/lib/utils";
+import DocContent from "@/components/docs/DocContent";
+import DocsSidebar from "@/components/docs/DocsSidebar";
+import MobileDocsNav from "@/components/docs/MobileDocsNav";
+import SearchButton from "@/components/docs/SearchButton";
+import { TocAside, TocInline } from "@/components/docs/Toc";
 import CopyToMarkdownButton from "@/components/CopyToMarkdownButton";
 import GettingStartedGuides from "@/components/GettingStartedGuides";
 import type { Metadata } from "next";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
+
+// Pages where the per-tool setup guides help; elsewhere they repeat noise.
+const SETUP_GUIDE_PAGES = new Set(["1-getting-started", "2-supported-agents"]);
+
+// The outline earns its space only on pages with a few sections.
+const MIN_TOC_SECTIONS = 3;
 
 interface DocPageProps {
   params: Promise<{ slug: string }>;
@@ -77,10 +90,15 @@ export default async function DocPage({ params }: DocPageProps) {
   }
 
   const allDocs = getAllDocPages();
+  const nav = getDocsNav(allDocs);
   const currentIndex = allDocs.findIndex((d) => d.metadata.slug === slug);
   const prevDoc = currentIndex > 0 ? allDocs[currentIndex - 1] : null;
   const nextDoc =
     currentIndex < allDocs.length - 1 ? allDocs[currentIndex + 1] : null;
+  const section = getSection(doc.metadata.section);
+  const headings = extractHeadings(doc.content);
+  const showToc =
+    headings.filter((heading) => heading.depth === 2).length >= MIN_TOC_SECTIONS;
 
   const pageUrl = `${siteUrl}/docs/${slug}`;
   const structuredData = {
@@ -123,67 +141,104 @@ export default async function DocPage({ params }: DocPageProps) {
   };
 
   return (
-    <div className="bg-white py-16">
-      <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-        <nav className="mb-8 text-sm text-gray-600">
-          <Link href="/docs" className="hover:text-black transition-colors">
-            Documentation
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-black">{doc.metadata.title}</span>
-        </nav>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <MobileDocsNav
+        key={slug}
+        sectionTitle={section?.title}
+        pageTitle={doc.metadata.title}
+      >
+        <DocsSidebar nav={nav} currentSlug={slug} />
+      </MobileDocsNav>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-          <h1 className="text-4xl md:text-5xl font-bold">
-            {doc.metadata.title}
-          </h1>
-          <CopyToMarkdownButton
-            content={doc.content}
-            title={doc.metadata.title}
-          />
-        </div>
+      <div className="docs-shell">
+        <aside className="docs-shell-sidebar">
+          <a href="#doc-content" className="docs-skip">
+            Skip to page content
+          </a>
+          <SearchButton />
+          <DocsSidebar nav={nav} currentSlug={slug} />
+        </aside>
 
-        {doc.metadata.description && (
-          <p className="text-xl text-gray-600 mb-12">
-            {doc.metadata.description}
-          </p>
+        <article id="doc-content" className="docs-shell-content" data-pagefind-body>
+          <nav aria-label="Breadcrumb" className="docs-breadcrumb" data-pagefind-ignore>
+            <ol>
+              <li>
+                <Link href="/docs">Docs</Link>
+              </li>
+              {section && (
+                <li>
+                  <Link href={`/docs#${section.id}`}>{section.title}</Link>
+                </li>
+              )}
+              <li aria-current="page">{doc.metadata.title}</li>
+            </ol>
+          </nav>
+
+          <header className="docs-page-header">
+            <h1>{doc.metadata.title}</h1>
+            {doc.metadata.description && (
+              <p className="docs-page-description">{doc.metadata.description}</p>
+            )}
+            <div className="docs-page-actions" data-pagefind-ignore>
+              <CopyToMarkdownButton
+                content={doc.content}
+                title={doc.metadata.title}
+              />
+            </div>
+          </header>
+
+          {showToc && <TocInline headings={headings} />}
+
+          <DocContent content={doc.content} />
+
+          {SETUP_GUIDE_PAGES.has(slug) && <GettingStartedGuides />}
+
+          <footer className="docs-page-footer" data-pagefind-ignore>
+            <nav aria-label="Previous and next pages" className="docs-pager">
+              {prevDoc ? (
+                <Link href={`/docs/${prevDoc.metadata.slug}`} className="docs-pager-link">
+                  <span className="docs-pager-label">
+                    ← Previous · {getSection(prevDoc.metadata.section)?.title}
+                  </span>
+                  <span className="docs-pager-title">{prevDoc.metadata.title}</span>
+                </Link>
+              ) : (
+                <span />
+              )}
+              {nextDoc && (
+                <Link
+                  href={`/docs/${nextDoc.metadata.slug}`}
+                  className="docs-pager-link docs-pager-next"
+                >
+                  <span className="docs-pager-label">
+                    Next · {getSection(nextDoc.metadata.section)?.title} →
+                  </span>
+                  <span className="docs-pager-title">{nextDoc.metadata.title}</span>
+                </Link>
+              )}
+            </nav>
+            <a
+              href={`${REPO_URL}/blob/main/web/content/docs/${slug}.md`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="docs-edit-link"
+            >
+              Edit this page on GitHub
+              <span className="sr-only"> (opens in a new tab)</span>
+            </a>
+          </footer>
+        </article>
+
+        {showToc && (
+          <aside className="docs-shell-toc">
+            <TocAside headings={headings} />
+          </aside>
         )}
-
-        <MarkdownContent content={doc.content} />
-        <GettingStartedGuides />
-      </article>
-      <nav className="mt-16 pt-8 border-t border-gray-200 mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {prevDoc ? (
-            <Link
-              href={`/docs/${prevDoc.metadata.slug}`}
-              className="p-4 border border-gray-200 rounded-lg hover:border-black transition-colors no-underline group"
-            >
-              <div className="text-sm text-gray-600 mb-1">Previous</div>
-              <div className="font-bold group-hover:opacity-70 transition-opacity">
-                ← {prevDoc.metadata.title}
-              </div>
-            </Link>
-          ) : (
-            <div />
-          )}
-          {nextDoc && (
-            <Link
-              href={`/docs/${nextDoc.metadata.slug}`}
-              className="p-4 border border-gray-200 rounded-lg hover:border-black transition-colors no-underline text-right group"
-            >
-              <div className="text-sm text-gray-600 mb-1">Next</div>
-              <div className="font-bold group-hover:opacity-70 transition-opacity">
-                {nextDoc.metadata.title} →
-              </div>
-            </Link>
-          )}
-        </div>
-      </nav>
-    </div>
+      </div>
+    </>
   );
 }

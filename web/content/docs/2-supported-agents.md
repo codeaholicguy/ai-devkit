@@ -1,7 +1,8 @@
 ---
 title: Supported AI Agents & Environments
 description: Compare supported AI coding agents and environments for AI DevKit setup, skills, MCP configuration, and local control-plane workflows.
-order: 2
+section: start
+order: 3
 ---
 
 AI DevKit works with a variety of AI coding agents and coding environments. This page lists supported environments and explains what AI DevKit installs for each one, so teams can keep setup, skills, memory, and verification consistent across tools.

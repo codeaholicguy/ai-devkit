@@ -2,7 +2,8 @@
 title: Development with AI DevKit
 description: Run an agentic software development workflow where AI coding agents plan, implement, test, verify, and review before push.
 slug: development-with-ai-devkit
-order: 3
+section: workflows
+order: 1
 ---
 
 AI DevKit includes a repeatable engineering workflow inside the larger control plane. Instead of letting an agent jump straight into code, you create durable context at each phase so it can plan, implement, verify, and review with a clear source of truth.

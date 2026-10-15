@@ -28,7 +28,7 @@ export default function CopyToMarkdownButton({
     return (
         <button
             onClick={handleCopy}
-            className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 hover:text-black transition-colors focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-1"
+            className="docs-action-button"
             aria-label="Copy to Markdown"
         >
             {copied ? (
@@ -43,11 +43,11 @@ export default function CopyToMarkdownButton({
                         strokeWidth="2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="w-4 h-4 text-green-600"
+                        className="w-4 h-4"
                     >
                         <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span className="text-green-600">Copied!</span>
+                    <span>Copied!</span>
                 </>
             ) : (
                 <>

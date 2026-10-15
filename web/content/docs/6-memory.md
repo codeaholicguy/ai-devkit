@@ -2,7 +2,8 @@
 title: Memory
 description: Give AI coding agents local long-term memory with MCP, CLI commands, and project-scoped knowledge storage.
 slug: memory
-order: 6
+section: features
+order: 2
 ---
 
 Imagine if your coding agents could reuse the project decisions you have already made.

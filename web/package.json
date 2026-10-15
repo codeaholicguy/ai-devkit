@@ -5,12 +5,14 @@
   "scripts": {
     "dev": "next dev",
     "copy": "cp CNAME out/",
-    "build": "next build && npm run copy",
+    "build": "next build && npm run search-index && npm run copy",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "search-index": "pagefind --site out"
   },
   "dependencies": {
     "@remotion/player": "^4.0.534",
+    "github-slugger": "^2.0.0",
     "gray-matter": "^4.0.3",
     "highlight.js": "^11.11.1",
     "next": "16.0.0",
@@ -30,6 +32,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.0.0",
+    "pagefind": "^1.5.2",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

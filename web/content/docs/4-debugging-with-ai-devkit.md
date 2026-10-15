@@ -1,7 +1,8 @@
 ---
 title: Debugging with AI DevKit
 description: Learn how to systematically debug issues using AI DevKit's structured debugging workflows
-order: 4
+section: workflows
+order: 3
 ---
 
 Debugging with AI coding agents often becomes a guessing game: trying random fixes until something works. The `structured-debug` skill changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.

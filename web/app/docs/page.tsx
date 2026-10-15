@@ -1,5 +1,10 @@
 import Link from 'next/link';
 import { getAllDocPages } from '@/lib/content/loader';
+import { getDocsNav } from '@/lib/docs/nav';
+import { REPO_URL } from '@/lib/utils';
+import CodeBlock from '@/components/docs/CodeBlock';
+import SearchButton from '@/components/docs/SearchButton';
+import GettingStartedGuides from '@/components/GettingStartedGuides';
 
 import type { Metadata } from 'next';
 
@@ -44,67 +49,76 @@ export const metadata: Metadata = {
 };
 
 export default function DocsPage() {
-  const docs = getAllDocPages();
+  const nav = getDocsNav(getAllDocPages());
 
   return (
-    <div className="bg-white py-16">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold mb-8">Documentation</h1>
-
-        <p className="text-xl text-gray-600 mb-12">
-          Set up the control plane that gives your coding agents one config, one console, local-first memory, communication, workflow skills, and verification.
+    <div className="docs-home">
+      <header className="docs-home-hero">
+        <p className="docs-home-eyebrow">Documentation</p>
+        <h1>Set up once. Find any command fast.</h1>
+        <p className="docs-home-lede">
+          Connect your coding agents to AI DevKit, then give every project the same skills, memory, and workflow.
         </p>
-
-        {docs.length === 0 ? (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8">
-            <p className="text-gray-600">
-              No documentation pages found. Documentation will be added soon.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            {docs.map((doc) => (
-              <Link
-                key={doc.metadata.slug}
-                href={`/docs/${doc.metadata.slug}`}
-                className="block p-6 border border-gray-200 rounded-lg hover:border-black transition-colors no-underline group"
-              >
-                <h2 className="text-2xl font-bold mb-2 group-hover:opacity-70 transition-opacity">
-                  {doc.metadata.title}
-                </h2>
-                <p className="text-gray-600">
-                  {doc.metadata.description}
-                </p>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        <div className="mt-12 pt-12 border-t border-gray-200">
-          <h2 className="text-2xl font-bold mb-4">Need Help?</h2>
-          <p className="text-gray-600 mb-4">
-            {`Can't find what you're looking for? Check out our GitHub repository or open an issue.`}
-          </p>
-          <div className="flex gap-4">
-            <a
-              href="https://github.com/codeaholicguy/ai-devkit"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-2 border border-black rounded-lg font-medium hover:bg-gray-50 transition-colors no-underline"
-            >
-              GitHub Repository
-            </a>
-            <a
-              href="https://github.com/codeaholicguy/ai-devkit/issues"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-6 py-2 border border-black rounded-lg font-medium hover:bg-gray-50 transition-colors no-underline"
-            >
-              Report an Issue
-            </a>
-          </div>
+        <div className="docs-home-search">
+          <SearchButton />
         </div>
+      </header>
+
+      <section className="docs-home-start" aria-labelledby="start-here">
+        <div>
+          <h2 id="start-here">Start here</h2>
+          <p>
+            Run setup once per machine to connect your agents, then init in each project. No global install needed.
+          </p>
+          <Link href="/docs/1-getting-started" className="docs-button">
+            Get started →
+          </Link>
+        </div>
+        <CodeBlock language="bash">
+          <pre>
+            <code>{`npx ai-devkit@latest setup\ncd your-project\nnpx ai-devkit@latest init`}</code>
+          </pre>
+        </CodeBlock>
+      </section>
+
+      <div className="docs-home-sections">
+        {nav.map((group) => (
+          <section
+            key={group.section.id}
+            id={group.section.id}
+            className="docs-home-card"
+            aria-labelledby={`${group.section.id}-title`}
+          >
+            <p className="docs-sidebar-label" aria-hidden="true">{group.section.id}/</p>
+            <h2 id={`${group.section.id}-title`}>{group.section.title}</h2>
+            <p className="docs-home-card-desc">{group.section.description}</p>
+            <ul>
+              {group.pages.map((page) => (
+                <li key={page.slug}>
+                  <Link href={`/docs/${page.slug}`}>{page.title}</Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
       </div>
+
+      <GettingStartedGuides />
+
+      <section className="docs-home-help" aria-labelledby="help-title">
+        <h2 id="help-title">Need help?</h2>
+        <p>
+          Ask on{' '}
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
+            GitHub<span className="sr-only"> (opens in a new tab)</span>
+          </a>{' '}
+          or{' '}
+          <a href={`${REPO_URL}/issues`} target="_blank" rel="noopener noreferrer">
+            report an issue<span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          .
+        </p>
+      </section>
     </div>
   );
 }

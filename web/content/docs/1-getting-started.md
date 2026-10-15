@@ -1,7 +1,8 @@
 ---
 title: Getting Started
 description: Connect your coding agents once, then initialize AI DevKit's workflow in each project.
-order: 1
+section: start
+order: 2
 ---
 
 **AI DevKit** gives your coding agents one operating layer for setup, supervision, communication, local-first memory, workflow skills, and verification.

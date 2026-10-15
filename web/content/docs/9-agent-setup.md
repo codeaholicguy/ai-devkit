@@ -2,7 +2,8 @@
 title: Agent Setup
 description: Connect local agents once per machine and generate repeatable workflow configuration for each project.
 slug: agent-setup
-order: 9
+section: start
+order: 4
 ---
 
 AI DevKit separates machine integration from project workflow configuration:
