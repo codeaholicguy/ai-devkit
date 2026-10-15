@@ -24,7 +24,19 @@ const titleCaseOverrides: Record<string, string> = {
   api: "API",
   vs: "vs",
   md: "MD",
+  devkit: "DevKit",
+  os: "OS",
+  bmad: "BMAD",
+  superclaude: "SuperClaude",
+  opencode: "opencode",
+  "agents.md": "AGENTS.md",
+  "claude.md": "CLAUDE.md",
 };
+
+// Lowercase mid-title, matching the docs' title style ("Development with AI DevKit").
+const minorWords = new Set([
+  "a", "an", "and", "as", "at", "but", "by", "for", "in", "of", "on", "or", "the", "to", "with",
+]);
 
 const rawSeoKeywords = [
   // Brand and category-defining
@@ -233,16 +245,28 @@ function slugifyKeyword(keyword: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
+function capitalizeWord(word: string): string {
+  const lower = word.toLowerCase();
+  if (titleCaseOverrides[lower]) {
+    return titleCaseOverrides[lower];
+  }
+  // Hyphenated words capitalize each part: "Spec-Driven".
+  return lower
+    .split("-")
+    .map((part) => titleCaseOverrides[part] ?? `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join("-");
+}
+
 function normalizeTitleCase(keyword: string): string {
   return keyword
     .trim()
     .split(/\s+/)
-    .map((word) => {
+    .map((word, index) => {
       const lower = word.toLowerCase();
-      if (titleCaseOverrides[lower]) {
-        return titleCaseOverrides[lower];
+      if (index > 0 && minorWords.has(lower)) {
+        return lower;
       }
-      return `${lower.charAt(0).toUpperCase()}${lower.slice(1)}`;
+      return capitalizeWord(word);
     })
     .join(" ");
 }
