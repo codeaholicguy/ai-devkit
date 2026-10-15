@@ -166,6 +166,7 @@ export default function CommandShowcase() {
         role="tabpanel"
         aria-labelledby={tabId(active)}
         tabIndex={0}
+        data-theme="dark"
         className="min-w-0 self-start overflow-hidden rounded-xl border border-surface-container-high bg-surface-container-lowest"
       >
         <div className="border-b border-surface-container px-5 py-3 font-mono text-xs text-on-surface-dim">

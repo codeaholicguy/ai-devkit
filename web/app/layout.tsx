@@ -143,7 +143,16 @@ export default function RootLayout({
 
   return (
     // Font variables must be on <html>: theme tokens resolve at :root.
-    <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable}`}>
+    // suppressHydrationWarning: the theme script sets data-theme before React loads.
+    <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Applies a saved theme before first paint; without one, the OS setting decides. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`,
+          }}
+        />
+      </head>
       <body className="flex flex-col min-h-screen">
         <Script
           async

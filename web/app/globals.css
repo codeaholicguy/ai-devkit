@@ -1,24 +1,13 @@
 @import "tailwindcss";
 
+/* Colour tokens are light-dark() pairs: the OS setting picks one until the
+   header toggle sets data-theme on <html>. data-theme="dark" on any element
+   keeps that region dark in both themes (terminals, consoles). The pairs are
+   declared on every [data-theme] scope too, because the light-dark() fallback
+   resolves where a token is declared, not where it is used. */
 @theme {
   --color-white: #ffffff;
   --color-black: #000000;
-  --color-surface: #11131c;
-  --color-surface-container-lowest: #0c0e17;
-  --color-surface-container-low: #191b24;
-  --color-surface-container: #1d1f29;
-  --color-surface-container-high: #282933;
-  --color-on-surface: #e1e1ef;
-  --color-on-surface-variant: #c1c9bb;
-  --color-on-surface-dim: #8a8f9e;
-  --color-outline: #6a6e7d;
-  --color-primary: #b3f6ab;
-  --color-on-primary: #003909;
-  --color-primary-strong: #96d68f;
-  --color-secondary: #bac3ff;
-  --color-signal: #8fd694;
-  --color-console-cyan: #7dcfff;
-  --color-link: #2a3e9a;
   --color-gray-50: #fafafa;
   --color-gray-100: #f5f5f5;
   --color-gray-200: #e5e5e5;
@@ -33,8 +22,24 @@
   --font-mono: var(--font-jetbrains), ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
 }
 
-/* Page chrome (body, header, footer) follows the page: dark on the homepage. */
 @theme inline {
+  --color-surface: var(--surface);
+  --color-surface-container-lowest: var(--surface-container-lowest);
+  --color-surface-container-low: var(--surface-container-low);
+  --color-surface-container: var(--surface-container);
+  --color-surface-container-high: var(--surface-container-high);
+  --color-on-surface: var(--on-surface);
+  --color-on-surface-variant: var(--on-surface-variant);
+  --color-on-surface-dim: var(--on-surface-dim);
+  --color-outline: var(--outline);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-secondary: var(--secondary);
+  --color-signal: var(--signal);
+  --color-caution: var(--caution);
+  --color-console-cyan: var(--console-cyan);
+  --color-link: var(--link);
   --color-canvas: var(--canvas);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
@@ -44,28 +49,51 @@
 }
 
 :root {
-  --canvas: #ffffff;
-  --fg: #2e303a;
-  --fg-muted: #515367;
-  --fg-strong: #11131c;
-  --rule: #dde3da;
-  --tint: #f3f5ff;
+  color-scheme: light dark;
 }
 
-/* Header logo: dark-text mark on light pages, light-text mark on the dark homepage. */
+:root,
+[data-theme] {
+  --surface: light-dark(#f6f7f4, #11131c);
+  --surface-container-lowest: light-dark(#ffffff, #0c0e17);
+  --surface-container-low: light-dark(#f1f3ee, #191b24);
+  --surface-container: light-dark(#e6e8e3, #1d1f29);
+  --surface-container-high: light-dark(#dde3da, #282933);
+  --on-surface: light-dark(#11131c, #e1e1ef);
+  --on-surface-variant: light-dark(#44475a, #c1c9bb);
+  --on-surface-dim: light-dark(#5c6070, #8a8f9e);
+  --outline: light-dark(#8a8f9e, #6a6e7d);
+  --primary: light-dark(#1d6b2c, #b3f6ab);
+  --on-primary: light-dark(#ffffff, #003909);
+  --primary-strong: light-dark(#155222, #96d68f);
+  --secondary: light-dark(#2a3e9a, #bac3ff);
+  --signal: light-dark(#1d6b2c, #8fd694);
+  --caution: light-dark(#7a4f00, #e0af68);
+  --console-cyan: light-dark(#0b6a8f, #7dcfff);
+  --link: light-dark(#2a3e9a, #bac3ff);
+
+  /* Page chrome (body, header, footer) */
+  --canvas: light-dark(#ffffff, #0c0e17);
+  --fg: light-dark(#2e303a, #e1e1ef);
+  --fg-muted: light-dark(#515367, #a8adbb);
+  --fg-strong: light-dark(#11131c, #e1e1ef);
+  --rule: light-dark(#dde3da, #1d1f29);
+  --tint: light-dark(#f3f5ff, #1d1f29);
+}
+
+[data-theme="light"] { color-scheme: light; }
+[data-theme="dark"] { color-scheme: dark; }
+
+/* Header logo and logo silhouettes can't use light-dark(), so they key off
+   the same choice: an explicit data-theme, else the OS setting. */
 .logo-on-dark { display: none; }
-:root:has(.page-home) .logo-on-light { display: none; }
-:root:has(.page-home) .logo-on-dark { display: block; }
+:root[data-theme="dark"] .logo-on-light { display: none; }
+:root[data-theme="dark"] .logo-on-dark { display: block; }
 
-:root:has(.page-home) {
-  --canvas: #0c0e17;
-  --fg: #e1e1ef;
-  --fg-muted: #a8adbb;
-  --fg-strong: #e1e1ef;
-  --rule: #1d1f29;
-  --tint: #1d1f29;
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo-on-light { display: none; }
+  :root:not([data-theme="light"]) .logo-on-dark { display: block; }
 }
-
 /* In the base layer so utilities win over these element defaults. */
 @layer base {
   html {
@@ -129,7 +157,7 @@
   }
 
   *:focus-visible {
-    outline: 2px solid var(--color-secondary);
+    outline: 2px solid var(--secondary);
     outline-offset: 2px;
   }
 
@@ -152,25 +180,25 @@
     font-size: 0.95rem;
     border-radius: 0.5rem;
     overflow: hidden;
-    border: 1px solid #d5d9e8;
+    border: 1px solid var(--rule);
   }
 
   article thead {
-    background: #f3f5ff;
+    background: var(--tint);
   }
 
   article th {
     padding: 0.875rem 1rem;
     text-align: left;
     font-weight: 600;
-    color: #2e303a;
-    border-bottom: 2px solid #d5d9e8;
+    color: var(--fg-strong);
+    border-bottom: 2px solid var(--rule);
   }
 
   article td {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid #d5d9e8;
-    color: #515367;
+    border-bottom: 1px solid var(--rule);
+    color: var(--fg-muted);
   }
 
   article tbody tr:last-child td {
@@ -178,11 +206,11 @@
   }
 
   article tbody tr:hover {
-    background: #f8faf7;
+    background: var(--tint);
   }
 
   article td code {
-    background: #f3f5ff;
+    background: var(--tint);
     padding: 0.15em 0.4em;
     border-radius: 4px;
     font-size: 0.875em;
@@ -201,15 +229,32 @@
   }
 }
 
-/* One light silhouette, so dark marks (Cursor, Codex) show on the dark strip. */
+/* One flat silhouette per theme, so dark marks (Cursor, Codex) still show. */
 .agent-logo {
-  filter: brightness(0) invert(0.8);
+  filter: brightness(0) invert(0.25);
   transition: filter 200ms ease;
 }
 
 a:hover .agent-logo,
 a:focus-visible .agent-logo {
-  filter: brightness(0) invert(0.95);
+  filter: brightness(0) invert(0.05);
+}
+
+.company-logo {
+  filter: brightness(0);
+  opacity: 0.6;
+}
+
+:root[data-theme="dark"] .agent-logo { filter: brightness(0) invert(0.8); }
+:root[data-theme="dark"] a:hover .agent-logo,
+:root[data-theme="dark"] a:focus-visible .agent-logo { filter: brightness(0) invert(0.95); }
+:root[data-theme="dark"] .company-logo { filter: brightness(0) invert(1); opacity: 0.7; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .agent-logo { filter: brightness(0) invert(0.8); }
+  :root:not([data-theme="light"]) a:hover .agent-logo,
+  :root:not([data-theme="light"]) a:focus-visible .agent-logo { filter: brightness(0) invert(0.95); }
+  :root:not([data-theme="light"]) .company-logo { filter: brightness(0) invert(1); opacity: 0.7; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -231,63 +276,30 @@ a:focus-visible .agent-logo {
 
 /* ------------------------------------------------------------------
    Docs: "Paper & Prompt" light reading surface, "Control Plane" dark
-   theme from the OS setting. Code always sits in a dark terminal.
+   theme. Code always sits in a dark terminal.
    ------------------------------------------------------------------ */
 
-:root:has(.page-docs) {
-  --d-ink: #11131c;
-  --d-body: #2e303a;
-  --d-muted: #515367;
-  --d-rule: #e6e8e3;
-  --d-rule-strong: #8a8f9e;
-  --d-card: #ffffff;
-  --d-subtle: #f6f7f4;
-  --d-active: #1d6b2c;
-  --d-active-bg: #eef8ec;
-  --d-link: #2a3e9a;
-  --d-focus: #2a3e9a;
-  --d-code-inline: #11131c;
-  --d-code-inline-bg: #f1f3ee;
-  --d-term: #0c0e17;
-  --d-term-border: #0c0e17;
-  --d-target: rgba(179, 246, 171, 0.35);
-  --d-button: #11131c;
-  --d-button-text: #ffffff;
-  --d-backdrop: rgba(12, 14, 23, 0.45);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:has(.page-docs) {
-    color-scheme: dark;
-    --canvas: #0c0e17;
-    --fg: #e1e1ef;
-    --fg-muted: #a8adbb;
-    --fg-strong: #e1e1ef;
-    --rule: #1d1f29;
-    --tint: #1d1f29;
-    --d-ink: #e1e1ef;
-    --d-body: #d4d6e1;
-    --d-muted: #a8adbb;
-    --d-rule: #1d1f29;
-    --d-rule-strong: #6a6e7d;
-    --d-card: #11131c;
-    --d-subtle: #11131c;
-    --d-active: #b3f6ab;
-    --d-active-bg: #1d1f29;
-    --d-link: #bac3ff;
-    --d-focus: #bac3ff;
-    --d-code-inline: #7dcfff;
-    --d-code-inline-bg: #1d1f29;
-    --d-term: #191b24;
-    --d-term-border: #282933;
-    --d-target: rgba(179, 246, 171, 0.12);
-    --d-button: #b3f6ab;
-    --d-button-text: #003909;
-    --d-backdrop: rgba(5, 6, 10, 0.7);
-  }
-
-  :root:has(.page-docs) .logo-on-light { display: none; }
-  :root:has(.page-docs) .logo-on-dark { display: block; }
+:root,
+[data-theme] {
+  --d-ink: light-dark(#11131c, #e1e1ef);
+  --d-body: light-dark(#2e303a, #d4d6e1);
+  --d-muted: light-dark(#515367, #a8adbb);
+  --d-rule: light-dark(#e6e8e3, #1d1f29);
+  --d-rule-strong: light-dark(#8a8f9e, #6a6e7d);
+  --d-card: light-dark(#ffffff, #11131c);
+  --d-subtle: light-dark(#f6f7f4, #11131c);
+  --d-active: light-dark(#1d6b2c, #b3f6ab);
+  --d-active-bg: light-dark(#eef8ec, #1d1f29);
+  --d-link: light-dark(#2a3e9a, #bac3ff);
+  --d-focus: light-dark(#2a3e9a, #bac3ff);
+  --d-code-inline: light-dark(#11131c, #7dcfff);
+  --d-code-inline-bg: light-dark(#f1f3ee, #1d1f29);
+  --d-term: light-dark(#0c0e17, #191b24);
+  --d-term-border: light-dark(#0c0e17, #282933);
+  --d-target: light-dark(rgba(179, 246, 171, 0.35), rgba(179, 246, 171, 0.12));
+  --d-button: light-dark(#11131c, #b3f6ab);
+  --d-button-text: light-dark(#ffffff, #003909);
+  --d-backdrop: light-dark(rgba(12, 14, 23, 0.45), rgba(5, 6, 10, 0.7));
 }
 
 .page-docs {

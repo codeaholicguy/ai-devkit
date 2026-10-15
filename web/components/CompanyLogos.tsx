@@ -39,7 +39,7 @@ export default function CompanyLogos() {
                 alt=""
                 width={40}
                 height={40}
-                className="h-10 w-10 object-contain brightness-0 invert opacity-70"
+                className="company-logo h-10 w-10 object-contain"
                 loading="lazy"
               />
               <span className="text-[0.9375rem] font-medium leading-5 text-on-surface-variant">
