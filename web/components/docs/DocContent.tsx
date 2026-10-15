@@ -47,7 +47,13 @@ function Table(props: ComponentPropsWithoutRef<'table'>) {
   );
 }
 
-export default async function DocContent({ content }: { content: string }) {
+interface DocContentProps {
+  content: string;
+  /** 'md' for plain Markdown that must not be parsed as JSX (e.g. SKILL.md). */
+  format?: 'mdx' | 'md';
+}
+
+export default async function DocContent({ content, format = 'mdx' }: DocContentProps) {
   return (
     <div className="doc-prose">
       <MDXRemote
@@ -61,6 +67,7 @@ export default async function DocContent({ content }: { content: string }) {
         }}
         options={{
           mdxOptions: {
+            format,
             remarkPlugins: [remarkGfm],
             rehypePlugins: [rehypeHighlight, rehypeSlug, rehypeCommandCards],
           },

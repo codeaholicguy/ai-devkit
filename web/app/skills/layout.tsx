@@ -1,4 +1,12 @@
 import type { Metadata } from "next";
+import SearchProvider from "@/components/docs/SearchProvider";
+import { DOC_SECTIONS } from "@/lib/docs/sections";
+
+const QUICK_LINKS = [
+  { title: "Dev Lifecycle Skill", href: "/skills/dev-lifecycle" },
+  { title: "Skills docs", href: "/docs/7-skills" },
+  { title: "Getting Started", href: "/docs/1-getting-started" },
+];
 
 export const metadata: Metadata = {
   title: "Browse AI Coding Agent Skills for Claude Code, Codex, Cursor, and More",
@@ -38,5 +46,15 @@ export default function SkillsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return children;
+  // Skills pages share the docs reading surface, theme, and ⌘K search.
+  return (
+    <div className="page-docs page-skills">
+      <SearchProvider
+        quickLinks={QUICK_LINKS}
+        sections={DOC_SECTIONS.map(({ id, title }) => ({ id, title }))}
+      >
+        {children}
+      </SearchProvider>
+    </div>
+  );
 }

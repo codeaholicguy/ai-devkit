@@ -2,6 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { builtInSkills, getBuiltInSkill } from "@/lib/skills/built-in";
+import { SKILL_GROUPS } from "@/lib/skills/groups";
+import { getSkillMarkdown } from "@/lib/skills/skill-markdown";
+import { extractHeadings, type DocHeading } from "@/lib/docs/nav";
+import { REPO_URL } from "@/lib/utils";
+import CodeBlock from "@/components/docs/CodeBlock";
+import DocContent from "@/components/docs/DocContent";
+import { TocAside, TocInline } from "@/components/docs/Toc";
+import CopyToMarkdownButton from "@/components/CopyToMarkdownButton";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 
@@ -124,112 +132,151 @@ export default async function SkillDetailPage({ params }: SkillPageProps) {
     ],
   };
 
+  const group = SKILL_GROUPS.find((candidate) => candidate.categories.includes(skill.category));
+  const skillMarkdown = getSkillMarkdown(skill.name);
+  const headings: DocHeading[] = [
+    { id: "install-command", text: "Install command", depth: 2 },
+    { id: "what-it-does", text: "What it does", depth: 2 },
+    { id: "when-to-use-it", text: "When to use it", depth: 2 },
+    { id: "supported-agents", text: "Supported agents", depth: 2 },
+    ...(skillMarkdown
+      ? [
+          { id: "skill-file", text: "The SKILL.md file", depth: 2 as const },
+          ...extractHeadings(skillMarkdown).filter((heading) => heading.depth === 3),
+        ]
+      : []),
+    { id: "related-skills", text: "Related skills", depth: 2 },
+  ];
+
   return (
-    <div className="bg-white py-16">
-      <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-
-        <nav className="mb-8 text-sm text-gray-600">
-          <Link href="/skills" className="transition-colors hover:text-black">
-            Skills
-          </Link>
-          <span className="mx-2">/</span>
-          <span className="text-black">{skill.title}</span>
-        </nav>
-
-        <div className="mb-10">
-          <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
-            {skill.category} skill
-          </p>
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl">
-            {skill.title} Skill
-          </h1>
-          <p className="mt-5 text-xl leading-8 text-gray-600">
-            {skill.summary}
-          </p>
-        </div>
-
-        <section className="mb-10 rounded-lg border border-gray-200 bg-gray-50 p-6">
-          <h2 className="text-lg font-semibold">Install command</h2>
-          <p className="mt-2 text-gray-600">
-            AI DevKit installs its built-in skills as one curated set. Run this once to install{" "}
-            <span className="font-mono">{skill.name}</span> with the rest of the built-in workflow skills.
-          </p>
-          <pre className="mt-4 overflow-x-auto rounded-lg bg-gray-950 p-4 text-sm text-white">
-            <code>{installCommand}</code>
-          </pre>
-        </section>
-
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold">What it does</h2>
-          <p className="mt-4 leading-7 text-gray-700">{skill.description}</p>
-        </section>
-
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold">When to use it</h2>
-          <ul className="mt-4 space-y-3">
-            {skill.useCases.map((useCase) => (
-              <li key={useCase} className="flex gap-3 text-gray-700">
-                <span className="mt-2 h-1.5 w-1.5 flex-none rounded-full bg-gray-950" />
-                <span>{useCase}</span>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <div className="faq-shell">
+        <article className="faq-shell-content" data-pagefind-body>
+          <nav aria-label="Breadcrumb" className="docs-breadcrumb" data-pagefind-ignore>
+            <ol>
+              <li>
+                <Link href="/skills">Skills</Link>
               </li>
-            ))}
-          </ul>
-        </section>
+              {group && (
+                <li>
+                  <Link href={`/skills#${group.id}`}>{group.title}</Link>
+                </li>
+              )}
+              <li aria-current="page">{skill.title}</li>
+            </ol>
+          </nav>
 
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold">Supported agents</h2>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {skill.relatedAgents.map((agent) => (
-              <span
-                key={agent}
-                className="rounded-full border border-gray-200 px-3 py-1 text-sm text-gray-700"
-              >
-                {agent}
-              </span>
-            ))}
-          </div>
-        </section>
+          <header className="docs-page-header">
+            <p className="skill-eyebrow">{skill.category} skill</p>
+            <h1>{skill.title} Skill</h1>
+            <p className="docs-page-description">{skill.summary}</p>
+            <div className="docs-page-actions" data-pagefind-ignore>
+              <CopyToMarkdownButton
+                content={skillMarkdown ?? skill.description}
+                title={`${skill.title} Skill`}
+              />
+            </div>
+          </header>
 
-        <section className="mb-12">
-          <h2 className="text-2xl font-bold">Related skills</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {relatedSkills.map((relatedSkill) => (
-              <Link
-                key={relatedSkill.name}
-                href={`/skills/${relatedSkill.name}`}
-                className="rounded-lg border border-gray-200 p-4 no-underline transition-colors hover:border-black"
-              >
-                <div className="text-sm text-gray-600">{relatedSkill.category}</div>
-                <div className="font-bold text-gray-950">{relatedSkill.title}</div>
-                <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-600">
-                  {relatedSkill.summary}
+          <TocInline headings={headings} />
+
+          <div className="doc-prose">
+            <section aria-labelledby="install-command">
+              <h2 id="install-command">Install command</h2>
+              <p>
+                AI DevKit installs its built-in skills as one curated set. Run this once to install{" "}
+                <code>{skill.name}</code> with the rest of the built-in workflow skills.
+              </p>
+              <CodeBlock language="bash">
+                <pre>
+                  <code>{installCommand}</code>
+                </pre>
+              </CodeBlock>
+            </section>
+
+            <section aria-labelledby="what-it-does">
+              <h2 id="what-it-does">What it does</h2>
+              <p>{skill.description}</p>
+            </section>
+
+            <section aria-labelledby="when-to-use-it">
+              <h2 id="when-to-use-it">When to use it</h2>
+              <ul>
+                {skill.useCases.map((useCase) => (
+                  <li key={useCase}>{useCase}</li>
+                ))}
+              </ul>
+            </section>
+
+            <section aria-labelledby="supported-agents">
+              <h2 id="supported-agents">Supported agents</h2>
+              <ul className="skill-agents">
+                {skill.relatedAgents.map((agent) => (
+                  <li key={agent}>{agent}</li>
+                ))}
+              </ul>
+            </section>
+
+            {skillMarkdown && (
+              <section aria-labelledby="skill-file">
+                <h2 id="skill-file">The SKILL.md file</h2>
+                <p>
+                  This is what your agent reads when the skill runs.{" "}
+                  <a
+                    href={`${REPO_URL}/blob/main/skills/${skill.name}/SKILL.md`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    View it on GitHub
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </a>
                 </p>
-              </Link>
-            ))}
+              </section>
+            )}
           </div>
-        </section>
 
-        <nav className="grid gap-4 border-t border-gray-200 pt-8 md:grid-cols-2">
-          <Link
-            href="/skills"
-            className="rounded-lg border border-gray-200 p-4 no-underline transition-colors hover:border-black"
-          >
-            <div className="text-sm text-gray-600">Back to</div>
-            <div className="font-bold">Browse all AI coding agent skills</div>
-          </Link>
-          <Link
-            href="/docs/7-skills"
-            className="rounded-lg border border-gray-200 p-4 text-left no-underline transition-colors hover:border-black md:text-right"
-          >
-            <div className="text-sm text-gray-600">Read the guide</div>
-            <div className="font-bold">Install and manage skills</div>
-          </Link>
-        </nav>
-      </article>
-    </div>
+          {skillMarkdown && (
+            <div className="skill-file">
+              <p className="skill-file-path" aria-hidden="true">skills/{skill.name}/SKILL.md</p>
+              <DocContent content={skillMarkdown} format="md" />
+            </div>
+          )}
+
+          <section className="skill-related" aria-labelledby="related-skills">
+            <h2 id="related-skills">Related skills</h2>
+            <ul className="faq-home-cards">
+              {relatedSkills.map((relatedSkill) => (
+                <li key={relatedSkill.name}>
+                  <Link href={`/skills/${relatedSkill.name}`} className="faq-home-card">
+                    <span className="skill-card-category">{relatedSkill.category}</span>
+                    <span className="faq-home-card-title">{relatedSkill.title}</span>
+                    <span className="faq-home-card-desc">{relatedSkill.summary}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <nav aria-label="More about skills" className="docs-pager skill-pager" data-pagefind-ignore>
+            <Link href="/skills" className="docs-pager-link">
+              <span className="docs-pager-label">Back to</span>
+              <span className="docs-pager-title">Browse all AI coding agent skills</span>
+            </Link>
+            <Link href="/docs/7-skills" className="docs-pager-link docs-pager-next">
+              <span className="docs-pager-label">Read the guide</span>
+              <span className="docs-pager-title">Install and manage skills</span>
+            </Link>
+          </nav>
+        </article>
+
+        <aside className="docs-shell-toc">
+          <TocAside headings={headings} />
+        </aside>
+      </div>
+    </>
   );
 }

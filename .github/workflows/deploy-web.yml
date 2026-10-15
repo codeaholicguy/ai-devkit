@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'web/**'
+      - 'skills/*/SKILL.md'
       - '.github/workflows/deploy-web.yml'
   workflow_dispatch:
 

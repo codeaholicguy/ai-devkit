@@ -1744,3 +1744,422 @@ a:focus-visible .agent-logo {
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* ------------------------------------------------------------------
+   Skills
+   ------------------------------------------------------------------ */
+.skill-eyebrow {
+  margin: 0 0 8px;
+  font: 500 0.75rem/1.5 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--d-active);
+}
+
+.page-docs .doc-prose .skill-agents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+}
+
+.page-docs .doc-prose .skill-agents li {
+  margin: 0;
+  padding: 4px 12px;
+  border: 1px solid var(--d-rule-strong);
+  border-radius: 999px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.skill-file {
+  margin-top: 16px;
+  padding: 8px 32px 24px;
+  border: 1px solid var(--d-rule);
+  border-radius: 12px;
+  background: var(--d-card);
+}
+
+.skill-file-path {
+  margin: 0 -32px 0;
+  padding: 8px 32px;
+  border-bottom: 1px solid var(--d-rule);
+  font: 0.75rem/1.5 var(--font-mono);
+  color: var(--d-muted);
+}
+
+.skill-file .doc-prose {
+  margin-top: 24px;
+}
+
+@media (max-width: 767px) {
+  .skill-file {
+    padding: 8px 16px 16px;
+  }
+
+  .skill-file-path {
+    margin: 0 -16px;
+    padding: 8px 16px;
+  }
+}
+
+.skill-related {
+  margin-top: 64px;
+}
+
+.skill-related h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  color: var(--d-ink);
+}
+
+.page-docs .skill-related .faq-home-cards {
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 768px) {
+  .page-docs .skill-related .faq-home-cards {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.skill-pager {
+  margin-top: 48px;
+}
+
+.skill-card-category {
+  font: 500 0.6875rem/1.5 var(--font-mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--d-muted);
+}
+
+.page-docs .skill-card-recommended {
+  border-color: var(--d-active);
+}
+
+.page-docs .skill-card-recommended .skill-card-category {
+  color: var(--d-active);
+}
+
+.skills-builtin-head {
+  display: grid;
+  gap: 24px;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+@media (min-width: 1024px) {
+  .skills-builtin-head {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 48px;
+  }
+}
+
+.skills-builtin-head h2 {
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+  color: var(--d-ink);
+}
+
+.skills-builtin-head .faq-home-group-desc {
+  margin: 0;
+}
+
+.page-docs .skills-builtin-head a {
+  color: var(--d-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.skills-builtin-head .code-block {
+  margin: 0;
+}
+
+.skills-group + .skills-group {
+  margin-top: 32px;
+}
+
+.skills-group {
+  scroll-margin-top: 16px;
+}
+
+.page-docs .skills-group-label {
+  margin-bottom: 12px;
+  padding: 0;
+}
+
+/* Registry browser */
+.registry-controls {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 768px) {
+  .registry-controls {
+    grid-template-columns: minmax(0, 1fr) 280px;
+  }
+}
+
+.registry-search input,
+.registry-filter select {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  border: 1px solid var(--d-rule-strong);
+  border-radius: 8px;
+  background: var(--d-card);
+  color: var(--d-ink);
+  font-size: 1rem;
+}
+
+.registry-filter select {
+  font-size: 0.875rem;
+}
+
+.registry-filter select:disabled {
+  color: var(--d-muted);
+}
+
+.registry-status {
+  min-height: 1.5em;
+  margin: 12px 0 16px;
+  font-size: 0.875rem;
+  color: var(--d-muted);
+}
+
+.registry-note {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--d-rule);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: var(--d-body);
+}
+
+.registry-note button,
+.registry-link-button {
+  color: var(--d-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.registry-message {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--d-muted);
+}
+
+.registry-message p {
+  margin: 0 0 16px;
+}
+
+.registry-more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  font-size: 0.875rem;
+  color: var(--d-muted);
+}
+
+.registry-more-button {
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--d-rule-strong);
+  border-radius: 8px;
+  background: var(--d-card);
+  color: var(--d-ink);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.registry-more-button:hover {
+  border-color: var(--d-active);
+}
+
+
+/* Registry rows: one line each, so every row is the same height. */
+.registry-table {
+  border-top: 1px solid var(--d-rule);
+}
+
+.registry-head {
+  display: none;
+}
+
+.page-docs .registry-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.registry-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--d-rule);
+}
+
+.registry-row:hover,
+.registry-row:focus-within {
+  background: var(--d-subtle);
+}
+
+.page-docs .registry-row-name {
+  font: 600 0.875rem/1.5 var(--font-mono);
+  color: var(--d-ink);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name is the link; it stretches over the whole row. */
+.registry-row-name::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+}
+
+.page-docs .registry-row-name:focus-visible {
+  outline: none;
+}
+
+.registry-row:has(.registry-row-name:focus-visible) {
+  outline: 2px solid var(--d-focus);
+  outline-offset: -2px;
+}
+
+.registry-row:hover .registry-row-name {
+  color: var(--d-link);
+}
+
+.registry-row-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--d-muted);
+}
+
+.registry-row-registry {
+  font: 0.75rem/1.5 var(--font-mono);
+  color: var(--d-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .registry-head,
+  .registry-row {
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr) minmax(0, 14rem);
+    gap: 24px;
+    align-items: center;
+  }
+
+  .registry-head {
+    display: grid;
+    padding: 8px;
+    border-bottom: 1px solid var(--d-rule);
+    font: 500 0.6875rem/1.5 var(--font-mono);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--d-muted);
+  }
+
+  .registry-row {
+    height: 48px;
+    padding: 0 8px;
+  }
+
+  .registry-row-desc {
+    display: block;
+    -webkit-line-clamp: unset;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Registry skill page */
+.registry-skill-title {
+  margin: 0;
+  font: 600 clamp(1.75rem, 4vw, 2.25rem)/1.2 var(--font-mono);
+  color: var(--d-ink);
+  overflow-wrap: anywhere;
+}
+
+.registry-skill-source {
+  margin: 8px 0 0;
+  font: 0.8125rem/1.5 var(--font-mono);
+  color: var(--d-muted);
+}
+
+.page-docs .registry-skill-source a,
+.page-docs .registry-skill p a,
+.page-docs .registry-file-error a {
+  color: var(--d-link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.registry-skill .docs-page-description {
+  font-size: 1rem;
+}
+
+.registry-skill-install,
+.registry-skill-file-section {
+  margin-top: 48px;
+}
+
+.registry-skill h2 {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  color: var(--d-ink);
+}
+
+.registry-skill section > p {
+  margin: 0 0 16px;
+  color: var(--d-body);
+}
+
+.registry-skill section > p code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font: 0.875em var(--font-mono);
+  color: var(--d-code-inline);
+  background: var(--d-code-inline-bg);
+}
+
+.page-docs .registry-skill-install .code-block pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.registry-file-error {
+  margin: 24px 0 8px;
+  color: var(--d-body);
+}
+
+.registry-skill-actions {
+  margin: 48px 0 0;
+}
+
+.page-docs .registry-skill .registry-back {
+  font-weight: 600;
+  color: var(--d-link);
+  text-decoration: none;
+}
+
+.page-docs .registry-skill .registry-back:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
