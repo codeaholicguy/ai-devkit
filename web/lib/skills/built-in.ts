@@ -80,6 +80,20 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
   },
   {
+    name: "session-compact",
+    title: "Session Compact",
+    category: "Memory",
+    summary: "Turn a long or finished coding session into a structured handoff and resume prompt.",
+    description:
+      "Use session-compact when a session's context is getting long, work is being handed to another agent, or a long implementation or debugging run is ending. It runs ai-devkit agent session compact to produce a continuation artifact with a resume prompt and memory candidates. It needs the TYPESAFE_API_KEY environment variable and stops with a clear message when it is missing.",
+    useCases: [
+      "Hand work off to another agent without losing decisions and open questions",
+      "Resume stale work from a structured summary instead of a long transcript",
+      "Pull durable memory candidates out of a long session for review",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "opencode"],
+  },
+  {
     name: "agent-communication",
     title: "Agent Communication",
     category: "Multi-agent",
@@ -92,6 +106,20 @@ export const builtInSkills: BuiltInSkill[] = [
       "Coordinate parallel AI coding sessions without copying context by hand",
     ],
     relatedAgents: ["Claude Code", "Codex", "opencode"],
+  },
+  {
+    name: "agent-management",
+    title: "Agent Management",
+    category: "Multi-agent",
+    summary: "List, start, inspect, and assign work to running AI coding agents.",
+    description:
+      "Use agent-management when one agent needs to coordinate others: list running agents, identify itself, start a worker, inspect what an agent is doing, and send it a self-contained assignment. It uses the ai-devkit agent commands and checks completed work before reporting it done.",
+    useCases: [
+      "Delegate a scoped task to an idle agent or start a new worker",
+      "Inspect an agent's recent output before sending it more work",
+      "Split work across agents with non-overlapping files and clear validation steps",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Gemini CLI", "opencode", "Pi"],
   },
   {
     name: "agent-orchestration",
@@ -248,6 +276,20 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
   },
   {
+    name: "brainstorm",
+    title: "Brainstorm",
+    category: "Workflow",
+    summary: "Generate, challenge, and narrow ideas, from a simple baseline to three strong picks.",
+    description:
+      "Use brainstorm when you want options before committing: product ideas, technical approaches, names, content angles, or decisions. It frames the goal, starts from the simplest honest baseline, explores distinct options, challenges assumptions and over-engineering, and converges on three picks with a next step.",
+    useCases: [
+      "Compare technical approaches before writing a design",
+      "Pressure-test an idea for weak assumptions and failure modes",
+      "Generate and narrow names, content angles, or experiment ideas",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
+  },
+  {
     name: "dev-requirements",
     title: "Dev Requirements",
     category: "Workflow",
@@ -342,6 +384,20 @@ export const builtInSkills: BuiltInSkill[] = [
       "Rebase a ready feature branch before review",
       "Push safely after validation",
       "Open or update a PR, merge request, or equivalent with clear status and risks",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
+  },
+  {
+    name: "task",
+    title: "Task",
+    category: "Workflow",
+    summary: "Record lifecycle and debugging progress on a durable task the next agent can pick up.",
+    description:
+      "Use task to track dev-lifecycle or structured-debug work on a durable task with the ai-devkit task CLI. The agent records phase, progress, next step, blockers, and validation evidence at checkpoints, so another agent or a later session can see where the work stands. If the task command is unavailable, the agent keeps working and reports that tracking was skipped.",
+    useCases: [
+      "Keep a feature's phase, next step, and blockers visible across sessions",
+      "Attach validation evidence to the work it proves",
+      "Let another agent resume a task without rereading the whole history",
     ],
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
   },
