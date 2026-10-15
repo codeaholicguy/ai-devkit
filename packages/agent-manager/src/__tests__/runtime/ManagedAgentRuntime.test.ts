@@ -78,7 +78,10 @@ const startOpts: StartAgentOptions = {
   name: "agent1",
   cwd: "/work",
   pollIntervalMs: 1,
-  pollTimeoutMs: 50,
+  // Success paths need several real 1ms polls to see a stable PID. Under a busy
+  // test run those sleeps stretch, so give them ample time; they still finish in
+  // milliseconds. Tests that expect a timeout set their own short pollTimeoutMs.
+  pollTimeoutMs: 5_000,
 };
 
 describe("managed agent runtime defaults", () => {
@@ -347,7 +350,7 @@ describe("startAgent", () => {
     const tmux = makeTmux();
     const registry = makeRegistry();
 
-    const entry = await startAgent({ ...startOpts, pollTimeoutMs: 250 }, { tmux, registry });
+    const entry = await startAgent(startOpts, { tmux, registry });
 
     expect(tmux.createSession).toHaveBeenCalledWith("agent1", "/work");
     expect(tmux.sendKeys).toHaveBeenCalledWith("agent1", "claude");
@@ -393,7 +396,7 @@ describe("startAgent", () => {
       cwd: "/work",
       kind: "claude",
       args: [],
-      timeoutMs: 50,
+      timeoutMs: startOpts.pollTimeoutMs,
     });
     expect(entry).toMatchObject({
       name: "agent1",
@@ -502,11 +505,13 @@ describe("startAgent", () => {
     } as Partial<TmuxManager>);
     const registry = makeRegistry();
 
-    const err = await startAgent(startOpts, { tmux, registry }).catch((e) => e);
+    const err = await startAgent({ ...startOpts, pollTimeoutMs: 20 }, { tmux, registry }).catch(
+      (e) => e,
+    );
 
     expect(err).toBeInstanceOf(AgentPidPollTimeoutError);
     expect(err.command).toBe("claude");
-    expect(err.timeoutMs).toBe(50);
+    expect(err.timeoutMs).toBe(20);
     expect(tmux.killSession).toHaveBeenLastCalledWith("agent1");
     expect(registry.register).not.toHaveBeenCalled();
   });
@@ -524,7 +529,7 @@ describe("startAgent", () => {
     const tmux = makeTmux({ findAgentPid } as Partial<TmuxManager>);
     const registry = makeRegistry();
 
-    const entry = await startAgent({ ...startOpts, pollTimeoutMs: 250 }, { tmux, registry });
+    const entry = await startAgent(startOpts, { tmux, registry });
 
     expect(findAgentPid).toHaveBeenCalledTimes(7);
     expect(entry.pid).toBe(42);
