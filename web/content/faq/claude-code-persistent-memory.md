@@ -2,6 +2,7 @@
 title: Persistent Memory for Claude Code
 description: Give Claude Code persistent, searchable memory across sessions with AI DevKit's local MCP memory server — no cloud, no prompt bloat.
 order: 17
+category: guide
 ---
 
 Claude Code forgets everything between sessions except what lives in `CLAUDE.md` and your repo files. If you want Claude Code to remember conventions, decisions, and fixes across sessions — and across projects — you need a real memory layer.

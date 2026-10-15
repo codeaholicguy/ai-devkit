@@ -2,6 +2,7 @@
 title: AI DevKit Codex Integration
 description: Configure Codex SessionStart hooks so AI DevKit can more reliably detect, inspect, and message running Codex sessions.
 order: 13
+category: guide
 ---
 
 AI DevKit can detect Codex sessions through its agent management system. For the most accurate Codex integration, install the AI DevKit Codex hook files into your Codex home directory.

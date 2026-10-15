@@ -1,6 +1,7 @@
 ---
 title: AI DevKit vs Spec Kit
 description: A practical comparison of AI DevKit and GitHub Spec Kit for teams standardizing AI coding agents.
+category: compare
 ---
 
 Both **AI DevKit** and **Spec Kit** solve an adjacent problem: AI coding agents are powerful, but they need structure. Without a shared operating model, results become inconsistent, context is lost between sessions, and important engineering steps get skipped.

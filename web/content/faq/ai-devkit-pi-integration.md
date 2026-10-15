@@ -2,6 +2,7 @@
 title: AI DevKit Pi Integration
 description: How to improve AI DevKit's Pi session detection with the @ai-devkit/pi-session-tracker package.
 order: 12
+category: guide
 ---
 
 AI DevKit can detect Pi sessions through its agent management system. For the most accurate integration, launch Pi at least once and run the AI DevKit machine setup:

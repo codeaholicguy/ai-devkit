@@ -1,6 +1,7 @@
 ---
 title: AI DevKit vs Superpowers
 description: A detailed comparison between AI DevKit and Superpowers for teams standardizing AI coding agents.
+category: compare
 ---
 
 Both **AI DevKit** and **Superpowers** solve an adjacent problem: AI coding agents are powerful, but they need structure. Without a shared operating model, results become inconsistent, context is lost between sessions, and important engineering steps get skipped.

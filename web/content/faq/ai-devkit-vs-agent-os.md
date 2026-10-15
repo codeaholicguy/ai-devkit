@@ -2,6 +2,7 @@
 title: AI DevKit vs Agent OS
 description: A practical comparison of AI DevKit and Agent OS for teams doing spec-driven development with AI coding agents.
 order: 15
+category: compare
 ---
 
 Both **AI DevKit** and **Agent OS** help AI coding agents follow your standards instead of improvising. They solve different parts of the problem.

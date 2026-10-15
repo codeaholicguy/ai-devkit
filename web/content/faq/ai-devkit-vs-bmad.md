@@ -2,6 +2,7 @@
 title: AI DevKit vs BMAD Method
 description: A practical comparison of AI DevKit and the BMAD-METHOD agile AI-driven development framework.
 order: 16
+category: compare
 ---
 
 Both **AI DevKit** and **BMAD-METHOD** bring process to AI-assisted development, but at different altitudes.

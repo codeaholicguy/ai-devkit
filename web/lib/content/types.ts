@@ -5,6 +5,7 @@ export interface PageMetadata {
   heroImage?: string;
   order?: number;
   section?: string;
+  category?: string;
 }
 
 export interface Page {

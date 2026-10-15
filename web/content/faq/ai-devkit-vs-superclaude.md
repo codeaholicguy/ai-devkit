@@ -2,6 +2,7 @@
 title: AI DevKit vs SuperClaude
 description: A practical comparison of AI DevKit and the SuperClaude framework for developers using Claude Code and other AI coding agents.
 order: 14
+category: compare
 ---
 
 Both **AI DevKit** and **SuperClaude** add structure on top of AI coding agents, but they operate at different layers.

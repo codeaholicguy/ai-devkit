@@ -2,6 +2,7 @@
 title: Use ai-devkit agent send --wait for Programmatic Agent Calls
 description: Use ai-devkit agent send --wait to call an existing supported interactive coding-agent session from scripts and automation.
 order: 11
+category: guide
 ---
 
 `ai-devkit agent send --wait` lets a script send a prompt to an already-running interactive coding agent, wait for the next assistant response, and print that response to stdout.

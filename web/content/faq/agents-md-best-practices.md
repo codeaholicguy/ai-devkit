@@ -2,6 +2,7 @@
 title: AGENTS.md Best Practices
 description: What AGENTS.md is, how to write a good one, and how AI DevKit generates and keeps agent instruction files consistent across tools.
 order: 18
+category: guide
 ---
 
 `AGENTS.md` is the emerging standard file for AI coding agent instructions — the cross-agent equivalent of `CLAUDE.md`. Agents including Codex, Cursor, opencode, Junie, Cline, Devin, and KiloCode read it (or a tool-specific variant) to learn how your project should be built, tested, and reviewed.

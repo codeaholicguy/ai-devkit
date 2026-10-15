@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import MarkdownContent from "@/components/MarkdownContent";
 import FaqKeywordLinks from "@/components/FaqKeywordLinks";
+import FaqPageShell from "@/components/faq/FaqPageShell";
+import TryIt from "@/components/faq/TryIt";
+import { getFaqCategory } from "@/lib/faq/structure";
 import { getAllFaqPages, getDocPage, getFaqPage } from "@/lib/content/loader";
 import {
   clusterDocSlugs,
@@ -93,12 +95,13 @@ export async function generateMetadata({
     };
   }
 
+  // The root layout's title template appends "| AI DevKit"; social titles keep it explicitly.
   const title = `${entry.keyword} | AI DevKit`;
   const description = buildDescription(entry.keyword);
   const pageUrl = `${siteUrl}/faq/${entry.slug}`;
 
   return {
-    title,
+    title: entry.keyword,
     description,
     keywords: [
       entry.keyword,
@@ -133,40 +136,56 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
 
   if (faqPage) {
     const pageUrl = `${siteUrl}/faq/${slug}`;
+    const category = getFaqCategory(faqPage.metadata.category);
     const structuredData = {
       "@context": "https://schema.org",
-      "@type": "Article",
-      headline: faqPage.metadata.title,
-      description: faqPage.metadata.description,
-      url: pageUrl,
-      author: {
-        "@type": "Organization",
-        name: "AI DevKit",
-      },
-      publisher: {
-        "@type": "Organization",
-        name: "AI DevKit",
-        url: siteUrl,
-      },
+      "@graph": [
+        {
+          "@type": "Article",
+          headline: faqPage.metadata.title,
+          description: faqPage.metadata.description,
+          url: pageUrl,
+          author: {
+            "@type": "Organization",
+            name: "AI DevKit",
+          },
+          publisher: {
+            "@type": "Organization",
+            name: "AI DevKit",
+            url: siteUrl,
+          },
+        },
+        {
+          "@type": "BreadcrumbList",
+          itemListElement: [
+            { "@type": "ListItem", position: 1, name: "Home", item: siteUrl },
+            { "@type": "ListItem", position: 2, name: "FAQ", item: `${siteUrl}/faq/` },
+            { "@type": "ListItem", position: 3, name: faqPage.metadata.title, item: pageUrl },
+          ],
+        },
+      ],
     };
 
     return (
-      <div className="bg-white py-16">
-        <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-          />
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
-            {faqPage.metadata.title}
-          </h1>
-          <p className="text-xl text-gray-600 mb-12">
-            {faqPage.metadata.description}
-          </p>
-          <MarkdownContent content={faqPage.content} />
+      <>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        />
+        <FaqPageShell
+          breadcrumb={[
+            { label: "FAQ", href: "/faq" },
+            ...(category ? [{ label: category.title, href: `/faq#${category.id}` }] : []),
+          ]}
+          title={faqPage.metadata.title}
+          description={faqPage.metadata.description}
+          content={faqPage.content}
+          searchable
+        >
+          <TryIt />
           <FaqKeywordLinks currentSlug={slug} />
-        </article>
-      </div>
+        </FaqPageShell>
+      </>
     );
   }
 
@@ -213,37 +232,44 @@ export default async function SeoKeywordPage({ params }: SeoPageProps) {
     ],
   };
 
+  const sourceDocSlug = clusterDocSlugs[entry.cluster];
+
   return (
-    <div className="bg-white py-16">
-      <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">
-          {entry.keyword}
-        </h1>
-        <p className="text-xl text-gray-600 mb-12">
-          {buildDescription(entry.keyword)}
-        </p>
-        <MarkdownContent content={content} />
-        <section className="mt-12">
-          <h2 className="text-2xl font-bold mb-4">Related guides</h2>
-          <ul className="list-disc pl-5 space-y-2">
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <FaqPageShell
+        breadcrumb={[
+          { label: "FAQ", href: "/faq" },
+          { label: "Topics", href: "/faq#topics" },
+        ]}
+        title={entry.keyword}
+        description={buildDescription(entry.keyword)}
+        content={content}
+        intro={
+          baseDoc && (
+            <p className="faq-source">
+              From the docs:{" "}
+              <Link href={`/docs/${sourceDocSlug}`}>{baseDoc.metadata.title}</Link>
+            </p>
+          )
+        }
+      >
+        <TryIt />
+        <section className="faq-related" aria-labelledby="related-guides" data-pagefind-ignore>
+          <h2 id="related-guides">Related guides</h2>
+          <ul>
             {relatedLinks.map((link) => (
               <li key={link.href}>
-                <Link
-                  href={link.href}
-                  className="text-[#2a3e9a] hover:text-[#0c2483]"
-                >
-                  {link.label}
-                </Link>
+                <Link href={link.href}>{link.label}</Link>
               </li>
             ))}
           </ul>
         </section>
         <FaqKeywordLinks currentSlug={entry.slug} />
-      </article>
-    </div>
+      </FaqPageShell>
+    </>
   );
 }

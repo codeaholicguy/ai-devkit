@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import MarkdownContent from "@/components/MarkdownContent";
+import FaqPageShell from "@/components/faq/FaqPageShell";
+import TryIt from "@/components/faq/TryIt";
+import GettingStartedGuides from "@/components/GettingStartedGuides";
 import { getDocPage } from "@/lib/content/loader";
 import {
   findSetupToolBySlug,
@@ -157,20 +159,23 @@ export default async function SetupToolPage({ params }: SetupPageProps) {
   };
 
   return (
-    <div className="bg-white py-16">
-      <article className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
-        />
-        <h1 className="text-4xl md:text-5xl font-bold mb-4">
-          {buildTitle(entry.tool)}
-        </h1>
-        <p className="text-xl text-gray-600 mb-12">
-          {buildDescription(entry.tool)}
-        </p>
-        <MarkdownContent content={content} />
-      </article>
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+      />
+      <FaqPageShell
+        breadcrumb={[
+          { label: "FAQ", href: "/faq" },
+          { label: "Setup", href: "/faq#setup" },
+        ]}
+        title={buildTitle(entry.tool)}
+        description={buildDescription(entry.tool)}
+        content={content}
+      >
+        <TryIt />
+        <GettingStartedGuides excludeSlug={entry.slug} />
+      </FaqPageShell>
+    </>
   );
 }

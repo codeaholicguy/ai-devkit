@@ -18,30 +18,18 @@ export default function FaqKeywordLinks({ currentSlug }: FaqKeywordLinksProps) {
   ].slice(0, MAX_LINKS);
 
   return (
-    <section className="mt-12 border-t border-gray-200 pt-8">
-      <h2 className="text-2xl font-bold mb-4">More FAQ Topics</h2>
-      <p className="text-gray-600 mb-6">
-        Explore related AI DevKit questions and topics.
-      </p>
-      <ul className="list-disc pl-5 space-y-2">
+    <section className="faq-related" aria-labelledby="more-faq-topics" data-pagefind-ignore>
+      <h2 id="more-faq-topics">More FAQ Topics</h2>
+      <p>Explore related AI DevKit questions and topics.</p>
+      <ul>
         {related.map((entry) => (
           <li key={entry.slug}>
-            <Link
-              href={`/faq/${entry.slug}`}
-              className="hover:opacity-70 transition-opacity"
-            >
-              {entry.keyword}
-            </Link>
+            <Link href={`/faq/${entry.slug}`}>{entry.keyword}</Link>
           </li>
         ))}
       </ul>
-      <p className="mt-6">
-        <Link
-          href="/faq"
-          className="font-semibold text-[#2a3e9a] no-underline hover:text-[#0c2483]"
-        >
-          Browse all FAQ topics
-        </Link>
+      <p className="faq-related-all">
+        <Link href="/faq">Browse all FAQ topics</Link>
       </p>
     </section>
   );

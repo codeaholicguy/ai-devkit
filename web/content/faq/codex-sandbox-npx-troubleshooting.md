@@ -2,6 +2,7 @@
 title: Codex Sandbox Troubleshooting for npx ai-devkit
 description: Fix common Codex sandbox permission issues when running npx ai-devkit, including npm registry access, npm cache EPERM errors, and memory database initialization.
 order: 10
+category: guide
 ---
 
 If you run `npx ai-devkit` inside Codex and hit permission or connectivity errors, this is usually a sandbox configuration issue.

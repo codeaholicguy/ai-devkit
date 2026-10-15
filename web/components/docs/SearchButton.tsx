@@ -14,7 +14,12 @@ function SearchIcon() {
 
 const subscribeNoop = () => () => {};
 
-export default function SearchButton({ variant = 'field' }: { variant?: 'field' | 'icon' }) {
+interface SearchButtonProps {
+  variant?: 'field' | 'icon';
+  label?: string;
+}
+
+export default function SearchButton({ variant = 'field', label = 'Search docs' }: SearchButtonProps) {
   const { open } = useDocsSearch();
   const shortcut = useSyncExternalStore(
     subscribeNoop,
@@ -24,7 +29,7 @@ export default function SearchButton({ variant = 'field' }: { variant?: 'field' 
 
   if (variant === 'icon') {
     return (
-      <button type="button" onClick={open} className="search-trigger-icon" aria-label="Search docs">
+      <button type="button" onClick={open} className="search-trigger-icon" aria-label={label}>
         <SearchIcon />
       </button>
     );
@@ -33,7 +38,7 @@ export default function SearchButton({ variant = 'field' }: { variant?: 'field' 
   return (
     <button type="button" onClick={open} className="search-trigger">
       <SearchIcon />
-      <span className="search-trigger-label">Search docs</span>
+      <span className="search-trigger-label">{label}</span>
       <kbd aria-hidden="true">{shortcut}</kbd>
     </button>
   );
