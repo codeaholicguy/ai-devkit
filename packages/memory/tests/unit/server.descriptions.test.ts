@@ -21,8 +21,9 @@ describe("memory MCP tool descriptions (always-loaded prompt surface)", () => {
     ]);
   });
 
-  it("instructs the agent to search BEFORE non-trivial tasks, with an example", () => {
-    expect(SEARCH.description).toMatch(/BEFORE starting any non-trivial task/i);
+  it("instructs the agent to search BEFORE any task and on errors, with an example", () => {
+    expect(SEARCH.description).toMatch(/BEFORE starting any task/i);
+    expect(SEARCH.description).toMatch(/IMMEDIATELY when you hit an error/i);
     expect(SEARCH.description).toMatch(/e\.g\.|example|such as/i);
     expect(SEARCH.description!.length).toBeGreaterThan(80);
   });
@@ -32,6 +33,8 @@ describe("memory MCP tool descriptions (always-loaded prompt surface)", () => {
       /after completing|when you (have )?(just )?(verified|learned|solved)/i,
     );
     expect(STORE.description).toMatch(/reusable/i);
+    expect(STORE.description).toMatch(/memory_updateKnowledge/i);
+    expect(STORE.description).toMatch(/instead of creating a near-duplicate/i);
   });
 
   it("instructs the agent to update instead of duplicating when knowledge is wrong", () => {
