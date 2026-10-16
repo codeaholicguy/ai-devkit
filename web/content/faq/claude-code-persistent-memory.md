@@ -64,7 +64,7 @@ ai-devkit memory store \
 ai-devkit memory search --query "api serialization"
 ```
 
-Search is hybrid — lexical matching plus local semantic embeddings — so related entries surface even when the wording differs. See [Memory](/docs/6-memory) for the full command reference.
+Search uses lexical matching by default. Enable `memory.semantic` in `.ai-devkit.json` when you want hybrid lexical and local semantic matching, so related entries can surface when the wording differs. See [Memory](/docs/6-memory) for the full command reference.
 
 ## Scopes: the right memory for the right place
 

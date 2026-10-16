@@ -1,7 +1,7 @@
 ---
 title: Context Compaction
-status: planned
+status: completed
 order: 9
 ---
 
-Reduce costs and stay within token limits without losing context. Context Compaction will implement intelligent summarization algorithms and "context packaging" to compress large documentation or conversation histories into concise, token-efficient formats that can be easily passed to new agents or threads.
+Context compaction is shipped for historical agent sessions. `ai-devkit agent session compact --id <session-id>` classifies a session with Jev and produces a Markdown or JSON continuation artifact with durable facts and memory candidates. The built-in `session-compact` skill guides agents through the same handoff workflow.

@@ -16,7 +16,7 @@ Use plugins for capabilities that should live outside the core CLI, such as dash
 
 | Plugin | Purpose | Install | Documentation |
 |---|---|---|---|
-| `@ai-devkit/memory-dashboard` | Browse and manage local memory in a web dashboard | `ai-devkit plugin add @ai-devkit/memory-dashboard` | [Memory dashboard README](https://github.com/codeaholicguy/ai-devkit/tree/main/packages/memory-dashboard) |
+| `@ai-devkit/memory-dashboard` | Search, filter, group, and inspect local memory in a read-only web dashboard | `ai-devkit plugin add @ai-devkit/memory-dashboard` | [Memory dashboard README](https://github.com/codeaholicguy/ai-devkit/tree/main/packages/memory-dashboard) |
 | `@ai-devkit/task-manager` | Track durable lifecycle and debugging progress with append-only task events | `ai-devkit plugin add @ai-devkit/task-manager` | [Task manager README](https://github.com/codeaholicguy/ai-devkit/tree/main/packages/task-manager) |
 
 After installation, run `ai-devkit memory-dashboard` for the memory UI or `ai-devkit task --help` for task commands.

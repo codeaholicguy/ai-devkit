@@ -14,7 +14,7 @@ This is useful when you want the ergonomics of an interactive agent session but 
 Before using this workflow:
 
 - Install AI DevKit and make sure `ai-devkit` is available in your shell.
-- Start a supported agent in the project you want to control: Claude Code, Codex, GitHub Copilot, Gemini CLI, Grok CLI, opencode, or Pi.
+- Start a supported agent in the project you want to control: Claude Code, Codex, GitHub Copilot, Gemini CLI, Grok CLI, Kiro CLI, Antigravity CLI, opencode, Pi, Devin, or Muse Code.
 - Keep that agent running in a supported terminal session: tmux, WezTerm, Ghostty, iTerm2, or Apple Terminal.
 - Run `ai-devkit agent list` and confirm the session appears.
 
@@ -83,7 +83,7 @@ Use `ai-devkit agent send --wait` when the existing interactive session is the f
 
 ## Which agents are supported?
 
-`agent send --wait` uses the same experimental agent detection system as `ai-devkit agent list`.
+`agent send --wait` uses the same agent detection system as `ai-devkit agent list`.
 
 Current interactive adapters include:
 
@@ -92,8 +92,12 @@ Current interactive adapters include:
 - GitHub Copilot
 - Gemini CLI
 - Grok CLI
+- Kiro CLI
+- Antigravity CLI
 - opencode
 - Pi
+- Devin
+- Muse Code
 
 Support depends on AI DevKit being able to detect the live process, find its terminal, and read its session transcript.
 

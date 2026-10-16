@@ -1,6 +1,6 @@
 ---
 title: AGENTS.md Best Practices
-description: What AGENTS.md is, how to write a good one, and how AI DevKit generates and keeps agent instruction files consistent across tools.
+description: What AGENTS.md is, how to write a good one, and how it fits alongside AI DevKit skills, memory, and workflow docs.
 order: 18
 category: guide
 ---
@@ -14,7 +14,7 @@ They serve the same purpose for different agents:
 - `CLAUDE.md` is read by Claude Code.
 - `AGENTS.md` is read by Codex and adopted as the shared convention by several other agents and editors.
 
-If you run multiple agents on one repo, you should not copy-paste `CLAUDE.md` into `AGENTS.md` and hope they stay in sync — the files drift within a week. Keep one source of truth and generate the per-agent files from it.
+If you run multiple agents on one repo, avoid duplicating the same long instructions across several files. Keep stable, shared rules in `AGENTS.md`, and add a small tool-specific file only when an agent needs different guidance.
 
 ## What belongs in AGENTS.md
 
@@ -28,16 +28,16 @@ A good agent instructions file is short and operational:
 
 What to leave out: prose explanations of the product, duplicated docs content, and personal notes. Those belong in docs or in a memory store.
 
-## How AI DevKit manages AGENTS.md
+## How AGENTS.md fits with AI DevKit
 
-`ai-devkit init` creates the right instruction file for each environment you select — `AGENTS.md` for Codex, opencode, Junie, Cline, Devin, and KiloCode; `CLAUDE.md` for Claude Code; `GEMINI.md` for Gemini CLI; prompts for GitHub Copilot — plus each agent's skill and MCP configuration:
+AI DevKit does not generate or overwrite `AGENTS.md`, `CLAUDE.md`, or `GEMINI.md`. You own those repository instructions. `ai-devkit init` records your selected environments, creates phase documentation, and installs any configured project skills and MCP files:
 
 ```bash
 cd your-project
 ai-devkit init
 ```
 
-Your selections are recorded in `.ai-devkit.json`, which becomes the local source of truth. When your agent stack changes, re-run `ai-devkit init` and the per-agent files are reconciled from that one config instead of edited by hand.
+Your selections are recorded in `.ai-devkit.json`. When your agent stack changes, re-run `ai-devkit init` or `ai-devkit install` to reconcile the artifacts AI DevKit manages. Maintain the repository's instruction files separately and review them like other source files.
 
 For the full list of what each environment receives, see [Supported AI agents and environments](/docs/2-supported-agents).
 
@@ -55,7 +55,7 @@ ai-devkit memory store \
 ## Checklist
 
 - [ ] One `AGENTS.md` at repo root (or per-package in monorepos)
-- [ ] Generated from a shared config, not hand-edited per agent
+- [ ] Shared rules have one source of truth instead of being duplicated across agent files
 - [ ] Exact commands for build/test/lint
 - [ ] Committed to git and reviewed like code
 - [ ] Volatile knowledge in memory, not in the file

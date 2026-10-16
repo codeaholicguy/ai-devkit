@@ -15,7 +15,7 @@ Support levels here describe setup and environment integration. Agent session di
 
 | Status | Meaning |
 |--------|---------|
-| **Ready** | Stable setup support for generated files, skills, and documented configuration. |
+| **Ready** | Stable support for project/global skill paths and documented configuration. |
 | **Experimental** | Works but may have issues. We're actively testing and improving support. |
 
 ## Ready Environments
@@ -24,34 +24,30 @@ These environments have stable setup integrations.
 
 ### [Cursor](https://cursor.com/)
 **What AI DevKit provides:**
-- `AGENTS.md` — Agent instructions for [Cursor](https://cursor.com/docs/context/rules)
 - `.cursor/skills/` — Project-level skills
 - `~/.cursor/skills/` — Global skills
-- `.cursor/rules/` — [Editor rules](https://cursor.com/docs/context/rules) for consistent coding standards
+- `.cursor/mcp.json` — Project-level MCP server configuration
 
 ### [Claude Code](https://www.claude.com/product/claude-code)
 **What AI DevKit provides:**
-- `CLAUDE.md` — Claude Code workspace instructions and context
 - `.claude/skills/` — Project-level skills
 - `~/.claude/skills/` — Global skills
 - `.mcp.json` — Project-level MCP server configuration
 
 ### [GitHub Copilot](https://github.com/features/copilot)
 **What AI DevKit provides:**
-- `.github/prompts/` — GitHub Copilot [custom prompts with VSCode](https://code.visualstudio.com/docs/copilot/customization/prompt-files)
 - `.github/skills/` — Project-level skills
 - `.mcp.json` — Project-level MCP server configuration
 - `~/.copilot/skills/` — Global skills
 
 ### [Google Gemini CLI](https://geminicli.com/)
 **What AI DevKit provides:**
-- `GEMINI.md` — [Context file](https://geminicli.com/docs/cli/gemini-md/) for providing instructional context to the Gemini model
 - `.gemini/skills/` — Project-level skills
 - `~/.gemini/skills/` — Global skills
+- `.gemini/settings.json` — Project-level MCP server configuration
 
 ### [Codex](https://chatgpt.com/en-SE/features/codex)
 **What AI DevKit provides:**
-- `AGENTS.md` — Codex-specific configuration and context
 - `.agents/skills/` — Project-level skills
 - `~/.codex/skills/` — Global skills
 - `.codex/config.toml` — Project-level MCP server configuration
@@ -63,7 +59,6 @@ These environments have stable setup integrations.
 
 ### [opencode](https://opencode.ai/)
 **What AI DevKit provides:**
-- `AGENTS.md` — opencode [custom instructions](https://opencode.ai/docs/rules/)
 - `.opencode/skills/` — Project-level skills
 - `~/.config/opencode/skills/` — Global skills
 - `opencode.json` — Project-level MCP server configuration under the `mcp` key
@@ -80,20 +75,17 @@ These environments have stable setup integrations.
 
 ### [Junie](https://www.jetbrains.com/junie/)
 **What AI DevKit provides:**
-- `AGENTS.md` — Junie project instructions and context
 - `.junie/skills/` — Project-level skills
 - `.junie/mcp/mcp.json` — Project-level MCP server configuration
 - `~/.junie/skills/` — Global skills
 
 ### [Cline](https://cline.bot/)
 **What AI DevKit provides:**
-- `AGENTS.md` — Cline project instructions and context
 - `.cline/skills/` — Project-level skills
 - `~/.cline/skills/` — Global skills
 
 ### [Devin](https://devin.ai/)
 **What AI DevKit provides:**
-- `AGENTS.md` — Devin project instructions and context
 - `.devin/skills/` — Project-level skills
 - `.devin/config.json` — Project-level MCP server configuration; AI DevKit updates only `mcpServers` and preserves other Devin config
 - `~/.config/devin/skills/` — Global skills
@@ -103,6 +95,11 @@ These environments have stable setup integrations.
 - `.pi/skills/` — Project-level skills
 - `~/.pi/agent/skills/` — Global skills
 
+### [Muse Code](https://dev.meta.ai/products/muse-code/)
+**What AI DevKit provides:**
+- `.agents/skills/` — Project-level skills
+- `~/.config/muse/skills/` — Global skills
+
 ## Experimental Environments
 
 These environments are under active development. They work, but you may encounter issues.
@@ -110,7 +107,6 @@ These environments are under active development. They work, but you may encounte
 ### [KiloCode](https://kilocode.ai/)
 
 **What AI DevKit provides:**
-- `AGENTS.md` — KiloCode configuration for large project handling
 - `.kilo/skills/` — Project-level skills
 - `~/.kilo/skills/` — Global skills
 - `.kilo/kilo.jsonc` — Project-level MCP server configuration under the `mcp` key
@@ -118,14 +114,12 @@ These environments are under active development. They work, but you may encounte
 ### [AMP](https://ampcode.com/)
 
 **What AI DevKit provides:**
-- `AGENTS.md` — AMP configuration for accelerated workflows
 - `.agents/skills/` — Project-level skills
 - `~/.config/agents/skills/` — Global skills
 
 ### [Roo Code](https://roocode.com/)
 
 **What AI DevKit provides:**
-- `AGENTS.md` — Roo Code configuration and context
 - `.roo/skills/` — Project-level skills
 - `~/.roo/skills/` — Global skills
 - `.roo/mcp.json` — Project-level MCP server configuration
@@ -151,11 +145,10 @@ Your selections are saved in `.ai-devkit.json`:
 
 ```json
 {
-  "version": "0.69.1",
+  "version": "0.70.1",
   "environments": ["cursor", "claude", "github"],
   "phases": ["requirements", "design"],
-  "createdAt": "2026-10-10T...",
-  "updatedAt": "2026-10-10T..."
+  "createdAt": "2026-10-15T..."
 }
 ```
 
@@ -194,8 +187,9 @@ Existing phase documents use a separate per-phase confirmation. This behavior be
 Want to add support for a new AI environment? We welcome contributions!
 
 1. **Create Environment Definition** — Add to `packages/cli/src/util/env.ts`
-2. **Add Templates** — Create `templates/env/{code}/` directory
-3. **Update Documentation** — Add to this guide
-4. **Test Integration** — Ensure proper initialization and configuration
+2. **Add MCP Support If Needed** — Add and register a generator in `packages/cli/src/services/install/mcp/`
+3. **Add Agent Detection If Needed** — Add and register a harness under `packages/agent-manager/src/harnesses/`
+4. **Update Documentation** — Add the environment to this guide
+5. **Test Integration** — Verify skill paths, generated configuration, and any harness behavior
 
 See our [Contributing Guide](https://github.com/Codeaholicguy/ai-devkit/blob/main/CONTRIBUTING.md) for details.

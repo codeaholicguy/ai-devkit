@@ -10,7 +10,7 @@ AI DevKit solves common multi-agent coding problems: scattered terminals, duplic
 - **Agent Console and Communication**: Inspect running sessions and send prompts, logs, or stdin to the right agent
 - **Long-Term Memory**: 100% local SQLite-based knowledge storage for coding standards, patterns, and decisions across sessions
 - **Structured Development Workflows**: Phase-based guidance through requirements, design, planning, implementation, testing, and code review
-- **Skills System**: Community-driven plugins that teach AI new capabilities and domain-specific patterns
+- **Skills System**: Reusable instruction packs that teach AI new capabilities and domain-specific patterns
 - **Multi-Agent Support**: Works with a broad set of AI coding environments including Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, and others
 
 ## Quick Start
@@ -21,10 +21,16 @@ Install via npm:
 npm install -g ai-devkit
 ```
 
-Initialize in your project:
+Connect detected local agents once:
 
 ```
-npx ai-devkit@latest init
+ai-devkit setup
+```
+
+Initialize in each project:
+
+```
+ai-devkit init
 ```
 
 ## Key Skills
@@ -46,7 +52,7 @@ npx ai-devkit@latest init
 - [Understanding Existing Code](https://ai-devkit.com/docs/5-understand-existing-code-with-ai-devkit): Code analysis and knowledge capture
 - [Memory](https://ai-devkit.com/docs/6-memory): Local memory system for persistent knowledge
 - [Skills](https://ai-devkit.com/docs/7-skills): Community-driven skill management system
-- [Agent Management](https://ai-devkit.com/docs/8-agent-management): Experimental agent detection and switching
+- [Agent Management](https://ai-devkit.com/docs/8-agent-management): Detect, inspect, start, message, group, and stop local AI agent sessions
 
 ## Other Pages
 

@@ -6,9 +6,6 @@ section: features
 order: 4
 ---
 
-> ⚠️ **WARNING**
-> This feature is currently **experimental**. It requires an interactive terminal and depends on the same local agent detection used by [Agent Management](/docs/8-agent-management).
-
 The `agent console` command opens an interactive terminal UI for working with multiple AI agents at once. Use it when you want a multi-agent control room for monitoring active sessions, sending quick messages, starting managed agents, renaming or stopping agents, and connecting configured messaging channels without switching between several terminal windows.
 
 ```bash
@@ -110,8 +107,9 @@ Supported start types:
 | `pi` | Pi |
 | `kiro` | Kiro CLI |
 | `devin` | Devin |
+| `muse` | Muse Code |
 
-Starting an agent from the console uses the configured managed runtime (tmux by default, or Herdr when `agentRuntime.provider` is set to `herdr` in `.ai-devkit.json`). If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
+Starting an agent from the console uses the configured managed runtime (tmux by default, or Herdr when `agentRuntime.provider` is set to `herdr` in the global `~/.ai-devkit/.ai-devkit.json` file). If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 
 ### Rename an Agent
 

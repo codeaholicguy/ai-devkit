@@ -9,12 +9,12 @@ order: 4
 AI DevKit separates machine integration from project workflow configuration:
 
 1. Run `ai-devkit setup` once per machine. It connects detected local agents, installs their available session integrations, and installs built-in skills globally.
-2. Run `ai-devkit init` once per project. It creates `.ai-devkit.json`, workflow docs, and environment-specific project templates.
+2. Run `ai-devkit init` once per project. It creates `.ai-devkit.json` and workflow docs, then reconciles configured project skills and MCP files.
 3. Run `ai-devkit install` later when you need to reconcile installable project artifacts from `.ai-devkit.json`.
 
 Start with the complete [Getting Started flow](/docs/1-getting-started), including the separate global-install, npx-only, and CI paths.
 
-For teams adopting AI coding agents across multiple tools, this setup becomes the shared foundation of the control plane: one config that generates workflow docs, skills, MCP server files, and environment-specific instructions.
+For teams adopting AI coding agents across multiple tools, this setup becomes the shared foundation of the control plane: one config that generates workflow docs and reconciles project skills and MCP server files.
 
 Before running these commands:
 - Install AI DevKit (`npm install -g ai-devkit`) and run `ai-devkit setup`, or use `npx ai-devkit@latest setup`
@@ -24,7 +24,7 @@ Before running these commands:
 Global npm installation does not run `setup` automatically. If you use npx only, prefix every command on this page with `npx ai-devkit@latest`.
 
 Key concepts:
-- **Environment**: An AI coding tool you use in the project. AI DevKit generates the configuration files each environment expects.
+- **Environment**: An AI coding tool you use in the project. It determines where AI DevKit installs configured skills and MCP servers.
 - **Phase**: A stage of the software development lifecycle, such as requirements, design, or testing. AI DevKit provides document templates for each phase.
 
 ## When to Use `setup`, `init`, and `install`
@@ -39,12 +39,12 @@ Use `ai-devkit init` when:
 - You are setting up AI DevKit in a project for the first time
 - You want interactive prompts to choose environments and phases
 - You want non-interactive bootstrap from a template file (`ai-devkit init --template`)
-- You need project workflow docs and environment-specific templates
+- You need project workflow docs and configured skills or MCP files
 
 Use `ai-devkit install` when:
 - `.ai-devkit.json` already exists
 - You want deterministic setup without re-answering prompts
-- You want to restore missing agent files or command folders to match your config
+- You want to restore missing phase docs, skills, or MCP files to match your config
 
 ## Basic Usage
 
@@ -91,8 +91,6 @@ ai-devkit install --overwrite
 Based on your configured environments, AI DevKit installs or updates files such as:
 - Agent skill files (for example `.cursor/skills/`, `.claude/skills/`, `.github/skills/` for GitHub Copilot, `.devin/skills/`, and `.agents/skills/` for Codex) refer [Skills](/docs/7-skills) for more on skills
 - MCP server configuration files (`.mcp.json` for Claude Code and GitHub Copilot, `.codex/config.toml` for Codex, `opencode.json` for opencode, `.junie/mcp/mcp.json` for Junie, `.devin/config.json` for Devin, `.roo/mcp.json` for Roo Code, `.kilo/kilo.jsonc` for Kilo Code)
-- Other environment-specific templates defined by AI DevKit
-
 The exact artifacts depend on the environments configured in `.ai-devkit.json`. `ai-devkit install` only manages project-local files generated from that config.
 
 ### Team Onboarding
@@ -194,7 +192,7 @@ When using a template with a `skills` section, skills from the template are inst
 
 > **Note:** `mcpServers` generation and install flow require AI DevKit `0.23.0` or later.
 
-MCP configuration is currently generated for **Claude Code** (`.mcp.json`), **GitHub Copilot** (`.mcp.json`), **Codex** (`.codex/config.toml`), **opencode** (`opencode.json`), **Junie** (`.junie/mcp/mcp.json`), **Devin** (`.devin/config.json`), **Roo Code** (`.roo/mcp.json`), and **Kilo Code** (`.kilo/kilo.jsonc`).
+MCP configuration is currently generated for **Cursor** (`.cursor/mcp.json`), **Claude Code** (`.mcp.json`), **GitHub Copilot** (`.mcp.json`), **Gemini CLI** (`.gemini/settings.json`), **Codex** (`.codex/config.toml`), **opencode** (`opencode.json`), **Junie** (`.junie/mcp/mcp.json`), **Devin** (`.devin/config.json`), **Roo Code** (`.roo/mcp.json`), and **Kilo Code** (`.kilo/kilo.jsonc`).
 
 If your project uses only environments that do not currently support MCP generation, AI DevKit still saves the `mcpServers` definitions in `.ai-devkit.json`, but no environment-specific MCP config files are created.
 

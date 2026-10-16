@@ -25,7 +25,7 @@ const agents = [
 
 const beforeAfter = [
   ["A terminal tab per agent", "One console for every session"],
-  ["Rules copied into each agent's config", "One config, kept in sync"],
+  ["Skills configured separately per agent", "One config, installed to each agent"],
   ["Logs pasted from chat to chat", "agent send, straight from stdin"],
   ["Decisions forgotten next session", "Memory any agent can search"],
   ["“Done” because the agent stopped", "Done when tests prove it"],
@@ -40,7 +40,7 @@ const setupSteps = [
   {
     scope: "Once per project",
     command: INIT_COMMAND,
-    body: "Writes .ai-devkit.json and each agent's project files. Review them, then commit.",
+    body: "Writes .ai-devkit.json and workflow docs, then installs configured project skills and MCP files.",
   },
 ];
 

@@ -108,7 +108,7 @@ Project initialization and lifecycle work produce documentation in `docs/ai/`, g
 ## How It Works
 
 1. **Connect** - Run `npx ai-devkit@latest setup` once per machine to connect detected agents and install their global workflow skills.
-2. **Initialize** - Run `npx ai-devkit@latest init` once per project to create workflow docs and environment-specific project configuration.
+2. **Initialize** - Run `npx ai-devkit@latest init` once per project to create workflow docs and reconcile configured skills and MCP files for the selected environments.
 3. **Operate** - Use `agent list`, `agent console`, and `agent send` to supervise and route work across running local agents; use `status` and `capacity` to check readiness and provider quota.
 4. **Develop** - Ask the agent to use installed workflow skills such as `dev-lifecycle`, `tdd`, and `verify` so it follows the workflow instead of improvising in chat.
 5. **Remember** - Store important decisions and patterns in memory so they persist across sessions.

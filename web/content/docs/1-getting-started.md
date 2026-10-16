@@ -10,7 +10,7 @@ order: 2
 Getting started has two scopes:
 
 1. **Once per machine:** run `setup` to connect detected local agents, install their session integrations and built-in skills globally, and wire the AI DevKit memory MCP server into MCP-capable agents.
-2. **Once per project:** run `init` to create `.ai-devkit.json`, environment-specific project files, and workflow documentation.
+2. **Once per project:** run `init` to create `.ai-devkit.json`, workflow documentation, and any configured project skills or MCP files.
 
 Keeping these steps separate makes it clear which changes affect your machine and which files belong in your project.
 
@@ -89,7 +89,7 @@ ai-devkit init
 The interactive flow asks which project environments and workflow phases you want. It then:
 
 1. Creates `.ai-devkit.json` with your project choices.
-2. Creates environment-specific project templates.
+2. Reconciles configured project skills and MCP files for the selected environments.
 3. Creates workflow documents under `docs/ai/` by default.
 
 If the directory is not already a Git repository and Git is available, `init` also initializes one.

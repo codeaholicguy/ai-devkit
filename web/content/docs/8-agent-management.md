@@ -6,9 +6,6 @@ section: features
 order: 3
 ---
 
-> **Experimental**
-> This feature currently works on macOS and Linux with ai-devkit from version 0.10.0. Behaviors and commands may change in future versions.
-
 The `agent` command allows AI DevKit to detect, list, and interact with other AI agents running on your system. It acts as a central hub to find where your AI coding agents are working and quickly switch context to them.
 
 For an interactive terminal UI that combines listing, previewing, messaging, starting, renaming, killing, and channel controls, see [Agent Console](/docs/13-agent-console).
@@ -48,18 +45,19 @@ AI DevKit detects active sessions from the following tools:
 - **[Kiro CLI](https://kiro.dev/)**: Detects Kiro CLI sessions via `~/.kiro/sessions/cli` and exposes them through the same commands.
 - **[Antigravity CLI](https://antigravity.google/)**: Detects `agy` sessions and exposes them through the same commands.
 - **[Devin](https://devin.ai/)**: Detects Devin CLI sessions and exposes them through the same commands.
+- **[Muse Code](https://dev.meta.ai/products/muse-code/)**: Detects Muse processes and archived sessions and exposes them through the same commands.
 
 ## Commands
 
 ### Start an Agent
 
-Start a named agent in a managed runtime session (tmux by default; set `"agentRuntime": {"provider": "herdr"}` in `.ai-devkit.json` to use the Herdr runtime instead):
+Start a named agent in a managed runtime session (tmux by default; set `"agentRuntime": {"provider": "herdr"}` in the global `~/.ai-devkit/.ai-devkit.json` file to use the Herdr runtime instead):
 
 ```bash
 ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 ```
 
-`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, or `devin`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
+`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, `devin`, or `muse`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
 
 The default `--mode interactive` starts the agent in an interactive session. Start output reports the runtime used (for example `Runtime: herdr`). The `durable` mode keeps a named agent available without an interactive terminal:
 

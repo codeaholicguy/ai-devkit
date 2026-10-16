@@ -16,6 +16,7 @@ const rawSetupTools = [
   "Devin",
   "Pi",
   "Grok",
+  "Muse Code",
 ];
 
 function slugifyTool(tool: string): string {

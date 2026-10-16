@@ -10,7 +10,7 @@ order: 1
 
 The normal onboarding flow installs AI DevKit's built-in skills globally during machine setup. Complete [Getting Started](/docs/1-getting-started) first; use this page when you want to manage skills manually or add skills from another registry.
 
-> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, or Roo Code).
+> **Note:** AI DevKit reads your project configuration from `.ai-devkit.json`. If this file doesn't exist when you run `skill add`, you'll be prompted to select which AI environments to configure. Skills require at least one skill-capable environment listed below.
 
 ## How Skills Work
 
@@ -59,7 +59,7 @@ The built-in set is served from a remote manifest, so new built-in skills can sh
 
 The repository also contains skills such as `agent-orchestration`, `technical-writer`, `security-review`, `changelog`, and `refactor`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
 
-For more detail on the core workflow skills, see the built-in skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`structured-debug`](/skills/structured-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
+For more detail, see the skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`structured-debug`](/skills/structured-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
 
 ## Quick Start
 
@@ -86,16 +86,19 @@ Skills are currently supported by the following AI coding agents:
 | **Cursor**      | `.cursor/skills`   | `~/.cursor/skills` |
 | **Claude Code** | `.claude/skills`   | `~/.claude/skills` |
 | **GitHub Copilot** | `.github/skills` | `~/.copilot/skills` |
+| **Gemini CLI**  | `.gemini/skills`  | `~/.gemini/skills` |
 | **Codex**       | `.agents/skills`   | `~/.codex/skills` |
+| **Grok**        | `.grok/skills`     | `~/.grok/skills` |
 | **opencode**    | `.opencode/skills` | `~/.config/opencode/skills` |
 | **Antigravity** | `.agent/skills`    | `~/.gemini/antigravity/skills` |
 | **Antigravity CLI** | `.agents/skills` | `~/.gemini/config/skills` |
 | **Junie**       | `.junie/skills`    | `~/.junie/skills` |
 | **Cline**       | `.cline/skills`    | `~/.cline/skills` |
 | **Devin**       | `.devin/skills`    | `~/.config/devin/skills` |
-| **Grok**        | `.grok/skills`     | `~/.grok/skills` |
 | **Pi**          | `.pi/skills`       | `~/.pi/agent/skills` |
+| **Muse Code**   | `.agents/skills`   | `~/.config/muse/skills` |
 | **Kilo Code**   | `.kilo/skills`     | `~/.kilo/skills` |
+| **AMP**         | `.agents/skills`   | `~/.config/agents/skills` |
 | **Roo Code**    | `.roo/skills`      | `~/.roo/skills` |
 
 Project installs are added inside the current repository. Global installs are added under your home directory and are shared across projects.
@@ -537,7 +540,7 @@ The skill doesn't exist in the specified registry. Explore the registry reposito
 
 ### "No skill-capable environments configured"
 
-Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment that supports skills (Cursor, Claude Code, GitHub Copilot, Codex, opencode, Antigravity, Junie, Cline, Devin, Grok, Pi, Kilo Code, or Roo Code).
+Your project doesn't have any skill-compatible environments. Run `ai-devkit init` and select an environment from the Supported Environments table above.
 
 ### "SKILL.md not found"
 

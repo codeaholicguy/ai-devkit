@@ -6,15 +6,12 @@ section: features
 order: 5
 ---
 
-> ⚠️ **WARNING**
-> This feature is currently **experimental**, works on macOS and Linux with ai-devkit from version 0.22.1. Behaviors and commands may change in future versions.
-
 The `channel` command lets you bridge a running AI agent to Telegram or Slack. Once connected, you can send prompts to your agent and receive responses directly from your messaging app — no need to be at your terminal.
 
 ## Prerequisites
 
 - **AI DevKit** installed globally (see [Getting Started](/docs/1-getting-started))
-- **A running AI agent** of any detected harness type — Claude Code, Codex, Gemini CLI, Copilot, opencode, Pi, Grok CLI, Kiro, Antigravity CLI, or Devin — listed by `ai-devkit agent list` (see [Agent Management](/docs/8-agent-management))
+- **A running AI agent** of any detected harness type — Claude Code, Codex, Gemini CLI, Copilot, opencode, Pi, Grok CLI, Kiro, Antigravity CLI, Devin, or Muse Code — listed by `ai-devkit agent list` (see [Agent Management](/docs/8-agent-management))
 - **Telegram:** a bot token from [@BotFather](https://t.me/BotFather), or
 - **Slack:** a custom single-workspace app with Socket Mode, an `xapp-` app token, and an `xoxb-` bot token
 - **Terminal environment**: The agent must be running in **tmux**, **WezTerm**, **Ghostty**, **iTerm2**, or **Apple Terminal** (same requirements as `agent open`)

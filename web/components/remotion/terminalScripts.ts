@@ -155,7 +155,7 @@ const status: TerminalScript = {
               ["Scope", "Status", "Details"],
               [
                 ["overall", seg("not ready", "warn"), "14 ready · 1 not ready · 0 fail · 3 info"],
-                ["ai-devkit", seg("ready", "ok"), "0.70.0 (latest 0.70.0)"],
+                ["ai-devkit", seg("ready", "ok"), "0.70.1 (latest 0.70.1)"],
                 ["project", seg("ready", "ok"), "~/shop/.ai-devkit.json"],
                 ["tmux", seg("ready", "ok"), "tmux · 3.4"],
                 [

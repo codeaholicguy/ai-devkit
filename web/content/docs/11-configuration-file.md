@@ -6,7 +6,7 @@ section: reference
 order: 1
 ---
 
-AI DevKit stores your project settings in a `.ai-devkit.json` file at your project root. This file is created by `ai-devkit init` and read by most other commands.
+AI DevKit stores project workflow, environment, skill, MCP, and memory settings in a `.ai-devkit.json` file at your project root. This file is created by `ai-devkit init`.
 
 This is the project-scoped half of onboarding. Complete the machine setup first by following [Getting Started](/docs/1-getting-started).
 
@@ -20,7 +20,7 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
 
 ```json
 {
-  "version": "0.23.1",
+  "version": "0.70.1",
   "environments": ["cursor", "claude", "codex"],
   "phases": [
     "requirements",
@@ -33,7 +33,8 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
     "docs": "docs/ai"
   },
   "memory": {
-    "path": ".ai-devkit/memory.db"
+    "path": ".ai-devkit/memory.db",
+    "semantic": true
   },
   "registries": {
     "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
@@ -143,11 +144,13 @@ Stages of the software development lifecycle that AI DevKit creates document tem
 
 | Sub-field | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `path` | `string` | `.ai-devkit/memory.db` | Path to the SQLite memory database. Absolute paths are used as-is. Relative paths resolve from the directory containing `.ai-devkit.json`. |
+| `path` | `string` | `~/.ai-devkit/memory.db` | Path to the SQLite memory database used by CLI memory commands. Absolute paths are used as-is. Relative paths resolve from the directory containing `.ai-devkit.json`. |
+| `semantic` | `boolean` | `false` | Enables local semantic embeddings for memory store, update, and search. |
 
 ```json
 "memory": {
-  "path": ".ai-devkit/memory.db"
+  "path": ".ai-devkit/memory.db",
+  "semantic": true
 }
 ```
 
@@ -259,7 +262,11 @@ The global config file stores settings that apply across projects on your machin
 {
   "plugins": ["@ai-devkit/memory-dashboard"],
   "memory": {
-    "path": "memory.db"
+    "path": "memory.db",
+    "semantic": true
+  },
+  "agentRuntime": {
+    "provider": "tmux"
   },
   "registries": {
     "codeaholicguy/ai-devkit": "https://github.com/codeaholicguy/ai-devkit.git",
@@ -289,10 +296,24 @@ Global memory settings used by plugin runtime APIs.
 | Sub-field | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `path` | `string` | `memory.db` | Path exposed by `runtime.getMemoryDbPath()` for plugins. Absolute paths are used as-is. Relative paths resolve from `~/.ai-devkit`, the directory containing the global config file. |
+| `semantic` | `boolean` | `false` | Enables local semantic embeddings for CLI memory store, update, and search when no project-level value overrides it. |
 
 If `memory.path` is not set in the global config, plugin runtime calls return `~/.ai-devkit/memory.db`.
 
-Project-level `memory.path` still controls `ai-devkit memory *` commands inside a project.
+Project-level `memory.path` still controls `ai-devkit memory *` commands inside a project. Project-level `memory.semantic` overrides the global semantic setting.
+
+### `agentRuntime`
+
+- **Type:** object
+- **Optional**
+
+Selects the runtime used by interactive `ai-devkit agent start` and the console's start action.
+
+| Sub-field | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `provider` | `"tmux" \| "herdr"` | `"tmux"` | Managed runtime used for newly started interactive agents. |
+
+Runtime selection is global-only. A project-level `agentRuntime` value is ignored.
 
 ### `registries`
 
@@ -316,6 +337,7 @@ The global config does **not** support project fields such as `environments`, `p
 | `ai-devkit plugin remove` | No | Yes (global) | Yes (global) |
 | `ai-devkit plugin list` | No | No | Yes (global) |
 | `ai-devkit memory *` | No | No | Yes (reads `memory.path`) |
+| `ai-devkit agent start` | No | No | Yes (global `agentRuntime.provider`) |
 | `ai-devkit lint` | No | No | Yes |
 
 ## Related Pages
