@@ -25,13 +25,14 @@ type ToolResponse = {
 const STORE_TOOL = {
   name: "memory_storeKnowledge",
   description:
-    "Persist verified, reusable knowledge for future sessions. After completing meaningful work, store decisions, conventions, gotchas, or fixes that a future agent would otherwise rediscover the hard way (e.g. 'This repo pins better-sqlite3 to 12.x; native builds fail on newer versions'). Prefer updating an existing item over storing a near-duplicate.",
+    "AFTER completing a task — and especially right after fixing an error, discovering a gotcha, or making a decision a future agent would otherwise rediscover the hard way — persist it as verified, reusable knowledge for future sessions (e.g. 'This repo pins better-sqlite3 to 12.x; native builds fail on newer versions'). Before storing, run memory_searchKnowledge on what you learned; if a matching item exists, use memory_updateKnowledge instead of creating a near-duplicate. Do not store secrets, raw logs, task progress, or one-off details.",
   inputSchema: {
     type: "object" as const,
     properties: {
       title: {
         type: "string",
-        description: "Short, explicit description of the rule (5-12 words, 10-100 chars)",
+        description:
+          "Short, explicit description of the rule, written so a future agent knows when it applies (5-12 words, 10-100 chars)",
       },
       content: {
         type: "string",
@@ -56,7 +57,7 @@ const STORE_TOOL = {
 const UPDATE_TOOL = {
   name: "memory_updateKnowledge",
   description:
-    "Correct an existing knowledge item by ID when you learn it is outdated or inaccurate — update it instead of storing a duplicate. First run memory_searchKnowledge to find the item and its ID; pass only the fields that change.",
+    "Correct an existing knowledge item by ID when you learn it is outdated, inaccurate, or incomplete — update it instead of storing a duplicate. First run memory_searchKnowledge to find the item and its ID; pass only the fields that change.",
   inputSchema: {
     type: "object" as const,
     properties: {
@@ -90,14 +91,14 @@ const UPDATE_TOOL = {
 const SEARCH_TOOL = {
   name: "memory_searchKnowledge",
   description:
-    "Call BEFORE starting any non-trivial task to check for prior knowledge — this is cheap and prevents redoing solved work. Pass a short description of what you are about to do (e.g. 'wire MCP server into Gemini CLI settings' or 'fix vitest flaky teardown in cli package') and apply relevant results. Also call it when a task reveals a convention worth remembering later.",
+    "Call BEFORE starting ANY task — trivial or not — and again IMMEDIATELY when you hit an error, test failure, or surprising behavior during work. This check is cheap and prevents re-solving already-solved problems. Pass a short description of what you are about to do or the error you hit (e.g. 'wire MCP server into Gemini CLI settings', 'vitest flaky teardown in cli package', 'EPERM on npm ci in worktree'). Skip only for pure conversation with no action. Apply relevant results, and prefer them over re-deriving from scratch.",
   inputSchema: {
     type: "object" as const,
     properties: {
       query: {
         type: "string",
         description:
-          "Natural language task description to search for relevant knowledge (3-500 chars)",
+          "Natural language task description — or paste the error text you just hit — to search for relevant knowledge (3-500 chars)",
       },
       contextTags: {
         type: "array",
