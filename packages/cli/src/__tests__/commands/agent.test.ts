@@ -2453,8 +2453,8 @@ Waiting on user input`,
     });
   });
 
-  it("fails and does not send when --wait target has no session file", async () => {
-    const agent = {
+  it("sends first and waits for the session file to appear when --wait target has none yet", async () => {
+    const bootingAgent = {
       name: "repo-a",
       type: "claude",
       status: AgentStatus.WAITING,
@@ -2463,8 +2463,17 @@ Waiting on user input`,
       pid: 10,
       sessionId: "session-1",
     };
-    mockManager.listAgents.mockResolvedValue([agent]);
-    mockManager.resolveAgent.mockReturnValue(agent);
+    const readyAgent = { ...bootingAgent, sessionFilePath: "/tmp/session.jsonl" };
+    mockManager.listAgents
+      .mockResolvedValueOnce([bootingAgent])
+      .mockResolvedValueOnce([bootingAgent])
+      .mockResolvedValue([readyAgent]);
+    mockManager.resolveAgent.mockReturnValue(bootingAgent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "0:1.0" });
+    mockAgentAdapter.getConversation
+      .mockReturnValueOnce([])
+      .mockReturnValue([{ role: "assistant", content: "done" }]);
 
     const program = new Command();
     registerAgentCommand(program);
@@ -2477,13 +2486,90 @@ Waiting on user input`,
       "--id",
       "repo-a",
       "--wait",
+      "--timeout",
+      "5000",
     ]);
 
+    expect(mockSendAgentPrompt).toHaveBeenCalled();
+    expect(stdoutSpy).toHaveBeenCalledWith("done\n");
+    expect(process.exit).not.toHaveBeenCalledWith(1);
+  });
+
+  it("fails with a distinct error when the --wait target exits before creating a session file", async () => {
+    const bootingAgent = {
+      name: "repo-a",
+      type: "claude",
+      status: AgentStatus.RUNNING,
+      summary: "Booting",
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: "session-1",
+    };
+    mockManager.listAgents.mockResolvedValueOnce([bootingAgent]).mockResolvedValue([]);
+    mockManager.resolveAgent.mockReturnValue(bootingAgent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "0:1.0" });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--id",
+      "repo-a",
+      "--wait",
+      "--timeout",
+      "5000",
+    ]);
+
+    expect(mockSendAgentPrompt).toHaveBeenCalled();
     expect(ui.error).toHaveBeenCalledWith(
-      'Failed to send message: No session file found for agent "repo-a"; cannot wait for response.',
+      'Failed to send message: Agent "repo-a" exited before creating a session file; cannot wait for response.',
     );
     expect(process.exit).toHaveBeenCalledWith(1);
-    expect(mockTtyWriterSend).not.toHaveBeenCalled();
+  });
+
+  it("fails after the grace period when the --wait target never creates a session file", async () => {
+    // Earlier tests freeze Date.now with vi.spyOn; restore it so the grace
+    // window can actually elapse.
+    (Date.now as unknown as Mock).mockRestore?.();
+    const agent = {
+      name: "repo-a",
+      type: "claude",
+      status: AgentStatus.RUNNING,
+      summary: "Booting",
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: "session-1",
+    };
+    mockManager.listAgents.mockResolvedValue([agent]);
+    mockManager.resolveAgent.mockReturnValue(agent);
+    mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+    mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "0:1.0" });
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "agent",
+      "send",
+      "hello",
+      "--id",
+      "repo-a",
+      "--wait",
+      "--timeout",
+      "150",
+    ]);
+
+    expect(mockSendAgentPrompt).toHaveBeenCalled();
+    expect(ui.error).toHaveBeenCalledWith(
+      'Failed to send message: Agent "repo-a" did not create a session file within 150ms; cannot wait for response.',
+    );
+    expect(process.exit).toHaveBeenCalledWith(1);
   });
 
   it("fails and does not send when --wait target has no adapter", async () => {

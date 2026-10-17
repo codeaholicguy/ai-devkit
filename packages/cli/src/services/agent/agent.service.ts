@@ -266,7 +266,7 @@ export async function sendToAgent({
     }
   }
 
-  const waitContext = wait ? prepareWaitMode(manager, agent) : undefined;
+  const waitPrep = wait ? prepareWaitMode(manager, agent) : undefined;
   const sendFailed = await sendAgentPrompt(agent, prompt, {
     registry,
     runtime,
@@ -291,22 +291,37 @@ export async function sendToAgent({
     return;
   }
 
-  if (!waitContext) {
+  if (!waitPrep) {
     throw new Error("Wait mode was not prepared.");
   }
 
+  // A freshly started agent may not have written its session file yet — it
+  // only materializes once the harness writes its first entry. Poll for it
+  // (bounded by --timeout or a short default grace) so the send we just made
+  // is what triggers the file to appear.
+  const sessionFilePath =
+    waitPrep.sessionFilePath ??
+    (await waitForSessionFile(manager, agent, {
+      pollIntervalMs: AGENT_SEND_WAIT_SESSION_FILE_POLL_INTERVAL_MS,
+      maxWaitMs: Math.min(waitTimeout.maxWaitMs, AGENT_SEND_WAIT_SESSION_FILE_GRACE_MS),
+      onStatus: writeWaitStatus,
+    }));
+  const initialMessageCount =
+    waitPrep.initialMessageCount ??
+    waitPrep.adapter.getConversation(sessionFilePath, { verbose: false }).length;
+
   const waitResult = await waitForAgentResponse({
     manager,
-    adapter: waitContext.adapter,
+    adapter: waitPrep.adapter,
     target: {
       id,
       name: agent.name,
       type: agent.type,
       pid: agent.pid,
       sessionId: agent.sessionId,
-      sessionFilePath: waitContext.sessionFilePath,
+      sessionFilePath,
     },
-    initialMessageCount: waitContext.initialMessageCount,
+    initialMessageCount,
     options: {
       pollIntervalMs: AGENT_SEND_WAIT_POLL_INTERVAL_MS,
       maxWaitMs: waitTimeout.maxWaitMs,
@@ -374,16 +389,16 @@ function prepareWaitMode(
   agent: AgentInfo,
 ): {
   adapter: AgentAdapter;
-  sessionFilePath: string;
-  initialMessageCount: number;
+  sessionFilePath?: string;
+  initialMessageCount?: number;
 } {
-  if (!agent.sessionFilePath) {
-    throw new Error(`No session file found for agent "${agent.name}"; cannot wait for response.`);
-  }
-
   const adapter = manager.getAdapter(agent.type);
   if (!adapter) {
     throw new Error(`Unsupported agent type: ${agent.type}`);
+  }
+
+  if (!agent.sessionFilePath) {
+    return { adapter };
   }
 
   return {
@@ -391,6 +406,51 @@ function prepareWaitMode(
     sessionFilePath: agent.sessionFilePath,
     initialMessageCount: adapter.getConversation(agent.sessionFilePath, { verbose: false }).length,
   };
+}
+
+async function waitForSessionFile(
+  manager: Pick<AgentManager, "listAgents">,
+  agent: AgentInfo,
+  options: {
+    pollIntervalMs: number;
+    maxWaitMs: number;
+    onStatus?: (message: string) => void;
+  },
+): Promise<string> {
+  if (agent.sessionFilePath) {
+    return agent.sessionFilePath;
+  }
+
+  options.onStatus?.(`Waiting for agent "${agent.name}" to create its session file...`);
+  const startedAt = Date.now();
+  const target: AgentSendWaitTarget = {
+    id: agent.name,
+    name: agent.name,
+    type: agent.type,
+    pid: agent.pid,
+    sessionId: agent.sessionId,
+    sessionFilePath: "",
+  };
+
+  while (Date.now() - startedAt < options.maxWaitMs) {
+    const agents = await manager.listAgents();
+    const current = findSameAgent(target, agents);
+    if (!current) {
+      throw new Error(
+        `Agent "${agent.name}" exited before creating a session file; cannot wait for response.`,
+      );
+    }
+    if (current.sessionFilePath) {
+      return current.sessionFilePath;
+    }
+
+    const remainingMs = options.maxWaitMs - (Date.now() - startedAt);
+    await sleep(Math.min(options.pollIntervalMs, remainingMs));
+  }
+
+  throw new Error(
+    `Agent "${agent.name}" did not create a session file within ${options.maxWaitMs}ms; cannot wait for response.`,
+  );
 }
 
 function toAgentSendWaitJson(
@@ -556,3 +616,5 @@ function targetKey(agent: AgentInfo): string {
 const AGENT_SEND_WAIT_POLL_INTERVAL_MS = 2000;
 const AGENT_SEND_WAIT_MAX_WAIT_MS = 10 * 60 * 1000;
 const AGENT_SEND_WAIT_EMPTY_WAITING_GRACE_MS = 1000;
+const AGENT_SEND_WAIT_SESSION_FILE_GRACE_MS = 30_000;
+const AGENT_SEND_WAIT_SESSION_FILE_POLL_INTERVAL_MS = 500;
