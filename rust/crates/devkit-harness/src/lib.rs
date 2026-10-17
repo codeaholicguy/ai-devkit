@@ -19,6 +19,7 @@ pub mod muse;
 pub mod opencode;
 pub mod pi;
 pub mod shared;
+pub mod start_profiles;
 
 /// Build a registry with every ported adapter for `home` registered.
 pub fn default_registry(home: &std::path::Path) -> Registry {

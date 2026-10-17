@@ -1,11 +1,28 @@
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
+import type { AgentStartParams } from "./gen/AgentStartParams.js";
+import type { AgentStartResult } from "./gen/AgentStartResult.js";
 import type { EnrichedAgent } from "./gen/EnrichedAgent.js";
 import type { Event } from "./gen/Event.js";
 
 /** Wire event pushed by the daemon — generated from devkit-core via ts-rs. */
 export type DaemonEvent = Event;
+
+/**
+ * RPC error with the daemon's structured `code`/`details` when present.
+ * `code` is undefined for old daemons and local transport failures.
+ */
+export class DaemonRpcError extends Error {
+  constructor(
+    message: string,
+    readonly code?: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "DaemonRpcError";
+  }
+}
 
 export function daemonSocketPath(): string {
   return path.join(os.homedir(), ".ai-devkit", "daemon.sock");
@@ -78,7 +95,7 @@ export class DaemonClient {
     }
   }
 
-  request(method: string, params: unknown = {}): Promise<unknown> {
+  request(method: string, params: unknown = {}, timeoutMs?: number): Promise<unknown> {
     if (!this.socket) return Promise.reject(new Error("not connected"));
     const id = this.nextId++;
     return new Promise((resolve, reject) => {
@@ -88,7 +105,7 @@ export class DaemonClient {
         if (this.pending.delete(id)) {
           reject(new Error(`daemon request "${method}" timed out`));
         }
-      }, this.requestTimeoutMs);
+      }, timeoutMs ?? this.requestTimeoutMs);
       this.pending.set(id, { resolve, reject, timer });
       this.socket!.write(JSON.stringify({ id, method, params }) + "\n");
     });
@@ -109,6 +126,16 @@ export class DaemonClient {
    */
   async listAgents(): Promise<EnrichedAgent[]> {
     return (await this.request("agent.list")) as EnrichedAgent[];
+  }
+
+  /**
+   * Daemon-side agent start — the daemon validates, spawns via the selected
+   * runtime, registers the agent, and emits agent.started. The request
+   * timeout covers the pid-resolution deadline plus a margin.
+   */
+  async startAgent(params: AgentStartParams): Promise<AgentStartResult> {
+    const timeoutMs = Number(params.timeoutMs ?? 15_000) + 15_000;
+    return (await this.request("agent.start", params, timeoutMs)) as AgentStartResult;
   }
 
   private onData(chunk: Buffer) {
@@ -133,7 +160,10 @@ export class DaemonClient {
       if (!p) continue;
       this.pending.delete(id);
       clearTimeout(p.timer);
-      if (msg.error) p.reject(new Error(String(msg.error)));
+      if (msg.error)
+        p.reject(
+          new DaemonRpcError(String(msg.error), msg.code as string | undefined, msg.details),
+        );
       else p.resolve(msg.result);
     }
   }
