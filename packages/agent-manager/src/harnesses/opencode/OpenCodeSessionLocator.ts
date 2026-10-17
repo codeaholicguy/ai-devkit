@@ -15,12 +15,15 @@ export interface OpenCodeSession {
   sessionId: string;
   directory: string;
   timeCreated: number;
+  /** OpenCode's auto-generated session title (e.g. "slug-lib-75800") — metadata only, never identity. */
+  title?: string;
 }
 
 interface OpenCodeSessionRow {
   id: string;
   directory: string;
   timeCreated: number;
+  title?: string;
 }
 
 export class OpenCodeSessionLocator {
@@ -64,22 +67,43 @@ export class OpenCodeSessionLocator {
   }
 
   findSessionForDirectory(db: Database.Database, directory: string): OpenCodeSession | null {
-    try {
-      const row = db
-        .prepare<[string], { id: string; directory: string; time_created: number }>(`
-                SELECT id, directory, time_created
-                FROM session
-                WHERE directory = ?
-                ORDER BY time_created DESC
-                LIMIT 1
-            `)
-        .get(directory);
+    const row = this.querySession(
+      db,
+      "WHERE directory = ? ORDER BY time_created DESC LIMIT 1",
+      directory,
+    );
+    if (!row) return null;
+    return {
+      sessionId: row.id,
+      directory: row.directory,
+      timeCreated: row.time_created ?? 0,
+      title: row.title ?? undefined,
+    };
+  }
 
-      if (!row) return null;
-      return { sessionId: row.id, directory: row.directory, timeCreated: row.time_created };
-    } catch {
-      return null;
+  /**
+   * Newer OpenCode schemas carry a `title` column (auto-generated names like
+   * "slug-lib-75800"); older ones do not. Try the wide select first, then
+   * fall back so either schema works.
+   */
+  private querySession(
+    db: Database.Database,
+    where: string,
+    ...params: string[]
+  ): { id: string; directory: string; time_created: number; title: string | null } | undefined {
+    for (const cols of ["id, directory, time_created, title", "id, directory, time_created"]) {
+      try {
+        return db
+          .prepare<
+            string[],
+            { id: string; directory: string; time_created: number; title: string | null }
+          >(`SELECT ${cols} FROM session ${where}`)
+          .get(...params);
+      } catch {
+        /* retry with the narrower column set */
+      }
     }
+    return undefined;
   }
 
   listSessions(opts?: ListSessionsOptions): SessionSummary[] {
@@ -87,13 +111,7 @@ export class OpenCodeSessionLocator {
     if (!db) return [];
 
     try {
-      const rows = db
-        .prepare<[], OpenCodeSessionRow>(`
-                SELECT id, directory, time_created AS timeCreated
-                FROM session
-                ORDER BY time_created DESC
-            `)
-        .all();
+      const rows = this.querySessions("ORDER BY time_created DESC");
 
       const summaries: SessionSummary[] = [];
 
@@ -115,18 +133,31 @@ export class OpenCodeSessionLocator {
     if (!db) return [];
 
     try {
-      const row = db
-        .prepare<[string], OpenCodeSessionRow>(`
-                SELECT id, directory, time_created AS timeCreated
-                FROM session
-                WHERE id = ?
-            `)
-        .get(sessionId);
+      const rows = this.querySessions("WHERE id = ?", sessionId);
+      const row = rows[0];
       return row ? [this.toSessionSummary(db, row)] : [];
     } catch {
       this.close();
       return [];
     }
+  }
+
+  private querySessions(where: string, ...params: string[]): OpenCodeSessionRow[] {
+    const db = this.openDb();
+    if (!db) return [];
+    for (const cols of [
+      "id, directory, title, time_created AS timeCreated",
+      "id, directory, time_created AS timeCreated",
+    ]) {
+      try {
+        return db
+          .prepare<string[], OpenCodeSessionRow>(`SELECT ${cols} FROM session ${where}`)
+          .all(...params);
+      } catch {
+        /* retry with the narrower column set */
+      }
+    }
+    return [];
   }
 
   private toSessionSummary(db: Database.Database, row: OpenCodeSessionRow): SessionSummary {
@@ -138,7 +169,7 @@ export class OpenCodeSessionLocator {
       type: "opencode",
       sessionId: row.id,
       cwd: row.directory,
-      firstUserMessage: stats.summary,
+      firstUserMessage: stats.summary || row.title || "",
       lastActive,
       startedAt: new Date(row.timeCreated),
       sessionFilePath: encodeOpenCodeSessionRef(this.dbPath, row.id),

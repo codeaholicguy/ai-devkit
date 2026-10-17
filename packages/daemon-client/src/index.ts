@@ -1,4 +1,5 @@
 export { DaemonClient, daemonSocketPath } from "./client.js";
+export { homeScopeMismatch } from "./homeScope.js";
 export type { DaemonEvent } from "./client.js";
 export type { EnrichedAgent, Event } from "./gen/index.js";
 export { resolveDaemonBinary } from "./binary.js";

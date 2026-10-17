@@ -59,6 +59,29 @@ export async function findHarnessProcesses(
   return { relevant, processes: Array.from(byPid.values()) };
 }
 
+/**
+ * Drop processes that descend from another process in the list — e.g. an
+ * OpenCode session spawning a child session mid-chat (issue #402). The
+ * ancestor is the agent; the descendant is that session's backend, not a
+ * separate agent. Ancestry is resolved by walking `ppid` links within the
+ * list itself, so a child separated by an unlisted intermediate process is
+ * left alone rather than guessed at.
+ */
+export function dropDescendantProcesses<T extends ProcessInfo>(processes: readonly T[]): T[] {
+  const byPid = new Map<number, T>(processes.map((process) => [process.pid, process]));
+  const hasListedAncestor = (proc: T): boolean => {
+    const seen = new Set<number>([proc.pid]);
+    let current = proc.ppid;
+    while (current !== undefined && !seen.has(current)) {
+      seen.add(current);
+      if (byPid.has(current)) return true;
+      current = byPid.get(current)?.ppid;
+    }
+    return false;
+  };
+  return processes.filter((proc) => !hasListedAncestor(proc));
+}
+
 /** Whether argv[0]'s basename is `name` or `name.exe`. */
 export function matchesExecutable(command: string, name: string): boolean {
   const base = executableBasename(command);

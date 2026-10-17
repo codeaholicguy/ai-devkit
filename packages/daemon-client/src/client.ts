@@ -78,6 +78,15 @@ export class DaemonClient {
     }
   }
 
+  /** Start an agent through the daemon's own identity scope (issue #402). */
+  async agentStart(params: {
+    type: string;
+    name: string;
+    cwd: string;
+  }): Promise<Record<string, unknown>> {
+    return (await this.request("agent.start", params)) as Record<string, unknown>;
+  }
+
   request(method: string, params: unknown = {}): Promise<unknown> {
     if (!this.socket) return Promise.reject(new Error("not connected"));
     const id = this.nextId++;

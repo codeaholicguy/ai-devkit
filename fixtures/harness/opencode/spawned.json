@@ -1,0 +1,68 @@
+{
+  "adapter": "opencode",
+  "capturedAt": "2026-10-17T12:00:00.000Z",
+  "frozenNow": 1792238400000,
+  "processes": [
+    {
+      "pid": 71001,
+      "ppid": 1,
+      "tty": "ttys010",
+      "command": "opencode",
+      "cwd": "/proj/alpha",
+      "startTime": "2026-10-17T11:40:00.000Z"
+    },
+    {
+      "pid": 75800,
+      "ppid": 71001,
+      "tty": "ttys010",
+      "command": "opencode",
+      "cwd": "/proj/alpha",
+      "startTime": "2026-10-17T11:55:00.000Z"
+    },
+    {
+      "pid": 71002,
+      "ppid": 1,
+      "tty": "ttys011",
+      "command": "opencode",
+      "cwd": "/proj/beta",
+      "startTime": "2026-10-17T11:45:00.000Z"
+    }
+  ],
+  "home": {},
+  "sqlite": {
+    ".local/share/opencode/opencode.db": [
+      "CREATE TABLE \"session\" (\"id\" TEXT PRIMARY KEY, \"directory\" TEXT NOT NULL, \"title\" TEXT, \"time_created\" INTEGER NOT NULL);",
+      "CREATE TABLE \"message\" (\"id\" TEXT PRIMARY KEY, \"session_id\" TEXT NOT NULL, \"time_created\" INTEGER NOT NULL, \"time_updated\" INTEGER NOT NULL, \"data\" TEXT NOT NULL);",
+      "CREATE TABLE \"part\" (\"id\" TEXT PRIMARY KEY, \"message_id\" TEXT NOT NULL, \"session_id\" TEXT NOT NULL, \"time_created\" INTEGER NOT NULL, \"time_updated\" INTEGER NOT NULL, \"data\" TEXT NOT NULL);",
+      "INSERT INTO \"session\" VALUES ('ses-alpha','/proj/alpha','alpha work',1792236600000);",
+      "INSERT INTO \"session\" VALUES ('ses-spawn','/proj/alpha','slug-lib-75800',1792238160000);",
+      "INSERT INTO \"session\" VALUES ('ses-beta','/proj/beta','beta session',1792237800000);",
+      "INSERT INTO \"message\" VALUES ('m-b1','ses-beta',1792237800000,1792237800000,'{\"role\":\"user\"}');",
+      "INSERT INTO \"part\" VALUES ('p-b1','m-b1','ses-beta',1792237801000,1792237801000,'{\"type\":\"text\",\"text\":\"beta ask\"}');"
+    ]
+  },
+  "expected": [
+    {
+      "name": "alpha-71001",
+      "type": "opencode",
+      "status": "running",
+      "summary": "slug-lib-75800",
+      "pid": 71001,
+      "projectPath": "/proj/alpha",
+      "sessionId": "ses-spawn",
+      "lastActive": "2026-10-17T11:56:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/opencode/opencode.db::ses-spawn"
+    },
+    {
+      "name": "beta-71002",
+      "type": "opencode",
+      "status": "idle",
+      "summary": "beta ask",
+      "pid": 71002,
+      "projectPath": "/proj/beta",
+      "sessionId": "ses-beta",
+      "lastActive": "2026-10-17T11:50:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.local/share/opencode/opencode.db::ses-beta"
+    }
+  ]
+}

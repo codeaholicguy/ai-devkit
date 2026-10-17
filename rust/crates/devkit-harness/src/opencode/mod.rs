@@ -56,10 +56,12 @@ impl OpenCodeAdapter {
             name: shared::generate_agent_name(&directory, proc.pid),
             agent_type: "opencode".into(),
             status: determine_status(stats, last_active_ms, now_ms).into(),
-            summary: if stats.summary.is_empty() {
-                "OpenCode session active".into()
-            } else {
+            summary: if !stats.summary.is_empty() {
                 stats.summary.clone()
+            } else if let Some(title) = &session.title {
+                title.clone()
+            } else {
+                "OpenCode session active".into()
             },
             pid: proc.pid as u64,
             project_path: directory,
@@ -90,7 +92,7 @@ impl HarnessAdapter for OpenCodeAdapter {
         // `findHarnessProcesses`: processNames pool filter, then canHandle
         // deduped by pid (first wins).
         let mut seen = HashSet::new();
-        let processes: Vec<&AgentProc> = ctx
+        let matching: Vec<&AgentProc> = ctx
             .processes
             .iter()
             .filter(|p| {
@@ -98,6 +100,9 @@ impl HarnessAdapter for OpenCodeAdapter {
             })
             .filter(|p| self.can_handle(p) && seen.insert(p.pid))
             .collect();
+        // A session that spawns another session mid-chat surfaces as a child
+        // opencode process; it is that session's backend, not a separate agent.
+        let processes = shared::drop_descendant_processes(&matching);
         if processes.is_empty() {
             return Vec::new();
         }

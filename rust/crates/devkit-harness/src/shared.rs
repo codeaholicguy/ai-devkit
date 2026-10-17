@@ -57,6 +57,35 @@ pub fn executable_basename(command: &str) -> String {
     path_basename(&executable_path(command))
 }
 
+/// `dropDescendantProcesses` — drop procs that descend from another proc in
+/// the list (issue #402): a session spawning a child session mid-chat shows
+/// up as a child proc that is the session's backend, not a separate agent.
+/// Ancestry walks `ppid` links within the list only — a child separated by an
+/// unlisted intermediate proc is left alone rather than guessed at.
+pub fn drop_descendant_processes<'a>(processes: &[&'a AgentProc]) -> Vec<&'a AgentProc> {
+    let by_pid: std::collections::HashMap<i64, &'a AgentProc> =
+        processes.iter().map(|p| (p.pid, *p)).collect();
+    let has_listed_ancestor = |proc: &AgentProc| {
+        let mut seen = std::collections::HashSet::from([proc.pid]);
+        let mut current = proc.ppid;
+        while let Some(ppid) = current {
+            if !seen.insert(ppid) {
+                return false;
+            }
+            if by_pid.contains_key(&ppid) {
+                return true;
+            }
+            current = by_pid.get(&ppid).and_then(|p| p.ppid);
+        }
+        false
+    };
+    processes
+        .iter()
+        .filter(|p| !has_listed_ancestor(p))
+        .copied()
+        .collect()
+}
+
 /// `matchesExecutable` — argv[0]'s basename is `name` or `name.exe`.
 pub fn matches_executable(command: &str, name: &str) -> bool {
     let base = executable_basename(command);

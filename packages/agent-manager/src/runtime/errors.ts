@@ -48,3 +48,19 @@ export class AgentTerminalNotFoundError extends Error {
     this.name = "AgentTerminalNotFoundError";
   }
 }
+
+export class AgentHomeDivergenceError extends Error {
+  constructor(
+    public envHome: string,
+    public accountHome: string,
+  ) {
+    super(
+      `Refusing to start under divergent HOME: this process resolves HOME="${envHome}" ` +
+        `but the account home is "${accountHome}" — where the agent registry and devkitd ` +
+        "socket live. A registry write here would be invisible to the daemon and other " +
+        'clients, so the agent would list under a synthesized "unregistered:<cwd>-<pid>" ' +
+        "identity. Unset HOME or start the agent from a non-sandboxed environment.",
+    );
+    this.name = "AgentHomeDivergenceError";
+  }
+}

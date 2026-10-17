@@ -24,7 +24,7 @@ import type {
 import { OpenCodeAgentMapper } from "./OpenCodeAgentMapper.js";
 import { OpenCodeSessionLocator } from "./OpenCodeSessionLocator.js";
 import { OpenCodeSessionParser } from "./OpenCodeSessionParser.js";
-import { findHarnessProcesses, matchesExecutable } from "../shared.js";
+import { dropDescendantProcesses, findHarnessProcesses, matchesExecutable } from "../shared.js";
 
 const SESSION_REF_SEP = "::";
 
@@ -65,13 +65,16 @@ export class OpenCodeAdapter implements AgentAdapter {
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
     const { processes } = await findHarnessProcesses(this, context);
-    if (processes.length === 0) return [];
+    // A session that spawns another session mid-chat surfaces as a child
+    // opencode process; it is that session's backend, not a separate agent.
+    const roots = dropDescendantProcesses(processes);
+    if (roots.length === 0) return [];
 
     const db = this.locator.openDb();
-    if (!db) return processes.map((process) => this.mapper.mapProcessOnlyAgent(process));
+    if (!db) return roots.map((process) => this.mapper.mapProcessOnlyAgent(process));
 
     const agents: AgentInfo[] = [];
-    for (const proc of processes) {
+    for (const proc of roots) {
       if (!proc.cwd) {
         agents.push(this.mapper.mapProcessOnlyAgent(proc));
         continue;

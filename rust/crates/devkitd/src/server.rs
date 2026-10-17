@@ -26,6 +26,8 @@ pub struct Daemon {
     pub enriched: RwLock<Vec<EnrichedAgent>>,
     /// User home dir adapters resolve session trees (~/.claude, …) against.
     pub home: PathBuf,
+    /// Daemon data dir — agents.db registry writes for `agent.start` land here.
+    pub data_dir: PathBuf,
 }
 
 impl Daemon {
@@ -63,6 +65,7 @@ impl Daemon {
             enricher: devkit_harness::default_registry(&home),
             enriched: RwLock::new(Vec::new()),
             home,
+            data_dir: data_dir.to_path_buf(),
         })
     }
 
@@ -99,6 +102,20 @@ impl Daemon {
             "agent.list" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
+            }
+            "agent.start" => {
+                // Blocking start (tmux session + pid poll + registry write)
+                // runs on a blocking thread so a slow launch doesn't stall
+                // other requests on this connection.
+                let data_dir = self.data_dir.clone();
+                let params = req.params.clone();
+                match std::thread::spawn(move || crate::agent_start::handle(&data_dir, &params))
+                    .join()
+                {
+                    Ok(Ok(entry)) => Response::ok(id, entry),
+                    Ok(Err(e)) => Response::err(id, e.to_string()),
+                    Err(_) => Response::err(id, "agent.start panicked".to_string()),
+                }
             }
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.

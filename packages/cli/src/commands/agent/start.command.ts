@@ -7,6 +7,7 @@ import {
   parseTmuxRuntimeRef,
   startAgent,
   TmuxUnavailableError,
+  AgentHomeDivergenceError,
   AgentNameInUseError,
   AgentPidPollTimeoutError,
   AgentRuntimeUnavailableError,
@@ -20,6 +21,7 @@ import { AGENT_NAME_REGEX, generateAgentName } from "../../util/agent.js";
 import { resolveTmuxInstallInstructions } from "../../util/tmux.js";
 import { createTmuxInspectionDeps } from "../../util/tmux-deps.js";
 import { ConfigManager } from "../../lib/Config.js";
+import { ensureDaemon } from "@ai-devkit/daemon-client";
 import { createDurableAgentService } from "./factory.js";
 import { formatCwd, formatPrintProvider } from "./render.js";
 
@@ -29,6 +31,8 @@ async function reportStartError(err: unknown): Promise<void> {
     ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
   } else if (err instanceof AgentRuntimeUnavailableError) {
     ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
+  } else if (err instanceof AgentHomeDivergenceError) {
+    ui.error(err.message);
   } else if (err instanceof AgentNameInUseError) {
     ui.error(
       `Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`,
@@ -110,6 +114,43 @@ export function registerAgentStartCommand(agentCommand: Command): void {
             return;
           }
           const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
+
+          // Preferred path: the daemon performs start inside its own identity
+          // scope (issue #402), so the registry write lands where every client
+          // reads it. Falls back to local start when the daemon is absent or
+          // too old to know agent.start.
+          if (runtimeProvider === "tmux") {
+            const client = await ensureDaemon();
+            if (client) {
+              try {
+                const entry = (await client.agentStart({
+                  type: agentType,
+                  name: agentName,
+                  cwd,
+                })) as {
+                  name: string;
+                  type: string;
+                  pid: number;
+                  runtimeRef?: { session?: string };
+                };
+                ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
+                ui.text(`Working directory: ${formatCwd(cwd)}`);
+                const session = entry.runtimeRef?.session;
+                if (session) ui.text(`Attach: tmux attach -t ${session}`);
+                return;
+              } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                if (!message.includes("unknown method")) {
+                  ui.error(message);
+                  process.exit(1);
+                }
+                ui.warning("Daemon does not support agent.start; starting locally.");
+              } finally {
+                client.close();
+              }
+            }
+          }
+
           const entry = await startAgent(
             {
               type: agentType as StartableAgentType,

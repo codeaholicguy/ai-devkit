@@ -6,11 +6,14 @@ use std::path::{Path, PathBuf};
 /// `<dbPath>::<sessionId>` session ref separator.
 pub const SESSION_REF_SEP: &str = "::";
 
-/// `OpenCodeSession` — id + directory + time_created.
+/// `OpenCodeSession` — id + directory + time_created (+ optional title on
+/// newer schemas; the auto-generated title like "slug-lib-75800" is metadata
+/// only, never identity).
 pub struct Session {
     pub session_id: String,
     pub directory: String,
     pub time_created_ms: i64,
+    pub title: Option<String>,
 }
 
 /// `resolveDbPath` — `XDG_DATA_HOME` (empty falls back) or
@@ -42,19 +45,32 @@ pub fn open_db(db_path: &Path) -> Option<Connection> {
     .ok()
 }
 
-/// `findSessionForDirectory` — newest session row for the directory.
+/// `findSessionForDirectory` — newest session row for the directory. Newer
+/// schemas carry `title`; older ones do not — wide select first, then narrow.
 pub fn find_session_for_directory(db: &Connection, directory: &str) -> Option<Session> {
-    db.query_row(
-        "SELECT id, directory, time_created FROM session
-         WHERE directory = ?1 ORDER BY time_created DESC LIMIT 1",
-        [directory],
-        |r| {
-            Ok(Session {
-                session_id: r.get::<_, String>(0)?,
-                directory: r.get::<_, String>(1)?,
-                time_created_ms: r.get::<_, i64>(2)?,
-            })
-        },
-    )
-    .ok()
+    for cols in [
+        "id, directory, time_created, title",
+        "id, directory, time_created",
+    ] {
+        let sql = format!(
+            "SELECT {cols} FROM session WHERE directory = ?1 ORDER BY time_created DESC LIMIT 1"
+        );
+        if let Ok(mut stmt) = db.prepare(&sql) {
+            return stmt
+                .query_row([directory], |r| {
+                    Ok(Session {
+                        session_id: r.get::<_, String>(0)?,
+                        directory: r.get::<_, String>(1)?,
+                        time_created_ms: r.get::<_, i64>(2)?,
+                        title: if cols.ends_with("title") {
+                            r.get::<_, Option<String>>(3)?
+                        } else {
+                            None
+                        },
+                    })
+                })
+                .ok();
+        }
+    }
+    None
 }

@@ -680,7 +680,7 @@ describe("AgentManager", () => {
       await scopedManager.listAgents();
 
       expect(registry.list()[0]).toMatchObject({
-        name: "ai-devkit-44290",
+        name: "unregistered:ai-devkit-44290",
         type: "codex",
         pid: process.pid,
         runtime: "herdr",
@@ -689,7 +689,7 @@ describe("AgentManager", () => {
           paneId: "w31:p1",
           workspaceId: "w31",
           tabId: "w31:t1",
-          agentName: "ai-devkit-44290",
+          agentName: "unregistered:ai-devkit-44290",
         },
       });
     });
@@ -815,12 +815,12 @@ describe("AgentManager", () => {
       await scopedManager.listAgents();
 
       expect(fetchHerdrPanes).toHaveBeenCalledOnce();
-      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+      expect(registry.lookup("unregistered:ai-devkit-64904")).toMatchObject({
         runtime: "herdr",
         runtimeRef: {
           session: "default",
           paneId: "w32:p1",
-          agentName: "ai-devkit-64904",
+          agentName: "unregistered:ai-devkit-64904",
         },
       });
     });
@@ -989,6 +989,157 @@ describe("AgentManager", () => {
         pid: process.pid,
         runtimeRef: { session: "agent-list-debug" },
       });
+    });
+
+    it("keeps the assigned --name when detection reports a different pid (issue #402)", async () => {
+      // `agent start --type opencode --name tests` registers the pid found at
+      // start, but later detection reports the agent under another pid
+      // (opencode re-execs / hands off to a server child). The registry name
+      // must still win over the generated `folder-pid` fallback name.
+      registry.register({
+        name: "tests",
+        type: "opencode",
+        pid: 999_999,
+        runtime: "tmux",
+        runtimeRef: { session: "tests" },
+        cwd: "/cwd/slug-lib",
+        startedAt: "2026-10-17T09:00:00.000Z",
+        sessionId: "",
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("opencode", [
+          createMockAgent({
+            name: "slug-lib-75800",
+            type: "opencode",
+            pid: process.pid,
+            projectPath: "/cwd/slug-lib",
+            sessionId: "sess-42",
+            sessionFilePath: "/db::sess-42",
+          }),
+        ]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents.map((a) => a.name)).toEqual(["tests"]);
+      // Every surface resolves the adopted identity: name match, and the
+      // re-homed registry row keeps its tmux runtimeRef for send/kill.
+      expect(scopedManager.resolveAgent("tests", agents)).toBe(agents[0]);
+      expect(registry.list()).toHaveLength(1);
+      expect(registry.lookup("tests")).toMatchObject({
+        pid: process.pid,
+        sessionId: "sess-42",
+        sessionFilePath: "/db::sess-42",
+        runtimeRef: { session: "tests" },
+        startedAt: "2026-10-17T09:00:00.000Z",
+      });
+    });
+
+    it("re-homes a registry entry onto the same session detected under a new pid", async () => {
+      // The session id captured by a previous sweep still identifies the
+      // agent even when both pid and cwd drifted (moved worktree, re-exec).
+      registry.register({
+        name: "tests",
+        type: "opencode",
+        pid: 999_999,
+        runtime: "tmux",
+        runtimeRef: { session: "tests" },
+        cwd: "/old/path",
+        startedAt: "2026-10-17T09:00:00.000Z",
+        sessionId: "sess-42",
+        sessionFilePath: "/db::sess-42",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("opencode", [
+          createMockAgent({
+            name: "new-path-75800",
+            type: "opencode",
+            pid: process.pid,
+            projectPath: "/new/path",
+            sessionId: "sess-42",
+            sessionFilePath: "/db::sess-42",
+          }),
+        ]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].name).toBe("tests");
+      expect(registry.lookup("tests")).toMatchObject({ pid: process.pid, sessionId: "sess-42" });
+    });
+
+    it("does not adopt a name when the type+cwd pair is ambiguous", async () => {
+      for (const [name, pid] of [
+        ["tests-a", 999_998],
+        ["tests-b", 999_997],
+      ] as const) {
+        registry.register({
+          name,
+          type: "opencode",
+          pid,
+          runtime: "tmux",
+          runtimeRef: null,
+          cwd: "/cwd/slug-lib",
+          startedAt: "2026-10-17T09:00:00.000Z",
+          sessionId: "",
+          sessionFilePath: "",
+        });
+      }
+      scopedManager.registerAdapter(
+        new MockAdapter("opencode", [
+          createMockAgent({
+            name: "slug-lib-75800",
+            type: "opencode",
+            pid: process.pid,
+            projectPath: "/cwd/slug-lib",
+            sessionId: "sess-42",
+          }),
+        ]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].name).toBe("unregistered:slug-lib-75800");
+    });
+
+    it("does not steal the name when the registered pid is itself detected", async () => {
+      // Two opencode procs share a project dir: the registered pid keeps the
+      // name; the unregistered sibling must not adopt it via the cwd fallback.
+      registry.register({
+        name: "tests",
+        type: "opencode",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: { session: "tests" },
+        cwd: "/cwd/slug-lib",
+        startedAt: "2026-10-17T09:00:00.000Z",
+        sessionId: "sess-41",
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("opencode", [
+          createMockAgent({
+            name: "slug-lib-75800",
+            type: "opencode",
+            pid: process.pid,
+            projectPath: "/cwd/slug-lib",
+            sessionId: "sess-41",
+          }),
+          createMockAgent({
+            name: "slug-lib-99998",
+            type: "opencode",
+            pid: 999_998,
+            projectPath: "/cwd/slug-lib",
+            sessionId: "sess-40",
+          }),
+        ]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents.find((a) => a.pid === process.pid)?.name).toBe("tests");
+      expect(agents.find((a) => a.pid === 999_998)?.name).toBe("unregistered:slug-lib-99998");
     });
 
     it("writes a fresh startedAt for new entries", async () => {

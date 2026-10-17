@@ -26,7 +26,7 @@ export class OpenCodeAgentMapper {
       name: generateAgentName(session.directory || proc.cwd || "", proc.pid),
       type: "opencode",
       status: this.determineStatus(stats, lastActive),
-      summary: stats.summary || "OpenCode session active",
+      summary: stats.summary || session.title || "OpenCode session active",
       pid: proc.pid,
       projectPath: session.directory || proc.cwd || "",
       sessionId: session.sessionId,

@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { DaemonClient, daemonSocketPath } from "./client.js";
+import { homeScopeMismatch } from "./homeScope.js";
 import { resolveDaemonBinary } from "./binary.js";
 
 /**
@@ -19,6 +20,18 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
   const existing = await DaemonClient.tryConnect();
   if (existing) return existing;
   if (process.env.VITEST && !process.env.DEVKITD_BIN && !process.env.AI_DEVKITD_BIN) return null;
+  // Never auto-spawn a daemon from a divergent/sandboxed HOME (issue #402):
+  // it would bind the socket under an env nobody else shares — a second,
+  // invisible daemon. Connect-only in that case, but say so loudly.
+  const mismatch = homeScopeMismatch();
+  if (mismatch) {
+    console.error(
+      `Refusing to auto-spawn devkitd: HOME="${mismatch.envHome}" diverges from the ` +
+        `account home "${mismatch.accountHome}". Unset HOME or run from a ` +
+        "non-sandboxed environment.",
+    );
+    return null;
+  }
 
   const bin = resolveDaemonBinary();
   if (!bin) return null;

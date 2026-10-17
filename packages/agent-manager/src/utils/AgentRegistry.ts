@@ -339,6 +339,17 @@ export class AgentRegistry {
     return this.findByName(name) ?? null;
   }
 
+  /**
+   * Delete a single entry by (type, pid) identity. Used when an entry is
+   * re-homed onto a different pid so the name keeps a single owner.
+   */
+  remove(type: AgentType, pid: number): void {
+    if (this.readonly) {
+      throw new Error("Agent registry is readonly; cannot remove entries.");
+    }
+    this.db.execute("DELETE FROM agents WHERE type = ? AND pid = ?", [type, pid]);
+  }
+
   list(): RegistryEntry[] {
     const rows = this.db.query<RegistryRow>(
       "SELECT * FROM agents ORDER BY started_at ASC, name ASC",

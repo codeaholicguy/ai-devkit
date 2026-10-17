@@ -27,12 +27,16 @@ import {
   snapshotOptions,
   type ProcessSnapshotCapture,
 } from "./utils/process.js";
+import { UNREGISTERED_PREFIX } from "./utils/matching.js";
 import {
   findMatchingHerdrPane,
   fetchHerdrAgentPanes,
   herdrPaneToRuntimeRef,
   type HerdrAgentPane,
 } from "./runtime/herdr/HerdrAgentDiscovery.js";
+
+/** Generated `<folder>-<pid>` names — the shape a discovery-synthesized identity takes. */
+const SYNTHESIZED_NAME = /-\d+$/;
 
 /** Discovery patterns of one adapter: exact names plus basename prefixes. */
 function adapterPatterns(adapter: AgentAdapter): {
@@ -289,22 +293,69 @@ export class AgentManager {
     }
 
     const identityKey = (type: string, pid: number): string => `${type}:${pid}`;
+    const registryEntries = this.registry.list();
     const preExistingByIdentity = new Map(
-      this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
+      registryEntries.map((entry) => [identityKey(entry.type, entry.pid), entry]),
     );
+    const detectedKeys = new Set(allAgents.map((agent) => identityKey(agent.type, agent.pid)));
+
+    // Fallback indexes let an assigned name survive pid drift — e.g. opencode
+    // re-execs or the pid captured at `agent start` was a short-lived child
+    // (issue #402). Entries whose pid is itself detected already win by
+    // identity, so they never participate; a key resolves only when a single
+    // entry claims it, and each entry is adopted by at most one agent.
+    const bySession = new Map<string, RegistryEntry | null>();
+    const byCwd = new Map<string, RegistryEntry | null>();
+    const addUnique = (
+      map: Map<string, RegistryEntry | null>,
+      key: string,
+      entry: RegistryEntry,
+    ): void => {
+      if (map.has(key)) {
+        map.set(key, null);
+      } else {
+        map.set(key, entry);
+      }
+    };
+    for (const entry of registryEntries) {
+      if (detectedKeys.has(identityKey(entry.type, entry.pid))) continue;
+      if (entry.sessionId) addUnique(bySession, `${entry.type}:${entry.sessionId}`, entry);
+      if (entry.cwd) addUnique(byCwd, `${entry.type}:${entry.cwd}`, entry);
+    }
+    const claimedEntries = new Set<RegistryEntry>();
+    const matchRegistryEntry = (agent: AgentInfo): RegistryEntry | undefined => {
+      const direct = preExistingByIdentity.get(identityKey(agent.type, agent.pid));
+      if (direct) return direct;
+      const fallback =
+        (agent.sessionId ? bySession.get(`${agent.type}:${agent.sessionId}`) : undefined) ??
+        (agent.projectPath ? byCwd.get(`${agent.type}:${agent.projectPath}`) : undefined);
+      if (!fallback || claimedEntries.has(fallback)) return undefined;
+      claimedEntries.add(fallback);
+      return fallback;
+    };
+
     const herdrPanes = allAgents.length > 0 ? await this.resolveHerdrPanes() : [];
-    const entries = allAgents.map((agent) =>
-      this.toRegistryEntry(
-        agent,
-        preExistingByIdentity.get(identityKey(agent.type, agent.pid)),
-        herdrPanes,
-      ),
+    const matched = allAgents.map((agent) => ({ agent, entry: matchRegistryEntry(agent) }));
+    // No registry entry claims this agent — it was never registered through
+    // the manager (or was registered under a divergent HOME, issue #402).
+    // Mark the synthesized identity so it can't masquerade as a name the
+    // user assigned: "unregistered:<folder>-<pid>" is self-explaining in
+    // every surface that shows it.
+    for (const { agent, entry } of matched) {
+      if (!entry && SYNTHESIZED_NAME.test(agent.name) && !agent.name.startsWith(UNREGISTERED_PREFIX)) {
+        agent.name = `${UNREGISTERED_PREFIX}${agent.name}`;
+      }
+    }
+    const entries = matched.map(({ agent, entry }) =>
+      this.toRegistryEntry(agent, entry, herdrPanes),
     );
     if (entries.length > 0) this.registry.registerBatch(entries);
+    for (const { agent, entry } of matched) {
+      if (entry && entry.pid !== agent.pid) this.registry.remove(entry.type, entry.pid);
+    }
     this.registry.pruneIfDue();
 
-    for (const agent of allAgents) {
-      const entry = preExistingByIdentity.get(identityKey(agent.type, agent.pid));
+    for (const { agent, entry } of matched) {
       if (entry) {
         agent.name = entry.name;
         agent.pinned = entry.pinned;

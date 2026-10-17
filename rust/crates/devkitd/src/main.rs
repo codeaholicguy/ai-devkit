@@ -1,3 +1,4 @@
+mod agent_start;
 mod server;
 
 use anyhow::Result;

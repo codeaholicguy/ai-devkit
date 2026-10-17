@@ -46,11 +46,14 @@ function makeTmux(over: Partial<TmuxManager> = {}): TmuxManager {
 }
 
 function makeRegistry(over: Partial<AgentRegistry> = {}): AgentRegistry {
+  const store = new Map<string, RegistryEntry>();
   return {
     prune: vi.fn(),
-    lookup: vi.fn().mockReturnValue(null),
-    list: vi.fn().mockReturnValue([]),
-    register: vi.fn(),
+    lookup: vi.fn((name: string) => store.get(name) ?? null),
+    list: vi.fn(() => [...store.values()]),
+    register: vi.fn((entry: RegistryEntry) => {
+      store.set(entry.name, entry);
+    }),
     isAlive: vi.fn().mockReturnValue(false),
     ...over,
   } as unknown as AgentRegistry;
@@ -569,17 +572,71 @@ describe("startAgent", () => {
     expect(tmux.killSession).toHaveBeenLastCalledWith("agent1");
   });
 
+  it("refuses to start under a divergent HOME when the account store exists (issue #402)", async () => {
+    // Fake-HOME repro: the registry/daemon live under the account home, so a
+    // sandboxed start would write where no client looks — fail loudly before
+    // creating any session instead of a false success.
+    const accountHome = fs.mkdtempSync(path.join(os.tmpdir(), "real-home-"));
+    fs.mkdirSync(path.join(accountHome, ".ai-devkit"), { recursive: true });
+    const tmux = makeTmux();
+    const registry = makeRegistry();
+
+    await expect(
+      startAgent(startOpts, {
+        tmux,
+        registry,
+        checkHomeScope: () => ({ envHome: "/tmp/fakehome", accountHome }),
+      }),
+    ).rejects.toThrow(/divergent HOME/);
+    expect(tmux.createSession).not.toHaveBeenCalled();
+
+    fs.rmSync(accountHome, { recursive: true, force: true });
+  });
+
+  it("warns but proceeds under a divergent HOME when the account has no store", async () => {
+    const accountHome = fs.mkdtempSync(path.join(os.tmpdir(), "fresh-home-"));
+    const tmux = makeTmux();
+    const registry = makeRegistry();
+    const onWarning = vi.fn();
+
+    await startAgent(startOpts, {
+      tmux,
+      registry,
+      onWarning,
+      checkHomeScope: () => ({ envHome: "/tmp/fakehome", accountHome }),
+    });
+
+    expect(tmux.createSession).toHaveBeenCalledWith("agent1", "/work");
+    expect(onWarning).toHaveBeenCalledWith(expect.stringContaining("/tmp/fakehome"));
+
+    fs.rmSync(accountHome, { recursive: true, force: true });
+  });
+
+  it("fails loudly when the registry write does not round-trip", async () => {
+    const tmux = makeTmux();
+    const registry = makeRegistry({
+      lookup: vi.fn().mockReturnValue(null),
+    });
+
+    await expect(startAgent(startOpts, { tmux, registry })).rejects.toThrow(/round-trip/);
+  });
+
   it("prunes registry before checking for name collision", async () => {
     const tmux = makeTmux();
     const registry = makeRegistry();
     const order: string[] = [];
     (registry.prune as any).mockImplementation(() => order.push("prune"));
-    (registry.lookup as any).mockImplementation(() => {
+    (registry.lookup as any).mockImplementation((name: string) => {
       order.push("lookup");
-      return null;
+      return (
+        (registry.register as any).mock.calls
+          .map((call: RegistryEntry[]) => call[0])
+          .find((entry: RegistryEntry) => entry.name === name) ?? null
+      );
     });
 
     await startAgent(startOpts, { tmux, registry });
-    expect(order).toEqual(["prune", "lookup"]);
+    // First lookup checks name collision; second verifies the write round-trip.
+    expect(order).toEqual(["prune", "lookup", "lookup"]);
   });
 });
