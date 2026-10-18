@@ -24,19 +24,28 @@ ai-devkit daemon install    # install a systemd --user unit for boot persistence
 
 `daemon install` writes a `systemd --user` unit so the daemon survives logout and reboot; it is available on Linux only. To remove persistence, disable the unit with `systemctl --user` and run `ai-devkit daemon stop`.
 
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `DEVKITD_BIN` | Path to a custom `devkitd` binary (documented above) |
+| `AI_DEVKIT_NO_DAEMON` | When set, skip auto-spawning `devkitd` and use in-process behavior (useful when debugging stale daemon issues) |
+
 ## Troubleshooting
 
 - **"binary not found"**: the daemon binary is resolved from `DEVKITD_BIN`, the platform package, or a cargo build — set `DEVKITD_BIN` to a valid `devkitd` binary if you run from a source checkout.
 - **Stale socket**: if the daemon crashed, delete `~/.ai-devkit/daemon.sock` and let the next command respawn it.
-- **Logs**: `ai-devkit daemon logs -n 200` shows recent daemon activity, including auto-spawn failures.
+- **Logs**: `ai-devkit daemon logs -n 200` (or `daemon logs --lines 200`) shows recent daemon activity, including auto-spawn failures.
+- **Stale daemon after upgrade**: an old `devkitd` can keep serving until you run `ai-devkit daemon stop`, then retry your command. Use `AI_DEVKIT_NO_DAEMON=1` to compare behavior without the daemon.
 
-## Upgrading to 0.69
+## Upgrading to 0.69+
 
 0.69 is the first release that distributes a platform binary and runs the daemon. On upgrade:
 
-1. No manual step is needed — the daemon auto-spawns on the next `ai-devkit agent` command.
-2. Everything lives under `~/.ai-devkit/` (`daemon.sock`, `daemon.log`); nothing is written to your project.
-3. To stop it entirely, run `ai-devkit daemon stop`. To keep it running across reboots, run `ai-devkit daemon install` on Linux.
+1. Run `ai-devkit daemon stop` after upgrading the CLI so a new `devkitd` binary is not mixed with an old long-running process.
+2. The next `ai-devkit agent` command auto-spawns the daemon if needed.
+3. Everything lives under `~/.ai-devkit/` (`daemon.sock`, `daemon.log`); nothing is written to your project.
+4. To stop it entirely, run `ai-devkit daemon stop`. To keep it running across reboots, run `ai-devkit daemon install` on Linux.
 
 ## Next Steps
 

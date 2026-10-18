@@ -192,4 +192,4 @@ Want to add support for a new AI environment? We welcome contributions!
 4. **Update Documentation** — Add the environment to this guide
 5. **Test Integration** — Verify skill paths, generated configuration, and any harness behavior
 
-See our [Contributing Guide](https://github.com/Codeaholicguy/ai-devkit/blob/main/CONTRIBUTING.md) for details.
+Open a [GitHub issue or pull request](https://github.com/Codeaholicguy/ai-devkit) to add or improve environment support.

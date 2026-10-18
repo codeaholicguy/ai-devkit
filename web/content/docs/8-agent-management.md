@@ -10,7 +10,17 @@ The `agent` command allows AI DevKit to detect, list, and interact with other AI
 
 For an interactive terminal UI that combines listing, previewing, messaging, starting, renaming, killing, and channel controls, see [Agent Console](/docs/13-agent-console).
 
+For a lead agent supervising Codex, OpenCode, or other workers, read [Multi-agent orchestration](/docs/17-multi-agent-orchestration) and [Troubleshooting: Agents & Orchestration](/docs/18-troubleshooting-agents).
+
 ## Prerequisites
+
+### Linux session detection
+
+For reliable `agent list`, `agent send --wait`, and session correlation on **Linux**, install **`lsof`** and ensure it is on the `PATH` of the shell and tmux server that runs your agents. Without `lsof`, AI DevKit falls back to `pwdx`; on 0.70.1 that fallback can fail to parse cwd, so sessions never match.
+
+If `agent list` hangs with `lsof` installed, try lowering the open-file limit for that shell (for example `ulimit -n 1024`).
+
+### Terminal focus (`agent open`)
 
 To use the `agent open` command, your environment must meet these requirements:
 
@@ -59,15 +69,20 @@ ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 
 `--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, `devin`, or `muse`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
 
-The default `--mode interactive` starts the agent in an interactive session. Start output reports the runtime used (for example `Runtime: herdr`). The `durable` mode keeps a named agent available without an interactive terminal:
+Interactive managed agents run in **tmux** (or Herdr when configured). Run `ai-devkit setup` to check the host prerequisite early; it reports the installed tmux version or prints a platform-aware install command. tmux 2.6+ is the provisional documented compatibility floor.
 
-Run `ai-devkit setup` to check the host prerequisite early. It reports the installed tmux version or prints a platform-aware install command without installing packages or failing setup. tmux 2.6+ is the provisional documented compatibility floor; older versions are reported, not rejected.
+> [!IMPORTANT]
+> **Naming and concurrent `agent list`:** On 0.70.1, if `agent list` or `agent console` runs while `agent start` is still waiting for a stable process ID, the registry can record an auto name (`{folder}-{pid}`) and your `--name` is **silently dropped** even though start reports success. While starting a worker, do not poll `agent list`; wait with `tmux has-session -t <name>` or a short `sleep`, then run the [start-then-assign](/docs/17-multi-agent-orchestration#start-then-assign-sequence-robust-on-0701) handshake. Use one [worktree or directory per agent](/docs/17-multi-agent-orchestration#layout-one-directory-per-agent) so sessions are not mixed.
+
+The default `--mode interactive` starts the agent in an interactive session. Start output reports the runtime used (for example `Runtime: herdr`). The `durable` mode keeps a named agent available without an interactive terminal:
 
 ```bash
 ai-devkit agent start --type claude --mode durable --name backend --cwd ./packages/backend
 ```
 
 Durable mode supports `--type claude`, `--type codex`, and `--type pi`.
+
+`agent start` does not accept an initial prompt or extra harness CLI arguments. To set an opening task or pass flags such as Codex approval policy or Gemini `--approval-mode`, use [Agent Console](/docs/13-agent-console) (**task** and **args** fields) or start the harness manually in tmux.
 
 ### List Agents
 
@@ -144,11 +159,16 @@ ai-devkit agent send "continue with the failing tests" --id my-project
 Useful options:
 
 - `--stdin` to read the message from standard input (useful for piping logs or diffs)
-- `--wait` to wait for and print the agent's response
-- `--group <name>` to send to every agent in a group
-- `-j, --json` for machine-readable output
+- `--wait` to wait for and print the agent's response (use with `--id`, not `--group`)
+- `--timeout <ms>` with `--wait` — maximum wait time (default **10 minutes**). Examples: `180000`, `3m`, `90s`
+- `--group <name>` to send to every agent in a group (cannot combine with `--wait`, `--timeout`, or `--json`)
+- `-j, --json` with `--id --wait` for machine-readable output
 
-If the agent is not currently waiting for input, AI DevKit warns you and still sends the message.
+`--id` accepts an agent **name or partial match** (same as fuzzy matching for `agent open`). Prefer exact names from `agent list --json`; partial matches can target the wrong agent when several names share a substring.
+
+**First message after `start`:** On 0.70.1 and earlier, `send --wait` fails with `No session file found` until the harness has handled a first message. Send a plain message first (for example `ready?`), then use `--wait`. Newer releases wait for the session file when `--wait` is set; the two-step handshake remains useful while TUIs boot. See [Troubleshooting](/docs/18-troubleshooting-agents).
+
+If the agent is not currently waiting for input, AI DevKit warns you and still sends the message. In scripts, treat that as unsafe: messages can queue or mix, and a following `--wait` may return a reply from an earlier task. Prefer `agent detail` or an explicit handshake before `--wait`.
 
 ### Show Agent Details
 
@@ -173,7 +193,7 @@ Stop a running agent by name:
 ai-devkit agent kill my-project
 ```
 
-For managed agents, AI DevKit also cleans up the associated tmux session.
+For managed agents, AI DevKit also cleans up the associated tmux session when kill succeeds against the registered process. On 0.70.1, **Codex** may register a child `codex app-server` PID; killing by auto name can fail while the tmux session keeps running. See [Troubleshooting](/docs/18-troubleshooting-agents#codex-shows-name-pid-agent-kill-impl-says-no-agents-found).
 
 ### Rename an Agent
 
@@ -204,6 +224,24 @@ Available group commands are:
 - `agent group remove <name>`
 - `agent group list`
 - `agent group detail <name>`
+
+## Known limitations
+
+The following behaviors are known on **0.70.1** (and some persist until a future release). See [Troubleshooting: Agents & Orchestration](/docs/18-troubleshooting-agents) for fixes.
+
+| Topic | Summary |
+|-------|---------|
+| `--name` race | Concurrent `agent list` during `agent start` can drop `--name` |
+| Codex PID | Registry may track `app-server` child; kill/name quirks |
+| Same cwd | Two agents in one directory can swap session views |
+| Pi matching | Slow first reply (> ~3 min) may never match |
+| Boot-time send | Messages typed before the TUI is ready can be lost |
+| Busy send | `send` while not waiting still types; `--wait` can mis-associate |
+| Idle Claude `running` | Status can show `running` at an idle prompt |
+| `--group` + `--wait` | Not supported; use per-agent `--id --wait` |
+| Partial `--id` | Substring match can hit the wrong agent |
+| Stale `devkitd` | After upgrade, run `daemon stop` before trusting list output |
+| Linux `pwdx` | Without `lsof`, cwd detection can fail on 0.70.1 |
 
 ## Troubleshooting
 

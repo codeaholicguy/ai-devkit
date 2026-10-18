@@ -50,7 +50,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const docs = getAllDocPages();
   const docRoutes = docs.map((doc) => ({
-    url: `${baseUrl}/docs/${doc.metadata.slug}`,
+    url: `${baseUrl}/docs/${doc.metadata.slug}/`,
     lastModified: new Date(),
     changeFrequency: 'weekly' as const,
     priority: 0.7,

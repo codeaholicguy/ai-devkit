@@ -21,7 +21,15 @@ Before you begin, make sure you have:
 - **Node.js 20.20.0 or newer**
 - **npm** or **npx**, which comes with Node.js
 - **tmux** for interactive managed agents (provisional compatibility floor: tmux 2.6+; setup reports but does not reject older versions)
+- **`lsof` on Linux** for reliable agent session detection (strongly recommended; see [Agent Management](/docs/8-agent-management#linux-session-detection))
 - At least one [supported AI coding agent or environment](/docs/2-supported-agents)
+
+### Node.js and native modules
+
+The CLI bundles native SQLite support (`better-sqlite3`) compiled for the **Node version used when you installed** `ai-devkit`. If agents run under a different Node (common when tmux inherits another `PATH`), memory and related commands can fail with a `NODE_MODULE_VERSION` error.
+
+- Reinstall `ai-devkit` with the same Node your agents use, or align the tmux server environment: `tmux set-environment -g PATH '/path/to/node/bin:…'`.
+- Pin one Node version for `npm test` and for agent shells so verification matches CI.
 
 Install and launch your coding agent at least once before running `setup`. AI DevKit detects an agent from its home directory, so a newly installed agent that has never started may be reported as skipped.
 
@@ -174,9 +182,11 @@ The installed workflow skills guide requirements, design, planning, implementati
 1. [Check environment-specific project support](/docs/2-supported-agents)
 2. [Learn how project init and install work](/docs/9-agent-setup)
 3. [Operate running agents](/docs/13-agent-console)
-4. [Give agents long-term memory](/docs/6-memory)
-5. [Manage skills](/docs/7-skills)
-6. [Install plugins](/docs/14-plugins)
+4. [Multi-agent orchestration](/docs/17-multi-agent-orchestration) (lead plus workers)
+5. [Give agents long-term memory](/docs/6-memory)
+6. [Manage skills](/docs/7-skills)
+7. [Install plugins](/docs/14-plugins)
+8. [Troubleshooting agents](/docs/18-troubleshooting-agents)
 
 ## Need Help?
 
