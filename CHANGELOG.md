@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [29155fd](https://github.com/codeaholicguy/ai-devkit/commit/29155fd) Renamed the `structured-debug` skill to `dev-debug` (previously `debug`); reinstall it or update `.ai-devkit.json` to use the new name.
+- [08f1a74](https://github.com/codeaholicguy/ai-devkit/commit/08f1a74) Renamed the `simplify-implementation` skill to `dev-simplify` and `refactor` to `dev-refactor`, and made `dev-refactor` a built-in skill; reinstall or update `.ai-devkit.json` to use the new names.
+
 ## [0.71.0] - 2026-10-23
 
 - [dad3de5](https://github.com/codeaholicguy/ai-devkit/pull/406) Migrated interactive `agent start` into the devkitd daemon via a new `agent.start` RPC (tmux and herdr runtimes); `daemon.db` is now the agent registry, and `@ai-devkit/daemon-client` adds `startAgent()` and structured `DaemonRpcError`.
