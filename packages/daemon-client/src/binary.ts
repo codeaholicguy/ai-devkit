@@ -10,11 +10,22 @@ import { fileURLToPath } from "node:url";
  *  2. Platform package `@ai-devkit/devkitd-<plat>-<arch>` (npm optional dep)
  *  3. ~/.ai-devkit/bin/devkitd (manual install)
  *  4. rust/target/{release,debug}/devkitd relative to the monorepo (dev)
- * Returns null when nothing is found — callers must degrade gracefully.
+ * NO_AI_DEVKIT_BIN forces "no binary found" — useful for exercising the
+ * fallback path end-to-end. Returns null when nothing is found — callers
+ * must degrade gracefully.
  */
-export function resolveDaemonBinary(): string | null {
+export function resolveDaemonBinary(
+  onDebug?: (msg: string) => void,
+): string | null {
+  if (process.env.NO_AI_DEVKIT_BIN) {
+    onDebug?.("devkitd binary resolution skipped (NO_AI_DEVKIT_BIN set)");
+    return null;
+  }
   const env = process.env.DEVKITD_BIN ?? process.env.AI_DEVKITD_BIN;
-  if (env && fs.existsSync(env)) return env;
+  if (env && fs.existsSync(env)) {
+    onDebug?.(`devkitd binary from env override: ${env}`);
+    return env;
+  }
 
   const plats: Record<string, string> = {
     linux: "linux",
@@ -27,19 +38,27 @@ export function resolveDaemonBinary(): string | null {
   if (plat && arch) {
     try {
       const req = createRequire(import.meta.url);
-      const pkgJson = req.resolve(`@ai-devkit/devkitd-${plat}-${arch}/package.json`);
+      const pkgJson = req.resolve(
+        `@ai-devkit/devkitd-${plat}-${arch}/package.json`,
+      );
       const candidate = path.join(
         path.dirname(pkgJson),
         process.platform === "win32" ? "devkitd.exe" : "devkitd",
       );
-      if (fs.existsSync(candidate)) return candidate;
+      if (fs.existsSync(candidate)) {
+        onDebug?.(`devkitd binary from platform package: ${candidate}`);
+        return candidate;
+      }
     } catch {
       /* package not installed */
     }
   }
 
   const home = path.join(os.homedir(), ".ai-devkit", "bin", "devkitd");
-  if (fs.existsSync(home)) return home;
+  if (fs.existsSync(home)) {
+    onDebug?.(`devkitd binary from ~/.ai-devkit/bin: ${home}`);
+    return home;
+  }
 
   // Dev checkout: walk up to the nearest rust/target/<profile>/devkitd and
   // pick the freshest profile — a stale release build otherwise shadows a
@@ -57,10 +76,14 @@ export function resolveDaemonBinary(): string | null {
         /* absent */
       }
     }
-    if (best) return best.file;
+    if (best) {
+      onDebug?.(`devkitd binary from dev checkout: ${best.file}`);
+      return best.file;
+    }
     const parent = path.dirname(dir);
     if (parent === dir) break;
     dir = parent;
   }
+  onDebug?.("no devkitd binary found in any location");
   return null;
 }

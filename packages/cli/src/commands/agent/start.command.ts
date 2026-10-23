@@ -15,7 +15,7 @@ import {
 } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
-import { enableDebug } from "../../util/debug.js";
+import { createLogger, enableDebug } from "../../util/debug.js";
 import { AGENT_NAME_REGEX, generateAgentName } from "../../util/agent.js";
 import { resolveTmuxInstallInstructions } from "../../util/tmux.js";
 import { createTmuxInspectionDeps } from "../../util/tmux-deps.js";
@@ -51,14 +51,20 @@ function renderStartedAgent(entry: StartedEntry): void {
  * messages as their typed-error equivalents — no retry, the daemon already
  * reported the real failure.
  */
+const debug = createLogger("agent:start");
+
 async function tryDaemonStart(input: {
   agentType: StartableAgentType;
   agentName: string;
   cwd: string;
   runtimeProvider: string;
 }): Promise<"done" | "fallback" | "failed"> {
-  const daemon = await ensureDaemon();
-  if (!daemon) return "fallback";
+  const daemon = await ensureDaemon({ onDebug: debug });
+  if (!daemon) {
+    debug("no daemon available -> falling back to local startAgent path");
+    return "fallback";
+  }
+  debug("daemon path: calling agent.start over the daemon socket");
   try {
     const result = await daemon.startAgent({
       type: input.agentType,
@@ -78,14 +84,17 @@ async function tryDaemonStart(input: {
     return "done";
   } catch (err) {
     if (err instanceof DaemonRpcError && err.code) {
+      debug(`daemon returned coded error ${err.code}; not retrying locally`);
       await reportDaemonStartError(err);
       return "failed";
     }
     if (err instanceof Error && err.message.startsWith("unknown method")) {
+      debug("daemon predates agent.start (unknown method) -> local fallback");
       return "fallback"; // pre-agent.start devkitd
     }
     // Transport failure mid-request — the daemon may have completed the
     // start; retrying locally could double-spawn. Report, don't retry.
+    debug("transport failure mid-request; reporting without retry");
     ui.error(err instanceof Error ? err.message : String(err));
     return "failed";
   } finally {
@@ -101,10 +110,16 @@ async function reportDaemonStartError(err: DaemonRpcError): Promise<void> {
       break;
     case "runtime_unavailable":
       if (details.provider === "tmux") {
-        const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
-        ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
+        const instructions = await resolveTmuxInstallInstructions(
+          createTmuxInspectionDeps(),
+        );
+        ui.error(
+          `tmux is not installed or not in PATH. ${instructions.message}`,
+        );
       } else {
-        ui.error(`Herdr runtime is unavailable (${details.reason}): ${details.detail}`);
+        ui.error(
+          `Herdr runtime is unavailable (${details.reason}): ${details.detail}`,
+        );
       }
       break;
     case "pid_poll_timeout":
@@ -120,7 +135,9 @@ async function reportDaemonStartError(err: DaemonRpcError): Promise<void> {
 
 async function reportStartError(err: unknown): Promise<void> {
   if (err instanceof TmuxUnavailableError) {
-    const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
+    const instructions = await resolveTmuxInstallInstructions(
+      createTmuxInspectionDeps(),
+    );
     ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
   } else if (err instanceof AgentRuntimeUnavailableError) {
     ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
@@ -146,12 +163,19 @@ export function registerAgentStartCommand(agentCommand: Command): void {
       "--type <type>",
       `Agent type: ${Object.keys(HARNESS_RUNTIME_PROFILES).join(", ")}`,
     )
-    .option("--mode <mode>", "Agent mode: interactive or durable", "interactive")
+    .option(
+      "--mode <mode>",
+      "Agent mode: interactive or durable",
+      "interactive",
+    )
     .option(
       "--name <name>",
       "Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})",
     )
-    .option("--cwd <path>", "Working directory for the agent (default: current directory)")
+    .option(
+      "--cwd <path>",
+      "Working directory for the agent (default: current directory)",
+    )
     .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("start agent", async (options) => {
@@ -161,7 +185,8 @@ export function registerAgentStartCommand(agentCommand: Command): void {
         const agentType = options.type as string;
         const mode = options.mode as string;
         const cwd = path.resolve(options.cwd ?? process.cwd());
-        const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
+        const agentName =
+          (options.name as string | undefined) ?? generateAgentName(cwd);
 
         if (!(agentType in HARNESS_RUNTIME_PROFILES)) {
           ui.error(
@@ -170,9 +195,12 @@ export function registerAgentStartCommand(agentCommand: Command): void {
           process.exit(1);
         }
         if (!["interactive", "durable"].includes(mode)) {
-          throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, durable.`);
+          throw new Error(
+            `Unsupported agent mode "${mode}". Supported: interactive, durable.`,
+          );
         }
-        const internalMode = mode === "durable" ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
+        const internalMode =
+          mode === "durable" ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
         if (
           internalMode === AGENT_MODES.DURABLE &&
           !["claude", "codex", "pi"].includes(agentType)
@@ -195,16 +223,23 @@ export function registerAgentStartCommand(agentCommand: Command): void {
 
         try {
           if (internalMode === AGENT_MODES.DURABLE) {
-            const entry = await createDurableAgentService(agentType as DurableProvider).create({
+            const entry = await createDurableAgentService(
+              agentType as DurableProvider,
+            ).create({
               name: agentName,
               cwd,
             });
-            ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
+            ui.success(
+              `Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`,
+            );
             ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-            ui.text(`State: ready (${formatPrintProvider(entry.provider)} session not started)`);
+            ui.text(
+              `State: ready (${formatPrintProvider(entry.provider)} session not started)`,
+            );
             return;
           }
-          const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
+          const runtimeProvider =
+            await new ConfigManager().getAgentRuntimeProvider();
           const routed = await tryDaemonStart({
             agentType: agentType as StartableAgentType,
             agentName,
@@ -216,6 +251,7 @@ export function registerAgentStartCommand(agentCommand: Command): void {
             process.exit(1);
             return; // process.exit is mocked under test — don't fall through
           }
+          debug("local startAgent path (no daemon or older devkitd)");
           const entry = await startAgent(
             {
               type: agentType as StartableAgentType,

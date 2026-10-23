@@ -10,18 +10,38 @@ import { resolveDaemonBinary } from "./binary.js";
  * for readiness. Returns null when no binary exists or spawn fails — callers
  * degrade to today's code paths.
  */
-export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<DaemonClient | null> {
+export async function ensureDaemon(
+  opts: { waitMs?: number; onDebug?: (msg: string) => void } = {},
+): Promise<DaemonClient | null> {
   const waitMs = opts.waitMs ?? 3000;
+  const debug = opts.onDebug;
   // Test runs must never spawn a real daemon. Callers that want to exercise
   // autostart do so by pointing DEVKITD_BIN at a real binary in an explicit
   // integration test — the env below is checked there too via VITEST_SKIP.
-  if (process.env.AI_DEVKIT_NO_DAEMON) return null;
+  if (process.env.AI_DEVKIT_NO_DAEMON) {
+    debug?.("daemon path disabled (AI_DEVKIT_NO_DAEMON set)");
+    return null;
+  }
   const existing = await DaemonClient.tryConnect();
-  if (existing) return existing;
-  if (process.env.VITEST && !process.env.DEVKITD_BIN && !process.env.AI_DEVKITD_BIN) return null;
+  if (existing) {
+    debug?.(`connected to live daemon at ${daemonSocketPath()}`);
+    return existing;
+  }
+  debug?.("no live daemon on socket; attempting autostart");
+  if (
+    process.env.VITEST &&
+    !process.env.DEVKITD_BIN &&
+    !process.env.AI_DEVKITD_BIN
+  ) {
+    debug?.("autostart skipped in test env (VITEST set, no DEVKITD_BIN)");
+    return null;
+  }
 
-  const bin = resolveDaemonBinary();
-  if (!bin) return null;
+  const bin = resolveDaemonBinary(debug);
+  if (!bin) {
+    debug?.("no devkitd binary; daemon path unavailable");
+    return null;
+  }
 
   const sockPath = daemonSocketPath();
   const dir = path.dirname(sockPath);
@@ -35,7 +55,8 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
   const acquired = acquireSpawnLock(lockPath, STALE_LOCK_MS);
   if (!acquired) {
     // Another process is spawning; just wait for the socket.
-    return waitForSocket(waitMs);
+    debug?.("another process is spawning devkitd; waiting for socket");
+    return waitForSocket(waitMs, debug);
   }
 
   try {
@@ -48,7 +69,11 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
     });
     child.unref();
     fs.closeSync(logFd);
+    debug?.(
+      `spawned devkitd (pid ${child.pid}) from ${bin}; waiting for socket`,
+    );
   } catch {
+    debug?.("devkitd spawn failed");
     try {
       fs.unlinkSync(lockPath);
     } catch {
@@ -61,7 +86,7 @@ export async function ensureDaemon(opts: { waitMs?: number } = {}): Promise<Daem
   // wait — releasing early lets it spawn a twin that clobbers the socket path
   // and orphans the first daemon forever.
   try {
-    return await waitForSocket(waitMs);
+    return await waitForSocket(waitMs, debug);
   } finally {
     try {
       fs.unlinkSync(lockPath);
@@ -104,12 +129,19 @@ function acquireSpawnLock(lockPath: string, staleMs: number): boolean {
   }
 }
 
-async function waitForSocket(waitMs: number): Promise<DaemonClient | null> {
+async function waitForSocket(
+  waitMs: number,
+  debug?: (msg: string) => void,
+): Promise<DaemonClient | null> {
   const deadline = Date.now() + waitMs;
   while (Date.now() < deadline) {
     const client = await DaemonClient.tryConnect();
-    if (client) return client;
+    if (client) {
+      debug?.("devkitd socket ready");
+      return client;
+    }
     await new Promise((r) => setTimeout(r, 50));
   }
+  debug?.(`timed out after ${waitMs}ms waiting for devkitd socket`);
   return null;
 }
