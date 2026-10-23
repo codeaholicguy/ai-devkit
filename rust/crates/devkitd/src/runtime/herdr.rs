@@ -34,7 +34,7 @@ impl HerdrRuntime {
     }
 
     fn run(&self, args: &[&str]) -> Result<String, HerdrCall> {
-        let out = Command::new(&self.herdr).args(args).output();
+        let out = crate::runtime::spawn_output(Command::new(&self.herdr).args(args));
         match out {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(HerdrCall::NotFound),
             Err(e) => Err(HerdrCall::Spawn(e.to_string())),

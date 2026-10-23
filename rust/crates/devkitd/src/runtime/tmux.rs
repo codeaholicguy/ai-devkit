@@ -42,9 +42,7 @@ impl TmuxRuntime {
     }
 
     fn run(&self, args: &[&str]) -> Result<String, String> {
-        Command::new(&self.tmux)
-            .args(args)
-            .output()
+        crate::runtime::spawn_output(Command::new(&self.tmux).args(args))
             .map_err(|e| e.to_string())
             .and_then(|o| {
                 if o.status.success() {
@@ -71,9 +69,7 @@ impl TmuxRuntime {
     }
 
     fn pgrep_children(&self, pid: i64) -> Vec<i64> {
-        Command::new(&self.pgrep)
-            .args(["-P", &pid.to_string()])
-            .output()
+        crate::runtime::spawn_output(Command::new(&self.pgrep).args(["-P", &pid.to_string()]))
             .ok()
             .map(|o| {
                 String::from_utf8_lossy(&o.stdout)
@@ -85,10 +81,13 @@ impl TmuxRuntime {
     }
 
     fn process_command(&self, pid: i64) -> Option<String> {
-        let o = Command::new(&self.ps)
-            .args(["-p", &pid.to_string(), "-o", "command="])
-            .output()
-            .ok()?;
+        let o = crate::runtime::spawn_output(Command::new(&self.ps).args([
+            "-p",
+            &pid.to_string(),
+            "-o",
+            "command=",
+        ]))
+        .ok()?;
         let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
         if s.is_empty() {
             None

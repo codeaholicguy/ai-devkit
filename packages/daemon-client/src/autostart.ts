@@ -28,11 +28,7 @@ export async function ensureDaemon(
     return existing;
   }
   debug?.("no live daemon on socket; attempting autostart");
-  if (
-    process.env.VITEST &&
-    !process.env.DEVKITD_BIN &&
-    !process.env.AI_DEVKITD_BIN
-  ) {
+  if (process.env.VITEST && !process.env.DEVKITD_BIN && !process.env.AI_DEVKITD_BIN) {
     debug?.("autostart skipped in test env (VITEST set, no DEVKITD_BIN)");
     return null;
   }
@@ -69,9 +65,7 @@ export async function ensureDaemon(
     });
     child.unref();
     fs.closeSync(logFd);
-    debug?.(
-      `spawned devkitd (pid ${child.pid}) from ${bin}; waiting for socket`,
-    );
+    debug?.(`spawned devkitd (pid ${child.pid}) from ${bin}; waiting for socket`);
   } catch {
     debug?.("devkitd spawn failed");
     try {

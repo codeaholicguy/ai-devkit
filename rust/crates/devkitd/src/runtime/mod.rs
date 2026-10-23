@@ -94,6 +94,25 @@ impl std::fmt::Display for StartError {
 
 impl std::error::Error for StartError {}
 
+/// `Command::output` with ETXTBSY retry — exec of a just-written
+/// executable (fixture scripts in tests, freshly-installed binaries on
+/// overlayfs) transiently fails with os error 26 before the write settles.
+pub(crate) fn spawn_output(
+    cmd: &mut std::process::Command,
+) -> std::io::Result<std::process::Output> {
+    const ETXTBSY: i32 = 26;
+    let mut attempts = 0;
+    loop {
+        match cmd.output() {
+            Err(e) if e.raw_os_error() == Some(ETXTBSY) && attempts < 3 => {
+                attempts += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            other => return other,
+        }
+    }
+}
+
 /// Runtimes bundle — injectable so tests can pass fixture-backed impls.
 #[derive(Default)]
 pub struct Runtimes {

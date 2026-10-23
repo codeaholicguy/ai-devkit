@@ -110,16 +110,10 @@ async function reportDaemonStartError(err: DaemonRpcError): Promise<void> {
       break;
     case "runtime_unavailable":
       if (details.provider === "tmux") {
-        const instructions = await resolveTmuxInstallInstructions(
-          createTmuxInspectionDeps(),
-        );
-        ui.error(
-          `tmux is not installed or not in PATH. ${instructions.message}`,
-        );
+        const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
+        ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
       } else {
-        ui.error(
-          `Herdr runtime is unavailable (${details.reason}): ${details.detail}`,
-        );
+        ui.error(`Herdr runtime is unavailable (${details.reason}): ${details.detail}`);
       }
       break;
     case "pid_poll_timeout":
@@ -135,9 +129,7 @@ async function reportDaemonStartError(err: DaemonRpcError): Promise<void> {
 
 async function reportStartError(err: unknown): Promise<void> {
   if (err instanceof TmuxUnavailableError) {
-    const instructions = await resolveTmuxInstallInstructions(
-      createTmuxInspectionDeps(),
-    );
+    const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
     ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
   } else if (err instanceof AgentRuntimeUnavailableError) {
     ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
@@ -163,19 +155,12 @@ export function registerAgentStartCommand(agentCommand: Command): void {
       "--type <type>",
       `Agent type: ${Object.keys(HARNESS_RUNTIME_PROFILES).join(", ")}`,
     )
-    .option(
-      "--mode <mode>",
-      "Agent mode: interactive or durable",
-      "interactive",
-    )
+    .option("--mode <mode>", "Agent mode: interactive or durable", "interactive")
     .option(
       "--name <name>",
       "Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})",
     )
-    .option(
-      "--cwd <path>",
-      "Working directory for the agent (default: current directory)",
-    )
+    .option("--cwd <path>", "Working directory for the agent (default: current directory)")
     .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("start agent", async (options) => {
@@ -185,8 +170,7 @@ export function registerAgentStartCommand(agentCommand: Command): void {
         const agentType = options.type as string;
         const mode = options.mode as string;
         const cwd = path.resolve(options.cwd ?? process.cwd());
-        const agentName =
-          (options.name as string | undefined) ?? generateAgentName(cwd);
+        const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
 
         if (!(agentType in HARNESS_RUNTIME_PROFILES)) {
           ui.error(
@@ -195,12 +179,9 @@ export function registerAgentStartCommand(agentCommand: Command): void {
           process.exit(1);
         }
         if (!["interactive", "durable"].includes(mode)) {
-          throw new Error(
-            `Unsupported agent mode "${mode}". Supported: interactive, durable.`,
-          );
+          throw new Error(`Unsupported agent mode "${mode}". Supported: interactive, durable.`);
         }
-        const internalMode =
-          mode === "durable" ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
+        const internalMode = mode === "durable" ? AGENT_MODES.DURABLE : AGENT_MODES.INTERACTIVE;
         if (
           internalMode === AGENT_MODES.DURABLE &&
           !["claude", "codex", "pi"].includes(agentType)
@@ -223,23 +204,16 @@ export function registerAgentStartCommand(agentCommand: Command): void {
 
         try {
           if (internalMode === AGENT_MODES.DURABLE) {
-            const entry = await createDurableAgentService(
-              agentType as DurableProvider,
-            ).create({
+            const entry = await createDurableAgentService(agentType as DurableProvider).create({
               name: agentName,
               cwd,
             });
-            ui.success(
-              `Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`,
-            );
+            ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
             ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-            ui.text(
-              `State: ready (${formatPrintProvider(entry.provider)} session not started)`,
-            );
+            ui.text(`State: ready (${formatPrintProvider(entry.provider)} session not started)`);
             return;
           }
-          const runtimeProvider =
-            await new ConfigManager().getAgentRuntimeProvider();
+          const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
           const routed = await tryDaemonStart({
             agentType: agentType as StartableAgentType,
             agentName,

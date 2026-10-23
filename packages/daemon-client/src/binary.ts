@@ -14,9 +14,7 @@ import { fileURLToPath } from "node:url";
  * fallback path end-to-end. Returns null when nothing is found — callers
  * must degrade gracefully.
  */
-export function resolveDaemonBinary(
-  onDebug?: (msg: string) => void,
-): string | null {
+export function resolveDaemonBinary(onDebug?: (msg: string) => void): string | null {
   if (process.env.NO_AI_DEVKIT_BIN) {
     onDebug?.("devkitd binary resolution skipped (NO_AI_DEVKIT_BIN set)");
     return null;
@@ -38,9 +36,7 @@ export function resolveDaemonBinary(
   if (plat && arch) {
     try {
       const req = createRequire(import.meta.url);
-      const pkgJson = req.resolve(
-        `@ai-devkit/devkitd-${plat}-${arch}/package.json`,
-      );
+      const pkgJson = req.resolve(`@ai-devkit/devkitd-${plat}-${arch}/package.json`);
       const candidate = path.join(
         path.dirname(pkgJson),
         process.platform === "win32" ? "devkitd.exe" : "devkitd",
