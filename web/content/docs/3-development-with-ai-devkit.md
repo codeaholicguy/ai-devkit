@@ -104,6 +104,7 @@ The key difference from running individual commands: the skill **suggests and tr
 | Implementation doesn't match design | Loops back to design or implementation |
 | Tests reveal design flaws | Loops back to design review |
 | Smoke check finds a regression | Loops back to implementation |
+| Review or PR is done | Offers a `dev-retro`, run only if you agree |
 
 ### Resuming work
 

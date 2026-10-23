@@ -36,6 +36,7 @@ For each hypothesis, include:
 - Confirm a pre-fix failing signal exists.
 - Confirm post-fix success using the `verify` skill — including regression verification for bug fixes.
 - Summarize remaining risks and follow-ups.
+- Offer `dev-retro` to prevent recurrence; run only if the user agrees.
 - Store root cause and fix for future sessions: `npx ai-devkit@latest memory store --title "<root cause>" --content "<diagnosis and fix>" --tags "debug,root-cause"`
 
 ## Task Tracing

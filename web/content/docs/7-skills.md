@@ -54,6 +54,7 @@ AI DevKit ships with a core set of skills in its default registry:
 | `tdd` | Apply test-driven development by writing a failing test before production code |
 | `verify` | Require fresh terminal evidence before claiming work is complete |
 | `dev-smoke` | Smoke-test the flows a change affects end to end with a disposable sandboxed script |
+| `dev-retro` | Turn friction from finished work into durable fixes, automation first |
 | `session-compact` | Compact a historical agent session into durable continuation facts and memory candidates |
 
 You can install these skills the same way you install community skills.

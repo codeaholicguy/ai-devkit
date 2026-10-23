@@ -23,6 +23,7 @@ Supporting skills:
 - `tdd` for implementation tasks.
 - `verify` before completing implementation, implementation checks, testing claims, and review readiness.
 - `dev-smoke` after Write Tests and before Code Review for user-facing changes.
+- `dev-retro` after Code Review or PR: offer it, and run only if the user agrees.
 - `task` for optional progress tracing when the task command is usable.
 
 ## Startup Validation

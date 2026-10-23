@@ -31,6 +31,7 @@ const FALLBACK_BUILTIN_SKILL_NAMES = [
   "brainstorm",
   "verify",
   "dev-smoke",
+  "dev-retro",
   "tdd",
   "session-compact",
 ] as const;

@@ -95,6 +95,7 @@ The `dev-debug` skill follows a proven methodology:
 - Document specific tasks and owners
 - Set timelines and follow-up actions
 - Plan monitoring and communication
+- Optionally run `dev-retro` (asks first) to turn the incident into lasting fixes
 
 ## Use Cases
 

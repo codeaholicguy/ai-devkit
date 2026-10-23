@@ -66,6 +66,20 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
   },
   {
+    name: "dev-retro",
+    title: "Retro",
+    category: "Verification",
+    summary: "Turn friction from finished work into durable fixes, automation first.",
+    description:
+      "Use dev-retro after a feature, session, or incident. It gathers evidence of what went wrong, finds the root cause of the top few items, and proposes the most durable fix for each: a test or check first, then tooling, instructions, or memory. It applies fixes only after your approval.",
+    useCases: [
+      "Stop the same failure from recurring in the next feature",
+      "Turn user corrections and failed runs into tests, hooks, or skill updates",
+      "Close an incident with lasting fixes instead of a summary",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
+  },
+  {
     name: "dev-smoke",
     title: "Smoke Check",
     category: "Verification",

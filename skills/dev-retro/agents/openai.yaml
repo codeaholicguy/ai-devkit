@@ -1,0 +1,4 @@
+interface:
+  display_name: "Retro"
+  short_description: "AI DevKit · Turn friction from finished work into durable fixes"
+  default_prompt: "Use $dev-retro to review the finished work with evidence, list the top friction items with root causes and fixes at the most durable level, and wait for my approval before applying them."

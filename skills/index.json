@@ -873,6 +873,13 @@
       "lastIndexed": 1792282117220
     },
     {
+      "name": "dev-retro",
+      "registry": "codeaholicguy/ai-devkit",
+      "path": "skills/dev-retro",
+      "description": "AI DevKit · Run an evidence-based retrospective on finished work (feature, session, incident) and turn friction into durable fixes, automation first. Use when users ask for a retro, lessons learned, post-mortem, or \"what went wrong\", or when another skill offers one after a feature or fix.",
+      "lastIndexed": 1792282117300
+    },
+    {
       "name": "dev-review",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/dev-review",
