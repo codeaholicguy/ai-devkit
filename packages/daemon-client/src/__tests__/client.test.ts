@@ -9,7 +9,6 @@ describe("resolveDaemonBinary", () => {
   const saved = {
     DEVKITD_BIN: process.env.DEVKITD_BIN,
     AI_DEVKITD_BIN: process.env.AI_DEVKITD_BIN,
-    NO_AI_DEVKIT_BIN: process.env.NO_AI_DEVKIT_BIN,
   };
   afterEach(() => {
     for (const [k, v] of Object.entries(saved)) {
@@ -51,15 +50,6 @@ describe("resolveDaemonBinary", () => {
     delete process.env.AI_DEVKITD_BIN;
     process.env.DEVKITD_BIN = "/nonexistent/devkitd-nope";
     expect(resolveDaemonBinary()).not.toBe("/nonexistent/devkitd-nope");
-  });
-
-  it("NO_AI_DEVKIT_BIN forces null even when DEVKITD_BIN is valid", () => {
-    const fake = path.join(os.tmpdir(), `fake-daemon-nobin-${process.pid}`);
-    fs.writeFileSync(fake, "#!/bin/sh\n");
-    process.env.DEVKITD_BIN = fake;
-    process.env.NO_AI_DEVKIT_BIN = "1";
-    expect(resolveDaemonBinary()).toBeNull();
-    fs.unlinkSync(fake);
   });
 });
 

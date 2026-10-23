@@ -10,15 +10,10 @@ import { fileURLToPath } from "node:url";
  *  2. Platform package `@ai-devkit/devkitd-<plat>-<arch>` (npm optional dep)
  *  3. ~/.ai-devkit/bin/devkitd (manual install)
  *  4. rust/target/{release,debug}/devkitd relative to the monorepo (dev)
- * NO_AI_DEVKIT_BIN forces "no binary found" — useful for exercising the
- * fallback path end-to-end. Returns null when nothing is found — callers
+ * Returns null when nothing is found — callers
  * must degrade gracefully.
  */
 export function resolveDaemonBinary(onDebug?: (msg: string) => void): string | null {
-  if (process.env.NO_AI_DEVKIT_BIN) {
-    onDebug?.("devkitd binary resolution skipped (NO_AI_DEVKIT_BIN set)");
-    return null;
-  }
   const env = process.env.DEVKITD_BIN ?? process.env.AI_DEVKITD_BIN;
   if (env && fs.existsSync(env)) {
     onDebug?.(`devkitd binary from env override: ${env}`);
