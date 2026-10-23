@@ -20,6 +20,8 @@ Before using Memory, ensure you have:
 
 If this is your first AI DevKit command, complete [Getting Started](/docs/1-getting-started) first. With npx only, prefix every CLI example below with `npx ai-devkit@latest`.
 
+If `memory search` fails with a `NODE_MODULE_VERSION` error, the CLI was built with a different Node than your shell uses — see [Node.js and native modules](/docs/1-getting-started#nodejs-and-native-modules).
+
 ## How It Works
 
 You can interact with Memory in three ways:

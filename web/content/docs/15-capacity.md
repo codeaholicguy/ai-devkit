@@ -17,7 +17,9 @@ ai-devkit status
 ai-devkit status --json
 ```
 
-The report covers the CLI version (and whether npm has a newer one), the project config, per-agent readiness (executable found, authentication, skills installed), tmux, skill registries, channels, and per-agent memory MCP wiring. Run it first when something feels off — it is the fastest way to tell a missing login from a missing binary.
+The report covers the CLI version (and whether npm has a newer one), the project config, per-agent readiness (executable found, authentication, skills installed), tmux, skill registries, channels, and per-agent memory MCP wiring. Run it first when something feels off.
+
+Treat auth and readiness rows as hints: some harnesses show `ready` without a successful login probe, and others show `auth fail` when a login-free model path still works. For orchestration, prefer a real `agent start` plus `send` handshake (see [Multi-agent orchestration](/docs/17-multi-agent-orchestration)).
 
 ## Capacity
 

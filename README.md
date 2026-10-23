@@ -16,7 +16,15 @@ AI DevKit gives Claude Code, Codex CLI, Gemini CLI, opencode, Pi, Cursor, GitHub
 
 The future is many AI coding agents. AI DevKit is the layer that makes them manageable.
 
-Run `npx ai-devkit@latest init` and your project gets:
+Run machine setup once, then `init` in each project:
+
+```bash
+npx ai-devkit@latest setup
+cd your-project
+npx ai-devkit@latest init
+```
+
+`setup` installs built-in skills globally, session hooks, and the memory MCP wiring. `init` writes project-local config. Your project gets:
 
 | What you need | What AI DevKit installs |
 |---------------|-------------------------|
@@ -56,10 +64,14 @@ Before AI DevKit, your agents are powerful but scattered. After AI DevKit, they 
 ## Start in 30 seconds
 
 ```bash
+npx ai-devkit@latest setup
+cd your-project
 npx ai-devkit@latest init
 ```
 
-One wizard. Pick your agents, install the control-plane pieces you need, and give every tool the same operating model. It writes project-local files you can review and commit. Re-run it whenever your agent list or workflow changes.
+Run `setup` once per machine, then `init` per project. Pick your agents, install the control-plane pieces you need, and give every tool the same operating model. Re-run `init` whenever your agent list or workflow changes.
+
+Multi-agent orchestration (lead plus workers): **[docs guide](https://ai-devkit.com/docs/17-multi-agent-orchestration/)**.
 
 Here's what lands in your repo:
 
@@ -68,7 +80,7 @@ your-project/
 ├── .ai-devkit.json              # single source of truth (re-run init anytime)
 ├── .claude/                     # or .cursor/, .codex/, etc. per agent you picked
 │   ├── skills/                  # dev-lifecycle, verify, memory, tdd, ...
-│   └── settings.json            # MCP servers wired up (incl. @ai-devkit/memory)
+│   └── …                        # Claude: project MCP in `.mcp.json`; memory MCP wired globally by `setup`
 └── docs/ai/
     ├── requirements/            # phase 1 — what to build, why
     ├── design/                  # phase 2 — how it'll be built
@@ -79,7 +91,7 @@ your-project/
 
 ## Operate agents like infrastructure
 
-AI DevKit ships a agent control plane for everyday multi-agent work:
+AI DevKit ships an agent control plane for everyday multi-agent work:
 
 ```bash
 # List running sessions across providers
@@ -171,7 +183,7 @@ Agent:  Audits the diff against the design doc — scope creep,
 
 ## What changes in agent behavior
 
-The flow above is powered by nine built-in skills, each addressing a failure mode developers see in real AI coding sessions:
+The flow above is powered by **24 built-in skills** (installed globally by `setup`), including these core workflow skills:
 
 | Failure mode | AI DevKit behavior |
 |--------------|--------------------|
@@ -183,39 +195,41 @@ The flow above is powered by nine built-in skills, each addressing a failure mod
 | Debugging becomes guess-and-patch | `structured-debug` makes it reproduce, hypothesize, fix, and verify |
 | Existing code is opaque | `document-code` maps entry points, dependencies, and behavior |
 | Implementation gets bloated | `simplify-implementation` reduces complexity before code ships |
-| Documentation is hard to follow | `technical-writer` audits docs for novice-user clarity |
+| Documentation is hard to follow | `document-code` maps code; add community `technical-writer` via `skill add` if needed |
 
-Need more? `ai-devkit skill add <registry> <skill>` pulls from 30+ publishers — Anthropic, Vercel, Supabase, Microsoft, Google.
+Need more? `ai-devkit skill add <registry> <skill>` pulls from 30+ publishers — Anthropic, Vercel, Supabase, Microsoft, Google. See the full built-in list in [Skills docs](https://ai-devkit.com/docs/7-skills/).
 
 ## Works across coding agents
 
 One `.ai-devkit.json` configures all of them. Add a new agent to your team without rewriting your rules.
 
-| Agent | Setup | Remote control |
+| Agent / environment | Project `init` setup | `agent start` / `send` control plane |
 |-------|-------|----------------|
-| [Claude Code](https://www.anthropic.com/claude-code) | yes | yes |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes |
-| [Codex CLI](https://github.com/openai/codex) | yes | yes |
-| [Grok Build CLI](https://x.ai/cli) | yes | yes |
-| [Junie](https://www.jetbrains.com/junie/) | yes | — |
-| [Cline](https://cline.bot/) | yes | — |
-| [Devin](https://devin.ai/) | yes | — |
-| [opencode](https://opencode.ai/) | yes | testing |
-| [Pi](https://pi.dev) | yes | yes |
-| [Kiro CLI](https://kiro.dev/cli/) | yes | yes |
+| [Claude Code](https://www.anthropic.com/claude-code) | yes | yes (`claude`) |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes (`gemini_cli`) |
+| [Codex CLI](https://github.com/openai/codex) | yes | yes (`codex`) |
+| [Grok Build CLI](https://x.ai/cli) | yes | yes (`grok_cli`) |
+| [opencode](https://opencode.ai/) | yes | yes (`opencode`) |
+| [Pi](https://pi.dev) | yes | yes (`pi`) |
+| [GitHub Copilot](https://github.com/features/copilot) | yes | yes (`copilot`) |
+| [Kiro CLI](https://kiro.dev/cli/) | yes | yes (`kiro`) |
+| [Devin](https://devin.ai/) | yes | yes (`devin`) |
+| [Muse Code](https://dev.meta.ai/products/muse-code/) | yes | yes (`muse`) |
+| [Antigravity CLI](https://antigravity.google/) | yes | yes (`antigravity_cli`) |
 | [Cursor](https://cursor.sh/) | yes | — |
-| [GitHub Copilot](https://code.visualstudio.com/) | yes | — |
-| [Antigravity](https://antigravity.google/) | yes | yes |
-| [Amp](https://ampcode.com/) | yes | — |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | — |
-| [Roo Code](https://roocode.com/) | testing | — |
+| [Junie](https://www.jetbrains.com/junie/) | yes | setup/skills only |
+| [Cline](https://cline.bot/) | yes | setup/skills only |
+| [Antigravity IDE](https://antigravity.google/) | yes | setup/skills only |
+| [Amp](https://ampcode.com/) | yes | setup/skills only |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | setup/skills only |
+| [Roo Code](https://roocode.com/) | testing | setup/skills only |
 
-**Setup** — `ai-devkit init` writes the agent's config (rules, MCP servers, and skills) so it joins the same operating layer.
-**Remote control** — drive running sessions from `ai-devkit agent send` and route them through external channels.
+**Setup** — `ai-devkit setup` (machine) plus `ai-devkit init` (project) writes each agent's config (rules, MCP, skills).
+**Control plane** — `agent list`, `agent send`, and managed `agent start` target tmux-backed CLI sessions on **macOS/Linux** (experimental console; requires tmux). Use [channels](https://ai-devkit.com/docs/12-channel/) to message a running agent from Telegram or Slack. Not supported on Windows console.
 
 ## How is this different from `CLAUDE.md`, `.cursor/rules`, or `AGENTS.md`?
 
-Those files are static instructions the agent re-reads. AI DevKit gives agents a **operating layer**: generated setup, a control console, cross-agent messaging, local searchable memory, phase docs, skills loaded on demand, and verification gates. The rules still matter, but AI DevKit makes them operational across tools.
+Those files are static instructions the agent re-reads. AI DevKit gives agents an **operating layer**: generated setup, a control console, cross-agent messaging, local searchable memory, phase docs, skills loaded on demand, and verification gates. The rules still matter, but AI DevKit makes them operational across tools.
 
 | Static rules files | AI DevKit |
 |--------------------|-----------|
@@ -230,13 +244,13 @@ Those files are static instructions the agent re-reads. AI DevKit gives agents a
 - **Not a smarter LLM.** Bad models stay bad — this raises the floor on process, not on raw capability.
 - **Not a replacement for Claude Code, Codex, Cursor, Gemini CLI, or opencode.** AI DevKit configures, supervises, and coordinates the agents you already use.
 - **Not a magic "write the feature for me" button.** You still review the requirements doc, accept the design, and read the diff. The workflow makes that review possible because you have artifacts to point at instead of only chat scrollback.
-- **Not a hosted service.** Apache-2.0-licensed, runs locally, no telemetry. Memory is a SQLite file on your disk. The agent control plane talks to the agent SDKs you already use.
+- **Not a hosted service.** Apache-2.0-licensed, runs locally, no telemetry. Memory is a SQLite file on your disk. The control plane detects CLI sessions, types into tmux panes, and reads session files — it does not run a remote cloud agent for you.
 
 ## Documentation & community
 
 - Full guides, workflow patterns, skill authoring → **[ai-devkit.com/docs](https://ai-devkit.com/docs/)**
 - Release notes → **[CHANGELOG.md](./CHANGELOG.md)**
-- Contributing → **[CONTRIBUTING.md](./CONTRIBUTING.md)**
+- Contributing → open an issue or PR on **[GitHub](https://github.com/Codeaholicguy/ai-devkit)**
 
 ```bash
 git clone https://github.com/Codeaholicguy/ai-devkit.git

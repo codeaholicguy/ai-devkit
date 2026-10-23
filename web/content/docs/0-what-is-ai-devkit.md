@@ -79,7 +79,7 @@ The [Memory](/docs/6-memory) service gives your coding agents persistent, local 
 
 ### Multi-Agent Support
 
-AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, skills, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, skills, and operating model carry across supported environments.
+AI DevKit isn't tied to a single tool. It supports [many AI coding environments](/docs/2-supported-agents) and sets up the right configuration files, skills, and instructions for each one. Switch between agents or use multiple at the same time. Your workflows, memory, skills, and operating model carry across supported environments. Managed `agent start` and `agent send` apply to the CLI harness types listed in [Agent Management](/docs/8-agent-management).
 
 ### Observe And Operate
 
