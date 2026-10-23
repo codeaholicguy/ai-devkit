@@ -908,9 +908,9 @@
       "lastIndexed": 1792282117317
     },
     {
-      "name": "refactor",
+      "name": "dev-refactor",
       "registry": "codeaholicguy/ai-devkit",
-      "path": "skills/refactor",
+      "path": "skills/dev-refactor",
       "description": "AI DevKit · Systematic structural or multi-file refactors across any stack while preserving behavior and public contracts. Use for reorganizing modules, boundaries, naming, APIs/contracts, staged refactor plans, or refactor risk review.",
       "lastIndexed": 1792282117309
     },
@@ -943,9 +943,9 @@
       "lastIndexed": 1792282117214
     },
     {
-      "name": "simplify-implementation",
+      "name": "dev-simplify",
       "registry": "codeaholicguy/ai-devkit",
-      "path": "skills/simplify-implementation",
+      "path": "skills/dev-simplify",
       "description": "AI DevKit · Analyze and simplify existing implementations to reduce complexity, improve maintainability, and enhance scalability. Use when users ask to simplify code, reduce complexity, refactor for readability, clean up implementations, improve maintainability, reduce technical debt, or make code easier to understand.",
       "lastIndexed": 1792282117215
     },

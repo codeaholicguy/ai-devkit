@@ -129,7 +129,7 @@ ai-devkit memory search --query "API response convention"
 - `verify` 阻止没有最新测试或构建证据的完成声明
 - `tdd` 在行为变化时推动测试优先实现
 - `structured-debug` 让调试可复现，而不是猜测和乱改
-- `security-review`、`document-code` 和 `simplify-implementation` 在任务需要时增加聚焦审查
+- `security-review`、`document-code` 和 `dev-simplify` 在任务需要时增加聚焦审查
 
 ### 获取完整工程工作流栈
 
@@ -179,7 +179,7 @@ ai-devkit init --template ./senior-engineer.yaml
 | 新行为没有测试就上线 | `tdd` 推动测试优先实现 |
 | 调试变成猜测和乱改 | `structured-debug` 要求复现、假设、修复和验证 |
 | 现有代码不透明 | `document-code` 映射入口点、依赖和行为 |
-| 实现变得臃肿 | `simplify-implementation` 在代码发布前降低复杂度 |
+| 实现变得臃肿 | `dev-simplify` 在代码发布前降低复杂度 |
 | 文档难以理解 | `technical-writer` 按新手用户清晰度审查文档 |
 
 需要更多能力？`ai-devkit skill add <registry> <skill>` 可以从 30+ 发布方拉取技能，包括 Anthropic、Vercel、Supabase、Microsoft、Google。

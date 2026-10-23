@@ -1,11 +1,11 @@
 ---
-name: refactor
+name: dev-refactor
 description: AI DevKit · Systematic structural or multi-file refactors across any stack while preserving behavior and public contracts. Use for reorganizing modules, boundaries, naming, APIs/contracts, staged refactor plans, or refactor risk review.
 ---
 
 # Refactor
 
-Use for structural refactors. Use `simplify-implementation` for local readability, dead code, or small logic cleanup.
+Use for structural refactors. Use `dev-simplify` for local readability, dead code, or small logic cleanup.
 
 ## Rules
 

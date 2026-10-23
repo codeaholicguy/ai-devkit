@@ -141,7 +141,7 @@ The control plane is useful on its own. For larger or riskier changes, AI DevKit
 - `verify` blocks completion claims without fresh test or build evidence
 - `tdd` pushes test-first implementation when behavior changes
 - `structured-debug` keeps debugging reproducible instead of guess-and-patch
-- `security-review`, `document-code`, and `simplify-implementation` add focused review passes when the task needs them
+- `security-review`, `document-code`, and `dev-simplify` add focused review passes when the task needs them
 
 ### Get the full engineering workflow stack
 
@@ -194,7 +194,7 @@ The flow above is powered by **24 built-in skills** (installed globally by `setu
 | New behavior ships without tests | `tdd` pushes test-first implementation |
 | Debugging becomes guess-and-patch | `structured-debug` makes it reproduce, hypothesize, fix, and verify |
 | Existing code is opaque | `document-code` maps entry points, dependencies, and behavior |
-| Implementation gets bloated | `simplify-implementation` reduces complexity before code ships |
+| Implementation gets bloated | `dev-simplify` reduces complexity before code ships |
 | Documentation is hard to follow | `document-code` maps code; add community `technical-writer` via `skill add` if needed |
 
 Need more? `ai-devkit skill add <registry> <skill>` pulls from 30+ publishers — Anthropic, Vercel, Supabase, Microsoft, Google. See the full built-in list in [Skills docs](https://ai-devkit.com/docs/7-skills/).

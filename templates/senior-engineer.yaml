@@ -18,7 +18,7 @@ skills:
   - registry: codeaholicguy/ai-devkit
     skill: memory
   - registry: codeaholicguy/ai-devkit
-    skill: simplify-implementation
+    skill: dev-simplify
   - registry: codeaholicguy/ai-devkit
     skill: technical-writer
   - registry: codeaholicguy/ai-devkit

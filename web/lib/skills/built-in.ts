@@ -192,16 +192,30 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
   },
   {
-    name: "simplify-implementation",
+    name: "dev-simplify",
     title: "Simplify Implementation",
     category: "Refactoring",
     summary: "Analyze and simplify complex code paths for maintainability.",
     description:
-      "Use simplify-implementation when a solution is too complex, hard to read, or difficult to maintain. It favors a clear analysis and simplification plan before editing code.",
+      "Use dev-simplify when a solution is too complex, hard to read, or difficult to maintain. It favors a clear analysis and simplification plan before editing code.",
     useCases: [
       "Reduce unnecessary abstraction or complexity",
       "Improve readability in hard-to-maintain code",
       "Refactor implementation without changing behavior",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
+  },
+  {
+    name: "dev-refactor",
+    title: "Refactor",
+    category: "Refactoring",
+    summary: "Plan and run structural refactors that preserve behavior and public contracts.",
+    description:
+      "Use dev-refactor for structural or multi-file changes such as reorganizing modules, moving boundaries, renaming, or reshaping APIs. It maps public contracts, stages the refactor, and validates behavior is preserved.",
+    useCases: [
+      "Reorganize modules or boundaries across many files",
+      "Rename or reshape APIs without breaking callers",
+      "Review the risk of a planned refactor",
     ],
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode"],
   },
