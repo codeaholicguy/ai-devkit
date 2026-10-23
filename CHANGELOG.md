@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- [aa06cf5](https://github.com/codeaholicguy/ai-devkit/commit/aa06cf5) Added server start, readiness, and teardown helpers plus HTTP status checks to the `dev-smoke` shell template, and API checks now cover response bodies and error cases.
 - [67dfb01](https://github.com/codeaholicguy/ai-devkit/commit/67dfb01) Extended `dev-smoke` to UI and web changes: real-browser checks with a disposable Playwright template, fresh browser contexts, console-error checks, and screenshots as evidence.
 - [167a682](https://github.com/codeaholicguy/ai-devkit/commit/167a682) Added the built-in `dev-smoke` skill: it maps the user flows a change can affect, then builds and runs a disposable sandboxed script to smoke-test them end to end.
 - [5dc438c](https://github.com/codeaholicguy/ai-devkit/commit/5dc438c) Made `agent-orchestration` a built-in skill, and skills now refer to other skills by plain name instead of the Codex-only `$skill` form.
