@@ -36,7 +36,7 @@ Use for Phase 5.
 13. After each section, ask if new tasks were discovered.
 14. Summarize completed, in-progress, blocked, skipped, new tasks, task-tracing events emitted or why tracing was unavailable, and doc deltas.
 
-Next: after completing any task, run `dev-planning` Phase 6. When all tasks are done, run Check Implementation, then `dev-testing` and `dev-review`.
+Next: after completing any task, run `dev-planning` Phase 6. When all tasks are done, run Check Implementation, then `dev-testing`, `dev-smoke` for affected user flows, and `dev-review`.
 
 ## Check Implementation
 

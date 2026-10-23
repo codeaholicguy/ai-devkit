@@ -66,6 +66,20 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
   },
   {
+    name: "dev-smoke",
+    title: "Smoke Check",
+    category: "Verification",
+    summary: "Map the flows a change affects and smoke-test them end to end in a sandbox.",
+    description:
+      "Use dev-smoke before calling a feature or fix done. It traces the diff to the user-facing flows it can affect, agrees on scenarios with you, then builds and runs a disposable sandboxed script against the real app and reports pass/fail with evidence.",
+    useCases: [
+      "Check the end-to-end flow when unit tests pass but the feature is untested",
+      "Catch regressions in adjacent flows that share the changed code",
+      "Tell new failures from pre-existing ones by rerunning on the base commit",
+    ],
+    relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
+  },
+  {
     name: "memory",
     title: "Memory",
     category: "Memory",

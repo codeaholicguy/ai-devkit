@@ -1,0 +1,4 @@
+interface:
+  display_name: "Smoke Check"
+  short_description: "AI DevKit · End-to-end smoke checks for the flows a change affects"
+  default_prompt: "Use $dev-smoke to map the flows this change can affect, list the scenarios for my review, then build and run a disposable sandboxed smoke script and report pass/fail with evidence."

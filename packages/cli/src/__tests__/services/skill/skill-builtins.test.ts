@@ -30,7 +30,7 @@ describe("getBuiltinSkillNames", () => {
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
     const names = await getBuiltinSkillNames();
-    expect(names).toHaveLength(26);
+    expect(names).toHaveLength(27);
     expect(names).toContain("agent-communication");
     expect(names).toContain("tdd");
     expect(names).toContain("session-compact");
@@ -47,7 +47,7 @@ describe("getBuiltinSkillNames", () => {
 
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(26);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(27);
   });
 
   it("falls back to the bundled list when response JSON cannot be parsed", async () => {
@@ -63,7 +63,7 @@ describe("getBuiltinSkillNames", () => {
 
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(26);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(27);
   });
 
   it.each([
@@ -84,7 +84,7 @@ describe("getBuiltinSkillNames", () => {
 
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(26);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(27);
   });
 });
 
@@ -93,7 +93,7 @@ describe("built-in skills manifest", () => {
     const manifestPath = new URL("../../../../../../skills/built-in.json", import.meta.url);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
-    expect(manifest).toHaveLength(26);
+    expect(manifest).toHaveLength(27);
     expect(manifest).toEqual(
       expect.arrayContaining([
         "agent-communication",
@@ -108,6 +108,7 @@ describe("built-in skills manifest", () => {
         "dev-debug",
         "memory",
         "verify",
+        "dev-smoke",
         "tdd",
         "session-compact",
       ]),
