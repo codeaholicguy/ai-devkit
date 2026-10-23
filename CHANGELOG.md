@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- [3f90d45](https://github.com/codeaholicguy/ai-devkit/commit/3f90d45) Added the built-in `dev-retro` skill: an evidence-based retrospective that turns friction into durable fixes, automation first. `dev-lifecycle` and `dev-debug` offer it and run it only if the user agrees.
 - [fdbfb3a](https://github.com/codeaholicguy/ai-devkit/commit/fdbfb3a) Wired `dev-smoke` into other skills: `verify` requires it for "feature works" claims on user-facing changes, `dev-refactor` and `dev-simplify` compare runs before and after, `dev-debug` uses it as the repro, and `dev-lifecycle` runs it before code review.
 - [aa06cf5](https://github.com/codeaholicguy/ai-devkit/commit/aa06cf5) Added server start, readiness, and teardown helpers plus HTTP status checks to the `dev-smoke` shell template, and API checks now cover response bodies and error cases.
 - [67dfb01](https://github.com/codeaholicguy/ai-devkit/commit/67dfb01) Extended `dev-smoke` to UI and web changes: real-browser checks with a disposable Playwright template, fresh browser contexts, console-error checks, and screenshots as evidence.
