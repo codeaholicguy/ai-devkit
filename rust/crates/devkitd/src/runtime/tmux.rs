@@ -146,10 +146,6 @@ impl TmuxRuntime {
 }
 
 impl AgentRuntime for TmuxRuntime {
-    fn provider(&self) -> &'static str {
-        "tmux"
-    }
-
     fn is_available(&self) -> Availability {
         match self.run(&["-V"]) {
             Ok(_) => Availability::ok(),
@@ -201,78 +197,9 @@ impl AgentRuntime for TmuxRuntime {
 
 #[cfg(test)]
 mod tests {
+    use super::super::testkit::FixtureDir;
     use super::*;
     use devkit_harness::start_profiles::MatchSpec;
-    use std::path::PathBuf;
-
-    /// Fixture dir holding fake tmux/pgrep/ps driven by sibling state files.
-    struct Fixture(PathBuf);
-
-    impl Fixture {
-        fn new(tag: &str) -> Self {
-            static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-            let dir = std::env::temp_dir().join(format!(
-                "tmux-fix-{}-{}-{}",
-                std::process::id(),
-                tag,
-                N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            ));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
-            let f = Fixture(dir);
-            f.write(
-                "tmux",
-                r#"#!/bin/sh
-DIR="$(dirname "$0")"
-echo "$@" >> "$DIR/tmux-calls.log"
-case "$1" in
-  -V) echo "tmux 3.4";;
-  has-session) [ -f "$DIR/session-$3" ];;
-  new-session)
-    shift; while [ $# -gt 0 ]; do
-      case "$1" in -s) touch "$DIR/session-$2"; shift 2;; *) shift;; esac
-    done;;
-  send-keys) :;;
-  list-panes) cat "$DIR/pane_pid" 2>/dev/null;;
-  kill-session) rm -f "$DIR/session-$3";;
-esac
-exit 0
-"#,
-            );
-            f.write(
-                "pgrep",
-                "#!/bin/sh\nDIR=\"$(dirname \"$0\")\"\ncat \"$DIR/children-$2\" 2>/dev/null\nexit 0\n",
-            );
-            f.write(
-                "ps",
-                "#!/bin/sh\nDIR=\"$(dirname \"$0\")\"\ncat \"$DIR/cmd-$2\" 2>/dev/null\nexit 0\n",
-            );
-            f
-        }
-        fn write(&self, name: &str, content: &str) -> PathBuf {
-            let p = self.0.join(name);
-            std::fs::write(&p, content).unwrap();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-            }
-            p
-        }
-        fn set(&self, name: &str, content: &str) {
-            std::fs::write(self.0.join(name), content).unwrap();
-        }
-        fn calls(&self) -> String {
-            std::fs::read_to_string(self.0.join("tmux-calls.log")).unwrap_or_default()
-        }
-        fn runtime(&self) -> TmuxRuntime {
-            TmuxRuntime::with_bins(
-                self.0.join("tmux").to_str().unwrap(),
-                self.0.join("pgrep").to_str().unwrap(),
-                self.0.join("ps").to_str().unwrap(),
-            )
-        }
-    }
 
     fn input<'a>(name: &'a str, matcher: &'a MatchSpec, timeout: u64) -> StartInput<'a> {
         StartInput {
@@ -289,10 +216,9 @@ exit 0
 
     #[test]
     fn availability_follows_tmux_dash_v() {
-        let f = Fixture::new("avail");
-        assert!(f.runtime().is_available().ok);
-        let f2 = Fixture::new("avail-missing");
-        let missing = TmuxRuntime::with_bins(f2.0.join("nope").to_str().unwrap(), "pgrep", "ps");
+        let f = FixtureDir::new("avail");
+        assert!(f.tmux().is_available().ok);
+        let missing = TmuxRuntime::with_bins(&f.bin("nope"), "pgrep", "ps");
         let a = missing.is_available();
         assert!(!a.ok);
         assert_eq!(a.reason.as_deref(), Some("binary-missing"));
@@ -300,52 +226,45 @@ exit 0
 
     #[test]
     fn start_creates_session_sends_command_resolves_pid() {
-        let f = Fixture::new("start");
+        let f = FixtureDir::new("start");
         f.set("pane_pid", "9000");
         f.set("children-9000", "9001");
         f.set("cmd-9001", "/usr/local/bin/claude");
         let matcher = MatchSpec::Argv0("claude");
-        let out = f
-            .runtime()
-            .start(&input("agent-one", &matcher, 5000))
-            .unwrap();
+        let out = f.tmux().start(&input("agent-one", &matcher, 5000)).unwrap();
         assert_eq!(out.pid, 9001);
         assert_eq!(out.runtime_ref["session"], "agent-one");
-        let calls = f.calls();
+        let calls = f.log("tmux-calls.log");
         assert!(calls.contains("new-session -d -s agent-one -c /tmp"));
         assert!(calls.contains("send-keys -t agent-one claude Enter"));
     }
 
     #[test]
     fn existing_session_is_replaced() {
-        let f = Fixture::new("replace");
+        let f = FixtureDir::new("replace");
         f.set("session-stale", "");
-        assert!(f.runtime().session_exists("stale"));
+        assert!(f.tmux().session_exists("stale"));
         f.set("pane_pid", "9000");
         f.set("cmd-9000", "/usr/bin/claude");
         let matcher = MatchSpec::Argv0("claude");
-        f.runtime().start(&input("stale", &matcher, 5000)).unwrap();
-        let calls = f.calls();
-        assert!(calls.contains("kill-session -t stale"));
+        f.tmux().start(&input("stale", &matcher, 5000)).unwrap();
+        assert!(f.log("tmux-calls.log").contains("kill-session -t stale"));
     }
 
     #[test]
     fn poll_requires_stable_pid_then_times_out_clean() {
-        let f = Fixture::new("timeout");
+        let f = FixtureDir::new("timeout");
         f.set("pane_pid", "9000");
         // No matching descendants — must time out and kill the session.
         let matcher = MatchSpec::Argv0("claude");
-        let err = f
-            .runtime()
-            .start(&input("doomed", &matcher, 30))
-            .unwrap_err();
+        let err = f.tmux().start(&input("doomed", &matcher, 30)).unwrap_err();
         assert!(matches!(err, StartError::PidPollTimeout { .. }));
-        assert!(f.calls().contains("kill-session -t doomed"));
+        assert!(f.log("tmux-calls.log").contains("kill-session -t doomed"));
     }
 
     #[test]
     fn deepest_descendant_match_wins() {
-        let f = Fixture::new("deep");
+        let f = FixtureDir::new("deep");
         f.set("pane_pid", "9000");
         f.set("children-9000", "9001\n9002");
         f.set("children-9001", "9003");
@@ -353,7 +272,7 @@ exit 0
         f.set("cmd-9002", "/bin/zsh");
         f.set("cmd-9003", "/usr/bin/claude --continue");
         let matcher = MatchSpec::Argv0("claude");
-        let out = f.runtime().start(&input("deep", &matcher, 5000)).unwrap();
+        let out = f.tmux().start(&input("deep", &matcher, 5000)).unwrap();
         assert_eq!(out.pid, 9003);
     }
 }

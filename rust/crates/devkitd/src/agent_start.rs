@@ -41,10 +41,6 @@ pub struct Runtimes {
     pub herdr: HerdrRuntime,
 }
 
-pub fn run(daemon: &Daemon, params: AgentStartParams) -> Result<AgentStartResult, StartRpcError> {
-    run_with(daemon, params, &Runtimes::default())
-}
-
 pub fn run_with(
     daemon: &Daemon,
     params: AgentStartParams,
@@ -137,32 +133,31 @@ pub fn run_with(
             timeout_ms: params.timeout_ms.unwrap_or(15_000),
             poll_interval_ms: params.poll_interval_ms.unwrap_or(500),
         })
-        .map_err(|e| match e {
-            StartError::Unavailable { reason, detail } => StartRpcError::new(
-                "runtime_unavailable",
-                detail.clone(),
-                Some(json!({
-                    "provider": provider,
-                    "reason": reason,
-                    "detail": detail,
-                })),
-            ),
-            StartError::PidPollTimeout {
-                command,
-                timeout_ms,
-            } => StartRpcError::new(
-                "pid_poll_timeout",
-                format!(
-                    "Agent process not found after {}s. Verify that \"{command}\" is in PATH inside the tmux environment.",
-                    timeout_ms / 1000
+        .map_err(|e| {
+            // Display is the single source of each variant's message text.
+            let message = e.to_string();
+            match e {
+                StartError::Unavailable { reason, .. } => StartRpcError::new(
+                    "runtime_unavailable",
+                    message.clone(),
+                    Some(json!({
+                        "provider": provider,
+                        "reason": reason,
+                        "detail": message,
+                    })),
                 ),
-                Some(json!({"command": command, "timeoutMs": timeout_ms})),
-            ),
-            StartError::Failed { code, message } => StartRpcError::new(
-                "internal",
-                message,
-                code.map(|c| json!({"runtimeCode": c})),
-            ),
+                StartError::PidPollTimeout {
+                    command,
+                    timeout_ms,
+                } => StartRpcError::new(
+                    "pid_poll_timeout",
+                    message,
+                    Some(json!({"command": command, "timeoutMs": timeout_ms})),
+                ),
+                StartError::Failed { code, .. } => {
+                    StartRpcError::new("internal", message, code.map(|c| json!({"runtimeCode": c})))
+                }
+            }
         })?;
 
     let started_at = iso8601_utc(devkit_core::store::chrono_now());
@@ -275,87 +270,27 @@ fn internal(e: impl std::fmt::Display) -> StartRpcError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::runtime::testkit::FixtureDir;
     use devkit_core::store::chrono_now;
-    use std::path::PathBuf;
     use std::sync::Arc;
 
-    struct Fixture(PathBuf);
+    fn daemon(f: &FixtureDir) -> Arc<Daemon> {
+        let data = f.0.join("data");
+        Arc::new(Daemon::new(&data, data.join("d.sock"), data.clone()).unwrap())
+    }
 
-    impl Fixture {
-        fn new(tag: &str) -> Self {
-            static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-            let dir = std::env::temp_dir().join(format!(
-                "astart-{}-{}-{}",
-                std::process::id(),
-                tag,
-                N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            ));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
-            let f = Fixture(dir);
-            f.write(
-                "tmux",
-                r#"#!/bin/sh
-DIR="$(dirname "$0")"
-echo "$@" >> "$DIR/tmux-calls.log"
-case "$1" in
-  -V) echo "tmux 3.4";;
-  has-session) [ -f "$DIR/session-$3" ];;
-  new-session)
-    shift; while [ $# -gt 0 ]; do
-      case "$1" in -s) touch "$DIR/session-$2"; shift 2;; *) shift;; esac
-    done;;
-  send-keys) :;;
-  list-panes) cat "$DIR/pane_pid" 2>/dev/null;;
-  kill-session) rm -f "$DIR/session-$3";;
-esac
-exit 0
-"#,
-            );
-            f.write(
-                "pgrep",
-                "#!/bin/sh\nDIR=\"$(dirname \"$0\")\"\ncat \"$DIR/children-$2\" 2>/dev/null\nexit 0\n",
-            );
-            f.write(
-                "ps",
-                "#!/bin/sh\nDIR=\"$(dirname \"$0\")\"\ncat \"$DIR/cmd-$2\" 2>/dev/null\nexit 0\n",
-            );
-            f
+    fn runtimes(f: &FixtureDir) -> Runtimes {
+        Runtimes {
+            tmux: f.tmux(),
+            herdr: f.herdr(),
         }
-        fn write(&self, name: &str, content: &str) -> PathBuf {
-            let p = self.0.join(name);
-            std::fs::write(&p, content).unwrap();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-            }
-            p
-        }
-        fn set(&self, name: &str, content: &str) {
-            std::fs::write(self.0.join(name), content).unwrap();
-        }
-        fn daemon(&self) -> Arc<Daemon> {
-            let data = self.0.join("data");
-            Arc::new(Daemon::new(&data, data.join("d.sock"), data.clone()).unwrap())
-        }
-        fn runtimes(&self) -> Runtimes {
-            Runtimes {
-                tmux: TmuxRuntime::with_bins(
-                    self.0.join("tmux").to_str().unwrap(),
-                    self.0.join("pgrep").to_str().unwrap(),
-                    self.0.join("ps").to_str().unwrap(),
-                ),
-                herdr: HerdrRuntime::default(),
-            }
-        }
-        /// Wire a fake pane that resolves to pid 4242 running `claude`.
-        fn live_agent(&self) -> &Self {
-            self.set("pane_pid", "9000");
-            self.set("children-9000", "9001");
-            self.set("cmd-9001", "/usr/local/bin/claude");
-            self
-        }
+    }
+
+    /// Wire a fake tmux pane that resolves to pid 9001 running `claude`.
+    fn live_agent(f: &FixtureDir) {
+        f.set("pane_pid", "9000");
+        f.set("children-9000", "9001");
+        f.set("cmd-9001", "/usr/local/bin/claude");
     }
 
     fn params(name: Option<&str>, cwd: &str) -> AgentStartParams {
@@ -372,10 +307,10 @@ exit 0
 
     #[test]
     fn happy_path_registers_and_emits() {
-        let f = Fixture::new("happy");
-        f.live_agent();
-        let d = f.daemon();
-        let r = run_with(&d, params(Some("my-agent"), "/tmp"), &f.runtimes()).unwrap();
+        let f = FixtureDir::new("happy");
+        live_agent(&f);
+        let d = daemon(&f);
+        let r = run_with(&d, params(Some("my-agent"), "/tmp"), &runtimes(&f)).unwrap();
         assert_eq!(r.name, "my-agent");
         assert_eq!(r.pid, 9001);
         assert_eq!(r.runtime_ref["session"], "my-agent");
@@ -390,45 +325,45 @@ exit 0
 
     #[test]
     fn invalid_inputs_map_to_codes() {
-        let f = Fixture::new("invalid");
-        let d = f.daemon();
-        let e = run_with(&d, params(Some("BAD NAME"), "/tmp"), &f.runtimes()).unwrap_err();
+        let f = FixtureDir::new("invalid");
+        let d = daemon(&f);
+        let e = run_with(&d, params(Some("BAD NAME"), "/tmp"), &runtimes(&f)).unwrap_err();
         assert_eq!(e.code, "invalid_params");
-        let e = run_with(&d, params(Some("ok-name"), "/nope/nada"), &f.runtimes()).unwrap_err();
+        let e = run_with(&d, params(Some("ok-name"), "/nope/nada"), &runtimes(&f)).unwrap_err();
         assert_eq!(e.code, "invalid_params");
         let mut p = params(Some("ok-name"), "/tmp");
         p.agent_type = "nonsense".into();
-        let e = run_with(&d, p, &f.runtimes()).unwrap_err();
+        let e = run_with(&d, p, &runtimes(&f)).unwrap_err();
         assert_eq!(e.code, "harness_not_startable");
         let mut p = params(Some("ok-name"), "/tmp");
         p.runtime = Some("zsh".into());
-        let e = run_with(&d, p, &f.runtimes()).unwrap_err();
+        let e = run_with(&d, p, &runtimes(&f)).unwrap_err();
         assert_eq!(e.code, "invalid_params");
     }
 
     #[test]
     fn live_duplicate_name_is_rejected_with_pid() {
-        let f = Fixture::new("dup");
-        let d = f.daemon();
+        let f = FixtureDir::new("dup");
+        let d = daemon(&f);
         let self_pid = std::process::id() as i64;
         d.store
             .register_start(self_pid, "my-agent", "claude", "/tmp", "tmux", &json!({}))
             .unwrap();
-        let e = run_with(&d, params(Some("my-agent"), "/tmp"), &f.runtimes()).unwrap_err();
+        let e = run_with(&d, params(Some("my-agent"), "/tmp"), &runtimes(&f)).unwrap_err();
         assert_eq!(e.code, "name_in_use");
         assert_eq!(e.details.unwrap()["pid"], self_pid as u64);
     }
 
     #[test]
     fn dead_pending_name_is_reclaimed() {
-        let f = Fixture::new("reclaim");
-        f.live_agent();
-        let d = f.daemon();
+        let f = FixtureDir::new("reclaim");
+        live_agent(&f);
+        let d = daemon(&f);
         // Registered but the pid is long dead and never swept.
         d.store
             .register_start(4_000_000, "my-agent", "claude", "/tmp", "tmux", &json!({}))
             .unwrap();
-        let r = run_with(&d, params(Some("my-agent"), "/tmp"), &f.runtimes()).unwrap();
+        let r = run_with(&d, params(Some("my-agent"), "/tmp"), &runtimes(&f)).unwrap();
         assert_eq!(r.name, "my-agent");
     }
 
@@ -441,10 +376,10 @@ exit 0
 
     #[test]
     fn started_event_payload_is_serializable_result() {
-        let f = Fixture::new("payload");
-        f.live_agent();
-        let d = f.daemon();
-        run_with(&d, params(Some("p-1"), "/tmp"), &f.runtimes()).unwrap();
+        let f = FixtureDir::new("payload");
+        live_agent(&f);
+        let d = daemon(&f);
+        run_with(&d, params(Some("p-1"), "/tmp"), &runtimes(&f)).unwrap();
         let ev = d.store.events_after(0, 10).unwrap().remove(0);
         assert_eq!(ev.payload["type"], "claude");
         assert_eq!(ev.payload["runtimeRef"]["session"], "p-1");

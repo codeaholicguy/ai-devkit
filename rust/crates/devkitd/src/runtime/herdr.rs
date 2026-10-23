@@ -161,6 +161,17 @@ enum HerdrCall {
     },
 }
 
+impl HerdrCall {
+    /// Human-readable failure detail for availability reporting.
+    fn detail(self) -> String {
+        match self {
+            HerdrCall::Rpc { message, .. } => message,
+            HerdrCall::Failed(m) | HerdrCall::Spawn(m) => m,
+            HerdrCall::NotFound => "herdr command was not found in PATH.".into(),
+        }
+    }
+}
+
 impl From<HerdrCall> for StartError {
     fn from(e: HerdrCall) -> Self {
         match e {
@@ -178,31 +189,17 @@ impl From<HerdrCall> for StartError {
 }
 
 impl AgentRuntime for HerdrRuntime {
-    fn provider(&self) -> &'static str {
-        "herdr"
-    }
-
     fn is_available(&self) -> Availability {
         match self.run(&["--version"]) {
             Err(HerdrCall::NotFound) => {
                 return Availability::missing("herdr command was not found in PATH.")
             }
-            Err(e) => {
-                return Availability::unreachable(match e {
-                    HerdrCall::Rpc { message, .. } => message,
-                    HerdrCall::Failed(m) | HerdrCall::Spawn(m) => m,
-                    HerdrCall::NotFound => unreachable!(),
-                })
-            }
+            Err(e) => return Availability::unreachable(e.detail()),
             Ok(_) => {}
         }
         match self.run(&["api", "snapshot"]) {
             Ok(_) => Availability::ok(),
-            Err(e) => Availability::unreachable(match e {
-                HerdrCall::Rpc { message, .. } => message,
-                HerdrCall::Failed(m) | HerdrCall::Spawn(m) => m,
-                HerdrCall::NotFound => "herdr command was not found in PATH.".into(),
-            }),
+            Err(e) => Availability::unreachable(e.detail()),
         }
     }
 
@@ -239,83 +236,24 @@ impl AgentRuntime for HerdrRuntime {
 
 #[cfg(test)]
 mod tests {
+    use super::super::testkit::FixtureDir;
     use super::*;
     use devkit_harness::start_profiles::MatchSpec;
-    use std::path::PathBuf;
 
-    struct Fixture(PathBuf);
-
-    impl Fixture {
-        fn new(tag: &str) -> Self {
-            static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-            let dir = std::env::temp_dir().join(format!(
-                "herdr-fix-{}-{}-{}",
-                std::process::id(),
-                tag,
-                N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-            ));
-            let _ = std::fs::remove_dir_all(&dir);
-            std::fs::create_dir_all(&dir).unwrap();
-            let f = Fixture(dir);
-            f.write(
-                "herdr",
-                r#"#!/bin/sh
-DIR="$(dirname "$0")"
-echo "$@" >> "$DIR/herdr-calls.log"
-case "$1 $2" in
-  "--version ") echo "herdr 1.0";;
-  "api snapshot") cat "$DIR/snapshot.json" 2>/dev/null || echo "{}";;
-  "workspace create") cat "$DIR/workspace.json";;
-  "agent start")
-    C=$(cat "$DIR/busy-count" 2>/dev/null || echo 0)
-    echo $((C+1)) > "$DIR/busy-count"
-    LIMIT=$(cat "$DIR/busy-limit" 2>/dev/null || echo 0)
-    if [ "$C" -lt "$LIMIT" ]; then
-      echo '{"error":{"code":"agent_pane_busy","message":"pane busy"}}'
-    else
-      cat "$DIR/agent_start.json"
-    fi;;
-  "pane process-info") cat "$DIR/process_info.json";;
-esac
-exit 0
-"#,
-            );
-            f
-        }
-        fn write(&self, name: &str, content: &str) -> PathBuf {
-            let p = self.0.join(name);
-            std::fs::write(&p, content).unwrap();
-            #[cfg(unix)]
-            {
-                use std::os::unix::fs::PermissionsExt;
-                std::fs::set_permissions(&p, std::fs::Permissions::from_mode(0o755)).unwrap();
-            }
-            p
-        }
-        fn set(&self, name: &str, content: &str) {
-            std::fs::write(self.0.join(name), content).unwrap();
-        }
-        fn calls(&self) -> String {
-            std::fs::read_to_string(self.0.join("herdr-calls.log")).unwrap_or_default()
-        }
-        fn runtime(&self) -> HerdrRuntime {
-            HerdrRuntime::with_bin(self.0.join("herdr").to_str().unwrap())
-        }
-        fn happy(&self) -> &Self {
-            self.set(
-                "workspace.json",
-                r#"{"result":{"workspace":{"workspace_id":"w1"},"root_pane":{"pane_id":"p-root"}}}"#,
-            );
-            self.set(
-                "agent_start.json",
-                r#"{"result":{"agent":{"pane_id":"p-1","name":"agent-a","tab_id":"t-1"}}}"#,
-            );
-            self.set(
-                "process_info.json",
-                r#"{"result":{"process_info":{"foreground_processes":[{"pid":4242}],"shell_pid":4000}}}"#,
-            );
-            self
-        }
+    /// Wire the canned responses every herdr start needs.
+    fn happy(f: &FixtureDir) {
+        f.set(
+            "workspace.json",
+            r#"{"result":{"workspace":{"workspace_id":"w1"},"root_pane":{"pane_id":"p-root"}}}"#,
+        );
+        f.set(
+            "agent_start.json",
+            r#"{"result":{"agent":{"pane_id":"p-1","name":"agent-a","tab_id":"t-1"}}}"#,
+        );
+        f.set(
+            "process_info.json",
+            r#"{"result":{"process_info":{"foreground_processes":[{"pid":4242}],"shell_pid":4000}}}"#,
+        );
     }
 
     fn input<'a>(name: &'a str, args: &'a [String]) -> StartInput<'a> {
@@ -334,8 +272,8 @@ exit 0
 
     #[test]
     fn unavailable_when_binary_missing() {
-        let f = Fixture::new("missing");
-        let rt = HerdrRuntime::with_bin(f.0.join("nope").to_str().unwrap());
+        let f = FixtureDir::new("missing");
+        let rt = HerdrRuntime::with_bin(&f.bin("nope"));
         let a = rt.is_available();
         assert!(!a.ok);
         assert_eq!(a.reason.as_deref(), Some("binary-missing"));
@@ -343,12 +281,12 @@ exit 0
 
     #[test]
     fn unavailable_when_backend_unreachable() {
-        let f = Fixture::new("backend");
-        f.write(
+        let f = FixtureDir::new("backend");
+        f.script(
             "herdr-bad",
             "#!/bin/sh\n[ \"$1\" = \"--version\" ] && echo ok && exit 0\nexit 1\n",
         );
-        let rt = HerdrRuntime::with_bin(f.0.join("herdr-bad").to_str().unwrap());
+        let rt = HerdrRuntime::with_bin(&f.bin("herdr-bad"));
         let a = rt.is_available();
         assert!(!a.ok);
         assert_eq!(a.reason.as_deref(), Some("backend-unreachable"));
@@ -356,12 +294,9 @@ exit 0
 
     #[test]
     fn start_creates_workspace_starts_agent_reads_pid() {
-        let f = {
-            let f = Fixture::new("happy");
-            f.happy();
-            f
-        };
-        let out = f.runtime().start(&input("agent-a", &[])).unwrap();
+        let f = FixtureDir::new("happy");
+        happy(&f);
+        let out = f.herdr().start(&input("agent-a", &[])).unwrap();
         assert_eq!(out.pid, 4242); // foreground pid preferred over shell_pid
         let r = &out.runtime_ref;
         assert_eq!(r["paneId"], "p-1");
@@ -369,7 +304,7 @@ exit 0
         assert_eq!(r["tabId"], "t-1");
         assert_eq!(r["agentName"], "agent-a");
         assert_eq!(r["session"], "default");
-        let calls = f.calls();
+        let calls = f.log("herdr-calls.log");
         assert!(calls.contains("workspace create --cwd /repo --label agent-a"));
         assert!(calls.contains("agent start agent-a --kind claude --pane p-root --timeout 1000"));
         assert!(calls.contains("pane process-info --pane p-1"));
@@ -377,37 +312,31 @@ exit 0
 
     #[test]
     fn extra_args_forwarded_after_double_dash() {
-        let f = {
-            let f = Fixture::new("args");
-            f.happy();
-            f
-        };
+        let f = FixtureDir::new("args");
+        happy(&f);
         let args = vec!["--flag".to_string(), "v".to_string()];
-        f.runtime().start(&input("agent-a", &args)).unwrap();
-        assert!(f.calls().contains("-- --flag v"));
+        f.herdr().start(&input("agent-a", &args)).unwrap();
+        assert!(f.log("herdr-calls.log").contains("-- --flag v"));
     }
 
     #[test]
     fn busy_retry_recovers_then_errors() {
-        let f = {
-            let f = Fixture::new("busy");
-            f.happy();
-            f
-        };
+        let f = FixtureDir::new("busy");
+        happy(&f);
         f.set("busy-limit", "2");
-        let out = f.runtime().start(&input("agent-a", &[])).unwrap();
+        let out = f.herdr().start(&input("agent-a", &[])).unwrap();
         assert_eq!(out.pid, 4242);
     }
 
     #[test]
     fn shell_pid_used_when_no_foreground() {
-        let f = Fixture::new("shellpid");
-        f.happy();
+        let f = FixtureDir::new("shellpid");
+        happy(&f);
         f.set(
             "process_info.json",
             r#"{"result":{"process_info":{"foreground_processes":[],"shell_pid":4321}}}"#,
         );
-        let out = f.runtime().start(&input("agent-a", &[])).unwrap();
+        let out = f.herdr().start(&input("agent-a", &[])).unwrap();
         assert_eq!(out.pid, 4321);
     }
 }

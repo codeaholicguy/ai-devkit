@@ -4,6 +4,8 @@
 //! an agent into its terminal substrate, and resolve the spawned pid.
 
 pub mod herdr;
+#[cfg(test)]
+pub(crate) mod testkit;
 pub mod tmux;
 
 use devkit_harness::start_profiles::MatchSpec;
@@ -97,9 +99,6 @@ impl std::fmt::Display for StartError {
 impl std::error::Error for StartError {}
 
 pub trait AgentRuntime: Send + Sync {
-    /// Provider id ("tmux"|"herdr") — used by upcoming lifecycle RPCs.
-    #[allow(dead_code)]
-    fn provider(&self) -> &'static str;
     fn is_available(&self) -> Availability;
     fn start(&self, input: &StartInput) -> Result<StartOutput, StartError>;
 }

@@ -97,7 +97,7 @@ async function reportDaemonStartError(err: DaemonRpcError): Promise<void> {
   const details = (err.details ?? {}) as Record<string, unknown>;
   switch (err.code) {
     case "name_in_use":
-      ui.error(`${err.message}`);
+      ui.error(err.message);
       break;
     case "runtime_unavailable":
       if (details.provider === "tmux") {

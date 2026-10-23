@@ -478,15 +478,6 @@ impl Store {
         Ok(rows.pop())
     }
 
-    /// pid of a live registration under `name`, if any. Tombstoned rows
-    /// (gone_at set) don't count.
-    pub fn live_name(&self, name: &str) -> Result<Option<i64>> {
-        Ok(self
-            .lookup_name(name)?
-            .filter(|r| r.gone_at.is_none())
-            .map(|r| r.pid))
-    }
-
     /// Remove a pid's registration row entirely (dead pending registration
     /// cleared ahead of a fresh start).
     pub fn unregister(&self, pid: i64) -> Result<()> {
@@ -790,11 +781,12 @@ mod tests {
             .unwrap();
         s.apply_agent_snapshot(&[]).unwrap();
         // Dead name does not block a new start once pruned.
-        assert_eq!(s.live_name("my-agent").unwrap(), None);
+        let tombstone = s.lookup_name("my-agent").unwrap().unwrap();
+        assert!(tombstone.gone_at.is_some());
         s.prune_dead().unwrap();
         s.register_start(20, "my-agent", "codex", "/tmp", "tmux", &json!({}))
             .unwrap();
-        assert_eq!(s.live_name("my-agent").unwrap(), Some(20));
+        assert_eq!(s.lookup_name("my-agent").unwrap().unwrap().pid, 20);
     }
 
     #[test]
@@ -803,7 +795,7 @@ mod tests {
         s.apply_agent_snapshot(&[proc_started(10, 1000)]).unwrap();
         s.register_start(10, "my-agent", "codex", "/tmp", "tmux", &json!({}))
             .unwrap();
-        assert_eq!(s.live_name("my-agent").unwrap(), Some(10));
+        assert_eq!(s.lookup_name("my-agent").unwrap().unwrap().pid, 10);
         // Unique index also hard-rejects a straight duplicate register.
         assert!(s
             .register_start(11, "my-agent", "codex", "/tmp", "tmux", &json!({}))
