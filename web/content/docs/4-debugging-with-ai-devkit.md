@@ -72,7 +72,7 @@ The `dev-debug` skill follows a proven methodology:
 - Identify relevant documentation or tickets
 
 **3. Reproduce & Isolate**
-- Create reliable reproduction steps
+- Create reliable reproduction steps; for user-flow bugs, capture them as a `dev-smoke` check that fails before the fix and passes after
 - Isolate the problem to specific components
 - Identify environment-specific factors
 

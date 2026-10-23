@@ -180,6 +180,7 @@ ai-devkit init --template ./senior-engineer.yaml
 | 调试变成猜测和乱改 | `dev-debug` 要求复现、假设、修复和验证 |
 | 现有代码不透明 | `document-code` 映射入口点、依赖和行为 |
 | 实现变得臃肿 | `dev-simplify` 在代码发布前降低复杂度 |
+| 单元测试通过但流程已损坏 | `dev-smoke` 在沙箱中端到端冒烟测试受影响的流程 |
 | 文档难以理解 | `technical-writer` 按新手用户清晰度审查文档 |
 
 需要更多能力？`ai-devkit skill add <registry> <skill>` 可以从 30+ 发布方拉取技能，包括 Anthropic、Vercel、Supabase、Microsoft、Google。

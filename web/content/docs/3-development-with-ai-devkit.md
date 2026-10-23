@@ -89,7 +89,7 @@ The orchestrator takes over from there:
 1. It walks you through **requirements gathering** — asking clarifying questions about your feature
 2. It proposes a phase plan before making changes
 3. Once requirements are clear, it routes to **requirements review**
-4. Then proceeds through **design review**, **planning**, **implementation**, **testing**, and **code review**
+4. Then proceeds through **design review**, **planning**, **implementation**, **testing**, and **code review**, running a `dev-smoke` check of the affected user flows before review
 
 You do not need separate workflow prompt files — the skill handles phase transitions for you.
 
@@ -103,6 +103,7 @@ The key difference from running individual commands: the skill **suggests and tr
 | Design review finds requirement issues | Loops back to requirements review |
 | Implementation doesn't match design | Loops back to design or implementation |
 | Tests reveal design flaws | Loops back to design review |
+| Smoke check finds a regression | Loops back to implementation |
 
 ### Resuming work
 

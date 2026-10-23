@@ -195,6 +195,7 @@ The flow above is powered by **27 built-in skills** (installed globally by `setu
 | Debugging becomes guess-and-patch | `dev-debug` makes it reproduce, hypothesize, fix, and verify |
 | Existing code is opaque | `document-code` maps entry points, dependencies, and behavior |
 | Implementation gets bloated | `dev-simplify` reduces complexity before code ships |
+| Unit tests pass but the flow is broken | `dev-smoke` smoke-tests the affected flows end to end in a sandbox |
 | Documentation is hard to follow | `document-code` maps code; add community `technical-writer` via `skill add` if needed |
 
 Need more? `ai-devkit skill add <registry> <skill>` pulls from 30+ publishers — Anthropic, Vercel, Supabase, Microsoft, Google. See the full built-in list in [Skills docs](https://ai-devkit.com/docs/7-skills/).
