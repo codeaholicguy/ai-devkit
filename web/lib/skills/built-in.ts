@@ -75,6 +75,7 @@ export const builtInSkills: BuiltInSkill[] = [
     useCases: [
       "Check the end-to-end flow when unit tests pass but the feature is untested",
       "Catch regressions in adjacent flows that share the changed code",
+      "Click through UI flows in a real browser with screenshots and console-error checks",
       "Tell new failures from pre-existing ones by rerunning on the base commit",
     ],
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
