@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- [5dc438c](https://github.com/codeaholicguy/ai-devkit/commit/5dc438c) Made `agent-orchestration` a built-in skill, and skills now refer to other skills by plain name instead of the Codex-only `$skill` form.
 - [29155fd](https://github.com/codeaholicguy/ai-devkit/commit/29155fd) Renamed the `structured-debug` skill to `dev-debug` (previously `debug`); reinstall it or update `.ai-devkit.json` to use the new name.
 - [08f1a74](https://github.com/codeaholicguy/ai-devkit/commit/08f1a74) Renamed the `simplify-implementation` skill to `dev-simplify` and `refactor` to `dev-refactor`, and made `dev-refactor` a built-in skill; reinstall or update `.ai-devkit.json` to use the new names.
 
