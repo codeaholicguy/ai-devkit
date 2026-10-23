@@ -12,6 +12,7 @@ Exercise the flows a change touches the way a user would, then throw the script 
 - Drive the real entry point: built binary, running server, CLI, UI, or job. Imported functions and mocks are not smoke checks.
 - Run in a sandbox: temp dir, isolated `HOME` and config, empty git hooks, throwaway data. Never touch real user state.
 - Never hit production, shared environments, real credentials, or paid APIs. Ask before any outward-facing side effect: messages, emails, webhooks, deploys, pushes.
+- Start servers on a dedicated port, wait until they respond, and stop the whole process tree on exit. Never reuse or kill the user's own running servers.
 - Keep secrets out of the script and its output. Read them from env vars only when the user provides them.
 - Write the script outside the repo (scratchpad or temp dir). Never commit it unless the user asks to promote it.
 - Timebox setup. If the app cannot run locally, say so and list what was not checked instead of faking a pass.
@@ -27,6 +28,7 @@ Exercise the flows a change touches the way a user would, then throw the script 
    - sandbox setup with cleanup on exit
    - one `run_check` per scenario that logs the command, exit code, and key output
    - assertions on output, files, HTTP status, or exit code, not just "it ran"
+   - for APIs: status, response body or shape, and at least one error case (bad input, missing auth) using test tokens
    - summary of PASS/FAIL per check and a non-zero exit on any failure
 7. Run it. Read the full output.
 8. If a check fails, rerun that check on the base commit in a separate worktree to tell a regression from a pre-existing failure.
@@ -36,7 +38,6 @@ Exercise the flows a change touches the way a user would, then throw the script 
 ## UI and Web
 
 - Drive a real browser. Use the harness's browser tool when available (for example Claude in Chrome or a Playwright MCP server); otherwise use `references/web-smoke-template.mjs` with Playwright installed in the sandbox, never in the project.
-- Start the app on a dedicated port, wait until the URL responds, and stop the whole process tree on exit. Never reuse or kill the user's own dev server.
 - Use a fresh browser context per check: no saved logins, cookies, or storage. Seed test accounts and data; never sign in with real ones.
 - Act like a user: navigate, click, fill forms, submit. Assert visible content, URL or route, network status, and zero console errors, not just that the page loaded.
 - Prefer role and text locators that match visible elements; hidden duplicates (mobile menus, templates) cause false failures.
