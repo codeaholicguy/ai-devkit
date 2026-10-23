@@ -16,16 +16,16 @@ graph TD
         TUI[console StartAgentPane] -->|spawns CLI| CLI
     end
     subgraph "rust/"
-        D[crates/devkitd<br/>server.rs dispatch] --> AS[agent_start.rs<br/>orchestration + mutex]
+        D[crates/devkitd<br/>server.rs dispatch] --> AS[rpc/agent/start.rs<br/>orchestration + mutex]
         AS --> RT[runtime/mod.rs<br/>trait AgentRuntime]
         RT --> TM[runtime/tmux.rs]
         RT --> HD[runtime/herdr.rs]
         AS --> SP[devkit-harness<br/>start_profiles.rs]
-        AS --> ST[devkit-core store.rs<br/>agents table + registry cols]
+        AS --> ST[devkit-core store.rs + store/registry.rs<br/>agents table + registry cols]
         AS --> EV[emit agent.started]
         SW[sweep loop] --> ST
     end
-    DC -.unix socket ~/.ai-devkit/daemon.sock.-> D
+    DC -.->|"unix socket ~/.ai-devkit/daemon.sock"| D
     AS -->|dual-write| LDB[~/.ai-devkit/agents.db<br/>legacy registry]
     ST -->|boot delta import| LDB
 ```
