@@ -192,14 +192,14 @@ impl AgentRuntime for HerdrRuntime {
     fn is_available(&self) -> Availability {
         match self.run(&["--version"]) {
             Err(HerdrCall::NotFound) => {
-                return Availability::missing("herdr command was not found in PATH.")
+                return Availability::Missing("herdr command was not found in PATH.".into())
             }
-            Err(e) => return Availability::unreachable(e.detail()),
+            Err(e) => return Availability::Unreachable(e.detail()),
             Ok(_) => {}
         }
         match self.run(&["api", "snapshot"]) {
-            Ok(_) => Availability::ok(),
-            Err(e) => Availability::unreachable(e.detail()),
+            Ok(_) => Availability::Ok,
+            Err(e) => Availability::Unreachable(e.detail()),
         }
     }
 
@@ -274,9 +274,7 @@ mod tests {
     fn unavailable_when_binary_missing() {
         let f = FixtureDir::new("missing");
         let rt = HerdrRuntime::with_bin(&f.bin("nope"));
-        let a = rt.is_available();
-        assert!(!a.ok);
-        assert_eq!(a.reason.as_deref(), Some("binary-missing"));
+        assert!(matches!(rt.is_available(), Availability::Missing(_)));
     }
 
     #[test]
@@ -287,9 +285,7 @@ mod tests {
             "#!/bin/sh\n[ \"$1\" = \"--version\" ] && echo ok && exit 0\nexit 1\n",
         );
         let rt = HerdrRuntime::with_bin(&f.bin("herdr-bad"));
-        let a = rt.is_available();
-        assert!(!a.ok);
-        assert_eq!(a.reason.as_deref(), Some("backend-unreachable"));
+        assert!(matches!(rt.is_available(), Availability::Unreachable(_)));
     }
 
     #[test]

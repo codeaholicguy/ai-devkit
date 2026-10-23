@@ -148,8 +148,8 @@ impl TmuxRuntime {
 impl AgentRuntime for TmuxRuntime {
     fn is_available(&self) -> Availability {
         match self.run(&["-V"]) {
-            Ok(_) => Availability::ok(),
-            Err(_) => Availability::missing("tmux is not installed or not in PATH."),
+            Ok(_) => Availability::Ok,
+            Err(_) => Availability::Missing("tmux is not installed or not in PATH.".into()),
         }
     }
 
@@ -217,11 +217,9 @@ mod tests {
     #[test]
     fn availability_follows_tmux_dash_v() {
         let f = FixtureDir::new("avail");
-        assert!(f.tmux().is_available().ok);
+        assert!(matches!(f.tmux().is_available(), Availability::Ok));
         let missing = TmuxRuntime::with_bins(&f.bin("nope"), "pgrep", "ps");
-        let a = missing.is_available();
-        assert!(!a.ok);
-        assert_eq!(a.reason.as_deref(), Some("binary-missing"));
+        assert!(matches!(missing.is_available(), Availability::Missing(_)));
     }
 
     #[test]

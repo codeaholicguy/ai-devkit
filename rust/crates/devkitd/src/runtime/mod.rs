@@ -15,34 +15,30 @@ pub use herdr::HerdrRuntime;
 pub use tmux::TmuxRuntime;
 
 /// Runtime availability, mirroring TS `AgentRuntimeAvailability`.
+/// Enum so `ok` can't disagree with the payload.
 #[derive(Debug)]
-pub struct Availability {
-    pub ok: bool,
-    /// "binary-missing" | "backend-unreachable" when !ok.
-    pub reason: Option<String>,
-    pub detail: Option<String>,
+pub enum Availability {
+    Ok,
+    /// Runtime binary not on PATH — wire reason "binary-missing".
+    Missing(String),
+    /// Binary exists but its backend is down — "backend-unreachable".
+    Unreachable(String),
 }
 
 impl Availability {
-    pub fn ok() -> Self {
-        Self {
-            ok: true,
-            reason: None,
-            detail: None,
+    /// Wire-facing reason string (None when available).
+    pub fn reason(&self) -> Option<&'static str> {
+        match self {
+            Availability::Ok => None,
+            Availability::Missing(_) => Some("binary-missing"),
+            Availability::Unreachable(_) => Some("backend-unreachable"),
         }
     }
-    pub fn missing(detail: impl Into<String>) -> Self {
-        Self {
-            ok: false,
-            reason: Some("binary-missing".into()),
-            detail: Some(detail.into()),
-        }
-    }
-    pub fn unreachable(detail: impl Into<String>) -> Self {
-        Self {
-            ok: false,
-            reason: Some("backend-unreachable".into()),
-            detail: Some(detail.into()),
+    /// Wire-facing detail message.
+    pub fn detail(&self) -> Option<&str> {
+        match self {
+            Availability::Ok => None,
+            Availability::Missing(d) | Availability::Unreachable(d) => Some(d),
         }
     }
 }

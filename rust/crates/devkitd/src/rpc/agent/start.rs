@@ -6,7 +6,7 @@
 
 use super::{generate_agent_name, pid_alive, valid_agent_name};
 use crate::rpc::RpcError;
-use crate::runtime::{AgentRuntime, Availability, Runtimes, StartError, StartInput};
+use crate::runtime::{AgentRuntime, Runtimes, StartError, StartInput};
 use crate::server::Daemon;
 use devkit_core::proto::{AgentStartParams, AgentStartResult};
 use devkit_core::store::iso8601_utc;
@@ -55,15 +55,15 @@ pub fn run_with(
     };
 
     let availability = runtime.is_available();
-    if !availability.ok {
-        let Availability { reason, detail, .. } = availability;
+    if let Some(reason) = availability.reason() {
+        let detail = availability.detail().unwrap_or_default();
         return Err(RpcError::new(
             "runtime_unavailable",
-            detail.clone().unwrap_or_default(),
+            detail.to_string(),
             Some(json!({
                 "provider": provider,
-                "reason": reason.unwrap_or_default(),
-                "detail": detail.unwrap_or_default(),
+                "reason": reason,
+                "detail": detail,
             })),
         ));
     }

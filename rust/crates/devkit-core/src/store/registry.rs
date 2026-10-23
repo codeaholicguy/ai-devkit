@@ -145,19 +145,21 @@ impl Store {
     /// Attach-by-pid could mislabel a process when a legacy pid was recycled
     /// between the legacy write and daemon boot — an accepted narrow race,
     /// the wrong name dies with that process's next sweep.
-    pub fn import_legacy_agents(&self) -> Result<()> {
+    /// Read all rows from the legacy DB. Returns None when the bridge is
+    /// off or the file is absent/unreadable — import is best-effort.
+    fn read_legacy_rows(&self) -> Result<Vec<LegacyRow>> {
         let Some(path) = self.legacy_db.lock().unwrap().clone() else {
-            return Ok(());
+            return Ok(vec![]);
         };
         if !path.exists() {
-            return Ok(());
+            return Ok(vec![]);
         }
         let legacy =
             match Connection::open_with_flags(&path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY) {
                 Ok(c) => c,
                 Err(e) => {
                     tracing::warn!("legacy agents.db unreadable ({e:#}); skipping import");
-                    return Ok(());
+                    return Ok(vec![]);
                 }
             };
         let mut stmt = match legacy
@@ -166,10 +168,10 @@ impl Store {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!("legacy agents.db lacks agents table ({e:#}); skipping import");
-                return Ok(());
+                return Ok(vec![]);
             }
         };
-        let rows: Vec<LegacyRow> = stmt
+        let rows = stmt
             .query_map([], |r| {
                 Ok((
                     r.get(0)?,
@@ -184,6 +186,14 @@ impl Store {
             })?
             .filter_map(|r| r.ok())
             .collect();
+        Ok(rows)
+    }
+
+    /// Merge legacy rows into the registry: attach to a live row for the
+    /// same pid, else insert as a tombstone (dead-by-default; the sweep
+    /// reanimates it if the pid is actually alive).
+    pub fn import_legacy_agents(&self) -> Result<()> {
+        let rows = self.read_legacy_rows()?;
 
         let conn = self.conn.lock().unwrap();
         let now = chrono_now();
