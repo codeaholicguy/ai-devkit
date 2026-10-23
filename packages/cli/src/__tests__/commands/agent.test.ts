@@ -89,6 +89,8 @@ const {
   mockHerdrReadOutput,
   mockHerdrFocus,
   mockHerdrStop,
+  mockEnsureDaemon,
+  mockDaemonStartAgent,
 } = vi.hoisted(() => ({
   mockEnableDebug: vi.fn(),
   mockDebugLogger: vi.fn(),
@@ -108,6 +110,8 @@ const {
   mockHerdrReadOutput: vi.fn().mockResolvedValue("done\n"),
   mockHerdrFocus: vi.fn().mockResolvedValue(true),
   mockHerdrStop: vi.fn().mockResolvedValue(undefined),
+  mockEnsureDaemon: vi.fn().mockResolvedValue(null),
+  mockDaemonStartAgent: vi.fn(),
 }));
 let restoreStdin: (() => void) | undefined;
 
@@ -337,6 +341,14 @@ vi.mock("../../lib/Config.js", () => ({
   }),
 }));
 
+vi.mock("@ai-devkit/daemon-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@ai-devkit/daemon-client")>();
+  return {
+    ...actual,
+    ensureDaemon: mockEnsureDaemon,
+  };
+});
+
 vi.mock("../../tui/console/ConsoleApp.js", () => ({
   ConsoleApp: () => null,
 }));
@@ -417,6 +429,8 @@ describe("agent command", () => {
     mockDurableService.send.mockReset();
     mockPiPrintService.create.mockReset();
     mockPiPrintService.send.mockReset();
+    mockEnsureDaemon.mockReset().mockResolvedValue(null);
+    mockDaemonStartAgent.mockReset();
     mockFocusManager.findTerminal.mockReset();
     mockFocusManager.focusTerminal.mockReset();
     mockTtyWriterSend.mockReset().mockResolvedValue(undefined);
@@ -759,6 +773,199 @@ describe("agent command", () => {
     );
     expect(mockHerdrStartAgent).not.toHaveBeenCalled();
     expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  describe("daemon-routed start", () => {
+    function daemonUp(result: unknown) {
+      const client = {
+        startAgent: mockDaemonStartAgent,
+        close: vi.fn(),
+      };
+      mockEnsureDaemon.mockResolvedValue(client);
+      mockDaemonStartAgent.mockResolvedValue(result);
+      return client;
+    }
+
+    it("starts through the daemon and skips the local path", async () => {
+      const client = daemonUp({
+        name: "agent1",
+        type: "claude",
+        pid: 4242,
+        runtime: "tmux",
+        runtimeRef: { session: "agent1" },
+        cwd: process.cwd(),
+        startedAt: "2026-10-17T00:00:00.000Z",
+        warnings: [],
+      });
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "claude",
+        "--name",
+        "agent1",
+      ]);
+
+      expect(mockDaemonStartAgent).toHaveBeenCalledWith({
+        type: "claude",
+        name: "agent1",
+        cwd: process.cwd(),
+        runtime: "tmux",
+      });
+      expect(mockStartAgent).not.toHaveBeenCalled();
+      expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (claude, PID 4242)');
+      expect(ui.text).toHaveBeenCalledWith("Attach: tmux attach -t agent1");
+      expect(client.close).toHaveBeenCalled();
+    });
+
+    it("forwards daemon warnings", async () => {
+      daemonUp({
+        name: "agent1",
+        type: "claude",
+        pid: 1,
+        runtime: "tmux",
+        runtimeRef: { session: "agent1" },
+        cwd: process.cwd(),
+        startedAt: "2026-10-17T00:00:00.000Z",
+        warnings: [
+          'tmux session "agent1" already exists but has no live registry entry — it will be replaced.',
+        ],
+      });
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "claude",
+        "--name",
+        "agent1",
+      ]);
+
+      expect(ui.warning).toHaveBeenCalledWith(
+        'tmux session "agent1" already exists but has no live registry entry — it will be replaced.',
+      );
+    });
+
+    it("reports coded daemon errors without falling back", async () => {
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      const client = {
+        startAgent: mockDaemonStartAgent,
+        close: vi.fn(),
+      };
+      mockEnsureDaemon.mockResolvedValue(client);
+      mockDaemonStartAgent.mockRejectedValue(
+        new DaemonRpcError(
+          'Agent "agent1" is already running (PID 77). Choose a different name.',
+          "name_in_use",
+          { pid: 77 },
+        ),
+      );
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "claude",
+        "--name",
+        "agent1",
+      ]);
+
+      expect(ui.error).toHaveBeenCalledWith(
+        'Agent "agent1" is already running (PID 77). Choose a different name.',
+      );
+      expect(mockStartAgent).not.toHaveBeenCalled();
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("maps pid_poll_timeout details to the existing message", async () => {
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockEnsureDaemon.mockResolvedValue({
+        startAgent: mockDaemonStartAgent,
+        close: vi.fn(),
+      });
+      mockDaemonStartAgent.mockRejectedValue(
+        new DaemonRpcError("timeout", "pid_poll_timeout", {
+          command: "claude",
+          timeoutMs: 15000,
+        }),
+      );
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "claude",
+        "--name",
+        "agent1",
+      ]);
+
+      expect(ui.error).toHaveBeenCalledWith(
+        'Agent process not found after 15s. Verify that "claude" is in PATH inside the tmux environment.',
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("falls back to the local path on unknown method (old devkitd)", async () => {
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockEnsureDaemon.mockResolvedValue({
+        startAgent: mockDaemonStartAgent,
+        close: vi.fn(),
+      });
+      mockDaemonStartAgent.mockRejectedValue(new DaemonRpcError("unknown method: agent.start"));
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "claude",
+        "--name",
+        "agent1",
+      ]);
+
+      expect(mockStartAgent).toHaveBeenCalledTimes(1);
+      expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (claude, PID 12345)');
+    });
+
+    it("falls back to the local path when the daemon is unreachable", async () => {
+      mockEnsureDaemon.mockResolvedValue(null);
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "claude",
+        "--name",
+        "agent1",
+      ]);
+
+      expect(mockStartAgent).toHaveBeenCalledTimes(1);
+      expect(mockDaemonStartAgent).not.toHaveBeenCalled();
+    });
   });
 
   it("shows info when no agents are running", async () => {

@@ -26,6 +26,8 @@ pub struct Daemon {
     pub enriched: RwLock<Vec<EnrichedAgent>>,
     /// User home dir adapters resolve session trees (~/.claude, …) against.
     pub home: PathBuf,
+    /// Serializes agent.start so name-uniqueness can't race.
+    pub start_mutex: std::sync::Mutex<()>,
 }
 
 impl Daemon {
@@ -54,8 +56,16 @@ impl Daemon {
             }
         };
         let (tx, _) = broadcast::channel(1024);
+        let store = Arc::new(store);
+        // Legacy agents.db bridge: adopt pre-migration registrations as
+        // tombstones, then dual-write future starts back so unmigrated TS
+        // consumers keep resolving agents.
+        store.set_legacy_db(data_dir.join("agents.db"))?;
+        if let Err(e) = store.import_legacy_agents() {
+            tracing::warn!("legacy agents.db import failed: {e:#}");
+        }
         Ok(Self {
-            store: Arc::new(store),
+            store,
             events: tx,
             emit_mutex: std::sync::Mutex::new(()),
             started_at: chrono_now(),
@@ -63,10 +73,11 @@ impl Daemon {
             enricher: devkit_harness::default_registry(&home),
             enriched: RwLock::new(Vec::new()),
             home,
+            start_mutex: std::sync::Mutex::new(()),
         })
     }
 
-    fn emit(&self, kind: &str, payload: Value) {
+    pub(crate) fn emit(&self, kind: &str, payload: Value) {
         let _g = self.emit_mutex.lock().unwrap();
         match self.store.emit(kind, &payload) {
             Ok(seq) => {
@@ -100,6 +111,25 @@ impl Daemon {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
             }
+            "agent.start" => {
+                let params = match Self::parse_params::<devkit_core::proto::AgentStartParams>(
+                    &req,
+                    "agent.start",
+                ) {
+                    Ok(p) => p,
+                    Err(resp) => return *resp,
+                };
+                match crate::rpc::agent::start::run_with(
+                    self,
+                    params,
+                    &crate::runtime::Runtimes::default(),
+                ) {
+                    Ok(result) => {
+                        Response::ok(id, serde_json::to_value(result).unwrap_or_default())
+                    }
+                    Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+                }
+            }
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
                 tokio::spawn(async {
@@ -110,6 +140,23 @@ impl Daemon {
             }
             m => Response::err(id, format!("unknown method: {m}")),
         }
+    }
+
+    /// Parse `req.params` into `T`, mapping failure onto an
+    /// `invalid_params` coded response. Every method arm uses this —
+    /// keeps the serde error text uniform.
+    fn parse_params<T>(req: &Request, method: &str) -> Result<T, Box<Response>>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_value(req.params.clone()).map_err(|e| {
+            Box::new(Response::err_coded(
+                req.id,
+                "invalid_params",
+                format!("invalid {method} params: {e}"),
+                None,
+            ))
+        })
     }
 
     /// Apply a discovery sweep, refresh the enriched cache, and emit
@@ -148,7 +195,18 @@ impl Daemon {
         };
         // Compute outside the lock: `*w = f()` evaluates the write guard first
         // and would hold it for the entire enrich pass.
-        let enriched = self.enricher.enrich(&ctx);
+        let mut enriched = self.enricher.enrich(&ctx);
+        // Registry overlay: daemon-registered names/pins win over adapter-
+        // derived labels. Tombstones excluded (dead rows don't label live
+        // observations).
+        if let Ok(overlays) = self.store.registry_overlays() {
+            for a in enriched.iter_mut() {
+                if let Some((name, pinned)) = overlays.get(&(a.pid as i64)) {
+                    a.name = name.clone();
+                    a.pinned = Some(*pinned);
+                }
+            }
+        }
         // Keep the previous list: a disappeared pid is absent from the fresh
         // one, so its event payload carries last-known agent info.
         let prev = std::mem::replace(&mut *self.enriched.write().unwrap(), enriched);

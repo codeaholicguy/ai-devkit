@@ -2,7 +2,7 @@ use crate::proto::Event;
 use anyhow::{Context, Result};
 use rusqlite::{params, Connection};
 use serde_json::Value;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 /// Newest events kept before retention pruning kicks in.
@@ -12,8 +12,14 @@ const PRUNE_EVERY: i64 = 512;
 
 /// Daemon-owned store: the persisted agent snapshot (for diff/events across
 /// restarts) and the durable event log. The daemon is the sole writer.
+mod registry;
+pub use registry::Registration;
+
 pub struct Store {
     conn: Mutex<Connection>,
+    /// Legacy agent registry (`~/.ai-devkit/agents.db`) — dual-write target
+    /// while unmigrated TS consumers still read it.
+    legacy_db: Mutex<Option<PathBuf>>,
 }
 
 impl Store {
@@ -41,19 +47,54 @@ impl Store {
                 last_seen        INTEGER NOT NULL
             );",
         )?;
-        // Migration: databases created before start_time-keyed identity lack
-        // the column — add it in place.
+        // Migrations: databases created before later identity/registry
+        // columns lack them — add each missing column in place.
         {
             let mut s = conn.prepare("PRAGMA table_info(agents)")?;
             let cols = s
                 .query_map([], |r| r.get::<_, String>(1))?
                 .collect::<std::result::Result<Vec<String>, _>>()?;
-            if !cols.iter().any(|c| c == "start_time_ms") {
-                conn.execute("ALTER TABLE agents ADD COLUMN start_time_ms INTEGER", [])?;
+            for (col, ddl) in [
+                (
+                    "start_time_ms",
+                    "ALTER TABLE agents ADD COLUMN start_time_ms INTEGER",
+                ),
+                // Registry columns — NULL/empty until `register_start` claims
+                // the row. `name` doubles as the "is registered" marker.
+                ("name", "ALTER TABLE agents ADD COLUMN name TEXT"),
+                (
+                    "agent_type",
+                    "ALTER TABLE agents ADD COLUMN agent_type TEXT",
+                ),
+                ("runtime", "ALTER TABLE agents ADD COLUMN runtime TEXT"),
+                (
+                    "runtime_ref",
+                    "ALTER TABLE agents ADD COLUMN runtime_ref TEXT NOT NULL DEFAULT ''",
+                ),
+                (
+                    "pinned",
+                    "ALTER TABLE agents ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0",
+                ),
+                (
+                    "registered_at",
+                    "ALTER TABLE agents ADD COLUMN registered_at INTEGER",
+                ),
+                // Disappearance acknowledged: tombstone marker so repeated
+                // sweeps don't re-emit agent.disappeared for dead rows.
+                ("gone_at", "ALTER TABLE agents ADD COLUMN gone_at INTEGER"),
+            ] {
+                if !cols.iter().any(|c| c == col) {
+                    conn.execute(ddl, [])?;
+                }
             }
+            conn.execute_batch(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_agents_name
+                 ON agents(name) WHERE name IS NOT NULL;",
+            )?;
         }
         Ok(Self {
             conn: Mutex::new(conn),
+            legacy_db: Mutex::new(None),
         })
     }
 
@@ -100,6 +141,12 @@ impl Store {
 
     /// Replace the live-agent snapshot with the latest discovery sweep.
     /// Returns (appeared_pids, disappeared_pids) so the server can emit events.
+    ///
+    /// Identity is (pid, start_time_ms). Registry columns change the row
+    /// lifecycle: registered rows (name non-NULL) that disappear become
+    /// tombstones (gone_at set, row kept for runtime_ref cleanup) instead of
+    /// being deleted, and rows registered before their first sweep
+    /// (start_time_ms NULL) are adopted rather than deleted+reinserted.
     pub fn apply_agent_snapshot(
         &self,
         agents: &[crate::discover::AgentProc],
@@ -107,30 +154,85 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let now = chrono_now();
         let tx = conn.unchecked_transaction()?;
-        // Identity is (pid, start_time_ms) — pid alone breaks under reuse: a
-        // recycled pid would silently inherit the dead process's first_seen
-        // and emit no appeared/disappeared events at all.
-        let known: std::collections::HashSet<(i64, Option<i64>)> = {
-            let mut s = tx.prepare("SELECT pid, start_time_ms FROM agents")?;
+        // pid -> (start_time_ms, registered, gone_at)
+        let known: std::collections::HashMap<i64, (Option<i64>, bool, Option<i64>)> = {
+            let mut s = tx.prepare("SELECT pid, start_time_ms, name, gone_at FROM agents")?;
             let v = s
-                .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-                .collect::<std::result::Result<std::collections::HashSet<(i64, Option<i64>)>, _>>(
-                )?;
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        (
+                            r.get::<_, Option<i64>>(1)?,
+                            r.get::<_, Option<String>>(2)?.is_some(),
+                            r.get::<_, Option<i64>>(3)?,
+                        ),
+                    ))
+                })?
+                .collect::<std::result::Result<
+                    std::collections::HashMap<i64, (Option<i64>, bool, Option<i64>)>,
+                    _,
+                >>()?;
             v
         };
-        let current: std::collections::HashSet<(i64, Option<i64>)> =
-            agents.iter().map(|a| (a.pid, a.start_time_ms)).collect();
+        let current: std::collections::HashSet<i64> = agents.iter().map(|a| a.pid).collect();
 
-        let mut appeared: Vec<i64> = current.difference(&known).map(|(pid, _)| *pid).collect();
-        let mut gone: Vec<i64> = known.difference(&current).map(|(pid, _)| *pid).collect();
-        appeared.sort_unstable();
-        gone.sort_unstable();
+        let mut appeared: Vec<i64> = Vec::new();
+        let mut gone: Vec<i64> = Vec::new();
 
-        // Delete first so a reused pid drops its stale row (first_seen resets)
-        // and reappears via insert rather than an in-place update.
-        for pid in &gone {
-            tx.execute("DELETE FROM agents WHERE pid=?1", params![pid])?;
+        for a in agents {
+            match known.get(&a.pid) {
+                None => appeared.push(a.pid),
+                Some((Some(st), _, _)) if Some(*st) == a.start_time_ms => {}
+                // Registered before its first sweep — adopt the real start
+                // time via the upsert below; first observation counts as
+                // appeared. Unregistered NULL-st rows getting a start time
+                // resolve silently (same proc, previously unmeasured).
+                Some((None, registered, _)) => {
+                    if *registered {
+                        appeared.push(a.pid);
+                    }
+                }
+                Some((Some(_), _, _)) if a.start_time_ms.is_none() => {
+                    // Sweep couldn't measure start time this pass — can't
+                    // distinguish identity change; keep the row and its
+                    // registration rather than nuking on flaky data.
+                }
+                Some((Some(_), _, _)) => {
+                    // start_time mismatch → pid reuse: drop the whole row
+                    // incl. registration; a recycled pid must not inherit a
+                    // dead agent's name.
+                    gone.push(a.pid);
+                    appeared.push(a.pid);
+                    tx.execute("DELETE FROM agents WHERE pid=?1", params![a.pid])?;
+                }
+            }
         }
+
+        for (pid, (_, registered, gone_at)) in &known {
+            if current.contains(pid) {
+                continue;
+            }
+            if *registered {
+                if gone_at.is_none() {
+                    // First disappearance: tombstone the row — runtime_ref
+                    // stays available for cleanup of a lingering pane.
+                    gone.push(*pid);
+                    tx.execute(
+                        "UPDATE agents SET gone_at=?2 WHERE pid=?1",
+                        params![pid, now],
+                    )?;
+                }
+            } else {
+                gone.push(*pid);
+                tx.execute("DELETE FROM agents WHERE pid=?1", params![pid])?;
+            }
+        }
+
+        appeared.sort_unstable();
+        appeared.dedup();
+        gone.sort_unstable();
+        gone.dedup();
+
         for a in agents {
             tx.execute(
                 "INSERT INTO agents (pid,ppid,tty,command,cwd,session_file,start_time_ms,first_seen,last_seen)
@@ -138,8 +240,8 @@ impl Store {
                  ON CONFLICT(pid) DO UPDATE SET
                    ppid=excluded.ppid, tty=excluded.tty, command=excluded.command,
                    cwd=excluded.cwd, session_file=excluded.session_file,
-                   start_time_ms=excluded.start_time_ms,
-                   last_seen=excluded.last_seen",
+                   start_time_ms=COALESCE(excluded.start_time_ms, agents.start_time_ms),
+                   last_seen=excluded.last_seen, gone_at=NULL",
                 params![a.pid, a.ppid, a.tty, a.command, a.cwd, a.session_file, a.start_time_ms, now],
             )?;
         }
@@ -151,7 +253,7 @@ impl Store {
     pub fn list_agents(&self) -> Result<Vec<Value>> {
         let conn = self.conn.lock().unwrap();
         let mut s = conn.prepare(
-            "SELECT pid,ppid,tty,command,cwd,session_file,start_time_ms,first_seen,last_seen FROM agents ORDER BY pid",
+            "SELECT pid,ppid,tty,command,cwd,session_file,start_time_ms,first_seen,last_seen,name,agent_type,runtime,registered_at,gone_at FROM agents ORDER BY pid",
         )?;
         let rows = s.query_map([], |r| {
             Ok(serde_json::json!({
@@ -164,10 +266,35 @@ impl Store {
                 "startTime": r.get::<_, Option<i64>>(6)?,
                 "firstSeen": r.get::<_, i64>(7)?,
                 "lastSeen": r.get::<_, i64>(8)?,
+                "name": r.get::<_, Option<String>>(9)?,
+                "agentType": r.get::<_, Option<String>>(10)?,
+                "runtime": r.get::<_, Option<String>>(11)?,
+                "registeredAt": r.get::<_, Option<i64>>(12)?,
+                "goneAt": r.get::<_, Option<i64>>(13)?,
             }))
         })?;
         rows.collect::<std::result::Result<Vec<_>, _>>()
             .map_err(Into::into)
+    }
+}
+
+/// RFC3339/ISO-8601 UTC rendering of epoch ms — the `started_at` format the
+/// legacy agents.db stores. Uses gmtime_r to avoid a chrono dependency.
+pub fn iso8601_utc(ms: i64) -> String {
+    unsafe {
+        let secs = (ms / 1000) as libc::time_t;
+        let mut tm: libc::tm = std::mem::zeroed();
+        libc::gmtime_r(&secs, &mut tm);
+        format!(
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}.{:03}Z",
+            tm.tm_year + 1900,
+            tm.tm_mon + 1,
+            tm.tm_mday,
+            tm.tm_hour,
+            tm.tm_min,
+            tm.tm_sec,
+            ms.rem_euclid(1000)
+        )
     }
 }
 
@@ -185,7 +312,7 @@ mod tests {
     use serde_json::json;
     use std::path::PathBuf;
 
-    fn tmp_store() -> (Store, PathBuf) {
+    pub(crate) fn tmp_store() -> (Store, PathBuf) {
         static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!("aidk-test-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
@@ -197,7 +324,7 @@ mod tests {
         (Store::open(&p).unwrap(), p)
     }
 
-    fn proc(pid: i64) -> AgentProc {
+    pub(crate) fn proc(pid: i64) -> AgentProc {
         AgentProc {
             pid,
             ppid: Some(1),
@@ -209,7 +336,7 @@ mod tests {
         }
     }
 
-    fn proc_started(pid: i64, start: i64) -> AgentProc {
+    pub(crate) fn proc_started(pid: i64, start: i64) -> AgentProc {
         AgentProc {
             start_time_ms: Some(start),
             ..proc(pid)

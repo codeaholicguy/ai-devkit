@@ -24,6 +24,15 @@ pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[ts(optional)]
     pub error: Option<String>,
+    /// Machine-readable error code (e.g. "name_in_use"). Absent on legacy
+    /// errors — clients must handle its absence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub code: Option<String>,
+    /// Structured error context (pid, command, timeoutMs, ...).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "unknown")]
+    pub details: Option<Value>,
 }
 
 impl Response {
@@ -32,6 +41,8 @@ impl Response {
             id,
             result: Some(result),
             error: None,
+            code: None,
+            details: None,
         }
     }
     pub fn err(id: Option<u64>, msg: impl Into<String>) -> Self {
@@ -39,8 +50,69 @@ impl Response {
             id,
             result: None,
             error: Some(msg.into()),
+            code: None,
+            details: None,
         }
     }
+    pub fn err_coded(
+        id: Option<u64>,
+        code: impl Into<String>,
+        msg: impl Into<String>,
+        details: Option<Value>,
+    ) -> Self {
+        Self {
+            id,
+            result: None,
+            error: Some(msg.into()),
+            code: Some(code.into()),
+            details,
+        }
+    }
+}
+
+/// Params for `agent.start`. Mirrors the TS `StartAgentOptions` surface that
+/// crosses the wire — `runtime` is the provider ("tmux" | "herdr"), resolved
+/// client-side from config.
+#[derive(Debug, Deserialize, TS)]
+pub struct AgentStartParams {
+    #[serde(rename = "type")]
+    pub agent_type: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub name: Option<String>,
+    pub cwd: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub runtime: Option<String>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub args: Option<Vec<String>>,
+    #[serde(default, rename = "timeoutMs")]
+    #[ts(optional, type = "number")]
+    pub timeout_ms: Option<u64>,
+    #[serde(default, rename = "pollIntervalMs")]
+    #[ts(optional, type = "number")]
+    pub poll_interval_ms: Option<u64>,
+}
+
+/// `agent.start` result — the registered entry plus non-fatal warnings the
+/// CLI renders verbatim.
+#[derive(Debug, Serialize, TS)]
+pub struct AgentStartResult {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub agent_type: String,
+    #[ts(type = "number")]
+    pub pid: u64,
+    pub runtime: String,
+    #[serde(rename = "runtimeRef")]
+    #[ts(type = "unknown")]
+    pub runtime_ref: Value,
+    pub cwd: String,
+    #[serde(rename = "startedAt")]
+    pub started_at: String,
+    #[serde(default)]
+    pub warnings: Vec<String>,
 }
 
 /// Event pushed to subscribers. `seq` is the persisted log sequence number —
@@ -74,6 +146,8 @@ mod tests {
         Request::export(&cfg).unwrap();
         Response::export(&cfg).unwrap();
         Event::export(&cfg).unwrap();
+        AgentStartParams::export(&cfg).unwrap();
+        AgentStartResult::export(&cfg).unwrap();
         crate::agent::EnrichedAgent::export(&cfg).unwrap();
 
         // ts-rs emits `import ... from "./X"` without the `.js` extension
@@ -121,6 +195,59 @@ mod tests {
         assert!(!serde_json::to_string(&Response::err(None, "bad"))
             .unwrap()
             .contains("\"id\""));
+    }
+
+    #[test]
+    fn response_carries_error_code_and_details() {
+        let err = serde_json::to_string(&Response::err_coded(
+            Some(3),
+            "name_in_use",
+            "Agent \"x\" is already running (PID 42).",
+            Some(json!({"pid": 42})),
+        ))
+        .unwrap();
+        let v: Value = serde_json::from_str(&err).unwrap();
+        assert_eq!(v["code"], "name_in_use");
+        assert_eq!(v["details"]["pid"], 42);
+        // Old clients still see a plain error string.
+        assert!(v["error"].as_str().unwrap().contains("already running"));
+        // code/details omitted when absent.
+        assert!(!serde_json::to_string(&Response::err(Some(2), "nope"))
+            .unwrap()
+            .contains("\"code\""));
+    }
+
+    #[test]
+    fn agent_start_params_deserialize() {
+        let p: AgentStartParams = serde_json::from_str(
+            r#"{"type":"claude","cwd":"/repo","runtime":"tmux",
+               "args":["--x"],"timeoutMs":15000,"pollIntervalMs":500}"#,
+        )
+        .unwrap();
+        assert_eq!(p.agent_type, "claude");
+        assert_eq!(p.cwd, "/repo");
+        assert_eq!(p.runtime.as_deref(), Some("tmux"));
+        assert_eq!(p.timeout_ms, Some(15000));
+        assert!(p.name.is_none());
+    }
+
+    #[test]
+    fn agent_start_result_serializes_registry_entry_shape() {
+        let r = AgentStartResult {
+            name: "foo".into(),
+            agent_type: "claude".into(),
+            pid: 4242,
+            runtime: "tmux".into(),
+            runtime_ref: json!({"session": "foo"}),
+            cwd: "/repo".into(),
+            started_at: "2026-10-17T00:00:00.000Z".into(),
+            warnings: vec!["orphan replaced".into()],
+        };
+        let v: Value = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
+        assert_eq!(v["type"], "claude");
+        assert_eq!(v["runtimeRef"]["session"], "foo");
+        assert_eq!(v["startedAt"], "2026-10-17T00:00:00.000Z");
+        assert_eq!(v["warnings"][0], "orphan replaced");
     }
 
     #[test]

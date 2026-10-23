@@ -118,6 +118,7 @@ dependencies = [
  "devkit-core",
  "devkit-harness",
  "libc",
+ "serde",
  "serde_json",
  "tokio",
  "tracing",

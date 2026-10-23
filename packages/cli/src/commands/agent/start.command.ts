@@ -15,13 +15,117 @@ import {
 } from "@ai-devkit/agent-manager";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
-import { enableDebug } from "../../util/debug.js";
+import { createLogger, enableDebug } from "../../util/debug.js";
 import { AGENT_NAME_REGEX, generateAgentName } from "../../util/agent.js";
 import { resolveTmuxInstallInstructions } from "../../util/tmux.js";
 import { createTmuxInspectionDeps } from "../../util/tmux-deps.js";
 import { ConfigManager } from "../../lib/Config.js";
 import { createDurableAgentService } from "./factory.js";
 import { formatCwd, formatPrintProvider } from "./render.js";
+import { DaemonRpcError, ensureDaemon } from "@ai-devkit/daemon-client";
+
+interface StartedEntry {
+  name: string;
+  type: string;
+  pid: number;
+  runtime: string;
+  runtimeRef: unknown;
+  cwd: string;
+}
+
+function renderStartedAgent(entry: StartedEntry): void {
+  ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
+  ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
+  if (entry.runtime === "herdr") {
+    ui.text("Runtime: herdr");
+  } else {
+    const tmuxRef = parseTmuxRuntimeRef(entry.runtimeRef);
+    if (tmuxRef) ui.text(`Attach: tmux attach -t ${tmuxRef.session}`);
+  }
+}
+
+/**
+ * Daemon-first start: devkitd owns spawning + registration when reachable.
+ * Falls back to the local TS path on connect-failure or `unknown method`
+ * (older devkitd on the socket). Coded daemon errors render the same
+ * messages as their typed-error equivalents — no retry, the daemon already
+ * reported the real failure.
+ */
+const debug = createLogger("agent:start");
+
+async function tryDaemonStart(input: {
+  agentType: StartableAgentType;
+  agentName: string;
+  cwd: string;
+  runtimeProvider: string;
+}): Promise<"done" | "fallback" | "failed"> {
+  const daemon = await ensureDaemon({ onDebug: debug });
+  if (!daemon) {
+    debug("no daemon available -> falling back to local startAgent path");
+    return "fallback";
+  }
+  debug("daemon path: calling agent.start over the daemon socket");
+  try {
+    const result = await daemon.startAgent({
+      type: input.agentType,
+      name: input.agentName,
+      cwd: input.cwd,
+      runtime: input.runtimeProvider,
+    });
+    for (const warning of result.warnings ?? []) ui.warning(warning);
+    renderStartedAgent({
+      name: result.name,
+      type: result.type,
+      pid: result.pid,
+      runtime: result.runtime,
+      runtimeRef: result.runtimeRef,
+      cwd: result.cwd,
+    });
+    return "done";
+  } catch (err) {
+    if (err instanceof DaemonRpcError && err.code) {
+      debug(`daemon returned coded error ${err.code}; not retrying locally`);
+      await reportDaemonStartError(err);
+      return "failed";
+    }
+    if (err instanceof Error && err.message.startsWith("unknown method")) {
+      debug("daemon predates agent.start (unknown method) -> local fallback");
+      return "fallback"; // pre-agent.start devkitd
+    }
+    // Transport failure mid-request — the daemon may have completed the
+    // start; retrying locally could double-spawn. Report, don't retry.
+    debug("transport failure mid-request; reporting without retry");
+    ui.error(err instanceof Error ? err.message : String(err));
+    return "failed";
+  } finally {
+    daemon.close();
+  }
+}
+
+async function reportDaemonStartError(err: DaemonRpcError): Promise<void> {
+  const details = (err.details ?? {}) as Record<string, unknown>;
+  switch (err.code) {
+    case "name_in_use":
+      ui.error(err.message);
+      break;
+    case "runtime_unavailable":
+      if (details.provider === "tmux") {
+        const instructions = await resolveTmuxInstallInstructions(createTmuxInspectionDeps());
+        ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
+      } else {
+        ui.error(`Herdr runtime is unavailable (${details.reason}): ${details.detail}`);
+      }
+      break;
+    case "pid_poll_timeout":
+      ui.error(
+        `Agent process not found after ${Number(details.timeoutMs) / 1000}s. ` +
+          `Verify that "${details.command}" is in PATH inside the tmux environment.`,
+      );
+      break;
+    default:
+      ui.error(err.message);
+  }
+}
 
 async function reportStartError(err: unknown): Promise<void> {
   if (err instanceof TmuxUnavailableError) {
@@ -110,6 +214,18 @@ export function registerAgentStartCommand(agentCommand: Command): void {
             return;
           }
           const runtimeProvider = await new ConfigManager().getAgentRuntimeProvider();
+          const routed = await tryDaemonStart({
+            agentType: agentType as StartableAgentType,
+            agentName,
+            cwd,
+            runtimeProvider,
+          });
+          if (routed === "done") return;
+          if (routed === "failed") {
+            process.exit(1);
+            return; // process.exit is mocked under test — don't fall through
+          }
+          debug("local startAgent path (no daemon or older devkitd)");
           const entry = await startAgent(
             {
               type: agentType as StartableAgentType,
@@ -119,14 +235,7 @@ export function registerAgentStartCommand(agentCommand: Command): void {
             },
             { onWarning: (msg: string) => ui.warning(msg) },
           );
-          ui.success(`Agent "${entry.name}" started (${entry.type}, PID ${entry.pid})`);
-          ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
-          if (entry.runtime === "herdr") {
-            ui.text("Runtime: herdr");
-          } else {
-            const tmuxRef = parseTmuxRuntimeRef(entry.runtimeRef);
-            if (tmuxRef) ui.text(`Attach: tmux attach -t ${tmuxRef.session}`);
-          }
+          renderStartedAgent(entry);
         } catch (err) {
           await reportStartError(err);
           process.exit(1);

@@ -123,6 +123,31 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
     expect(Array.isArray(result)).toBe(true);
     client!.close();
   }, 30000);
+
+  it("startAgent surfaces coded daemon errors", async () => {
+    // Isolated HOME guarantees a fresh devkitd at the current build — a
+    // stale user daemon on the real socket would answer "unknown method".
+    const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-home-"));
+    const prevHome = process.env.HOME;
+    process.env.HOME = tmpHome;
+    try {
+      const client = await ensureDaemon({ waitMs: 20000 });
+      expect(client).not.toBeNull();
+      // Unknown harness type → harness_not_startable (no spawn attempted).
+      await expect(client!.startAgent({ type: "nonsense", cwd: "/" })).rejects.toMatchObject({
+        code: "harness_not_startable",
+      });
+      // Bad name → invalid_params before anything spawns.
+      await expect(
+        client!.startAgent({ type: "claude", name: "BAD NAME", cwd: "/" }),
+      ).rejects.toMatchObject({ code: "invalid_params" });
+      await client!.request("shutdown").catch(() => {});
+      client!.close();
+    } finally {
+      if (prevHome === undefined) delete process.env.HOME;
+      else process.env.HOME = prevHome;
+    }
+  }, 30000);
 });
 
 describe.runIf(fs.existsSync(sock))("live daemon", () => {
