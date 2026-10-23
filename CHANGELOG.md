@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [dad3de5](https://github.com/codeaholicguy/ai-devkit/pull/406) Migrated interactive `agent start` into the devkitd daemon via a new `agent.start` RPC (tmux and herdr runtimes); `daemon.db` is now the agent registry, and `@ai-devkit/daemon-client` adds `startAgent()` and structured `DaemonRpcError`.
+- [007cbd0](https://github.com/codeaholicguy/ai-devkit/pull/404) Added multi-agent orchestration, troubleshooting, and permissions docs, and fixed README setup, skill count, and harness table.
+- [ff51a61](https://github.com/codeaholicguy/ai-devkit/pull/401) Fixed `agent send --wait` failing with "No session file found" right after `agent start` by waiting for the harness session file to appear.
+- [31f5bb4](https://github.com/codeaholicguy/ai-devkit/pull/399) Sharpened memory MCP tool descriptions so agents search before work and after errors, and store/update after tasks without duplicates.
+- [05aa14e](https://github.com/codeaholicguy/ai-devkit/commit/05aa14e) Aligned web content with shipped features.
+- [cea04b3](https://github.com/codeaholicguy/ai-devkit/commit/cea04b3) Added light and dark themes with a header toggle to the website.
+- [162caaf](https://github.com/codeaholicguy/ai-devkit/commit/162caaf) Added web pages for the four missing built-in skills.
+- [fec8289](https://github.com/codeaholicguy/ai-devkit/commit/fec8289) Redesigned the web skills catalog and registry browser.
+- [171c374](https://github.com/codeaholicguy/ai-devkit/commit/171c374) Corrected capitalisation of FAQ topic titles.
+- [52eec02](https://github.com/codeaholicguy/ai-devkit/commit/52eec02) Redesigned the FAQ on the docs reading layout.
+- [6581f6d](https://github.com/codeaholicguy/ai-devkit/commit/6581f6d) Redesigned the docs with a grouped sidebar, outline, and search.
+- [9eae9bf](https://github.com/codeaholicguy/ai-devkit/pull/375) Fixed the console showing a stale name after renaming an agent; the list now refreshes and reselects the renamed agent.
+- [66d2ea6](https://github.com/codeaholicguy/ai-devkit/commit/66d2ea6) Updated web content.
+
 ## [0.70.1] - 2026-10-12
 
 - [70e95fc](https://github.com/codeaholicguy/ai-devkit/commit/70e95fc) Expanded the web FAQ, SEO keywords, and social preview image.
