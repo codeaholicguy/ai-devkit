@@ -950,9 +950,9 @@
       "lastIndexed": 1792282117215
     },
     {
-      "name": "structured-debug",
+      "name": "dev-debug",
       "registry": "codeaholicguy/ai-devkit",
-      "path": "skills/structured-debug",
+      "path": "skills/dev-debug",
       "description": "AI DevKit · Guide structured debugging before code changes by clarifying expected behavior, reproducing issues, identifying likely root causes, and agreeing on a fix plan with validation steps. Use when users ask to debug bugs, investigate regressions, triage incidents, diagnose failing behavior, handle failing tests, analyze production incidents, investigate error spikes, or run root cause analysis (RCA).",
       "lastIndexed": 1792282117324
     },
@@ -960,7 +960,7 @@
       "name": "task",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/task",
-      "description": "AI DevKit · Track dev-lifecycle / structured-debug progress on a durable task with the ai-devkit task CLI. Use to record phase, progress, next step, blockers, and validation evidence.",
+      "description": "AI DevKit · Track dev-lifecycle / dev-debug progress on a durable task with the ai-devkit task CLI. Use to record phase, progress, next step, blockers, and validation evidence.",
       "lastIndexed": 1792282117232
     },
     {

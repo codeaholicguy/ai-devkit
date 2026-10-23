@@ -104,7 +104,7 @@ describe("built-in skills manifest", () => {
         "dev-lifecycle",
         "dev-simplify",
         "dev-refactor",
-        "structured-debug",
+        "dev-debug",
         "memory",
         "verify",
         "tdd",

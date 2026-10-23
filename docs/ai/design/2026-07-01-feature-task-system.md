@@ -268,7 +268,7 @@ falls back to `~/.ai-devkit/tasks.db`. `<id>` resolves per `resolveTask` above.
   key; `resolveTask(feature)` returns the latest **non-terminal** one. No parent/child
   hierarchy in MVP.
 - `phase` is a free-form string (recommended: `requirements|design|planning|implementation|
-  testing|review`) so structured-debug and custom workflows are unconstrained.
+  testing|review`) so dev-debug and custom workflows are unconstrained.
 
 ## Storage Layout
 

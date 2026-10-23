@@ -78,7 +78,7 @@ Test: `packages/task-manager/tests/command.test.ts`.
 
 - Plugin CLI → project `.ai-devkit.json` `tasks.path` → `TaskService` → `TaskRepository` →
   SQLite (else `~/.ai-devkit/tasks.db`).
-- Skills (`dev-lifecycle`, `verify`, `structured-debug`) can emit via `ai-devkit task ...`
+- Skills (`dev-lifecycle`, `verify`, `dev-debug`) can emit via `ai-devkit task ...`
   when the optional plugin is installed/enabled.
 - Storage default `~/.ai-devkit/tasks.db`; the plugin CLI resolves `.ai-devkit.json` `tasks.path`, and
   explicit overrides use `--db-path` or the `TaskRepository` / `DatabaseConnection`

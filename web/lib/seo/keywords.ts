@@ -195,7 +195,7 @@ const clusterRelatedLinks: Record<SeoCluster, SeoRelatedLink[]> = {
   ],
   debugging: [
     { href: "/docs/4-debugging-with-ai-devkit", label: "Structured debugging workflow" },
-    { href: "/skills/structured-debug", label: "The structured-debug skill" },
+    { href: "/skills/dev-debug", label: "The dev-debug skill" },
     { href: "/skills/verify", label: "Verification before done" },
     { href: "/skills/security-review", label: "The security-review skill" },
   ],

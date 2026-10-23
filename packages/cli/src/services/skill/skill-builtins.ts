@@ -21,7 +21,7 @@ const FALLBACK_BUILTIN_SKILL_NAMES = [
   "dev-testing",
   "dev-review",
   "dev-pr",
-  "structured-debug",
+  "dev-debug",
   "document-code",
   "memory",
   "task",

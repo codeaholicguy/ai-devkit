@@ -16,7 +16,7 @@ These tools take different paths to fix that.
 | **Install** | `npm install -g ai-devkit` | Agent-specific setup guide (see official repository) |
 | **Approach** | One operating model across agents: config, memory, communication, workflow skills, and verification | Behavior focused: process instructions injected into agent prompts |
 | **Memory** | Built-in local SQLite memory system | Relies on plan documents and git history |
-| **Skills** | Built-in core skills (`dev-lifecycle`, `structured-debug`, `dev-simplify`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
+| **Skills** | Built-in core skills (`dev-lifecycle`, `dev-debug`, `dev-simplify`, `document-code`) plus community registry via `skill add/remove/find` | 14 built-in composable skills |
 | **Agents supported** | Broad setup support across Cursor, Claude Code, Codex, Copilot, Gemini CLI, opencode, Antigravity, and others | 4 (Claude Code, Cursor, Codex, opencode) |
 | **Documentation** | Phase-based directory structure (`docs/ai/`) | Design docs saved to `docs/plans/` |
 | **Execution model** | Single agent per feature with persistent memory | Sub-agent dispatching with two-stage review |
@@ -52,7 +52,7 @@ Follow the official setup guide for your agent at https://github.com/obra/superp
 
 ### AI DevKit
 
-AI DevKit is a **control plane for AI coding agents** that you install globally and initialize per project. It creates one project-local setup source, installs built-in skills like `dev-lifecycle`, `structured-debug`, `dev-simplify`, and `document-code`, adds persistent local memory, supports agent operations, and makes agents verify work before claiming completion.
+AI DevKit is a **control plane for AI coding agents** that you install globally and initialize per project. It creates one project-local setup source, installs built-in skills like `dev-lifecycle`, `dev-debug`, `dev-simplify`, and `document-code`, adds persistent local memory, supports agent operations, and makes agents verify work before claiming completion.
 
 ```bash
 npm install -g ai-devkit
@@ -83,13 +83,13 @@ A distinctive feature is **sub-agent dispatching**. Superpowers can spin up fres
 
 ### Workflow Enforcement
 
-**AI DevKit** provides a repeatable workflow but remains flexible. Built-in skills like `dev-lifecycle` and `structured-debug` encourage consistency, while `dev-simplify` and `document-code` keep solutions practical and reusable. You can still adapt the workflow to your project. The docs structure is guidance, not a hard gate.
+**AI DevKit** provides a repeatable workflow but remains flexible. Built-in skills like `dev-lifecycle` and `dev-debug` encourage consistency, while `dev-simplify` and `document-code` keep solutions practical and reusable. You can still adapt the workflow to your project. The docs structure is guidance, not a hard gate.
 
 **Superpowers** enforces strict process discipline. In its documented methodology, test-first development is treated as mandatory.
 
 ### Skills and Extensibility
 
-**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `structured-debug`, `dev-simplify`, `document-code`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
+**AI DevKit** combines built-in workflow skills (`dev-lifecycle`, `dev-debug`, `dev-simplify`, `document-code`) with a community-driven skill registry. You can browse, install, and manage additional skills with CLI commands (`ai-devkit skill add`, `ai-devkit skill find`). This gives teams a solid default methodology plus extensibility for domain-specific capabilities.
 
 **Superpowers** comes with 14 built-in skills that form one cohesive methodology. There is a `writing-skills` skill for contributing new skills, but the system is more monolithic, with skills designed to work together in one workflow.
 

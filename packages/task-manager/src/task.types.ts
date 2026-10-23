@@ -23,7 +23,7 @@ export interface Actor {
 export type TaskStatus = "open" | "active" | "blocked" | "completed" | "abandoned";
 
 /**
- * Workflow phase. Free-form string so structured-debug and custom workflows
+ * Workflow phase. Free-form string so dev-debug and custom workflows
  * are not constrained. Recommended lifecycle values:
  * "requirements" | "design" | "planning" | "implementation" | "testing" | "review"
  */

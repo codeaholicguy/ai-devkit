@@ -5,7 +5,7 @@ section: workflows
 order: 3
 ---
 
-Debugging with AI coding agents often becomes a guessing game: trying random fixes until something works. The `structured-debug` skill changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.
+Debugging with AI coding agents often becomes a guessing game: trying random fixes until something works. The `dev-debug` skill changes this by providing a structured methodology that ensures you understand the problem before attempting a solution.
 
 ## When to Use Structured Debug
 
@@ -20,7 +20,7 @@ Use this skill when:
 Here's what a structured debugging session looks like:
 
 ```
-You: Use structured-debug to investigate this issue.
+You: Use dev-debug to investigate this issue.
 
 AI: What issue are you experiencing?
 
@@ -47,7 +47,7 @@ Recommended fix: Update backend config to match requirements.
 
 ## The 7-Step Debugging Process
 
-The `structured-debug` skill follows a proven methodology:
+The `dev-debug` skill follows a proven methodology:
 
 | Step | Purpose |
 |------|---------|

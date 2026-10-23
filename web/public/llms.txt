@@ -38,7 +38,7 @@ ai-devkit init
 - `dev-lifecycle` - Start a new feature, validate requirements and design, execute plans, and run pre-commit reviews
 - `dev-commit` - Commit only intended, verified changes with a conventional message
 - `tdd` - Add test coverage with a test-first workflow
-- `structured-debug` - Debug systematically with reproduction, hypotheses, fixes, and verification
+- `dev-debug` - Debug systematically with reproduction, hypotheses, fixes, and verification
 - `memory` - Store important guidelines and patterns in memory
 - `document-code` - Analyze and document existing code
 

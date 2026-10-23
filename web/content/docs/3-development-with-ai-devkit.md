@@ -111,7 +111,7 @@ If you started a feature in a previous session, the skill can pick up where you 
 > **When to use lifecycle vs. focused skills:**
 > - Use the `dev-lifecycle` skill when starting a new feature or continuing end-to-end work — it handles the flow for you
 > - Use focused phase skills such as `dev-worktree`, `dev-requirements`, `dev-design`, or `dev-review` when you only need one lifecycle phase
-> - Use focused support skills such as `tdd`, `verify`, or `structured-debug` when you only need one specific behavior
+> - Use focused support skills such as `tdd`, `verify`, or `dev-debug` when you only need one specific behavior
 
 ## Focused Workflow Requests
 

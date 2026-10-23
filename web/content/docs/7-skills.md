@@ -44,7 +44,7 @@ AI DevKit ships with a core set of skills in its default registry:
 | `dev-testing` | Add and validate feature test coverage |
 | `dev-review` | Run a holistic pre-push code review |
 | `dev-pr` | Publish a ready feature branch for review |
-| `structured-debug` | Follow a disciplined debugging and RCA process before implementing fixes |
+| `dev-debug` | Follow a disciplined debugging and RCA process before implementing fixes |
 | `memory` | Use AI DevKit memory operations via CLI patterns when needed |
 | `task` | Track lifecycle and debugging progress in the durable task system |
 | `dev-simplify` | Simplify and refactor complex code paths for maintainability |
@@ -60,7 +60,7 @@ The built-in set is served from a remote manifest, so new built-in skills can sh
 
 The repository also contains skills such as `agent-orchestration`, `technical-writer`, `security-review`, and `changelog`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
 
-For more detail, see the skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`structured-debug`](/skills/structured-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
+For more detail, see the skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`dev-debug`](/skills/dev-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
 
 ## Quick Start
 

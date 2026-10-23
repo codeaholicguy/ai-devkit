@@ -41,7 +41,7 @@ Use this page as a reference for fields inside `.ai-devkit.json`. In most cases,
     "my-org/local-skills": "file:///absolute/path/to/local-registry"
   },
   "skills": [
-    { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug" },
+    { "registry": "codeaholicguy/ai-devkit", "name": "dev-debug" },
     { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
   ],
   "mcpServers": {
@@ -186,7 +186,7 @@ List of installed skills. Duplicates are automatically deduplicated.
 
 ```json
 "skills": [
-  { "registry": "codeaholicguy/ai-devkit", "name": "structured-debug", "mode": "copy" },
+  { "registry": "codeaholicguy/ai-devkit", "name": "dev-debug", "mode": "copy" },
   { "registry": "codeaholicguy/ai-devkit", "name": "dev-lifecycle" }
 ]
 ```

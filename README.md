@@ -140,7 +140,7 @@ The control plane is useful on its own. For larger or riskier changes, AI DevKit
 - `memory` retrieves relevant project knowledge without stuffing all context into the session
 - `verify` blocks completion claims without fresh test or build evidence
 - `tdd` pushes test-first implementation when behavior changes
-- `structured-debug` keeps debugging reproducible instead of guess-and-patch
+- `dev-debug` keeps debugging reproducible instead of guess-and-patch
 - `security-review`, `document-code`, and `dev-simplify` add focused review passes when the task needs them
 
 ### Get the full engineering workflow stack
@@ -192,7 +192,7 @@ The flow above is powered by **24 built-in skills** (installed globally by `setu
 | Agent commits unrelated local changes | `dev-commit` checks diffs, stages explicit paths, validates, and reports the SHA/status |
 | Agent forgets project decisions | `memory` gives it a local, searchable knowledge base across sessions and projects |
 | New behavior ships without tests | `tdd` pushes test-first implementation |
-| Debugging becomes guess-and-patch | `structured-debug` makes it reproduce, hypothesize, fix, and verify |
+| Debugging becomes guess-and-patch | `dev-debug` makes it reproduce, hypothesize, fix, and verify |
 | Existing code is opaque | `document-code` maps entry points, dependencies, and behavior |
 | Implementation gets bloated | `dev-simplify` reduces complexity before code ships |
 | Documentation is hard to follow | `document-code` maps code; add community `technical-writer` via `skill add` if needed |

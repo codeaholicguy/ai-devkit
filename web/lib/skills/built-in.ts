@@ -24,12 +24,12 @@ export const builtInSkills: BuiltInSkill[] = [
     relatedAgents: ["Claude Code", "Codex", "Cursor", "opencode", "Gemini CLI"],
   },
   {
-    name: "structured-debug",
+    name: "dev-debug",
     title: "Structured Debug",
     category: "Debugging",
     summary: "Guide debugging with expected behavior, reproduction, root cause analysis, and validation.",
     description:
-      "Use structured-debug when diagnosing regressions, incidents, failing tests, or unclear production behavior. It pushes the agent to gather evidence, identify likely causes, and agree on a fix plan before changing code.",
+      "Use dev-debug when diagnosing regressions, incidents, failing tests, or unclear production behavior. It pushes the agent to gather evidence, identify likely causes, and agree on a fix plan before changing code.",
     useCases: [
       "Investigate a failing behavior before jumping to a patch",
       "Create a clear root-cause hypothesis and validation plan",
@@ -407,7 +407,7 @@ export const builtInSkills: BuiltInSkill[] = [
     category: "Workflow",
     summary: "Record lifecycle and debugging progress on a durable task the next agent can pick up.",
     description:
-      "Use task to track dev-lifecycle or structured-debug work on a durable task with the ai-devkit task CLI. The agent records phase, progress, next step, blockers, and validation evidence at checkpoints, so another agent or a later session can see where the work stands. If the task command is unavailable, the agent keeps working and reports that tracking was skipped.",
+      "Use task to track dev-lifecycle or dev-debug work on a durable task with the ai-devkit task CLI. The agent records phase, progress, next step, blockers, and validation evidence at checkpoints, so another agent or a later session can see where the work stands. If the task command is unavailable, the agent keeps working and reports that tracking was skipped.",
     useCases: [
       "Keep a feature's phase, next step, and blockers visible across sessions",
       "Attach validation evidence to the work it proves",

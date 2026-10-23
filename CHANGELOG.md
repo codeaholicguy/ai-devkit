@@ -525,9 +525,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Dev Lifecycle Bootstrap** - The `dev-lifecycle` skill's prerequisite step now invokes `ai-devkit init -a -e claude --built-in --yes` so agents (e.g., OpenCode in a fresh worktree) cannot block on interactive prompts when `.ai-devkit.json` is missing.
-- **Renamed `debug` Skill to `structured-debug`** - The `debug` skill has been renamed to `structured-debug` across the registry, templates, and docs to clarify its purpose.
+- **Renamed `debug` Skill to `dev-debug`** - The `debug` skill has been renamed to `dev-debug` across the registry, templates, and docs to clarify its purpose.
 - **Renamed `capture-knowledge` Skill to `document-code`** - The `capture-knowledge` skill has been renamed to `document-code` across the registry, templates, and docs to better reflect its purpose.
-- **Built-in Skills Updated** - Updated the CLI's built-in skill list to reflect the `structured-debug` and `document-code` renames.
+- **Built-in Skills Updated** - Updated the CLI's built-in skill list to reflect the `dev-debug` and `document-code` renames.
 
 ### Fixed
 

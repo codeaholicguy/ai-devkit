@@ -1,6 +1,6 @@
 ---
 name: task
-description: AI DevKit · Track dev-lifecycle / structured-debug progress on a durable task with the ai-devkit task CLI. Use to record phase, progress, next step, blockers, and validation evidence.
+description: AI DevKit · Track dev-lifecycle / dev-debug progress on a durable task with the ai-devkit task CLI. Use to record phase, progress, next step, blockers, and validation evidence.
 ---
 
 # Task Progress Tracking
@@ -115,7 +115,7 @@ npx ai-devkit@latest task close <task-name> completed --agent <agent-name> --age
   only after final verification/review is done.
 - **verify / tdd / dev-testing** - `evidence` after fresh proof (this is what
   makes "last validation" trustworthy). Use `--failed` when it fails.
-- **structured-debug** - reuse the same commands: `evidence` for repro results,
+- **dev-debug** - reuse the same commands: `evidence` for repro results,
   `next` for the next hypothesis, `blocker add`/`resolve`, `progress`.
 - **Any phase** - `blocker add` when blocked, `resolve` when clear; `next` to
   state the immediate next step. Set `status blocked` when an open blocker stops
