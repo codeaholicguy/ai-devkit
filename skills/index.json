@@ -883,7 +883,7 @@
       "name": "dev-smoke",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/dev-smoke",
-      "description": "AI DevKit · Map the user-facing flows a code change can affect, then build and run a disposable end-to-end smoke script against the real app in a sandbox, including browser flows for UI and web changes. Use before calling a feature or fix done, when unit tests pass but the flow is untested, after cross-cutting changes, or when users ask for a smoke test, e2e check, impact check, or \"does the whole flow still work\".",
+      "description": "AI DevKit · Smoke-test the user flows a change affects (CLI, API, UI) end to end with a disposable sandboxed script against the real app. Use before calling a feature or fix done, when unit tests pass but the flow is untested, or when users ask for a smoke, e2e, or impact check.",
       "lastIndexed": 1792282117300
     },
     {
