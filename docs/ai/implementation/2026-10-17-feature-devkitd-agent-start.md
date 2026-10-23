@@ -13,7 +13,7 @@ description: What shipped — agent.start RPC in devkitd, merged registry column
 - `proto.rs` — `Response` gains `code`/`details` (both skipped when absent);
   new `err_coded` constructor; `AgentStartParams`/`AgentStartResult` structs
   exported via ts-rs to `packages/daemon-client/src/gen/`.
-- `store.rs` — `agents` table extended with nullable registry columns
+- `store.rs` + `store/registry.rs` — `agents` table extended with nullable registry columns; store.rs holds connection/schema/event log/snapshot, store/registry.rs holds the registration lifecycle + legacy agents.db bridge
   (`name`, `agent_type`, `runtime`, `runtime_ref`, `pinned`,
   `registered_at`, `gone_at`) + partial unique index on `name`.
   `apply_agent_snapshot` rewritten around the three rules: registered-
@@ -43,14 +43,14 @@ description: What shipped — agent.start RPC in devkitd, merged registry column
 - `runtime/herdr.rs` — `HerdrRuntime` (`--version`/`api snapshot`
   availability, workspace create, agent start with `agent_pane_busy`
   retry, process-info poll → foreground/shell pid).
-- `agent_start.rs` — orchestration: validate → availability →
+- `rpc/agent/start.rs` — orchestration: validate → availability →
   `start_mutex` → prune/liveness name check → orphan-session warning →
   spawn → register (+dual-write) → `agent.started` event → `apply_sweep`.
 - `server.rs` — `Daemon.start_mutex`, `emit` → `pub(crate)`, `"agent.start"`
   dispatch arm (blocking pool, not INLINE_METHODS), registry overlay in
   `apply_sweep` (registered `name`/`pinned` win over adapter labels),
   `Daemon::new` wires legacy-db bridge.
-- `main.rs` — `mod runtime`, `mod agent_start`.
+- `main.rs` — `mod runtime`, `mod rpc`.
 
 ### TS (`packages/daemon-client`, `packages/cli`)
 

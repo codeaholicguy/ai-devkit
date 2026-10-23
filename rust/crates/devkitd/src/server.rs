@@ -112,25 +112,22 @@ impl Daemon {
                 Response::ok(id, serde_json::to_value(cached).unwrap())
             }
             "agent.start" => {
-                match serde_json::from_value::<devkit_core::proto::AgentStartParams>(
-                    req.params.clone(),
+                let params = match Self::parse_params::<devkit_core::proto::AgentStartParams>(
+                    &req,
+                    "agent.start",
                 ) {
-                    Ok(params) => match crate::rpc::agent::start::run_with(
-                        self,
-                        params,
-                        &crate::runtime::Runtimes::default(),
-                    ) {
-                        Ok(result) => {
-                            Response::ok(id, serde_json::to_value(result).unwrap_or_default())
-                        }
-                        Err(e) => Response::err_coded(id, e.code, e.message, e.details),
-                    },
-                    Err(e) => Response::err_coded(
-                        id,
-                        "invalid_params",
-                        format!("invalid agent.start params: {e}"),
-                        None,
-                    ),
+                    Ok(p) => p,
+                    Err(resp) => return *resp,
+                };
+                match crate::rpc::agent::start::run_with(
+                    self,
+                    params,
+                    &crate::runtime::Runtimes::default(),
+                ) {
+                    Ok(result) => {
+                        Response::ok(id, serde_json::to_value(result).unwrap_or_default())
+                    }
+                    Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
             "shutdown" => {
@@ -143,6 +140,23 @@ impl Daemon {
             }
             m => Response::err(id, format!("unknown method: {m}")),
         }
+    }
+
+    /// Parse `req.params` into `T`, mapping failure onto an
+    /// `invalid_params` coded response. Every method arm uses this —
+    /// keeps the serde error text uniform.
+    fn parse_params<T>(req: &Request, method: &str) -> Result<T, Box<Response>>
+    where
+        T: serde::de::DeserializeOwned,
+    {
+        serde_json::from_value(req.params.clone()).map_err(|e| {
+            Box::new(Response::err_coded(
+                req.id,
+                "invalid_params",
+                format!("invalid {method} params: {e}"),
+                None,
+            ))
+        })
     }
 
     /// Apply a discovery sweep, refresh the enriched cache, and emit
