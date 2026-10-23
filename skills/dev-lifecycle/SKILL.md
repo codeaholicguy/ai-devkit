@@ -22,6 +22,7 @@ Supporting skills:
 - `memory` for reusable project knowledge during clarification.
 - `tdd` for implementation tasks.
 - `verify` before completing implementation, implementation checks, testing claims, and review readiness.
+- `dev-smoke` after Write Tests and before Code Review for user-facing changes.
 - `task` for optional progress tracing when the task command is usable.
 
 ## Startup Validation
@@ -92,6 +93,7 @@ Not every phase moves forward. When a phase reveals problems, route back:
 - Implementation check finds major deviations: return to `dev-design` if design is wrong, or `dev-implementation` if code is wrong.
 - Testing reveals design flaws: return to `dev-design`.
 - Review finds blocking issues: return to `dev-implementation` or `dev-testing`.
+- Smoke check finds a regression: return to `dev-implementation`.
 
 ## Rules
 

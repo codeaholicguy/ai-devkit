@@ -60,6 +60,7 @@ For each issue, apply a pattern:
 ## Validation
 - Preserve meaningful regression, public-contract, and interaction coverage. Update stale tests to intentional behavior; never delete tests merely to make failures pass.
 - Verify no regressions, add tests for new helpers, update docs if interfaces changed.
+- If the change reaches an entry point (command, route, screen), run `dev-smoke` before and after; results must match.
 
 ## Output Template
 - Target and Context

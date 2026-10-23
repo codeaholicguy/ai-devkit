@@ -18,7 +18,7 @@ Debug with an evidence-first workflow before changing code.
 - Before investigating, search for similar past incidents: `npx ai-devkit@latest memory search --query "<observed behavior>" --tags "debug,root-cause"`
 
 2. Reproduce
-- Capture minimal reproduction steps.
+- Capture minimal reproduction steps. For user-flow bugs, make the repro a `dev-smoke` check that fails before the fix and passes after.
 - Capture environment fingerprint: runtime, versions, config flags, data sample, and platform.
 
 3. Hypothesize and Test

@@ -33,10 +33,10 @@ Use for structural refactors. Use `dev-simplify` for local readability, dead cod
 7. Check boundary discipline: validate at CLI/config/network/external API edges; keep internal logic typed, domain-shaped, and pure where practical.
 8. Prefer domain structure over repeated conditionals: state machine, typed model, registry/map, reducer, or ownership-focused module when it deletes branches or invalid states.
 9. Rank moves as do now, defer, or avoid.
-10. Stage: baseline -> delete dead paths -> move/rename -> imports/call sites -> split/merge -> simplify -> exports/docs/tests.
+10. Stage: baseline (run `dev-smoke` on affected flows; keep the script until the last stage) -> delete dead paths -> move/rename -> imports/call sites -> split/merge -> simplify -> exports/docs/tests.
 11. For internal API changes, inventory callers, migrate them, and delete the legacy API in the same wave when no external contract requires compatibility.
 12. Preserve or explain compatibility re-exports/wrappers/barrels like `types.ts` plus `types/`.
-13. Validate: tests, compile/typecheck, lint, build, public/downstream smoke checks, diff review.
+13. Validate: tests, compile/typecheck, lint, build, `dev-smoke` rerun matching the baseline, diff review.
 
 ## Stop
 

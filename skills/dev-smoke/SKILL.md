@@ -22,11 +22,11 @@ Exercise the flows a change touches the way a user would, then throw the script 
 1. Read the change: `git diff` against the base branch, plus untracked files.
 2. Map impact outward: changed symbols -> callers -> entry points (commands, routes, screens, jobs, hooks, config, migrations) -> user flows. Add adjacent flows sharing the changed code, config, or data; note skipped flows and why.
 3. List scenarios as setup / action / expected result, ordered by risk. Wait for the user to add or cut flows; when running unattended, proceed and include the list in the report.
-4. Build once, then write the script from `references/smoke-template.sh` (CLI, API) or `references/web-smoke-template.mjs` (browser). Each check asserts output, files, HTTP status, or exit code, not just "it ran"; API checks also assert the body and one error case (bad input, missing auth). Print PASS/FAIL per check and exit non-zero on any failure.
+4. Search memory for known setup: `npx ai-devkit@latest memory search --query "<project> smoke setup" --tags "smoke"`. Build once, then write the script from `references/smoke-template.sh` (CLI, API) or `references/web-smoke-template.mjs` (browser). Each check asserts output, files, HTTP status, or exit code, not just "it ran"; API checks also assert the body and one error case (bad input, missing auth). Print PASS/FAIL per check and exit non-zero on any failure.
 5. Run it and read the full output.
-6. On a failure, first rule out a wrong check (selector, timing, setup), then rerun it on the base commit in a separate worktree to separate regressions from pre-existing failures.
+6. On a failure, first rule out a wrong check (selector, timing, setup), then rerun it on the base commit in a separate worktree (`dev-worktree`) to separate regressions from pre-existing failures.
 7. Report with `verify`: scenarios, command, exit code, per-check result, pre-existing failures, flows not covered.
-8. Delete the script and sandbox, or offer to promote valuable checks into permanent tests or the project's release smoke suite.
+8. Delete the script and sandbox, or offer to promote valuable checks into permanent tests or the project's release smoke suite. Store non-obvious setup: `npx ai-devkit@latest memory store --title "<project> smoke setup" --content "<start command, port, health URL, seeding, traps>" --tags "smoke"`.
 
 ## UI and Web
 

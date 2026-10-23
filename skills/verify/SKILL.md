@@ -12,6 +12,7 @@ Prove it works before saying it works.
 - Do not claim completion without fresh terminal evidence from this session.
 - Forbidden words in completion claims: "should", "probably", "seems to", "likely", "I believe", "I think it works". These signal unverified assertions.
 - Cached, remembered, or previous-session output is not evidence. Run it again.
+- "Feature works" claims on user-facing changes require a `dev-smoke` run.
 
 ## Gate Function
 
@@ -36,7 +37,7 @@ If no verification command exists (e.g., no test suite), tell the user and ask t
 | Bug is fixed | Reproduce symptom → now passes | "Changed code, should be fixed" |
 | Linter clean | Linter output: 0 errors | Single file check |
 | Phase complete | Each criterion verified individually | "Tests pass, so done" |
-| Feature works | E2E test, `dev-smoke` run, or manual walkthrough | Unit tests alone |
+| Feature works | `dev-smoke` run or E2E test | Unit tests alone |
 
 ## Regression Verification
 
