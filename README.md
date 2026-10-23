@@ -183,7 +183,7 @@ Agent:  Audits the diff against the design doc — scope creep,
 
 ## What changes in agent behavior
 
-The flow above is powered by **24 built-in skills** (installed globally by `setup`), including these core workflow skills:
+The flow above is powered by **26 built-in skills** (installed globally by `setup`), including these core workflow skills:
 
 | Failure mode | AI DevKit behavior |
 |--------------|--------------------|

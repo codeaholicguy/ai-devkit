@@ -5,9 +5,9 @@ description: "AI DevKit · Supervise multi-agent workflows over repeated passes:
 
 # Agent Orchestration
 
-Use only for multi-agent supervision: coordinating dependencies, polling progress, unblocking waiting agents, relaying outputs, resolving conflicts, and verifying completion across agents. For one-off list/detail/send/start/kill work, use `$agent-management` or `$agent-communication`.
+Use only for multi-agent supervision: coordinating dependencies, polling progress, unblocking waiting agents, relaying outputs, resolving conflicts, and verifying completion across agents. For one-off list/detail/send/start/kill work, use `agent-management` or `agent-communication`.
 
-Use `$agent-management` for safe agent selection and lifecycle actions. Use `$agent-communication` for list/detail/send mechanics. Use `$verify` before accepting any agent's completion claim.
+Use `agent-management` for safe agent selection and lifecycle actions. Use `agent-communication` for list/detail/send mechanics. Use `verify` before accepting any agent's completion claim.
 
 ## Rules
 

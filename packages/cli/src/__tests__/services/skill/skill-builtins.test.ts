@@ -30,7 +30,7 @@ describe("getBuiltinSkillNames", () => {
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
     const names = await getBuiltinSkillNames();
-    expect(names).toHaveLength(25);
+    expect(names).toHaveLength(26);
     expect(names).toContain("agent-communication");
     expect(names).toContain("tdd");
     expect(names).toContain("session-compact");
@@ -47,7 +47,7 @@ describe("getBuiltinSkillNames", () => {
 
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(25);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(26);
   });
 
   it("falls back to the bundled list when response JSON cannot be parsed", async () => {
@@ -63,7 +63,7 @@ describe("getBuiltinSkillNames", () => {
 
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(25);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(26);
   });
 
   it.each([
@@ -84,7 +84,7 @@ describe("getBuiltinSkillNames", () => {
 
     const { getBuiltinSkillNames } = await import("../../../services/skill/skill-builtins.js");
 
-    await expect(getBuiltinSkillNames()).resolves.toHaveLength(25);
+    await expect(getBuiltinSkillNames()).resolves.toHaveLength(26);
   });
 });
 
@@ -93,11 +93,12 @@ describe("built-in skills manifest", () => {
     const manifestPath = new URL("../../../../../../skills/built-in.json", import.meta.url);
     const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
 
-    expect(manifest).toHaveLength(25);
+    expect(manifest).toHaveLength(26);
     expect(manifest).toEqual(
       expect.arrayContaining([
         "agent-communication",
         "agent-management",
+        "agent-orchestration",
         "ai-devkit-setup",
         "remote-from-slack",
         "remote-from-telegram",

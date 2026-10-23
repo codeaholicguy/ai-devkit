@@ -8,6 +8,7 @@ export const BUILTIN_SKILL_REGISTRY = "codeaholicguy/ai-devkit";
 const FALLBACK_BUILTIN_SKILL_NAMES = [
   "agent-communication",
   "agent-management",
+  "agent-orchestration",
   "ai-devkit-setup",
   "remote-from-slack",
   "remote-from-telegram",

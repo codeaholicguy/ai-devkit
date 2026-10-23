@@ -44,12 +44,13 @@ Point each `agent start --cwd` at the correct tree. See [Troubleshooting: Agents
 
 ## Install skills for the lead
 
-Built-in skills cover single-agent management:
+The built-in set includes the skills a lead needs:
 
 - `agent-management` — start, assign, kill
 - `agent-communication` — `send`, `--wait`, `--stdin`
+- `agent-orchestration` — run a long supervision loop across workers
 
-`agent-orchestration` is **not** in the default built-in set. Add it when the lead should run a long supervision loop:
+If you skipped the built-in set, add it to the lead on its own:
 
 ```bash
 ai-devkit skill add ai-devkit agent-orchestration

@@ -30,6 +30,7 @@ AI DevKit ships with a core set of skills in its default registry:
 |---|---|
 | `agent-communication` | Exchange information with active AI coding agents |
 | `agent-management` | Discover, start, inspect, and manage local coding agents |
+| `agent-orchestration` | Supervise multi-agent workflows: poll progress, unblock agents, and verify completion |
 | `ai-devkit-setup` | Check readiness and run setup only when onboarding or integration gaps require it |
 | `remote-from-slack` | Connect the current agent session to an available Slack channel bridge |
 | `remote-from-telegram` | Connect the current agent session to an available Telegram channel bridge |
@@ -58,7 +59,7 @@ You can install these skills the same way you install community skills.
 
 The built-in set is served from a remote manifest, so new built-in skills can ship without a CLI release; an embedded copy is used as an offline fallback.
 
-The repository also contains skills such as `agent-orchestration`, `technical-writer`, `security-review`, and `changelog`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
+The repository also contains skills such as `technical-writer`, `security-review`, and `changelog`. They can be installed individually from the AI DevKit registry, but they are not part of the curated set installed by `ai-devkit skill add --built-in`.
 
 For more detail, see the skill pages for [`dev-lifecycle`](/skills/dev-lifecycle), [`dev-debug`](/skills/dev-debug), [`tdd`](/skills/tdd), [`verify`](/skills/verify), and [`security-review`](/skills/security-review).
 

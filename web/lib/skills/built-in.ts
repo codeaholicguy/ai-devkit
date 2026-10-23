@@ -133,7 +133,7 @@ export const builtInSkills: BuiltInSkill[] = [
       "Check progress and unblock parallel work",
       "Coordinate multi-agent implementation, review, or research tasks",
     ],
-    relatedAgents: ["Claude Code", "Codex", "opencode"],
+    relatedAgents: ["Claude Code", "Codex", "Gemini CLI", "opencode", "Pi"],
   },
   {
     name: "ai-devkit-setup",
