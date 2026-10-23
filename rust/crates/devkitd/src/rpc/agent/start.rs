@@ -4,51 +4,23 @@
 //! under `Daemon::start_mutex`, spawns via the selected runtime, registers
 //! the agent, and emits `agent.started`.
 
-use crate::runtime::{
-    AgentRuntime, Availability, HerdrRuntime, StartError, StartInput, TmuxRuntime,
-};
+use super::{generate_agent_name, pid_alive, valid_agent_name};
+use crate::rpc::RpcError;
+use crate::runtime::{AgentRuntime, Availability, Runtimes, StartError, StartInput};
 use crate::server::Daemon;
 use devkit_core::proto::{AgentStartParams, AgentStartResult};
 use devkit_core::store::iso8601_utc;
 use devkit_harness::start_profiles::start_profile;
-use serde_json::{json, Value};
-
-/// Wire-facing error: code + message + structured details.
-#[derive(Debug)]
-pub struct StartRpcError {
-    pub code: &'static str,
-    pub message: String,
-    pub details: Option<Value>,
-}
-
-impl StartRpcError {
-    fn new(code: &'static str, message: impl Into<String>, details: Option<Value>) -> Self {
-        Self {
-            code,
-            message: message.into(),
-            details,
-        }
-    }
-    fn invalid(message: impl Into<String>) -> Self {
-        Self::new("invalid_params", message, None)
-    }
-}
-
-/// Runtimes bundle so tests can inject fixture-backed implementations.
-#[derive(Default)]
-pub struct Runtimes {
-    pub tmux: TmuxRuntime,
-    pub herdr: HerdrRuntime,
-}
+use serde_json::json;
 
 pub fn run_with(
     daemon: &Daemon,
     params: AgentStartParams,
     runtimes: &Runtimes,
-) -> Result<AgentStartResult, StartRpcError> {
+) -> Result<AgentStartResult, RpcError> {
     // --- validation -------------------------------------------------------
     let profile = start_profile(&params.agent_type).ok_or_else(|| {
-        StartRpcError::new(
+        RpcError::new(
             "harness_not_startable",
             format!("Unsupported agent type \"{}\".", params.agent_type),
             Some(json!({"type": params.agent_type})),
@@ -56,20 +28,20 @@ pub fn run_with(
     })?;
     let provider = params.runtime.as_deref().unwrap_or("tmux");
     if !["tmux", "herdr"].contains(&provider) {
-        return Err(StartRpcError::invalid(format!(
+        return Err(RpcError::invalid(format!(
             "Unsupported runtime \"{provider}\". Supported: tmux, herdr."
         )));
     }
     let cwd = params.cwd.as_str();
     if !std::path::Path::new(cwd).is_dir() {
-        return Err(StartRpcError::invalid(format!(
+        return Err(RpcError::invalid(format!(
             "Directory \"{cwd}\" does not exist."
         )));
     }
     let name = match params.name {
         Some(n) if valid_agent_name(&n) => n,
         Some(n) => {
-            return Err(StartRpcError::invalid(format!(
+            return Err(RpcError::invalid(format!(
                 "Invalid name \"{n}\". Use lowercase letters, digits, and hyphens only. \
                  Must start and end with a letter or digit, 2–64 characters."
             )))
@@ -85,7 +57,7 @@ pub fn run_with(
     let availability = runtime.is_available();
     if !availability.ok {
         let Availability { reason, detail, .. } = availability;
-        return Err(StartRpcError::new(
+        return Err(RpcError::new(
             "runtime_unavailable",
             detail.clone().unwrap_or_default(),
             Some(json!({
@@ -99,10 +71,14 @@ pub fn run_with(
     // --- serialized start: prune + name check + spawn + register ----------
     let _start_guard = daemon.start_mutex.lock().unwrap();
 
-    daemon.store.prune_dead().map_err(internal)?;
-    if let Some(existing) = daemon.store.lookup_name(&name).map_err(internal)? {
+    daemon.store.prune_dead().map_err(RpcError::internal)?;
+    if let Some(existing) = daemon
+        .store
+        .lookup_name(&name)
+        .map_err(RpcError::internal)?
+    {
         if pid_alive(existing.pid) && existing.gone_at.is_none() {
-            return Err(StartRpcError::new(
+            return Err(RpcError::new(
                 "name_in_use",
                 format!(
                     "Agent \"{name}\" is already running (PID {}). Choose a different name.",
@@ -112,7 +88,10 @@ pub fn run_with(
             ));
         }
         // Dead registration (pending or tombstone) — clear it.
-        daemon.store.unregister(existing.pid).map_err(internal)?;
+        daemon
+            .store
+            .unregister(existing.pid)
+            .map_err(RpcError::internal)?;
     }
 
     let mut warnings = Vec::new();
@@ -137,7 +116,7 @@ pub fn run_with(
             // Display is the single source of each variant's message text.
             let message = e.to_string();
             match e {
-                StartError::Unavailable { reason, .. } => StartRpcError::new(
+                StartError::Unavailable { reason, .. } => RpcError::new(
                     "runtime_unavailable",
                     message.clone(),
                     Some(json!({
@@ -149,13 +128,13 @@ pub fn run_with(
                 StartError::PidPollTimeout {
                     command,
                     timeout_ms,
-                } => StartRpcError::new(
+                } => RpcError::new(
                     "pid_poll_timeout",
                     message,
                     Some(json!({"command": command, "timeoutMs": timeout_ms})),
                 ),
                 StartError::Failed { code, .. } => {
-                    StartRpcError::new("internal", message, code.map(|c| json!({"runtimeCode": c})))
+                    RpcError::new("internal", message, code.map(|c| json!({"runtimeCode": c})))
                 }
             }
         })?;
@@ -173,13 +152,13 @@ pub fn run_with(
         )
         .map_err(|e| {
             if e.to_string().contains("UNIQUE constraint") {
-                return StartRpcError::new(
+                return RpcError::new(
                     "name_in_use",
                     format!("Agent \"{name}\" is already running."),
                     Some(json!({"pid": out.pid})),
                 );
             }
-            internal(e)
+            RpcError::internal(e)
         })?;
 
     let result = AgentStartResult {
@@ -201,70 +180,6 @@ pub fn run_with(
     daemon.apply_sweep();
 
     Ok(result)
-}
-
-/// `/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/` ported without the regex crate.
-fn valid_agent_name(name: &str) -> bool {
-    let b = name.as_bytes();
-    (2..=64).contains(&b.len())
-        && b.iter()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-')
-        && b[0] != b'-'
-        && b[b.len() - 1] != b'-'
-}
-
-/// `generateAgentName` — `{basename-sanitized}-{epoch-ms base36}`.
-fn generate_agent_name(cwd: &str) -> String {
-    let folder = std::path::Path::new(cwd)
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let mut folder: String = folder
-        .to_lowercase()
-        .chars()
-        .map(|c| {
-            if c.is_ascii_lowercase() || c.is_ascii_digit() {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>()
-        .trim_matches('-')
-        .chars()
-        .take(50)
-        .collect();
-    if folder.is_empty() {
-        folder = "agent".into();
-    }
-    format!("{}-{}", folder, base36(devkit_core::store::chrono_now()))
-}
-
-fn base36(mut n: i64) -> String {
-    const DIGITS: &[u8] = b"0123456789abcdefghijklmnopqrstuvwxyz";
-    if n == 0 {
-        return "0".into();
-    }
-    let mut out = Vec::new();
-    while n > 0 {
-        out.push(DIGITS[(n % 36) as usize]);
-        n /= 36;
-    }
-    out.iter().rev().map(|c| *c as char).collect()
-}
-
-/// Process liveness: exists or permission-denied (EPERM = exists, not ours).
-fn pid_alive(pid: i64) -> bool {
-    unsafe {
-        if libc::kill(pid as libc::pid_t, 0) == 0 {
-            return true;
-        }
-    }
-    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-}
-
-fn internal(e: impl std::fmt::Display) -> StartRpcError {
-    StartRpcError::new("internal", e.to_string(), None)
 }
 
 #[cfg(test)]

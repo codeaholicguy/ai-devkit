@@ -98,6 +98,13 @@ impl std::fmt::Display for StartError {
 
 impl std::error::Error for StartError {}
 
+/// Runtimes bundle — injectable so tests can pass fixture-backed impls.
+#[derive(Default)]
+pub struct Runtimes {
+    pub tmux: TmuxRuntime,
+    pub herdr: HerdrRuntime,
+}
+
 pub trait AgentRuntime: Send + Sync {
     fn is_available(&self) -> Availability;
     fn start(&self, input: &StartInput) -> Result<StartOutput, StartError>;

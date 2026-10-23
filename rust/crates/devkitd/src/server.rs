@@ -115,10 +115,10 @@ impl Daemon {
                 match serde_json::from_value::<devkit_core::proto::AgentStartParams>(
                     req.params.clone(),
                 ) {
-                    Ok(params) => match crate::agent_start::run_with(
+                    Ok(params) => match crate::rpc::agent::start::run_with(
                         self,
                         params,
-                        &crate::agent_start::Runtimes::default(),
+                        &crate::runtime::Runtimes::default(),
                     ) {
                         Ok(result) => {
                             Response::ok(id, serde_json::to_value(result).unwrap_or_default())
