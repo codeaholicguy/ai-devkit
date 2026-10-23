@@ -72,12 +72,22 @@ pub fn run_with(
     let _start_guard = daemon.start_mutex.lock().unwrap();
 
     daemon.store.prune_dead().map_err(RpcError::internal)?;
+    // Re-sync the legacy registry inside the mutex — agents started via the
+    // fallback path (or before daemon boot) live only in agents.db until
+    // this delta-merge; the name check must see them.
+    daemon
+        .store
+        .import_legacy_agents()
+        .map_err(RpcError::internal)?;
     if let Some(existing) = daemon
         .store
         .lookup_name(&name)
         .map_err(RpcError::internal)?
     {
-        if pid_alive(existing.pid) && existing.gone_at.is_none() {
+        // Live pid = in use, whatever gone_at says: a tombstone is sweep
+        // bookkeeping, not proof of death (imported legacy rows are
+        // tombstoned-by-default while their pids run fine).
+        if pid_alive(existing.pid) {
             return Err(RpcError::new(
                 "name_in_use",
                 format!(
@@ -287,6 +297,56 @@ mod tests {
         let n = generate_agent_name("/Users/dev/My Project");
         assert!(n.starts_with("my-project-"), "got {n}");
         assert!(valid_agent_name(&n), "generated name must validate");
+    }
+
+    #[test]
+    fn tombstoned_but_live_pid_still_blocks_name() {
+        // gone_at is sweep bookkeeping — a tombstone whose pid is alive
+        // (imported legacy row, or a process the sweep hasn't re-seen) must
+        // still block the name.
+        let f = FixtureDir::new("tomb-live");
+        let d = daemon(&f);
+        let self_pid = std::process::id() as i64;
+        d.store
+            .register_start(self_pid, "my-agent", "claude", "/tmp", "tmux", &json!({}))
+            .unwrap();
+        d.store.apply_agent_snapshot(&[]).unwrap(); // tombstones the row
+        let reg = d.store.lookup_name("my-agent").unwrap().unwrap();
+        assert!(reg.gone_at.is_some());
+        let e = run_with(&d, params(Some("my-agent"), "/tmp"), &runtimes(&f)).unwrap_err();
+        assert_eq!(e.code, "name_in_use");
+    }
+
+    #[test]
+    fn legacy_row_written_after_daemon_boot_blocks_name() {
+        // An agent started via the fallback path registers only in
+        // agents.db — the start path must re-import before the name check.
+        let f = FixtureDir::new("legacy-post-boot");
+        let d = daemon(&f);
+        let self_pid = std::process::id() as i64;
+        let legacy = f.0.join("agents.db");
+        let conn = rusqlite::Connection::open(&legacy).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE agents (
+                type TEXT NOT NULL, pid INTEGER NOT NULL, name TEXT NOT NULL UNIQUE,
+                tmux_session TEXT NOT NULL DEFAULT '', cwd TEXT NOT NULL DEFAULT '',
+                started_at TEXT NOT NULL, session_id TEXT NOT NULL DEFAULT '',
+                session_file_path TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL,
+                pinned INTEGER NOT NULL DEFAULT 0, runtime TEXT NOT NULL DEFAULT 'tmux',
+                runtime_ref TEXT NOT NULL DEFAULT '',
+                PRIMARY KEY (type, pid));",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO agents (type,pid,name,cwd,started_at,updated_at,runtime,runtime_ref)
+             VALUES ('claude',?1,'claude-1','/tmp','2026-10-16T00:00:00.000Z',
+                     '2026-10-16T00:00:00.000Z','tmux','{\"session\":\"claude-1\"}')",
+            rusqlite::params![self_pid],
+        )
+        .unwrap();
+        d.store.set_legacy_db(legacy).unwrap();
+        let e = run_with(&d, params(Some("claude-1"), "/tmp"), &runtimes(&f)).unwrap_err();
+        assert_eq!(e.code, "name_in_use");
     }
 
     #[test]
