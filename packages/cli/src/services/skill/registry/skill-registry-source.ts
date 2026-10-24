@@ -1,5 +1,6 @@
 import { CliError } from "../../../util/errors.js";
 import fs from "fs-extra";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -30,8 +31,27 @@ export function parseLocalRegistryPath(value: string): string | null {
   }
 }
 
+/** URL-ish git sources: `proto://...` or scp-style `user@host:path`. */
+const GIT_SOURCE_RE = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/|^[\w.+-]+@[\w.-]+:/;
+
 function isPathShorthand(value: string): boolean {
-  return path.isAbsolute(value) || /^\.\.?[\\/]/.test(value);
+  return (
+    path.isAbsolute(value) ||
+    value === "." ||
+    value === ".." ||
+    value === "~" ||
+    value.startsWith("~/") ||
+    value.startsWith(`~${path.sep}`) ||
+    /^\.\.?[\\/]/.test(value)
+  );
+}
+
+/** Resolve a candidate local path — expands `~` and joins relative to baseDir. */
+function resolveLocalCandidate(value: string, baseDir: string): string {
+  if (value === "~" || value.startsWith("~/") || value.startsWith(`~${path.sep}`)) {
+    return path.join(os.homedir(), value.slice(1));
+  }
+  return path.resolve(baseDir, value);
 }
 
 export async function normalizeRegistrySourceInput(
@@ -39,11 +59,20 @@ export async function normalizeRegistrySourceInput(
   baseDir: string,
 ): Promise<string> {
   const localPath = parseLocalRegistryPath(value);
-  if (localPath === null && !isPathShorthand(value)) {
+  // Git-vs-local is decided by the filesystem, not string shape: a
+  // scheme-less value that resolves to a real directory is a local
+  // registry (`.`, `myfolder`, `~/x`, ...). Only URL-shaped values or
+  // paths that don't exist locally fall through to git.
+  if (localPath === null && GIT_SOURCE_RE.test(value)) {
     return value;
   }
 
-  const requestedPath = localPath ?? path.resolve(baseDir, value);
+  const requestedPath = localPath ?? resolveLocalCandidate(value, baseDir);
+  const exists = await fs.pathExists(requestedPath);
+  if (localPath === null && !isPathShorthand(value) && !exists) {
+    return value;
+  }
+
   let canonicalPath: string;
   try {
     canonicalPath = await fs.realpath(requestedPath);
