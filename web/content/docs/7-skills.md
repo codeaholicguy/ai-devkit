@@ -204,9 +204,10 @@ Register a third-party skill registry in the current project or global configura
 ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git
 ai-devkit skill add-registry my-org/skills https://github.com/my-org/agent-skills.git --global
 ai-devkit skill add-registry my-org/local-skills ../local-registry
+ai-devkit skill add-registry my-org/local-skills .   # register the current folder
 ```
 
-Local sources accept absolute paths, `./`, `../`, or explicit `file:` URLs. AI DevKit resolves them when registered, stores a canonical absolute `file:` URL, and reads the folder in place without cloning, pulling, writing, or deleting it. If the folder moves, re-add it with `--force`.
+Local sources are detected by filesystem: any path that resolves to a real directory counts — absolute paths, `.`, `..`, `./`, `../`, `~/x`, bare directory names, or explicit `file:` URLs. AI DevKit resolves them when registered, stores a canonical absolute `file:` URL, and reads the folder in place without cloning, pulling, writing, or deleting it — untracked files and uncommitted edits are visible immediately. If the folder moves, re-add it with `--force`.
 
 Use `--global` to write the registry to `~/.ai-devkit/.ai-devkit.json`. If the same registry ID already points to another source, use `--force` to replace it:
 
