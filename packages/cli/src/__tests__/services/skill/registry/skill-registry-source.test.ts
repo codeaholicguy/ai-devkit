@@ -45,6 +45,46 @@ describe("registry sources", () => {
     }
   });
 
+  it("treats '.', '..', '~/x', and bare relative dirs as local sources", async () => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), "registry-source-"));
+    const child = path.join(temp, "child");
+    const nested = path.join(child, "nested");
+    await fs.ensureDir(nested);
+
+    try {
+      expect(await normalizeRegistrySourceInput(".", temp)).toBe(
+        pathToFileURL(await fs.realpath(temp)).href,
+      );
+      expect(await normalizeRegistrySourceInput("..", child)).toBe(
+        pathToFileURL(await fs.realpath(temp)).href,
+      );
+      expect(await normalizeRegistrySourceInput("nested", child)).toBe(
+        pathToFileURL(await fs.realpath(nested)).href,
+      );
+      expect(await normalizeRegistrySourceInput("~", temp)).toBe(
+        pathToFileURL(await fs.realpath(os.homedir())).href,
+      );
+    } finally {
+      await fs.remove(temp);
+    }
+  });
+
+  it("falls through to git only for scheme-shaped or nonexistent sources", async () => {
+    const temp = await fs.mkdtemp(path.join(os.tmpdir(), "registry-source-"));
+    try {
+      expect(await normalizeRegistrySourceInput("https://example.com/x.git", temp)).toBe(
+        "https://example.com/x.git",
+      );
+      expect(await normalizeRegistrySourceInput("git@example.com:x/y.git", temp)).toBe(
+        "git@example.com:x/y.git",
+      );
+      // scheme-less path that doesn't exist locally — git handles the error
+      expect(await normalizeRegistrySourceInput("nope/nothere", temp)).toBe("nope/nothere");
+    } finally {
+      await fs.remove(temp);
+    }
+  });
+
   it("reports missing and non-directory local sources clearly", async () => {
     const temp = await fs.mkdtemp(path.join(os.tmpdir(), "registry-source-"));
     const file = path.join(temp, "file");
