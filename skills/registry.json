@@ -73,6 +73,7 @@
     "Shopify/Shopify-AI-Toolkit": "https://github.com/Shopify/Shopify-AI-Toolkit.git",
     "google/skills": "https://github.com/google/skills.git",
     "microsoft/playwright-cli": "https://github.com/microsoft/playwright-cli.git",
-    "youdotcom-oss/agent-skills": "https://github.com/youdotcom-oss/agent-skills.git"
+    "youdotcom-oss/agent-skills": "https://github.com/youdotcom-oss/agent-skills.git",
+    "cohesivity-org/cohesivity-skill": "https://github.com/cohesivity-org/cohesivity-skill.git"
   }
 }
