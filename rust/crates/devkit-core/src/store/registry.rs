@@ -395,8 +395,10 @@ mod tests {
     #[test]
     fn tombstone_frees_name_via_prune_and_reuse() {
         let (s, _p) = tmp_store();
-        s.apply_agent_snapshot(&[proc_started(10, 1000)]).unwrap();
-        s.register_start(10, "my-agent", "codex", "/tmp", "tmux", &json!({}))
+        // i32::MAX is above every pid_max — guaranteed dead (pid 10 is a
+        // live kernel thread on Linux CI, which kept the tombstone alive).
+        s.apply_agent_snapshot(&[proc_started(i32::MAX as i64, 1000)]).unwrap();
+        s.register_start(i32::MAX as i64, "my-agent", "codex", "/tmp", "tmux", &json!({}))
             .unwrap();
         s.apply_agent_snapshot(&[]).unwrap();
         // Dead name does not block a new start once pruned.
