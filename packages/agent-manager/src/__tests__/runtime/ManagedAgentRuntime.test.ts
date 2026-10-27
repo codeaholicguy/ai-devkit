@@ -415,6 +415,23 @@ describe("startAgent", () => {
     );
   });
 
+  it("passes structured harness arguments to the runtime", async () => {
+    const runtime = makeRuntime();
+    const registry = makeRegistry();
+
+    await startAgent(
+      { ...startOpts, type: "omp", args: ["--profile", "work"], runtimeProvider: "herdr" },
+      { runtime, registry },
+    );
+
+    expect(runtime.startAgent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: "omp",
+        args: ["--profile", "work"],
+      }),
+    );
+  });
+
   it("fails Herdr starts when the configured runtime is unavailable", async () => {
     const runtime = makeRuntime({
       isAvailable: vi.fn().mockResolvedValue({

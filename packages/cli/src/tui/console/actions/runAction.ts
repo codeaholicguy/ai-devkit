@@ -34,7 +34,7 @@ export async function runAction(
           "--cwd",
           action.cwd,
           ...(action.mode ? ["--mode", action.mode] : []),
-          ...(action.args ?? []),
+          ...(action.args ?? []).flatMap((arg) => ["--arg", arg]),
         ];
       case "kill":
         return [...baseArgs, "agent", "kill", action.agentName];
