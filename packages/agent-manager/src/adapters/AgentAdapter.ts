@@ -16,6 +16,7 @@ export const AGENT_TYPES = [
   "opencode",
   "copilot",
   "pi",
+  "omp",
   "devin",
   "muse",
 ] as const;

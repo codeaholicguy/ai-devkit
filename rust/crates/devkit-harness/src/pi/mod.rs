@@ -1,8 +1,8 @@
 //! PiAdapter port — registry cache, sessions.json tracker, project-dir
 //! locator matching, process-only fallback.
 
-mod locator;
-mod parser;
+pub(crate) mod locator;
+pub(crate) mod parser;
 
 use crate::shared;
 use crate::{HarnessAdapter, SweepContext};
