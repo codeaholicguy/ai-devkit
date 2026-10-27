@@ -20,6 +20,7 @@ import { homeDir } from "../shared.js";
 
 export interface PiSessionLocatorOptions {
   sessionsDir?: string;
+  encodeProjectDir?: (cwd: string) => string;
 }
 
 export interface PiProcessSessionMatches {
@@ -67,6 +68,7 @@ interface NoMatchEntry {
  */
 export class PiSessionLocator {
   private readonly sessionsDir: string;
+  private readonly encodeProjectDirFn: (cwd: string) => string;
   private readonly heads = new Map<string, CachedHead>();
   private readonly noMatchDirs = new Map<string, NoMatchEntry>();
   private generation = 0;
@@ -76,6 +78,7 @@ export class PiSessionLocator {
     private readonly parser: PiSessionParser = new PiSessionParser(),
   ) {
     this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".pi", "agent", "sessions");
+    this.encodeProjectDirFn = options.encodeProjectDir ?? ((cwd) => this.encodeProjectDir(cwd));
   }
 
   matchRunningProcesses(processes: ProcessInfo[]): PiProcessSessionMatches {
@@ -134,7 +137,7 @@ export class PiSessionLocator {
 
     for (const proc of processes) {
       if (!proc.cwd || !proc.startTime) continue;
-      const projectDir = path.join(this.sessionsDir, this.encodeProjectDir(proc.cwd));
+      const projectDir = path.join(this.sessionsDir, this.encodeProjectDirFn(proc.cwd));
       const scan = scans.get(projectDir);
       if (scan) {
         scan.processes.push(proc);

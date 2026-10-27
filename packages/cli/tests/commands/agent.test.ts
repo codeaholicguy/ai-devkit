@@ -815,12 +815,50 @@ describe("agent command", () => {
         type: "claude",
         name: "agent1",
         cwd: process.cwd(),
+        args: [],
         runtime: "tmux",
       });
       expect(mockStartAgent).not.toHaveBeenCalled();
       expect(ui.success).toHaveBeenCalledWith('Agent "agent1" started (claude, PID 4242)');
       expect(ui.text).toHaveBeenCalledWith("Attach: tmux attach -t agent1");
       expect(client.close).toHaveBeenCalled();
+    });
+    it("forwards repeated structured arguments to an OMP daemon start", async () => {
+      daemonUp({
+        name: "omp-work",
+        type: "omp",
+        pid: 4242,
+        runtime: "tmux",
+        runtimeRef: { session: "omp-work" },
+        cwd: process.cwd(),
+        startedAt: "2026-10-17T00:00:00.000Z",
+        warnings: [],
+      });
+      const program = new Command();
+      registerAgentCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "start",
+        "--type",
+        "omp",
+        "--name",
+        "omp-work",
+        "--arg",
+        "--profile",
+        "--arg",
+        "work",
+      ]);
+
+      expect(mockDaemonStartAgent).toHaveBeenCalledWith({
+        type: "omp",
+        name: "omp-work",
+        cwd: process.cwd(),
+        args: ["--profile", "work"],
+        runtime: "tmux",
+      });
     });
 
     it("forwards daemon warnings", async () => {

@@ -14,6 +14,8 @@ pub enum MatchSpec {
     Argv0Contains(&'static str),
     /// Any token's basename is one of the names (`matchAnyBasename`).
     AnyBasename(&'static [&'static str]),
+    /// Direct OMP executable or the Bun-launched OMP CLI entry point.
+    Omp,
 }
 
 /// What a start needs beyond discovery: the command to run, the kind passed
@@ -82,6 +84,7 @@ pub fn start_profile(agent_type: &str) -> Option<StartProfile> {
         ),
         "devin" => p("devin", "devin", &["devin"], MatchSpec::Argv0("devin")),
         "muse" => p("muse", "muse", &["muse"], MatchSpec::Argv0Contains("muse")),
+        "omp" => p("omp", "omp", &["omp"], MatchSpec::Omp),
         _ => None,
     }
 }
@@ -124,8 +127,27 @@ impl MatchSpec {
                 let (argv0, args) = split_argv0(ps_command);
                 test(&argv0) || args.iter().any(|a| test(a))
             }
+            MatchSpec::Omp => is_omp_command(ps_command),
         }
     }
+}
+
+fn is_omp_command(ps_command: &str) -> bool {
+    let tokens = ps_command.replace('\\', "/");
+    let mut parts = tokens.split_whitespace();
+    let Some(argv0) = parts.next() else {
+        return false;
+    };
+    let base = basename_of(argv0);
+    if base == "omp" || base == "omp.exe" || base == "omp.js" {
+        return true;
+    }
+    parts.any(|token| {
+        let base = basename_of(token);
+        base == "cli.js"
+            && token.contains("/@oh-my-pi/pi-coding-agent/")
+            && token.ends_with("/dist/cli.js")
+    })
 }
 
 fn tokens_of(ps_command: &str) -> Vec<&str> {
@@ -268,6 +290,20 @@ mod tests {
     }
 
     #[test]
+    fn omp_profile_matches_direct_and_bun_cli() {
+        let omp = profile("omp");
+        assert_eq!(omp.command, "omp");
+        assert_eq!(omp.runtime_kind, "omp");
+        assert_eq!(omp.discovery_aliases, &["omp"]);
+        assert!(omp.matcher.matches("omp --profile work"));
+        assert!(omp.matcher.matches(
+            "/home/me/.bun/bin/bun /home/me/.npm/@oh-my-pi/pi-coding-agent/dist/cli.js --profile work"
+        ));
+        assert!(!omp.matcher.matches("bun /repo/tools/cli.js"));
+        assert!(!omp.matcher.matches("node /repo/tool.js omp"));
+    }
+
+    #[test]
     fn all_startable_types_have_profiles() {
         for t in [
             "claude",
@@ -281,6 +317,7 @@ mod tests {
             "kiro",
             "devin",
             "muse",
+            "omp",
         ] {
             assert!(start_profile(t).is_some(), "missing profile for {t}");
         }
