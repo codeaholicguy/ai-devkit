@@ -40,6 +40,6 @@ description: Test strategy and evidence for OMP detection, sessions, profile arg
 - Focused TypeScript: agent-manager OMP/readiness/runtime/Tmux tests and CLI command/status/TUI/session tests passed.
 - Full Nx test run: all 8 project test targets passed; agent-manager reported 93 files/1380 tests and CLI reported 111 files/1350 tests.
 - Rust: `cargo test --workspace` passed; `cargo fmt --all -- --check` passed.
-- Smoke: `omp/18.12.6`, help exposes `--profile`, and isolated HOME listing returned the expected OMP session.
+- Smoke: built CLI `agent list --json` returned an OMP entry; installed `omp/18.12.6` exposes `--profile`; isolated HOME listing returned the expected OMP session.
 
 ## Evidence Log
