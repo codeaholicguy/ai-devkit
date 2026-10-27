@@ -20,7 +20,6 @@ const skillRoots: Record<string, string> = {
   antigravity_cli: ".gemini/config/skills",
   opencode: ".config/opencode/skill",
   pi: ".pi/agent/skills",
-  omp: ".omp/agent/skills",
 };
 
 function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
@@ -71,7 +70,6 @@ function fixture(overrides: Partial<AgentReadinessOptions> = {}) {
     ".config/devin",
     ".config/muse",
     ".pi",
-    ".omp",
   ]) {
     files[path.join(homeDir, directory)] = "<dir>";
   }
@@ -130,7 +128,6 @@ describe("agent readiness", () => {
       "opencode",
       "copilot",
       "pi",
-      "omp",
       "devin",
       "muse",
     ]);

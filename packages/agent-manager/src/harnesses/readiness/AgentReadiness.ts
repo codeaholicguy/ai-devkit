@@ -31,7 +31,6 @@ const READINESS_PROFILES: Record<ReadinessAgentType, HarnessReadinessProfile> = 
   opencode: openCodeReadiness,
   copilot: copilotReadiness,
   pi: piReadiness,
-  omp: { configDir: ".omp" },
   devin: devinReadiness,
   muse: museReadiness,
 };
@@ -55,11 +54,13 @@ async function agentReadiness(
     profile.auth?.(runtime),
     profile.integration?.(runtime),
   ]);
-  const report: AgentReadinessReport = {
+  return {
     type: agent,
     executable,
     globalConfig,
     builtInSkills,
+    auth,
+    integration,
     status: worstReadinessStatus([
       executable.status,
       globalConfig.status,
@@ -67,9 +68,6 @@ async function agentReadiness(
       ...(integration ? [integration.status] : []),
     ]),
   };
-  if (auth) report.auth = auth;
-  if (integration) report.integration = integration;
-  return report;
 }
 
 export async function getAgentReadinessReports(

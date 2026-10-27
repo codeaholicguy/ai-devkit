@@ -111,8 +111,6 @@ ai-devkit agent send "review this branch for release risk" --group reviewers
 
 # Pipe a session through Telegram — operate your agent from your phone
 ai-devkit channel start telegram --agent <agent-name> --daemon
-# Start an OMP profile with structured arguments (no shell alias evaluation)
-ai-devkit agent start --type omp --arg --profile --arg work
 ```
 
 Use this when work spans long-running agents, multiple providers, scheduled checks, review loops, or remote control from another channel.
@@ -215,7 +213,6 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Grok Build CLI](https://x.ai/cli) | yes | yes (`grok_cli`) |
 | [opencode](https://opencode.ai/) | yes | yes (`opencode`) |
 | [Pi](https://pi.dev) | yes | yes (`pi`) |
-| [oh-my-pi](https://github.com/can1357/oh-my-pi) | yes | yes (`omp`) |
 | [GitHub Copilot](https://github.com/features/copilot) | yes | yes (`copilot`) |
 | [Kiro CLI](https://kiro.dev/cli/) | yes | yes (`kiro`) |
 | [Devin](https://devin.ai/) | yes | yes (`devin`) |
