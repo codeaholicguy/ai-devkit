@@ -15,6 +15,16 @@ const REQUIRED_STABLE_POLLS: u32 = 5;
 
 /// Binary paths are injectable so tests can point at fixture scripts instead
 /// of real tmux/pgrep/ps.
+fn shell_quote(value: &str) -> String {
+    if value
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b"_./:@%+=,-".contains(&b))
+    {
+        return value.to_string();
+    }
+    format!("'{}'", value.replace('\'', "'\\''"))
+}
+
 pub struct TmuxRuntime {
     tmux: String,
     pgrep: String,
@@ -166,7 +176,12 @@ impl AgentRuntime for TmuxRuntime {
                 code: None,
                 message: format!("tmux new-session failed: {e}"),
             })?;
-        self.run(&["send-keys", "-t", input.name, input.command, "Enter"])
+        let command_line = std::iter::once(input.command)
+            .chain(input.args.iter().map(String::as_str))
+            .map(shell_quote)
+            .collect::<Vec<_>>()
+            .join(" ");
+        self.run(&["send-keys", "-t", input.name, &command_line, "Enter"])
             .map_err(|e| StartError::Failed {
                 code: None,
                 message: format!("tmux send-keys failed: {e}"),
@@ -234,6 +249,25 @@ mod tests {
         let calls = f.log("tmux-calls.log");
         assert!(calls.contains("new-session -d -s agent-one -c /tmp"));
         assert!(calls.contains("send-keys -t agent-one claude Enter"));
+    }
+    #[test]
+    fn start_quotes_structured_omp_arguments() {
+        let f = FixtureDir::new("omp-args");
+        f.set("pane_pid", "9000");
+        f.set("children-9000", "9001");
+        f.set("cmd-9001", "/usr/bin/omp --profile 'work profile'");
+        let matcher = MatchSpec::Omp;
+        let args = vec!["--profile".to_string(), "work profile".to_string()];
+        let base = input("omp-work", &matcher, 5000);
+        let start = StartInput {
+            command: "omp",
+            args: &args,
+            ..base
+        };
+        f.tmux().start(&start).unwrap();
+        assert!(f
+            .log("tmux-calls.log")
+            .contains("send-keys -t omp-work omp --profile 'work profile' Enter"));
     }
 
     #[test]

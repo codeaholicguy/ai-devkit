@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- Added the OMP (`omp`) harness to agent-manager, CLI start, Tmux runtimes, and the Rust daemon; profile aliases are represented as repeatable structured `--arg` values rather than shell-evaluated aliases.
 
 - [3f90d45](https://github.com/codeaholicguy/ai-devkit/commit/3f90d45) Added the built-in `dev-retro` skill: an evidence-based retrospective that turns friction into durable fixes, automation first. `dev-lifecycle` and `dev-debug` offer it and run it only if the user agrees.
 - [fdbfb3a](https://github.com/codeaholicguy/ai-devkit/commit/fdbfb3a) Wired `dev-smoke` into other skills: `verify` requires it for "feature works" claims on user-facing changes, `dev-refactor` and `dev-simplify` compare runs before and after, `dev-debug` uses it as the repro, and `dev-lifecycle` runs it before code review.

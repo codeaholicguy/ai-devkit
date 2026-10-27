@@ -32,6 +32,7 @@ export interface StartAgentOptions {
   type: StartableAgentType;
   name: string;
   cwd: string;
+  args?: string[];
   runtimeProvider?: AgentRuntimeProvider;
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
@@ -120,7 +121,7 @@ export async function startAgent(
     name: opts.name,
     cwd: opts.cwd,
     kind: profile.runtimeKind,
-    args: [],
+    args: opts.args ?? [],
     timeoutMs,
     ...(provider === "tmux"
       ? {
