@@ -31,22 +31,6 @@ describe("harness runtime profiles", () => {
     ).toBe(true);
   });
 
-  it("recognizes OMP's direct and Bun-launched CLI identities", () => {
-    expect(HARNESS_RUNTIME_PROFILES.omp).toMatchObject({
-      command: "omp",
-      runtimeKind: "omp",
-      discoveryAliases: ["omp"],
-    });
-    expect(HARNESS_RUNTIME_PROFILES.omp.matches("omp --profile work")).toBe(true);
-    expect(
-      HARNESS_RUNTIME_PROFILES.omp.matches(
-        "/home/me/.bun/bin/bun /home/me/.npm/@oh-my-pi/pi-coding-agent/dist/cli.js --profile work",
-      ),
-    ).toBe(true);
-    expect(HARNESS_RUNTIME_PROFILES.omp.matches("bun /repo/tools/cli.js")).toBe(false);
-    expect(HARNESS_RUNTIME_PROFILES.omp.matches("node /repo/tool.js omp")).toBe(false);
-  });
-
   it("matches runtime discovery names through the owning harness profile", () => {
     expect(runtimeAgentMatchesHarness("kiro-cli", "kiro")).toBe(true);
     expect(runtimeAgentMatchesHarness("gemini", "gemini_cli")).toBe(true);

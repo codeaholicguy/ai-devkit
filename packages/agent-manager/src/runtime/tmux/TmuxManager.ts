@@ -3,11 +3,6 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
-function shellQuote(value: string): string {
-  if (/^[A-Za-z0-9_./:@%+=,-]+$/.test(value)) return value;
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
-
 export class TmuxManager {
   async isAvailable(): Promise<boolean> {
     try {
@@ -31,9 +26,8 @@ export class TmuxManager {
     await execFileAsync("tmux", ["new-session", "-d", "-s", name, "-c", cwd]);
   }
 
-  async sendKeys(session: string, command: string, args: string[] = []): Promise<void> {
-    const commandLine = [command, ...args].map(shellQuote).join(" ");
-    await execFileAsync("tmux", ["send-keys", "-t", session, commandLine, "Enter"]);
+  async sendKeys(session: string, keys: string): Promise<void> {
+    await execFileAsync("tmux", ["send-keys", "-t", session, keys, "Enter"]);
   }
 
   async killSession(name: string): Promise<void> {

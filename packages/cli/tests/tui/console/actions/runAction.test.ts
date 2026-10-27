@@ -119,7 +119,7 @@ describe("runAction", () => {
       args: ["--debug", "--foo", "bar"],
     });
     const [, argv] = vi.mocked(spawn).mock.calls[0];
-    expect(argv.slice(-6)).toEqual(["--arg", "--debug", "--arg", "--foo", "--arg", "bar"]);
+    expect(argv.slice(-3)).toEqual(["--debug", "--foo", "bar"]);
   });
 
   it("passes correct argv for kill action", async () => {

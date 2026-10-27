@@ -20,7 +20,6 @@ export const HARNESS_RUNTIME_PROFILES: Record<StartableAgentType, HarnessRuntime
   antigravity_cli: profile("agy", matchArgv0("agy"), ["antigravity", "antigravity_cli"]),
   opencode: profile("opencode", matchArgv0("opencode")),
   pi: profile("pi", matchAnyBasename(["pi"])),
-  omp: profile("omp", matchOmp),
   kiro: profile("kiro", matchAnyBasename(["kiro-cli", "kiro"]), ["kiro_cli", "kiro-cli"]),
   devin: profile("devin", matchArgv0("devin")),
   muse: profile("muse", matchArgv0Name("muse")),
@@ -103,17 +102,4 @@ function matchAnyBasename(names: string[]): (psCommand: string) => boolean {
     const { argv0, args } = splitArgv0(psCommand);
     return test(argv0) || args.some(test);
   };
-}
-
-function matchOmp(psCommand: string): boolean {
-  const tokens = psCommand.replaceAll("\\", "/").trim().split(/\s+/);
-  const [argv0, ...args] = tokens;
-  const argv0Base = basenameOf(argv0 ?? "");
-  if (argv0Base === "omp" || argv0Base === "omp.exe" || argv0Base === "omp.js") return true;
-  return args.some(
-    (token) =>
-      basenameOf(token) === "cli.js" &&
-      token.includes("/@oh-my-pi/pi-coding-agent/") &&
-      token.endsWith("/dist/cli.js"),
-  );
 }

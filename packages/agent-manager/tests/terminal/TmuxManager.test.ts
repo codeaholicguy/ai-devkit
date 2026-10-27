@@ -74,16 +74,6 @@ describe("TmuxManager", () => {
         expect.any(Function),
       );
     });
-
-    it("quotes structured arguments without evaluating shell fragments", async () => {
-      setExecFileHandler(() => "");
-      await tmux.sendKeys("foo", "omp", ["--profile", "work profile"]);
-      expect(mockedExecFile).toHaveBeenCalledWith(
-        "tmux",
-        ["send-keys", "-t", "foo", "omp --profile 'work profile'", "Enter"],
-        expect.any(Function),
-      );
-    });
   });
 
   describe("killSession", () => {

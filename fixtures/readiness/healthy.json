@@ -523,39 +523,6 @@
         "errors": []
       },
       "status": "pass"
-    },
-    "omp": {
-      "type": "omp",
-      "executable": {
-        "command": "omp",
-        "path": null,
-        "status": "fail",
-        "errors": [
-          "omp was not found on PATH"
-        ]
-      },
-      "globalConfig": {
-        "path": "~/.omp",
-        "present": false,
-        "readable": false,
-        "status": "fail",
-        "errors": [
-          "global configuration directory is unavailable"
-        ]
-      },
-      "builtInSkills": {
-        "path": null,
-        "required": 3,
-        "present": 0,
-        "missing": [
-          "agent-management",
-          "memory",
-          "verify"
-        ],
-        "status": "info",
-        "errors": []
-      },
-      "status": "fail"
     }
   }
 }
