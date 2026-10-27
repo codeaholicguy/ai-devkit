@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## Unreleased
+- Added the OMP (`omp`) harness to agent-manager, CLI start, Tmux runtimes, and the Rust daemon; profile aliases are represented as repeatable structured `--arg` values rather than shell-evaluated aliases.
 
 ## [0.76.1] - 2026-11-13
 

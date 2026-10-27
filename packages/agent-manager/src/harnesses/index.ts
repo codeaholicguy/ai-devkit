@@ -8,6 +8,7 @@ import { GrokCliAdapter } from "./grok/GrokCliAdapter.js";
 import { KiroAdapter } from "./kiro/KiroAdapter.js";
 import { OpenCodeAdapter } from "./opencode/OpenCodeAdapter.js";
 import { PiAdapter } from "./pi/PiAdapter.js";
+import { OmpAdapter } from "./omp/OmpAdapter.js";
 import { DevinAdapter } from "./devin/DevinAdapter.js";
 import { MuseAdapter } from "./muse/MuseAdapter.js";
 
@@ -26,6 +27,7 @@ export function createBuiltinAdapters(): AgentAdapter[] {
     new AntigravityCliAdapter(),
     new OpenCodeAdapter(),
     new PiAdapter(),
+    new OmpAdapter(),
     new DevinAdapter(),
     new MuseAdapter(),
   ];

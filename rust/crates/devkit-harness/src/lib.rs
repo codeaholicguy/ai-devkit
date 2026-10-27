@@ -16,17 +16,18 @@ pub mod gemini;
 pub mod grok;
 pub mod kiro;
 pub mod muse;
+pub mod omp;
 pub mod opencode;
 pub mod pi;
 pub mod shared;
 pub mod start_profiles;
-
 /// Build a registry with every ported adapter for `home` registered.
 pub fn default_registry(home: &std::path::Path) -> Registry {
     let mut r = Registry::new();
     r.register(Box::new(claude::ClaudeAdapter::new(home)));
     r.register(Box::new(codex::CodexAdapter::new(home)));
     r.register(Box::new(pi::PiAdapter::new(home)));
+    r.register(Box::new(omp::OmpAdapter::new(home)));
     r.register(Box::new(gemini::GeminiAdapter::new(home)));
     r.register(Box::new(copilot::CopilotAdapter::new(home)));
     r.register(Box::new(grok::GrokAdapter::new(home)));

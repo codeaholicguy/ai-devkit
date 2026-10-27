@@ -216,6 +216,7 @@ describe("getStatusReport", () => {
       "opencode",
       "copilot",
       "pi",
+      "omp",
       "devin",
       "muse",
     ]);
