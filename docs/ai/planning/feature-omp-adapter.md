@@ -12,7 +12,7 @@ description: Ordered implementation plan for OMP support
 - [x] M1: OMP requirements/design and red tests established.
 - [x] M2: TypeScript and Rust OMP discovery implemented.
 - [x] M3: Structured profile arguments work through CLI, local Tmux, and devkitd.
-- [ ] M4: Verification complete and upstream pull request opened.
+- [x] M4: Verification complete and upstream pull request opened.
 
 ## Task Breakdown
 
@@ -32,7 +32,7 @@ description: Ordered implementation plan for OMP support
 
 - [x] Update tests for CLI, console action forwarding, daemon wire arguments, and Rust runtime behavior.
 - [x] Update README/CHANGELOG and implementation/testing records.
-- [ ] Run targeted tests, environment smoke tests, full relevant checks, review, commit, push, and open PR.
+- [x] Run targeted tests, environment smoke tests, full relevant checks, review, commit, push, and open PR.
 
 ## Dependencies
 
@@ -51,3 +51,4 @@ description: Ordered implementation plan for OMP support
 - Current queue: Foundation `done`; Core Features `done`; Integration `in-progress`.
 - Baseline: preflight lint/build passed; baseline full tests had one existing Pi live-discovery failure.
 - Queue update 3: targeted/full verification, formatting, lint, and OMP smoke checks complete; commit and PR submission are the remaining actions.
+- Queue update 4: commit `f95df21` pushed; PR #422 opened against `codeaholicguy/ai-devkit:main`.
