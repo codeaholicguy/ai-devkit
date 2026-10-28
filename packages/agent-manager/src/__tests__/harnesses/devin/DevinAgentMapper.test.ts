@@ -56,13 +56,26 @@ describe("DevinAgentMapper", () => {
     const agent = mapper.mapSessionToAgent(
       session(),
       {
-        lastRole: "assistant",
+        lastRole: "user",
         lastTimeUpdated: Date.now() - 10 * 60 * 1000,
         summary: "",
       },
       proc(),
     );
     expect(agent.status).toBe(AgentStatus.IDLE);
+  });
+
+  it("keeps stale sessions awaiting input waiting", () => {
+    const agent = mapper.mapSessionToAgent(
+      session(),
+      {
+        lastRole: "assistant",
+        lastTimeUpdated: Date.now() - 10 * 60 * 1000,
+        summary: "",
+      },
+      proc(),
+    );
+    expect(agent.status).toBe(AgentStatus.WAITING);
   });
 
   it("falls back to session title then directory for summary and project path", () => {

@@ -93,15 +93,15 @@ pub fn read_session(
     })
 }
 
-/// `determineStatus`: past the 5-min idle mark → idle; else an assistant
-/// reply without a tool call → waiting; everything else → running.
+/// `determineStatus`: an assistant reply without a tool call → waiting;
+/// else past the 5-min idle mark → idle; everything else → running.
 pub fn status(session: &KiroSession, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        "idle"
-    } else if session.last_event_kind.as_deref() == Some("AssistantMessage")
+    if session.last_event_kind.as_deref() == Some("AssistantMessage")
         && !session.last_assistant_has_tool_use
     {
         "waiting"
+    } else if shared::is_idle(session.last_active_ms, now_ms) {
+        "idle"
     } else {
         "running"
     }

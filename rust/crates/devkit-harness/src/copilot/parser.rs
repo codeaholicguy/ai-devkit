@@ -279,11 +279,8 @@ pub fn read_session_dir(
     })
 }
 
-/// `determineStatus` — idle(5min) > waiting events > running.
+/// `determineStatus` — waiting events > idle(5min) > running.
 pub fn determine_status(session: &Session, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        return "idle";
-    }
     if session.last_event_type.as_deref().is_some_and(|t| {
         matches!(
             t,
@@ -291,6 +288,9 @@ pub fn determine_status(session: &Session, now_ms: i64) -> &'static str {
         )
     }) {
         return "waiting";
+    }
+    if shared::is_idle(session.last_active_ms, now_ms) {
+        return "idle";
     }
     "running"
 }
@@ -331,7 +331,7 @@ mod tests {
         assert_eq!(s.summary, "hello");
         assert_eq!(s.last_event_type.as_deref(), Some("assistant.message"));
         assert_eq!(determine_status(&s, s.last_active_ms + 60_000), "waiting");
-        assert_eq!(determine_status(&s, s.last_active_ms + 300_001), "idle");
+        assert_eq!(determine_status(&s, s.last_active_ms + 300_001), "waiting");
     }
 
     #[test]

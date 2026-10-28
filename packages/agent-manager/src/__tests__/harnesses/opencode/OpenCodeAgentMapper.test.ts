@@ -58,7 +58,7 @@ describe("OpenCodeAgentMapper", () => {
       {
         lastRole: "assistant",
         lastTimeUpdated: staleTime,
-        lastAssistantCompleted: true,
+        lastAssistantCompleted: false,
         lastAssistantErrored: false,
         summary: "",
       },
@@ -66,6 +66,24 @@ describe("OpenCodeAgentMapper", () => {
     );
 
     expect(agent.status).toBe(AgentStatus.IDLE);
+  });
+
+  it("keeps stale sessions awaiting input waiting", () => {
+    const staleTime = Date.now() - 10 * 60 * 1000;
+
+    const agent = mapper.mapSessionToAgent(
+      { sessionId: "sess-4", directory: "/old", timeCreated: staleTime },
+      {
+        lastRole: "assistant",
+        lastTimeUpdated: staleTime,
+        lastAssistantCompleted: true,
+        lastAssistantErrored: false,
+        summary: "",
+      },
+      { pid: 126, command: "opencode", cwd: "/old" },
+    );
+
+    expect(agent.status).toBe(AgentStatus.WAITING);
   });
 
   it("maps unmatched processes as running process-only agents", () => {

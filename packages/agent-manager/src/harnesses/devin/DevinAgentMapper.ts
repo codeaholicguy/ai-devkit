@@ -33,7 +33,7 @@ export class DevinAgentMapper {
   }
 
   private determineStatus(stats: DevinSessionStats, lastActive: Date): AgentStatus {
-    if (isIdle(lastActive)) return AgentStatus.IDLE;
-    return stats.lastRole === "assistant" ? AgentStatus.WAITING : AgentStatus.RUNNING;
+    if (stats.lastRole === "assistant") return AgentStatus.WAITING;
+    return isIdle(lastActive) ? AgentStatus.IDLE : AgentStatus.RUNNING;
   }
 }

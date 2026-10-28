@@ -54,13 +54,13 @@ pub fn read_session(conversation_id: &str, transcript_path: &str, cwd: &str) -> 
     })
 }
 
-/// `determineStatus`: past the idle mark → idle; last turn assistant →
-/// waiting; else running.
+/// `determineStatus`: last turn assistant → waiting; past the idle mark →
+/// idle; else running.
 pub fn status(session: &Session, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        "idle"
-    } else if session.last_role == Some("assistant") {
+    if session.last_role == Some("assistant") {
         "waiting"
+    } else if shared::is_idle(session.last_active_ms, now_ms) {
+        "idle"
     } else {
         "running"
     }

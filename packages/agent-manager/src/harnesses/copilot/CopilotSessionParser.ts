@@ -276,12 +276,12 @@ export class CopilotSessionParser {
   }
 
   determineStatus(session: CopilotSession): AgentStatus {
-    if (isIdle(session.lastActive)) {
-      return AgentStatus.IDLE;
-    }
-
     if (session.lastEventType !== undefined && WAITING_EVENTS.has(session.lastEventType)) {
       return AgentStatus.WAITING;
+    }
+
+    if (isIdle(session.lastActive)) {
+      return AgentStatus.IDLE;
     }
 
     return AgentStatus.RUNNING;

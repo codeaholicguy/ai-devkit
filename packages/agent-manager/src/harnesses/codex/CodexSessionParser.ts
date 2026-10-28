@@ -188,16 +188,16 @@ export class CodexSessionParser {
   }
 
   determineStatus(session: CodexSession): AgentStatus {
-    if (isIdle(session.lastActive)) {
-      return AgentStatus.IDLE;
-    }
-
     if (
       session.lastPayloadType === "agent_message" ||
       session.lastPayloadType === "task_complete" ||
       session.lastPayloadType === "turn_aborted"
     ) {
       return AgentStatus.WAITING;
+    }
+
+    if (isIdle(session.lastActive)) {
+      return AgentStatus.IDLE;
     }
 
     return AgentStatus.RUNNING;

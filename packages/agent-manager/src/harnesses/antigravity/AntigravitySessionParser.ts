@@ -130,16 +130,16 @@ export class AntigravitySessionParser {
   }
 
   /**
+   * - last turn is an assistant reply → WAITING (awaiting input)
    * - past the idle threshold → IDLE
-   * - last turn is an assistant reply → WAITING (awaiting user)
    * - otherwise (last turn was a user message, or unknown) → RUNNING
    */
   determineStatus(session: AntigravitySession): AgentStatus {
-    if (isIdle(session.lastActive)) {
-      return AgentStatus.IDLE;
-    }
     if (session.lastRole === "assistant") {
       return AgentStatus.WAITING;
+    }
+    if (isIdle(session.lastActive)) {
+      return AgentStatus.IDLE;
     }
     return AgentStatus.RUNNING;
   }

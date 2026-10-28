@@ -823,9 +823,21 @@ describe("GeminiCliAdapter", () => {
           summary: "",
           sessionStart: new Date(),
           lastActive: new Date(Date.now() - 10 * 60 * 1000),
-          lastMessageType: "gemini",
+          lastMessageType: "user",
         };
         expect(parser.determineStatus(session)).toBe(AgentStatus.IDLE);
+      });
+
+      it('should stay "waiting" past the idle threshold when awaiting input', () => {
+        const session = {
+          sessionId: "s",
+          projectPath: "",
+          summary: "",
+          sessionStart: new Date(),
+          lastActive: new Date(Date.now() - 10 * 60 * 1000),
+          lastMessageType: "gemini",
+        };
+        expect(parser.determineStatus(session)).toBe(AgentStatus.WAITING);
       });
     });
 

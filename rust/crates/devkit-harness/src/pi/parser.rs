@@ -370,13 +370,11 @@ fn apply_head_line(head: &mut SessionHead, line: &[u8]) {
     }
 }
 
-/// `determineStatus` — idle > assistant→waiting > running.
+/// `determineStatus` — assistant→waiting > idle > running.
 pub fn determine_status(session: &Session, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        return "idle";
-    }
     match session.last_role.as_deref() {
         Some("assistant") => "waiting",
+        _ if shared::is_idle(session.last_active_ms, now_ms) => "idle",
         _ => "running",
     }
 }

@@ -80,7 +80,7 @@
     {
       "name": "idle-81004",
       "type": "grok_cli",
-      "status": "idle",
+      "status": "waiting",
       "summary": "old prompt",
       "pid": 81004,
       "projectPath": "/proj/idle",

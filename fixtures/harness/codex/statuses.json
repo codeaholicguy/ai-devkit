@@ -100,7 +100,7 @@
     {
       "name": "st-idle-4005",
       "type": "codex",
-      "status": "idle",
+      "status": "waiting",
       "summary": "old reply",
       "pid": 4005,
       "projectPath": "/proj/st-idle",
