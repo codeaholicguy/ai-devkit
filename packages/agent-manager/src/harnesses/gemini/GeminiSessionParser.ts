@@ -141,12 +141,12 @@ export class GeminiSessionParser {
   }
 
   determineStatus(session: GeminiSession): AgentStatus {
-    if (isIdle(session.lastActive)) {
-      return AgentStatus.IDLE;
-    }
-
     if (session.lastMessageType === "gemini" || session.lastMessageType === "assistant") {
       return AgentStatus.WAITING;
+    }
+
+    if (isIdle(session.lastActive)) {
+      return AgentStatus.IDLE;
     }
 
     return AgentStatus.RUNNING;

@@ -40,12 +40,10 @@ export class OpenCodeAgentMapper {
   }
 
   private determineStatus(stats: OpenCodeSessionStats, lastActive: Date): AgentStatus {
-    if (isIdle(lastActive)) return AgentStatus.IDLE;
-
-    if (stats.lastRole === "assistant" && !stats.lastAssistantCompleted) {
-      return AgentStatus.RUNNING;
+    if (stats.lastRole === "assistant" && stats.lastAssistantCompleted) {
+      return AgentStatus.WAITING;
     }
-    if (stats.lastRole === "assistant") return AgentStatus.WAITING;
+    if (isIdle(lastActive)) return AgentStatus.IDLE;
     return AgentStatus.RUNNING;
   }
 }

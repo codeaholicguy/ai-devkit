@@ -80,13 +80,11 @@ fn build_session(
     .into()
 }
 
-/// `determineStatus` — idle(5min) > waiting(last turn assistant-side) > running.
+/// `determineStatus` — waiting(last turn assistant-side) > idle(5min) > running.
 pub fn determine_status(session: &GeminiSession, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        return "idle";
-    }
     match session.last_message_type.as_deref() {
         Some("gemini") | Some("assistant") => "waiting",
+        _ if shared::is_idle(session.last_active_ms, now_ms) => "idle",
         _ => "running",
     }
 }

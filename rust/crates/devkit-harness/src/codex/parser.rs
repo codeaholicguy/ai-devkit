@@ -251,11 +251,9 @@ fn to_session(state: SummaryState, file_mtime_ms: impl FnOnce() -> i64) -> Optio
 
 /// `determineStatus`
 pub fn determine_status(session: &Session, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        return "idle";
-    }
     match session.last_payload_type.as_deref() {
         Some("agent_message" | "task_complete" | "turn_aborted") => "waiting",
+        _ if shared::is_idle(session.last_active_ms, now_ms) => "idle",
         _ => "running",
     }
 }
@@ -321,10 +319,23 @@ mod tests {
     fn idle_after_five_minutes() {
         let p = write_tmp(&[
             &meta_line("s3", "/proj", "2026-10-08T10:00:00Z"),
-            r#"{"timestamp":"2026-10-08T10:01:00Z","type":"event_msg","payload":{"type":"task_complete","message":"bye"}}"#,
+            r#"{"timestamp":"2026-10-08T10:01:00Z","type":"event_msg","payload":{"type":"user_message","message":"go"}}"#,
         ]);
         let s = read_session(&p).unwrap();
         assert_eq!(determine_status(&s, s.last_active_ms + 6 * 60_000), "idle");
+    }
+
+    #[test]
+    fn waiting_survives_idle_threshold() {
+        let p = write_tmp(&[
+            &meta_line("s3", "/proj", "2026-10-08T10:00:00Z"),
+            r#"{"timestamp":"2026-10-08T10:01:00Z","type":"event_msg","payload":{"type":"task_complete","message":"bye"}}"#,
+        ]);
+        let s = read_session(&p).unwrap();
+        assert_eq!(
+            determine_status(&s, s.last_active_ms + 6 * 60_000),
+            "waiting"
+        );
     }
 
     #[test]

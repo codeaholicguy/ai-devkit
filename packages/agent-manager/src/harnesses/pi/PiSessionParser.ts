@@ -174,8 +174,8 @@ export class PiSessionParser {
   }
 
   determineStatus(session: PiSession): AgentStatus {
-    if (isIdle(session.lastActive)) return AgentStatus.IDLE;
     if (session.lastRole === "assistant") return AgentStatus.WAITING;
+    if (isIdle(session.lastActive)) return AgentStatus.IDLE;
     return AgentStatus.RUNNING;
   }
 

@@ -110,13 +110,13 @@ pub fn read_session(session_dir: &Path, default_cwd: &str) -> Option<Session> {
     })
 }
 
-/// `determineStatus` — idle(5min) > last turn assistant (waiting) > running.
+/// `determineStatus` — last turn assistant (waiting) > idle(5min) > running.
 pub fn determine_status(session: &Session, now_ms: i64) -> &'static str {
-    if shared::is_idle(session.last_active_ms, now_ms) {
-        return "idle";
-    }
     if session.last_role.as_deref() == Some("assistant") {
         return "waiting";
+    }
+    if shared::is_idle(session.last_active_ms, now_ms) {
+        return "idle";
     }
     "running"
 }

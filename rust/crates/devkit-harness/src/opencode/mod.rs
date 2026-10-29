@@ -141,20 +141,19 @@ impl HarnessAdapter for OpenCodeAdapter {
     }
 }
 
-/// `determineStatus` — idle(5min) short-circuits; last assistant role:
-/// not-completed → running, completed → waiting; anything else running.
+/// `determineStatus` — a completed last assistant message → waiting;
+/// otherwise idle(5min) → idle, else running.
 /// (TS's `lastAssistantErrored` flag is likewise unused there.)
 fn determine_status(
     stats: &parser::SessionStats,
     last_active_ms: i64,
     now_ms: i64,
 ) -> &'static str {
-    if shared::is_idle(last_active_ms, now_ms) {
-        return "idle";
-    }
-    match stats.last_role.as_deref() {
-        Some("assistant") if !stats.last_assistant_completed => "running",
-        Some("assistant") => "waiting",
-        _ => "running",
+    if stats.last_role.as_deref() == Some("assistant") && stats.last_assistant_completed {
+        "waiting"
+    } else if shared::is_idle(last_active_ms, now_ms) {
+        "idle"
+    } else {
+        "running"
     }
 }

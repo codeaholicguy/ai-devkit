@@ -261,18 +261,17 @@ fn is_acp_backend_child(proc: &AgentProc, process_by_pid: &HashMap<i64, &AgentPr
     process_by_pid.contains_key(&ppid)
 }
 
-/// `determineStatus` — idle(5min) > lastRole==="assistant" (waiting) >
+/// `determineStatus` — lastRole==="assistant" (waiting) > idle(5min) >
 /// running.
 fn determine_status(
     stats: &parser::SessionStats,
     last_active_ms: i64,
     now_ms: i64,
 ) -> &'static str {
-    if shared::is_idle(last_active_ms, now_ms) {
-        return "idle";
-    }
     if stats.last_role.as_deref() == Some("assistant") {
         "waiting"
+    } else if shared::is_idle(last_active_ms, now_ms) {
+        "idle"
     } else {
         "running"
     }

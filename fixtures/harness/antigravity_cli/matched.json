@@ -111,7 +111,7 @@
     {
       "name": "idle-3003",
       "type": "antigravity_cli",
-      "status": "idle",
+      "status": "waiting",
       "summary": "Antigravity CLI session active",
       "pid": 3003,
       "projectPath": "/proj/idle",

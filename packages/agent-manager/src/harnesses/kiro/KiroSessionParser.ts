@@ -132,15 +132,15 @@ export class KiroSessionParser {
   }
 
   /**
-   * - past the idle threshold → IDLE
    * - last event is an assistant reply without a tool call → WAITING
+   * - past the idle threshold → IDLE
    * - otherwise (user prompt, tool call or tool result) → RUNNING
    */
   determineStatus(session: KiroSession): AgentStatus {
-    if (isIdle(session.lastActive)) return AgentStatus.IDLE;
     if (session.lastEventKind === "AssistantMessage" && !session.lastAssistantHasToolUse) {
       return AgentStatus.WAITING;
     }
+    if (isIdle(session.lastActive)) return AgentStatus.IDLE;
     return AgentStatus.RUNNING;
   }
 
