@@ -268,10 +268,21 @@ impl Store {
     /// start-time name check.
     pub fn prune_dead(&self) -> Result<usize> {
         let conn = self.conn.lock().unwrap();
-        Ok(conn.execute(
-            "DELETE FROM agents WHERE name IS NOT NULL AND gone_at IS NOT NULL",
-            [],
-        )?)
+        let pids: Vec<i64> = conn
+            .prepare("SELECT pid FROM agents WHERE name IS NOT NULL AND gone_at IS NOT NULL")?
+            .query_map([], |r| r.get(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+        // gone_at is sweep bookkeeping — prune only tombstones whose pid is
+        // actually dead. A tombstoned-but-alive row keeps its registration;
+        // deleting it would free a name that is still in use.
+        let mut n = 0;
+        for pid in pids {
+            if !crate::discover::pid_alive(pid) {
+                n += conn.execute("DELETE FROM agents WHERE pid=?1", params![pid])?;
+            }
+        }
+        Ok(n)
     }
 
     /// Registry overlays for live rows: pid -> (name, pinned). Tombstones
@@ -384,8 +395,10 @@ mod tests {
     #[test]
     fn tombstone_frees_name_via_prune_and_reuse() {
         let (s, _p) = tmp_store();
-        s.apply_agent_snapshot(&[proc_started(10, 1000)]).unwrap();
-        s.register_start(10, "my-agent", "codex", "/tmp", "tmux", &json!({}))
+        // i32::MAX is above every pid_max — guaranteed dead (pid 10 is a
+        // live kernel thread on Linux CI, which kept the tombstone alive).
+        s.apply_agent_snapshot(&[proc_started(i32::MAX as i64, 1000)]).unwrap();
+        s.register_start(i32::MAX as i64, "my-agent", "codex", "/tmp", "tmux", &json!({}))
             .unwrap();
         s.apply_agent_snapshot(&[]).unwrap();
         // Dead name does not block a new start once pruned.
