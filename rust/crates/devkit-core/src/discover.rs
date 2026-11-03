@@ -292,6 +292,16 @@ fn local_utc_offset_secs(utc_secs: i64) -> i64 {
     }
 }
 
+/// Process liveness: exists or permission-denied (EPERM = exists, not ours).
+pub fn pid_alive(pid: i64) -> bool {
+    unsafe {
+        if libc::kill(pid as libc::pid_t, 0) == 0 {
+            return true;
+        }
+    }
+    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

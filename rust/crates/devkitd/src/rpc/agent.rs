@@ -52,12 +52,5 @@ fn base36(mut n: i64) -> String {
     out.iter().rev().map(|c| *c as char).collect()
 }
 
-/// Process liveness: exists or permission-denied (EPERM = exists, not ours).
-pub(super) fn pid_alive(pid: i64) -> bool {
-    unsafe {
-        if libc::kill(pid as libc::pid_t, 0) == 0 {
-            return true;
-        }
-    }
-    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-}
+/// Process liveness lives in devkit-core (prune_dead needs it too).
+pub(super) use devkit_core::discover::pid_alive;
