@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.72.0] - 2026-11-03
 
 - [de74bf0](https://github.com/codeaholicguy/ai-devkit/pull/418) Closed duplicate-name holes in `agent start`: the daemon re-imports the legacy registry under the start lock and treats a live pid as name-in-use even when tombstoned, so duplicates are rejected with a clear `name_in_use` error and names are reusable after `agent kill`.
 - [5fb9330](https://github.com/codeaholicguy/ai-devkit/pull/423) Kept waiting agents from decaying to `idle`: harness session parsers now treat a session whose last message came from the assistant as waiting, regardless of the idle timer.
