@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+- [de74bf0](https://github.com/codeaholicguy/ai-devkit/pull/418) Closed duplicate-name holes in `agent start`: the daemon re-imports the legacy registry under the start lock and treats a live pid as name-in-use even when tombstoned, so duplicates are rejected with a clear `name_in_use` error and names are reusable after `agent kill`.
+- [5fb9330](https://github.com/codeaholicguy/ai-devkit/pull/423) Kept waiting agents from decaying to `idle`: harness session parsers now treat a session whose last message came from the assistant as waiting, regardless of the idle timer.
+- [9c55339](https://github.com/codeaholicguy/ai-devkit/commit/9c55339) Tightened `verify`: any change a user or caller sees now requires `dev-smoke` evidence (not just "feature works" claims), and completion reports must list test, lint, regression, and smoke results, making skipped checks visible.
+- [5e0b67d](https://github.com/codeaholicguy/ai-devkit/pull/420) Fixed skill registry source detection to decide local-vs-git by the filesystem instead of string shape: scheme-less values that resolve to an existing directory (`.`, `myfolder`, `~/x`) are local registries, and only URL-shaped or nonexistent targets fall through to git.
 - [3f90d45](https://github.com/codeaholicguy/ai-devkit/commit/3f90d45) Added the built-in `dev-retro` skill: an evidence-based retrospective that turns friction into durable fixes, automation first. `dev-lifecycle` and `dev-debug` offer it and run it only if the user agrees.
 - [fdbfb3a](https://github.com/codeaholicguy/ai-devkit/commit/fdbfb3a) Wired `dev-smoke` into other skills: `verify` requires it for "feature works" claims on user-facing changes, `dev-refactor` and `dev-simplify` compare runs before and after, `dev-debug` uses it as the repro, and `dev-lifecycle` runs it before code review.
 - [aa06cf5](https://github.com/codeaholicguy/ai-devkit/commit/aa06cf5) Added server start, readiness, and teardown helpers plus HTTP status checks to the `dev-smoke` shell template, and API checks now cover response bodies and error cases.
