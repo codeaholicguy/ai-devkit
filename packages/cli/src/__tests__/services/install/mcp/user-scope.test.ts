@@ -147,6 +147,25 @@ describe("user-scope MCP generators", () => {
     expect(readFileSync(join(homeDir, ".codex", "config.toml"), "utf-8")).toBe(first);
   });
 
+  it("codex user scope leaves foreign servers with non-string values untouched", async () => {
+    mkdirSync(join(homeDir, ".codex"), { recursive: true });
+    const original =
+      '[mcp_servers.repl]\ncommand = "node"\nstartup_timeout_sec = 30\nenabled = false\nenv = { A = "1" }\n\n' +
+      '[mcp_servers.pw]\ncommand = "npx"\n\n[mcp_servers.pw.tools.browser]\napproval_mode = "approve"\n';
+    writeFileSync(join(homeDir, ".codex", "config.toml"), original);
+    const generator = new CodexMcpGenerator("user");
+
+    await applyDrift(generator, MEMORY, homeDir);
+
+    const output = readFileSync(join(homeDir, ".codex", "config.toml"), "utf-8");
+    expect(output.startsWith(original)).toBe(true);
+    const parsed = TOML.parse(output) as { mcp_servers: Record<string, unknown> };
+    expect(parsed.mcp_servers["ai-devkit-memory"]).toEqual({
+      command: "npx",
+      args: ["-y", "@ai-devkit/memory"],
+    });
+  });
+
   it("gemini and cursor are exposed with correct agent types", () => {
     expect(new GeminiMcpGenerator().agentType).toBe("gemini");
     expect(new CursorMcpGenerator().agentType).toBe("cursor");
