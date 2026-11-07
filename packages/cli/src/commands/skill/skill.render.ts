@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { ui } from "../../util/terminal-ui.js";
 import { truncate } from "../../util/text.js";
 import type {
+  AddAllSkillsResult,
   GlobalInstalledSkill,
   InstalledSkill,
   SkillInstallResult,
@@ -58,6 +59,63 @@ export function renderSkillInstallResult(result: SkillInstallResult): void {
       actionOrReason,
     );
   }
+}
+
+/** Render a `skill add --all` bulk result: dry-run listing or install summary. */
+export function renderSkillAddAllResult(
+  result: AddAllSkillsResult,
+  options: { json?: boolean } = {},
+): void {
+  if (options.json) {
+    ui.text(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (result.dryRun) {
+    const pending = result.items.filter((item) => item.status === "installed");
+    const installedAlready = result.items.filter((item) => item.status === "skipped");
+
+    if (pending.length === 0) {
+      ui.success(
+        `Dry run: all ${formatCount(installedAlready.length, "skill")} from ${result.registryId} already installed. Nothing to do.`,
+      );
+      return;
+    }
+
+    ui.text(
+      `Dry run: would install ${formatCount(pending.length, "skill")} from ${result.registryId}` +
+        (installedAlready.length > 0
+          ? ` (${installedAlready.length} already installed, would skip)`
+          : "") +
+        ":",
+      { breakline: true },
+    );
+    ui.table({
+      headers: ["Skill", "Status"],
+      rows: pending.map((item) => [item.skill, "would install"]),
+      columnStyles: [chalk.cyan, chalk.green],
+    });
+    return;
+  }
+
+  const failed = result.items.filter((item) => item.status === "failed");
+  ui.summary({
+    title: `Bulk install from ${result.registryId}`,
+    items: [
+      { type: "success", count: result.installed, label: "installed" },
+      { type: "warning", count: result.skipped, label: "skipped (already installed)" },
+      { type: "error", count: result.failed, label: "failed" },
+    ],
+    details:
+      failed.length > 0
+        ? {
+            title: "Errors",
+            items: failed.map((item) => ({
+              message: `${item.skill}: ${item.error ?? "unknown error"}`,
+            })),
+          }
+        : undefined,
+  });
 }
 
 export function renderSkillRemoveResult(result: SkillRemoveResult): void {

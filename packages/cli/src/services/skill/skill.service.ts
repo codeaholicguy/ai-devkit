@@ -4,6 +4,8 @@ import { SkillInstallerService } from "./installer/skill-installer.service.js";
 import { SkillIndexService } from "./index/skill-index.service.js";
 import { SkillRegistryService } from "./registry/skill-registry.service.js";
 import type {
+  AddAllSkillOptions,
+  AddAllSkillsResult,
   AddSkillOptions,
   AddSkillRegistryCommandOptions,
   GlobalInstalledSkill,
@@ -51,6 +53,10 @@ export class SkillService {
 
   listInstallableSkills(registryId: string): Promise<RegistrySkillChoice[]> {
     return this.installer.listInstallableSkills(registryId);
+  }
+
+  addAllSkills(registryId: string, options: AddAllSkillOptions = {}): Promise<AddAllSkillsResult> {
+    return this.installer.addAllSkills(registryId, options);
   }
 
   listSkills(): Promise<InstalledSkill[]> {

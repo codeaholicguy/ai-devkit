@@ -61,6 +61,38 @@ export interface AddSkillRegistryCommandOptions {
   force?: boolean;
 }
 
+export interface AddAllSkillOptions extends AddSkillOptions {
+  /** Glob of skill names to skip (e.g., "design-ux-writing", "*-writing"). */
+  exclude?: string;
+  /** Report what would install without touching the filesystem or config. */
+  dryRun?: boolean;
+  /**
+   * Called before a non-dry-run bulk install when the registry offers more
+   * than 20 skills; return false to cancel. Lets the command layer own the
+   * TTY/confirm policy while the service owns enumeration.
+   */
+  confirmInstall?: (skillCount: number) => Promise<boolean>;
+}
+
+export type AddAllSkillItemStatus = "installed" | "skipped" | "failed";
+
+export interface AddAllSkillItem {
+  skill: string;
+  status: AddAllSkillItemStatus;
+  error?: string;
+}
+
+export interface AddAllSkillsResult {
+  registryId: string;
+  dryRun: boolean;
+  /** Installable skills considered, after --exclude filtering. */
+  total: number;
+  installed: number;
+  skipped: number;
+  failed: number;
+  items: AddAllSkillItem[];
+}
+
 export interface RemoveSkillRegistryCommandOptions {
   global?: boolean;
 }
