@@ -2,6 +2,7 @@ import {
   validateRegistryId,
   validateSkillName,
   isValidSkillName,
+  globToRegExp,
 } from "../../../services/skill/skill-validation.js";
 
 describe("Skill Validation Utilities", () => {
@@ -201,6 +202,34 @@ describe("Skill Validation Utilities", () => {
       expect(isValidSkillName("trailing-")).toBe(false);
       expect(isValidSkillName("double--hyphen")).toBe(false);
       expect(isValidSkillName("UPPERCASE")).toBe(false);
+    });
+  });
+
+  describe("globToRegExp", () => {
+    const matches = (glob: string, name: string) => globToRegExp(glob).test(name);
+
+    it("matches exact names literally", () => {
+      expect(matches("design-ux-writing", "design-ux-writing")).toBe(true);
+      expect(matches("design-ux-writing", "design-ux-writings")).toBe(false);
+      expect(matches("design-ux-writing", "xdesign-ux-writing")).toBe(false);
+    });
+
+    it("treats * as any run of name characters", () => {
+      expect(matches("*-writing", "design-ux-writing")).toBe(true);
+      expect(matches("*-writing", "writing")).toBe(false);
+      expect(matches("debug*", "debug-2")).toBe(true);
+      expect(matches("*", "any-name-1")).toBe(true);
+    });
+
+    it("treats ? as exactly one name character", () => {
+      expect(matches("skill-?", "skill-1")).toBe(true);
+      expect(matches("skill-?", "skill-10")).toBe(false);
+    });
+
+    it("escapes regex metacharacters", () => {
+      expect(matches("a.b", "axb")).toBe(false);
+      expect(matches("a.b", "a.b")).toBe(true);
+      expect(matches("a+b", "a+b")).toBe(true);
     });
   });
 });

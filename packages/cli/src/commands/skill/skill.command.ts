@@ -1,5 +1,5 @@
 import { Command, InvalidArgumentError, Option } from "commander";
-import { checkbox } from "@inquirer/prompts";
+import { checkbox, confirm } from "@inquirer/prompts";
 import { ConfigManager } from "../../lib/Config.js";
 import { EnvironmentSelector } from "../../lib/EnvironmentSelector.js";
 import { SkillService } from "../../services/skill/skill.service.js";
@@ -12,10 +12,15 @@ import { ConfigNotFoundError, ValidationError, withErrorHandler } from "../../ut
 import { isInteractiveTerminal } from "../../util/terminal.js";
 import { getErrorMessage } from "../../util/text.js";
 import { SKILL_INSTALL_MODES, type SkillInstallMode } from "../../types.js";
-import type { AddSkillOptions, RegistrySkillChoice } from "../../services/skill/skill.types.js";
+import type {
+  AddAllSkillsResult,
+  AddSkillOptions,
+  RegistrySkillChoice,
+} from "../../services/skill/skill.types.js";
 import {
   renderGlobalSkills,
   renderProjectSkills,
+  renderSkillAddAllResult,
   renderSkillIndexRebuild,
   renderSkillInstallResult,
   renderSkillRemoveResult,
@@ -32,11 +37,15 @@ export function registerSkillCommand(program: Command): void {
       "Install a skill from a registry (e.g., ai-devkit skill add anthropics/skills frontend-design)",
     )
     .option("--built-in", "Install all AI DevKit built-in skills")
+    .option("--all", "Install every skill in the registry (skips already-installed)")
     .option("-g, --global", "Install skill into configured global skill paths (~/<path>)")
     .option(
       "-e, --env <environment...>",
       "Target environment(s) for global install (e.g., --global --env claude)",
     )
+    .option("--exclude <glob>", 'Skip skills whose name matches the glob (e.g., "*-writing")')
+    .option("--dry-run", "List what --all would install without installing anything")
+    .option("--json", "Output a machine-readable result list (with --all)")
     .addOption(
       new Option(
         "--mode <mode>",
@@ -49,9 +58,13 @@ export function registerSkillCommand(program: Command): void {
         skillName: string | undefined,
         options: {
           builtIn?: boolean;
+          all?: boolean;
           global?: boolean;
           env?: string[];
           mode?: SkillInstallMode;
+          exclude?: string;
+          dryRun?: boolean;
+          json?: boolean;
         },
       ) => {
         try {
@@ -80,11 +93,53 @@ export function registerSkillCommand(program: Command): void {
             return;
           }
 
+          if (options.all && skillName) {
+            ui.error(
+              "--all cannot be combined with a skill name. Use either --all or a <skill-name>.",
+            );
+            process.exit(1);
+            return;
+          }
+
           if (!registryRepo) {
             ui.error(
               "Missing registry. Use: ai-devkit skill add <registry>/<repo> [skill-name] or ai-devkit skill add --built-in",
             );
             process.exit(1);
+            return;
+          }
+
+          if (options.all) {
+            const installOptions = await resolveSkillInstallOptions(configManager, requested);
+            let result: AddAllSkillsResult;
+            try {
+              result = await skillService.addAllSkills(registryRepo, {
+                ...installOptions,
+                ...(options.exclude ? { exclude: options.exclude } : {}),
+                ...(options.dryRun ? { dryRun: true } : {}),
+                // One confirmation for large registries on a TTY; non-TTY
+                // callers proceed without prompting (pure CI mode).
+                confirmInstall: async (skillCount: number) => {
+                  if (!isInteractiveTerminal()) {
+                    return true;
+                  }
+                  return confirm({
+                    message: `Install all ${skillCount} skills from ${registryRepo}?`,
+                  });
+                },
+              });
+            } catch (error: unknown) {
+              if (getErrorMessage(error) === "Bulk skill install cancelled.") {
+                ui.warning("Bulk skill install cancelled.");
+                return;
+              }
+              throw error;
+            }
+
+            renderSkillAddAllResult(result, { json: options.json });
+            if (result.failed > 0) {
+              process.exitCode = 1;
+            }
             return;
           }
 

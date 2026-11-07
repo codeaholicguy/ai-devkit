@@ -66,11 +66,16 @@ vi.mock("../../../util/git.js", () => ({
   localBranchExistsSync: vi.fn(),
   getWorktreePathsForBranchSync: vi.fn(),
 }));
-vi.mock("../../../services/skill/skill-validation.js", () => ({
-  validateRegistryId: vi.fn(),
-  validateSkillName: vi.fn(),
-  isValidSkillName: vi.fn(),
-}));
+vi.mock("../../../services/skill/skill-validation.js", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("../../../services/skill/skill-validation.js")>();
+  return {
+    validateRegistryId: vi.fn(),
+    validateSkillName: vi.fn(),
+    isValidSkillName: vi.fn(),
+    globToRegExp: actual.globToRegExp,
+  };
+});
 vi.mock("../../../services/skill/skill-description.js", () => ({
   extractSkillDescription: vi.fn(),
 }));
@@ -835,6 +840,212 @@ describe("SkillService", () => {
         "dir",
       );
       expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
+    });
+
+    describe("addAllSkills", () => {
+      const mockRegistryId = "anthropics/skills";
+      const mockRepoPath = path.join(os.homedir(), ".ai-devkit", "skills", mockRegistryId);
+      const registrySkills = ["debug", "frontend-design"];
+
+      /** Registry offers `skillNames`; `installedSkillNames` already exist in project targets. */
+      const configureInstallableRegistry = (
+        skillNames: string[] = registrySkills,
+        installedSkillNames: string[] = [],
+      ) => {
+        configureRegistrySkills(skillNames);
+        (mockedFs.pathExists as any).mockImplementation((checkPath: string) => {
+          // Project install targets resolve relative to the process cwd.
+          for (const skillName of skillNames) {
+            for (const envDir of [".cursor", ".claude"]) {
+              if (checkPath === path.join(process.cwd(), envDir, "skills", skillName)) {
+                return Promise.resolve(installedSkillNames.includes(skillName));
+              }
+            }
+          }
+          if (checkPath === mockRepoPath) {
+            return Promise.resolve(true);
+          }
+          if (checkPath.endsWith(`${path.sep}skills`)) {
+            return Promise.resolve(true);
+          }
+          for (const skillName of skillNames) {
+            if (checkPath.endsWith(`${path.sep}${skillName}${path.sep}SKILL.md`)) {
+              return Promise.resolve(true);
+            }
+            if (checkPath.includes(`${path.sep}skills${path.sep}${skillName}`)) {
+              return Promise.resolve(true);
+            }
+          }
+          return Promise.resolve(false);
+        });
+      };
+
+      it("installs every discovered skill and aggregates counts", async () => {
+        configureInstallableRegistry();
+
+        const result = await skillManager.addAllSkills(mockRegistryId);
+
+        expect(result).toEqual({
+          registryId: mockRegistryId,
+          dryRun: false,
+          total: 2,
+          installed: 2,
+          skipped: 0,
+          failed: 0,
+          items: [
+            { skill: "debug", status: "installed" },
+            { skill: "frontend-design", status: "installed" },
+          ],
+        });
+        expect(mockConfigManager.addSkill).toHaveBeenCalledTimes(2);
+        expect(mockedFs.symlink).toHaveBeenCalledTimes(4);
+      });
+
+      it("skips and counts already-installed skills without updating them", async () => {
+        configureInstallableRegistry(registrySkills, registrySkills);
+
+        const result = await skillManager.addAllSkills(mockRegistryId);
+
+        expect(result.installed).toBe(0);
+        expect(result.skipped).toBe(2);
+        expect(result.items.every((item) => item.status === "skipped")).toBe(true);
+        expect(mockedFs.symlink).not.toHaveBeenCalled();
+        expect(mockedFs.copy).not.toHaveBeenCalled();
+      });
+
+      it("reports a mix of installed and skipped skills", async () => {
+        configureInstallableRegistry(registrySkills, ["debug"]);
+
+        const result = await skillManager.addAllSkills(mockRegistryId);
+
+        expect(result.installed).toBe(1);
+        expect(result.skipped).toBe(1);
+        expect(result.items).toEqual([
+          { skill: "debug", status: "skipped" },
+          { skill: "frontend-design", status: "installed" },
+        ]);
+      });
+
+      it("continues after a per-skill failure and reports the error", async () => {
+        configureInstallableRegistry();
+        const failDebug = (target: string) => {
+          if (target.includes("debug")) {
+            return Promise.reject(new Error("symlink failed"));
+          }
+          return Promise.resolve(undefined);
+        };
+        (mockedFs.symlink as any).mockImplementation(failDebug);
+        (mockedFs.copy as any).mockImplementation(failDebug);
+
+        const result = await skillManager.addAllSkills(mockRegistryId);
+
+        expect(result.installed).toBe(1);
+        expect(result.failed).toBe(1);
+        expect(result.items).toEqual([
+          { skill: "debug", status: "failed", error: "symlink failed" },
+          { skill: "frontend-design", status: "installed" },
+        ]);
+      });
+
+      it("applies the --exclude glob before installing", async () => {
+        configureInstallableRegistry();
+
+        const result = await skillManager.addAllSkills(mockRegistryId, { exclude: "deb*" });
+
+        expect(result.total).toBe(1);
+        expect(result.items).toEqual([{ skill: "frontend-design", status: "installed" }]);
+        expect(mockedFs.symlink).toHaveBeenCalledTimes(2);
+      });
+
+      it("rejects when --exclude filters out every skill", async () => {
+        configureInstallableRegistry();
+
+        await expect(skillManager.addAllSkills(mockRegistryId, { exclude: "*" })).rejects.toThrow(
+          '--exclude "*" filtered out every skill in anthropics/skills.',
+        );
+        expect(mockedFs.symlink).not.toHaveBeenCalled();
+      });
+
+      it("dry-runs by listing would-install skills without touching the filesystem or config", async () => {
+        configureInstallableRegistry();
+
+        const result = await skillManager.addAllSkills(mockRegistryId, { dryRun: true });
+
+        expect(result.dryRun).toBe(true);
+        expect(result.items).toEqual([
+          { skill: "debug", status: "installed" },
+          { skill: "frontend-design", status: "installed" },
+        ]);
+        expect(mockedFs.symlink).not.toHaveBeenCalled();
+        expect(mockedFs.copy).not.toHaveBeenCalled();
+        expect(mockedFs.ensureDir).not.toHaveBeenCalled();
+        expect(mockConfigManager.addSkill).not.toHaveBeenCalled();
+      });
+
+      it("dry-run marks already-installed skills as skipped", async () => {
+        configureInstallableRegistry(registrySkills, ["debug"]);
+
+        const result = await skillManager.addAllSkills(mockRegistryId, { dryRun: true });
+
+        expect(result.items).toEqual([
+          { skill: "debug", status: "skipped" },
+          { skill: "frontend-design", status: "installed" },
+        ]);
+      });
+
+      it("does not confirm small registries", async () => {
+        configureInstallableRegistry();
+        const confirmInstall = vi.fn();
+
+        await skillManager.addAllSkills(mockRegistryId, { confirmInstall });
+
+        expect(confirmInstall).not.toHaveBeenCalled();
+      });
+
+      it("confirms once for registries with more than 20 skills and installs when accepted", async () => {
+        const manySkills = Array.from({ length: 21 }, (_, index) => `skill-${index}`);
+        configureInstallableRegistry(manySkills);
+        const confirmInstall = vi.fn().mockResolvedValue(true);
+
+        const result = await skillManager.addAllSkills(mockRegistryId, { confirmInstall });
+
+        expect(confirmInstall).toHaveBeenCalledTimes(1);
+        expect(confirmInstall).toHaveBeenCalledWith(21);
+        expect(result.total).toBe(21);
+        expect(result.installed).toBe(21);
+      });
+
+      it("cancels without installing when the bulk confirm is declined", async () => {
+        const manySkills = Array.from({ length: 21 }, (_, index) => `skill-${index}`);
+        configureInstallableRegistry(manySkills);
+        const confirmInstall = vi.fn().mockResolvedValue(false);
+
+        await expect(skillManager.addAllSkills(mockRegistryId, { confirmInstall })).rejects.toThrow(
+          "Bulk skill install cancelled.",
+        );
+        expect(mockedFs.symlink).not.toHaveBeenCalled();
+      });
+
+      it("never confirms on dry runs", async () => {
+        const manySkills = Array.from({ length: 21 }, (_, index) => `skill-${index}`);
+        configureInstallableRegistry(manySkills);
+        const confirmInstall = vi.fn().mockResolvedValue(true);
+
+        await skillManager.addAllSkills(mockRegistryId, { dryRun: true, confirmInstall });
+
+        expect(confirmInstall).not.toHaveBeenCalled();
+      });
+
+      it("throws when the registry has no valid skills", async () => {
+        (mockedFs.opendir as any).mockResolvedValue({
+          async *[Symbol.asyncIterator]() {},
+        });
+        (mockedFs.pathExists as any).mockResolvedValue(true);
+
+        await expect(skillManager.addAllSkills(mockRegistryId)).rejects.toThrow(
+          `No valid skills found in ${mockRegistryId}.`,
+        );
+      });
     });
   });
 

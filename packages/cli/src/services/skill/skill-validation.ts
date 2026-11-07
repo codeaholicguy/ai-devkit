@@ -46,3 +46,23 @@ export function validateSkillName(skillName: string): void {
 export function isValidSkillName(name: string): boolean {
   return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(name);
 }
+
+/**
+ * Translate a simple glob to an anchored RegExp for filtering skill names.
+ * `*` matches any run of name characters, `?` matches exactly one; anything
+ * else is literal. Skill names are `[a-z0-9-]`, so no character classes are
+ * needed.
+ */
+export function globToRegExp(glob: string): RegExp {
+  let source = "^";
+  for (const character of glob) {
+    if (character === "*") {
+      source += "[a-z0-9-]*";
+    } else if (character === "?") {
+      source += "[a-z0-9-]";
+    } else {
+      source += character.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    }
+  }
+  return new RegExp(`${source}$`);
+}

@@ -7,6 +7,7 @@ import { SkillService } from "../../services/skill/skill.service.js";
 const mockGetBuiltinSkillNames = vi.hoisted(() => vi.fn());
 const mockIsInteractiveTerminal = vi.hoisted(() => vi.fn(() => true));
 const mockCheckbox = vi.hoisted(() => vi.fn());
+const mockConfirm = vi.hoisted(() => vi.fn());
 const mockConfigRead = vi.hoisted(() => vi.fn());
 const mockConfigCreate = vi.hoisted(() => vi.fn());
 const mockConfigUpdate = vi.hoisted(() => vi.fn());
@@ -15,6 +16,7 @@ const mockSelectGlobalSkillEnvironments = vi.hoisted(() => vi.fn());
 
 const mockAddSkill = vi.fn();
 const mockAddSkills = vi.fn();
+const mockAddAllSkills = vi.fn();
 const mockAddRegistry = vi.fn();
 const mockListGlobalSkills = vi.fn();
 const mockListInstallableSkills = vi.fn();
@@ -48,6 +50,7 @@ vi.mock("../../services/skill/skill.service.js", () => ({
     return {
       addSkill: (...args: unknown[]) => mockAddSkill(...args),
       addSkills: (...args: unknown[]) => mockAddSkills(...args),
+      addAllSkills: (...args: unknown[]) => mockAddAllSkills(...args),
       addRegistry: (...args: unknown[]) => mockAddRegistry(...args),
       listGlobalSkills: (...args: unknown[]) => mockListGlobalSkills(...args),
       listInstallableSkills: (...args: unknown[]) => mockListInstallableSkills(...args),
@@ -102,6 +105,7 @@ function strictProgram(): Command {
 
 vi.mock("@inquirer/prompts", () => ({
   checkbox: (...args: unknown[]) => mockCheckbox(...args),
+  confirm: (...args: unknown[]) => mockConfirm(...args),
 }));
 
 describe("skill command", () => {
@@ -144,6 +148,21 @@ describe("skill command", () => {
       }),
     );
     mockAddRegistry.mockResolvedValue("added");
+    mockAddAllSkills.mockImplementation(
+      async (registryId: string, options: { dryRun?: boolean }) => ({
+        registryId,
+        dryRun: Boolean(options.dryRun),
+        total: 2,
+        installed: options.dryRun ? 2 : 1,
+        skipped: options.dryRun ? 0 : 1,
+        failed: 0,
+        items: [
+          { skill: "alpha-review", status: options.dryRun ? "installed" : "installed" },
+          { skill: "beta-format", status: options.dryRun ? "installed" : "skipped" },
+        ],
+      }),
+    );
+    mockConfirm.mockResolvedValue(true);
     mockListGlobalSkills.mockResolvedValue([]);
     mockListInstallableSkills.mockResolvedValue([
       { name: "frontend-design", description: "Frontend skill" },
@@ -511,6 +530,243 @@ describe("skill command", () => {
     const help = addCommand?.helpInformation().replace(/\s+/g, " ");
     expect(help).toContain("--mode <mode>");
     expect(help).toContain('(choices: "copy", "link")');
+  });
+
+  describe("skill add --all", () => {
+    it("rejects --all combined with a positional skill name before any install", async () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "skill",
+        "add",
+        "anthropics/skills",
+        "frontend-design",
+        "--all",
+      ]);
+
+      expect(ui.error).toHaveBeenCalledWith(
+        "--all cannot be combined with a skill name. Use either --all or a <skill-name>.",
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+      expect(mockAddAllSkills).not.toHaveBeenCalled();
+      expect(mockAddSkill).not.toHaveBeenCalled();
+    });
+
+    it("forwards --all to addAllSkills with resolved install options and renders a summary", async () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills", "--all"]);
+
+      expect(mockAddAllSkills).toHaveBeenCalledTimes(1);
+      const [registryId, options] = mockAddAllSkills.mock.calls[0];
+      expect(registryId).toBe("anthropics/skills");
+      expect(options.global).toBeUndefined();
+      expect(options.environments).toEqual(["claude"]);
+      expect(typeof options.confirmInstall).toBe("function");
+      expect(mockAddSkill).not.toHaveBeenCalled();
+      expect(mockCheckbox).not.toHaveBeenCalled();
+      expect(ui.summary).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Bulk install from anthropics/skills",
+          items: [
+            { type: "success", count: 1, label: "installed" },
+            { type: "warning", count: 1, label: "skipped (already installed)" },
+            { type: "error", count: 0, label: "failed" },
+          ],
+        }),
+      );
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+
+    it("exits non-zero after rendering when any skill failed", async () => {
+      mockAddAllSkills.mockResolvedValue({
+        registryId: "anthropics/skills",
+        dryRun: false,
+        total: 2,
+        installed: 1,
+        skipped: 0,
+        failed: 1,
+        items: [
+          { skill: "alpha-review", status: "installed" },
+          { skill: "beta-format", status: "failed", error: "SKILL.md not found" },
+        ],
+      });
+      const program = new Command();
+      registerSkillCommand(program);
+      const previousExitCode = process.exitCode;
+
+      try {
+        await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills", "--all"]);
+
+        expect(process.exitCode).toBe(1);
+        expect(ui.summary).toHaveBeenCalled();
+        expect(process.exit).not.toHaveBeenCalled();
+      } finally {
+        process.exitCode = previousExitCode;
+      }
+    });
+
+    it("forwards --exclude and --dry-run to addAllSkills", async () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "skill",
+        "add",
+        "anthropics/skills",
+        "--all",
+        "--exclude",
+        "*-writing",
+        "--dry-run",
+      ]);
+
+      const [, options] = mockAddAllSkills.mock.calls[0];
+      expect(options.exclude).toBe("*-writing");
+      expect(options.dryRun).toBe(true);
+    });
+
+    it("prints a JSON result list with --all --json", async () => {
+      mockAddAllSkills.mockResolvedValue({
+        registryId: "anthropics/skills",
+        dryRun: false,
+        total: 2,
+        installed: 1,
+        skipped: 1,
+        failed: 0,
+        items: [
+          { skill: "alpha-review", status: "installed" },
+          { skill: "beta-format", status: "skipped" },
+        ],
+      });
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "skill",
+        "add",
+        "anthropics/skills",
+        "--all",
+        "--json",
+      ]);
+
+      const printed = textCalls().find((text) => text.includes('"registryId"'));
+      expect(printed).toBeDefined();
+      expect(JSON.parse(printed as string)).toEqual({
+        registryId: "anthropics/skills",
+        dryRun: false,
+        total: 2,
+        installed: 1,
+        skipped: 1,
+        failed: 0,
+        items: [
+          { skill: "alpha-review", status: "installed" },
+          { skill: "beta-format", status: "skipped" },
+        ],
+      });
+      expect(ui.summary).not.toHaveBeenCalled();
+    });
+
+    it("lists what --all --dry-run would install without a summary table", async () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync([
+        "node",
+        "test",
+        "skill",
+        "add",
+        "anthropics/skills",
+        "--all",
+        "--dry-run",
+      ]);
+
+      expect(mockAddAllSkills).toHaveBeenCalledWith(
+        "anthropics/skills",
+        expect.objectContaining({ dryRun: true }),
+      );
+      expect(textCalls()[0]).toContain("Dry run: would install 2 skills");
+      expect(ui.table).toHaveBeenCalledWith(
+        expect.objectContaining({
+          headers: ["Skill", "Status"],
+          rows: [
+            ["alpha-review", "would install"],
+            ["beta-format", "would install"],
+          ],
+        }),
+      );
+    });
+
+    it("shows a warning and exits zero when the bulk confirm is declined", async () => {
+      mockConfirm.mockResolvedValue(false);
+      mockAddAllSkills.mockRejectedValue(new Error("Bulk skill install cancelled."));
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills", "--all"]);
+
+      expect(ui.warning).toHaveBeenCalledWith("Bulk skill install cancelled.");
+      expect(ui.error).not.toHaveBeenCalled();
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+
+    it("never prompts for confirmation in non-interactive terminals", async () => {
+      mockIsInteractiveTerminal.mockReturnValue(false);
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills", "--all"]);
+
+      const [, options] = mockAddAllSkills.mock.calls[0];
+      await expect(options.confirmInstall(25)).resolves.toBe(true);
+      expect(mockConfirm).not.toHaveBeenCalled();
+    });
+
+    it("asks one confirm on a TTY for large registries", async () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync(["node", "test", "skill", "add", "anthropics/skills", "--all"]);
+
+      const [, forwarded] = mockAddAllSkills.mock.calls[0];
+      await expect(forwarded.confirmInstall(21)).resolves.toBe(true);
+      expect(mockConfirm).toHaveBeenCalledTimes(1);
+      expect(mockConfirm).toHaveBeenCalledWith({
+        message: "Install all 21 skills from anthropics/skills?",
+      });
+    });
+
+    it("documents the bulk flags in skill add help", () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      const addCommand = program.commands
+        .find((command) => command.name() === "skill")
+        ?.commands.find((command) => command.name() === "add");
+
+      const help = addCommand?.helpInformation().replace(/\s+/g, " ");
+      expect(help).toContain("--all");
+      expect(help).toContain("--exclude <glob>");
+      expect(help).toContain("--dry-run");
+      expect(help).toContain("--json");
+    });
+
+    it("keeps --built-in on the single-skill path", async () => {
+      const program = new Command();
+      registerSkillCommand(program);
+
+      await program.parseAsync(["node", "test", "skill", "add", "--built-in"]);
+
+      expect(mockAddSkill).toHaveBeenCalledTimes(2);
+      expect(mockAddAllSkills).not.toHaveBeenCalled();
+    });
   });
 
   describe("skill find", () => {

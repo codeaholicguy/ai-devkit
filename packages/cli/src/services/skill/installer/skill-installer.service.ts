@@ -10,15 +10,24 @@ import {
   getSkillPath,
   validateEnvironmentCodes,
 } from "../../../util/env.js";
-import { validateRegistryId, validateSkillName, isValidSkillName } from "../skill-validation.js";
+import {
+  validateRegistryId,
+  validateSkillName,
+  isValidSkillName,
+  globToRegExp,
+} from "../skill-validation.js";
 import { parseLocalRegistryPath } from "../registry/skill-registry-source.js";
 import {
   discoverRegistrySkills,
   resolveContainedSkill,
 } from "../registry/registry-skill-discovery.js";
+import { getErrorMessage } from "../../../util/text.js";
 import { ConfigNotFoundError, NotFoundError, ValidationError } from "../../../util/errors.js";
 import type { EnvironmentCode, SkillInstallMode } from "../../../types.js";
 import type {
+  AddAllSkillItem,
+  AddAllSkillOptions,
+  AddAllSkillsResult,
   AddSkillOptions,
   GlobalInstalledSkill,
   InstalledSkill,
@@ -121,6 +130,105 @@ export class SkillInstallerService {
       name: skill.name,
       description: skill.description,
     }));
+  }
+
+  /**
+   * Install every installable skill of a registry. Idempotent: already-installed
+   * skills are counted as skipped and never updated. Per-skill failures do not
+   * stop the run; they are collected for the caller to exit non-zero on.
+   */
+  async addAllSkills(
+    registryId: string,
+    options: AddAllSkillOptions = {},
+  ): Promise<AddAllSkillsResult> {
+    validateRegistryId(registryId);
+    const { repoPath, isLocal } = await this.prepareInstallableRegistry(registryId);
+    const discovered = await discoverRegistrySkills(registryId, repoPath);
+    if (discovered.length === 0) {
+      throw new NotFoundError(`No valid skills found in ${registryId}.`, { registryId });
+    }
+
+    const exclude = options.exclude ? globToRegExp(options.exclude) : undefined;
+    const selected = discovered.filter((skill) => !exclude?.test(skill.name));
+    if (selected.length === 0) {
+      throw new ValidationError(
+        `--exclude "${options.exclude}" filtered out every skill in ${registryId}.`,
+      );
+    }
+
+    // Interactivity guard: only the command layer prompts, and only for real
+    // installs of large registries. Dry runs and non-TTY callers never see it.
+    if (!options.dryRun && options.confirmInstall && selected.length > 20) {
+      const confirmed = await options.confirmInstall(selected.length);
+      if (!confirmed) {
+        throw new Error("Bulk skill install cancelled.");
+      }
+    }
+
+    const selectedEnvironments = await this.resolveInstallEnvironments(options);
+    const installContext = this.buildInstallContext(selectedEnvironments, options);
+
+    const items: AddAllSkillItem[] = [];
+    if (options.dryRun) {
+      for (const skill of selected) {
+        const missingTargets = await this.countMissingTargets(installContext, skill.name);
+        items.push({
+          skill: skill.name,
+          status: missingTargets > 0 ? "installed" : "skipped",
+        });
+      }
+      return this.summarizeAddAll(registryId, true, items);
+    }
+
+    for (const skill of selected) {
+      try {
+        const result = await this.installResolvedSkill(
+          registryId,
+          repoPath,
+          skill.name,
+          options,
+          installContext,
+          isLocal,
+        );
+        items.push({
+          skill: skill.name,
+          status: result.status === "installed" ? "installed" : "skipped",
+        });
+      } catch (error: unknown) {
+        items.push({ skill: skill.name, status: "failed", error: getErrorMessage(error) });
+      }
+    }
+
+    return this.summarizeAddAll(registryId, false, items);
+  }
+
+  private async countMissingTargets(
+    installContext: ResolvedInstallContext,
+    skillName: string,
+  ): Promise<number> {
+    let missing = 0;
+    for (const targetDir of installContext.targets) {
+      if (!(await fs.pathExists(path.join(installContext.baseDir, targetDir, skillName)))) {
+        missing += 1;
+      }
+    }
+    return missing;
+  }
+
+  private summarizeAddAll(
+    registryId: string,
+    dryRun: boolean,
+    items: AddAllSkillItem[],
+  ): AddAllSkillsResult {
+    return {
+      registryId,
+      dryRun,
+      total: items.length,
+      installed: items.filter((item) => item.status === "installed").length,
+      skipped: items.filter((item) => item.status === "skipped").length,
+      failed: items.filter((item) => item.status === "failed").length,
+      items,
+    };
   }
 
   private async prepareInstallableRegistry(
