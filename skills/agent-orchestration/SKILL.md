@@ -26,7 +26,7 @@ If the goal or agent ownership is unclear, run one scan/detail pass. Ask the use
 2. Assess agents needing attention with `detail --tail 10`.
 3. Act: approve, clarify, correct, delegate, relay, verify, or escalate.
 4. Report one brief status line.
-5. Sleep 10-60s and repeat.
+5. Sleep 15 minutes and repeat. Meaningful agent progress arrives in minutes-to-tens-of-minutes; faster polling adds noise and orchestrator token cost without signal. Exception: if an agent is known to be waiting on you (approval prompt, ASK/BLOCKED just fired), check back sooner.
 
 ## Completion
 
