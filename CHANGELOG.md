@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [69fac4e](https://github.com/codeaholicguy/ai-devkit/commit/69fac4e) Added the OpenAI spend-control quota to codex capacity: usage now includes a "Spend control" credit-limit window, and a reached spend-control limit marks the provider unavailable.
+- [5e7404d](https://github.com/codeaholicguy/ai-devkit/pull/426) Raised the agent-orchestration skill's polling interval to 15 minutes.
+- [4604e86](https://github.com/codeaholicguy/ai-devkit/commit/4604e86) Fixed `ai-devkit setup` failing with "stringify can only be called with an object" when `~/.codex/config.toml` MCP servers contain number or boolean values; only changed entries are rewritten so foreign tables stay byte-for-byte.
+
 ## [0.72.0] - 2026-11-03
 
 - [de74bf0](https://github.com/codeaholicguy/ai-devkit/pull/418) Closed duplicate-name holes in `agent start`: the daemon re-imports the legacy registry under the start lock and treats a live pid as name-in-use even when tombstoned, so duplicates are rejected with a clear `name_in_use` error and names are reusable after `agent kill`.
