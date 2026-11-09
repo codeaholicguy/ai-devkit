@@ -25,7 +25,20 @@
   "additional_rate_limits": null,
   "model_usage": [],
   "credits": { "balance": 4.5 },
-  "spend_control": {},
+  "spend_control": {
+    "reached": false,
+    "individual_limit": {
+      "source": "workspace_spend_controls",
+      "unit": "credit",
+      "limit": "3000",
+      "used": "33.43525505065918",
+      "remaining": "2966.564744949341",
+      "used_percent": 1,
+      "remaining_percent": 99,
+      "reset_after_seconds": 1844677,
+      "reset_at": 1796083200
+    }
+  },
   "rate_limit_reached_type": "none",
   "promo": null,
   "rate_limit_reset_credits": { "availableCount": 0 }

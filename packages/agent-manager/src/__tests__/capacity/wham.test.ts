@@ -24,7 +24,19 @@ describe("wham usage parsing", () => {
         usedPercent: 43.2,
         resetsAt: "2026-10-04T08:52:07.000Z",
       },
+      {
+        id: "spend-control",
+        label: "Spend control",
+        durationMinutes: null,
+        usedPercent: 1,
+        resetsAt: "2026-12-01T00:00:00.000Z",
+        limitType: "CREDIT_LIMIT",
+        total: 3000,
+        current: 33.43525505065918,
+        remaining: 2966.564744949341,
+      },
     ]);
+    expect(snapshot).toMatchObject({ authenticated: true, available: "yes" });
     expect(snapshot.creditsRemaining).toBe(4.5);
   });
 
@@ -78,8 +90,14 @@ describe("wham usage parsing", () => {
   });
 
   it("parses non-object payloads into an empty snapshot", () => {
-    expect(parseWhamUsage(null)).toEqual({ windows: [], creditsRemaining: null });
-    expect(parseWhamUsage(42)).toEqual({ windows: [], creditsRemaining: null });
+    const emptySnapshot = {
+      authenticated: true,
+      available: "unknown",
+      windows: [],
+      creditsRemaining: null,
+    };
+    expect(parseWhamUsage(null)).toEqual(emptySnapshot);
+    expect(parseWhamUsage(42)).toEqual(emptySnapshot);
   });
 
   it("never invents usage for windows it cannot parse", () => {

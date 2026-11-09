@@ -2,7 +2,6 @@ import { spawn } from "node:child_process";
 import {
   fetchOpenAiPatAccountId,
   fetchOpenAiSubscriptionCapacity,
-  parseWhamUsage,
   resetTime,
   safeIdentifier,
 } from "../providers/openai-subscription.js";
@@ -12,11 +11,10 @@ import {
   type CodexCredentialOptions,
 } from "../../harnesses/codex/credentials.js";
 
-type CodexUsageSource = "pat" | "oauth" | "cli";
 type UsageSnapshot = {
   windows: CapacityWindow[];
   creditsRemaining: number | null;
-  source: CodexUsageSource;
+  available: CapacityReport["available"] | null;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -46,11 +44,6 @@ function finiteNumber(value: unknown): number | null {
 
 function nonEmptyText(value: unknown): string | null {
   return typeof value === "string" && value.length > 0 ? value : null;
-}
-
-export function parseUsage(raw: unknown, source: "pat" | "oauth"): UsageSnapshot {
-  const { windows, creditsRemaining } = parseWhamUsage(raw);
-  return { windows, creditsRemaining, source };
 }
 
 function cliWindow(value: unknown, id: string, label: string): CapacityWindow | null {
@@ -86,7 +79,7 @@ function parseCliUsage(raw: unknown): UsageSnapshot {
     }
   }
   const unique = [...new Map(windows.map((window) => [window.id, window])).values()];
-  return { windows: unique, creditsRemaining: null, source: "cli" };
+  return { windows: unique, creditsRemaining: null, available: null };
 }
 
 function capacityFromSnapshot(
@@ -99,12 +92,15 @@ function capacityFromSnapshot(
   const reached = nonEmptyText(rateLimits?.rateLimitReachedType);
   const resetCredits =
     record(record(raw)?.rateLimitResetCredits) ?? record(record(raw)?.usageLimitResetCredits);
+  let available = snapshot.available;
+  if (reached) available = "no";
+  else if (available === null) available = hasUsage ? "yes" : "unknown";
   return {
     harness: "codex",
     provider: "openai",
     generatedAt: options.checkedAt,
     authenticated: true,
-    available: reached ? "no" : hasUsage ? "yes" : "unknown",
+    available,
     windows: snapshot.windows,
     creditsRemaining: snapshot.creditsRemaining ?? finiteNumber(resetCredits?.availableCount),
   };
@@ -214,16 +210,11 @@ async function cliFallback(options: CodexProbeOptions): Promise<CapacityReport> 
 async function subscriptionSnapshot(
   access: string,
   accountId: string,
-  source: "pat" | "oauth",
   options: CodexProbeOptions,
 ): Promise<UsageSnapshot> {
   const snapshot = await fetchOpenAiSubscriptionCapacity({ access, accountId }, options);
   if (snapshot.authenticated === false) throw new Error("unauthorized");
-  return {
-    windows: snapshot.windows,
-    creditsRemaining: snapshot.creditsRemaining,
-    source,
-  };
+  return snapshot;
 }
 
 export async function probeCodexCapacity(options: CodexProbeOptions): Promise<CapacityReport> {
@@ -236,7 +227,6 @@ export async function probeCodexCapacity(options: CodexProbeOptions): Promise<Ca
       const snapshot = await subscriptionSnapshot(
         credentials.personalAccessToken,
         accountId,
-        "pat",
         options,
       );
       return capacityFromSnapshot(snapshot, options);
@@ -250,7 +240,6 @@ export async function probeCodexCapacity(options: CodexProbeOptions): Promise<Ca
       const snapshot = await subscriptionSnapshot(
         credentials.oauth.access,
         credentials.oauth.accountId,
-        "oauth",
         options,
       );
       return capacityFromSnapshot(snapshot, options);

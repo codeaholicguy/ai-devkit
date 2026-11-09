@@ -3,6 +3,7 @@ import * as path from "path";
 import * as TOML from "smol-toml";
 import { EnvironmentCode, McpServerDefinition } from "../../../types.js";
 import { BaseMcpGenerator } from "./BaseMcpGenerator.js";
+import { deepEqual } from "../../../util/object.js";
 import { McpConfigScope } from "./types.js";
 
 interface CodexConfig {
@@ -50,7 +51,8 @@ export class CodexMcpGenerator extends BaseMcpGenerator {
           `Invalid TOML in ${path.relative(baseDir, configPath)}: ${(error as Error).message}`,
         );
       }
-      return (this.fullConfig.mcp_servers || {}) as Record<string, unknown>;
+      // Copy so callers mutating the result don't alias fullConfig.
+      return { ...this.fullConfig.mcp_servers } as Record<string, unknown>;
     }
     this.fullConfig = {};
     return {};
@@ -70,7 +72,13 @@ export class CodexMcpGenerator extends BaseMcpGenerator {
       const original = (await fs.pathExists(configPath))
         ? await fs.readFile(configPath, "utf-8")
         : "";
-      const output = upsertTomlTable(original, "mcp_servers", mergedServers);
+      // Only rewrite entries we changed; foreign tables stay byte-for-byte.
+      const existing = (this.fullConfig.mcp_servers || {}) as Record<string, unknown>;
+      const changed = Object.fromEntries(
+        Object.entries(mergedServers).filter(([name, entry]) => !deepEqual(existing[name], entry)),
+      );
+      if (Object.keys(changed).length === 0) return;
+      const output = upsertTomlTable(original, "mcp_servers", changed);
       try {
         TOML.parse(output);
       } catch {
@@ -117,7 +125,20 @@ function entryToTomlBody(entry: Record<string, unknown>): string {
 function tomlValue(value: unknown): string {
   if (typeof value === "string") return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(tomlValue).join(", ")}]`;
-  return TOML.stringify(value as never).trim();
+  if (value !== null && typeof value === "object" && !(value instanceof Date)) {
+    const pairs = Object.entries(value as Record<string, unknown>).map(
+      ([key, inner]) => `${tomlKey(key)} = ${tomlValue(inner)}`,
+    );
+    return pairs.length === 0 ? "{}" : `{ ${pairs.join(", ")} }`;
+  }
+  // Numbers, booleans, dates: smol-toml only stringifies objects, so wrap.
+  return TOML.stringify({ v: value } as never)
+    .trim()
+    .replace(/^v = /, "");
+}
+
+function tomlKey(key: string): string {
+  return /^[A-Za-z0-9_-]+$/.test(key) ? key : JSON.stringify(key);
 }
 
 function replaceTomlTable(content: string, tablePath: string, body: string): string {
