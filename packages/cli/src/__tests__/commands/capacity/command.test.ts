@@ -175,6 +175,32 @@ describe("capacity rendering", () => {
     );
   });
 
+  it("rounds fractional quota amounts in human-readable output", () => {
+    renderCapacityReports(
+      [
+        {
+          ...codexReport,
+          windows: [
+            {
+              id: "spend-control",
+              label: "Spend control",
+              limitType: "CREDIT_LIMIT",
+              durationMinutes: null,
+              usedPercent: 1,
+              resetsAt: null,
+              total: 3000,
+              current: 33.43525505065918,
+              remaining: 2966.564744949341,
+            },
+          ],
+        },
+      ],
+      { now: () => now },
+    );
+
+    expect(vi.mocked(ui.table).mock.calls[0][0].rows[0][1]).toBe("█░░░░░░░░░ 1% · 33.44/3000");
+  });
+
   it("drops dead columns when totals are unknown", () => {
     renderCapacityReports([codexReport], { now: () => now });
     expect(textCalls()).toContain("codex · OpenAI capacity · OK");

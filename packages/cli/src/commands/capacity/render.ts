@@ -13,6 +13,10 @@ import type { CapacityReport, CapacityWindow } from "@ai-devkit/agent-manager";
 const BAR_WIDTH = 10;
 const ELEVATED_USAGE = 70;
 const HIGH_USAGE = 90;
+const QUANTITY_FORMATTER = new Intl.NumberFormat("en-US", {
+  maximumFractionDigits: 2,
+  useGrouping: false,
+});
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
   devin: "Devin",
@@ -64,7 +68,9 @@ function usageCell(window: CapacityWindow): string {
         : typeof window.current === "number"
           ? window.current
           : null;
-    if (used !== null) cell += ` · ${used}/${window.total}`;
+    if (used !== null) {
+      cell += ` · ${QUANTITY_FORMATTER.format(used)}/${QUANTITY_FORMATTER.format(window.total)}`;
+    }
   }
   return cell;
 }
