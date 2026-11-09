@@ -5,6 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [8eddfc0](https://github.com/codeaholicguy/ai-devkit/commit/8eddfc0) Rounded fractional quota amounts in capacity output: used/total figures such as the OpenAI spend-control window now render with at most two decimals (e.g. `33.44/3000`) instead of long floats.
+
 ## [0.73.0] - 2026-11-09
 
 - [69fac4e](https://github.com/codeaholicguy/ai-devkit/commit/69fac4e) Added the OpenAI spend-control quota to codex capacity: usage now includes a "Spend control" credit-limit window, and a reached spend-control limit marks the provider unavailable.
