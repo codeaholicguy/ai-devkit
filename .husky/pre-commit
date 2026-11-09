@@ -1,3 +1,6 @@
 npm run fmt:check
-npm run lint
-npm run test
+
+# Fast gates for every commit: repo formatting plus oxlint over package
+# sources (~1s total). Full lint (incl. clippy), build, and tests are
+# enforced by CI on pull requests — see .github/workflows/ci.yml.
+npx oxlint packages/*/src --ignore-pattern "**/ui/**"
