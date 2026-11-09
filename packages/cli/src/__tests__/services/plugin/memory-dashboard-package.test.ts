@@ -1,12 +1,16 @@
 import fs from "fs-extra";
 import path from "path";
+import { fileURLToPath } from "url";
 
 describe("memory dashboard plugin package", () => {
   it("declares the memory-dashboard plugin command manifest", async () => {
-    const packageJsonPath = path.resolve(
-      process.cwd(),
-      "../../packages/memory-dashboard/package.json",
+    // Anchor at the repo root via this file's URL: process.cwd() depends on
+    // where the test runner was invoked and breaks in worktree contexts.
+    const repoRoot = path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../../../../../",
     );
+    const packageJsonPath = path.join(repoRoot, "packages", "memory-dashboard", "package.json");
     const packageJson = (await fs.readJson(packageJsonPath)) as unknown;
     const aiDevkit = (packageJson as { aiDevkit?: { commands?: unknown } }).aiDevkit;
 
