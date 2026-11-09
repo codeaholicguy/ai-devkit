@@ -1,4 +1,4 @@
-import type { CapacityWindow, ProviderCapacitySnapshot } from "../types.js";
+import type { Availability, CapacityWindow, ProviderCapacitySnapshot } from "../types.js";
 
 const WHAM_USAGE_URL = "https://chatgpt.com/backend-api/wham/usage";
 const OPENAI_WHOAMI_URL = "https://auth.openai.com/api/accounts/v1/user-auth-credential/whoami";
@@ -13,11 +13,6 @@ export type OpenAiSubscriptionCapacityOptions = {
   timeoutMs?: number;
 };
 
-export type WhamUsageSnapshot = {
-  windows: CapacityWindow[];
-  creditsRemaining: number | null;
-};
-
 type UnknownRecord = Record<string, unknown>;
 
 function record(value: unknown): UnknownRecord | null {
@@ -28,6 +23,14 @@ function record(value: unknown): UnknownRecord | null {
 
 function finiteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function numericValue(value: unknown): number | null {
+  const direct = finiteNumber(value);
+  if (direct !== null) return direct;
+  if (typeof value !== "string" || value.trim().length === 0) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function nonEmptyText(value: unknown): string | null {
@@ -78,16 +81,42 @@ function extraWindows(value: unknown): CapacityWindow[] {
   });
 }
 
-export function parseWhamUsage(raw: unknown): WhamUsageSnapshot {
+function spendControlWindow(value: unknown): CapacityWindow | null {
+  const limit = record(record(value)?.individual_limit);
+  if (!limit) return null;
+  return {
+    id: "spend-control",
+    label: "Spend control",
+    durationMinutes: null,
+    usedPercent: finiteNumber(limit.used_percent),
+    resetsAt: resetTime(limit.reset_at),
+    limitType: "CREDIT_LIMIT",
+    total: numericValue(limit.limit),
+    current: numericValue(limit.used),
+    remaining: numericValue(limit.remaining),
+  };
+}
+
+function availability(windows: CapacityWindow[], spendControl: UnknownRecord | null): Availability {
+  if (spendControl?.reached === true) return "no";
+  return windows.some((window) => window.usedPercent !== null) ? "yes" : "unknown";
+}
+
+export function parseWhamUsage(raw: unknown): ProviderCapacitySnapshot {
   const response = record(raw) ?? {};
   const limits = record(response.rate_limit) ?? {};
   const credits = record(response.credits) ?? {};
+  const spendControl = record(response.spend_control);
+  const windows = [
+    toRateWindow(limits.primary_window, "session", "Session"),
+    toRateWindow(limits.secondary_window, "weekly", "Weekly"),
+    ...extraWindows(response.additional_rate_limits),
+    spendControlWindow(spendControl),
+  ].filter((window): window is CapacityWindow => window !== null);
   return {
-    windows: [
-      toRateWindow(limits.primary_window, "session", "Session"),
-      toRateWindow(limits.secondary_window, "weekly", "Weekly"),
-      ...extraWindows(response.additional_rate_limits),
-    ].filter((window): window is CapacityWindow => window !== null),
+    authenticated: true,
+    available: availability(windows, spendControl),
+    windows,
     creditsRemaining: finiteNumber(credits.balance),
   };
 }
@@ -126,14 +155,7 @@ export async function fetchOpenAiSubscriptionCapacity(
   } catch {
     throw new Error("OpenAI usage response is not valid JSON");
   }
-  const snapshot = parseWhamUsage(raw);
-  const hasUsage = snapshot.windows.some((window) => window.usedPercent !== null);
-  return {
-    authenticated: true,
-    available: hasUsage ? "yes" : "unknown",
-    windows: snapshot.windows,
-    creditsRemaining: snapshot.creditsRemaining,
-  };
+  return parseWhamUsage(raw);
 }
 
 export async function fetchOpenAiPatAccountId(

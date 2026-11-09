@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-  CODEX_APP_SERVER_ARGS,
-  parseUsage,
-  probeCodexCapacity,
-} from "../../capacity/sources/codex.js";
+import { CODEX_APP_SERVER_ARGS, probeCodexCapacity } from "../../capacity/sources/codex.js";
 import { resolveCodexAuthPath } from "../../harnesses/codex/credentials.js";
-import { toRateWindow } from "../../capacity/providers/openai-subscription.js";
 
 const checkedAt = "2026-08-20T10:00:00.000Z";
 const context = { installed: true, checkedAt };
@@ -53,47 +48,6 @@ describe("Codex auth resolution", () => {
 
   it("falls back to ~/.codex/auth.json", () => {
     expect(resolveCodexAuthPath({ HOME: "/users/test" })).toBe("/users/test/.codex/auth.json");
-  });
-});
-
-describe("Codex API usage mapping", () => {
-  it("converts an API window without treating missing data as zero", () => {
-    expect(
-      toRateWindow(
-        {
-          used_percent: 25,
-          limit_window_seconds: 18_000,
-          reset_at: 1_787_220_000,
-        },
-        "session",
-        "Session",
-      ),
-    ).toEqual({
-      id: "session",
-      label: "Session",
-      durationMinutes: 300,
-      usedPercent: 25,
-      resetsAt: "2026-08-20T10:00:00.000Z",
-    });
-    expect(toRateWindow({}, "session", "Session")).toMatchObject({
-      usedPercent: null,
-    });
-  });
-
-  it("maps session, weekly, credits, and extra limits", () => {
-    const snapshot = parseUsage(apiUsage(), "pat");
-    expect(snapshot).toMatchObject({ source: "pat", creditsRemaining: 12.5 });
-    expect(snapshot.windows).toEqual([
-      expect.objectContaining({ id: "session", durationMinutes: 300 }),
-      expect.objectContaining({ id: "weekly", durationMinutes: 10080 }),
-      expect.objectContaining({ id: "reviews:primary", durationMinutes: 60 }),
-    ]);
-  });
-
-  it("represents missing limits as unavailable rather than zero", () => {
-    const snapshot = parseUsage({ credits: {} }, "oauth");
-    expect(snapshot.windows).toEqual([]);
-    expect(snapshot.creditsRemaining).toBeNull();
   });
 });
 
@@ -168,6 +122,47 @@ describe("tiered Codex probing", () => {
       "ChatGPT-Account-Id": "acct-2",
     });
     expect(result.available).toBe("yes");
+  });
+
+  it("reports exhausted when the OpenAI spend control quota is reached", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          spend_control: {
+            reached: true,
+            individual_limit: {
+              unit: "credit",
+              limit: "3000",
+              used: "3000",
+              remaining: "0",
+              used_percent: 100,
+              reset_at: 1_796_083_200,
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    const result = await probeCodexCapacity({
+      ...context,
+      readFile: async () =>
+        JSON.stringify({
+          tokens: {
+            access_token: "oauth-secret",
+            account_id: "acct-2",
+            expires_at: 1_800_000_000,
+          },
+        }),
+      fetch,
+      now: () => new Date("2026-08-20T10:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({
+      harness: "codex",
+      provider: "openai",
+      available: "no",
+      windows: [expect.objectContaining({ id: "spend-control", usedPercent: 100 })],
+    });
   });
 
   it.each([

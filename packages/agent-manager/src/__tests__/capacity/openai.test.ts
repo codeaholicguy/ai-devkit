@@ -164,7 +164,18 @@ describe("OpenAI OAuth capacity probe", () => {
       available: "yes",
       creditsRemaining: 4.5,
     });
-    expect(report.windows.map((window) => window.id)).toEqual(["session", "weekly"]);
+    expect(report.windows.map((window) => window.id)).toEqual([
+      "session",
+      "weekly",
+      "spend-control",
+    ]);
+    expect(report.windows.at(-1)).toMatchObject({
+      label: "Spend control",
+      limitType: "CREDIT_LIMIT",
+      total: 3000,
+      current: 33.43525505065918,
+      remaining: 2966.564744949341,
+    });
     expect(JSON.stringify(report)).not.toContain("fixture-signature");
   });
 
