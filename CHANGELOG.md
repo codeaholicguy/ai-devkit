@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.73.0] - 2026-11-09
 
 - [69fac4e](https://github.com/codeaholicguy/ai-devkit/commit/69fac4e) Added the OpenAI spend-control quota to codex capacity: usage now includes a "Spend control" credit-limit window, and a reached spend-control limit marks the provider unavailable.
 - [5e7404d](https://github.com/codeaholicguy/ai-devkit/pull/426) Raised the agent-orchestration skill's polling interval to 15 minutes.
