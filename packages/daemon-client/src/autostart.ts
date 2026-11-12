@@ -127,7 +127,7 @@ async function staleDaemonBinary(
     debug?.(`live devkitd ${running} matches bundled package`);
     return null;
   }
-  if (running && (compareVersions(running, bin.version) ?? 0) > 0) {
+  if (running && isNewerVersion(running, bin.version)) {
     debug?.(`live devkitd ${running} is newer than bundled ${bin.version}; keeping it`);
     return null;
   }
@@ -183,14 +183,14 @@ async function replaceStaleDaemon(
   }
 }
 
-/** Numeric x.y.z compare; null when either side isn't a release version. */
-function compareVersions(a: string, b: string): number | null {
+/** True when `a` is a newer x.y.z release than `b`; false if either isn't one. */
+function isNewerVersion(a: string, b: string): boolean {
   const parse = (v: string) => /^(\d+)\.(\d+)\.(\d+)/.exec(v)?.slice(1).map(Number);
   const pa = parse(a);
   const pb = parse(b);
-  if (!pa || !pb) return null;
-  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i]! - pb[i]!;
-  return 0;
+  if (!pa || !pb) return false;
+  for (let i = 0; i < 3; i++) if (pa[i] !== pb[i]) return pa[i]! > pb[i]!;
+  return false;
 }
 
 function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): boolean {

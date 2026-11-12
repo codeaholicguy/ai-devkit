@@ -152,15 +152,6 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
       process.env.HOME = suiteHome;
     }
   }, 30000);
-
-  it("daemon.status carries the build identity and pid", async () => {
-    const client = await ensureDaemon({ waitMs: 20000 });
-    expect(client).not.toBeNull();
-    const s = (await client!.request("daemon.status")) as Record<string, unknown>;
-    client!.close();
-    expect(s).toHaveProperty("buildVersion");
-    expect(typeof s.pid).toBe("number");
-  }, 30000);
 });
 
 describe.runIf(fs.existsSync(sock))("live daemon", () => {

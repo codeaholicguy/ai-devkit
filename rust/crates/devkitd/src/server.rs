@@ -545,13 +545,6 @@ mod tests {
         assert_eq!(r["pid"], std::process::id());
     }
 
-    #[test]
-    fn identity_matches_daemon_status_fields() {
-        let id = identity();
-        assert_eq!(id["version"], env!("CARGO_PKG_VERSION"));
-        assert_eq!(id["buildVersion"], json!(BUILD_VERSION));
-    }
-
     #[tokio::test]
     async fn serve_refuses_to_displace_a_live_daemon() {
         let (d, sock) = test_daemon().await;

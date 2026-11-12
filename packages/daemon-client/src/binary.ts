@@ -7,10 +7,9 @@ import { fileURLToPath } from "node:url";
 
 export interface DaemonBinary {
   path: string;
-  source: "env" | "package" | "home" | "dev";
   /**
    * Platform package version — the release this CLI expects to be serving
-   * the socket. Only known for `package`; other sources skip the
+   * the socket. Only known for platform-package installs; other sources skip the
    * stale-daemon check.
    */
   version?: string;
@@ -50,7 +49,7 @@ export function resolveDaemonBinaryInfo(onDebug?: (msg: string) => void): Daemon
   const env = process.env.DEVKITD_BIN ?? process.env.AI_DEVKITD_BIN;
   if (env && fs.existsSync(env)) {
     onDebug?.(`devkitd binary from env override: ${env}`);
-    return { path: env, source: "env" };
+    return { path: env };
   }
 
   const plats: Record<string, string> = {
@@ -75,7 +74,6 @@ export function resolveDaemonBinaryInfo(onDebug?: (msg: string) => void): Daemon
         // 0.0.0 is the unstamped in-repo manifest, not a release.
         return {
           path: candidate,
-          source: "package",
           version: typeof version === "string" && version !== "0.0.0" ? version : undefined,
         };
       }
@@ -87,7 +85,7 @@ export function resolveDaemonBinaryInfo(onDebug?: (msg: string) => void): Daemon
   const home = path.join(os.homedir(), ".ai-devkit", "bin", "devkitd");
   if (fs.existsSync(home)) {
     onDebug?.(`devkitd binary from ~/.ai-devkit/bin: ${home}`);
-    return { path: home, source: "home" };
+    return { path: home };
   }
 
   // Dev checkout: walk up to the nearest rust/target/<profile>/devkitd and
@@ -108,7 +106,7 @@ export function resolveDaemonBinaryInfo(onDebug?: (msg: string) => void): Daemon
     }
     if (best) {
       onDebug?.(`devkitd binary from dev checkout: ${best.file}`);
-      return { path: best.file, source: "dev" };
+      return { path: best.file };
     }
     const parent = path.dirname(dir);
     if (parent === dir) break;

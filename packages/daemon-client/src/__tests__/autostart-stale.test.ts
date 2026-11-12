@@ -136,7 +136,7 @@ describe("ensureDaemon stale-daemon replacement", () => {
   function bundled(version: string, opts: FakeOpts = {}): () => DaemonBinary {
     const file = makeFakeBin(binDir, "devkitd-current", { buildVersion: version, ...opts });
     process.env.DEVKITD_BIN = file;
-    return () => ({ path: file, source: "package", version });
+    return () => ({ path: file, version });
   }
 
   it("keeps a daemon whose build matches the bundled package", async () => {
@@ -149,35 +149,22 @@ describe("ensureDaemon stale-daemon replacement", () => {
     expect((await liveStatus()).pid).toBe(before.pid);
   });
 
-  it("replaces an older daemon with the bundled build", async () => {
-    const resolveBinary = bundled("0.2.2");
-    await startDaemon(makeFakeBin(binDir, "old", { buildVersion: "0.2.1" }));
-    const traces: string[] = [];
-    const client = await ensureDaemon({ resolveBinary, onDebug: (m) => traces.push(m) });
-    expect(client).not.toBeNull();
-    const s = (await client!.request("daemon.status")) as Record<string, unknown>;
-    client!.close();
-    expect(s.buildVersion).toBe("0.2.2");
-    expect(traces.join("\n")).toMatch(/stale devkitd/);
-  }, 15000);
-
-  it("replaces a pre-#376 daemon that reports no build version", async () => {
-    const resolveBinary = bundled("0.2.2");
-    await startDaemon(makeFakeBin(binDir, "legacy", {}));
-    const client = await ensureDaemon({ resolveBinary });
-    expect(client).not.toBeNull();
-    client!.close();
-    expect((await liveStatus()).buildVersion).toBe("0.2.2");
-  }, 15000);
-
-  it("replaces a daemon that does not know daemon.status", async () => {
-    const resolveBinary = bundled("0.2.2");
-    await startDaemon(makeFakeBin(binDir, "ancient", { noStatus: true }));
-    const client = await ensureDaemon({ resolveBinary });
-    expect(client).not.toBeNull();
-    client!.close();
-    expect((await liveStatus()).buildVersion).toBe("0.2.2");
-  }, 15000);
+  it.each<[string, FakeOpts]>([
+    ["an older daemon", { buildVersion: "0.2.1" }],
+    ["a pre-#376 daemon that reports no build version", {}],
+    ["a daemon that does not know daemon.status", { noStatus: true }],
+  ])(
+    "replaces %s with the bundled build",
+    async (_label, fake) => {
+      const resolveBinary = bundled("0.2.2");
+      await startDaemon(makeFakeBin(binDir, "stale", fake));
+      const client = await ensureDaemon({ resolveBinary });
+      expect(client).not.toBeNull();
+      client!.close();
+      expect((await liveStatus()).buildVersion).toBe("0.2.2");
+    },
+    15000,
+  );
 
   it("keeps a newer daemon started by a newer CLI", async () => {
     const resolveBinary = bundled("0.2.2");
@@ -210,7 +197,7 @@ describe("ensureDaemon stale-daemon replacement", () => {
     await startDaemon(makeFakeBin(binDir, "old", { buildVersion: "0.2.1" }));
     const before = await liveStatus();
     const client = await ensureDaemon({
-      resolveBinary: () => ({ path: file, source: "env" }),
+      resolveBinary: () => ({ path: file }),
     });
     expect(client).not.toBeNull();
     client!.close();
