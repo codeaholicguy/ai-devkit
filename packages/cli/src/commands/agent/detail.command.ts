@@ -9,7 +9,8 @@ import {
   resolveAgentByName,
   resolveDurableAgentEntry,
 } from "../../services/agent/resolve-agent.service.js";
-import { createAgentManager } from "./factory.js";
+import { createLogger, enableDebug } from "../../util/debug.js";
+import { createAgentManager, listLiveAgents } from "./factory.js";
 import {
   formatCwd,
   formatSeparator,
@@ -18,6 +19,8 @@ import {
   renderDurableAgentDetail,
   selectConversationMessages,
 } from "./render.js";
+
+const debug = createLogger("agent:detail");
 
 export function registerAgentDetailCommand(agentCommand: Command): void {
   agentCommand
@@ -28,10 +31,14 @@ export function registerAgentDetailCommand(agentCommand: Command): void {
     .option("--full", "Show entire conversation history")
     .option("--tail <n>", "Show last N messages (default: 20)", "20")
     .option("--verbose", "Include tool call/result details")
+    .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("get agent detail", async (options) => {
+        if (options.debug) {
+          enableDebug();
+        }
         const manager = createAgentManager();
-        const agents = await manager.listAgents();
+        const agents = await listLiveAgents(manager, debug);
         const durableResolved = await resolveDurableAgentEntry(options.id, async () => agents);
         if (durableResolved) {
           if (options.json) {

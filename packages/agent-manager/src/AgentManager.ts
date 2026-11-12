@@ -45,12 +45,26 @@ function adapterPatterns(adapter: AgentAdapter): {
   };
 }
 
+/** Daemon `agent.list` wire shape: `AgentInfo` with `lastActive` as ISO string. */
+export type EnrichedAgentWire = Omit<AgentInfo, "lastActive" | "type" | "status"> & {
+  type: string;
+  status: string;
+  lastActive: string;
+};
+
 export interface ListAgentsOptions {
   /**
    * Sort key for the returned list. Defaults to `status`, which orders
    * waiting → running → idle → unknown, then by name for stability.
    */
   sortBy?: AgentSortKey;
+  /**
+   * Daemon list the caller already fetched. When present (including null)
+   * it replaces {@link AgentManagerOptions.fetchEnrichedAgents} for this
+   * call: null means the daemon is unavailable (local adapters only); an
+   * empty list gets the same local cross-check as a fetched one.
+   */
+  enriched?: EnrichedAgentWire[] | null;
 }
 
 export interface AgentManagerOptions {
@@ -68,13 +82,30 @@ export interface AgentManagerOptions {
    * throwing forces the local path; omitting it disables daemon
    * consumption.
    */
-  fetchEnrichedAgents?: () => Promise<Array<
-    Omit<AgentInfo, "lastActive" | "type" | "status"> & {
-      type: string;
-      status: string;
-      lastActive: string;
-    }
-  > | null>;
+  fetchEnrichedAgents?: () => Promise<EnrichedAgentWire[] | null>;
+}
+
+/**
+ * Rebuild a daemon row in the key order local adapters produce. devkitd
+ * serializes through `serde_json::Value`, so wire keys arrive
+ * alphabetically; `pinned` goes last because the registry overlay appends
+ * it on the local path. Keeps `--json` output byte-identical whichever path
+ * served the list.
+ */
+function fromWire(a: EnrichedAgentWire): AgentInfo {
+  const agent: AgentInfo = {
+    name: a.name,
+    type: a.type as AgentType,
+    status: a.status as AgentStatus,
+    summary: a.summary,
+    pid: a.pid,
+    projectPath: a.projectPath,
+    sessionId: a.sessionId,
+    lastActive: new Date(a.lastActive),
+  };
+  if (a.sessionFilePath !== undefined) agent.sessionFilePath = a.sessionFilePath;
+  if (a.pinned !== undefined) agent.pinned = a.pinned;
+  return agent;
 }
 
 class AgentNotRunningError extends Error {
@@ -200,22 +231,20 @@ export class AgentManager {
     // answer the local result wins, with a warning.
     let daemonAgents: AgentInfo[] | null = null;
     let daemonAnsweredEmpty = false;
-    if (this.options.fetchEnrichedAgents) {
+    let enriched: EnrichedAgentWire[] | null = null;
+    if (options?.enriched !== undefined) {
+      enriched = options.enriched;
+    } else if (this.options.fetchEnrichedAgents) {
       try {
-        const enriched = await this.options.fetchEnrichedAgents();
-        if (enriched) {
-          daemonAgents = enriched.map((a) => ({
-            ...a,
-            type: a.type as AgentType,
-            status: a.status as AgentStatus,
-            lastActive: new Date(a.lastActive),
-          }));
-          daemonAnsweredEmpty = daemonAgents.length === 0;
-          if (daemonAnsweredEmpty) daemonAgents = null;
-        }
+        enriched = await this.options.fetchEnrichedAgents();
       } catch {
-        daemonAgents = null;
+        enriched = null;
       }
+    }
+    if (enriched) {
+      daemonAgents = enriched.map(fromWire);
+      daemonAnsweredEmpty = daemonAgents.length === 0;
+      if (daemonAnsweredEmpty) daemonAgents = null;
     }
     if (daemonAgents) allAgents.push(...daemonAgents);
 
