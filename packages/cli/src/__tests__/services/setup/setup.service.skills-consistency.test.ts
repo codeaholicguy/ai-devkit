@@ -32,6 +32,7 @@ describe("setup service — built-in skills consistency", () => {
     { agent: "cursor", marker: join(".cursor") },
     { agent: "opencode", marker: join(".config", "opencode") },
     { agent: "grok", marker: join(".grok") },
+    { agent: "antigravity-cli", marker: join(".gemini", "antigravity-cli") },
   ] as const;
 
   it.each(cases)(
@@ -52,12 +53,12 @@ describe("setup service — built-in skills consistency", () => {
     },
   );
 
-  it("runs built-in-skills before memory-mcp for gemini", async () => {
-    mkdirSync(join(homeDir, ".gemini"));
+  it.each(cases)("runs built-in-skills before memory-mcp for $agent", async ({ agent, marker }) => {
+    mkdirSync(join(homeDir, marker), { recursive: true });
 
-    const report = await createService().run({ agents: ["gemini"] });
+    const report = await createService().run({ agents: [agent] });
 
     const steps = report.results.map((result) => result.step);
-    expect(steps.indexOf("built-in-skills")).toBeLessThan(steps.indexOf("memory-mcp"));
+    expect(steps).toEqual(["built-in-skills", "memory-mcp"]);
   });
 });
