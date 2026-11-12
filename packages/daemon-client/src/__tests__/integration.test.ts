@@ -65,3 +65,69 @@ describe("socket teardown", () => {
     }
   });
 });
+
+describe("agent lookup/unregister wire calls", () => {
+  /** Answers agent.lookup / agent.unregister for "known", coded not_found otherwise. */
+  async function registryDaemon(): Promise<{ sock: string; server: net.Server; seen: unknown[] }> {
+    const sock = path.join(os.tmpdir(), `fake-reg-${process.pid}-${Date.now()}.sock`);
+    const seen: unknown[] = [];
+    const server = net.createServer((conn) => {
+      conn.on("data", (d) => {
+        for (const line of d.toString().split("\n").filter(Boolean)) {
+          const req = JSON.parse(line);
+          seen.push({ method: req.method, params: req.params });
+          if (req.params?.name !== "known") {
+            conn.write(
+              JSON.stringify({
+                id: req.id,
+                error: `No registered agent named "${req.params?.name}".`,
+                code: "not_found",
+                details: { name: req.params?.name },
+              }) + "\n",
+            );
+          } else if (req.method === "agent.lookup") {
+            conn.write(
+              JSON.stringify({
+                id: req.id,
+                result: {
+                  name: "known",
+                  type: "claude",
+                  pid: 42,
+                  runtime: "tmux",
+                  runtimeRef: { session: "known" },
+                  cwd: "/repo",
+                  pinned: false,
+                  alive: true,
+                },
+              }) + "\n",
+            );
+          } else if (req.method === "agent.unregister") {
+            conn.write(JSON.stringify({ id: req.id, result: { name: "known", pid: 42 } }) + "\n");
+          }
+        }
+      });
+    });
+    await new Promise<void>((r) => server.listen(sock, r));
+    return { sock, server, seen };
+  }
+
+  it("lookupAgent and unregisterAgent send the name and return typed results", async () => {
+    const { sock, server, seen } = await registryDaemon();
+    try {
+      const client = await DaemonClient.connect(sock);
+      const found = await client.lookupAgent("known");
+      expect(found.runtimeRef).toEqual({ session: "known" });
+      expect(found.alive).toBe(true);
+      expect(await client.unregisterAgent("known")).toEqual({ name: "known", pid: 42 });
+      expect(seen).toEqual([
+        { method: "agent.lookup", params: { name: "known" } },
+        { method: "agent.unregister", params: { name: "known" } },
+      ]);
+      await expect(client.lookupAgent("nobody")).rejects.toMatchObject({ code: "not_found" });
+      client.close();
+    } finally {
+      server.close();
+      fs.rmSync(sock, { force: true });
+    }
+  });
+});

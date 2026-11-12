@@ -32,6 +32,7 @@ pub struct Registration {
     pub agent_type: String,
     pub runtime: String,
     pub runtime_ref: String,
+    pub cwd: String,
     pub pinned: bool,
     /// None while registered-but-not-yet-swept, or when tombstoned before
     /// the process was ever observed.
@@ -233,7 +234,7 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let mut s = conn.prepare(
             "SELECT pid, name, agent_type, runtime, runtime_ref, pinned,
-                    start_time_ms, gone_at
+                    start_time_ms, gone_at, cwd
              FROM agents WHERE name=?1",
         )?;
         let mut rows = s
@@ -244,6 +245,7 @@ impl Store {
                     agent_type: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
                     runtime: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
                     runtime_ref: r.get(4)?,
+                    cwd: r.get::<_, Option<String>>(8)?.unwrap_or_default(),
                     pinned: r.get::<_, i64>(5)? != 0,
                     start_time_ms: r.get(6)?,
                     gone_at: r.get(7)?,
@@ -262,6 +264,24 @@ impl Store {
             params![pid],
         )?;
         Ok(())
+    }
+
+    /// Best-effort delete of a name from the legacy agents.db — the
+    /// unregister counterpart of `dual_write_legacy`, so a removed name
+    /// neither lingers for unmigrated consumers nor re-imports on the next
+    /// `import_legacy_agents`. Silent on any failure, like the dual-write.
+    pub fn unregister_legacy(&self, name: &str) {
+        let Some(path) = self.legacy_db.lock().unwrap().clone() else {
+            return;
+        };
+        if !path.exists() {
+            return;
+        }
+        if let Err(e) = Connection::open(&path)
+            .and_then(|c| c.execute("DELETE FROM agents WHERE name=?1", params![name]))
+        {
+            tracing::warn!("legacy agents.db unregister failed: {e:#}");
+        }
     }
 
     /// Drop tombstoned registrations (gone_at set) — the prune half of the
@@ -505,6 +525,37 @@ mod tests {
     }
 
     #[test]
+    fn lookup_name_carries_cwd() {
+        let (s, _p) = tmp_store();
+        s.register_start(10, "my-agent", "codex", "/repo", "tmux", &json!({}))
+            .unwrap();
+        assert_eq!(s.lookup_name("my-agent").unwrap().unwrap().cwd, "/repo");
+    }
+
+    #[test]
+    fn unregister_legacy_removes_named_row_only() {
+        let (s, p) = tmp_store();
+        let legacy = p.with_file_name(format!(
+            "{}.legacy.db",
+            p.file_name().unwrap().to_str().unwrap()
+        ));
+        legacy_fixture(&legacy);
+        s.set_legacy_db(legacy.clone()).unwrap();
+
+        s.unregister_legacy("old-claude");
+
+        let conn = Connection::open(&legacy).unwrap();
+        let names: Vec<String> = conn
+            .prepare("SELECT name FROM agents ORDER BY name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(names, vec!["old-codex"]);
+    }
+
+    #[test]
     fn missing_legacy_db_skips_silently() {
         let (s, p) = tmp_store();
         s.set_legacy_db(p.with_file_name("does-not-exist.db"))
@@ -512,5 +563,6 @@ mod tests {
         s.import_legacy_agents().unwrap(); // no file → no-op
         s.register_start(1, "x1", "claude", "/tmp", "tmux", &json!({}))
             .unwrap(); // dual-write skipped
+        s.unregister_legacy("x1"); // dual-delete skipped
     }
 }

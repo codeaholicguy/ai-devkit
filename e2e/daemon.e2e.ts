@@ -92,6 +92,14 @@ describe('ensureDaemon (real binary)', () => {
       rmSync(home, { recursive: true, force: true });
     }
   });
+
+  it('lookupAgent and unregisterAgent surface coded not_found', async () => {
+    const client = await ensureDaemon({ waitMs: 20000 });
+    expect(client).not.toBeNull();
+    await expect(client!.lookupAgent('nobody')).rejects.toMatchObject({ code: 'not_found' });
+    await expect(client!.unregisterAgent('nobody')).rejects.toMatchObject({ code: 'not_found' });
+    client!.close();
+  });
 });
 
 /**

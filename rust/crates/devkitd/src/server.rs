@@ -129,6 +129,24 @@ impl Daemon {
                     Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
+            "agent.lookup" | "agent.unregister" => {
+                let params = match Self::parse_params::<devkit_core::proto::AgentNameParams>(
+                    &req,
+                    &req.method,
+                ) {
+                    Ok(p) => p,
+                    Err(resp) => return *resp,
+                };
+                let result = if req.method == "agent.lookup" {
+                    crate::rpc::agent::lookup::run(self, params).map(serde_json::to_value)
+                } else {
+                    crate::rpc::agent::unregister::run(self, params).map(serde_json::to_value)
+                };
+                match result {
+                    Ok(v) => Response::ok(id, v.unwrap_or_default()),
+                    Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+                }
+            }
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
                 tokio::spawn(async {
@@ -670,6 +688,47 @@ mod tests {
 
         // Unattributed procs still emit — with an empty agent list.
         assert_eq!(lifecycle_payload(5, &list)["agents"], json!([]));
+    }
+
+    #[tokio::test]
+    async fn agent_lookup_and_unregister_round_trip_over_socket() {
+        let (d, sock) = test_daemon().await;
+        d.store
+            .register_start(
+                i32::MAX as i64,
+                "kill-me",
+                "claude",
+                "/repo",
+                "tmux",
+                &json!({"session": "kill-me"}),
+            )
+            .unwrap();
+
+        let r = rpc(
+            &sock,
+            r#"{"id":1,"method":"agent.lookup","params":{"name":"kill-me"}}"#,
+        )
+        .await;
+        assert_eq!(r["result"]["runtimeRef"]["session"], "kill-me");
+        assert_eq!(r["result"]["cwd"], "/repo");
+
+        let r = rpc(
+            &sock,
+            r#"{"id":2,"method":"agent.unregister","params":{"name":"kill-me"}}"#,
+        )
+        .await;
+        assert_eq!(r["result"]["name"], "kill-me");
+
+        let r = rpc(
+            &sock,
+            r#"{"id":3,"method":"agent.lookup","params":{"name":"kill-me"}}"#,
+        )
+        .await;
+        assert_eq!(r["code"], "not_found");
+        assert!(r["error"].as_str().unwrap().contains("kill-me"));
+
+        let r = rpc(&sock, r#"{"id":4,"method":"agent.unregister","params":{}}"#).await;
+        assert_eq!(r["code"], "invalid_params");
     }
 
     #[tokio::test]
