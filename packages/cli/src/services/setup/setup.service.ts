@@ -174,22 +174,34 @@ const setupDefinitions: AgentSetupDefinition[] = [
   {
     agent: "gemini",
     dotFolder: ".gemini",
-    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
   {
     agent: "cursor",
     dotFolder: ".cursor",
-    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
   {
     agent: "opencode",
     dotFolder: ".config/opencode",
-    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
   {
     agent: "grok",
     dotFolder: ".grok",
-    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
   {
     agent: "antigravity-cli",
