@@ -4,7 +4,9 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "sourceMap": false,
+    "declarationMap": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/__tests__"]

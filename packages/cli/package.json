@@ -20,20 +20,25 @@
   "bin": {
     "ai-devkit": "dist/bundle/cli.js"
   },
+  "files": [
+    "dist",
+    "templates",
+    "assets"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rm -rf dist && swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates && cp -R assets dist/assets && node scripts/bundle-cli.mjs",
+    "build": "rm -rf dist && swc src -d dist --source-maps false --strip-leading-paths && tsc --emitDeclarationOnly && cp -R templates dist/templates && cp -R assets dist/assets && node scripts/bundle-cli.mjs",
     "dev:build": "swc src -d dist --strip-leading-paths --watch",
     "dev": "node --no-warnings --loader ts-node/esm src/cli.ts",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepublishOnly": "npm run build && rm -rf dist/__tests__ && find dist -name \"*.map\" -delete"
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@ai-devkit/agent-manager": "0.44.0",
@@ -73,10 +78,5 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  },
-  "files": [
-    "dist",
-    "templates",
-    "assets"
-  ]
+  }
 }

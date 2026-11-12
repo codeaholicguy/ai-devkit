@@ -81,3 +81,47 @@ jobs:
 
       - name: Test
         run: cargo test --workspace
+  package-hygiene:
+    name: Package Hygiene
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Pack and verify published artifacts
+        run: |
+          set -eu
+          for pkg in cli agent-manager channel-connector daemon-client memory pi-session-tracker; do
+            cd "packages/$pkg"
+            npm pack --quiet
+            tgz=$(ls ./*.tgz)
+            if tar -tzf "$tgz" | grep -Eq '\.map$|__tests__'; then
+              echo "::error::$pkg tarball contains source maps or tests:"
+              tar -tzf "$tgz" | grep -E '\.map$|__tests__' | head -5
+              exit 1
+            fi
+            echo "$pkg: $(tar -tzf "$tgz" | grep -vc '/$') files, clean"
+            rm -f "$tgz"
+            cd ../..
+          done
+
+      - name: Install packed CLI and smoke it
+        run: |
+          set -eu
+          cd packages/cli && npm pack --quiet && tgz=$(ls ./*.tgz) && cd ../..
+          dir=$(mktemp -d)
+          npm install --prefix "$dir" "$PWD/packages/cli/$tgz" >/dev/null
+          "$dir/node_modules/.bin/ai-devkit" --version

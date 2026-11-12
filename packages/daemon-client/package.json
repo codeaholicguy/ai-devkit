@@ -22,15 +22,15 @@
     }
   },
   "scripts": {
-    "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly",
+    "build": "swc src -d dist --source-maps false --strip-leading-paths && tsc --emitDeclarationOnly",
     "dev": "swc src -d dist --strip-leading-paths --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run build && rm -rf dist/__tests__ && find dist -name \"*.map\" -delete"
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@swc/cli": "^0.8.1",

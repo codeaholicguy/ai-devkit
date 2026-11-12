@@ -1,0 +1,320 @@
+import type { Mocked } from "vitest";
+import fs from "fs-extra";
+import * as os from "os";
+import * as path from "path";
+import { GlobalConfigManager } from "../../src/lib/GlobalConfig.js";
+
+vi.mock("fs-extra", async () => {
+  const { makeFsExtraMock } = await import("../__shared__/fs-extra-mock.js");
+  return makeFsExtraMock();
+});
+vi.mock("os");
+vi.mock("path");
+
+vi.mock("../../src/util/terminal-ui.js", () => ({
+  ui: { warning: vi.fn(), info: vi.fn(), error: vi.fn(), text: vi.fn() },
+}));
+import { ui as mockUi } from "../../src/util/terminal-ui.js";
+
+describe("GlobalConfigManager", () => {
+  let configManager: GlobalConfigManager;
+  let mockFs: Mocked<typeof fs>;
+  let mockOs: Mocked<typeof os>;
+  let mockPath: Mocked<typeof path>;
+
+  beforeEach(() => {
+    configManager = new GlobalConfigManager();
+    mockFs = fs as Mocked<typeof fs>;
+    mockOs = os as Mocked<typeof os>;
+    mockPath = path as Mocked<typeof path>;
+
+    mockOs.homedir.mockReturnValue("/home/test");
+    mockPath.join.mockImplementation((...args) => args.join("/"));
+    mockPath.dirname.mockImplementation(
+      (input: string) => input.split("/").slice(0, -1).join("/") || "/",
+    );
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("read", () => {
+    it("should return null when global config does not exist", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await configManager.read();
+
+      expect(result).toBeNull();
+      expect(mockFs.readJson).not.toHaveBeenCalled();
+    });
+
+    it("should return parsed config when file exists", async () => {
+      const config = {
+        registries: {
+          "my-org/skills": "https://github.com/my-org/skills.git",
+        },
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.read();
+
+      expect(result).toEqual(config);
+      expect(mockFs.readJson).toHaveBeenCalledWith("/home/test/.ai-devkit/.ai-devkit.json");
+    });
+
+    it("should warn and return null when JSON is invalid", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockRejectedValue(new Error("Invalid JSON"));
+
+      const result = await configManager.read();
+
+      expect(result).toBeNull();
+      expect(mockUi.warning).toHaveBeenCalled();
+    });
+  });
+
+  describe("getSkillRegistries", () => {
+    it("should return empty map when no config", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await configManager.getSkillRegistries();
+
+      expect(result).toEqual({});
+    });
+
+    it("should return only string registry entries", async () => {
+      const config = {
+        registries: {
+          "my-org/skills": "https://github.com/my-org/skills.git",
+          "bad/entry": 123,
+        },
+      };
+
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.getSkillRegistries();
+
+      expect(result).toEqual({
+        "my-org/skills": "https://github.com/my-org/skills.git",
+      });
+    });
+  });
+
+  describe("getAgentRuntimeProvider", () => {
+    it("defaults to tmux when global config is missing", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe("tmux");
+    });
+
+    it("defaults to tmux when global agentRuntime provider is missing", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ agentRuntime: {} });
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe("tmux");
+    });
+
+    it("returns herdr when configured globally", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ agentRuntime: { provider: "herdr" } });
+
+      await expect(configManager.getAgentRuntimeProvider()).resolves.toBe("herdr");
+    });
+
+    it("rejects unknown global runtime providers", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({ agentRuntime: { provider: "screen" } });
+
+      await expect(configManager.getAgentRuntimeProvider()).rejects.toThrow(
+        'agentRuntime.provider has unsupported value "screen"; supported values: tmux, herdr',
+      );
+    });
+  });
+
+  describe("addSkillRegistry", () => {
+    it("creates a missing global config with the registry", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addSkillRegistry("new/skills", "any string");
+
+      expect(result).toEqual({ registries: { "new/skills": "any string" } });
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        "/home/test/.ai-devkit/.ai-devkit.json",
+        { registries: { "new/skills": "any string" } },
+        { spaces: 2 },
+      );
+    });
+
+    it("refuses to overwrite a present malformed global config", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockRejectedValue(new Error("Invalid JSON"));
+
+      await expect(configManager.addSkillRegistry("new/skills", "any string")).rejects.toThrow(
+        "Cannot update global config because the existing file could not be read",
+      );
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it("does not rewrite an identically registered global URL", async () => {
+      const config = {
+        plugins: ["@ai-devkit/memory-dashboard"],
+        registries: { "new/skills": "any string" },
+      };
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue(config);
+
+      const result = await configManager.addSkillRegistry("new/skills", "any string");
+
+      expect(result).toBe(config);
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it("rejects a conflicting global URL without force", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        registries: { "new/skills": "old-url" },
+      });
+
+      await expect(configManager.addSkillRegistry("new/skills", "new-url")).rejects.toThrow(
+        'Registry "new/skills" is already registered with a different URL. Use --force to overwrite it.',
+      );
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+
+    it("force-overwrites one global URL while preserving other config", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        plugins: ["@ai-devkit/memory-dashboard"],
+        registries: {
+          "new/skills": "old-url",
+          "sibling/skills": "keep-me",
+        },
+      });
+
+      const result = await configManager.addSkillRegistry("new/skills", "new-url", { force: true });
+
+      expect(result).toEqual({
+        plugins: ["@ai-devkit/memory-dashboard"],
+        registries: {
+          "new/skills": "new-url",
+          "sibling/skills": "keep-me",
+        },
+      });
+    });
+  });
+
+  describe("removeSkillRegistry", () => {
+    it("removes one registry while preserving unrelated global config", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        plugins: ["memory-dashboard"],
+        registries: { "target/skills": "target-url", "keep/skills": "keep-url" },
+      });
+
+      const result = await configManager.removeSkillRegistry("target/skills");
+
+      expect(result).toEqual({
+        plugins: ["memory-dashboard"],
+        registries: { "keep/skills": "keep-url" },
+      });
+    });
+
+    it("does not create a global config for a missing registry", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      expect(await configManager.removeSkillRegistry("target/skills")).toEqual({});
+      expect(mockFs.writeJson).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("getPlugins", () => {
+    it("should return empty list when no config exists", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+
+      const result = await configManager.getPlugins();
+
+      expect(result).toEqual([]);
+    });
+
+    it("should return only string plugin entries", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        plugins: ["@ai-devkit/memory-dashboard", 123, "", "  @ai-devkit/agent-office  "],
+      });
+
+      const result = await configManager.getPlugins();
+
+      expect(result).toEqual(["@ai-devkit/memory-dashboard", "@ai-devkit/agent-office"]);
+    });
+  });
+
+  describe("addPlugin", () => {
+    it("creates global config and adds the first plugin", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(false);
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addPlugin("@ai-devkit/memory-dashboard");
+
+      expect(result.plugins).toEqual(["@ai-devkit/memory-dashboard"]);
+      expect(mockFs.ensureDir).toHaveBeenCalledWith("/home/test/.ai-devkit");
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        "/home/test/.ai-devkit/.ai-devkit.json",
+        { plugins: ["@ai-devkit/memory-dashboard"] },
+        { spaces: 2 },
+      );
+    });
+
+    it("deduplicates plugin entries when adding an existing plugin", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        registries: { "owner/repo": "https://example.com/repo.git" },
+        plugins: ["@ai-devkit/memory-dashboard"],
+      });
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.addPlugin("@ai-devkit/memory-dashboard");
+
+      expect(result.plugins).toEqual(["@ai-devkit/memory-dashboard"]);
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        "/home/test/.ai-devkit/.ai-devkit.json",
+        {
+          registries: { "owner/repo": "https://example.com/repo.git" },
+          plugins: ["@ai-devkit/memory-dashboard"],
+        },
+        { spaces: 2 },
+      );
+    });
+  });
+
+  describe("removePlugin", () => {
+    it("removes plugin entries while preserving unrelated config", async () => {
+      (mockFs.pathExists as any).mockResolvedValue(true);
+      (mockFs.readJson as any).mockResolvedValue({
+        registries: { "owner/repo": "https://example.com/repo.git" },
+        plugins: ["@ai-devkit/memory-dashboard", "@ai-devkit/agent-office"],
+      });
+      (mockFs.ensureDir as any).mockResolvedValue(undefined);
+      (mockFs.writeJson as any).mockResolvedValue(undefined);
+
+      const result = await configManager.removePlugin("@ai-devkit/memory-dashboard");
+
+      expect(result.plugins).toEqual(["@ai-devkit/agent-office"]);
+      expect(mockFs.writeJson).toHaveBeenCalledWith(
+        "/home/test/.ai-devkit/.ai-devkit.json",
+        {
+          registries: { "owner/repo": "https://example.com/repo.git" },
+          plugins: ["@ai-devkit/agent-office"],
+        },
+        { spaces: 2 },
+      );
+    });
+  });
+});

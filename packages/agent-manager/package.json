@@ -15,6 +15,10 @@
     "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
     "directory": "packages/agent-manager"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -25,18 +29,18 @@
     }
   },
   "scripts": {
-    "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
+    "build": "swc src -d dist --source-maps false --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
     "dev": "swc src -d dist --strip-leading-paths --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "benchmark:cold-start": "npm run build && node scripts/benchmark-cold-start.mjs",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run build && rm -rf dist/__tests__ && find dist -name \"*.map\" -delete"
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
@@ -53,9 +57,5 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ]
+  }
 }

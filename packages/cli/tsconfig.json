@@ -5,7 +5,9 @@
     "moduleResolution": "NodeNext",
     "rootDir": "./src",
     "outDir": "./dist",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "sourceMap": false,
+    "declarationMap": false
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/__tests__"],
