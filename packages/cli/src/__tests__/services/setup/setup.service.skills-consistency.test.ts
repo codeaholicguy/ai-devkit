@@ -34,20 +34,23 @@ describe("setup service — built-in skills consistency", () => {
     { agent: "grok", marker: join(".grok") },
   ] as const;
 
-  it.each(cases)("installs built-in skills for $agent when its marker exists", async ({ agent, marker }) => {
-    mkdirSync(join(homeDir, marker), { recursive: true });
+  it.each(cases)(
+    "installs built-in skills for $agent when its marker exists",
+    async ({ agent, marker }) => {
+      mkdirSync(join(homeDir, marker), { recursive: true });
 
-    const report = await createService().run({ agents: [agent] });
+      const report = await createService().run({ agents: [agent] });
 
-    expect(report.results).toContainEqual(
-      expect.objectContaining({
-        agent,
-        step: "built-in-skills",
-        status: "installed",
-      }),
-    );
-    expect(builtInSkillInstalls).toEqual([agent]);
-  });
+      expect(report.results).toContainEqual(
+        expect.objectContaining({
+          agent,
+          step: "built-in-skills",
+          status: "installed",
+        }),
+      );
+      expect(builtInSkillInstalls).toEqual([agent]);
+    },
+  );
 
   it("runs built-in-skills before memory-mcp for gemini", async () => {
     mkdirSync(join(homeDir, ".gemini"));
