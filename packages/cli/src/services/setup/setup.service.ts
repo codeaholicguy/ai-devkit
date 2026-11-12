@@ -211,7 +211,10 @@ const setupDefinitions: AgentSetupDefinition[] = [
   {
     agent: "antigravity-cli",
     dotFolder: ".gemini/antigravity-cli",
-    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
   {
     agent: "kiro",

@@ -50,9 +50,14 @@ describe("setup service antigravity-cli target", () => {
 
     const report = await createService().run({ agents: ["antigravity-cli"] });
 
-    // Built-in skills are tracked separately (#431): no invented steps.
-    expect(report.results.some((result) => result.step === "built-in-skills")).toBe(false);
-    expect(builtInSkillInstalls).toEqual([]);
+    expect(report.results).toContainEqual(
+      expect.objectContaining({
+        agent: "antigravity-cli",
+        step: "built-in-skills",
+        status: "installed",
+      }),
+    );
+    expect(builtInSkillInstalls).toEqual(["antigravity-cli"]);
 
     // Memory MCP is wired into ~/.gemini/config/mcp_config.json.
     expect(report.results).toContainEqual(
