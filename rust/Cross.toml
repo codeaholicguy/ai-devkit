@@ -1,0 +1,4 @@
+# cross runs builds in a container; forward the release stamp so
+# devkitd's option_env!("DEVKITD_BUILD_VERSION") sees it (#376).
+[build.env]
+passthrough = ["DEVKITD_BUILD_VERSION"]

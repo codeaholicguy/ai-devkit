@@ -99,14 +99,13 @@ impl Daemon {
         let id = req.id;
         match req.method.as_str() {
             "ping" => Response::ok(id, json!({"pong": true, "startedAt": self.started_at})),
-            "daemon.status" => Response::ok(
-                id,
-                json!({
-                    "version": env!("CARGO_PKG_VERSION"),
-                    "startedAt": self.started_at,
-                    "socket": self.socket_path,
-                }),
-            ),
+            "daemon.status" => {
+                let mut status = identity();
+                status["startedAt"] = json!(self.started_at);
+                status["socket"] = json!(self.socket_path);
+                status["pid"] = json!(std::process::id());
+                Response::ok(id, status)
+            }
             "agent.list" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
@@ -259,6 +258,21 @@ fn peer_is_same_user(stream: &UnixStream) -> bool {
 #[cfg(not(target_os = "linux"))]
 fn peer_is_same_user(_stream: &UnixStream) -> bool {
     true
+}
+
+/// Release identity of this binary: the platform package version that
+/// publish-devkitd.yml stamps via `DEVKITD_BUILD_VERSION`. `None` for local
+/// cargo builds. The crate `version` alone can't tell package releases
+/// apart (#376) — clients compare `buildVersion` to detect a stale daemon.
+pub const BUILD_VERSION: Option<&str> = option_env!("DEVKITD_BUILD_VERSION");
+
+/// Shared by `daemon.status` and `devkitd version` so a client can compare
+/// the running daemon against the binary it would spawn.
+pub fn identity() -> Value {
+    json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "buildVersion": BUILD_VERSION,
+    })
 }
 
 pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
@@ -516,6 +530,19 @@ mod tests {
             }
         }
         assert!(saw_ping);
+    }
+
+    #[tokio::test]
+    async fn daemon_status_reports_build_identity_and_pid() {
+        let (_d, sock) = test_daemon().await;
+        let resp = rpc(&sock, r#"{"id":3,"method":"daemon.status"}"#).await;
+        let r = &resp["result"];
+        assert_eq!(r["version"], env!("CARGO_PKG_VERSION"));
+        // Unstamped local builds report null, never omit the key — clients
+        // read a missing key as a pre-#376 daemon.
+        assert!(r.as_object().unwrap().contains_key("buildVersion"));
+        assert_eq!(r["buildVersion"], json!(BUILD_VERSION));
+        assert_eq!(r["pid"], std::process::id());
     }
 
     #[tokio::test]

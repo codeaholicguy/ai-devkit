@@ -62,8 +62,12 @@ async fn main() -> Result<()> {
             println!("daemon: {state}");
             Ok(())
         }
+        "version" | "--version" => {
+            println!("{}", server::identity());
+            Ok(())
+        }
         other => {
-            eprintln!("usage: devkitd [serve|install|status] (got {other})");
+            eprintln!("usage: devkitd [serve|install|status|version] (got {other})");
             std::process::exit(2);
         }
     }

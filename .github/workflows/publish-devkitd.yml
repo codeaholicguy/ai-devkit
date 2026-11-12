@@ -60,7 +60,12 @@ jobs:
 
       - name: Build devkitd
         working-directory: ./rust
+        # Stamp the platform package version into the binary so
+        # daemon.status reports which release is serving the socket and the
+        # CLI can replace a stale daemon after upgrades (#376). Cross.toml
+        # passes it through to the cross container.
         run: |
+          export DEVKITD_BUILD_VERSION="$(node -p "require('$GITHUB_WORKSPACE/packages/daemon-client/package.json').version")"
           if [ "${{ matrix.cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }} -p devkitd
           else
@@ -69,6 +74,11 @@ jobs:
           BIN=target/${{ matrix.target }}/release/devkitd
           file "$BIN" 2>/dev/null || true
           test -x "$BIN"
+          # Verify the stamp on targets the runner can execute natively.
+          case "${{ matrix.pkg }}" in
+            darwin-arm64|linux-x64)
+              "$BIN" version | grep -q "\"buildVersion\":\"$DEVKITD_BUILD_VERSION\"" ;;
+          esac
 
       - name: Stage platform package
         run: |
