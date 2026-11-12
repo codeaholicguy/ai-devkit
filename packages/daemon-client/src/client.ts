@@ -6,6 +6,8 @@ import type { AgentStartResult } from "./gen/AgentStartResult.js";
 import type { AgentLookupResult } from "./gen/AgentLookupResult.js";
 import type { AgentNameParams } from "./gen/AgentNameParams.js";
 import type { AgentUnregisterResult } from "./gen/AgentUnregisterResult.js";
+import type { AgentRenameParams } from "./gen/AgentRenameParams.js";
+import type { AgentRenameResult } from "./gen/AgentRenameResult.js";
 import type { EnrichedAgent } from "./gen/EnrichedAgent.js";
 import type { Event } from "./gen/Event.js";
 
@@ -163,6 +165,19 @@ export class DaemonClient {
     return (await this.request("agent.unregister", {
       name,
     } satisfies AgentNameParams)) as AgentUnregisterResult;
+  }
+
+  /**
+   * Rename a registered agent and its runtime handle (tmux session / live
+   * herdr agent) atomically, daemon-side. Rejects coded `not_found`,
+   * `name_in_use`, `runtime_rename_failed` (registry left unchanged),
+   * `runtime_unavailable`, `invalid_params`.
+   */
+  async renameAgent(from: string, to: string): Promise<AgentRenameResult> {
+    return (await this.request("agent.rename", {
+      from,
+      to,
+    } satisfies AgentRenameParams)) as AgentRenameResult;
   }
 
   private onData(chunk: Buffer) {

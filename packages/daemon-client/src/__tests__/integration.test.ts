@@ -76,13 +76,14 @@ describe("agent lookup/unregister wire calls", () => {
         for (const line of d.toString().split("\n").filter(Boolean)) {
           const req = JSON.parse(line);
           seen.push({ method: req.method, params: req.params });
-          if (req.params?.name !== "known") {
+          const target = req.params?.name ?? req.params?.from;
+          if (target !== "known") {
             conn.write(
               JSON.stringify({
                 id: req.id,
-                error: `No registered agent named "${req.params?.name}".`,
+                error: `No registered agent named "${target}".`,
                 code: "not_found",
-                details: { name: req.params?.name },
+                details: { name: target },
               }) + "\n",
             );
           } else if (req.method === "agent.lookup") {
@@ -103,6 +104,21 @@ describe("agent lookup/unregister wire calls", () => {
             );
           } else if (req.method === "agent.unregister") {
             conn.write(JSON.stringify({ id: req.id, result: { name: "known", pid: 42 } }) + "\n");
+          } else if (req.method === "agent.rename") {
+            conn.write(
+              JSON.stringify({
+                id: req.id,
+                result: {
+                  from: "known",
+                  to: req.params.to,
+                  pid: 42,
+                  runtime: "tmux",
+                  runtimeRef: { session: req.params.to },
+                  runtimeRenamed: true,
+                  warnings: [],
+                },
+              }) + "\n",
+            );
           }
         }
       });
@@ -124,6 +140,24 @@ describe("agent lookup/unregister wire calls", () => {
         { method: "agent.unregister", params: { name: "known" } },
       ]);
       await expect(client.lookupAgent("nobody")).rejects.toMatchObject({ code: "not_found" });
+      client.close();
+    } finally {
+      server.close();
+      fs.rmSync(sock, { force: true });
+    }
+  });
+
+  it("renameAgent sends from/to and returns the typed result", async () => {
+    const { sock, server, seen } = await registryDaemon();
+    try {
+      const client = await DaemonClient.connect(sock);
+      const r = await client.renameAgent("known", "fresh");
+      expect(r).toMatchObject({ from: "known", to: "fresh", runtimeRenamed: true });
+      expect(r.runtimeRef).toEqual({ session: "fresh" });
+      expect(seen).toEqual([{ method: "agent.rename", params: { from: "known", to: "fresh" } }]);
+      await expect(client.renameAgent("nobody", "x2")).rejects.toMatchObject({
+        code: "not_found",
+      });
       client.close();
     } finally {
       server.close();

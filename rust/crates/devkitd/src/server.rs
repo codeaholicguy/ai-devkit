@@ -147,6 +147,19 @@ impl Daemon {
                     Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
+            "agent.rename" => {
+                let params = match Self::parse_params::<devkit_core::proto::AgentRenameParams>(
+                    &req,
+                    "agent.rename",
+                ) {
+                    Ok(p) => p,
+                    Err(resp) => return *resp,
+                };
+                match crate::rpc::agent::rename::run(self, params) {
+                    Ok(r) => Response::ok(id, serde_json::to_value(r).unwrap_or_default()),
+                    Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+                }
+            }
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
                 tokio::spawn(async {
@@ -728,6 +741,45 @@ mod tests {
         assert!(r["error"].as_str().unwrap().contains("kill-me"));
 
         let r = rpc(&sock, r#"{"id":4,"method":"agent.unregister","params":{}}"#).await;
+        assert_eq!(r["code"], "invalid_params");
+    }
+
+    #[tokio::test]
+    async fn agent_rename_round_trips_over_socket() {
+        let (d, sock) = test_daemon().await;
+        // Dead herdr registration → registry-only rename, no runtime binary.
+        d.store
+            .register_start(
+                i32::MAX as i64,
+                "rn-old",
+                "codex",
+                "/repo",
+                "herdr",
+                &json!({"paneId": "w1:p1"}),
+            )
+            .unwrap();
+
+        let r = rpc(
+            &sock,
+            r#"{"id":1,"method":"agent.rename","params":{"from":"rn-old","to":"rn-new"}}"#,
+        )
+        .await;
+        assert_eq!(r["result"]["to"], "rn-new");
+        assert_eq!(r["result"]["runtimeRenamed"], false);
+        assert!(d.store.lookup_name("rn-new").unwrap().is_some());
+
+        let r = rpc(
+            &sock,
+            r#"{"id":2,"method":"agent.rename","params":{"from":"rn-old","to":"x2"}}"#,
+        )
+        .await;
+        assert_eq!(r["code"], "not_found");
+
+        let r = rpc(
+            &sock,
+            r#"{"id":3,"method":"agent.rename","params":{"from":"a"}}"#,
+        )
+        .await;
         assert_eq!(r["code"], "invalid_params");
     }
 

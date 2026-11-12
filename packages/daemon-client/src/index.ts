@@ -5,6 +5,8 @@ export type { AgentStartResult } from "./gen/AgentStartResult.js";
 export type { AgentLookupResult } from "./gen/AgentLookupResult.js";
 export type { AgentNameParams } from "./gen/AgentNameParams.js";
 export type { AgentUnregisterResult } from "./gen/AgentUnregisterResult.js";
+export type { AgentRenameParams } from "./gen/AgentRenameParams.js";
+export type { AgentRenameResult } from "./gen/AgentRenameResult.js";
 export type { EnrichedAgent, Event } from "./gen/index.js";
 export { resolveDaemonBinary } from "./binary.js";
 export { ensureDaemon } from "./autostart.js";

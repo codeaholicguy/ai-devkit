@@ -160,6 +160,32 @@ pub struct AgentUnregisterResult {
     pub pid: u64,
 }
 
+/// `agent.rename` params — exact registered `from` name, validated `to`.
+#[derive(Debug, Deserialize, TS)]
+pub struct AgentRenameParams {
+    pub from: String,
+    pub to: String,
+}
+
+/// `agent.rename` result. `runtimeRenamed` is false when there was no live
+/// runtime handle to rename (tmux session gone, dead herdr agent) — the
+/// registry-only case, explained in `warnings`.
+#[derive(Debug, Serialize, TS)]
+pub struct AgentRenameResult {
+    pub from: String,
+    pub to: String,
+    #[ts(type = "number")]
+    pub pid: u64,
+    pub runtime: String,
+    /// Updated provider handle (tmux `session` / herdr `agentName` = `to`).
+    #[serde(rename = "runtimeRef")]
+    #[ts(type = "unknown")]
+    pub runtime_ref: Value,
+    #[serde(rename = "runtimeRenamed")]
+    pub runtime_renamed: bool,
+    pub warnings: Vec<String>,
+}
+
 /// Event pushed to subscribers. `seq` is the persisted log sequence number —
 /// subscribers ack by seq to get at-least-once delivery.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -196,6 +222,8 @@ mod tests {
         AgentNameParams::export(&cfg).unwrap();
         AgentLookupResult::export(&cfg).unwrap();
         AgentUnregisterResult::export(&cfg).unwrap();
+        AgentRenameParams::export(&cfg).unwrap();
+        AgentRenameResult::export(&cfg).unwrap();
         crate::agent::EnrichedAgent::export(&cfg).unwrap();
 
         // ts-rs emits `import ... from "./X"` without the `.js` extension
@@ -333,6 +361,29 @@ mod tests {
         })
         .unwrap();
         assert_eq!(u, json!({"name": "foo", "pid": 42}));
+    }
+
+    #[test]
+    fn agent_rename_params_and_result_wire_shape() {
+        let p: AgentRenameParams = serde_json::from_str(r#"{"from":"old","to":"new"}"#).unwrap();
+        assert_eq!((p.from.as_str(), p.to.as_str()), ("old", "new"));
+
+        let r = serde_json::to_value(AgentRenameResult {
+            from: "old".into(),
+            to: "new".into(),
+            pid: 42,
+            runtime: "tmux".into(),
+            runtime_ref: json!({"session": "new"}),
+            runtime_renamed: true,
+            warnings: vec![],
+        })
+        .unwrap();
+        assert_eq!(
+            r,
+            json!({"from": "old", "to": "new", "pid": 42, "runtime": "tmux",
+                   "runtimeRef": {"session": "new"}, "runtimeRenamed": true,
+                   "warnings": []})
+        );
     }
 
     #[test]

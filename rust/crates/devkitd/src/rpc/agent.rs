@@ -1,6 +1,7 @@
 //! `agent.*` ops — one file per method, shared helpers here.
 
 pub mod lookup;
+pub mod rename;
 pub mod start;
 pub mod unregister;
 

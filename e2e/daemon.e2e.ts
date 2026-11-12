@@ -93,11 +93,12 @@ describe('ensureDaemon (real binary)', () => {
     }
   });
 
-  it('lookupAgent and unregisterAgent surface coded not_found', async () => {
+  it('lookupAgent, unregisterAgent and renameAgent surface coded not_found', async () => {
     const client = await ensureDaemon({ waitMs: 20000 });
     expect(client).not.toBeNull();
     await expect(client!.lookupAgent('nobody')).rejects.toMatchObject({ code: 'not_found' });
     await expect(client!.unregisterAgent('nobody')).rejects.toMatchObject({ code: 'not_found' });
+    await expect(client!.renameAgent('nobody', 'x2')).rejects.toMatchObject({ code: 'not_found' });
     client!.close();
   });
 });

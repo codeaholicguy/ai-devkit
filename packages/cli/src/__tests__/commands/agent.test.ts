@@ -3921,6 +3921,118 @@ Waiting on user input`,
   });
 
   describe("agent rename", () => {
+    describe("daemon-routed rename", () => {
+      const mockDaemonRename = vi.fn();
+      let client: { renameAgent: typeof mockDaemonRename; close: ReturnType<typeof vi.fn> };
+
+      beforeEach(() => {
+        mockDaemonRename.mockReset();
+        client = { renameAgent: mockDaemonRename, close: vi.fn() };
+        mockEnsureDaemon.mockResolvedValue(client);
+      });
+
+      async function rename(...args: string[]) {
+        const program = new Command();
+        registerAgentCommand(program);
+        await program.parseAsync(["node", "test", "agent", "rename", ...args]);
+      }
+
+      it("renames through the daemon and skips the local registry", async () => {
+        mockDaemonRename.mockResolvedValue({
+          from: "old-name",
+          to: "new-name",
+          pid: 42,
+          runtime: "tmux",
+          runtimeRef: { session: "new-name" },
+          runtimeRenamed: true,
+          warnings: [],
+        });
+
+        await rename("old-name", "new-name");
+
+        expect(mockDaemonRename).toHaveBeenCalledWith("old-name", "new-name");
+        expect(mockRegistry.rename).not.toHaveBeenCalled();
+        expect(ui.success).toHaveBeenCalledWith('Agent "old-name" renamed to "new-name".');
+        expect(client.close).toHaveBeenCalled();
+      });
+
+      it("surfaces registry-only warnings", async () => {
+        mockDaemonRename.mockResolvedValue({
+          from: "old-name",
+          to: "new-name",
+          pid: 42,
+          runtime: "tmux",
+          runtimeRef: { session: "new-name" },
+          runtimeRenamed: false,
+          warnings: ['tmux session "old-name" no longer exists; renamed the registry entry only.'],
+        });
+
+        await rename("old-name", "new-name");
+
+        expect(ui.warning).toHaveBeenCalledWith(
+          'tmux session "old-name" no longer exists; renamed the registry entry only.',
+        );
+        expect(ui.success).toHaveBeenCalled();
+      });
+
+      it("maps not_found and name_in_use to the legacy messages without falling back", async () => {
+        const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+        mockDaemonRename.mockRejectedValueOnce(new DaemonRpcError("nope", "not_found"));
+        await rename("old-name", "new-name");
+        expect(ui.error).toHaveBeenCalledWith('Agent "old-name" not found in registry.');
+
+        mockDaemonRename.mockRejectedValueOnce(
+          new DaemonRpcError("running", "name_in_use", { pid: 7 }),
+        );
+        await rename("old-name", "new-name");
+        expect(ui.error).toHaveBeenCalledWith(
+          'Agent "new-name" is already in use. Choose a different name.',
+        );
+
+        expect(mockRegistry.rename).not.toHaveBeenCalled();
+        expect(process.exit).toHaveBeenCalledWith(1);
+      });
+
+      it("reports runtime_rename_failed verbatim and leaves the local registry alone", async () => {
+        const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+        const msg =
+          'Failed to rename tmux session "old-name" to "new-name": boom. Registry left unchanged.';
+        mockDaemonRename.mockRejectedValue(
+          new DaemonRpcError(msg, "runtime_rename_failed", { provider: "tmux" }),
+        );
+
+        await rename("old-name", "new-name");
+
+        expect(ui.error).toHaveBeenCalledWith(msg);
+        expect(mockRegistry.rename).not.toHaveBeenCalled();
+        expect(process.exit).toHaveBeenCalledWith(1);
+      });
+
+      it("falls back to the local registry when the daemon predates agent.rename", async () => {
+        const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+        mockDaemonRename.mockRejectedValue(new DaemonRpcError("unknown method: agent.rename"));
+
+        await rename("old-name", "new-name");
+
+        expect(mockRegistry.rename).toHaveBeenCalledWith("old-name", "new-name");
+        expect(ui.success).toHaveBeenCalledWith('Agent "old-name" renamed to "new-name".');
+      });
+
+      it("enables debug tracing with --debug", async () => {
+        mockDaemonRename.mockResolvedValue({
+          from: "old-name",
+          to: "new-name",
+          pid: 42,
+          runtime: "tmux",
+          runtimeRef: null,
+          runtimeRenamed: true,
+          warnings: [],
+        });
+        await rename("old-name", "new-name", "--debug");
+        expect(mockEnableDebug).toHaveBeenCalled();
+      });
+    });
+
     it("calls registry.rename and prints success", async () => {
       mockRegistry.rename.mockReturnValue(undefined);
 
