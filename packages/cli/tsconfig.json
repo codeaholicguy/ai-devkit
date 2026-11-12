@@ -5,12 +5,16 @@
     "moduleResolution": "NodeNext",
     "rootDir": "./src",
     "outDir": "./dist",
-    "jsx": "react-jsx",
-    "sourceMap": false,
-    "declarationMap": false
+    "jsx": "react-jsx"
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/__tests__"],
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/__tests__"
+  ],
   "ts-node": {
     "esm": true
   }

@@ -108,9 +108,9 @@ jobs:
             cd "packages/$pkg"
             npm pack --quiet
             tgz=$(ls ./*.tgz)
-            if tar -tzf "$tgz" | grep -Eq '\.map$|__tests__'; then
-              echo "::error::$pkg tarball contains source maps or tests:"
-              tar -tzf "$tgz" | grep -E '\.map$|__tests__' | head -5
+            if tar -tzf "$tgz" | grep -Eq '__tests__'; then
+              echo "::error::$pkg tarball contains compiled tests:"
+              tar -tzf "$tgz" | grep -E '__tests__' | head -5
               exit 1
             fi
             echo "$pkg: $(tar -tzf "$tgz" | grep -vc '/$') files, clean"

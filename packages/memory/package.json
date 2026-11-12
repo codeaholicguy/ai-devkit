@@ -39,7 +39,7 @@
     }
   },
   "scripts": {
-    "build": "swc src -d dist --source-maps false --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
+    "build": "swc src -d dist --strip-leading-paths && tsc --emitDeclarationOnly && cp -r src/database/migrations dist/database/",
     "dev": "swc src -d dist --strip-leading-paths --watch",
     "start": "node dist/index.js",
     "inspect": "npm run build && npx @modelcontextprotocol/inspector node dist/index.js",
