@@ -64,4 +64,19 @@ describe("setup built-in skills", () => {
       environments: ["claude"],
     });
   });
+  it.each([
+    ["copilot", ".copilot", "github"],
+    ["devin", ".config/devin", "devin"],
+    ["muse", ".config/muse", "muse"],
+  ] as const)(
+    "installs %s skills using its environment code",
+    async (agent, marker, environment) => {
+      mkdirSync(join(homeDir, marker), { recursive: true });
+      await createSetupService({ homeDir, assetRoot }).run();
+      expect(mockAddSkill).toHaveBeenCalledWith("codeaholicguy/ai-devkit", "remote-one", {
+        global: true,
+        environments: [environment],
+      });
+    },
+  );
 });

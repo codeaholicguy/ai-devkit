@@ -24,7 +24,11 @@ cd your-project
 npx ai-devkit@latest init
 ```
 
-`setup` installs built-in skills globally, session hooks, and the memory MCP wiring. `init` writes project-local config. Your project gets:
+`setup` installs built-in skills globally, session hooks, and the memory MCP wiring for detected agents.
+
+The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro has no skill environment or root defined, so its target only detects the marker and reports the memory MCP skip. All four skip memory MCP wiring until a global config writer is verified.
+
+`init` writes project-local config. Your project gets:
 
 | What you need | What AI DevKit installs |
 |---------------|-------------------------|
