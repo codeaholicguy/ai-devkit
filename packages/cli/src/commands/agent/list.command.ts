@@ -7,18 +7,25 @@ import { withErrorHandler } from "../../util/errors.js";
 import { agentTypeLabel } from "../../util/agent.js";
 import { pluralize } from "../../util/pluralize.js";
 import { formatRelativeTime } from "../../util/time-format.js";
-import { createAgentManager, createDurableAgentService } from "./factory.js";
+import { createLogger, enableDebug } from "../../util/debug.js";
+import { createAgentManager, createDurableAgentService, listLiveAgents } from "./factory.js";
 import { colorStatus, formatStatus, formatWorkOn } from "./render.js";
+
+const debug = createLogger("agent:list");
 
 export function registerAgentListCommand(agentCommand: Command): void {
   agentCommand
     .command("list")
     .description("List all running AI agents")
     .option("-j, --json", "Output as JSON")
+    .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("list agents", async (options) => {
+        if (options.debug) {
+          enableDebug();
+        }
         const manager = createAgentManager();
-        const agents = await manager.listAgents();
+        const agents = await listLiveAgents(manager, debug);
         const durableAgents = await createDurableAgentService().repository.list();
 
         if (options.json) {

@@ -6,9 +6,11 @@ import {
   CodexPrintAgentService,
   DurableAgentRepository,
   PiPrintAgentService,
+  type AgentInfo,
   type DurableProvider,
+  type EnrichedAgentWire,
 } from "@ai-devkit/agent-manager";
-import { ensureDaemon } from "@ai-devkit/daemon-client";
+import { DaemonRpcError, ensureDaemon } from "@ai-devkit/daemon-client";
 import { ConfigManager } from "../../lib/Config.js";
 import { createLogger } from "../../util/debug.js";
 import { getErrorMessage } from "../../util/text.js";
@@ -34,6 +36,52 @@ export function createAgentManager(): AgentManager {
   });
   for (const adapter of createBuiltinAdapters()) manager.registerAdapter(adapter);
   return manager;
+}
+
+/**
+ * Daemon-first read for `agent list`/`agent detail`: devkitd's `agent.list`
+ * is the source when reachable. Falls back (null) on no daemon, `unknown
+ * method`, or a socket that dies mid-request — reads are safe to retry
+ * locally. Other daemon errors surface.
+ */
+export async function fetchDaemonAgents(
+  debug: (msg: string) => void,
+): Promise<EnrichedAgentWire[] | null> {
+  const daemon = await ensureDaemon({ onDebug: debug });
+  if (!daemon) {
+    debug("no daemon available -> falling back to local agent detection");
+    return null;
+  }
+  debug("daemon path: calling agent.list over the daemon socket");
+  try {
+    const agents = await daemon.listAgents();
+    debug(`daemon returned ${agents.length} agent(s)`);
+    return agents;
+  } catch (err) {
+    if (err instanceof DaemonRpcError && err.message.startsWith("unknown method")) {
+      debug("daemon predates agent.list (unknown method) -> local fallback");
+      return null;
+    }
+    if (err instanceof DaemonRpcError) throw err;
+    debug(`daemon transport failure (${getErrorMessage(err)}) -> local fallback`);
+    return null;
+  } finally {
+    daemon.close();
+  }
+}
+
+/**
+ * Live agents for list/detail. The manager applies the same registry
+ * overlay, pin handling, empty-answer cross-check and sort to either source,
+ * so output is identical whichever path served it.
+ */
+export async function listLiveAgents(
+  manager: AgentManager,
+  debug: (msg: string) => void,
+): Promise<AgentInfo[]> {
+  const enriched = await fetchDaemonAgents(debug);
+  if (!enriched) debug("local path: detecting agents with local adapters");
+  return manager.listAgents({ enriched });
 }
 
 export function createDurableAgentService(

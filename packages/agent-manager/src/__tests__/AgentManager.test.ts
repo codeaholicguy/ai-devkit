@@ -567,6 +567,101 @@ describe("AgentManager", () => {
       }
     });
 
+    it("uses a caller-supplied daemon list instead of fetching", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const fetchSpy = vi.fn(async () => [wireAgent({ name: "fetched" })]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: fetchSpy,
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents({ enriched: [wireAgent()] });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(detectSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name)).toEqual(["daemon-claude"]);
+    });
+
+    it("treats a caller-supplied null daemon list as local-only", async () => {
+      const fetchSpy = vi.fn(async () => [wireAgent()]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: fetchSpy,
+      });
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+
+      const agents = await m.listAgents({ enriched: null });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+    });
+
+    it("cross-checks a caller-supplied empty daemon list against local adapters", async () => {
+      const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")));
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+      try {
+        const agents = await m.listAgents({ enriched: [] });
+        expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("daemon"));
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("produces byte-identical JSON for the daemon and local paths", async () => {
+      const local: AgentInfo = {
+        name: "same",
+        type: "claude",
+        status: AgentStatus.WAITING,
+        summary: "fix the bug",
+        pid: 4242,
+        projectPath: "/repo",
+        sessionId: "sid-1",
+        lastActive: new Date("2026-10-08T12:00:00.000Z"),
+        sessionFilePath: "/home/.claude/projects/repo/sid-1.jsonl",
+      };
+      // devkitd serializes through serde_json::Value (BTreeMap), so wire
+      // keys arrive alphabetically — not in AgentInfo order.
+      const wire = {
+        lastActive: "2026-10-08T12:00:00.000Z",
+        name: "same",
+        pid: 4242,
+        pinned: true,
+        projectPath: "/repo",
+        sessionFilePath: "/home/.claude/projects/repo/sid-1.jsonl",
+        sessionId: "sid-1",
+        status: "waiting",
+        summary: "fix the bug",
+        type: "claude",
+      };
+      const seed = (dir: string) => {
+        const registry = new AgentRegistry(path.join(tmpDir, dir, "agents.json"));
+        registry.register({
+          name: "same",
+          type: "claude",
+          pid: 4242,
+          runtime: "tmux",
+          runtimeRef: { session: "same" },
+          cwd: "/repo",
+          startedAt: "2026-10-08T11:00:00.000Z",
+          sessionId: "sid-1",
+          sessionFilePath: wire.sessionFilePath,
+          pinned: false,
+        });
+        return registry;
+      };
+      fs.mkdirSync(path.join(tmpDir, "local"));
+      fs.mkdirSync(path.join(tmpDir, "daemon"));
+
+      const localManager = new AgentManager(seed("local"));
+      localManager.registerAdapter(new MockAdapter("claude", [{ ...local }]));
+      const daemonManager = new AgentManager(seed("daemon"));
+
+      const viaLocal = await localManager.listAgents({ enriched: null });
+      const viaDaemon = await daemonManager.listAgents({ enriched: [wire] });
+      expect(JSON.stringify(viaDaemon, null, 2)).toBe(JSON.stringify(viaLocal, null, 2));
+      expect(viaDaemon[0].lastActive).toBeInstanceOf(Date);
+    });
+
     it("returns empty without a warning when the daemon and local adapters are both empty", async () => {
       const local = new MockAdapter("claude");
       const detectSpy = vi.spyOn(local, "detectAgents");

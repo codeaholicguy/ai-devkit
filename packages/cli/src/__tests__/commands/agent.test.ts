@@ -968,6 +968,180 @@ describe("agent command", () => {
     });
   });
 
+  describe("daemon-routed list and detail", () => {
+    const wire = {
+      name: "repo-a",
+      type: "claude",
+      status: "waiting",
+      summary: "Working",
+      pid: 123,
+      projectPath: "/repo-a",
+      sessionId: "sid-1",
+      lastActive: "2026-02-26T10:00:00.000Z",
+      sessionFilePath: "/sessions/sid-1.jsonl",
+    };
+    const agent = {
+      ...wire,
+      status: AgentStatus.WAITING,
+      lastActive: new Date(wire.lastActive),
+    };
+    const durable = {
+      id: "11111111-1111-4111-8111-111111111111",
+      name: "reviewer",
+      provider: "claude",
+      mode: "durable",
+      cwd: "/project",
+      providerSessionId: "22222222-2222-4222-8222-222222222222",
+      state: "ready",
+      sessionHealth: "uninitialized",
+      lastActiveAt: null,
+      lastResult: null,
+    };
+    let daemonListAgents: Mock;
+    let daemonClose: Mock;
+
+    function daemonUp(result: unknown = [wire]) {
+      daemonListAgents = vi.fn().mockResolvedValue(result);
+      daemonClose = vi.fn();
+      mockEnsureDaemon.mockResolvedValue({ listAgents: daemonListAgents, close: daemonClose });
+    }
+
+    async function run(args: string[]) {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", ...args]);
+    }
+
+    function captured() {
+      return {
+        log: logSpy.mock.calls.map((c) => c[0]),
+        // columnStyles are fresh closures per call; compare rendered data.
+        table: (ui.table as unknown as Mock).mock.calls.map(([t]) => ({
+          headers: t.headers,
+          rows: t.rows,
+          styled: t.rows.map((row: string[]) =>
+            row.map((cell: string, i: number) => t.columnStyles[i](cell)),
+          ),
+        })),
+        text: (ui.text as unknown as Mock).mock.calls,
+        warning: (ui.warning as unknown as Mock).mock.calls,
+        info: (ui.info as unknown as Mock).mock.calls,
+      };
+    }
+
+    async function bothPaths(args: string[]) {
+      mockManager.listAgents.mockResolvedValue([agent]);
+      mockEnsureDaemon.mockResolvedValue(null);
+      await run(args);
+      const local = captured();
+      vi.clearAllMocks();
+      mockManager.listAgents.mockResolvedValue([agent]);
+      daemonUp();
+      await run(args);
+      return { local, daemon: captured() };
+    }
+
+    it("lists through the daemon and hands its rows to the manager", async () => {
+      daemonUp();
+      mockManager.listAgents.mockResolvedValue([agent]);
+      await run(["list", "--json"]);
+
+      expect(daemonListAgents).toHaveBeenCalledTimes(1);
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: [wire] });
+      expect(daemonClose).toHaveBeenCalled();
+    });
+
+    it("falls back to local detection when the daemon is unreachable", async () => {
+      mockEnsureDaemon.mockResolvedValue(null);
+      mockManager.listAgents.mockResolvedValue([agent]);
+      await run(["list", "--json"]);
+
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
+      expect(mockDebugLogger).toHaveBeenCalledWith(expect.stringContaining("falling back"));
+    });
+
+    it("falls back to local detection on unknown method", async () => {
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      daemonUp();
+      daemonListAgents.mockRejectedValue(new DaemonRpcError("unknown method: agent.list"));
+      mockManager.listAgents.mockResolvedValue([agent]);
+      await run(["list", "--json"]);
+
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
+      expect(daemonClose).toHaveBeenCalled();
+    });
+
+    it("falls back to local detection when the socket dies mid-request", async () => {
+      daemonUp();
+      daemonListAgents.mockRejectedValue(new Error("daemon socket closed"));
+      mockManager.listAgents.mockResolvedValue([agent]);
+      await run(["list", "--json"]);
+
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
+    });
+
+    it("surfaces other daemon errors instead of falling back", async () => {
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      daemonUp();
+      daemonListAgents.mockRejectedValue(new DaemonRpcError("boom", "internal"));
+      await run(["list", "--json"]);
+
+      expect(mockManager.listAgents).not.toHaveBeenCalled();
+      expect(ui.error).toHaveBeenCalledWith(expect.stringContaining("boom"));
+    });
+
+    it("traces routing with --debug on list and detail", async () => {
+      daemonUp();
+      mockManager.listAgents.mockResolvedValue([agent]);
+      await run(["list", "--debug"]);
+      expect(mockEnableDebug).toHaveBeenCalledTimes(1);
+      expect(mockDebugLogger).toHaveBeenCalledWith(expect.stringContaining("agent.list"));
+
+      mockManager.resolveAgent.mockReturnValue(agent);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([]);
+      await run(["detail", "--id", "repo-a", "--debug"]);
+      expect(mockEnableDebug).toHaveBeenCalledTimes(2);
+    });
+
+    it("renders byte-identical list JSON on both paths, durable agents included", async () => {
+      mockDurableRepository.list.mockResolvedValue([durable]);
+      const { local, daemon } = await bothPaths(["list", "--json"]);
+      expect(daemon.log).toEqual(local.log);
+      const output = JSON.parse(daemon.log[0] as string);
+      expect(output.map((a: { mode: string }) => a.mode)).toEqual(["interactive", "durable"]);
+    });
+
+    it("renders an identical list table on both paths, durable agents included", async () => {
+      mockDurableRepository.list.mockResolvedValue([durable]);
+      const { local, daemon } = await bothPaths(["list"]);
+      expect(daemon.table).toEqual(local.table);
+      expect(daemon.text).toEqual(local.text);
+      expect(daemon.warning).toEqual(local.warning);
+      expect(daemon.table).toHaveLength(2);
+    });
+
+    it("renders byte-identical detail JSON on both paths", async () => {
+      mockManager.resolveAgent.mockReturnValue(agent);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([
+        { role: "user", content: "hi", timestamp: "2026-02-26T09:00:00.000Z" },
+      ]);
+      const { local, daemon } = await bothPaths(["detail", "--id", "repo-a", "--json"]);
+      expect(daemon.log).toEqual(local.log);
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: [wire] });
+    });
+
+    it("renders identical detail text on both paths", async () => {
+      mockManager.resolveAgent.mockReturnValue(agent);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation.mockReturnValue([]);
+      const { local, daemon } = await bothPaths(["detail", "--id", "repo-a"]);
+      expect(daemon.text).toEqual(local.text);
+      expect(daemon.text.length).toBeGreaterThan(0);
+    });
+  });
+
   it("shows info when no agents are running", async () => {
     mockManager.listAgents.mockResolvedValue([]);
 
