@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync } from "fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
 import { createSetupService } from "../../../services/setup/setup.service.js";
@@ -45,7 +45,7 @@ describe("setup service antigravity-cli target", () => {
     );
   });
 
-  it("accepts antigravity-cli as an explicit target and reports honest skips only", async () => {
+  it("accepts antigravity-cli as an explicit target and wires memory mcp", async () => {
     fsMkdir(join(homeDir, ".gemini", "antigravity-cli"));
 
     const report = await createService().run({ agents: ["antigravity-cli"] });
@@ -54,19 +54,22 @@ describe("setup service antigravity-cli target", () => {
     expect(report.results.some((result) => result.step === "built-in-skills")).toBe(false);
     expect(builtInSkillInstalls).toEqual([]);
 
-    // Memory MCP is skipped with a useful reason: the agy MCP surface is
-    // documented but not verified by ai-devkit yet.
+    // Memory MCP is wired into ~/.gemini/config/mcp_config.json.
     expect(report.results).toContainEqual(
       expect.objectContaining({
         agent: "antigravity-cli",
         step: "memory-mcp",
-        status: "skipped",
-        message: expect.stringContaining("not yet verified"),
+        status: "installed",
+        message: expect.stringContaining("Configured in ~/.gemini/config/mcp_config.json"),
       }),
     );
-
-    // No invented hook/MCP support: nothing outside the dot folder is written.
-    expect(existsSync(join(homeDir, ".gemini", "config"))).toBe(false);
+    const config = JSON.parse(
+      readFileSync(join(homeDir, ".gemini", "config", "mcp_config.json"), "utf-8"),
+    );
+    expect(config.mcpServers["ai-devkit-memory"]).toEqual({
+      command: "npx",
+      args: ["-y", "@ai-devkit/memory"],
+    });
   });
 
   it("is idempotent when the antigravity-cli dot folder exists", async () => {
@@ -76,7 +79,7 @@ describe("setup service antigravity-cli target", () => {
     const second = await createService().run({ agents: ["antigravity-cli"] });
 
     const shape = (results: typeof first.results) =>
-      results.map((result) => `${result.step}:${result.status}`).sort();
+      results.map((result) => result.step).sort();
     expect(shape(second.results)).toEqual(shape(first.results));
     expect(second.results.every((result) => result.status !== "failed")).toBe(true);
   });

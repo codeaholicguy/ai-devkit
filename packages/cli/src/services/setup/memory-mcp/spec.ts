@@ -26,13 +26,12 @@ export const MCP_CAPABLE_AGENTS = [
   "cursor",
   "opencode",
   "grok",
+  "antigravity-cli",
 ] as const;
 
 /** Agents that verifiably have no MCP support, with the honest skip reason. */
 export const MCP_UNSUPPORTED_AGENTS: Record<string, string> = {
   pi: "pi has no MCP support by design. Use the 'memory' skill or 'ai-devkit memory' CLI instead.",
-  "antigravity-cli":
-    "antigravity-cli documents a global MCP surface (~/.gemini/config/mcp_config.json) but it is not yet verified by ai-devkit; skipping memory MCP wiring.",
 };
 
 export type MemoryMcpApplyStatus = "installed" | "skipped";
