@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/agent-manager",
-  "version": "0.43.0",
+  "version": "0.44.0",
   "description": "Standalone agent detection and management utilities for AI DevKit",
   "keywords": [
     "agent",
@@ -35,7 +35,8 @@
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "benchmark:cold-start": "npm run build && node scripts/benchmark-cold-start.mjs",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build && rm -rf dist/__tests__ && find dist -name \"*.map\" -delete"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",
@@ -52,5 +53,9 @@
   },
   "engines": {
     "node": ">=22.0.0"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }

@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/channel-connector",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "description": "Generic messaging bridge for connecting to external communication platforms",
   "keywords": [
     "ai",
@@ -35,7 +35,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build && rm -rf dist/__tests__ && find dist -name \"*.map\" -delete"
   },
   "dependencies": {
     "@slack/socket-mode": "^3.0.0",
@@ -57,5 +58,9 @@
   },
   "nx": {
     "name": "channel-connector"
-  }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
 }
