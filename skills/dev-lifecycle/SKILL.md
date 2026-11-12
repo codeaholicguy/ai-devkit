@@ -54,10 +54,9 @@ Before executing any phase:
 
 1. Identify the target feature, current docs state, branch/worktree context, and likely next phase.
 2. Propose a concise plan that names the phase skill to use, the docs/files to read, commands to run, expected edits, task tracing status and planned task events if tracing is available, and verification evidence.
-3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution
+3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution.
 4. After approval, load and follow only the selected phase skill plus any explicitly required supporting skills. If tracing is available, the `task` skill is explicitly required.
 
-## Phase Routing
 ## Phase Routing
 
 | Phase | Route to | When |
