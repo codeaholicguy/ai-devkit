@@ -73,6 +73,11 @@ export interface SendToAgentOptions {
   manager: Pick<AgentManager, "listAgents" | "resolveAgent" | "getAdapter">;
   focusManager: Pick<TerminalFocusManager, "findTerminal">;
   registry?: Pick<AgentRegistry, "lookup">;
+  /**
+   * Called with the resolved agent's full name before sending; a returned
+   * registry overrides `registry` for this send. Throw to refuse the send.
+   */
+  resolveRegistry?: (agentName: string) => Promise<Pick<AgentRegistry, "lookup"> | undefined>;
   runtime?: InteractiveAgentRuntime;
   wait?: boolean;
   timeout?: string;
@@ -234,6 +239,7 @@ export async function sendToAgent({
   manager,
   focusManager,
   registry,
+  resolveRegistry,
   runtime,
   wait = false,
   timeout,
@@ -257,6 +263,7 @@ export async function sendToAgent({
   }
 
   const agent = resolution.agent;
+  const sendRegistry = (await resolveRegistry?.(agent.name)) ?? registry;
   if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
     const warning = `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`;
     if (wait) {
@@ -268,7 +275,7 @@ export async function sendToAgent({
 
   const waitPrep = wait ? prepareWaitMode(manager, agent) : undefined;
   const sendFailed = await sendAgentPrompt(agent, prompt, {
-    registry,
+    registry: sendRegistry,
     runtime,
     focusManager,
     writer,

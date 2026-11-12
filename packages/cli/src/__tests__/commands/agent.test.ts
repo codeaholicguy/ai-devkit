@@ -1768,6 +1768,237 @@ Waiting on user input`,
     });
   });
 
+  describe("daemon-routed send", () => {
+    const mockDaemonLookup = vi.fn();
+
+    function daemonUp(entry: Record<string, unknown> | null) {
+      const client = { lookupAgent: mockDaemonLookup, close: vi.fn() };
+      mockDaemonLookup.mockReset();
+      mockEnsureDaemon.mockResolvedValue(client);
+      if (entry) mockDaemonLookup.mockResolvedValue(entry);
+      return client;
+    }
+
+    const tmuxEntry = {
+      name: "repo-a",
+      type: "claude",
+      pid: 10,
+      runtime: "tmux",
+      runtimeRef: { session: "repo-a" },
+      cwd: "/repo",
+      pinned: false,
+      alive: true,
+    };
+    const liveAgent = {
+      name: "repo-a",
+      type: "claude",
+      status: AgentStatus.WAITING,
+      summary: "Waiting",
+      lastActive: new Date(),
+      pid: 10,
+      sessionId: "session-1",
+      sessionFilePath: "/tmp/session.jsonl",
+    };
+
+    async function send(...args: string[]) {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", "send", ...args]);
+    }
+
+    beforeEach(() => {
+      mockManager.listAgents.mockResolvedValue([liveAgent]);
+      mockManager.resolveAgent.mockReturnValue(liveAgent);
+      mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "0:1.0" });
+    });
+
+    it("sends through the daemon's registration for an exact name", async () => {
+      const client = daemonUp(tmuxEntry);
+
+      await send("continue", "--id", "repo-a");
+
+      expect(mockDaemonLookup).toHaveBeenCalledWith("repo-a");
+      const [agent, prompt, deps] = mockSendAgentPrompt.mock.calls[0];
+      expect(agent).toMatchObject({ name: "repo-a", pid: 10 });
+      expect(prompt).toBe("continue");
+      expect(deps.registry.lookup("repo-a")).toMatchObject({
+        runtime: "tmux",
+        runtimeRef: { session: "repo-a" },
+      });
+      expect(mockRegistry.lookup).not.toHaveBeenCalled();
+      expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
+      expect(client.close).toHaveBeenCalled();
+    });
+
+    it("sends to a herdr pane from the daemon's runtimeRef", async () => {
+      const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "repo-a" };
+      daemonUp({ ...tmuxEntry, runtime: "herdr", runtimeRef });
+
+      await send("continue", "--id", "repo-a");
+
+      expect(mockHerdrSend).toHaveBeenCalledWith({ runtimeRef, prompt: "continue" });
+      expect(mockTtyWriterSend).not.toHaveBeenCalled();
+    });
+
+    it("resolves partial names locally, then looks up the full name", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockImplementation(async (name: string) => {
+        if (name === "repo-a") return tmuxEntry;
+        throw new DaemonRpcError(`No registered agent named "${name}".`, "not_found");
+      });
+
+      await send("continue", "--id", "repo");
+
+      expect(mockManager.resolveAgent).toHaveBeenCalledWith("repo", [liveAgent]);
+      expect(mockDaemonLookup.mock.calls.map((c) => c[0])).toEqual(["repo", "repo-a"]);
+      const [, , deps] = mockSendAgentPrompt.mock.calls[0];
+      expect(deps.registry.lookup("repo-a")).toMatchObject({ runtime: "tmux" });
+      expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
+    });
+
+    it("keeps ambiguous-name reporting from the local resolver", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockRejectedValue(new DaemonRpcError("nope", "not_found"));
+      const other = { ...liveAgent, name: "repo-b", pid: 11 };
+      mockManager.listAgents.mockResolvedValue([liveAgent, other]);
+      mockManager.resolveAgent.mockReturnValue([liveAgent, other]);
+
+      await send("continue", "--id", "repo");
+
+      expect(ui.error).toHaveBeenCalledWith('Multiple agents match "repo":');
+      expect(mockSendAgentPrompt).not.toHaveBeenCalled();
+    });
+
+    it("refuses to send to a registration that is no longer alive", async () => {
+      daemonUp({ ...tmuxEntry, alive: false, goneAt: 1 });
+
+      await send("continue", "--id", "repo-a");
+
+      expect(mockSendAgentPrompt).not.toHaveBeenCalled();
+      expect(mockManager.listAgents).not.toHaveBeenCalled();
+      expect(ui.error).toHaveBeenCalledWith(
+        'Failed to send message: Agent "repo-a" is registered but no longer running; not sending.',
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("refuses when a partial name resolves to a dead registration", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockImplementation(async (name: string) => {
+        if (name === "repo-a") return { ...tmuxEntry, alive: false, goneAt: 1 };
+        throw new DaemonRpcError("nope", "not_found");
+      });
+
+      await send("continue", "--id", "repo");
+
+      expect(mockSendAgentPrompt).not.toHaveBeenCalled();
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("uses the local registry for agents the daemon does not know", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockRejectedValue(new DaemonRpcError("nope", "not_found"));
+
+      await send("continue", "--id", "repo-a");
+
+      const [, , deps] = mockSendAgentPrompt.mock.calls[0];
+      expect(deps.registry).toBe(mockRegistry);
+      expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
+    });
+
+    it("falls back to the legacy path on an older daemon without agent.lookup", async () => {
+      daemonUp(null);
+      mockDaemonLookup.mockRejectedValue(new Error("unknown method: agent.lookup"));
+
+      await send("continue", "--id", "repo");
+
+      // No second lookup for the resolved full name once the method is known missing.
+      expect(mockDaemonLookup).toHaveBeenCalledTimes(1);
+      const [, , deps] = mockSendAgentPrompt.mock.calls[0];
+      expect(deps.registry).toBe(mockRegistry);
+    });
+
+    it("uses the legacy path when no daemon is reachable", async () => {
+      mockEnsureDaemon.mockResolvedValue(null);
+
+      await send("continue", "--id", "repo-a");
+
+      const [, , deps] = mockSendAgentPrompt.mock.calls[0];
+      expect(deps.registry).toBe(mockRegistry);
+      expect(ui.success).toHaveBeenCalledWith("Sent message to repo-a.");
+    });
+
+    it("reports coded daemon errors without falling back", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockRejectedValue(new DaemonRpcError("db locked", "internal"));
+
+      await send("continue", "--id", "repo-a");
+
+      expect(ui.error).toHaveBeenCalledWith("Failed to send message: db locked");
+      expect(mockSendAgentPrompt).not.toHaveBeenCalled();
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("keeps --wait response polling on the daemon path", async () => {
+      daemonUp(tmuxEntry);
+      mockManager.getAdapter.mockReturnValue(mockAgentAdapter);
+      mockAgentAdapter.getConversation
+        .mockReturnValueOnce([])
+        .mockReturnValue([{ role: "assistant", content: "done" }]);
+
+      await send("hello", "--id", "repo-a", "--wait", "--timeout", "5000");
+
+      const [, , deps] = mockSendAgentPrompt.mock.calls[0];
+      expect(deps.registry.lookup("repo-a")).toMatchObject({ runtime: "tmux" });
+      expect(stdoutSpy).toHaveBeenCalledWith("done\n");
+      expect(process.exit).not.toHaveBeenCalledWith(1);
+    });
+
+    it("does not consult the daemon for --group sends", async () => {
+      daemonUp(tmuxEntry);
+      mockGroupStore.get.mockReturnValue({ name: "team", members: ["repo-a"] });
+
+      await send("hello", "--group", "team");
+
+      expect(mockEnsureDaemon).not.toHaveBeenCalled();
+    });
+
+    it("does not consult the daemon for durable agents", async () => {
+      daemonUp(tmuxEntry);
+      mockDurableRepository.resolve.mockResolvedValue({
+        id: "repo-a",
+        name: "repo-a",
+        provider: "claude",
+      });
+      mockDurableService.send.mockResolvedValue({
+        agentId: "repo-a",
+        agentName: "repo-a",
+        result: "ok",
+        exitCode: 0,
+        sessionId: "s",
+      });
+
+      await send("hello", "--id", "repo-a");
+
+      expect(mockDurableService.send).toHaveBeenCalledWith("repo-a", "hello");
+      expect(mockEnsureDaemon).not.toHaveBeenCalled();
+    });
+
+    it("traces daemon routing under --debug", async () => {
+      daemonUp(tmuxEntry);
+
+      await send("continue", "--id", "repo-a", "--debug");
+
+      expect(mockEnableDebug).toHaveBeenCalled();
+      expect(mockDebugLogger).toHaveBeenCalledWith(expect.stringContaining("daemon lookup"));
+    });
+  });
+
   it("kills a resolved agent and reports tmux cleanup", async () => {
     const agent = {
       name: "repo-a",
