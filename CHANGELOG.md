@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [6ddfed6](https://github.com/codeaholicguy/ai-devkit/pull/429) Fixed plugin tests to resolve the memory-dashboard manifest from the repository root.
+- [d318384](https://github.com/codeaholicguy/ai-devkit/pull/433) Made Nx build project dependencies before running tests.
+- [0499c7b](https://github.com/codeaholicguy/ai-devkit/pull/432) Moved CI and publishing off Node 20 and raised the supported Node version to 22 or later.
+- [599987e](https://github.com/codeaholicguy/ai-devkit/pull/434) Added Antigravity CLI onboarding.
+- [39bd1c4](https://github.com/codeaholicguy/ai-devkit/pull/435) Installed built-in skills consistently for all supported agents.
+- [84ac2f9](https://github.com/codeaholicguy/ai-devkit/pull/436) Added Kiro, Copilot, Devin, and Muse setup targets.
+- [88f82aa](https://github.com/codeaholicguy/ai-devkit/pull/440) Moved memory-dashboard and task-manager plugins to the ai-devkit-plugins repository.
+- [e4a3a7c](https://github.com/codeaholicguy/ai-devkit/pull/439) Fixed built-in skill installation for Antigravity CLI.
+- [1f62604](https://github.com/codeaholicguy/ai-devkit/pull/437) Restarted stale devkitd processes after CLI upgrades.
+- [5e15bb9](https://github.com/codeaholicguy/ai-devkit/pull/438) Routed agent list and detail through the devkitd agent.list API.
+- [706ee34](https://github.com/codeaholicguy/ai-devkit/pull/441) Moved real-artifact tests into the e2e suite and tested on Node 22, 24, and 26.
+- [a01028f](https://github.com/codeaholicguy/ai-devkit/pull/442) Fixed a race in the devkitd cached agent-list test.
+- [d17c742](https://github.com/codeaholicguy/ai-devkit/pull/443) Migrated agent kill and rename to devkitd.
+- [a4c4af8](https://github.com/codeaholicguy/ai-devkit/pull/444) Routed agent send through daemon lookup.
+- [aaa12fa](https://github.com/codeaholicguy/ai-devkit/pull/445) Offered dev-simplify after lifecycle implementation checks.
+
 ## [0.73.1] - 2026-11-09
 
 - [8eddfc0](https://github.com/codeaholicguy/ai-devkit/commit/8eddfc0) Rounded fractional quota amounts in capacity output: used/total figures such as the OpenAI spend-control window now render with at most two decimals (e.g. `33.44/3000`) instead of long floats.
