@@ -36,5 +36,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      # e2e/daemon.e2e.ts runs the real devkitd and fails without it.
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: Build devkitd
+        run: cargo build -p devkitd --manifest-path rust/Cargo.toml
+
       - name: Run E2E tests
         run: npx vitest run --config e2e/vitest.config.ts --reporter=verbose
