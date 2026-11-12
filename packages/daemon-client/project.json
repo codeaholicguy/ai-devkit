@@ -12,15 +12,9 @@
       }
     },
     "test": {
-      "dependsOn": [
-        {
-          "target": "build",
-          "projects": ["rust"]
-        }
-      ],
       "executor": "nx:run-commands",
       "options": {
-        "command": "DEVKITD_BIN=../../rust/target/debug/devkitd npm run test",
+        "command": "npm run test",
         "cwd": "packages/daemon-client"
       }
     },

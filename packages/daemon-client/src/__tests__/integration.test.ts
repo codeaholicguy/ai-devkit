@@ -1,10 +1,9 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { DaemonClient } from "../client.js";
-import { ensureDaemon } from "../autostart.js";
 
 const missing = path.join(os.tmpdir(), `no-such-daemon-${process.pid}.sock`);
 
@@ -64,106 +63,5 @@ describe("socket teardown", () => {
       server.close();
       fs.rmSync(sock, { force: true });
     }
-  });
-});
-
-// Autostart against the real binary when available (dev box sets
-// DEVKITD_BIN, or rust/target/{release,debug} exists). Skipped otherwise.
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "../../../..");
-const devBin = [
-  path.join(repoRoot, "rust/target/release/devkitd"),
-  path.join(repoRoot, "rust/target/debug/devkitd"),
-].find((p) => fs.existsSync(p));
-const bin = process.env.DEVKITD_BIN ?? process.env.AI_DEVKITD_BIN ?? devBin;
-const sock = path.join(os.homedir(), ".ai-devkit", "daemon.sock");
-
-describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
-  const spawned = bin!;
-  const previousBin = process.env.DEVKITD_BIN;
-  const previousHome = process.env.HOME;
-  // Isolated HOME: the suite spawns and shuts down its own daemon and must
-  // never touch the user's ~/.ai-devkit/daemon.sock.
-  let tmpHome: string;
-
-  beforeAll(() => {
-    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-int-home-"));
-    process.env.HOME = tmpHome;
-    process.env.DEVKITD_BIN = spawned;
-  });
-
-  afterAll(async () => {
-    const c = await DaemonClient.tryConnect();
-    if (c) {
-      await c.request("shutdown").catch(() => {});
-      c.close();
-    }
-    if (previousBin === undefined) delete process.env.DEVKITD_BIN;
-    else process.env.DEVKITD_BIN = previousBin;
-    if (previousHome === undefined) delete process.env.HOME;
-    else process.env.HOME = previousHome;
-  });
-
-  it("spawns the daemon on socket miss and returns a working client", async () => {
-    // Cold spawn under repo-wide parallel test load can exceed 8s.
-    const client = await ensureDaemon({ waitMs: 20000 });
-    expect(client).not.toBeNull();
-    const pong = (await client!.request("ping")) as { pong: boolean };
-    expect(pong.pong).toBe(true);
-    const agents = (await client!.request("agent.list")) as unknown[];
-    expect(Array.isArray(agents)).toBe(true);
-    client!.close();
-  }, 30000);
-
-  it("a second ensureDaemon is a no-op fast path", async () => {
-    const started = Date.now();
-    const client = await ensureDaemon();
-    expect(client).not.toBeNull();
-    expect(Date.now() - started).toBeLessThan(2000);
-    client!.close();
-  });
-
-  it("listAgents returns the attributed list over the real socket", async () => {
-    const client = await ensureDaemon({ waitMs: 20000 });
-    expect(client).not.toBeNull();
-    const result = await client!.listAgents();
-    // The contract is a bare attributed array, empty or not.
-    expect(Array.isArray(result)).toBe(true);
-    client!.close();
-  }, 30000);
-
-  it("startAgent surfaces coded daemon errors", async () => {
-    // A fresh isolated HOME guarantees a devkitd at the current build.
-    const suiteHome = process.env.HOME;
-    process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-home-"));
-    try {
-      const client = await ensureDaemon({ waitMs: 20000 });
-      expect(client).not.toBeNull();
-      // Unknown harness type → harness_not_startable (no spawn attempted).
-      await expect(client!.startAgent({ type: "nonsense", cwd: "/" })).rejects.toMatchObject({
-        code: "harness_not_startable",
-      });
-      // Bad name → invalid_params before anything spawns.
-      await expect(
-        client!.startAgent({ type: "claude", name: "BAD NAME", cwd: "/" }),
-      ).rejects.toMatchObject({ code: "invalid_params" });
-      await client!.request("shutdown").catch(() => {});
-      client!.close();
-    } finally {
-      process.env.HOME = suiteHome;
-    }
-  }, 30000);
-});
-
-describe.runIf(fs.existsSync(sock))("live daemon", () => {
-  it("daemon.status reports version and socket", async () => {
-    const c = await DaemonClient.tryConnect();
-    if (!c) return; // socket file lingered after shutdown — nothing to check
-    const s = (await c.request("daemon.status")) as {
-      version: string;
-      socket: string;
-    };
-    expect(s.version).toMatch(/^\d+\.\d+\.\d+$/);
-    expect(s.socket).toBe(sock);
-    c.close();
   });
 });

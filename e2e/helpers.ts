@@ -5,6 +5,32 @@ import { join } from 'path';
 
 const CLI_PATH = join(__dirname, '..', 'packages', 'cli', 'dist', 'cli.js');
 
+// Allowlist, not passthrough: inherited GIT_* (e.g. under a git hook) would
+// point git at the parent repo. Tests pass anything else via options.env.
+const ENV_ALLOWLIST = [
+  'PATH',
+  'HOME',
+  'TMPDIR',
+  'LANG',
+  'LC_ALL',
+  'HTTP_PROXY',
+  'HTTPS_PROXY',
+  'NO_PROXY',
+  'http_proxy',
+  'https_proxy',
+  'no_proxy',
+  'NODE_EXTRA_CA_CERTS',
+  'SSL_CERT_FILE'
+];
+
+export function baseEnv(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {};
+  for (const key of ENV_ALLOWLIST) {
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  }
+  return env;
+}
+
 export interface RunResult {
   stdout: string;
   stderr: string;
@@ -15,7 +41,7 @@ export function run(args: string, options: { cwd?: string; env?: Record<string, 
   const execOptions: ExecSyncOptionsWithStringEncoding = {
     cwd: options.cwd || process.cwd(),
     encoding: 'utf-8',
-    env: { ...process.env, ...options.env, NODE_NO_WARNINGS: '1' },
+    env: { ...baseEnv(), ...options.env, NODE_NO_WARNINGS: '1' },
     timeout: 20000
   };
 
@@ -34,9 +60,10 @@ export function run(args: string, options: { cwd?: string; env?: Record<string, 
 
 export function createTempProject(): string {
   const dir = mkdtempSync(join(tmpdir(), 'ai-devkit-e2e-'));
-  execSync('git init', { cwd: dir, stdio: 'ignore' });
-  execSync('git config user.email "test@test.com"', { cwd: dir, stdio: 'ignore' });
-  execSync('git config user.name "Test"', { cwd: dir, stdio: 'ignore' });
+  const gitOptions = { cwd: dir, stdio: 'ignore' as const, env: baseEnv() };
+  execSync('git init', gitOptions);
+  execSync('git config user.email "test@test.com"', gitOptions);
+  execSync('git config user.name "Test"', gitOptions);
   return dir;
 }
 
