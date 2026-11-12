@@ -54,21 +54,10 @@ Before executing any phase:
 
 1. Identify the target feature, current docs state, branch/worktree context, and likely next phase.
 2. Propose a concise plan that names the phase skill to use, the docs/files to read, commands to run, expected edits, task tracing status and planned task events if tracing is available, and verification evidence.
-3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution, or Autonomous Operation is active and the plan stays within its rules.
+3. Wait for user approval before executing the plan unless the user already gave explicit approval for that exact phase execution
 4. After approval, load and follow only the selected phase skill plus any explicitly required supporting skills. If tracing is available, the `task` skill is explicitly required.
 
-## Autonomous Operation
-
-Autonomous mode produces a reviewable PR end-to-end without pausing for consent. Activate only by explicit user instruction (for example "run autonomously" or "produce the PR without asking") or a standing pre-approval naming the feature scope. Default remains interactive.
-
-Gate conversions while active:
-
-- Phase plan approval: proceed without pause while the plan stays inside the pre-approved feature scope; record the plan in the phase summary. Stop and ask on scope deviation, ambiguity, or destructive operations.
-- `dev-simplify`: always run the analysis (read-only). Auto-apply only the safe tier — no public/external API or contract changes, no new dependencies, full test suite green before and after, and `dev-smoke` parity at entry points when applicable. All other proposals go into the PR as "Proposed simplifications (not applied)" with before/after snippets.
-- `dev-smoke`: unchanged — it is already criteria-based.
-
-Terminal condition: opening the PR ends the autonomous run. Never merge, publish, force-push, delete branches, or change repository settings autonomously; those remain explicitly human. Every phase still requires fresh verification evidence, and unmet validation gates stop the run with a blocker report instead of a degraded PR.
-
+## Phase Routing
 ## Phase Routing
 
 | Phase | Route to | When |
