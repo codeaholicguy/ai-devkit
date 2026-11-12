@@ -114,14 +114,16 @@ jobs:
               exit 1
             fi
             echo "$pkg: $(tar -tzf "$tgz" | grep -vc '/$') files, clean"
-            rm -f "$tgz"
             cd ../..
           done
 
-      - name: Install packed CLI and smoke it
+      - name: Install packed packages and smoke the CLI
         run: |
           set -eu
-          cd packages/cli && npm pack --quiet && tgz=$(ls ./*.tgz) && cd ../..
+          # cli pins exact @ai-devkit/* versions that only exist once this
+          # release publishes; install all local tarballs together so
+          # dependency resolution stays off the registry for workspace pins.
           dir=$(mktemp -d)
-          npm install --prefix "$dir" "$PWD/packages/cli/$tgz" >/dev/null
+          npm install --prefix "$dir" \
+            "$PWD"/packages/{cli,agent-manager,channel-connector,daemon-client,memory}/*.tgz >/dev/null
           "$dir/node_modules/.bin/ai-devkit" --version
