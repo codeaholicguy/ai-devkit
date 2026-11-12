@@ -38,6 +38,23 @@ describe('CLI basics', () => {
     }
   });
 
+  it('should wire the memory MCP server into a detected harness', () => {
+    const homeDir = mkdtempSync(join(tmpdir(), 'ai-devkit-setup-e2e-home-'));
+    mkdirSync(join(homeDir, '.claude'));
+
+    try {
+      const result = run('setup', { env: { HOME: homeDir } });
+      expect(result.exitCode).toBe(0);
+      const claude = JSON.parse(readFileSync(join(homeDir, '.claude.json'), 'utf-8'));
+      expect(claude.mcpServers['ai-devkit-memory']).toEqual({
+        command: 'npx',
+        args: ['-y', '@ai-devkit/memory']
+      });
+    } finally {
+      rmSync(homeDir, { recursive: true, force: true });
+    }
+  });
+
   it('should exit with error for unknown command', () => {
     const result = run('nonexistent-command');
     expect(result.exitCode).not.toBe(0);
