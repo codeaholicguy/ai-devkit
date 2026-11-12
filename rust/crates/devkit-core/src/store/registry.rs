@@ -32,6 +32,7 @@ pub struct Registration {
     pub agent_type: String,
     pub runtime: String,
     pub runtime_ref: String,
+    pub cwd: String,
     pub pinned: bool,
     /// None while registered-but-not-yet-swept, or when tombstoned before
     /// the process was ever observed.
@@ -233,7 +234,7 @@ impl Store {
         let conn = self.conn.lock().unwrap();
         let mut s = conn.prepare(
             "SELECT pid, name, agent_type, runtime, runtime_ref, pinned,
-                    start_time_ms, gone_at
+                    start_time_ms, gone_at, cwd
              FROM agents WHERE name=?1",
         )?;
         let mut rows = s
@@ -244,6 +245,7 @@ impl Store {
                     agent_type: r.get::<_, Option<String>>(2)?.unwrap_or_default(),
                     runtime: r.get::<_, Option<String>>(3)?.unwrap_or_default(),
                     runtime_ref: r.get(4)?,
+                    cwd: r.get::<_, Option<String>>(8)?.unwrap_or_default(),
                     pinned: r.get::<_, i64>(5)? != 0,
                     start_time_ms: r.get(6)?,
                     gone_at: r.get(7)?,
@@ -262,6 +264,80 @@ impl Store {
             params![pid],
         )?;
         Ok(())
+    }
+
+    /// Best-effort delete of a name from the legacy agents.db — the
+    /// unregister counterpart of `dual_write_legacy`, so a removed name
+    /// neither lingers for unmigrated consumers nor re-imports on the next
+    /// `import_legacy_agents`. Silent on any failure, like the dual-write.
+    pub fn unregister_legacy(&self, name: &str) {
+        let Some(path) = self.legacy_db.lock().unwrap().clone() else {
+            return;
+        };
+        if !path.exists() {
+            return;
+        }
+        if let Err(e) = Connection::open(&path)
+            .and_then(|c| c.execute("DELETE FROM agents WHERE name=?1", params![name]))
+        {
+            tracing::warn!("legacy agents.db unregister failed: {e:#}");
+        }
+    }
+
+    /// Rename a pid's registration in place — pin, cwd, runtime and sweep
+    /// identity are kept; `runtime_ref` is replaced (it embeds the name for
+    /// tmux sessions / herdr agents). Any other row holding `to` is dropped
+    /// in the same transaction: the caller has already verified it is dead.
+    pub fn rename_registration(&self, pid: i64, to: &str, runtime_ref: &Value) -> Result<()> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        tx.execute(
+            "DELETE FROM agents WHERE name=?1 AND pid<>?2",
+            params![to, pid],
+        )?;
+        let n = tx.execute(
+            "UPDATE agents SET name=?1, runtime_ref=?2 WHERE pid=?3 AND name IS NOT NULL",
+            params![to, serde_json::to_string(runtime_ref)?, pid],
+        )?;
+        if n == 0 {
+            anyhow::bail!("no registration for pid {pid}");
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Best-effort mirror of a rename into the legacy agents.db — the rename
+    /// counterpart of `dual_write_legacy`, so unmigrated TS consumers see the
+    /// new name and the old one doesn't re-import. A legacy row already
+    /// holding `to` (dead — checked by the caller) is replaced.
+    pub fn rename_legacy(&self, from: &str, to: &str, runtime_ref: &Value) {
+        let Some(path) = self.legacy_db.lock().unwrap().clone() else {
+            return;
+        };
+        if !path.exists() {
+            return;
+        }
+        if let Err(e) = (|| -> Result<()> {
+            let mut conn = Connection::open(&path)?;
+            let tx = conn.transaction()?;
+            tx.execute("DELETE FROM agents WHERE name=?1", params![to])?;
+            tx.execute(
+                "UPDATE agents SET name=?1, runtime_ref=?2, updated_at=?3,
+                   tmux_session=CASE WHEN runtime='tmux' THEN ?4 ELSE tmux_session END
+                 WHERE name=?5",
+                params![
+                    to,
+                    serde_json::to_string(runtime_ref)?,
+                    iso8601_utc(chrono_now()),
+                    runtime_ref["session"].as_str().unwrap_or(to),
+                    from
+                ],
+            )?;
+            tx.commit()?;
+            Ok(())
+        })() {
+            tracing::warn!("legacy agents.db rename failed: {e:#}");
+        }
     }
 
     /// Drop tombstoned registrations (gone_at set) — the prune half of the
@@ -505,6 +581,110 @@ mod tests {
     }
 
     #[test]
+    fn lookup_name_carries_cwd() {
+        let (s, _p) = tmp_store();
+        s.register_start(10, "my-agent", "codex", "/repo", "tmux", &json!({}))
+            .unwrap();
+        assert_eq!(s.lookup_name("my-agent").unwrap().unwrap().cwd, "/repo");
+    }
+
+    #[test]
+    fn unregister_legacy_removes_named_row_only() {
+        let (s, p) = tmp_store();
+        let legacy = p.with_file_name(format!(
+            "{}.legacy.db",
+            p.file_name().unwrap().to_str().unwrap()
+        ));
+        legacy_fixture(&legacy);
+        s.set_legacy_db(legacy.clone()).unwrap();
+
+        s.unregister_legacy("old-claude");
+
+        let conn = Connection::open(&legacy).unwrap();
+        let names: Vec<String> = conn
+            .prepare("SELECT name FROM agents ORDER BY name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .map(|r| r.unwrap())
+            .collect();
+        assert_eq!(names, vec!["old-codex"]);
+    }
+
+    #[test]
+    fn rename_registration_keeps_identity_and_swaps_runtime_ref() {
+        let (s, _p) = tmp_store();
+        s.apply_agent_snapshot(&[proc_started(10, 1000)]).unwrap();
+        s.register_start(
+            10,
+            "old",
+            "codex",
+            "/repo",
+            "tmux",
+            &json!({"session":"old"}),
+        )
+        .unwrap();
+        let cwd = s.lookup_name("old").unwrap().unwrap().cwd;
+        s.rename_registration(10, "new", &json!({"session":"new"}))
+            .unwrap();
+        assert!(s.lookup_name("old").unwrap().is_none());
+        let r = s.lookup_name("new").unwrap().unwrap();
+        assert_eq!(r.pid, 10);
+        assert_eq!(r.cwd, cwd);
+        assert_eq!(r.start_time_ms, Some(1000));
+        assert!(r.runtime_ref.contains("\"new\""));
+        assert_eq!(s.registry_overlays().unwrap()[&10].0, "new");
+    }
+
+    #[test]
+    fn rename_registration_replaces_dead_holder_of_target_name() {
+        let (s, _p) = tmp_store();
+        s.register_start(10, "old", "codex", "/tmp", "tmux", &json!({}))
+            .unwrap();
+        s.register_start(11, "taken", "codex", "/tmp", "tmux", &json!({}))
+            .unwrap();
+        s.rename_registration(10, "taken", &json!({})).unwrap();
+        assert_eq!(s.lookup_name("taken").unwrap().unwrap().pid, 10);
+        let named: Vec<_> = s
+            .list_agents()
+            .unwrap()
+            .into_iter()
+            .filter(|r| !r["name"].is_null())
+            .collect();
+        assert_eq!(named.len(), 1);
+    }
+
+    #[test]
+    fn rename_legacy_moves_name_session_and_ref() {
+        let (s, p) = tmp_store();
+        let legacy = p.with_file_name(format!(
+            "{}.legacy.db",
+            p.file_name().unwrap().to_str().unwrap()
+        ));
+        legacy_fixture(&legacy);
+        s.set_legacy_db(legacy.clone()).unwrap();
+
+        // Target name held by a (dead) legacy row is replaced, not a conflict.
+        s.rename_legacy("old-claude", "old-codex", &json!({"session":"old-codex"}));
+
+        let conn = Connection::open(&legacy).unwrap();
+        let (pid, session, rref): (i64, String, String) = conn
+            .query_row(
+                "SELECT pid, tmux_session, runtime_ref FROM agents WHERE name='old-codex'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+            )
+            .unwrap();
+        assert_eq!(pid, 500);
+        assert_eq!(session, "old-codex");
+        assert!(rref.contains("\"old-codex\""));
+        let n: i64 = conn
+            .query_row("SELECT COUNT(*) FROM agents", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, 1);
+    }
+
+    #[test]
     fn missing_legacy_db_skips_silently() {
         let (s, p) = tmp_store();
         s.set_legacy_db(p.with_file_name("does-not-exist.db"))
@@ -512,5 +692,7 @@ mod tests {
         s.import_legacy_agents().unwrap(); // no file → no-op
         s.register_start(1, "x1", "claude", "/tmp", "tmux", &json!({}))
             .unwrap(); // dual-write skipped
+        s.unregister_legacy("x1"); // dual-delete skipped
+        s.rename_legacy("x1", "x2", &json!({})); // dual-rename skipped
     }
 }

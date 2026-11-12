@@ -57,6 +57,19 @@ impl TmuxRuntime {
         self.run(&["has-session", "-t", name]).is_ok()
     }
 
+    /// Exact-name session check — `=` disables tmux's prefix matching, so
+    /// `foo` never resolves to a live `foo-2` session.
+    pub fn session_exists_exact(&self, name: &str) -> bool {
+        self.run(&["has-session", "-t", &format!("={name}")])
+            .is_ok()
+    }
+
+    /// `rename-session` addressed by exact name; Err carries tmux's stderr.
+    pub fn rename_session(&self, from: &str, to: &str) -> Result<(), String> {
+        self.run(&["rename-session", "-t", &format!("={from}"), to])
+            .map(|_| ())
+    }
+
     fn kill_session(&self, name: &str) {
         let _ = self.run(&["kill-session", "-t", name]);
     }
@@ -257,6 +270,23 @@ mod tests {
         let err = f.tmux().start(&input("doomed", &matcher, 30)).unwrap_err();
         assert!(matches!(err, StartError::PidPollTimeout { .. }));
         assert!(f.log("tmux-calls.log").contains("kill-session -t doomed"));
+    }
+
+    #[test]
+    fn rename_session_targets_exact_name() {
+        let f = FixtureDir::new("rename");
+        f.set("session-old", "");
+        let t = f.tmux();
+        assert!(t.session_exists_exact("old"));
+        assert!(!t.session_exists_exact("ol"));
+        t.rename_session("old", "new").unwrap();
+        assert!(t.session_exists_exact("new"));
+        assert!(!t.session_exists_exact("old"));
+        assert!(f
+            .log("tmux-calls.log")
+            .contains("rename-session -t =old new"));
+        f.set("rename-fail", "");
+        assert!(t.rename_session("new", "other").is_err());
     }
 
     #[test]

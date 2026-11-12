@@ -1605,6 +1605,169 @@ Waiting on user input`,
     expect(mockSpinner.succeed).toHaveBeenCalledWith("Focused repo-a!");
   });
 
+  describe("daemon-routed kill", () => {
+    const mockDaemonLookup = vi.fn();
+    const mockDaemonUnregister = vi.fn();
+
+    function daemonUp(entry: Record<string, unknown> | null) {
+      const client = {
+        lookupAgent: mockDaemonLookup,
+        unregisterAgent: mockDaemonUnregister,
+        close: vi.fn(),
+      };
+      mockDaemonLookup.mockReset();
+      mockDaemonUnregister.mockReset();
+      mockEnsureDaemon.mockResolvedValue(client);
+      if (entry) {
+        mockDaemonLookup.mockResolvedValue(entry);
+        mockDaemonUnregister.mockResolvedValue({ name: entry.name, pid: entry.pid });
+      }
+      return client;
+    }
+
+    const tmuxEntry = {
+      name: "repo-a",
+      type: "claude",
+      pid: 4242,
+      runtime: "tmux",
+      runtimeRef: { session: "repo-a" },
+      cwd: "/repo",
+      pinned: false,
+      alive: true,
+    };
+
+    async function kill(name: string) {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", "kill", name]);
+    }
+
+    it("looks up, unregisters, then tears down via the daemon's runtimeRef", async () => {
+      const client = daemonUp(tmuxEntry);
+      const order: string[] = [];
+      mockDaemonUnregister.mockImplementation(async () => {
+        order.push("unregister");
+        return { name: "repo-a", pid: 4242 };
+      });
+      mockStopAgent.mockImplementation(async (agent: any, deps: any) => {
+        order.push("teardown");
+        const entry = deps.registry.lookup(agent.name);
+        return {
+          agentName: agent.name,
+          pid: agent.pid,
+          runtime: entry.runtime,
+          runtimeRef: entry.runtimeRef,
+        };
+      });
+
+      await kill("repo-a");
+
+      expect(mockDaemonLookup).toHaveBeenCalledWith("repo-a");
+      expect(order).toEqual(["unregister", "teardown"]);
+      const [agent, deps] = mockStopAgent.mock.calls[0];
+      expect(agent).toEqual({ name: "repo-a", pid: 4242 });
+      expect(deps.registry.lookup("repo-a")).toMatchObject({
+        runtime: "tmux",
+        runtimeRef: { session: "repo-a" },
+      });
+      expect(deps.killProcess).toBeUndefined(); // live pid → real SIGTERM
+      expect(mockManager.listAgents).not.toHaveBeenCalled();
+      expect(ui.success).toHaveBeenCalledWith(
+        'Stopped agent "repo-a" (PID 4242) and tmux session "repo-a".',
+      );
+      expect(client.close).toHaveBeenCalled();
+    });
+
+    it("tears down a herdr pane from the daemon's runtimeRef", async () => {
+      const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "repo-a" };
+      daemonUp({ ...tmuxEntry, runtime: "herdr", runtimeRef });
+
+      await kill("repo-a");
+
+      expect(mockHerdrStop).toHaveBeenCalledWith({ runtimeRef });
+      expect(ui.success).toHaveBeenCalledWith('Stopped agent "repo-a" (PID 4242) and Herdr pane.');
+    });
+
+    it("cleans up a dead registration without signalling its pid", async () => {
+      daemonUp({ ...tmuxEntry, alive: false, goneAt: 1 });
+
+      await kill("repo-a");
+
+      expect(mockDaemonUnregister).toHaveBeenCalledWith("repo-a");
+      const [, deps] = mockStopAgent.mock.calls[0];
+      // Dead pid may be recycled — signal must be a no-op.
+      expect(typeof deps.killProcess).toBe("function");
+      expect(() => deps.killProcess(4242, "SIGTERM")).not.toThrow();
+      expect(mockManager.listAgents).not.toHaveBeenCalled();
+    });
+
+    it("resolves partial names locally, then kills the match through the daemon", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockImplementation(async (name: string) => {
+        if (name === "repo-a") return tmuxEntry;
+        throw new DaemonRpcError(`No registered agent named "${name}".`, "not_found");
+      });
+      mockDaemonUnregister.mockResolvedValue({ name: "repo-a", pid: 4242 });
+      const agent = { name: "repo-a", status: AgentStatus.RUNNING, pid: 4242 };
+      mockManager.listAgents.mockResolvedValue([agent]);
+      mockManager.resolveAgent.mockReturnValue(agent);
+
+      await kill("repo");
+
+      expect(mockDaemonLookup.mock.calls.map((c) => c[0])).toEqual(["repo", "repo-a"]);
+      expect(mockDaemonUnregister).toHaveBeenCalledWith("repo-a");
+      expect(mockStopAgent).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to local stopAgent for agents the daemon does not know", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockRejectedValue(new DaemonRpcError("nope", "not_found"));
+      const agent = { name: "repo-a", status: AgentStatus.RUNNING, pid: 10 };
+      mockManager.listAgents.mockResolvedValue([agent]);
+      mockManager.resolveAgent.mockReturnValue(agent);
+
+      await kill("repo-a");
+
+      expect(mockDaemonUnregister).not.toHaveBeenCalled();
+      expect(mockStopAgent).toHaveBeenCalledWith(
+        agent,
+        expect.objectContaining({ registry: mockRegistry }),
+      );
+    });
+
+    it("falls back on an older daemon without agent.lookup", async () => {
+      daemonUp(null);
+      mockDaemonLookup.mockRejectedValue(new Error("unknown method: agent.lookup"));
+      const agent = { name: "repo-a", status: AgentStatus.RUNNING, pid: 10 };
+      mockManager.listAgents.mockResolvedValue([agent]);
+      mockManager.resolveAgent.mockReturnValue(agent);
+
+      await kill("repo-a");
+
+      expect(mockStopAgent).toHaveBeenCalledWith(
+        agent,
+        expect.objectContaining({ registry: mockRegistry }),
+      );
+    });
+
+    it("reports coded daemon errors without falling back", async () => {
+      daemonUp(tmuxEntry);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonUnregister.mockRejectedValue(new DaemonRpcError("db locked", "internal"));
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {}) as any);
+
+      await kill("repo-a");
+
+      expect(ui.error).toHaveBeenCalledWith("db locked");
+      expect(mockStopAgent).not.toHaveBeenCalled();
+      expect(mockManager.listAgents).not.toHaveBeenCalled();
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      exitSpy.mockRestore();
+    });
+  });
+
   it("kills a resolved agent and reports tmux cleanup", async () => {
     const agent = {
       name: "repo-a",
@@ -3758,6 +3921,118 @@ Waiting on user input`,
   });
 
   describe("agent rename", () => {
+    describe("daemon-routed rename", () => {
+      const mockDaemonRename = vi.fn();
+      let client: { renameAgent: typeof mockDaemonRename; close: ReturnType<typeof vi.fn> };
+
+      beforeEach(() => {
+        mockDaemonRename.mockReset();
+        client = { renameAgent: mockDaemonRename, close: vi.fn() };
+        mockEnsureDaemon.mockResolvedValue(client);
+      });
+
+      async function rename(...args: string[]) {
+        const program = new Command();
+        registerAgentCommand(program);
+        await program.parseAsync(["node", "test", "agent", "rename", ...args]);
+      }
+
+      it("renames through the daemon and skips the local registry", async () => {
+        mockDaemonRename.mockResolvedValue({
+          from: "old-name",
+          to: "new-name",
+          pid: 42,
+          runtime: "tmux",
+          runtimeRef: { session: "new-name" },
+          runtimeRenamed: true,
+          warnings: [],
+        });
+
+        await rename("old-name", "new-name");
+
+        expect(mockDaemonRename).toHaveBeenCalledWith("old-name", "new-name");
+        expect(mockRegistry.rename).not.toHaveBeenCalled();
+        expect(ui.success).toHaveBeenCalledWith('Agent "old-name" renamed to "new-name".');
+        expect(client.close).toHaveBeenCalled();
+      });
+
+      it("surfaces registry-only warnings", async () => {
+        mockDaemonRename.mockResolvedValue({
+          from: "old-name",
+          to: "new-name",
+          pid: 42,
+          runtime: "tmux",
+          runtimeRef: { session: "new-name" },
+          runtimeRenamed: false,
+          warnings: ['tmux session "old-name" no longer exists; renamed the registry entry only.'],
+        });
+
+        await rename("old-name", "new-name");
+
+        expect(ui.warning).toHaveBeenCalledWith(
+          'tmux session "old-name" no longer exists; renamed the registry entry only.',
+        );
+        expect(ui.success).toHaveBeenCalled();
+      });
+
+      it("maps not_found and name_in_use to the legacy messages without falling back", async () => {
+        const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+        mockDaemonRename.mockRejectedValueOnce(new DaemonRpcError("nope", "not_found"));
+        await rename("old-name", "new-name");
+        expect(ui.error).toHaveBeenCalledWith('Agent "old-name" not found in registry.');
+
+        mockDaemonRename.mockRejectedValueOnce(
+          new DaemonRpcError("running", "name_in_use", { pid: 7 }),
+        );
+        await rename("old-name", "new-name");
+        expect(ui.error).toHaveBeenCalledWith(
+          'Agent "new-name" is already in use. Choose a different name.',
+        );
+
+        expect(mockRegistry.rename).not.toHaveBeenCalled();
+        expect(process.exit).toHaveBeenCalledWith(1);
+      });
+
+      it("reports runtime_rename_failed verbatim and leaves the local registry alone", async () => {
+        const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+        const msg =
+          'Failed to rename tmux session "old-name" to "new-name": boom. Registry left unchanged.';
+        mockDaemonRename.mockRejectedValue(
+          new DaemonRpcError(msg, "runtime_rename_failed", { provider: "tmux" }),
+        );
+
+        await rename("old-name", "new-name");
+
+        expect(ui.error).toHaveBeenCalledWith(msg);
+        expect(mockRegistry.rename).not.toHaveBeenCalled();
+        expect(process.exit).toHaveBeenCalledWith(1);
+      });
+
+      it("falls back to the local registry when the daemon predates agent.rename", async () => {
+        const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+        mockDaemonRename.mockRejectedValue(new DaemonRpcError("unknown method: agent.rename"));
+
+        await rename("old-name", "new-name");
+
+        expect(mockRegistry.rename).toHaveBeenCalledWith("old-name", "new-name");
+        expect(ui.success).toHaveBeenCalledWith('Agent "old-name" renamed to "new-name".');
+      });
+
+      it("enables debug tracing with --debug", async () => {
+        mockDaemonRename.mockResolvedValue({
+          from: "old-name",
+          to: "new-name",
+          pid: 42,
+          runtime: "tmux",
+          runtimeRef: null,
+          runtimeRenamed: true,
+          warnings: [],
+        });
+        await rename("old-name", "new-name", "--debug");
+        expect(mockEnableDebug).toHaveBeenCalled();
+      });
+    });
+
     it("calls registry.rename and prints success", async () => {
       mockRegistry.rename.mockReturnValue(undefined);
 

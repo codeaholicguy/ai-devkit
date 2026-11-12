@@ -45,6 +45,35 @@ impl HerdrRuntime {
         }
     }
 
+    /// `agent rename <target> <name>` — target is the pane id hosting the
+    /// agent. herdr reports failures as `{"error":{code,message}}` on stdout
+    /// with a non-zero exit, so stdout is checked before the status.
+    pub fn rename_agent(&self, target: &str, to: &str) -> Result<(), String> {
+        let o = crate::runtime::spawn_output(
+            Command::new(&self.herdr).args(["agent", "rename", target, to]),
+        )
+        .map_err(|e| e.to_string())?;
+        let stdout: Option<Value> = serde_json::from_slice(&o.stdout).ok();
+        if let Some(err) = stdout.as_ref().and_then(|v| v.get("error")) {
+            return Err(format!(
+                "{}: {}",
+                err["code"].as_str().unwrap_or("error"),
+                err["message"]
+                    .as_str()
+                    .unwrap_or("herdr agent rename failed.")
+            ));
+        }
+        if !o.status.success() {
+            let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            return Err(if stderr.is_empty() {
+                format!("herdr agent rename exited with {}", o.status)
+            } else {
+                stderr
+            });
+        }
+        Ok(())
+    }
+
     /// JSON call: parse stdout, surface `{"error":{code,message}}` payloads.
     fn run_json(&self, args: &[&str]) -> Result<Value, HerdrCall> {
         let stdout = self.run(args)?;
@@ -322,6 +351,17 @@ mod tests {
         f.set("busy-limit", "2");
         let out = f.herdr().start(&input("agent-a", &[])).unwrap();
         assert_eq!(out.pid, 4242);
+    }
+
+    #[test]
+    fn rename_agent_targets_pane_and_surfaces_error_json() {
+        let f = FixtureDir::new("herdr-rename");
+        let h = f.herdr();
+        h.rename_agent("w1:p1", "new").unwrap();
+        assert!(f.log("herdr-calls.log").contains("agent rename w1:p1 new"));
+        f.set("rename-fail", "");
+        let e = h.rename_agent("w1:p1", "new").unwrap_err();
+        assert!(e.contains("agent_name_taken"), "{e}");
     }
 
     #[test]

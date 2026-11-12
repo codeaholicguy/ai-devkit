@@ -3,6 +3,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentStartParams } from "./gen/AgentStartParams.js";
 import type { AgentStartResult } from "./gen/AgentStartResult.js";
+import type { AgentLookupResult } from "./gen/AgentLookupResult.js";
+import type { AgentNameParams } from "./gen/AgentNameParams.js";
+import type { AgentUnregisterResult } from "./gen/AgentUnregisterResult.js";
+import type { AgentRenameParams } from "./gen/AgentRenameParams.js";
+import type { AgentRenameResult } from "./gen/AgentRenameResult.js";
 import type { EnrichedAgent } from "./gen/EnrichedAgent.js";
 import type { Event } from "./gen/Event.js";
 
@@ -136,6 +141,43 @@ export class DaemonClient {
   async startAgent(params: AgentStartParams): Promise<AgentStartResult> {
     const timeoutMs = Number(params.timeoutMs ?? 15_000) + 15_000;
     return (await this.request("agent.start", params, timeoutMs)) as AgentStartResult;
+  }
+
+  /**
+   * Resolve an exact registered name to its location data (pid, runtime,
+   * runtimeRef, cwd, liveness). Dead/tombstoned registrations resolve with
+   * `alive: false`; unknown names reject with `DaemonRpcError` code
+   * `not_found`. Generic on purpose — kill, send, open, channel and console
+   * all drive their runtime ops from this payload.
+   */
+  async lookupAgent(name: string): Promise<AgentLookupResult> {
+    return (await this.request("agent.lookup", {
+      name,
+    } satisfies AgentNameParams)) as AgentLookupResult;
+  }
+
+  /**
+   * Remove a name's registration outright (no tombstone) so the name is free
+   * for the next start. Does not touch the runtime — teardown is the
+   * caller's job, using `lookupAgent` data. Rejects `not_found` if unknown.
+   */
+  async unregisterAgent(name: string): Promise<AgentUnregisterResult> {
+    return (await this.request("agent.unregister", {
+      name,
+    } satisfies AgentNameParams)) as AgentUnregisterResult;
+  }
+
+  /**
+   * Rename a registered agent and its runtime handle (tmux session / live
+   * herdr agent) atomically, daemon-side. Rejects coded `not_found`,
+   * `name_in_use`, `runtime_rename_failed` (registry left unchanged),
+   * `runtime_unavailable`, `invalid_params`.
+   */
+  async renameAgent(from: string, to: string): Promise<AgentRenameResult> {
+    return (await this.request("agent.rename", {
+      from,
+      to,
+    } satisfies AgentRenameParams)) as AgentRenameResult;
   }
 
   private onData(chunk: Buffer) {

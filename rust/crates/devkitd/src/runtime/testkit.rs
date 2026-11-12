@@ -65,21 +65,27 @@ impl FixtureDir {
 }
 
 /// Fake tmux: `-V`, `has-session`, `new-session`, `send-keys`, `list-panes`
-/// (reads `pane_pid`), `kill-session`. Sessions tracked as `session-<name>`
-/// marker files; every invocation logs argv to `tmux-calls.log`.
+/// (reads `pane_pid`), `kill-session`, `rename-session` (fails when a
+/// `rename-fail` file exists). Sessions tracked as `session-<name>` marker
+/// files; a leading `=` (exact-match target) is stripped; every invocation
+/// logs argv to `tmux-calls.log`.
 const TMUX_SCRIPT: &str = r#"#!/bin/sh
 DIR="$(dirname "$0")"
 echo "$@" >> "$DIR/tmux-calls.log"
 case "$1" in
   -V) echo "tmux 3.4";;
-  has-session) [ -f "$DIR/session-$3" ];;
+  has-session) [ -f "$DIR/session-${3#=}" ]; exit $?;;
   new-session)
     shift; while [ $# -gt 0 ]; do
       case "$1" in -s) touch "$DIR/session-$2"; shift 2;; *) shift;; esac
     done;;
   send-keys) :;;
   list-panes) cat "$DIR/pane_pid" 2>/dev/null;;
-  kill-session) rm -f "$DIR/session-$3";;
+  kill-session) rm -f "$DIR/session-${3#=}";;
+  rename-session)
+    [ -f "$DIR/rename-fail" ] && { echo "rename failed" >&2; exit 1; }
+    [ -f "$DIR/session-${3#=}" ] || { echo "can't find session" >&2; exit 1; }
+    mv "$DIR/session-${3#=}" "$DIR/session-$4";;
 esac
 exit 0
 "#;
@@ -93,7 +99,8 @@ const PS_SCRIPT: &str =
     "#!/bin/sh\nDIR=\"$(dirname \"$0\")\"\ncat \"$DIR/cmd-$2\" 2>/dev/null\nexit 0\n";
 
 /// Fake herdr: `--version`, `api snapshot`, `workspace create`,
-/// `agent start`, `pane process-info`. JSON bodies come from sibling
+/// `agent start`, `pane process-info`, `agent rename` (error JSON + exit 1
+/// when a `rename-fail` file exists). JSON bodies come from sibling
 /// files; `busy-limit`/`busy-count` drive the agent_pane_busy loop.
 const HERDR_SCRIPT: &str = r#"#!/bin/sh
 DIR="$(dirname "$0")"
@@ -112,6 +119,11 @@ case "$1 $2" in
       cat "$DIR/agent_start.json"
     fi;;
   "pane process-info") cat "$DIR/process_info.json";;
+  "agent rename")
+    if [ -f "$DIR/rename-fail" ]; then
+      echo '{"error":{"code":"agent_name_taken","message":"name taken"}}'; exit 1
+    fi
+    echo '{"result":{}}';;
 esac
 exit 0
 "#;

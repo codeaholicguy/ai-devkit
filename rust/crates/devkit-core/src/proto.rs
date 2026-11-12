@@ -115,6 +115,77 @@ pub struct AgentStartResult {
     pub warnings: Vec<String>,
 }
 
+/// Params for name-addressed agent ops (`agent.lookup`, `agent.unregister`).
+/// Exact registered name — partial/fuzzy matching stays client-side.
+#[derive(Debug, Deserialize, TS)]
+pub struct AgentNameParams {
+    pub name: String,
+}
+
+/// `agent.lookup` result — a registered agent's location data, enough for a
+/// client to drive its runtime directly (tmux `kill-session`/`send-keys` via
+/// `runtimeRef.session`, herdr pane ops via `runtimeRef.paneId`). Generic on
+/// purpose: kill, send, open, channel and console all resolve through it.
+///
+/// Tombstoned registrations (process gone, row retained for cleanup) resolve
+/// too: `alive` is false and `goneAt` carries the sweep timestamp (ms).
+/// `alive` is a `kill(pid, 0)` probe at lookup time — callers must not
+/// signal `pid` when it is false (the number may since have been recycled).
+#[derive(Debug, Serialize, TS)]
+pub struct AgentLookupResult {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub agent_type: String,
+    #[ts(type = "number")]
+    pub pid: u64,
+    /// Runtime provider: "tmux" | "herdr".
+    pub runtime: String,
+    /// Provider-specific handle; `null` when the registration has none.
+    #[serde(rename = "runtimeRef")]
+    #[ts(type = "unknown")]
+    pub runtime_ref: Value,
+    pub cwd: String,
+    pub pinned: bool,
+    pub alive: bool,
+    #[serde(rename = "goneAt", skip_serializing_if = "Option::is_none")]
+    #[ts(optional, type = "number")]
+    pub gone_at: Option<i64>,
+}
+
+/// `agent.unregister` result — the registration that was removed.
+#[derive(Debug, Serialize, TS)]
+pub struct AgentUnregisterResult {
+    pub name: String,
+    #[ts(type = "number")]
+    pub pid: u64,
+}
+
+/// `agent.rename` params — exact registered `from` name, validated `to`.
+#[derive(Debug, Deserialize, TS)]
+pub struct AgentRenameParams {
+    pub from: String,
+    pub to: String,
+}
+
+/// `agent.rename` result. `runtimeRenamed` is false when there was no live
+/// runtime handle to rename (tmux session gone, dead herdr agent) — the
+/// registry-only case, explained in `warnings`.
+#[derive(Debug, Serialize, TS)]
+pub struct AgentRenameResult {
+    pub from: String,
+    pub to: String,
+    #[ts(type = "number")]
+    pub pid: u64,
+    pub runtime: String,
+    /// Updated provider handle (tmux `session` / herdr `agentName` = `to`).
+    #[serde(rename = "runtimeRef")]
+    #[ts(type = "unknown")]
+    pub runtime_ref: Value,
+    #[serde(rename = "runtimeRenamed")]
+    pub runtime_renamed: bool,
+    pub warnings: Vec<String>,
+}
+
 /// Event pushed to subscribers. `seq` is the persisted log sequence number —
 /// subscribers ack by seq to get at-least-once delivery.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -148,6 +219,11 @@ mod tests {
         Event::export(&cfg).unwrap();
         AgentStartParams::export(&cfg).unwrap();
         AgentStartResult::export(&cfg).unwrap();
+        AgentNameParams::export(&cfg).unwrap();
+        AgentLookupResult::export(&cfg).unwrap();
+        AgentUnregisterResult::export(&cfg).unwrap();
+        AgentRenameParams::export(&cfg).unwrap();
+        AgentRenameResult::export(&cfg).unwrap();
         crate::agent::EnrichedAgent::export(&cfg).unwrap();
 
         // ts-rs emits `import ... from "./X"` without the `.js` extension
@@ -248,6 +324,66 @@ mod tests {
         assert_eq!(v["runtimeRef"]["session"], "foo");
         assert_eq!(v["startedAt"], "2026-10-17T00:00:00.000Z");
         assert_eq!(v["warnings"][0], "orphan replaced");
+    }
+
+    #[test]
+    fn agent_name_params_and_lookup_result_wire_shape() {
+        let p: AgentNameParams = serde_json::from_str(r#"{"name":"foo"}"#).unwrap();
+        assert_eq!(p.name, "foo");
+
+        let r = AgentLookupResult {
+            name: "foo".into(),
+            agent_type: "claude".into(),
+            pid: 42,
+            runtime: "tmux".into(),
+            runtime_ref: json!({"session": "foo"}),
+            cwd: "/repo".into(),
+            pinned: false,
+            alive: false,
+            gone_at: Some(1000),
+        };
+        let v: Value = serde_json::from_str(&serde_json::to_string(&r).unwrap()).unwrap();
+        assert_eq!(v["type"], "claude");
+        assert_eq!(v["runtimeRef"]["session"], "foo");
+        assert_eq!(v["goneAt"], 1000);
+        assert_eq!(v["alive"], false);
+        // goneAt omitted for live registrations.
+        let live = AgentLookupResult {
+            gone_at: None,
+            alive: true,
+            ..r
+        };
+        assert!(!serde_json::to_string(&live).unwrap().contains("goneAt"));
+
+        let u = serde_json::to_value(AgentUnregisterResult {
+            name: "foo".into(),
+            pid: 42,
+        })
+        .unwrap();
+        assert_eq!(u, json!({"name": "foo", "pid": 42}));
+    }
+
+    #[test]
+    fn agent_rename_params_and_result_wire_shape() {
+        let p: AgentRenameParams = serde_json::from_str(r#"{"from":"old","to":"new"}"#).unwrap();
+        assert_eq!((p.from.as_str(), p.to.as_str()), ("old", "new"));
+
+        let r = serde_json::to_value(AgentRenameResult {
+            from: "old".into(),
+            to: "new".into(),
+            pid: 42,
+            runtime: "tmux".into(),
+            runtime_ref: json!({"session": "new"}),
+            runtime_renamed: true,
+            warnings: vec![],
+        })
+        .unwrap();
+        assert_eq!(
+            r,
+            json!({"from": "old", "to": "new", "pid": 42, "runtime": "tmux",
+                   "runtimeRef": {"session": "new"}, "runtimeRenamed": true,
+                   "warnings": []})
+        );
     }
 
     #[test]

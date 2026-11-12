@@ -1,6 +1,9 @@
 //! `agent.*` ops — one file per method, shared helpers here.
 
+pub mod lookup;
+pub mod rename;
 pub mod start;
+pub mod unregister;
 
 /// `/^[a-z0-9][a-z0-9-]{0,62}[a-z0-9]$/` ported without the regex crate.
 pub(super) fn valid_agent_name(name: &str) -> bool {
