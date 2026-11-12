@@ -34,7 +34,7 @@ vi.mock("../../util/tmux-deps.js", () => ({
 
 vi.mock("../../services/setup/setup.service.js", () => ({
   createSetupService: () => mockSetupService,
-  SUPPORTED_SETUP_AGENTS: ["codex", "pi"],
+  SUPPORTED_SETUP_AGENTS: ["codex", "pi", "antigravity-cli"],
 }));
 
 vi.mock("../../util/terminal-ui.js", () => ({
@@ -76,6 +76,16 @@ describe("setup command", () => {
 
   afterEach(() => {
     process.exitCode = undefined;
+  });
+
+  it("accepts antigravity-cli as an explicit --agent target", async () => {
+    const program = new Command();
+    registerSetupCommand(program);
+
+    await program.parseAsync(["node", "test", "setup", "--agent", "antigravity-cli"]);
+
+    expect(mockSetupService.run).toHaveBeenCalledWith({ agents: ["antigravity-cli"] });
+    expect(process.exitCode).toBe(0);
   });
 
   it("registers setup and runs all configured agent setup steps by default", async () => {
@@ -184,7 +194,7 @@ describe("setup command", () => {
 
     expect(mockSetupService.run).not.toHaveBeenCalled();
     expect(mockUi.error).toHaveBeenCalledWith(
-      "Unsupported setup agent: cursor. Supported agents: codex, pi.",
+      "Unsupported setup agent: cursor. Supported agents: codex, pi, antigravity-cli.",
     );
     expect(process.exitCode).toBe(1);
   });

@@ -27,6 +27,85 @@ describe("memory mcp global writers", () => {
     });
   });
 
+  describe("antigravity-cli (~/.gemini/config/mcp_config.json)", () => {
+    const configPath = () => join(homeDir, ".gemini", "config", "mcp_config.json");
+
+    it("has a global writer registered", () => {
+      expect(getGlobalMcpWriter("antigravity-cli")).toBeDefined();
+    });
+
+    it("adds the memory server to mcpServers and preserves foreign servers", async () => {
+      mkdirSync(join(homeDir, ".gemini", "config"), { recursive: true });
+      writeFileSync(
+        configPath(),
+        JSON.stringify({
+          mcpServers: {
+            "sqlite-helper": { command: "sqlite-mcp-server", args: ["/tmp/db"] },
+          },
+        }),
+      );
+
+      const writer = getGlobalMcpWriter("antigravity-cli");
+      const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
+
+      expect(result.status).toBe("installed");
+      const config = JSON.parse(readFileSync(configPath(), "utf-8"));
+      expect(config.mcpServers["sqlite-helper"]).toEqual({
+        command: "sqlite-mcp-server",
+        args: ["/tmp/db"],
+      });
+      expect(config.mcpServers["ai-devkit-memory"]).toEqual({
+        command: "npx",
+        args: ["-y", "@ai-devkit/memory"],
+      });
+    });
+
+    it("treats an empty config file as a blank slate", async () => {
+      mkdirSync(join(homeDir, ".gemini", "config"), { recursive: true });
+      writeFileSync(configPath(), "");
+
+      const writer = getGlobalMcpWriter("antigravity-cli");
+      const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
+
+      expect(result.status).toBe("installed");
+      const config = JSON.parse(readFileSync(configPath(), "utf-8"));
+      expect(config.mcpServers["ai-devkit-memory"]).toEqual({
+        command: "npx",
+        args: ["-y", "@ai-devkit/memory"],
+      });
+    });
+
+    it("creates the config file when missing", async () => {
+      const writer = getGlobalMcpWriter("antigravity-cli");
+      const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
+
+      expect(result.status).toBe("installed");
+      const config = JSON.parse(readFileSync(configPath(), "utf-8"));
+      expect(config.mcpServers["ai-devkit-memory"]).toEqual({
+        command: "npx",
+        args: ["-y", "@ai-devkit/memory"],
+      });
+    });
+
+    it("is idempotent: rerun reports skipped and leaves the file byte-stable", async () => {
+      const writer = getGlobalMcpWriter("antigravity-cli");
+      await writer!.apply(MEMORY_MCP_SERVER, homeDir);
+      const first = readFileSync(configPath(), "utf-8");
+
+      const result = await writer!.apply(MEMORY_MCP_SERVER, homeDir);
+
+      expect(result.status).toBe("skipped");
+      expect(readFileSync(configPath(), "utf-8")).toBe(first);
+    });
+
+    it("inspects wired and unwired states", async () => {
+      const writer = getGlobalMcpWriter("antigravity-cli");
+      expect((await writer!.inspect(homeDir)).state).toBe("unwired");
+      await writer!.apply(MEMORY_MCP_SERVER, homeDir);
+      expect((await writer!.inspect(homeDir)).state).toBe("wired");
+    });
+  });
+
   describe("claude (~/.claude.json)", () => {
     it("adds the memory server to mcpServers and preserves foreign state", async () => {
       writeFileSync(

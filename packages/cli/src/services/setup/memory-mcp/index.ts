@@ -7,6 +7,7 @@ import { OpenCodeMcpGenerator } from "../../install/mcp/OpenCodeMcpGenerator.js"
 import type { BaseMcpGenerator } from "../../install/mcp/BaseMcpGenerator.js";
 import type { McpMergePlan } from "../../install/mcp/types.js";
 import { grokGlobalMcpWriter } from "./grok-writer.js";
+import { antigravityGlobalMcpWriter } from "./antigravity-writer.js";
 import { MEMORY_MCP_SERVER } from "./spec.js";
 import type {
   GlobalMcpWriter,
@@ -98,6 +99,7 @@ const WRITERS: Record<string, GlobalMcpWriter> = {
   cursor: generatorAsWriter(new CursorMcpGenerator("user"), ".cursor/mcp.json"),
   opencode: generatorAsWriter(new OpenCodeMcpGenerator("user"), ".config/opencode/opencode.json"),
   grok: grokGlobalMcpWriter,
+  "antigravity-cli": antigravityGlobalMcpWriter,
 };
 
 export function getGlobalMcpWriter(agent: string): GlobalMcpWriter | undefined {

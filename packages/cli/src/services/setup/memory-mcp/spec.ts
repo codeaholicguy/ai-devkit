@@ -26,6 +26,7 @@ export const MCP_CAPABLE_AGENTS = [
   "cursor",
   "opencode",
   "grok",
+  "antigravity-cli",
 ] as const;
 
 /** Agents that verifiably have no MCP support, with the honest skip reason. */
