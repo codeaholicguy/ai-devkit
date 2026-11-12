@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/channel-connector",
-  "version": "0.14.1",
+  "version": "0.15.0",
   "description": "Generic messaging bridge for connecting to external communication platforms",
   "keywords": [
     "ai",
@@ -16,6 +16,10 @@
     "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
     "directory": "packages/channel-connector"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -31,11 +35,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@slack/socket-mode": "^3.0.0",

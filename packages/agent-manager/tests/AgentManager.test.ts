@@ -1,0 +1,1578 @@
+/**
+ * Tests for AgentManager
+ */
+
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { AgentManager } from "../src/AgentManager.js";
+import type {
+  AgentAdapter,
+  AgentInfo,
+  AgentType,
+  ConversationMessage,
+  SessionSummary,
+  ProcessInfo,
+} from "../src/adapters/AgentAdapter.js";
+import { AgentStatus } from "../src/adapters/AgentAdapter.js";
+import { AgentRegistry, type RegistryEntry } from "../src/utils/AgentRegistry.js";
+import { createProcessSnapshotCapture, type ProcessExec } from "../src/utils/process.js";
+import type { HerdrAgentPane } from "../src/runtime/herdr/HerdrAgentDiscovery.js";
+
+// Mock adapter for testing
+class MockAdapter implements AgentAdapter {
+  public lastListSessionsOpts: unknown = undefined;
+  public findSessionsByIdCalls: string[] = [];
+
+  constructor(
+    public readonly type: AgentType,
+    private mockAgents: AgentInfo[] = [],
+    private shouldFail: boolean = false,
+    private mockSessions: SessionSummary[] = [],
+    private shouldFailListSessions: boolean = false,
+  ) {}
+
+  async detectAgents(): Promise<AgentInfo[]> {
+    if (this.shouldFail) {
+      throw new Error(`Mock adapter ${this.type} failed`);
+    }
+    return this.mockAgents;
+  }
+
+  canHandle(): boolean {
+    return true;
+  }
+
+  getConversation(): ConversationMessage[] {
+    return [];
+  }
+
+  async listSessions(opts?: unknown): Promise<SessionSummary[]> {
+    this.lastListSessionsOpts = opts;
+    if (this.shouldFailListSessions) {
+      throw new Error(`Mock adapter ${this.type} listSessions failed`);
+    }
+    return this.mockSessions;
+  }
+
+  async findSessionsById(sessionId: string): Promise<SessionSummary[]> {
+    this.findSessionsByIdCalls.push(sessionId);
+    return this.mockSessions.filter((session) => session.sessionId === sessionId);
+  }
+
+  setAgents(agents: AgentInfo[]): void {
+    this.mockAgents = agents;
+  }
+
+  setFail(shouldFail: boolean): void {
+    this.shouldFail = shouldFail;
+  }
+
+  setSessions(sessions: SessionSummary[]): void {
+    this.mockSessions = sessions;
+  }
+
+  setFailListSessions(shouldFail: boolean): void {
+    this.shouldFailListSessions = shouldFail;
+  }
+}
+
+// Helper to create mock agent
+function createMockAgent(overrides: Partial<AgentInfo> = {}): AgentInfo {
+  return {
+    name: "test-agent",
+    type: "claude",
+    status: AgentStatus.RUNNING,
+    summary: "Test summary",
+    pid: 12345,
+    projectPath: "/test/path",
+    sessionId: "test-session-id",
+    lastActive: new Date(),
+    ...overrides,
+  };
+}
+
+describe("AgentManager", () => {
+  let manager: AgentManager;
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-manager-"));
+    manager = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  describe("registerAdapter", () => {
+    it("should register a new adapter", () => {
+      const adapter = new MockAdapter("claude");
+
+      manager.registerAdapter(adapter);
+
+      expect(manager.hasAdapter("claude")).toBe(true);
+      expect(manager.getAdapterCount()).toBe(1);
+    });
+
+    it("should throw error when registering duplicate adapter type", () => {
+      const adapter1 = new MockAdapter("claude");
+      const adapter2 = new MockAdapter("claude");
+
+      manager.registerAdapter(adapter1);
+
+      expect(() => manager.registerAdapter(adapter2)).toThrow(
+        'Adapter for type "claude" is already registered',
+      );
+    });
+
+    it("should allow registering multiple different adapter types", () => {
+      const adapter1 = new MockAdapter("claude");
+      const adapter2 = new MockAdapter("gemini_cli");
+
+      manager.registerAdapter(adapter1);
+      manager.registerAdapter(adapter2);
+
+      expect(manager.getAdapterCount()).toBe(2);
+      expect(manager.hasAdapter("claude")).toBe(true);
+      expect(manager.hasAdapter("gemini_cli")).toBe(true);
+    });
+  });
+
+  describe("unregisterAdapter", () => {
+    it("should unregister an existing adapter", () => {
+      const adapter = new MockAdapter("claude");
+      manager.registerAdapter(adapter);
+
+      const removed = manager.unregisterAdapter("claude");
+
+      expect(removed).toBe(true);
+      expect(manager.hasAdapter("claude")).toBe(false);
+      expect(manager.getAdapterCount()).toBe(0);
+    });
+
+    it("should return false when unregistering non-existent adapter", () => {
+      const removed = manager.unregisterAdapter("NonExistent");
+      expect(removed).toBe(false);
+    });
+  });
+
+  describe("getAdapters", () => {
+    it("should return empty array when no adapters registered", () => {
+      const adapters = manager.getAdapters();
+      expect(adapters).toEqual([]);
+    });
+
+    it("should return all registered adapters", () => {
+      const adapter1 = new MockAdapter("claude");
+      const adapter2 = new MockAdapter("gemini_cli");
+
+      manager.registerAdapter(adapter1);
+      manager.registerAdapter(adapter2);
+
+      const adapters = manager.getAdapters();
+      expect(adapters).toHaveLength(2);
+      expect(adapters).toContain(adapter1);
+      expect(adapters).toContain(adapter2);
+    });
+  });
+
+  describe("listAgents", () => {
+    it("shares one process capture while giving each adapter only its declared executables", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 101, command: "claude", cwd: "/claude", tty: "s001" },
+        { pid: 202, command: "node /bin/pi", cwd: "/pi", tty: "s002" },
+      ];
+      const captureSnapshot = vi.fn(async () => processes);
+      const createSnapshotAdapter = (type: AgentType, processNames: string[]) => ({
+        type,
+        processNames,
+        detectAgents: vi.fn(async () => []),
+        canHandle: () => true,
+        getConversation: () => [],
+        listSessions: async () => [],
+      });
+      const claude = createSnapshotAdapter("claude", ["claude"]);
+      const pi = createSnapshotAdapter("pi", ["pi", "node"]);
+      const snapshotManager = new AgentManager(
+        new AgentRegistry(path.join(tmpDir, "snapshot-agents.json")),
+        captureSnapshot,
+      );
+
+      snapshotManager.registerAdapter(claude as AgentAdapter);
+      snapshotManager.registerAdapter(pi as AgentAdapter);
+
+      await snapshotManager.listAgents();
+
+      expect(captureSnapshot).toHaveBeenCalledTimes(1);
+      expect(captureSnapshot).toHaveBeenCalledWith(["claude", "pi", "node"], {
+        isCandidate: expect.any(Function),
+      });
+      expect(claude.detectAgents).toHaveBeenCalledWith({ processes: [processes[0]] });
+      expect(pi.detectAgents).toHaveBeenCalledWith({ processes: [processes[1]] });
+    });
+
+    it("does not expose foreign command arguments to broad Pi and Gemini matchers", async () => {
+      const processes: ProcessInfo[] = [
+        { pid: 100, command: "node /usr/local/lib/gemini.js", cwd: "/g", tty: "s001" },
+        { pid: 200, command: "codex exec --cd /Users/x/repos/gemini", cwd: "/c", tty: "s002" },
+        { pid: 300, command: "node /usr/local/lib/pi.js", cwd: "/p", tty: "s003" },
+        { pid: 400, command: "claude --resume /Users/x/pi/session.jsonl", cwd: "/a", tty: "s004" },
+      ];
+      const captureSnapshot = vi.fn(async () => processes);
+      const createSnapshotAdapter = (type: AgentType, processNames: string[]) => ({
+        type,
+        processNames,
+        detectAgents: vi.fn(async () => []),
+        canHandle: () => true,
+        getConversation: () => [],
+        listSessions: async () => [],
+      });
+      const gemini = createSnapshotAdapter("gemini_cli", ["node"]);
+      const codex = createSnapshotAdapter("codex", ["codex"]);
+      const pi = createSnapshotAdapter("pi", ["pi", "node"]);
+      const claude = createSnapshotAdapter("claude", ["claude"]);
+      const snapshotManager = new AgentManager(
+        new AgentRegistry(path.join(tmpDir, "filtered-snapshot-agents.json")),
+        captureSnapshot,
+      );
+
+      snapshotManager.registerAdapter(gemini as AgentAdapter);
+      snapshotManager.registerAdapter(codex as AgentAdapter);
+      snapshotManager.registerAdapter(pi as AgentAdapter);
+      snapshotManager.registerAdapter(claude as AgentAdapter);
+
+      await snapshotManager.listAgents();
+
+      expect(captureSnapshot).toHaveBeenCalledTimes(1);
+      expect(captureSnapshot).toHaveBeenCalledWith(["node", "codex", "pi", "claude"], {
+        isCandidate: expect.any(Function),
+      });
+      expect(gemini.detectAgents).toHaveBeenCalledWith({ processes: [processes[0], processes[2]] });
+      expect(codex.detectAgents).toHaveBeenCalledWith({ processes: [processes[1]] });
+      expect(pi.detectAgents).toHaveBeenCalledWith({ processes: [processes[0], processes[2]] });
+      expect(claude.detectAgents).toHaveBeenCalledWith({ processes: [processes[3]] });
+    });
+
+    describe("candidate-only enrichment", () => {
+      const pidsArg = (args: readonly string[]) =>
+        args[args.indexOf("-p") + 1].split(",").map((pid) => parseInt(pid, 10));
+
+      function createExec(psLines: string[]) {
+        const exec = vi.fn<ProcessExec>(async (file, args) => {
+          if (file === "ps" && args.includes("-axo")) return psLines.join("\n");
+          if (file === "lsof")
+            return pidsArg(args)
+              .map((pid) => `p${pid}\nn/w/${pid}`)
+              .join("\n");
+          if (file === "ps") {
+            return pidsArg(args)
+              .map((pid) => `${pid} Wed Mar 18 23:18:01 2026`)
+              .join("\n");
+          }
+          throw new Error(`unexpected command: ${file}`);
+        });
+        const enriched = (kind: "lsof" | "lstart") =>
+          exec.mock.calls
+            .filter(([file, args]) =>
+              kind === "lsof" ? file === "lsof" : args.some((arg) => arg.includes("lstart=")),
+            )
+            .map(([, args]) => pidsArg(args));
+        return { exec, enriched };
+      }
+
+      const createAdapter = (
+        type: AgentType,
+        processNames: string[],
+        canHandle: (process: ProcessInfo) => boolean,
+      ) => ({
+        type,
+        processNames,
+        detectAgents: vi.fn(async () => []),
+        canHandle,
+        getConversation: () => [],
+        listSessions: async () => [],
+      });
+
+      const unrelatedNode = Array.from(
+        { length: 50 },
+        (_, index) => `${1000 + index} 1 ?? node /Applications/Tool${index}.app/helper.js`,
+      );
+
+      it("runs lsof and ps lstart only for PIDs some adapter can handle", async () => {
+        const { exec, enriched } = createExec([
+          ...unrelatedNode,
+          "200 1 s001 node /usr/local/bin/gemini",
+          "300 1 s002 node /usr/local/lib/pi.js",
+          "400 1 s003 codex exec --cd /repos/gemini",
+        ]);
+        const gemini = createAdapter("gemini_cli", ["node"], (p) => p.command.includes("gemini"));
+        const pi = createAdapter("pi", ["pi", "node"], (p) => p.command.includes("pi.js"));
+        const codex = createAdapter("codex", ["codex"], () => false);
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "candidate-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+        snapshotManager.registerAdapter(pi as AgentAdapter);
+        snapshotManager.registerAdapter(codex as AgentAdapter);
+
+        await snapshotManager.listAgents();
+
+        expect(enriched("lsof")).toEqual([[200, 300]]);
+        expect(enriched("lstart")).toEqual([[200, 300]]);
+        const geminiProcesses = gemini.detectAgents.mock.calls[0][0].processes as ProcessInfo[];
+        expect(geminiProcesses).toHaveLength(52);
+        expect(geminiProcesses.find((p) => p.pid === 200)).toMatchObject({ cwd: "/w/200" });
+        expect(geminiProcesses.find((p) => p.pid === 1000)).toMatchObject({ cwd: "" });
+      });
+
+      it("spawns only the base ps on a refresh with no candidate processes", async () => {
+        const { exec } = createExec(unrelatedNode);
+        const gemini = createAdapter("gemini_cli", ["node"], (p) => p.command.includes("gemini"));
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "no-candidate-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+
+        await snapshotManager.listAgents();
+        await snapshotManager.listAgents();
+
+        expect(exec).toHaveBeenCalledTimes(2);
+        for (const [file, args] of exec.mock.calls) {
+          expect(file).toBe("ps");
+          expect(args).toContain("-axo");
+        }
+      });
+
+      it("only checks canHandle for adapters whose executables match", async () => {
+        const { exec, enriched } = createExec(["200 1 s001 node /usr/local/bin/gemini"]);
+        const claude = createAdapter("claude", ["claude"], () => true);
+        const gemini = createAdapter("gemini_cli", ["node"], () => false);
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "scoped-candidate-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(claude as AgentAdapter);
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+
+        await snapshotManager.listAgents();
+
+        expect(enriched("lsof")).toEqual([]);
+      });
+
+      it("fetches start times once per PID across refreshes", async () => {
+        const { exec, enriched } = createExec([
+          ...unrelatedNode,
+          "200 1 s001 node /usr/local/bin/gemini",
+        ]);
+        const gemini = createAdapter("gemini_cli", ["node"], (p) => p.command.includes("gemini"));
+        const snapshotManager = new AgentManager(
+          new AgentRegistry(path.join(tmpDir, "cached-agents.json")),
+          createProcessSnapshotCapture({ exec }),
+        );
+        snapshotManager.registerAdapter(gemini as AgentAdapter);
+
+        await snapshotManager.listAgents();
+        await snapshotManager.listAgents();
+        await snapshotManager.listAgents();
+
+        expect(enriched("lstart")).toEqual([[200]]);
+        expect(enriched("lsof")).toEqual([[200], [200], [200]]);
+        const lastCall = gemini.detectAgents.mock.calls[2][0].processes as ProcessInfo[];
+        expect(lastCall.find((p) => p.pid === 200)?.startTime).toEqual(
+          new Date("Wed Mar 18 23:18:01 2026"),
+        );
+      });
+    });
+
+    it("does not pass a snapshot context to legacy adapters", async () => {
+      const captureSnapshot = vi.fn(async () => []);
+      const legacy = new MockAdapter("claude");
+      const detect = vi.spyOn(legacy, "detectAgents");
+      const snapshotManager = new AgentManager(
+        new AgentRegistry(path.join(tmpDir, "legacy-agents.json")),
+        captureSnapshot,
+      );
+      snapshotManager.registerAdapter(legacy);
+
+      await snapshotManager.listAgents();
+
+      expect(captureSnapshot).not.toHaveBeenCalled();
+      expect(detect).toHaveBeenCalledWith();
+    });
+
+    it("should return empty array when no adapters registered", async () => {
+      const agents = await manager.listAgents();
+      expect(agents).toEqual([]);
+    });
+
+    it("should return agents from single adapter", async () => {
+      const mockAgents = [createMockAgent({ name: "agent1" }), createMockAgent({ name: "agent2" })];
+      const adapter = new MockAdapter("claude", mockAgents);
+
+      manager.registerAdapter(adapter);
+      const agents = await manager.listAgents();
+
+      expect(agents).toHaveLength(2);
+      expect(agents[0].name).toBe("agent1");
+      expect(agents[1].name).toBe("agent2");
+    });
+
+    it("should aggregate agents from multiple adapters", async () => {
+      const claudeAgents = [createMockAgent({ name: "claude-agent", type: "claude" })];
+      const geminiAgents = [createMockAgent({ name: "gemini-agent", type: "gemini_cli" })];
+
+      manager.registerAdapter(new MockAdapter("claude", claudeAgents));
+      manager.registerAdapter(new MockAdapter("gemini_cli", geminiAgents));
+
+      const agents = await manager.listAgents();
+
+      expect(agents).toHaveLength(2);
+      expect(agents.find((a) => a.name === "claude-agent")).toBeDefined();
+      expect(agents.find((a) => a.name === "gemini-agent")).toBeDefined();
+    });
+
+    it("should sort agents by status priority (waiting first)", async () => {
+      const mockAgents = [
+        createMockAgent({ name: "idle-agent", status: AgentStatus.IDLE }),
+        createMockAgent({ name: "waiting-agent", status: AgentStatus.WAITING }),
+        createMockAgent({ name: "running-agent", status: AgentStatus.RUNNING }),
+        createMockAgent({ name: "unknown-agent", status: AgentStatus.UNKNOWN }),
+      ];
+      const adapter = new MockAdapter("claude", mockAgents);
+
+      manager.registerAdapter(adapter);
+      const agents = await manager.listAgents();
+
+      expect(agents[0].name).toBe("waiting-agent");
+      expect(agents[1].name).toBe("running-agent");
+      expect(agents[2].name).toBe("idle-agent");
+      expect(agents[3].name).toBe("unknown-agent");
+    });
+
+    it("should handle adapter errors gracefully", async () => {
+      const goodAdapter = new MockAdapter("claude", [createMockAgent({ name: "good-agent" })]);
+      const badAdapter = new MockAdapter("gemini_cli", [], true); // Will fail
+
+      manager.registerAdapter(goodAdapter);
+      manager.registerAdapter(badAdapter);
+
+      // Should not throw, should return results from working adapter
+      const agents = await manager.listAgents();
+
+      expect(agents).toHaveLength(1);
+      expect(agents[0].name).toBe("good-agent");
+    });
+
+    it("should return empty array when all adapters fail", async () => {
+      const adapter1 = new MockAdapter("claude", [], true);
+      const adapter2 = new MockAdapter("gemini_cli", [], true);
+
+      manager.registerAdapter(adapter1);
+      manager.registerAdapter(adapter2);
+
+      const agents = await manager.listAgents();
+      expect(agents).toEqual([]);
+    });
+  });
+
+  describe("listAgents — daemon enrichment", () => {
+    const wireAgent = (overrides: Record<string, unknown> = {}) => ({
+      name: "daemon-claude",
+      type: "claude",
+      status: "waiting",
+      summary: "daemon summary",
+      pid: 777,
+      projectPath: "/daemon/proj",
+      sessionId: "daemon-sid",
+      lastActive: "2026-10-08T12:00:00.000Z",
+      ...overrides,
+    });
+
+    it("serves agents from the daemon and skips all local adapters", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [wireAgent()],
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents();
+      expect(detectSpy).not.toHaveBeenCalled();
+      expect(agents).toHaveLength(1);
+      expect(agents[0].name).toBe("daemon-claude");
+      expect(agents[0].lastActive).toEqual(new Date("2026-10-08T12:00:00.000Z"));
+    });
+
+    it("falls back to all-local when the daemon returns null", async () => {
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => null,
+      });
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+      const agents = await m.listAgents();
+      expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+    });
+
+    it("falls back to all-local when the daemon call throws", async () => {
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => {
+          throw new Error("socket gone");
+        },
+      });
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+      const agents = await m.listAgents();
+      expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+    });
+
+    it("serves every type from the daemon in one sweep", async () => {
+      const claudeLocal = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const codexLocal = new MockAdapter("codex", [
+        createMockAgent({ name: "local-codex", type: "codex" }),
+      ]);
+      const claudeSpy = vi.spyOn(claudeLocal, "detectAgents");
+      const codexSpy = vi.spyOn(codexLocal, "detectAgents");
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [
+          wireAgent(),
+          wireAgent({ type: "codex", name: "daemon-codex", pid: 888 }),
+        ],
+      });
+      m.registerAdapter(claudeLocal);
+      m.registerAdapter(codexLocal);
+
+      const agents = await m.listAgents();
+      expect(claudeSpy).not.toHaveBeenCalled();
+      expect(codexSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name).sort()).toEqual(["daemon-claude", "daemon-codex"]);
+    });
+
+    it("falls back to local adapters when the daemon returns an empty list and local finds agents", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [],
+      });
+      m.registerAdapter(local);
+
+      try {
+        const agents = await m.listAgents();
+        expect(detectSpy).toHaveBeenCalled();
+        expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("daemon"));
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("uses a caller-supplied daemon list instead of fetching", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const fetchSpy = vi.fn(async () => [wireAgent({ name: "fetched" })]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: fetchSpy,
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents({ enriched: [wireAgent()] });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(detectSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name)).toEqual(["daemon-claude"]);
+    });
+
+    it("treats a caller-supplied null daemon list as local-only", async () => {
+      const fetchSpy = vi.fn(async () => [wireAgent()]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: fetchSpy,
+      });
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+
+      const agents = await m.listAgents({ enriched: null });
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+    });
+
+    it("cross-checks a caller-supplied empty daemon list against local adapters", async () => {
+      const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")));
+      m.registerAdapter(new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]));
+      try {
+        const agents = await m.listAgents({ enriched: [] });
+        expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("daemon"));
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+
+    it("produces byte-identical JSON for the daemon and local paths", async () => {
+      const local: AgentInfo = {
+        name: "same",
+        type: "claude",
+        status: AgentStatus.WAITING,
+        summary: "fix the bug",
+        pid: 4242,
+        projectPath: "/repo",
+        sessionId: "sid-1",
+        lastActive: new Date("2026-10-08T12:00:00.000Z"),
+        sessionFilePath: "/home/.claude/projects/repo/sid-1.jsonl",
+      };
+      // devkitd serializes through serde_json::Value (BTreeMap), so wire
+      // keys arrive alphabetically — not in AgentInfo order.
+      const wire = {
+        lastActive: "2026-10-08T12:00:00.000Z",
+        name: "same",
+        pid: 4242,
+        pinned: true,
+        projectPath: "/repo",
+        sessionFilePath: "/home/.claude/projects/repo/sid-1.jsonl",
+        sessionId: "sid-1",
+        status: "waiting",
+        summary: "fix the bug",
+        type: "claude",
+      };
+      const seed = (dir: string) => {
+        const registry = new AgentRegistry(path.join(tmpDir, dir, "agents.json"));
+        registry.register({
+          name: "same",
+          type: "claude",
+          pid: 4242,
+          runtime: "tmux",
+          runtimeRef: { session: "same" },
+          cwd: "/repo",
+          startedAt: "2026-10-08T11:00:00.000Z",
+          sessionId: "sid-1",
+          sessionFilePath: wire.sessionFilePath,
+          pinned: false,
+        });
+        return registry;
+      };
+      fs.mkdirSync(path.join(tmpDir, "local"));
+      fs.mkdirSync(path.join(tmpDir, "daemon"));
+
+      const localManager = new AgentManager(seed("local"));
+      localManager.registerAdapter(new MockAdapter("claude", [{ ...local }]));
+      const daemonManager = new AgentManager(seed("daemon"));
+
+      const viaLocal = await localManager.listAgents({ enriched: null });
+      const viaDaemon = await daemonManager.listAgents({ enriched: [wire] });
+      expect(JSON.stringify(viaDaemon, null, 2)).toBe(JSON.stringify(viaLocal, null, 2));
+      expect(viaDaemon[0].lastActive).toBeInstanceOf(Date);
+    });
+
+    it("returns empty without a warning when the daemon and local adapters are both empty", async () => {
+      const local = new MockAdapter("claude");
+      const detectSpy = vi.spyOn(local, "detectAgents");
+      const warnSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [],
+      });
+      m.registerAdapter(local);
+
+      try {
+        const agents = await m.listAgents();
+        expect(detectSpy).toHaveBeenCalled();
+        expect(agents).toEqual([]);
+        expect(warnSpy).not.toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+      }
+    });
+  });
+
+  describe("listAgents — registry persistence", () => {
+    let tmpDir: string;
+    let regPath: string;
+    let registry: AgentRegistry;
+    let scopedManager: AgentManager;
+    let nowMs: number;
+    let databaseOperations: string[];
+
+    beforeEach(() => {
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-manager-"));
+      regPath = path.join(tmpDir, "agents.json");
+      nowMs = Date.parse("2026-08-14T10:00:00.000Z");
+      databaseOperations = [];
+      registry = new AgentRegistry(regPath, {
+        now: () => new Date(nowMs),
+        pruneIntervalMs: 30_000,
+        onDatabaseOperation: (sql) => databaseOperations.push(sql),
+      });
+      scopedManager = new AgentManager(registry);
+      databaseOperations = [];
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    });
+
+    function useHerdrPanes(panes: readonly HerdrAgentPane[]): ReturnType<typeof vi.fn> {
+      const fetchHerdrPanes = vi.fn().mockResolvedValue(panes);
+      scopedManager = new AgentManager(registry, undefined, {
+        runtimeProvider: "herdr",
+        fetchHerdrAgentPanes: fetchHerdrPanes,
+      });
+      return fetchHerdrPanes;
+    }
+
+    it("persists every detected agent to the registry", async () => {
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [
+          createMockAgent({
+            name: "a",
+            pid: process.pid,
+            sessionId: "sid-a",
+            sessionFilePath: "/path/a.jsonl",
+            projectPath: "/cwd/a",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      const entries = registry.list();
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        name: "a",
+        type: "claude",
+        pid: process.pid,
+        cwd: "/cwd/a",
+        sessionId: "sid-a",
+        sessionFilePath: "/path/a.jsonl",
+        runtime: "tmux",
+        runtimeRef: null,
+      });
+      expect(entries[0].startedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    });
+
+    it("persists a Herdr runtime ref for manually discovered agents matched by session id", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          agentSessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w31:p1",
+          workspaceId: "w31",
+          tabId: "w31:t1",
+        },
+      ]);
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-44290",
+            type: "codex",
+            pid: process.pid,
+            sessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+            sessionFilePath: "/path/codex.jsonl",
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.list()[0]).toMatchObject({
+        name: "ai-devkit-44290",
+        type: "codex",
+        pid: process.pid,
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w31:p1",
+          workspaceId: "w31",
+          tabId: "w31:t1",
+          agentName: "ai-devkit-44290",
+        },
+      });
+    });
+
+    it("upgrades an existing tmux fallback row when Herdr later matches by session id", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          agentSessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w31:p1",
+        },
+      ]);
+      registry.register({
+        name: "ai-devkit-44290",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/ai-devkit",
+        startedAt: "2026-09-14T00:00:00.000Z",
+        sessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+        sessionFilePath: "/path/codex.jsonl",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-44290",
+            type: "codex",
+            pid: process.pid,
+            sessionId: "01a0a05e-751f-7850-9fd7-247e297f9ac5",
+            sessionFilePath: "/path/codex.jsonl",
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.lookup("ai-devkit-44290")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w31:p1",
+          agentName: "ai-devkit-44290",
+        },
+      });
+    });
+
+    it("upgrades an existing tmux fallback row when Herdr matches by foreground pid", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w31:p1",
+          foregroundPids: [44290],
+        },
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w32:p1",
+          foregroundPids: [process.pid],
+        },
+      ]);
+      registry.register({
+        name: "ai-devkit-64904",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/ai-devkit",
+        startedAt: "2026-09-14T00:00:00.000Z",
+        sessionId: `pid-${process.pid}`,
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-64904",
+            type: "codex",
+            pid: process.pid,
+            sessionId: `pid-${process.pid}`,
+            sessionFilePath: undefined,
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w32:p1",
+          agentName: "ai-devkit-64904",
+        },
+      });
+    });
+
+    it("fetches Herdr panes automatically when the configured runtime is Herdr", async () => {
+      const fetchHerdrPanes = useHerdrPanes([
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w32:p1",
+          foregroundPids: [process.pid],
+        },
+      ]);
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-64904",
+            type: "codex",
+            pid: process.pid,
+            sessionId: `pid-${process.pid}`,
+            sessionFilePath: undefined,
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(fetchHerdrPanes).toHaveBeenCalledOnce();
+      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w32:p1",
+          agentName: "ai-devkit-64904",
+        },
+      });
+    });
+
+    it("upgrades an existing tmux row with a malformed runtime ref when Herdr matches", async () => {
+      useHerdrPanes([
+        {
+          agent: "codex",
+          cwd: "/cwd/ai-devkit",
+          paneId: "w32:p1",
+          foregroundPids: [process.pid],
+        },
+      ]);
+      registry.register({
+        name: "ai-devkit-64904",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: {},
+        cwd: "/cwd/ai-devkit",
+        startedAt: "2026-09-14T00:00:00.000Z",
+        sessionId: `pid-${process.pid}`,
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "ai-devkit-64904",
+            type: "codex",
+            pid: process.pid,
+            sessionId: `pid-${process.pid}`,
+            sessionFilePath: undefined,
+            projectPath: "/cwd/ai-devkit",
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+        runtime: "herdr",
+        runtimeRef: {
+          session: "default",
+          paneId: "w32:p1",
+          agentName: "ai-devkit-64904",
+        },
+      });
+    });
+
+    it("prunes entries for dead pids", async () => {
+      registry.register({
+        name: "dead",
+        type: "claude",
+        pid: 999999,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/dead",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "sid-dead",
+        sessionFilePath: "/path/dead.jsonl",
+      });
+
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [createMockAgent({ name: "live", pid: process.pid })]),
+      );
+
+      await scopedManager.listAgents();
+
+      const entries = registry.list();
+      expect(entries.map((e) => e.name)).toEqual(["live"]);
+    });
+
+    it('preserves an existing name (e.g. user-set "merry") across cycles', async () => {
+      registry.register({
+        name: "merry",
+        type: "claude",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: { session: "merry" },
+        cwd: "/cwd/merry",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "sid-merry",
+        sessionFilePath: "/path/merry.jsonl",
+      });
+
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [createMockAgent({ name: "default-name", pid: process.pid })]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].name).toBe("merry");
+      expect(registry.list()[0].name).toBe("merry");
+      expect(registry.list()[0].runtimeRef).toEqual({ session: "merry" });
+      expect(registry.list()[0].startedAt).toBe("2026-05-30T00:00:00.000Z");
+    });
+
+    it("preserves custom name and tmux runtime ref across two EPERM refresh cycles", async () => {
+      registry.register({
+        name: "merry",
+        type: "claude",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: { session: "merry-tmux" },
+        cwd: "/cwd/merry",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "sid-merry",
+        sessionFilePath: "/path/merry.jsonl",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [
+          createMockAgent({ name: `ai-devkit-${process.pid}`, pid: process.pid }),
+        ]),
+      );
+      vi.spyOn(process, "kill").mockImplementation(() => {
+        throw Object.assign(new Error("operation not permitted"), { code: "EPERM" });
+      });
+
+      const firstRefresh = await scopedManager.listAgents();
+      const secondRefresh = await scopedManager.listAgents();
+
+      expect(firstRefresh[0].name).toBe("merry");
+      expect(secondRefresh[0].name).toBe("merry");
+      expect(registry.lookup("merry")).toMatchObject({
+        name: "merry",
+        runtimeRef: { session: "merry-tmux" },
+      });
+    });
+
+    it("preserves a user-managed name when a fallback row was written later for the same pid", async () => {
+      registry.register({
+        name: "agent-list-debug",
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: { session: "agent-list-debug" },
+        cwd: "/cwd/debug",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "pid-debug",
+        sessionFilePath: "",
+      });
+      registry.register({
+        name: `ai-devkit-${process.pid}`,
+        type: "codex",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/debug",
+        startedAt: "2026-05-31T00:00:00.000Z",
+        sessionId: "pid-debug",
+        sessionFilePath: "",
+      });
+
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({ name: `ai-devkit-${process.pid}`, type: "codex", pid: process.pid }),
+        ]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].name).toBe("agent-list-debug");
+      expect(registry.list()).toHaveLength(1);
+      expect(registry.list()[0]).toMatchObject({
+        name: "agent-list-debug",
+        pid: process.pid,
+        runtimeRef: { session: "agent-list-debug" },
+      });
+    });
+
+    it("writes a fresh startedAt for new entries", async () => {
+      const before = new Date().toISOString();
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [createMockAgent({ name: "new", pid: process.pid })]),
+      );
+
+      await scopedManager.listAgents();
+
+      const entry = registry.list()[0];
+      expect(entry.startedAt >= before).toBe(true);
+    });
+
+    it("batches the write — a single registerBatch call per listAgents", async () => {
+      const spy = vi.spyOn(registry, "registerBatch");
+
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [createMockAgent({ name: "a", pid: process.pid })]),
+      );
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({ name: "b", type: "codex", pid: process.pid + 1 }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect((spy.mock.calls[0][0] as RegistryEntry[]).map((e) => e.name).sort()).toEqual([
+        "a",
+        "b",
+      ]);
+    });
+
+    it("performs zero database writes on an unchanged refresh", async () => {
+      const adapter = new MockAdapter("claude", [
+        createMockAgent({
+          name: "stable",
+          pid: process.pid,
+          projectPath: "/cwd/stable",
+          sessionId: "stable-session",
+          sessionFilePath: "/sessions/stable.jsonl",
+        }),
+      ]);
+      scopedManager.registerAdapter(adapter);
+      await scopedManager.listAgents();
+      databaseOperations = [];
+
+      await scopedManager.listAgents();
+
+      const writes = databaseOperations.filter((sql) =>
+        /^\s*(BEGIN|COMMIT|INSERT|UPDATE|DELETE)/i.test(sql),
+      );
+      expect(writes).toEqual([]);
+    });
+
+    it("exposes a persisted pin and preserves it across a changed poll refresh", async () => {
+      const adapter = new MockAdapter("claude", [
+        createMockAgent({ name: "pinned", pid: process.pid, sessionId: "before" }),
+      ]);
+      scopedManager.registerAdapter(adapter);
+      await scopedManager.listAgents();
+      registry.togglePin("claude", process.pid);
+      adapter.setAgents([
+        createMockAgent({ name: "pinned", pid: process.pid, sessionId: "after" }),
+      ]);
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].pinned).toBe(true);
+      expect(registry.lookup("pinned")).toMatchObject({ sessionId: "after", pinned: true });
+    });
+
+    it("uses registry updated_at as lastActive for pinned recency ordering", async () => {
+      const adapter = new MockAdapter("claude", [
+        createMockAgent({
+          name: "recently-pinned",
+          pid: process.pid,
+          lastActive: new Date("2026-01-01T00:00:00.000Z"),
+        }),
+      ]);
+      scopedManager.registerAdapter(adapter);
+      await scopedManager.listAgents();
+      nowMs += 60_000;
+      scopedManager.togglePin("recently-pinned");
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].pinned).toBe(true);
+      expect(agents[0].lastActive.toISOString()).toBe("2026-08-14T10:01:00.000Z");
+    });
+
+    it("preserves adapter lastActive for unpinned agents", async () => {
+      scopedManager.registerAdapter(
+        new MockAdapter("claude", [
+          createMockAgent({
+            name: "unpinned",
+            pid: process.pid,
+            lastActive: new Date("2026-01-01T00:00:00.000Z"),
+          }),
+        ]),
+      );
+
+      await scopedManager.listAgents();
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].pinned).toBe(false);
+      expect(agents[0].lastActive.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+    });
+
+    it("does not persist passive cwd changes when an existing cwd is present", async () => {
+      const adapter = new MockAdapter("claude", [
+        createMockAgent({ name: "changing", pid: process.pid, projectPath: "/cwd/before" }),
+      ]);
+      scopedManager.registerAdapter(adapter);
+      await scopedManager.listAgents();
+      databaseOperations = [];
+      nowMs += 1_000;
+      adapter.setAgents([
+        createMockAgent({ name: "changing", pid: process.pid, projectPath: "/cwd/after" }),
+      ]);
+
+      await scopedManager.listAgents();
+
+      const upserts = databaseOperations.filter((sql) => /^\s*INSERT INTO agents/i.test(sql));
+      const transactions = databaseOperations.filter((sql) => /^\s*(BEGIN|COMMIT)/i.test(sql));
+      expect(upserts).toHaveLength(0);
+      expect(transactions).toHaveLength(0);
+      expect(registry.lookup("changing")?.cwd).toBe("/cwd/before");
+    });
+
+    it("prunes newly dead entries only when the passive cadence is due", async () => {
+      registry.register({
+        name: "cadenced",
+        type: "claude",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/cwd/cadenced",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "sid-cadenced",
+        sessionFilePath: "",
+      });
+      const alive = vi.spyOn(registry, "isAlive").mockReturnValue(true);
+
+      await scopedManager.listAgents();
+      expect(alive).toHaveBeenCalledTimes(1);
+      alive.mockReturnValue(false);
+      nowMs += 29_999;
+
+      await scopedManager.listAgents();
+      expect(alive).toHaveBeenCalledTimes(1);
+      expect(registry.lookup("cadenced")).not.toBeNull();
+
+      nowMs += 1;
+      await scopedManager.listAgents();
+      expect(alive).toHaveBeenCalledTimes(2);
+      expect(registry.lookup("cadenced")).toBeNull();
+    });
+
+    it("does not inherit a name when the same pid is reused by another agent type", async () => {
+      registry.register({
+        name: "old-claude",
+        type: "claude",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: { session: "old-claude" },
+        cwd: "/cwd/old",
+        startedAt: "2026-05-30T00:00:00.000Z",
+        sessionId: "old-session",
+        sessionFilePath: "",
+      });
+      scopedManager.registerAdapter(
+        new MockAdapter("codex", [
+          createMockAgent({
+            name: "new-codex",
+            type: "codex",
+            pid: process.pid,
+            projectPath: "/cwd/new",
+            sessionId: "new-session",
+          }),
+        ]),
+      );
+
+      const agents = await scopedManager.listAgents();
+
+      expect(agents[0].name).toBe("new-codex");
+      expect(registry.lookup("old-claude")).toBeNull();
+      expect(registry.lookup("new-codex")).toMatchObject({ type: "codex", pid: process.pid });
+    });
+
+    it("skips registerBatch when no agents are detected and prune is not due", async () => {
+      const writeSpy = vi.spyOn(registry, "registerBatch");
+      const pruneSpy = vi.spyOn(registry, "pruneIfDue");
+
+      scopedManager.registerAdapter(new MockAdapter("claude", []));
+      await scopedManager.listAgents();
+      await scopedManager.listAgents();
+
+      expect(writeSpy).not.toHaveBeenCalled();
+      expect(pruneSpy).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("togglePin", () => {
+    it("resolves the agent name to its process identity and toggles the pin", () => {
+      const registry = new AgentRegistry(path.join(tmpDir, "toggle.json"));
+      const scopedManager = new AgentManager(registry);
+      registry.register({
+        name: "renamed-agent",
+        type: "claude",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/tmp",
+        startedAt: "2026-08-16T00:00:00.000Z",
+        sessionId: "session",
+        sessionFilePath: "",
+        pinned: false,
+      });
+
+      expect(scopedManager.togglePin("renamed-agent")).toBe(true);
+      expect(registry.lookup("renamed-agent")?.pinned).toBe(true);
+    });
+
+    it("reports when the agent is no longer running", () => {
+      expect(() => manager.togglePin("missing")).toThrow(/no longer running/i);
+    });
+
+    it("rejects a dead process and prunes its row", () => {
+      const registry = new AgentRegistry(path.join(tmpDir, "dead-toggle.json"));
+      const scopedManager = new AgentManager(registry);
+      registry.register({
+        name: "dead",
+        type: "claude",
+        pid: 999999,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/tmp",
+        startedAt: "2026-08-16T00:00:00.000Z",
+        sessionId: "session",
+        sessionFilePath: "",
+        pinned: false,
+      });
+
+      expect(() => scopedManager.togglePin("dead")).toThrow(/no longer running/i);
+      expect(registry.lookup("dead")).toBeNull();
+    });
+
+    it("surfaces a clear readonly mutation error", () => {
+      const regPath = path.join(tmpDir, "readonly-toggle.json");
+      const writable = new AgentRegistry(regPath);
+      writable.register({
+        name: "readonly-agent",
+        type: "claude",
+        pid: process.pid,
+        runtime: "tmux",
+        runtimeRef: null,
+        cwd: "/tmp",
+        startedAt: "2026-08-16T00:00:00.000Z",
+        sessionId: "session",
+        sessionFilePath: "",
+        pinned: false,
+      });
+      const readonlyManager = new AgentManager(new AgentRegistry(regPath, { readonly: true }));
+
+      expect(() => readonlyManager.togglePin("readonly-agent")).toThrow(
+        "Agent registry is readonly; cannot toggle pin.",
+      );
+    });
+  });
+
+  describe("clear", () => {
+    it("should remove all adapters", () => {
+      manager.registerAdapter(new MockAdapter("claude"));
+      manager.registerAdapter(new MockAdapter("gemini_cli"));
+
+      manager.clear();
+
+      expect(manager.getAdapterCount()).toBe(0);
+      expect(manager.getAdapters()).toEqual([]);
+    });
+  });
+
+  describe("listSessions", () => {
+    function createMockSession(overrides: Partial<SessionSummary> = {}): SessionSummary {
+      return {
+        type: "claude",
+        sessionId: "session-1",
+        cwd: "/repo",
+        firstUserMessage: "hello",
+        lastActive: new Date("2025-01-01T00:00:00Z"),
+        startedAt: new Date("2025-01-01T00:00:00Z"),
+        sessionFilePath: "/tmp/session-1.jsonl",
+        ...overrides,
+      };
+    }
+
+    it("returns empty array when no adapters are registered", async () => {
+      const result = await manager.listSessions();
+      expect(result).toEqual([]);
+    });
+
+    it("merges sessions from every registered adapter", async () => {
+      const claudeSession = createMockSession({ type: "claude", sessionId: "c1" });
+      const codexSession = createMockSession({ type: "codex", sessionId: "cx1" });
+      manager.registerAdapter(new MockAdapter("claude", [], false, [claudeSession]));
+      manager.registerAdapter(new MockAdapter("codex", [], false, [codexSession]));
+
+      const result = await manager.listSessions();
+
+      expect(result).toHaveLength(2);
+      expect(result.map((s) => s.sessionId).sort()).toEqual(["c1", "cx1"]);
+    });
+
+    it("sorts merged sessions by lastActive descending", async () => {
+      const older = createMockSession({
+        sessionId: "older",
+        lastActive: new Date("2025-01-01T00:00:00Z"),
+      });
+      const newer = createMockSession({
+        type: "codex",
+        sessionId: "newer",
+        lastActive: new Date("2025-06-01T00:00:00Z"),
+      });
+      manager.registerAdapter(new MockAdapter("claude", [], false, [older]));
+      manager.registerAdapter(new MockAdapter("codex", [], false, [newer]));
+
+      const result = await manager.listSessions();
+
+      expect(result.map((s) => s.sessionId)).toEqual(["newer", "older"]);
+    });
+
+    it("skips adapters whose type does not match opts.type", async () => {
+      const claudeAdapter = new MockAdapter("claude", [], false, [
+        createMockSession({ type: "claude", sessionId: "c1" }),
+      ]);
+      const codexAdapter = new MockAdapter("codex", [], false, [
+        createMockSession({ type: "codex", sessionId: "cx1" }),
+      ]);
+      manager.registerAdapter(claudeAdapter);
+      manager.registerAdapter(codexAdapter);
+
+      const result = await manager.listSessions({ type: "claude" });
+
+      expect(result).toHaveLength(1);
+      expect(result[0].sessionId).toBe("c1");
+      // Codex adapter must not have been called
+      expect(codexAdapter.lastListSessionsOpts).toBeUndefined();
+      expect(claudeAdapter.lastListSessionsOpts).toEqual({ type: "claude" });
+    });
+
+    it("tolerates an adapter that throws and still returns the others", async () => {
+      const goodSession = createMockSession({ sessionId: "good" });
+      manager.registerAdapter(new MockAdapter("claude", [], false, [goodSession]));
+      manager.registerAdapter(new MockAdapter("codex", [], false, [], true /* failListSessions */));
+
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+      try {
+        const result = await manager.listSessions();
+        expect(result).toHaveLength(1);
+        expect(result[0].sessionId).toBe("good");
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
+    });
+
+    it("passes the same opts to every called adapter", async () => {
+      const a = new MockAdapter("claude", [], false, []);
+      const b = new MockAdapter("codex", [], false, []);
+      manager.registerAdapter(a);
+      manager.registerAdapter(b);
+
+      await manager.listSessions({ cwd: "/Users/test/proj" });
+
+      expect(a.lastListSessionsOpts).toEqual({ cwd: "/Users/test/proj" });
+      expect(b.lastListSessionsOpts).toEqual({ cwd: "/Users/test/proj" });
+    });
+  });
+
+  describe("findSessionsById", () => {
+    const session = (type: AgentType, sessionId: string): SessionSummary => ({
+      type,
+      sessionId,
+      cwd: "/repo",
+      firstUserMessage: "hello",
+      lastActive: new Date("2025-01-01T00:00:00Z"),
+      startedAt: new Date("2025-01-01T00:00:00Z"),
+      sessionFilePath: `/tmp/${sessionId}`,
+    });
+
+    it("uses each built-in adapter direct lookup and preserves cross-provider ambiguity", async () => {
+      const claude = new MockAdapter("claude", [], false, [session("claude", "shared")]);
+      const codex = new MockAdapter("codex", [], false, [session("codex", "shared")]);
+      manager.registerAdapter(claude);
+      manager.registerAdapter(codex);
+
+      const result = await manager.findSessionsById("shared");
+
+      expect(result).toHaveLength(2);
+      expect(claude.findSessionsByIdCalls).toEqual(["shared"]);
+      expect(codex.findSessionsByIdCalls).toEqual(["shared"]);
+      expect(claude.lastListSessionsOpts).toBeUndefined();
+      expect(codex.lastListSessionsOpts).toBeUndefined();
+    });
+
+    it("skips non-matching harnesses when type is supplied", async () => {
+      const claude = new MockAdapter("claude", [], false, [session("claude", "target")]);
+      const codex = new MockAdapter("codex", [], false, [session("codex", "target")]);
+      manager.registerAdapter(claude);
+      manager.registerAdapter(codex);
+
+      const result = await manager.findSessionsById("target", { type: "codex" });
+
+      expect(result).toEqual([expect.objectContaining({ type: "codex", sessionId: "target" })]);
+      expect(claude.findSessionsByIdCalls).toEqual([]);
+      expect(codex.findSessionsByIdCalls).toEqual(["target"]);
+    });
+
+    it("falls back to filtered listing for external adapters without direct lookup", async () => {
+      const external = new MockAdapter("other", [], false, [
+        session("other", "target"),
+        session("other", "different"),
+      ]);
+      (external as Partial<AgentAdapter>).findSessionsById = undefined;
+      manager.registerAdapter(external);
+
+      const result = await manager.findSessionsById("target");
+
+      expect(result).toEqual([expect.objectContaining({ sessionId: "target" })]);
+      expect(external.lastListSessionsOpts).toEqual(undefined);
+    });
+  });
+
+  describe("resolveAgent", () => {
+    it("should return null for empty input or empty agents list", () => {
+      const agent = createMockAgent({ name: "test-agent" });
+      expect(manager.resolveAgent("", [agent])).toBeNull();
+      expect(manager.resolveAgent("test", [])).toBeNull();
+    });
+
+    it("should resolve exact match (case-insensitive)", () => {
+      const agent = createMockAgent({ name: "My-Agent" });
+      const agents = [agent, createMockAgent({ name: "Other" })];
+
+      // Exact match
+      expect(manager.resolveAgent("My-Agent", agents)).toBe(agent);
+      // Case-insensitive
+      expect(manager.resolveAgent("my-agent", agents)).toBe(agent);
+    });
+
+    it("should resolve unique partial match", () => {
+      const agent = createMockAgent({ name: "ai-devkit" });
+      const agents = [agent, createMockAgent({ name: "other-project" })];
+
+      const result = manager.resolveAgent("dev", agents);
+      expect(result).toBe(agent);
+    });
+
+    it("should return array for ambiguous partial match", () => {
+      const agent1 = createMockAgent({ name: "my-website" });
+      const agent2 = createMockAgent({ name: "my-app" });
+      const agents = [agent1, agent2, createMockAgent({ name: "other" })];
+
+      const result = manager.resolveAgent("my", agents);
+
+      expect(Array.isArray(result)).toBe(true);
+      const matches = result as AgentInfo[];
+      expect(matches).toHaveLength(2);
+      expect(matches).toContain(agent1);
+      expect(matches).toContain(agent2);
+    });
+
+    it("should return null for no match", () => {
+      const agents = [createMockAgent({ name: "ai-devkit" })];
+      expect(manager.resolveAgent("xyz", agents)).toBeNull();
+    });
+
+    it("should prefer exact match over partial matches", () => {
+      // Edge case: "test" matches "test" (exact) and "testing" (partial)
+      // Should return exact "test"
+      const exact = createMockAgent({ name: "test" });
+      const partial = createMockAgent({ name: "testing" });
+      const agents = [exact, partial];
+
+      expect(manager.resolveAgent("test", agents)).toBe(exact);
+    });
+  });
+});

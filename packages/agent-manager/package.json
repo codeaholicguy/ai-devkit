@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/agent-manager",
-  "version": "0.43.0",
+  "version": "0.44.0",
   "description": "Standalone agent detection and management utilities for AI DevKit",
   "keywords": [
     "agent",
@@ -15,6 +15,10 @@
     "url": "git+https://github.com/codeaholicguy/ai-devkit.git",
     "directory": "packages/agent-manager"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -30,12 +34,13 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "typecheck": "tsc --noEmit",
     "benchmark:cold-start": "npm run build && node scripts/benchmark-cold-start.mjs",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "better-sqlite3": "12.11.1",

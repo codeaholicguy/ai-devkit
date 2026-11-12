@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/memory",
-  "version": "0.20.5",
+  "version": "0.21.0",
   "description": "Local MCP memory for AI coding agents to reuse project decisions, conventions, and fixes across sessions",
   "keywords": [
     "agent",
@@ -47,11 +47,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "clean": "rm -rf dist",
-    "benchmark": "node --import 'ts-node/register/esm' scripts/benchmark.ts --items=5000 --searches=300"
+    "benchmark": "node --import 'ts-node/register/esm' scripts/benchmark.ts --items=5000 --searches=300",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@huggingface/tokenizers": "0.1.3",

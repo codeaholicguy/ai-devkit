@@ -1,6 +1,6 @@
 {
   "name": "@ai-devkit/daemon-client",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Thin client for the devkitd coordination daemon (unix socket, JSON-RPC, subscribe)",
   "license": "Apache-2.0",
   "repository": {
@@ -26,10 +26,11 @@
     "dev": "swc src -d dist --strip-leading-paths --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "lint": "oxlint src",
+    "lint": "oxlint src tests",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@swc/cli": "^0.8.1",
