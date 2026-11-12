@@ -1,11 +1,5 @@
 import { Command } from "commander";
-import {
-  AgentRegistry,
-  parseTmuxRuntimeRef,
-  stopAgent,
-  type AgentRuntimeProvider,
-  type AgentType,
-} from "@ai-devkit/agent-manager";
+import { AgentRegistry, parseTmuxRuntimeRef, stopAgent } from "@ai-devkit/agent-manager";
 import {
   DaemonRpcError,
   ensureDaemon,
@@ -19,7 +13,7 @@ import {
   reportAgentResolution,
   resolveAgentByName,
 } from "../../services/agent/resolve-agent.service.js";
-import { createAgentManager } from "./factory.js";
+import { createAgentManager, createDaemonEntryRegistry } from "./factory.js";
 import { formatStatus } from "./render.js";
 
 const debug = createLogger("agent:kill");
@@ -71,22 +65,10 @@ async function daemonKill(
     return "failed";
   }
   debug(`unregistered "${entry.name}"; tearing down ${entry.runtime} client-side`);
-  const registryEntry = {
-    name: entry.name,
-    type: entry.type as AgentType,
-    pid: entry.pid,
-    runtime: entry.runtime as AgentRuntimeProvider,
-    runtimeRef: entry.runtimeRef,
-    cwd: entry.cwd,
-    startedAt: "",
-    sessionId: "",
-    sessionFilePath: "",
-    pinned: entry.pinned,
-  };
   const result = await stopAgent(
     { name: entry.name, pid: entry.pid },
     {
-      registry: { lookup: () => registryEntry },
+      registry: createDaemonEntryRegistry(entry),
       // A dead registration's pid may have been recycled — never signal it;
       // only the runtime session/pane is torn down.
       killProcess: entry.alive ? undefined : () => {},

@@ -49,6 +49,5 @@ decision under `ai-devkit:agent:send`.
   `runtimeRef.session`); the daemon entry only selects the runtime. herdr uses
   the daemon's `runtimeRef` directly.
 - The daemon connection stays open through `--wait` and is closed afterwards.
-- The daemon-entry → `RegistryEntry` mapping is duplicated from `kill.command.ts`
-  to keep this change additive alongside the concurrent open/rename migrations;
-  worth extracting once those land.
+- The daemon-entry → `RegistryEntry` mapping is shared with `kill` via
+  `createDaemonEntryRegistry` in `commands/agent/factory.ts`.

@@ -1,11 +1,5 @@
 import { Command } from "commander";
-import {
-  AGENT_MODES,
-  AgentRegistry,
-  TerminalFocusManager,
-  type AgentRuntimeProvider,
-  type AgentType,
-} from "@ai-devkit/agent-manager";
+import { AGENT_MODES, AgentRegistry, TerminalFocusManager } from "@ai-devkit/agent-manager";
 import {
   DaemonRpcError,
   ensureDaemon,
@@ -27,7 +21,11 @@ import {
   createDefaultAgentGroupService,
 } from "../../services/agent/agent-group.service.js";
 import { resolveDurableAgentEntry } from "../../services/agent/resolve-agent.service.js";
-import { createAgentManager, createDurableAgentService } from "./factory.js";
+import {
+  createAgentManager,
+  createDaemonEntryRegistry,
+  createDurableAgentService,
+} from "./factory.js";
 
 const debug = createLogger("agent:send");
 
@@ -139,19 +137,7 @@ function createDaemonSendRouter(daemon: DaemonClient) {
       const entry = await lookup(agentName);
       if (!entry) return undefined;
       debug(`sending to "${entry.name}" via daemon ${entry.runtime} runtimeRef`);
-      const registryEntry = {
-        name: entry.name,
-        type: entry.type as AgentType,
-        pid: entry.pid,
-        runtime: entry.runtime as AgentRuntimeProvider,
-        runtimeRef: entry.runtimeRef,
-        cwd: entry.cwd,
-        startedAt: "",
-        sessionId: "",
-        sessionFilePath: "",
-        pinned: entry.pinned,
-      };
-      return { lookup: () => registryEntry };
+      return createDaemonEntryRegistry(entry);
     },
   };
 }

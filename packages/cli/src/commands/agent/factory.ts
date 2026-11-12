@@ -7,10 +7,12 @@ import {
   DurableAgentRepository,
   PiPrintAgentService,
   type AgentInfo,
+  type AgentRuntimeProvider,
+  type AgentType,
   type DurableProvider,
   type EnrichedAgentWire,
 } from "@ai-devkit/agent-manager";
-import { DaemonRpcError, ensureDaemon } from "@ai-devkit/daemon-client";
+import { DaemonRpcError, ensureDaemon, type AgentLookupResult } from "@ai-devkit/daemon-client";
 import { ConfigManager } from "../../lib/Config.js";
 import { createLogger } from "../../util/debug.js";
 import { getErrorMessage } from "../../util/text.js";
@@ -82,6 +84,26 @@ export async function listLiveAgents(
   const enriched = await fetchDaemonAgents(debug);
   if (!enriched) debug("local path: detecting agents with local adapters");
   return manager.listAgents({ enriched });
+}
+
+/**
+ * Registry view over one daemon agent.lookup entry, so stopAgent and
+ * sendAgentPrompt act client-side on the daemon's runtime + runtimeRef.
+ */
+export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentRegistry, "lookup"> {
+  const registryEntry = {
+    name: entry.name,
+    type: entry.type as AgentType,
+    pid: entry.pid,
+    runtime: entry.runtime as AgentRuntimeProvider,
+    runtimeRef: entry.runtimeRef,
+    cwd: entry.cwd,
+    startedAt: "",
+    sessionId: "",
+    sessionFilePath: "",
+    pinned: entry.pinned,
+  };
+  return { lookup: () => registryEntry };
 }
 
 export function createDurableAgentService(
