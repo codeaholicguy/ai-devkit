@@ -12,6 +12,7 @@ import {
   MCP_UNSUPPORTED_AGENTS,
   MEMORY_MCP_SERVER,
 } from "./memory-mcp/index.js";
+import { getEnvironment } from "../../util/env.js";
 import { getErrorMessage } from "../../util/text.js";
 
 const execFileAsync = promisify(execFile);
@@ -28,6 +29,10 @@ export const SUPPORTED_SETUP_AGENTS = [
   "opencode",
   "grok",
   "antigravity-cli",
+  "kiro",
+  "copilot",
+  "devin",
+  "muse",
 ] as const;
 
 export type SetupAgent = (typeof SUPPORTED_SETUP_AGENTS)[number];
@@ -207,6 +212,36 @@ const setupDefinitions: AgentSetupDefinition[] = [
     agent: "antigravity-cli",
     dotFolder: ".gemini/antigravity-cli",
     steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+  },
+  {
+    agent: "kiro",
+    dotFolder: ".kiro",
+    // Kiro has no EnvironmentCode or skill root; only probe memory MCP.
+    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+  },
+  {
+    agent: "copilot",
+    dotFolder: ".copilot",
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
+  },
+  {
+    agent: "devin",
+    dotFolder: ".config/devin",
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
+  },
+  {
+    agent: "muse",
+    dotFolder: ".config/muse",
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
 ];
 
@@ -388,12 +423,17 @@ async function defaultRunCommand(command: string, args: string[]): Promise<void>
 }
 
 async function defaultInstallBuiltInSkills(agent: SetupAgent): Promise<void> {
+  // Copilot uses the existing GitHub environment; Kiro has no skill environment.
+  const environment = agent === "copilot" ? "github" : agent;
+  if (environment === "kiro" || !getEnvironment(environment)?.globalSkillPath) {
+    throw new Error(`No global skill root defined for ${agent}.`);
+  }
   const skillService = new SkillService(new ConfigManager());
 
   for (const builtInSkill of await getBuiltinSkillNames()) {
     await skillService.addSkill(BUILTIN_SKILL_REGISTRY, builtInSkill, {
       global: true,
-      environments: [agent],
+      environments: [environment],
     });
   }
 }
