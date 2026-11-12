@@ -18,6 +18,9 @@
       "inputs": [
         "default",
         "^default"
+      ],
+      "dependsOn": [
+        "^build"
       ]
     },
     "lint": {
