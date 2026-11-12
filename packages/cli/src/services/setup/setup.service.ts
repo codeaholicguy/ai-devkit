@@ -27,6 +27,7 @@ export const SUPPORTED_SETUP_AGENTS = [
   "cursor",
   "opencode",
   "grok",
+  "antigravity-cli",
 ] as const;
 
 export type SetupAgent = (typeof SUPPORTED_SETUP_AGENTS)[number];
@@ -188,6 +189,11 @@ const setupDefinitions: AgentSetupDefinition[] = [
   {
     agent: "grok",
     dotFolder: ".grok",
+    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+  },
+  {
+    agent: "antigravity-cli",
+    dotFolder: ".gemini/antigravity-cli",
     steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
   },
 ];
