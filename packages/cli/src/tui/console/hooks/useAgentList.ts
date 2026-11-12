@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentInfo, AgentManager } from "@ai-devkit/agent-manager";
 import type { DaemonClient } from "@ai-devkit/daemon-client";
-import { attachDaemonRefresh } from "./agentListSubscription.js";
+import {
+  attachDaemonRefresh,
+  createWarmupRefresher,
+  isAgentStartEvent,
+} from "./agentListSubscription.js";
 
 export interface UseAgentListResult {
   agents: AgentInfo[];
@@ -123,9 +127,18 @@ export function useAgentList(
         void refresh();
       }, intervalMs);
     };
+    // Start events also schedule a few delayed refreshes: session files and
+    // status attribution land after the process appears, and no daemon event
+    // fires for them (#405). Steady-state poll stays relaxed.
+    const warmup = createWarmupRefresher(() => {
+      if (!disposed) void refresh();
+    });
     const attach = async (): Promise<void> => {
       const c = await attachDaemonRefresh(
-        () => void refresh(),
+        (event) => {
+          void refresh();
+          if (!disposed && isAgentStartEvent(event)) warmup.trigger();
+        },
         () => {
           if (disposed) return;
           clearInterval(handle);
@@ -156,6 +169,7 @@ export function useAgentList(
       mountedRef.current = false;
       clearInterval(handle);
       if (reconnect) clearTimeout(reconnect);
+      warmup.cancel();
       client?.close();
     };
   }, [intervalMs, paused, refresh]);
