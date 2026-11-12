@@ -31,7 +31,10 @@ daemon contact — unchanged.
    Found + alive → `sendAgentPrompt` with a registry backed by the daemon
    entry, so the existing tmux / herdr runtime sends client-side from the
    daemon's `runtime` + `runtimeRef`. Dead → refused as in step 1.
-4. `not_found` → the local `AgentRegistry` (unmanaged agents).
+4. `not_found` → the local `AgentRegistry`. The daemon also resolves names it
+   assigned to sweep-discovered (unregistered) agents, returning
+   `runtime=tmux`; delivery matches a local registry miss since the tmux
+   runtime sends by pid → terminal.
 5. No daemon / `unknown method` → legacy `sendAgentPrompt` path; no further
    lookups in that invocation.
 6. Other coded or transport errors → reported, exit 1, no local retry.
