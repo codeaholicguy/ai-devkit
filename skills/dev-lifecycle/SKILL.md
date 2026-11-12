@@ -23,8 +23,8 @@ Supporting skills:
 - `tdd` for implementation tasks.
 - `verify` before completing implementation, implementation checks, testing claims, and review readiness.
 - `dev-smoke` after Write Tests and before Code Review for user-facing changes.
-- `dev-simplify` after Implementation Check (phase 7) or before Code Review (phase 9) when the change is large or shows complexity smells (many new abstractions, repeated implementation friction, deep nesting). Interactive mode: offer the analysis and apply the plan only with user agreement. Autonomous mode: run the analysis always; apply the safe tier per Autonomous Operation; carry the rest as proposals in the PR.
-- `dev-retro` after Code Review or PR: interactive mode offers it and runs only with agreement; autonomous mode runs it and attaches the outcome to the PR or feature docs.
+- `dev-simplify` after Implementation Check (phase 7) or before Code Review (phase 9) when the change is large or shows complexity smells (many new abstractions, repeated implementation friction, deep nesting).
+- `dev-retro` after Code Review or PR: offer it, and run only if the user agrees.
 - `task` for optional progress tracing when the task command is usable.
 
 ## Startup Validation
@@ -65,7 +65,6 @@ Gate conversions while active:
 
 - Phase plan approval: proceed without pause while the plan stays inside the pre-approved feature scope; record the plan in the phase summary. Stop and ask on scope deviation, ambiguity, or destructive operations.
 - `dev-simplify`: always run the analysis (read-only). Auto-apply only the safe tier — no public/external API or contract changes, no new dependencies, full test suite green before and after, and `dev-smoke` parity at entry points when applicable. All other proposals go into the PR as "Proposed simplifications (not applied)" with before/after snippets.
-- `dev-retro`: run it; attach the outcome to the PR body or feature docs.
 - `dev-smoke`: unchanged — it is already criteria-based.
 
 Terminal condition: opening the PR ends the autonomous run. Never merge, publish, force-push, delete branches, or change repository settings autonomously; those remain explicitly human. Every phase still requires fresh verification evidence, and unmet validation gates stop the run with a blocker report instead of a degraded PR.
