@@ -1,4 +1,4 @@
-import { describe, it, expect, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as os from "node:os";
@@ -80,23 +80,30 @@ const sock = path.join(os.homedir(), ".ai-devkit", "daemon.sock");
 describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
   const spawned = bin!;
   const previousBin = process.env.DEVKITD_BIN;
-  process.env.DEVKITD_BIN = spawned;
+  const previousHome = process.env.HOME;
+  // Isolated HOME: the suite spawns and shuts down its own daemon and must
+  // never touch the user's ~/.ai-devkit/daemon.sock.
+  let tmpHome: string;
+
+  beforeAll(() => {
+    tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-int-home-"));
+    process.env.HOME = tmpHome;
+    process.env.DEVKITD_BIN = spawned;
+  });
 
   afterAll(async () => {
-    if (previousBin === undefined) delete process.env.DEVKITD_BIN;
-    else process.env.DEVKITD_BIN = previousBin;
-    // Leave the daemon running only if we didn't start it — send shutdown
-    // regardless is safer for test machines than leaking a process.
     const c = await DaemonClient.tryConnect();
     if (c) {
       await c.request("shutdown").catch(() => {});
       c.close();
     }
+    if (previousBin === undefined) delete process.env.DEVKITD_BIN;
+    else process.env.DEVKITD_BIN = previousBin;
+    if (previousHome === undefined) delete process.env.HOME;
+    else process.env.HOME = previousHome;
   });
 
   it("spawns the daemon on socket miss and returns a working client", async () => {
-    // If a daemon is already running from dev, this still passes: ensureDaemon
-    // short-circuits on a live socket. Either way we get a working client.
     // Cold spawn under repo-wide parallel test load can exceed 8s.
     const client = await ensureDaemon({ waitMs: 20000 });
     expect(client).not.toBeNull();
@@ -125,11 +132,9 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
   }, 30000);
 
   it("startAgent surfaces coded daemon errors", async () => {
-    // Isolated HOME guarantees a fresh devkitd at the current build — a
-    // stale user daemon on the real socket would answer "unknown method".
-    const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-home-"));
-    const prevHome = process.env.HOME;
-    process.env.HOME = tmpHome;
+    // A fresh isolated HOME guarantees a devkitd at the current build.
+    const suiteHome = process.env.HOME;
+    process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-home-"));
     try {
       const client = await ensureDaemon({ waitMs: 20000 });
       expect(client).not.toBeNull();
@@ -144,9 +149,17 @@ describe.runIf(bin != null)("ensureDaemon (real binary)", () => {
       await client!.request("shutdown").catch(() => {});
       client!.close();
     } finally {
-      if (prevHome === undefined) delete process.env.HOME;
-      else process.env.HOME = prevHome;
+      process.env.HOME = suiteHome;
     }
+  }, 30000);
+
+  it("daemon.status carries the build identity and pid", async () => {
+    const client = await ensureDaemon({ waitMs: 20000 });
+    expect(client).not.toBeNull();
+    const s = (await client!.request("daemon.status")) as Record<string, unknown>;
+    client!.close();
+    expect(s).toHaveProperty("buildVersion");
+    expect(typeof s.pid).toBe("number");
   }, 30000);
 });
 

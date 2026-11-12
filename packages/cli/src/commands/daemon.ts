@@ -45,6 +45,7 @@ export function registerDaemonCommand(program: Command): void {
         else {
           const s = status as Record<string, unknown>;
           console.log(`daemon: running (v${s.version}, pid-owned socket)`);
+          console.log(`build: ${s.buildVersion ?? "unknown (unstamped or older daemon)"}`);
           console.log(`started: ${new Date(s.startedAt as number).toISOString()}`);
           console.log(`socket: ${s.socket}`);
         }
