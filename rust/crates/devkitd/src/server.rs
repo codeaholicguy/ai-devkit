@@ -445,7 +445,8 @@ mod tests {
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::UnixStream;
 
-    async fn test_daemon() -> (Arc<Daemon>, PathBuf) {
+    /// A daemon that is not serving, so no discovery loop rewrites its cache.
+    fn unserved_daemon() -> (Arc<Daemon>, PathBuf) {
         static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let dir = std::env::temp_dir().join(format!(
             "aidk-srv-{}-{}",
@@ -456,6 +457,11 @@ mod tests {
         let sock = dir.join("d.sock");
         // Tests use the temp dir as home — no harness session trees there.
         let d = Arc::new(Daemon::new(&dir, sock.clone(), dir.clone()).unwrap());
+        (d, sock)
+    }
+
+    async fn test_daemon() -> (Arc<Daemon>, PathBuf) {
+        let (d, sock) = unserved_daemon();
         d.apply_sweep(); // warm the cache like main() does before serving
         let d2 = d.clone();
         tokio::spawn(async move {
@@ -620,7 +626,7 @@ mod tests {
 
     #[tokio::test]
     async fn agent_list_returns_cached_result() {
-        let (d, sock) = test_daemon().await;
+        let (_, sock) = test_daemon().await;
         let r = rpc(&sock, r#"{"id":1,"method":"agent.list"}"#).await;
         // Live sweep may surface real claude processes on the dev machine —
         // the contract is a bare array, not a wrapper.
@@ -628,7 +634,9 @@ mod tests {
         assert!(r["result"]["ported"].is_null());
 
         // The cache is what apply_sweep refreshes — write directly and
-        // verify the RPC serves exactly that.
+        // verify the RPC serves exactly that. Unserved: on a serving daemon
+        // the 2s discovery loop can overwrite the cache before the request.
+        let (d, _) = unserved_daemon();
         *d.enriched.write().unwrap() = vec![EnrichedAgent {
             name: "t".into(),
             agent_type: "claude".into(),
@@ -641,8 +649,10 @@ mod tests {
             pinned: None,
             session_file_path: None,
         }];
-        let r = rpc(&sock, r#"{"id":2,"method":"agent.list"}"#).await;
+        let req = serde_json::from_str(r#"{"id":2,"method":"agent.list"}"#).unwrap();
+        let r = serde_json::to_value(d.dispatch(req)).unwrap();
         assert_eq!(r["result"].as_array().unwrap().len(), 1);
+        assert_eq!(r["result"][0]["name"], "t");
         assert_eq!(r["result"][0]["type"], "claude");
     }
 
