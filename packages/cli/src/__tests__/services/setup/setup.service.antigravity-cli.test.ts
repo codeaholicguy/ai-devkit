@@ -78,8 +78,7 @@ describe("setup service antigravity-cli target", () => {
     const first = await createService().run({ agents: ["antigravity-cli"] });
     const second = await createService().run({ agents: ["antigravity-cli"] });
 
-    const shape = (results: typeof first.results) =>
-      results.map((result) => result.step).sort();
+    const shape = (results: typeof first.results) => results.map((result) => result.step).sort();
     expect(shape(second.results)).toEqual(shape(first.results));
     expect(second.results.every((result) => result.status !== "failed")).toBe(true);
   });
