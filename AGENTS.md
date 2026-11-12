@@ -17,10 +17,9 @@ Essential rules for AI agents working in this repository.
 
 - Each publishable package uses a `files` allowlist; the published artifact
   contains runtime code, declarations, and source maps (intentionally
-  shipped for debuggable stack traces) — but never compiled tests.
-- CI enforces this: the `Package Hygiene` job packs every package and fails
-  if any `__tests__` entry appears in a tarball, then installs the packed
-  CLI and smokes it.
+  shipped for debuggable stack traces) — but never compiled tests, which the
+  `tests/` placement guarantees structurally (tests are never in the build
+  input).
 - Versions are exact-pinned across workspace dependencies; bump them
   together (`cli` pins the other packages exactly).
 
