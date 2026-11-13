@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.76.1] - 2026-11-13
 
 - [924f6cc6](https://github.com/codeaholicguy/ai-devkit/pull/449) Shipped the devkitd daemon binary rebuild: daemon platform packages now include the live session-mapping fix, so cli installs run a daemon whose `agent list` carries session fields (0.76.0 skipped daemon-client, leaving the published binaries on the pre-fix build).
 

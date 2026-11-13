@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.76.0",
+  "version": "0.76.1",
   "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
   "keywords": [
     "ai",
@@ -43,7 +43,7 @@
   "dependencies": {
     "@ai-devkit/agent-manager": "0.44.1",
     "@ai-devkit/channel-connector": "0.15.0",
-    "@ai-devkit/daemon-client": "0.4.0",
+    "@ai-devkit/daemon-client": "0.4.1",
     "@ai-devkit/memory": "0.21.0",
     "@inquirer/prompts": "^8.5.2",
     "@typesafe-ai/sdk": "^0.6.0",
