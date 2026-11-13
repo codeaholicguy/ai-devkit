@@ -67,7 +67,7 @@ ai-devkit agent wait [--id <name>]... [--group <group>]
 | `--id` | none (all live agents) | Repeatable. Each identifier must resolve to exactly one agent via `manager.resolveAgent`, otherwise the command errors |
 | `--group` | none | Members resolve the same way as `--id`. Can't be combined with `--id` |
 | `--until` | `waiting,idle,exited` | Comma-separated. `appeared` only takes effect without `--id`/`--group` |
-| `--timeout` | `540000` | Parsed with `parseMilliseconds` |
+| `--timeout` | `300000` | Parsed with `parseMilliseconds` |
 | `--json` | off | Prints the result object |
 
 Exit codes: `0` for `triggered` and `timeout`. Non-zero, through `withErrorHandler`, for invalid options, unknown groups, or unresolved/ambiguous ids.
@@ -79,7 +79,7 @@ api-worker (claude, pid 123): running → waiting
 ui-worker (codex, pid 456): running → exited
 ```
 
-On timeout it prints `No matching agent changes within 540000ms.`
+On timeout it prints `No matching agent changes within 300000ms.`
 
 ## Component Breakdown
 

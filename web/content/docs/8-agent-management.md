@@ -183,7 +183,7 @@ Useful options:
 
 - `--id <name>` (repeatable) or `--group <name>` to watch only those agents (default: every running agent)
 - `--until <conditions>`: comma-separated `waiting`, `idle`, `exited`, `appeared` (default `waiting,idle,exited`; `appeared` only applies without `--id`/`--group`)
-- `--timeout <ms>`: maximum wait (default `540000`, 9 minutes, to stay under harness command limits)
+- `--timeout <ms>`: maximum wait (default `300000`, 5 minutes, to stay under harness command limits)
 - `-j, --json`: `{ reason, elapsedMs, changes[] }`, with each change carrying `name`, `type`, `pid`, `from`, `to`
 
 The command only fires on changes. An agent that is already waiting when the command starts does not end the wait; it has to move into the state. Changes picked up in the same daemon sweep are reported together; the wait usually returns about a second after the change. A timeout exits `0` with `reason: "timeout"`.

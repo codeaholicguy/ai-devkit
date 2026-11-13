@@ -1,6 +1,6 @@
 import type { AgentInfo } from "@ai-devkit/agent-manager";
 
-export const AGENT_WAIT_DEFAULT_TIMEOUT_MS = 540_000;
+export const AGENT_WAIT_DEFAULT_TIMEOUT_MS = 300_000;
 /** Safety re-check: covers no daemon, a dropped subscription, or a daemon without status events. */
 export const AGENT_WAIT_RECHECK_MS = 30_000;
 /**

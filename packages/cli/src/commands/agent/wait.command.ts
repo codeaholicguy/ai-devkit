@@ -85,7 +85,7 @@ function parseWaitTimeout(value: string | undefined): number {
   try {
     return parseMilliseconds(value, AGENT_WAIT_DEFAULT_TIMEOUT_MS).milliseconds;
   } catch (error) {
-    throw new Error(`Invalid --timeout. ${(error as Error).message} Example: 540000.`);
+    throw new Error(`Invalid --timeout. ${(error as Error).message} Example: 300000.`);
   }
 }
 
