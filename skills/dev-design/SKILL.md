@@ -29,7 +29,7 @@ Use for Phase 3.
 5. Check usage-first design: APIs, CLI flows, UI flows, and docs should optimize for their caller/user, not implementation convenience.
 6. Screen design red flags: shallow modules, pass-through layers, temporal decomposition, leaked transport/storage/framework types, scattered validation, synchronized flags, and repeated conditionals where a domain model would fit.
 7. Resolve every gap, misalignment, open question, hidden assumption, or unresolved trade-off between requirements and design.
-8. Brainstorm alternatives for key architecture decisions and trade-offs before accepting the first approach.
+8. Brainstorm alternatives for key architecture decisions and trade-offs before accepting the first approach. Compare options on: safer (preserves existing behavior, additive, small blast radius), simpler (fewer concepts, files, schema/API changes), more scalable (holds for future callers and paths). For each derived signal (events, caches, indexes), name its single owner and prefer deriving from data only that owner writes.
 9. Prefer subtract-before-add sequencing: delete obsolete paths, consolidate redundant concepts, and narrow scope before adding new structure.
 10. Update the design doc with clarified decisions and chosen options.
 11. Store reusable architecture decisions in memory.

@@ -27,7 +27,7 @@ Use for Phase 5.
 4. Present the task queue with status: `todo`, `in-progress`, `done`, `blocked`.
 5. For each task, show context, suggest relevant docs, and outline sub-steps from the design doc when useful.
 6. If task tracing is available, record current task progress and immediate next action per `task`.
-7. Reuse before writing: grep for existing utilities/functions before adding new ones. Reuse only if it fits cleanly.
+7. Reuse before writing: grep for existing utilities/functions before adding new ones. Reuse only if it fits cleanly and its documented preconditions hold for the new caller. When adding a writer to shared state, check every reader that infers meaning from that state.
 8. Subtract before adding: delete dead paths, redundant guards, stale tests, and one-caller wrappers when they are in task scope.
 9. Handle breaking changes carefully: update all in-repo callers atomically and delete the old internal API; for external/public/cross-service callers, add a new function and deprecate the old one.
 10. Model the domain when implementation friction repeats: replace synchronized flags, branch growth, or duplicated shape assumptions with the smallest domain structure that removes them.

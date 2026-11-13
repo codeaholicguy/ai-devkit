@@ -32,10 +32,11 @@ Use for Phase 9. Take a holistic review stance: findings first, ordered by sever
 10. Check dependency health, including circular dependencies or version conflicts from new imports.
 11. Check breaking changes. For public/external APIs, recommend parallel change and deprecation over in-place mutation. For in-repo-only callers, all callers should be migrated and legacy APIs deleted.
 12. Check rollback safety, especially irreversible migrations or one-way data/state changes.
-13. Review file by file for correctness, logic, edge cases, redundancy, security, performance, error handling, and test coverage.
-14. Check cross-cutting concerns: naming conventions, documentation updates, missing tests, config/migration changes.
-15. Summarize blocking issues, important follow-ups, and nice-to-haves. Per finding include file, issue, impact severity, and recommendation.
-16. If task tracing is available, add blockers and set `blocked` for blocking findings; if review passes with final evidence, close the task per `task`.
-17. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
+13. For bug fixes, check the fix lands at the owner of the broken invariant, not only at the caller that triggered it; flag other paths that can still violate it.
+14. Review file by file for correctness, logic, edge cases, redundancy, security, performance, error handling, and test coverage.
+15. Check cross-cutting concerns: naming conventions, documentation updates, missing tests, config/migration changes.
+16. Summarize blocking issues, important follow-ups, and nice-to-haves. Per finding include file, issue, impact severity, and recommendation.
+17. If task tracing is available, add blockers and set `blocked` for blocking findings; if review passes with final evidence, close the task per `task`.
+18. Complete final checklist: design match, no logic gaps, security addressed, integration points verified, tests cover changes, docs updated.
 
 Done: if the checklist passes, the feature is ready to push and create a PR. If blocking issues remain, return to `dev-implementation` or `dev-testing`.

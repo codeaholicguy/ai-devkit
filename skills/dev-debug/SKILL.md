@@ -30,6 +30,7 @@ For each hypothesis, include:
 
 4. Plan
 - Present fix options with risks and verification steps.
+- Compare options on: safer (preserves existing behavior, additive, small blast radius), simpler (fewer concepts, files, schema/API changes), more scalable (holds for future callers and paths: fixes the class, not one path). If the first option loses on any of these, look for another before recommending.
 - Recommend one option and request approval.
 
 ## Validation
@@ -54,6 +55,7 @@ unavailable.
 | "I already know the cause" | Assumptions skip evidence | Reproduce and prove it first |
 | "This is urgent, just fix it" | A wrong fix wastes more time | 10 minutes of diagnosis saves hours |
 | "The fix is obvious from the stack trace" | Stack traces show symptoms, not causes | Trace backward to the root cause |
+| "Fix the caller that triggered it" | Other paths can break the same invariant later | List every path that can violate it; fix at the owner |
 
 ## Output Template
 Use this response structure:
