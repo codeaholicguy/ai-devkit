@@ -3,9 +3,10 @@ use devkit_core::agent::EnrichedAgent;
 use devkit_core::proto::{Event, Request, Response};
 use devkit_core::store::{chrono_now, Store};
 use serde_json::{json, Value};
+use std::collections::HashSet;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::broadcast;
@@ -24,6 +25,10 @@ pub struct Daemon {
     /// Fully attributed agents refreshed per sweep so `agent.list` is
     /// O(1) over a prebuilt list.
     pub enriched: RwLock<Vec<EnrichedAgent>>,
+    /// Pids observed by the previous sweep. Disappearance is diffed against
+    /// this as well as the store, so an RPC that deletes a row before its
+    /// process dies (agent.unregister on kill) can't swallow the event.
+    swept_pids: Mutex<HashSet<i64>>,
     /// User home dir adapters resolve session trees (~/.claude, …) against.
     pub home: PathBuf,
     /// Serializes agent.start so name-uniqueness can't race.
@@ -72,6 +77,7 @@ impl Daemon {
             socket_path,
             enricher: devkit_harness::default_registry(&home),
             enriched: RwLock::new(Vec::new()),
+            swept_pids: Mutex::new(HashSet::new()),
             home,
             start_mutex: std::sync::Mutex::new(()),
         })
@@ -245,7 +251,11 @@ impl Daemon {
         // one, so its event payload carries last-known agent info.
         let prev = std::mem::replace(&mut *self.enriched.write().unwrap(), enriched);
         match self.store.apply_agent_snapshot(&procs) {
-            Ok((appeared, gone)) => {
+            Ok((appeared, db_gone)) => {
+                let cur_pids: HashSet<i64> = procs.iter().map(|p| p.pid).collect();
+                let prev_pids =
+                    std::mem::replace(&mut *self.swept_pids.lock().unwrap(), cur_pids.clone());
+                let gone = vanished_pids(db_gone, &prev_pids, &cur_pids);
                 let cur = self.enriched.read().unwrap();
                 // Disappeared first: on pid reuse the stale identity must
                 // leave before the fresh one arrives or subscribers see them
@@ -276,6 +286,18 @@ fn lifecycle_payload(pid: i64, agents: &[EnrichedAgent]) -> Value {
         "pid": pid,
         "agents": agents.iter().filter(|a| a.pid as i64 == pid).collect::<Vec<_>>(),
     })
+}
+
+/// Pids to report as `agent.disappeared`: the store diff (covers pid reuse
+/// and rows left over from before a daemon restart) plus pids the previous
+/// sweep saw that this one didn't (covers rows deleted mid-interval, which
+/// the store diff can no longer see). Sorted and deduplicated.
+fn vanished_pids(db_gone: Vec<i64>, prev: &HashSet<i64>, cur: &HashSet<i64>) -> Vec<i64> {
+    let mut gone = db_gone;
+    gone.extend(prev.difference(cur));
+    gone.sort_unstable();
+    gone.dedup();
+    gone
 }
 
 /// Payloads for `agent.status_changed`: one per (pid, session) row present in
@@ -855,6 +877,37 @@ mod tests {
             .iter()
             .all(|a| a["pid"] != json!(7)));
         assert!(session_attaches(&cur, &cur, &[]).is_empty());
+    }
+
+    #[test]
+    fn vanished_pids_covers_rows_removed_before_the_sweep() {
+        let set = |pids: &[i64]| pids.iter().copied().collect::<HashSet<i64>>();
+        let (d, _sock) = unserved_daemon();
+        let proc = |pid: i64| devkit_core::discover::AgentProc {
+            pid,
+            ppid: None,
+            tty: None,
+            command: Some("codex".into()),
+            cwd: None,
+            session_file: None,
+            start_time_ms: Some(1000),
+        };
+        d.store.apply_agent_snapshot(&[proc(10)]).unwrap();
+        d.store
+            .register_start(10, "kill-me", "codex", "/tmp", "tmux", &json!({}))
+            .unwrap();
+        // agent kill: unregister deletes the row, then the process dies.
+        d.store.unregister(10).unwrap();
+        let (_appeared, db_gone) = d.store.apply_agent_snapshot(&[]).unwrap();
+        assert!(db_gone.is_empty(), "store diff alone misses the kill");
+        assert_eq!(vanished_pids(db_gone, &set(&[10]), &set(&[])), vec![10]);
+
+        // Plain disappearance reported by both sides: one event, not two.
+        assert_eq!(vanished_pids(vec![11], &set(&[11]), &set(&[])), vec![11]);
+        // Pid reuse: still present this sweep, only the store diff knows.
+        assert_eq!(vanished_pids(vec![12], &set(&[12]), &set(&[12])), vec![12]);
+        // Nothing gone.
+        assert!(vanished_pids(vec![], &set(&[13]), &set(&[13])).is_empty());
     }
 
     #[tokio::test]
