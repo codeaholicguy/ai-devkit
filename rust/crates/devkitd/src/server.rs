@@ -253,11 +253,14 @@ impl Daemon {
                 for pid in gone {
                     self.emit("agent.disappeared", lifecycle_payload(pid, &prev));
                 }
-                for pid in appeared {
+                for &pid in &appeared {
                     self.emit("agent.appeared", lifecycle_payload(pid, &cur));
                 }
                 for payload in status_changes(&prev, &cur) {
                     self.emit("agent.status_changed", payload);
+                }
+                for payload in session_attaches(&prev, &cur, &appeared) {
+                    self.emit("agent.session_attached", payload);
                 }
             }
             Err(e) => tracing::warn!("agent snapshot apply failed: {e:#}"),
@@ -292,6 +295,31 @@ fn status_changes(prev: &[EnrichedAgent], cur: &[EnrichedAgent]) -> Vec<Value> {
                     "to": a.status,
                     "agent": a,
                 })
+            })
+        })
+        .collect()
+}
+
+/// Payloads for `agent.session_attached`: one per session-backed row of a
+/// pid seen last sweep that had no row with that session id. Covers a
+/// session file landing after the process appeared (#405) and a new session
+/// on a live pid; status_changes misses both because the session id moved.
+/// Pids in `appeared` are skipped: agent.appeared already carries them.
+fn session_attaches(prev: &[EnrichedAgent], cur: &[EnrichedAgent], appeared: &[i64]) -> Vec<Value> {
+    cur.iter()
+        .filter(|a| a.session_file_path.is_some() && !appeared.contains(&(a.pid as i64)))
+        .filter(|a| prev.iter().any(|p| p.pid == a.pid))
+        .filter(|a| {
+            !prev
+                .iter()
+                .any(|p| p.pid == a.pid && p.session_id == a.session_id)
+        })
+        .map(|a| {
+            json!({
+                "pid": a.pid,
+                "sessionId": a.session_id,
+                "sessionFilePath": a.session_file_path,
+                "agent": a,
             })
         })
         .collect()
@@ -780,6 +808,53 @@ mod tests {
         assert_eq!(changes[0]["agent"]["status"], "waiting");
 
         assert!(status_changes(&cur, &cur).is_empty());
+    }
+
+    #[test]
+    fn session_attaches_reports_new_session_rows_of_known_pids() {
+        let row = |pid: u64, sid: &str, file: Option<&str>| EnrichedAgent {
+            name: "n".into(),
+            agent_type: "codex".into(),
+            status: "waiting".into(),
+            summary: String::new(),
+            pid,
+            project_path: "/p".into(),
+            session_id: sid.into(),
+            last_active: "t".into(),
+            pinned: None,
+            session_file_path: file.map(Into::into),
+        };
+        let prev = vec![
+            row(7, "pid-7", None),
+            row(8, "s-8", Some("/s/8.jsonl")),
+            row(9, "s-9", Some("/s/9.jsonl")),
+            row(11, "pid-11", None),
+        ];
+        let cur = vec![
+            // Session file landed after the process appeared.
+            row(7, "s-7", Some("/s/7.jsonl")),
+            // Unchanged session.
+            row(8, "s-8", Some("/s/8.jsonl")),
+            // New session on a live pid (e.g. /clear).
+            row(9, "s-9b", Some("/s/9b.jsonl")),
+            // Brand-new pid: covered by agent.appeared.
+            row(10, "s-10", Some("/s/10.jsonl")),
+            // Reused pid: covered by agent.appeared.
+            row(11, "s-11", Some("/s/11.jsonl")),
+        ];
+
+        let attached = session_attaches(&prev, &cur, &[10, 11]);
+        let pids: Vec<_> = attached.iter().map(|a| a["pid"].clone()).collect();
+        assert_eq!(pids, vec![json!(7), json!(9)]);
+        assert_eq!(attached[0]["sessionId"], "s-7");
+        assert_eq!(attached[0]["sessionFilePath"], "/s/7.jsonl");
+        assert_eq!(attached[0]["agent"]["sessionFilePath"], "/s/7.jsonl");
+
+        // Losing a session file is not an attach.
+        assert!(session_attaches(&cur, &prev, &[])
+            .iter()
+            .all(|a| a["pid"] != json!(7)));
+        assert!(session_attaches(&cur, &cur, &[]).is_empty());
     }
 
     #[tokio::test]
