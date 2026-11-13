@@ -112,6 +112,9 @@ Not every phase moves forward. When a phase reveals problems, route back:
 - Testing reveals design flaws: return to `dev-design`.
 - Review finds blocking issues: return to `dev-implementation` or `dev-testing`.
 - Smoke check finds a regression: return to `dev-implementation`.
+- User requests changes after review: return to `dev-implementation` (or the earlier phase the change needs).
+
+When task tracing is available, record every backward transition with `task phase`, and with `task feedback` when it comes from user or review feedback (see `task` Rework).
 
 ## Rules
 
