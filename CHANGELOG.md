@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [2f4bdcce](https://github.com/codeaholicguy/ai-devkit/pull/450) Required explicit loading of lifecycle sub-skills in `dev-lifecycle` so each phase runs its own skill instructions instead of relying on the orchestrator's summary.
+- [7f2cad28](https://github.com/codeaholicguy/ai-devkit/pull/451) Task tracking now records feedback and rework loops, so rework cycles and reviewer feedback stay attached to the task record.
+- [b580a715](https://github.com/codeaholicguy/ai-devkit/pull/448) Added the event-driven `agent wait` command: it blocks until a running agent changes state (waiting, idle, exited, or appeared).
+- [924f6cc6](https://github.com/codeaholicguy/ai-devkit/pull/449) Fixed live session resolution: the pi-session-tracker extension writes session files via plain-file read-modify-write, devkitd sweeps harness mapping files to map pids to session files, and the devkitd `agent list` answer is now authoritative for sessions.
+- [320d769f](https://github.com/codeaholicguy/ai-devkit/pull/447) Routed `agent open` through the devkitd daemon lookup instead of resolving agents locally.
+- [0e787706](https://github.com/codeaholicguy/ai-devkit/pull/452) Fixed the console missing sessions attached after startup: devkitd now emits `agent.session_attached` so late session files are picked up.
+
 ## [0.75.0] - 2026-11-12
 
 - [8b38a8c](https://github.com/codeaholicguy/ai-devkit/pull/446) Published runtime-only packages with explicit file allowlists, moved tests outside build inputs, and aligned package versions for a clean release.
