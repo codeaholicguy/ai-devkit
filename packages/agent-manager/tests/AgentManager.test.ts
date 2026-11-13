@@ -491,8 +491,10 @@ describe("AgentManager", () => {
       ...overrides,
     });
 
-    it("serves agents from the daemon and skips all local adapters", async () => {
-      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+    it("serves daemon rows and still runs local adapters", async () => {
+      const local = new MockAdapter("claude", [
+        createMockAgent({ name: "local-claude", pid: 777 }),
+      ]);
       const detectSpy = vi.spyOn(local, "detectAgents");
       const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
         fetchEnrichedAgents: async () => [wireAgent()],
@@ -500,10 +502,85 @@ describe("AgentManager", () => {
       m.registerAdapter(local);
 
       const agents = await m.listAgents();
-      expect(detectSpy).not.toHaveBeenCalled();
+      expect(detectSpy).toHaveBeenCalled();
       expect(agents).toHaveLength(1);
       expect(agents[0].name).toBe("daemon-claude");
       expect(agents[0].lastActive).toEqual(new Date("2026-10-08T12:00:00.000Z"));
+    });
+
+    it("corrects stale daemon session info from local mapping-file resolution", async () => {
+      // Daemon still resolves the pi agent to the dead session file; the
+      // local adapter (tracker mapping file first) sees the restart.
+      const local = new MockAdapter("pi", [
+        createMockAgent({
+          name: "local-pi",
+          type: "pi",
+          pid: 900,
+          status: AgentStatus.RUNNING,
+          summary: "new session",
+          sessionId: "live-sid",
+          sessionFilePath: "/home/.pi/agent/sessions/x/live.jsonl",
+          lastActive: new Date("2026-11-12T10:00:00.000Z"),
+        }),
+      ]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [
+          wireAgent({
+            type: "pi",
+            name: "daemon-pi",
+            pid: 900,
+            sessionId: "dead-sid",
+            sessionFilePath: "/home/.pi/agent/sessions/x/dead.jsonl",
+          }),
+        ],
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents();
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        name: "daemon-pi",
+        pid: 900,
+        sessionId: "live-sid",
+        sessionFilePath: "/home/.pi/agent/sessions/x/live.jsonl",
+        summary: "new session",
+        status: AgentStatus.RUNNING,
+      });
+    });
+
+    it("keeps daemon session info when the local row is process-only", async () => {
+      const local = new MockAdapter("pi", [
+        createMockAgent({ name: "local-pi", type: "pi", pid: 901, sessionId: "pid-901" }),
+      ]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [
+          wireAgent({
+            type: "pi",
+            pid: 901,
+            sessionId: "daemon-sid",
+            sessionFilePath: "/s/daemon.jsonl",
+          }),
+        ],
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents();
+      expect(agents).toHaveLength(1);
+      expect(agents[0]).toMatchObject({
+        sessionId: "daemon-sid",
+        sessionFilePath: "/s/daemon.jsonl",
+      });
+    });
+
+    it("adds agents only local detection found", async () => {
+      const local = new MockAdapter("claude", [createMockAgent({ name: "local-only", pid: 1234 })]);
+      const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
+        fetchEnrichedAgents: async () => [wireAgent()],
+      });
+      m.registerAdapter(local);
+
+      const agents = await m.listAgents();
+      expect(agents.map((a) => a.name).sort()).toEqual(["daemon-claude", "local-only"]);
     });
 
     it("falls back to all-local when the daemon returns null", async () => {
@@ -526,10 +603,12 @@ describe("AgentManager", () => {
       expect(agents.map((a) => a.name)).toEqual(["local-claude"]);
     });
 
-    it("serves every type from the daemon in one sweep", async () => {
-      const claudeLocal = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
+    it("merges every type from the daemon with local detection", async () => {
+      const claudeLocal = new MockAdapter("claude", [
+        createMockAgent({ name: "local-claude", pid: 777, sessionId: "daemon-sid" }),
+      ]);
       const codexLocal = new MockAdapter("codex", [
-        createMockAgent({ name: "local-codex", type: "codex" }),
+        createMockAgent({ name: "local-codex", type: "codex", pid: 888, sessionId: "daemon-sid" }),
       ]);
       const claudeSpy = vi.spyOn(claudeLocal, "detectAgents");
       const codexSpy = vi.spyOn(codexLocal, "detectAgents");
@@ -543,8 +622,8 @@ describe("AgentManager", () => {
       m.registerAdapter(codexLocal);
 
       const agents = await m.listAgents();
-      expect(claudeSpy).not.toHaveBeenCalled();
-      expect(codexSpy).not.toHaveBeenCalled();
+      expect(claudeSpy).toHaveBeenCalled();
+      expect(codexSpy).toHaveBeenCalled();
       expect(agents.map((a) => a.name).sort()).toEqual(["daemon-claude", "daemon-codex"]);
     });
 
@@ -568,8 +647,9 @@ describe("AgentManager", () => {
     });
 
     it("uses a caller-supplied daemon list instead of fetching", async () => {
-      const local = new MockAdapter("claude", [createMockAgent({ name: "local-claude" })]);
-      const detectSpy = vi.spyOn(local, "detectAgents");
+      const local = new MockAdapter("claude", [
+        createMockAgent({ name: "local-claude", pid: 777, sessionId: "daemon-sid" }),
+      ]);
       const fetchSpy = vi.fn(async () => [wireAgent({ name: "fetched" })]);
       const m = new AgentManager(new AgentRegistry(path.join(tmpDir, "agents.json")), undefined, {
         fetchEnrichedAgents: fetchSpy,
@@ -578,7 +658,6 @@ describe("AgentManager", () => {
 
       const agents = await m.listAgents({ enriched: [wireAgent()] });
       expect(fetchSpy).not.toHaveBeenCalled();
-      expect(detectSpy).not.toHaveBeenCalled();
       expect(agents.map((a) => a.name)).toEqual(["daemon-claude"]);
     });
 

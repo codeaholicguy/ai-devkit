@@ -21,6 +21,8 @@
     "README.md"
   ],
   "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check"
   },

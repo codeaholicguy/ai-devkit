@@ -2,79 +2,50 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
-import * as net from "node:net";
 
 type SessionRegistry = Record<string, string>;
 
-const registryFile = path.join(os.homedir(), ".pi", "agent", "sessions.json");
-const daemonSock = path.join(os.homedir(), ".ai-devkit", "daemon.sock");
+// pid → session file map that ai-devkit (CLI adapters and devkitd's sweep)
+// reads to resolve which session a running pi process is on. Plain
+// read-modify-write, the same model as the codex session-mapping hook: there
+// is no daemon RPC path, so an entry can never be silently dropped by a
+// daemon that does not implement it.
+function registryFile(): string {
+  return path.join(os.homedir(), ".pi", "agent", "sessions.json");
+}
 
-function readRegistry(): SessionRegistry {
+function readRegistry(file: string): SessionRegistry {
   try {
-    return JSON.parse(fs.readFileSync(registryFile, "utf8"));
+    const parsed: unknown = JSON.parse(fs.readFileSync(file, "utf8"));
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as SessionRegistry)
+      : {};
   } catch {
     return {};
   }
 }
 
-function writeRegistry(data: SessionRegistry): void {
-  fs.mkdirSync(path.dirname(registryFile), { recursive: true });
-  fs.writeFileSync(registryFile, JSON.stringify(data, null, 2), "utf8");
-}
-
-// Daemon-first store: when devkitd is listening, registry entries go through
-// its sole-writer SQLite — two pi agents starting together can't lose entries.
-// Falls back to the legacy sessions.json RMW when the daemon is absent.
-function daemonRequest(method: string, params: Record<string, unknown>): Promise<boolean> {
-  return new Promise((resolve) => {
-    const socket = net.createConnection(daemonSock);
-    const timer = setTimeout(() => {
-      socket.destroy();
-      resolve(false);
-    }, 1000);
-    socket.once("connect", () => {
-      socket.write(JSON.stringify({ id: 1, method, params }) + "\n");
-    });
-    socket.once("data", () => {
-      clearTimeout(timer);
-      socket.destroy();
-      resolve(true);
-    });
-    socket.once("error", () => {
-      clearTimeout(timer);
-      resolve(false);
-    });
-  });
+// Write to a sibling temp file and rename so concurrent readers never see a
+// truncated JSON document.
+function writeRegistry(file: string, data: SessionRegistry): void {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = `${file}.${process.pid}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
+  fs.renameSync(tmp, file);
 }
 
 export default function (pi: ExtensionAPI) {
   pi.on("session_start", async (_event, ctx) => {
-    const pid = String(process.pid);
-    const sessionFile = ctx.sessionManager.getSessionFile() ?? "ephemeral";
-
-    const viaDaemon = await daemonRequest("registry.put", {
-      scope: "pi-sessions",
-      name: pid,
-      value: sessionFile,
-    });
-    if (!viaDaemon) {
-      const registry = readRegistry();
-      registry[pid] = sessionFile;
-      writeRegistry(registry);
-    }
+    const file = registryFile();
+    const registry = readRegistry(file);
+    registry[String(process.pid)] = ctx.sessionManager.getSessionFile() ?? "ephemeral";
+    writeRegistry(file, registry);
   });
 
   pi.on("session_shutdown", async (_event, _ctx) => {
-    const pid = String(process.pid);
-
-    const viaDaemon = await daemonRequest("registry.delete", {
-      scope: "pi-sessions",
-      name: pid,
-    });
-    if (!viaDaemon) {
-      const registry = readRegistry();
-      delete registry[pid];
-      writeRegistry(registry);
-    }
+    const file = registryFile();
+    const registry = readRegistry(file);
+    delete registry[String(process.pid)];
+    writeRegistry(file, registry);
   });
 }

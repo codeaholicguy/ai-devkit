@@ -139,6 +139,78 @@ describe("PiAdapter", () => {
     expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
   });
 
+  it("prefers the tracker session over a stale registry-cache row after a session restart", async () => {
+    const cwd = "/repo/project-restart";
+    const proc = makeProcess({ pid: 105, cwd });
+    // The dead session still exists on disk — the case where a cache-first
+    // order kept resolving to it forever.
+    const staleFile = writePiSessionWithFileName(cwd, "stale.jsonl", [
+      { type: "session_meta", timestamp: "2026-06-10T08:00:00.000Z", sessionId: "sess-old", cwd },
+      { role: "user", timestamp: "2026-06-10T08:00:01.000Z", content: "old session" },
+    ]);
+    const freshFile = writePiSessionWithFileName(cwd, "fresh.jsonl", [
+      { type: "session_meta", timestamp: "2026-06-10T09:00:00.000Z", sessionId: "sess-new", cwd },
+      { role: "user", timestamp: "2026-06-10T09:00:01.000Z", content: "new session" },
+    ]);
+    const registry = new AgentRegistry(path.join(tmpHome, "agents.json"));
+    registry.register({
+      name: "pi-restart",
+      type: "pi",
+      pid: 105,
+      runtime: "tmux",
+      runtimeRef: null,
+      cwd,
+      startedAt: "2026-06-10T08:00:00.000Z",
+      sessionId: "sess-old",
+      sessionFilePath: staleFile,
+      pinned: false,
+    });
+    adapter = new PiAdapter(registry);
+    writeTracker({ 105: freshFile });
+    mockedCaptureProcessSnapshot.mockResolvedValue([proc]);
+
+    const agents = await adapter.detectAgents();
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      pid: 105,
+      sessionId: "sess-new",
+      sessionFilePath: freshFile,
+      summary: "new session",
+    });
+  });
+
+  it("falls back to the registry cache when the tracker has no entry for the PID", async () => {
+    const cwd = "/repo/project-cache";
+    const proc = makeProcess({ pid: 106, cwd });
+    const cachedFile = writePiSessionWithFileName(cwd, "cached.jsonl", [
+      { type: "session_meta", timestamp: "2026-06-10T08:00:00.000Z", sessionId: "sess-c", cwd },
+      { role: "user", timestamp: "2026-06-10T08:00:01.000Z", content: "cached session" },
+    ]);
+    const registry = new AgentRegistry(path.join(tmpHome, "agents.json"));
+    registry.register({
+      name: "pi-cache",
+      type: "pi",
+      pid: 106,
+      runtime: "tmux",
+      runtimeRef: null,
+      cwd,
+      startedAt: "2026-06-10T08:00:00.000Z",
+      sessionId: "sess-c",
+      sessionFilePath: cachedFile,
+      pinned: false,
+    });
+    adapter = new PiAdapter(registry);
+    writeTracker({ 999: cachedFile });
+    mockedCaptureProcessSnapshot.mockResolvedValue([proc]);
+
+    const agents = await adapter.detectAgents();
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({ pid: 106, sessionFilePath: cachedFile });
+    expect(mockedMatchProcessesToSessions).not.toHaveBeenCalled();
+  });
+
   it("falls back to legacy matching when sessions.json is missing", async () => {
     const cwd = "/repo/project-b";
     const proc = makeProcess({ pid: 202, cwd });
