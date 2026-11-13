@@ -12,8 +12,8 @@ Run implementation work for configured AI docs features. Before changing docs or
 1. Run `npx ai-devkit@latest lint` before phase work.
 2. If working on a named feature, run `npx ai-devkit@latest lint --feature <name>`.
 3. Read requirements, design, planning, implementation, and testing docs before changes.
-4. Use the `tdd` skill while executing implementation tasks: write a failing test before production code, then make it pass.
-5. Apply the `verify` skill before completing tasks or making implementation alignment claims.
+4. Load `tdd` with your skill tool before writing code for any implementation task.
+5. Load `verify` with your skill tool before completing tasks or making implementation alignment claims.
 6. Keep testing and implementation docs in lockstep with code. Do not defer all doc updates to final verification.
 7. If parent `dev-lifecycle` established usable task tracing, emit phase, progress, next-step, blocker, and evidence events per `task`.
 
@@ -36,7 +36,7 @@ Use for Phase 5.
 13. After each section, ask if new tasks were discovered.
 14. Summarize completed, in-progress, blocked, skipped, new tasks, task-tracing events emitted or why tracing was unavailable, and doc deltas.
 
-Next: after completing any task, run `dev-planning` Phase 6. When all tasks are done, run Check Implementation, then `dev-testing`, `dev-smoke` for affected user flows, and `dev-review`.
+Next: after completing any task, run `dev-planning` Phase 6. When all tasks are done, run Check Implementation, then `dev-testing`, `dev-smoke` when the change touches a user-facing entry point, and `dev-review`.
 
 ## Check Implementation
 
@@ -48,6 +48,7 @@ Use for Phase 7.
 4. Review file by file: verify design intent, note deviations, flag logic gaps, edge cases, security issues, and missing tests or doc updates.
 5. Treat repeated implementation friction as a redesign signal, not another patch, and return to design when the model no longer fits.
 6. Finalize the implementation doc. Verify it captures what shipped, fill gaps, and record follow-ups.
-7. Summarize alignment status, deviations with severity, missing pieces, concerns, and next steps.
+7. Load `dev-simplify` with your skill tool for an analysis-only pass over the change. Apply its changes only if it finds something worth fixing and the user or plan allows.
+8. Summarize alignment status, deviations with severity, missing pieces, simplification findings, concerns, and next steps.
 
 Next: `dev-testing`, then `dev-review`. If major deviations exist, return to `dev-design` if design is wrong or Execute Plan if implementation is wrong.

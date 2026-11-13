@@ -12,7 +12,7 @@ Run testing work for configured AI docs features. Before changing docs or code, 
 1. Run `npx ai-devkit@latest lint` before phase work.
 2. If working on a named feature, run `npx ai-devkit@latest lint --feature <name>`.
 3. Read the testing doc, requirements, design, implementation notes, and current diff before changes.
-4. Apply the `verify` skill before making coverage or test-pass claims.
+4. Load `verify` with your skill tool before making coverage or test-pass claims.
 5. If parent `dev-lifecycle` established usable task tracing, emit testing phase, next-action, and evidence events per `task`.
 
 ## Write Tests

@@ -11,7 +11,7 @@ Make one intentional, verified commit without sweeping in unrelated work.
 
 1. Check repository state with `git status --short --branch`, `git diff --stat`, and `git diff`.
 2. Identify the files that belong to the requested change. Treat pre-existing user edits, local config, generated artifacts, dependency caches, build outputs, and unrelated formatting churn as out of scope unless the user explicitly includes them.
-3. Run appropriate validation before committing. Prefer the repo's targeted tests, lint, typecheck, build, or documented verification commands. Record skipped validation with the reason. In workspaces whose packages resolve against built artifacts, ensure install and build have run in that worktree (`npm ci`, `npm run build`) before full validation or commit hooks; a fresh worktree with stale artifacts fails hooks for environmental reasons.
+3. Load `verify` with your skill tool immediately before committing, and run appropriate validation. Prefer the repo's targeted tests, lint, typecheck, build, or documented verification commands. Record skipped validation with the reason. In workspaces whose packages resolve against built artifacts, ensure install and build have run in that worktree (`npm ci`, `npm run build`) before full validation or commit hooks; a fresh worktree with stale artifacts fails hooks for environmental reasons.
 4. Stage only intended paths. Prefer explicit pathspecs such as `git add path/to/file` over `git add .`.
 5. Re-check with `git diff --cached --stat`, `git diff --cached`, and `git status --short`.
 6. Write a concise conventional commit message: `<type>(optional-scope): <summary>`.

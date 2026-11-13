@@ -1,6 +1,6 @@
 ---
 name: verify
-description: AI DevKit · Enforce evidence-based completion claims — require fresh command output before reporting success. Use when completing any task, fixing a bug, finishing a phase, running tests, building, deploying, or making any "it works" claim.
+description: AI DevKit · Enforce evidence-based completion claims — require fresh command output before reporting success. Use when completing any task, fixing a bug, finishing a phase, running tests, building, deploying, or making any "it works" claim, and before every commit.
 ---
 
 # Verify
