@@ -10,6 +10,7 @@ import { registerAgentKillCommand } from "./kill.command.js";
 import { registerAgentDetailCommand } from "./detail.command.js";
 import { registerAgentRenameCommand } from "./rename.command.js";
 import { registerAgentConsoleCommand } from "./console.command.js";
+import { registerAgentWaitCommand } from "./wait.command.js";
 
 export function registerAgentCommand(program: Command): void {
   const agentCommand = program.command("agent").description("Manage AI Agents");
@@ -25,4 +26,5 @@ export function registerAgentCommand(program: Command): void {
   registerAgentDetailCommand(agentCommand);
   registerAgentRenameCommand(agentCommand);
   registerAgentConsoleCommand(agentCommand);
+  registerAgentWaitCommand(agentCommand);
 }

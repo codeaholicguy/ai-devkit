@@ -4322,4 +4322,192 @@ Waiting on user input`,
       expect(process.exit).toHaveBeenCalledWith(1);
     });
   });
+
+  describe("wait", () => {
+    const running = (overrides: Record<string, unknown> = {}) => ({
+      name: "repo-a",
+      type: "claude",
+      status: AgentStatus.RUNNING,
+      summary: "Working",
+      lastActive: new Date(),
+      pid: 10,
+      ...overrides,
+    });
+
+    async function runWait(...args: string[]) {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", "wait", ...args]);
+    }
+
+    it("prints a triggered JSON result when an agent starts waiting", async () => {
+      mockManager.listAgents
+        .mockResolvedValueOnce([running()])
+        .mockResolvedValue([running({ status: AgentStatus.WAITING })]);
+
+      await runWait("--timeout", "50", "--json");
+
+      const output = JSON.parse(logSpy.mock.calls[0][0] as string);
+      expect(output).toMatchObject({
+        reason: "triggered",
+        changes: [{ name: "repo-a", type: "claude", pid: 10, from: "running", to: "waiting" }],
+      });
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+
+    it("reports a timeout in text mode without failing", async () => {
+      mockManager.listAgents.mockResolvedValue([running()]);
+
+      await runWait("--timeout", "1");
+
+      expect(ui.info).toHaveBeenCalledWith("No matching agent changes within 1ms.");
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+
+    it("prints one line per change in text mode", async () => {
+      mockManager.listAgents.mockResolvedValueOnce([running()]).mockResolvedValue([]);
+
+      await runWait("--timeout", "50");
+
+      expect(ui.text).toHaveBeenCalledWith("repo-a (claude, pid 10): running → exited");
+    });
+
+    it("only watches agents resolved from --id", async () => {
+      const other = running({ name: "repo-b", pid: 11 });
+      // First list resolves --id targets, second is the wait baseline.
+      mockManager.listAgents
+        .mockResolvedValueOnce([running(), other])
+        .mockResolvedValueOnce([running(), other])
+        .mockResolvedValue([running(), { ...other, status: AgentStatus.WAITING }]);
+      mockManager.resolveAgent.mockImplementation((id: string, agents: any[]) =>
+        agents.find((agent) => agent.name === id),
+      );
+
+      await runWait("--id", "repo-a", "--timeout", "50", "--json");
+
+      expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({
+        reason: "timeout",
+        changes: [],
+      });
+    });
+
+    it("resolves --group members to watched agents", async () => {
+      mockGroupStore.get.mockReturnValue({ name: "team", members: ["repo-a"] });
+      mockManager.listAgents
+        .mockResolvedValueOnce([running()])
+        .mockResolvedValueOnce([running()])
+        .mockResolvedValue([running({ status: AgentStatus.IDLE })]);
+      mockManager.resolveAgent.mockImplementation((id: string, agents: any[]) =>
+        agents.find((agent) => agent.name === id),
+      );
+
+      await runWait("--group", "team", "--timeout", "50", "--json");
+
+      expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({
+        reason: "triggered",
+        changes: [{ name: "repo-a", to: "idle" }],
+      });
+    });
+
+    it("fails when --id matches no agent", async () => {
+      mockManager.listAgents.mockResolvedValue([running()]);
+      mockManager.resolveAgent.mockReturnValue(null);
+
+      await runWait("--id", "missing", "--timeout", "1");
+
+      expect(ui.error).toHaveBeenCalledWith(
+        'Failed to wait for agents: No agent found matching "missing".',
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("fails when --id matches several agents", async () => {
+      const agents = [running(), running({ name: "repo-ab", pid: 11 })];
+      mockManager.listAgents.mockResolvedValue(agents);
+      mockManager.resolveAgent.mockReturnValue(agents);
+
+      await runWait("--id", "repo", "--timeout", "1");
+
+      expect(ui.error).toHaveBeenCalledWith(
+        'Failed to wait for agents: "repo" matched multiple agents (repo-a, repo-ab).',
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("fails for an unknown group", async () => {
+      mockGroupStore.get.mockReturnValue(undefined);
+
+      await runWait("--group", "nope", "--timeout", "1");
+
+      expect(ui.error).toHaveBeenCalledWith(
+        'Failed to wait for agents: Agent group "nope" not found.',
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("rejects --id combined with --group", async () => {
+      await runWait("--id", "repo-a", "--group", "team");
+
+      expect(ui.error).toHaveBeenCalledWith(
+        "Failed to wait for agents: Use either --id or --group, not both.",
+      );
+      expect(process.exit).toHaveBeenCalledWith(1);
+    });
+
+    it("rejects invalid --timeout and --until values", async () => {
+      await runWait("--timeout", "soon");
+      expect(ui.error).toHaveBeenCalledWith(expect.stringContaining("Invalid --timeout."));
+
+      await runWait("--until", "running");
+      expect(ui.error).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid --until value "running".'),
+      );
+    });
+
+    it("reads from the daemon cache and wakes on daemon agent events", async () => {
+      let onEvent: ((event: any) => void) | undefined;
+      const wire = [{ name: "repo-a" }];
+      const daemon = {
+        subscribe: vi.fn(async (handler: (event: any) => void) => {
+          onEvent = handler;
+        }),
+        listAgents: vi.fn(async () => wire),
+        close: vi.fn(),
+      };
+      mockEnsureDaemon.mockResolvedValue(daemon);
+      mockManager.listAgents
+        .mockResolvedValueOnce([running()])
+        .mockResolvedValue([running({ status: AgentStatus.WAITING })]);
+
+      const pending = runWait("--timeout", "60000", "--json");
+      await vi.waitFor(() => expect(onEvent).toBeDefined());
+      await vi.waitFor(() => expect(mockManager.listAgents).toHaveBeenCalledTimes(1));
+      onEvent!({ seq: 1, ts: 0, kind: "agent.status_changed", payload: {} });
+      await pending;
+
+      expect(daemon.subscribe).toHaveBeenCalledWith(expect.any(Function), { liveOnly: true });
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: wire });
+      expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({ reason: "triggered" });
+      expect(daemon.close).toHaveBeenCalled();
+    });
+
+    it("falls back to local detection when daemon list and subscribe fail", async () => {
+      const daemon = {
+        subscribe: vi.fn().mockRejectedValue(new Error("socket closed")),
+        listAgents: vi.fn().mockRejectedValue(new Error("socket closed")),
+        close: vi.fn(),
+      };
+      mockEnsureDaemon.mockResolvedValue(daemon);
+      mockManager.listAgents
+        .mockResolvedValueOnce([running()])
+        .mockResolvedValue([running({ status: AgentStatus.WAITING })]);
+
+      await runWait("--timeout", "50", "--json");
+
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
+      expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({ reason: "triggered" });
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+  });
 });
