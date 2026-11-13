@@ -87,8 +87,9 @@ export async function listLiveAgents(
 }
 
 /**
- * Registry view over one daemon agent.lookup entry, so stopAgent and
- * sendAgentPrompt act client-side on the daemon's runtime + runtimeRef.
+ * Registry view over one daemon agent.lookup entry, so stopAgent,
+ * sendAgentPrompt and focusAgent act client-side on the daemon's runtime +
+ * runtimeRef.
  */
 export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentRegistry, "lookup"> {
   const registryEntry = {

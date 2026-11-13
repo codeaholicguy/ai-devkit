@@ -1605,6 +1605,165 @@ Waiting on user input`,
     expect(mockSpinner.succeed).toHaveBeenCalledWith("Focused repo-a!");
   });
 
+  describe("daemon-routed open", () => {
+    const mockDaemonLookup = vi.fn();
+
+    function daemonUp(entry: Record<string, unknown> | null) {
+      const client = { lookupAgent: mockDaemonLookup, close: vi.fn() };
+      mockDaemonLookup.mockReset();
+      mockEnsureDaemon.mockResolvedValue(client);
+      if (entry) mockDaemonLookup.mockResolvedValue(entry);
+      return client;
+    }
+
+    const tmuxEntry = {
+      name: "repo-a",
+      type: "claude",
+      pid: 4242,
+      runtime: "tmux",
+      runtimeRef: { session: "repo-a" },
+      cwd: "/repo",
+      pinned: false,
+      alive: true,
+    };
+    const listed = {
+      name: "repo-a",
+      status: AgentStatus.WAITING,
+      summary: "A",
+      lastActive: new Date(),
+      pid: 4242,
+    };
+
+    async function open(name: string) {
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", "open", name]);
+    }
+
+    beforeEach(() => {
+      mockManager.listAgents.mockResolvedValue([listed]);
+      mockManager.resolveAgent.mockReturnValue(listed);
+      mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "1:1" });
+      mockFocusManager.focusTerminal.mockResolvedValue(true);
+    });
+
+    it("focuses the terminal from the daemon's pid for a registered agent", async () => {
+      const client = daemonUp(tmuxEntry);
+
+      await open("repo-a");
+
+      expect(mockDaemonLookup).toHaveBeenCalledWith("repo-a");
+      const [agent, deps] = mockFocusAgent.mock.calls[0];
+      expect(agent).toEqual({ name: "repo-a", pid: 4242 });
+      expect(deps.registry).not.toBe(mockRegistry);
+      expect(deps.registry.lookup("repo-a")).toMatchObject({
+        runtime: "tmux",
+        runtimeRef: { session: "repo-a" },
+      });
+      expect(mockRegistry.lookup).not.toHaveBeenCalled();
+      expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(4242);
+      expect(mockSpinner.succeed).toHaveBeenCalledWith("Focused repo-a!");
+      expect(client.close).toHaveBeenCalled();
+    });
+
+    it("focuses a herdr pane from the daemon's runtimeRef", async () => {
+      const runtimeRef = { session: "default", paneId: "w1:p2", agentName: "repo-a" };
+      daemonUp({ ...tmuxEntry, runtime: "herdr", runtimeRef });
+
+      await open("repo-a");
+
+      expect(mockHerdrFocus).toHaveBeenCalledWith({ runtimeRef });
+      expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
+      expect(mockSpinner.succeed).toHaveBeenCalledWith("Focused repo-a!");
+    });
+
+    it("resolves partial names via the list, then looks up the full name", async () => {
+      daemonUp(tmuxEntry);
+
+      await open("repo");
+
+      expect(mockManager.resolveAgent).toHaveBeenCalledWith("repo", [listed]);
+      expect(mockDaemonLookup.mock.calls.map((c) => c[0])).toEqual(["repo-a"]);
+      expect(mockSpinner.succeed).toHaveBeenCalledWith("Focused repo-a!");
+    });
+
+    it("looks up the agent picked from an ambiguous match", async () => {
+      const other = { ...listed, name: "repo-b", pid: 5555 };
+      mockManager.listAgents.mockResolvedValue([listed, other]);
+      mockManager.resolveAgent.mockReturnValue([listed, other]);
+      mockSelect.mockResolvedValue(other);
+      daemonUp({ ...tmuxEntry, name: "repo-b", pid: 5555, runtimeRef: { session: "repo-b" } });
+
+      await open("repo");
+
+      expect(mockDaemonLookup).toHaveBeenCalledWith("repo-b");
+      expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(5555);
+    });
+
+    it("falls back to the legacy registry for agents the daemon does not know", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockRejectedValue(new DaemonRpcError("nope", "not_found"));
+
+      await open("repo-a");
+
+      expect(mockFocusAgent).toHaveBeenCalledWith(
+        { ...listed },
+        expect.objectContaining({ registry: mockRegistry }),
+      );
+      expect(mockSpinner.succeed).toHaveBeenCalledWith("Focused repo-a!");
+    });
+
+    it("falls back on an older daemon without agent.lookup", async () => {
+      daemonUp(null);
+      mockDaemonLookup.mockRejectedValue(new Error("unknown method: agent.lookup"));
+
+      await open("repo-a");
+
+      expect(mockFocusAgent).toHaveBeenCalledWith(
+        listed,
+        expect.objectContaining({ registry: mockRegistry }),
+      );
+    });
+
+    it("uses the listed agent when the daemon's registration is dead", async () => {
+      daemonUp({ ...tmuxEntry, pid: 1, alive: false, goneAt: 1 });
+
+      await open("repo-a");
+
+      // A tombstone's pid may be recycled — never focus by it.
+      expect(mockFocusManager.findTerminal).toHaveBeenCalledWith(4242);
+      expect(mockFocusAgent).toHaveBeenCalledWith(
+        listed,
+        expect.objectContaining({ registry: mockRegistry }),
+      );
+    });
+
+    it("reports other daemon errors without focusing", async () => {
+      daemonUp(null);
+      const { DaemonRpcError } = await import("@ai-devkit/daemon-client");
+      mockDaemonLookup.mockRejectedValue(new DaemonRpcError("db locked", "internal"));
+      const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {}) as any);
+
+      await open("repo-a");
+
+      expect(ui.error).toHaveBeenCalledWith("db locked");
+      expect(mockFocusAgent).not.toHaveBeenCalled();
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      exitSpy.mockRestore();
+    });
+
+    it("does not contact the daemon when local resolution finds nothing", async () => {
+      daemonUp(tmuxEntry);
+      mockManager.resolveAgent.mockReturnValue(null);
+
+      await open("missing");
+
+      expect(mockDaemonLookup).not.toHaveBeenCalled();
+      expect(ui.error).toHaveBeenCalledWith('No agent found matching "missing".');
+    });
+  });
+
   describe("daemon-routed kill", () => {
     const mockDaemonLookup = vi.fn();
     const mockDaemonUnregister = vi.fn();
