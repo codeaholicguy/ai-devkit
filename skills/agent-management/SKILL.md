@@ -25,6 +25,7 @@ ai-devkit agent start --type codex --name <name> --cwd <path>
 ai-devkit agent send --id <name> "<single-line instruction>"
 ai-devkit agent send --id <name> --wait --timeout 120000 --json "<single-line instruction>"
 ai-devkit agent send --group <group> "<single-line instruction>"
+ai-devkit agent wait --id <name> --json
 ai-devkit agent sessions --cwd <path> --type codex --json --limit 20
 ai-devkit agent rename <old-name> <new-name>
 ai-devkit agent kill <name>

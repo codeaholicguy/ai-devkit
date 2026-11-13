@@ -252,6 +252,9 @@ impl Daemon {
                 for pid in appeared {
                     self.emit("agent.appeared", lifecycle_payload(pid, &cur));
                 }
+                for payload in status_changes(&prev, &cur) {
+                    self.emit("agent.status_changed", payload);
+                }
             }
             Err(e) => tracing::warn!("agent snapshot apply failed: {e:#}"),
         }
@@ -266,6 +269,28 @@ fn lifecycle_payload(pid: i64, agents: &[EnrichedAgent]) -> Value {
         "pid": pid,
         "agents": agents.iter().filter(|a| a.pid as i64 == pid).collect::<Vec<_>>(),
     })
+}
+
+/// Payloads for `agent.status_changed`: one per (pid, session) row present in
+/// both sweeps whose status differs. Rows on only one side are lifecycle
+/// changes, already covered by appeared/disappeared.
+fn status_changes(prev: &[EnrichedAgent], cur: &[EnrichedAgent]) -> Vec<Value> {
+    cur.iter()
+        .filter_map(|a| {
+            let p = prev
+                .iter()
+                .find(|p| p.pid == a.pid && p.session_id == a.session_id)?;
+            (p.status != a.status).then(|| {
+                json!({
+                    "pid": a.pid,
+                    "sessionId": a.session_id,
+                    "from": p.status,
+                    "to": a.status,
+                    "agent": a,
+                })
+            })
+        })
+        .collect()
 }
 
 /// SO_PEERCRED check: same-uid only. Returns true if the peer is us.
@@ -711,6 +736,46 @@ mod tests {
 
         // Unattributed procs still emit — with an empty agent list.
         assert_eq!(lifecycle_payload(5, &list)["agents"], json!([]));
+    }
+
+    #[test]
+    fn status_changes_reports_rows_whose_status_moved() {
+        let row = |pid: u64, sid: &str, status: &str| EnrichedAgent {
+            name: "n".into(),
+            agent_type: "claude".into(),
+            status: status.into(),
+            summary: String::new(),
+            pid,
+            project_path: "/p".into(),
+            session_id: sid.into(),
+            last_active: "t".into(),
+            pinned: None,
+            session_file_path: None,
+        };
+        let prev = vec![
+            row(7, "s-1", "running"),
+            row(7, "s-2", "running"),
+            row(8, "s", "idle"),
+            row(9, "gone", "running"),
+        ];
+        let cur = vec![
+            row(7, "s-1", "waiting"),
+            row(7, "s-2", "running"),
+            row(8, "s", "idle"),
+            row(10, "new", "waiting"),
+        ];
+
+        // Sessions of one pid are matched independently; unchanged rows and
+        // rows present on only one side (lifecycle events) are skipped.
+        let changes = status_changes(&prev, &cur);
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes[0]["pid"], json!(7));
+        assert_eq!(changes[0]["sessionId"], "s-1");
+        assert_eq!(changes[0]["from"], "running");
+        assert_eq!(changes[0]["to"], "waiting");
+        assert_eq!(changes[0]["agent"]["status"], "waiting");
+
+        assert!(status_changes(&cur, &cur).is_empty());
     }
 
     #[tokio::test]

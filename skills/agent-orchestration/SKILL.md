@@ -26,7 +26,7 @@ If the goal or agent ownership is unclear, run one scan/detail pass. Ask the use
 2. Assess agents needing attention with `detail --tail 10`.
 3. Act: approve, clarify, correct, delegate, relay, verify, or escalate.
 4. Report one brief status line.
-5. Sleep 15 minutes and repeat. Meaningful agent progress arrives in minutes-to-tens-of-minutes; faster polling adds noise and orchestrator token cost without signal. Exception: if an agent is known to be waiting on you (approval prompt, ASK/BLOCKED just fired), check back sooner.
+5. Run `ai-devkit agent wait --json` (add `--id`/`--group` to watch only your agents), then repeat. It blocks until an agent moves to waiting, idle, or exited, or until its 9-minute default timeout, which fits harness command limits; `reason: "timeout"` is normal, so do a light scan and wait again. Never use a long `sleep`: harnesses block or kill it.
 
 ## Completion
 

@@ -170,6 +170,26 @@ Useful options:
 
 If the agent is not currently waiting for input, AI DevKit warns you and still sends the message. In scripts, treat that as unsafe: messages can queue or mix, and a following `--wait` may return a reply from an earlier task. Prefer `agent detail` or an explicit handshake before `--wait`.
 
+### Wait for Agent Changes
+
+Block until a running agent changes state. Use this in supervision loops instead of a long `sleep`, which many harnesses block or kill.
+
+```bash
+ai-devkit agent wait --json
+ai-devkit agent wait --id api-worker --id ui-worker --until waiting,exited
+```
+
+Useful options:
+
+- `--id <name>` (repeatable) or `--group <name>` to watch only those agents (default: every running agent)
+- `--until <conditions>`: comma-separated `waiting`, `idle`, `exited`, `appeared` (default `waiting,idle,exited`; `appeared` only applies without `--id`/`--group`)
+- `--timeout <ms>`: maximum wait (default `540000`, 9 minutes, to stay under harness command limits)
+- `-j, --json`: `{ reason, elapsedMs, changes[] }`, with each change carrying `name`, `type`, `pid`, `from`, `to`
+
+The command only fires on changes. An agent that is already waiting when the command starts does not end the wait; it has to move into the state. Changes picked up in the same daemon sweep are reported together; the wait usually returns about a second after the change. A timeout exits `0` with `reason: "timeout"`.
+
+With the daemon running, waits react to its status events, so several waits on one machine share one process sweep. Without the daemon, the command checks local detection every 30 seconds.
+
 ### Show Agent Details
 
 Inspect a running agent's conversation details.
