@@ -76,10 +76,8 @@ export interface AgentManagerOptions {
   /**
    * Daemon-side enriched agents ({@link DaemonClient.listAgents} wire
    * shape: `AgentInfo` with `lastActive` as an ISO string). A non-empty
-   * result is merged with local adapter detection (see
-   * {@link mergeDaemonAndLocal}): daemon rows keep their identity, local
-   * mapping-file resolution corrects session info, and local-only agents
-   * are added. An empty result is cross-checked against local detection
+   * result is authoritative for every harness type — all local adapters
+   * are skipped. An empty result is cross-checked against local detection
    * (local wins on disagreement, with a warning). Returning null or
    * throwing forces the local path; omitting it disables daemon
    * consumption.
@@ -108,77 +106,6 @@ function fromWire(a: EnrichedAgentWire): AgentInfo {
   if (a.sessionFilePath !== undefined) agent.sessionFilePath = a.sessionFilePath;
   if (a.pinned !== undefined) agent.pinned = a.pinned;
   return agent;
-}
-
-/** Copy of `agent` with the given fields replaced, keeping `fromWire` key order. */
-function withSession(agent: AgentInfo, from: AgentInfo): AgentInfo {
-  const merged: AgentInfo = {
-    name: agent.name,
-    type: agent.type,
-    status: from.status,
-    summary: from.summary,
-    pid: agent.pid,
-    projectPath: from.projectPath || agent.projectPath,
-    sessionId: from.sessionId,
-    lastActive: from.lastActive,
-  };
-  if (from.sessionFilePath !== undefined) merged.sessionFilePath = from.sessionFilePath;
-  if (agent.pinned !== undefined) merged.pinned = agent.pinned;
-  return merged;
-}
-
-/**
- * Merge the daemon's agent list with local adapter detection.
- *
- * Rows pair by `type:pid`. The daemon row keeps its identity (name, pin);
- * when the local adapter resolved a different session for the same pid —
- * local adapters consult the harness mapping files first (pi
- * `sessions.json`, codex `ai-devkit/sessions.json`, claude pid files), so
- * they see a session restart inside the same process — the local
- * session-derived fields (session id/file, status, summary, last active)
- * replace the daemon's, which may still point at the dead session file.
- * When both agree, the daemon row stands and only missing fields are
- * filled from local. Local rows with no daemon counterpart are appended.
- */
-export function mergeDaemonAndLocal(daemon: AgentInfo[], local: AgentInfo[]): AgentInfo[] {
-  const key = (agent: AgentInfo): string => `${agent.type}:${agent.pid}`;
-  const localByKey = new Map<string, AgentInfo[]>();
-  for (const agent of local) {
-    const rows = localByKey.get(key(agent));
-    if (rows) rows.push(agent);
-    else localByKey.set(key(agent), [agent]);
-  }
-
-  const consumed = new Set<AgentInfo>();
-  const merged = daemon.map((agent) => {
-    const candidates = (localByKey.get(key(agent)) ?? []).filter((row) => !consumed.has(row));
-    if (candidates.length === 0) return agent;
-
-    const same = candidates.find((row) => row.sessionId === agent.sessionId);
-    if (same) {
-      consumed.add(same);
-      if (agent.sessionFilePath === undefined && same.sessionFilePath !== undefined) {
-        return withSession(agent, { ...agent, sessionFilePath: same.sessionFilePath });
-      }
-      return agent;
-    }
-
-    // Disagreement: trust local only when it resolved an actual session
-    // file; a process-only local row must not erase daemon session info.
-    const resolved = candidates.find((row) => row.sessionFilePath);
-    if (!resolved) return agent;
-    consumed.add(resolved);
-    return withSession(agent, resolved);
-  });
-
-  for (const agent of local) {
-    if (consumed.has(agent)) continue;
-    const daemonHasPid = daemon.some((row) => key(row) === key(agent));
-    // A daemon row already represents this process; an unmatched extra
-    // local row for it would duplicate the agent.
-    if (!daemonHasPid) merged.push(agent);
-  }
-  return merged;
 }
 
 class AgentNotRunningError extends Error {
@@ -296,13 +223,12 @@ export class AgentManager {
     const allAgents: AgentInfo[] = [];
     const errors: Array<{ type: string; error: Error }> = [];
 
-    // Local adapters always run. A non-empty daemon answer is merged with
-    // them (mergeDaemonAndLocal) so mapping-file session resolution — which
-    // follows a session restart inside the same pid — corrects stale daemon
-    // session info. An empty answer must not be authoritative (issue #371):
-    // a daemon-side discovery bug would otherwise mask every running agent
-    // forever. When local adapters disagree with the empty answer the local
-    // result wins, with a warning.
+    // A non-empty daemon answer is authoritative for every harness type, so
+    // local adapters only run when the daemon is absent — or when it
+    // returns an empty list. An empty answer must not be authoritative
+    // (issue #371): a daemon-side discovery bug would otherwise mask every
+    // running agent forever. When local adapters disagree with the empty
+    // answer the local result wins, with a warning.
     let daemonAgents: AgentInfo[] | null = null;
     let daemonAnsweredEmpty = false;
     let enriched: EnrichedAgentWire[] | null = null;
@@ -320,8 +246,9 @@ export class AgentManager {
       daemonAnsweredEmpty = daemonAgents.length === 0;
       if (daemonAnsweredEmpty) daemonAgents = null;
     }
+    if (daemonAgents) allAgents.push(...daemonAgents);
 
-    const adapters = Array.from(this.adapters.values());
+    const adapters = daemonAgents ? [] : Array.from(this.adapters.values());
     const processNames = Array.from(
       new Set(
         adapters.flatMap((adapter) => (adapter.processNames ? [...adapter.processNames] : [])),
@@ -369,15 +296,11 @@ export class AgentManager {
     const results = await Promise.all(adapterPromises);
 
     // Aggregate all successful results
-    const localAgents: AgentInfo[] = [];
     for (const result of results) {
       if (result.error === null) {
-        localAgents.push(...result.agents);
+        allAgents.push(...result.agents);
       }
     }
-    allAgents.push(
-      ...(daemonAgents ? mergeDaemonAndLocal(daemonAgents, localAgents) : localAgents),
-    );
 
     if (daemonAnsweredEmpty && allAgents.length > 0) {
       console.error(
