@@ -1,6 +1,6 @@
 ---
 name: tdd
-description: AI DevKit · Test-driven development — write a failing test before writing production code. Use when implementing new functionality, adding behavior, or fixing bugs during active development, or dev-lifecycle phase 5.
+description: AI DevKit · Test-driven development — write a failing test before writing production code. Use when implementing new functionality, adding behavior, or fixing bugs during active development.
 ---
 
 # TDD
