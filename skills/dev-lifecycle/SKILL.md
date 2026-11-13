@@ -20,12 +20,15 @@ Required phase skills:
 Supporting skills:
 
 - `memory` for reusable project knowledge during clarification.
-- `tdd` for implementation tasks.
-- `verify` before completing implementation, implementation checks, testing claims, and review readiness.
-- `dev-smoke` after Write Tests and before Code Review for user-facing changes.
-- `dev-simplify` after Implementation Check (phase 7) or before Code Review (phase 9) when the change is large or shows complexity smells (many new abstractions, repeated implementation friction, deep nesting).
+- Load `tdd` with your skill tool before writing code in phase 5.
+- Load `verify` with your skill tool before any completion claim in phases 5, 7, 8, and 9, and immediately before every commit.
+- Load `dev-smoke` with your skill tool after Write Tests and before Code Review when the change touches a user-facing entry point (CLI command, API route or RPC handler, UI screen, daemon or wire protocol). Skipping it requires a stated reason.
+- Load `dev-simplify` with your skill tool in phase 7 for an analysis-only pass. Apply its changes only if it finds something worth fixing and the user or plan allows.
+- Load `dev-commit` with your skill tool before committing.
 - `dev-retro` after Code Review or PR: offer it, and run only if the user agrees.
 - `task` for optional progress tracing when the task command is usable.
+
+Following a summary of a skill is not a substitute for loading it.
 
 ## Startup Validation
 
@@ -74,6 +77,19 @@ Before executing any phase:
 
 Sequential flow: setup -> 1 -> 2 -> 3 -> 4 -> 5 -> 6 after each completed task -> 7 -> 8 -> 9.
 
+## Required Skill Loads
+
+| Phase | Load with your skill tool |
+|---|---|
+| 5. Execute Plan | `dev-implementation`, `tdd` |
+| 7. Check Implementation | `dev-implementation`, `verify`, `dev-simplify` (analysis) |
+| 8. Write Tests | `dev-testing`, `verify` |
+| Before 9 | `dev-smoke` when the change touches a user-facing entry point |
+| 9. Code Review | `dev-review`, `verify` |
+| Commit | `dev-commit`, `verify` |
+
+End every phase summary with `Skills loaded: <skills>` and `Skipped: <skill> (<reason>)`. When task tracing is available, record that line with `task progress`.
+
 ## Resuming Work
 
 If the user wants to continue work on an existing feature:
@@ -105,5 +121,6 @@ Not every phase moves forward. When a phase reveals problems, route back:
 - New feature docs come from `npx ai-devkit@latest docs init-feature <name>`. Use the paths returned by the command as authoritative.
 - Existing feature docs are the paths reported or validated by `npx ai-devkit@latest lint --feature <name>`. If you must infer manually, first resolve the configured docs directory from `.ai-devkit.json` `paths.docs`, falling back to `docs/ai`.
 - After each phase, summarize output and suggest the next phase.
+- Pre-approval removes approval waits; it never skips phases or required skill loads.
 - Do not claim completion without fresh verification evidence.
 - When task tracing is available, follow `task`: create once, assign actor when known, mark active/blocked, set phase, record progress/next/evidence, and close only after final verification/review. If tracing is unavailable, include failed probe commands in the phase summary without blocking the lifecycle.

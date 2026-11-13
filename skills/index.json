@@ -910,7 +910,7 @@
       "name": "dev-simplify",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/dev-simplify",
-      "description": "AI DevKit · Analyze and simplify existing implementations to reduce complexity, improve maintainability, and enhance scalability. Use when users ask to simplify code, reduce complexity, refactor for readability, clean up implementations, improve maintainability, reduce technical debt, or make code easier to understand.",
+      "description": "AI DevKit · Analyze and simplify existing implementations to reduce complexity, improve maintainability, and enhance scalability. Use when users ask to simplify code, reduce complexity, refactor for readability, clean up implementations, improve maintainability, reduce technical debt, or make code easier to understand, or dev-lifecycle phase 7/9 analysis.",
       "lastIndexed": 1794096395850
     },
     {
@@ -987,7 +987,7 @@
       "name": "tdd",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/tdd",
-      "description": "AI DevKit · Test-driven development — write a failing test before writing production code. Use when implementing new functionality, adding behavior, or fixing bugs during active development.",
+      "description": "AI DevKit · Test-driven development — write a failing test before writing production code. Use when implementing new functionality, adding behavior, or fixing bugs during active development, or dev-lifecycle phase 5.",
       "lastIndexed": 1794096395850
     },
     {
@@ -1001,7 +1001,7 @@
       "name": "verify",
       "registry": "codeaholicguy/ai-devkit",
       "path": "skills/verify",
-      "description": "AI DevKit · Enforce evidence-based completion claims — require fresh command output before reporting success. Use when completing any task, fixing a bug, finishing a phase, running tests, building, deploying, or making any \"it works\" claim.",
+      "description": "AI DevKit · Enforce evidence-based completion claims — require fresh command output before reporting success. Use when completing any task, fixing a bug, finishing a phase, running tests, building, deploying, or making any \"it works\" claim, and before every commit.",
       "lastIndexed": 1794096395850
     },
     {

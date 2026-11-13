@@ -13,7 +13,7 @@ Run final pre-push review for configured AI docs features. Before changing docs 
 2. If working on a named feature, run `npx ai-devkit@latest lint --feature <name>`.
 3. Check `git status -sb` and `git diff --stat`.
 4. Read feature docs and relevant changed files before findings.
-5. Apply the `verify` skill before claiming readiness. Run `dev-smoke` when the change touches user-facing flows.
+5. Load `verify` with your skill tool before claiming readiness. Load `dev-smoke` with your skill tool when the change touches a user-facing entry point (CLI command, API route or RPC handler, UI screen, daemon or wire protocol); skipping it requires a stated reason.
 6. If parent `dev-lifecycle` established usable task tracing, emit review phase, progress, blocker/finding, next-step, and final evidence/readiness events per `task`.
 
 ## Code Review
