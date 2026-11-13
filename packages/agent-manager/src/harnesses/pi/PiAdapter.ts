@@ -67,9 +67,14 @@ export class PiAdapter implements AgentAdapter {
     const processes = await this.getPiProcesses(context);
     if (processes.length === 0) return [];
 
-    const cacheResult = this.mapRegistryCache(processes);
-    const trackerResult = this.mapTrackerMatches(cacheResult.fallback);
-    const locatorResult = this.liveLocator.matchRunningProcesses(trackerResult.fallback);
+    // Same stage order as CodexAdapter: the pid→session mapping file the
+    // pi-session-tracker extension rewrites on every session_start is the
+    // only source that follows a session restart inside the same process,
+    // so it must win over the registry cache (which would otherwise pin
+    // the dead session file forever as long as it still exists on disk).
+    const trackerResult = this.mapTrackerMatches(processes);
+    const cacheResult = this.mapRegistryCache(trackerResult.fallback);
+    const locatorResult = this.liveLocator.matchRunningProcesses(cacheResult.fallback);
     const legacyResult = this.mapLegacyMatches(locatorResult.legacyMatches);
     const unmatchedProcesses = this.findUnmatchedProcesses(
       locatorResult.fallback,
@@ -77,8 +82,8 @@ export class PiAdapter implements AgentAdapter {
     );
 
     return [
-      ...cacheResult.agents,
       ...trackerResult.agents,
+      ...cacheResult.agents,
       ...legacyResult.agents,
       ...unmatchedProcesses.map((processInfo) => this.mapper.mapProcessOnlyAgent(processInfo)),
     ];

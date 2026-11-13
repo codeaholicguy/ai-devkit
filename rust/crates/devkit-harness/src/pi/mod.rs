@@ -1,4 +1,4 @@
-//! PiAdapter port — registry cache, sessions.json tracker, project-dir
+//! PiAdapter port — sessions.json tracker, registry cache, project-dir
 //! locator matching, process-only fallback.
 
 mod locator;
@@ -191,10 +191,28 @@ impl HarnessAdapter for PiAdapter {
         let mut agents = Vec::new();
         let registry = shared::registry_session_paths(&self.home, "pi");
 
-        // 1. registry cache — misses first, then parse failures (TS order).
+        // Same stage order as the TS PiAdapter / CodexAdapter: the
+        // sessions.json tracker is rewritten on every pi session_start, so it
+        // is the only source that follows a session restart inside the same
+        // pid and must win over the registry cache (which would otherwise
+        // pin the dead session file for as long as it exists on disk).
+
+        // 1. tracker sessions.json — misses first, then parse failures (TS order).
+        let tracker = SessionTracker {
+            tracker_path: self.home.join(".pi").join("agent").join("sessions.json"),
+            sessions_dir: self.sessions_dir.clone(),
+        };
+        let (tracker_matches, tracker_fallback) = tracker.match_processes(&procs);
+        let (tracker_agents, tracker_parse_fail, _) =
+            self.map_file_matches(&tracker_matches, ctx.now);
+        agents.extend(tracker_agents);
+        let mut stage_fallback = tracker_fallback;
+        stage_fallback.extend(tracker_parse_fail);
+
+        // 2. registry cache
         let mut misses: Vec<&AgentProc> = Vec::new();
         let mut cache_matches: Vec<(&AgentProc, String)> = Vec::new();
-        for &proc in &procs {
+        for &proc in &stage_fallback {
             match registry.get(&proc.pid) {
                 Some(file_path) if Path::new(file_path).exists() => {
                     cache_matches.push((proc, file_path.clone()));
@@ -206,18 +224,6 @@ impl HarnessAdapter for PiAdapter {
         agents.extend(cache_agents);
         let mut stage_fallback: Vec<&AgentProc> = misses;
         stage_fallback.extend(cache_parse_fail);
-
-        // 2. tracker sessions.json
-        let tracker = SessionTracker {
-            tracker_path: self.home.join(".pi").join("agent").join("sessions.json"),
-            sessions_dir: self.sessions_dir.clone(),
-        };
-        let (tracker_matches, tracker_fallback) = tracker.match_processes(&stage_fallback);
-        let (tracker_agents, tracker_parse_fail, _) =
-            self.map_file_matches(&tracker_matches, ctx.now);
-        agents.extend(tracker_agents);
-        let mut stage_fallback = tracker_fallback;
-        stage_fallback.extend(tracker_parse_fail);
 
         // 3. locator legacy matching
         let (legacy_matches, sessions, locator_fallback) =
@@ -258,6 +264,70 @@ mod tests {
         assert!(is_pi_executable("pi.exe"));
         assert!(!is_pi_executable("pilot"));
         assert!(!is_pi_executable("pico pi-file"));
+    }
+
+    fn write(path: &Path, content: &str) {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, content).unwrap();
+    }
+
+    #[test]
+    fn tracker_wins_over_stale_registry_cache_after_session_restart() {
+        let home = std::env::temp_dir().join(format!("aidk-pi-order-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&home);
+        let dir = home.join(".pi/agent/sessions/--repo--");
+        let session = |id: &str, text: &str| {
+            format!(
+                "{}\n{}\n",
+                serde_json::json!({"type":"session","id":id,"timestamp":"2026-11-12T09:00:00.000Z","cwd":"/repo"}),
+                serde_json::json!({"type":"message","timestamp":"2026-11-12T09:00:01.000Z","message":{"role":"user","content":text}}),
+            )
+        };
+        // Dead session still on disk — cache-first resolved to it forever.
+        let stale = dir.join("stale.jsonl");
+        let fresh = dir.join("fresh.jsonl");
+        write(&stale, &session("sess-old", "old session"));
+        write(&fresh, &session("sess-new", "new session"));
+        write(
+            &home.join(".pi/agent/sessions.json"),
+            &serde_json::json!({"4242": fresh.to_string_lossy()}).to_string(),
+        );
+        let db = home.join(".ai-devkit/agents.db");
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        let conn = rusqlite::Connection::open(&db).unwrap();
+        conn.execute_batch(
+            "CREATE TABLE agents (type TEXT NOT NULL, pid INTEGER NOT NULL, name TEXT NOT NULL,
+                session_file_path TEXT NOT NULL DEFAULT '', started_at TEXT NOT NULL DEFAULT '');",
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO agents (type,pid,name,session_file_path) VALUES ('pi',4242,'pi-a',?1)",
+            [stale.to_string_lossy()],
+        )
+        .unwrap();
+        drop(conn);
+
+        let procs = vec![AgentProc {
+            pid: 4242,
+            ppid: Some(1),
+            tty: None,
+            command: Some("pi".into()),
+            cwd: Some("/repo".into()),
+            session_file: None,
+            start_time_ms: None,
+        }];
+        let adapter = PiAdapter::new(&home);
+        let out = adapter.detect(&SweepContext {
+            processes: &procs,
+            now: 0,
+            home: &home,
+        });
+        assert_eq!(out.len(), 1);
+        assert_eq!(
+            out[0].session_file_path.as_deref(),
+            Some(fresh.to_string_lossy().as_ref())
+        );
+        let _ = std::fs::remove_dir_all(&home);
     }
 
     #[test]

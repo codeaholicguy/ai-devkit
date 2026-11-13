@@ -67,17 +67,6 @@
   },
   "expected": [
     {
-      "name": "other-30002",
-      "type": "pi",
-      "status": "running",
-      "summary": "and now?",
-      "pid": 30002,
-      "projectPath": "/Users/fixture/other",
-      "sessionId": "regsess",
-      "lastActive": "2026-10-09T07:56:00.000Z",
-      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-other--/2026-10-09T06-30-00-000Z_regsess.jsonl"
-    },
-    {
       "name": "proj-30001",
       "type": "pi",
       "status": "waiting",
@@ -87,6 +76,17 @@
       "sessionId": "tracker-sess",
       "lastActive": "2026-10-09T07:58:00.000Z",
       "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-proj--/tracker-sess.jsonl"
+    },
+    {
+      "name": "other-30002",
+      "type": "pi",
+      "status": "running",
+      "summary": "and now?",
+      "pid": 30002,
+      "projectPath": "/Users/fixture/other",
+      "sessionId": "regsess",
+      "lastActive": "2026-10-09T07:56:00.000Z",
+      "sessionFilePath": "$FIXTURE_HOME/.pi/agent/sessions/--Users-fixture-other--/2026-10-09T06-30-00-000Z_regsess.jsonl"
     },
     {
       "name": "legproj-30003",

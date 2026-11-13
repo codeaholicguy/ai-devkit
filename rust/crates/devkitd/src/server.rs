@@ -218,6 +218,10 @@ impl Daemon {
             .cloned()
             .collect();
         devkit_core::discover::enrich_agents(&mut procs);
+        // pid→session file from the harness mapping files (pi/codex
+        // sessions.json, claude pid files) — needs start times for claude's
+        // pid-reuse check, and is persisted by apply_agent_snapshot below.
+        devkit_core::session_map::resolve_session_files(&mut procs, &self.home);
         let ctx = devkit_harness::SweepContext {
             processes: &procs,
             now: chrono_now(),

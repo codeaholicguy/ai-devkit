@@ -3,5 +3,20 @@
   "root": "packages/pi-session-tracker",
   "sourceRoot": "packages/pi-session-tracker/extensions",
   "projectType": "library",
-  "targets": {}
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run build",
+        "cwd": "packages/pi-session-tracker"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "npm run test",
+        "cwd": "packages/pi-session-tracker"
+      }
+    }
+  }
 }
