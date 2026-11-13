@@ -1,6 +1,6 @@
 ---
 name: task
-description: AI DevKit · Track dev-lifecycle / dev-debug progress on a durable task with the ai-devkit task CLI. Use to record phase, progress, next step, blockers, and validation evidence.
+description: AI DevKit · Track dev-lifecycle / dev-debug progress on a durable task with the ai-devkit task CLI. Use to record phase, progress, next step, blockers, validation evidence, commits/PRs, and feedback/rework loops.
 ---
 
 # Task Progress Tracking
@@ -31,9 +31,9 @@ task tracing is unavailable or unusable.
   `<task-name>` so agents do not track task ids.
 - **Choose stable names.** For lifecycle work, use the feature key as the task
   name. For debugging or review work, choose a short kebab-case task name.
-- **Emit at checkpoints, not streaming.** Phase transitions, task toggles,
-  immediate next-step changes, fresh evidence, blockers discovered/resolved. A
-  handful of calls per session.
+- **Emit at checkpoints, not streaming.** Phase transitions (backward too),
+  task toggles, immediate next-step changes, fresh evidence, blockers
+  discovered/resolved, feedback, commits/PRs. A handful of calls per session.
 - **Sequence mutations.** Never run task mutation commands in parallel for the
   same task. Each mutation reads the current task snapshot and writes it back;
   parallel writes can clobber snapshot fields even though events append. Run
@@ -94,8 +94,13 @@ npx ai-devkit@latest task status <task-name> active --agent <agent-name> --agent
 # Validation evidence - record after a fresh verify/tdd/test run
 npx ai-devkit@latest task evidence <task-name> --passed --command "npm test" --exit-code 0 --summary "tests passed" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
-# Reference an artifact (never copies the file)
+# Reference an artifact (never copies the file); also every commit and PR
 npx ai-devkit@latest task artifact <task-name> docs/ai/testing/foo.md --kind test-report --description "Testing notes" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit@latest task artifact <task-name> <commit-sha> --kind commit --description "<commit subject>" --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+npx ai-devkit@latest task artifact <task-name> <pr-url> --kind pr --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
+
+# Feedback (--source user|review|ci); --reopen moves the phase back in the same call
+npx ai-devkit@latest task feedback <task-name> "Cut settle window to 200ms" --source user --reopen implementation --agent <agent-name> --agent-type <agent-type> --pid <pid> --session <sessionId> --json
 
 # Read current status / list
 npx ai-devkit@latest task show <task-name> --json
@@ -120,6 +125,27 @@ npx ai-devkit@latest task close <task-name> completed --agent <agent-name> --age
 - **Any phase** - `blocker add` when blocked, `resolve` when clear; `next` to
   state the immediate next step. Set `status blocked` when an open blocker stops
   progress, and set `status active` again after the blocker is resolved.
+- **Any time** - `artifact --kind commit` for every commit and
+  `artifact --kind pr` for every PR; `evidence --failed` for every failed
+  validation, including flaky failures that pass on retry.
+- **Rework** - see below.
+
+## Rework
+
+Whenever user feedback or a review finding changes code or docs after a phase
+is done, record the loop instead of just the fix:
+
+1. `feedback <task-name> "<what was asked>" --source user|review|ci --reopen implementation`
+   (or the earlier phase the change needs). Records the feedback and moves the
+   phase back in one call.
+2. `progress --text` with what changed.
+3. `evidence --passed` or `--failed` from fresh validation.
+4. `phase` forward again (e.g. `testing`, `review`), plus `artifact` for new
+   commits/PRs.
+
+Small follow-ups count too: a docs fix requested after review is still rework.
+If the CLI has no `feedback` command, use `note <task-name> "Feedback (user): <text>"`
+then `phase <task-name> implementation` instead.
 
 ## Tips
 
@@ -128,4 +154,5 @@ npx ai-devkit@latest task close <task-name> completed --agent <agent-name> --age
 - Don't restate obvious nearby files or transient state; keep summaries short.
 - Good task records let a later reader answer: who worked on it, which phase it
   reached, what changed, what is next, what verified the claim, and what blocked
-  or changed scope. Do not log every command; do log those checkpoints.
+  or changed scope, including feedback and rework loops. Do not log every
+  command; do log those checkpoints.
