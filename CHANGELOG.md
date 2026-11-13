@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased
+## [0.76.0] - 2026-11-13
 
 - [2f4bdcce](https://github.com/codeaholicguy/ai-devkit/pull/450) Required explicit loading of lifecycle sub-skills in `dev-lifecycle` so each phase runs its own skill instructions instead of relying on the orchestrator's summary.
 - [7f2cad28](https://github.com/codeaholicguy/ai-devkit/pull/451) Task tracking now records feedback and rework loops, so rework cycles and reviewer feedback stay attached to the task record.
