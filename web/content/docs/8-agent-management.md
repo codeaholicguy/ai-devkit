@@ -160,7 +160,7 @@ Useful options:
 
 - `--stdin` to read the message from standard input (useful for piping logs or diffs)
 - `--wait` to wait for and print the agent's response (use with `--id`, not `--group`)
-- `--timeout <ms>` with `--wait` — maximum wait time (default **10 minutes**). Examples: `180000`, `3m`, `90s`
+- `--timeout <ms>` with `--wait` — maximum wait time in milliseconds (default **10 minutes**). Examples: `180000` (3 minutes), `90000` (90 seconds). Unit suffixes such as `3m` or `90s` are rejected
 - `--group <name>` to send to every agent in a group (cannot combine with `--wait`, `--timeout`, or `--json`)
 - `-j, --json` with `--id --wait` for machine-readable output
 
