@@ -15,7 +15,8 @@ type AgentListState = Omit<UseAgentListResult, "refresh">;
 
 export const LIST_POLL_INTERVAL_MS = 3000;
 /** Slow safety-net poll once the daemon event stream drives refresh — covers
- *  attribution drift (status text, session files) the daemon can't see. */
+ *  attribution drift no daemon event reports (e.g. summary text). Session
+ *  files arrive via `agent.session_attached` (#405). */
 export const LIST_FALLBACK_INTERVAL_MS = 60_000;
 
 export function agentsEqual(a: AgentInfo[], b: AgentInfo[]): boolean {

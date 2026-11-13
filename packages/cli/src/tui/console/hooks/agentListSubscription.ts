@@ -1,4 +1,7 @@
 import { DaemonClient, ensureDaemon } from "@ai-devkit/daemon-client";
+import { createLogger } from "../../../util/debug.js";
+
+const debug = createLogger("console:agent-list");
 
 /**
  * Attach to the daemon event stream so agent lifecycle changes
@@ -12,14 +15,28 @@ export async function attachDaemonRefresh(
   onSubscribed: () => void,
 ): Promise<DaemonClient | null> {
   const client = await ensureDaemon().catch(() => null);
-  if (!client) return null;
+  if (!client) {
+    debug("daemon unreachable; keeping fast list poll");
+    return null;
+  }
   try {
     // Live only: the console is a UI — replaying the persisted event log
     // (up to 10k frames) would only trigger redundant refreshes.
-    await client.subscribe(() => onEvent(), { liveOnly: true });
+    await client.subscribe(
+      (event) => {
+        debug("daemon event %s", event.kind);
+        onEvent();
+      },
+      { liveOnly: true },
+    );
+    debug("subscribed to daemon events; relaxing list poll");
     onSubscribed();
     return client;
-  } catch {
+  } catch (err) {
+    debug(
+      "daemon subscribe failed (%s); keeping fast list poll",
+      err instanceof Error ? err.message : err,
+    );
     client.close();
     return null;
   }
