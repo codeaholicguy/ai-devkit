@@ -34,10 +34,10 @@ Following a summary of a skill is not a substitute for loading it.
 
 At the beginning of every `dev-lifecycle` run:
 
-1. Run `npx ai-devkit@latest skill list` to inspect currently installed project skills.
-2. Confirm the listed skills include all required phase skills and supporting skills.
-3. If any required skill is missing, run `npx ai-devkit@latest skill add --built-in` to install all AI DevKit built-in skills. Then rerun `npx ai-devkit@latest skill list`.
-4. If installation fails or a required skill is still missing, stop and report the missing skill names and command output summary. Do not run a phase without its skill.
+1. Run `npx ai-devkit@latest skill list` and `npx ai-devkit@latest skill list --global` to inspect currently installed project and global skills.
+2. Confirm the required phase skills and supporting skills are covered by the union of both lists.
+3. Only if a required skill is missing from both, run `npx ai-devkit@latest skill add --built-in` to install all AI DevKit built-in skills. Then rerun both lists.
+4. If installation fails or a required skill is still missing from both, stop and report the missing skill names and command output summary. Do not run a phase without its skill.
 5. Run `npx ai-devkit@latest lint` to verify the configured AI docs structure.
 6. If working on a specific feature, run `npx ai-devkit@latest lint --feature <name>`.
 7. If lint fails because project docs are not initialized, run `npx ai-devkit@latest init -a -e claude --built-in --yes`, then rerun lint.
