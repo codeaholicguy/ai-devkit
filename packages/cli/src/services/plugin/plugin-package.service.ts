@@ -13,12 +13,15 @@ export interface NpmRunOptions {
   cwd: string;
 }
 
-export type NpmRunner = (args: string[], options: NpmRunOptions) => Promise<void>;
+export type NpmRunner = (args: string[], options: NpmRunOptions) => Promise<string | void>;
 
 export interface PluginPackageService {
   ensureGlobalNpmProject(): Promise<void>;
   install(pluginName: string): Promise<void>;
   uninstall(pluginName: string): Promise<void>;
+  getInstalledVersion(pluginName: string): Promise<string>;
+  getLatestVersion(pluginName: string): Promise<string>;
+  installLatest(pluginName: string): Promise<void>;
 }
 
 interface PluginPackageServiceDeps {
@@ -68,6 +71,44 @@ export function createPluginPackageService(
       }
     },
 
+    async getInstalledVersion(pluginName: string): Promise<string> {
+      const name = validatePluginPackageName(pluginName);
+      try {
+        const manifest = await fs.readJson(
+          path.join(getGlobalPluginNpmRoot(), "node_modules", name, "package.json"),
+        );
+        return validatePluginVersion(manifest?.version);
+      } catch (error) {
+        throw new Error(
+          `Failed to read installed version for plugin ${name}: ${getErrorMessage(error)}`,
+        );
+      }
+    },
+
+    async getLatestVersion(pluginName: string): Promise<string> {
+      const name = validatePluginPackageName(pluginName);
+      try {
+        const output = await runNpm(["view", `${name}@latest`, "version", "--json"], {
+          cwd: getGlobalPluginNpmRoot(),
+        });
+        return validatePluginVersion(JSON.parse(output ?? ""));
+      } catch (error) {
+        throw new Error(
+          `Failed to read latest version for plugin ${name}: ${getErrorMessage(error)}`,
+        );
+      }
+    },
+
+    async installLatest(pluginName: string): Promise<void> {
+      const name = validatePluginPackageName(pluginName);
+      await this.ensureGlobalNpmProject();
+      try {
+        await runNpm(["install", `${name}@latest`], { cwd: getGlobalPluginNpmRoot() });
+      } catch (error) {
+        throw new Error(`Failed to update plugin package ${name}: ${getErrorMessage(error)}`);
+      }
+    },
+
     async uninstall(pluginName: string): Promise<void> {
       const normalizedName = validatePluginPackageName(pluginName);
       await this.ensureGlobalNpmProject();
@@ -101,8 +142,22 @@ export function validatePluginPackageName(pluginName: string): string {
   return normalizedName;
 }
 
-async function defaultRunNpm(args: string[], options: NpmRunOptions): Promise<void> {
-  await execFileAsync("npm", args, {
+async function defaultRunNpm(args: string[], options: NpmRunOptions): Promise<string> {
+  const { stdout } = await execFileAsync("npm", args, {
     cwd: options.cwd,
   });
+  return stdout;
+}
+
+function validatePluginVersion(value: unknown): string {
+  // SemVer core and optional prerelease/build identifiers; numeric prereleases cannot have leading zeroes.
+  const numeric = "(?:0|[1-9][0-9]*)";
+  const prerelease = `(?:${numeric}|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)`;
+  const pattern = new RegExp(
+    `^${numeric}\\.${numeric}\\.${numeric}(?:-${prerelease}(?:\\.${prerelease})*)?(?:\\+[0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*)?$`,
+  );
+  if (typeof value !== "string" || value.trim() !== value || !pattern.test(value)) {
+    throw new ValidationError("Invalid plugin version: expected a semantic version.");
+  }
+  return value;
 }
