@@ -1,3 +1,4 @@
+import { NotFoundError } from "../../util/errors.js";
 import { GlobalConfigManager } from "../../lib/GlobalConfig.js";
 import { getErrorMessage } from "../../util/text.js";
 import {
@@ -10,6 +11,15 @@ import { validateInstalledPluginManifest } from "./plugin-loader.service.js";
 export interface PluginListItem {
   name: string;
   status: "valid" | "invalid";
+  error?: string;
+}
+
+export interface PluginUpdateResult {
+  name: string;
+  status: "updated" | "up-to-date" | "failed";
+  fromVersion?: string;
+  targetVersion?: string;
+  toVersion?: string;
   error?: string;
 }
 
@@ -43,6 +53,35 @@ export function createPluginManager(deps: PluginManagerDeps = {}) {
       }
 
       await config.addPlugin(normalizedName);
+    },
+
+    async update(pluginName?: string): Promise<PluginUpdateResult[]> {
+      const target = pluginName === undefined ? undefined : validatePluginPackageName(pluginName);
+      const configured = await config.getPlugins();
+      if (target !== undefined && !configured.includes(target)) {
+        throw new NotFoundError(`Plugin "${target}" is not configured. Use plugin add first.`);
+      }
+      const results: PluginUpdateResult[] = [];
+      for (const name of target === undefined ? configured : [target]) {
+        const result: PluginUpdateResult = { name, status: "failed" };
+        try {
+          result.fromVersion = await packages.getInstalledVersion(name);
+          result.targetVersion = await packages.getLatestVersion(name);
+          if (result.fromVersion === result.targetVersion) {
+            result.toVersion = result.fromVersion;
+            result.status = "up-to-date";
+          } else {
+            await packages.installLatest(name);
+            result.toVersion = await packages.getInstalledVersion(name);
+            await validateInstalledPlugin(name);
+            result.status = "updated";
+          }
+        } catch (error) {
+          result.error = getErrorMessage(error);
+        }
+        results.push(result);
+      }
+      return results;
     },
 
     async remove(pluginName: string): Promise<void> {

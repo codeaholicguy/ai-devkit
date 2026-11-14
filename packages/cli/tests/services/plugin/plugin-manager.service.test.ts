@@ -2,6 +2,9 @@ import { createPluginManager } from "../../../src/services/plugin/plugin-manager
 
 describe("plugin manager service", () => {
   const packageService = () => ({
+    getInstalledVersion: vi.fn(),
+    getLatestVersion: vi.fn(),
+    installLatest: vi.fn(),
     ensureGlobalNpmProject: vi.fn().mockResolvedValue(undefined),
     install: vi.fn().mockResolvedValue(undefined),
     uninstall: vi.fn().mockResolvedValue(undefined),
