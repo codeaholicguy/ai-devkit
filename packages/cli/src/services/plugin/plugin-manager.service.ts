@@ -1,3 +1,4 @@
+import fs from "fs-extra";
 import { GlobalConfigManager } from "../../lib/GlobalConfig.js";
 import { getErrorMessage } from "../../util/text.js";
 import {
@@ -5,10 +6,14 @@ import {
   type PluginPackageService,
   validatePluginPackageName,
 } from "./plugin-package.service.js";
-import { validateInstalledPluginManifest } from "./plugin-loader.service.js";
+import {
+  getInstalledPluginPackageJsonPath,
+  validateInstalledPluginManifest,
+} from "./plugin-loader.service.js";
 
 export interface PluginListItem {
   name: string;
+  version: string;
   status: "valid" | "invalid";
   error?: string;
 }
@@ -61,12 +66,14 @@ export function createPluginManager(deps: PluginManagerDeps = {}) {
           await validateInstalledPlugin(plugin);
           items.push({
             name: plugin,
+            version: await readInstalledVersion(plugin),
             status: "valid",
             error: undefined,
           });
         } catch (error) {
           items.push({
             name: plugin,
+            version: "unknown",
             status: "invalid",
             error: getErrorMessage(error),
           });
@@ -92,4 +99,15 @@ async function rollbackInstall(
   }
 
   throw validationError;
+}
+
+async function readInstalledVersion(pluginName: string): Promise<string> {
+  try {
+    const manifest = await fs.readJson(getInstalledPluginPackageJsonPath(pluginName));
+    return typeof manifest?.version === "string" && manifest.version.trim()
+      ? manifest.version.trim()
+      : "unknown";
+  } catch {
+    return "unknown";
+  }
 }

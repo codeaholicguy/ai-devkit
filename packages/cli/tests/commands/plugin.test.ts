@@ -59,11 +59,13 @@ describe("plugin command", () => {
     mockPluginManager.list.mockResolvedValue([
       {
         name: "@ai-devkit/memory-dashboard",
+        version: "1.2.3",
         status: "valid",
         error: undefined,
       },
       {
         name: "@ai-devkit/bad-plugin",
+        version: "unknown",
         status: "invalid",
         error: "missing manifest",
       },
@@ -75,10 +77,10 @@ describe("plugin command", () => {
     await program.parseAsync(["node", "test", "plugin", "list"]);
 
     expect(mockUi.table).toHaveBeenCalledWith({
-      headers: ["package", "status", "error"],
+      headers: ["package", "version", "status", "error"],
       rows: [
-        ["@ai-devkit/memory-dashboard", "valid", ""],
-        ["@ai-devkit/bad-plugin", "invalid", "missing manifest"],
+        ["@ai-devkit/memory-dashboard", "1.2.3", "valid", ""],
+        ["@ai-devkit/bad-plugin", "unknown", "invalid", "missing manifest"],
       ],
     });
   });

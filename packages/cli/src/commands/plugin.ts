@@ -40,8 +40,13 @@ export function registerPluginCommand(program: Command): void {
         }
 
         ui.table({
-          headers: ["package", "status", "error"],
-          rows: plugins.map((plugin) => [plugin.name, plugin.status, plugin.error ?? ""]),
+          headers: ["package", "version", "status", "error"],
+          rows: plugins.map((plugin) => [
+            plugin.name,
+            plugin.version,
+            plugin.status,
+            plugin.error ?? "",
+          ]),
         });
       }),
     );
