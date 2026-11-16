@@ -30,9 +30,9 @@ description: Test strategy and evidence for OMP detection, sessions, profile arg
 - [x] Agent-manager focused/package tests pass.
 - [x] CLI focused/package tests pass, including daemon and local start argument forwarding.
 - [x] Rust workspace and daemon tests pass.
-- [x] Isolated HOME smoke lists a fixture OMP session.
-- [x] Installed `omp --version`/`omp --help` smoke confirms the environment's executable and profile flag without invoking a model.
-- [x] Live cockpit smoke starts a model-configured OMP in tmux, discovers it as `type: "omp"`, and stops its process through `agent kill`.
+- [x] Readiness fixture replay covers a healthy OMP executable, config root, and built-in skill root.
+- [x] Built CLI `agent list --json` discovers live `type: "omp"` processes; installed `omp --version`/`omp --help` exposes the profile flag without invoking a model.
+- [ ] Interactive cockpit start/message/kill smoke remains unautomated; cockpit command help and noninteractive discovery were verified.
 
 ## Known Baseline
 
@@ -40,9 +40,9 @@ description: Test strategy and evidence for OMP detection, sessions, profile arg
 - Daemon-backed `agent kill` terminates the OMP PID, but the managed tmux shell remains until explicit cleanup. This is runtime lifecycle behavior shared by the daemon start path, not OMP process detection.
 - After building workspace packages, the baseline test suite had one existing failure in `PiDiscoveryIO.test.ts` where a newly added Pi session was not rechecked. This is tracked separately from OMP work.
 
-- Focused TypeScript: agent-manager OMP/readiness/runtime/Tmux tests and CLI command/status/TUI/session tests passed.
-- Full Nx test run: all 8 project test targets passed after the installed-launcher matcher fix; agent-manager reported 93 files/1380 tests and CLI reported 111 files/1350 tests.
-- Rust: `cargo test --workspace` passed after the installed-launcher matcher fix; the repository's `cargo fmt` check was unavailable because the local rustup toolchain lacks an applicable `rustfmt` component.
-- Smoke: built CLI `agent list --json` returned an OMP entry; installed `omp/18.12.6` exposes `--profile`; managed cockpit start/list/kill passed for a configured OMP process.
+- Focused TypeScript: agent-manager OMP/readiness/runtime/Tmux/Pi tests and CLI command/status/TUI/session tests passed.
+- Full Nx test run: all 7 workspace targets passed; agent-manager reported 93 files/1404 tests and CLI reported 113 files/1462 tests.
+- Rust: `cargo test --workspace`, `cargo fmt --all -- --check`, and clippy passed.
+- Smoke: built CLI `agent list --json` returned three live OMP entries; installed `omp/18.20.3` exposes `--profile`; cockpit help loaded without entering its interactive UI.
 
 ## Evidence Log
