@@ -10,12 +10,12 @@ import type {
   ProcessInfo,
   SessionSummary,
 } from "../../adapters/AgentAdapter.js";
-import { executableBasename } from "../../utils/process.js";
 import { AgentRegistry } from "../../utils/AgentRegistry.js";
 import { findHarnessProcesses, homeDir, processOnlyAgent } from "../shared.js";
 import { PiSessionLocator } from "../pi/PiSessionLocator.js";
 import { PiSessionParser, type PiSession } from "../pi/PiSessionParser.js";
 import { generateAgentName } from "../../utils/matching.js";
+import { matchesOmpCommand } from "../runtimeProfiles.js";
 
 interface SessionFileMatch {
   process: ProcessInfo;
@@ -32,20 +32,20 @@ export class OmpAdapter implements AgentAdapter {
   readonly type = "omp" as const;
   readonly processNames = ["omp", "bun", "node"] as const;
 
-  private readonly sessionsDir: string;
+  private readonly sessionsDirs: readonly string[];
   private readonly registry: AgentRegistry;
   private readonly parser: PiSessionParser;
   private readonly liveLocator: PiSessionLocator;
 
   constructor(registry: AgentRegistry = AgentRegistry.default()) {
-    this.sessionsDir = path.join(homeDir(), ".omp", "agent", "sessions");
+    this.sessionsDirs = resolveOmpSessionDirs();
     this.registry = registry;
     this.parser = new PiSessionParser();
     this.liveLocator = this.createLocator();
   }
 
   canHandle(processInfo: ProcessInfo): boolean {
-    return this.isOmpExecutable(processInfo.command);
+    return matchesOmpCommand(processInfo.command);
   }
 
   async detectAgents(context?: AgentDetectionContext): Promise<AgentInfo[]> {
@@ -100,7 +100,7 @@ export class OmpAdapter implements AgentAdapter {
 
   private createLocator(): PiSessionLocator {
     return new PiSessionLocator(
-      { sessionsDir: this.sessionsDir, encodeProjectDir: encodeOmpProjectDir },
+      { sessionsDirs: this.sessionsDirs, encodeProjectDir: encodeOmpProjectDir },
       this.parser,
     );
   }
@@ -175,40 +175,76 @@ export class OmpAdapter implements AgentAdapter {
     return processes.filter((processInfo) => !matchedPids.has(processInfo.pid));
   }
 
-  private isOmpExecutable(command: string): boolean {
-    const tokens = command.replaceAll("\\", "/").trim().split(/\s+/);
-    const [argv0, ...args] = tokens;
-    const argv0Base = executableBasename(argv0 ?? "");
-    if (argv0Base === "omp" || argv0Base === "omp.exe" || argv0Base === "omp.js") return true;
-    if (argv0Base !== "bun" && argv0Base !== "bun.exe") return false;
-    return (
-      args.some(
-        (token) =>
-          (token.endsWith("/bin/omp") || token.endsWith("/bin/omp.exe")) &&
-          (executableBasename(token) === "omp" || executableBasename(token) === "omp.exe"),
-      ) ||
-      args.some(
-        (token) =>
-          executableBasename(token) === "cli.js" &&
-          token.includes("/@oh-my-pi/pi-coding-agent/") &&
-          token.endsWith("/dist/cli.js"),
-      )
-    );
-  }
   private isSessionFile(filePath: string): boolean {
-    const root = path.resolve(this.sessionsDir);
     const candidate = path.resolve(filePath);
-    return candidate.startsWith(`${root}${path.sep}`);
+    return this.sessionsDirs.some((sessionsDir) => {
+      const root = path.resolve(sessionsDir);
+      return candidate.startsWith(`${root}${path.sep}`);
+    });
+  }
+}
+
+function resolveOmpSessionDirs(home = homeDir()): string[] {
+  const override = process.env.PI_CODING_AGENT_DIR;
+  if (override) return [path.resolve(override, "sessions")];
+
+  const configRoot = path.resolve(home, process.env.PI_CONFIG_DIR ?? ".omp");
+  const roots = [path.join(configRoot, "agent", "sessions")];
+  addProfileSessionDirs(roots, path.join(configRoot, "profiles"), "agent");
+
+  if (process.platform === "linux" || process.platform === "darwin") {
+    const xdgDataHome = process.env.XDG_DATA_HOME;
+    if (xdgDataHome) {
+      const xdgRoot = path.resolve(xdgDataHome, "omp");
+      roots.push(path.join(xdgRoot, "sessions"));
+      addProfileSessionDirs(roots, path.join(xdgRoot, "profiles"), undefined);
+    }
+  }
+
+  return [...new Set(roots.map((root) => path.resolve(root)))];
+}
+
+function addProfileSessionDirs(
+  roots: string[],
+  profilesRoot: string,
+  agentSegment: string | undefined,
+): void {
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(profilesRoot, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    roots.push(
+      path.join(
+        profilesRoot,
+        entry.name,
+        ...(agentSegment === undefined ? ["sessions"] : [agentSegment, "sessions"]),
+      ),
+    );
   }
 }
 
 function encodeOmpProjectDir(cwd: string): string {
-  const normalized = path.resolve(cwd);
-  const home = path.resolve(homeDir());
+  const normalized = canonicalPath(path.resolve(cwd));
+  const home = canonicalPath(path.resolve(homeDir()));
   const relative = path.relative(home, normalized);
-  const value =
-    relative && !relative.startsWith("..") && !path.isAbsolute(relative)
-      ? relative
-      : normalized.replace(/^[/\\]+/, "");
-  return `-${value.replaceAll(path.sep, "-").replaceAll("/", "-")}`;
+  if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+    return `-${relative.replaceAll(path.sep, "-").replaceAll("/", "-")}`;
+  }
+  const outsideHome = normalized
+    .replace(/^[/\\]+/, "")
+    .replaceAll(path.sep, "-")
+    .replaceAll("/", "-");
+  return `--${outsideHome}--`;
+}
+
+function canonicalPath(value: string): string {
+  try {
+    return fs.realpathSync.native(value);
+  } catch {
+    return value;
+  }
 }

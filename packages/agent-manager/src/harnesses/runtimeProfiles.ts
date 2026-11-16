@@ -20,7 +20,7 @@ export const HARNESS_RUNTIME_PROFILES: Record<StartableAgentType, HarnessRuntime
   antigravity_cli: profile("agy", matchArgv0("agy"), ["antigravity", "antigravity_cli"]),
   opencode: profile("opencode", matchArgv0("opencode")),
   pi: profile("pi", matchAnyBasename(["pi"])),
-  omp: profile("omp", matchOmp),
+  omp: profile("omp", matchesOmpCommand),
   kiro: profile("kiro", matchAnyBasename(["kiro-cli", "kiro"]), ["kiro_cli", "kiro-cli"]),
   devin: profile("devin", matchArgv0("devin")),
   muse: profile("muse", matchArgv0Name("muse")),
@@ -105,7 +105,7 @@ function matchAnyBasename(names: string[]): (psCommand: string) => boolean {
   };
 }
 
-function matchOmp(psCommand: string): boolean {
+export function matchesOmpCommand(psCommand: string): boolean {
   const tokens = psCommand.replaceAll("\\", "/").trim().split(/\s+/);
   const [argv0, ...args] = tokens;
   const argv0Base = basenameOf(argv0 ?? "");

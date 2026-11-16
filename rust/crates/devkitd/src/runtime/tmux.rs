@@ -16,9 +16,10 @@ const REQUIRED_STABLE_POLLS: u32 = 5;
 /// Binary paths are injectable so tests can point at fixture scripts instead
 /// of real tmux/pgrep/ps.
 fn shell_quote(value: &str) -> String {
-    if value
-        .bytes()
-        .all(|b| b.is_ascii_alphanumeric() || b"_./:@%+=,-".contains(&b))
+    if !value.is_empty()
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"_./:@%+=,-".contains(&b))
     {
         return value.to_string();
     }
@@ -241,6 +242,10 @@ mod tests {
         }
     }
 
+    #[test]
+    fn shell_quote_preserves_empty_arguments() {
+        assert_eq!(shell_quote(""), "''");
+    }
     #[test]
     fn availability_follows_tmux_dash_v() {
         let f = FixtureDir::new("avail");

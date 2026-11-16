@@ -105,10 +105,10 @@ Supported start types:
 | `antigravity_cli` | Antigravity CLI |
 | `opencode` | opencode |
 | `pi` | Pi |
+| `omp` | oh-my-pi |
 | `kiro` | Kiro CLI |
 | `devin` | Devin |
 | `muse` | Muse Code |
-
 Starting an agent from the console uses the configured managed runtime (tmux by default, or Herdr when `agentRuntime.provider` is set to `herdr` in the global `~/.ai-devkit/.ai-devkit.json` file). If tmux is not installed or the selected agent command is not in `PATH`, the console shows an error.
 
 ### Rename an Agent

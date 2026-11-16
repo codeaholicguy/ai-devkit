@@ -51,6 +51,7 @@ const AGENT_BINARIES: &[&str] = &[
     "grok",
     "opencode",
     "pi",
+    "omp",
     "kiro-cli-chat",
     "kiro-cli",
     "kiro",
@@ -317,6 +318,7 @@ mod tests {
  881120 2044 pts/2    /usr/bin/claude --resume abc123
  881121 881120 ?        node /opt/tools/codex-linux.js
  991000 2044 pts/3    gemini
+ 991001 2044 pts/3    omp --profile work
 1234567    1 ?        /usr/lib/systemd/systemd --user
 ";
 
@@ -326,7 +328,7 @@ mod tests {
         let pids: Vec<i64> = procs.iter().map(|p| p.pid).collect();
         // 881121 (`node .../codex-linux.js`) is now swept as a runtime proc;
         // apply_sweep drops it from the visible pool when no adapter claims it.
-        assert_eq!(pids, vec![3164590, 881120, 881121, 991000]);
+        assert_eq!(pids, vec![3164590, 881120, 881121, 991000, 991001]);
     }
 
     #[test]

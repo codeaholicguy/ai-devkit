@@ -14,7 +14,7 @@ AI DevKit can manage Pi-compatible agents, but oh-my-pi (OMP) is a separate exec
 ## Goals
 
 - Detect and manage OMP interactive processes through the same agent-manager surface as other harnesses.
-- Discover OMP JSONL sessions from the default `~/.omp/agent/sessions` tree.
+- Discover OMP JSONL sessions from the default root, named profile roots, XDG data roots, and supported `PI_CONFIG_DIR`/`PI_CODING_AGENT_DIR` overrides.
 - Support profile launches as structured executable arguments, without evaluating shell aliases.
 - Keep TypeScript local discovery and Rust `devkitd` discovery behavior aligned.
 - Preserve existing Pi behavior and public APIs except for additive OMP/type support.
@@ -38,16 +38,15 @@ AI DevKit can manage Pi-compatible agents, but oh-my-pi (OMP) is a separate exec
 
 1. `AgentType` and all exhaustive built-in type tables include `omp`.
 2. OMP matching accepts the OMP CLI/Bun process shape and rejects unrelated Bun/Node processes.
-3. OMP sessions are read only below the resolved OMP sessions root; malformed records do not fail discovery.
+3. OMP sessions are read only below one of the resolved OMP session roots; malformed records do not fail discovery.
 4. OMP summaries, status, conversation detail, and historical listing work for the installed session format.
 5. Local and daemon discovery produce the same OMP agent type and session mapping.
 6. Structured arguments reach both local Tmux and daemon Tmux launches without shell alias evaluation.
 7. Tests cover positive/negative process matching, session mapping, argument propagation, and Rust/TypeScript parity.
 8. Existing supported harness behavior remains unchanged.
 
-## Constraints and Risks
-
 - OMP is Bun-launched, so matching must identify the OMP CLI path rather than every Bun process.
-- OMP's default storage root is `~/.omp/agent`; `PI_CODING_AGENT_DIR` may override it. This change supports the default root and documents the environment-root limitation if the existing adapter contract cannot safely inject it.
+- OMP resolves sessions under `~/.omp/agent/sessions`, named profile roots, `$XDG_DATA_HOME/omp/sessions` and profile roots, or `PI_CODING_AGENT_DIR/sessions`; `PI_CONFIG_DIR` changes the home-relative config root.
+- OMP project buckets use home-relative names such as `-repo`; paths outside home use the upstream absolute form such as `--srv-app--`.
 - Tmux receives a shell command string; arguments must be quoted deterministically.
 - The daemon's authoritative result means Rust support is required, not optional.

@@ -130,6 +130,7 @@ const STATUS_SKILL_ROOTS: Partial<Record<ReadinessAgentType, string>> = {
   antigravity_cli: getGlobalSkillPath("antigravity-cli") ?? ".gemini/config/skills",
   opencode: getGlobalSkillPath("opencode") ?? ".config/opencode/skills",
   pi: getGlobalSkillPath("pi") ?? ".pi/agent/skills",
+  omp: ".omp/agent/skills",
   devin: getGlobalSkillPath("devin") ?? ".config/devin/skills",
 };
 

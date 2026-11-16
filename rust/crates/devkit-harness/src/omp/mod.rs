@@ -11,31 +11,34 @@ use crate::{HarnessAdapter, SweepContext};
 use devkit_core::agent::EnrichedAgent;
 use devkit_core::discover::AgentProc;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::path::{Path, PathBuf};
 
 pub struct OmpAdapter {
-    sessions_dir: PathBuf,
+    sessions_dirs: Vec<PathBuf>,
     home: PathBuf,
 }
 
 impl OmpAdapter {
     pub fn new(home: &Path) -> Self {
         Self {
-            sessions_dir: home.join(".omp/agent/sessions"),
+            sessions_dirs: resolve_session_dirs(home),
             home: home.to_path_buf(),
         }
     }
 
     fn discover_sessions(&self, processes: &[&AgentProc]) -> Vec<SessionFile> {
         let mut dirs = HashMap::<String, String>::new();
-        for proc in processes {
-            let (Some(cwd), Some(_start)) = (proc.cwd.as_deref(), proc.start_time_ms) else {
-                continue;
-            };
-            let dir = self.sessions_dir.join(encode_project_dir(&self.home, cwd));
-            if dir.is_dir() {
-                dirs.entry(dir.to_string_lossy().into_owned())
-                    .or_insert_with(|| cwd.to_string());
+        for sessions_dir in &self.sessions_dirs {
+            for proc in processes {
+                let (Some(cwd), Some(_start)) = (proc.cwd.as_deref(), proc.start_time_ms) else {
+                    continue;
+                };
+                let dir = sessions_dir.join(encode_project_dir(&self.home, cwd));
+                if dir.is_dir() {
+                    dirs.entry(dir.to_string_lossy().into_owned())
+                        .or_insert_with(|| cwd.to_string());
+                }
             }
         }
 
@@ -66,6 +69,64 @@ impl OmpAdapter {
             }
         }
         sessions
+    }
+}
+
+fn resolve_session_dirs(home: &Path) -> Vec<PathBuf> {
+    if let Some(agent_dir) = env::var_os("PI_CODING_AGENT_DIR") {
+        return vec![PathBuf::from(agent_dir).join("sessions")];
+    }
+
+    let config_dir = env::var_os("PI_CONFIG_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(".omp"));
+    let config_root = if config_dir.is_absolute() {
+        config_dir
+    } else {
+        home.join(config_dir)
+    };
+    let mut dirs = vec![config_root.join("agent/sessions")];
+    add_profile_session_dirs(
+        &mut dirs,
+        &config_root.join("profiles"),
+        Some(["agent", "sessions"]),
+    );
+
+    if cfg!(target_os = "linux") || cfg!(target_os = "macos") {
+        if let Some(data_home) = env::var_os("XDG_DATA_HOME") {
+            let xdg_root = PathBuf::from(data_home).join("omp");
+            dirs.push(xdg_root.join("sessions"));
+            add_profile_session_dirs(&mut dirs, &xdg_root.join("profiles"), Some(["sessions"]));
+        }
+    }
+
+    dirs.sort();
+    dirs.dedup();
+    dirs
+}
+
+fn add_profile_session_dirs<const N: usize>(
+    dirs: &mut Vec<PathBuf>,
+    profiles_root: &Path,
+    suffix: Option<[&str; N]>,
+) {
+    let Ok(entries) = std::fs::read_dir(profiles_root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_dir() {
+            continue;
+        }
+        let mut path = entry.path();
+        if let Some(parts) = suffix {
+            for part in parts {
+                path.push(part);
+            }
+        }
+        dirs.push(path);
     }
 }
 
@@ -146,13 +207,13 @@ impl HarnessAdapter for OmpAdapter {
 
 fn encode_project_dir(home: &Path, cwd: &str) -> String {
     let cwd_path = Path::new(cwd);
-    let value = cwd_path
-        .strip_prefix(home)
-        .ok()
-        .filter(|relative| !relative.as_os_str().is_empty())
-        .map(|relative| relative.to_string_lossy().into_owned())
-        .unwrap_or_else(|| cwd.trim_start_matches('/').to_string());
-    format!("-{}", value.replace(['/', '\\'], "-"))
+    if let Ok(relative) = cwd_path.strip_prefix(home) {
+        if !relative.as_os_str().is_empty() {
+            return format!("-{}", relative.to_string_lossy().replace(['/', '\\'], "-"));
+        }
+    }
+    let absolute = cwd.trim_start_matches(['/', '\\']);
+    format!("--{}--", absolute.replace(['/', '\\'], "-"))
 }
 
 #[cfg(test)]
@@ -186,6 +247,10 @@ mod tests {
         assert_eq!(
             encode_project_dir(Path::new("/home/me"), "/home/me/Documents/repo"),
             "-Documents-repo"
+        );
+        assert_eq!(
+            encode_project_dir(Path::new("/home/me"), "/srv/app"),
+            "--srv-app--"
         );
     }
 }

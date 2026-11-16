@@ -52,3 +52,5 @@ description: Ordered implementation plan for OMP support
 - Baseline: preflight lint/build passed; baseline full tests had one existing Pi live-discovery failure.
 - Queue update 3: targeted/full verification, formatting, lint, and OMP smoke checks complete; commit and PR submission are the remaining actions.
 - Queue update 4: commit `f95df21` pushed; PR #422 opened against `codeaholicguy/ai-devkit:main`.
+
+- Queue update 5: PR #422 review findings simulated and fixed: direct `omp` sweep gating, profile/XDG/override roots, absolute project buckets, docs, status skill roots, shared matcher, and empty-argument quoting. Branch rebased onto `upstream/main`; final broad verification remains.

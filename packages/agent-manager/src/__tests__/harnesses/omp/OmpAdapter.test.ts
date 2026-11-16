@@ -11,8 +11,17 @@ describe("OmpAdapter", () => {
   let cwd: string;
   let sessionsDir: string;
   let previousHome: string | undefined;
+  let previousXdgDataHome: string | undefined;
+  let previousConfigDir: string | undefined;
+  let previousAgentDir: string | undefined;
   beforeEach(() => {
     previousHome = process.env.HOME;
+    previousXdgDataHome = process.env.XDG_DATA_HOME;
+    previousConfigDir = process.env.PI_CONFIG_DIR;
+    previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+    delete process.env.XDG_DATA_HOME;
+    delete process.env.PI_CONFIG_DIR;
+    delete process.env.PI_CODING_AGENT_DIR;
     home = fs.mkdtempSync(path.join(os.tmpdir(), "omp-adapter-"));
     cwd = path.join(home, "Documents", "repo");
     sessionsDir = path.join(home, ".omp", "agent", "sessions", "-Documents-repo");
@@ -23,6 +32,12 @@ describe("OmpAdapter", () => {
   afterEach(() => {
     if (previousHome === undefined) delete process.env.HOME;
     else process.env.HOME = previousHome;
+    if (previousXdgDataHome === undefined) delete process.env.XDG_DATA_HOME;
+    else process.env.XDG_DATA_HOME = previousXdgDataHome;
+    if (previousConfigDir === undefined) delete process.env.PI_CONFIG_DIR;
+    else process.env.PI_CONFIG_DIR = previousConfigDir;
+    if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
+    else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
     fs.rmSync(home, { recursive: true, force: true });
   });
 
@@ -50,6 +65,93 @@ describe("OmpAdapter", () => {
     expect(adapter.canHandle(makeProcess("bun /repo/tools/cli.js"))).toBe(false);
     expect(adapter.canHandle(makeProcess("node /repo/tool.js omp"))).toBe(false);
     expect(adapter.canHandle(makeProcess("node /repo/omp-helper.js"))).toBe(false);
+  });
+
+  it("lists sessions from default, profile, and XDG storage roots", async () => {
+    const xdgDataHome = path.join(home, "xdg-data");
+    process.env.XDG_DATA_HOME = xdgDataHome;
+    writeSession(sessionsDir, "default-session", cwd);
+    writeSession(
+      path.join(home, ".omp", "profiles", "work", "agent", "sessions", "-Documents-repo"),
+      "profile-session",
+      cwd,
+    );
+    writeSession(path.join(xdgDataHome, "omp", "sessions", "-Documents-repo"), "xdg-session", cwd);
+    writeSession(
+      path.join(xdgDataHome, "omp", "profiles", "work", "sessions", "-Documents-repo"),
+      "xdg-profile-session",
+      cwd,
+    );
+
+    const sessions = await new OmpAdapter(
+      new AgentRegistry(path.join(home, "registry.db")),
+    ).listSessions({ cwd });
+
+    expect(new Set(sessions.map((session) => session.sessionId))).toEqual(
+      new Set(["default-session", "profile-session", "xdg-session", "xdg-profile-session"]),
+    );
+  });
+  it("matches running sessions from profile storage roots", async () => {
+    const sessionPath = writeSession(
+      path.join(home, ".omp", "profiles", "work", "agent", "sessions", "-Documents-repo"),
+      "running-profile-session",
+      cwd,
+    );
+    const agents = await new OmpAdapter(
+      new AgentRegistry(path.join(home, "registry.db")),
+    ).detectAgents({
+      processes: [makeProcess("omp --profile work", 44)],
+    });
+
+    expect(agents).toHaveLength(1);
+    expect(agents[0]).toMatchObject({
+      type: "omp",
+      pid: 44,
+      sessionId: "running-profile-session",
+      sessionFilePath: sessionPath,
+    });
+  });
+
+  it("honors PI_CONFIG_DIR for the default OMP storage root", async () => {
+    process.env.PI_CONFIG_DIR = ".omp-custom";
+    writeSession(
+      path.join(home, ".omp-custom", "agent", "sessions", "-Documents-repo"),
+      "custom-config-session",
+      cwd,
+    );
+
+    const sessions = await new OmpAdapter(
+      new AgentRegistry(path.join(home, "registry.db")),
+    ).listSessions({ cwd });
+
+    expect(sessions.map((session) => session.sessionId)).toEqual(["custom-config-session"]);
+  });
+
+  it("honors PI_CODING_AGENT_DIR for the default OMP storage root", async () => {
+    const agentDir = path.join(home, "omp-agent");
+    process.env.PI_CODING_AGENT_DIR = agentDir;
+    writeSession(path.join(agentDir, "sessions", "-Documents-repo"), "override-session", cwd);
+
+    const sessions = await new OmpAdapter(
+      new AgentRegistry(path.join(home, "registry.db")),
+    ).listSessions({ cwd });
+
+    expect(sessions.map((session) => session.sessionId)).toEqual(["override-session"]);
+  });
+
+  it("uses OMP's absolute bucket encoding outside the home directory", async () => {
+    const outsideCwd = "/srv/app";
+    writeSession(
+      path.join(home, ".omp", "agent", "sessions", "--srv-app--"),
+      "absolute-session",
+      outsideCwd,
+    );
+
+    const sessions = await new OmpAdapter(
+      new AgentRegistry(path.join(home, "registry.db")),
+    ).listSessions({ cwd: outsideCwd });
+
+    expect(sessions.map((session) => session.sessionId)).toEqual(["absolute-session"]);
   });
 
   it("lists and reads OMP sessions from the home-relative project bucket", async () => {
@@ -149,6 +251,22 @@ describe("OmpAdapter", () => {
     });
     expect(agents[0].sessionFilePath).toBeUndefined();
   });
+
+  function writeSession(root: string, id: string, sessionCwd: string): string {
+    fs.mkdirSync(root, { recursive: true });
+    const sessionPath = path.join(root, `2026-10-27T08-50-14-737Z_${id}.jsonl`);
+    fs.writeFileSync(
+      sessionPath,
+      [
+        JSON.stringify({ type: "session", version: 3, id, cwd: sessionCwd }),
+        JSON.stringify({
+          type: "message",
+          message: { role: "user", content: [{ type: "text", text: id }] },
+        }),
+      ].join("\n") + "\n",
+    );
+    return sessionPath;
+  }
 
   function makeProcess(command: string, pid = 1): ProcessInfo {
     return { pid, command, cwd, tty: "pts/0", startTime: new Date() };
