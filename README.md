@@ -265,7 +265,7 @@ Claude Code hooks under `hooks/hooks.json` are for the Codex/Claude plugins only
 
 ### Local limits
 
-Skills and MCP memory work in Cursor on macOS or Linux with Node.js 22+. The **agent control plane** skills (`agent-management`, `agent-orchestration`, `agent-communication`, `remote-from-slack`, `remote-from-telegram`) need a **local** dev machine with **tmux** and the `ai-devkit` CLI—they do not run in hosted-only Cursor environments. **Windows** is not supported for the tmux-backed control plane. This plugin does not provide remote control of Cursor or hosted autonomy.
+Skills and the memory MCP load in Cursor on macOS or Linux with Node.js 22+. For agent control-plane requirements (tmux, channels, Windows), see **Works across coding agents** above. This plugin does not provide remote control of Cursor or hosted autonomy.
 
 ### Test locally before marketplace submission
 

@@ -1,6 +1,6 @@
 ---
 name: dev-worktree
-description: AI DevKit · Worktree setup and resume guidance for isolated feature work. Use when starting, resuming, switching, or verifying a feature branch/worktree for lifecycle, debugging, implementation, review, or multi-agent workflows. Requires a local machine with git worktree support (macOS or Linux).
+description: AI DevKit · Worktree setup and resume guidance for isolated feature work. Use when starting, resuming, switching, or verifying a feature branch/worktree for lifecycle, debugging, implementation, review, or multi-agent workflows.
 ---
 
 # Dev Worktree
