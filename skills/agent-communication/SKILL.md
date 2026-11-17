@@ -1,6 +1,6 @@
 ---
 name: agent-communication
-description: AI DevKit · Exchange information with active Codex, Claude Code, and other AI agents using ai-devkit agent list, detail, and send. Use when an agent needs to find another active agent, read its recent context, send it information, or request information back.
+description: AI DevKit · Exchange information with active Codex, Claude Code, and other AI agents using ai-devkit agent list, detail, and send. Use when an agent needs to find another active agent, read its recent context, send it information, or request information back. Requires a local macOS or Linux dev machine with tmux and the ai-devkit CLI (not hosted Cursor-only environments).
 ---
 
 # Agent Communication

@@ -20,6 +20,7 @@
     "code-review",
     "debugging"
   ],
-  "commands": "./commands/",
-  "skills": "./skills/"
+  "logo": "assets/logo.png",
+  "skills": "./skills/",
+  "hooks": "./.cursor-plugin/hooks.json"
 }

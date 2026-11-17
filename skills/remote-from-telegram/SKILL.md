@@ -1,6 +1,6 @@
 ---
 name: remote-from-telegram
-description: AI DevKit · Connect the current agent session to an available Telegram channel bridge.
+description: AI DevKit · Connect the current agent session to an available Telegram channel bridge. Requires a local macOS or Linux dev machine with tmux, the ai-devkit CLI, and channel setup (not hosted Cursor-only environments).
 ---
 
 # Remote From Telegram

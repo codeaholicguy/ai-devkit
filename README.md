@@ -252,6 +252,37 @@ Those files are static instructions the agent re-reads. AI DevKit gives agents a
 - **Not a magic "write the feature for me" button.** You still review the requirements doc, accept the design, and read the diff. The workflow makes that review possible because you have artifacts to point at instead of only chat scrollback.
 - **Not a hosted service.** Apache-2.0-licensed, runs locally, no telemetry. Memory is a SQLite file on your disk. The control plane detects CLI sessions, types into tmux panes, and reads session files — it does not run a remote cloud agent for you.
 
+## Cursor Marketplace plugin
+
+This repository is packaged as a single Cursor plugin named **ai-devkit** (manifest at `.cursor-plugin/plugin.json`).
+
+### What's included
+
+- **Skills** — built-in workflow skills under `skills/` (for example `dev-lifecycle`, `verify`, `memory`, `tdd`).
+- **Memory MCP** — root `mcp.json` runs `@ai-devkit/memory` via `npx` (stdio). Tools include `memory_storeKnowledge` and `memory_searchKnowledge`. Knowledge is stored locally at `~/.ai-devkit/memory.db` (SQLite). No API keys or cloud service are required.
+
+Claude Code hooks under `hooks/hooks.json` are for the Codex/Claude plugins only; the Cursor manifest points at an empty `.cursor-plugin/hooks.json` so Claude-specific `PreToolUse` hooks are not loaded in Cursor.
+
+### Local limits
+
+Skills and MCP memory work in Cursor on macOS or Linux with Node.js 22+. The **agent control plane** skills (`agent-management`, `agent-orchestration`, `agent-communication`, `remote-from-slack`, `remote-from-telegram`) need a **local** dev machine with **tmux** and the `ai-devkit` CLI—they do not run in hosted-only Cursor environments. **Windows** is not supported for the tmux-backed control plane. This plugin does not provide remote control of Cursor or hosted autonomy.
+
+### Test locally before marketplace submission
+
+1. Copy or symlink this repo into `~/.cursor/plugins/local/ai-devkit` (include `.cursor-plugin/`, `skills/`, `mcp.json`, and `assets/`).
+2. Run **Developer: Reload Window** in Cursor.
+3. Open **Customize** and confirm the plugin appears with skills and the `plugin-ai-devkit-memory` MCP server.
+4. Enable the memory MCP and run a short chat that stores and searches a test convention.
+5. Invoke `/dev-lifecycle` or pick **dev-lifecycle** from skills to confirm skill loading.
+
+### Marketplace reviewer checklist
+
+1. Validate `.cursor-plugin/plugin.json` — `name`, `version` `0.76.1`, `logo` → `assets/logo.png`, `skills` → `./skills/`, `hooks` → `./.cursor-plugin/hooks.json` (all paths exist in-repo).
+2. Confirm root `mcp.json` declares the memory stdio server (`npx -y @ai-devkit/memory@0.21.0`).
+3. Confirm `hooks/hooks.json` is **not** auto-loaded for Cursor (manifest overrides default `hooks/hooks.json`).
+4. Spot-check a skill frontmatter file under `skills/*/SKILL.md` for required `name` and `description` fields.
+5. License: Apache-2.0 (see `LICENSE`).
+
 ## Documentation & community
 
 - Full guides, workflow patterns, skill authoring → **[ai-devkit.com/docs](https://ai-devkit.com/docs/)**

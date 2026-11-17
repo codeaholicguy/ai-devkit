@@ -1,6 +1,6 @@
 ---
 name: agent-management
-description: AI DevKit · Manage running AI agents with ai-devkit agent commands. Use when an agent needs to identify itself, list agents, start workers, inspect agent detail, assign work, group agents, resume sessions, stop agents, or delegate work to other agents.
+description: AI DevKit · Manage running AI agents with ai-devkit agent commands. Use when an agent needs to identify itself, list agents, start workers, inspect agent detail, assign work, group agents, resume sessions, stop agents, or delegate work to other agents. Requires a local macOS or Linux dev machine with tmux and the ai-devkit CLI (not hosted Cursor-only environments).
 ---
 
 # Agent Management
