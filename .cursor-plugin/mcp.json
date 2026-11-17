@@ -2,7 +2,7 @@
   "mcpServers": {
     "memory": {
       "command": "npx",
-      "args": ["-y", "@ai-devkit/memory@0.21.0"]
+      "args": ["-y", "@ai-devkit/memory@latest"]
     }
   }
 }
