@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+anyhow.workspace = true
 devkit-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true

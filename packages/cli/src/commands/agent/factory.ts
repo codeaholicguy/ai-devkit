@@ -1,3 +1,4 @@
+import { RoutedDurableService } from "../../services/agent/durable-backend.service.js";
 import {
   AgentManager,
   AgentRegistry,
@@ -109,6 +110,12 @@ export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentR
 
 export function createDurableAgentService(
   provider: DurableProvider = "claude",
+): RoutedDurableService {
+  return new RoutedDurableService(provider, () => createLocalDurableService(provider));
+}
+
+function createLocalDurableService(
+  provider: DurableProvider,
 ): ClaudePrintAgentService | CodexPrintAgentService | PiPrintAgentService {
   const repository = new DurableAgentRepository();
   if (provider === "codex") return new CodexPrintAgentService({ repository });

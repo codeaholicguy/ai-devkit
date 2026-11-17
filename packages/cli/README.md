@@ -155,3 +155,29 @@ skills:
 ## License
 
 Apache License 2.0
+
+### Durable agents
+
+Create a reusable identity, then send prompts by its name or ID:
+
+```bash
+ai-devkit agent start --mode durable --type claude --name reviewer
+ai-devkit agent send 'Review the current changes' --id reviewer
+ai-devkit agent sessions --all --json
+ai-devkit agent session detail --id reviewer --json
+```
+
+Durable mode supports Claude, Codex, and Pi. A compatible devkitd owns these
+agents and their runs in `~/.ai-devkit/daemon.db`; closing the CLI does not cancel
+a run. A nonzero provider exit or invalid result stream fails the run. After a
+daemon restart, surviving providers are monitored by process identity; if their
+completion cannot be recovered, the run becomes interrupted with an unknown exit
+code.
+
+On upgrade, devkitd imports existing durable identities from `agents.db` once,
+retaining that file for recovery. After ownership transfer, the updated CLI
+requires a compatible daemon and refuses local fallback to stale rows. Avoid
+running older CLI binaries or downgrading after transfer: later legacy writes
+are not imported. If import fails, repair the reported source/conflict and retry;
+do not delete the ownership fence to bypass the error. Corrupt daemon databases
+are preserved for recovery once durable ownership has transferred.

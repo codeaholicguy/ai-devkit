@@ -10,8 +10,13 @@ import {
   JEV_UNAVAILABLE_MESSAGE,
   JEV_UNAVAILABLE_REASON,
 } from "../../services/session-compact/session-compact.types.js";
-import { createAgentManager } from "./factory.js";
-import { formatCwd, renderConversationDetail, selectConversationMessages } from "./render.js";
+import { createAgentManager, createDurableAgentService } from "./factory.js";
+import {
+  formatCwd,
+  renderConversationDetail,
+  renderDurableAgentDetail,
+  selectConversationMessages,
+} from "./render.js";
 
 export function registerAgentSessionCommand(agentCommand: Command): void {
   const sessionCommand = agentCommand
@@ -35,6 +40,21 @@ export function registerAgentSessionCommand(agentCommand: Command): void {
           all: true,
           type: options.type,
         }).adapterOptions;
+        const repository = createDurableAgentService().repository;
+        let durable = await repository.resolve(options.id);
+        if (!durable) {
+          const matches = (await repository.list()).filter(
+            (a) => a.providerSessionId === options.id,
+          );
+          durable = matches.length === 1 ? matches[0] : matches.length > 1 ? matches : null;
+        }
+        if (Array.isArray(durable))
+          throw new Error(`Multiple durable agents match "${options.id}".`);
+        if (durable && (!type || type === durable.provider)) {
+          if (options.json) console.log(JSON.stringify(durable, null, 2));
+          else renderDurableAgentDetail(durable);
+          return;
+        }
         const matches = await manager.findSessionsById(options.id, { type });
 
         if (matches.length === 0) {
