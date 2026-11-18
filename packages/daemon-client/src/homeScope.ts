@@ -1,3 +1,4 @@
+import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
@@ -22,4 +23,9 @@ function safeAccountHome(): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/** Whether the `.ai-devkit` store exists under `home`. */
+export function identityStoreExistsUnder(home: string): boolean {
+  return fs.existsSync(path.join(home, ".ai-devkit"));
 }

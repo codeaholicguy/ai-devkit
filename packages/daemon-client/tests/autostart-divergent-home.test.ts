@@ -23,10 +23,14 @@ describe("ensureDaemon divergent HOME guard (#402)", () => {
     }
   });
 
-  it("refuses autostart when HOME diverges from the account home", async () => {
+  it("refuses autostart when HOME diverges and the account store exists", async () => {
+    const accountHome = os.userInfo().homedir;
+    const accountStore = path.join(accountHome, ".ai-devkit");
+    const createdStore = !fs.existsSync(accountStore);
+    if (createdStore) fs.mkdirSync(accountStore, { recursive: true });
+
     const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-fake-home-"));
     process.env.HOME = fakeHome;
-    const accountHome = os.userInfo().homedir;
     const traces: string[] = [];
     const resolveBinary = (): DaemonBinary => ({
       path: "/nonexistent/devkitd",
@@ -42,5 +46,21 @@ describe("ensureDaemon divergent HOME guard (#402)", () => {
     expect(client).toBeNull();
     expect(traces.some((t) => t.includes("Refusing to auto-spawn"))).toBe(true);
     expect(path.resolve(fakeHome)).not.toBe(path.resolve(accountHome));
+
+    if (createdStore) fs.rmSync(accountStore, { recursive: true, force: true });
+  });
+
+  it("skips the divergent-HOME guard when DEVKITD_BIN is pinned", async () => {
+    const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), "aidk-fake-home-"));
+    process.env.HOME = fakeHome;
+    process.env.DEVKITD_BIN = "/nonexistent/devkitd";
+    const traces: string[] = [];
+
+    await ensureDaemon({
+      resolveBinary: () => null,
+      onDebug: (m) => traces.push(m),
+    });
+
+    expect(traces.some((t) => t.includes("Refusing to auto-spawn"))).toBe(false);
   });
 });
