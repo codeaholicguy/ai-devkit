@@ -20,6 +20,8 @@
     "code-review",
     "debugging"
   ],
-  "commands": "./commands/",
-  "skills": "./skills/"
+  "logo": ".cursor-plugin/logo.png",
+  "skills": "./skills/",
+  "hooks": "./.cursor-plugin/hooks.json",
+  "mcpServers": "./.cursor-plugin/mcp.json"
 }
