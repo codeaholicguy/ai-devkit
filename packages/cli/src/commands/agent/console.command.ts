@@ -21,12 +21,13 @@ export function registerAgentConsoleCommand(agentCommand: Command): void {
             import("ink"),
             import("../../tui/console/ConsoleApp.js"),
           ]);
+        const { runAgentConsoleInk } = await import("../../tui/console/runAgentConsole.js");
         const manager = createAgentManager();
-        const { waitUntilExit } = render(
+        await runAgentConsoleInk(
           React.createElement(ConsoleApp, { manager }),
           AGENT_CONSOLE_RENDER_OPTIONS,
+          { renderInstance: render },
         );
-        await waitUntilExit();
       }),
     );
 }
