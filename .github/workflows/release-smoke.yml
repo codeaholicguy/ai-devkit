@@ -8,6 +8,7 @@ on:
       - ".github/workflows/publish*.yml"
       - ".github/workflows/release-smoke*.yml"
       - "scripts/release-smoke*.sh"
+      - "scripts/verdaccio-smoke-config.yaml"
   workflow_dispatch:
 
 permissions:

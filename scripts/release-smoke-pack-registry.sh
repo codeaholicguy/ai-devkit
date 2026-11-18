@@ -24,19 +24,36 @@ log() {
 publish_dir() {
   local dir="$1"
   log "+ npm publish $dir -> $REGISTRY"
-  (cd "$dir" && npm publish --registry "$REGISTRY" --access public)
+  (cd "$dir" && npm publish --registry "$REGISTRY" --access public --ignore-scripts)
 }
+
+VERDACCIO_LOG="/tmp/verdaccio-smoke.log"
+VERDACCIO_CONFIG="$ROOT/scripts/verdaccio-smoke-config.yaml"
 
 wait_for_registry() {
   local attempts=0
   until curl -sf "$REGISTRY/-/ping" >/dev/null 2>&1; do
     attempts=$((attempts + 1))
-    if [[ $attempts -ge 60 ]]; then
+    if ! kill -0 "$VERDACCIO_PID" 2>/dev/null; then
+      log "Verdaccio exited before becoming ready."
+      [[ -f "$VERDACCIO_LOG" ]] && tail -n 40 "$VERDACCIO_LOG" >&2 || true
+      exit 1
+    fi
+    if [[ $attempts -ge 180 ]]; then
       log "Local registry at $REGISTRY did not become ready."
+      tail -n 40 "$VERDACCIO_LOG" >&2 || true
       exit 1
     fi
     sleep 1
   done
+}
+
+ensure_registry_login() {
+  if npm whoami --registry "$REGISTRY" >/dev/null 2>&1; then
+    return 0
+  fi
+  # Verdaccio config sets max_users: -1; any user can publish once registered.
+  printf '%s\n' smoke smoke smoke@example.com | npm adduser --registry "$REGISTRY" --auth-type=legacy
 }
 
 cd "$ROOT"
@@ -72,10 +89,24 @@ for p in darwin-arm64 darwin-x64 linux-x64 linux-arm64; do
   npm pkg set "optionalDependencies.@ai-devkit/devkitd-$p=$DAEMON_CLIENT_VERSION" --prefix "$STAGE_DAEMON"
 done
 
+if [[ ! -f "$VERDACCIO_CONFIG" ]]; then
+  log "Missing Verdaccio config: $VERDACCIO_CONFIG"
+  exit 1
+fi
+
+if command -v verdaccio >/dev/null 2>&1; then
+  VERDACCIO_BIN=(verdaccio)
+else
+  # Warm the package cache so startup is not counted against the readiness timeout.
+  npm install --no-save verdaccio@6 >/dev/null 2>&1
+  VERDACCIO_BIN=(npx verdaccio@6)
+fi
+
 log "Starting local Verdaccio on $REGISTRY"
-npx --yes verdaccio@6 --listen "$REGISTRY_PORT" >/tmp/verdaccio-smoke.log 2>&1 &
+"${VERDACCIO_BIN[@]}" -c "$VERDACCIO_CONFIG" >"$VERDACCIO_LOG" 2>&1 &
 VERDACCIO_PID=$!
 wait_for_registry
+ensure_registry_login
 
 # Publish dependency packages before the CLI tarball they pin.
 publish_dir "$ROOT/packages/memory"
