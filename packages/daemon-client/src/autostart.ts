@@ -56,11 +56,7 @@ export async function ensureDaemon(
   // and own an isolated HOME — they're allowed to spawn there.
   const mismatch = homeScopeMismatch();
   const explicitDevkitd = !!(process.env.DEVKITD_BIN || process.env.AI_DEVKITD_BIN);
-  if (
-    mismatch &&
-    !explicitDevkitd &&
-    identityStoreExistsUnder(mismatch.accountHome)
-  ) {
+  if (mismatch && !explicitDevkitd && identityStoreExistsUnder(mismatch.accountHome)) {
     const diagnostic =
       `Refusing to auto-spawn devkitd: HOME="${mismatch.envHome}" diverges from the ` +
       `account home "${mismatch.accountHome}". Unset HOME or run from a ` +
