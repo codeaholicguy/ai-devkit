@@ -43,6 +43,8 @@ jobs:
 
       - name: Pack workspace into local registry
         id: pack
+        env:
+          AI_DEVKIT_SMOKE_KEEP_REGISTRY: "1"
         run: |
           chmod +x scripts/release-smoke-pack-registry.sh
           ./scripts/release-smoke-pack-registry.sh
@@ -53,3 +55,11 @@ jobs:
         run: |
           chmod +x scripts/release-smoke.sh
           ./scripts/release-smoke.sh "${{ steps.pack.outputs.package_spec }}"
+
+      - name: Stop local registry
+        if: always()
+        run: |
+          if [[ -f /tmp/verdaccio-smoke.pid ]]; then
+            kill "$(cat /tmp/verdaccio-smoke.pid)" 2>/dev/null || true
+          fi
+          pkill -f 'verdaccio.*verdaccio-smoke-config' 2>/dev/null || true

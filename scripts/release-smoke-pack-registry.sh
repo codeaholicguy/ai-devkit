@@ -14,8 +14,11 @@ cleanup() {
     kill "$VERDACCIO_PID" 2>/dev/null || true
     wait "$VERDACCIO_PID" 2>/dev/null || true
   fi
+  rm -f /tmp/verdaccio-smoke.pid
 }
-trap cleanup EXIT
+if [[ "${AI_DEVKIT_SMOKE_KEEP_REGISTRY:-}" != "1" ]]; then
+  trap cleanup EXIT
+fi
 
 log() {
   printf "%s\n" "$*"
@@ -128,6 +131,7 @@ reset_registry_storage
 log "Starting local Verdaccio on $REGISTRY"
 "${VERDACCIO_BIN[@]}" -c "$VERDACCIO_CONFIG" >"$VERDACCIO_LOG" 2>&1 &
 VERDACCIO_PID=$!
+printf '%s\n' "$VERDACCIO_PID" >/tmp/verdaccio-smoke.pid
 wait_for_registry
 configure_npm_for_registry
 

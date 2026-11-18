@@ -127,7 +127,13 @@ if [[ -n "${npm_config_registry:-}" ]]; then
 fi
 
 run_check "npm view version" npm view "$PACKAGE_SPEC" version
-run_check "npm view dist-tags" npm view "$PACKAGE_NAME" dist-tags --json
+if [[ -n "${AI_DEVKIT_SMOKE_REGISTRY:-}" ]]; then
+  log ""
+  log "## npm view dist-tags"
+  log "Skipped (local smoke registry; dist-tags are not published to Verdaccio)."
+else
+  run_check "npm view dist-tags" npm view "$PACKAGE_NAME" dist-tags --json
+fi
 run_npx_check "npx version" --version
 run_npx_check "npx help" --help
 
