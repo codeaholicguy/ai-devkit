@@ -1,23 +1,5 @@
-import fs from "fs";
-import os from "os";
-import path from "path";
-import { AGENT_NAME_REGEX } from "../../util/agent.js";
-
-export interface AgentGroup {
-  name: string;
-  members: string[];
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface AgentGroupFile {
-  version: 1;
-  groups: AgentGroup[];
-}
-
-const DEFAULT_GROUPS_PATH = path.join(os.homedir(), ".ai-devkit", "agent-groups.json");
-
-let defaultInstance: AgentGroupService | null = null;
+import { DaemonRpcError, ensureDaemon, type AgentGroup } from "@ai-devkit/daemon-client";
+export type { AgentGroup } from "@ai-devkit/daemon-client";
 
 export class AgentGroupNotFoundError extends Error {
   constructor(public groupName: string) {
@@ -67,186 +49,87 @@ export class AgentGroupStorageError extends Error {
   }
 }
 
+/** Daemon-owned groups. No local persistence or fallback after ownership. */
 export class AgentGroupService {
-  constructor(private filePath: string = DEFAULT_GROUPS_PATH) {}
-
-  list(): AgentGroup[] {
-    return this.readFile().groups;
+  async list(): Promise<AgentGroup[]> {
+    return this.call("group.list", {});
+  }
+  async get(name: string): Promise<AgentGroup> {
+    return this.call("group.detail", { name });
+  }
+  async lookup(name: string): Promise<AgentGroup> {
+    return this.call("group.lookup", { name });
+  }
+  async create(name: string, members: string[]): Promise<AgentGroup> {
+    return this.call("group.create", { name, members });
+  }
+  async update(name: string, members: string[]): Promise<AgentGroup> {
+    return this.call("group.update", { name, members });
+  }
+  async addMember(name: string, member: string): Promise<AgentGroup> {
+    return this.call("group.add", { name, member });
+  }
+  async removeMember(name: string, member: string): Promise<AgentGroup> {
+    return this.call("group.remove_agent", { name, member });
+  }
+  async remove(name: string): Promise<void> {
+    await this.call("group.remove", { name });
   }
 
-  get(name: string): AgentGroup | undefined {
-    const validName = this.validateName(name);
-    return this.readFile().groups.find((group) => group.name === validName);
-  }
-
-  create(name: string, members: string[]): AgentGroup {
-    const validName = this.validateName(name);
-    const validMembers = this.normalizeMembers(members);
-    const data = this.readFile();
-    if (data.groups.some((group) => group.name === validName)) {
-      throw new AgentGroupConflictError(validName);
-    }
-
-    const now = new Date().toISOString();
-    const group: AgentGroup = {
-      name: validName,
-      members: validMembers,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.writeFile({ version: 1, groups: [...data.groups, group] });
-    return group;
-  }
-
-  update(name: string, members: string[]): AgentGroup {
-    const validName = this.validateName(name);
-    const validMembers = this.normalizeMembers(members);
-    const data = this.readFile();
-    const index = data.groups.findIndex((group) => group.name === validName);
-    if (index < 0) {
-      throw new AgentGroupNotFoundError(validName);
-    }
-
-    const group: AgentGroup = {
-      ...data.groups[index],
-      members: validMembers,
-      updatedAt: new Date().toISOString(),
-    };
-    const groups = [...data.groups];
-    groups[index] = group;
-    this.writeFile({ version: 1, groups });
-    return group;
-  }
-
-  addMember(name: string, member: string): AgentGroup {
-    const group = this.requireGroup(name);
-    const normalizedMember = this.normalizeMember(member);
-    if (group.members.includes(normalizedMember)) {
-      return group;
-    }
-    return this.update(group.name, [...group.members, normalizedMember]);
-  }
-
-  removeMember(name: string, member: string): AgentGroup {
-    const group = this.requireGroup(name);
-    const normalizedMember = this.normalizeMember(member);
-    const members = group.members.filter((entry) => entry !== normalizedMember);
-    if (members.length === group.members.length) {
-      throw new AgentGroupInvalidMemberError(
-        normalizedMember,
-        `Agent group "${group.name}" does not contain member "${normalizedMember}".`,
+  private async call<T>(
+    method: string,
+    params: { name?: string; member?: string; members?: string[] },
+  ): Promise<T> {
+    const daemon = await ensureDaemon();
+    if (!daemon)
+      throw new Error(
+        "A running, capable daemon is required for agent groups. Start devkitd and retry.",
       );
-    }
-    return this.update(group.name, members);
-  }
-
-  remove(name: string): void {
-    const validName = this.validateName(name);
-    const data = this.readFile();
-    const groups = data.groups.filter((group) => group.name !== validName);
-    if (groups.length === data.groups.length) {
-      throw new AgentGroupNotFoundError(validName);
-    }
-    this.writeFile({ version: 1, groups });
-  }
-
-  private requireGroup(name: string): AgentGroup {
-    const validName = this.validateName(name);
-    const group = this.get(validName);
-    if (!group) {
-      throw new AgentGroupNotFoundError(validName);
-    }
-    return group;
-  }
-
-  private readFile(): AgentGroupFile {
-    if (!fs.existsSync(this.filePath)) {
-      return { version: 1, groups: [] };
-    }
-
-    let parsed: unknown;
     try {
-      parsed = JSON.parse(fs.readFileSync(this.filePath, "utf8"));
+      return (await daemon.request(method, params)) as T;
     } catch (error) {
-      throw new AgentGroupStorageError(this.filePath, (error as Error).message);
-    }
-
-    if (!this.isGroupFile(parsed)) {
-      throw new AgentGroupStorageError(this.filePath, "unsupported or malformed agent group file");
-    }
-
-    return {
-      version: 1,
-      groups: parsed.groups.map((group) => ({
-        name: group.name,
-        members: [...group.members],
-        createdAt: group.createdAt,
-        updatedAt: group.updatedAt,
-      })),
-    };
-  }
-
-  private writeFile(data: AgentGroupFile): void {
-    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
-    const tmp = `${this.filePath}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), "utf8");
-    fs.renameSync(tmp, this.filePath);
-  }
-
-  private validateName(name: string): string {
-    const normalized = name.trim();
-    if (!AGENT_NAME_REGEX.test(normalized)) {
-      throw new AgentGroupInvalidNameError(name);
-    }
-    return normalized;
-  }
-
-  private normalizeMembers(members: string[]): string[] {
-    if (members.length === 0) {
-      throw new AgentGroupEmptyMembersError();
-    }
-
-    const normalized = members.map((member) => this.normalizeMember(member));
-    const seen = new Set<string>();
-    for (const member of normalized) {
-      if (seen.has(member)) {
-        throw new AgentGroupInvalidMemberError(member, `Duplicate agent group member "${member}".`);
+      if (error instanceof Error && error.message.startsWith("unknown method")) {
+        throw new Error("Upgrade and restart devkitd to use agent groups.");
       }
-      seen.add(member);
+      if (!(error instanceof DaemonRpcError)) throw error;
+      const details = error.details as
+        | { name?: string; member?: string; path?: string }
+        | undefined;
+      const name = details?.name ?? params.name ?? "";
+      let mapped: Error;
+      switch (error.code) {
+        case "not_found":
+          mapped = new AgentGroupNotFoundError(name);
+          break;
+        case "conflict":
+          mapped = new AgentGroupConflictError(name);
+          break;
+        case "invalid_name":
+          mapped = new AgentGroupInvalidNameError(name);
+          break;
+        case "invalid_member":
+          mapped = new AgentGroupInvalidMemberError(
+            details?.member ?? params.member ?? "",
+            error.message,
+          );
+          break;
+        case "empty_members":
+          mapped = new AgentGroupEmptyMembersError();
+          break;
+        case "storage":
+          mapped = new AgentGroupStorageError(details?.path ?? "daemon.db", error.message);
+          break;
+        default:
+          throw error;
+      }
+      mapped.message = error.message;
+      throw mapped;
+    } finally {
+      daemon.close();
     }
-    return normalized;
-  }
-
-  private normalizeMember(member: string): string {
-    const normalized = member.trim();
-    if (!normalized) {
-      throw new AgentGroupInvalidMemberError(member, "Agent group member cannot be blank.");
-    }
-    return normalized;
-  }
-
-  private isGroupFile(value: unknown): value is AgentGroupFile {
-    if (!value || typeof value !== "object") return false;
-    const candidate = value as Partial<AgentGroupFile>;
-    return (
-      candidate.version === 1 &&
-      Array.isArray(candidate.groups) &&
-      candidate.groups.every(
-        (group) =>
-          group &&
-          typeof group.name === "string" &&
-          Array.isArray(group.members) &&
-          group.members.every((member) => typeof member === "string") &&
-          typeof group.createdAt === "string" &&
-          typeof group.updatedAt === "string",
-      )
-    );
   }
 }
 
 export function createDefaultAgentGroupService(): AgentGroupService {
-  if (!defaultInstance) {
-    defaultInstance = new AgentGroupService();
-  }
-  return defaultInstance;
+  return new AgentGroupService();
 }

@@ -10,3 +10,8 @@ export type { AgentRenameResult } from "./gen/AgentRenameResult.js";
 export type { EnrichedAgent, Event } from "./gen/index.js";
 export { resolveDaemonBinary } from "./binary.js";
 export { ensureDaemon } from "./autostart.js";
+
+export type { AgentGroup } from "./gen/AgentGroup.js";
+export type { GroupNameParams } from "./gen/GroupNameParams.js";
+export type { GroupMembersParams } from "./gen/GroupMembersParams.js";
+export type { GroupMemberParams } from "./gen/GroupMemberParams.js";

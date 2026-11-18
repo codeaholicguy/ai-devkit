@@ -118,6 +118,7 @@ let restoreStdin: (() => void) | undefined;
 const mockGroupStore: any = {
   list: vi.fn(),
   get: vi.fn(),
+  lookup: vi.fn(),
   create: vi.fn(),
   update: vi.fn(),
   addMember: vi.fn(),
@@ -2118,13 +2119,14 @@ Waiting on user input`,
       expect(process.exit).not.toHaveBeenCalledWith(1);
     });
 
-    it("does not consult the daemon for --group sends", async () => {
+    it("consults the daemon for --group sends", async () => {
       daemonUp(tmuxEntry);
-      mockGroupStore.get.mockReturnValue({ name: "team", members: ["repo-a"] });
+      mockGroupStore.lookup.mockResolvedValue({ name: "team", members: ["repo-a"] });
 
       await send("hello", "--group", "team");
 
-      expect(mockEnsureDaemon).not.toHaveBeenCalled();
+      expect(mockEnsureDaemon).toHaveBeenCalled();
+      expect(mockGroupStore.lookup).toHaveBeenCalledWith("team");
     });
 
     it("does not consult the daemon for durable agents", async () => {
@@ -2976,7 +2978,7 @@ Waiting on user input`,
   });
 
   it("reports invalid group names for send --group before delivery", async () => {
-    mockGroupStore.get.mockImplementation(() => {
+    mockGroupStore.lookup.mockImplementation(() => {
       throw new Error('Invalid agent group name "Bad_Name".');
     });
 
@@ -2992,172 +2994,30 @@ Waiting on user input`,
     expect(mockTtyWriterSend).not.toHaveBeenCalled();
   });
 
-  it("sends a message to every distinct resolved group target", async () => {
-    const api = {
-      name: "api",
-      status: AgentStatus.WAITING,
-      summary: "Waiting",
-      lastActive: new Date(),
+  it("resolves group membership and member locations through the daemon", async () => {
+    mockGroupStore.lookup.mockResolvedValue({ name: "team", members: ["first", "second"] });
+    const lookupAgent = vi.fn().mockResolvedValue({
+      name: "first",
+      type: "claude",
       pid: 10,
-    };
-    const worker = {
-      name: "worker",
-      status: AgentStatus.IDLE,
-      summary: "Idle",
-      lastActive: new Date(),
-      pid: 11,
-    };
-    const duplicateApi = { ...api };
-    const apiLocation = {
-      type: "tmux",
-      identifier: "0:1.0",
-      tty: "/dev/ttys030",
-    };
-    const workerLocation = {
-      type: "tmux",
-      identifier: "0:1.1",
-      tty: "/dev/ttys031",
-    };
-    const agents = [api, worker];
-    mockGroupStore.get.mockReturnValue({
-      name: "backend-team",
-      members: ["api", "worker", "api-alias"],
+      runtime: "tmux",
+      runtimeRef: null,
+      cwd: "/repo",
+      pinned: false,
+      alive: true,
     });
-    mockManager.listAgents.mockResolvedValue(agents);
-    mockManager.resolveAgent
-      .mockReturnValueOnce(api)
-      .mockReturnValueOnce(worker)
-      .mockReturnValueOnce(duplicateApi);
-    mockFocusManager.findTerminal
-      .mockResolvedValueOnce(apiLocation)
-      .mockResolvedValueOnce(workerLocation);
+    const close = vi.fn();
+    mockEnsureDaemon.mockResolvedValue({ lookupAgent, close });
+    mockFocusManager.findTerminal.mockResolvedValue({ type: "tmux", identifier: "target" });
     mockTtyWriterSend.mockResolvedValue(undefined);
-
     const program = new Command();
     registerAgentCommand(program);
-    await program.parseAsync([
-      "node",
-      "test",
-      "agent",
-      "send",
-      "status update",
-      "--group",
-      "backend-team",
-    ]);
-
-    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(1, "api", agents);
-    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(2, "worker", agents);
-    expect(mockManager.resolveAgent).toHaveBeenNthCalledWith(3, "api-alias", agents);
-    expect(mockFocusManager.findTerminal).toHaveBeenCalledTimes(2);
-    expect(mockTtyWriterSend).toHaveBeenNthCalledWith(1, apiLocation, "status update");
-    expect(mockTtyWriterSend).toHaveBeenNthCalledWith(2, workerLocation, "status update");
-    expect(ui.info).toHaveBeenCalledWith(
-      'Skipped duplicate target "api" from group member "api-alias".',
-    );
-    expect(ui.success).toHaveBeenCalledWith('Sent message to 2 agent(s) in group "backend-team".');
-  });
-
-  it("fails before delivery when any group member is missing or ambiguous", async () => {
-    const agents = [
-      {
-        name: "api",
-        status: AgentStatus.WAITING,
-        summary: "Waiting",
-        lastActive: new Date(),
-        pid: 10,
-      },
-      {
-        name: "worker-a",
-        status: AgentStatus.WAITING,
-        summary: "Waiting",
-        lastActive: new Date(),
-        pid: 11,
-      },
-      {
-        name: "worker-b",
-        status: AgentStatus.WAITING,
-        summary: "Waiting",
-        lastActive: new Date(),
-        pid: 12,
-      },
-    ];
-    mockGroupStore.get.mockReturnValue({
-      name: "backend-team",
-      members: ["api", "missing", "worker"],
-    });
-    mockManager.listAgents.mockResolvedValue(agents);
-    mockManager.resolveAgent
-      .mockReturnValueOnce(agents[0])
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce([agents[1], agents[2]]);
-
-    const program = new Command();
-    registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--group", "backend-team"]);
-
-    expect(ui.error).toHaveBeenCalledWith(
-      'Cannot send to group "backend-team" because some members could not be resolved.',
-    );
-    expect(ui.error).toHaveBeenCalledWith("  - missing: no running agent matched");
-    expect(ui.error).toHaveBeenCalledWith(
-      "  - worker: matched multiple agents (worker-a, worker-b)",
-    );
-    expect(mockFocusManager.findTerminal).not.toHaveBeenCalled();
-    expect(mockTtyWriterSend).not.toHaveBeenCalled();
-  });
-
-  it("continues group delivery after one target fails and exits non-zero", async () => {
-    const api = {
-      name: "api",
-      status: AgentStatus.RUNNING,
-      summary: "Running",
-      lastActive: new Date(),
-      pid: 10,
-    };
-    const worker = {
-      name: "worker",
-      status: AgentStatus.WAITING,
-      summary: "Waiting",
-      lastActive: new Date(),
-      pid: 11,
-    };
-    const apiLocation = {
-      type: "tmux",
-      identifier: "0:1.0",
-      tty: "/dev/ttys030",
-    };
-    const workerLocation = {
-      type: "tmux",
-      identifier: "0:1.1",
-      tty: "/dev/ttys031",
-    };
-    mockGroupStore.get.mockReturnValue({
-      name: "backend-team",
-      members: ["api", "worker"],
-    });
-    mockManager.listAgents.mockResolvedValue([api, worker]);
-    mockManager.resolveAgent.mockReturnValueOnce(api).mockReturnValueOnce(worker);
-    mockFocusManager.findTerminal
-      .mockResolvedValueOnce(apiLocation)
-      .mockResolvedValueOnce(workerLocation);
-    mockTtyWriterSend
-      .mockRejectedValueOnce(new Error("send failed"))
-      .mockResolvedValueOnce(undefined);
-
-    const program = new Command();
-    registerAgentCommand(program);
-    await program.parseAsync(["node", "test", "agent", "send", "hello", "--group", "backend-team"]);
-
-    expect(ui.warning).toHaveBeenCalledWith(
-      'Agent "api" is not waiting for input (status: running). Sending anyway.',
-    );
-    expect(mockTtyWriterSend).toHaveBeenCalledTimes(2);
-    expect(ui.error).toHaveBeenCalledWith("Failed to send to api: send failed");
-    expect(ui.success).toHaveBeenCalledWith("Sent message to worker.");
-    expect(ui.error).toHaveBeenCalledWith(
-      'Sent message to 1 agent(s), failed for 1 agent(s) in group "backend-team".',
-    );
-    expect(process.exitCode).toBe(1);
+    await program.parseAsync(["node", "test", "agent", "send", "hello", "--group", "team"]);
+    expect(mockGroupStore.lookup).toHaveBeenCalledWith("team");
+    expect(lookupAgent.mock.calls.map((c) => c[0])).toEqual(["first", "second"]);
+    expect(mockManager.resolveAgent).not.toHaveBeenCalled();
+    expect(mockManager.listAgents).not.toHaveBeenCalled();
+    expect(close).toHaveBeenCalledOnce();
   });
 
   it("sends message with --wait, seeds transcript before delivery, and prints assistant output only to stdout", async () => {
@@ -4552,7 +4412,7 @@ Waiting on user input`,
     });
 
     it("resolves --group members to watched agents", async () => {
-      mockGroupStore.get.mockReturnValue({ name: "team", members: ["repo-a"] });
+      mockGroupStore.get.mockResolvedValue({ name: "team", members: ["repo-a"] });
       mockManager.listAgents
         .mockResolvedValueOnce([running()])
         .mockResolvedValueOnce([running()])

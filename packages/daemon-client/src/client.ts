@@ -1,3 +1,7 @@
+import type { AgentGroup } from "./gen/AgentGroup.js";
+import type { GroupNameParams } from "./gen/GroupNameParams.js";
+import type { GroupMembersParams } from "./gen/GroupMembersParams.js";
+import type { GroupMemberParams } from "./gen/GroupMemberParams.js";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -178,6 +182,45 @@ export class DaemonClient {
       from,
       to,
     } satisfies AgentRenameParams)) as AgentRenameResult;
+  }
+
+  async createGroup(name: string, members: string[]): Promise<AgentGroup> {
+    return (await this.request("group.create", {
+      name,
+      members,
+    } satisfies GroupMembersParams)) as AgentGroup;
+  }
+  async updateGroup(name: string, members: string[]): Promise<AgentGroup> {
+    return (await this.request("group.update", {
+      name,
+      members,
+    } satisfies GroupMembersParams)) as AgentGroup;
+  }
+  async addGroupMember(name: string, member: string): Promise<AgentGroup> {
+    return (await this.request("group.add", {
+      name,
+      member,
+    } satisfies GroupMemberParams)) as AgentGroup;
+  }
+  async removeGroupMember(name: string, member: string): Promise<AgentGroup> {
+    return (await this.request("group.remove_agent", {
+      name,
+      member,
+    } satisfies GroupMemberParams)) as AgentGroup;
+  }
+  async removeGroup(name: string): Promise<{ ok: boolean }> {
+    return (await this.request("group.remove", { name } satisfies GroupNameParams)) as {
+      ok: boolean;
+    };
+  }
+  async listGroups(): Promise<AgentGroup[]> {
+    return (await this.request("group.list", {})) as AgentGroup[];
+  }
+  async getGroup(name: string): Promise<AgentGroup> {
+    return (await this.request("group.detail", { name } satisfies GroupNameParams)) as AgentGroup;
+  }
+  async lookupGroup(name: string): Promise<AgentGroup> {
+    return (await this.request("group.lookup", { name } satisfies GroupNameParams)) as AgentGroup;
   }
 
   private onData(chunk: Buffer) {
