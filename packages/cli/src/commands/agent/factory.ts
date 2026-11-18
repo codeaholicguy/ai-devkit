@@ -4,12 +4,10 @@ import {
   AgentRegistry,
   createBuiltinAdapters,
   type AgentInfo,
-  type AgentRuntimeProvider,
-  type AgentType,
   type DurableProvider,
   type EnrichedAgentWire,
 } from "@ai-devkit/agent-manager";
-import { DaemonRpcError, ensureDaemon, type AgentLookupResult } from "@ai-devkit/daemon-client";
+import { DaemonRpcError, ensureDaemon } from "@ai-devkit/daemon-client";
 import { ConfigManager } from "../../lib/Config.js";
 import { createLogger } from "../../util/debug.js";
 import { getErrorMessage } from "../../util/text.js";
@@ -88,21 +86,7 @@ export async function listLiveAgents(
  * sendAgentPrompt and focusAgent act client-side on the daemon's runtime +
  * runtimeRef.
  */
-export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentRegistry, "lookup"> {
-  const registryEntry = {
-    name: entry.name,
-    type: entry.type as AgentType,
-    pid: entry.pid,
-    runtime: entry.runtime as AgentRuntimeProvider,
-    runtimeRef: entry.runtimeRef,
-    cwd: entry.cwd,
-    startedAt: "",
-    sessionId: "",
-    sessionFilePath: "",
-    pinned: entry.pinned,
-  };
-  return { lookup: () => registryEntry };
-}
+export { createDaemonEntryRegistry } from "../../services/agent/daemon-entry.service.js";
 
 export function createDurableAgentService(
   provider: DurableProvider = "claude",

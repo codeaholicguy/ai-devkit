@@ -27,7 +27,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
       withErrorHandler(
         "manage agent group",
         async (name: string, options: { agent?: string[] }) => {
-          const group = createDefaultAgentGroupService().create(name, options.agent ?? []);
+          const group = await createDefaultAgentGroupService().create(name, options.agent ?? []);
           ui.success(`Created agent group "${group.name}" with ${group.members.length} member(s).`);
         },
       ),
@@ -46,7 +46,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
       withErrorHandler(
         "manage agent group",
         async (name: string, options: { agent?: string[] }) => {
-          const group = createDefaultAgentGroupService().update(name, options.agent ?? []);
+          const group = await createDefaultAgentGroupService().update(name, options.agent ?? []);
           ui.success(`Updated agent group "${group.name}" with ${group.members.length} member(s).`);
         },
       ),
@@ -57,7 +57,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
     .description("Add an agent identifier to a group")
     .action(
       withErrorHandler("manage agent group", async (name: string, identifier: string) => {
-        const group = createDefaultAgentGroupService().addMember(name, identifier);
+        const group = await createDefaultAgentGroupService().addMember(name, identifier);
         ui.success(`Agent group "${group.name}" now has ${group.members.length} member(s).`);
       }),
     );
@@ -67,7 +67,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
     .description("Remove an agent identifier from a group")
     .action(
       withErrorHandler("manage agent group", async (name: string, identifier: string) => {
-        const group = createDefaultAgentGroupService().removeMember(name, identifier);
+        const group = await createDefaultAgentGroupService().removeMember(name, identifier);
         ui.success(`Agent group "${group.name}" now has ${group.members.length} member(s).`);
       }),
     );
@@ -77,7 +77,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
     .description("Remove an agent group")
     .action(
       withErrorHandler("manage agent group", async (name: string) => {
-        createDefaultAgentGroupService().remove(name);
+        await createDefaultAgentGroupService().remove(name);
         ui.success(`Removed agent group "${name}".`);
       }),
     );
@@ -87,7 +87,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
     .description("List configured agent groups")
     .action(
       withErrorHandler("manage agent group", async () => {
-        const groups = createDefaultAgentGroupService().list();
+        const groups = await createDefaultAgentGroupService().list();
         if (groups.length === 0) {
           ui.info("No agent groups configured.");
           return;
@@ -105,7 +105,7 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
     .description("Show one configured agent group")
     .action(
       withErrorHandler("manage agent group", async (name: string) => {
-        const group = createDefaultAgentGroupService().get(name);
+        const group = await createDefaultAgentGroupService().get(name);
         if (!group) {
           throw new AgentGroupNotFoundError(name);
         }

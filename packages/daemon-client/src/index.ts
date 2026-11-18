@@ -19,3 +19,7 @@ export type {
 } from "./client.js";
 export type { DurableAgentWire } from "./gen/DurableAgentWire.js";
 export type { DurableRunWire } from "./gen/DurableRunWire.js";
+export type { AgentGroup } from "./gen/AgentGroup.js";
+export type { GroupNameParams } from "./gen/GroupNameParams.js";
+export type { GroupMembersParams } from "./gen/GroupMembersParams.js";
+export type { GroupMemberParams } from "./gen/GroupMemberParams.js";

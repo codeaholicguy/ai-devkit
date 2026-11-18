@@ -32,6 +32,9 @@ pub struct Daemon {
     swept_pids: Mutex<HashSet<i64>>,
     /// User home dir adapters resolve session trees (~/.claude, …) against.
     pub home: PathBuf,
+    /// Whether the one-time group import succeeded for this startup.
+    pub groups_ready: Mutex<bool>,
+    pub groups_source: PathBuf,
     /// Serializes agent.start so name-uniqueness can't race.
     pub start_mutex: std::sync::Mutex<()>,
 }
@@ -74,8 +77,23 @@ impl Daemon {
         if let Err(e) = durable.reconcile() {
             tracing::warn!("durable startup reconciliation: {e:#}");
         }
+        let groups_source = data_dir.join("agent-groups.json");
+        let groups_ready = match store.import_groups(&groups_source) {
+            Ok(warning) => {
+                if let Some(w) = warning {
+                    tracing::warn!("{w}");
+                }
+                true
+            }
+            Err(e) => {
+                tracing::warn!("legacy group import failed: {e}");
+                false
+            }
+        };
         Ok(Self {
             durable,
+            groups_ready: Mutex::new(groups_ready),
+            groups_source,
             store,
             events: tx,
             emit_mutex: std::sync::Mutex::new(()),
@@ -197,6 +215,10 @@ impl Daemon {
                     Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
+            m if m.starts_with("group.") => match crate::rpc::group::run(self, m, req.params) {
+                Ok(result) => Response::ok(id, result),
+                Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+            },
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
                 tokio::spawn(async {
@@ -1040,3 +1062,7 @@ mod tests {
         assert!(e2["error"].as_str().unwrap().contains("unknown method"));
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/rpc/groups.rs"]
+mod group_tests;

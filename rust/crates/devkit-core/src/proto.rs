@@ -219,6 +219,10 @@ mod tests {
         Request::export(&cfg).unwrap();
         Response::export(&cfg).unwrap();
         Event::export(&cfg).unwrap();
+        crate::store::AgentGroup::export(&cfg).unwrap();
+        GroupNameParams::export(&cfg).unwrap();
+        GroupMembersParams::export(&cfg).unwrap();
+        GroupMemberParams::export(&cfg).unwrap();
         AgentStartParams::export(&cfg).unwrap();
         AgentStartResult::export(&cfg).unwrap();
         AgentNameParams::export(&cfg).unwrap();
@@ -404,4 +408,20 @@ mod tests {
         let rt: Event = serde_json::from_str(&serde_json::to_string(&ev).unwrap()).unwrap();
         assert_eq!(rt.seq, 3);
     }
+}
+
+/// Group operations use identifiers, independent of live registrations.
+#[derive(Debug, Deserialize, TS)]
+pub struct GroupNameParams {
+    pub name: String,
+}
+#[derive(Debug, Deserialize, TS)]
+pub struct GroupMembersParams {
+    pub name: String,
+    pub members: Vec<String>,
+}
+#[derive(Debug, Deserialize, TS)]
+pub struct GroupMemberParams {
+    pub name: String,
+    pub member: String,
 }
