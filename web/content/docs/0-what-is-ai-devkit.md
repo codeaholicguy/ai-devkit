@@ -1,12 +1,12 @@
 ---
 title: What is AI DevKit?
-description: An overview of AI DevKit, the control plane for AI coding agents.
+description: Let any coding agent run and talk to any other, locally.
 slug: what-is-ai-devkit
 section: start
 order: 1
 ---
 
-AI DevKit is an open-source control plane for AI coding agents. It works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, opencode, Pi, and other tools, giving them shared setup, local-first memory, skills, communication, and verification gates.
+Let any coding agent run and talk to any other, locally. AI DevKit is an open-source project that works alongside Cursor, Claude Code, Codex, GitHub Copilot, Gemini CLI, opencode, Pi, and other tools, giving them shared setup, local-first memory, skills, communication, and verification gates.
 
 The purpose is simple: make multi-agent coding manageable. AI DevKit combines one project-local config, one console, cross-agent communication, local-first memory, workflow skills, verification, review, and linting in one toolkit. Workflow docs are part of the system, but the bigger product is the operating layer above the agents you already use.
 

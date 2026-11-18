@@ -2,7 +2,7 @@
 
 > English | [中文](./README-zh.md)
 
-**The control plane for AI coding agents.**
+**Let any coding agent run and talk to any other, locally.**
 
 ![](agent-console-showcase.jpg)
 
@@ -26,7 +26,7 @@ npx ai-devkit@latest init
 
 `setup` installs built-in skills globally, session hooks, and the memory MCP wiring for detected agents.
 
-The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro has no skill environment or root defined, so its target only detects the marker and reports the memory MCP skip. All four skip memory MCP wiring until a global config writer is verified.
+The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro is not selectable in project `init`/`install` (no project skill root or MCP config surface); machine `setup` only detects `~/.kiro` and skips built-in skills and memory MCP wiring. Copilot, Devin, Muse, and Kiro skip memory MCP wiring until a global config writer is verified.
 
 `init` writes project-local config. Your project gets:
 
@@ -218,7 +218,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [opencode](https://opencode.ai/) | yes | yes (`opencode`) |
 | [Pi](https://pi.dev) | yes | yes (`pi`) |
 | [GitHub Copilot](https://github.com/features/copilot) | yes | yes (`copilot`) |
-| [Kiro CLI](https://kiro.dev/cli/) | yes | yes (`kiro`) |
+| [Kiro CLI](https://kiro.dev/cli/) | — | yes (`kiro`) |
 | [Devin](https://devin.ai/) | yes | yes (`devin`) |
 | [Muse Code](https://dev.meta.ai/products/muse-code/) | yes | yes (`muse`) |
 | [Antigravity CLI](https://antigravity.google/) | yes | yes (`antigravity_cli`) |

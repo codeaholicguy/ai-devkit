@@ -18,11 +18,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AI DevKit - Control Plane for AI Coding Agents",
+    default: "AI DevKit — Let any coding agent run and talk to any other, locally",
     template: "%s | AI DevKit",
   },
-  description:
-    "AI DevKit gives Claude Code, Codex, Cursor, Gemini CLI, opencode, Pi, and other coding agents one control plane: config, console, local-first memory, communication, and verification.",
+  description: "Let any coding agent run and talk to any other, locally.",
   keywords: [
     "AI",
     "AI DevKit",
@@ -48,9 +47,8 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "AI DevKit - Control Plane for AI Coding Agents",
-    description:
-      "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
+    title: "AI DevKit — Let any coding agent run and talk to any other, locally",
+    description: "Let any coding agent run and talk to any other, locally.",
     url: siteUrl,
     siteName: "AI DevKit",
     locale: "en_US",
@@ -66,9 +64,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI DevKit - Control Plane for AI Coding Agents",
-    description:
-      "One config, one console, shared memory, cross-agent communication, and verification for the coding agents you already use.",
+    title: "AI DevKit — Let any coding agent run and talk to any other, locally",
+    description: "Let any coding agent run and talk to any other, locally.",
     images: ["/og-image.jpg"],
   },
   robots: {
@@ -117,8 +114,7 @@ export default function RootLayout({
         alternateName: ["ai-devkit"],
         applicationCategory: "DeveloperApplication",
         operatingSystem: "macOS, Linux, Windows",
-        description:
-          "A control plane for AI coding agents with one config, one console, local-first memory, cross-agent communication, workflow skills, and verification gates.",
+        description: "Let any coding agent run and talk to any other, locally.",
         url: siteUrl,
         downloadUrl: "https://www.npmjs.com/package/ai-devkit",
         codeRepository: "https://github.com/codeaholicguy/ai-devkit",

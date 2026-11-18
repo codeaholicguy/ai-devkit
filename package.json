@@ -2,7 +2,7 @@
   "name": "ai-devkit",
   "version": "0.76.1",
   "private": true,
-  "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
+  "description": "Let any coding agent run and talk to any other, locally",
   "keywords": [
     "ai",
     "claude",
