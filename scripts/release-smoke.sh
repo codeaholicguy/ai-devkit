@@ -134,12 +134,12 @@ if [[ -n "${AI_DEVKIT_SMOKE_REGISTRY:-}" ]]; then
 else
   run_check "npm view dist-tags" npm view "$PACKAGE_NAME" dist-tags --json
 fi
-run_npx_check "npx version" --version
-run_npx_check "npx help" --help
-
 cd "$INSTALL_DIR" || exit 1
 run_check "clean npm init" npm init -y
 run_check "clean npm install" npm install "$PACKAGE_SPEC"
+# npx -y needs the tarball in the npm cache; priming via npm install first (notably on Verdaccio).
+run_npx_check "npx version" --version
+run_npx_check "npx help" --help
 run_check "local install version" npx ai-devkit --version
 run_check "local install help" npx ai-devkit --help
 
