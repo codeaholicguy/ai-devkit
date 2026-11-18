@@ -49,7 +49,11 @@ export class TmuxAgentRuntime implements InteractiveAgentRuntime {
     }
 
     await this.tmux.createSession(input.name, input.cwd);
-    await this.tmux.sendKeys(input.name, input.command);
+    if (input.args.length > 0) {
+      await this.tmux.sendKeys(input.name, input.command, input.args);
+    } else {
+      await this.tmux.sendKeys(input.name, input.command);
+    }
 
     const pid = await pollForPid(
       this.tmux,

@@ -20,6 +20,8 @@ import { homeDir } from "../shared.js";
 
 export interface PiSessionLocatorOptions {
   sessionsDir?: string;
+  sessionsDirs?: readonly string[];
+  encodeProjectDir?: (cwd: string) => string;
 }
 
 export interface PiProcessSessionMatches {
@@ -32,6 +34,7 @@ const FILE_NAME_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3}
 
 interface ProjectDirScan {
   dirMtimeMs: number;
+  dirCtimeMs: number;
   processes: ProcessInfo[];
 }
 
@@ -43,10 +46,11 @@ interface CachedHead {
   seen: number;
 }
 
-/** A project dir whose last scan matched none of the processes that scanned it. */
 interface NoMatchEntry {
   dirMtimeMs: number;
+  dirCtimeMs: number;
   processKeys: Set<string>;
+  lastSkippedGeneration?: number;
 }
 
 /**
@@ -66,7 +70,8 @@ interface NoMatchEntry {
  * Reuse one instance across refreshes to benefit from the caches.
  */
 export class PiSessionLocator {
-  private readonly sessionsDir: string;
+  private readonly sessionsDirs: readonly string[];
+  private readonly encodeProjectDirFn: (cwd: string) => string;
   private readonly heads = new Map<string, CachedHead>();
   private readonly noMatchDirs = new Map<string, NoMatchEntry>();
   private generation = 0;
@@ -75,7 +80,17 @@ export class PiSessionLocator {
     options: PiSessionLocatorOptions = {},
     private readonly parser: PiSessionParser = new PiSessionParser(),
   ) {
-    this.sessionsDir = options.sessionsDir ?? path.join(homeDir(), ".pi", "agent", "sessions");
+    const configuredDirs =
+      options.sessionsDirs ??
+      (options.sessionsDir === undefined ? undefined : [options.sessionsDir]);
+    this.sessionsDirs = [
+      ...new Set(
+        (configuredDirs ?? [path.join(homeDir(), ".pi", "agent", "sessions")]).map((dir) =>
+          path.resolve(dir),
+        ),
+      ),
+    ];
+    this.encodeProjectDirFn = options.encodeProjectDir ?? ((cwd) => this.encodeProjectDir(cwd));
   }
 
   matchRunningProcesses(processes: ProcessInfo[]): PiProcessSessionMatches {
@@ -108,41 +123,48 @@ export class PiSessionLocator {
   }
 
   discoverHistoricalSessionFiles(): string[] {
-    return this.collectJsonlFiles(this.sessionsDir);
+    return this.sessionsDirs.flatMap((sessionsDir) => this.collectJsonlFiles(sessionsDir));
   }
 
   findHistoricalSessionFilesById(sessionId: string): string[] {
     if (!isSafePathSegment(sessionId)) return [];
 
-    return this.collectJsonlFiles(this.sessionsDir).filter((filePath) => {
-      const basename = path.basename(filePath, ".jsonl");
-      return basename === sessionId || basename.endsWith(`_${sessionId}`);
-    });
+    return this.sessionsDirs
+      .flatMap((sessionsDir) => this.collectJsonlFiles(sessionsDir))
+      .filter((filePath) => {
+        const basename = path.basename(filePath, ".jsonl");
+        return basename === sessionId || basename.endsWith(`_${sessionId}`);
+      });
   }
 
   /**
-   * Group matchable processes (cwd and start time set) by the project dir Pi
-   * stores their sessions in. With `skipUnchanged`, dirs whose previous scan
-   * matched nothing and that have not changed since are left out.
+   * Group matchable processes (cwd and start time set) by each configured project
+   * dir. With `skipUnchanged`, dirs whose previous scan matched nothing and that
+   * have not changed since are left out.
    */
   private groupByProjectDir(
     processes: ProcessInfo[],
     skipUnchanged: boolean,
   ): Map<string, ProjectDirScan> {
     const scans = new Map<string, ProjectDirScan>();
-    if (!isDirectory(this.sessionsDir)) return scans;
-
-    for (const proc of processes) {
-      if (!proc.cwd || !proc.startTime) continue;
-      const projectDir = path.join(this.sessionsDir, this.encodeProjectDir(proc.cwd));
-      const scan = scans.get(projectDir);
-      if (scan) {
-        scan.processes.push(proc);
-        continue;
-      }
-      const stat = safeStat(projectDir);
-      if (stat?.isDirectory()) {
-        scans.set(projectDir, { dirMtimeMs: stat.mtimeMs, processes: [proc] });
+    for (const sessionsDir of this.sessionsDirs) {
+      if (!isDirectory(sessionsDir)) continue;
+      for (const proc of processes) {
+        if (!proc.cwd || !proc.startTime) continue;
+        const projectDir = path.join(sessionsDir, this.encodeProjectDirFn(proc.cwd));
+        const scan = scans.get(projectDir);
+        if (scan) {
+          scan.processes.push(proc);
+          continue;
+        }
+        const stat = safeStat(projectDir);
+        if (stat?.isDirectory()) {
+          scans.set(projectDir, {
+            dirMtimeMs: stat.mtimeMs,
+            dirCtimeMs: stat.ctimeMs,
+            processes: [proc],
+          });
+        }
       }
     }
 
@@ -154,12 +176,16 @@ export class PiSessionLocator {
     for (const [projectDir, scan] of scans) {
       const noMatch = this.noMatchDirs.get(projectDir);
       // An unmatched process never held a session, so dropping one cannot free
-      // a session for another; only a dir change or an unseen process can.
+      // a session for another. Recheck after one skipped refresh as a fallback
+      // for filesystems that do not update directory timestamps on new files.
       const unchanged =
         noMatch !== undefined &&
+        noMatch.lastSkippedGeneration !== this.generation - 1 &&
         noMatch.dirMtimeMs === scan.dirMtimeMs &&
+        noMatch.dirCtimeMs === scan.dirCtimeMs &&
         scan.processes.every((proc) => noMatch.processKeys.has(processKey(proc)));
       if (unchanged) {
+        noMatch.lastSkippedGeneration = this.generation;
         scans.delete(projectDir);
       } else {
         this.noMatchDirs.delete(projectDir);
@@ -243,6 +269,7 @@ export class PiSessionLocator {
       if (scan.processes.some((proc) => matchedPids.has(proc.pid))) continue;
       this.noMatchDirs.set(projectDir, {
         dirMtimeMs: scan.dirMtimeMs,
+        dirCtimeMs: scan.dirCtimeMs,
         processKeys: new Set(scan.processes.map(processKey)),
       });
     }

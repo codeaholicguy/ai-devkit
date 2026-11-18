@@ -24,6 +24,10 @@ import { createDurableAgentService } from "./factory.js";
 import { formatCwd, formatPrintProvider } from "./render.js";
 import { DaemonRpcError, ensureDaemon } from "@ai-devkit/daemon-client";
 
+function collectArg(value: string, previous: string[] = []): string[] {
+  return [...previous, value];
+}
+
 interface StartedEntry {
   name: string;
   type: string;
@@ -57,6 +61,7 @@ async function tryDaemonStart(input: {
   agentType: StartableAgentType;
   agentName: string;
   cwd: string;
+  args: string[];
   runtimeProvider: string;
 }): Promise<"done" | "fallback" | "failed"> {
   const daemon = await ensureDaemon({ onDebug: debug });
@@ -71,6 +76,7 @@ async function tryDaemonStart(input: {
       name: input.agentName,
       cwd: input.cwd,
       runtime: input.runtimeProvider,
+      args: input.args,
     });
     for (const warning of result.warnings ?? []) ui.warning(warning);
     renderStartedAgent({
@@ -161,17 +167,23 @@ export function registerAgentStartCommand(agentCommand: Command): void {
       "Human-readable name for the agent (lowercase alphanumeric + hyphens, 2-64 chars; default: {folder}-{timestamp})",
     )
     .option("--cwd <path>", "Working directory for the agent (default: current directory)")
+    .option(
+      "--arg <value>",
+      "Argument passed to the harness; repeat for multiple arguments",
+      collectArg,
+      [],
+    )
     .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("start agent", async (options) => {
         if (options.debug) {
           enableDebug();
         }
+        const args = (options.arg as string[] | undefined) ?? [];
         const agentType = options.type as string;
         const mode = options.mode as string;
         const cwd = path.resolve(options.cwd ?? process.cwd());
         const agentName = (options.name as string | undefined) ?? generateAgentName(cwd);
-
         if (!(agentType in HARNESS_RUNTIME_PROFILES)) {
           ui.error(
             `Unsupported agent type "${agentType}". Supported: ${Object.keys(HARNESS_RUNTIME_PROFILES).join(", ")}.`,
@@ -218,6 +230,7 @@ export function registerAgentStartCommand(agentCommand: Command): void {
             agentType: agentType as StartableAgentType,
             agentName,
             cwd,
+            args,
             runtimeProvider,
           });
           if (routed === "done") return;
@@ -231,6 +244,7 @@ export function registerAgentStartCommand(agentCommand: Command): void {
               type: agentType as StartableAgentType,
               name: agentName,
               cwd,
+              args,
               runtimeProvider,
             },
             { onWarning: (msg: string) => ui.warning(msg) },

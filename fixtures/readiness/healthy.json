@@ -16,7 +16,8 @@
       "grok_cli": ".grok/skills",
       "antigravity_cli": ".gemini/config/skills",
       "opencode": ".config/opencode/skill",
-      "pi": ".pi/agent/skills"
+      "pi": ".pi/agent/skills",
+      "omp": ".omp/agent/skills"
     }
   },
   "files": {
@@ -27,9 +28,10 @@
     "/home/test/.grok": "<dir>",
     "/home/test/.kiro": "<dir>",
     "/home/test/.gemini/antigravity-cli": "<dir>",
+    "/home/test/.pi": "<dir>",
     "/home/test/.config/opencode": "<dir>",
     "/home/test/.config/devin": "<dir>",
-    "/home/test/.pi": "<dir>",
+    "/home/test/.omp": "<dir>",
     "/home/test/.codex/hooks/codex-session-mapping.cjs": "codex-hook",
     "/assets/codex/codex-session-mapping.cjs": "codex-hook",
     "/home/test/.codex/hooks.json": "{\"hooks\":{\"SessionStart\":[{\"hooks\":[{\"type\":\"command\",\"command\":\"node ~/.codex/hooks/codex-session-mapping.cjs\"}]}]}}",
@@ -64,6 +66,9 @@
     "/home/test/.pi/agent/skills/agent-management/SKILL.md": "# skill",
     "/home/test/.pi/agent/skills/memory/SKILL.md": "# skill",
     "/home/test/.pi/agent/skills/verify/SKILL.md": "# skill",
+    "/home/test/.omp/agent/skills/agent-management/SKILL.md": "# skill",
+    "/home/test/.omp/agent/skills/memory/SKILL.md": "# skill",
+    "/home/test/.omp/agent/skills/verify/SKILL.md": "# skill",
     "/home/test/.config/muse": "<dir>",
     "/home/test/.config/muse/auth.json": "{\"meta\": {\"token\": \"secret\"}}"
   },
@@ -78,7 +83,8 @@
     "/bin/copilot",
     "/bin/pi",
     "/bin/devin",
-    "/bin/muse"
+    "/bin/muse",
+    "/bin/omp"
   ],
   "commands": {
     "pi list": {
@@ -520,6 +526,31 @@
         "provider": null,
         "availableProviders": [],
         "status": "pass",
+        "errors": []
+      },
+      "status": "pass"
+    },
+    "omp": {
+      "type": "omp",
+      "executable": {
+        "command": "omp",
+        "path": "/bin/omp",
+        "status": "pass",
+        "errors": []
+      },
+      "globalConfig": {
+        "path": "~/.omp",
+        "present": true,
+        "readable": true,
+        "status": "pass",
+        "errors": []
+      },
+      "builtInSkills": {
+        "path": "~/.omp/agent/skills",
+        "required": 3,
+        "present": 3,
+        "missing": [],
+        "status": "info",
         "errors": []
       },
       "status": "pass"

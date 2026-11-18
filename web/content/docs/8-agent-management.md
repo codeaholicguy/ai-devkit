@@ -51,6 +51,7 @@ AI DevKit detects active sessions from the following tools:
   ```
 
   The tracker gives AI DevKit better session information than process detection alone.
+- **[oh-my-pi](https://github.com/oh-my-pi/pi-coding-agent)**: Detects OMP sessions, including named profiles and XDG data roots, and exposes them through the same agent management commands.
 - **[Grok CLI](https://x.ai/cli)**: Detects running `grok` sessions and exposes them through the same agent management commands.
 - **[Kiro CLI](https://kiro.dev/)**: Detects Kiro CLI sessions via `~/.kiro/sessions/cli` and exposes them through the same commands.
 - **[Antigravity CLI](https://antigravity.google/)**: Detects `agy` sessions and exposes them through the same commands.
@@ -67,7 +68,7 @@ Start a named agent in a managed runtime session (tmux by default; set `"agentRu
 ai-devkit agent start --type claude --name backend --cwd ./packages/backend
 ```
 
-`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, `devin`, or `muse`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
+`--type` accepts `claude`, `codex`, `copilot`, `gemini_cli`, `grok_cli`, `kiro`, `antigravity_cli`, `opencode`, `pi`, `omp`, `devin`, or `muse`. Names default to the current folder plus a timestamp. Use `--cwd <path>` to choose a working directory and `--debug` to show startup diagnostics.
 
 Interactive managed agents run in **tmux** (or Herdr when configured). Run `ai-devkit setup` to check the host prerequisite early; it reports the installed tmux version or prints a platform-aware install command. tmux 2.6+ is the provisional documented compatibility floor.
 
@@ -82,7 +83,13 @@ ai-devkit agent start --type claude --mode durable --name backend --cwd ./packag
 
 Durable mode supports `--type claude`, `--type codex`, and `--type pi`.
 
-`agent start` does not accept an initial prompt or extra harness CLI arguments. To set an opening task or pass flags such as Codex approval policy or Gemini `--approval-mode`, use [Agent Console](/docs/13-agent-console) (**task** and **args** fields) or start the harness manually in tmux.
+`agent start` accepts repeatable `--arg <value>` options for harness-specific flags, such as an OMP profile:
+
+```bash
+ai-devkit agent start --type omp --arg --profile --arg work
+```
+
+To set an opening task, use the Agent Console's **task** field or start the harness manually in tmux. The Console's **args** field forwards the same structured arguments.
 
 ### List Agents
 

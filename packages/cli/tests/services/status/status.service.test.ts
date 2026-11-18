@@ -119,6 +119,7 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     ".kiro",
     ".gemini/antigravity-cli",
     ".config/opencode",
+    ".omp",
   ]) {
     files[path.join(homeDir, directory)] = "<dir>";
   }
@@ -131,6 +132,7 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     ["grok_cli", path.join(homeDir, ".grok", "skills")],
     ["antigravity_cli", path.join(homeDir, ".gemini", "config", "skills")],
     ["opencode", path.join(homeDir, ".config", "opencode", "skills")],
+    ["omp", path.join(homeDir, ".omp", "agent", "skills")],
   ] as const) {
     void agent;
     for (const skill of builtIns) files[path.join(skillRoot, skill, "SKILL.md")] = "# skill";
@@ -145,6 +147,7 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     kiro: "/bin/kiro-cli",
     antigravity_cli: "/bin/agy",
     opencode: "/bin/opencode",
+    omp: "/bin/omp",
     tmux: "/bin/tmux",
   };
   const options: StatusServiceOptions = {
@@ -216,13 +219,18 @@ describe("getStatusReport", () => {
       "opencode",
       "copilot",
       "pi",
+      "omp",
       "devin",
       "muse",
     ]);
     expect(report.agents.muse.integration).toBeUndefined();
     expect(report.agents.copilot.integration).toBeUndefined();
     expect(report.agents.gemini_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });
-    expect(report.agents.antigravity_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });
+    expect(report.agents.omp.builtInSkills).toMatchObject({
+      path: "~/.omp/agent/skills",
+      present: 2,
+      required: 2,
+    });
     expect(report.agents.kiro.builtInSkills).toMatchObject({
       path: null,
       present: 0,

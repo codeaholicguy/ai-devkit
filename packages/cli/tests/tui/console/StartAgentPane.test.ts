@@ -30,6 +30,7 @@ describe("StartAgentPane helpers", () => {
       "antigravity_cli",
       "opencode",
       "pi",
+      "omp",
       "kiro",
       "devin",
       "muse",
@@ -41,7 +42,8 @@ describe("StartAgentPane helpers", () => {
     expect(nextStartAgentType("codex")).toBe("copilot");
     expect(nextStartAgentType("copilot")).toBe("gemini_cli");
     expect(nextStartAgentType("opencode")).toBe("pi");
-    expect(nextStartAgentType("pi")).toBe("kiro");
+    expect(nextStartAgentType("pi")).toBe("omp");
+    expect(nextStartAgentType("omp")).toBe("kiro");
     expect(nextStartAgentType("kiro")).toBe("devin");
     expect(nextStartAgentType("devin")).toBe("muse");
     expect(nextStartAgentType("muse")).toBe("claude");
@@ -51,7 +53,8 @@ describe("StartAgentPane helpers", () => {
     expect(previousStartAgentType("copilot")).toBe("codex");
     expect(previousStartAgentType("gemini_cli")).toBe("copilot");
     expect(previousStartAgentType("pi")).toBe("opencode");
-    expect(previousStartAgentType("kiro")).toBe("pi");
+    expect(previousStartAgentType("omp")).toBe("pi");
+    expect(previousStartAgentType("kiro")).toBe("omp");
     expect(previousStartAgentType("devin")).toBe("kiro");
     expect(previousStartAgentType("muse")).toBe("devin");
     expect(previousStartAgentType("claude")).toBe("muse");
