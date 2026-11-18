@@ -1,0 +1,52 @@
+name: Release smoke gate
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  release-smoke:
+    name: Release smoke (packed artifacts)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install tmux
+        run: sudo apt-get update && sudo apt-get install -y tmux
+
+      - name: Install musl toolchain
+        run: sudo apt-get install -y musl-tools
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl
+
+      - name: Build all packages
+        run: npm run build
+
+      - name: Pack workspace into local registry
+        id: pack
+        run: |
+          chmod +x scripts/release-smoke-pack-registry.sh
+          ./scripts/release-smoke-pack-registry.sh
+
+      - name: Run release smoke
+        env:
+          AI_DEVKIT_SMOKE_REGISTRY: ${{ steps.pack.outputs.registry }}
+        run: |
+          chmod +x scripts/release-smoke.sh
+          ./scripts/release-smoke.sh "${{ steps.pack.outputs.package_spec }}"

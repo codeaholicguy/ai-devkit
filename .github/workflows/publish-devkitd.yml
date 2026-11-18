@@ -13,8 +13,12 @@ permissions:
   contents: read
 
 jobs:
+  release-smoke:
+    uses: ./.github/workflows/release-smoke-gate.yml
+
   build-publish:
     name: Build and publish @ai-devkit/devkitd-${{ matrix.pkg }}
+    needs: release-smoke
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

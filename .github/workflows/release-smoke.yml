@@ -1,0 +1,18 @@
+name: Release smoke (dry run)
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/publish*.yml"
+      - ".github/workflows/release-smoke*.yml"
+      - "scripts/release-smoke*.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    uses: ./.github/workflows/release-smoke-gate.yml
