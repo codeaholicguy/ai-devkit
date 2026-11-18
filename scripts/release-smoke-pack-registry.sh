@@ -65,7 +65,10 @@ configure_npm_for_registry() {
   npm config set "${key}:username" smoke
   npm config set "${key}:_password" "$(printf '%s' 'smoke' | base64 -w0)"
   npm config set "${key}:email" "smoke@example.com"
-  npm config set "${key}:always-auth" true
+  if ! npm whoami --registry "$REGISTRY" >/dev/null 2>&1; then
+    log "npm auth for $REGISTRY failed (npm whoami)."
+    exit 1
+  fi
 }
 
 cd "$ROOT"
