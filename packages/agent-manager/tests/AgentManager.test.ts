@@ -775,7 +775,7 @@ describe("AgentManager", () => {
       await scopedManager.listAgents();
 
       expect(registry.list()[0]).toMatchObject({
-        name: "ai-devkit-44290",
+        name: "unregistered:ai-devkit-44290",
         type: "codex",
         pid: process.pid,
         runtime: "herdr",
@@ -784,7 +784,7 @@ describe("AgentManager", () => {
           paneId: "w31:p1",
           workspaceId: "w31",
           tabId: "w31:t1",
-          agentName: "ai-devkit-44290",
+          agentName: "unregistered:ai-devkit-44290",
         },
       });
     });
@@ -910,12 +910,12 @@ describe("AgentManager", () => {
       await scopedManager.listAgents();
 
       expect(fetchHerdrPanes).toHaveBeenCalledOnce();
-      expect(registry.lookup("ai-devkit-64904")).toMatchObject({
+      expect(registry.lookup("unregistered:ai-devkit-64904")).toMatchObject({
         runtime: "herdr",
         runtimeRef: {
           session: "default",
           paneId: "w32:p1",
-          agentName: "ai-devkit-64904",
+          agentName: "unregistered:ai-devkit-64904",
         },
       });
     });

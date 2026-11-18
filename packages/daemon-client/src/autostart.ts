@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { DaemonClient, daemonSocketPath } from "./client.js";
+import { homeScopeMismatch } from "./homeScope.js";
 import { readBinaryBuildVersion, resolveDaemonBinaryInfo, type DaemonBinary } from "./binary.js";
 
 /** A crashed spawner's lock is reclaimed after this long. */
@@ -47,6 +48,20 @@ export async function ensureDaemon(
   debug?.("no live daemon on socket; attempting autostart");
   if (spawnSkipped()) {
     debug?.("autostart skipped in test env (VITEST set, no DEVKITD_BIN)");
+    return null;
+  }
+
+  // Never auto-spawn a daemon from a divergent/sandboxed HOME (issue #402):
+  // it would bind the socket under an env nobody else shares — a second,
+  // invisible daemon. Connect-only in that case, but say so loudly.
+  const mismatch = homeScopeMismatch();
+  if (mismatch) {
+    const diagnostic =
+      `Refusing to auto-spawn devkitd: HOME="${mismatch.envHome}" diverges from the ` +
+      `account home "${mismatch.accountHome}". Unset HOME or run from a ` +
+      "non-sandboxed environment.";
+    debug?.(diagnostic);
+    console.error(diagnostic);
     return null;
   }
 

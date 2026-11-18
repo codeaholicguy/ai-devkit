@@ -57,6 +57,7 @@ export {
   AgentPidPollTimeoutError,
   AgentRuntimeUnavailableError,
   AgentTerminalNotFoundError,
+  AgentHomeDivergenceError,
   DEFAULT_PID_POLL_TIMEOUT_MS,
 } from "./runtime/ManagedAgentRuntime.js";
 
