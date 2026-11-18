@@ -48,12 +48,24 @@ wait_for_registry() {
   done
 }
 
-ensure_registry_login() {
-  if npm whoami --registry "$REGISTRY" >/dev/null 2>&1; then
+prepare_htpasswd() {
+  local file="/tmp/verdaccio-smoke-htpasswd"
+  if [[ -f "$file" ]] && grep -q '^smoke:' "$file" 2>/dev/null; then
     return 0
   fi
-  # Verdaccio config sets max_users: -1; any user can publish once registered.
-  printf '%s\n' smoke smoke smoke@example.com | npm adduser --registry "$REGISTRY" --auth-type=legacy
+  if ! command -v htpasswd >/dev/null 2>&1; then
+    log "htpasswd is required to seed the smoke registry (install apache2-utils)."
+    exit 1
+  fi
+  htpasswd -cbB "$file" smoke smoke
+}
+
+configure_npm_for_registry() {
+  local key="//${REGISTRY_HOST}:${REGISTRY_PORT}/"
+  npm config set "${key}:username" smoke
+  npm config set "${key}:_password" "$(printf '%s' 'smoke' | base64 -w0)"
+  npm config set "${key}:email" "smoke@example.com"
+  npm config set "${key}:always-auth" true
 }
 
 cd "$ROOT"
@@ -102,11 +114,13 @@ else
   VERDACCIO_BIN=(npx verdaccio@6)
 fi
 
+prepare_htpasswd
+
 log "Starting local Verdaccio on $REGISTRY"
 "${VERDACCIO_BIN[@]}" -c "$VERDACCIO_CONFIG" >"$VERDACCIO_LOG" 2>&1 &
 VERDACCIO_PID=$!
 wait_for_registry
-ensure_registry_login
+configure_npm_for_registry
 
 # Publish dependency packages before the CLI tarball they pin.
 publish_dir "$ROOT/packages/memory"

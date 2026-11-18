@@ -25,7 +25,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y tmux
 
       - name: Install musl toolchain
-        run: sudo apt-get install -y musl-tools
+        run: sudo apt-get install -y musl-tools apache2-utils
 
       - name: Install dependencies
         run: npm ci
