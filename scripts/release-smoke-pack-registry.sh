@@ -48,6 +48,11 @@ wait_for_registry() {
   done
 }
 
+reset_registry_storage() {
+  rm -rf /tmp/verdaccio-smoke-storage
+  mkdir -p /tmp/verdaccio-smoke-storage
+}
+
 prepare_htpasswd() {
   local file="/tmp/verdaccio-smoke-htpasswd"
   if [[ -f "$file" ]] && grep -q '^smoke:' "$file" 2>/dev/null; then
@@ -118,6 +123,7 @@ else
 fi
 
 prepare_htpasswd
+reset_registry_storage
 
 log "Starting local Verdaccio on $REGISTRY"
 "${VERDACCIO_BIN[@]}" -c "$VERDACCIO_CONFIG" >"$VERDACCIO_LOG" 2>&1 &

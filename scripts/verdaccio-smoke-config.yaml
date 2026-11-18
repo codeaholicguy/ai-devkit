@@ -16,16 +16,16 @@ uplinks:
     url: https://registry.npmjs.org/
 
 packages:
+  # Workspace packages are published only to this ephemeral registry (no npm uplink),
+  # so we can pack the exact versions from the checkout even when they already exist on npm.
   "@ai-devkit/*":
     access: $all
     publish: $all
     unpublish: $all
-    proxy: npmjs
   ai-devkit:
     access: $all
     publish: $all
     unpublish: $all
-    proxy: npmjs
   "**":
     access: $all
     publish: $all
