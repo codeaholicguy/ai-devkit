@@ -472,6 +472,45 @@ describe('install command', () => {
 });
 
 describe('skill command', () => {
+  it('registers bare "." as a live local registry without git-cloning (issue #419)', () => {
+    const projectDir = createTempProject();
+    const homeDir = join(projectDir, 'home');
+    mkdirSync(join(projectDir, 'skills', 'dot-fixture'), { recursive: true });
+    writeFileSync(
+      join(projectDir, 'skills', 'dot-fixture', 'SKILL.md'),
+      '---\ndescription: bare-dot fixture\n---\n',
+    );
+    writeConfigFile(projectDir, {
+      version: '1.0.0',
+      environments: ['claude'],
+      phases: [],
+      createdAt: new Date().toISOString(),
+    });
+
+    try {
+      const added = run('skill add-registry jarvis/skills .', {
+        cwd: projectDir,
+        env: { HOME: homeDir },
+      });
+      expect(added.exitCode).toBe(0);
+      expect(added.stdout).not.toMatch(/Cloning/i);
+      const config = JSON.parse(readFileSync(join(projectDir, '.ai-devkit.json'), 'utf8'));
+      expect(config.registries['jarvis/skills']).toBe(`file://${realpathSync(projectDir)}`);
+      expect(existsSync(join(homeDir, '.ai-devkit', 'skills', 'jarvis', 'skills'))).toBe(false);
+
+      const installed = run('skill add jarvis/skills dot-fixture', {
+        cwd: projectDir,
+        env: { HOME: homeDir },
+      });
+      expect(installed.exitCode).toBe(0);
+      expect(existsSync(join(projectDir, '.claude', 'skills', 'dot-fixture', 'SKILL.md'))).toBe(
+        true,
+      );
+    } finally {
+      cleanupTempProject(projectDir);
+    }
+  });
+
   it('registers, installs, and removes a relative local registry without deleting it', () => {
     const projectDir = createTempProject();
     const homeDir = join(projectDir, 'home');

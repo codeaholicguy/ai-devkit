@@ -10,7 +10,7 @@ The `agent` command allows AI DevKit to detect, list, and interact with other AI
 
 For an interactive terminal UI that combines listing, previewing, messaging, starting, renaming, killing, and channel controls, see [Agent Console](/docs/13-agent-console).
 
-For a lead agent supervising Codex, OpenCode, or other workers, read [Multi-agent orchestration](/docs/17-multi-agent-orchestration) and [Troubleshooting: Agents & Orchestration](/docs/18-troubleshooting-agents).
+For a lead agent supervising Codex, OpenCode, or other workers, read [Multi-agent orchestration](/docs/17-multi-agent-orchestration), the [cross-vendor recipe](/docs/20-cross-vendor-agent-recipe), and [Troubleshooting: Agents & Orchestration](/docs/18-troubleshooting-agents).
 
 ## Prerequisites
 
