@@ -1,6 +1,7 @@
 import type { Command } from "commander";
 import {
   getAnthropicCapacityReport,
+  getAntigravityCapacityReport,
   getClaudeCapacityReport,
   getCodexCapacityReport,
   getDevinCapacityReport,
@@ -13,7 +14,14 @@ import { ui } from "../util/terminal-ui.js";
 import type { CapacityReport } from "@ai-devkit/agent-manager";
 
 type CapacityOptions = { json?: boolean };
-type SupportedCapacityProvider = "anthropic" | "claude" | "codex" | "devin" | "openai" | "zai";
+type SupportedCapacityProvider =
+  | "anthropic"
+  | "antigravity"
+  | "claude"
+  | "codex"
+  | "devin"
+  | "openai"
+  | "zai";
 type ReportReader = (provider: SupportedCapacityProvider) => Promise<CapacityReport>;
 
 const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
@@ -23,6 +31,7 @@ const SUPPORTED_PROVIDERS: readonly SupportedCapacityProvider[] = [
   "anthropic",
   "claude",
   "devin",
+  "antigravity",
 ];
 const SUPPORTED_PROVIDER_LIST = SUPPORTED_PROVIDERS.map((provider) => `"${provider}"`).join(", ");
 
@@ -42,12 +51,14 @@ async function readCapacityReport(provider: SupportedCapacityProvider): Promise<
   if (provider === "anthropic") return getAnthropicCapacityReport();
   if (provider === "claude") return getClaudeCapacityReport();
   if (provider === "devin") return getDevinCapacityReport();
+  if (provider === "antigravity") return getAntigravityCapacityReport();
   return getCodexCapacityReport();
 }
 
 function normalizeProvider(provider: string): SupportedCapacityProvider | null {
   const normalized = provider.toLowerCase();
   if (normalized === "z.ai") return "zai";
+  if (normalized === "agy") return "antigravity";
   return SUPPORTED_PROVIDERS.includes(normalized as SupportedCapacityProvider)
     ? (normalized as SupportedCapacityProvider)
     : null;
@@ -70,13 +81,17 @@ export async function capacityCommand(
     if (!normalized.includes(value)) normalized.push(value);
   }
 
+  const settled = await Promise.allSettled(
+    normalized.map(async (provider) => readReport(provider)),
+  );
   const reports: CapacityReport[] = [];
-  for (const provider of normalized) {
-    try {
-      reports.push(await readReport(provider));
-    } catch (error) {
-      if (normalized.length === 1) throw error;
-      reportCapacityFailure(provider, error, options);
+  for (let index = 0; index < normalized.length; index += 1) {
+    const outcome = settled[index];
+    if (outcome.status === "fulfilled") {
+      reports.push(outcome.value);
+    } else {
+      if (normalized.length === 1) throw outcome.reason;
+      reportCapacityFailure(normalized[index], outcome.reason, options);
     }
   }
   renderCapacityReports(reports, options);

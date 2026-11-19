@@ -86,11 +86,12 @@ ai-devkit lint --feature lint-command
 # Emit machine-readable output for CI
 ai-devkit lint --feature lint-command --json
 
-# Probe capacity for every supported provider (codex, z.ai, OpenAI, Claude)
+# Probe capacity for every supported provider (codex, z.ai, OpenAI, Anthropic, Claude, Devin, Antigravity)
 ai-devkit capacity
 
 # Probe a single provider's capacity
 ai-devkit capacity zai
+ai-devkit capacity agy
 
 # Claude uses CLAUDE_CODE_OAUTH_TOKEN, the active profile file, or the
 # default-profile macOS Claude Code Keychain item

@@ -133,6 +133,31 @@ const anthropicReport: CapacityReport = {
   harness: "pi",
 };
 
+const antigravityReport: CapacityReport = {
+  harness: "antigravity",
+  provider: "antigravity",
+  generatedAt: "2026-08-09T10:00:00.000Z",
+  authenticated: true,
+  available: "yes",
+  windows: [
+    {
+      id: "antigravity:gemini-5h",
+      label: "Gemini Models · 5h",
+      durationMinutes: 300,
+      usedPercent: 5,
+      resetsAt: "2026-08-09T12:00:00.000Z",
+    },
+    {
+      id: "antigravity:gemini-weekly",
+      label: "Gemini Models · Weekly",
+      durationMinutes: 10080,
+      usedPercent: 14,
+      resetsAt: "2026-08-16T10:00:00.000Z",
+    },
+  ],
+  creditsRemaining: null,
+};
+
 describe("capacity rendering", () => {
   beforeEach(() => vi.clearAllMocks());
 
@@ -315,7 +340,8 @@ describe("capacity command", () => {
     expect(getReport).toHaveBeenCalledWith("anthropic");
     expect(getReport).toHaveBeenCalledWith("claude");
     expect(getReport).toHaveBeenCalledWith("devin");
-    expect(textCalls()).toContain("Capacity · 6 providers");
+    expect(getReport).toHaveBeenCalledWith("antigravity");
+    expect(textCalls()).toContain("Capacity · 7 providers");
   });
 
   it("wires the command surface and normalizes the dotted z.ai alias", async () => {
@@ -354,10 +380,25 @@ describe("capacity command", () => {
     expect(textCalls()).toContain("pi · Anthropic capacity · OK");
   });
 
+  it("accepts Antigravity and the agy alias", async () => {
+    const getReport = vi.fn(async () => antigravityReport);
+    await capacityCommand(["antigravity"], {}, getReport);
+    expect(getReport).toHaveBeenCalledWith("antigravity");
+    expect(textCalls()).toContain("antigravity · Antigravity capacity · OK");
+
+    vi.clearAllMocks();
+    const program = new Command();
+    program.exitOverride();
+    registerCapacityCommand(program, getReport);
+    await program.parseAsync(["node", "test", "capacity", "agy", "--json"]);
+    expect(getReport).toHaveBeenCalledWith("antigravity");
+    expect(ui.table).not.toHaveBeenCalled();
+  });
+
   it("rejects unknown providers before probing", async () => {
     const getReport = vi.fn(async () => codexReport);
     await expect(capacityCommand(["gemini"], {}, getReport)).rejects.toThrow(
-      'Supported providers: "codex", "zai", "openai", "anthropic", "claude", "devin"',
+      'Supported providers: "codex", "zai", "openai", "anthropic", "claude", "devin", "antigravity"',
     );
     expect(getReport).not.toHaveBeenCalled();
   });
@@ -380,7 +421,7 @@ describe("capacity command", () => {
     expect(ui.warning).toHaveBeenCalledWith(
       "openai capacity unavailable: OpenAI API key not found",
     );
-    expect(textCalls()).toContain("Capacity · 4 providers");
+    expect(textCalls()).toContain("Capacity · 5 providers");
   });
 
   it("preserves other reports when Claude is unavailable", async () => {
@@ -393,6 +434,31 @@ describe("capacity command", () => {
     expect(ui.warning).toHaveBeenCalledWith(
       "claude capacity unavailable: Claude OAuth credentials expired",
     );
-    expect(textCalls()).toContain("Capacity · 5 providers");
+    expect(textCalls()).toContain("Capacity · 6 providers");
+  });
+
+  it("probes multiple providers concurrently while preserving output order", async () => {
+    const resolvers = new Map<string, (report: CapacityReport) => void>();
+    const started: string[] = [];
+    const getReport = vi.fn(
+      (provider: string) =>
+        new Promise<CapacityReport>((resolve) => {
+          started.push(provider);
+          resolvers.set(provider, resolve);
+        }),
+    );
+
+    const pending = capacityCommand(["codex", "antigravity"], { json: true }, getReport);
+    expect(started).toEqual(["codex", "antigravity"]);
+
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      resolvers.get("antigravity")?.(antigravityReport);
+      resolvers.get("codex")?.(codexReport);
+      await pending;
+      expect(log).toHaveBeenCalledWith(JSON.stringify([codexReport, antigravityReport], null, 2));
+    } finally {
+      log.mockRestore();
+    }
   });
 });

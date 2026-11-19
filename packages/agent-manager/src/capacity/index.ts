@@ -1,6 +1,10 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import path from "node:path";
+import {
+  probeAntigravityCapacity,
+  type AntigravityCapacityOptions,
+} from "./sources/antigravity.js";
 import { codexUnavailableReport, probeCodexCapacity } from "./sources/codex.js";
 import { probeClaudeCapacity, type ClaudeCapacityOptions } from "./sources/claude.js";
 import { probeDevinCapacity, type DevinCapacityOptions } from "./sources/devin.js";
@@ -15,6 +19,7 @@ import {
 import type { CapacityReport } from "./types.js";
 
 export type { CapacityReport, CapacityWindow } from "./types.js";
+export type { AntigravityCapacityOptions } from "./sources/antigravity.js";
 export type { ClaudeCapacityOptions } from "./sources/claude.js";
 export type { DevinCapacityOptions } from "./sources/devin.js";
 export type { PiAnthropicCapacityOptions as AnthropicCapacityOptions } from "./sources/pi.js";
@@ -120,6 +125,17 @@ export async function getAnthropicCapacityReport(
 ): Promise<CapacityReport> {
   const { now, ...probeOptions } = options;
   return probePiAnthropicCapacity({
+    ...probeOptions,
+    checkedAt: (now?.() ?? new Date()).toISOString(),
+    now,
+  });
+}
+
+export async function getAntigravityCapacityReport(
+  options: AntigravityCapacityOptions = {},
+): Promise<CapacityReport> {
+  const { now, ...probeOptions } = options;
+  return probeAntigravityCapacity({
     ...probeOptions,
     checkedAt: (now?.() ?? new Date()).toISOString(),
     now,

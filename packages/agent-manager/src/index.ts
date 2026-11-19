@@ -2,6 +2,7 @@ export { AgentManager } from "./AgentManager.js";
 export type { EnrichedAgentWire, ListAgentsOptions } from "./AgentManager.js";
 export {
   getAnthropicCapacityReport,
+  getAntigravityCapacityReport,
   getClaudeCapacityReport,
   getCodexCapacityReport,
   getDevinCapacityReport,
