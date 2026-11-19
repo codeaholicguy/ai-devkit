@@ -26,7 +26,7 @@ npx ai-devkit@latest init
 
 `setup` installs built-in skills globally, session hooks, and the memory MCP wiring for detected agents.
 
-The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro is not selectable in project `init`/`install` (no project skill root or MCP config surface); machine `setup` only detects `~/.kiro` and skips built-in skills and memory MCP wiring. Copilot, Devin, Muse, and Kiro skip memory MCP wiring until a global config writer is verified.
+The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro, Copilot, Devin, and Muse do not get memory MCP wiring yet.
 
 `init` writes project-local config. Your project gets:
 
