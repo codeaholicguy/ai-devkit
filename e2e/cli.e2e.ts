@@ -1,7 +1,18 @@
+import { execSync } from 'child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { run, createTempProject, cleanupTempProject, writeConfigFile } from './helpers';
+import { baseEnv, run, createTempProject, cleanupTempProject, writeConfigFile } from './helpers';
+
+function git(cwd: string, args: string): void {
+  execSync(`git ${args}`, { cwd, env: baseEnv(), stdio: 'ignore' });
+}
+
+function seedGitRepo(projectDir: string): void {
+  writeFileSync(join(projectDir, 'README.md'), 'base\n');
+  git(projectDir, 'add README.md');
+  git(projectDir, 'commit -m base');
+}
 
 describe('CLI basics', () => {
   it('should print version', () => {
@@ -216,6 +227,49 @@ describe('lint command', () => {
     const json = JSON.parse(result.stdout.trim());
     expect(json).toHaveProperty('feature');
     expect(json.feature.normalizedName).toBe('my-feature');
+  });
+
+  it('warns when feature branch exists without a dedicated worktree', () => {
+    seedGitRepo(projectDir);
+    run('init -e claude -p requirements,design', { cwd: projectDir });
+    git(projectDir, 'branch feature-sample');
+
+    const result = run('lint -f feature-sample --json', { cwd: projectDir });
+    const json = JSON.parse(result.stdout.trim());
+    expect(
+      json.checks.some(
+        (check: { id: string; category: string; level: string }) =>
+          check.id === 'git-worktree' && check.category === 'git-worktree' && check.level === 'warn'
+      )
+    ).toBe(true);
+  });
+
+  it('fails when feature branch does not exist', () => {
+    seedGitRepo(projectDir);
+    run('init -e claude -p requirements,design', { cwd: projectDir });
+
+    const result = run('lint -f sample --json', { cwd: projectDir });
+    const json = JSON.parse(result.stdout.trim());
+    expect(json.pass).toBe(false);
+    expect(json.checks.some((check: { category: string; level: string }) => check.category === 'git-worktree' && check.level === 'miss')).toBe(
+      true
+    );
+  });
+
+  it('reports non-git directory as required failure for feature lint', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ai-devkit-lint-nogit-'));
+    try {
+      const result = run('lint -f sample --json', { cwd: dir });
+      const json = JSON.parse(result.stdout.trim());
+      expect(
+        json.checks.some(
+          (check: { id: string; level: string; required?: boolean }) =>
+            check.id === 'git-repo' && check.level === 'miss' && check.required
+        )
+      ).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
