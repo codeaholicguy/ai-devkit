@@ -7,6 +7,7 @@ import {
   getGlobalSkillPath,
   getMcpConfigPath,
   getSkillPath,
+  hasMcpSupport,
   isValidEnvironmentCode,
 } from "../../src/util/env.js";
 
@@ -89,6 +90,20 @@ describe("EnvironmentSelector", () => {
       expect(getSkillPath("devin")).toBe(".devin/skills");
       expect(getGlobalSkillPath("devin")).toBe(".config/devin/skills");
       expect(getMcpConfigPath("devin")).toBe(".devin/config.json");
+    });
+
+    it("includes Kiro with project and global skills", () => {
+      expect(isValidEnvironmentCode("kiro")).toBe(true);
+      expect(getEnvironment("kiro")).toMatchObject({
+        code: "kiro",
+        name: "Kiro",
+        skillPath: ".kiro/skills",
+        globalSkillPath: ".kiro/skills",
+      });
+      expect(getSkillPath("kiro")).toBe(".kiro/skills");
+      expect(getGlobalSkillPath("kiro")).toBe(".kiro/skills");
+      expect(getMcpConfigPath("kiro")).toBeUndefined();
+      expect(hasMcpSupport("kiro")).toBe(false);
     });
 
     it("includes Roo Code with project skills, global skills, and MCP", () => {
@@ -317,6 +332,7 @@ describe("EnvironmentSelector", () => {
             expect.objectContaining({ value: "junie" }),
             expect.objectContaining({ value: "cline" }),
             expect.objectContaining({ value: "devin" }),
+            expect.objectContaining({ value: "kiro" }),
           ]),
           pageSize: 10,
           required: true,

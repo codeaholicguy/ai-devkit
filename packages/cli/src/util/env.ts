@@ -115,6 +115,12 @@ export const ENVIRONMENT_DEFINITIONS: Record<EnvironmentCode, EnvironmentDefinit
     skillPath: ".agents/skills",
     globalSkillPath: ".config/muse/skills",
   },
+  kiro: {
+    code: "kiro",
+    name: "Kiro",
+    skillPath: ".kiro/skills",
+    globalSkillPath: ".kiro/skills",
+  },
 };
 
 export const ALL_ENVIRONMENT_CODES: EnvironmentCode[] = Object.keys(

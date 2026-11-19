@@ -131,6 +131,7 @@ function fixture(overrides: Partial<StatusServiceOptions> = {}) {
     ["grok_cli", path.join(homeDir, ".grok", "skills")],
     ["antigravity_cli", path.join(homeDir, ".gemini", "config", "skills")],
     ["opencode", path.join(homeDir, ".config", "opencode", "skills")],
+    ["kiro", path.join(homeDir, ".kiro", "skills")],
   ] as const) {
     void agent;
     for (const skill of builtIns) files[path.join(skillRoot, skill, "SKILL.md")] = "# skill";
@@ -224,10 +225,10 @@ describe("getStatusReport", () => {
     expect(report.agents.gemini_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });
     expect(report.agents.antigravity_cli.builtInSkills).toMatchObject({ present: 2, required: 2 });
     expect(report.agents.kiro.builtInSkills).toMatchObject({
-      path: null,
-      present: 0,
+      path: "~/.kiro/skills",
+      present: 2,
       required: 2,
-      missing: ["remote-one", "remote-two"],
+      missing: [],
     });
     expect(report.agents.opencode.auth?.status).toBe("pass");
     expect(report.agents.copilot.auth?.status).toBe("pass");

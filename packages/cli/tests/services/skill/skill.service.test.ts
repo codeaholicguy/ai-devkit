@@ -626,6 +626,25 @@ describe("SkillService", () => {
         expect(mockConfigManager.addSkill.mock.calls[0][0]).not.toHaveProperty("mode");
       });
 
+      it("symlinks kiro skills into .kiro/skills", async () => {
+        const kiroTarget = () => path.join(process.cwd(), ".kiro", "skills", mockSkillName);
+        (mockedFs.pathExists as any).mockImplementation((checkPath: string) =>
+          Promise.resolve(checkPath !== kiroTarget()),
+        );
+
+        const result = await skillManager.addSkill(mockRegistryId, mockSkillName, {
+          environments: ["kiro"],
+        });
+
+        expect(mockedFs.symlink).toHaveBeenCalledWith(expect.any(String), kiroTarget(), "dir");
+        expect(result.items).toEqual([
+          expect.objectContaining({
+            target: ".kiro/skills/frontend-design",
+            action: "symlinked",
+          }),
+        ]);
+      });
+
       it("reports a conflict when copy mode finds an existing symlink", async () => {
         targetIs("symlink");
 
@@ -725,7 +744,7 @@ describe("SkillService", () => {
       } as any);
 
       await expect(skillManager.addSkill(mockRegistryId, mockSkillName)).rejects.toThrow(
-        "Supported: cursor, claude, github, gemini, grok, codex, kilocode, amp, opencode, roo, antigravity, antigravity-cli, junie, cline, devin, pi, muse",
+        "Supported: cursor, claude, github, gemini, grok, codex, kilocode, amp, opencode, roo, antigravity, antigravity-cli, junie, cline, devin, pi, muse, kiro",
       );
     });
 

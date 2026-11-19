@@ -219,8 +219,10 @@ const setupDefinitions: AgentSetupDefinition[] = [
   {
     agent: "kiro",
     dotFolder: ".kiro",
-    // Kiro has no EnvironmentCode or skill root; only probe memory MCP.
-    steps: [{ name: "memory-mcp", run: setupMemoryMcp }],
+    steps: [
+      { name: "built-in-skills", run: setupBuiltInSkills },
+      { name: "memory-mcp", run: setupMemoryMcp },
+    ],
   },
   {
     agent: "copilot",
@@ -426,9 +428,9 @@ async function defaultRunCommand(command: string, args: string[]): Promise<void>
 }
 
 async function defaultInstallBuiltInSkills(agent: SetupAgent): Promise<void> {
-  // Copilot uses the existing GitHub environment; Kiro has no skill environment.
+  // Copilot uses the existing GitHub environment.
   const environment = agent === "copilot" ? "github" : agent;
-  if (environment === "kiro" || !getEnvironment(environment)?.globalSkillPath) {
+  if (!getEnvironment(environment)?.globalSkillPath) {
     throw new Error(`No global skill root defined for ${agent}.`);
   }
   const skillService = new SkillService(new ConfigManager());
