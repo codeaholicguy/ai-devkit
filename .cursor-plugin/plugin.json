@@ -1,6 +1,6 @@
 {
   "name": "ai-devkit",
-  "version": "0.76.1",
+  "version": "0.77.0",
   "description": "The control plane for AI coding agents.",
   "author": {
     "name": "Hoang Nguyen",
