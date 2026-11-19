@@ -66,6 +66,7 @@ describe("setup built-in skills", () => {
   });
   it.each([
     ["copilot", ".copilot", "github"],
+    ["kiro", ".kiro", "kiro"],
     ["devin", ".config/devin", "devin"],
     ["muse", ".config/muse", "muse"],
   ] as const)(

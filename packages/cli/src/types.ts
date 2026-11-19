@@ -35,7 +35,8 @@ export type EnvironmentCode =
   | "cline"
   | "devin"
   | "pi"
-  | "muse";
+  | "muse"
+  | "kiro";
 
 export const DEFAULT_DOCS_DIR = "docs/ai";
 

@@ -33,6 +33,7 @@ describe("setup service — built-in skills consistency", () => {
     { agent: "opencode", marker: join(".config", "opencode") },
     { agent: "grok", marker: join(".grok") },
     { agent: "antigravity-cli", marker: join(".gemini", "antigravity-cli") },
+    { agent: "kiro", marker: join(".kiro") },
   ] as const;
 
   it.each(cases)(

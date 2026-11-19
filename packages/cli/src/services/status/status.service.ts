@@ -131,6 +131,7 @@ const STATUS_SKILL_ROOTS: Partial<Record<ReadinessAgentType, string>> = {
   opencode: getGlobalSkillPath("opencode") ?? ".config/opencode/skills",
   pi: getGlobalSkillPath("pi") ?? ".pi/agent/skills",
   devin: getGlobalSkillPath("devin") ?? ".config/devin/skills",
+  kiro: getGlobalSkillPath("kiro") ?? ".kiro/skills",
 };
 
 export function worstStatus(statuses: CheckStatus[]): CheckStatus {

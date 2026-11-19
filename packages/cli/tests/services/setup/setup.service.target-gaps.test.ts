@@ -7,7 +7,7 @@ import {
 } from "../../../src/services/setup/setup.service.js";
 
 const cases = [
-  { agent: "kiro", marker: ".kiro", skills: false },
+  { agent: "kiro", marker: ".kiro", skills: true },
   { agent: "copilot", marker: ".copilot", skills: true },
   { agent: "devin", marker: ".config/devin", skills: true },
   { agent: "muse", marker: ".config/muse", skills: true },

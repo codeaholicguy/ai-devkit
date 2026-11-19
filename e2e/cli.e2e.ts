@@ -428,6 +428,30 @@ describe('install command', () => {
     expect(result.exitCode).not.toBe(0);
   });
 
+  it('installs skills under .kiro/skills when kiro is selected', () => {
+    const homeDir = join(projectDir, 'home');
+    const registryDir = join(projectDir, 'local-registry');
+    mkdirSync(join(registryDir, 'skills', 'kiro-fixture'), { recursive: true });
+    writeFileSync(
+      join(registryDir, 'skills', 'kiro-fixture', 'SKILL.md'),
+      '---\ndescription: kiro fixture\n---\n'
+    );
+    writeConfigFile(projectDir, {
+      version: '1.0.0',
+      environments: ['kiro'],
+      phases: [],
+      registries: {
+        'local/skills': `file://${realpathSync(registryDir)}`
+      },
+      skills: [{ registry: 'local/skills', name: 'kiro-fixture' }],
+      createdAt: new Date().toISOString()
+    });
+
+    const result = run('install', { cwd: projectDir, env: { HOME: homeDir } });
+    expect(result.exitCode).toBe(0);
+    expect(existsSync(join(projectDir, '.kiro', 'skills', 'kiro-fixture', 'SKILL.md'))).toBe(true);
+  });
+
   it('should install when config has registries and skills', () => {
     writeConfigFile(projectDir, {
       version: '1.0.0',

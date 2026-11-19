@@ -19,7 +19,7 @@ import { EnvironmentCode } from "../../src/types.js";
 describe("Environment Utilities", () => {
   describe("ENVIRONMENT_DEFINITIONS", () => {
     it("should contain all all environment definitions", () => {
-      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(17);
+      expect(Object.keys(ENVIRONMENT_DEFINITIONS)).toHaveLength(18);
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("cursor");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("claude");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("github");
@@ -37,6 +37,7 @@ describe("Environment Utilities", () => {
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("devin");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("pi");
       expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("muse");
+      expect(ENVIRONMENT_DEFINITIONS).toHaveProperty("kiro");
     });
 
     it("should have correct structure for cursor environment", () => {
@@ -67,7 +68,7 @@ describe("Environment Utilities", () => {
 
   describe("ALL_ENVIRONMENT_CODES", () => {
     it("should contain all all environment codes", () => {
-      expect(ALL_ENVIRONMENT_CODES).toHaveLength(17);
+      expect(ALL_ENVIRONMENT_CODES).toHaveLength(18);
       expect(ALL_ENVIRONMENT_CODES).toEqual(
         expect.arrayContaining([
           "cursor",
@@ -86,6 +87,7 @@ describe("Environment Utilities", () => {
           "devin",
           "pi",
           "muse",
+          "kiro",
         ]),
       );
     });
@@ -99,7 +101,7 @@ describe("Environment Utilities", () => {
   describe("getAllEnvironments", () => {
     it("should return all environment definitions", () => {
       const environments = getAllEnvironments();
-      expect(environments).toHaveLength(17);
+      expect(environments).toHaveLength(18);
       expect(environments).toEqual(Object.values(ENVIRONMENT_DEFINITIONS));
     });
 
@@ -192,6 +194,7 @@ describe("Environment Utilities", () => {
       expect(isValidEnvironmentCode("junie")).toBe(true);
       expect(isValidEnvironmentCode("cline")).toBe(true);
       expect(isValidEnvironmentCode("devin")).toBe(true);
+      expect(isValidEnvironmentCode("kiro")).toBe(true);
     });
 
     it("should return false for invalid codes", () => {
@@ -210,6 +213,7 @@ describe("Environment Utilities", () => {
       expect(getEnvironmentDisplayName("junie")).toBe("Junie");
       expect(getEnvironmentDisplayName("cline")).toBe("Cline");
       expect(getEnvironmentDisplayName("devin")).toBe("Devin");
+      expect(getEnvironmentDisplayName("kiro")).toBe("Kiro");
     });
 
     it("should return code itself for invalid codes", () => {
@@ -270,6 +274,10 @@ describe("Environment Utilities", () => {
       expect(getSkillPath("devin")).toBe(".devin/skills");
     });
 
+    it("should return skill path for kiro", () => {
+      expect(getSkillPath("kiro")).toBe(".kiro/skills");
+    });
+
     it("should return skill path for roo", () => {
       expect(getSkillPath("roo")).toBe(".roo/skills");
     });
@@ -322,6 +330,10 @@ describe("Environment Utilities", () => {
 
     it("should return global skill path for devin", () => {
       expect(getGlobalSkillPath("devin")).toBe(".config/devin/skills");
+    });
+
+    it("should return global skill path for kiro", () => {
+      expect(getGlobalSkillPath("kiro")).toBe(".kiro/skills");
     });
 
     it("should return global skill path for kilocode", () => {
@@ -416,7 +428,8 @@ describe("Environment Utilities", () => {
       expect(envCodes).toContain("devin");
       expect(envCodes).toContain("pi");
       expect(envCodes).toContain("muse");
-      expect(skillEnvs).toHaveLength(17);
+      expect(envCodes).toContain("kiro");
+      expect(skillEnvs).toHaveLength(18);
     });
   });
 
