@@ -256,7 +256,7 @@ Those files are static instructions the agent re-reads. AI DevKit gives agents a
 
 - Full guides, workflow patterns, skill authoring → **[ai-devkit.com/docs](https://ai-devkit.com/docs/)**
 - Release notes → **[CHANGELOG.md](./CHANGELOG.md)**
-- Contributing → open an issue or PR on **[GitHub](https://github.com/Codeaholicguy/ai-devkit)**
+- Contributing → **[CONTRIBUTING.md](./CONTRIBUTING.md)** (issues and PRs on [GitHub](https://github.com/Codeaholicguy/ai-devkit))
 
 ```bash
 git clone https://github.com/Codeaholicguy/ai-devkit.git
