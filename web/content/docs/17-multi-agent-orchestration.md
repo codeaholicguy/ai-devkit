@@ -172,6 +172,7 @@ To pass those at start time, use **Agent Console** (`s` → **task** and **args*
 
 ## Related docs
 
+- [Recipe — Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe) — shortest path when the lead and workers are different vendors
 - [Agent Management](/docs/8-agent-management) — command reference and known limitations
 - [Troubleshooting: Agents & Orchestration](/docs/18-troubleshooting-agents)
 - [Per-harness permission setup](/docs/19-permissions)
