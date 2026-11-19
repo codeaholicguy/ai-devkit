@@ -18,7 +18,7 @@ Keeping these steps separate makes it clear which changes affect your machine an
 
 Before you begin, make sure you have:
 
-- **Node.js 20.20.0 or newer**
+- **Node.js 22.0.0 or newer**
 - **npm** or **npx**, which comes with Node.js
 - **tmux** for interactive managed agents (provisional compatibility floor: tmux 2.6+; setup reports but does not reject older versions)
 - **`lsof` on Linux** for reliable agent session detection (strongly recommended; see [Agent Management](/docs/8-agent-management#linux-session-detection))

@@ -3,7 +3,7 @@
     "email": "hoang@codeaholicguy.com",
     "name": "Hoang Nguyen"
   },
-  "description": "Make AI coding agents follow a repeatable engineering workflow with memory, verification, skills, and multi-agent setup",
+  "description": "The control plane for AI coding agents.",
   "homepage": "https://ai-devkit.com/",
   "hooks": "./hooks/hooks.json",
   "interface": {

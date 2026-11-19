@@ -1,6 +1,6 @@
 # AI DevKit
 
-> AI DevKit is an open-source control plane for AI coding agents. It works alongside Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, Pi, and other tools.
+> The control plane for AI coding agents. AI DevKit works alongside Cursor, Claude Code, GitHub Copilot, Gemini CLI, Codex, opencode, Pi, and other tools.
 
 AI DevKit solves common multi-agent coding problems: scattered terminals, duplicated setup files, copy-pasted context, forgotten project decisions, and unverified completion claims. It provides one project-local config, one console, cross-agent communication, local-first SQLite memory, workflow skills, and verification.
 
