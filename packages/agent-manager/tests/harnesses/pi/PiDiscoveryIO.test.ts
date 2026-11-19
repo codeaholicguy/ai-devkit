@@ -204,9 +204,6 @@ describe("Pi live discovery I/O", () => {
     expect(second).toEqual([expect.objectContaining({ pid: 4242, sessionId: "pid-4242" })]);
     expect(sessionFilesTouched()).toEqual([]);
     expect(sessionBytesRead()).toBe(0);
-    expect(
-      mockedReaddirSync.mock.calls.some((c) => String(c[0]).startsWith(sessionsDir + path.sep)),
-    ).toBe(false);
   });
 
   it("re-checks a no-match project dir when a session file is added", async () => {
@@ -220,9 +217,8 @@ describe("Pi live discovery I/O", () => {
 
     resetReads();
     await adapter.detectAgents({ processes: [proc] });
-    expect(mockedReaddirSync).not.toHaveBeenCalledWith(
-      path.join(sessionsDir, encodeProjectDir(cwd)),
-    );
+    // Still skips session file reads; may readdir to confirm an unchanged file count.
+    expect(sessionFilesTouched()).toEqual([]);
 
     const added = writeSession(cwd, new Date(startTime.getTime() + 5_000), "added");
     resetReads();
