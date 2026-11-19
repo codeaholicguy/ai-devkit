@@ -2,7 +2,7 @@
 
 > English | [中文](./README-zh.md)
 
-**Let any coding agent run and talk to any other, locally.**
+**The control plane for AI coding agents.**
 
 ![](agent-console-showcase.jpg)
 

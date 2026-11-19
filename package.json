@@ -2,7 +2,7 @@
   "name": "ai-devkit",
   "version": "0.76.1",
   "private": true,
-  "description": "Let any coding agent run and talk to any other, locally",
+  "description": "The control plane for AI coding agents.",
   "keywords": [
     "ai",
     "claude",

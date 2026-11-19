@@ -34,7 +34,7 @@ export default function Footer() {
           <div>
             <h2 className={heading}>AI DevKit</h2>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Let any coding agent run and talk to any other, locally.
+              The control plane for AI coding agents.
             </p>
           </div>
 

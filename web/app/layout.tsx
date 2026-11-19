@@ -18,10 +18,10 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://ai-devkit.com";
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "AI DevKit — Let any coding agent run and talk to any other, locally",
+    default: "AI DevKit — The control plane for AI coding agents.",
     template: "%s | AI DevKit",
   },
-  description: "Let any coding agent run and talk to any other, locally.",
+  description: "The control plane for AI coding agents.",
   keywords: [
     "AI",
     "AI DevKit",
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     "software engineering",
     "multi-agent coding",
     "local AI coding agents",
-    "repeatable engineering workflow",
+    "control plane for AI coding agents",
     "specs driven development",
   ],
   authors: [{ name: "AI DevKit Team" }],
@@ -47,8 +47,8 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "AI DevKit — Let any coding agent run and talk to any other, locally",
-    description: "Let any coding agent run and talk to any other, locally.",
+    title: "AI DevKit — The control plane for AI coding agents.",
+    description: "The control plane for AI coding agents.",
     url: siteUrl,
     siteName: "AI DevKit",
     locale: "en_US",
@@ -64,8 +64,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AI DevKit — Let any coding agent run and talk to any other, locally",
-    description: "Let any coding agent run and talk to any other, locally.",
+    title: "AI DevKit — The control plane for AI coding agents.",
+    description: "The control plane for AI coding agents.",
     images: ["/og-image.jpg"],
   },
   robots: {
@@ -114,7 +114,7 @@ export default function RootLayout({
         alternateName: ["ai-devkit"],
         applicationCategory: "DeveloperApplication",
         operatingSystem: "macOS, Linux, Windows",
-        description: "Let any coding agent run and talk to any other, locally.",
+        description: "The control plane for AI coding agents.",
         url: siteUrl,
         downloadUrl: "https://www.npmjs.com/package/ai-devkit",
         codeRepository: "https://github.com/codeaholicguy/ai-devkit",

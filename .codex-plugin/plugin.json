@@ -3,7 +3,7 @@
     "email": "hoang@codeaholicguy.com",
     "name": "Hoang Nguyen"
   },
-  "description": "Let any coding agent run and talk to any other, locally",
+  "description": "The control plane for AI coding agents.",
   "homepage": "https://ai-devkit.com/",
   "hooks": "./hooks/hooks.json",
   "interface": {
