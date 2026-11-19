@@ -75,7 +75,7 @@ npx ai-devkit@latest init
 
 Run `setup` once per machine, then `init` per project. Pick your agents, install the control-plane pieces you need, and give every tool the same operating model. Re-run `init` whenever your agent list or workflow changes.
 
-Multi-agent orchestration (lead plus workers): **[docs guide](https://ai-devkit.com/docs/17-multi-agent-orchestration/)**.
+Multi-agent orchestration (lead plus workers): **[docs guide](https://ai-devkit.com/docs/17-multi-agent-orchestration/)**. Cross-vendor recipe (any lead, any worker): **[cross-vendor recipe](https://ai-devkit.com/docs/20-cross-vendor-agent-recipe/)**.
 
 Here's what lands in your repo:
 
