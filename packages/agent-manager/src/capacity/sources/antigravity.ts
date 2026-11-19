@@ -13,11 +13,16 @@ import path from "node:path";
 import {
   AntigravityCliError,
   classifyAntigravityExitFailure,
+  fetchAntigravityRemoteCapacity,
   isSupportedAntigravityVersion,
   parseAntigravityUsageReport,
   parseAntigravityVersion,
   type AntigravityVersion,
 } from "../providers/antigravity.js";
+import {
+  resolveAntigravityOAuthCredential,
+  type AntigravityCredentialOptions,
+} from "../../harnesses/antigravity/credentials.js";
 import type { CapacityReport } from "../types.js";
 
 const DEFAULT_USAGE_TIMEOUT_MS = 90_000;
@@ -50,15 +55,15 @@ export type AntigravityExecOptions = {
   maxOutputBytes: number;
 };
 
-export type AntigravityCapacityOptions = {
-  now?: () => Date;
-  env?: NodeJS.ProcessEnv;
+export type AntigravityCapacityOptions = AntigravityCredentialOptions & {
   path?: string;
   access?: (target: string) => Promise<void>;
   stat?: (target: string) => Promise<AntigravityBinaryStat>;
   exec?: (options: AntigravityExecOptions) => Promise<AntigravityExecResult>;
+  fetch?: typeof globalThis.fetch;
   timeoutMs?: number;
   versionTimeoutMs?: number;
+  remoteTimeoutMs?: number;
   maxOutputBytes?: number;
 };
 
@@ -323,6 +328,19 @@ function antigravityReport(
 export async function probeAntigravityCapacity(
   options: AntigravityProbeOptions,
 ): Promise<CapacityReport> {
+  const oauthCredential = await resolveAntigravityOAuthCredential(options);
+  if (oauthCredential) {
+    try {
+      const snapshot = await fetchAntigravityRemoteCapacity(oauthCredential, {
+        fetch: options.fetch,
+        timeoutMs: options.remoteTimeoutMs,
+      });
+      return antigravityReport(snapshot, options.checkedAt);
+    } catch {
+      // Fall back to the local agy CLI print report if remote OAuth fails.
+    }
+  }
+
   const binaryPath = await resolveAntigravityBinary(options);
   const sandboxDir = await createProbeSandbox();
 

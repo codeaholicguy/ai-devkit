@@ -5,10 +5,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AntigravityCliError,
   classifyAntigravityExitFailure,
+  fetchAntigravityRemoteCapacity,
   isSupportedAntigravityVersion,
   parseAntigravityUsageReport,
   parseAntigravityVersion,
 } from "../../src/capacity/providers/antigravity.js";
+import { resolveAntigravityOAuthCredential } from "../../src/harnesses/antigravity/credentials.js";
 import {
   probeAntigravityCapacity,
   resetAntigravityVersionCache,
@@ -607,5 +609,152 @@ head -c 2048 /dev/zero | tr '\\0' 'a'
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  it("uses direct Cloud Code OAuth fast path without spawning agy when OAuth credential is available", async () => {
+    const exec = vi.fn();
+    const fetchMock = vi.fn(async (url: string | URL) => {
+      const target = String(url);
+      if (target.includes("loadCodeAssist")) {
+        return new Response(JSON.stringify({ cloudaicompanionProject: "proj-123" }), {
+          status: 200,
+        });
+      }
+      if (target.includes("retrieveUserQuotaSummary")) {
+        return new Response(
+          JSON.stringify({
+            groups: FULL_USAGE_REPORT.command.data.groups,
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response("not found", { status: 404 });
+    });
+
+    const report = await probeAntigravityCapacity({
+      checkedAt,
+      env: { ANTIGRAVITY_ACCESS_TOKEN: "fake-oauth-access-token" },
+      fetch: fetchMock as unknown as typeof globalThis.fetch,
+      exec,
+    });
+
+    expect(report).toMatchObject({
+      harness: "antigravity",
+      provider: "antigravity",
+      generatedAt: checkedAt,
+      authenticated: true,
+      available: "yes",
+    });
+    expect(report.windows).toHaveLength(4);
+    expect(exec).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("falls back to agy CLI when remote Cloud Code OAuth fetch fails", async () => {
+    const exec = vi.fn(async (opts: AntigravityExecOptions) => {
+      if (opts.args[0] === "--version") return { exitCode: 0, stdout: "agy 1.2.11\n", stderr: "" };
+      return { exitCode: 0, stdout: JSON.stringify(FULL_USAGE_REPORT), stderr: "" };
+    });
+    const fetchMock = vi.fn(async () => new Response("unauthorized", { status: 401 }));
+
+    const report = await probeAntigravityCapacity({
+      checkedAt,
+      env: {
+        ANTIGRAVITY_ACCESS_TOKEN: "expired-fake-token",
+        ANTIGRAVITY_CLI_PATH: "/opt/bin/agy",
+      },
+      access: async () => undefined,
+      stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+      fetch: fetchMock as unknown as typeof globalThis.fetch,
+      exec,
+    });
+
+    expect(report.authenticated).toBe(true);
+    expect(report.windows).toHaveLength(4);
+    expect(exec).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("Antigravity OAuth credentials and Cloud Code remote fetch", () => {
+  const now = new Date("2026-11-19T12:00:00.000Z");
+
+  it("resolves credentials from env token, env JSON, agy file storage, or codexbar file", async () => {
+    const fromEnv = await resolveAntigravityOAuthCredential({
+      now: () => now,
+      env: { ANTIGRAVITY_ACCESS_TOKEN: "tok-env", ANTIGRAVITY_PROJECT_ID: "proj-env" },
+    });
+    expect(fromEnv).toEqual({ accessToken: "tok-env", projectId: "proj-env" });
+
+    const fromAgyFile = await resolveAntigravityOAuthCredential({
+      now: () => now,
+      env: { HOME: "/users/test" },
+      readFile: async (target) => {
+        if (target === "/users/test/.gemini/antigravity-cli/antigravity-oauth-token") {
+          return JSON.stringify({
+            token: {
+              access_token: "tok-agy-file",
+              expiry: "2026-11-19T13:00:00.000Z",
+            },
+          });
+        }
+        throw new Error("ENOENT");
+      },
+    });
+    expect(fromAgyFile).toEqual({ accessToken: "tok-agy-file", projectId: null });
+
+    const expired = await resolveAntigravityOAuthCredential({
+      now: () => now,
+      env: { HOME: "/users/test" },
+      readFile: async (target) => {
+        if (target === "/users/test/.gemini/antigravity-cli/antigravity-oauth-token") {
+          return JSON.stringify({
+            token: {
+              access_token: "tok-expired",
+              expiry: "2026-11-19T11:59:00.000Z",
+            },
+          });
+        }
+        throw new Error("ENOENT");
+      },
+    });
+    expect(expired).toBeNull();
+  });
+
+  it("fetches Cloud Code quota summary with Hub User-Agent and skips loadCodeAssist when projectId is known", async () => {
+    const requests: Array<{
+      url: string;
+      headers: HeadersInit | undefined;
+      body: string | undefined;
+    }> = [];
+    const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
+      requests.push({
+        url: String(url),
+        headers: init?.headers,
+        body: typeof init?.body === "string" ? init.body : undefined,
+      });
+      return new Response(
+        JSON.stringify({
+          summary: { groups: FULL_USAGE_REPORT.command.data.groups },
+        }),
+        { status: 200 },
+      );
+    });
+
+    const snapshot = await fetchAntigravityRemoteCapacity(
+      { accessToken: "secret-access-token", projectId: "proj-known" },
+      { fetch: fetchMock as unknown as typeof globalThis.fetch },
+    );
+
+    expect(snapshot.windows).toHaveLength(4);
+    expect(requests).toHaveLength(1);
+    expect(requests[0].url).toBe(
+      "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary",
+    );
+    expect(requests[0].body).toBe(JSON.stringify({ project: "proj-known" }));
+    const headers = requests[0].headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer secret-access-token");
+    expect(headers["User-Agent"]).toMatch(
+      /^antigravity\/hub\/2\.9\.1 (darwin|linux)\/(arm64|amd64)$/,
+    );
   });
 });

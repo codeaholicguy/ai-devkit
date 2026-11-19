@@ -1,9 +1,20 @@
 import type { Availability, CapacityWindow, ProviderCapacitySnapshot } from "../types.js";
+import type { AntigravityOAuthCredential } from "../../harnesses/antigravity/credentials.js";
 
 const FIVE_HOUR_MINUTES = 5 * 60;
 const DAY_MINUTES = 24 * 60;
 const WEEK_MINUTES = 7 * 24 * 60;
 const MIN_PRINT_VERSION: readonly [number, number, number] = [1, 1, 11];
+const CLOUD_CODE_LOAD_ASSIST_URL = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
+const CLOUD_CODE_QUOTA_SUMMARY_URL =
+  "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary";
+const CLOUD_CODE_CLIENT_METADATA = {
+  ideType: "ANTIGRAVITY",
+  platform: "PLATFORM_UNSPECIFIED",
+  pluginType: "GEMINI",
+};
+const DEFAULT_REMOTE_LOAD_TIMEOUT_MS = 3_000;
+const DEFAULT_REMOTE_SUMMARY_TIMEOUT_MS = 2_000;
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -175,15 +186,10 @@ function deriveAvailability(windows: CapacityWindow[]): Availability {
   return measured.some((window) => (window.usedPercent as number) < 100) ? "yes" : "no";
 }
 
-export function parseAntigravityUsageReport(raw: unknown): ProviderCapacitySnapshot {
+export function parseAntigravityQuotaSummaryPayload(raw: unknown): ProviderCapacitySnapshot {
   const root = record(raw);
-  const command = record(root?.command);
-  if (root?.status !== "SUCCESS" || command?.name !== "usage") {
-    throw new Error("Unsuccessful Antigravity CLI usage report");
-  }
-
-  const data = record(command.data);
-  const groups = Array.isArray(data?.groups) ? data.groups : [];
+  const payload = record(root?.response) ?? record(root?.summary) ?? root;
+  const groups = Array.isArray(payload?.groups) ? payload.groups : [];
   const windows: CapacityWindow[] = [];
   const seenIds = new Set<string>();
 
@@ -224,7 +230,7 @@ export function parseAntigravityUsageReport(raw: unknown): ProviderCapacitySnaps
 
   const hasKnownQuota = windows.some((window) => window.usedPercent !== null);
   if (windows.length === 0 || !hasKnownQuota) {
-    throw new Error("Antigravity CLI usage report has no known quota");
+    throw new Error("Antigravity quota summary has no known quota");
   }
 
   return {
@@ -233,6 +239,90 @@ export function parseAntigravityUsageReport(raw: unknown): ProviderCapacitySnaps
     windows,
     creditsRemaining: null,
   };
+}
+
+export function parseAntigravityUsageReport(raw: unknown): ProviderCapacitySnapshot {
+  const root = record(raw);
+  const command = record(root?.command);
+  if (root?.status !== "SUCCESS" || command?.name !== "usage") {
+    throw new Error("Unsuccessful Antigravity CLI usage report");
+  }
+  return parseAntigravityQuotaSummaryPayload(command.data);
+}
+
+export type AntigravityRemoteRequestOptions = {
+  fetch?: typeof globalThis.fetch;
+  timeoutMs?: number;
+};
+
+function antigravityHubUserAgent(): string {
+  const platform = process.platform === "linux" ? "linux" : "darwin";
+  const arch = process.arch === "arm64" ? "arm64" : "amd64";
+  return `antigravity/hub/2.9.1 ${platform}/${arch}`;
+}
+
+async function postCloudCodeJson(
+  url: string,
+  accessToken: string,
+  body: UnknownRecord,
+  timeoutMs: number,
+  fetchFn: typeof globalThis.fetch,
+): Promise<unknown> {
+  const response = await fetchFn(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+      "User-Agent": antigravityHubUserAgent(),
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  if (response.status !== 200) {
+    throw new Error(`Antigravity remote API failed: HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
+function extractProjectId(raw: unknown): string | null {
+  const root = record(raw);
+  if (!root) return null;
+  const project = root.cloudaicompanionProject ?? root.cloudaicompanion_project;
+  const direct = nonEmptyString(project);
+  if (direct) return direct;
+  return nonEmptyString(record(project)?.id);
+}
+
+export async function fetchAntigravityRemoteCapacity(
+  credential: AntigravityOAuthCredential,
+  options: AntigravityRemoteRequestOptions = {},
+): Promise<ProviderCapacitySnapshot> {
+  const fetchFn = options.fetch ?? globalThis.fetch;
+  let projectId = credential.projectId;
+
+  if (!projectId) {
+    const loadAssist = await postCloudCodeJson(
+      CLOUD_CODE_LOAD_ASSIST_URL,
+      credential.accessToken,
+      { metadata: CLOUD_CODE_CLIENT_METADATA },
+      options.timeoutMs ?? DEFAULT_REMOTE_LOAD_TIMEOUT_MS,
+      fetchFn,
+    );
+    projectId = extractProjectId(loadAssist);
+  }
+
+  const summaryBody: UnknownRecord = projectId ? { project: projectId } : {};
+  const summary = await postCloudCodeJson(
+    CLOUD_CODE_QUOTA_SUMMARY_URL,
+    credential.accessToken,
+    summaryBody,
+    Math.min(
+      options.timeoutMs ?? DEFAULT_REMOTE_SUMMARY_TIMEOUT_MS,
+      DEFAULT_REMOTE_SUMMARY_TIMEOUT_MS,
+    ),
+    fetchFn,
+  );
+  return parseAntigravityQuotaSummaryPayload(summary);
 }
 
 export function classifyAntigravityExitFailure(
