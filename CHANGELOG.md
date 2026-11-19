@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [2227788c](https://github.com/codeaholicguy/ai-devkit/pull/476) Added Kiro skill installation for `init`, `install`, and `setup`.
+- [c3108b6b](https://github.com/codeaholicguy/ai-devkit/pull/472) Added Antigravity (agy) subscription quota tracking to `ai-devkit capacity`.
+- [47ffc9ca](https://github.com/codeaholicguy/ai-devkit/pull/454) Added `ai-devkit plugin update [package]` to update configured plugins to the latest version, including major bumps.
+- [853c0ae4](https://github.com/codeaholicguy/ai-devkit/pull/455) `plugin list` now shows each plugin's installed version.
+- [30da3467](https://github.com/codeaholicguy/ai-devkit/pull/457) Prepared ai-devkit for Cursor Marketplace submission.
+- [a8c06b70](https://github.com/codeaholicguy/ai-devkit/commit/a8c06b70022f609ad852f24a905bc3ba0fe3e8aa) devkitd now emits `agent.disappeared` for agents killed via `agent kill`.
+- [fadc602a](https://github.com/codeaholicguy/ai-devkit/pull/453) Lifecycle skill startup validation now accepts global-first skill coverage.
+- [6c598d86](https://github.com/codeaholicguy/ai-devkit/commit/6c598d86dd8cc960f8d936a3be5d33ddf5241cbd) Lifecycle skills now weigh options on safer, simpler, more scalable choices.
+- [332d65c6](https://github.com/codeaholicguy/ai-devkit/pull/466) Moved git-worktree lint unit tests to the e2e suite to guard against git index corruption (#427).
+- [d2b398b4](https://github.com/codeaholicguy/ai-devkit/pull/468) Closed #419 with a bare-dot local registry e2e test.
+- [ee2a43ac](https://github.com/codeaholicguy/ai-devkit/pull/470) Updated docs: refreshed tagline, documented the Node 22 requirement, and added Kiro setup.
+- [b810c915](https://github.com/codeaholicguy/ai-devkit/pull/473) Added the contributor guide and GitHub issue/PR templates.
+- [81619d7e](https://github.com/codeaholicguy/ai-devkit/pull/475) Added the cross-vendor lead and worker agent recipe to the docs.
+
 ## [0.76.1] - 2026-11-13
 
 - [924f6cc6](https://github.com/codeaholicguy/ai-devkit/pull/449) Shipped the devkitd daemon binary rebuild: daemon platform packages now include the live session-mapping fix, so cli installs run a daemon whose `agent list` carries session fields (0.76.0 skipped daemon-client, leaving the published binaries on the pre-fix build).
