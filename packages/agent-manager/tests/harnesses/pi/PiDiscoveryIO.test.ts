@@ -213,9 +213,7 @@ describe("Pi live discovery I/O", () => {
     const cwd = "/repo/added-later";
     const startTime = new Date(Date.now() - 2 * DAY_MS);
     const proc = makeProcess(5151, cwd, startTime);
-    const staleAt = new Date(startTime.getTime() - DAY_MS);
-    const stalePath = writeSession(cwd, staleAt, "stale");
-    fs.utimesSync(stalePath, staleAt, staleAt);
+    writeSession(cwd, new Date(startTime.getTime() - DAY_MS), "stale");
 
     await adapter.detectAgents({ processes: [proc] });
     expect(sessionFilesTouched()).toEqual([]);
@@ -226,11 +224,7 @@ describe("Pi live discovery I/O", () => {
       path.join(sessionsDir, encodeProjectDir(cwd)),
     );
 
-    const addedAt = new Date(startTime.getTime() + 5_000);
-    const added = writeSession(cwd, addedAt, "added");
-    fs.utimesSync(added, addedAt, addedAt);
-    const projectDir = path.join(sessionsDir, encodeProjectDir(cwd));
-    fs.utimesSync(projectDir, addedAt, addedAt);
+    const added = writeSession(cwd, new Date(startTime.getTime() + 5_000), "added");
     resetReads();
     await adapter.detectAgents({ processes: [proc] });
 
