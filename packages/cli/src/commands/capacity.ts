@@ -81,13 +81,17 @@ export async function capacityCommand(
     if (!normalized.includes(value)) normalized.push(value);
   }
 
+  const settled = await Promise.allSettled(
+    normalized.map(async (provider) => readReport(provider)),
+  );
   const reports: CapacityReport[] = [];
-  for (const provider of normalized) {
-    try {
-      reports.push(await readReport(provider));
-    } catch (error) {
-      if (normalized.length === 1) throw error;
-      reportCapacityFailure(provider, error, options);
+  for (let index = 0; index < normalized.length; index += 1) {
+    const outcome = settled[index];
+    if (outcome.status === "fulfilled") {
+      reports.push(outcome.value);
+    } else {
+      if (normalized.length === 1) throw outcome.reason;
+      reportCapacityFailure(normalized[index], outcome.reason, options);
     }
   }
   renderCapacityReports(reports, options);

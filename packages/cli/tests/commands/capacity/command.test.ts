@@ -436,4 +436,29 @@ describe("capacity command", () => {
     );
     expect(textCalls()).toContain("Capacity · 6 providers");
   });
+
+  it("probes multiple providers concurrently while preserving output order", async () => {
+    const resolvers = new Map<string, (report: CapacityReport) => void>();
+    const started: string[] = [];
+    const getReport = vi.fn(
+      (provider: string) =>
+        new Promise<CapacityReport>((resolve) => {
+          started.push(provider);
+          resolvers.set(provider, resolve);
+        }),
+    );
+
+    const pending = capacityCommand(["codex", "antigravity"], { json: true }, getReport);
+    expect(started).toEqual(["codex", "antigravity"]);
+
+    const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      resolvers.get("antigravity")?.(antigravityReport);
+      resolvers.get("codex")?.(codexReport);
+      await pending;
+      expect(log).toHaveBeenCalledWith(JSON.stringify([codexReport, antigravityReport], null, 2));
+    } finally {
+      log.mockRestore();
+    }
+  });
 });
