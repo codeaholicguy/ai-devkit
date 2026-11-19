@@ -19,6 +19,7 @@ const QUANTITY_FORMATTER = new Intl.NumberFormat("en-US", {
 });
 const PROVIDER_LABELS: Record<string, string> = {
   anthropic: "Anthropic",
+  antigravity: "Antigravity",
   devin: "Devin",
   zai: "z.ai",
   openai: "OpenAI",
