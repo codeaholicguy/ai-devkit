@@ -34,6 +34,10 @@ description: Ordered implementation tasks traceable to requirements, design, and
   - **Outcome**: Fresh verification evidence across build, lint, capacity tests, package test suites, and real built CLI smoke test.
   - **Validation evidence**: `nx run-many -t build -p agent-manager,cli`, `npm run lint`, `vitest run`, `dev-smoke` (4/4 checks), and `ai-devkit lint --feature antigravity-capacity` all green.
 
+- [x] **T6. Performance follow-ups & doc sync**
+  - **Outcome**: Parallelize `capacityCommand` provider probing (`Promise.allSettled`), add direct Cloud Code OAuth fast path (`harnesses/antigravity/credentials.ts` + `fetchAntigravityRemoteCapacity`) with automatic fallback to `agy -p /usage`, and update public + feature docs.
+  - **Validation evidence**: Commits `4c1b5c03` and `fbf208c4`, 43/43 capacity/CLI tests green, and `ai-devkit lint --feature antigravity-capacity` green.
+
 ## Summary
 
-All planned milestones (T1–T5) are complete with zero blockers or scope deviations. The feature is verified end-to-end against the built CLI binary and ready for user review.
+All planned milestones (T1–T6) are complete with zero blockers. The feature is verified end-to-end against the built CLI binary and documented across both public docs and feature AI docs.

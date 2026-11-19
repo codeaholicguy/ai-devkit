@@ -38,11 +38,12 @@ Reference issue: [#471 — feat(capacity): integrate Antigravity (agy) subscript
 
 **Secondary goals:**
 - Support `ANTIGRAVITY_CLI_PATH` as an authoritative binary override (matching CodexBar semantics: if set, do not fall back to `PATH` discovery).
+- Use the direct Google Cloud Code OAuth API (`loadCodeAssist` → `retrieveUserQuotaSummary`) as a fast path when local OAuth credentials are available (`ANTIGRAVITY_ACCESS_TOKEN`, `ANTIGRAVITY_OAUTH_CREDENTIALS_JSON`, `~/.gemini/antigravity-cli/antigravity-oauth-token`, or `~/.codexbar/antigravity/oauth_creds.json`), falling back cleanly to `agy -p /usage`.
+- Probe multiple capacity providers concurrently in `ai-devkit capacity` while preserving deterministic output order.
 - Preserve truthful tri-state capacity semantics (`authenticated: true | false | null`, `available: "yes" | "no" | "unknown"`).
 
 **Non-goals (explicitly deferred to keep v1 focused and low-risk):**
 - Legacy `agy` (`< 1.2.2`) / `Antigravity.app` local HTTPS Connect/gRPC-Web probing.
-- Direct Google Cloud Code OAuth remote API fetching (`loadCodeAssist` / `retrieveUserQuotaSummary`).
 - Multi-account macOS staged-`HOME` / `SSH_TTY` token switching.
 - Interactive OAuth sign-in flows or modifying any `agy` user config/Keychain state.
 - Live network or real-account calls in unit/integration tests.
@@ -81,7 +82,7 @@ Reference issue: [#471 — feat(capacity): integrate Antigravity (agy) subscript
 
 ## Questions & Open Items
 
-1. **MVP scope**: Focus v1 on modern `agy` CLI print mode (`>= 1.1.11`) as the single authoritative source. Legacy local HTTPS, Cloud Code OAuth, and macOS multi-account staged-HOME are explicitly deferred to future issues if needed.
+1. **MVP scope**: Combine a direct Cloud Code OAuth fast path (when a non-expired local/env OAuth token is present) with modern `agy` CLI print mode (`>= 1.1.11`) as the universal fallback. Legacy local HTTPS and macOS multi-account staged-HOME remain deferred to future issues if needed.
 2. **Provider identity & CLI alias**: Use `harness: "antigravity"`, `provider: "antigravity"`, display label `"Antigravity"`, and accept `"agy"` as a CLI alias alongside `"antigravity"` (mirroring `"z.ai"` -> `"zai"`).
 3. **Auth failure handling**: Return `{ authenticated: false, available: "unknown", windows: [], creditsRemaining: null }` when `agy` stderr indicates sign-in/authentication is required (matching `devin` and `anthropic` precedent), rather than throwing.
 

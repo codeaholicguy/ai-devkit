@@ -31,7 +31,7 @@ ai-devkit capacity codex claude
 ai-devkit capacity --json
 ```
 
-Supported providers: `codex`, `zai` (or `z.ai`), `openai`, `anthropic`, `claude`, `devin`. With no arguments, all providers are queried; pass provider names to check a subset. Output is a per-quota table with usage bars and humanized reset times; `--json` gives the raw report for scripting.
+Supported providers: `codex`, `zai` (or `z.ai`), `openai`, `anthropic`, `claude`, `devin`, `antigravity` (or `agy`). With no arguments, all providers are queried concurrently; pass provider names to check a subset. Output is a per-quota table with usage bars and humanized reset times; `--json` gives the raw report for scripting.
 
 Capacity reads the credentials each provider's own tool already stores on your machine — no extra setup is needed. A provider you have not logged into reports as unauthenticated instead of showing quota.
 

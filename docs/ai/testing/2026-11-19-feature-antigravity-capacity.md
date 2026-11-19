@@ -35,6 +35,8 @@ description: Define test scenarios, fixtures, mocks, and coverage targets
 - [x] `ai-devkit capacity antigravity` and `ai-devkit capacity agy` both resolve to `"antigravity"` and render `antigravity · Antigravity` in table and `--json` formats.
 - [x] Unknown provider error message includes `"antigravity"` in the supported providers list.
 - [x] Multi-provider mode warns cleanly when `antigravity` fails while preserving all other provider reports; single-provider mode propagates the error.
+- [x] Multiple providers are probed concurrently while preserving deterministic output order (`Promise.allSettled`).
+- [x] Direct Cloud Code OAuth fast path resolves credentials from env/files, skips expired tokens, sends Hub `User-Agent`, skips `loadCodeAssist` when `projectId` is known, avoids spawning `agy` on success, and falls back to `agy -p /usage` on failure.
 
 ### Smoke Verification (`dev-smoke`)
 

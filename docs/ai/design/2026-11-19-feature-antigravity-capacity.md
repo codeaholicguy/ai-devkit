@@ -12,14 +12,18 @@ Mirror the established `capacity/providers` + `capacity/sources` separation in `
 
 ```mermaid
 flowchart LR
-    CLI["cli: capacityCommand\n(antigravity | agy)"] --> Entry["agent-manager:\ngetAntigravityCapacityReport"]
+    CLI["cli: capacityCommand\n(concurrent Promise.allSettled;\nantigravity | agy)"] --> Entry["agent-manager:\ngetAntigravityCapacityReport"]
     Entry --> Source["capacity/sources/antigravity.ts:\nprobeAntigravityCapacity"]
-    Source --> Resolve["Resolve agy binary\n(ANTIGRAVITY_CLI_PATH / PATH / well-known)"]
+    Source --> Creds["harnesses/antigravity/credentials.ts:\nresolveAntigravityOAuthCredential"]
+    Creds -->|token found| Remote["capacity/providers/antigravity.ts:\nfetchAntigravityRemoteCapacity\n(loadCodeAssist -> retrieveUserQuotaSummary)"]
+    Remote -->|success| Report["CapacityReport\n(harness: antigravity, provider: antigravity)"]
+    Creds -->|no token / expired| Resolve["Resolve agy binary\n(ANTIGRAVITY_CLI_PATH / PATH / well-known)"]
+    Remote -->|error / fallback| Resolve
     Resolve --> Version["Check agy --version >= 1.1.11\n(in-process stat cache)"]
     Version --> Runner["Run agy -p /usage --output-format json\n(0700 temp cwd, open/xdg-open stubs,\nAGY_CLI_DISABLE_AUTO_UPDATE=true,\n90s timeout, 1 MiB cap, PGID reap)"]
     Runner -->|stdout JSON| Parser["capacity/providers/antigravity.ts:\nparseAntigravityUsageReport"]
-    Runner -->|non-zero exit / error| Classify["capacity/providers/antigravity.ts:\nclassifyAntigravityCliFailure"]
-    Parser --> Report["CapacityReport\n(harness: antigravity, provider: antigravity)"]
+    Runner -->|non-zero exit / error| Classify["capacity/providers/antigravity.ts:\nclassifyAntigravityExitFailure"]
+    Parser --> Report
     Classify -->|auth required| Unauth["CapacityReport\n(authenticated: false, available: unknown)"]
     Classify -->|other failure| Err["Sanitized Error\n(never leaks raw stderr)"]
 ```
