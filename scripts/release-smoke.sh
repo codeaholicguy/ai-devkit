@@ -21,6 +21,9 @@ export npm_config_yes=true
 export CI="${CI:-1}"
 export NO_COLOR="${NO_COLOR:-1}"
 export TERM="${TERM:-dumb}"
+if [[ -n "${AI_DEVKIT_SMOKE_REGISTRY:-}" ]]; then
+  export npm_config_registry="$AI_DEVKIT_SMOKE_REGISTRY"
+fi
 
 pass=0
 fail=0
@@ -119,15 +122,24 @@ run_json_output_check() {
 log "AI DevKit release smoke"
 log "package=$PACKAGE_SPEC"
 log "root=$SMOKE_ROOT"
+if [[ -n "${npm_config_registry:-}" ]]; then
+  log "registry=$npm_config_registry"
+fi
 
 run_check "npm view version" npm view "$PACKAGE_SPEC" version
-run_check "npm view dist-tags" npm view "$PACKAGE_NAME" dist-tags --json
-run_npx_check "npx version" --version
-run_npx_check "npx help" --help
-
+if [[ -n "${AI_DEVKIT_SMOKE_REGISTRY:-}" ]]; then
+  log ""
+  log "## npm view dist-tags"
+  log "Skipped (local smoke registry; dist-tags are not published to Verdaccio)."
+else
+  run_check "npm view dist-tags" npm view "$PACKAGE_NAME" dist-tags --json
+fi
 cd "$INSTALL_DIR" || exit 1
 run_check "clean npm init" npm init -y
 run_check "clean npm install" npm install "$PACKAGE_SPEC"
+# npx -y needs the tarball in the npm cache; priming via npm install first (notably on Verdaccio).
+run_npx_check "npx version" --version
+run_npx_check "npx help" --help
 run_check "local install version" npx ai-devkit --version
 run_check "local install help" npx ai-devkit --help
 

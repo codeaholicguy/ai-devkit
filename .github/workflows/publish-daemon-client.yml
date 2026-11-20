@@ -13,9 +13,13 @@ permissions:
   contents: read
 
 jobs:
+  release-smoke:
+    uses: ./.github/workflows/release-smoke-gate.yml
+
   publish:
     name: Publish @ai-devkit/daemon-client to NPM
     runs-on: ubuntu-latest
+    needs: release-smoke
 
     steps:
       - name: Checkout

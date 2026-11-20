@@ -1,0 +1,34 @@
+# Ephemeral local registry for release-smoke-pack-registry.sh (CI + local).
+storage: /tmp/verdaccio-smoke-storage
+max_body_size: 100mb
+
+web:
+  enable: true
+  title: ai-devkit smoke registry
+
+auth:
+  htpasswd:
+    file: /tmp/verdaccio-smoke-htpasswd
+    max_users: -1
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  # Workspace packages are published only to this ephemeral registry (no npm uplink),
+  # so we can pack the exact versions from the checkout even when they already exist on npm.
+  "@ai-devkit/*":
+    access: $all
+    publish: $all
+    unpublish: $all
+  ai-devkit:
+    access: $all
+    publish: $all
+    unpublish: $all
+  "**":
+    access: $all
+    publish: $all
+    proxy: npmjs
+
+listen: 127.0.0.1:4873
