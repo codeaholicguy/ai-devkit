@@ -16,9 +16,15 @@ export function renderApplicationReport(report: InstallReport, title = "Install 
   });
 
   const details = report.items.filter(
-    (item) => (item.status === "failed" || item.status === "conflict") && item.message,
+    (item) =>
+      ((item.status === "failed" || item.status === "conflict") && item.message) ||
+      (item.status === "skipped" && item.section === "skill" && item.message),
   );
   for (const item of details) {
+    if (item.status === "skipped" && item.section === "skill" && item.message) {
+      ui.warning(item.message);
+      continue;
+    }
     ui.warning(`${item.section} ${item.name}: ${item.message}`);
   }
 

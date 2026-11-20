@@ -7,6 +7,10 @@ import type { DevKitConfig } from "../../types.js";
 import { PHASE_DISPLAY_NAMES } from "../../types.js";
 import { isInteractiveTerminal } from "../../util/terminal.js";
 import { confirm } from "@inquirer/prompts";
+import {
+  formatUnreachableSkillWarning,
+  isUnreachableSkillInstallError,
+} from "./skill-install-errors.js";
 
 export interface InstallRunOptions {
   overwrite?: boolean;
@@ -166,6 +170,17 @@ export async function reconcileAndInstall(
         });
       }
     } catch (error) {
+      if (isUnreachableSkillInstallError(error)) {
+        report.skills.skipped += 1;
+        report.items.push({
+          section: "skill",
+          name: skill.name,
+          status: "skipped",
+          message: formatUnreachableSkillWarning(skill.registry, skill.name),
+        });
+        continue;
+      }
+
       report.skills.failed += 1;
       report.warnings.push(
         `Skill ${skill.registry}/${skill.name} failed: ${error instanceof Error ? error.message : String(error)}`,
