@@ -55,6 +55,7 @@ import {
   reconcileAndInstall,
 } from "../../../src/services/install/install.service.js";
 import { SkillService } from "../../../src/services/skill/skill.service.js";
+import { GitError, NotFoundError } from "../../../src/util/errors.js";
 
 describe("install service", () => {
   const installConfig = {
@@ -280,13 +281,73 @@ describe("install service", () => {
     );
   });
 
+  it("skips unreachable registries with one warning and exits cleanly", async () => {
+    mockSkillService.addSkill.mockRejectedValue(
+      new NotFoundError('Registry "personal/me" not found.', { registryId: "personal/me" }),
+    );
+
+    const report = await reconcileAndInstall(
+      {
+        ...installConfig,
+        skills: [{ registry: "personal/me", name: "release-ai-devkit" }],
+      },
+      {},
+    );
+
+    expect(report.skills.skipped).toBe(1);
+    expect(report.skills.failed).toBe(0);
+    expect(report.warnings).toEqual([]);
+    expect(report.items).toContainEqual(
+      expect.objectContaining({
+        section: "skill",
+        name: "release-ai-devkit",
+        status: "skipped",
+        message:
+          "Skill personal/me/release-ai-devkit: could not be fetched (registry may be private or unreachable).",
+      }),
+    );
+    expect(report.complete).toBe(true);
+    expect(getInstallExitCode(report)).toBe(0);
+  });
+
+  it("reports unreachable registry fetch failures as skipped and continues other skills", async () => {
+    mockSkillService.addSkill
+      .mockRejectedValueOnce(new GitError("Git clone failed: network down"))
+      .mockImplementation(async (registryId: string, skillName: string) => ({
+        status: "installed",
+        registryId,
+        installMode: "project",
+        environments: ["codex"],
+        items: [{ skillName, target: `.codex/skills/${skillName}`, action: "symlinked" }],
+      }));
+
+    const report = await reconcileAndInstall(
+      {
+        ...installConfig,
+        skills: [
+          { registry: "personal/me", name: "release-ai-devkit" },
+          { registry: "codeaholicguy/ai-devkit", name: "memory" },
+        ],
+      },
+      {},
+    );
+
+    expect(report.skills.skipped).toBe(1);
+    expect(report.skills.installed).toBe(1);
+    expect(report.skills.failed).toBe(0);
+    expect(report.complete).toBe(true);
+    expect(getInstallExitCode(report)).toBe(0);
+  });
+
   it("reports skill failures as warnings and continues", async () => {
-    mockSkillService.addSkill.mockRejectedValue(new Error("network down"));
+    mockSkillService.addSkill.mockRejectedValue(new Error("permission denied writing skill"));
 
     const report = await reconcileAndInstall(installConfig, {});
 
     expect(report.skills.failed).toBe(1);
-    expect(report.warnings).toEqual(["Skill codeaholicguy/ai-devkit/debug failed: network down"]);
+    expect(report.warnings).toEqual([
+      "Skill codeaholicguy/ai-devkit/debug failed: permission denied writing skill",
+    ]);
     expect(report.items).toContainEqual(
       expect.objectContaining({
         section: "skill",
@@ -301,6 +362,21 @@ describe("install service", () => {
         skills: installConfig.skills,
       }),
     );
+  });
+
+  it("fails when a skill name is missing from an otherwise reachable registry", async () => {
+    mockSkillService.addSkill.mockRejectedValue(
+      new NotFoundError('Skill "missing-skill" not found in codeaholicguy/ai-devkit.', {
+        skillName: "missing-skill",
+        registryId: "codeaholicguy/ai-devkit",
+      }),
+    );
+
+    const report = await reconcileAndInstall(installConfig, {});
+
+    expect(report.skills.failed).toBe(1);
+    expect(report.complete).toBe(false);
+    expect(getInstallExitCode(report)).toBe(1);
   });
 
   it("returns non-zero exit code when environment or phase failures occur", () => {
