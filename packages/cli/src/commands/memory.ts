@@ -8,6 +8,7 @@ import type {
 import { ConfigManager } from "../lib/Config.js";
 import { ui } from "../util/terminal-ui.js";
 import { withErrorHandler } from "../util/errors.js";
+import { resolveTextFromStdinOption } from "../util/stdin.js";
 import { truncate } from "../util/text.js";
 
 const TITLE_MAX_LENGTH = 60;
@@ -36,24 +37,40 @@ export function registerMemoryCommand(program: Command): void {
     .command("store")
     .description("Store a new knowledge item")
     .requiredOption("-t, --title <title>", "Title of the knowledge item (10-100 chars)")
-    .requiredOption("-c, --content <content>", "Content of the knowledge item (50-5000 chars)")
+    .option(
+      "-c, --content <content>",
+      "Content of the knowledge item (50-5000 chars); omit when using --stdin or piped stdin",
+    )
+    .option("--stdin", "Read content from stdin (multi-line safe)")
     .option("--tags <tags>", 'Comma-separated tags (e.g., "api,backend")')
     .option("-s, --scope <scope>", "Scope: global, project:<name>, or repo:<name>", "global")
+    .option("-j, --json", "Output compact JSON (includes stored id)")
     .action(
-      withErrorHandler("store knowledge", async (options: MemoryStoreOptions) => {
-        const { memoryStoreCommand, memoryStoreCommandAsync } = await loadMemory();
-        const commandOptions = {
-          ...options,
-          dbPath: await resolveMemoryDbPath(),
-        } as MemoryStoreOptions;
-        const result = (await resolveSemanticEnabled())
-          ? await memoryStoreCommandAsync({
-              ...commandOptions,
-              semantic: true,
-            })
-          : memoryStoreCommand(commandOptions);
-        console.log(JSON.stringify(result, null, 2));
-      }),
+      withErrorHandler(
+        "store knowledge",
+        async (options: MemoryStoreOptions & { stdin?: boolean; json?: boolean }) => {
+          const { stdin: useStdin, json: compactJson, content: inlineContent, ...rest } = options;
+          const content = await resolveTextFromStdinOption(
+            inlineContent,
+            { stdin: useStdin },
+            "Content is required via --content, --stdin, or piped stdin.",
+            "Use either --content or --stdin, not both.",
+          );
+          const { memoryStoreCommand, memoryStoreCommandAsync } = await loadMemory();
+          const commandOptions = {
+            ...rest,
+            content,
+            dbPath: await resolveMemoryDbPath(),
+          } as MemoryStoreOptions;
+          const result = (await resolveSemanticEnabled())
+            ? await memoryStoreCommandAsync({
+                ...commandOptions,
+                semantic: true,
+              })
+            : memoryStoreCommand(commandOptions);
+          console.log(compactJson ? JSON.stringify(result) : JSON.stringify(result, null, 2));
+        },
+      ),
     );
 
   memoryCommand
