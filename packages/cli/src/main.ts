@@ -61,6 +61,10 @@ program
   .command("install")
   .description("Install AI DevKit artifacts from a project config")
   .option("-c, --config <path>", "Path to config file (default: .ai-devkit.json)")
+  .option(
+    "-y, --yes",
+    "Run non-interactively. Existing artifacts are kept unless --overwrite is also passed.",
+  )
   .option("--overwrite", "Overwrite existing install artifacts")
   .action(installCommand);
 

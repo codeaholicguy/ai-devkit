@@ -109,7 +109,7 @@ describe("install command", () => {
         environments: ["codex"],
         phases: ["requirements"],
       }),
-      { overwrite: true },
+      { overwrite: true, nonInteractive: false },
     );
     expect(mockUi.summary).toHaveBeenCalled();
     expect(process.exitCode).toBe(0);
@@ -133,8 +133,48 @@ describe("install command", () => {
     expect(mockLoadConfigFile).toHaveBeenCalledWith("./team.json");
     expect(mockReconcileAndInstall).toHaveBeenCalledWith(
       expect.objectContaining({ environments: ["codex"] }),
-      { overwrite: undefined },
+      { overwrite: undefined, nonInteractive: false },
     );
+  });
+
+  it("passes nonInteractive when --yes is set", async () => {
+    mockLoadConfigFile.mockResolvedValue({
+      configPath: "/tmp/.ai-devkit.json",
+      data: {},
+    });
+    mockLoadAndValidateInstallConfig.mockReturnValue({
+      environments: ["codex"],
+      phases: ["requirements"],
+      skills: [],
+      mcpServers: {},
+    });
+
+    await installCommand({ yes: true });
+
+    expect(mockReconcileAndInstall).toHaveBeenCalledWith(expect.any(Object), {
+      overwrite: undefined,
+      nonInteractive: true,
+    });
+  });
+
+  it("passes nonInteractive and overwrite together under --yes --overwrite", async () => {
+    mockLoadConfigFile.mockResolvedValue({
+      configPath: "/tmp/.ai-devkit.json",
+      data: {},
+    });
+    mockLoadAndValidateInstallConfig.mockReturnValue({
+      environments: ["codex"],
+      phases: ["requirements"],
+      skills: [],
+      mcpServers: {},
+    });
+
+    await installCommand({ yes: true, overwrite: true });
+
+    expect(mockReconcileAndInstall).toHaveBeenCalledWith(expect.any(Object), {
+      overwrite: true,
+      nonInteractive: true,
+    });
   });
 
   it("fails with non-zero exit code when reconcile step throws", async () => {

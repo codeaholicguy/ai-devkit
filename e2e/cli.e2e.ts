@@ -428,6 +428,24 @@ describe('install command', () => {
     expect(result.exitCode).not.toBe(0);
   });
 
+  it('accepts --yes and skips existing phase files without overwriting', () => {
+    const docsDir = join(projectDir, 'docs', 'ai', 'requirements');
+    mkdirSync(docsDir, { recursive: true });
+    writeFileSync(join(docsDir, 'README.md'), 'keep-me\n');
+
+    writeConfigFile(projectDir, {
+      version: '1.0.0',
+      environments: ['claude'],
+      phases: ['requirements'],
+      createdAt: new Date().toISOString()
+    });
+
+    const result = run('install --yes', { cwd: projectDir });
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).not.toMatch(/unknown option ['"]--yes['"]/);
+    expect(readFileSync(join(docsDir, 'README.md'), 'utf-8')).toBe('keep-me\n');
+  });
+
   it('installs skills under .kiro/skills when kiro is selected', () => {
     const homeDir = join(projectDir, 'home');
     const registryDir = join(projectDir, 'local-registry');
