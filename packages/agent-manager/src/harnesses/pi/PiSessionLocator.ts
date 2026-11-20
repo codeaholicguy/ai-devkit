@@ -32,6 +32,8 @@ const FILE_NAME_TIMESTAMP = /^(\d{4}-\d{2}-\d{2})T(\d{2})-(\d{2})-(\d{2})-(\d{3}
 
 interface ProjectDirScan {
   dirMtimeMs: number;
+  /** .jsonl files seen in the last listing of this project dir. */
+  jsonlCount?: number;
   processes: ProcessInfo[];
 }
 
@@ -46,6 +48,8 @@ interface CachedHead {
 /** A project dir whose last scan matched none of the processes that scanned it. */
 interface NoMatchEntry {
   dirMtimeMs: number;
+  /** Session file count when the dir was last scanned (dir mtime alone is coarse). */
+  jsonlCount: number;
   processKeys: Set<string>;
 }
 
@@ -60,8 +64,9 @@ interface NoMatchEntry {
  *   and only their head (<= 64 KiB) is read for session id and cwd;
  * - heads are cached per file (dev/ino/size) across calls on one instance;
  * - a project dir whose scan matched none of its processes is skipped until
- *   its mtime changes (a session file was added or removed) or a process it
- *   has not seen needs it.
+ *   its mtime changes, its jsonl count changes (when mtime is in the current
+ *   second — directory mtimes are often second-granular), or a process it has
+ *   not seen needs it.
  *
  * Reuse one instance across refreshes to benefit from the caches.
  */
@@ -159,11 +164,17 @@ export class PiSessionLocator {
         noMatch !== undefined &&
         noMatch.dirMtimeMs === scan.dirMtimeMs &&
         scan.processes.every((proc) => noMatch.processKeys.has(processKey(proc)));
-      if (unchanged) {
-        scans.delete(projectDir);
-      } else {
+      if (!unchanged) {
         this.noMatchDirs.delete(projectDir);
+        continue;
       }
+      const ambiguousMtimeSecond =
+        Math.floor(scan.dirMtimeMs / 1000) === Math.floor(Date.now() / 1000);
+      if (ambiguousMtimeSecond && listJsonl(projectDir).length !== noMatch.jsonlCount) {
+        this.noMatchDirs.delete(projectDir);
+        continue;
+      }
+      scans.delete(projectDir);
     }
     return scans;
   }
@@ -174,7 +185,9 @@ export class PiSessionLocator {
       const cwd = scan.processes[0]?.cwd ?? "";
       const startTimes = scan.processes.map((proc) => proc.startTime?.getTime() ?? 0);
 
-      for (const fileName of listJsonl(projectDir)) {
+      const fileNames = listJsonl(projectDir);
+      scan.jsonlCount = fileNames.length;
+      for (const fileName of fileNames) {
         const filePath = path.join(projectDir, fileName);
         const stat = safeStat(filePath);
         if (!stat?.isFile()) continue;
@@ -243,6 +256,7 @@ export class PiSessionLocator {
       if (scan.processes.some((proc) => matchedPids.has(proc.pid))) continue;
       this.noMatchDirs.set(projectDir, {
         dirMtimeMs: scan.dirMtimeMs,
+        jsonlCount: scan.jsonlCount ?? listJsonl(projectDir).length,
         processKeys: new Set(scan.processes.map(processKey)),
       });
     }
