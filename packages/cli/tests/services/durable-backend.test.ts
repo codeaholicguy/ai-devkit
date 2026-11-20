@@ -188,4 +188,5 @@ it("waits for the run and returns its full result", async () => {
   expect((await new RoutedDurableService("claude", mocks.local).send("one", "prompt")).result).toBe(
     "full reply",
   );
+  expect(mocks.ensure).toHaveBeenCalledWith({ onDebug: expect.any(Function) });
 });

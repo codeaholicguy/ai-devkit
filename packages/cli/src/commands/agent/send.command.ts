@@ -185,11 +185,24 @@ export function registerAgentSendCommand(agentCommand: Command): void {
           manager.listAgents(),
         );
         if (durableResolved) {
+          debug(
+            "resolved durable agent id=%s name=%s provider=%s state=%s",
+            durableResolved.id,
+            durableResolved.name,
+            durableResolved.provider,
+            durableResolved.state,
+          );
           if (options.timeout !== undefined) {
             throw new Error("--timeout is not supported for synchronous durable agents.");
           }
           const providerService = createDurableAgentService(durableResolved.provider);
           const result = await providerService.send(options.id, prompt);
+          debug(
+            "durable send completed id=%s sessionId=%s exitCode=%d",
+            result.agentId,
+            result.sessionId,
+            result.exitCode,
+          );
           if (options.json) {
             console.log(
               JSON.stringify(
