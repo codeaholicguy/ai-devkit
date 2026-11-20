@@ -255,24 +255,27 @@ impl DurableSupervisor {
         Ok(())
     }
     fn stop(&self, id: &str, expected: Option<&str>) -> Result<Value> {
-        let owned = self.children.lock().unwrap();
-        let a = self.store.durable_resolve(id)?;
-        ensure!(a["id"] == id, "not_found: durable agent not found");
-        let r = &a["activeRun"];
-        let Some(token) = r["token"].as_str() else {
-            return Ok(a);
+        let (token, pid, started_at, is_owned) = {
+            let owned = self.children.lock().unwrap();
+            let a = self.store.durable_resolve(id)?;
+            ensure!(a["id"] == id, "not_found: durable agent not found");
+            let r = &a["activeRun"];
+            let Some(token) = r["token"].as_str() else {
+                return Ok(a);
+            };
+            if let Some(expected) = expected {
+                ensure!(expected == token, "ownership_changed: active run changed");
+            }
+            self.store.durable_request_stop(id, token)?;
+            let process = &r["provider"];
+            let pid = process["pid"]
+                .as_i64()
+                .context("busy: provider has not attached yet")?;
+            let started_at = process["startedAt"].as_str().map(str::to_owned);
+            (token.to_owned(), pid, started_at, owned.contains(token))
         };
-        if let Some(expected) = expected {
-            ensure!(expected == token, "ownership_changed: active run changed");
-        }
-        self.store.durable_request_stop(id, token)?;
-        let process = &r["provider"];
-        let pid = process["pid"]
-            .as_i64()
-            .context("busy: provider has not attached yet")?;
         let matches = || -> Result<bool> {
-            Ok(identity(pid)?
-                .is_some_and(|(_, s)| Some(s.as_str()) == process["startedAt"].as_str()))
+            Ok(identity(pid)?.is_some_and(|(_, s)| Some(s.as_str()) == started_at.as_deref()))
         };
         if matches()? {
             // Legacy TS runners did not create private process groups.
@@ -293,18 +296,27 @@ impl DurableSupervisor {
                 unsafe {
                     libc::kill(target, libc::SIGKILL);
                 }
+                let kill_deadline = Instant::now() + Duration::from_millis(500);
+                while matches()? && Instant::now() < kill_deadline {
+                    std::thread::sleep(Duration::from_millis(20));
+                }
             }
         }
         // Our waiter owns actual exit collection. Adopted runs have no waiter.
-        if !owned.contains(token) && !matches()? {
-            self.store.durable_complete(
+        if !is_owned && !matches()? {
+            match self.store.durable_complete(
                 id,
-                token,
+                &token,
                 "interrupted",
                 None,
                 "Print run stopped.",
                 "unknown",
-            )?;
+            ) {
+                Ok(_) => {}
+                // A concurrent reconcile/stop may have already finalized this run.
+                Err(e) if e.to_string().starts_with("ownership_changed:") => {}
+                Err(e) => return Err(e),
+            }
         }
         self.store.durable_resolve(id)
     }

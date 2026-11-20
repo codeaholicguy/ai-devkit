@@ -30,10 +30,13 @@ impl Fixture {
         std::fs::write(
             &stub,
             r#"#!/usr/bin/env python3
-import sys,json,time
+import signal,sys,json,time
 args=sys.argv
 sid=args[args.index('--session-id')+1] if '--session-id' in args else args[args.index('--resume')+1]
 prompt=sys.stdin.read()
+if prompt=='block_ignore_term':
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    time.sleep(30)
 if prompt=='block': time.sleep(30)
 if prompt=='bad': print('{bad json}')
 else: print(json.dumps({'type':'result','session_id':sid,'result':'reply:'+prompt}))
@@ -259,4 +262,71 @@ fn run_lookup_does_not_return_null_agent_against_its_wire_contract() {
     assert!(f.rpc("durable.show", json!({"reference":"missing"}))["result"].is_null());
     let missing = f.rpc("durable.show", json!({"reference":"missing","runId":"run"}));
     assert_eq!(missing["code"], "not_found");
+}
+#[test]
+fn stop_does_not_block_other_agents_during_grace_period() {
+    let f = Fixture::new();
+    let a = f.create();
+    let b = f.rpc(
+        "durable.create",
+        json!({"name":"other","provider":"claude","cwd":f.dir}),
+    )["result"]
+        .clone();
+    let r = f.rpc(
+        "durable.run",
+        json!({"id":a["id"],"prompt":"block_ignore_term"}),
+    );
+    assert!(r.get("error").is_none(), "{r}");
+    std::thread::sleep(Duration::from_millis(150));
+    let sock = f.dir.join(".ai-devkit/daemon.sock");
+    let a_id = a["id"].clone();
+    let stopper = std::thread::spawn(move || {
+        let mut s = UnixStream::connect(sock).unwrap();
+        s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        writeln!(
+            s,
+            "{}",
+            json!({"id":1,"method":"durable.stop","params":{"id":a_id}})
+        )
+        .unwrap();
+        let mut line = String::new();
+        BufReader::new(s).read_line(&mut line).unwrap();
+        serde_json::from_str::<Value>(&line).unwrap()
+    });
+    std::thread::sleep(Duration::from_millis(150));
+    let start = Instant::now();
+    let other_run = f.rpc("durable.send", json!({"id":b["id"],"prompt":"hello"}));
+    assert!(other_run.get("error").is_none(), "{other_run}");
+    let done_b = f.wait(&b["id"], &other_run["result"]["runId"]);
+    assert_eq!(done_b["run"]["status"], "succeeded");
+    assert!(
+        start.elapsed() < Duration::from_millis(1200),
+        "other agent was blocked during stop grace period: {:?}",
+        start.elapsed()
+    );
+    let stopped = stopper.join().unwrap();
+    assert!(stopped.get("error").is_none(), "{stopped}");
+}
+#[test]
+fn adopted_sigterm_ignoring_run_escalates_to_sigkill_and_finalizes() {
+    let mut f = Fixture::new();
+    let a = f.create();
+    let r = f.rpc(
+        "durable.run",
+        json!({"id":a["id"],"prompt":"block_ignore_term"}),
+    );
+    assert!(r.get("error").is_none(), "{r}");
+    let token = r["result"]["runId"].clone();
+    std::thread::sleep(Duration::from_millis(150));
+    f.child.kill().unwrap();
+    f.child.wait().unwrap();
+    f.child = Fixture::launch(&f.dir);
+    std::thread::sleep(Duration::from_millis(100));
+    f.ready();
+    let stopped = f.rpc("durable.stop", json!({"id":a["id"],"runId":token}));
+    assert!(stopped.get("error").is_none(), "{stopped}");
+    assert_eq!(stopped["result"]["state"], "degraded", "{stopped}");
+    let done = f.rpc("durable.show", json!({"reference":a["id"],"runId":token}));
+    assert_eq!(done["result"]["run"]["status"], "interrupted", "{done}");
+    assert!(done["result"]["run"]["exitCode"].is_null());
 }
