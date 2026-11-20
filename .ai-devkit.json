@@ -1,5 +1,4 @@
 {
-  "version": "0.4.2",
   "environments": [
     "cursor",
     "claude",
@@ -8,7 +7,6 @@
     "codex",
     "antigravity"
   ],
-  "createdAt": "2025-12-28T13:35:45.251Z",
   "phases": [
     "requirements",
     "design",
@@ -112,11 +110,6 @@
     {
       "registry": "codeaholicguy/ai-devkit",
       "name": "agent-management"
-    },
-    {
-      "registry": "personal/me",
-      "name": "release-ai-devkit"
     }
-  ],
-  "updatedAt": "2026-06-27T20:37:59.097Z"
+  ]
 }
