@@ -16,10 +16,7 @@ import {
   sendToAgentGroup,
   type SendReporter,
 } from "../../services/agent/agent.service.js";
-import {
-  AgentGroupNotFoundError,
-  createDefaultAgentGroupService,
-} from "../../services/agent/agent-group.service.js";
+import { createDefaultAgentGroupService } from "../../services/agent/agent-group.service.js";
 import { resolveDurableAgentEntry } from "../../services/agent/resolve-agent.service.js";
 import {
   createAgentManager,
@@ -169,18 +166,29 @@ export function registerAgentSendCommand(agentCommand: Command): void {
         }
         assertSendTargetOptions(options);
         const prompt = await resolveSendMessage(message, options);
-        const manager = createAgentManager();
         const focusManager = new TerminalFocusManager();
 
         if (options.group) {
-          const group = createDefaultAgentGroupService().get(options.group);
-          if (!group) {
-            throw new AgentGroupNotFoundError(options.group);
+          const group = await createDefaultAgentGroupService().lookup(options.group);
+          const daemon = await ensureDaemon({ onDebug: debug });
+          if (!daemon)
+            throw new Error(
+              "A running, capable daemon is required for group sends. Start devkitd and retry.",
+            );
+          try {
+            await sendToAgentGroup({
+              group,
+              prompt,
+              lookupAgent: (name) => daemon.lookupAgent(name),
+              focusManager,
+            });
+          } finally {
+            daemon.close();
           }
-          await sendToAgentGroup({ group, prompt, manager, focusManager });
           return;
         }
 
+        const manager = createAgentManager();
         const durableResolved = await resolveDurableAgentEntry(options.id, () =>
           manager.listAgents(),
         );

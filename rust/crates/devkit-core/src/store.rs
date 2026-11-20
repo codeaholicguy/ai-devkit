@@ -10,9 +10,11 @@ const EVENT_RETENTION: i64 = 10_000;
 /// Prune/checkpoint cadence in emitted events.
 const PRUNE_EVERY: i64 = 512;
 
+mod groups;
 /// Daemon-owned store: the persisted agent snapshot (for diff/events across
 /// restarts) and the durable event log. The daemon is the sole writer.
 mod registry;
+pub use groups::{AgentGroup, GroupError};
 pub use registry::Registration;
 
 pub struct Store {
@@ -92,6 +94,7 @@ impl Store {
                  ON agents(name) WHERE name IS NOT NULL;",
             )?;
         }
+        Self::init_groups(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
             legacy_db: Mutex::new(None),

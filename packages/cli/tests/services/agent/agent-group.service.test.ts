@@ -1,152 +1,71 @@
-import fs from "fs";
-import os from "os";
-import path from "path";
+import { vi } from "vitest";
+import { DaemonRpcError } from "@ai-devkit/daemon-client";
 import {
+  AgentGroupService,
   AgentGroupConflictError,
   AgentGroupEmptyMembersError,
   AgentGroupInvalidMemberError,
   AgentGroupInvalidNameError,
   AgentGroupNotFoundError,
   AgentGroupStorageError,
-  AgentGroupService,
 } from "../../../src/services/agent/agent-group.service.js";
-
-describe("AgentGroupService", () => {
-  let tmpDir: string;
-  let groupsPath: string;
-  let service: AgentGroupService;
-
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "agent-group-service-"));
-    groupsPath = path.join(tmpDir, "nested", "agent-groups.json");
-    service = new AgentGroupService(groupsPath);
+vi.mock("os", () => ({ default: { homedir: () => "/tmp/group-routing-unused-home" } }));
+const mocks = vi.hoisted(() => ({ ensure: vi.fn(), request: vi.fn(), close: vi.fn() }));
+vi.mock("@ai-devkit/daemon-client", async (original) => ({
+  ...(await original<object>()),
+  ensureDaemon: mocks.ensure,
+}));
+const group = { name: "team", members: ["one"], createdAt: "c", updatedAt: "u" };
+beforeEach(() => {
+  vi.clearAllMocks();
+  mocks.ensure.mockResolvedValue({ request: mocks.request, close: mocks.close });
+  mocks.request.mockResolvedValue(group);
+});
+describe("daemon-owned AgentGroupService", () => {
+  it.each([
+    ["create", ["team", ["one"]], "group.create", { name: "team", members: ["one"] }],
+    ["update", ["team", ["one"]], "group.update", { name: "team", members: ["one"] }],
+    ["addMember", ["team", "one"], "group.add", { name: "team", member: "one" }],
+    ["removeMember", ["team", "one"], "group.remove_agent", { name: "team", member: "one" }],
+    ["remove", ["team"], "group.remove", { name: "team" }],
+    ["list", [], "group.list", {}],
+    ["get", ["team"], "group.detail", { name: "team" }],
+    ["lookup", ["team"], "group.lookup", { name: "team" }],
+  ])("routes %s through the daemon", async (method, args, rpc, params) => {
+    const service = new AgentGroupService();
+    await (service as any)[method](...(args as any[]));
+    expect(mocks.request).toHaveBeenCalledWith(rpc, params);
+    expect(mocks.close).toHaveBeenCalledOnce();
   });
-
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  });
-
-  function readRaw(): any {
-    return JSON.parse(fs.readFileSync(groupsPath, "utf8"));
-  }
-
-  it("returns an empty list when the file is missing", () => {
-    expect(service.list()).toEqual([]);
-  });
-
-  it("creates the file and parent directory when creating a group", () => {
-    const group = service.create("backend-team", ["api", "worker"]);
-
-    expect(group.name).toBe("backend-team");
-    expect(group.members).toEqual(["api", "worker"]);
-    expect(fs.existsSync(groupsPath)).toBe(true);
-    expect(readRaw()).toMatchObject({
-      version: 1,
-      groups: [{ name: "backend-team", members: ["api", "worker"] }],
-    });
-  });
-
-  it("writes atomically without leaving a temp file on success", () => {
-    service.create("backend-team", ["api"]);
-
-    expect(fs.existsSync(`${groupsPath}.tmp`)).toBe(false);
-  });
-
-  it("gets a group by name", () => {
-    service.create("backend-team", ["api"]);
-
-    expect(service.get("backend-team")?.members).toEqual(["api"]);
-    expect(service.get("missing")).toBeUndefined();
-  });
-
-  it("rejects invalid group names when getting a group", () => {
-    expect(() => service.get("Bad_Name")).toThrow(AgentGroupInvalidNameError);
-  });
-
-  it("rejects invalid group names", () => {
-    expect(() => service.create("Bad_Name", ["api"])).toThrow(AgentGroupInvalidNameError);
-  });
-
-  it("rejects empty member lists", () => {
-    expect(() => service.create("backend-team", [])).toThrow(AgentGroupEmptyMembersError);
-  });
-
-  it("rejects blank members", () => {
-    expect(() => service.create("backend-team", ["api", "  "])).toThrow(
-      AgentGroupInvalidMemberError,
+  it.each([
+    ["not_found", AgentGroupNotFoundError],
+    ["conflict", AgentGroupConflictError],
+    ["invalid_name", AgentGroupInvalidNameError],
+    ["invalid_member", AgentGroupInvalidMemberError],
+    ["empty_members", AgentGroupEmptyMembersError],
+    ["storage", AgentGroupStorageError],
+  ])("maps %s to its existing domain category", async (code, ErrorType) => {
+    mocks.request.mockRejectedValue(
+      new DaemonRpcError("domain message", code, { name: "team", member: "one", path: "source" }),
     );
+    await expect(new AgentGroupService().create("team", ["one"])).rejects.toBeInstanceOf(ErrorType);
+    expect(mocks.close).toHaveBeenCalledOnce();
   });
-
-  it("rejects duplicate members after trimming", () => {
-    expect(() => service.create("backend-team", ["api", " api "])).toThrow(
-      AgentGroupInvalidMemberError,
-    );
+  it("fails when unavailable without reading legacy JSON", async () => {
+    mocks.ensure.mockResolvedValue(null);
+    await expect(new AgentGroupService().list()).rejects.toThrow(/daemon.*required/i);
+    expect(mocks.request).not.toHaveBeenCalled();
   });
-
-  it("rejects creating an existing group", () => {
-    service.create("backend-team", ["api"]);
-
-    expect(() => service.create("backend-team", ["worker"])).toThrow(AgentGroupConflictError);
+  it("requires an upgrade for unsupported methods", async () => {
+    mocks.request.mockRejectedValue(new DaemonRpcError("unknown method: group.list"));
+    await expect(new AgentGroupService().list()).rejects.toThrow(/upgrade|restart/i);
+    expect(mocks.request).toHaveBeenCalledOnce();
+    expect(mocks.close).toHaveBeenCalledOnce();
   });
-
-  it("updates a group by replacing all members", () => {
-    service.create("backend-team", ["api"]);
-    const updated = service.update("backend-team", ["worker", "docs"]);
-
-    expect(updated.members).toEqual(["worker", "docs"]);
-    expect(service.get("backend-team")?.members).toEqual(["worker", "docs"]);
-  });
-
-  it("throws when updating a missing group", () => {
-    expect(() => service.update("missing", ["api"])).toThrow(AgentGroupNotFoundError);
-  });
-
-  it("adds a new member to an existing group", () => {
-    service.create("backend-team", ["api"]);
-    const updated = service.addMember("backend-team", "worker");
-
-    expect(updated.members).toEqual(["api", "worker"]);
-  });
-
-  it("treats adding an existing member as idempotent", () => {
-    service.create("backend-team", ["api"]);
-    const updated = service.addMember("backend-team", " api ");
-
-    expect(updated.members).toEqual(["api"]);
-  });
-
-  it("removes one member from an existing group", () => {
-    service.create("backend-team", ["api", "worker"]);
-    const updated = service.removeMember("backend-team", "api");
-
-    expect(updated.members).toEqual(["worker"]);
-  });
-
-  it("rejects removing the last member", () => {
-    service.create("backend-team", ["api"]);
-
-    expect(() => service.removeMember("backend-team", "api")).toThrow(AgentGroupEmptyMembersError);
-    expect(service.get("backend-team")?.members).toEqual(["api"]);
-  });
-
-  it("removes a group", () => {
-    service.create("backend-team", ["api"]);
-    service.remove("backend-team");
-
-    expect(service.list()).toEqual([]);
-  });
-
-  it("throws a storage error for malformed JSON", () => {
-    fs.mkdirSync(path.dirname(groupsPath), { recursive: true });
-    fs.writeFileSync(groupsPath, "not json", "utf8");
-
-    expect(() => service.list()).toThrow(AgentGroupStorageError);
-  });
-
-  it("throws a storage error for unsupported file versions", () => {
-    fs.mkdirSync(path.dirname(groupsPath), { recursive: true });
-    fs.writeFileSync(groupsPath, JSON.stringify({ version: 2, groups: [] }), "utf8");
-
-    expect(() => service.list()).toThrow(AgentGroupStorageError);
+  it("surfaces transport failures without retry", async () => {
+    mocks.request.mockRejectedValue(new Error("socket closed"));
+    await expect(new AgentGroupService().list()).rejects.toThrow("socket closed");
+    expect(mocks.request).toHaveBeenCalledOnce();
+    expect(mocks.close).toHaveBeenCalledOnce();
   });
 });
