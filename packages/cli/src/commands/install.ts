@@ -7,6 +7,7 @@ import { renderApplicationReport } from "../services/install/install-report.js";
 interface InstallCommandOptions {
   config?: string;
   overwrite?: boolean;
+  yes?: boolean;
 }
 
 export async function installCommand(options: InstallCommandOptions): Promise<void> {
@@ -46,6 +47,7 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
   try {
     report = await reconcileAndInstall(validatedConfig, {
       overwrite: options.overwrite,
+      nonInteractive: Boolean(options.yes),
     });
   } catch (error) {
     ui.error(error instanceof Error ? error.message : String(error));
@@ -57,5 +59,6 @@ export async function installCommand(options: InstallCommandOptions): Promise<vo
 
   process.exitCode = getInstallExitCode(report, {
     overwrite: options.overwrite,
+    nonInteractive: Boolean(options.yes),
   });
 }

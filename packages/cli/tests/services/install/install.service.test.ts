@@ -230,6 +230,17 @@ describe("install service", () => {
     expect(report.phases.skipped).toBe(1);
   });
 
+  it("skips existing phase files under nonInteractive without prompting even when a TTY is attached", async () => {
+    mockIsInteractiveTerminal.mockReturnValue(true);
+    mockTemplateManager.fileExists.mockResolvedValue(true);
+
+    const report = await reconcileAndInstall(installConfig, { nonInteractive: true });
+
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockTemplateManager.copyPhaseTemplate).not.toHaveBeenCalled();
+    expect(report.phases.skipped).toBe(1);
+  });
+
   it("auto-overwrites and does not prompt when --overwrite is set", async () => {
     mockTemplateManager.checkEnvironmentExists
       .mockResolvedValueOnce(true)
