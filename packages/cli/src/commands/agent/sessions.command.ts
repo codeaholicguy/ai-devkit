@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Command } from "commander";
 import chalk from "chalk";
 import { AGENT_TYPES, type SessionSummary } from "@ai-devkit/agent-manager";
@@ -13,6 +15,14 @@ import { agentTypeLabel } from "../../util/agent.js";
 import { formatRelativeTime } from "../../util/time-format.js";
 import { createAgentManager, createDurableAgentService } from "./factory.js";
 import { formatCwd } from "./render.js";
+
+function canonicalizeCwd(cwd: string): string {
+  try {
+    return fs.realpathSync(cwd);
+  } catch {
+    return path.resolve(cwd);
+  }
+}
 
 export function registerAgentSessionsCommand(agentCommand: Command): void {
   agentCommand
@@ -31,18 +41,29 @@ export function registerAgentSessionsCommand(agentCommand: Command): void {
           SessionSummary & { mode?: "durable"; durableId?: string; name?: string; state?: string }
         > = await manager.listSessions(opts.adapterOptions);
 
+        const filterCwd = opts.adapterOptions.cwd
+          ? canonicalizeCwd(opts.adapterOptions.cwd)
+          : undefined;
         const durable = (await createDurableAgentService().repository.list()).filter(
           (a) =>
             (!opts.adapterOptions.type || opts.adapterOptions.type === a.provider) &&
-            (!opts.adapterOptions.cwd || opts.adapterOptions.cwd === a.cwd),
+            (!filterCwd || filterCwd === a.cwd),
         );
+        const sessionKey = (type: string, sessionId: string) => `${type}:${sessionId}`;
+        const historicalByKey = new Map(
+          sessions.map((s) => [sessionKey(s.type, s.sessionId), s] as const),
+        );
+        const durableKeys = new Set<string>();
         const durableSessions = durable.map((a) => {
-          const historical = sessions.find(
-            (s) => s.type === a.provider && s.sessionId === a.providerSessionId,
-          );
+          const sid = a.providerSessionId ?? a.id;
+          const key = sessionKey(a.provider, sid);
+          durableKeys.add(key);
+          const historical = a.providerSessionId
+            ? historicalByKey.get(sessionKey(a.provider, a.providerSessionId))
+            : undefined;
           return {
             type: a.provider,
-            sessionId: a.providerSessionId ?? a.id,
+            sessionId: sid,
             cwd: a.cwd,
             firstUserMessage: historical?.firstUserMessage ?? "",
             startedAt: historical?.startedAt ?? new Date(a.createdAt),
@@ -60,9 +81,7 @@ export function registerAgentSessionsCommand(agentCommand: Command): void {
           };
         });
         sessions = [
-          ...sessions.filter(
-            (s) => !durableSessions.some((d) => d.type === s.type && d.sessionId === s.sessionId),
-          ),
+          ...sessions.filter((s) => !durableKeys.has(sessionKey(s.type, s.sessionId))),
           ...durableSessions,
         ].sort((a, b) => b.lastActive.getTime() - a.lastActive.getTime());
         const limit = parseLimit(options.limit);

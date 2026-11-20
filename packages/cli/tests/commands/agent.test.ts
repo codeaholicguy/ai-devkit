@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { Mock } from "vitest";
 import { Command } from "commander";
 
@@ -4727,6 +4730,27 @@ Waiting on user input`,
           sessionFilePath: "/transcript",
         }),
       ]);
+    });
+    it("matches durable sessions when --cwd is a symlink to the canonical cwd", async () => {
+      const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "durable-cwd-"));
+      try {
+        const targetDir = path.join(tempRoot, "real");
+        const linkDir = path.join(tempRoot, "link");
+        fs.mkdirSync(targetDir);
+        fs.symlinkSync(targetDir, linkDir);
+        const canonicalTarget = fs.realpathSync(targetDir);
+        mockDurableRepository.list.mockResolvedValue([{ ...durable, cwd: canonicalTarget }]);
+        mockManager.listSessions.mockResolvedValue([]);
+        const log = vi.spyOn(console, "log").mockImplementation(() => {});
+        const program = new Command();
+        registerAgentCommand(program);
+        await program.parseAsync(["node", "test", "agent", "sessions", "--cwd", linkDir, "--json"]);
+        expect(JSON.parse(log.mock.calls.at(-1)![0])).toEqual([
+          expect.objectContaining({ durableId: durable.id, cwd: canonicalTarget }),
+        ]);
+      } finally {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+      }
     });
     it("resolves durable session detail without opening local transcripts", async () => {
       mockDurableRepository.resolve.mockResolvedValue(durable);
