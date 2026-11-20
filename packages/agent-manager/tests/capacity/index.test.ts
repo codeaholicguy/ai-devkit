@@ -60,6 +60,9 @@ describe("getAntigravityCapacityReport", () => {
       env: { ANTIGRAVITY_CLI_PATH: "/opt/bin/agy" },
       access: async () => undefined,
       stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+      readFile: async () => {
+        throw new Error("ENOENT");
+      },
       exec: async ({ args }) => {
         if (args[0] === "--version") return { exitCode: 0, stdout: "agy 1.2.11\n", stderr: "" };
         return {

@@ -340,6 +340,9 @@ describe("classifyAntigravityExitFailure", () => {
 
 describe("probeAntigravityCapacity", () => {
   const checkedAt = "2026-11-19T12:00:00.000Z";
+  const noCredentialFile = async () => {
+    throw new Error("ENOENT");
+  };
 
   beforeEach(() => {
     resetAntigravityVersionCache();
@@ -356,6 +359,7 @@ describe("probeAntigravityCapacity", () => {
         checkedAt,
         env: { ANTIGRAVITY_CLI_PATH: "/custom/missing/agy", PATH: "/usr/local/bin" },
         access,
+        readFile: noCredentialFile,
       }),
     ).rejects.toThrow("agy executable not found");
 
@@ -364,6 +368,7 @@ describe("probeAntigravityCapacity", () => {
         checkedAt,
         env: { ANTIGRAVITY_CLI_PATH: "   ", PATH: "/usr/local/bin" },
         access,
+        readFile: noCredentialFile,
       }),
     ).rejects.toThrow("agy executable not found");
   });
@@ -381,6 +386,7 @@ describe("probeAntigravityCapacity", () => {
         if (target !== "/opt/homebrew/bin/agy") throw new Error("ENOENT");
       },
       stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+      readFile: noCredentialFile,
       exec,
     });
 
@@ -407,6 +413,7 @@ describe("probeAntigravityCapacity", () => {
       env: { ANTIGRAVITY_CLI_PATH: "/opt/bin/agy" },
       access: async () => undefined,
       stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+      readFile: noCredentialFile,
       exec,
     };
 
@@ -434,6 +441,7 @@ describe("probeAntigravityCapacity", () => {
         if (target !== "/opt/bin/agy") throw new Error("ENOENT");
       },
       stat: async () => ({ size: 1234, mtimeMs, ino: 99 }),
+      readFile: noCredentialFile,
       exec,
     };
 
@@ -463,6 +471,7 @@ describe("probeAntigravityCapacity", () => {
         env: { ANTIGRAVITY_CLI_PATH: "/opt/bin/agy" },
         access: async () => undefined,
         stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+        readFile: noCredentialFile,
         exec,
       }),
     ).rejects.toThrow(/1\.1\.11/);
@@ -494,6 +503,7 @@ describe("probeAntigravityCapacity", () => {
       env: { ANTIGRAVITY_CLI_PATH: "/opt/bin/agy", PATH: "/usr/bin" },
       access: async () => undefined,
       stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+      readFile: noCredentialFile,
       exec,
     });
 
@@ -519,6 +529,7 @@ describe("probeAntigravityCapacity", () => {
       env: { ANTIGRAVITY_CLI_PATH: "/opt/bin/agy" },
       access: async () => undefined,
       stat: async () => ({ size: 100, mtimeMs: 100, ino: 1 }),
+      readFile: noCredentialFile,
       exec,
     });
 
@@ -535,6 +546,11 @@ describe("probeAntigravityCapacity", () => {
 
   it("executes real subprocess safeguards including browser stubs, timeout, and output cap", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "agy-fake-bin-"));
+    const baseEnv: NodeJS.ProcessEnv = {
+      ...process.env,
+      ANTIGRAVITY_ACCESS_TOKEN: undefined,
+      ANTIGRAVITY_OAUTH_CREDENTIALS_JSON: undefined,
+    };
     try {
       const okBin = path.join(dir, "agy-ok");
       await writeFile(
@@ -562,7 +578,8 @@ EOF
 
       const report = await probeAntigravityCapacity({
         checkedAt,
-        env: { ...process.env, ANTIGRAVITY_CLI_PATH: okBin },
+        env: { ...baseEnv, ANTIGRAVITY_CLI_PATH: okBin },
+        readFile: noCredentialFile,
         timeoutMs: 5000,
       });
       expect(report.authenticated).toBe(true);
@@ -582,7 +599,8 @@ sleep 5
       await expect(
         probeAntigravityCapacity({
           checkedAt,
-          env: { ...process.env, ANTIGRAVITY_CLI_PATH: slowBin },
+          env: { ...baseEnv, ANTIGRAVITY_CLI_PATH: slowBin },
+          readFile: noCredentialFile,
           timeoutMs: 150,
         }),
       ).rejects.toThrow(/timed out/i);
@@ -601,7 +619,8 @@ head -c 2048 /dev/zero | tr '\\0' 'a'
       await expect(
         probeAntigravityCapacity({
           checkedAt,
-          env: { ...process.env, ANTIGRAVITY_CLI_PATH: loudBin },
+          env: { ...baseEnv, ANTIGRAVITY_CLI_PATH: loudBin },
+          readFile: noCredentialFile,
           timeoutMs: 5000,
           maxOutputBytes: 512,
         }),
