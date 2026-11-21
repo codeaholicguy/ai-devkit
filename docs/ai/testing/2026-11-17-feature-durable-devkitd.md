@@ -26,14 +26,14 @@ P2-P4 evidence: Rust fixture/argv tests 2 passed (18 shared cases); TS parity 18
 
 ## Acceptance Evidence
 - Root `npm run build`: exit 0 for seven projects.
-- Root `npm run test`: exit 0 for seven projects and dependencies; includes `npx nx test cli` (1,511 CLI tests before the final nine coverage cases), 18 shared TS parity cases, daemon-client wire tests and the Rust workspace.
-- `cargo test --manifest-path rust/Cargo.toml`: 205 tests passed, zero failures across six suites (43 core, 13 durable store, 82 harness, 3 durable parser/profile, 55 daemon, 9 durable daemon integration).
-- `cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings`: exit 0.
+- Root `npm run test`: exit 0 for seven projects and dependencies; includes `npx nx test cli` (1,521 CLI tests across 116 files), 18 shared TS parity cases, daemon-client wire tests and the Rust workspace.
+- `cargo test --manifest-path rust/Cargo.toml`: 209 tests passed, zero failures across six suites (45 core, 13 durable store, 82 harness, 3 durable parser/profile, 55 daemon, 11 durable daemon integration).
+- `cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings`: exit 0 (verified on Linux and macOS).
 - `npm run lint`: exit 0; existing unrelated TS warnings remain, no lint errors.
 - `npm run fmt:check`: exit 0.
 - `npx vitest run --config e2e/vitest.config.ts e2e/durable-devkitd.e2e.ts`: one E2E passed, exercising legacy import and all three provider create/send/resume/session flows through built CLI and real daemon.
 - Targeted V8 coverage: 193 tests passed; routing module 93.1% statements / 85.36% branches / 88.23% functions / 92.72% lines. Uncovered branches are defensive malformed-wire checks and remote list/resolve paths also exercised by E2E.
-- Disposable smoke: eight checks passed (create, send/resume, sessions, invalid cwd, nonzero exit, restart/busy, adopted stop, post-transfer outage fence). No provider APIs used by smoke; script and sandboxes are removed after verification.
-- Feature docs lint: all 12 checks passed.
+- Disposable smoke (macOS round-2): 15 checks passed (daemon startup, legacy import + ownership fence, create/send/resume for Claude/Codex/Pi, `--debug` routing logs, `sessions --all`, `session detail` by name and `providerSessionId`, `sessions --cwd <symlink>`, invalid cwd, nonzero exit, malformed stream, busy rejection, restart adoption, non-blocking stop during 2s grace period, adopted `SIGTERM`-ignoring `SIGKILL` escalation, idempotent stop, post-transfer outage fence). No provider APIs used by smoke; scripts and sandboxes are removed after verification.
+- Feature docs lint: all checks passed.
 
-Regression evidence is recorded in the implementation artifact. OS permission/probe failures were reviewed through the fallible observation path, not injected; non-Linux behavior was not executed. The accepted restart limit and unsupported mixed-version legacy writes remain documented rollout limits. Failed exploratory runs are not acceptance evidence.
+Regression evidence is recorded in the implementation artifact. OS permission/probe failures were reviewed through the fallible observation path, not injected; Windows behavior was not executed (Linux and macOS are verified). The accepted restart limit and unsupported mixed-version legacy writes remain documented rollout limits. Failed exploratory runs are not acceptance evidence.
