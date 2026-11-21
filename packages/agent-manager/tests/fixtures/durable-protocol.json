@@ -1,0 +1,164 @@
+[
+  {
+    "provider": "claude",
+    "name": "success",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"result\", \"session_id\": \"11111111-1111-4111-8111-111111111111\", \"result\": \"hello\"}\n",
+    "exitCode": 0,
+    "ok": true,
+    "result": "hello"
+  },
+  {
+    "provider": "claude",
+    "name": "nonzero",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"result\", \"session_id\": \"11111111-1111-4111-8111-111111111111\", \"result\": \"hello\"}\n",
+    "exitCode": 2,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "claude",
+    "name": "missing",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "claude",
+    "name": "malformed",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{oops}\n",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "claude",
+    "name": "incomplete",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"result\", \"session_id\": \"11111111-1111-4111-8111-111111111111\", \"result\": \"hello\"}\n{",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "claude",
+    "name": "mismatch",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"result\", \"session_id\": \"22222222-2222-4222-8222-222222222222\", \"result\": \"hello\"}\n",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "codex",
+    "name": "success",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"thread.started\", \"thread_id\": \"11111111-1111-4111-8111-111111111111\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"hello\"}}\n{\"type\": \"turn.completed\"}\n",
+    "exitCode": 0,
+    "ok": true,
+    "result": "hello"
+  },
+  {
+    "provider": "codex",
+    "name": "nonzero",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"thread.started\", \"thread_id\": \"11111111-1111-4111-8111-111111111111\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"hello\"}}\n{\"type\": \"turn.completed\"}\n",
+    "exitCode": 2,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "codex",
+    "name": "missing",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "codex",
+    "name": "malformed",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{oops}\n",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "codex",
+    "name": "incomplete",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"thread.started\", \"thread_id\": \"11111111-1111-4111-8111-111111111111\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"hello\"}}\n{\"type\": \"turn.completed\"}\n{",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "codex",
+    "name": "mismatch",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"thread.started\", \"thread_id\": \"22222222-2222-4222-8222-222222222222\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"hello\"}}\n{\"type\": \"turn.completed\"}\n",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "pi",
+    "name": "success",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"session\", \"id\": \"11111111-1111-4111-8111-111111111111\"}\n{\"type\": \"message_end\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}}\n{\"type\": \"agent_end\"}\n",
+    "exitCode": 0,
+    "ok": true,
+    "result": "hello"
+  },
+  {
+    "provider": "pi",
+    "name": "nonzero",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"session\", \"id\": \"11111111-1111-4111-8111-111111111111\"}\n{\"type\": \"message_end\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}}\n{\"type\": \"agent_end\"}\n",
+    "exitCode": 2,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "pi",
+    "name": "missing",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "pi",
+    "name": "malformed",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{oops}\n",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "pi",
+    "name": "incomplete",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"session\", \"id\": \"11111111-1111-4111-8111-111111111111\"}\n{\"type\": \"message_end\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}}\n{\"type\": \"agent_end\"}\n{",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  },
+  {
+    "provider": "pi",
+    "name": "mismatch",
+    "sessionId": "11111111-1111-4111-8111-111111111111",
+    "stream": "{\"type\": \"session\", \"id\": \"22222222-2222-4222-8222-222222222222\"}\n{\"type\": \"message_end\", \"message\": {\"role\": \"assistant\", \"content\": [{\"type\": \"text\", \"text\": \"hello\"}]}}\n{\"type\": \"agent_end\"}\n",
+    "exitCode": 0,
+    "ok": false,
+    "result": null
+  }
+]

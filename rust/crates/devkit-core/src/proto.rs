@@ -214,6 +214,8 @@ mod tests {
         let out = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../../packages/daemon-client/src/gen");
         let cfg = ts_rs::Config::default().with_out_dir(&out);
+        crate::durable_wire::DurableAgentWire::export_all(&cfg).unwrap();
+        crate::durable_wire::DurableRunWire::export_all(&cfg).unwrap();
         Request::export(&cfg).unwrap();
         Response::export(&cfg).unwrap();
         Event::export(&cfg).unwrap();

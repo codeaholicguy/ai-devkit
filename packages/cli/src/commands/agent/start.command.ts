@@ -204,10 +204,17 @@ export function registerAgentStartCommand(agentCommand: Command): void {
 
         try {
           if (internalMode === AGENT_MODES.DURABLE) {
+            debug("starting durable agent name=%s type=%s cwd=%s", agentName, agentType, cwd);
             const entry = await createDurableAgentService(agentType as DurableProvider).create({
               name: agentName,
               cwd,
             });
+            debug(
+              "durable agent created id=%s name=%s provider=%s",
+              entry.id,
+              entry.name,
+              entry.provider,
+            );
             ui.success(`Durable agent "${entry.name}" started (${entry.provider}, ID ${entry.id})`);
             ui.text(`Working directory: ${formatCwd(entry.cwd)}`);
             ui.text(`State: ready (${formatPrintProvider(entry.provider)} session not started)`);

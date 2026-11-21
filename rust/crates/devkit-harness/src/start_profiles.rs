@@ -210,6 +210,45 @@ fn split_argv0(ps_command: &str) -> (String, Vec<String>) {
     (argv0, args)
 }
 
+impl StartProfile {
+    /// Direct argv only: prompts are written to stdin and never shell-expanded.
+    pub fn durable_args(&self, session: Option<&str>, first: bool) -> anyhow::Result<Vec<String>> {
+        let sid = || session.ok_or_else(|| anyhow::anyhow!("missing provider session identity"));
+        let args = match self.command {
+            "claude" => vec![
+                "-p",
+                if first { "--session-id" } else { "--resume" },
+                sid()?,
+                "--output-format",
+                "stream-json",
+                "--verbose",
+            ],
+            "codex" => match session {
+                None => vec!["exec", "--json", "-"],
+                Some(s) => vec!["exec", "resume", "--json", s, "-"],
+            },
+            "pi" => vec![
+                "--mode",
+                "json",
+                if first { "--session-id" } else { "--session" },
+                sid()?,
+            ],
+            _ => anyhow::bail!("unsupported durable provider"),
+        };
+        Ok(args.into_iter().map(str::to_owned).collect())
+    }
+    pub fn durable_parser(
+        &self,
+        expected: Option<&str>,
+    ) -> anyhow::Result<crate::durable::PrintParser> {
+        anyhow::ensure!(
+            ["claude", "codex", "pi"].contains(&self.command),
+            "unsupported durable provider"
+        );
+        Ok(crate::durable::PrintParser::new(self.command, expected))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -10,3 +10,12 @@ export type { AgentRenameResult } from "./gen/AgentRenameResult.js";
 export type { EnrichedAgent, Event } from "./gen/index.js";
 export { resolveDaemonBinary } from "./binary.js";
 export { ensureDaemon } from "./autostart.js";
+
+export type {
+  DurableCreateParams,
+  DurableLaunchResult,
+  DurableRunDetail,
+  DurableResolution,
+} from "./client.js";
+export type { DurableAgentWire } from "./gen/DurableAgentWire.js";
+export type { DurableRunWire } from "./gen/DurableRunWire.js";

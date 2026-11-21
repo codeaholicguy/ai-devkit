@@ -1,3 +1,4 @@
+mod durable;
 mod rpc;
 mod runtime;
 mod server;

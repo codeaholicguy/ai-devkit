@@ -80,7 +80,7 @@ The default `--mode interactive` starts the agent in an interactive session. Sta
 ai-devkit agent start --type claude --mode durable --name backend --cwd ./packages/backend
 ```
 
-Durable mode supports `--type claude`, `--type codex`, and `--type pi`.
+Durable mode supports `--type claude`, `--type codex`, and `--type pi`. A compatible `devkitd` owns durable agents and their runs in `~/.ai-devkit/daemon.db`, so closing the CLI does not cancel an in-flight run. `agent sessions` and `agent session detail` include durable identities alongside historical transcripts, and passing `--debug` to `agent start` or `agent send` traces daemon vs. local durable routing.
 
 `agent start` does not accept an initial prompt or extra harness CLI arguments. To set an opening task or pass flags such as Codex approval policy or Gemini `--approval-mode`, use [Agent Console](/docs/13-agent-console) (**task** and **args** fields) or start the harness manually in tmux.
 
