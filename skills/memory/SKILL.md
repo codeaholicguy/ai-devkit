@@ -78,6 +78,19 @@ npx ai-devkit@latest memory store \
   --scope "<global|project:name|repo:org/repo>"
 ```
 
+For multi-line content without shell escaping, use `--stdin` (or pipe stdin when `--content` is omitted). Add `--json` for compact JSON output that includes the stored `id`:
+
+```bash
+npx ai-devkit@latest memory store \
+  --title "<actionable title, 10-100 chars>" \
+  --stdin \
+  --tags "<lowercase,tags>" \
+  --scope "<global|project:name|repo:org/repo>" \
+  --json <<'EOF'
+<context, guidance, evidence, exceptions>
+EOF
+```
+
 Use this content shape when helpful:
 
 ```text

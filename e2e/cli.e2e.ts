@@ -361,6 +361,21 @@ describe('memory commands', () => {
     expect(result.exitCode).not.toBe(0);
   });
 
+  it('should store knowledge from piped stdin', () => {
+    const title = `E2E Stdin Store ${uid}`;
+    const content =
+      'Knowledge supplied through stdin must still meet the minimum content length requirement for memory store.';
+    const storeResult = run(`memory store -t "${title}" --json`, {
+      cwd: projectDir,
+      input: content,
+    });
+    expect(storeResult.exitCode).toBe(0);
+    const stored = JSON.parse(storeResult.stdout.trim());
+    expect(stored.success).toBe(true);
+    expect(stored.id).toBeDefined();
+    expect(storeResult.stdout.trim()).toBe(JSON.stringify(stored));
+  });
+
   it('should search with limit', () => {
     for (let i = 1; i <= 3; i++) {
       run(

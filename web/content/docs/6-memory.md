@@ -96,9 +96,38 @@ ai-devkit memory store \
 | Parameter | Required | Description |
 |-----------|----------|-------------|
 | `--title` | Yes | A short, descriptive title |
-| `--content` | Yes | The detailed knowledge to store |
+| `--content` | Yes* | The detailed knowledge to store |
+| `--stdin` | No | Read content from stdin instead of `--content` |
 | `--tags` | No | Comma-separated tags for categorization |
 | `--scope` | No | `global` (default), `project:<name>`, or `repo:<org/repo>` |
+| `--json` | No | Emit compact single-line JSON (includes `id`) for scripting |
+
+\* Omit `--content` when you pass `--stdin` or pipe content on stdin.
+
+On success the command prints JSON with `success`, `id`, and `message`. Parse `id` for follow-up `memory update` calls. Validation failures exit with code `1`.
+
+**Agents without MCP** can store knowledge the same way the memory MCP server does — call the CLI from the shell instead of `memory_storeKnowledge`:
+
+```bash
+# Multi-line body from a heredoc (no shell escaping)
+ai-devkit memory store \
+  --title "Auth middleware order" \
+  --stdin \
+  --tags "backend,security" \
+  --scope "repo:myorg/my-app" \
+  --json <<'EOF'
+Context: Express apps in this repo.
+Guidance: Register auth middleware before route handlers so every path is covered.
+Evidence: packages/api/src/app.ts wires auth in server bootstrap.
+Exceptions: Health checks stay on a public router mounted before auth.
+EOF
+```
+
+Pipe long text when an agent already has it on stdout:
+
+```bash
+printf '%s' "$SUMMARY" | ai-devkit memory store -t "Release checklist gotcha" --json
+```
 
 > 💡 **Tip:** Run `ai-devkit memory store --help` to see all available options.
 

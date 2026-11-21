@@ -37,12 +37,16 @@ export interface RunResult {
   exitCode: number;
 }
 
-export function run(args: string, options: { cwd?: string; env?: Record<string, string> } = {}): RunResult {
+export function run(
+  args: string,
+  options: { cwd?: string; env?: Record<string, string>; input?: string } = {},
+): RunResult {
   const execOptions: ExecSyncOptionsWithStringEncoding = {
     cwd: options.cwd || process.cwd(),
     encoding: 'utf-8',
     env: { ...baseEnv(), ...options.env, NODE_NO_WARNINGS: '1' },
-    timeout: 20000
+    timeout: 20000,
+    ...(options.input !== undefined ? { input: options.input } : {}),
   };
 
   try {

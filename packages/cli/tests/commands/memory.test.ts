@@ -63,12 +63,150 @@ describe("memory command", () => {
   >;
   const mockedUi = vi.mocked(ui);
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let restoreStdin: (() => void) | undefined;
+
+  function mockReadableStdin(input: string): void {
+    const originalIsTTY = process.stdin.isTTY;
+    const setEncodingSpy = vi.spyOn(process.stdin, "setEncoding").mockReturnValue(process.stdin);
+
+    Object.defineProperty(process.stdin, "isTTY", {
+      configurable: true,
+      value: false,
+    });
+
+    process.nextTick(() => {
+      process.stdin.emit("data", input);
+      process.stdin.emit("end");
+    });
+
+    restoreStdin = () => {
+      setEncodingSpy.mockRestore();
+      Object.defineProperty(process.stdin, "isTTY", {
+        configurable: true,
+        value: originalIsTTY,
+      });
+    };
+  }
 
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetMemoryDbPath.mockResolvedValue(undefined);
     mockGetMemorySemanticEnabled.mockResolvedValue(false);
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    restoreStdin = undefined;
+  });
+
+  afterEach(() => {
+    restoreStdin?.();
+  });
+
+  it("reads store content from --stdin", async () => {
+    const result = {
+      success: true,
+      id: "mem-stdin",
+      message: "stored",
+    };
+    mockedMemoryStoreCommand.mockReturnValue(result);
+    mockReadableStdin(
+      "This is stdin content long enough to satisfy memory validation constraints.",
+    );
+
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "store",
+      "--title",
+      "A valid title 123",
+      "--stdin",
+    ]);
+
+    expect(mockedMemoryStoreCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "A valid title 123",
+        content: "This is stdin content long enough to satisfy memory validation constraints.",
+      }),
+    );
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result, null, 2));
+  });
+
+  it("reads store content from piped stdin when --content is omitted", async () => {
+    mockedMemoryStoreCommand.mockReturnValue({
+      success: true,
+      id: "mem-pipe",
+      message: "stored",
+    });
+    mockReadableStdin(
+      "Piped stdin content is long enough to satisfy memory validation constraints.",
+    );
+
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync(["node", "test", "memory", "store", "--title", "A valid title 123"]);
+
+    expect(mockedMemoryStoreCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: "Piped stdin content is long enough to satisfy memory validation constraints.",
+      }),
+    );
+  });
+
+  it("rejects store when both --content and --stdin are provided", async () => {
+    mockReadableStdin("ignored");
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation((() => {
+      throw new Error("process.exit");
+    }) as never);
+
+    const program = new Command();
+    registerMemoryCommand(program);
+
+    await expect(
+      program.parseAsync([
+        "node",
+        "test",
+        "memory",
+        "store",
+        "--title",
+        "A valid title 123",
+        "--content",
+        "Inline content long enough to satisfy memory validation constraints.",
+        "--stdin",
+      ]),
+    ).rejects.toThrow("process.exit");
+
+    expect(mockedUi.error).toHaveBeenCalledWith(
+      "Failed to store knowledge: Use either --content or --stdin, not both.",
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(mockedMemoryStoreCommand).not.toHaveBeenCalled();
+  });
+
+  it("prints compact JSON for memory store when --json is set", async () => {
+    const result = {
+      success: true,
+      id: "mem-json",
+      message: "stored",
+    };
+    mockedMemoryStoreCommand.mockReturnValue(result);
+
+    const program = new Command();
+    registerMemoryCommand(program);
+    await program.parseAsync([
+      "node",
+      "test",
+      "memory",
+      "store",
+      "--title",
+      "A valid title 123",
+      "--content",
+      "This is a valid content body long enough to satisfy constraints.",
+      "--json",
+    ]);
+
+    expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(result));
+    expect(consoleLogSpy).not.toHaveBeenCalledWith(JSON.stringify(result, null, 2));
   });
 
   it("prints JSON for memory store", async () => {

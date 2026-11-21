@@ -16,6 +16,7 @@ import {
   sendToAgentGroup,
   type SendReporter,
 } from "../../services/agent/agent.service.js";
+import { resolveTextFromStdinOption } from "../../util/stdin.js";
 import {
   AgentGroupNotFoundError,
   createDefaultAgentGroupService,
@@ -33,51 +34,16 @@ function writeWaitStatus(message: string): void {
   process.stderr.write(`${message.replace(ANSI_ESCAPE_PATTERN, "")}\n`);
 }
 
-function readStdin(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let input = "";
-
-    const cleanup = () => {
-      process.stdin.off("data", onData);
-      process.stdin.off("end", onEnd);
-      process.stdin.off("error", onError);
-    };
-    const onData = (chunk: Buffer | string) => {
-      input += chunk.toString();
-    };
-    const onEnd = () => {
-      cleanup();
-      resolve(input);
-    };
-    const onError = (error: Error) => {
-      cleanup();
-      reject(error);
-    };
-
-    process.stdin.setEncoding("utf8");
-    process.stdin.on("data", onData);
-    process.stdin.once("end", onEnd);
-    process.stdin.once("error", onError);
-  });
-}
-
 async function resolveSendMessage(
   message: string | undefined,
   options: { stdin?: boolean },
 ): Promise<string> {
-  if (message !== undefined && options.stdin) {
-    throw new Error("Use either a message argument or --stdin, not both.");
-  }
-
-  if (options.stdin || (message === undefined && !process.stdin.isTTY)) {
-    return readStdin();
-  }
-
-  if (message === undefined) {
-    throw new Error("Message is required unless --stdin is used or stdin is piped.");
-  }
-
-  return message;
+  return resolveTextFromStdinOption(
+    message,
+    options,
+    "Message is required unless --stdin is used or stdin is piped.",
+    "Use either a message argument or --stdin, not both.",
+  );
 }
 
 /**
