@@ -82,6 +82,13 @@ export function matchProcessesToSessions(
 }
 
 /**
+ * Prefix marking a discovery-synthesized identity — shown when no registry
+ * entry claims the agent (never started through the manager, or registered
+ * under a divergent HOME, issue #402).
+ */
+export const UNREGISTERED_PREFIX = "unregistered:";
+
+/**
  * Generate a deterministic agent name from CWD and PID.
  *
  * Format: "folder-name-pid" (lowercase kebab-case)
