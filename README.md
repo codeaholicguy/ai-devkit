@@ -218,7 +218,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [opencode](https://opencode.ai/) | yes | yes (`opencode`) |
 | [Pi](https://pi.dev) | yes | yes (`pi`) |
 | [GitHub Copilot](https://github.com/features/copilot) | yes | yes (`copilot`) |
-| [Kiro CLI](https://kiro.dev/cli/) | — | yes (`kiro`) |
+| [Kiro CLI](https://kiro.dev/cli/) | yes | yes (`kiro`) |
 | [Devin](https://devin.ai/) | yes | yes (`devin`) |
 | [Muse Code](https://dev.meta.ai/products/muse-code/) | yes | yes (`muse`) |
 | [Antigravity CLI](https://antigravity.google/) | yes | yes (`antigravity_cli`) |
