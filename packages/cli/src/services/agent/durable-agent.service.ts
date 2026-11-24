@@ -36,48 +36,60 @@ function isUnknownMethod(error: unknown): boolean {
 export class DurableAgentService {
   constructor(readonly provider: DurableProvider) {}
 
+  private async connect(operation: string): Promise<DaemonClient | "missing" | "outdated"> {
+    const client = await ensureDaemon({ onDebug: (msg) => debug(msg) });
+    if (!client) return "missing";
+    try {
+      const capability = await client.durableCapabilities();
+      debug(
+        "%s: daemon durable capability v%d (owner=%s)",
+        operation,
+        capability.version,
+        capability.owner,
+      );
+      if (capability.version !== 1)
+        throw new Error("Unsupported daemon durable capability version.");
+      return client;
+    } catch (error) {
+      client.close();
+      if (isUnknownMethod(error)) return "outdated";
+      throw error;
+    }
+  }
+
   private async withDaemon<T>(
     operation: string,
-    optional: boolean,
-    fallback: T,
     run: (client: DaemonClient) => Promise<T>,
   ): Promise<T> {
-    const client = await ensureDaemon({ onDebug: (msg) => debug(msg) });
-    if (!client) {
-      if (optional) {
-        debug("%s: no daemon available -> skipping durable lookup", operation);
-        return fallback;
-      }
+    const client = await this.connect(operation);
+    if (client === "missing") {
       throw new Error(
         "Durable agents require a running devkitd daemon. Run 'ai-devkit daemon start' and retry.",
       );
     }
+    if (client === "outdated") {
+      throw new Error(
+        "Durable agents require an updated devkitd daemon. Run 'ai-devkit daemon stop' and retry.",
+      );
+    }
     try {
-      try {
-        const capability = await client.durableCapabilities();
-        debug(
-          "%s: daemon durable capability v%d (owner=%s)",
-          operation,
-          capability.version,
-          capability.owner,
-        );
-        if (capability.version !== 1)
-          throw new Error("Unsupported daemon durable capability version.");
-      } catch (error) {
-        if (isUnknownMethod(error)) {
-          if (optional) {
-            debug(
-              "%s: daemon predates durable RPCs (unknown method) -> skipping durable lookup",
-              operation,
-            );
-            return fallback;
-          }
-          throw new Error(
-            "Durable agents require an updated devkitd daemon. Run 'ai-devkit daemon stop' and retry.",
-          );
-        }
-        throw error;
-      }
+      return await run(client);
+    } finally {
+      client.close();
+    }
+  }
+
+  private async withOptionalDaemon<T>(
+    operation: string,
+    fallback: T,
+    run: (client: DaemonClient) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.connect(operation);
+    if (client === "missing" || client === "outdated") {
+      debug("%s: daemon %s -> skipping durable lookup", operation, client);
+      return fallback;
+    }
+    try {
       return await run(client);
     } finally {
       client.close();
@@ -86,16 +98,16 @@ export class DurableAgentService {
 
   readonly repository = {
     list: (): Promise<DurableAgent[]> =>
-      this.withDaemon("list", true, [], async (c) => (await c.listDurable()).map(agentFromWire)),
+      this.withOptionalDaemon("list", [], async (c) => (await c.listDurable()).map(agentFromWire)),
     resolve: (id: string): Promise<DurableAgent | DurableAgent[] | null> =>
-      this.withDaemon("resolve", true, null, async (c) => {
+      this.withOptionalDaemon("resolve", null, async (c) => {
         const a = await c.showDurable(id);
         return Array.isArray(a) ? a.map(agentFromWire) : a ? agentFromWire(a) : null;
       }),
   };
 
   create(input: { name: string; cwd: string }): Promise<DurableAgent> {
-    return this.withDaemon("create", false, undefined as never, async (c) => {
+    return this.withDaemon("create", async (c) => {
       debug(
         "daemon path: durable.create name=%s provider=%s cwd=%s",
         input.name,
@@ -107,7 +119,7 @@ export class DurableAgentService {
   }
 
   send(reference: string, prompt: string): Promise<SendResult> {
-    return this.withDaemon("send", false, undefined as never, async (c) => {
+    return this.withDaemon("send", async (c) => {
       const resolved = await c.showDurable(reference);
       if (!resolved) throw new Error(`Durable agent "${reference}" was not found.`);
       if (Array.isArray(resolved)) throw new Error(`Multiple durable agents match "${reference}".`);

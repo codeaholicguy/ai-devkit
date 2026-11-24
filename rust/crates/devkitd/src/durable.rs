@@ -32,15 +32,16 @@ impl DurableSupervisor {
         }
     }
     pub fn dispatch(&self, method: &str, p: &Value) -> Result<Value> {
-        self.reconcile()?;
+        if method == "durable.capabilities" {
+            return Ok(json!({"version":1,"owner":"devkitd"}));
+        }
         let field = |key: &str| {
             p[key]
                 .as_str()
                 .with_context(|| format!("invalid_params: missing {key}"))
         };
-        match method {
-            "durable.capabilities" => Ok(json!({"version":1,"owner":"devkitd"})),
-            "durable.create" => self.store.durable_create(
+        if method == "durable.create" {
+            return self.store.durable_create(
                 field("name")?,
                 match p.get("provider") {
                     None => "claude",
@@ -48,7 +49,10 @@ impl DurableSupervisor {
                     Some(_) => anyhow::bail!("invalid_params: provider must be a string"),
                 },
                 field("cwd")?,
-            ),
+            );
+        }
+        self.reconcile()?;
+        match method {
             "durable.list" => Ok(json!(self.store.durable_list()?)),
             "durable.show" => {
                 let a = self.store.durable_resolve(field("reference")?)?;
@@ -163,17 +167,14 @@ impl DurableSupervisor {
             if children.contains(token) {
                 continue;
             }
-            let live =
-                |p: &Value| -> Result<bool> {
-                    let Some(pid) = p["pid"].as_i64() else {
-                        return Ok(false);
-                    };
-                    Ok(identity(pid)?
-                        .is_some_and(|(_, s)| Some(s.as_str()) == p["startedAt"].as_str()))
-                };
             // An observation error propagates; no destructive reconciliation.
-            if live(&r["provider"])? {
-                continue;
+            let provider = &r["provider"];
+            if let Some(pid) = provider["pid"].as_i64() {
+                if identity(pid)?
+                    .is_some_and(|(_, s)| Some(s.as_str()) == provider["startedAt"].as_str())
+                {
+                    continue;
+                }
             }
             self.store.durable_complete(
                 a["id"].as_str().unwrap(),

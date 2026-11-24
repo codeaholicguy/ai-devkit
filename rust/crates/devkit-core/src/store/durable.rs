@@ -126,7 +126,15 @@ impl Store {
         };
         let ts = now(&c)?;
         c.execute("INSERT INTO durable_agents(id,name,provider,cwd,provider_session_id,state,session_health,created_at,updated_at) VALUES(?,?,?,?,?,'ready','uninitialized',?,?)",
-            params![id,name,provider,path.to_string_lossy(),sid,ts,ts]).context("name_in_use: failed to create durable agent")?;
+            params![id,name,provider,path.to_string_lossy(),sid,ts,ts])
+            .map_err(|e| match e {
+                rusqlite::Error::SqliteFailure(err, _)
+                    if err.code == rusqlite::ErrorCode::ConstraintViolation =>
+                {
+                    anyhow::anyhow!("name_in_use: durable agent name already exists")
+                }
+                other => other.into(),
+            })?;
         by_id(&c, &id)
     }
     pub fn durable_list(&self) -> Result<Vec<Value>> {
