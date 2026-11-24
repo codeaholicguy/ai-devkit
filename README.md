@@ -4,7 +4,11 @@
 
 **The control plane for AI coding agents.**
 
-![](agent-console-showcase.jpg)
+![A Claude Code lead runs Codex and OpenCode as its team](docs/demo-team.gif)
+
+One prompt to a Claude Code lead: it starts Codex to build and OpenCode to write tests, each in its own git worktree, has them review each other, and merges. [Try it in 5 minutes](https://ai-devkit.com/docs/20-cross-vendor-agent-recipe/).
+
+![Agent console](agent-console-showcase.jpg)
 
 AI DevKit gives Claude Code, Codex CLI, Gemini CLI, opencode, Pi, Cursor, GitHub Copilot, Devin, and other coding agents one local-first operating layer: one config, one console, local memory retrieval, cross-agent communication, and composable engineering skills led by `dev-lifecycle`.
 
@@ -25,8 +29,6 @@ npx ai-devkit@latest init
 ```
 
 `setup` installs built-in skills globally, session hooks, and the memory MCP wiring for detected agents.
-
-The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro, Copilot, Devin, and Muse do not get memory MCP wiring yet.
 
 `init` writes project-local config. Your project gets:
 
@@ -229,6 +231,8 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 | [Amp](https://ampcode.com/) | yes | setup/skills only |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode) | yes | setup/skills only |
 | [Roo Code](https://roocode.com/) | testing | setup/skills only |
+
+The `kiro`, `copilot`, `devin`, and `muse` targets detect `~/.kiro`, `~/.copilot`, `~/.config/devin`, and `~/.config/muse`, respectively. Copilot skills use the `github` environment and `~/.copilot/skills`; Devin and Muse use `~/.config/devin/skills` and `~/.config/muse/skills`. Kiro, Copilot, Devin, and Muse do not get memory MCP wiring yet.
 
 **Setup** — `ai-devkit setup` (machine) plus `ai-devkit init` (project) writes each agent's config (rules, MCP, skills).
 **Control plane** — `agent list`, `agent send`, and managed `agent start` target tmux-backed CLI sessions on **macOS/Linux** (experimental console; requires tmux). Use [channels](https://ai-devkit.com/docs/12-channel/) to message a running agent from Telegram or Slack. Not supported on Windows console.
