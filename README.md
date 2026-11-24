@@ -119,8 +119,6 @@ ai-devkit channel start telegram --agent <agent-name> --daemon
 
 Use this when work spans long-running agents, multiple providers, scheduled checks, review loops, or remote control from another channel.
 
-Agent groups require a running, current `devkitd`. Group commands and `agent send --group` store and resolve groups in `~/.ai-devkit/daemon.db`; member identifiers resolve to exact registered agent names.
-
 ## Add memory without bloating context
 
 AI DevKit memory is local SQLite knowledge for project decisions, coding conventions, and reusable fixes. Agents retrieve it when a task needs context instead of carrying every fact in every prompt.
