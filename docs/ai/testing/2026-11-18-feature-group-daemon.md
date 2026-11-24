@@ -8,84 +8,54 @@ description: Acceptance coverage and evidence for issue 413
 
 ## Scenarios
 
-- [x] T1 (A1/A2): CRUD, insertion/member order, persistence and timestamp behavior.
-- [x] T2 (A2/A3): normalization, duplicate/blank/empty rejection, domain error
+- [x] T1 (A1/A2): CRUD, insertion/member order (`LEFT JOIN`), persistence, and
+  timestamp behavior.
+- [x] T2 (A2/A3): Normalization, duplicate/blank/empty rejection, domain error
   precedence, no-op add, absent-member and final-member removal.
-- [x] T3 (A1/A2): concurrent mutations and transaction rollback preserve invariants.
-- [x] T4 (A5): valid, absent, malformed, unsupported-version, invalid-domain and
-  conflicting imports; all-or-nothing data and fence with preserved timestamps.
-- [x] T5 (A6): pre/post-commit restart boundaries, recreated source and deleted-group
-  resurrection prevention; failed cleanup reported and retried at next startup.
-- [x] T6 (A1/A3): eight RPCs, malformed wire types and coded domain errors.
-- [x] T7 (A1/A3/A7): seven CLI routes, client requests, error mapping, unsupported
-  methods, unavailable daemon and transport failure without legacy fallback.
-- [x] T8 (A4): ordered group.lookup then agent.lookup targeting, missing/dead members
-  and existing per-member reporting; ordinary single-agent path unchanged.
-- [x] T9 (A8): root E2E through built CLI and real daemon: create/add/send/detail/list
-  using stub registration or wire targeting verification; disposable HOME only.
-- [x] T10 (A8): smoke import/fence/restart, conflict and empty-members errors,
-  list/detail after import with real built CLI.
-- [x] T11 (A8): full Rust and CLI suites, dependency build, lint, fmt, clippy,
-  implementation review and post-rebase verification before commit/push/PR.
+- [x] T3 (A1/A2): Concurrent mutations and SQL transaction rollback (trigger
+  fault injection) preserve invariants.
+- [x] T4 (A1/A3): All eight `group.*` RPCs, malformed wire types
+  (`invalid_params`), `unknown_method`, and coded domain errors.
+- [x] T5 (A1/A3/A5): All seven CLI routes (including `--debug`), typed
+  `DaemonClient` calls, caller-owned client reuse, `onDebug` forwarding, error
+  mapping, unsupported methods, unavailable daemon, and transport failure
+  without legacy fallback.
+- [x] T6 (A4): Ordered `group.lookup` then `agent.lookup` targeting, missing/dead
+  members, immediate abort on transport/`unknown method` errors, no spurious
+  unknown-status busy warnings, and per-member delivery reporting; ordinary
+  single-agent path unchanged.
+- [x] T7 (A6): Root E2E (`e2e/agent-groups.e2e.ts`) through built CLI and real
+  `devkitd`: create/add/send/detail/list/update/remove-agent/remove, ordered
+  `group.lookup` + `agent.lookup` wire verification with dead stub
+  registrations, error categories, and restart persistence in disposable `HOME`.
+- [x] T8 (A6): Full Rust, `daemon-client`, and CLI test suites, workspace build,
+  formatting (`oxfmt` + `cargo fmt`), lint, clippy, and feature docs lint.
 
 ## Fixtures and placement
 
-Rust core store tests and daemon integration tests follow main's crate layout.
-TypeScript unit/integration tests stay in packages/<pkg>/tests; root e2e uses its
-own vitest configuration. Use isolated database paths, disposable HOME/data
-paths, controlled source fixtures and stub agent registrations, never real agents.
-Use deterministic cleanup-failure injection instead of permissions when running
-as a privileged user. Protocol tests assert errors and state, not only call counts.
+- Rust core store tests: `rust/crates/devkit-core/tests/groups.rs`
+- Rust daemon RPC tests: `rust/crates/devkitd/tests/rpc/groups.rs`
+- TypeScript unit/integration tests:
+  - `packages/daemon-client/tests/groups.test.ts`
+  - `packages/cli/tests/services/agent/agent-group.service.test.ts`
+  - `packages/cli/tests/services/agent/agent.service.test.ts`
+  - `packages/cli/tests/commands/agent.test.ts`
+- Root E2E tests: `e2e/agent-groups.e2e.ts` (run with `e2e/vitest.config.ts`)
 
-## Coverage target and evidence
+All tests use isolated temp directories, disposable `HOME`, and dead stub
+registrations — never real agents or real user `~/.ai-devkit` data.
 
-Every acceptance criterion A1-A8 must have evidence. TDD starts with a failing
-behavior test before production changes. Capture red/green command output during
-implementation, then record exact final command results here. No numeric coverage
-threshold is imposed; cover failure/ownership branches explicitly. Evidence below records the executed checks. Final post-rebase checks remain pending.
+## Final Validation Evidence (2026-11-24, rebased onto `origin/main` `7528c760`)
 
+All commands exited `0`:
 
-## Evidence before rebase
-
-- Core groups: cargo test --manifest-path rust/Cargo.toml -p devkit-core --test
-  groups: 9 passed, including injected SQL write rollback.
-- RPC: cargo test --manifest-path rust/Cargo.toml -p devkitd group_tests: 2 passed.
-- Full cargo test workspace: passed before the added rollback coverage; rerun pending.
-- npm run build: exit 0 after migrating the wait --group caller.
-- npx nx test cli: exit 0, 115 files / 1497 tests; rerun after final cleanup pending.
-- npx nx test daemon-client: exit 0, 4 files / 28 tests.
-- npx vitest run --config e2e/vitest.config.ts: exit 0, 4 files / 53 tests.
-- npm run lint: exit 0; existing unrelated warnings, new unused imports removed.
-- cargo clippy --workspace --all-targets -- -D warnings: exit 0.
-- Smoke: python3 /tmp/group-daemon-smoke.py: exit 0, six checks passed.
-- Feature docs lint: 12 checks passed. Format recheck pending after test cleanup.
-
-TDD evidence is recorded in the implementation document. This feature is not a
-bug fix; missing-behavior red/green tests precede production implementation.
-Skills loaded: dev-lifecycle, dev-worktree, dev-design, dev-requirements,
-dev-planning, dev-implementation, tdd, memory, verify, dev-testing, dev-simplify,
-dev-smoke, dev-review. Task tracing skipped (installed CLI lacks task command).
-
-
-## Final post-rebase evidence
-
-Rebased onto origin/main 30da3467 without conflicts; no dependency on open PR #456.
-All commands below exited 0:
-
-- npm run build: all seven projects built.
-- npm run test: all seven projects passed; CLI 1498, daemon-client 28, and Rust
-  191 unit/integration tests. The agent-manager suite retains 12 existing skips.
-- npx vitest run --config e2e/vitest.config.ts: 53 tests passed across four files.
-- npm run lint: all six configured lint projects passed; existing unrelated
-  warnings remain, no newly introduced unused imports.
-- npm run fmt:check and cargo fmt --all -- --check: passed.
-- cargo clippy --workspace --all-targets -- -D warnings: passed.
-- python3 /tmp/group-daemon-smoke.py: six disposable-home checks passed again.
-- npx ai-devkit@latest lint --feature group-daemon: 12 checks passed.
-- git diff --check: passed.
-
-Code/design and analysis-only simplification reviews found no remaining blockers.
-No tests were added under TypeScript src. Smoke script and fixtures are disposable;
-only the permanent root E2E and package/crate tests are included in the change.
-Skills loaded additionally for publication: dev-commit and dev-pr. Skipped: task
-tracing (unsupported installed command); no requested validation gate skipped.
+- `npm run build` — all 7 workspace projects built cleanly.
+- `cd rust && cargo test` — `devkit-core` (45 unit + 10 durable + 4 groups),
+  `devkitd` (57 unit/rpc + 9 durable), 0 failed.
+- `cd rust && cargo fmt --all --check && cargo clippy --all-targets -- -D warnings` — passed.
+- `npm test -w @ai-devkit/daemon-client` — 4 files / 29 tests passed.
+- `npm test -w ai-devkit` — 117 files / 1541 tests passed.
+- `npm run fmt:check && npm run lint` — all 6 configured lint projects passed.
+- `npx vitest run --config e2e/vitest.config.ts e2e/agent-groups.e2e.ts` —
+  1/1 passed against built CLI (`packages/cli/dist/cli.js`) and real `devkitd`.
+- `nx run-many -t test` (via pre-commit hook) — all 7 projects passed.

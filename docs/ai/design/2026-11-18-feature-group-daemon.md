@@ -6,9 +6,10 @@ description: Approved design for issue 413
 
 # Agent groups in daemon.db
 
-Status: approved by the user on 2026-11-18. Requirements and planning follow
-this approved design. Scope source: issue #413 and the supplied
-group-daemon brief. Base: main commit 47ffc9ca; PR #456 is open and is not a dependency.
+Status: approved by the user (2026-11-18; updated 2026-11-24 to remove the
+unused legacy JSON migration path and align with post-review refinements).
+Scope source: issue #413 and the supplied group-daemon brief. Rebased onto
+`origin/main` (`7528c760`).
 
 ## Architecture Overview
 
@@ -19,122 +20,98 @@ flowchart LR
   Client --> RPC[group RPC handlers]
   RPC --> Store[Core group store]
   Store --> DB[(daemon.db)]
-  Legacy[agent-groups.json] -->|one-time import| Store
   Send -->|each member: agent.lookup| Agent[Existing agent RPC]
   Send --> Runtime[Client runtime sends]
 ```
 
-The daemon is the sole owner and writer of group state. Extend the existing
-Store, protocol types, dispatcher, and daemon client on main. Put group persistence
-in a dedicated core store module and wire operations in the group RPC namespace.
-Replace JSON access in CLI group commands with an asynchronous daemon-backed
-service while retaining domain error classes and command output shapes.
-Reuse connection/capability detection conventions, but never route groups back to
-JSON when connection or capability detection fails. An older daemon requires an
-upgrade/restart. Do not copy the agent registry's repeat-import/dual-write bridge.
+The daemon is the sole owner and writer of group state. Extend `Store`, protocol
+types, dispatcher, and `DaemonClient`. Put group persistence in a dedicated core
+store module (`devkit-core/src/store/groups.rs`) and wire operations in the
+`group.*` RPC namespace (`devkitd/src/rpc/group.rs`). Replace JSON access in CLI
+group commands with an asynchronous daemon-backed `AgentGroupService` that calls
+the typed `DaemonClient` methods while retaining domain error classes, `--debug`
+logging, and command output shapes. Never route groups back to JSON when
+connection or capability detection fails.
 
-## Design Decisions — approved 2026-11-18
+## Design Decisions
 
-1. **Membership rows.** Use `group_members(group_name, member, position)`
-   with unique `(group_name, member)` and `(group_name, position)`, and a foreign key
-   to groups with cascading deletion. Enable foreign key enforcement on the store
-   connection. Order reads by position. Rows give explicit ordering and atomic
-   membership operations; a JSON column is simpler to deserialize but requires
-   rewriting and revalidating the whole array for every member operation.
-2. **Unavailable when daemon is down.** All seven commands and group
-   lookup require the daemon. A frozen JSON fallback would expose outdated
-   membership and could target agents removed from a group. Transport failure and
-   unsupported methods produce actionable errors, without local retries.
-3. **Delete JSON after committed import.** The database ownership fence
-   is authoritative. Keeping a frozen file invites stale reads and mistaken edits.
-   Commit imported data and the fence before unlinking the source. Cleanup failure
-   must not undo ownership or permit a second import; report it and retry cleanup
-   on subsequent startup. Never delete a source whose import failed.
+1. **Membership rows.** Use `group_members(group_name, member, position)` with
+   primary key `(group_name, member)`, unique `(group_name, position)`, and a
+   foreign key to `groups(name)` with `ON DELETE CASCADE`. Enable
+   `PRAGMA foreign_keys = ON` on the store connection. Fetch all groups in a
+   single `LEFT JOIN` query ordered by `(g.ordinal, m.position)`.
+2. **Unavailable when daemon is down.** All seven commands and group lookup
+   require a running, capable daemon. Transport failure and unsupported methods
+   produce actionable errors without local retries or JSON fallback.
+3. **No legacy `agent-groups.json` migration path (2026-11-24).** Because no
+   users rely on `agent-groups.json` yet, `devkitd` does not import, fence, or
+   unlink legacy JSON files. Group tables are initialized cleanly in
+   `Store::open` (`init_groups`) with no `group_migrations` table.
 
 ## Data Models
 
-`groups`: name primary key, created_at and updated_at as preserved ISO timestamp
-strings, plus an internal insertion ordinal to preserve existing list order.
-`group_members`: group_name, member string, position integer; positions preserve
-input order and may have gaps after removal. Members are identifiers, not foreign
-keys to live agent registrations: missing/dead agents do not invalidate a group.
-`group_migrations`: a namespaced one-time ownership marker, committed in the same
-transaction as the imported groups and members. No dependency on a durable-agent
-migration table from PR #456.
+- `groups`: `ordinal INTEGER PRIMARY KEY AUTOINCREMENT` (preserves insertion
+  order for listing), `name TEXT NOT NULL UNIQUE`, `created_at TEXT NOT NULL`,
+  `updated_at TEXT NOT NULL` (ISO-8601 UTC strings).
+- `group_members`: `group_name TEXT NOT NULL REFERENCES groups(name) ON DELETE
+  CASCADE`, `member TEXT NOT NULL`, `position INTEGER NOT NULL`,
+  `PRIMARY KEY(group_name, member)`, `UNIQUE(group_name, position)`. Members are
+  identifiers, not foreign keys to live agent registrations: missing/dead agents
+  do not invalidate a group.
 
-All mutations run under the existing Store connection mutex and a transaction.
-Create, replace-members, add, remove-member, and delete enforce invariants before
-commit. No-op add preserves updatedAt; successful membership changes update it.
-Create/update reject duplicates after trimming; members must be nonblank but do
-not inherit the group-name regex. Names use the existing AGENT_NAME_REGEX rules.
-Removing an absent member is InvalidMember; removing the final member is
-EmptyMembers. Preserve existing validation/error precedence where observable.
+All mutations run under the `Store` connection mutex and a transaction. Create,
+update, add-member, remove-member, and delete enforce invariants before commit.
+No-op add preserves `updatedAt`; successful membership changes update it.
+Create/update reject blanks and duplicates after trimming; members do not
+inherit the group-name regex. Group names trim and match `AGENT_NAME_REGEX`.
+Removing an absent member is `InvalidMember`; removing the final member is
+`EmptyMembers`.
 
 ## API Design
 
-Use the existing daemon wire envelope and typed Rust/TypeScript protocol types.
-Group records retain `{name, members, createdAt, updatedAt}`.
+Use the existing daemon wire envelope and `ts-rs`-generated Rust/TypeScript
+protocol types (`AgentGroup`, `GroupNameParams`, `GroupMembersParams`,
+`GroupMemberParams`). Group records retain
+`{ name, members, createdAt, updatedAt }`.
 
 | RPC | Parameters | Result |
 | --- | --- | --- |
-| group.create | name, members | group |
-| group.update | name, members | group with replaced members |
-| group.add | name, member | group |
-| group.remove_agent | name, member | group |
-| group.remove | name | deletion acknowledgement |
-| group.list | none | groups in insertion order |
-| group.detail | name | group |
-| group.lookup | name | group with ordered members for fanout |
+| `group.create` | `name`, `members` | `AgentGroup` |
+| `group.update` | `name`, `members` | `AgentGroup` with replaced members |
+| `group.add` | `name`, `member` | `AgentGroup` |
+| `group.remove_agent` | `name`, `member` | `AgentGroup` |
+| `group.remove` | `name` | `{ ok: true }` |
+| `group.list` | none | `AgentGroup[]` in insertion order |
+| `group.detail` | `name` | `AgentGroup` |
+| `group.lookup` | `name` | `AgentGroup` with ordered members for fanout |
 
-Use distinct coded errors for NotFound, Conflict, InvalidName, InvalidMember,
-EmptyMembers, and Storage; map them back to existing CLI domain error categories.
-Include the relevant group/member identifier in structured details. Malformed
-wire parameter types remain invalid_params. Connection/capability errors remain
-availability errors rather than masquerading as missing groups.
+Distinct coded errors (`not_found`, `conflict`, `invalid_name`,
+`invalid_member`, `empty_members`, `storage`) map back to the six CLI
+`AgentGroup*Error` classes with structured details. Malformed wire parameter
+types return `invalid_params`; unknown `group.*` methods return
+`unknown_method`. Connection/capability errors remain availability errors rather
+than masquerading as missing groups.
 
-Group send first calls group.lookup, then uses agent.lookup for each resolved
-member and the existing client runtime send machinery. Preserve ordered targeting,
-per-member outcomes, and existing fanout behavior. The group path must not silently
-use local registry targets if agent.lookup fails or is unsupported. Ordinary
-single-agent send behavior remains outside this migration's scope.
-
-## Import and Ownership
-
-Before serving group RPCs, initialize the group schema and perform import using
-the daemon's configured data-home conventions, including disposable-home support.
-Check the database fence first. If owned, ignore any recreated JSON source.
-Otherwise read version 1, validate the entire document, and atomically insert all
-groups/members and the ownership marker. Preserve timestamps and ordering.
-An absent source commits ownership of an empty initial state so a later stale
-file cannot resurrect groups. Invalid JSON, unsupported versions, invalid domain
-data, or duplicate group names fail the whole import without a fence or deletion;
-surface Storage rather than silently losing rows. Group operations remain blocked
-until repaired, while unrelated daemon operations can continue.
-
-Never overwrite existing database groups on import conflict. A crash before
-commit leaves the source available for retry; a crash after commit cannot repeat
-the import. JSON deletion follows commit and is cleanup only. Concurrent writes
-from old CLI versions during migration are unsupported; release guidance must
-require stopping old writers before upgrade. Rollback to an old CLI does not
-recover group state from JSON after successful migration.
+Group send opens one daemon connection, calls `group.lookup`, then calls
+`agent.lookup` for each resolved member and delivers via the existing client
+`sendAgentPrompt` machinery using `createDaemonEntryRegistry`. Only `not_found`
+and `!entry.alive` are collected as per-member resolution errors; transport
+failures and `unknown method` abort immediately. Because `agent.lookup` does not
+carry live turn status, group delivery does not emit synthetic busy warnings.
+Ordinary single-agent send behavior remains outside this migration's scope.
 
 ## Validation and Rollout
 
-- Core store tests: CRUD, ordering, normalization, duplicate rejection, no-op add,
-  absent/final-member removal, timestamp behavior, atomic rollback, persistence,
-  concurrent mutations, valid/malformed/absent import, crash boundaries and fence
-  against recreated JSON and deleted-group resurrection.
-- Daemon integration tests: all eight RPCs, malformed requests, error categories,
-  restart/import behavior, cleanup failure and unsupported capability behavior.
-- TypeScript tests in packages/<pkg>/tests/: daemon routing of seven commands,
-  error mapping, availability behavior, group lookup and per-member agent lookup.
-- E2E in root e2e/: built CLI and real daemon with disposable homes and registered
-  stub entries or wire verification of fanout targets; create/add/send/detail/list.
-- Smoke: real built CLI, import fence, empty-members/name-conflict rejection and
-  list/detail after import. No real agents or user home data.
-- Build dependencies before package tests; run cargo tests, CLI tests, lint,
-  formatting and clippy. Review, rebase onto origin/main, rerun affected checks,
-  then commit/push/open PR. PR creation is the stop condition.
-
-The user approved all three decisions and authorized requirements, planning, TDD,
-testing, smoke, review, rebase onto origin/main and PR creation. PR is the stop condition.
+- Core store tests: CRUD, ordering, normalization, duplicate/blank/empty
+  rejection, no-op add, absent/final-member removal, timestamp behavior, atomic
+  rollback (SQL trigger fault injection), persistence, and concurrent mutations.
+- Daemon integration tests: all eight RPCs, malformed requests, `unknown_method`,
+  and coded domain error categories.
+- TypeScript tests in `packages/<pkg>/tests/`: typed `DaemonClient` group
+  methods, `AgentGroupService` routing/error mapping/availability/`onDebug` and
+  caller-owned client reuse, CLI routing of all seven commands (including
+  `--debug`), `wait --group`, and `send --group` fanout/error-handling rules.
+- E2E in root `e2e/agent-groups.e2e.ts`: built CLI and real `devkitd` with
+  disposable homes and dead stub registrations verifying ordered `group.lookup`
+  + `agent.lookup` fanout, CRUD, error categories, and persistence across
+  restart.
