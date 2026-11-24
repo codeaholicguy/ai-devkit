@@ -1,3 +1,5 @@
+import type { DurableAgentWire } from "./gen/DurableAgentWire.js";
+import type { DurableRunWire } from "./gen/DurableRunWire.js";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -32,6 +34,21 @@ export class DaemonRpcError extends Error {
 export function daemonSocketPath(): string {
   return path.join(os.homedir(), ".ai-devkit", "daemon.sock");
 }
+
+export interface DurableCreateParams {
+  name: string;
+  provider?: "claude" | "codex" | "pi";
+  cwd: string;
+}
+export interface DurableLaunchResult {
+  agent: DurableAgentWire;
+  runId: string;
+}
+export interface DurableRunDetail {
+  agent: DurableAgentWire;
+  run: DurableRunWire | null;
+}
+export type DurableResolution = DurableAgentWire | DurableAgentWire[] | null;
 
 interface Pending {
   resolve: (v: unknown) => void;
@@ -178,6 +195,35 @@ export class DaemonClient {
       from,
       to,
     } satisfies AgentRenameParams)) as AgentRenameResult;
+  }
+
+  async durableCapabilities(): Promise<{ version: number; owner: string }> {
+    return (await this.request("durable.capabilities")) as { version: number; owner: string };
+  }
+  async createDurable(params: DurableCreateParams): Promise<DurableAgentWire> {
+    return (await this.request("durable.create", params)) as DurableAgentWire;
+  }
+  async listDurable(): Promise<DurableAgentWire[]> {
+    return (await this.request("durable.list")) as DurableAgentWire[];
+  }
+  async showDurable(reference: string): Promise<DurableResolution>;
+  async showDurable(reference: string, runId: string): Promise<DurableRunDetail>;
+  async showDurable(
+    reference: string,
+    runId?: string,
+  ): Promise<DurableResolution | DurableRunDetail> {
+    return (await this.request("durable.show", { reference, runId })) as
+      | DurableResolution
+      | DurableRunDetail;
+  }
+  async sendDurable(id: string, prompt: string): Promise<DurableLaunchResult> {
+    return (await this.request("durable.send", { id, prompt })) as DurableLaunchResult;
+  }
+  async runDurable(id: string, prompt: string): Promise<DurableLaunchResult> {
+    return (await this.request("durable.run", { id, prompt })) as DurableLaunchResult;
+  }
+  async stopDurable(id: string, runId?: string): Promise<DurableAgentWire> {
+    return (await this.request("durable.stop", { id, runId })) as DurableAgentWire;
   }
 
   private onData(chunk: Buffer) {

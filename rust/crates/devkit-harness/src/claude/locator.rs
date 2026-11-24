@@ -32,7 +32,7 @@ pub struct Matches<'a> {
 }
 
 /// `getProjectDir` — every non-alphanumeric char becomes '-'.
-fn encoded_project_dir(projects_dir: &Path, cwd: &str) -> PathBuf {
+pub(crate) fn encoded_project_dir(projects_dir: &Path, cwd: &str) -> PathBuf {
     let encoded: String = cwd
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })

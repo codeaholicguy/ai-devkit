@@ -6,9 +6,10 @@ section: reference
 order: 3
 ---
 
-Agent detection and session coordination run through `devkitd`, a small daemon written in Rust. You normally never manage it: any AI DevKit command that needs it auto-spawns it and connects over a Unix socket.
+Agent detection, session coordination, and durable agent execution run through `devkitd`, a small daemon written in Rust. You normally never manage it: any AI DevKit command that needs it auto-spawns it and connects over a Unix socket.
 
 - **Socket:** `~/.ai-devkit/daemon.sock`
+- **Database:** `~/.ai-devkit/daemon.db` (agent snapshots, event log, and durable agents/runs)
 - **Log:** `~/.ai-devkit/daemon.log`
 - **Binary:** resolved from the `DEVKITD_BIN` environment variable, the per-platform binary package that ships with the release, or a local cargo build.
 
@@ -29,7 +30,7 @@ ai-devkit daemon install    # install a systemd --user unit for boot persistence
 | Variable | Purpose |
 |----------|---------|
 | `DEVKITD_BIN` | Path to a custom `devkitd` binary (documented above) |
-| `AI_DEVKIT_NO_DAEMON` | When set, skip auto-spawning `devkitd` and use in-process behavior (useful when debugging stale daemon issues) |
+| `AI_DEVKIT_NO_DAEMON` | When set, skip auto-spawning `devkitd` and use in-process behavior for interactive commands (durable agent create/send require a running `devkitd`) |
 
 ## Troubleshooting
 

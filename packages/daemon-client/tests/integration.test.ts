@@ -165,3 +165,46 @@ describe("agent lookup/unregister wire calls", () => {
     }
   });
 });
+
+it("routes typed durable methods over the socket", async () => {
+  const calls: { method: string; params: unknown }[] = [];
+  const sock = path.join(os.tmpdir(), `durable-wire-${process.pid}.sock`);
+  const server = net.createServer((conn) => {
+    let buffer = "";
+    conn.on("data", (data) => {
+      buffer += data.toString();
+      let end;
+      while ((end = buffer.indexOf("\n")) >= 0) {
+        const req = JSON.parse(buffer.slice(0, end));
+        buffer = buffer.slice(end + 1);
+        calls.push(req);
+        conn.write(JSON.stringify({ id: req.id, result: {} }) + "\n");
+      }
+    });
+  });
+  await new Promise<void>((r) => server.listen(sock, r));
+  const client = await DaemonClient.connect(sock);
+  try {
+    await client.durableCapabilities();
+    await client.createDurable({ name: "worker", provider: "claude", cwd: "/repo" });
+    await client.listDurable();
+    await client.showDurable("worker", "run");
+    await client.sendDurable("id", "prompt");
+    await client.runDurable("id", "prompt");
+    await client.stopDurable("id", "run");
+    expect(calls.map((c) => c.method)).toEqual([
+      "durable.capabilities",
+      "durable.create",
+      "durable.list",
+      "durable.show",
+      "durable.send",
+      "durable.run",
+      "durable.stop",
+    ]);
+    expect(calls[3].params).toEqual({ reference: "worker", runId: "run" });
+  } finally {
+    client.close();
+    server.close();
+    fs.rmSync(sock, { force: true });
+  }
+});

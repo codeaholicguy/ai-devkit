@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use super::parser;
 
 /// `--<cwd with / → ->--`, e.g. `/Users/x/proj` → `--Users-x-proj--`.
-fn encode_project_dir(cwd: &str) -> String {
+pub(crate) fn encode_project_dir(cwd: &str) -> String {
     // path.resolve(cwd) — strip the leading '/', join '-' on separators.
     let normalized = cwd.trim_end_matches('/');
     let stripped = normalized.strip_prefix('/').unwrap_or(normalized);

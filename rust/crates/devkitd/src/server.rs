@@ -12,6 +12,7 @@ use tokio::net::{UnixListener, UnixStream};
 use tokio::sync::broadcast;
 
 pub struct Daemon {
+    pub durable: crate::durable::DurableSupervisor,
     pub store: Arc<Store>,
     pub events: broadcast::Sender<Event>,
     /// Serializes store.emit + broadcast send so subscribers always observe
@@ -69,7 +70,12 @@ impl Daemon {
         if let Err(e) = store.import_legacy_agents() {
             tracing::warn!("legacy agents.db import failed: {e:#}");
         }
+        let durable = crate::durable::DurableSupervisor::new(store.clone(), home.clone());
+        if let Err(e) = durable.reconcile() {
+            tracing::warn!("durable startup reconciliation: {e:#}");
+        }
         Ok(Self {
+            durable,
             store,
             events: tx,
             emit_mutex: std::sync::Mutex::new(()),
@@ -112,6 +118,31 @@ impl Daemon {
                 status["pid"] = json!(std::process::id());
                 Response::ok(id, status)
             }
+            m if m.starts_with("durable.") => match self.durable.dispatch(m, &req.params) {
+                Ok(result) => Response::ok(id, result),
+                Err(e) => {
+                    let message = format!("{e:#}");
+                    let code = message
+                        .split(':')
+                        .next()
+                        .filter(|c| {
+                            [
+                                "invalid_params",
+                                "invalid_cwd",
+                                "not_found",
+                                "busy",
+                                "ownership_changed",
+                                "session_mismatch",
+                                "spawn_failed",
+                                "name_in_use",
+                                "unknown_method",
+                            ]
+                            .contains(c)
+                        })
+                        .unwrap_or("internal");
+                    Response::err_coded(id, code, message.clone(), None)
+                }
+            },
             "agent.list" => {
                 let cached = self.enriched.read().unwrap().clone();
                 Response::ok(id, serde_json::to_value(cached).unwrap())
@@ -203,6 +234,9 @@ impl Daemon {
     /// `isCandidateProcess` gating; dedicated-binary procs stay raw-visible
     /// so unported harnesses still surface.
     pub fn apply_sweep(&self) {
+        if let Err(e) = self.durable.reconcile() {
+            tracing::warn!("durable sweep: {e:#}");
+        }
         let Some(all) = devkit_core::discover::sweep() else {
             // ps failed — keep the last good snapshot rather than wiping the
             // agent table and storming phantom disappeared/appeared events.

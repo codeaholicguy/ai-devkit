@@ -147,6 +147,30 @@ skills:
     skill: tdd
 ```
 
+### Durable agents
+
+Create a reusable identity, then send prompts by its name or ID:
+
+```bash
+ai-devkit agent start --mode durable --type claude --name reviewer
+ai-devkit agent send 'Review the current changes' --id reviewer
+ai-devkit agent sessions --all --json
+ai-devkit agent session detail --id reviewer --json
+```
+
+Durable mode supports Claude, Codex, and Pi. A compatible `devkitd` owns these
+agents and their runs in `~/.ai-devkit/daemon.db`; closing the CLI does not cancel
+a run. Pass `--debug` to `agent start` or `agent send` to trace daemon capability
+negotiation and routing (`ai-devkit:agent:durable`). A nonzero provider exit or
+invalid result stream fails the run. After a daemon restart, surviving providers
+are monitored by process identity; if their completion cannot be recovered, the
+run becomes interrupted with an unknown exit code.
+
+Durable agents require a running, compatible `devkitd` (run `ai-devkit daemon stop`
+after upgrading so the updated daemon respawns). Any legacy durable identities
+previously created in `agents.db` are not migrated; recreate them with
+`ai-devkit agent start --mode durable`.
+
 ## Documentation
 
 📖 **For the full user guide, workflow examples, and best practices, visit:**

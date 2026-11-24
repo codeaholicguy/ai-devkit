@@ -1,5 +1,6 @@
+import { createDurableAgentService } from "../../commands/agent/factory.js";
 import {
-  DurableAgentRepository,
+  type DurableAgentRepository,
   type AgentInfo,
   type AgentManager,
 } from "@ai-devkit/agent-manager";
@@ -101,7 +102,7 @@ export type DurableAgentResolution = Exclude<
 export async function resolveDurableAgentEntry(
   identifier: string,
   getLiveAgents: () => Promise<AgentInfo[]>,
-  repository = new DurableAgentRepository(),
+  repository: Pick<DurableAgentRepository, "resolve"> = createDurableAgentService().repository,
 ): Promise<DurableAgentResolution | null> {
   const resolved = await repository.resolve(identifier);
   if (Array.isArray(resolved)) {

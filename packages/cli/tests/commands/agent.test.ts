@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import type { Mock } from "vitest";
 import { Command } from "commander";
 
@@ -348,6 +351,14 @@ vi.mock("@ai-devkit/daemon-client", async (importOriginal) => {
     ensureDaemon: mockEnsureDaemon,
   };
 });
+
+vi.mock("../../src/services/agent/durable-agent.service.js", () => ({
+  DurableAgentService: vi.fn(function (provider: string) {
+    if (provider === "codex") return mockCodexPrintService;
+    if (provider === "pi") return mockPiPrintService;
+    return mockDurableService;
+  }),
+}));
 
 vi.mock("../../src/tui/console/ConsoleApp.js", () => ({
   ConsoleApp: () => null,
@@ -2127,7 +2138,7 @@ Waiting on user input`,
       expect(mockEnsureDaemon).not.toHaveBeenCalled();
     });
 
-    it("does not consult the daemon for durable agents", async () => {
+    it("uses the local durable service when daemon durable capability is absent", async () => {
       daemonUp(tmuxEntry);
       mockDurableRepository.resolve.mockResolvedValue({
         id: "repo-a",
@@ -2145,7 +2156,7 @@ Waiting on user input`,
       await send("hello", "--id", "repo-a");
 
       expect(mockDurableService.send).toHaveBeenCalledWith("repo-a", "hello");
-      expect(mockEnsureDaemon).not.toHaveBeenCalled();
+      expect(mockDaemonLookup).not.toHaveBeenCalled();
     });
 
     it("traces daemon routing under --debug", async () => {
@@ -4667,6 +4678,97 @@ Waiting on user input`,
       expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
       expect(JSON.parse(logSpy.mock.calls[0][0] as string)).toMatchObject({ reason: "triggered" });
       expect(process.exit).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("daemon-backed durable session browsing", () => {
+    const durable = {
+      id: "durable-one",
+      name: "worker",
+      provider: "codex",
+      mode: "durable",
+      providerSessionId: null,
+      cwd: process.cwd(),
+      state: "ready",
+      sessionHealth: "uninitialized",
+      createdAt: "2026-11-17T00:00:00.000Z",
+      updatedAt: "2026-11-17T00:00:00.000Z",
+      lastActiveAt: null,
+      lastResult: null,
+      activeRun: null,
+    };
+    it("includes durable identities without a transcript in sessions", async () => {
+      mockDurableRepository.list.mockResolvedValue([durable]);
+      mockManager.listSessions.mockResolvedValue([]);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", "sessions", "--all", "--json"]);
+      expect(JSON.parse(log.mock.calls.at(-1)![0])).toEqual([
+        expect.objectContaining({ durableId: durable.id, mode: "durable", sessionId: durable.id }),
+      ]);
+    });
+    it("preserves discovered transcript metadata when adding durable identity", async () => {
+      const session = {
+        type: "codex",
+        sessionId: "bound",
+        cwd: process.cwd(),
+        firstUserMessage: "original prompt",
+        sessionFilePath: "/transcript",
+        startedAt: new Date("2026-11-17T00:00:00.000Z"),
+        lastActive: new Date("2026-11-17T01:00:00.000Z"),
+      };
+      mockDurableRepository.list.mockResolvedValue([{ ...durable, providerSessionId: "bound" }]);
+      mockManager.listSessions.mockResolvedValue([session]);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync(["node", "test", "agent", "sessions", "--all", "--json"]);
+      expect(JSON.parse(log.mock.calls.at(-1)![0])).toEqual([
+        expect.objectContaining({
+          durableId: durable.id,
+          firstUserMessage: "original prompt",
+          sessionFilePath: "/transcript",
+        }),
+      ]);
+    });
+    it("matches durable sessions when --cwd is a symlink to the canonical cwd", async () => {
+      const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "durable-cwd-"));
+      try {
+        const targetDir = path.join(tempRoot, "real");
+        const linkDir = path.join(tempRoot, "link");
+        fs.mkdirSync(targetDir);
+        fs.symlinkSync(targetDir, linkDir);
+        const canonicalTarget = fs.realpathSync(targetDir);
+        mockDurableRepository.list.mockResolvedValue([{ ...durable, cwd: canonicalTarget }]);
+        mockManager.listSessions.mockResolvedValue([]);
+        const log = vi.spyOn(console, "log").mockImplementation(() => {});
+        const program = new Command();
+        registerAgentCommand(program);
+        await program.parseAsync(["node", "test", "agent", "sessions", "--cwd", linkDir, "--json"]);
+        expect(JSON.parse(log.mock.calls.at(-1)![0])).toEqual([
+          expect.objectContaining({ durableId: durable.id, cwd: canonicalTarget }),
+        ]);
+      } finally {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+      }
+    });
+    it("resolves durable session detail without opening local transcripts", async () => {
+      mockDurableRepository.resolve.mockResolvedValue(durable);
+      const log = vi.spyOn(console, "log").mockImplementation(() => {});
+      const program = new Command();
+      registerAgentCommand(program);
+      await program.parseAsync([
+        "node",
+        "test",
+        "agent",
+        "session",
+        "detail",
+        "--id",
+        durable.id,
+        "--json",
+      ]);
+      expect(JSON.parse(log.mock.calls.at(-1)![0])).toEqual(durable);
     });
   });
 });

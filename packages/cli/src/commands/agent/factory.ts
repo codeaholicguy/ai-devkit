@@ -1,11 +1,8 @@
+import { DurableAgentService } from "../../services/agent/durable-agent.service.js";
 import {
   AgentManager,
   AgentRegistry,
   createBuiltinAdapters,
-  ClaudePrintAgentService,
-  CodexPrintAgentService,
-  DurableAgentRepository,
-  PiPrintAgentService,
   type AgentInfo,
   type AgentRuntimeProvider,
   type AgentType,
@@ -109,9 +106,6 @@ export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentR
 
 export function createDurableAgentService(
   provider: DurableProvider = "claude",
-): ClaudePrintAgentService | CodexPrintAgentService | PiPrintAgentService {
-  const repository = new DurableAgentRepository();
-  if (provider === "codex") return new CodexPrintAgentService({ repository });
-  if (provider === "pi") return new PiPrintAgentService({ repository });
-  return new ClaudePrintAgentService({ repository });
+): DurableAgentService {
+  return new DurableAgentService(provider);
 }
