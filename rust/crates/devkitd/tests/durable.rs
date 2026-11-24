@@ -160,53 +160,6 @@ fn reused_process_identity_is_interrupted_with_unknown_exit() {
     assert!(done["result"]["run"]["exitCode"].is_null());
 }
 #[test]
-fn corrupt_durable_database_is_not_replaced_with_empty_state() {
-    let mut f = Fixture::new();
-    f.create();
-    f.child.kill().unwrap();
-    f.child.wait().unwrap();
-    for side in ["-wal", "-shm"] {
-        let _ = std::fs::remove_file(f.dir.join(format!(".ai-devkit/daemon.db{side}")));
-    }
-    std::fs::write(f.dir.join(".ai-devkit/daemon.db"), b"corrupt durable state").unwrap();
-    f.child = Fixture::launch(&f.dir);
-    let deadline = Instant::now() + Duration::from_secs(3);
-    loop {
-        if let Some(status) = f.child.try_wait().unwrap() {
-            assert!(!status.success());
-            break;
-        }
-        assert!(
-            Instant::now() < deadline,
-            "daemon silently replaced corrupt durable state"
-        );
-        std::thread::sleep(Duration::from_millis(20));
-    }
-    assert_eq!(
-        std::fs::read(f.dir.join(".ai-devkit/daemon.db")).unwrap(),
-        b"corrupt durable state"
-    );
-}
-#[test]
-fn stop_imported_legacy_provider_without_a_private_process_group() {
-    let f = Fixture::new();
-    let mut provider = Command::new("sleep").arg("30").spawn().unwrap();
-    let (pid, started) = devkit_core::durable_process::identity(provider.id() as i64)
-        .unwrap()
-        .unwrap();
-    let db = rusqlite::Connection::open(f.dir.join(".ai-devkit/agents.db")).unwrap();
-    db.execute_batch("CREATE TABLE durable_agents AS SELECT 'old' AS id,'legacy' AS name,'codex' AS provider,'durable' AS mode,'/bound' AS cwd,NULL AS provider_session_id,'running' AS state,'healthy' AS session_health,'created' AS created_at,'updated' AS updated_at,NULL AS last_active_at,NULL AS last_result_status,NULL AS last_result_completed_at,NULL AS last_result_exit_code,NULL AS last_result_summary,'active-token' AS active_run_token,99999999 AS active_owner_pid,'dead' AS active_owner_started_at,NULL AS active_provider_pid,NULL AS active_provider_started_at,'started' AS active_run_started_at;").unwrap();
-    db.execute(
-        "UPDATE durable_agents SET active_provider_pid=?,active_provider_started_at=?",
-        rusqlite::params![pid, started],
-    )
-    .unwrap();
-    let stopped = f.rpc("durable.stop", json!({"id":"old"}));
-    let _ = provider.kill();
-    let _ = provider.wait();
-    assert_eq!(stopped["result"]["state"], "degraded", "{stopped}");
-}
-#[test]
 fn spawn_failure_releases_ownership_and_records_failure() {
     let f = Fixture::new();
     let a = f.create();

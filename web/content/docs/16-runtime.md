@@ -10,7 +10,6 @@ Agent detection, session coordination, and durable agent execution run through `
 
 - **Socket:** `~/.ai-devkit/daemon.sock`
 - **Database:** `~/.ai-devkit/daemon.db` (agent snapshots, event log, and durable agents/runs)
-- **Ownership fence:** `~/.ai-devkit/durable-owner-v1.json` (marks durable ownership transfer from legacy `agents.db`)
 - **Log:** `~/.ai-devkit/daemon.log`
 - **Binary:** resolved from the `DEVKITD_BIN` environment variable, the per-platform binary package that ships with the release, or a local cargo build.
 
@@ -31,7 +30,7 @@ ai-devkit daemon install    # install a systemd --user unit for boot persistence
 | Variable | Purpose |
 |----------|---------|
 | `DEVKITD_BIN` | Path to a custom `devkitd` binary (documented above) |
-| `AI_DEVKIT_NO_DAEMON` | When set, skip auto-spawning `devkitd` and use in-process behavior for interactive commands (after durable ownership transfers to `devkitd`, local fallback for durable agents is disabled) |
+| `AI_DEVKIT_NO_DAEMON` | When set, skip auto-spawning `devkitd` and use in-process behavior for interactive commands (durable agent create/send require a running `devkitd`) |
 
 ## Troubleshooting
 

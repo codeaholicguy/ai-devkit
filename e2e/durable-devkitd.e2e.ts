@@ -21,7 +21,7 @@ afterEach(async () => {
   if (directory) await rm(directory, { recursive: true, force: true });
 });
 describe("durable CLI with real devkitd and fixture start-profile commands", () => {
-  it("imports legacy identity and supports create/send/resume/session for all providers", async () => {
+  it("supports create/send/resume/session for all providers", async () => {
     directory = await mkdtemp(join(tmpdir(), "durable-e2e-"));
     await mkdir(join(directory, "bin"));
     const stub = `#!/usr/bin/env python3
@@ -50,17 +50,6 @@ else:
       DEVKITD_BIN: binary,
       NO_COLOR: "1",
     };
-    const repository = join(root, "packages/agent-manager/dist/index.js");
-    const seeded = await exec(
-      process.execPath,
-      [
-        "--input-type=module",
-        "-e",
-        `import {DurableAgentRepository} from ${JSON.stringify(repository)};const r=new DurableAgentRepository();console.log(JSON.stringify(await r.create({name:'legacy',cwd:process.cwd(),provider:'claude'})));`,
-      ],
-      { cwd: directory, env },
-    );
-    const legacy = JSON.parse(seeded.stdout);
     daemon = spawn(binary, ["serve"], { env, stdio: "ignore" });
     const sock = join(directory, ".ai-devkit/daemon.sock");
     for (let tries = 0; tries < 100; tries++) {
@@ -69,7 +58,6 @@ else:
       await new Promise((r) => setTimeout(r, 20));
     }
     expect(client).toBeDefined();
-    expect((await client!.showDurable(legacy.id))?.id).toBe(legacy.id);
     const run = async (args: string[]) =>
       (
         await exec(process.execPath, [cli, "agent", ...args], {

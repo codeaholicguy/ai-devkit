@@ -3,10 +3,6 @@ import {
   AgentManager,
   AgentRegistry,
   createBuiltinAdapters,
-  ClaudePrintAgentService,
-  CodexPrintAgentService,
-  DurableAgentRepository,
-  PiPrintAgentService,
   type AgentInfo,
   type AgentRuntimeProvider,
   type AgentType,
@@ -111,14 +107,5 @@ export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentR
 export function createDurableAgentService(
   provider: DurableProvider = "claude",
 ): DurableAgentService {
-  return new DurableAgentService(provider, () => createLocalDurableService(provider));
-}
-
-function createLocalDurableService(
-  provider: DurableProvider,
-): ClaudePrintAgentService | CodexPrintAgentService | PiPrintAgentService {
-  const repository = new DurableAgentRepository();
-  if (provider === "codex") return new CodexPrintAgentService({ repository });
-  if (provider === "pi") return new PiPrintAgentService({ repository });
-  return new ClaudePrintAgentService({ repository });
+  return new DurableAgentService(provider);
 }

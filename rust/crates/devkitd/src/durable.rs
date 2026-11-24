@@ -8,10 +8,7 @@ use std::{
     io::{Read, Write},
     os::unix::process::CommandExt,
     process::{Child, ChildStdout, Command, Stdio},
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -20,47 +17,15 @@ pub struct DurableSupervisor {
     // Also serializes acquire/spawn/attach with sweep and stop. Tokens here
     // belong to this daemon; only their waiters may finalize them.
     children: Arc<Mutex<HashSet<String>>>,
-    data_dir: std::path::PathBuf,
-    fenced: AtomicBool,
 }
 impl DurableSupervisor {
-    pub fn new(store: Arc<Store>, data_dir: &std::path::Path) -> Self {
+    pub fn new(store: Arc<Store>) -> Self {
         Self {
             store,
             children: Arc::new(Mutex::new(HashSet::new())),
-            data_dir: data_dir.into(),
-            fenced: AtomicBool::new(false),
         }
-    }
-    pub fn ready(&self) -> Result<()> {
-        // Fence BEFORE importing/creating daemon state. A failed transfer
-        // still denies local fallback, preserving the recovery source.
-        if !self.fenced.load(Ordering::Acquire) {
-            let fence = self.data_dir.join("durable-owner-v1.json");
-            match std::fs::OpenOptions::new()
-                .write(true)
-                .create_new(true)
-                .open(&fence)
-            {
-                Ok(mut f) => {
-                    f.write_all(b"{\"owner\":\"devkitd\",\"version\":1}\n")?;
-                    f.sync_all()?;
-                    std::fs::File::open(&self.data_dir)?.sync_all()?;
-                }
-                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {}
-                Err(e) => return Err(e.into()),
-            }
-            self.fenced.store(true, Ordering::Release);
-        }
-        let legacy = self.data_dir.join("agents.db");
-        if legacy.exists() {
-            self.store.durable_import_legacy(&legacy)?;
-        }
-        Ok(())
     }
     pub fn dispatch(&self, method: &str, p: &Value) -> Result<Value> {
-        self.ready()
-            .context("migration_failed: durable ownership transfer unavailable")?;
         self.reconcile()?;
         let field = |key: &str| {
             p[key]
@@ -191,10 +156,7 @@ impl DurableSupervisor {
                         .is_some_and(|(_, s)| Some(s.as_str()) == p["startedAt"].as_str()))
                 };
             // An observation error propagates; no destructive reconciliation.
-            if live(&r["provider"])?
-                || (r["owner"]["pid"].as_i64() != Some(std::process::id() as i64)
-                    && live(&r["owner"])?)
-            {
+            if live(&r["provider"])? {
                 continue;
             }
             self.store.durable_complete(

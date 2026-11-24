@@ -165,14 +165,10 @@ invalid result stream fails the run. After a daemon restart, surviving providers
 are monitored by process identity; if their completion cannot be recovered, the
 run becomes interrupted with an unknown exit code.
 
-On upgrade, `devkitd` imports existing durable identities from `agents.db` once,
-retaining that file for recovery. After ownership transfer, the updated CLI
-requires a compatible daemon and refuses local fallback to stale rows. Avoid
-running older CLI binaries or downgrading after transfer: later legacy writes
-are not imported. If import fails, repair the reported source/conflict and retry;
-do not delete the ownership fence (`~/.ai-devkit/durable-owner-v1.json`) to
-bypass the error. Corrupt daemon databases are preserved for recovery once
-durable ownership has transferred.
+Durable agents require a running, compatible `devkitd` (run `ai-devkit daemon stop`
+after upgrading so the updated daemon respawns). Any legacy durable identities
+previously created in `agents.db` are not migrated; recreate them with
+`ai-devkit agent start --mode durable`.
 
 ## Documentation
 

@@ -50,11 +50,6 @@ impl Daemon {
         let store = match Store::open(&db) {
             Ok(s) => s,
             Err(e) => {
-                // Durable ownership has moved here: silently replacing the
-                // database would erase identities and run history.
-                if data_dir.join("durable-owner-v1.json").exists() {
-                    return Err(e.context("durable database unavailable; preserve it for recovery"));
-                }
                 let backup = format!("daemon.db.corrupt-{}", chrono_now());
                 tracing::warn!("daemon.db failed to open ({e:#}); moving to {backup}");
                 for side in ["", "-wal", "-shm"] {
@@ -75,8 +70,8 @@ impl Daemon {
         if let Err(e) = store.import_legacy_agents() {
             tracing::warn!("legacy agents.db import failed: {e:#}");
         }
-        let durable = crate::durable::DurableSupervisor::new(store.clone(), data_dir);
-        if let Err(e) = durable.ready().and_then(|_| durable.reconcile()) {
+        let durable = crate::durable::DurableSupervisor::new(store.clone());
+        if let Err(e) = durable.reconcile() {
             tracing::warn!("durable startup reconciliation: {e:#}");
         }
         Ok(Self {
@@ -140,7 +135,6 @@ impl Daemon {
                                 "session_mismatch",
                                 "spawn_failed",
                                 "name_in_use",
-                                "migration_failed",
                                 "unknown_method",
                             ]
                             .contains(c)

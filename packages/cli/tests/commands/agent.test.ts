@@ -348,16 +348,17 @@ vi.mock("@ai-devkit/daemon-client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ai-devkit/daemon-client")>();
   return {
     ...actual,
-    ensureDaemon: async (...args: unknown[]) => {
-      const client = await mockEnsureDaemon(...args);
-      if (client && !client.durableCapabilities)
-        client.durableCapabilities = vi
-          .fn()
-          .mockRejectedValue(new actual.DaemonRpcError("unknown method: durable.capabilities"));
-      return client;
-    },
+    ensureDaemon: mockEnsureDaemon,
   };
 });
+
+vi.mock("../../src/services/agent/durable-agent.service.js", () => ({
+  DurableAgentService: vi.fn(function (provider: string) {
+    if (provider === "codex") return mockCodexPrintService;
+    if (provider === "pi") return mockPiPrintService;
+    return mockDurableService;
+  }),
+}));
 
 vi.mock("../../src/tui/console/ConsoleApp.js", () => ({
   ConsoleApp: () => null,

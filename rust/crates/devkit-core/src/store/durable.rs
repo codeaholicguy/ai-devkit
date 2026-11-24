@@ -67,7 +67,6 @@ pub(super) fn init(c: &Connection) -> Result<()> {
       CHECK((status='running') = (completed_at IS NULL))
     );
     CREATE UNIQUE INDEX IF NOT EXISTS durable_one_run ON durable_runs(agent_id) WHERE status='running';
-    CREATE TABLE IF NOT EXISTS durable_metadata(key TEXT PRIMARY KEY, value TEXT NOT NULL);
     CREATE VIEW IF NOT EXISTS durable_view AS SELECT a.id, a.name, a.updated_at,
       json_object('id',a.id,'name',a.name,'provider',a.provider,'mode','durable','cwd',a.cwd,
        'providerSessionId',a.provider_session_id,'state',a.state,'sessionHealth',a.session_health,
@@ -255,98 +254,5 @@ impl Store {
     pub fn durable_request_stop(&self, id: &str, token: &str) -> Result<bool> {
         let c = self.conn.lock().unwrap();
         Ok(c.execute("UPDATE durable_runs SET stop_requested=1 WHERE agent_id=? AND token=? AND status='running' AND token=(SELECT active_token FROM durable_agents WHERE id=?)",params![id,token,id])?==1)
-    }
-}
-
-impl Store {
-    /// Snapshot the source once; completion marker and imported rows commit
-    /// together in daemon.db. Never merge or dual-write after transfer.
-    pub fn durable_import_legacy(&self, path: &Path) -> Result<bool> {
-        let mut c = self.conn.lock().unwrap();
-        let t = c.transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let done: bool = t.query_row(
-            "SELECT EXISTS(SELECT 1 FROM durable_metadata WHERE key='legacy-import-v1')",
-            [],
-            |r| r.get(0),
-        )?;
-        if done || !path.exists() {
-            return Ok(false);
-        }
-        let source = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
-        source.busy_timeout(std::time::Duration::from_secs(5))?;
-        source.execute_batch("BEGIN")?;
-        let exists:bool=source.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='durable_agents')",[],|r|r.get(0))?;
-        if !exists {
-            return Ok(false);
-        }
-        let cols = [
-            "id",
-            "name",
-            "provider",
-            "mode",
-            "cwd",
-            "provider_session_id",
-            "state",
-            "session_health",
-            "created_at",
-            "updated_at",
-            "last_active_at",
-            "last_result_status",
-            "last_result_completed_at",
-            "last_result_exit_code",
-            "last_result_summary",
-            "active_run_token",
-            "active_owner_pid",
-            "active_owner_started_at",
-            "active_provider_pid",
-            "active_provider_started_at",
-            "active_run_started_at",
-        ];
-        let sql = format!(
-            "SELECT json_object({}) FROM durable_agents",
-            cols.iter()
-                .map(|s| format!("'{s}',{s}"))
-                .collect::<Vec<_>>()
-                .join(",")
-        );
-        let mut stmt = source.prepare(&sql)?;
-        let rows = stmt
-            .query_map([], |r| r.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for raw in rows {
-            let a: Value = serde_json::from_str(&raw)?;
-            let text = |k: &str| -> Result<&str> {
-                a[k].as_str().with_context(|| format!("invalid legacy {k}"))
-            };
-            let id = text("id")?;
-            // No silent skip on collision: a retry after rollback has no rows;
-            // a committed import already has its marker.
-            let sid = a["provider_session_id"].as_str();
-            ensure!(sid.is_none_or(is_uuid), "invalid legacy provider session");
-            let active = a["active_run_token"].as_str();
-            let last = if a["last_result_status"].is_null() {
-                None
-            } else {
-                Some(format!("legacy-last:{id}"))
-            };
-            ensure!(
-                (text("state")? == "running") == active.is_some(),
-                "invalid legacy run state"
-            );
-            t.execute("INSERT INTO durable_agents(id,name,provider,cwd,provider_session_id,state,session_health,created_at,updated_at,last_active_at,active_token,last_token) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",params![id,text("name")?,text("provider")?,text("cwd")?,sid,text("state")?,text("session_health")?,text("created_at")?,text("updated_at")?,a["last_active_at"].as_str(),active,last])?;
-            if let Some(token) = active {
-                t.execute("INSERT INTO durable_runs(token,agent_id,started_at,status,owner_pid,owner_started_at,provider_pid,provider_started_at) VALUES(?,?,?,'running',?,?,?,?)",params![token,id,text("active_run_started_at")?,a["active_owner_pid"].as_i64().context("missing legacy owner pid")?,text("active_owner_started_at")?,a["active_provider_pid"].as_i64(),a["active_provider_started_at"].as_str()])?;
-            }
-            if let Some(token) = last {
-                t.execute("INSERT INTO durable_runs(token,agent_id,started_at,completed_at,status,exit_code,summary,session_health) VALUES(?,?,?,?,?,?,?,?)",params![token,id,text("created_at")?,text("last_result_completed_at")?,text("last_result_status")?,a["last_result_exit_code"].as_i64(),a["last_result_summary"].as_str().unwrap_or(""),text("session_health")?])?;
-            }
-        }
-        let marker = json!({"source":path,"completedAt":now(&t)?}).to_string();
-        t.execute(
-            "INSERT INTO durable_metadata(key,value) VALUES('legacy-import-v1',?)",
-            [marker],
-        )?;
-        t.commit()?;
-        Ok(true)
     }
 }
