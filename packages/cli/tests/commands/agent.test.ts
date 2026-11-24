@@ -2373,6 +2373,16 @@ Waiting on user input`,
     expect(ui.text).toHaveBeenCalledWith("  - worker");
   });
 
+  it("accepts --debug on group subcommands", async () => {
+    mockGroupStore.list.mockResolvedValue([]);
+
+    const program = new Command();
+    registerAgentCommand(program);
+    await program.parseAsync(["node", "test", "agent", "group", "list", "--debug"]);
+
+    expect(mockGroupStore.list).toHaveBeenCalledOnce();
+  });
+
   it("reports invalid group names for detail", async () => {
     mockGroupStore.get.mockImplementation(() => {
       throw new Error('Invalid agent group name "Bad_Name".');

@@ -132,7 +132,7 @@ export function registerAgentWaitCommand(agentCommand: Command): void {
 
         let identifiers: string[] | undefined = options.id;
         if (options.group) {
-          const group = await createDefaultAgentGroupService().get(options.group);
+          const group = await createDefaultAgentGroupService({ onDebug: debug }).get(options.group);
           identifiers = group.members;
         }
 

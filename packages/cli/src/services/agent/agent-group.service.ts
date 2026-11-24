@@ -102,46 +102,61 @@ export class AgentGroupService {
   constructor(private readonly options?: AgentGroupServiceOptions) {}
 
   async list(): Promise<AgentGroup[]> {
-    return this.withDaemon((daemon) => daemon.listGroups(), {});
+    return this.withDaemon("group.list", (daemon) => daemon.listGroups(), {});
   }
   async get(name: string): Promise<AgentGroup> {
-    return this.withDaemon((daemon) => daemon.getGroup(name), { name });
+    return this.withDaemon("group.detail", (daemon) => daemon.getGroup(name), { name });
   }
   async lookup(name: string): Promise<AgentGroup> {
-    return this.withDaemon((daemon) => daemon.lookupGroup(name), { name });
+    return this.withDaemon("group.lookup", (daemon) => daemon.lookupGroup(name), { name });
   }
   async create(name: string, members: string[]): Promise<AgentGroup> {
-    return this.withDaemon((daemon) => daemon.createGroup(name, members), { name });
+    return this.withDaemon("group.create", (daemon) => daemon.createGroup(name, members), { name });
   }
   async update(name: string, members: string[]): Promise<AgentGroup> {
-    return this.withDaemon((daemon) => daemon.updateGroup(name, members), { name });
+    return this.withDaemon("group.update", (daemon) => daemon.updateGroup(name, members), { name });
   }
   async addMember(name: string, member: string): Promise<AgentGroup> {
-    return this.withDaemon((daemon) => daemon.addGroupMember(name, member), { name, member });
+    return this.withDaemon("group.add", (daemon) => daemon.addGroupMember(name, member), {
+      name,
+      member,
+    });
   }
   async removeMember(name: string, member: string): Promise<AgentGroup> {
-    return this.withDaemon((daemon) => daemon.removeGroupMember(name, member), { name, member });
+    return this.withDaemon(
+      "group.remove_agent",
+      (daemon) => daemon.removeGroupMember(name, member),
+      { name, member },
+    );
   }
   async remove(name: string): Promise<void> {
-    await this.withDaemon((daemon) => daemon.removeGroup(name), { name });
+    await this.withDaemon("group.remove", (daemon) => daemon.removeGroup(name), { name });
   }
 
   private async withDaemon<T>(
+    method: string,
     operation: (daemon: DaemonClient) => Promise<T>,
     context: { name?: string; member?: string },
   ): Promise<T> {
+    const debug = this.options?.onDebug;
     const owned = !this.options?.client;
     const daemon =
-      this.options?.client ??
-      (await ensureDaemon(this.options?.onDebug ? { onDebug: this.options.onDebug } : undefined));
+      this.options?.client ?? (await ensureDaemon(debug ? { onDebug: debug } : undefined));
     if (!daemon) {
+      debug?.(`no daemon available for ${method}; refusing legacy JSON fallback`);
       throw new Error(
         "A running, capable daemon is required for agent groups. Start devkitd and retry.",
       );
     }
+    debug?.(`daemon path: calling ${method}`);
     try {
       return await operation(daemon);
     } catch (error) {
+      if (error instanceof DaemonRpcError && error.code) {
+        debug?.(`daemon ${method} returned coded error ${error.code}`);
+      } else if (error instanceof Error) {
+        debug?.(`daemon ${method} failed: ${error.message}`);
+      }
       throw mapGroupRpcError(error, context);
     } finally {
       if (owned) daemon.close();

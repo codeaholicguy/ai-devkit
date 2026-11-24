@@ -142,9 +142,10 @@ export function registerAgentSendCommand(agentCommand: Command): void {
             );
           }
           try {
-            const group = await createDefaultAgentGroupService({ client: daemon }).lookup(
-              options.group,
-            );
+            const group = await createDefaultAgentGroupService({
+              client: daemon,
+              onDebug: debug,
+            }).lookup(options.group);
             await sendToAgentGroup({
               group,
               prompt,

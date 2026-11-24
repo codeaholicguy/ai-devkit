@@ -100,6 +100,12 @@ describe("daemon-owned AgentGroupService", () => {
     expect(mocks.listGroups).toHaveBeenCalledOnce();
     expect(mocks.close).toHaveBeenCalledOnce();
   });
+  it("forwards onDebug to ensureDaemon and logs RPC activity", async () => {
+    const onDebug = vi.fn();
+    await new AgentGroupService({ onDebug }).list();
+    expect(mocks.ensure).toHaveBeenCalledWith({ onDebug });
+    expect(onDebug).toHaveBeenCalledWith("daemon path: calling group.list");
+  });
   it("surfaces transport failures without retry", async () => {
     mocks.listGroups.mockRejectedValue(new Error("socket closed"));
     await expect(new AgentGroupService().list()).rejects.toThrow("socket closed");
