@@ -24,6 +24,10 @@ Before you begin, make sure you have:
 - **`lsof` on Linux** for reliable agent session detection (strongly recommended; see [Agent Management](/docs/8-agent-management#linux-session-detection))
 - At least one [supported AI coding agent or environment](/docs/2-supported-agents)
 
+### Windows
+
+AI DevKit's **tmux**-backed managed agents, **devkitd**, and the experimental **agent console** target macOS and Linux. Native Windows (PowerShell with Node for Windows) does not ship a `devkitd` binary and does not support managed tmux sessions. For a full local control plane on a Windows PC, use **[Windows via WSL2](/docs/21-windows-wsl)**.
+
 ### Node.js and native modules
 
 The CLI bundles native SQLite support (`better-sqlite3`) compiled for the **Node version used when you installed** `ai-devkit`. If agents run under a different Node (common when tmux inherits another `PATH`), memory and related commands can fail with a `NODE_MODULE_VERSION` error.
@@ -179,14 +183,15 @@ The installed workflow skills guide requirements, design, planning, implementati
 
 ## Next Steps
 
-1. [Check environment-specific project support](/docs/2-supported-agents)
-2. [Learn how project init and install work](/docs/9-agent-setup)
-3. [Operate running agents](/docs/13-agent-console)
-4. [Multi-agent orchestration](/docs/17-multi-agent-orchestration) (lead plus workers)
-5. [Give agents long-term memory](/docs/6-memory)
-6. [Manage skills](/docs/7-skills)
-7. [Install plugins](/docs/14-plugins)
-8. [Troubleshooting agents](/docs/18-troubleshooting-agents)
+1. On Windows, read [Windows via WSL2](/docs/21-windows-wsl) before installing agents only in PowerShell
+2. [Check environment-specific project support](/docs/2-supported-agents)
+3. [Learn how project init and install work](/docs/9-agent-setup)
+4. [Operate running agents](/docs/13-agent-console)
+5. [Multi-agent orchestration](/docs/17-multi-agent-orchestration) (lead plus workers)
+6. [Give agents long-term memory](/docs/6-memory)
+7. [Manage skills](/docs/7-skills)
+8. [Install plugins](/docs/14-plugins)
+9. [Troubleshooting agents](/docs/18-troubleshooting-agents)
 
 ## Need Help?
 
