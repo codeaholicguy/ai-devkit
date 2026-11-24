@@ -86,7 +86,7 @@ export async function listLiveAgents(
  * sendAgentPrompt and focusAgent act client-side on the daemon's runtime +
  * runtimeRef.
  */
-export { createDaemonEntryRegistry } from "../../services/agent/daemon-entry.service.js";
+export { createDaemonEntryRegistry } from "../../util/agent.js";
 
 export function createDurableAgentService(
   provider: DurableProvider = "claude",

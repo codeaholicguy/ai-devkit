@@ -37,8 +37,8 @@ description: Implementation summary, review fixes, and design alignment for issu
     the typed `DaemonClient` methods.
   - Supports caller-owned `client` reuse and `onDebug` logging; maps coded RPC
     errors back to the 6 `AgentGroup*Error` classes via `mapGroupRpcError`.
-- `packages/cli/src/services/agent/daemon-entry.service.ts`:
-  - Extracted shared `createDaemonEntryRegistry` helper for client-side runtime
+- `packages/cli/src/util/agent.ts`:
+  - Houses the shared `createDaemonEntryRegistry` helper for client-side runtime
     delivery without service-to-command coupling.
 - `packages/cli/src/commands/agent/group.command.ts`:
   - All 7 subcommands await `AgentGroupService` and support `--debug` logging.

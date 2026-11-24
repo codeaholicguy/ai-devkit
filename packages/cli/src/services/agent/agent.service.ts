@@ -1,5 +1,5 @@
 import { DaemonRpcError, type AgentLookupResult } from "@ai-devkit/daemon-client";
-import { createDaemonEntryRegistry } from "./daemon-entry.service.js";
+import { createDaemonEntryRegistry } from "../../util/agent.js";
 import {
   AgentStatus,
   TtyWriter,

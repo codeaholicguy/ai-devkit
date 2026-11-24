@@ -1,5 +1,6 @@
 import path from "path";
-import type { AgentType } from "@ai-devkit/agent-manager";
+import type { AgentRegistry, AgentRuntimeProvider, AgentType } from "@ai-devkit/agent-manager";
+import type { AgentLookupResult } from "@ai-devkit/daemon-client";
 
 export const AGENT_TYPE_LABELS: Record<AgentType, string> = {
   claude: "Claude Code",
@@ -52,4 +53,25 @@ export function generateAgentName(cwd: string): string {
       .replace(/^-+|-+$/g, "")
       .slice(0, 50) || "agent";
   return `${folder}-${Date.now().toString(36)}`;
+}
+
+/**
+ * Single-entry registry view over a daemon `agent.lookup` result so client-side
+ * runtime helpers (`sendAgentPrompt`, `stopAgent`, `focusAgent`) act on the
+ * daemon's authoritative `runtime` + `runtimeRef` without reading local agents.db.
+ */
+export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentRegistry, "lookup"> {
+  const registryEntry = {
+    name: entry.name,
+    type: entry.type as AgentType,
+    pid: entry.pid,
+    runtime: entry.runtime as AgentRuntimeProvider,
+    runtimeRef: entry.runtimeRef,
+    cwd: entry.cwd,
+    startedAt: "",
+    sessionId: "",
+    sessionFilePath: "",
+    pinned: entry.pinned,
+  };
+  return { lookup: () => registryEntry };
 }
