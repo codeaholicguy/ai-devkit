@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+- [3afb3fc4](https://github.com/codeaholicguy/ai-devkit/pull/458) Agent groups are now managed by devkitd in `daemon.db`: new `group.*` RPCs, CLI routing through the daemon, and a one-time import with an ownership fence.
+- [7528c760](https://github.com/codeaholicguy/ai-devkit/pull/456) Durable agents and provider runs are now managed by devkitd: new `durable.*` RPCs, launch profiles, run reconciliation, and an `agents.db` migration with fence.
+- [b6b2351b](https://github.com/codeaholicguy/ai-devkit/pull/480) Docs: marked Kiro project init as supported in the README table.
+- [210605ad](https://github.com/codeaholicguy/ai-devkit/pull/479) Improved `memory store` ergonomics for agents.
+- [ea58d363](https://github.com/codeaholicguy/ai-devkit/pull/474) Fixed the Pi discovery no-match cache same-second flake.
+- [fe694edd](https://github.com/codeaholicguy/ai-devkit/pull/477) `install` now skips unreachable optional skills instead of failing.
+- [09676f20](https://github.com/codeaholicguy/ai-devkit/pull/478) Wired `install --yes` to non-interactive mode.
+
 ## [0.77.0] - 2026-11-19
 
 - [2227788c](https://github.com/codeaholicguy/ai-devkit/pull/476) Added Kiro skill installation for `init`, `install`, and `setup`.
