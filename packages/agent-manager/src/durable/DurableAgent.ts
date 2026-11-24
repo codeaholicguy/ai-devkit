@@ -41,6 +41,7 @@ export interface DurableAgentBase {
   name: string;
   mode: typeof AGENT_MODES.DURABLE;
   cwd: string;
+  sessionFilePath?: string | null;
   state: DurableAgentState;
   sessionHealth: DurableSessionHealth;
   createdAt: string;

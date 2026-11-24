@@ -1,12 +1,16 @@
 //! Daemon-owned child supervision. Socket lifetime never owns a run.
 use anyhow::{ensure, Context, Result};
 use devkit_core::{durable_process::identity, store::Store};
-use devkit_harness::{durable::PrintParser, start_profiles::start_profile};
+use devkit_harness::{
+    durable::{resolve_durable_session_file, PrintParser},
+    start_profiles::start_profile,
+};
 use serde_json::{json, Value};
 use std::{
     collections::HashSet,
     io::{Read, Write},
     os::unix::process::CommandExt,
+    path::PathBuf,
     process::{Child, ChildStdout, Command, Stdio},
     sync::{Arc, Mutex},
     time::{Duration, Instant},
@@ -17,12 +21,14 @@ pub struct DurableSupervisor {
     // Also serializes acquire/spawn/attach with sweep and stop. Tokens here
     // belong to this daemon; only their waiters may finalize them.
     children: Arc<Mutex<HashSet<String>>>,
+    home: PathBuf,
 }
 impl DurableSupervisor {
-    pub fn new(store: Arc<Store>) -> Self {
+    pub fn new(store: Arc<Store>, home: PathBuf) -> Self {
         Self {
             store,
             children: Arc::new(Mutex::new(HashSet::new())),
+            home,
         }
     }
     pub fn dispatch(&self, method: &str, p: &Value) -> Result<Value> {
@@ -117,6 +123,12 @@ impl DurableSupervisor {
         let id = id.to_string();
         let run_id = token.clone();
         let command = profile.command;
+        let home = self.home.clone();
+        let cwd = a["cwd"].as_str().unwrap().to_string();
+        let known_sid = sid.map(str::to_owned);
+        let has_session_file = a["sessionFilePath"]
+            .as_str()
+            .is_some_and(|p| std::path::Path::new(p).is_file());
         // Feed stdin concurrently: providers may emit output before consuming
         // a large prompt. Both pipes must keep making progress.
         std::thread::spawn(move || {
@@ -133,6 +145,10 @@ impl DurableSupervisor {
                 owned,
                 id,
                 run_id,
+                home,
+                cwd,
+                known_sid,
+                has_session_file,
             });
         });
         Ok(json!({"agent":a,"runId":token}))
@@ -248,6 +264,10 @@ struct SupervisedRun {
     owned: Arc<Mutex<HashSet<String>>>,
     id: String,
     run_id: String,
+    home: PathBuf,
+    cwd: String,
+    known_sid: Option<String>,
+    has_session_file: bool,
 }
 
 fn supervise_child(mut run: SupervisedRun) {
@@ -283,6 +303,17 @@ fn supervise_child(mut run: SupervisedRun) {
         s.signal().is_some()
     });
     let protocol_failed = outcome.is_err();
+    let resolved_sid = run.parser.session_id().map(str::to_owned).or(run.known_sid);
+    if !run.has_session_file {
+        if let Some(sid) = resolved_sid.as_deref() {
+            if let Some(path) = resolve_durable_session_file(&run.home, run.command, &run.cwd, sid)
+            {
+                if let Err(e) = run.store.durable_set_session_file(&run.id, &path) {
+                    tracing::warn!("durable session_file_path update failed: {e:#}");
+                }
+            }
+        }
+    }
     let parsed = outcome.and_then(|_| run.parser.finish(code));
     let (status, summary, health) = classify_run_outcome(parsed, signaled, protocol_failed);
     if let Err(e) = run

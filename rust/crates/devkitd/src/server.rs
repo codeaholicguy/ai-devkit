@@ -70,7 +70,7 @@ impl Daemon {
         if let Err(e) = store.import_legacy_agents() {
             tracing::warn!("legacy agents.db import failed: {e:#}");
         }
-        let durable = crate::durable::DurableSupervisor::new(store.clone());
+        let durable = crate::durable::DurableSupervisor::new(store.clone(), home.clone());
         if let Err(e) = durable.reconcile() {
             tracing::warn!("durable startup reconciliation: {e:#}");
         }

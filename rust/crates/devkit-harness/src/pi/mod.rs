@@ -1,7 +1,7 @@
 //! PiAdapter port — sessions.json tracker, registry cache, project-dir
 //! locator matching, process-only fallback.
 
-mod locator;
+pub(crate) mod locator;
 mod parser;
 
 use crate::shared;

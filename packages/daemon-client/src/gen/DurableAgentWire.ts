@@ -2,4 +2,4 @@
 import type { DurableActiveRun } from "./DurableActiveRun.js";
 import type { DurableLastResult } from "./DurableLastResult.js";
 
-export type DurableAgentWire = { id: string, name: string, provider: 'claude' | 'codex' | 'pi', mode: 'durable', cwd: string, providerSessionId: string | null, state: 'ready' | 'running' | 'degraded', sessionHealth: 'uninitialized' | 'healthy' | 'unknown' | 'mismatch', createdAt: string, updatedAt: string, lastActiveAt: string | null, activeRun: DurableActiveRun | null, lastResult: DurableLastResult | null, };
+export type DurableAgentWire = { id: string, name: string, provider: 'claude' | 'codex' | 'pi', mode: 'durable', cwd: string, providerSessionId: string | null, sessionFilePath: string | null, state: 'ready' | 'running' | 'degraded', sessionHealth: 'uninitialized' | 'healthy' | 'unknown' | 'mismatch', createdAt: string, updatedAt: string, lastActiveAt: string | null, activeRun: DurableActiveRun | null, lastResult: DurableLastResult | null, };

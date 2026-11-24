@@ -1,7 +1,7 @@
 //! CodexAdapter port — helper-subcommand filtering, session mapping file,
 //! in-memory registry cache, locator matching, process-only fallback.
 
-mod locator;
+pub(crate) mod locator;
 mod parser;
 
 use crate::shared;

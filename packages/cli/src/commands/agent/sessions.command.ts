@@ -73,7 +73,7 @@ export function registerAgentSessionsCommand(agentCommand: Command): void {
                 new Date(a.lastActiveAt ?? a.updatedAt).getTime(),
               ),
             ),
-            sessionFilePath: historical?.sessionFilePath ?? "",
+            sessionFilePath: a.sessionFilePath ?? historical?.sessionFilePath ?? "",
             mode: "durable" as const,
             durableId: a.id,
             name: a.name,

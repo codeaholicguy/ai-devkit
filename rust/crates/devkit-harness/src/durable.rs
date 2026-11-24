@@ -2,7 +2,51 @@
 use anyhow::{bail, ensure, Result};
 use devkit_core::store::durable::is_uuid;
 use serde_json::Value;
+use std::path::Path;
 const MAX_LINE: usize = 1024 * 1024;
+
+/// Resolve the on-disk transcript file path for a durable agent session.
+/// Called once after a run so subsequent reads are O(1) without directory scans.
+pub fn resolve_durable_session_file(
+    home: &Path,
+    provider: &str,
+    cwd: &str,
+    session_id: &str,
+) -> Option<String> {
+    if !is_uuid(session_id) {
+        return None;
+    }
+    match provider {
+        "claude" => {
+            let projects_dir = home.join(".claude").join("projects");
+            let file = crate::claude::locator::encoded_project_dir(&projects_dir, cwd)
+                .join(format!("{session_id}.jsonl"));
+            file.is_file().then(|| file.to_string_lossy().into_owned())
+        }
+        "codex" => crate::codex::locator::CodexSessionLocator::new(home)
+            .find_session_file_by_id(session_id)
+            .map(|sf| sf.file_path),
+        "pi" => {
+            let dir = home
+                .join(".pi")
+                .join("agent")
+                .join("sessions")
+                .join(crate::pi::locator::encode_project_dir(cwd));
+            let suffix = format!("_{session_id}.jsonl");
+            let exact = format!("{session_id}.jsonl");
+            for name in crate::shared::list_dir_names(&dir) {
+                if name.ends_with(&suffix) || name == exact {
+                    let path = dir.join(&name);
+                    if path.is_file() {
+                        return Some(path.to_string_lossy().into_owned());
+                    }
+                }
+            }
+            None
+        }
+        _ => None,
+    }
+}
 #[derive(Debug)]
 pub struct PrintResult {
     pub session_id: String,

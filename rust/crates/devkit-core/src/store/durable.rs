@@ -49,7 +49,7 @@ pub(super) fn init(c: &Connection) -> Result<()> {
     c.execute_batch("CREATE TABLE IF NOT EXISTS durable_agents (
       id TEXT PRIMARY KEY, name TEXT NOT NULL COLLATE NOCASE UNIQUE,
       provider TEXT NOT NULL CHECK(provider IN ('claude','codex','pi')),
-      cwd TEXT NOT NULL, provider_session_id TEXT UNIQUE,
+      cwd TEXT NOT NULL, provider_session_id TEXT UNIQUE, session_file_path TEXT,
       state TEXT NOT NULL CHECK(state IN ('ready','running','degraded')),
       session_health TEXT NOT NULL CHECK(session_health IN ('uninitialized','healthy','unknown','mismatch')),
       created_at TEXT NOT NULL, updated_at TEXT NOT NULL, last_active_at TEXT,
@@ -66,10 +66,24 @@ pub(super) fn init(c: &Connection) -> Result<()> {
       stop_requested INTEGER NOT NULL DEFAULT 0,
       CHECK((status='running') = (completed_at IS NULL))
     );
-    CREATE UNIQUE INDEX IF NOT EXISTS durable_one_run ON durable_runs(agent_id) WHERE status='running';
-    CREATE VIEW IF NOT EXISTS durable_view AS SELECT a.id, a.name, a.updated_at,
+    CREATE UNIQUE INDEX IF NOT EXISTS durable_one_run ON durable_runs(agent_id) WHERE status='running';")?;
+    {
+        let mut s = c.prepare("PRAGMA table_info(durable_agents)")?;
+        let cols = s
+            .query_map([], |r| r.get::<_, String>(1))?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        if !cols.iter().any(|col| col == "session_file_path") {
+            c.execute(
+                "ALTER TABLE durable_agents ADD COLUMN session_file_path TEXT",
+                [],
+            )?;
+        }
+    }
+    c.execute_batch("DROP VIEW IF EXISTS durable_view;
+    CREATE VIEW durable_view AS SELECT a.id, a.name, a.updated_at,
       json_object('id',a.id,'name',a.name,'provider',a.provider,'mode','durable','cwd',a.cwd,
-       'providerSessionId',a.provider_session_id,'state',a.state,'sessionHealth',a.session_health,
+       'providerSessionId',a.provider_session_id,'sessionFilePath',a.session_file_path,
+       'state',a.state,'sessionHealth',a.session_health,
        'createdAt',a.created_at,'updatedAt',a.updated_at,'lastActiveAt',a.last_active_at,
        'activeRun',CASE WHEN r.token IS NULL THEN NULL ELSE json_object('token',r.token,
         'owner',json_object('pid',r.owner_pid,'startedAt',r.owner_started_at),
@@ -250,6 +264,14 @@ impl Store {
             .map(|s| serde_json::from_str(&s))
             .transpose()?
             .unwrap_or(Value::Null))
+    }
+    pub fn durable_set_session_file(&self, id: &str, path: &str) -> Result<()> {
+        let c = self.conn.lock().unwrap();
+        c.execute(
+            "UPDATE durable_agents SET session_file_path=? WHERE id=?",
+            params![path, id],
+        )?;
+        Ok(())
     }
     pub fn durable_request_stop(&self, id: &str, token: &str) -> Result<bool> {
         let c = self.conn.lock().unwrap();

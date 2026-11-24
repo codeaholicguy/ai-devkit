@@ -36,6 +36,7 @@ pub struct DurableAgentWire {
     pub mode: String,
     pub cwd: String,
     pub provider_session_id: Option<String>,
+    pub session_file_path: Option<String>,
     #[ts(type = "'ready' | 'running' | 'degraded'")]
     pub state: String,
     #[ts(type = "'uninitialized' | 'healthy' | 'unknown' | 'mismatch'")]

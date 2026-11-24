@@ -224,3 +224,20 @@ fn last_result_summary_matches_ts_control_replacement_and_trimming() {
         .unwrap();
     assert_eq!(done["lastResult"]["summary"], "hello   world");
 }
+#[test]
+fn session_file_path_is_persisted_and_projected_in_durable_view() {
+    let (store, dir) = fixture();
+    let a = store
+        .durable_create("transcript", "codex", dir.to_str().unwrap())
+        .unwrap();
+    assert!(a["sessionFilePath"].is_null());
+    let id = a["id"].as_str().unwrap();
+    store
+        .durable_set_session_file(id, "/home/dev/.codex/sessions/2026/11/24/rollout.jsonl")
+        .unwrap();
+    let updated = store.durable_resolve(id).unwrap();
+    assert_eq!(
+        updated["sessionFilePath"],
+        "/home/dev/.codex/sessions/2026/11/24/rollout.jsonl"
+    );
+}

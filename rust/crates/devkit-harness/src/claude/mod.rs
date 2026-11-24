@@ -2,7 +2,7 @@
 //! listSessions). Mirrors ClaudeSessionLocator → ClaudeSessionParser →
 //! ClaudeAgentMapper exactly; fixture parity is the acceptance gate.
 
-mod locator;
+pub(crate) mod locator;
 mod parser;
 
 use crate::shared::{

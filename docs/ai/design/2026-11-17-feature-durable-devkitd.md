@@ -51,7 +51,7 @@ Mixed interactive/durable read commands (`agent list`, `agent detail`, `agent se
 
 Add durable tables in `Store::open` (`devkit-core/src/store/durable.rs`):
 
-- `durable_agents`: existing identity, unique name and provider-session constraints, provider/mode, canonical cwd, state, session health, timestamps, active run reference, and last result projection. Preserve wire fields of the TS DurableAgent model.
+- `durable_agents`: existing identity, unique name and provider-session constraints, provider/mode, canonical cwd, cached `session_file_path` (resolved once after a run completes so transcript reads are O(1) without scanning provider directories), state, session health, timestamps, active run reference, and last result projection. Preserve wire fields of the TS DurableAgent model.
 - `durable_runs`: stable run ID/token, agent foreign key, start/completion timestamps, owner/provider process identities, running or terminal status, nullable exit code, bounded result summary, and a full success result bounded by the parser line limit for foreground CLI output. Enforce at most one active run per agent.
 - Run ownership and completion remain authoritative in the durable store; registry discovery never writes durable outcomes.
 

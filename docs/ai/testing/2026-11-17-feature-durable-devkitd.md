@@ -27,7 +27,7 @@ P2-P4 evidence: Rust fixture/argv tests 2 passed (18 shared cases); TS parity 18
 ## Acceptance Evidence
 - Root `npm run build`: exit 0 for seven projects.
 - Root `npm run test`: exit 0 for seven projects and dependencies; includes `npx nx test cli`, 18 shared TS parity cases, daemon-client wire tests and the Rust workspace.
-- `cargo test --manifest-path rust/Cargo.toml`: 203 tests passed, zero failures across six suites (45 core, 9 durable store, 82 harness, 3 durable parser/profile, 55 daemon, 9 durable daemon integration).
+- `cargo test --manifest-path rust/Cargo.toml`: 205 tests passed, zero failures across six suites (45 core, 10 durable store, 82 harness, 4 durable parser/profile/locator, 55 daemon, 9 durable daemon integration).
 - `cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets -- -D warnings`: exit 0 (verified on Linux and macOS).
 - `npm run lint`: exit 0; existing unrelated TS warnings remain, no lint errors.
 - `npm run fmt:check`: exit 0.
