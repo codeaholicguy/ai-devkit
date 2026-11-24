@@ -1,0 +1,124 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 22 and seed 2294135686932855333 with 1 worker on 4 cores with 1938MB heap and 64MB offheap memory [pid: 2955617] (Linux 7.0.0-27-generic amd64, Ubuntu 21.0.13.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/ubuntu/code/ai-devkit/.worktrees/feature-tla-analysis/analysis/SessionMappingCache.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module SessionMappingCache
+Starting... (2026-11-24 20:21:25)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-24 20:21:25.
+Error: Invariant Inv_NoLostSessionsJsonEntry is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ procAlive = [p1 |-> FALSE, p2 |-> FALSE]
+/\ lostSessionsJsonEntry = FALSE
+/\ procTrueSess = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> FALSE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> FALSE, p2 |-> FALSE]
+/\ procGen = [p1 |-> 0, p2 |-> 0]
+/\ rmwDesired = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwPc = [p1 |-> "idle", p2 |-> "idle"]
+/\ regressedAfterCommit = FALSE
+
+State 2: <SpawnProcess line 92, col 3 to line 102, col 84 of module SessionMappingCache>
+/\ procAlive = [p1 |-> TRUE, p2 |-> FALSE]
+/\ lostSessionsJsonEntry = FALSE
+/\ procTrueSess = [p1 |-> "s1", p2 |-> "NULL"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> TRUE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> FALSE, p2 |-> FALSE]
+/\ procGen = [p1 |-> 1, p2 |-> 0]
+/\ rmwDesired = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwPc = [p1 |-> "idle", p2 |-> "idle"]
+/\ regressedAfterCommit = FALSE
+
+State 3: <SpawnProcess line 92, col 3 to line 102, col 84 of module SessionMappingCache>
+/\ procAlive = [p1 |-> TRUE, p2 |-> TRUE]
+/\ lostSessionsJsonEntry = FALSE
+/\ procTrueSess = [p1 |-> "s1", p2 |-> "s1"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> TRUE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> FALSE, p2 |-> FALSE]
+/\ procGen = [p1 |-> 1, p2 |-> 1]
+/\ rmwDesired = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwPc = [p1 |-> "idle", p2 |-> "idle"]
+/\ regressedAfterCommit = FALSE
+
+State 4: <HookReadJson line 116, col 3 to line 124, col 94 of module SessionMappingCache>
+/\ procAlive = [p1 |-> TRUE, p2 |-> TRUE]
+/\ lostSessionsJsonEntry = FALSE
+/\ procTrueSess = [p1 |-> "s1", p2 |-> "s1"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> TRUE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> FALSE, p2 |-> FALSE]
+/\ procGen = [p1 |-> 1, p2 |-> 1]
+/\ rmwDesired = [p1 |-> "s1", p2 |-> "NULL"]
+/\ rmwPc = [p1 |-> "read_json", p2 |-> "idle"]
+/\ regressedAfterCommit = FALSE
+
+State 5: <HookReadJson line 116, col 3 to line 124, col 94 of module SessionMappingCache>
+/\ procAlive = [p1 |-> TRUE, p2 |-> TRUE]
+/\ lostSessionsJsonEntry = FALSE
+/\ procTrueSess = [p1 |-> "s1", p2 |-> "s1"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> TRUE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> FALSE, p2 |-> FALSE]
+/\ procGen = [p1 |-> 1, p2 |-> 1]
+/\ rmwDesired = [p1 |-> "s1", p2 |-> "s1"]
+/\ rmwPc = [p1 |-> "read_json", p2 |-> "read_json"]
+/\ regressedAfterCommit = FALSE
+
+State 6: <HookWriteJson line 127, col 3 to line 136, col 71 of module SessionMappingCache>
+/\ procAlive = [p1 |-> TRUE, p2 |-> TRUE]
+/\ lostSessionsJsonEntry = FALSE
+/\ procTrueSess = [p1 |-> "s1", p2 |-> "s1"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "s1", p2 |-> "NULL"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> TRUE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> TRUE, p2 |-> FALSE]
+/\ procGen = [p1 |-> 1, p2 |-> 1]
+/\ rmwDesired = [p1 |-> "s1", p2 |-> "s1"]
+/\ rmwPc = [p1 |-> "idle", p2 |-> "read_json"]
+/\ regressedAfterCommit = FALSE
+
+State 7: <HookWriteJson line 127, col 3 to line 136, col 71 of module SessionMappingCache>
+/\ procAlive = [p1 |-> TRUE, p2 |-> TRUE]
+/\ lostSessionsJsonEntry = TRUE
+/\ procTrueSess = [p1 |-> "s1", p2 |-> "s1"]
+/\ regCache = [p1 |-> "NULL", p2 |-> "NULL"]
+/\ sessJson = [p1 |-> "NULL", p2 |-> "s1"]
+/\ rmwSnap = [p1 |-> [p1 |-> "NULL", p2 |-> "NULL"], p2 |-> [p1 |-> "NULL", p2 |-> "NULL"]]
+/\ stalePidCrossSession = FALSE
+/\ fileExists = [s1 |-> TRUE, s2 |-> FALSE]
+/\ hookCommitted = [p1 |-> TRUE, p2 |-> TRUE]
+/\ procGen = [p1 |-> 1, p2 |-> 1]
+/\ rmwDesired = [p1 |-> "s1", p2 |-> "s1"]
+/\ rmwPc = [p1 |-> "idle", p2 |-> "idle"]
+/\ regressedAfterCommit = FALSE
+
+1093 states generated, 486 distinct states found, 281 states left on queue.
+The depth of the complete state graph search is 7.
+The average outdegree of the complete state graph is 2 (minimum is 0, the maximum 6 and the 95th percentile is 5).
+Finished in 00s at (2026-11-24 20:21:25)

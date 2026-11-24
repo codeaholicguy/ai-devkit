@@ -1,0 +1,149 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 46 and seed 2188291554366417214 with 1 worker on 4 cores with 1938MB heap and 64MB offheap memory [pid: 2955692] (Linux 7.0.0-27-generic amd64, Ubuntu 21.0.13.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/ubuntu/code/ai-devkit/.worktrees/feature-tla-analysis/analysis/DaemonAutostart.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module DaemonAutostart
+Starting... (2026-11-24 20:21:27)
+Computing initial states...
+Finished computing initial states: 2 distinct states generated at 2026-11-24 20:21:27.
+Error: Invariant Inv_NeverUnlinkLiveSocket is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "unspawned", d2 |-> "unspawned"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "start", c2 |-> "start"]
+/\ lockHolder = "NULL"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = FALSE
+
+State 2: <ClientAcquireLock line 77, col 3 to line 84, col 64 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "unspawned", d2 |-> "unspawned"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "got_lock_spawn", c2 |-> "start"]
+/\ lockHolder = "c1"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = FALSE
+
+State 3: <ClientSpawn line 88, col 3 to line 94, col 47 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "sweeping", d2 |-> "unspawned"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "waiting_sock", c2 |-> "start"]
+/\ lockHolder = "c1"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = FALSE
+
+State 4: <ClientWaitTimeoutReleaseLock line 100, col 3 to line 107, col 64 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "sweeping", d2 |-> "unspawned"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "done", c2 |-> "start"]
+/\ lockHolder = "NULL"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = FALSE
+
+State 5: <ClientAcquireLock line 77, col 3 to line 84, col 64 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "sweeping", d2 |-> "unspawned"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "done", c2 |-> "got_lock_spawn"]
+/\ lockHolder = "c2"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = FALSE
+
+State 6: <ClientSpawn line 88, col 3 to line 94, col 47 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "sweeping", d2 |-> "sweeping"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "done", c2 |-> "waiting_sock"]
+/\ lockHolder = "c2"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = TRUE
+
+State 7: <DaemonServeCheckStaleSock line 125, col 3 to line 130, col 69 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "serve_checked_dead", d2 |-> "sweeping"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "done", c2 |-> "waiting_sock"]
+/\ lockHolder = "c2"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = TRUE
+
+State 8: <DaemonServeCheckStaleSock line 125, col 3 to line 130, col 69 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "serve_checked_dead", d2 |-> "serve_checked_dead"]
+/\ dHasListener = [d1 |-> FALSE, d2 |-> FALSE]
+/\ sockOwner = "NULL"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "done", c2 |-> "waiting_sock"]
+/\ lockHolder = "c2"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = TRUE
+
+State 9: <DaemonServeUnlinkAndBind line 135, col 3 to line 141, col 82 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "serving", d2 |-> "serve_checked_dead"]
+/\ dHasListener = [d1 |-> TRUE, d2 |-> FALSE]
+/\ sockOwner = "d1"
+/\ unlinkedLiveSocket = FALSE
+/\ cPc = [c1 |-> "done", c2 |-> "waiting_sock"]
+/\ lockHolder = "c2"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = TRUE
+
+State 10: <DaemonServeUnlinkAndBind line 135, col 3 to line 141, col 82 of module DaemonAutostart>
+/\ sockExists = TRUE
+/\ lockStale = FALSE
+/\ dVersion = [d1 |-> "new", d2 |-> "new"]
+/\ dState = [d1 |-> "serving", d2 |-> "serving"]
+/\ dHasListener = [d1 |-> TRUE, d2 |-> TRUE]
+/\ sockOwner = "d2"
+/\ unlinkedLiveSocket = TRUE
+/\ cPc = [c1 |-> "done", c2 |-> "waiting_sock"]
+/\ lockHolder = "c2"
+/\ cVersion = [c1 |-> "new", c2 |-> "new"]
+/\ dualLiveDaemons = TRUE
+
+226 states generated, 134 distinct states found, 15 states left on queue.
+The depth of the complete state graph search is 10.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 3 and the 95th percentile is 2).
+Finished in 00s at (2026-11-24 20:21:27)

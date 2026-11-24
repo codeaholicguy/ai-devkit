@@ -1,0 +1,107 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 60 and seed -1834734175878121231 with 1 worker on 4 cores with 1938MB heap and 64MB offheap memory [pid: 2955550] (Linux 7.0.0-27-generic amd64, Ubuntu 21.0.13.1 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/ubuntu/code/ai-devkit/.worktrees/feature-tla-analysis/analysis/AgentRegistrySweep.tla
+Parsing file /tmp/Naturals.tla
+Parsing file /tmp/FiniteSets.tla
+Parsing file /tmp/Sequences.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module AgentRegistrySweep
+Starting... (2026-11-24 20:21:24)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-24 20:21:24.
+Error: Invariant Inv_NoPhantomDisappeared is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+/\ sweptPids = {}
+/\ unregName = "NULL"
+/\ dbName = [p1 |-> "NULL"]
+/\ osGen = [p1 |-> "NULL"]
+/\ resurrectedUnregName = FALSE
+/\ swPc = "idle"
+/\ unregPc = "idle"
+/\ lookupPc = "idle"
+/\ osAlive = [p1 |-> FALSE]
+/\ enrichedPids = {}
+/\ legacyName = [p1 |-> "NULL"]
+/\ dbGen = [p1 |-> "NULL"]
+/\ dbPresent = [p1 |-> FALSE]
+/\ unregPid = "NULL"
+/\ swSnapAlive = [p1 |-> FALSE]
+/\ phantomDisappeared = FALSE
+/\ swSnapGen = [p1 |-> "NULL"]
+/\ dbGone = [p1 |-> FALSE]
+/\ staleEnrichedOverwrite = FALSE
+/\ lookupSnapLegacy = [p1 |-> "NULL"]
+
+State 2: <TimerSweepCapture line 166, col 3 to line 174, col 83 of module AgentRegistrySweep>
+/\ sweptPids = {}
+/\ unregName = "NULL"
+/\ dbName = [p1 |-> "NULL"]
+/\ osGen = [p1 |-> "NULL"]
+/\ resurrectedUnregName = FALSE
+/\ swPc = "snapshotted"
+/\ unregPc = "idle"
+/\ lookupPc = "idle"
+/\ osAlive = [p1 |-> FALSE]
+/\ enrichedPids = {}
+/\ legacyName = [p1 |-> "NULL"]
+/\ dbGen = [p1 |-> "NULL"]
+/\ dbPresent = [p1 |-> FALSE]
+/\ unregPid = "NULL"
+/\ swSnapAlive = [p1 |-> FALSE]
+/\ phantomDisappeared = FALSE
+/\ swSnapGen = [p1 |-> "NULL"]
+/\ dbGone = [p1 |-> FALSE]
+/\ staleEnrichedOverwrite = FALSE
+/\ lookupSnapLegacy = [p1 |-> "NULL"]
+
+State 3: <AgentStartWithPostSweep line 117, col 3 to line 158, col 83 of module AgentRegistrySweep>
+/\ sweptPids = {"p1"}
+/\ unregName = "NULL"
+/\ dbName = [p1 |-> "a"]
+/\ osGen = [p1 |-> "g1"]
+/\ resurrectedUnregName = FALSE
+/\ swPc = "snapshotted"
+/\ unregPc = "idle"
+/\ lookupPc = "idle"
+/\ osAlive = [p1 |-> TRUE]
+/\ enrichedPids = {"p1"}
+/\ legacyName = [p1 |-> "a"]
+/\ dbGen = [p1 |-> "g1"]
+/\ dbPresent = [p1 |-> TRUE]
+/\ unregPid = "NULL"
+/\ swSnapAlive = [p1 |-> FALSE]
+/\ phantomDisappeared = FALSE
+/\ swSnapGen = [p1 |-> "NULL"]
+/\ dbGone = [p1 |-> FALSE]
+/\ staleEnrichedOverwrite = FALSE
+/\ lookupSnapLegacy = [p1 |-> "NULL"]
+
+State 4: <TimerSweepApply line 177, col 3 to line 210, col 67 of module AgentRegistrySweep>
+/\ sweptPids = {}
+/\ unregName = "NULL"
+/\ dbName = [p1 |-> "a"]
+/\ osGen = [p1 |-> "g1"]
+/\ resurrectedUnregName = FALSE
+/\ swPc = "idle"
+/\ unregPc = "idle"
+/\ lookupPc = "idle"
+/\ osAlive = [p1 |-> TRUE]
+/\ enrichedPids = {}
+/\ legacyName = [p1 |-> "a"]
+/\ dbGen = [p1 |-> "g1"]
+/\ dbPresent = [p1 |-> TRUE]
+/\ unregPid = "NULL"
+/\ swSnapAlive = [p1 |-> FALSE]
+/\ phantomDisappeared = TRUE
+/\ swSnapGen = [p1 |-> "NULL"]
+/\ dbGone = [p1 |-> TRUE]
+/\ staleEnrichedOverwrite = TRUE
+/\ lookupSnapLegacy = [p1 |-> "NULL"]
+
+54 states generated, 39 distinct states found, 24 states left on queue.
+The depth of the complete state graph search is 4.
+The average outdegree of the complete state graph is 3 (minimum is 1, the maximum 4 and the 95th percentile is 4).
+Finished in 00s at (2026-11-24 20:21:24)
