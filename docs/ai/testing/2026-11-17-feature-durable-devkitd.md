@@ -9,8 +9,8 @@ title: Durable agents managed by devkitd
 - [x] T1 (P1): create/list/resolve identity, name ambiguity, canonical cwd; acquire/busy/token completion and concurrent acquisition; stale token and session binding protections.
 - [x] T2 (P2): shared Claude/Codex/Pi parser fixtures match TS results/errors; missing completion, malformed/incomplete/oversized stream and session mismatch reject; first/resume argv parity.
 - [x] T3 (P3): real stub process exit 0/nonzero/signal, protocol failure, spawn error; socket disconnect preserves run; stop race/idempotence; startup adoption and unrecoverable death; reused PID and failed observation.
-- [x] T4 (P4): empty/missing legacy DB, preserve IDs/state/active and last result, one-time marker, transaction rollback/retry/conflicts, ownership fence denies stale fallback.
-- [x] T5 (P5): typed client methods and CLI durable start/send/session/sessions outputs; capability absence permits pre-transfer fallback, post-transfer outage and mutation failure never fall back; cross-mode ambiguity preserved.
+- [x] T4 (P4): daemon-only durable ownership — no legacy `agents.db` import or fence file; mixed read commands skip durable lookup when `devkitd` is absent/outdated while explicit mutations require a compatible daemon.
+- [x] T5 (P5): typed client methods and CLI durable start/send/session/sessions outputs, `--debug` tracing, `--cwd` symlink canonicalization, and cross-mode ambiguity preservation.
 - [x] T6 (P6): isolated real daemon/socket/CLI E2E with start-profile stub commands, repeat send/session/stop/restart/import flows; disposable smoke without APIs.
 
 ## Fixtures and Coverage

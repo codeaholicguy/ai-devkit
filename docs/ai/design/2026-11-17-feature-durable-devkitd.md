@@ -6,13 +6,14 @@ description: Draft for issue 414; three architecture decisions await human rulin
 
 # Durable agents managed by devkitd
 
-Status: approved by the user on 2026-11-17. All three decisions, the restart result limit, and the migration ownership fence are accepted. Issue #414 and the supplied brief define scope.
+Status: approved on 2026-11-17; Decision #3 was subsequently simplified on 2026-11-24 to a daemon-only model (no legacy `agents.db` import, ownership fence file, or local TS fallback). Issue #414 defines scope.
 
 ## Architecture Overview
 
 ```mermaid
 flowchart LR
-    CLI[Durable CLI commands] --> Client[Typed daemon client]
+    CLI[Durable CLI commands] --> Service[DurableAgentService]
+    Service --> Client[Typed daemon client]
     Client --> RPC[durable RPC handlers]
     RPC --> Store[Durable store in devkit-core]
     Store --> DB[(daemon.db)]
@@ -22,9 +23,6 @@ flowchart LR
     Provider --> Parser[Bounded Rust stream parser]
     Parser --> Store
     Sweep[Startup and periodic reconciliation] --> Store
-    Legacy[(agents.db)] --> Import[Guarded legacy import]
-    Import --> Store
-    CLI -. capability absent and ownership local .-> TS[Existing TS fallback]
 ```
 
 The daemon owns process launch, run ownership, parsing, and completion. The durable store owns all state transitions. Discovery may observe provider processes, but disappearance from the interactive-agent discovery set is not sufficient evidence that a durable process died. Reconciliation verifies the recorded process identity directly. Durable rows remain separate from transient registry rows and their pruning.
@@ -43,23 +41,19 @@ On startup, retain a running run if the provider PID and process start identity 
 
 For children of the current daemon, the supervisor waits/reaps and commits the actual exit code plus protocol outcome. The sweep must not race that waiter into recording an interruption. After daemon restart, adoption means monitoring and preventing concurrent sends; the restarted daemon cannot reattach old stdout pipes or wait for an orphan's exit code. When an adopted process disappears without a committed outcome, record interrupted with null exit code, never infer success from disappearance or a terminal stream event alone. Fully recovering successful results across daemon death would require a persistent supervisor/completion journal and is deferred.
 
-### 3. Migration: recommend guarded one-time import, with ownership fencing
+### 3. Ownership: daemon-only (no legacy import or local fallback)
 
-Import legacy durable rows in a consistent read snapshot before serving durable RPCs. Preserve IDs, names, providers, bound sessions/cwd, timestamps, state, active token/process identities, and last results. Import agents plus synthetic active/last run records transactionally; mark completion only after all eligible rows are accounted for. No fabricated historic run list. A missing legacy database/table is a no-op, not proof that future data was imported. A read/schema/conflict failure leaves the marker unset and durable capability unavailable with an actionable error; unrelated daemon services can continue.
+Because durable mode has minimal pre-existing adoption, `devkitd` is the sole authority for durable agents in `daemon.db` — with no legacy `agents.db` import, no `durable_metadata` import marker, no `durable-owner-v1.json` fence file, and no local TS fallback in the CLI. Users recreate any pre-devkitd durable identities with `ai-devkit agent start --mode durable`.
 
-Use a versioned marker with source identity and completion timestamp. Retry idempotently by stable IDs; never silently skip conflicting names or provider-session bindings, and never overwrite newer daemon state. Existing local runs remain protected until their recorded identities die; without a committed daemon result they reconcile to interrupted. Preserve agents.db as the recovery source and do not dual-write new daemon runs.
-
-Routing must prevent stale legacy rows becoming a second authority: once migrated, the updated CLI must not locally run those agents on connection failure or an old daemon. Consult the durable migration/ownership marker before local fallback. Legacy fallback remains available only where daemon ownership has not been established. A one-time import cannot capture later writes by older CLI binaries; concurrent legacy writers and downgrade after migration are unsupported and must be called out in rollout docs. If continuing mixed-version legacy writes is required, choose an incremental import/bridge instead; that is a broader ownership protocol.
-
-The existing #413 bridge is a reference for legacy reading, not the same algorithm: current code repeatedly merges registry rows and dual-writes. Copying it literally would conflict with this one-time authority transfer.
+Mixed interactive/durable read commands (`agent list`, `agent detail`, `agent sessions`, `agent session detail`) gracefully skip durable lookup when `devkitd` is unavailable or predates `durable.*` RPCs so interactive workflows (including `AI_DEVKIT_NO_DAEMON=1`) continue uninterrupted. Explicit durable mutations (`create`, `send`) require a running, compatible `devkitd` and return an actionable error otherwise. The existing interactive registry bridge in `agents.db` remains separate and untouched.
 
 ## Data Models
 
-Add durable schema through the existing daemon store migration convention without changing previously applied migrations.
+Add durable tables in `Store::open` (`devkit-core/src/store/durable.rs`):
 
 - `durable_agents`: existing identity, unique name and provider-session constraints, provider/mode, canonical cwd, state, session health, timestamps, active run reference, and last result projection. Preserve wire fields of the TS DurableAgent model.
 - `durable_runs`: stable run ID/token, agent foreign key, start/completion timestamps, owner/provider process identities, running or terminal status, nullable exit code, bounded result summary, and a full success result bounded by the parser line limit for foreground CLI output. Enforce at most one active run per agent.
-- Versioned import metadata: source and committed completion timestamp. Run ownership and completion remain authoritative in the durable store; registry discovery never writes durable outcomes.
+- Run ownership and completion remain authoritative in the durable store; registry discovery never writes durable outcomes.
 
 Acquire uses a short immediate transaction and compare-and-set guard. Commit acquisition before spawning; attach the spawned provider identity under the same token. Spawn failure completes the acquired run as failed. Completion, session binding, stop, and reconciliation require the current token, preventing a stale waiter from modifying a replacement run. Never hold the database lock while launching, parsing, waiting, or stopping processes.
 
@@ -84,11 +78,11 @@ Stop marks cancellation under the run token, signals only the verified process/g
 
 ## Component Breakdown
 
-- `devkit-core`: durable schema/store, atomic transitions, projections, migration, protocol types; dedicated durable store module alongside registry storage.
-- `devkit-harness`: per-provider durable launch profiles and bounded result extraction. First-run/resume argv mirrors current TS runners; invoke executable plus argv directly, write prompt to stdin, and drain stderr without retaining unlimited data.
-- `devkitd`: durable RPC orchestration and child supervisor; startup/2s sweep reconciliation; child waiters finish independently of sockets. Avoid blocking the async socket loop.
-- `daemon-client`: typed durable methods and capability handling. Probe before mutating; never fall back after a request might have executed or on a provider/domain error.
-- CLI: route durable start/send/session/sessions through one backend choice per operation, preserving existing output, ambiguity handling, provider session lookup, and cwd checks. Keep TS repository/runners as the bounded compatibility fallback.
+- `devkit-core`: durable schema/store, atomic transitions, projections, process identity (`durable_process.rs`), protocol types; dedicated durable store module alongside registry storage.
+- `devkit-harness`: per-provider durable launch profiles and bounded result extraction. First-run/resume argv mirrors current TS runners; invoke executable plus argv directly, write prompt to stdin, and discard stderr without retaining unlimited data.
+- `devkitd`: durable RPC orchestration and child supervisor (`supervise_child` / `classify_run_outcome`); startup/2s sweep reconciliation; child waiters finish independently of sockets; non-blocking stop lock scoping and post-`SIGKILL` wait. Avoid blocking the async socket loop.
+- `daemon-client`: typed durable methods and capability probing. Never retry a possibly executed mutation on transport or domain error.
+- CLI (`DurableAgentService`): route durable start/send/list/detail/session/sessions through `devkitd`, preserving existing output, ambiguity handling, provider session lookup, `--debug` tracing, and canonicalized `--cwd` session filtering. Mixed reads skip durable lookup when `devkitd` is absent/outdated; mutations require a compatible `devkitd`.
 
 ## Non-Functional Requirements and Validation
 
