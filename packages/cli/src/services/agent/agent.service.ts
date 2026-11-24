@@ -1,3 +1,5 @@
+import { DaemonRpcError, type AgentLookupResult } from "@ai-devkit/daemon-client";
+import { createDaemonEntryRegistry } from "../../util/agent.js";
 import {
   AgentStatus,
   TtyWriter,
@@ -65,6 +67,7 @@ export interface SendReporter {
 interface GroupTarget {
   member: string;
   agent: AgentInfo;
+  entry: AgentLookupResult;
 }
 
 export interface SendToAgentOptions {
@@ -92,7 +95,7 @@ export interface SendToAgentOptions {
 export interface SendToAgentGroupOptions {
   group: AgentGroup;
   prompt: string;
-  manager: Pick<AgentManager, "listAgents" | "resolveAgent">;
+  lookupAgent: (name: string) => Promise<AgentLookupResult>;
   focusManager: Pick<TerminalFocusManager, "findTerminal">;
   reporter?: SendReporter;
   writer?: typeof TtyWriter.send;
@@ -348,33 +351,56 @@ export async function sendToAgent({
 export async function sendToAgentGroup({
   group,
   prompt,
-  manager,
+  lookupAgent,
   focusManager,
   reporter = ui,
   writer = TtyWriter.send,
 }: SendToAgentGroupOptions): Promise<void> {
-  if (group.members.length === 0) {
-    throw new Error(`Agent group "${group.name}" has no members.`);
+  if (group.members.length === 0) throw new Error(`Agent group "${group.name}" has no members.`);
+  const targets: GroupTarget[] = [];
+  const errors: string[] = [];
+  for (const member of group.members) {
+    try {
+      const entry = await lookupAgent(member);
+      if (!entry.alive) {
+        errors.push(
+          `  - ${member}: Agent "${entry.name}" is registered but no longer running; not sending.`,
+        );
+        continue;
+      }
+      targets.push({
+        member,
+        entry,
+        agent: {
+          name: entry.name,
+          pid: entry.pid,
+          type: entry.type as AgentType,
+          status: AgentStatus.UNKNOWN,
+          summary: "",
+          projectPath: entry.cwd,
+          sessionId: "",
+          lastActive: new Date(),
+        },
+      });
+    } catch (error) {
+      if (error instanceof DaemonRpcError && error.code === "not_found") {
+        errors.push(`  - ${member}: ${error.message}`);
+        continue;
+      }
+      if (error instanceof Error && error.message.startsWith("unknown method")) {
+        throw new Error("Upgrade and restart devkitd to use agent groups.");
+      }
+      throw error;
+    }
   }
-
-  const agents = await manager.listAgents();
-  if (agents.length === 0) {
-    reporter.error("No running agents found.");
+  if (errors.length) {
+    reportResolutionErrors(group.name, errors, reporter);
     process.exitCode = 1;
     return;
   }
-
-  const resolution = resolveGroupTargets(group, agents, manager);
-  if (resolution.errors.length > 0) {
-    reportResolutionErrors(group.name, resolution.errors, reporter);
-    process.exitCode = 1;
-    return;
-  }
-
-  const targets = dedupeTargets(resolution.targets, reporter);
   await deliverGroupMessage({
     groupName: group.name,
-    targets,
+    targets: dedupeTargets(targets, reporter),
     prompt,
     focusManager,
     reporter,
@@ -508,32 +534,6 @@ function statusEmoji(status: AgentStatus): string {
   );
 }
 
-function resolveGroupTargets(
-  group: AgentGroup,
-  agents: AgentInfo[],
-  manager: Pick<AgentManager, "resolveAgent">,
-): { targets: GroupTarget[]; errors: string[] } {
-  const targets: GroupTarget[] = [];
-  const errors: string[] = [];
-
-  for (const member of group.members) {
-    const resolved = manager.resolveAgent(member, agents);
-    if (!resolved) {
-      errors.push(`  - ${member}: no running agent matched`);
-      continue;
-    }
-    if (Array.isArray(resolved)) {
-      errors.push(
-        `  - ${member}: matched multiple agents (${resolved.map((agent) => agent.name).join(", ")})`,
-      );
-      continue;
-    }
-    targets.push({ member, agent: resolved });
-  }
-
-  return { targets, errors };
-}
-
 function reportResolutionErrors(groupName: string, errors: string[], reporter: SendReporter): void {
   reporter.error(`Cannot send to group "${groupName}" because some members could not be resolved.`);
   for (const error of errors) {
@@ -571,15 +571,13 @@ async function deliverGroupMessage(options: {
   let successCount = 0;
   let failureCount = 0;
 
-  for (const { agent } of options.targets) {
-    warnIfAgentIsBusy(agent, options.reporter);
-
+  for (const { agent, entry } of options.targets) {
     try {
-      const location = await options.focusManager.findTerminal(agent.pid);
-      if (!location) {
-        throw new Error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
-      }
-      await options.writer(location, options.prompt);
+      await sendAgentPrompt(agent, options.prompt, {
+        registry: createDaemonEntryRegistry(entry),
+        focusManager: options.focusManager,
+        writer: options.writer,
+      });
       successCount += 1;
       options.reporter.success(`Sent message to ${agent.name}.`);
     } catch (error) {
@@ -589,14 +587,6 @@ async function deliverGroupMessage(options: {
   }
 
   reportDeliverySummary(options.groupName, successCount, failureCount, options.reporter);
-}
-
-function warnIfAgentIsBusy(agent: AgentInfo, reporter: SendReporter): void {
-  if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
-    reporter.warning(
-      `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`,
-    );
-  }
 }
 
 function reportDeliverySummary(

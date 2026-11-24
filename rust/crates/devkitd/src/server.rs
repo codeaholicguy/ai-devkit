@@ -197,6 +197,10 @@ impl Daemon {
                     Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
+            m if m.starts_with("group.") => match crate::rpc::group::run(self, m, req.params) {
+                Ok(result) => Response::ok(id, result),
+                Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+            },
             "shutdown" => {
                 // Caller expects a response before exit; schedule exit.
                 tokio::spawn(async {
@@ -1040,3 +1044,7 @@ mod tests {
         assert!(e2["error"].as_str().unwrap().contains("unknown method"));
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/rpc/groups.rs"]
+mod group_tests;

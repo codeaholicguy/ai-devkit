@@ -2,6 +2,7 @@
 //! (`agent.*` → `rpc::agent`), one file per method inside it.
 
 pub mod agent;
+pub mod group;
 
 use serde_json::Value;
 

@@ -11,9 +11,11 @@ const EVENT_RETENTION: i64 = 10_000;
 const PRUNE_EVERY: i64 = 512;
 
 pub mod durable;
+mod groups;
 /// Daemon-owned store: the persisted agent snapshot (for diff/events across
 /// restarts) and the durable event log. The daemon is the sole writer.
 mod registry;
+pub use groups::{AgentGroup, GroupError};
 pub use registry::Registration;
 
 pub struct Store {
@@ -94,6 +96,7 @@ impl Store {
             )?;
         }
         durable::init(&conn)?;
+        Self::init_groups(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
             legacy_db: Mutex::new(None),
