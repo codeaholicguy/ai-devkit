@@ -41,6 +41,10 @@ program
     "--overwrite",
     "With --yes, overwrite existing environments and phase files instead of skipping them",
   )
+  .option(
+    "--demo",
+    "After a successful init, run a two-agent tmux demo using installed harness CLIs",
+  )
   .action((options) => import("./commands/init.js").then((m) => m.initCommand(options)));
 
 program
