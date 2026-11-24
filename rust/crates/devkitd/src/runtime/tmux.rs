@@ -53,6 +53,40 @@ impl TmuxRuntime {
             })
     }
 
+    pub fn terminal_target(&self, pid: i64) -> Option<devkit_core::proto::AgentTerminalTarget> {
+        let output = crate::runtime::spawn_output(Command::new(&self.ps).args([
+            "-p",
+            &pid.to_string(),
+            "-o",
+            "tty=",
+        ]))
+        .ok()?;
+        let tty = String::from_utf8_lossy(&output.stdout);
+        let tty = tty.trim();
+        if !output.status.success() || tty.is_empty() || tty.starts_with('?') {
+            return None;
+        }
+        let tty = if tty.starts_with("/dev/") {
+            tty.to_owned()
+        } else {
+            format!("/dev/{tty}")
+        };
+        let panes = self
+            .run(&["list-panes", "-a", "-F", "#{pane_tty}|#{pane_id}"])
+            .ok()?;
+        panes
+            .lines()
+            .filter_map(|line| line.split_once('|'))
+            .find_map(|(pane_tty, id)| {
+                (pane_tty == tty && id.starts_with('%')).then(|| {
+                    devkit_core::proto::AgentTerminalTarget::Tmux {
+                        identifier: id.to_owned(),
+                        tty: tty.clone(),
+                    }
+                })
+            })
+    }
+
     pub fn session_exists(&self, name: &str) -> bool {
         self.run(&["has-session", "-t", name]).is_ok()
     }
@@ -224,6 +258,21 @@ mod tests {
             timeout_ms: timeout,
             poll_interval_ms: 1,
         }
+    }
+
+    #[test]
+    fn terminal_target_selects_the_matching_tty_not_the_first_pane() {
+        let f = FixtureDir::new("terminal-target");
+        f.set("cmd-12", "pts/20");
+        f.set("pane_pid", "/dev/pts/2|%1\n/dev/pts/20|%3");
+        let Some(devkit_core::proto::AgentTerminalTarget::Tmux { identifier, tty }) =
+            f.tmux().terminal_target(12)
+        else {
+            panic!("expected a tmux pane matching the agent TTY");
+        };
+        assert_eq!(identifier, "%3");
+        assert_eq!(tty, "/dev/pts/20");
+        assert!(f.tmux().terminal_target(13).is_none());
     }
 
     #[test]

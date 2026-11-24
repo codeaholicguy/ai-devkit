@@ -66,6 +66,15 @@ const mockChannelService = {
   stopBridge: vi.fn<(channelName?: string) => Promise<unknown>>(),
 };
 
+const { mockLookupAgent } = vi.hoisted(() => ({ mockLookupAgent: vi.fn() }));
+const { mockConnectDaemon } = vi.hoisted(() => ({ mockConnectDaemon: vi.fn() }));
+
+vi.mock("@ai-devkit/daemon-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@ai-devkit/daemon-client")>()),
+  ensureDaemon: async () => null,
+  DaemonClient: { tryConnect: mockConnectDaemon },
+}));
+
 vi.mock(
   "@ai-devkit/channel-connector",
   () => ({
@@ -827,7 +836,7 @@ describe("channel command", () => {
       "codex-main",
     ]);
 
-    for (let i = 0; i < 10 && mockChannelManager.startAll.mock.calls.length === 0; i += 1) {
+    for (let i = 0; i < 20 && mockChannelManager.startAll.mock.calls.length === 0; i += 1) {
       await Promise.resolve();
     }
 
@@ -894,7 +903,9 @@ describe("channel command", () => {
     expect(ui.info).toHaveBeenCalledWith("Logs: /tmp/channel-logs/personal.log");
   });
 
-  it("shows the daemon log path in channel status", async () => {
+  it("shows the daemon log path and a gone agent in channel status", async () => {
+    mockConnectDaemon.mockResolvedValueOnce({ lookupAgent: mockLookupAgent, close: vi.fn() });
+    mockLookupAgent.mockResolvedValueOnce({ pid: 4321, alive: false });
     mockConfigStore.getConfig.mockResolvedValue({
       channels: {
         personal: personalEntry,
@@ -917,6 +928,7 @@ describe("channel command", () => {
     await program.parseAsync(["node", "test", "channel", "status", "personal"]);
 
     expect(ui.text).toHaveBeenCalledWith("  Logs: /tmp/channel-logs/personal.log");
+    expect(ui.text).toHaveBeenCalledWith("  Agent: gone");
   });
 
   it("renders status dates, authorization emphasis, and one spacer between entries", async () => {

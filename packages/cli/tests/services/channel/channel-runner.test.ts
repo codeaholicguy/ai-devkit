@@ -89,6 +89,34 @@ describe("channel input routing", () => {
     );
   });
 
+  it("replies on-channel when the target is dead", async () => {
+    let handler: ((message: IncomingMessage) => Promise<void>) | undefined;
+    const channel = {
+      type: "telegram",
+      onMessage: vi.fn((nextHandler) => {
+        handler = nextHandler;
+      }),
+      sendMessage: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.spyOn(TtyWriter, "send").mockResolvedValue(undefined);
+    setupInputHandler(
+      channel as never,
+      { type: TerminalType.TMUX, identifier: "%1", tty: "/dev/pts/1" },
+      { value: "123" },
+      undefined,
+      async () => false,
+    );
+    await handler?.({
+      channelType: "telegram",
+      chatId: "123",
+      userId: "123",
+      text: "hello",
+      timestamp: new Date(),
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(channel.sendMessage).toHaveBeenCalledWith("123", "The agent has exited.");
+  });
+
   it("keeps the authorization rejection for a different Telegram chat", async () => {
     let handler: ((message: IncomingMessage) => Promise<void>) | undefined;
     const channel = {
@@ -138,6 +166,33 @@ describe("startOutputPolling — agent requests", () => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     rmSync(homeDir, { recursive: true, force: true });
+  });
+
+  it("relays new conversation output when session discovery catches up", async () => {
+    const telegram = makeTelegram();
+    const agentAdapter = makeAdapter();
+    const start = new Date("2026-11-24T16:00:00Z");
+    vi.setSystemTime(start);
+    agentAdapter.getConversation.mockReturnValue([
+      { role: "assistant", content: "from before the bridge", timestamp: "2026-11-24T15:59:59Z" },
+      { role: "assistant", content: "new reply", timestamp: "2026-11-24T16:00:01Z" },
+    ]);
+    const refreshSession = vi
+      .fn()
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ sessionId: "session", sessionFilePath: "/session.jsonl" });
+    const interval = startOutputPolling(
+      telegram as never,
+      agentAdapter as never,
+      makeAgent({ sessionId: "" }),
+      chatIdRef,
+      { homeDir, refreshSession },
+    );
+
+    await vi.advanceTimersByTimeAsync(6000);
+    clearInterval(interval);
+    expect(refreshSession).toHaveBeenCalledTimes(2);
+    expect(telegram.sendMessage.mock.calls).toEqual([["chat-123", "new reply"]]);
   });
 
   it("does not send when chatIdRef.value is null", async () => {

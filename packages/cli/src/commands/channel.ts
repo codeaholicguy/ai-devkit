@@ -20,6 +20,7 @@ import { createLogger, enableDebug } from "../util/debug.js";
 import { getErrorMessage } from "../util/text.js";
 import { confirm, password } from "@inquirer/prompts";
 import { ChannelService } from "../services/channel/channel.service.js";
+import { channelAgentLiveness } from "../services/channel/channel-target.js";
 import { runChannelBridge } from "../services/channel/channel-runner.js";
 
 const debug = createLogger("channel");
@@ -445,6 +446,10 @@ export function registerChannelCommand(program: Command): void {
           ui.text(
             `  Bridge: ${bridge ? chalk.green(`running (PID: ${bridge.bridgePid}, agent: ${bridge.agentName})`) : chalk.dim("stopped")}`,
           );
+          if (bridge) {
+            const liveness = await channelAgentLiveness(bridge.agentName, bridge.agentPid);
+            ui.text(`  Agent: ${liveness}`);
+          }
           if (bridge?.logPath) {
             ui.text(`  Logs: ${bridge.logPath}`);
           }

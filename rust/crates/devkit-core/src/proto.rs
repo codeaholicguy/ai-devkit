@@ -122,6 +122,26 @@ pub struct AgentNameParams {
     pub name: String,
 }
 
+/// Opt-in terminal discovery keeps ordinary registration lookups cheap.
+/// A listed PID permits lookup of an unregistered agent selected from agent.list.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentLookupParams {
+    pub name: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub resolve_terminal: Option<bool>,
+    #[serde(default)]
+    #[ts(optional, type = "number")]
+    pub listed_pid: Option<u64>,
+}
+
+#[derive(Debug, Serialize, TS)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum AgentTerminalTarget {
+    Tmux { identifier: String, tty: String },
+}
+
 /// `agent.lookup` result — a registered agent's location data, enough for a
 /// client to drive its runtime directly (tmux `kill-session`/`send-keys` via
 /// `runtimeRef.session`, herdr pane ops via `runtimeRef.paneId`). Generic on
@@ -129,8 +149,8 @@ pub struct AgentNameParams {
 ///
 /// Tombstoned registrations (process gone, row retained for cleanup) resolve
 /// too: `alive` is false and `goneAt` carries the sweep timestamp (ms).
-/// `alive` is a `kill(pid, 0)` probe at lookup time — callers must not
-/// signal `pid` when it is false (the number may since have been recycled).
+/// `alive` also requires a successful `kill(pid, 0)` probe at lookup time.
+/// Callers must not signal a PID when it is false.
 #[derive(Debug, Serialize, TS)]
 pub struct AgentLookupResult {
     pub name: String,
@@ -146,6 +166,9 @@ pub struct AgentLookupResult {
     pub runtime_ref: Value,
     pub cwd: String,
     pub pinned: bool,
+    #[serde(rename = "terminalTarget", skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub terminal_target: Option<AgentTerminalTarget>,
     pub alive: bool,
     #[serde(rename = "goneAt", skip_serializing_if = "Option::is_none")]
     #[ts(optional, type = "number")]
@@ -226,6 +249,8 @@ mod tests {
         AgentStartParams::export(&cfg).unwrap();
         AgentStartResult::export(&cfg).unwrap();
         AgentNameParams::export(&cfg).unwrap();
+        AgentLookupParams::export(&cfg).unwrap();
+        AgentTerminalTarget::export(&cfg).unwrap();
         AgentLookupResult::export(&cfg).unwrap();
         AgentUnregisterResult::export(&cfg).unwrap();
         AgentRenameParams::export(&cfg).unwrap();
@@ -338,6 +363,7 @@ mod tests {
         assert_eq!(p.name, "foo");
 
         let r = AgentLookupResult {
+            terminal_target: None,
             name: "foo".into(),
             agent_type: "claude".into(),
             pid: 42,
