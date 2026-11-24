@@ -123,14 +123,18 @@ fn get(conn: &Connection, n: &str) -> Result<AgentGroup, GroupError> {
         updated_at,
     })
 }
-fn write_members(conn: &Connection, g: &AgentGroup) -> Result<(), GroupError> {
-    conn.execute("DELETE FROM group_members WHERE group_name=?1", [&g.name])?;
+fn insert_members(conn: &Connection, g: &AgentGroup) -> Result<(), GroupError> {
     for (i, m) in g.members.iter().enumerate() {
         conn.execute(
             "INSERT INTO group_members(group_name,member,position) VALUES(?1,?2,?3)",
             params![g.name, m, i as i64],
         )?;
     }
+    Ok(())
+}
+fn write_members(conn: &Connection, g: &AgentGroup) -> Result<(), GroupError> {
+    conn.execute("DELETE FROM group_members WHERE group_name=?1", [&g.name])?;
+    insert_members(conn, g)?;
     conn.execute(
         "UPDATE groups SET updated_at=?2 WHERE name=?1",
         params![g.name, g.updated_at],
@@ -194,7 +198,7 @@ impl Store {
             "INSERT INTO groups(name,created_at,updated_at) VALUES(?1,?2,?3)",
             params![g.name, g.created_at, g.updated_at],
         )?;
-        write_members(&tx, &g)?;
+        insert_members(&tx, &g)?;
         tx.commit()?;
         Ok(g)
     }
@@ -313,7 +317,7 @@ impl Store {
                         params![g.name, g.created_at, g.updated_at],
                     )
                     .map_err(|e| storage(e.to_string()))?;
-                    write_members(&tx, &g).map_err(|e| storage(e.to_string()))?;
+                    insert_members(&tx, &g).map_err(|e| storage(e.to_string()))?;
                 }
             }
             tx.execute("INSERT INTO group_migrations(name) VALUES('json-v1')", [])?;

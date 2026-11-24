@@ -1,4 +1,9 @@
-import { DaemonRpcError, ensureDaemon, type AgentGroup } from "@ai-devkit/daemon-client";
+import {
+  DaemonRpcError,
+  ensureDaemon,
+  type AgentGroup,
+  type DaemonClient,
+} from "@ai-devkit/daemon-client";
 export type { AgentGroup } from "@ai-devkit/daemon-client";
 
 export class AgentGroupNotFoundError extends Error {
@@ -49,44 +54,55 @@ export class AgentGroupStorageError extends Error {
   }
 }
 
+export interface AgentGroupServiceOptions {
+  client?: DaemonClient;
+  onDebug?: (msg: string) => void;
+}
+
 /** Daemon-owned groups. No local persistence or fallback after ownership. */
 export class AgentGroupService {
+  constructor(private readonly options?: AgentGroupServiceOptions) {}
+
   async list(): Promise<AgentGroup[]> {
-    return this.call("group.list", {});
+    return this.withDaemon((daemon) => daemon.listGroups(), {});
   }
   async get(name: string): Promise<AgentGroup> {
-    return this.call("group.detail", { name });
+    return this.withDaemon((daemon) => daemon.getGroup(name), { name });
   }
   async lookup(name: string): Promise<AgentGroup> {
-    return this.call("group.lookup", { name });
+    return this.withDaemon((daemon) => daemon.lookupGroup(name), { name });
   }
   async create(name: string, members: string[]): Promise<AgentGroup> {
-    return this.call("group.create", { name, members });
+    return this.withDaemon((daemon) => daemon.createGroup(name, members), { name });
   }
   async update(name: string, members: string[]): Promise<AgentGroup> {
-    return this.call("group.update", { name, members });
+    return this.withDaemon((daemon) => daemon.updateGroup(name, members), { name });
   }
   async addMember(name: string, member: string): Promise<AgentGroup> {
-    return this.call("group.add", { name, member });
+    return this.withDaemon((daemon) => daemon.addGroupMember(name, member), { name, member });
   }
   async removeMember(name: string, member: string): Promise<AgentGroup> {
-    return this.call("group.remove_agent", { name, member });
+    return this.withDaemon((daemon) => daemon.removeGroupMember(name, member), { name, member });
   }
   async remove(name: string): Promise<void> {
-    await this.call("group.remove", { name });
+    await this.withDaemon((daemon) => daemon.removeGroup(name), { name });
   }
 
-  private async call<T>(
-    method: string,
-    params: { name?: string; member?: string; members?: string[] },
+  private async withDaemon<T>(
+    operation: (daemon: DaemonClient) => Promise<T>,
+    context: { name?: string; member?: string },
   ): Promise<T> {
-    const daemon = await ensureDaemon();
-    if (!daemon)
+    const owned = !this.options?.client;
+    const daemon =
+      this.options?.client ??
+      (await ensureDaemon(this.options?.onDebug ? { onDebug: this.options.onDebug } : undefined));
+    if (!daemon) {
       throw new Error(
         "A running, capable daemon is required for agent groups. Start devkitd and retry.",
       );
+    }
     try {
-      return (await daemon.request(method, params)) as T;
+      return await operation(daemon);
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("unknown method")) {
         throw new Error("Upgrade and restart devkitd to use agent groups.");
@@ -95,7 +111,7 @@ export class AgentGroupService {
       const details = error.details as
         | { name?: string; member?: string; path?: string }
         | undefined;
-      const name = details?.name ?? params.name ?? "";
+      const name = details?.name ?? context.name ?? "";
       let mapped: Error;
       switch (error.code) {
         case "not_found":
@@ -109,7 +125,7 @@ export class AgentGroupService {
           break;
         case "invalid_member":
           mapped = new AgentGroupInvalidMemberError(
-            details?.member ?? params.member ?? "",
+            details?.member ?? context.member ?? "",
             error.message,
           );
           break;
@@ -125,11 +141,13 @@ export class AgentGroupService {
       mapped.message = error.message;
       throw mapped;
     } finally {
-      daemon.close();
+      if (owned) daemon.close();
     }
   }
 }
 
-export function createDefaultAgentGroupService(): AgentGroupService {
-  return new AgentGroupService();
+export function createDefaultAgentGroupService(
+  options?: AgentGroupServiceOptions,
+): AgentGroupService {
+  return new AgentGroupService(options);
 }

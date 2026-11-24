@@ -14,10 +14,7 @@ import {
   type AgentWaitResult,
   type AgentWaitSource,
 } from "../../services/agent/agent-wait.service.js";
-import {
-  AgentGroupNotFoundError,
-  createDefaultAgentGroupService,
-} from "../../services/agent/agent-group.service.js";
+import { createDefaultAgentGroupService } from "../../services/agent/agent-group.service.js";
 import { createAgentManager } from "./factory.js";
 
 const debug = createLogger("agent:wait");
@@ -136,9 +133,6 @@ export function registerAgentWaitCommand(agentCommand: Command): void {
         let identifiers: string[] | undefined = options.id;
         if (options.group) {
           const group = await createDefaultAgentGroupService().get(options.group);
-          if (!group) {
-            throw new AgentGroupNotFoundError(options.group);
-          }
           identifiers = group.members;
         }
 

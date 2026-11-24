@@ -1,4 +1,5 @@
 import { AgentStatus, type AgentInfo, type ConversationMessage } from "@ai-devkit/agent-manager";
+import { DaemonRpcError } from "@ai-devkit/daemon-client";
 import {
   waitForAgentResponse,
   assertSendTargetOptions,
@@ -553,7 +554,7 @@ describe("daemon group fanout", () => {
   afterEach(() => {
     process.exitCode = undefined;
   });
-  it("resolves all members through agent.lookup and sends in order", async () => {
+  it("resolves all members through agent.lookup and sends in order without spurious busy warnings", async () => {
     lookupAgent
       .mockResolvedValueOnce(entry("first", 10))
       .mockResolvedValueOnce(entry("second", 11));
@@ -561,17 +562,34 @@ describe("daemon group fanout", () => {
     expect(lookupAgent.mock.calls.map((c) => c[0])).toEqual(["first", "second"]);
     expect(writer).toHaveBeenNthCalledWith(1, { type: "tmux", identifier: "10" }, "hello");
     expect(writer).toHaveBeenNthCalledWith(2, { type: "tmux", identifier: "11" }, "hello");
+    expect(reporter.warning).not.toHaveBeenCalled();
     expect(reporter.success).toHaveBeenCalledWith('Sent message to 2 agent(s) in group "team".');
   });
-  it("refuses all delivery when a member lookup fails or is dead", async () => {
+  it("refuses all delivery when a member is missing or dead", async () => {
     lookupAgent
-      .mockRejectedValueOnce(new Error("missing"))
+      .mockRejectedValueOnce(new DaemonRpcError("missing", "not_found"))
       .mockResolvedValueOnce(entry("second", 11, false));
     await sendToAgentGroup({ group, prompt: "hello", lookupAgent, focusManager, writer, reporter });
     expect(writer).not.toHaveBeenCalled();
     expect(focusManager.findTerminal).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
     expect(reporter.error).toHaveBeenCalledWith("  - first: missing");
+  });
+  it("aborts and rethrows daemon transport failures without misreporting missing members", async () => {
+    lookupAgent.mockRejectedValueOnce(new Error("daemon socket closed"));
+    await expect(
+      sendToAgentGroup({ group, prompt: "hello", lookupAgent, focusManager, writer, reporter }),
+    ).rejects.toThrow("daemon socket closed");
+    expect(lookupAgent).toHaveBeenCalledTimes(1);
+    expect(reporter.error).not.toHaveBeenCalled();
+    expect(writer).not.toHaveBeenCalled();
+  });
+  it("requires an upgrade when agent.lookup is unsupported", async () => {
+    lookupAgent.mockRejectedValueOnce(new DaemonRpcError("unknown method: agent.lookup"));
+    await expect(
+      sendToAgentGroup({ group, prompt: "hello", lookupAgent, focusManager, writer, reporter }),
+    ).rejects.toThrow(/upgrade|restart/i);
+    expect(lookupAgent).toHaveBeenCalledTimes(1);
   });
   it("deduplicates daemon targets and continues after delivery failure", async () => {
     lookupAgent

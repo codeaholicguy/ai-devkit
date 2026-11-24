@@ -1,4 +1,4 @@
-import type { AgentLookupResult } from "@ai-devkit/daemon-client";
+import { DaemonRpcError, type AgentLookupResult } from "@ai-devkit/daemon-client";
 import { createDaemonEntryRegistry } from "./daemon-entry.service.js";
 import {
   AgentStatus,
@@ -362,8 +362,12 @@ export async function sendToAgentGroup({
   for (const member of group.members) {
     try {
       const entry = await lookupAgent(member);
-      if (!entry.alive)
-        throw new Error(`Agent "${entry.name}" is registered but no longer running; not sending.`);
+      if (!entry.alive) {
+        errors.push(
+          `  - ${member}: Agent "${entry.name}" is registered but no longer running; not sending.`,
+        );
+        continue;
+      }
       targets.push({
         member,
         entry,
@@ -379,7 +383,14 @@ export async function sendToAgentGroup({
         },
       });
     } catch (error) {
-      errors.push(`  - ${member}: ${(error as Error).message}`);
+      if (error instanceof DaemonRpcError && error.code === "not_found") {
+        errors.push(`  - ${member}: ${error.message}`);
+        continue;
+      }
+      if (error instanceof Error && error.message.startsWith("unknown method")) {
+        throw new Error("Upgrade and restart devkitd to use agent groups.");
+      }
+      throw error;
     }
   }
   if (errors.length) {
@@ -581,7 +592,7 @@ async function deliverGroupMessage(options: {
 }
 
 function warnIfAgentIsBusy(agent: AgentInfo, reporter: SendReporter): void {
-  if (![AgentStatus.WAITING, AgentStatus.IDLE].includes(agent.status)) {
+  if (![AgentStatus.WAITING, AgentStatus.IDLE, AgentStatus.UNKNOWN].includes(agent.status)) {
     reporter.warning(
       `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`,
     );

@@ -2989,6 +2989,7 @@ Waiting on user input`,
   });
 
   it("reports invalid group names for send --group before delivery", async () => {
+    mockEnsureDaemon.mockResolvedValue({ close: vi.fn() });
     mockGroupStore.lookup.mockImplementation(() => {
       throw new Error('Invalid agent group name "Bad_Name".');
     });
@@ -4466,7 +4467,7 @@ Waiting on user input`,
     });
 
     it("fails for an unknown group", async () => {
-      mockGroupStore.get.mockReturnValue(undefined);
+      mockGroupStore.get.mockRejectedValue(new Error('Agent group "nope" not found.'));
 
       await runWait("--group", "nope", "--timeout", "1");
 

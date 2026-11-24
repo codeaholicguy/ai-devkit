@@ -2,10 +2,7 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { ui } from "../../util/terminal-ui.js";
 import { withErrorHandler } from "../../util/errors.js";
-import {
-  AgentGroupNotFoundError,
-  createDefaultAgentGroupService,
-} from "../../services/agent/agent-group.service.js";
+import { createDefaultAgentGroupService } from "../../services/agent/agent-group.service.js";
 
 function collectAgentMember(value: string, previous: string[]): string[] {
   return [...previous, value];
@@ -106,9 +103,6 @@ export function registerAgentGroupCommand(agentCommand: Command): void {
     .action(
       withErrorHandler("manage agent group", async (name: string) => {
         const group = await createDefaultAgentGroupService().get(name);
-        if (!group) {
-          throw new AgentGroupNotFoundError(name);
-        }
         ui.text(`Agent Group: ${group.name}`, { breakline: true });
         for (const member of group.members) {
           ui.text(`  - ${member}`);

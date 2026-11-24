@@ -135,13 +135,16 @@ export function registerAgentSendCommand(agentCommand: Command): void {
         const focusManager = new TerminalFocusManager();
 
         if (options.group) {
-          const group = await createDefaultAgentGroupService().lookup(options.group);
           const daemon = await ensureDaemon({ onDebug: debug });
-          if (!daemon)
+          if (!daemon) {
             throw new Error(
               "A running, capable daemon is required for group sends. Start devkitd and retry.",
             );
+          }
           try {
+            const group = await createDefaultAgentGroupService({ client: daemon }).lookup(
+              options.group,
+            );
             await sendToAgentGroup({
               group,
               prompt,
