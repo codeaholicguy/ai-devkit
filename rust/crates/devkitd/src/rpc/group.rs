@@ -14,45 +14,7 @@ fn domain(err: GroupError) -> RpcError {
     RpcError::new(err.code, err.message, Some(err.details))
 }
 
-/// Retry a failed startup import before serving any group RPC.
-/// Successful imports and cleanup attempts happen once per startup.
-fn ensure_groups_ready(daemon: &Daemon) -> Result<(), RpcError> {
-    let mut ready = daemon.groups_ready.lock().unwrap();
-    if !*ready {
-        match daemon.store.import_groups(&daemon.groups_source) {
-            Ok(warning) => {
-                *ready = true;
-                if let Some(msg) = warning {
-                    tracing::warn!("{msg}");
-                }
-            }
-            Err(err) => return Err(domain(err)),
-        }
-    }
-    Ok(())
-}
-
 pub fn run(daemon: &Daemon, method: &str, params: Value) -> Result<Value, RpcError> {
-    let is_known = matches!(
-        method,
-        "group.create"
-            | "group.update"
-            | "group.add"
-            | "group.remove_agent"
-            | "group.remove"
-            | "group.list"
-            | "group.detail"
-            | "group.lookup"
-    );
-    if !is_known {
-        return Err(RpcError::new(
-            "unknown_method",
-            format!("unknown method: {method}"),
-            None,
-        ));
-    }
-    ensure_groups_ready(daemon)?;
-
     let group = match method {
         "group.create" => {
             let p: GroupMembersParams = parse(params)?;
@@ -83,7 +45,13 @@ pub fn run(daemon: &Daemon, method: &str, params: Value) -> Result<Value, RpcErr
             let p: GroupNameParams = parse(params)?;
             daemon.store.get_group(&p.name)
         }
-        _ => unreachable!("method validated above"),
+        _ => {
+            return Err(RpcError::new(
+                "unknown_method",
+                format!("unknown method: {method}"),
+                None,
+            ));
+        }
     }
     .map_err(domain)?;
 

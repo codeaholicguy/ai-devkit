@@ -177,9 +177,6 @@ impl Store {
                 position INTEGER NOT NULL,
                 PRIMARY KEY(group_name, member),
                 UNIQUE(group_name, position)
-            );
-            CREATE TABLE IF NOT EXISTS group_migrations (
-                name TEXT PRIMARY KEY
             );",
         )
     }
@@ -338,78 +335,5 @@ impl Store {
             return Err(not_found(&group_name));
         }
         Ok(())
-    }
-}
-
-#[derive(Deserialize)]
-struct LegacyGroups {
-    version: u32,
-    groups: Vec<AgentGroup>,
-}
-
-impl Store {
-    /// Claim ownership atomically, then unlink legacy state. A cleanup warning
-    /// is distinct from import failure: callers must keep serving owned data.
-    /// Call once at startup (and retry only a failed import before group RPCs).
-    pub fn import_groups(&self, source: &std::path::Path) -> Result<Option<String>, GroupError> {
-        let storage_err = |detail: String| {
-            group_error(
-                "storage",
-                format!(
-                    "Failed to import agent groups from \"{}\": {detail}",
-                    source.display()
-                ),
-                json!({ "path": source }),
-            )
-        };
-        let conn = self.conn.lock().unwrap();
-        let tx = conn.unchecked_transaction()?;
-        let owned = tx
-            .query_row(
-                "SELECT 1 FROM group_migrations WHERE name = 'json-v1'",
-                [],
-                |_| Ok(()),
-            )
-            .optional()?
-            .is_some();
-        if !owned {
-            let legacy = match std::fs::read_to_string(source) {
-                Ok(text) => Some(
-                    serde_json::from_str::<LegacyGroups>(&text)
-                        .map_err(|err| storage_err(err.to_string()))?,
-                ),
-                Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
-                Err(err) => return Err(storage_err(err.to_string())),
-            };
-            if let Some(legacy) = legacy {
-                if legacy.version != 1 {
-                    return Err(storage_err("unsupported agent group file version".into()));
-                }
-                for mut group in legacy.groups {
-                    group.name = validate_group_name(&group.name)
-                        .map_err(|err| storage_err(err.to_string()))?;
-                    group.members = validate_members(group.members)
-                        .map_err(|err| storage_err(err.to_string()))?;
-                    tx.execute(
-                        "INSERT INTO groups(name, created_at, updated_at) VALUES(?1, ?2, ?3)",
-                        params![group.name, group.created_at, group.updated_at],
-                    )
-                    .map_err(|err| storage_err(err.to_string()))?;
-                    insert_members(&tx, &group).map_err(|err| storage_err(err.to_string()))?;
-                }
-            }
-            tx.execute("INSERT INTO group_migrations(name) VALUES('json-v1')", [])?;
-        }
-        tx.commit()?;
-        // Never read the source after ownership. Even malformed recreated files
-        // are stale; cleanup can fail without changing the durable fence.
-        match std::fs::remove_file(source) {
-            Ok(()) => Ok(None),
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(err) => Ok(Some(format!(
-                "Agent group import committed; cleanup of {} failed: {err}",
-                source.display()
-            ))),
-        }
     }
 }

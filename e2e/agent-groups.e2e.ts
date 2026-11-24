@@ -1,7 +1,7 @@
 import { spawn, execFile, type ChildProcess } from "node:child_process";
 import { promisify } from "node:util";
 import { createConnection, createServer, type Server, type Socket } from "node:net";
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DaemonClient } from "@ai-devkit/daemon-client";
@@ -60,15 +60,6 @@ describe("daemon-owned groups through the built CLI", () => {
     data = join(fixture, "daemon/.ai-devkit");
     mkdirSync(join(home, ".ai-devkit"), { recursive: true });
     mkdirSync(data, { recursive: true });
-    writeFileSync(
-      join(data, "agent-groups.json"),
-      JSON.stringify({
-        version: 1,
-        groups: [
-          { name: "imported", members: ["old-member"], createdAt: "created", updatedAt: "updated" },
-        ],
-      }),
-    );
     await start();
     // High, dead PIDs give deterministic daemon registrations. agent.lookup
     // resolves them, with alive=false; no terminal delivery can occur.
@@ -115,9 +106,7 @@ c.commit()`,
     if (fixture) rmSync(fixture, { recursive: true, force: true });
   });
 
-  it("imports once and routes all group commands with ordered fanout lookups", async () => {
-    expect(existsSync(join(data, "agent-groups.json"))).toBe(false);
-    expect((await run("agent", "group", "detail", "imported")).stdout).toContain("old-member");
+  it("routes all group commands with ordered fanout lookups and survives restart", async () => {
     expect((await run("agent", "group", "create", "team", "--agent", "first")).code).toBe(0);
     expect((await run("agent", "group", "add", "team", "second")).code).toBe(0);
     requests.length = 0;
@@ -143,18 +132,10 @@ c.commit()`,
     const conflict = await run("agent", "group", "create", "team", "--agent", "first");
     expect(conflict.code).toBe(1);
     expect(conflict.stdout + conflict.stderr).toContain("already exists");
-    expect((await run("agent", "group", "remove", "imported")).code).toBe(0);
     await stop();
-    writeFileSync(
-      join(data, "agent-groups.json"),
-      JSON.stringify({
-        version: 1,
-        groups: [{ name: "imported", members: ["stale"], createdAt: "c", updatedAt: "u" }],
-      }),
-    );
     await start();
-    expect((await run("agent", "group", "detail", "imported")).code).toBe(1);
     expect((await run("agent", "group", "detail", "team")).stdout).toContain("second");
-    expect(existsSync(join(data, "agent-groups.json"))).toBe(false);
+    expect((await run("agent", "group", "remove", "team")).code).toBe(0);
+    expect((await run("agent", "group", "detail", "team")).code).toBe(1);
   }, 30000);
 });

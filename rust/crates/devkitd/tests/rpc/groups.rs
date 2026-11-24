@@ -85,24 +85,8 @@ fn group_rpc_lifecycle_and_errors() {
         call("group.detail", json!({"name":"team"})).code.as_deref(),
         Some("not_found")
     );
-}
-#[test]
-fn failed_import_blocks_groups_but_not_ping_and_can_be_repaired() {
-    let f = FixtureDir::new("group-import-rpc");
-    std::fs::write(f.0.join("agent-groups.json"), "bad").unwrap();
-    let d = Daemon::new(&f.0, f.0.join("sock"), f.0.clone()).unwrap();
-    assert!(request(&d, "ping", json!({})).error.is_none());
     assert_eq!(
-        request(&d, "group.list", json!({})).code.as_deref(),
-        Some("storage")
-    );
-    std::fs::write(
-        f.0.join("agent-groups.json"),
-        r#"{"version":1,"groups":[]}"#,
-    )
-    .unwrap();
-    assert_eq!(
-        request(&d, "group.list", json!({})).result.unwrap(),
-        json!([])
+        call("group.unknown", json!({})).code.as_deref(),
+        Some("unknown_method")
     );
 }
