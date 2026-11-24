@@ -5,7 +5,7 @@ vi.mock("@ai-devkit/daemon-client", async (importOriginal) => ({
   ensureDaemon: mocks.ensure,
 }));
 vi.mock("node:fs", () => ({ existsSync: mocks.exists }));
-import { RoutedDurableService } from "../../src/services/agent/durable-backend.service.js";
+import { DurableAgentService } from "../../../src/services/agent/durable-agent.service.js";
 import { DaemonRpcError } from "@ai-devkit/daemon-client";
 const agent = {
   id: "one",
@@ -32,7 +32,7 @@ describe("durable authority routing", () => {
     };
     mocks.ensure.mockResolvedValue(client);
     expect(
-      await new RoutedDurableService("claude", mocks.local).create({
+      await new DurableAgentService("claude", mocks.local).create({
         name: "worker",
         cwd: "/repo",
       }),
@@ -47,17 +47,17 @@ describe("durable authority routing", () => {
         .mockRejectedValue(new DaemonRpcError("unknown method: durable.capabilities")),
       close: vi.fn(),
     });
-    await new RoutedDurableService("claude", mocks.local).create({ name: "worker", cwd: "/repo" });
+    await new DurableAgentService("claude", mocks.local).create({ name: "worker", cwd: "/repo" });
     expect(mocks.local).toHaveBeenCalledOnce();
     mocks.exists.mockReturnValue(true);
-    await expect(new RoutedDurableService("claude", mocks.local).repository.list()).rejects.toThrow(
+    await expect(new DurableAgentService("claude", mocks.local).repository.list()).rejects.toThrow(
       /owned by devkitd/,
     );
   });
   it("refuses fallback on outage after transfer", async () => {
     mocks.ensure.mockResolvedValue(null);
     mocks.exists.mockReturnValue(true);
-    await expect(new RoutedDurableService("claude", mocks.local).repository.list()).rejects.toThrow(
+    await expect(new DurableAgentService("claude", mocks.local).repository.list()).rejects.toThrow(
       /owned by devkitd/,
     );
     expect(mocks.local).not.toHaveBeenCalled();
@@ -69,7 +69,7 @@ describe("durable authority routing", () => {
       close: vi.fn(),
     });
     await expect(
-      new RoutedDurableService("claude", mocks.local).create({ name: "worker", cwd: "/repo" }),
+      new DurableAgentService("claude", mocks.local).create({ name: "worker", cwd: "/repo" }),
     ).rejects.toThrow("socket closed");
     expect(mocks.local).not.toHaveBeenCalled();
   });
@@ -88,7 +88,7 @@ describe("durable authority routing", () => {
     };
     mocks.ensure.mockResolvedValue(client);
     expect(
-      (await new RoutedDurableService("claude", mocks.local).send("one", "prompt")).result,
+      (await new DurableAgentService("claude", mocks.local).send("one", "prompt")).result,
     ).toBe("reply");
     expect(client.showDurable).toHaveBeenLastCalledWith("one", "run-one");
   });
@@ -99,7 +99,7 @@ it("requires truthful capability version before mutation", async () => {
     close: vi.fn(),
   });
   await expect(
-    new RoutedDurableService("claude", mocks.local).create({ name: "worker", cwd: "/repo" }),
+    new DurableAgentService("claude", mocks.local).create({ name: "worker", cwd: "/repo" }),
   ).rejects.toThrow(/capability/);
   expect(mocks.local).not.toHaveBeenCalled();
 });
@@ -115,7 +115,7 @@ it("uses local fallback before transfer when no daemon exists", async () => {
     create: vi.fn().mockResolvedValue(agent),
   };
   mocks.local.mockReturnValue(local);
-  const service = new RoutedDurableService("claude", mocks.local);
+  const service = new DurableAgentService("claude", mocks.local);
   expect(await service.repository.list()).toEqual([agent]);
   expect(await service.repository.resolve("one")).toEqual(agent);
   expect(await service.send("one", "prompt")).toEqual({ result: "local" });
@@ -127,7 +127,7 @@ it("surfaces migration capability failures without local fallback", async () => 
       .mockRejectedValue(new DaemonRpcError("migration failed", "migration_failed")),
     close: vi.fn(),
   });
-  await expect(new RoutedDurableService("claude", mocks.local).repository.list()).rejects.toThrow(
+  await expect(new DurableAgentService("claude", mocks.local).repository.list()).rejects.toThrow(
     "migration failed",
   );
   expect(mocks.local).not.toHaveBeenCalled();
@@ -146,7 +146,7 @@ for (const [label, resolution, message] of [
     };
     mocks.ensure.mockResolvedValue(client);
     await expect(
-      new RoutedDurableService("claude", mocks.local).send("one", "prompt"),
+      new DurableAgentService("claude", mocks.local).send("one", "prompt"),
     ).rejects.toThrow(message);
     expect(client.sendDurable).not.toHaveBeenCalled();
     expect(mocks.local).not.toHaveBeenCalled();
@@ -165,7 +165,7 @@ for (const [label, run, message] of [
     };
     mocks.ensure.mockResolvedValue(client);
     await expect(
-      new RoutedDurableService("claude", mocks.local).send("one", "prompt"),
+      new DurableAgentService("claude", mocks.local).send("one", "prompt"),
     ).rejects.toThrow(message);
     expect(mocks.local).not.toHaveBeenCalled();
     expect(client.sendDurable).toHaveBeenCalledOnce();
@@ -185,7 +185,7 @@ it("waits for the run and returns its full result", async () => {
     close: vi.fn(),
   };
   mocks.ensure.mockResolvedValue(client);
-  expect((await new RoutedDurableService("claude", mocks.local).send("one", "prompt")).result).toBe(
+  expect((await new DurableAgentService("claude", mocks.local).send("one", "prompt")).result).toBe(
     "full reply",
   );
   expect(mocks.ensure).toHaveBeenCalledWith({ onDebug: expect.any(Function) });

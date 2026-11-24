@@ -1,4 +1,4 @@
-import { RoutedDurableService } from "../../services/agent/durable-backend.service.js";
+import { DurableAgentService } from "../../services/agent/durable-agent.service.js";
 import {
   AgentManager,
   AgentRegistry,
@@ -110,8 +110,8 @@ export function createDaemonEntryRegistry(entry: AgentLookupResult): Pick<AgentR
 
 export function createDurableAgentService(
   provider: DurableProvider = "claude",
-): RoutedDurableService {
-  return new RoutedDurableService(provider, () => createLocalDurableService(provider));
+): DurableAgentService {
+  return new DurableAgentService(provider, () => createLocalDurableService(provider));
 }
 
 function createLocalDurableService(

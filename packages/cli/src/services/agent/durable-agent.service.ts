@@ -31,7 +31,7 @@ function agentFromWire(agent: DurableAgentWire): DurableAgent {
   return agent as DurableAgent;
 }
 /** Select authority before mutation, and never retry a possibly executed run. */
-export class RoutedDurableService {
+export class DurableAgentService {
   constructor(
     readonly provider: DurableProvider,
     private readonly local: () => LocalService,
