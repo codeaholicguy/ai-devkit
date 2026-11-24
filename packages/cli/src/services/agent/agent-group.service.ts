@@ -59,6 +59,44 @@ export interface AgentGroupServiceOptions {
   onDebug?: (msg: string) => void;
 }
 
+function mapGroupRpcError(error: unknown, context: { name?: string; member?: string }): unknown {
+  if (error instanceof Error && error.message.startsWith("unknown method")) {
+    return new Error("Upgrade and restart devkitd to use agent groups.");
+  }
+  if (!(error instanceof DaemonRpcError)) return error;
+
+  const details = error.details as { name?: string; member?: string; path?: string } | undefined;
+  const name = details?.name ?? context.name ?? "";
+  let mapped: Error;
+  switch (error.code) {
+    case "not_found":
+      mapped = new AgentGroupNotFoundError(name);
+      break;
+    case "conflict":
+      mapped = new AgentGroupConflictError(name);
+      break;
+    case "invalid_name":
+      mapped = new AgentGroupInvalidNameError(name);
+      break;
+    case "invalid_member":
+      mapped = new AgentGroupInvalidMemberError(
+        details?.member ?? context.member ?? "",
+        error.message,
+      );
+      break;
+    case "empty_members":
+      mapped = new AgentGroupEmptyMembersError();
+      break;
+    case "storage":
+      mapped = new AgentGroupStorageError(details?.path ?? "daemon.db", error.message);
+      break;
+    default:
+      return error;
+  }
+  mapped.message = error.message;
+  return mapped;
+}
+
 /** Daemon-owned groups. No local persistence or fallback after ownership. */
 export class AgentGroupService {
   constructor(private readonly options?: AgentGroupServiceOptions) {}
@@ -104,42 +142,7 @@ export class AgentGroupService {
     try {
       return await operation(daemon);
     } catch (error) {
-      if (error instanceof Error && error.message.startsWith("unknown method")) {
-        throw new Error("Upgrade and restart devkitd to use agent groups.");
-      }
-      if (!(error instanceof DaemonRpcError)) throw error;
-      const details = error.details as
-        | { name?: string; member?: string; path?: string }
-        | undefined;
-      const name = details?.name ?? context.name ?? "";
-      let mapped: Error;
-      switch (error.code) {
-        case "not_found":
-          mapped = new AgentGroupNotFoundError(name);
-          break;
-        case "conflict":
-          mapped = new AgentGroupConflictError(name);
-          break;
-        case "invalid_name":
-          mapped = new AgentGroupInvalidNameError(name);
-          break;
-        case "invalid_member":
-          mapped = new AgentGroupInvalidMemberError(
-            details?.member ?? context.member ?? "",
-            error.message,
-          );
-          break;
-        case "empty_members":
-          mapped = new AgentGroupEmptyMembersError();
-          break;
-        case "storage":
-          mapped = new AgentGroupStorageError(details?.path ?? "daemon.db", error.message);
-          break;
-        default:
-          throw error;
-      }
-      mapped.message = error.message;
-      throw mapped;
+      throw mapGroupRpcError(error, context);
     } finally {
       if (owned) daemon.close();
     }

@@ -22,122 +22,141 @@ pub struct GroupError {
     pub message: String,
     pub details: Value,
 }
+
 impl std::fmt::Display for GroupError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.message)
     }
 }
+
 impl std::error::Error for GroupError {}
+
 impl From<rusqlite::Error> for GroupError {
-    fn from(e: rusqlite::Error) -> Self {
-        error("storage", e.to_string(), json!({}))
+    fn from(err: rusqlite::Error) -> Self {
+        group_error("storage", err.to_string(), json!({}))
     }
 }
-fn error(code: &'static str, message: impl Into<String>, details: Value) -> GroupError {
+
+fn group_error(code: &'static str, message: impl Into<String>, details: Value) -> GroupError {
     GroupError {
         code,
         message: message.into(),
         details,
     }
 }
-fn not_found(name: &str) -> GroupError {
-    error(
+
+fn not_found(group_name: &str) -> GroupError {
+    group_error(
         "not_found",
-        format!("Agent group \"{name}\" not found."),
-        json!({"name":name}),
+        format!("Agent group \"{group_name}\" not found."),
+        json!({ "name": group_name }),
     )
 }
-fn name(input: &str) -> Result<String, GroupError> {
-    let n = input.trim();
-    let b = n.as_bytes();
-    if !(2..=64).contains(&b.len())
-        || !b
-            .iter()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-')
-        || b[0] == b'-'
-        || b[b.len() - 1] == b'-'
+
+fn empty_members() -> GroupError {
+    group_error(
+        "empty_members",
+        "Agent group must contain at least one member.",
+        json!({}),
+    )
+}
+
+fn validate_group_name(input: &str) -> Result<String, GroupError> {
+    let trimmed = input.trim();
+    let bytes = trimmed.as_bytes();
+    let valid_chars = bytes
+        .iter()
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || *c == b'-');
+    if !(2..=64).contains(&bytes.len())
+        || !valid_chars
+        || bytes[0] == b'-'
+        || bytes[bytes.len() - 1] == b'-'
     {
-        return Err(error(
+        return Err(group_error(
             "invalid_name",
             format!("Invalid agent group name \"{input}\"."),
-            json!({"name":input}),
+            json!({ "name": input }),
         ));
     }
-    Ok(n.to_owned())
+    Ok(trimmed.to_owned())
 }
-fn member(input: &str) -> Result<String, GroupError> {
-    let m = input.trim();
-    if m.is_empty() {
-        return Err(error(
+
+fn validate_member(input: &str) -> Result<String, GroupError> {
+    let trimmed = input.trim();
+    if trimmed.is_empty() {
+        return Err(group_error(
             "invalid_member",
             "Agent group member cannot be blank.",
-            json!({"member":input}),
+            json!({ "member": input }),
         ));
     }
-    Ok(m.to_owned())
+    Ok(trimmed.to_owned())
 }
-fn members(input: Vec<String>) -> Result<Vec<String>, GroupError> {
+
+fn validate_members(input: Vec<String>) -> Result<Vec<String>, GroupError> {
     if input.is_empty() {
-        return Err(error(
-            "empty_members",
-            "Agent group must contain at least one member.",
-            json!({}),
-        ));
+        return Err(empty_members());
     }
     let normalized = input
         .iter()
-        .map(|m| member(m))
+        .map(|entry| validate_member(entry))
         .collect::<Result<Vec<_>, _>>()?;
     let mut seen = HashSet::new();
-    for m in &normalized {
-        if !seen.insert(m) {
-            return Err(error(
+    for member in &normalized {
+        if !seen.insert(member) {
+            return Err(group_error(
                 "invalid_member",
-                format!("Duplicate agent group member \"{m}\"."),
-                json!({"member":m}),
+                format!("Duplicate agent group member \"{member}\"."),
+                json!({ "member": member }),
             ));
         }
     }
     Ok(normalized)
 }
-fn get(conn: &Connection, n: &str) -> Result<AgentGroup, GroupError> {
+
+fn fetch_group(conn: &Connection, group_name: &str) -> Result<AgentGroup, GroupError> {
     let record = conn
         .query_row(
-            "SELECT created_at,updated_at FROM groups WHERE name=?1",
-            [n],
-            |r| Ok((r.get(0)?, r.get(1)?)),
+            "SELECT created_at, updated_at FROM groups WHERE name = ?1",
+            [group_name],
+            |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
     let Some((created_at, updated_at)) = record else {
-        return Err(not_found(n));
+        return Err(not_found(group_name));
     };
     let mut stmt =
-        conn.prepare("SELECT member FROM group_members WHERE group_name=?1 ORDER BY position")?;
+        conn.prepare("SELECT member FROM group_members WHERE group_name = ?1 ORDER BY position")?;
     let members = stmt
-        .query_map([n], |r| r.get(0))?
+        .query_map([group_name], |row| row.get(0))?
         .collect::<Result<Vec<String>, _>>()?;
     Ok(AgentGroup {
-        name: n.into(),
+        name: group_name.into(),
         members,
         created_at,
         updated_at,
     })
 }
-fn insert_members(conn: &Connection, g: &AgentGroup) -> Result<(), GroupError> {
-    for (i, m) in g.members.iter().enumerate() {
+
+fn insert_members(conn: &Connection, group: &AgentGroup) -> Result<(), GroupError> {
+    for (position, member) in group.members.iter().enumerate() {
         conn.execute(
-            "INSERT INTO group_members(group_name,member,position) VALUES(?1,?2,?3)",
-            params![g.name, m, i as i64],
+            "INSERT INTO group_members(group_name, member, position) VALUES(?1, ?2, ?3)",
+            params![group.name, member, position as i64],
         )?;
     }
     Ok(())
 }
-fn write_members(conn: &Connection, g: &AgentGroup) -> Result<(), GroupError> {
-    conn.execute("DELETE FROM group_members WHERE group_name=?1", [&g.name])?;
-    insert_members(conn, g)?;
+
+fn replace_members(conn: &Connection, group: &AgentGroup) -> Result<(), GroupError> {
     conn.execute(
-        "UPDATE groups SET updated_at=?2 WHERE name=?1",
-        params![g.name, g.updated_at],
+        "DELETE FROM group_members WHERE group_name = ?1",
+        [&group.name],
+    )?;
+    insert_members(conn, group)?;
+    conn.execute(
+        "UPDATE groups SET updated_at = ?2 WHERE name = ?1",
+        params![group.name, group.updated_at],
     )?;
     Ok(())
 }
@@ -147,119 +166,176 @@ impl Store {
         conn.pragma_update(None, "foreign_keys", true)?;
         conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS groups (
-            ordinal INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE,
-            created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+                ordinal INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS group_members (
-            group_name TEXT NOT NULL REFERENCES groups(name) ON DELETE CASCADE,
-            member TEXT NOT NULL, position INTEGER NOT NULL,
-            PRIMARY KEY(group_name,member), UNIQUE(group_name,position));",
+                group_name TEXT NOT NULL REFERENCES groups(name) ON DELETE CASCADE,
+                member TEXT NOT NULL,
+                position INTEGER NOT NULL,
+                PRIMARY KEY(group_name, member),
+                UNIQUE(group_name, position)
+            );
+            CREATE TABLE IF NOT EXISTS group_migrations (
+                name TEXT PRIMARY KEY
+            );",
         )
     }
+
     pub fn get_group(&self, input: &str) -> Result<AgentGroup, GroupError> {
-        let n = name(input)?;
-        get(&self.conn.lock().unwrap(), &n)
+        let group_name = validate_group_name(input)?;
+        fetch_group(&self.conn.lock().unwrap(), &group_name)
     }
+
     pub fn list_groups(&self) -> Result<Vec<AgentGroup>, GroupError> {
         let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare("SELECT name FROM groups ORDER BY ordinal")?;
-        let names = stmt
-            .query_map([], |r| r.get(0))?
-            .collect::<Result<Vec<String>, _>>()?;
-        names.iter().map(|n| get(&conn, n)).collect()
+        let mut stmt = conn.prepare(
+            "SELECT g.name, g.created_at, g.updated_at, m.member
+             FROM groups g
+             LEFT JOIN group_members m ON m.group_name = g.name
+             ORDER BY g.ordinal, m.position",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, String>(2)?,
+                row.get::<_, Option<String>>(3)?,
+            ))
+        })?;
+        let mut groups: Vec<AgentGroup> = Vec::new();
+        for row in rows {
+            let (name, created_at, updated_at, member) = row?;
+            match groups.last_mut() {
+                Some(current) if current.name == name => {
+                    if let Some(member) = member {
+                        current.members.push(member);
+                    }
+                }
+                _ => {
+                    groups.push(AgentGroup {
+                        name,
+                        members: member.into_iter().collect(),
+                        created_at,
+                        updated_at,
+                    });
+                }
+            }
+        }
+        Ok(groups)
     }
+
     pub fn create_group(
         &self,
         input: &str,
         input_members: Vec<String>,
     ) -> Result<AgentGroup, GroupError> {
-        let n = name(input)?;
-        let ms = members(input_members)?;
+        let group_name = validate_group_name(input)?;
+        let members = validate_members(input_members)?;
         let conn = self.conn.lock().unwrap();
         let tx = conn.unchecked_transaction()?;
         if tx
-            .query_row("SELECT 1 FROM groups WHERE name=?1", [&n], |_| Ok(()))
+            .query_row(
+                "SELECT 1 FROM groups WHERE name = ?1",
+                [&group_name],
+                |_| Ok(()),
+            )
             .optional()?
             .is_some()
         {
-            return Err(error(
+            return Err(group_error(
                 "conflict",
-                format!("Agent group \"{n}\" already exists."),
-                json!({"name":n}),
+                format!("Agent group \"{group_name}\" already exists."),
+                json!({ "name": group_name }),
             ));
         }
         let now = iso8601_utc(chrono_now());
-        let g = AgentGroup {
-            name: n,
-            members: ms,
+        let group = AgentGroup {
+            name: group_name,
+            members,
             created_at: now.clone(),
             updated_at: now,
         };
         tx.execute(
-            "INSERT INTO groups(name,created_at,updated_at) VALUES(?1,?2,?3)",
-            params![g.name, g.created_at, g.updated_at],
+            "INSERT INTO groups(name, created_at, updated_at) VALUES(?1, ?2, ?3)",
+            params![group.name, group.created_at, group.updated_at],
         )?;
-        insert_members(&tx, &g)?;
+        insert_members(&tx, &group)?;
         tx.commit()?;
-        Ok(g)
+        Ok(group)
     }
+
     pub fn update_group(
         &self,
         input: &str,
         input_members: Vec<String>,
     ) -> Result<AgentGroup, GroupError> {
-        let n = name(input)?;
-        let ms = members(input_members)?;
+        let group_name = validate_group_name(input)?;
+        let members = validate_members(input_members)?;
         let conn = self.conn.lock().unwrap();
         let tx = conn.unchecked_transaction()?;
-        let mut g = get(&tx, &n)?;
-        g.members = ms;
-        g.updated_at = iso8601_utc(chrono_now());
-        write_members(&tx, &g)?;
+        let mut group = fetch_group(&tx, &group_name)?;
+        group.members = members;
+        group.updated_at = iso8601_utc(chrono_now());
+        replace_members(&tx, &group)?;
         tx.commit()?;
-        Ok(g)
+        Ok(group)
     }
-    fn change_group_member(
+
+    pub fn add_group_member(
         &self,
-        input: &str,
+        input_group: &str,
         input_member: &str,
-        remove: bool,
     ) -> Result<AgentGroup, GroupError> {
-        let n = name(input)?;
+        let group_name = validate_group_name(input_group)?;
         let conn = self.conn.lock().unwrap();
         let tx = conn.unchecked_transaction()?;
-        let mut g = get(&tx, &n)?;
-        let m = member(input_member)?;
-        if remove {
-            if !g.members.contains(&m) {
-                return Err(error(
-                    "invalid_member",
-                    format!("Agent group \"{n}\" does not contain member \"{m}\"."),
-                    json!({"name":n,"member":m}),
-                ));
-            }
-            g.members.retain(|v| v != &m);
-            g.members = members(g.members)?;
-        } else if g.members.contains(&m) {
-            return Ok(g);
-        } else {
-            g.members.push(m);
+        let mut group = fetch_group(&tx, &group_name)?;
+        let member = validate_member(input_member)?;
+        if group.members.contains(&member) {
+            return Ok(group);
         }
-        g.updated_at = iso8601_utc(chrono_now());
-        write_members(&tx, &g)?;
+        group.members.push(member);
+        group.updated_at = iso8601_utc(chrono_now());
+        replace_members(&tx, &group)?;
         tx.commit()?;
-        Ok(g)
+        Ok(group)
     }
-    pub fn add_group_member(&self, n: &str, m: &str) -> Result<AgentGroup, GroupError> {
-        self.change_group_member(n, m, false)
-    }
-    pub fn remove_group_member(&self, n: &str, m: &str) -> Result<AgentGroup, GroupError> {
-        self.change_group_member(n, m, true)
-    }
-    pub fn remove_group(&self, input: &str) -> Result<(), GroupError> {
-        let n = name(input)?;
+
+    pub fn remove_group_member(
+        &self,
+        input_group: &str,
+        input_member: &str,
+    ) -> Result<AgentGroup, GroupError> {
+        let group_name = validate_group_name(input_group)?;
         let conn = self.conn.lock().unwrap();
-        if conn.execute("DELETE FROM groups WHERE name=?1", [&n])? == 0 {
-            return Err(not_found(&n));
+        let tx = conn.unchecked_transaction()?;
+        let mut group = fetch_group(&tx, &group_name)?;
+        let member = validate_member(input_member)?;
+        if !group.members.contains(&member) {
+            return Err(group_error(
+                "invalid_member",
+                format!("Agent group \"{group_name}\" does not contain member \"{member}\"."),
+                json!({ "name": group_name, "member": member }),
+            ));
+        }
+        if group.members.len() == 1 {
+            return Err(empty_members());
+        }
+        group.members.retain(|existing| existing != &member);
+        group.updated_at = iso8601_utc(chrono_now());
+        replace_members(&tx, &group)?;
+        tx.commit()?;
+        Ok(group)
+    }
+
+    pub fn remove_group(&self, input: &str) -> Result<(), GroupError> {
+        let group_name = validate_group_name(input)?;
+        let conn = self.conn.lock().unwrap();
+        if conn.execute("DELETE FROM groups WHERE name = ?1", [&group_name])? == 0 {
+            return Err(not_found(&group_name));
         }
         Ok(())
     }
@@ -270,54 +346,56 @@ struct LegacyGroups {
     version: u32,
     groups: Vec<AgentGroup>,
 }
+
 impl Store {
     /// Claim ownership atomically, then unlink legacy state. A cleanup warning
     /// is distinct from import failure: callers must keep serving owned data.
     /// Call once at startup (and retry only a failed import before group RPCs).
     pub fn import_groups(&self, source: &std::path::Path) -> Result<Option<String>, GroupError> {
-        let storage = |e: String| {
-            error(
+        let storage_err = |detail: String| {
+            group_error(
                 "storage",
                 format!(
-                    "Failed to import agent groups from \"{}\": {e}",
+                    "Failed to import agent groups from \"{}\": {detail}",
                     source.display()
                 ),
-                json!({"path":source}),
+                json!({ "path": source }),
             )
         };
         let conn = self.conn.lock().unwrap();
-        conn.execute_batch("CREATE TABLE IF NOT EXISTS group_migrations (name TEXT PRIMARY KEY)")?;
         let tx = conn.unchecked_transaction()?;
         let owned = tx
             .query_row(
-                "SELECT 1 FROM group_migrations WHERE name='json-v1'",
+                "SELECT 1 FROM group_migrations WHERE name = 'json-v1'",
                 [],
                 |_| Ok(()),
             )
             .optional()?
             .is_some();
         if !owned {
-            let data = match std::fs::read_to_string(source) {
+            let legacy = match std::fs::read_to_string(source) {
                 Ok(text) => Some(
                     serde_json::from_str::<LegacyGroups>(&text)
-                        .map_err(|e| storage(e.to_string()))?,
+                        .map_err(|err| storage_err(err.to_string()))?,
                 ),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-                Err(e) => return Err(storage(e.to_string())),
+                Err(err) if err.kind() == std::io::ErrorKind::NotFound => None,
+                Err(err) => return Err(storage_err(err.to_string())),
             };
-            if let Some(data) = data {
-                if data.version != 1 {
-                    return Err(storage("unsupported agent group file version".into()));
+            if let Some(legacy) = legacy {
+                if legacy.version != 1 {
+                    return Err(storage_err("unsupported agent group file version".into()));
                 }
-                for mut g in data.groups {
-                    g.name = name(&g.name).map_err(|e| storage(e.to_string()))?;
-                    g.members = members(g.members).map_err(|e| storage(e.to_string()))?;
+                for mut group in legacy.groups {
+                    group.name = validate_group_name(&group.name)
+                        .map_err(|err| storage_err(err.to_string()))?;
+                    group.members = validate_members(group.members)
+                        .map_err(|err| storage_err(err.to_string()))?;
                     tx.execute(
-                        "INSERT INTO groups(name,created_at,updated_at) VALUES(?1,?2,?3)",
-                        params![g.name, g.created_at, g.updated_at],
+                        "INSERT INTO groups(name, created_at, updated_at) VALUES(?1, ?2, ?3)",
+                        params![group.name, group.created_at, group.updated_at],
                     )
-                    .map_err(|e| storage(e.to_string()))?;
-                    insert_members(&tx, &g).map_err(|e| storage(e.to_string()))?;
+                    .map_err(|err| storage_err(err.to_string()))?;
+                    insert_members(&tx, &group).map_err(|err| storage_err(err.to_string()))?;
                 }
             }
             tx.execute("INSERT INTO group_migrations(name) VALUES('json-v1')", [])?;
@@ -327,9 +405,9 @@ impl Store {
         // are stale; cleanup can fail without changing the durable fence.
         match std::fs::remove_file(source) {
             Ok(()) => Ok(None),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Ok(Some(format!(
-                "Agent group import committed; cleanup of {} failed: {e}",
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Ok(Some(format!(
+                "Agent group import committed; cleanup of {} failed: {err}",
                 source.display()
             ))),
         }

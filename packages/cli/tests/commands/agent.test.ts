@@ -365,57 +365,9 @@ vi.mock("../../src/tui/console/ConsoleApp.js", () => ({
   ConsoleApp: () => null,
 }));
 
-vi.mock("../../src/services/agent/agent-group.service.js", () => {
-  class AgentGroupNotFoundError extends Error {
-    constructor(public groupName: string) {
-      super(`Agent group "${groupName}" not found.`);
-      this.name = "AgentGroupNotFoundError";
-    }
-  }
-  class AgentGroupConflictError extends Error {
-    constructor(public groupName: string) {
-      super(`Agent group "${groupName}" already exists.`);
-      this.name = "AgentGroupConflictError";
-    }
-  }
-  class AgentGroupInvalidNameError extends Error {
-    constructor(public groupName: string) {
-      super(`Invalid agent group name "${groupName}".`);
-      this.name = "AgentGroupInvalidNameError";
-    }
-  }
-  class AgentGroupInvalidMemberError extends Error {
-    constructor(public member: string) {
-      super(`Invalid agent group member "${member}".`);
-      this.name = "AgentGroupInvalidMemberError";
-    }
-  }
-  class AgentGroupEmptyMembersError extends Error {
-    constructor() {
-      super("Agent group must contain at least one member.");
-      this.name = "AgentGroupEmptyMembersError";
-    }
-  }
-  class AgentGroupStorageError extends Error {
-    constructor(
-      public filePath: string,
-      message: string,
-    ) {
-      super(`Failed to read agent groups from "${filePath}": ${message}`);
-      this.name = "AgentGroupStorageError";
-    }
-  }
-
-  return {
-    createDefaultAgentGroupService: vi.fn(() => mockGroupStore),
-    AgentGroupNotFoundError,
-    AgentGroupConflictError,
-    AgentGroupInvalidNameError,
-    AgentGroupInvalidMemberError,
-    AgentGroupEmptyMembersError,
-    AgentGroupStorageError,
-  };
-});
+vi.mock("../../src/services/agent/agent-group.service.js", () => ({
+  createDefaultAgentGroupService: vi.fn(() => mockGroupStore),
+}));
 
 describe("agent command", () => {
   let logSpy: ReturnType<typeof vi.spyOn>;

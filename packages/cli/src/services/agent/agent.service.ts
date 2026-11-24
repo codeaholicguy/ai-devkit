@@ -572,8 +572,6 @@ async function deliverGroupMessage(options: {
   let failureCount = 0;
 
   for (const { agent, entry } of options.targets) {
-    warnIfAgentIsBusy(agent, options.reporter);
-
     try {
       await sendAgentPrompt(agent, options.prompt, {
         registry: createDaemonEntryRegistry(entry),
@@ -589,14 +587,6 @@ async function deliverGroupMessage(options: {
   }
 
   reportDeliverySummary(options.groupName, successCount, failureCount, options.reporter);
-}
-
-function warnIfAgentIsBusy(agent: AgentInfo, reporter: SendReporter): void {
-  if (![AgentStatus.WAITING, AgentStatus.IDLE, AgentStatus.UNKNOWN].includes(agent.status)) {
-    reporter.warning(
-      `Agent "${agent.name}" is not waiting for input (status: ${agent.status}). Sending anyway.`,
-    );
-  }
 }
 
 function reportDeliverySummary(

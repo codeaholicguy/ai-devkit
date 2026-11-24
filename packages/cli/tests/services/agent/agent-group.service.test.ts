@@ -9,7 +9,6 @@ import {
   AgentGroupNotFoundError,
   AgentGroupStorageError,
 } from "../../../src/services/agent/agent-group.service.js";
-vi.mock("os", () => ({ default: { homedir: () => "/tmp/group-routing-unused-home" } }));
 const mocks = vi.hoisted(() => ({
   ensure: vi.fn(),
   close: vi.fn(),

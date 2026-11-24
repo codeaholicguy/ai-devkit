@@ -7,13 +7,33 @@ use serde::de::DeserializeOwned;
 use serde_json::{json, Value};
 
 fn parse<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
-    serde_json::from_value(params).map_err(|e| RpcError::invalid(e.to_string()))
+    serde_json::from_value(params).map_err(|err| RpcError::invalid(err.to_string()))
 }
-fn domain(e: GroupError) -> RpcError {
-    RpcError::new(e.code, e.message, Some(e.details))
+
+fn domain(err: GroupError) -> RpcError {
+    RpcError::new(err.code, err.message, Some(err.details))
 }
-pub fn run(d: &Daemon, method: &str, params: Value) -> Result<Value, RpcError> {
-    if !matches!(
+
+/// Retry a failed startup import before serving any group RPC.
+/// Successful imports and cleanup attempts happen once per startup.
+fn ensure_groups_ready(daemon: &Daemon) -> Result<(), RpcError> {
+    let mut ready = daemon.groups_ready.lock().unwrap();
+    if !*ready {
+        match daemon.store.import_groups(&daemon.groups_source) {
+            Ok(warning) => {
+                *ready = true;
+                if let Some(msg) = warning {
+                    tracing::warn!("{msg}");
+                }
+            }
+            Err(err) => return Err(domain(err)),
+        }
+    }
+    Ok(())
+}
+
+pub fn run(daemon: &Daemon, method: &str, params: Value) -> Result<Value, RpcError> {
+    let is_known = matches!(
         method,
         "group.create"
             | "group.update"
@@ -23,59 +43,49 @@ pub fn run(d: &Daemon, method: &str, params: Value) -> Result<Value, RpcError> {
             | "group.list"
             | "group.detail"
             | "group.lookup"
-    ) {
+    );
+    if !is_known {
         return Err(RpcError::new(
             "unknown_method",
             format!("unknown method: {method}"),
             None,
         ));
     }
-    // A failed startup import may be repaired without restarting the daemon.
-    // Successful imports and cleanup attempts happen once per startup.
-    let mut ready = d.groups_ready.lock().unwrap();
-    if !*ready {
-        match d.store.import_groups(&d.groups_source) {
-            Ok(warning) => {
-                *ready = true;
-                if let Some(w) = warning {
-                    tracing::warn!("{w}");
-                }
-            }
-            Err(e) => return Err(domain(e)),
-        }
-    }
-    drop(ready);
+    ensure_groups_ready(daemon)?;
+
     let group = match method {
-        "group.create" | "group.update" => {
+        "group.create" => {
             let p: GroupMembersParams = parse(params)?;
-            if method == "group.create" {
-                d.store.create_group(&p.name, p.members)
-            } else {
-                d.store.update_group(&p.name, p.members)
-            }
+            daemon.store.create_group(&p.name, p.members)
         }
-        "group.add" | "group.remove_agent" => {
+        "group.update" => {
+            let p: GroupMembersParams = parse(params)?;
+            daemon.store.update_group(&p.name, p.members)
+        }
+        "group.add" => {
             let p: GroupMemberParams = parse(params)?;
-            if method == "group.add" {
-                d.store.add_group_member(&p.name, &p.member)
-            } else {
-                d.store.remove_group_member(&p.name, &p.member)
-            }
+            daemon.store.add_group_member(&p.name, &p.member)
+        }
+        "group.remove_agent" => {
+            let p: GroupMemberParams = parse(params)?;
+            daemon.store.remove_group_member(&p.name, &p.member)
         }
         "group.remove" => {
             let p: GroupNameParams = parse(params)?;
-            d.store.remove_group(&p.name).map_err(domain)?;
-            return Ok(json!({"ok":true}));
+            daemon.store.remove_group(&p.name).map_err(domain)?;
+            return Ok(json!({ "ok": true }));
         }
         "group.list" => {
-            return serde_json::to_value(d.store.list_groups().map_err(domain)?)
-                .map_err(RpcError::internal)
+            let groups = daemon.store.list_groups().map_err(domain)?;
+            return serde_json::to_value(groups).map_err(RpcError::internal);
         }
-        _ => {
+        "group.detail" | "group.lookup" => {
             let p: GroupNameParams = parse(params)?;
-            d.store.get_group(&p.name)
+            daemon.store.get_group(&p.name)
         }
+        _ => unreachable!("method validated above"),
     }
     .map_err(domain)?;
+
     serde_json::to_value(group).map_err(RpcError::internal)
 }
