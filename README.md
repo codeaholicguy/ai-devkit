@@ -211,7 +211,7 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 
 | Agent / environment | Project `init` setup | `agent start` / `send` control plane |
 |-------|-------|----------------|
-| [Claude Code](https://www.anthropic.com/claude-code) | yes | yes (`claude`) |
+| [Claude Code](https://www.anthropic.com/claude-code) | yes | yes (`claude`) — also installable as a [Claude Code plugin](#claude-code-plugin) |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | yes | yes (`gemini_cli`) |
 | [Codex CLI](https://github.com/openai/codex) | yes | yes (`codex`) |
 | [Grok Build CLI](https://x.ai/cli) | yes | yes (`grok_cli`) |
@@ -232,6 +232,17 @@ One `.ai-devkit.json` configures all of them. Add a new agent to your team witho
 
 **Setup** — `ai-devkit setup` (machine) plus `ai-devkit init` (project) writes each agent's config (rules, MCP, skills).
 **Control plane** — `agent list`, `agent send`, and managed `agent start` target tmux-backed CLI sessions on **macOS/Linux** (experimental console; requires tmux). Use [channels](https://ai-devkit.com/docs/12-channel/) to message a running agent from Telegram or Slack. Not supported on Windows console.
+
+### Claude Code plugin
+
+In Claude Code, register this repository as a plugin marketplace and install the plugin:
+
+```text
+/plugin marketplace add codeaholicguy/ai-devkit
+/plugin install ai-devkit@ai-devkit
+```
+
+From a shell checkout you can run `claude plugin validate .`, `claude plugin marketplace add <path>`, and `claude plugin install ai-devkit@ai-devkit` instead.
 
 ## How is this different from `CLAUDE.md`, `.cursor/rules`, or `AGENTS.md`?
 
