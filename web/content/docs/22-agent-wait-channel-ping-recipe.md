@@ -6,30 +6,30 @@ section: workflows
 order: 7
 ---
 
-**Know on your phone when a coding agent needs you.**
+**Get a ping on your phone when a coding agent needs input.**
 
-This recipe connects [Telegram or Slack](/docs/12-channel), then runs a **watcher loop** in tmux that calls [`ai-devkit agent wait`](/docs/8-agent-management#wait-for-agent-changes). When an agent moves into **`waiting`**, the loop sends you a short ping with the agent name and what it is working on (`summary` from `agent list --json`).
+Connect [Telegram or Slack](/docs/12-channel), then run a watcher in tmux that calls [`ai-devkit agent wait`](/docs/8-agent-management#wait-for-agent-changes). When an agent enters `waiting`, the loop messages you with the agent name and its current `summary` from `agent list --json`.
 
-There is **no** `ai-devkit channel send` command today. Outbound delivery uses the same provider APIs the channel bridge adapters call internally (`TelegramAdapter.sendMessage` / Slack `chat.postMessage`), driven by credentials in `~/.ai-devkit/channels.json` from `channel connect`. That is enough for one-way notifications without bridging an agent terminal.
+There is no `ai-devkit channel send` command. For one-way alerts you call the same HTTP APIs the channel bridge uses (`TelegramAdapter.sendMessage` and Slack `chat.postMessage`), with tokens from `channel connect` in `~/.ai-devkit/channels.json`. You do not need a live bridge tied to an agent terminal.
 
-For cross-vendor supervision loops, see [Multi-agent orchestration](/docs/17-multi-agent-orchestration) and [Recipe — Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe).
+For lead/worker supervision, see [Multi-agent orchestration](/docs/17-multi-agent-orchestration) and [Recipe — Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe).
 
 ## Prerequisites
 
 On the machine:
 
-- **Node.js 22+** and **AI DevKit** installed ([Getting Started](/docs/1-getting-started))
-- **`tmux`** (to keep the watcher running after you disconnect)
-- **`jq`** and **`curl`** (parse channel config and call provider HTTP APIs)
-- **At least one running interactive agent** you care about (see [Agent Management](/docs/8-agent-management))
-- **Telegram:** a bot token from [@BotFather](https://t.me/BotFather), or
-- **Slack:** a private Socket Mode app with `xapp-` and `xoxb-` tokens ([Channel — Configure a private Slack app](/docs/12-channel#configure-a-private-slack-app))
+- Node.js 22+ and AI DevKit installed ([Getting Started](/docs/1-getting-started))
+- `tmux` so the watcher keeps running after you disconnect
+- `jq` and `curl` to read channel config and call provider APIs
+- At least one running interactive agent you care about ([Agent Management](/docs/8-agent-management))
+- Telegram: a bot token from [@BotFather](https://t.me/BotFather), or
+- Slack: a private Socket Mode app with `xapp-` and `xoxb-` tokens ([Channel — Configure a private Slack app](/docs/12-channel#configure-a-private-slack-app))
 
-> **Not exercised in CI:** Steps that call Telegram or Slack with real tokens are marked below. Everything else was run against a local CLI build.
+Real Telegram or Slack tokens are required for the send steps below. The CLI flags and examples match a local build; we did not run live sends in CI.
 
-## Part 1 — Connect Telegram
+## Part 1: Connect Telegram
 
-1. **Create and connect the bot** (interactive; requires a real bot token):
+1. Create and connect the bot (interactive; you need a real bot token):
 
    ```bash
    ai-devkit channel connect telegram
@@ -38,49 +38,49 @@ On the machine:
 
    Tokens are stored in `~/.ai-devkit/channels.json` (mode `0600`).
 
-2. **Authorize your chat (one time).** Telegram stores `authorizedChatId` only after you message the bot. Easiest path: start a bridge on any running agent, send any Telegram message to the bot, then stop the bridge if you only want pings:
+2. Authorize your chat once. Telegram only sets `authorizedChatId` after you message the bot. Practical approach: start a bridge on any running agent, send the bot any message, then stop the bridge if you only want pings:
 
    ```bash
    ai-devkit agent list
    ai-devkit channel start personal --agent <name> --debug
    ```
 
-   Send a message in Telegram, confirm debug shows `Received message from chat ID`. Press `Ctrl+C` or run `ai-devkit channel stop personal`.
+   In Telegram, send a message and check the debug log for `Received message from chat ID`. Stop with `Ctrl+C` or `ai-devkit channel stop personal`.
 
-3. **Confirm authorization:**
+3. Confirm authorization:
 
    ```bash
    ai-devkit channel list
    ```
 
-   The **Authorized** column should be `yes` for that Telegram channel.
+   The Authorized column should be `yes` for that channel.
 
-## Part 2 — Connect Slack (optional)
+## Part 2: Connect Slack (optional)
 
-1. **Connect the app** (interactive; requires real Slack tokens):
+1. Connect the app (interactive; real Slack tokens):
 
    ```bash
    ai-devkit channel connect slack --name work-slack
    ```
 
-2. **Capture your DM channel ID (one time).** Slack does **not** persist the DM channel id in `channels.json`. Start a foreground bridge with `--debug`, send a DM to the app, and note the chat id from the log line `Received message from chat ID` (or `Connected slack conversation …`). Export it for the watcher:
+2. Capture your DM channel ID once. Slack does not store the DM channel id in `channels.json`. Start a foreground bridge with `--debug`, send the app a DM, and copy the chat id from `Received message from chat ID` (or `Connected slack conversation …`). Export it for the watcher:
 
    ```bash
    export SLACK_NOTIFY_CHAT_ID='D0123456789'   # your value from debug output
    ```
 
-   Restart or stop the bridge when finished testing; the watcher uses the Web API only.
+   Stop the bridge when you are done testing. The watcher only uses the Web API.
 
-## Part 3 — Watcher script
+## Part 3: Watcher script
 
 Save as `~/bin/agent-wait-ping.sh` (or anywhere on your `PATH`), then `chmod +x` it.
 
 The script:
 
-- blocks with `agent wait --until waiting --json` (default timeout **300000** ms, exits **0** on timeout so the loop continues)
-- on `reason: "triggered"`, formats each change with `to: "waiting"`
-- loads **`summary`** from `ai-devkit agent list --json`
-- sends via Telegram if `NOTIFY_CHANNEL=telegram`, or Slack if `NOTIFY_CHANNEL=slack`
+- blocks on `agent wait --until waiting --json` (default timeout 300000 ms; exits 0 on timeout so the loop continues)
+- when `reason` is `triggered`, handles each change with `to: "waiting"`
+- reads `summary` from `ai-devkit agent list --json`
+- sends via Telegram when `NOTIFY_CHANNEL=telegram`, or Slack when `NOTIFY_CHANNEL=slack`
 
 ```bash
 #!/usr/bin/env bash
@@ -157,13 +157,13 @@ while true; do
 done
 ```
 
-**Watch only specific agents** — add repeatable `--id` flags to the `agent wait` line, for example:
+To watch only certain agents, add repeatable `--id` flags on the `agent wait` line, for example:
 
 ```bash
 result=$(ai-devkit agent wait --id api-worker --id ui-worker --until waiting --timeout 300000 --json)
 ```
 
-**Useful `agent wait` flags** (verified with `ai-devkit agent wait --help`):
+Flags that matter here (from `ai-devkit agent wait --help`):
 
 | Option | Role in this recipe |
 |--------|---------------------|
@@ -173,9 +173,9 @@ result=$(ai-devkit agent wait --id api-worker --id ui-worker --until waiting --t
 | `--id <name>` | Repeatable; watch subset of agents |
 | `--group <name>` | Watch a named agent group (mutually exclusive with `--id`) |
 
-`agent wait` reports transitions only. An agent already waiting when the command starts does not fire until it leaves and re-enters `waiting`.
+`agent wait` only reports transitions. If an agent is already waiting when the command starts, you will not get a ping until it leaves `waiting` and enters it again.
 
-## Part 4 — Run in the background (tmux)
+## Part 4: Run in the background (tmux)
 
 ```bash
 # Telegram example (named channel "personal")
@@ -187,7 +187,7 @@ tmux new-session -d -s agent-wait-ping \
   'NOTIFY_CHANNEL=slack CHANNEL_NAME=work-slack SLACK_NOTIFY_CHAT_ID=D0123456789 exec ~/bin/agent-wait-ping.sh'
 ```
 
-Attach to inspect output:
+Attach to see output:
 
 ```bash
 tmux attach -t agent-wait-ping
@@ -195,23 +195,23 @@ tmux attach -t agent-wait-ping
 
 Detach with `Ctrl+b` then `d`.
 
-## Part 5 — Stop the watcher
+## Part 5: Stop the watcher
 
 ```bash
 tmux kill-session -t agent-wait-ping
 ```
 
-This does **not** remove channel configuration. Disconnect separately if needed:
+That does not remove channel configuration. Disconnect separately if you want to:
 
 ```bash
 ai-devkit channel disconnect telegram
 ```
 
-Daemon **bridges** (if any) are independent; stop them with `ai-devkit channel stop <name>`.
+Any daemon bridges are separate; stop them with `ai-devkit channel stop <name>`.
 
 ## One-liner (Telegram, no script file)
 
-After `authorizedChatId` is set, you can run the loop inline (same logic as the script; requires `jq`):
+Once `authorizedChatId` is set, you can run the same loop inline (needs `jq`):
 
 ```bash
 while true; do
@@ -233,20 +233,20 @@ while true; do
 done
 ```
 
-Adjust channel name in the `jq` paths if you use `--name personal`.
+If you connected Telegram with `--name personal`, change the `jq` paths accordingly.
 
 ## Common failures
 
 | Symptom | What to check |
 |--------|----------------|
-| `authorizedChatId` empty / Telegram send fails | Message the bot once while a bridge is running; `channel list` should show **Authorized: yes** |
+| `authorizedChatId` empty / Telegram send fails | Message the bot once while a bridge is running; `channel list` should show Authorized: yes |
 | Slack `not_in_channel` or `ok: false` | `SLACK_NOTIFY_CHAT_ID` must be the DM id from bridge `--debug`; bot needs `chat:write` |
-| No pings but agents are waiting | `agent wait` only fires on **changes**. Nudge the agent or wait for the next transition |
-| Loop stops when SSH disconnects | Start the script inside **tmux** (or `screen`), not a bare SSH session |
-| Timeouts every 5 minutes, no ping | Normal when nothing changes (`reason: "timeout"`). The loop should continue |
+| No pings but agents are waiting | `agent wait` only fires on changes. Nudge the agent or wait for the next transition |
+| Loop stops when SSH disconnects | Run the script inside tmux (or screen), not a bare SSH session |
+| Timeouts every 5 minutes, no ping | Normal when nothing changes (`reason: "timeout"`). The loop should keep going |
 | `No agent found matching` with `--id` | Run `ai-devkit agent list --json`; use exact `name` values |
 
-More on channels: [Channel](/docs/12-channel). More on wait semantics: [Agent Management — Wait for Agent Changes](/docs/8-agent-management#wait-for-agent-changes).
+Channel setup: [Channel](/docs/12-channel). Wait semantics: [Agent Management — Wait for Agent Changes](/docs/8-agent-management#wait-for-agent-changes).
 
 ## Related
 
