@@ -1,5 +1,5 @@
 ---
-title: Recipe — Get a Telegram or Slack ping when an agent is waiting on you
+title: "Recipe: Get a Telegram or Slack ping when an agent is waiting on you"
 description: Run a small watcher that blocks on agent wait and sends you a messaging notification when a harness needs input.
 slug: agent-wait-channel-ping-recipe
 section: workflows
@@ -12,7 +12,7 @@ Connect [Telegram or Slack](/docs/12-channel), then run a watcher in tmux that c
 
 There is no `ai-devkit channel send` command. For one-way alerts you call the same HTTP APIs the channel bridge uses (`TelegramAdapter.sendMessage` and Slack `chat.postMessage`), with tokens from `channel connect` in `~/.ai-devkit/channels.json`. You do not need a live bridge tied to an agent terminal.
 
-For lead/worker supervision, see [Multi-agent orchestration](/docs/17-multi-agent-orchestration) and [Recipe — Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe).
+For lead/worker supervision, see [Multi-agent orchestration](/docs/17-multi-agent-orchestration) and [Recipe: Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe).
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ On the machine:
 - `jq` and `curl` to read channel config and call provider APIs
 - At least one running interactive agent you care about ([Agent Management](/docs/8-agent-management))
 - Telegram: a bot token from [@BotFather](https://t.me/BotFather), or
-- Slack: a private Socket Mode app with `xapp-` and `xoxb-` tokens ([Channel — Configure a private Slack app](/docs/12-channel#configure-a-private-slack-app))
+- Slack: a private Socket Mode app with `xapp-` and `xoxb-` tokens ([Channel: Configure a private Slack app](/docs/12-channel#configure-a-private-slack-app))
 
 Real Telegram or Slack tokens are required for the send steps below. The CLI flags and examples match a local build; we did not run live sends in CI.
 
@@ -246,11 +246,11 @@ If you connected Telegram with `--name personal`, change the `jq` paths accordin
 | Timeouts every 5 minutes, no ping | Normal when nothing changes (`reason: "timeout"`). The loop should keep going |
 | `No agent found matching` with `--id` | Run `ai-devkit agent list --json`; use exact `name` values |
 
-Channel setup: [Channel](/docs/12-channel). Wait semantics: [Agent Management — Wait for Agent Changes](/docs/8-agent-management#wait-for-agent-changes).
+Channel setup: [Channel](/docs/12-channel). Wait semantics: [Agent Management: Wait for Agent Changes](/docs/8-agent-management#wait-for-agent-changes).
 
 ## Related
 
-- [Channel](/docs/12-channel) — connect, bridge, and troubleshoot Telegram/Slack
-- [Agent Management](/docs/8-agent-management) — `agent wait`, `agent list`, and status `summary`
-- [Multi-agent orchestration](/docs/17-multi-agent-orchestration) — lead loops that call `agent wait`
-- [Recipe — Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe)
+- [Channel](/docs/12-channel): connect, bridge, and troubleshoot Telegram/Slack
+- [Agent Management](/docs/8-agent-management): `agent wait`, `agent list`, and status `summary`
+- [Multi-agent orchestration](/docs/17-multi-agent-orchestration): lead loops that call `agent wait`
+- [Recipe: Cross-vendor lead and workers](/docs/20-cross-vendor-agent-recipe)
