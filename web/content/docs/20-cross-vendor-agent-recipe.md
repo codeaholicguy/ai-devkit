@@ -1,14 +1,12 @@
 ---
-title: Recipe — Cross-vendor lead and workers
+title: "Recipe: Cross-vendor lead and workers"
 description: Let any coding agent start, discover, and message workers from another vendor locally with ai-devkit agent commands.
 slug: cross-vendor-agent-recipe
 section: workflows
 order: 6
 ---
 
-**Let any coding agent run and talk to any other, locally.**
-
-This recipe shows a **lead** coding agent (for example Claude Code in your main terminal) starting **workers** from a different vendor (for example Codex or opencode in tmux), discovering them with `agent list`, assigning work with `agent send`, and reading replies with `--wait`. The same commands work when the vendors are reversed — only `--type` and who runs the lead change.
+Run a **lead** coding agent (for example Claude Code in your main terminal) and **workers** from another vendor (for example Codex or opencode in tmux). The lead discovers workers with `agent list`, assigns work with `agent send`, and reads replies with `--wait`. Flip vendors and nothing else changes: adjust `--type` and who plays lead.
 
 For directory layout, worktrees, and a longer orchestration guide, see [Multi-agent orchestration](/docs/17-multi-agent-orchestration). Command reference: [Agent Management](/docs/8-agent-management).
 
@@ -38,7 +36,7 @@ ai-devkit skill add ai-devkit agent-orchestration
 
 The lead should call `ai-devkit agent …` itself (shell or tool use). Workers are normal interactive harness sessions started by AI DevKit.
 
-## Scenario A — Claude lead, Codex worker
+## Scenario A: Claude lead, Codex worker
 
 You work in Claude Code (or any session that can run shell commands). The worker is Codex in its own directory.
 
@@ -58,9 +56,9 @@ Start **one worker at a time**. Supported `--type` values match `agent start --h
 ai-devkit agent start --type codex --name codex-worker --cwd ../your-repo-codex
 ```
 
-On success you see the agent name, PID, working directory, and a tmux attach hint. While start is finishing, **do not** poll `agent list` — concurrent listing can drop a custom `--name` (see [Agent Management — naming](/docs/8-agent-management#start-an-agent)).
+On success you see the agent name, PID, working directory, and a tmux attach hint. While start is finishing, **do not** poll `agent list`. Concurrent listing can drop a custom `--name` (see [Agent Management — naming](/docs/8-agent-management#start-an-agent)).
 
-Wait for the tmux session instead:
+Wait for the tmux session:
 
 ```bash
 sleep 15
@@ -100,7 +98,7 @@ Pipe logs without pasting:
 npm test 2>&1 | ai-devkit agent send --id codex-worker --stdin
 ```
 
-For ongoing supervision (multiple workers), the lead loads **agent-orchestration**: after each pass, run `ai-devkit agent wait --json` (optional `--id codex-worker`), then `agent list --json` again. Default wait timeout is 300000 ms; `reason: "timeout"` is normal — scan and wait again. Do not use long shell `sleep` calls inside harness sessions.
+For ongoing supervision (multiple workers), the lead loads **agent-orchestration**: after each pass, run `ai-devkit agent wait --json` (optional `--id codex-worker`), then `agent list --json` again. Default wait timeout is 300000 ms; `reason: "timeout"` is normal. Scan and wait again. Do not use long shell `sleep` calls inside harness sessions.
 
 ### 6. Stop and cleanup
 
@@ -114,9 +112,9 @@ Remove the worktree when finished:
 git -C your-repo worktree remove ../your-repo-codex
 ```
 
-## Scenario B — Codex lead, Claude worker
+## Scenario B: Codex lead, Claude worker
 
-Same flow; swap roles:
+Same flow; swap roles.
 
 1. Run Codex (or any lead) in a terminal where it can execute `ai-devkit` CLI commands.
 2. Start Claude as the worker:
@@ -127,9 +125,9 @@ Same flow; swap roles:
 
 3. Use the same `ready?` handshake, `list` / `detail`, `send --wait`, `agent wait`, and `agent kill` steps with `--id claude-worker`.
 
-You can pair any two types listed in `agent start --help` the same way — the lead never has to be started by `agent start`.
+You can pair any two types listed in `agent start --help` the same way. The lead never has to be started by `agent start`.
 
-## Optional — durable workers (no tmux UI)
+## Optional: durable workers (no tmux UI)
 
 For programmatic workers without an interactive tmux session, `agent start` supports `--mode durable` for `--type claude`, `--type codex`, and `--type pi` only:
 
