@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { DaemonClient, daemonSocketPath } from "./client.js";
+import { homeScopeMismatch, identityStoreExistsUnder } from "./homeScope.js";
 import { readBinaryBuildVersion, resolveDaemonBinaryInfo, type DaemonBinary } from "./binary.js";
 
 /** A crashed spawner's lock is reclaimed after this long. */
@@ -47,6 +48,21 @@ export async function ensureDaemon(
   debug?.("no live daemon on socket; attempting autostart");
   if (spawnSkipped()) {
     debug?.("autostart skipped in test env (VITEST set, no DEVKITD_BIN)");
+    return null;
+  }
+
+  // Never auto-spawn a twin daemon from a divergent HOME when the real account
+  // store already exists (issue #402). Hermetic callers (e2e) pin DEVKITD_BIN
+  // and own an isolated HOME — they're allowed to spawn there.
+  const mismatch = homeScopeMismatch();
+  const explicitDevkitd = !!(process.env.DEVKITD_BIN || process.env.AI_DEVKITD_BIN);
+  if (mismatch && !explicitDevkitd && identityStoreExistsUnder(mismatch.accountHome)) {
+    const diagnostic =
+      `Refusing to auto-spawn devkitd: HOME="${mismatch.envHome}" diverges from the ` +
+      `account home "${mismatch.accountHome}". Unset HOME or run from a ` +
+      "non-sandboxed environment.";
+    debug?.(diagnostic);
+    console.error(diagnostic);
     return null;
   }
 

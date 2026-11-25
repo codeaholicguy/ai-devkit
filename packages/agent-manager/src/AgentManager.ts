@@ -33,6 +33,10 @@ import {
   herdrPaneToRuntimeRef,
   type HerdrAgentPane,
 } from "./runtime/herdr/HerdrAgentDiscovery.js";
+import { UNREGISTERED_PREFIX } from "./utils/matching.js";
+
+/** Generated `<folder>-<pid>` names — the shape a discovery-synthesized identity takes. */
+const SYNTHESIZED_NAME = /-\d+$/;
 
 /** Discovery patterns of one adapter: exact names plus basename prefixes. */
 function adapterPatterns(adapter: AgentAdapter): {
@@ -322,6 +326,18 @@ export class AgentManager {
       this.registry.list().map((entry) => [identityKey(entry.type, entry.pid), entry]),
     );
     const herdrPanes = allAgents.length > 0 ? await this.resolveHerdrPanes() : [];
+    for (const agent of allAgents) {
+      const entry = preExistingByIdentity.get(identityKey(agent.type, agent.pid));
+      // No registry entry claims this agent — mark synthesized identities so
+      // they cannot masquerade as a user-assigned name (issue #402).
+      if (
+        !entry &&
+        SYNTHESIZED_NAME.test(agent.name) &&
+        !agent.name.startsWith(UNREGISTERED_PREFIX)
+      ) {
+        agent.name = `${UNREGISTERED_PREFIX}${agent.name}`;
+      }
+    }
     const entries = allAgents.map((agent) =>
       this.toRegistryEntry(
         agent,

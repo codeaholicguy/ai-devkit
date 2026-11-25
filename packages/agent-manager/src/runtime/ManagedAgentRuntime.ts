@@ -12,14 +12,18 @@ import { DEFAULT_PID_POLL_INTERVAL_MS, DEFAULT_PID_POLL_TIMEOUT_MS } from "./tmu
 import { TmuxAgentRuntime } from "./tmux/TmuxAgentRuntime.js";
 import type { InteractiveAgentRuntime } from "./types.js";
 import {
+  AgentHomeDivergenceError,
   AgentNameInUseError,
   AgentPidPollTimeoutError,
   AgentRuntimeUnavailableError,
   AgentTerminalNotFoundError,
   TmuxUnavailableError,
 } from "./errors.js";
+import { homeScopeMismatch, identityStoreExistsUnder } from "../utils/homeScope.js";
+import type { HomeScopeMismatch } from "../utils/homeScope.js";
 
 export {
+  AgentHomeDivergenceError,
   AgentNameInUseError,
   AgentPidPollTimeoutError,
   AgentRuntimeUnavailableError,
@@ -43,6 +47,8 @@ export interface StartAgentDeps {
   registry?: AgentRegistry;
   /** Called for non-fatal events (e.g., replacing an orphan tmux session). */
   onWarning?: (message: string) => void;
+  /** Injectable for tests — defaults to the passwd-home vs $HOME comparison. */
+  checkHomeScope?: () => HomeScopeMismatch | null;
 }
 
 export interface StopAgentDeps {
@@ -110,6 +116,26 @@ export async function startAgent(
     throw new AgentNameInUseError(opts.name, existing.pid);
   }
 
+  // Split-brain guard (issue #402): registry and daemon socket paths resolve
+  // from this process's $HOME. Under a sandboxed/nested start with a divergent
+  // HOME the write would land where the daemon and other clients never look —
+  // a false success. Refuse when the authoritative store lives elsewhere;
+  // warn when the account has no store yet (self-consistent sandbox).
+  const mismatch = (deps.checkHomeScope ?? homeScopeMismatch)();
+  if (mismatch) {
+    const message =
+      `agent start is running under HOME="${mismatch.envHome}" while the account home is ` +
+      `"${mismatch.accountHome}". `;
+    if (identityStoreExistsUnder(mismatch.accountHome)) {
+      throw new AgentHomeDivergenceError(mismatch.envHome, mismatch.accountHome);
+    }
+    deps.onWarning?.(
+      message +
+        "Agents registered here are only visible to clients sharing this HOME — " +
+        "other environments will list them as unregistered.",
+    );
+  }
+
   if (provider === "tmux" && tmux && (await tmux.sessionExists(opts.name))) {
     deps.onWarning?.(
       `tmux session "${opts.name}" already exists but has no live registry entry — it will be replaced.`,
@@ -144,6 +170,17 @@ export async function startAgent(
     pinned: false,
   };
   registry.register(entry);
+
+  // Round-trip the identity write through the same authority list/send/kill
+  // use: if the registered name cannot be read back, report failure rather
+  // than a false success (issue #402).
+  const roundTripped = registry.lookup(opts.name);
+  if (!roundTripped || roundTripped.pid !== result.pid) {
+    throw new Error(
+      `Agent "${opts.name}" started (PID ${result.pid}) but the registry write did not ` +
+        "round-trip — the agent will appear under a synthesized unregistered identity.",
+    );
+  }
   return entry;
 }
 

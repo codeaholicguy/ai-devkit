@@ -7,6 +7,7 @@ import {
   parseTmuxRuntimeRef,
   startAgent,
   TmuxUnavailableError,
+  AgentHomeDivergenceError,
   AgentNameInUseError,
   AgentPidPollTimeoutError,
   AgentRuntimeUnavailableError,
@@ -133,6 +134,8 @@ async function reportStartError(err: unknown): Promise<void> {
     ui.error(`tmux is not installed or not in PATH. ${instructions.message}`);
   } else if (err instanceof AgentRuntimeUnavailableError) {
     ui.error(`Herdr runtime is unavailable (${err.reason}): ${err.detail}`);
+  } else if (err instanceof AgentHomeDivergenceError) {
+    ui.error(err.message);
   } else if (err instanceof AgentNameInUseError) {
     ui.error(
       `Agent "${err.agentName}" is already running (PID ${err.pid}). Choose a different name.`,
