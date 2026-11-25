@@ -57,6 +57,11 @@ These environments have stable setup integrations.
 - `.grok/skills/` — Project-level skills
 - `~/.grok/skills/` — Global skills
 
+### [Kiro CLI](https://kiro.dev/cli/)
+**What AI DevKit provides:**
+- `.kiro/skills/` — Project-level skills
+- `~/.kiro/skills/` — Global skills
+
 ### [opencode](https://opencode.ai/)
 **What AI DevKit provides:**
 - `.opencode/skills/` — Project-level skills
