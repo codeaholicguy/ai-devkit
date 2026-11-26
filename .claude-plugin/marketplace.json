@@ -1,0 +1,16 @@
+{
+  "name": "ai-devkit",
+  "description": "Official AI DevKit plugin catalog.",
+  "owner": {
+    "name": "Hoang Nguyen",
+    "email": "hoang@codeaholicguy.com"
+  },
+  "plugins": [
+    {
+      "name": "ai-devkit",
+      "source": "./",
+      "description": "The control plane for AI coding agents.",
+      "version": "0.78.0"
+    }
+  ]
+}
