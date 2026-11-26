@@ -6,7 +6,7 @@
 cd packages/cli && npx vitest run tests/tui/console/runAgentConsole.test.ts
 ```
 
-Covers `exitCodeForSignal`, `releaseConsoleStdin`, watchdog timing, normal Ink exit, and signal-driven unmount.
+Covers `SIGNAL_EXIT_CODES`, `releaseConsoleStdin`, watchdog timing, normal Ink exit, error propagation, and signal-driven unmount.
 
 ## Manual (PTY)
 

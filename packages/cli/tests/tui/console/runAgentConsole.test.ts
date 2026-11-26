@@ -1,22 +1,21 @@
-import { EventEmitter } from "node:events";
 import process from "node:process";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from "vitest";
 import type { Instance } from "ink";
 import type { ReactElement } from "react";
 import {
   CONSOLE_EXIT_WATCHDOG_MS,
-  createConsoleExitWatchdog,
-  exitCodeForSignal,
+  SIGNAL_EXIT_CODES,
   releaseConsoleStdin,
   runAgentConsoleInk,
-  type ConsoleExitWatchdog,
 } from "../../../src/tui/console/runAgentConsole.js";
 
-describe("exitCodeForSignal", () => {
-  it("maps common shutdown signals to conventional exit codes", () => {
-    expect(exitCodeForSignal("SIGINT")).toBe(130);
-    expect(exitCodeForSignal("SIGTERM")).toBe(143);
-    expect(exitCodeForSignal("SIGHUP")).toBe(129);
+describe("SIGNAL_EXIT_CODES", () => {
+  it("maps shutdown signals to conventional exit codes", () => {
+    expect(SIGNAL_EXIT_CODES).toEqual({
+      SIGINT: 130,
+      SIGTERM: 143,
+      SIGHUP: 129,
+    });
   });
 });
 
@@ -39,45 +38,27 @@ describe("releaseConsoleStdin", () => {
     expect(unref).toHaveBeenCalled();
   });
 
+  it("still pauses and unrefs when setRawMode throws (e.g. after SIGHUP)", () => {
+    const setRawMode = vi.fn(() => {
+      throw new Error("EBADF");
+    });
+    const pause = vi.fn();
+    const unref = vi.fn();
+    const stdin = {
+      isTTY: true,
+      setRawMode,
+      pause,
+      unref,
+    } as unknown as NodeJS.ReadStream;
+
+    expect(() => releaseConsoleStdin(stdin)).not.toThrow();
+    expect(pause).toHaveBeenCalled();
+    expect(unref).toHaveBeenCalled();
+  });
+
   it("no-ops when stdin is not a TTY", () => {
     const stdin = { isTTY: false } as NodeJS.ReadStream;
     expect(() => releaseConsoleStdin(stdin)).not.toThrow();
-  });
-});
-
-describe("createConsoleExitWatchdog", () => {
-  it("fires once after the configured delay", () => {
-    vi.useFakeTimers();
-    const onTimeout = vi.fn();
-    const watchdog = createConsoleExitWatchdog(500);
-    watchdog.arm(onTimeout);
-    expect(onTimeout).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(499);
-    expect(onTimeout).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(1);
-    expect(onTimeout).toHaveBeenCalledOnce();
-    vi.useRealTimers();
-  });
-
-  it("can be disarmed before firing", () => {
-    vi.useFakeTimers();
-    const onTimeout = vi.fn();
-    const watchdog = createConsoleExitWatchdog(500);
-    watchdog.arm(onTimeout);
-    watchdog.disarm();
-    vi.advanceTimersByTime(1000);
-    expect(onTimeout).not.toHaveBeenCalled();
-    vi.useRealTimers();
-  });
-
-  it("defaults to the console exit watchdog budget", () => {
-    expect(CONSOLE_EXIT_WATCHDOG_MS).toBe(2000);
-    vi.useFakeTimers();
-    const onTimeout = vi.fn();
-    createConsoleExitWatchdog().arm(onTimeout);
-    vi.advanceTimersByTime(CONSOLE_EXIT_WATCHDOG_MS);
-    expect(onTimeout).toHaveBeenCalledOnce();
-    vi.useRealTimers();
   });
 });
 
@@ -88,8 +69,8 @@ class ProcessExitForTest extends Error {
 }
 
 describe("runAgentConsoleInk", () => {
-  const exitSpy = vi.spyOn(process, "exit").mockImplementation((code: number) => {
-    throw new ProcessExitForTest(code);
+  const exitSpy = vi.spyOn(process, "exit").mockImplementation((code) => {
+    throw new ProcessExitForTest(typeof code === "number" ? code : 0);
   });
 
   beforeEach(() => {
@@ -97,21 +78,35 @@ describe("runAgentConsoleInk", () => {
   });
 
   afterEach(() => {
-    process.removeAllListeners("SIGINT");
-    process.removeAllListeners("SIGTERM");
-    process.removeAllListeners("SIGHUP");
+    vi.useRealTimers();
   });
 
-  function createMockInstance(): Instance {
-    let resolveExit: (() => void) | undefined;
-    const exitPromise = new Promise<void>((resolve) => {
+  afterAll(() => {
+    exitSpy.mockRestore();
+  });
+
+  function createMockInstance(overrides?: {
+    onUnmount?: (resolveExit: () => void, rejectExit: (err: unknown) => void) => void;
+  }): {
+    instance: Instance;
+    resolveExit: () => void;
+    rejectExit: (err: unknown) => void;
+  } {
+    let resolveExit!: () => void;
+    let rejectExit!: (err: unknown) => void;
+    const exitPromise = new Promise<void>((resolve, reject) => {
       resolveExit = resolve;
+      rejectExit = reject;
     });
     const waitUntilExit = vi.fn(() => exitPromise);
     const unmount = vi.fn(() => {
-      resolveExit?.();
+      if (overrides?.onUnmount) {
+        overrides.onUnmount(resolveExit, rejectExit);
+      } else {
+        resolveExit();
+      }
     });
-    return {
+    const instance: Instance = {
       rerender: vi.fn(),
       unmount,
       waitUntilExit,
@@ -119,50 +114,8 @@ describe("runAgentConsoleInk", () => {
       cleanup: vi.fn(),
       clear: vi.fn(),
     };
+    return { instance, resolveExit, rejectExit };
   }
-
-  function createHarness(instance: Instance, watchdog?: ConsoleExitWatchdog) {
-    const renderInstance = vi.fn(() => instance);
-    const emitter = new EventEmitter();
-    const createWatchdog = (): ConsoleExitWatchdog =>
-      watchdog ?? {
-        arm(onTimeout) {
-          emitter.once("timeout", onTimeout);
-        },
-        disarm() {
-          emitter.removeAllListeners("timeout");
-        },
-      };
-    return {
-      renderInstance,
-      emitter,
-      run: () => runAgentConsoleInk({} as ReactElement, {}, { renderInstance, createWatchdog }),
-    };
-  }
-
-  it("renders the app and exits when Ink finishes", async () => {
-    let resolveExit: (() => void) | undefined;
-    const instance: Instance = {
-      rerender: vi.fn(),
-      unmount: vi.fn(),
-      waitUntilExit: vi.fn(
-        () =>
-          new Promise<void>((resolve) => {
-            resolveExit = resolve;
-            queueMicrotask(() => resolve());
-          }),
-      ),
-      waitUntilRenderFlush: vi.fn(),
-      cleanup: vi.fn(),
-      clear: vi.fn(),
-    };
-    const { renderInstance, run } = createHarness(instance);
-    await expect(run()).rejects.toBeInstanceOf(ProcessExitForTest);
-    expect(renderInstance).toHaveBeenCalledOnce();
-    expect(instance.unmount).not.toHaveBeenCalled();
-    expect(resolveExit).toBeDefined();
-    expect(exitSpy).toHaveBeenCalledWith(0);
-  });
 
   function invokeLatestSignalHandler(signal: NodeJS.Signals): void {
     const handler = process.listeners(signal).at(-1);
@@ -172,55 +125,130 @@ describe("runAgentConsoleInk", () => {
     (handler as (name: NodeJS.Signals) => void)(signal);
   }
 
-  it("unmounts and exits with 130 when SIGINT is received", async () => {
-    const instance = createMockInstance();
-    const { run } = createHarness(instance);
-    const running = run();
-    await Promise.resolve();
-    invokeLatestSignalHandler("SIGINT");
-    await Promise.resolve();
-    expect(instance.unmount).toHaveBeenCalledOnce();
-    expect(exitSpy).toHaveBeenCalledWith(130);
-    void running;
+  function listenerCounts() {
+    return {
+      SIGINT: process.listenerCount("SIGINT"),
+      SIGTERM: process.listenerCount("SIGTERM"),
+      SIGHUP: process.listenerCount("SIGHUP"),
+    };
+  }
+
+  it("renders the app, cleans up signal listeners, and exits 0 when Ink finishes", async () => {
+    const before = listenerCounts();
+    const { instance, resolveExit } = createMockInstance();
+    const renderInstance = vi.fn(() => instance);
+
+    const running = runAgentConsoleInk({} as ReactElement, {}, { renderInstance });
+    resolveExit();
+
+    await expect(running).rejects.toMatchObject({ code: 0 });
+    expect(renderInstance).toHaveBeenCalledOnce();
+    expect(instance.unmount).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(listenerCounts()).toEqual(before);
   });
 
-  it("unmounts and exits with 143 when SIGTERM is received", async () => {
-    const instance = createMockInstance();
-    const { run } = createHarness(instance);
-    const running = run();
-    await Promise.resolve();
+  it("rethrows Ink exit errors instead of swallowing them", async () => {
+    const before = listenerCounts();
+    const { instance, rejectExit } = createMockInstance();
+    const renderInstance = vi.fn(() => instance);
+    const boom = new Error("render failure");
+
+    const running = runAgentConsoleInk({} as ReactElement, {}, { renderInstance });
+    rejectExit(boom);
+
+    await expect(running).rejects.toBe(boom);
+    expect(exitSpy).not.toHaveBeenCalled();
+    expect(listenerCounts()).toEqual(before);
+  });
+
+  it.each([
+    ["SIGINT", 130],
+    ["SIGTERM", 143],
+    ["SIGHUP", 129],
+  ] as const)("unmounts on %s and exits with %d", async (signal, expectedCode) => {
+    const before = listenerCounts();
+    const { instance } = createMockInstance();
+    const renderInstance = vi.fn(() => instance);
+
+    const running = runAgentConsoleInk({} as ReactElement, {}, { renderInstance });
+    invokeLatestSignalHandler(signal);
+
+    await expect(running).rejects.toMatchObject({ code: expectedCode });
+    expect(instance.unmount).toHaveBeenCalledOnce();
+    expect(exitSpy).toHaveBeenCalledWith(expectedCode);
+    expect(listenerCounts()).toEqual(before);
+  });
+
+  it("ignores duplicate signals while tearing down", async () => {
+    const before = listenerCounts();
+    const { instance, resolveExit } = createMockInstance({
+      onUnmount: () => {
+        // Keep waitUntilExit pending until we explicitly resolve it.
+      },
+    });
+    const renderInstance = vi.fn(() => instance);
+
+    const running = runAgentConsoleInk({} as ReactElement, {}, { renderInstance });
     invokeLatestSignalHandler("SIGTERM");
-    await Promise.resolve();
+    invokeLatestSignalHandler("SIGTERM");
+    invokeLatestSignalHandler("SIGINT");
+    resolveExit();
+
+    await expect(running).rejects.toMatchObject({ code: 143 });
     expect(instance.unmount).toHaveBeenCalledOnce();
     expect(exitSpy).toHaveBeenCalledWith(143);
-    void running;
+    expect(listenerCounts()).toEqual(before);
   });
 
-  it("force-exits when Ink teardown exceeds the watchdog", async () => {
-    vi.useFakeTimers();
-    const instance: Instance = {
-      rerender: vi.fn(),
-      unmount: vi.fn(),
-      waitUntilExit: vi.fn(() => new Promise<void>(() => {})),
-      waitUntilRenderFlush: vi.fn(),
-      cleanup: vi.fn(),
-      clear: vi.fn(),
-    };
+  it("force-exits immediately if instance.unmount() throws synchronously", async () => {
+    const before = listenerCounts();
+    const { instance, resolveExit } = createMockInstance({
+      onUnmount: () => {
+        throw new Error("unmount crashed");
+      },
+    });
     const renderInstance = vi.fn(() => instance);
+
+    const running = runAgentConsoleInk({} as ReactElement, {}, { renderInstance });
+    invokeLatestSignalHandler("SIGTERM");
+
+    expect(instance.unmount).toHaveBeenCalledOnce();
+    expect(exitSpy).toHaveBeenCalledWith(143);
+    expect(listenerCounts()).toEqual(before);
+
+    // Clean up the pending promise from the test harness.
+    resolveExit();
+    await expect(running).rejects.toMatchObject({ code: 143 });
+  });
+
+  it("force-exits when Ink teardown exceeds the watchdog budget", async () => {
+    vi.useFakeTimers();
+    const before = listenerCounts();
+    const { instance, resolveExit } = createMockInstance({
+      onUnmount: () => {
+        // Simulate hung teardown where waitUntilExit never settles on its own.
+      },
+    });
+    const renderInstance = vi.fn(() => instance);
+
     const running = runAgentConsoleInk(
       {} as ReactElement,
       {},
-      {
-        renderInstance,
-        createWatchdog: () => createConsoleExitWatchdog(500),
-      },
+      { renderInstance, watchdogMs: CONSOLE_EXIT_WATCHDOG_MS },
     );
-    await Promise.resolve();
     invokeLatestSignalHandler("SIGINT");
-    await vi.advanceTimersByTimeAsync(500);
+
+    await vi.advanceTimersByTimeAsync(CONSOLE_EXIT_WATCHDOG_MS - 1);
+    expect(exitSpy).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
     expect(instance.unmount).toHaveBeenCalledOnce();
     expect(exitSpy).toHaveBeenCalledWith(130);
-    void running;
-    vi.useRealTimers();
+    expect(listenerCounts()).toEqual(before);
+
+    // Settle the promise so no pending promise leaks across tests.
+    resolveExit();
+    await expect(running).rejects.toMatchObject({ code: 130 });
   });
 });

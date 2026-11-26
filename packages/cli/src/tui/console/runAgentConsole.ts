@@ -5,19 +5,14 @@ import type { ReactElement } from "react";
 /** Wall-clock limit for Ink teardown before we force-exit anyway (#295). */
 export const CONSOLE_EXIT_WATCHDOG_MS = 2_000;
 
-/** Map a termination signal to a conventional CLI exit code. */
-export function exitCodeForSignal(signal: NodeJS.Signals): number {
-  switch (signal) {
-    case "SIGINT":
-      return 130;
-    case "SIGTERM":
-      return 143;
-    case "SIGHUP":
-      return 129;
-    default:
-      return 1;
-  }
-}
+export const SIGNAL_EXIT_CODES = {
+  SIGINT: 130,
+  SIGTERM: 143,
+  SIGHUP: 129,
+} as const satisfies Partial<Record<NodeJS.Signals, number>>;
+
+type ShutdownSignal = keyof typeof SIGNAL_EXIT_CODES;
+const SHUTDOWN_SIGNALS = Object.keys(SIGNAL_EXIT_CODES) as ShutdownSignal[];
 
 /** Best-effort stdin teardown so leaked TTY refs cannot keep the loop alive. */
 export function releaseConsoleStdin(stdin: NodeJS.ReadStream = process.stdin): void {
@@ -33,38 +28,9 @@ export function releaseConsoleStdin(stdin: NodeJS.ReadStream = process.stdin): v
   stdin.unref();
 }
 
-export interface ConsoleExitWatchdog {
-  arm(onTimeout: () => void): void;
-  disarm(): void;
-}
-
-/** Arm a one-shot watchdog around Ink unmount; used by tests via injection. */
-export function createConsoleExitWatchdog(
-  ms: number = CONSOLE_EXIT_WATCHDOG_MS,
-): ConsoleExitWatchdog {
-  let handle: ReturnType<typeof setTimeout> | undefined;
-  return {
-    arm(onTimeout) {
-      disarmWatchdog();
-      handle = setTimeout(onTimeout, ms);
-      handle.unref?.();
-    },
-    disarm() {
-      disarmWatchdog();
-    },
-  };
-
-  function disarmWatchdog() {
-    if (handle !== undefined) {
-      clearTimeout(handle);
-      handle = undefined;
-    }
-  }
-}
-
 export interface RunAgentConsoleInkOptions {
   renderInstance: (app: ReactElement, options: RenderOptions) => Instance;
-  createWatchdog?: () => ConsoleExitWatchdog;
+  watchdogMs?: number;
 }
 
 /**
@@ -75,63 +41,74 @@ export interface RunAgentConsoleInkOptions {
 export async function runAgentConsoleInk(
   app: ReactElement,
   renderOptions: RenderOptions,
-  { renderInstance, createWatchdog = createConsoleExitWatchdog }: RunAgentConsoleInkOptions,
+  { renderInstance, watchdogMs = CONSOLE_EXIT_WATCHDOG_MS }: RunAgentConsoleInkOptions,
 ): Promise<void> {
   const instance = renderInstance(app, renderOptions);
-  const watchdog = createWatchdog();
-  let tearingDown = false;
-  let exitCode = 0;
+  let signalExitCode: number | undefined;
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+
+  const cleanup = (): void => {
+    for (const signal of SHUTDOWN_SIGNALS) {
+      process.off(signal, onSignal);
+    }
+    if (watchdog !== undefined) {
+      clearTimeout(watchdog);
+      watchdog = undefined;
+    }
+  };
 
   const forceProcessExit = (code: number): void => {
+    cleanup();
     releaseConsoleStdin();
-    // eslint-disable-next-line n/no-process-exit -- deliberate console shutdown (#295)
     process.exit(code);
   };
 
-  const teardown = async (code: number): Promise<void> => {
-    if (tearingDown) return;
-    tearingDown = true;
-    exitCode = code;
-    instance.unmount();
-    watchdog.arm(() => {
+  const onSignal = (signal: ShutdownSignal): void => {
+    if (signalExitCode !== undefined) return;
+    const code = SIGNAL_EXIT_CODES[signal];
+    signalExitCode = code;
+
+    watchdog = setTimeout(() => {
       try {
         forceProcessExit(code);
       } catch {
         // Tests may stub process.exit to throw; production never returns.
       }
-    });
+    }, watchdogMs);
+    watchdog.unref?.();
+
     try {
-      await instance.waitUntilExit();
+      instance.unmount();
     } catch {
-      // Ink reports exit(errors) via rejection; still shut down.
-    } finally {
-      watchdog.disarm();
+      try {
+        forceProcessExit(code);
+      } catch {
+        // Tests may stub process.exit to throw; production never returns.
+      }
     }
-    forceProcessExit(code);
   };
 
-  const signals: NodeJS.Signals[] = ["SIGINT", "SIGTERM", "SIGHUP"];
-  const onSignal = (signal: NodeJS.Signals) => {
-    void teardown(exitCodeForSignal(signal)).catch(() => {
-      // process.exit ends the CLI; tests may stub it to throw.
-    });
-  };
-  for (const signal of signals) {
-    process.once(signal, onSignal);
+  for (const signal of SHUTDOWN_SIGNALS) {
+    process.on(signal, onSignal);
   }
 
+  let hasExitError = false;
+  let exitError: unknown;
   try {
     await instance.waitUntilExit();
-  } catch {
-    exitCode = 1;
+  } catch (error) {
+    hasExitError = true;
+    exitError = error;
   } finally {
-    for (const signal of signals) {
-      process.removeListener(signal, onSignal);
-    }
-    watchdog.disarm();
-    if (!tearingDown) {
-      tearingDown = true;
-      forceProcessExit(exitCode);
-    }
+    cleanup();
   }
+
+  if (signalExitCode !== undefined) {
+    forceProcessExit(signalExitCode);
+  }
+  if (hasExitError) {
+    releaseConsoleStdin();
+    throw exitError;
+  }
+  forceProcessExit(0);
 }

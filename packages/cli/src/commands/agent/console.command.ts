@@ -15,13 +15,17 @@ export function registerAgentConsoleCommand(agentCommand: Command): void {
         }
         // The TUI pulls in react/ink/yoga — keep it out of the eager graph
         // so non-TUI commands don't pay the module cost.
-        const [{ default: React }, { render }, { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp }] =
-          await Promise.all([
-            import("react"),
-            import("ink"),
-            import("../../tui/console/ConsoleApp.js"),
-          ]);
-        const { runAgentConsoleInk } = await import("../../tui/console/runAgentConsole.js");
+        const [
+          { default: React },
+          { render },
+          { AGENT_CONSOLE_RENDER_OPTIONS, ConsoleApp },
+          { runAgentConsoleInk },
+        ] = await Promise.all([
+          import("react"),
+          import("ink"),
+          import("../../tui/console/ConsoleApp.js"),
+          import("../../tui/console/runAgentConsole.js"),
+        ]);
         const manager = createAgentManager();
         await runAgentConsoleInk(
           React.createElement(ConsoleApp, { manager }),
