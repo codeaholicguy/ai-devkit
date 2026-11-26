@@ -26,7 +26,7 @@ Before you begin, make sure you have:
 
 ### Windows
 
-AI DevKit's **tmux**-backed managed agents, **devkitd**, and the experimental **agent console** target macOS and Linux. Native Windows (PowerShell with Node for Windows) does not ship a `devkitd` binary and does not support managed tmux sessions. For a full local control plane on a Windows PC, use **[Windows via WSL2](/docs/21-windows-wsl)**.
+Managed agents (`agent start`), `devkitd`, and the experimental `agent console` target macOS and Linux, not native Windows. A global install from PowerShell with Node for Windows does not ship `devkitd` and does not support tmux-managed sessions. For the full control plane on a PC, use [Windows via WSL2](/docs/21-windows-wsl).
 
 ### Node.js and native modules
 
