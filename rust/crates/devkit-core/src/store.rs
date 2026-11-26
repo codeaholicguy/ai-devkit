@@ -15,8 +15,14 @@ mod groups;
 /// Daemon-owned store: the persisted agent snapshot (for diff/events across
 /// restarts) and the durable event log. The daemon is the sole writer.
 mod registry;
+mod schedules;
 pub use groups::{AgentGroup, GroupError};
 pub use registry::Registration;
+pub use schedules::{
+    parse_iso8601_utc_ms, ScheduleError, ScheduleFilter, ScheduledSend,
+    DEFAULT_SCHEDULE_LIST_LIMIT, MAX_SCHEDULE_AGENT_NAME_CHARS, MAX_SCHEDULE_LIST_LIMIT,
+    MAX_SCHEDULE_MESSAGE_BYTES,
+};
 
 pub struct Store {
     conn: Mutex<Connection>,
@@ -97,6 +103,7 @@ impl Store {
         }
         durable::init(&conn)?;
         Self::init_groups(&conn)?;
+        Self::init_schedules(&conn)?;
         Ok(Self {
             conn: Mutex::new(conn),
             legacy_db: Mutex::new(None),

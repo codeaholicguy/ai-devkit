@@ -12,6 +12,8 @@ use std::time::{Duration, Instant};
 /// Same-pid observations required before a pid is trusted — mirrors
 /// `REQUIRED_STABLE_PID_POLLS`.
 const REQUIRED_STABLE_POLLS: u32 = 5;
+const TMUX_DELIVERY_TIMEOUT: Duration = Duration::from_secs(10);
+const TMUX_PASTE_ENTER_DELAY: Duration = Duration::from_millis(150);
 
 /// Binary paths are injectable so tests can point at fixture scripts instead
 /// of real tmux/pgrep/ps.
@@ -51,6 +53,98 @@ impl TmuxRuntime {
                     Err(String::from_utf8_lossy(&o.stderr).trim().to_string())
                 }
             })
+    }
+
+    fn run_with_timeout(
+        &self,
+        args: &[&str],
+        stdin_bytes: Option<&[u8]>,
+    ) -> Result<String, String> {
+        crate::runtime::spawn_output_with_timeout(
+            Command::new(&self.tmux).args(args),
+            stdin_bytes,
+            TMUX_DELIVERY_TIMEOUT,
+        )
+        .map_err(|e| e.to_string())
+        .and_then(|o| {
+            if o.status.success() {
+                Ok(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+                Err(if stderr.is_empty() {
+                    format!("tmux exited with {}", o.status)
+                } else {
+                    stderr
+                })
+            }
+        })
+    }
+
+    /// Resolve the exact tmux pane (`%N`) hosting `pid` by matching its TTY
+    /// against `tmux list-panes -a`. Keeps PR #482 independent of PR #481's
+    /// wire types; can unify with `terminal_target` once both land.
+    pub fn pane_for_pid(&self, pid: i64) -> Option<(String, String)> {
+        let output = crate::runtime::spawn_output_with_timeout(
+            Command::new(&self.ps).args(["-p", &pid.to_string(), "-o", "tty="]),
+            None,
+            TMUX_DELIVERY_TIMEOUT,
+        )
+        .ok()?;
+        let raw_tty = String::from_utf8_lossy(&output.stdout);
+        let tty = raw_tty.trim();
+        if !output.status.success() || tty.is_empty() || tty.starts_with('?') {
+            return None;
+        }
+        let full_tty = if tty.starts_with("/dev/") {
+            tty.to_owned()
+        } else {
+            format!("/dev/{tty}")
+        };
+        let panes = self
+            .run_with_timeout(&["list-panes", "-a", "-F", "#{pane_tty}|#{pane_id}"], None)
+            .ok()?;
+        panes
+            .lines()
+            .filter_map(|line| line.split_once('|'))
+            .find_map(|(pane_tty, id)| {
+                (pane_tty == full_tty && id.starts_with('%'))
+                    .then(|| (id.to_owned(), full_tty.clone()))
+            })
+    }
+
+    /// Deliver `message` to an exact tmux pane using bracketed paste via stdin
+    /// (`load-buffer` + `paste-buffer -p -d`), matching TS `tmuxBackend.send`.
+    pub fn send_to_pane(&self, pane_id: &str, message: &str) -> Result<(), String> {
+        self.send_to_pane_with_delay(pane_id, message, TMUX_PASTE_ENTER_DELAY)
+    }
+
+    pub(crate) fn send_to_pane_with_delay(
+        &self,
+        pane_id: &str,
+        message: &str,
+        delay: Duration,
+    ) -> Result<(), String> {
+        static BUF_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let buf = format!(
+            "ai-devkit-sched-{}-{}",
+            std::process::id(),
+            BUF_SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        );
+        self.run_with_timeout(&["load-buffer", "-b", &buf, "-"], Some(message.as_bytes()))
+            .map_err(|e| format!("tmux load-buffer failed: {e}"))?;
+        if let Err(e) = self.run_with_timeout(
+            &["paste-buffer", "-t", pane_id, "-b", &buf, "-p", "-d"],
+            None,
+        ) {
+            let _ = self.run_with_timeout(&["delete-buffer", "-b", &buf], None);
+            return Err(format!("tmux paste-buffer failed: {e}"));
+        }
+        if !delay.is_zero() {
+            std::thread::sleep(delay);
+        }
+        self.run_with_timeout(&["send-keys", "-t", pane_id, "Enter"], None)
+            .map_err(|e| format!("tmux send-keys Enter failed: {e}"))?;
+        Ok(())
     }
 
     pub fn session_exists(&self, name: &str) -> bool {
@@ -301,5 +395,40 @@ mod tests {
         let matcher = MatchSpec::Argv0("claude");
         let out = f.tmux().start(&input("deep", &matcher, 5000)).unwrap();
         assert_eq!(out.pid, 9003);
+    }
+
+    #[test]
+    fn pane_for_pid_matches_exact_tty_not_first_pane() {
+        let f = FixtureDir::new("pane-for-pid");
+        f.set("cmd-12", "pts/20");
+        f.set("pane_pid", "/dev/pts/2|%1\n/dev/pts/20|%3");
+        let (pane, tty) = f.tmux().pane_for_pid(12).expect("matching tmux pane");
+        assert_eq!(pane, "%3");
+        assert_eq!(tty, "/dev/pts/20");
+        assert!(f.tmux().pane_for_pid(13).is_none());
+    }
+
+    #[test]
+    fn send_to_pane_uses_load_buffer_bracketed_paste_and_cleans_up_on_error() {
+        let f = FixtureDir::new("send-pane");
+        let t = f.tmux();
+        t.send_to_pane_with_delay("%3", "hello\n-world", Duration::ZERO)
+            .unwrap();
+        let calls = f.log("tmux-calls.log");
+        assert!(calls.contains("load-buffer -b ai-devkit-sched-"));
+        assert!(calls.contains("paste-buffer -t %3 -b ai-devkit-sched-"));
+        assert!(calls.contains(" -p -d"));
+        assert!(calls.contains("send-keys -t %3 Enter"));
+        assert_eq!(f.log("tmux-stdin.log"), "hello\n-world");
+
+        // On paste failure, delete-buffer is invoked for cleanup
+        f.set("paste-fail", "");
+        let err = t
+            .send_to_pane_with_delay("%3", "fail-msg", Duration::ZERO)
+            .unwrap_err();
+        assert!(err.contains("paste-buffer failed"), "{err}");
+        assert!(f
+            .log("tmux-calls.log")
+            .contains("delete-buffer -b ai-devkit-sched-"));
     }
 }

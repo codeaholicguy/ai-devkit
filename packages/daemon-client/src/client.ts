@@ -4,6 +4,10 @@ import type { AgentGroup } from "./gen/AgentGroup.js";
 import type { GroupNameParams } from "./gen/GroupNameParams.js";
 import type { GroupMembersParams } from "./gen/GroupMembersParams.js";
 import type { GroupMemberParams } from "./gen/GroupMemberParams.js";
+import type { ScheduledSend } from "./gen/ScheduledSend.js";
+import type { ScheduleCreateParams } from "./gen/ScheduleCreateParams.js";
+import type { ScheduleListParams } from "./gen/ScheduleListParams.js";
+import type { ScheduleCancelParams } from "./gen/ScheduleCancelParams.js";
 import * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -267,6 +271,18 @@ export class DaemonClient {
   }
   async lookupGroup(name: string): Promise<AgentGroup> {
     return (await this.request("group.lookup", { name } satisfies GroupNameParams)) as AgentGroup;
+  }
+
+  async createSchedule(params: ScheduleCreateParams): Promise<ScheduledSend> {
+    return (await this.request("schedule.create", params)) as ScheduledSend;
+  }
+  async listSchedules(params: ScheduleListParams = {}): Promise<ScheduledSend[]> {
+    return (await this.request("schedule.list", params)) as ScheduledSend[];
+  }
+  async cancelSchedule(id: string): Promise<ScheduledSend> {
+    return (await this.request("schedule.cancel", {
+      id,
+    } satisfies ScheduleCancelParams)) as ScheduledSend;
   }
 
   private onData(chunk: Buffer) {

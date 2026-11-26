@@ -34,6 +34,9 @@ pub struct Daemon {
     pub home: PathBuf,
     /// Serializes agent.start so name-uniqueness can't race.
     pub start_mutex: std::sync::Mutex<()>,
+    /// Schedule IDs actively being delivered — blocks concurrent `schedule.cancel`
+    /// without introducing a 7th DB status.
+    pub in_flight_schedules: Mutex<HashSet<String>>,
 }
 
 impl Daemon {
@@ -86,6 +89,7 @@ impl Daemon {
             swept_pids: Mutex::new(HashSet::new()),
             home,
             start_mutex: std::sync::Mutex::new(()),
+            in_flight_schedules: Mutex::new(HashSet::new()),
         })
     }
 
@@ -198,6 +202,11 @@ impl Daemon {
                 }
             }
             m if m.starts_with("group.") => match crate::rpc::group::run(self, m, req.params) {
+                Ok(result) => Response::ok(id, result),
+                Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+            },
+            m if m.starts_with("schedule.") => match crate::rpc::schedule::run(self, m, req.params)
+            {
                 Ok(result) => Response::ok(id, result),
                 Err(e) => Response::err_coded(id, e.code, e.message, e.details),
             },
@@ -451,6 +460,29 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
                     // A panicking sweep would otherwise kill discovery
                     // silently — the daemon looks healthy while going stale.
                     tracing::warn!("sweep task failed: {e}");
+                }
+            }
+        });
+    }
+
+    // Dedicated scheduler loop: runs independently of apply_sweep() so slow
+    // deliveries never stall discovery/events, and runs its first tick
+    // immediately after bind (post-warmup startup reconciliation).
+    {
+        let d = daemon.clone();
+        tokio::spawn(async move {
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(2));
+            tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                tick.tick().await;
+                let d = d.clone();
+                if let Err(e) = tokio::task::spawn_blocking(move || {
+                    let deliverer = crate::scheduler::HybridDeliverer::default();
+                    crate::scheduler::tick_schedules(&d, chrono_now(), &deliverer);
+                })
+                .await
+                {
+                    tracing::warn!("scheduler task failed: {e}");
                 }
             }
         });
@@ -1048,3 +1080,7 @@ mod tests {
 #[cfg(test)]
 #[path = "../tests/rpc/groups.rs"]
 mod group_tests;
+
+#[cfg(test)]
+#[path = "../tests/rpc/schedules.rs"]
+mod schedule_tests;

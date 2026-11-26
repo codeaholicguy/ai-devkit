@@ -113,6 +113,64 @@ pub(crate) fn spawn_output(
     }
 }
 
+/// Spawn a command with optional stdin bytes and a hard timeout; SIGKILLs the
+/// child on timeout so a wedged tmux/herdr/CLI call cannot wedge the scheduler.
+pub(crate) fn spawn_output_with_timeout(
+    cmd: &mut std::process::Command,
+    stdin_bytes: Option<&[u8]>,
+    timeout: std::time::Duration,
+) -> std::io::Result<std::process::Output> {
+    use std::io::Write;
+    use std::process::Stdio;
+
+    cmd.stdin(if stdin_bytes.is_some() {
+        Stdio::piped()
+    } else {
+        Stdio::null()
+    })
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
+
+    const ETXTBSY: i32 = 26;
+    let mut attempts = 0;
+    let mut child = loop {
+        match cmd.spawn() {
+            Err(e) if e.raw_os_error() == Some(ETXTBSY) && attempts < 3 => {
+                attempts += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            other => break other?,
+        }
+    };
+
+    if let Some(bytes) = stdin_bytes {
+        if let Some(mut stdin) = child.stdin.take() {
+            let owned = bytes.to_vec();
+            std::thread::spawn(move || {
+                let _ = stdin.write_all(&owned);
+            });
+        }
+    }
+
+    let pid = child.id();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(child.wait_with_output());
+    });
+    match rx.recv_timeout(timeout) {
+        Ok(res) => res,
+        Err(_) => {
+            unsafe {
+                libc::kill(pid as i32, libc::SIGKILL);
+            }
+            Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                format!("command timed out after {}s", timeout.as_secs()),
+            ))
+        }
+    }
+}
+
 /// Runtimes bundle — injectable so tests can pass fixture-backed impls.
 #[derive(Default)]
 pub struct Runtimes {
