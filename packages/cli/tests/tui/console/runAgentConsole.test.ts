@@ -183,9 +183,7 @@ describe("runAgentConsoleInk", () => {
   it("ignores duplicate signals while tearing down", async () => {
     const before = listenerCounts();
     const { instance, resolveExit } = createMockInstance({
-      onUnmount: () => {
-        // Keep waitUntilExit pending until we explicitly resolve it.
-      },
+      onUnmount: () => {},
     });
     const renderInstance = vi.fn(() => instance);
 
@@ -217,7 +215,6 @@ describe("runAgentConsoleInk", () => {
     expect(exitSpy).toHaveBeenCalledWith(143);
     expect(listenerCounts()).toEqual(before);
 
-    // Clean up the pending promise from the test harness.
     resolveExit();
     await expect(running).rejects.toMatchObject({ code: 143 });
   });
@@ -226,9 +223,7 @@ describe("runAgentConsoleInk", () => {
     vi.useFakeTimers();
     const before = listenerCounts();
     const { instance, resolveExit } = createMockInstance({
-      onUnmount: () => {
-        // Simulate hung teardown where waitUntilExit never settles on its own.
-      },
+      onUnmount: () => {},
     });
     const renderInstance = vi.fn(() => instance);
 
@@ -247,7 +242,6 @@ describe("runAgentConsoleInk", () => {
     expect(exitSpy).toHaveBeenCalledWith(130);
     expect(listenerCounts()).toEqual(before);
 
-    // Settle the promise so no pending promise leaks across tests.
     resolveExit();
     await expect(running).rejects.toMatchObject({ code: 130 });
   });

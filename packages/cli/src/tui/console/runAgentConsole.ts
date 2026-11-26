@@ -2,7 +2,6 @@ import process from "node:process";
 import type { Instance, RenderOptions } from "ink";
 import type { ReactElement } from "react";
 
-/** Wall-clock limit for Ink teardown before we force-exit anyway (#295). */
 export const CONSOLE_EXIT_WATCHDOG_MS = 2_000;
 
 export const SIGNAL_EXIT_CODES = {
@@ -14,7 +13,6 @@ export const SIGNAL_EXIT_CODES = {
 type ShutdownSignal = keyof typeof SIGNAL_EXIT_CODES;
 const SHUTDOWN_SIGNALS = Object.keys(SIGNAL_EXIT_CODES) as ShutdownSignal[];
 
-/** Best-effort stdin teardown so leaked TTY refs cannot keep the loop alive. */
 export function releaseConsoleStdin(stdin: NodeJS.ReadStream = process.stdin): void {
   if (!stdin.isTTY || typeof stdin.setRawMode !== "function") {
     return;
@@ -33,11 +31,6 @@ export interface RunAgentConsoleInkOptions {
   watchdogMs?: number;
 }
 
-/**
- * Owns Ink instance lifecycle for `agent console`: signal-driven exit,
- * bounded wait on `waitUntilExit`, stdin release, and a final `process.exit`
- * so the CLI never depends on the event loop draining on its own (#295).
- */
 export async function runAgentConsoleInk(
   app: ReactElement,
   renderOptions: RenderOptions,
@@ -63,28 +56,26 @@ export async function runAgentConsoleInk(
     process.exit(code);
   };
 
+  const exitFromCallback = (code: number): void => {
+    try {
+      forceProcessExit(code);
+    } catch {
+      // Tests may stub process.exit to throw; production never returns.
+    }
+  };
+
   const onSignal = (signal: ShutdownSignal): void => {
     if (signalExitCode !== undefined) return;
     const code = SIGNAL_EXIT_CODES[signal];
     signalExitCode = code;
 
-    watchdog = setTimeout(() => {
-      try {
-        forceProcessExit(code);
-      } catch {
-        // Tests may stub process.exit to throw; production never returns.
-      }
-    }, watchdogMs);
+    watchdog = setTimeout(() => exitFromCallback(code), watchdogMs);
     watchdog.unref?.();
 
     try {
       instance.unmount();
     } catch {
-      try {
-        forceProcessExit(code);
-      } catch {
-        // Tests may stub process.exit to throw; production never returns.
-      }
+      exitFromCallback(code);
     }
   };
 
