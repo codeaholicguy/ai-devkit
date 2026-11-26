@@ -15,7 +15,12 @@ import {
   AgentTerminalNotFoundError,
   sendAgentPrompt,
 } from "@ai-devkit/agent-manager";
-import { parseMilliseconds, sleep } from "../../util/time.js";
+import {
+  parseDurationMs,
+  parseFutureIsoTimestamp,
+  parseMilliseconds,
+  sleep,
+} from "../../util/time.js";
 import { ui } from "../../util/terminal-ui.js";
 import type { AgentGroup } from "./agent-group.service.js";
 import { reportAgentResolution, resolveAgentByName } from "./resolve-agent.service.js";
@@ -107,10 +112,30 @@ export function assertSendTargetOptions(options: {
   wait?: boolean;
   timeout?: string;
   json?: boolean;
+  in?: string;
+  at?: string;
 }): void {
   const targetCount = Number(Boolean(options.id)) + Number(Boolean(options.group));
   if (targetCount !== 1) {
     throw new Error("Use exactly one of --id or --group.");
+  }
+  if (options.in !== undefined && options.at !== undefined) {
+    throw new Error("Use either --in or --at, not both.");
+  }
+  const isScheduled = options.in !== undefined || options.at !== undefined;
+  if (isScheduled && options.group) {
+    throw new Error("Scheduled sends are not supported with --group; use --id <agent>.");
+  }
+  if (isScheduled && (options.wait || options.timeout !== undefined)) {
+    throw new Error(
+      "Cannot combine --in/--at with --wait or --timeout; scheduled sends return immediately.",
+    );
+  }
+  if (options.in !== undefined) {
+    parseDurationMs(options.in);
+  }
+  if (options.at !== undefined) {
+    parseFutureIsoTimestamp(options.at);
   }
   if (options.group && options.wait) {
     throw new Error("Use --wait only with --id; group wait mode is not supported.");

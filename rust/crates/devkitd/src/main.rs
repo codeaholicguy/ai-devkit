@@ -1,6 +1,7 @@
 mod durable;
 mod rpc;
 mod runtime;
+mod scheduler;
 mod server;
 
 use anyhow::Result;

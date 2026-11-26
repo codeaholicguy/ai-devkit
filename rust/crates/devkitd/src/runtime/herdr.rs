@@ -45,6 +45,36 @@ impl HerdrRuntime {
         }
     }
 
+    /// `agent prompt <paneId> <message>` — delivers a scheduled message directly
+    /// to a herdr-managed pane with a bounded timeout.
+    pub fn send_prompt(&self, pane_id: &str, message: &str) -> Result<(), String> {
+        let o = crate::runtime::spawn_output_with_timeout(
+            Command::new(&self.herdr).args(["agent", "prompt", pane_id, message]),
+            None,
+            Duration::from_secs(10),
+        )
+        .map_err(|e| e.to_string())?;
+        let stdout: Option<Value> = serde_json::from_slice(&o.stdout).ok();
+        if let Some(err) = stdout.as_ref().and_then(|v| v.get("error")) {
+            return Err(format!(
+                "{}: {}",
+                err["code"].as_str().unwrap_or("error"),
+                err["message"]
+                    .as_str()
+                    .unwrap_or("herdr agent prompt failed.")
+            ));
+        }
+        if !o.status.success() {
+            let stderr = String::from_utf8_lossy(&o.stderr).trim().to_string();
+            return Err(if stderr.is_empty() {
+                format!("herdr agent prompt exited with {}", o.status)
+            } else {
+                stderr
+            });
+        }
+        Ok(())
+    }
+
     /// `agent rename <target> <name>` — target is the pane id hosting the
     /// agent. herdr reports failures as `{"error":{code,message}}` on stdout
     /// with a non-zero exit, so stdout is checked before the status.
@@ -374,5 +404,18 @@ mod tests {
         );
         let out = f.herdr().start(&input("agent-a", &[])).unwrap();
         assert_eq!(out.pid, 4321);
+    }
+
+    #[test]
+    fn send_prompt_invokes_agent_prompt_and_surfaces_error_json() {
+        let f = FixtureDir::new("herdr-prompt");
+        let h = f.herdr();
+        h.send_prompt("w1:p1", "check status").unwrap();
+        assert!(f
+            .log("herdr-calls.log")
+            .contains("agent prompt w1:p1 check status"));
+        f.set("prompt-fail", "");
+        let err = h.send_prompt("w1:p1", "check status").unwrap_err();
+        assert!(err.contains("pane_not_found"), "{err}");
     }
 }

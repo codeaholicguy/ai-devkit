@@ -223,6 +223,10 @@ mod tests {
         GroupNameParams::export(&cfg).unwrap();
         GroupMembersParams::export(&cfg).unwrap();
         GroupMemberParams::export(&cfg).unwrap();
+        crate::store::ScheduledSend::export(&cfg).unwrap();
+        ScheduleCreateParams::export(&cfg).unwrap();
+        ScheduleListParams::export(&cfg).unwrap();
+        ScheduleCancelParams::export(&cfg).unwrap();
         AgentStartParams::export(&cfg).unwrap();
         AgentStartResult::export(&cfg).unwrap();
         AgentNameParams::export(&cfg).unwrap();
@@ -424,4 +428,37 @@ pub struct GroupMembersParams {
 pub struct GroupMemberParams {
     pub name: String,
     pub member: String,
+}
+
+/// Params for `schedule.create`.
+#[derive(Debug, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleCreateParams {
+    pub agent_name: String,
+    pub message: String,
+    pub due_at: String,
+    #[serde(default)]
+    #[ts(optional)]
+    pub created_by: Option<String>,
+}
+
+/// Params for `schedule.list`.
+#[derive(Debug, Default, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduleListParams {
+    #[serde(default)]
+    #[ts(optional)]
+    pub status: Option<String>,
+    #[serde(default)]
+    #[ts(optional)]
+    pub agent_name: Option<String>,
+    #[serde(default)]
+    #[ts(optional, type = "number")]
+    pub limit: Option<u32>,
+}
+
+/// Params for `schedule.cancel`.
+#[derive(Debug, Deserialize, TS)]
+pub struct ScheduleCancelParams {
+    pub id: String,
 }

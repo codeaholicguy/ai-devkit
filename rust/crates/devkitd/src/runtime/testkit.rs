@@ -80,6 +80,12 @@ case "$1" in
       case "$1" in -s) touch "$DIR/session-$2"; shift 2;; *) shift;; esac
     done;;
   send-keys) :;;
+  load-buffer)
+    cat > "$DIR/tmux-stdin.log";;
+  paste-buffer)
+    [ -f "$DIR/paste-fail" ] && { echo "paste failed" >&2; exit 1; }
+    ;;
+  delete-buffer) :;;
   list-panes) cat "$DIR/pane_pid" 2>/dev/null;;
   kill-session) rm -f "$DIR/session-${3#=}";;
   rename-session)
@@ -122,6 +128,11 @@ case "$1 $2" in
   "agent rename")
     if [ -f "$DIR/rename-fail" ]; then
       echo '{"error":{"code":"agent_name_taken","message":"name taken"}}'; exit 1
+    fi
+    echo '{"result":{}}';;
+  "agent prompt")
+    if [ -f "$DIR/prompt-fail" ]; then
+      echo '{"error":{"code":"pane_not_found","message":"pane gone"}}'; exit 1
     fi
     echo '{"result":{}}';;
 esac

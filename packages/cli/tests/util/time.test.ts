@@ -1,4 +1,9 @@
-import { formatLocalDate, parseMilliseconds } from "../../src/util/time.js";
+import {
+  formatLocalDate,
+  parseDurationMs,
+  parseFutureIsoTimestamp,
+  parseMilliseconds,
+} from "../../src/util/time.js";
 
 describe("time util", () => {
   describe("formatLocalDate", () => {
@@ -35,6 +40,52 @@ describe("time util", () => {
           "Expected positive integer milliseconds.",
         );
       }
+    });
+  });
+
+  describe("parseDurationMs", () => {
+    it("parses single and compound durations case-insensitively", () => {
+      expect(parseDurationMs("30s")).toBe(30_000);
+      expect(parseDurationMs("15m")).toBe(15 * 60_000);
+      expect(parseDurationMs("2h")).toBe(2 * 3_600_000);
+      expect(parseDurationMs("1d")).toBe(86_400_000);
+      expect(parseDurationMs(" 1H30m10s ")).toBe(3_600_000 + 30 * 60_000 + 10_000);
+    });
+
+    it("rejects bare numbers, zero, negatives, duplicate units, and >365d", () => {
+      for (const bad of ["30", "0s", "0m", "-5m", "1h2h", "366d", "", "soon", "1.5h"]) {
+        expect(() => parseDurationMs(bad)).toThrow(/Invalid --in duration/);
+      }
+    });
+  });
+
+  describe("parseFutureIsoTimestamp", () => {
+    const now = Date.parse("2026-11-25T20:00:00.000Z");
+
+    it("normalizes valid future UTC and offset timestamps to canonical UTC ISO", () => {
+      expect(parseFutureIsoTimestamp("2026-11-25T21:00:00Z", now)).toBe("2026-11-25T21:00:00.000Z");
+      expect(parseFutureIsoTimestamp("2026-11-25T16:30:00-05:00", now)).toBe(
+        "2026-11-25T21:30:00.000Z",
+      );
+      expect(parseFutureIsoTimestamp("2026-11-25T20:05Z", now)).toBe("2026-11-25T20:05:00.000Z");
+    });
+
+    it("rejects missing timezone, rollover dates, and past timestamps", () => {
+      for (const bad of [
+        "2026-11-25T21:00:00",
+        "2026-02-30T12:00:00Z",
+        "2026-11-25",
+        "tomorrow",
+        "2026-11-25T21:00:00+25:00",
+      ]) {
+        expect(() => parseFutureIsoTimestamp(bad, now)).toThrow(/Invalid --at timestamp/);
+      }
+      expect(() => parseFutureIsoTimestamp("2026-11-25T20:00:00Z", now)).toThrow(
+        "--at timestamp must be in the future.",
+      );
+      expect(() => parseFutureIsoTimestamp("2026-11-25T19:59:59Z", now)).toThrow(
+        "--at timestamp must be in the future.",
+      );
     });
   });
 });

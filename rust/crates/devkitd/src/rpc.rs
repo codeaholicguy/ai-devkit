@@ -3,6 +3,7 @@
 
 pub mod agent;
 pub mod group;
+pub mod schedule;
 
 use serde_json::Value;
 

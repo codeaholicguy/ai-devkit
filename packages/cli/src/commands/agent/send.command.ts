@@ -17,7 +17,10 @@ import {
   type SendReporter,
 } from "../../services/agent/agent.service.js";
 import { resolveTextFromStdinOption } from "../../util/stdin.js";
+import { parseDurationMs, parseFutureIsoTimestamp } from "../../util/time.js";
+import { formatLocalTimestampWithRelative } from "../../util/time-format.js";
 import { createDefaultAgentGroupService } from "../../services/agent/agent-group.service.js";
+import { createDefaultAgentScheduleService } from "../../services/agent/agent-schedule.service.js";
 import { resolveDurableAgentEntry } from "../../services/agent/resolve-agent.service.js";
 import {
   createAgentManager,
@@ -114,16 +117,38 @@ function createCommandSendReporter(): SendReporter {
   };
 }
 
+async function isLiveInteractiveTarget(daemon: DaemonClient, agentName: string): Promise<boolean> {
+  try {
+    const entry = await daemon.lookupAgent(agentName);
+    return entry.alive;
+  } catch (error) {
+    if (!(error instanceof DaemonRpcError && error.code === "not_found")) {
+      return false;
+    }
+  }
+  try {
+    const live = await daemon.listAgents();
+    return live.some((agent) => agent.name === agentName);
+  } catch {
+    return false;
+  }
+}
+
 export function registerAgentSendCommand(agentCommand: Command): void {
   agentCommand
     .command("send [message]")
-    .description("Send a message to a running agent")
+    .description("Send a message to a running agent (or schedule one for later)")
     .option("--id <identifier>", "Agent name or partial match")
     .option("--group <name>", "Agent group name")
+    .option("--in <duration>", "Schedule delivery after a relative duration (e.g. 15m, 2h, 1d)")
+    .option(
+      "--at <iso>",
+      "Schedule delivery at an ISO-8601 UTC/offset timestamp (e.g. 2026-11-25T21:00:00Z)",
+    )
     .option("--stdin", "Read the message from stdin")
     .option("--wait", "Wait for and print the agent response")
     .option("--timeout <milliseconds>", "Maximum time to wait with --wait, in milliseconds")
-    .option("-j, --json", "Output wait result as JSON")
+    .option("-j, --json", "Output wait or schedule result as JSON")
     .option("--debug", "Enable debug logging")
     .action(
       withErrorHandler("send message", async (message, options) => {
@@ -132,6 +157,61 @@ export function registerAgentSendCommand(agentCommand: Command): void {
         }
         assertSendTargetOptions(options);
         const prompt = await resolveSendMessage(message, options);
+
+        if (options.in !== undefined || options.at !== undefined) {
+          const manager = createAgentManager();
+          const durableResolved = await resolveDurableAgentEntry(options.id, () =>
+            manager.listAgents(),
+          );
+          if (durableResolved) {
+            throw new Error(
+              `Agent "${durableResolved.name}" is a durable agent; scheduled sends support direct pane delivery only.`,
+            );
+          }
+
+          const daemon = await ensureDaemon({ onDebug: debug });
+          if (!daemon) {
+            throw new Error(
+              "A running, capable daemon is required for scheduled sends. Start devkitd and retry.",
+            );
+          }
+          try {
+            const targetName = String(options.id).trim();
+            if (!(await isLiveInteractiveTarget(daemon, targetName))) {
+              const warn = `No running interactive agent named "${targetName}" right now; it will be resolved at fire time.`;
+              if (options.json) {
+                process.stderr.write(`Warning: ${warn}\n`);
+              } else {
+                ui.warning(warn);
+              }
+            }
+            const dueAt =
+              options.in !== undefined
+                ? new Date(Date.now() + parseDurationMs(options.in)).toISOString()
+                : parseFutureIsoTimestamp(options.at);
+            const createdBy = process.env.AI_DEVKIT_AGENT_NAME?.trim() || undefined;
+            const schedule = await createDefaultAgentScheduleService({
+              client: daemon,
+              onDebug: debug,
+            }).create({
+              agentName: targetName,
+              message: prompt,
+              dueAt,
+              ...(createdBy ? { createdBy } : {}),
+            });
+            if (options.json) {
+              console.log(JSON.stringify(schedule, null, 2));
+            } else {
+              ui.success(
+                `Scheduled message for "${schedule.agentName}" at ${formatLocalTimestampWithRelative(new Date(schedule.dueAt))} [id: ${schedule.id}].`,
+              );
+            }
+          } finally {
+            daemon.close();
+          }
+          return;
+        }
+
         const focusManager = new TerminalFocusManager();
 
         if (options.group) {

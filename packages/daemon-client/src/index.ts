@@ -23,3 +23,7 @@ export type { AgentGroup } from "./gen/AgentGroup.js";
 export type { GroupNameParams } from "./gen/GroupNameParams.js";
 export type { GroupMembersParams } from "./gen/GroupMembersParams.js";
 export type { GroupMemberParams } from "./gen/GroupMemberParams.js";
+export type { ScheduledSend } from "./gen/ScheduledSend.js";
+export type { ScheduleCreateParams } from "./gen/ScheduleCreateParams.js";
+export type { ScheduleListParams } from "./gen/ScheduleListParams.js";
+export type { ScheduleCancelParams } from "./gen/ScheduleCancelParams.js";
