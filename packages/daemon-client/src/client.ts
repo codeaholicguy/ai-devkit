@@ -9,6 +9,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { AgentStartParams } from "./gen/AgentStartParams.js";
 import type { AgentStartResult } from "./gen/AgentStartResult.js";
+import type { AgentLookupParams } from "./gen/AgentLookupParams.js";
 import type { AgentLookupResult } from "./gen/AgentLookupResult.js";
 import type { AgentNameParams } from "./gen/AgentNameParams.js";
 import type { AgentUnregisterResult } from "./gen/AgentUnregisterResult.js";
@@ -171,10 +172,14 @@ export class DaemonClient {
    * `not_found`. Generic on purpose — kill, send, open, channel and console
    * all drive their runtime ops from this payload.
    */
-  async lookupAgent(name: string): Promise<AgentLookupResult> {
+  async lookupAgent(
+    name: string,
+    options?: Omit<AgentLookupParams, "name">,
+  ): Promise<AgentLookupResult> {
     return (await this.request("agent.lookup", {
       name,
-    } satisfies AgentNameParams)) as AgentLookupResult;
+      ...options,
+    } satisfies AgentLookupParams)) as AgentLookupResult;
   }
 
   /**

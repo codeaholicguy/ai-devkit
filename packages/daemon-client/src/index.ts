@@ -2,6 +2,8 @@ export { DaemonClient, daemonSocketPath, DaemonRpcError } from "./client.js";
 export type { DaemonEvent } from "./client.js";
 export type { AgentStartParams } from "./gen/AgentStartParams.js";
 export type { AgentStartResult } from "./gen/AgentStartResult.js";
+export type { AgentLookupParams } from "./gen/AgentLookupParams.js";
+export type { AgentTerminalTarget } from "./gen/AgentTerminalTarget.js";
 export type { AgentLookupResult } from "./gen/AgentLookupResult.js";
 export type { AgentNameParams } from "./gen/AgentNameParams.js";
 export type { AgentUnregisterResult } from "./gen/AgentUnregisterResult.js";

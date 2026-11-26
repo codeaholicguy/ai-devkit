@@ -115,6 +115,7 @@ impl Daemon {
                 let mut status = identity();
                 status["startedAt"] = json!(self.started_at);
                 status["socket"] = json!(self.socket_path);
+                status["agentLookupTerminal"] = json!(true);
                 status["pid"] = json!(std::process::id());
                 Response::ok(id, status)
             }
@@ -166,7 +167,20 @@ impl Daemon {
                     Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
-            "agent.lookup" | "agent.unregister" => {
+            "agent.lookup" => {
+                let params = match Self::parse_params::<devkit_core::proto::AgentLookupParams>(
+                    &req,
+                    &req.method,
+                ) {
+                    Ok(p) => p,
+                    Err(resp) => return *resp,
+                };
+                match crate::rpc::agent::lookup::run(self, params) {
+                    Ok(v) => Response::ok(id, serde_json::to_value(v).unwrap_or_default()),
+                    Err(e) => Response::err_coded(id, e.code, e.message, e.details),
+                }
+            }
+            "agent.unregister" => {
                 let params = match Self::parse_params::<devkit_core::proto::AgentNameParams>(
                     &req,
                     &req.method,
@@ -174,13 +188,8 @@ impl Daemon {
                     Ok(p) => p,
                     Err(resp) => return *resp,
                 };
-                let result = if req.method == "agent.lookup" {
-                    crate::rpc::agent::lookup::run(self, params).map(serde_json::to_value)
-                } else {
-                    crate::rpc::agent::unregister::run(self, params).map(serde_json::to_value)
-                };
-                match result {
-                    Ok(v) => Response::ok(id, v.unwrap_or_default()),
+                match crate::rpc::agent::unregister::run(self, params) {
+                    Ok(v) => Response::ok(id, serde_json::to_value(v).unwrap_or_default()),
                     Err(e) => Response::err_coded(id, e.code, e.message, e.details),
                 }
             }
@@ -228,6 +237,15 @@ impl Daemon {
                 None,
             ))
         })
+    }
+
+    pub(crate) fn listed_agent(&self, name: &str, pid: u64) -> Option<EnrichedAgent> {
+        self.enriched
+            .read()
+            .unwrap()
+            .iter()
+            .find(|agent| agent.pid == pid && agent.name == name)
+            .cloned()
     }
 
     /// Apply a discovery sweep, refresh the enriched cache, and emit
@@ -697,6 +715,7 @@ mod tests {
         assert!(r.as_object().unwrap().contains_key("buildVersion"));
         assert_eq!(r["buildVersion"], json!(BUILD_VERSION));
         assert_eq!(r["pid"], std::process::id());
+        assert_eq!(r["agentLookupTerminal"], true);
     }
 
     #[tokio::test]
@@ -802,6 +821,23 @@ mod tests {
         assert_eq!(r["result"].as_array().unwrap().len(), 1);
         assert_eq!(r["result"][0]["name"], "t");
         assert_eq!(r["result"][0]["type"], "claude");
+
+        let lookup = |params| {
+            let req = serde_json::from_value(json!({
+                "id": 3, "method": "agent.lookup", "params": params,
+            }))
+            .unwrap();
+            serde_json::to_value(d.dispatch(req)).unwrap()
+        };
+        assert_eq!(lookup(json!({"name": "t"}))["code"], "not_found");
+        assert_eq!(
+            lookup(json!({"name": "t", "listedPid": 2}))["code"],
+            "not_found"
+        );
+        assert_eq!(
+            lookup(json!({"name": "t", "listedPid": 1}))["result"]["pid"],
+            1
+        );
     }
 
     #[test]

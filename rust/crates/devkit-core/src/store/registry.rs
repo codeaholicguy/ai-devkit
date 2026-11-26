@@ -11,7 +11,7 @@ use serde_json::Value;
 use std::path::PathBuf;
 
 /// One row of the legacy agents.db `agents` table.
-type LegacyRow = (String, i64, String, String, String, i64, String, String);
+type LegacyRow = (String, i64, String, String, i64, String, String);
 
 /// Registration fields carried into the legacy dual-write.
 struct RegWrite<'a> {
@@ -163,9 +163,28 @@ impl Store {
                     return Ok(vec![]);
                 }
             };
-        let mut stmt = match legacy
-            .prepare("SELECT type,pid,name,cwd,started_at,pinned,runtime,runtime_ref FROM agents")
-        {
+        let mut schema = legacy.prepare("PRAGMA table_info(agents)")?;
+        let columns = schema
+            .query_map([], |row| row.get::<_, String>(1))?
+            .collect::<std::result::Result<std::collections::HashSet<_>, _>>()?;
+        let pinned = if columns.contains("pinned") {
+            "pinned"
+        } else {
+            "0"
+        };
+        let runtime = if columns.contains("runtime") {
+            "runtime"
+        } else {
+            "'tmux'"
+        };
+        let runtime_ref = if columns.contains("runtime_ref") {
+            "runtime_ref"
+        } else {
+            "''"
+        };
+        let mut stmt = match legacy.prepare(&format!(
+            "SELECT type,pid,name,cwd,{pinned},{runtime},{runtime_ref},tmux_session FROM agents"
+        )) {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!("legacy agents.db lacks agents table ({e:#}); skipping import");
@@ -174,15 +193,20 @@ impl Store {
         };
         let rows = stmt
             .query_map([], |r| {
+                let runtime: String = r.get(5)?;
+                let mut runtime_ref: String = r.get(6)?;
+                let tmux_session: String = r.get(7)?;
+                if runtime == "tmux" && runtime_ref.is_empty() && !tmux_session.is_empty() {
+                    runtime_ref = serde_json::json!({"session": tmux_session}).to_string();
+                }
                 Ok((
                     r.get(0)?,
                     r.get(1)?,
                     r.get(2)?,
                     r.get(3)?,
                     r.get(4)?,
-                    r.get(5)?,
-                    r.get(6)?,
-                    r.get(7)?,
+                    runtime,
+                    runtime_ref,
                 ))
             })?
             .filter_map(|r| r.ok())
@@ -191,15 +215,15 @@ impl Store {
     }
 
     /// Merge legacy rows into the registry: attach to a live row for the
-    /// same pid, else insert as a tombstone (dead-by-default; the sweep
-    /// reanimates it if the pid is actually alive).
+    /// same pid, otherwise insert a registration. Dead PIDs are imported as
+    /// tombstones; live PIDs can resolve before the next discovery sweep.
     pub fn import_legacy_agents(&self) -> Result<()> {
         let rows = self.read_legacy_rows()?;
 
         let conn = self.conn.lock().unwrap();
         let now = chrono_now();
         for row in rows {
-            let (agent_type, pid, name, cwd, _started_at, pinned, runtime, runtime_ref) = row;
+            let (agent_type, pid, name, cwd, pinned, runtime, runtime_ref) = row;
             // Attach to a live, unclaimed row for the same pid.
             let attached = conn.execute(
                 "UPDATE agents SET name=?1, agent_type=?2, runtime=?3,
@@ -212,7 +236,7 @@ impl Store {
                     "INSERT OR IGNORE INTO agents
                        (pid, name, agent_type, runtime, runtime_ref, cwd,
                         pinned, registered_at, gone_at, first_seen, last_seen)
-                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?8,?8,?8)",
+                     VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?8,?8)",
                     params![
                         pid,
                         name,
@@ -221,7 +245,8 @@ impl Store {
                         runtime_ref,
                         cwd,
                         pinned,
-                        now
+                        now,
+                        (!crate::discover::pid_alive(pid)).then_some(now),
                     ],
                 )?;
             }

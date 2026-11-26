@@ -27,6 +27,7 @@ import { select } from "@inquirer/prompts";
 import { ChannelService } from "./channel.service.js";
 import { reportAgentResolution, resolveAgentByName } from "../agent/resolve-agent.service.js";
 import { AskUserQuestionService } from "./ask-user-question.js";
+import { resolveDaemonChannelTarget, type ChannelSession } from "./channel-target.js";
 import { SlackQuestionService } from "./slack-question.js";
 
 const debug = createLogger("channel");
@@ -63,26 +64,28 @@ async function resolveTargetAgent(
 
   if (resolution.kind === "resolved") return resolution.agent;
 
-  if (resolution.kind === "ambiguous") {
-    const selectedAgent = await select({
-      message: "Multiple agents match. Select one:",
-      choices: resolution.matches.map((a) => ({
-        name: `${a.name} (PID: ${a.pid})`,
-        value: a,
-      })),
-    });
-    return selectedAgent;
-  }
+  if (resolution.kind === "ambiguous") return selectAgent(resolution.matches);
 
   reportAgentResolution(resolution, agentName, ui);
   return null;
 }
 
+function selectAgent(agents: AgentInfo[]): Promise<AgentInfo> {
+  return select({
+    message: "Multiple agents match. Select one:",
+    choices: agents.map((agent) => ({
+      name: `${agent.name} (PID: ${agent.pid})`,
+      value: agent,
+    })),
+  });
+}
+
 export function setupInputHandler(
   channel: ChannelAdapter,
-  terminalLocation: TerminalLocation,
+  terminalLocation: TerminalLocation | null,
   chatIdRef: { value: string | null },
   onAuthorize?: (chatId: string) => Promise<void>,
+  isAlive?: () => Promise<boolean>,
 ): void {
   channel.onMessage(async (msg) => {
     debug(`Received message from chat ID: ${msg.chatId}, text length: ${msg.text?.length ?? 0}`);
@@ -109,6 +112,10 @@ export function setupInputHandler(
     }
 
     try {
+      if (!terminalLocation || (isAlive && !(await isAlive()))) {
+        await channel.sendMessage(msg.chatId, "The agent has exited.");
+        return;
+      }
       await TtyWriter.send(terminalLocation, msg.text);
       debug(`Sent message to agent terminal (length: ${msg.text?.length ?? 0})`);
     } catch (error: unknown) {
@@ -135,6 +142,7 @@ function formatPromptMessage(toolName: string, toolInput: Record<string, unknown
 
 export interface OutputPollingOptions {
   homeDir?: string;
+  refreshSession?: () => Promise<ChannelSession | undefined>;
   askUserQuestionService?: Pick<AskUserQuestionService, "tryHandle">;
 }
 
@@ -174,9 +182,27 @@ export function startOutputPolling(
 
   let tickCount = 0;
   let lastReportedLength = lastMessageCount;
+  let refreshing = false;
+  const startedAt = Date.now();
+  let lateConversation = !agent.sessionFilePath;
+  let lateRequests = !agent.sessionId;
 
   return setInterval(async () => {
     tickCount += 1;
+
+    if (options.refreshSession && (!agent.sessionFilePath || !agent.sessionId)) {
+      if (refreshing) return;
+      refreshing = true;
+      try {
+        const session = await options.refreshSession();
+        if (session?.sessionId) agent.sessionId = session.sessionId;
+        if (session?.sessionFilePath) agent.sessionFilePath = session.sessionFilePath;
+      } catch (error) {
+        debug(`Could not refresh agent session: ${getErrorMessage(error)}`);
+      } finally {
+        refreshing = false;
+      }
+    }
 
     if (!chatIdRef.value) {
       if (tickCount % 15 === 1) {
@@ -191,6 +217,12 @@ export function startOutputPolling(
       try {
         const conversation = agentAdapter.getConversation(agent.sessionFilePath);
         newMessages = conversation.slice(lastMessageCount);
+        if (lateConversation) {
+          newMessages = newMessages.filter(
+            (message) => message.timestamp && Date.parse(message.timestamp) >= startedAt,
+          );
+          lateConversation = false;
+        }
         if (conversation.length !== lastReportedLength) {
           debug(
             `Conversation length changed: ${lastReportedLength} -> ${conversation.length} (lastMessageCount=${lastMessageCount}, new=${newMessages.length})`,
@@ -234,6 +266,12 @@ export function startOutputPolling(
     // Dedupes by timestamp so each distinct hook write is sent exactly once.
     if (agent.sessionId) {
       const agentRequest = readLatestAgentRequest(home, agent.sessionId);
+      if (agentRequest && lateRequests) {
+        lateRequests = false;
+        if (Date.parse(agentRequest.timestamp) < startedAt) {
+          lastAgentRequestTimestamp = agentRequest.timestamp;
+        }
+      }
       if (agentRequest && agentRequest.timestamp !== lastAgentRequestTimestamp) {
         debug(`New agent request: ${agentRequest.toolName} at ${agentRequest.timestamp}`);
         lastAgentRequestTimestamp = agentRequest.timestamp;
@@ -303,7 +341,19 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
 
   debug(`Resolving agent: "${input.agentName}"`);
   const agentManager = createAgentManager();
-  const agent = await resolveTargetAgent(agentManager, input.agentName);
+  const target = await resolveDaemonChannelTarget(input.agentName, selectAgent);
+  if (target.kind === "missing") {
+    reportAgentResolution(
+      { kind: target.agents.length ? "not-found" : "empty", agents: target.agents },
+      input.agentName,
+      ui,
+    );
+    return;
+  }
+  const agent =
+    target.kind === "resolved"
+      ? target.agent
+      : await resolveTargetAgent(agentManager, input.agentName);
   if (!agent) return;
 
   debug(`Agent resolved: name=${agent.name}, type=${agent.type}, pid=${agent.pid}`);
@@ -318,15 +368,27 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
   debug(`Agent adapter loaded for type: ${agent.type}`);
 
   debug(`Looking up terminal for PID: ${agent.pid}`);
-  const focusManager = new TerminalFocusManager();
-  const terminalLocation = await focusManager.findTerminal(agent.pid);
+  const dead = target.kind === "resolved" && target.dead;
+  const isAlive = target.kind === "resolved" ? target.isAlive : undefined;
+  const terminalLocation = dead
+    ? null
+    : ((target.kind === "resolved" ? target.terminal : undefined) ??
+      (await new TerminalFocusManager().findTerminal(agent.pid)));
 
-  if (!terminalLocation) {
+  if (!dead && !terminalLocation) {
     ui.error(`Cannot find terminal for agent "${agent.name}" (PID: ${agent.pid}).`);
     return;
   }
 
   debug(`Terminal found: ${JSON.stringify(terminalLocation)}`);
+
+  const sendKey = async (key: string) => {
+    if (!terminalLocation || (isAlive && !(await isAlive()))) {
+      if (chatIdRef.value) await channel.sendMessage(chatIdRef.value, "The agent has exited.");
+      return;
+    }
+    await TtyWriter.sendKey(terminalLocation, key);
+  };
 
   let channel: ChannelAdapter;
   let askUserQuestionService: Pick<AskUserQuestionService, "tryHandle"> | undefined;
@@ -340,17 +402,21 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
       telegramConfig.authorizedChatId !== undefined
         ? String(telegramConfig.authorizedChatId)
         : null;
-    setupInputHandler(telegram, terminalLocation, chatIdRef, async (chatId) => {
-      const latest = await configStore.getChannel(input.channelName);
-      if (!latest || latest.type !== TELEGRAM_CHANNEL_TYPE) return;
-      await configStore.saveChannel(input.channelName, {
-        ...latest,
-        config: { ...latest.config, authorizedChatId: Number(chatId) },
-      });
-    });
-    const telegramQuestions = new AskUserQuestionService(telegram, (key) =>
-      TtyWriter.sendKey(terminalLocation, key),
+    setupInputHandler(
+      telegram,
+      terminalLocation,
+      chatIdRef,
+      async (chatId) => {
+        const latest = await configStore.getChannel(input.channelName);
+        if (!latest || latest.type !== TELEGRAM_CHANNEL_TYPE) return;
+        await configStore.saveChannel(input.channelName, {
+          ...latest,
+          config: { ...latest.config, authorizedChatId: Number(chatId) },
+        });
+      },
+      isAlive,
     );
+    const telegramQuestions = new AskUserQuestionService(telegram, sendKey);
     askUserQuestionService = telegramQuestions;
     telegram.onCallback(async (cb) => {
       if (cb.chatId !== chatIdRef.value) return;
@@ -360,10 +426,8 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
     const slackConfig = channelEntry.config;
     const slack = new SlackAdapter(slackConfig);
     channel = slack;
-    setupInputHandler(slack, terminalLocation, chatIdRef);
-    const slackQuestions = new SlackQuestionService(slack, (key) =>
-      TtyWriter.sendKey(terminalLocation, key),
-    );
+    setupInputHandler(slack, terminalLocation, chatIdRef, undefined, isAlive);
+    const slackQuestions = new SlackQuestionService(slack, sendKey);
     askUserQuestionService = slackQuestions;
     slack.onInteraction((interaction) => slackQuestions.handleInteraction(interaction));
   } else {
@@ -374,6 +438,7 @@ export async function runChannelBridge(input: RunChannelBridgeInput): Promise<vo
   debug(`Starting output polling (interval: ${AGENT_POLL_INTERVAL_MS}ms)`);
   const pollInterval = startOutputPolling(channel, agentAdapter, agent, chatIdRef, {
     askUserQuestionService,
+    refreshSession: target.kind === "resolved" ? target.refreshSession : undefined,
   });
 
   const manager = new ChannelManager();
