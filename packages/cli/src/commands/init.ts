@@ -13,6 +13,7 @@ import { isValidEnvironmentCode } from "../util/env.js";
 import { isInteractiveTerminal } from "../util/terminal.js";
 import { ui } from "../util/terminal-ui.js";
 import { confirm } from "@inquirer/prompts";
+import { runInitDemo } from "../services/init/init-demo.service.js";
 
 function isGitAvailable(): boolean {
   try {
@@ -56,6 +57,7 @@ interface InitOptions {
   builtIn?: boolean;
   yes?: boolean;
   overwrite?: boolean;
+  demo?: boolean;
 }
 
 function normalizeEnvironmentOption(
@@ -308,4 +310,11 @@ export async function initCommand(options: InitOptions) {
   ui.text(chalk.dim("  - Your selected AI environments are ready in this project"));
   ui.text(chalk.dim("  - Run `ai-devkit phase <name>` to add more phases later"));
   ui.text(chalk.dim("  - Run `ai-devkit init` again to add more environments"));
+
+  if (options.demo) {
+    const demoCode = await runInitDemo({ cwd: process.cwd() });
+    if (demoCode !== 0) {
+      process.exitCode = demoCode;
+    }
+  }
 }

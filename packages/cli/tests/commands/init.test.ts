@@ -12,6 +12,7 @@ const {
   mockReconcileAndInstall,
   mockGetInstallExitCode,
   mockGetBuiltinSkillNames,
+  mockRunInitDemo,
 } = vi.hoisted(() => ({
   mockConfigManager: {
     exists: vi.fn(),
@@ -53,6 +54,7 @@ const {
   mockReconcileAndInstall: vi.fn() as any,
   mockGetInstallExitCode: vi.fn() as any,
   mockGetBuiltinSkillNames: vi.fn() as any,
+  mockRunInitDemo: vi.fn() as any,
 }));
 
 const BUILTIN_SKILL_FIXTURE = ["remote-one", "remote-two"];
@@ -122,6 +124,10 @@ vi.mock("../../src/util/terminal-ui.js", () => ({
 
 vi.mock("../../src/util/terminal.js", () => ({
   isInteractiveTerminal: (...args: unknown[]) => mockIsInteractiveTerminal(...args),
+}));
+
+vi.mock("../../src/services/init/init-demo.service.js", () => ({
+  runInitDemo: (...args: unknown[]) => mockRunInitDemo(...args),
 }));
 
 import { initCommand } from "../../src/commands/init.js";
@@ -405,6 +411,23 @@ describe("init command", () => {
       for (const call of [...mockUi.text.mock.calls, ...mockUi.success.mock.calls]) {
         expect(call[0]).not.toMatch(/\n$/);
       }
+    });
+
+    it("runs the init demo after a successful init when --demo is set", async () => {
+      mockRunInitDemo.mockResolvedValueOnce(0);
+
+      await initCommand({ demo: true });
+
+      expect(mockRunInitDemo).toHaveBeenCalledTimes(1);
+      expect(process.exitCode).toBe(0);
+    });
+
+    it("sets exitCode when the init demo fails", async () => {
+      mockRunInitDemo.mockResolvedValueOnce(1);
+
+      await initCommand({ demo: true });
+
+      expect(process.exitCode).toBe(1);
     });
 
     it("installs built-in AI DevKit skills when user confirms the prompt", async () => {
