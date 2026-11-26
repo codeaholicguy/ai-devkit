@@ -133,11 +133,10 @@ impl DurableSupervisor {
         let has_session_file = a["sessionFilePath"]
             .as_str()
             .is_some_and(|p| std::path::Path::new(p).is_file());
-        // Feed stdin concurrently: providers may emit output before consuming
-        // a large prompt. Both pipes must keep making progress.
-        std::thread::spawn(move || {
-            let _ = stdin.write_all(prompt.as_bytes());
-        });
+        // Stdout parsing runs concurrently with stdin feeding, but do not
+        // return until the prompt is fully written — callers may restart or
+        // kill this daemon immediately after durable.run returns.
+        let feed_stdin = std::thread::spawn(move || stdin.write_all(prompt.as_bytes()));
         std::thread::spawn(move || {
             supervise_child(SupervisedRun {
                 child,
@@ -155,26 +154,24 @@ impl DurableSupervisor {
                 has_session_file,
             });
         });
+        feed_stdin.join().expect("stdin writer panicked")?;
         Ok(json!({"agent":a,"runId":token}))
     }
     pub fn reconcile(&self) -> Result<()> {
-        let children = self.children.lock().unwrap();
+        let owned = self.children.lock().unwrap().clone();
         for a in self.store.durable_list()? {
             let r = &a["activeRun"];
             let Some(token) = r["token"].as_str() else {
                 continue;
             };
-            if children.contains(token) {
+            if owned.contains(token) {
                 continue;
             }
-            // An observation error propagates; no destructive reconciliation.
-            let provider = &r["provider"];
-            if let Some(pid) = provider["pid"].as_i64() {
-                if identity(pid)?
-                    .is_some_and(|(_, s)| Some(s.as_str()) == provider["startedAt"].as_str())
-                {
-                    continue;
-                }
+            match adopted_run_alive(r)? {
+                Some(true) => continue,
+                // Observation could not settle; retry on a later reconcile.
+                None => continue,
+                Some(false) => {}
             }
             self.store.durable_complete(
                 a["id"].as_str().unwrap(),
@@ -253,6 +250,51 @@ impl DurableSupervisor {
         }
         self.store.durable_resolve(id)
     }
+}
+
+enum IdentityMatch {
+    Live,
+    Dead,
+    Inconclusive,
+}
+
+fn adopted_run_alive(active_run: &Value) -> Result<Option<bool>> {
+    let provider = &active_run["provider"];
+    let Some((pid, start)) = process_identity(provider) else {
+        return Ok(Some(false));
+    };
+    match identity_matches(pid, start)? {
+        IdentityMatch::Live => Ok(Some(true)),
+        IdentityMatch::Dead => Ok(Some(false)),
+        IdentityMatch::Inconclusive => Ok(None),
+    }
+}
+
+fn process_identity(role: &Value) -> Option<(i64, &str)> {
+    let pid = role["pid"].as_i64()?;
+    let start = role["startedAt"].as_str()?;
+    Some((pid, start))
+}
+
+fn identity_matches(pid: i64, expected_start: &str) -> Result<IdentityMatch> {
+    const ABSENT_READS: u32 = 3;
+    let mut absent = 0u32;
+    for attempt in 0..20 {
+        match identity(pid)? {
+            Some((_, start)) if start == expected_start => return Ok(IdentityMatch::Live),
+            Some(_) => return Ok(IdentityMatch::Dead),
+            None => {
+                absent += 1;
+                if absent >= ABSENT_READS {
+                    return Ok(IdentityMatch::Dead);
+                }
+                if attempt + 1 < 20 {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+            }
+        }
+    }
+    Ok(IdentityMatch::Inconclusive)
 }
 
 struct SupervisedRun {
