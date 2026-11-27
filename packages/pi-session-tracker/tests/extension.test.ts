@@ -85,14 +85,14 @@ describe("pi-session-tracker extension", () => {
     });
   });
 
-  it("recovers from an invalid registry file", async () => {
+  it("does not overwrite an invalid registry file", async () => {
     fs.mkdirSync(path.dirname(registryPath), { recursive: true });
     fs.writeFileSync(registryPath, "{not json");
 
     const handlers = load();
     await handlers.session_start({}, ctxFor("/sessions/a.jsonl"));
 
-    expect(readRegistry()).toEqual({ [String(process.pid)]: "/sessions/a.jsonl" });
+    expect(fs.readFileSync(registryPath, "utf8")).toBe("{not json");
   });
 
   it("removes only its own entry on session_shutdown without socket calls", async () => {
