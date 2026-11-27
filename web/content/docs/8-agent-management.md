@@ -186,7 +186,11 @@ Useful options:
 - `--timeout <ms>`: maximum wait (default `300000`, 5 minutes, to stay under harness command limits)
 - `-j, --json`: `{ reason, elapsedMs, changes[] }`, with each change carrying `name`, `type`, `pid`, `from`, `to`
 
-The command only fires on changes. An agent that is already waiting when the command starts does not end the wait; it has to move into the state. Changes picked up in the same daemon sweep are reported together; the wait usually returns about a second after the change. A timeout exits `0` with `reason: "timeout"`.
+Without `--id` or `--group`, the command only fires on **changes**. An agent that is already waiting when an unfiltered wait starts does not end the wait until it leaves the state and enters it again.
+
+With `--id` or `--group`, the wait first checks whether **every** watched agent already matches `--until`. If they do, it returns immediately with `reason: "triggered"` and the same JSON shape as a transition (`from` and `to` are the current status). Otherwise it blocks for changes like an unfiltered wait.
+
+Changes picked up in the same daemon sweep are reported together; the wait usually returns about a second after the change. A timeout exits `0` with `reason: "timeout"`.
 
 With the daemon running, waits react to its status events, so several waits on one machine share one process sweep. Without the daemon, the command checks local detection every 30 seconds.
 

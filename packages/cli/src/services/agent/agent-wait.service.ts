@@ -71,6 +71,23 @@ export function parseWaitUntil(value: string | undefined): AgentWaitCondition[] 
   return [...new Set(tokens)] as AgentWaitCondition[];
 }
 
+/** Agents already in a target status (not `appeared`; that needs a transition). */
+export function matchingAgentStates(
+  agents: AgentInfo[],
+  until: Set<AgentWaitCondition>,
+): AgentWaitChange[] {
+  const changes: AgentWaitChange[] = [];
+  for (const agent of agents) {
+    const status = agent.status;
+    if (!(AGENT_WAIT_CONDITIONS as readonly string[]).includes(status)) continue;
+    const condition = status as AgentWaitCondition;
+    if (until.has(condition)) {
+      changes.push(toChange(agent, status, status));
+    }
+  }
+  return changes;
+}
+
 /**
  * Changes between the last check and the current agents. Only transitions
  * count: an agent already in a target status does not fire again.
@@ -144,7 +161,18 @@ export async function waitForAgentChanges(
   try {
     // Subscribe before the baseline so a change in between still wakes us.
     await source.subscribe(wake);
-    let lastSeen = toSeen(watched(await source.list()));
+    const initial = watched(await source.list());
+    if (watch && initial.length > 0) {
+      const initialMatches = matchingAgentStates(initial, until);
+      if (initialMatches.length === initial.length) {
+        return {
+          reason: "triggered",
+          elapsedMs: Date.now() - startedAt,
+          changes: initialMatches,
+        };
+      }
+    }
+    let lastSeen = toSeen(initial);
     const changes = new Map<string, AgentWaitChange>();
     let settleDeadline: number | null = null;
 
