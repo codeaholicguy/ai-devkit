@@ -4333,10 +4333,13 @@ Waiting on user input`,
       await program.parseAsync(["node", "test", "agent", "wait", ...args]);
     }
 
-    it("prints a triggered JSON result when an agent is already waiting", async () => {
+    it("prints a triggered JSON result when --id targets an agent that is already waiting", async () => {
       mockManager.listAgents.mockResolvedValue([running({ status: AgentStatus.WAITING })]);
+      mockManager.resolveAgent.mockImplementation((id: string, agents: any[]) =>
+        agents.find((agent) => agent.name === id),
+      );
 
-      await runWait("--until", "waiting", "--timeout", "50", "--json");
+      await runWait("--id", "repo-a", "--until", "waiting", "--timeout", "50", "--json");
 
       const output = JSON.parse(logSpy.mock.calls[0][0] as string);
       expect(output).toMatchObject({
@@ -4345,6 +4348,15 @@ Waiting on user input`,
       });
       expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
       expect(process.exit).not.toHaveBeenCalled();
+    });
+
+    it("times out when an agent is already waiting but no --id filter is set", async () => {
+      mockManager.listAgents.mockResolvedValue([running({ status: AgentStatus.WAITING })]);
+
+      await runWait("--until", "waiting", "--timeout", "1", "--json");
+
+      const output = JSON.parse(logSpy.mock.calls[0][0] as string);
+      expect(output).toMatchObject({ reason: "timeout", changes: [] });
     });
 
     it("prints a triggered JSON result when an agent starts waiting", async () => {

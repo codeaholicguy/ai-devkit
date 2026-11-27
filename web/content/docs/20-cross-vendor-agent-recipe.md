@@ -98,7 +98,7 @@ Pipe logs without pasting:
 npm test 2>&1 | ai-devkit agent send --id codex-worker --stdin
 ```
 
-For ongoing supervision (multiple workers), the lead loads **agent-orchestration**: after each pass, run `ai-devkit agent wait --json` (optional `--id codex-worker`), then `agent list --json` again. Default wait timeout is 300000 ms; `reason: "timeout"` is normal. Scan and wait again. Do not use long shell `sleep` calls inside harness sessions.
+For ongoing supervision (multiple workers), the lead loads **agent-orchestration**: after each pass, run `ai-devkit agent wait --id codex-worker --json` (repeat `--id` for more workers). A filtered wait returns immediately when that worker is already waiting, idle, or exited per `--until`, so you do not need `agent list --json` first. For every running agent, use unfiltered `agent wait --json` (transition-only). Default wait timeout is 300000 ms; `reason: "timeout"` is normal. Scan and wait again. Do not use long shell `sleep` calls inside harness sessions.
 
 ### 6. Stop and cleanup
 

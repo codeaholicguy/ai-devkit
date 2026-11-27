@@ -211,9 +211,15 @@ describe("waitForAgentChanges", () => {
     expect(outcome.elapsedMs).toBeLessThanOrEqual(1_000);
   });
 
-  it("returns triggered immediately when an agent already matches --until", async () => {
-    const source = makeSource([makeAgent({ status: AgentStatus.WAITING })]);
-    const result = waitForAgentChanges({ source, until, timeoutMs: 5_000 });
+  it("returns triggered immediately when every watched agent already matches --until", async () => {
+    const watched = makeAgent({ status: AgentStatus.WAITING });
+    const source = makeSource([watched, makeAgent({ pid: 11, name: "repo-b" })]);
+    const result = waitForAgentChanges({
+      source,
+      until,
+      timeoutMs: 5_000,
+      watch: new Set([agentWaitKey(watched)]),
+    });
     await vi.advanceTimersByTimeAsync(0);
 
     await expect(result).resolves.toMatchObject({
@@ -221,6 +227,30 @@ describe("waitForAgentChanges", () => {
       changes: [{ name: "repo-a", from: "waiting", to: "waiting" }],
     });
     expect(source.list).toHaveBeenCalledTimes(1);
+    expect(source.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks when a watched agent is not yet in --until even if another watched agent matches", async () => {
+    const waiting = makeAgent({ status: AgentStatus.WAITING });
+    const running = makeAgent({ pid: 11, name: "repo-b" });
+    const source = makeSource([waiting, running]);
+    const result = waitForAgentChanges({
+      source,
+      until: parseWaitUntil("waiting"),
+      timeoutMs: 5_000,
+      watch: new Set([agentWaitKey(waiting), agentWaitKey(running)]),
+    });
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(result).resolves.toMatchObject({ reason: "timeout", changes: [] });
+  });
+
+  it("still blocks on transition when an agent already matches but the wait is unfiltered", async () => {
+    const source = makeSource([makeAgent({ status: AgentStatus.WAITING })]);
+    const result = waitForAgentChanges({ source, until, timeoutMs: 5_000 });
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await expect(result).resolves.toEqual({ reason: "timeout", elapsedMs: 5_000, changes: [] });
     expect(source.close).toHaveBeenCalledTimes(1);
   });
 

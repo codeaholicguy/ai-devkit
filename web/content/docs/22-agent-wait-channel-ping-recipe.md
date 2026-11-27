@@ -173,7 +173,7 @@ Flags that matter here (from `ai-devkit agent wait --help`):
 | `--id <name>` | Repeatable; watch subset of agents |
 | `--group <name>` | Watch a named agent group (mutually exclusive with `--id`) |
 
-`agent wait` only reports transitions. If an agent is already waiting when the command starts, you will not get a ping until it leaves `waiting` and enters it again.
+The unfiltered `agent wait` line above watches every agent and only reports **transitions**. If an agent is already waiting when a loop iteration starts, you will not get a ping until it leaves `waiting` and enters it again. To ping when specific agents are already waiting, add repeatable `--id` flags (see the example in the table section). Filtered waits return immediately when every watched agent already matches `--until`.
 
 ## Part 4: Run in the background (tmux)
 
@@ -241,7 +241,7 @@ If you connected Telegram with `--name personal`, change the `jq` paths accordin
 |--------|----------------|
 | `authorizedChatId` empty / Telegram send fails | Message the bot once while a bridge is running; `channel list` should show Authorized: yes |
 | Slack `not_in_channel` or `ok: false` | `SLACK_NOTIFY_CHAT_ID` must be the DM id from bridge `--debug`; bot needs `chat:write` |
-| No pings but agents are waiting | `agent wait` only fires on changes. Nudge the agent or wait for the next transition |
+| No pings but agents are waiting | Unfiltered `agent wait` only fires on transitions; nudge the agent or wait for the next transition. Or add `--id` per agent so an already-waiting worker triggers immediately |
 | Loop stops when SSH disconnects | Run the script inside tmux (or screen), not a bare SSH session |
 | Timeouts every 5 minutes, no ping | Normal when nothing changes (`reason: "timeout"`). The loop should keep going |
 | `No agent found matching` with `--id` | Run `ai-devkit agent list --json`; use exact `name` values |

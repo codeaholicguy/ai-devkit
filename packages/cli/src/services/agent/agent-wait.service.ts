@@ -162,13 +162,15 @@ export async function waitForAgentChanges(
     // Subscribe before the baseline so a change in between still wakes us.
     await source.subscribe(wake);
     const initial = watched(await source.list());
-    const initialMatches = matchingAgentStates(initial, until);
-    if (initialMatches.length > 0) {
-      return {
-        reason: "triggered",
-        elapsedMs: Date.now() - startedAt,
-        changes: initialMatches,
-      };
+    if (watch && initial.length > 0) {
+      const initialMatches = matchingAgentStates(initial, until);
+      if (initialMatches.length === initial.length) {
+        return {
+          reason: "triggered",
+          elapsedMs: Date.now() - startedAt,
+          changes: initialMatches,
+        };
+      }
     }
     let lastSeen = toSeen(initial);
     const changes = new Map<string, AgentWaitChange>();

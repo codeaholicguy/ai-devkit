@@ -26,7 +26,7 @@ If the goal or agent ownership is unclear, run one scan/detail pass. Ask the use
 2. Assess agents needing attention with `detail --tail 10`.
 3. Act: approve, clarify, correct, delegate, relay, verify, or escalate.
 4. Report one brief status line.
-5. Run `ai-devkit agent wait --json` (add `--id`/`--group` to watch only your agents), then repeat. It blocks until an agent moves to waiting, idle, or exited, or until its 5-minute default timeout; `reason: "timeout"` is normal, so do a light scan and wait again. If your command timeout is shorter, run it in the background or raise that timeout. Never use a long `sleep`: harnesses block or kill it.
+5. Run `ai-devkit agent wait --json` (add `--id`/`--group` to watch only your agents), then repeat. With `--id` or `--group`, the wait returns immediately when every watched agent already matches `--until`; unfiltered wait is transition-only. It otherwise blocks until an agent moves to waiting, idle, or exited, or until its 5-minute default timeout; `reason: "timeout"` is normal, so do a light scan and wait again. If your command timeout is shorter, run it in the background or raise that timeout. Never use a long `sleep`: harnesses block or kill it.
 
 ## Completion
 
