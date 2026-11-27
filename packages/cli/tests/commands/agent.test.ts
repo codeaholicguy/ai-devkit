@@ -4333,6 +4333,20 @@ Waiting on user input`,
       await program.parseAsync(["node", "test", "agent", "wait", ...args]);
     }
 
+    it("prints a triggered JSON result when an agent is already waiting", async () => {
+      mockManager.listAgents.mockResolvedValue([running({ status: AgentStatus.WAITING })]);
+
+      await runWait("--until", "waiting", "--timeout", "50", "--json");
+
+      const output = JSON.parse(logSpy.mock.calls[0][0] as string);
+      expect(output).toMatchObject({
+        reason: "triggered",
+        changes: [{ name: "repo-a", type: "claude", pid: 10, from: "waiting", to: "waiting" }],
+      });
+      expect(mockManager.listAgents).toHaveBeenCalledWith({ enriched: null });
+      expect(process.exit).not.toHaveBeenCalled();
+    });
+
     it("prints a triggered JSON result when an agent starts waiting", async () => {
       mockManager.listAgents
         .mockResolvedValueOnce([running()])

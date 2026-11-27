@@ -4,6 +4,7 @@ import {
   AGENT_WAIT_SETTLE_MS,
   agentWaitKey,
   diffAgentChanges,
+  matchingAgentStates,
   parseWaitUntil,
   waitForAgentChanges,
   type AgentWaitSource,
@@ -116,6 +117,22 @@ describe("diffAgentChanges", () => {
   });
 });
 
+describe("matchingAgentStates", () => {
+  it("reports agents already in a requested status", () => {
+    const until = new Set(parseWaitUntil("waiting"));
+    expect(matchingAgentStates([makeAgent({ status: AgentStatus.WAITING })], until)).toEqual([
+      { name: "repo-a", type: "claude", pid: 10, from: "waiting", to: "waiting" },
+    ]);
+  });
+
+  it("ignores agents outside --until and does not treat running as appeared", () => {
+    const until = new Set(parseWaitUntil("appeared"));
+    expect(
+      matchingAgentStates([makeAgent(), makeAgent({ status: AgentStatus.WAITING })], until),
+    ).toEqual([]);
+  });
+});
+
 describe("waitForAgentChanges", () => {
   beforeEach(() => {
     vi.useFakeTimers();
@@ -194,8 +211,21 @@ describe("waitForAgentChanges", () => {
     expect(outcome.elapsedMs).toBeLessThanOrEqual(1_000);
   });
 
-  it("returns timeout with no changes at the deadline", async () => {
+  it("returns triggered immediately when an agent already matches --until", async () => {
     const source = makeSource([makeAgent({ status: AgentStatus.WAITING })]);
+    const result = waitForAgentChanges({ source, until, timeoutMs: 5_000 });
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(result).resolves.toMatchObject({
+      reason: "triggered",
+      changes: [{ name: "repo-a", from: "waiting", to: "waiting" }],
+    });
+    expect(source.list).toHaveBeenCalledTimes(1);
+    expect(source.close).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns timeout with no changes at the deadline", async () => {
+    const source = makeSource([makeAgent()]);
     const result = waitForAgentChanges({ source, until, timeoutMs: 5_000 });
     await vi.advanceTimersByTimeAsync(5_000);
 
