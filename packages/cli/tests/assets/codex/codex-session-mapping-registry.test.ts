@@ -8,7 +8,12 @@ const hookPath = fileURLToPath(
   new URL("../../../assets/codex/codex-session-mapping.cjs", import.meta.url),
 );
 
-function runHook(home: string, pid: string, sessionFile: string): Promise<void> {
+function runHook(
+  home: string,
+  pid: string,
+  sessionFile: string,
+  extraEnv: Record<string, string> = {},
+): Promise<void> {
   return new Promise((resolve, reject) => {
     let stderr = "";
     const child = spawn(process.execPath, [hookPath], {
@@ -17,6 +22,7 @@ function runHook(home: string, pid: string, sessionFile: string): Promise<void> 
         HOME: home,
         CODEX_PID: pid,
         CODEX_SESSION_FILE: sessionFile,
+        ...extraEnv,
       },
       stdio: ["pipe", "ignore", "pipe"],
     });
@@ -59,12 +65,30 @@ describe("codex-session-mapping registry", () => {
     });
   });
 
-  it("leaves a corrupt registry untouched", async () => {
+  it("quarantines a corrupt registry and records the pid on exit 0", async () => {
     fs.mkdirSync(path.dirname(registryPath), { recursive: true });
     fs.writeFileSync(registryPath, "{not json");
 
     await runHook(home, "5151", "/tmp/live.jsonl");
 
-    expect(fs.readFileSync(registryPath, "utf8")).toBe("{not json");
+    expect(JSON.parse(fs.readFileSync(registryPath, "utf8"))).toEqual({
+      "5151": "/tmp/live.jsonl",
+    });
+    expect(
+      fs
+        .readdirSync(path.dirname(registryPath))
+        .some((name) => name.startsWith("sessions.json.corrupt-")),
+    ).toBe(true);
+  });
+
+  it("exits 0 when the lock wait times out without writing", async () => {
+    fs.mkdirSync(path.dirname(registryPath), { recursive: true });
+    fs.closeSync(fs.openSync(`${registryPath}.lock`, "wx", 0o600));
+
+    await runHook(home, "5252", "/tmp/skipped.jsonl", {
+      AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS: "100",
+    });
+
+    expect(fs.existsSync(registryPath)).toBe(false);
   });
 });

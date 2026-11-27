@@ -11,17 +11,20 @@ import {
 describe("session-registry", () => {
   let tmpDir: string;
   let registryPath: string;
+  let lockWaitMs: string | undefined;
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-registry-"));
     registryPath = path.join(tmpDir, "sessions.json");
+    lockWaitMs = process.env.AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS;
   });
 
   afterEach(() => {
+    process.env.AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS = lockWaitMs;
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  it("rejects a corrupt existing file instead of replacing it", () => {
+  it("quarantines a corrupt file under the lock and writes a fresh registry", () => {
     fs.mkdirSync(path.dirname(registryPath), { recursive: true });
     fs.writeFileSync(registryPath, "{not json");
 
@@ -30,8 +33,46 @@ describe("session-registry", () => {
       updateRegistry(registryPath, (r) => {
         r["42"] = "/sessions/a.jsonl";
       }),
-    ).toBe(false);
-    expect(fs.readFileSync(registryPath, "utf8")).toBe("{not json");
+    ).toBe(true);
+
+    expect(JSON.parse(fs.readFileSync(registryPath, "utf8"))).toEqual({
+      "42": "/sessions/a.jsonl",
+    });
+    const corruptBackup = fs
+      .readdirSync(path.dirname(registryPath))
+      .find((name) => name.startsWith("sessions.json.corrupt-"));
+    expect(corruptBackup).toBeDefined();
+    expect(fs.readFileSync(path.join(path.dirname(registryPath), corruptBackup!), "utf8")).toBe(
+      "{not json",
+    );
+  });
+
+  it("skips the update after the lock wait times out", () => {
+    process.env.AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS = "100";
+    // Re-import would be needed to pick up env in module init; constants are read at load time.
+    // Use a fresh dynamic import in a child process instead — see lock-timeout.worker.ts.
+    const lockPath = `${registryPath}.lock`;
+    fs.mkdirSync(path.dirname(registryPath), { recursive: true });
+    fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
+
+    return new Promise<void>((resolve, reject) => {
+      const worker = new Worker(
+        new URL("./fixtures/registry-lock-timeout.worker.ts", import.meta.url),
+        {
+          workerData: { file: registryPath },
+        },
+      );
+      worker.once("message", (ok: boolean) => {
+        try {
+          expect(ok).toBe(false);
+          expect(fs.existsSync(registryPath)).toBe(false);
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
+      worker.once("error", reject);
+    });
   });
 
   it("keeps every pid when workers update the registry concurrently", async () => {

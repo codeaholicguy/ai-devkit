@@ -98,7 +98,11 @@ function firstValue(keys, getValue) {
 
 const STALE_LOCK_MS = 30_000;
 const LOCK_RETRY_MS = 50;
-const LOCK_WAIT_MS = 10_000;
+const LOCK_WAIT_MS = Number(process.env.AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS) || 10_000;
+
+function registryWarn(message) {
+  console.warn(message);
+}
 
 function sleepMs(ms) {
   const end = Date.now() + ms;
@@ -141,14 +145,18 @@ function withRegistryLock(registryFile, fn) {
   while (Date.now() < deadline) {
     if (tryAcquireLock(lockPath, STALE_LOCK_MS)) {
       try {
-        return fn();
+        fn();
+        return true;
       } finally {
         releaseLock(lockPath);
       }
     }
     sleepMs(LOCK_RETRY_MS);
   }
-  throw new Error(`timed out acquiring lock for ${registryFile}`);
+  registryWarn(
+    `ai-devkit: timed out acquiring lock for ${registryFile}; skipping this registry update`,
+  );
+  return false;
 }
 
 function readRegistryForUpdate(registryFile) {
@@ -171,6 +179,26 @@ function readRegistryForUpdate(registryFile) {
   }
 }
 
+function loadRegistryForUpdate(registryFile) {
+  try {
+    return readRegistryForUpdate(registryFile);
+  } catch (e) {
+    if (
+      e.message !== 'sessions.json is not valid JSON' &&
+      e.message !== 'sessions.json is not a JSON object'
+    ) {
+      throw e;
+    }
+    if (!fs.existsSync(registryFile)) return {};
+    const corruptPath = `${registryFile}.corrupt-${Date.now()}`;
+    fs.renameSync(registryFile, corruptPath);
+    registryWarn(
+      `ai-devkit: sessions registry at ${registryFile} was unreadable; renamed to ${corruptPath} and starting fresh`,
+    );
+    return {};
+  }
+}
+
 function writeRegistry(registryFile, registry) {
   fs.mkdirSync(path.dirname(registryFile), { recursive: true });
   const tmp = `${registryFile}.${process.pid}.${Date.now()}.tmp`;
@@ -179,19 +207,11 @@ function writeRegistry(registryFile, registry) {
 }
 
 function updateRegistry(registryFile, mutator) {
-  try {
-    withRegistryLock(registryFile, () => {
-      const registry = readRegistryForUpdate(registryFile);
-      mutator(registry);
-      writeRegistry(registryFile, registry);
-    });
-    return true;
-  } catch (e) {
-    if (e.message === 'sessions.json is not valid JSON' || e.message === 'sessions.json is not a JSON object') {
-      return false;
-    }
-    throw e;
-  }
+  return withRegistryLock(registryFile, () => {
+    const registry = loadRegistryForUpdate(registryFile);
+    mutator(registry);
+    writeRegistry(registryFile, registry);
+  });
 }
 
 function findSessionFileById(homeDir, sessionId) {

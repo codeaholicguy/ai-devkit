@@ -5,13 +5,17 @@ export type SessionRegistry = Record<string, string>;
 
 const STALE_LOCK_MS = 30_000;
 const LOCK_RETRY_MS = 50;
-const LOCK_WAIT_MS = 10_000;
+const LOCK_WAIT_MS = Number(process.env.AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS) || 10_000;
 
 export class RegistryUnreadableError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "RegistryUnreadableError";
   }
+}
+
+function warn(message: string): void {
+  console.warn(message);
 }
 
 function sleepMs(ms: number): void {
@@ -48,21 +52,24 @@ function releaseLock(lockPath: string): void {
   }
 }
 
-export function withRegistryLock<T>(registryFile: string, fn: () => T): T {
+/** Returns whether the lock was acquired and `fn` ran. On timeout, logs and returns false. */
+export function withRegistryLock(registryFile: string, fn: () => void): boolean {
   fs.mkdirSync(path.dirname(registryFile), { recursive: true });
   const lockPath = `${registryFile}.lock`;
   const deadline = Date.now() + LOCK_WAIT_MS;
   while (Date.now() < deadline) {
     if (tryAcquireLock(lockPath, STALE_LOCK_MS)) {
       try {
-        return fn();
+        fn();
+        return true;
       } finally {
         releaseLock(lockPath);
       }
     }
     sleepMs(LOCK_RETRY_MS);
   }
-  throw new Error(`timed out acquiring lock for ${registryFile}`);
+  warn(`ai-devkit: timed out acquiring lock for ${registryFile}; skipping this registry update`);
+  return false;
 }
 
 /** Read the registry for an update. Missing file → empty object; corrupt file → error. */
@@ -87,6 +94,20 @@ export function readRegistryForUpdate(file: string): SessionRegistry {
   }
 }
 
+function loadRegistryForUpdate(file: string): SessionRegistry {
+  try {
+    return readRegistryForUpdate(file);
+  } catch (e) {
+    if (!(e instanceof RegistryUnreadableError) || !fs.existsSync(file)) throw e;
+    const corruptPath = `${file}.corrupt-${Date.now()}`;
+    fs.renameSync(file, corruptPath);
+    warn(
+      `ai-devkit: sessions registry at ${file} was unreadable; renamed to ${corruptPath} and starting fresh`,
+    );
+    return {};
+  }
+}
+
 export function writeRegistry(file: string, data: SessionRegistry): void {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.${Date.now()}.tmp`;
@@ -95,22 +116,16 @@ export function writeRegistry(file: string, data: SessionRegistry): void {
 }
 
 /**
- * Locked read-modify-write. Returns false when the file exists but is not
- * readable JSON so callers never clobber a partially written document.
+ * Locked read-modify-write. Returns false when the lock could not be acquired in time.
+ * Never throws for registry parse or lock errors.
  */
 export function updateRegistry(
   file: string,
   mutator: (registry: SessionRegistry) => void,
 ): boolean {
-  try {
-    withRegistryLock(file, () => {
-      const registry = readRegistryForUpdate(file);
-      mutator(registry);
-      writeRegistry(file, registry);
-    });
-    return true;
-  } catch (e) {
-    if (e instanceof RegistryUnreadableError) return false;
-    throw e;
-  }
+  return withRegistryLock(file, () => {
+    const registry = loadRegistryForUpdate(file);
+    mutator(registry);
+    writeRegistry(file, registry);
+  });
 }
