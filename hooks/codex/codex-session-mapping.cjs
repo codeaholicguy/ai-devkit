@@ -96,21 +96,122 @@ function firstValue(keys, getValue) {
   return undefined;
 }
 
-function readRegistry(registryFile) {
-  let existing;
+const STALE_LOCK_MS = 30_000;
+const LOCK_RETRY_MS = 50;
+const LOCK_WAIT_MS = Number(process.env.AI_DEVKIT_SESSION_REGISTRY_LOCK_WAIT_MS) || 10_000;
+
+function registryWarn(message) {
+  console.warn(message);
+}
+
+function sleepMs(ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    /* spin */
+  }
+}
+
+function tryAcquireLock(lockPath, staleMs) {
+  try {
+    fs.closeSync(fs.openSync(lockPath, 'wx', 0o600));
+    return true;
+  } catch {
+    try {
+      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+      if (age > staleMs) {
+        fs.unlinkSync(lockPath);
+        fs.closeSync(fs.openSync(lockPath, 'wx', 0o600));
+        return true;
+      }
+    } catch {
+      /* races with the holder are fine — losing means we wait */
+    }
+    return false;
+  }
+}
+
+function releaseLock(lockPath) {
+  try {
+    fs.unlinkSync(lockPath);
+  } catch {
+    /* already gone */
+  }
+}
+
+function withRegistryLock(registryFile, fn) {
+  fs.mkdirSync(path.dirname(registryFile), { recursive: true });
+  const lockPath = `${registryFile}.lock`;
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  while (Date.now() < deadline) {
+    if (tryAcquireLock(lockPath, STALE_LOCK_MS)) {
+      try {
+        fn();
+        return true;
+      } finally {
+        releaseLock(lockPath);
+      }
+    }
+    sleepMs(LOCK_RETRY_MS);
+  }
+  registryWarn(
+    `ai-devkit: timed out acquiring lock for ${registryFile}; skipping this registry update`,
+  );
+  return false;
+}
+
+function readRegistryForUpdate(registryFile) {
+  let raw;
 
   try {
-    existing = JSON.parse(fs.readFileSync(registryFile, 'utf8'));
-  } catch {
-    return {};
+    raw = fs.readFileSync(registryFile, 'utf8');
+  } catch (e) {
+    if (e && e.code === 'ENOENT') return {};
+    throw e;
   }
 
-  return existing && typeof existing === 'object' && !Array.isArray(existing) ? existing : {};
+  try {
+    const existing = JSON.parse(raw);
+    if (existing && typeof existing === 'object' && !Array.isArray(existing)) return existing;
+    throw new Error('sessions.json is not a JSON object');
+  } catch (e) {
+    if (e.message === 'sessions.json is not a JSON object') throw e;
+    throw new Error('sessions.json is not valid JSON');
+  }
+}
+
+function loadRegistryForUpdate(registryFile) {
+  try {
+    return readRegistryForUpdate(registryFile);
+  } catch (e) {
+    if (
+      e.message !== 'sessions.json is not valid JSON' &&
+      e.message !== 'sessions.json is not a JSON object'
+    ) {
+      throw e;
+    }
+    if (!fs.existsSync(registryFile)) return {};
+    const corruptPath = `${registryFile}.corrupt-${Date.now()}`;
+    fs.renameSync(registryFile, corruptPath);
+    registryWarn(
+      `ai-devkit: sessions registry at ${registryFile} was unreadable; renamed to ${corruptPath} and starting fresh`,
+    );
+    return {};
+  }
 }
 
 function writeRegistry(registryFile, registry) {
   fs.mkdirSync(path.dirname(registryFile), { recursive: true });
-  fs.writeFileSync(registryFile, JSON.stringify(registry, null, 2), 'utf8');
+  const tmp = `${registryFile}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(registry, null, 2), 'utf8');
+  fs.renameSync(tmp, registryFile);
+}
+
+function updateRegistry(registryFile, mutator) {
+  return withRegistryLock(registryFile, () => {
+    const registry = loadRegistryForUpdate(registryFile);
+    mutator(registry);
+    writeRegistry(registryFile, registry);
+  });
 }
 
 function findSessionFileById(homeDir, sessionId) {
@@ -159,7 +260,9 @@ function resolveCodexPid(input) {
 const input = readHookInput();
 const homeDir = os.homedir();
 const registryFile = path.join(homeDir, '.codex', 'ai-devkit', 'sessions.json');
-const registry = readRegistry(registryFile);
+const codexPid = resolveCodexPid(input);
+const sessionFile = resolveSessionFile(homeDir, input) || 'ephemeral';
 
-registry[resolveCodexPid(input)] = resolveSessionFile(homeDir, input) || 'ephemeral';
-writeRegistry(registryFile, registry);
+updateRegistry(registryFile, (registry) => {
+  registry[codexPid] = sessionFile;
+});
