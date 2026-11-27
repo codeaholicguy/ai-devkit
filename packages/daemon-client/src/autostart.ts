@@ -75,11 +75,17 @@ export async function ensureDaemon(
   // arrives while devkitd is still binding its socket must see the lock and
   // wait — releasing early lets it spawn a twin that clobbers the socket path
   // and orphans the first daemon forever.
+  let spawnedPid: number | undefined;
+  let socketReady = false;
   try {
-    if (!spawnDaemon(bin.path, dir, debug)) return null;
-    return await waitForSocket(waitMs, debug);
+    const pid = spawnDaemon(bin.path, dir, debug);
+    if (pid === null) return null;
+    spawnedPid = pid;
+    const client = await waitForSocket(waitMs, debug);
+    socketReady = client !== null;
+    return client;
   } finally {
-    releaseSpawnLock(lockPath);
+    releaseSpawnLockAfterStart(lockPath, spawnedPid, socketReady, debug);
   }
 }
 
@@ -164,6 +170,8 @@ async function replaceStaleDaemon(
     debug?.("another process is replacing devkitd; waiting for it");
     return waitForLockRelease(lockPath, 2 * waitMs + 1000, debug);
   }
+  let spawnedPid: number | undefined;
+  let socketReady = false;
   try {
     const current = await DaemonClient.tryConnect();
     if (current) {
@@ -176,10 +184,14 @@ async function replaceStaleDaemon(
       }
       debug?.("stale devkitd stopped");
     }
-    if (!spawnDaemon(bin.path, dir, debug)) return null;
-    return await waitForSocket(waitMs, debug);
+    const pid = spawnDaemon(bin.path, dir, debug);
+    if (pid === null) return null;
+    spawnedPid = pid;
+    const client = await waitForSocket(waitMs, debug);
+    socketReady = client !== null;
+    return client;
   } finally {
-    releaseSpawnLock(lockPath);
+    releaseSpawnLockAfterStart(lockPath, spawnedPid, socketReady, debug);
   }
 }
 
@@ -193,7 +205,7 @@ function isNewerVersion(a: string, b: string): boolean {
   return false;
 }
 
-function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): boolean {
+function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): number | null {
   try {
     const logPath = path.join(dir, "daemon.log");
     capDaemonLog(logPath);
@@ -204,12 +216,58 @@ function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): b
     });
     child.unref();
     fs.closeSync(logFd);
+    if (child.pid === undefined) {
+      debug?.("devkitd spawn failed (no pid)");
+      return null;
+    }
     debug?.(`spawned devkitd (pid ${child.pid}) from ${bin}; waiting for socket`);
-    return true;
+    return child.pid;
   } catch {
     debug?.("devkitd spawn failed");
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
     return false;
   }
+}
+
+/**
+ * Drop the spawn lock when startup finished or the child is gone. If the
+ * client timed out but devkitd is still booting, keep the lock and release
+ * it once the socket answers or the child exits — otherwise a second caller
+ * spawns a twin (#495).
+ */
+function releaseSpawnLockAfterStart(
+  lockPath: string,
+  spawnedPid: number | undefined,
+  socketReady: boolean,
+  debug?: (msg: string) => void,
+): void {
+  if (socketReady || spawnedPid === undefined || !isProcessAlive(spawnedPid)) {
+    releaseSpawnLock(lockPath);
+    return;
+  }
+  void (async () => {
+    const deadline = Date.now() + 5 * 60_000;
+    while (Date.now() < deadline && isProcessAlive(spawnedPid)) {
+      const c = await DaemonClient.tryConnect();
+      if (c) {
+        c.close();
+        debug?.("released spawn lock after devkitd socket became ready");
+        releaseSpawnLock(lockPath);
+        return;
+      }
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    if (!isProcessAlive(spawnedPid)) releaseSpawnLock(lockPath);
+    else debug?.("spawn lock held: devkitd still starting after extended wait");
+  })();
 }
 
 /** daemon.log is append-only per spawn — rotate to .1 past 1 MiB. */

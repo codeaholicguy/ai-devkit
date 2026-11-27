@@ -414,6 +414,33 @@ fn peer_is_same_user(_stream: &UnixStream) -> bool {
 /// apart (#376) — clients compare `buildVersion` to detect a stale daemon.
 pub const BUILD_VERSION: Option<&str> = option_env!("DEVKITD_BUILD_VERSION");
 
+/// Kernel-released singleton lock — held for the process lifetime so two
+/// `devkitd serve` invocations cannot both sweep `daemon.db` or race on the
+/// socket path. Must be taken before `Daemon::new()` / SQLite work.
+pub fn acquire_instance_lock(data_dir: &std::path::Path) -> Result<InstanceLock> {
+    std::fs::create_dir_all(data_dir)?;
+    let path = data_dir.join("daemon.lock");
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(false)
+        .open(&path)?;
+    let fd = std::os::unix::io::AsRawFd::as_raw_fd(&file);
+    let rc = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
+    if rc != 0 {
+        let err = std::io::Error::last_os_error();
+        if err.raw_os_error() == Some(libc::EWOULDBLOCK) {
+            anyhow::bail!("devkitd already running");
+        }
+        return Err(err.into());
+    }
+    Ok(InstanceLock { _file: file })
+}
+
+pub struct InstanceLock {
+    _file: std::fs::File,
+}
+
 /// Shared by `daemon.status` and `devkitd version` so a client can compare
 /// the running daemon against the binary it would spawn.
 pub fn identity() -> Value {
@@ -428,14 +455,24 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
         // Refuse to displace a live daemon: unlinking the socket file leaves
         // the old process sweeping and writing daemon.db invisibly — two
         // daemons, one reachable. Only a dead owner's file is unlinked.
-        match std::os::unix::net::UnixStream::connect(&daemon.socket_path) {
-            Ok(_) => anyhow::bail!("devkitd already running"),
-            Err(_) => std::fs::remove_file(&daemon.socket_path)?,
+        if std::os::unix::net::UnixStream::connect(&daemon.socket_path).is_ok() {
+            anyhow::bail!("devkitd already running");
+        }
+        // Re-probe before unlink — a peer may have bound between checks.
+        if std::os::unix::net::UnixStream::connect(&daemon.socket_path).is_ok() {
+            anyhow::bail!("devkitd already running");
+        }
+        if daemon.socket_path.exists() {
+            std::fs::remove_file(&daemon.socket_path)?;
         }
     }
     let listener = UnixListener::bind(&daemon.socket_path)?;
     std::fs::set_permissions(&daemon.socket_path, std::fs::Permissions::from_mode(0o600))?;
     tracing::info!("listening on {}", daemon.socket_path.display());
+
+    // Warm the cache after the socket is visible so clients don't time out
+    // while SQLite + the first sweep run (#495).
+    daemon.apply_sweep();
 
     // Discovery loop: one sweep per interval for all subscribers.
     {
@@ -610,7 +647,6 @@ mod tests {
 
     async fn test_daemon() -> (Arc<Daemon>, PathBuf) {
         let (d, sock) = unserved_daemon();
-        d.apply_sweep(); // warm the cache like main() does before serving
         let d2 = d.clone();
         tokio::spawn(async move {
             let _ = serve(d2).await;
@@ -697,6 +733,22 @@ mod tests {
         assert!(r.as_object().unwrap().contains_key("buildVersion"));
         assert_eq!(r["buildVersion"], json!(BUILD_VERSION));
         assert_eq!(r["pid"], std::process::id());
+    }
+
+    #[test]
+    fn instance_lock_allows_one_holder() {
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let dir = std::env::temp_dir().join(format!(
+            "aidk-instlock-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let _a = acquire_instance_lock(&dir).unwrap();
+        match acquire_instance_lock(&dir) {
+            Err(e) => assert!(e.to_string().contains("already running")),
+            Ok(_) => panic!("expected lock contention"),
+        }
     }
 
     #[tokio::test]
