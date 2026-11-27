@@ -33,8 +33,9 @@ async fn main() -> Result<()> {
     let cmd = std::env::args().nth(1).unwrap_or_else(|| "serve".into());
     match cmd.as_str() {
         "serve" => {
-            let daemon = Arc::new(Daemon::new(&data_dir(), socket_path(), dirs_home())?);
-            daemon.apply_sweep(); // warm the cache before accepting clients
+            let dir = data_dir();
+            let _instance = server::acquire_instance_lock(&dir)?;
+            let daemon = Arc::new(Daemon::new(&dir, socket_path(), dirs_home())?);
             server::serve(daemon).await
         }
         "install" => {

@@ -76,7 +76,9 @@ export async function ensureDaemon(
   // wait — releasing early lets it spawn a twin that clobbers the socket path
   // and orphans the first daemon forever.
   try {
-    if (!spawnDaemon(bin.path, dir, debug)) return null;
+    const pid = spawnDaemon(bin.path, dir, debug);
+    if (pid === null) return null;
+    writeSpawnLockPid(lockPath, pid);
     return await waitForSocket(waitMs, debug);
   } finally {
     releaseSpawnLock(lockPath);
@@ -176,7 +178,9 @@ async function replaceStaleDaemon(
       }
       debug?.("stale devkitd stopped");
     }
-    if (!spawnDaemon(bin.path, dir, debug)) return null;
+    const pid = spawnDaemon(bin.path, dir, debug);
+    if (pid === null) return null;
+    writeSpawnLockPid(lockPath, pid);
     return await waitForSocket(waitMs, debug);
   } finally {
     releaseSpawnLock(lockPath);
@@ -193,7 +197,7 @@ function isNewerVersion(a: string, b: string): boolean {
   return false;
 }
 
-function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): boolean {
+function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): number | null {
   try {
     const logPath = path.join(dir, "daemon.log");
     capDaemonLog(logPath);
@@ -204,11 +208,42 @@ function spawnDaemon(bin: string, dir: string, debug?: (msg: string) => void): b
     });
     child.unref();
     fs.closeSync(logFd);
+    if (child.pid === undefined) {
+      debug?.("devkitd spawn failed (no pid)");
+      return null;
+    }
     debug?.(`spawned devkitd (pid ${child.pid}) from ${bin}; waiting for socket`);
-    return true;
+    return child.pid;
   } catch {
     debug?.("devkitd spawn failed");
+    return null;
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
     return false;
+  }
+}
+
+function writeSpawnLockPid(lockPath: string, pid: number): void {
+  try {
+    fs.writeFileSync(lockPath, String(pid));
+  } catch {
+    /* best effort — mtime-based reclaim still applies */
+  }
+}
+
+function readSpawnLockPid(lockPath: string): number | undefined {
+  try {
+    const text = fs.readFileSync(lockPath, "utf8").trim();
+    const pid = Number(text);
+    return Number.isInteger(pid) && pid > 0 ? pid : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -233,23 +268,31 @@ function releaseSpawnLock(lockPath: string): void {
   }
 }
 
+function spawnLockIsStale(lockPath: string, staleMs: number): boolean {
+  try {
+    const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+    if (age > staleMs) return true;
+    const pid = readSpawnLockPid(lockPath);
+    return pid !== undefined && !isProcessAlive(pid);
+  } catch {
+    return false;
+  }
+}
+
 function acquireSpawnLock(lockPath: string, staleMs: number): boolean {
   try {
     fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
     return true;
   } catch {
-    // Lock held — reclaim it only if the holder plausibly died.
+    if (!spawnLockIsStale(lockPath, staleMs)) return false;
     try {
-      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
-      if (age > staleMs) {
-        fs.unlinkSync(lockPath);
-        fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
-        return true;
-      }
+      fs.unlinkSync(lockPath);
+      fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
+      return true;
     } catch {
       /* races with the holder are fine — losing means we wait */
+      return false;
     }
-    return false;
   }
 }
 
