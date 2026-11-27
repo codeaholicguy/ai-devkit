@@ -2,9 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { daemonSocketPath } from "../src/client.js";
 import { ensureDaemon } from "../src/autostart.js";
 import type { DaemonBinary } from "../src/binary.js";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
 
 /** Fake devkitd that sleeps before binding — reproduces client wait timeout (#495). */
 function makeSlowFakeBin(dir: string, delayMs: number): string {
@@ -46,7 +50,7 @@ setTimeout(() => {
   return file;
 }
 
-describe("ensureDaemon spawn lock while child is still starting", () => {
+describe("ensureDaemon spawn lock", () => {
   let home: string;
   let binDir: string;
   const saved: Record<string, string | undefined> = {};
@@ -80,19 +84,59 @@ describe("ensureDaemon spawn lock while child is still starting", () => {
     fs.rmSync(binDir, { recursive: true, force: true });
   });
 
-  it("keeps spawn lock when wait times out but the child is still booting", async () => {
-    const bin = makeSlowFakeBin(binDir, 3500);
+  it("releases spawn lock when the socket wait times out", async () => {
+    const bin = makeSlowFakeBin(binDir, 5000);
     const lockPath = `${daemonSocketPath()}.spawn.lock`;
     const resolveBinary = (): DaemonBinary => ({ path: bin, version: "9.9.9" });
 
-    const first = ensureDaemon({ resolveBinary, waitMs: 400 });
-    const second = ensureDaemon({ resolveBinary, waitMs: 6000 });
-
-    await expect(first).resolves.toBeNull();
-    expect(fs.existsSync(lockPath)).toBe(true);
-
-    const client = await second;
-    expect(client).not.toBeNull();
+    const client = await ensureDaemon({ resolveBinary, waitMs: 200 });
+    expect(client).toBeNull();
     expect(fs.existsSync(lockPath)).toBe(false);
   });
+
+  it("reclaims spawn lock when the recorded devkitd pid has exited", async () => {
+    const lockPath = `${daemonSocketPath()}.spawn.lock`;
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    fs.writeFileSync(lockPath, "999999999");
+
+    const bin = makeSlowFakeBin(binDir, 50);
+    const resolveBinary = (): DaemonBinary => ({ path: bin, version: "9.9.9" });
+    const client = await ensureDaemon({ resolveBinary, waitMs: 3000 });
+    expect(client).not.toBeNull();
+    client?.close();
+    expect(fs.existsSync(lockPath)).toBe(false);
+  });
+
+  it("short-lived caller subprocess exits promptly when devkitd binds slowly", async () => {
+    const bin = makeSlowFakeBin(binDir, 8000);
+    const runner = path.join(home, "run-ensure-once.mjs");
+    const autostart = path.join(testDir, "../dist/autostart.js");
+    fs.writeFileSync(
+      runner,
+      `import { ensureDaemon } from ${JSON.stringify(autostart)};
+await ensureDaemon({
+  waitMs: 250,
+  resolveBinary: () => ({ path: process.env.BIN, version: "9.9.9" }),
+});
+`,
+    );
+
+    const start = Date.now();
+    await new Promise<void>((resolve, reject) => {
+      const child = spawn(process.execPath, [runner], {
+        env: { ...process.env, HOME: home, BIN: bin, VITEST: undefined },
+        stdio: "ignore",
+      });
+      const killTimer = setTimeout(() => {
+        child.kill("SIGKILL");
+        reject(new Error("subprocess hung (event loop kept alive)"));
+      }, 2500);
+      child.on("exit", (code) => {
+        clearTimeout(killTimer);
+        if (code === 0) resolve();
+        else reject(new Error(`subprocess exited ${code}`));
+      });
+    });
+    expect(Date.now() - start).toBeLessThan(2000);
+  }, 15000);
 });

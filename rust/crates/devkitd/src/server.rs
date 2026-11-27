@@ -458,10 +458,6 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
         if std::os::unix::net::UnixStream::connect(&daemon.socket_path).is_ok() {
             anyhow::bail!("devkitd already running");
         }
-        // Re-probe before unlink — a peer may have bound between checks.
-        if std::os::unix::net::UnixStream::connect(&daemon.socket_path).is_ok() {
-            anyhow::bail!("devkitd already running");
-        }
         if daemon.socket_path.exists() {
             std::fs::remove_file(&daemon.socket_path)?;
         }

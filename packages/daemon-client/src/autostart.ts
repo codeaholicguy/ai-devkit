@@ -75,17 +75,13 @@ export async function ensureDaemon(
   // arrives while devkitd is still binding its socket must see the lock and
   // wait — releasing early lets it spawn a twin that clobbers the socket path
   // and orphans the first daemon forever.
-  let spawnedPid: number | undefined;
-  let socketReady = false;
   try {
     const pid = spawnDaemon(bin.path, dir, debug);
     if (pid === null) return null;
-    spawnedPid = pid;
-    const client = await waitForSocket(waitMs, debug);
-    socketReady = client !== null;
-    return client;
+    writeSpawnLockPid(lockPath, pid);
+    return await waitForSocket(waitMs, debug);
   } finally {
-    releaseSpawnLockAfterStart(lockPath, spawnedPid, socketReady, debug);
+    releaseSpawnLock(lockPath);
   }
 }
 
@@ -170,8 +166,6 @@ async function replaceStaleDaemon(
     debug?.("another process is replacing devkitd; waiting for it");
     return waitForLockRelease(lockPath, 2 * waitMs + 1000, debug);
   }
-  let spawnedPid: number | undefined;
-  let socketReady = false;
   try {
     const current = await DaemonClient.tryConnect();
     if (current) {
@@ -186,12 +180,10 @@ async function replaceStaleDaemon(
     }
     const pid = spawnDaemon(bin.path, dir, debug);
     if (pid === null) return null;
-    spawnedPid = pid;
-    const client = await waitForSocket(waitMs, debug);
-    socketReady = client !== null;
-    return client;
+    writeSpawnLockPid(lockPath, pid);
+    return await waitForSocket(waitMs, debug);
   } finally {
-    releaseSpawnLockAfterStart(lockPath, spawnedPid, socketReady, debug);
+    releaseSpawnLock(lockPath);
   }
 }
 
@@ -237,37 +229,22 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
-/**
- * Drop the spawn lock when startup finished or the child is gone. If the
- * client timed out but devkitd is still booting, keep the lock and release
- * it once the socket answers or the child exits — otherwise a second caller
- * spawns a twin (#495).
- */
-function releaseSpawnLockAfterStart(
-  lockPath: string,
-  spawnedPid: number | undefined,
-  socketReady: boolean,
-  debug?: (msg: string) => void,
-): void {
-  if (socketReady || spawnedPid === undefined || !isProcessAlive(spawnedPid)) {
-    releaseSpawnLock(lockPath);
-    return;
+function writeSpawnLockPid(lockPath: string, pid: number): void {
+  try {
+    fs.writeFileSync(lockPath, String(pid));
+  } catch {
+    /* best effort — mtime-based reclaim still applies */
   }
-  void (async () => {
-    const deadline = Date.now() + 5 * 60_000;
-    while (Date.now() < deadline && isProcessAlive(spawnedPid)) {
-      const c = await DaemonClient.tryConnect();
-      if (c) {
-        c.close();
-        debug?.("released spawn lock after devkitd socket became ready");
-        releaseSpawnLock(lockPath);
-        return;
-      }
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    if (!isProcessAlive(spawnedPid)) releaseSpawnLock(lockPath);
-    else debug?.("spawn lock held: devkitd still starting after extended wait");
-  })();
+}
+
+function readSpawnLockPid(lockPath: string): number | undefined {
+  try {
+    const text = fs.readFileSync(lockPath, "utf8").trim();
+    const pid = Number(text);
+    return Number.isInteger(pid) && pid > 0 ? pid : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** daemon.log is append-only per spawn — rotate to .1 past 1 MiB. */
@@ -291,23 +268,31 @@ function releaseSpawnLock(lockPath: string): void {
   }
 }
 
+function spawnLockIsStale(lockPath: string, staleMs: number): boolean {
+  try {
+    const age = Date.now() - fs.statSync(lockPath).mtimeMs;
+    if (age > staleMs) return true;
+    const pid = readSpawnLockPid(lockPath);
+    return pid !== undefined && !isProcessAlive(pid);
+  } catch {
+    return false;
+  }
+}
+
 function acquireSpawnLock(lockPath: string, staleMs: number): boolean {
   try {
     fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
     return true;
   } catch {
-    // Lock held — reclaim it only if the holder plausibly died.
+    if (!spawnLockIsStale(lockPath, staleMs)) return false;
     try {
-      const age = Date.now() - fs.statSync(lockPath).mtimeMs;
-      if (age > staleMs) {
-        fs.unlinkSync(lockPath);
-        fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
-        return true;
-      }
+      fs.unlinkSync(lockPath);
+      fs.closeSync(fs.openSync(lockPath, "wx", 0o600));
+      return true;
     } catch {
       /* races with the holder are fine — losing means we wait */
+      return false;
     }
-    return false;
   }
 }
 
