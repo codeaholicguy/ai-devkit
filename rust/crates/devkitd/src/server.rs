@@ -6,6 +6,7 @@ use serde_json::{json, Value};
 use std::collections::HashSet;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{UnixListener, UnixStream};
@@ -34,6 +35,21 @@ pub struct Daemon {
     pub home: PathBuf,
     /// Serializes agent.start so name-uniqueness can't race.
     pub start_mutex: std::sync::Mutex<()>,
+    /// Per-invocation sweep id; a commit whose id is older than the last
+    /// applied one is discarded so a slow timer sweep can't overwrite a fresh
+    /// post-start snapshot (#493).
+    sweep_seq: AtomicU64,
+    sweep_applied: AtomicU64,
+    /// Serializes the commit phase of `apply_sweep` (cache/db/events).
+    sweep_mutex: Mutex<()>,
+    /// Sweeps between entry and commit; the timer tick skips while non-zero.
+    sweep_in_flight: AtomicU32,
+    /// Test hook: pause one sweep at commit so a younger sweep can land first.
+    #[cfg(test)]
+    sweep_commit_pause: Mutex<Option<Arc<sweep_test_hooks::SweepCommitPause>>>,
+    /// Test hook: next `apply_sweep` uses this snapshot instead of `ps`.
+    #[cfg(test)]
+    discover_override: Mutex<Option<Vec<devkit_core::discover::AgentProc>>>,
 }
 
 impl Daemon {
@@ -86,6 +102,14 @@ impl Daemon {
             swept_pids: Mutex::new(HashSet::new()),
             home,
             start_mutex: std::sync::Mutex::new(()),
+            sweep_seq: AtomicU64::new(0),
+            sweep_applied: AtomicU64::new(0),
+            sweep_mutex: Mutex::new(()),
+            sweep_in_flight: AtomicU32::new(0),
+            #[cfg(test)]
+            sweep_commit_pause: Mutex::new(None),
+            #[cfg(test)]
+            discover_override: Mutex::new(None),
         })
     }
 
@@ -237,11 +261,46 @@ impl Daemon {
     /// swept but only visible when some adapter claims them, mirroring TS
     /// `isCandidateProcess` gating; dedicated-binary procs stay raw-visible
     /// so unported harnesses still surface.
+    /// Blocking sweep used by RPC handlers and startup warm-up.
     pub fn apply_sweep(&self) {
-        if let Err(e) = self.durable.reconcile() {
-            tracing::warn!("durable sweep: {e:#}");
+        self.run_sweep(false);
+    }
+
+    /// Best-effort sweep for the periodic timer: skipped while another sweep
+    /// is in flight so it cannot pile up behind a slow RPC-triggered pass.
+    pub(crate) fn try_apply_sweep(&self) {
+        self.run_sweep(true);
+    }
+
+    fn run_sweep(&self, try_only: bool) {
+        if try_only {
+            if self
+                .sweep_in_flight
+                .compare_exchange(0, 1, Ordering::AcqRel, Ordering::Relaxed)
+                .is_err()
+            {
+                return;
+            }
+        } else {
+            self.sweep_in_flight.fetch_add(1, Ordering::AcqRel);
         }
-        let Some(all) = devkit_core::discover::sweep() else {
+        struct InFlightGuard<'a>(&'a AtomicU32);
+        impl Drop for InFlightGuard<'_> {
+            fn drop(&mut self) {
+                self.0.fetch_sub(1, Ordering::AcqRel);
+            }
+        }
+        let _in_flight = InFlightGuard(&self.sweep_in_flight);
+
+        let my_seq = self.sweep_seq.fetch_add(1, Ordering::Relaxed);
+
+        let (all, test_snapshot) = self.discover_for_sweep();
+        if !test_snapshot {
+            if let Err(e) = self.durable.reconcile() {
+                tracing::warn!("durable sweep: {e:#}");
+            }
+        }
+        let Some(all) = all else {
             // ps failed — keep the last good snapshot rather than wiping the
             // agent table and storming phantom disappeared/appeared events.
             tracing::warn!("discovery sweep failed; keeping previous snapshot");
@@ -265,7 +324,9 @@ impl Daemon {
         // pid→session file from the harness mapping files (pi/codex
         // sessions.json, claude pid files) — needs start times for claude's
         // pid-reuse check, and is persisted by apply_agent_snapshot below.
-        devkit_core::session_map::resolve_session_files(&mut procs, &self.home);
+        if !test_snapshot {
+            devkit_core::session_map::resolve_session_files(&mut procs, &self.home);
+        }
         let ctx = devkit_harness::SweepContext {
             processes: &procs,
             now: chrono_now(),
@@ -273,6 +334,13 @@ impl Daemon {
         };
         // Compute outside the lock: `*w = f()` evaluates the write guard first
         // and would hold it for the entire enrich pass.
+        #[cfg(test)]
+        let mut enriched = if test_snapshot {
+            self.enriched_for_test_override(&procs)
+        } else {
+            self.enricher.enrich(&ctx)
+        };
+        #[cfg(not(test))]
         let mut enriched = self.enricher.enrich(&ctx);
         // Registry overlay: daemon-registered names/pins win over adapter-
         // derived labels. Tombstones excluded (dead rows don't label live
@@ -285,6 +353,78 @@ impl Daemon {
                 }
             }
         }
+        self.commit_sweep(my_seq, procs, enriched);
+    }
+
+    fn discover_for_sweep(&self) -> (Option<Vec<devkit_core::discover::AgentProc>>, bool) {
+        #[cfg(test)]
+        {
+            let mut ov = self.discover_override.lock().unwrap();
+            if let Some(procs) = ov.take() {
+                return (Some(procs), true);
+            }
+        }
+        (devkit_core::discover::sweep(), false)
+    }
+
+    #[cfg(test)]
+    fn enriched_for_test_override(
+        &self,
+        procs: &[devkit_core::discover::AgentProc],
+    ) -> Vec<EnrichedAgent> {
+        let overlays = self.store.registry_overlays().unwrap_or_default();
+        procs
+            .iter()
+            .map(|p| {
+                let (name, pinned) = overlays
+                    .get(&p.pid)
+                    .cloned()
+                    .unwrap_or_else(|| (format!("pid-{}", p.pid), false));
+                EnrichedAgent {
+                    name,
+                    agent_type: p
+                        .command
+                        .as_deref()
+                        .unwrap_or("unknown")
+                        .split('/')
+                        .next_back()
+                        .unwrap_or("unknown")
+                        .into(),
+                    status: "idle".into(),
+                    summary: String::new(),
+                    pid: p.pid as u64,
+                    project_path: p.cwd.clone().unwrap_or_default(),
+                    session_id: String::new(),
+                    last_active: "t".into(),
+                    pinned: Some(pinned),
+                    session_file_path: None,
+                }
+            })
+            .collect()
+    }
+
+    fn commit_sweep(
+        &self,
+        my_seq: u64,
+        procs: Vec<devkit_core::discover::AgentProc>,
+        enriched: Vec<EnrichedAgent>,
+    ) {
+        #[cfg(test)]
+        {
+            let pause = self.sweep_commit_pause.lock().unwrap().clone();
+            if let Some(pause) = pause {
+                pause.maybe_pause_before_commit();
+            }
+        }
+
+        let _g = self.sweep_mutex.lock().unwrap();
+        let applied = self.sweep_applied.load(Ordering::Acquire);
+        if my_seq < applied {
+            tracing::trace!(sweep_id = my_seq, applied, "discarding stale sweep commit");
+            return;
+        }
+        self.sweep_applied.store(my_seq, Ordering::Release);
+
         // Keep the previous list: a disappeared pid is absent from the fresh
         // one, so its event payload carries last-known agent info.
         let prev = std::mem::replace(&mut *self.enriched.write().unwrap(), enriched);
@@ -447,7 +587,7 @@ pub async fn serve(daemon: Arc<Daemon>) -> Result<()> {
                 // Sweeps are synchronous fs/process work; run them on the
                 // blocking pool so a long pass never stalls request handlers.
                 let d = d.clone();
-                if let Err(e) = tokio::task::spawn_blocking(move || d.apply_sweep()).await {
+                if let Err(e) = tokio::task::spawn_blocking(move || d.try_apply_sweep()).await {
                     // A panicking sweep would otherwise kill discovery
                     // silently — the daemon looks healthy while going stale.
                     tracing::warn!("sweep task failed: {e}");
@@ -587,9 +727,81 @@ async fn handle_conn(daemon: Arc<Daemon>, stream: UnixStream) -> Result<()> {
 }
 
 #[cfg(test)]
+mod sweep_test_hooks {
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::mpsc::{Receiver, SyncSender};
+    use std::sync::{Arc, Condvar, Mutex};
+    use std::time::Duration;
+
+    /// Per-daemon commit barrier (Send + Sync so `Arc<Daemon>` stays valid in tokio).
+    pub(crate) struct SweepCommitPause {
+        armed: AtomicBool,
+        stale_at_commit: SyncSender<()>,
+        resumed: Mutex<bool>,
+        cvar: Condvar,
+    }
+
+    impl SweepCommitPause {
+        /// Returns the pause handle plus the test-side stale-ready channel.
+        pub(crate) fn new() -> (Arc<Self>, Receiver<()>) {
+            // Capacity 1: stale must not block on send before the test thread recv.
+            let (stale_tx, stale_rx) = std::sync::mpsc::sync_channel(1);
+            let pause = Arc::new(Self {
+                armed: AtomicBool::new(false),
+                stale_at_commit: stale_tx,
+                resumed: Mutex::new(false),
+                cvar: Condvar::new(),
+            });
+            (pause, stale_rx)
+        }
+
+        pub(crate) fn arm(&self) {
+            self.armed.store(true, Ordering::SeqCst);
+        }
+
+        pub(crate) fn maybe_pause_before_commit(&self) {
+            if !self.armed.swap(false, Ordering::SeqCst) {
+                return;
+            }
+            self.stale_at_commit
+                .send(())
+                .expect("test waiting for stale sweep");
+            let mut resumed = self.resumed.lock().unwrap();
+            while !*resumed {
+                resumed = self.cvar.wait(resumed).unwrap();
+            }
+            *resumed = false;
+        }
+
+        pub(crate) fn wait_until_paused(rx: &Receiver<()>) {
+            rx.recv_timeout(Duration::from_secs(5))
+                .expect("stale sweep did not reach commit");
+        }
+
+        pub(crate) fn resume(&self) {
+            let mut resumed = self.resumed.lock().unwrap();
+            *resumed = true;
+            self.cvar.notify_all();
+        }
+    }
+}
+
+#[cfg(test)]
+impl Daemon {
+    pub(crate) fn set_sweep_commit_pause(&self, pause: Arc<sweep_test_hooks::SweepCommitPause>) {
+        *self.sweep_commit_pause.lock().unwrap() = Some(pause);
+    }
+
+    pub(crate) fn set_discover_override(&self, procs: Vec<devkit_core::discover::AgentProc>) {
+        *self.discover_override.lock().unwrap() = Some(procs);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::{json, Value};
+    use sweep_test_hooks::SweepCommitPause;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::net::UnixStream;
 
@@ -1026,6 +1238,59 @@ mod tests {
         )
         .await;
         assert_eq!(r["code"], "invalid_params");
+    }
+
+    /// Replays the TLC counterexample (#493): a timer sweep captured before
+    /// agent.start must not commit after the post-start sweep and tombstone the
+    /// live registration.
+    #[test]
+    fn stale_sweep_commit_does_not_tombstone_live_registration() {
+        let (d, _) = unserved_daemon();
+        const PID: i64 = 4_888_888;
+        let (pause, stale_at_commit) = SweepCommitPause::new();
+        d.set_sweep_commit_pause(pause.clone());
+        pause.arm();
+        // Stale timer snapshot: registered pid not in the process list yet.
+        d.set_discover_override(vec![]);
+
+        let d_stale = d.clone();
+        let stale = std::thread::spawn(move || d_stale.apply_sweep());
+        SweepCommitPause::wait_until_paused(&stale_at_commit);
+
+        d.store
+            .register_start(PID, "race-me", "codex", "/repo", "tmux", &json!({}))
+            .unwrap();
+        d.set_discover_override(vec![devkit_core::discover::AgentProc {
+            pid: PID,
+            ppid: None,
+            tty: None,
+            command: Some("codex".into()),
+            cwd: Some("/repo".into()),
+            session_file: None,
+            start_time_ms: Some(1000),
+        }]);
+        // Full post-start sweep (higher seq from sweep_seq) while the stale sweep
+        // is blocked at commit — mirrors agent.start's apply_sweep after register.
+        // discover_override fakes ps seeing the registered pid (no controllable codex
+        // fixture in this crate).
+        d.apply_sweep();
+        pause.resume();
+        stale.join().unwrap();
+
+        let row = d
+            .store
+            .lookup_name("race-me")
+            .unwrap()
+            .expect("registration survives");
+        assert!(row.gone_at.is_none(), "stale commit must not tombstone");
+        assert!(
+            d.enriched
+                .read()
+                .unwrap()
+                .iter()
+                .any(|a| a.pid as i64 == PID),
+            "stale commit must not wipe enriched cache"
+        );
     }
 
     #[tokio::test]
